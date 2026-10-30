@@ -30,6 +30,11 @@ Only the releases that ask for something are listed. phax never asks for a step 
 - **Schema readers: the `code-review` answer and file are one shape**, `$schema` in place of `version`.
 - **Schema readers: new `phax-plan-extraction` format**, the answer of the plan extraction.
 - **Headless authoring answers** carry `$schema` in place of `version: 1`.
+- **Records and schema readers: `compliance-review.json` is stamped 0.32.0.** `$schema` is a const, and two ledgers are required: `unplannedChanges` (`phaseId`, `path`, `note`) and `unmetPromises` (`phaseId`, `promise`, `note`), each possibly empty. A 0.32.0 file without either is refused.
+- **Records and schema readers: older compliance reviews read without ledgers.** A 0.17.0 or pre-schema review still reads, never with empty ledgers; `@lbdremy/phax-schemas` gives them `Unknown` ledgers.
+- **Records readers: `compliance-review.md` is rendered by phax from the answer**, with fixed sections (summary, one per phase, unplanned changes, unmet promises, attention points, pointers).
+- **`phax review-compliance` no longer prints `Verdict: unknown`.** A review refused twice fails with exit 1 and writes no file and no records entry; the corrective resume's transcript is `compliance-review-retry.session.jsonl`.
+- **The compliance session is read-only** and writes nothing under `.phax-context/`.
 - **Run `phax artifact migrate-documents` once.** It restamps every live spec and plan sidecar below its current shape, their bodies unchanged. Until then `approve`, `reopen` and `decide` refuse, naming the command.
 
 See [Structured answers and providers](structured-answers.md) for what each provider now checks.

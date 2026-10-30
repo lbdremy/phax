@@ -11,6 +11,7 @@ import {
   ledgerEntryFor,
   messageCostUsd,
   reportsCumulative,
+  runStreamsInOrder,
 } from "../../../src/domain/cost/ledger.js";
 import type { ModelListPrice } from "../../../src/domain/routing/prices.js";
 import type {
@@ -298,6 +299,24 @@ describe("ledgerEntryFor: a complete entry", () => {
     const made = entry({ facts: phaseTurn, role: "compliance", phase: null });
     expect(made.role).toBe("compliance");
     expect(made.phase).toBeNull();
+  });
+});
+
+describe("runStreamsInOrder: compliance review", () => {
+  it("lists the retry stream right after the first, with role compliance", () => {
+    const streams = runStreamsInOrder({
+      entries: [
+        "code-review.session.jsonl",
+        "compliance-review-retry.session.jsonl",
+        "compliance-review.session.jsonl",
+      ],
+      phaseEntries: {},
+    });
+    expect(streams).toEqual([
+      { role: "compliance", phase: null, relativePath: "compliance-review.session.jsonl" },
+      { role: "compliance", phase: null, relativePath: "compliance-review-retry.session.jsonl" },
+      { role: "code-review", phase: null, relativePath: "code-review.session.jsonl" },
+    ]);
   });
 });
 
