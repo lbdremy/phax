@@ -108,6 +108,7 @@ describe("schemas package entry", () => {
       "GateReportSchema",
       "GateRequestSchema",
       "HandDecisionAnswerSchema",
+      "HandDecisionAnswerV0_25_0Schema",
       "InteractiveHandoffSchema",
       "InteractiveHandoffV0_26_0Schema",
       "InteractiveSessionSchema",
@@ -129,6 +130,7 @@ describe("schemas package entry", () => {
       "PhaxPlanSchema",
       "PhaxPlanV0_17_0Schema",
       "PhaxPlanV0_26_0Schema",
+      "PhaxPlanV0_28_0Schema",
       "PlanApprovalRecordSchema",
       "PlanApprovalRecordV0_19_0Schema",
       "PlanApprovalsPreSchemaSchema",
@@ -139,6 +141,8 @@ describe("schemas package entry", () => {
       "PlanDocumentV0_20_0Schema",
       "PlanDocumentV0_25_0Schema",
       "PlanDocumentV0_26_0Schema",
+      "PlanDocumentV0_28_0Schema",
+      "PlanHandDecisionAnswerSchema",
       "RecordManifestSchema",
       "RegistryPreSchemaSchema",
       "RegistrySchema",
@@ -159,6 +163,8 @@ describe("schemas package entry", () => {
       "SpecDocumentSchema",
       "SpecDocumentV0_17_0Schema",
       "SpecDocumentV0_25_0Schema",
+      "SpecDocumentV0_27_0Schema",
+      "SpecHandDecisionAnswerSchema",
       "UNKNOWN",
       "isUnknown",
       "parseArchitectureReport",
@@ -189,6 +195,7 @@ describe("schemas package entry", () => {
       "parsePlanApprovalRecord",
       "parsePlanApprovals",
       "parsePlanDocument",
+      "parsePlanHandDecisionAnswer",
       "parseRecordManifest",
       "parseRegistry",
       "parseReviewRecordManifest",
@@ -198,6 +205,7 @@ describe("schemas package entry", () => {
       "parseSpecApprovalRecord",
       "parseSpecApprovals",
       "parseSpecDocument",
+      "parseSpecHandDecisionAnswer",
       "toLatestArchitectureReport",
       "toLatestArchitectureRequest",
       "toLatestAuthoringRecordManifest",
@@ -225,6 +233,7 @@ describe("schemas package entry", () => {
       "toLatestPlanApprovalRecord",
       "toLatestPlanApprovals",
       "toLatestPlanDocument",
+      "toLatestPlanHandDecisionAnswer",
       "toLatestRegistry",
       "toLatestReviewRecordManifest",
       "toLatestReviewStop",
@@ -233,6 +242,7 @@ describe("schemas package entry", () => {
       "toLatestSpecApprovalRecord",
       "toLatestSpecApprovals",
       "toLatestSpecDocument",
+      "toLatestSpecHandDecisionAnswer",
     ]);
   });
 
@@ -329,10 +339,15 @@ describe("schemas package entry", () => {
     expect(entry.BriefReportSchema).toBe(BriefReportFileSchema);
   });
 
-  it("re-exports phax's hand decision answer file schema under the spec's name, never a copy", async () => {
-    const { HandDecisionAnswerFileSchema } =
+  it("re-exports phax's hand decision answer file schemas under the spec's names, never a copy", async () => {
+    const { PlanHandDecisionAnswerFileSchema, SpecHandDecisionAnswerFileSchema } =
       await import("../../../src/schemas/handDecisionAnswer.js");
-    expect(entry.HandDecisionAnswerSchema).toBe(HandDecisionAnswerFileSchema);
+    const { HandDecisionAnswerV0_25_0Schema } =
+      await import("../../../src/schemas/history/hand-decision-answer/0.25.0.js");
+    expect(entry.SpecHandDecisionAnswerSchema).toBe(SpecHandDecisionAnswerFileSchema);
+    expect(entry.PlanHandDecisionAnswerSchema).toBe(PlanHandDecisionAnswerFileSchema);
+    // The retired format's current shape is its frozen 0.25.0 module.
+    expect(entry.HandDecisionAnswerSchema).toBe(HandDecisionAnswerV0_25_0Schema);
   });
 
   it.each(PRE_SCHEMA_FORMAT_IDS)(

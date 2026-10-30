@@ -30,7 +30,7 @@ import { decodeSpecRecordFile } from "../../src/schemas/specApprovalRecord.js";
 import { withSchemaUrl } from "../../src/schemas/persisted.js";
 import { PHAX_RELEASE } from "../../src/schemas/release.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
-import { decodeSpecDocument } from "../../src/schemas/specDocument.js";
+import { decodeSpecDocumentFile } from "../../src/schemas/specDocument.js";
 import { renderSpecBody } from "../../src/domain/authoring/renderSpec.js";
 import { exitCodeForError } from "../../src/cli/commands/runLayers.js";
 
@@ -1621,12 +1621,8 @@ describe("headless-authored artifacts (JSON sidecar)", () => {
   })();
 
   function headlessSpecMd(status: string, bodyEdit: (body: string) => string = (b) => b): string {
-    // SPEC_DOCUMENT is the 0.16.0 shape; the current one adds arbitratedQuestions.
-    const decoded = decodeSpecDocument({
-      ...SPEC_DOCUMENT,
-      surface: CURRENT_SURFACE,
-      arbitratedQuestions: [],
-    });
+    // SPEC_DOCUMENT is the 0.16.0 shape; the current sidecar is SIDECAR_JSON.
+    const decoded = decodeSpecDocumentFile(JSON.parse(SIDECAR_JSON));
     if (Either.isLeft(decoded)) throw new Error("fixture spec document must decode");
     return `---
 status: ${status}

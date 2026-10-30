@@ -15,6 +15,7 @@
   "src/schemas/history/gate-attribution/0.21.0.ts": "3af94e0e4935fa0995fb8b57b284bbb3f6e5ef0e8f4a8289cb39a051dd4711ea",
   "src/schemas/history/gate-attribution/0.26.0.ts": "3247192138d0ad6f24b34dc7df2eff523d4c27b7ee653a0d35fae43d55106e26",
   "src/schemas/history/gate-attribution/pre-schema.ts": "11b785e822639301f742bc3b2309687e61b6e4eea8e669c415279d6e66a8eac2",
+  "src/schemas/history/hand-decision-answer/0.25.0.ts": "a70a2e54c06cf1e8f1d3e77bd1c5a15f1c7859d029f9d5e3f390efb364ce0c6e",
   "src/schemas/history/interactive-handoff/0.26.0.ts": "30a0fe44a4f8f43cfd49ed80eca4377d7a6549aa0ac2d0945ede98c9de195a7d",
   "src/schemas/history/interactive-session/0.26.0.ts": "e152f861fe239089c79faf6ce4644718251082bdf0af1022ee966ec0ffbb64e1",
   "src/schemas/history/phase-file-reconciliation/0.17.0.ts": "5dabbfe52d4fbab025a6bd60571ac84e83329cae23761f48b180e4736c3a5730",
@@ -27,6 +28,7 @@
   "src/schemas/history/phase-status/pre-schema.ts": "93ea24d1ade2b821ab36481439e3399f6cbf367f86feb53fffbcada03f66b9bb",
   "src/schemas/history/phax-plan/0.17.0.ts": "465d70aad5c788e03e39822a54ad53b2896a75a59b54c36449c506bed1e6aef4",
   "src/schemas/history/phax-plan/0.26.0.ts": "9ce103171ada2abf270d04caa393ecaef6d8e81f62773e79d3d26f8f721744ca",
+  "src/schemas/history/phax-plan/0.28.0.ts": "9a4a7b0c1b26f2d126cd6b938e659f62f5a16cdb4d403069d1264994e50abef1",
   "src/schemas/history/phax-plan/pre-schema.ts": "75ed3bdf5d75d903adda6d84b2fb6d4a804f0a846fd5b7fc4badc50c6f9e4af7",
   "src/schemas/history/plan-approval-record/0.19.0.ts": "22732d53bdd13f3e83359542f498965a9f6a5ca44fc3dc555591bfeee32eeb50",
   "src/schemas/history/plan-approvals/pre-schema.ts": "7495bafbffc8d3d5aa7a7df89e42a749235743d3eb8d26f23c34eaad5ba9ba6d",
@@ -34,6 +36,7 @@
   "src/schemas/history/plan-document/0.20.0.ts": "3ec52f51b0ee479f9a875130cdee4dcd68c205a39cfa3457cb589a50d8ae5bc4",
   "src/schemas/history/plan-document/0.25.0.ts": "5d7aa8c7221330791b9124a6aa5a39c8f8c8fd92253a4a0c2d2086697ac26de9",
   "src/schemas/history/plan-document/0.26.0.ts": "529fe4f27e9933d6f563880784e2e9cd8eebc39fb272d872203f0914fd4bb07f",
+  "src/schemas/history/plan-document/0.28.0.ts": "42a2c52c909136a69164d7f0018d71ff2914fe1e54cf2c9455765ae44668765c",
   "src/schemas/history/plan-document/pre-schema.ts": "08edbefe68581f592f1d300263b6a281ec460e4911205336133c66748611e1e4",
   "src/schemas/history/registry/0.17.0.ts": "d5d50bf3b38454198283fb8255f70b00f02546f2c8d31ec6993580c6a8c8b364",
   "src/schemas/history/registry/pre-schema.ts": "9ff9dedce6447dc3cf9af959f63d6bb9c4243c98dd2e2aa82b787cdd7bad4e3c",
@@ -45,5 +48,6 @@
   "src/schemas/history/spec-approvals/pre-schema.ts": "c5db6d2c50c37a12c6acc6ee463e82e0f2177a603e62a6fb87ec74ccff2d7333",
   "src/schemas/history/spec-document/0.17.0.ts": "2b9f42941c81325061ae04521a8f80e98d976e905f1ac80bdc821b72450639b5",
   "src/schemas/history/spec-document/0.25.0.ts": "82777e169b1c8f995310161a11000cb2727ba118905240dc0af810c9ba5c7bc8",
+  "src/schemas/history/spec-document/0.27.0.ts": "be031d1a3055c82152fc07551efaa82a16bfb7824548b5d669fc74734ebfdfe1",
   "src/schemas/history/spec-document/pre-schema.ts": "73a5e5c6ee6c7b83de5859f40eec796f9493a813ac8904e4a0217af4e496c87e"
 }

@@ -1096,19 +1096,25 @@ describe("documents from another release", () => {
           : id === "plan-approval-record" || id === "spec-approval-record"
             ? withoutKey(validDocuments[id], "approvedBy")
             : id === "spec-document"
-              ? compareReleases(release, "0.25.0") >= 0
-                ? withoutSurfaceSummary(validDocuments[id])
-                : withoutKey(withoutSurfaceSummary(validDocuments[id]), "arbitratedQuestions")
+              ? compareReleases(release, "0.27.0") >= 0
+                ? validDocuments[id]
+                : compareReleases(release, "0.25.0") >= 0
+                  ? withoutSurfaceSummary(validDocuments[id])
+                  : withoutKey(withoutSurfaceSummary(validDocuments[id]), "arbitratedQuestions")
               : id === "plan-document"
-                ? compareReleases(release, "0.26.0") >= 0
-                  ? withTestStrategyStrings(validDocuments[id])
-                  : compareReleases(release, "0.25.0") >= 0
-                    ? withModelReasons(validDocuments[id])
-                    : withoutPreambleQuestions(validDocuments[id])
+                ? compareReleases(release, "0.28.0") >= 0
+                  ? validDocuments[id]
+                  : compareReleases(release, "0.26.0") >= 0
+                    ? withTestStrategyStrings(validDocuments[id])
+                    : compareReleases(release, "0.25.0") >= 0
+                      ? withModelReasons(validDocuments[id])
+                      : withoutPreambleQuestions(validDocuments[id])
                 : id === "phax-plan"
-                  ? compareReleases(release, "0.26.0") >= 0
-                    ? withoutTestLines(validDocuments[id])
-                    : withoutPhaseKinds(validDocuments[id])
+                  ? compareReleases(release, "0.28.0") >= 0
+                    ? validDocuments[id]
+                    : compareReleases(release, "0.26.0") >= 0
+                      ? withoutTestLines(validDocuments[id])
+                      : withoutPhaseKinds(validDocuments[id])
                   : validDocuments[id];
     const result = read(file, withKey(document, "$schema", schemaUrl(id, release)));
     if (!newer) {

@@ -571,6 +571,7 @@ const CLOSURE_SRC_ALLOWLIST = [
   "src/schemas/history/gate-attribution/0.21.0.ts",
   "src/schemas/history/gate-attribution/0.26.0.ts",
   "src/schemas/history/gate-attribution/pre-schema.ts",
+  "src/schemas/history/hand-decision-answer/0.25.0.ts",
   "src/schemas/history/interactive-handoff/0.26.0.ts",
   "src/schemas/history/interactive-session/0.26.0.ts",
   "src/schemas/history/phase-file-reconciliation/0.17.0.ts",
@@ -583,6 +584,7 @@ const CLOSURE_SRC_ALLOWLIST = [
   "src/schemas/history/phase-status/pre-schema.ts",
   "src/schemas/history/phax-plan/0.17.0.ts",
   "src/schemas/history/phax-plan/0.26.0.ts",
+  "src/schemas/history/phax-plan/0.28.0.ts",
   "src/schemas/history/phax-plan/pre-schema.ts",
   "src/schemas/history/plan-approval-record/0.19.0.ts",
   "src/schemas/history/plan-approvals/pre-schema.ts",
@@ -590,6 +592,7 @@ const CLOSURE_SRC_ALLOWLIST = [
   "src/schemas/history/plan-document/0.20.0.ts",
   "src/schemas/history/plan-document/0.25.0.ts",
   "src/schemas/history/plan-document/0.26.0.ts",
+  "src/schemas/history/plan-document/0.28.0.ts",
   "src/schemas/history/plan-document/pre-schema.ts",
   "src/schemas/history/registry/0.17.0.ts",
   "src/schemas/history/registry/pre-schema.ts",
@@ -601,6 +604,7 @@ const CLOSURE_SRC_ALLOWLIST = [
   "src/schemas/history/spec-approvals/pre-schema.ts",
   "src/schemas/history/spec-document/0.17.0.ts",
   "src/schemas/history/spec-document/0.25.0.ts",
+  "src/schemas/history/spec-document/0.27.0.ts",
   "src/schemas/history/spec-document/pre-schema.ts",
   "src/schemas/interactiveHandoff.ts",
   "src/schemas/interactiveSession.ts",
@@ -855,7 +859,10 @@ const BRIDGE_ONLY_DECODERS: { readonly [F in FormatId]: ReadonlyArray<string> } 
   "brief-record": ["decodeBriefRecordFile"],
   "gate-report": ["decodeGateReportFile"],
   "brief-report": ["decodeBriefReportFile"],
-  "hand-decision-answer": ["decodeHandDecisionAnswerFile"],
+  // Retired: its one shape is the frozen 0.25.0 module, which phax decodes nowhere.
+  "hand-decision-answer": ["decodeHandDecisionAnswerV0_25_0"],
+  "spec-hand-decision-answer": ["decodeSpecHandDecisionAnswerFile"],
+  "plan-hand-decision-answer": ["decodePlanHandDecisionAnswerFile"],
   "decision-record-manifest": ["decodeDecisionRecordManifestFile", "decodeRecordManifestFile"],
   "review-record-manifest": ["decodeReviewRecordManifestFile", "decodeRecordManifestFile"],
   "cost-ledger": ["decodeCostLedgerFile"],
@@ -891,11 +898,12 @@ describe("architectural guard: only the bridge names a file decoder", () => {
     }
   });
 
-  it("every file decoder is declared by exactly one src/schemas module", () => {
+  it("every file decoder is declared by exactly one src/schemas module, or a retired format's frozen one", () => {
     const modules = srcModules();
     for (const name of decoders) {
       const declaring = modules.filter(
-        ({ rel, content }) => /^src\/schemas\/[^/]+\.ts$/.test(rel) && declares(content, name),
+        ({ rel, content }) =>
+          /^src\/schemas\/(history\/[^/]+\/)?[^/]+\.ts$/.test(rel) && declares(content, name),
       );
       expect(
         declaring.map(({ rel }) => rel),

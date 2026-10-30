@@ -25,6 +25,8 @@ import {
   parseGateReport,
   parseGateRequest,
   parseHandDecisionAnswer,
+  parsePlanHandDecisionAnswer,
+  parseSpecHandDecisionAnswer,
   parsePhaseFileReconciliation,
   parsePhaseRecordManifest,
   parsePhaseStatus,
@@ -76,7 +78,11 @@ import { decodeGateAttributionFile } from "../../../src/schemas/gateAttribution.
 import { decodeGateReportFile } from "../../../src/schemas/gateReport.js";
 import { decodeGateRequestFile } from "../../../src/schemas/gateRequest.js";
 import { decodeDecideVerdictsFile } from "../../../src/schemas/decideVerdicts.js";
-import { decodeHandDecisionAnswerFile } from "../../../src/schemas/handDecisionAnswer.js";
+import {
+  decodePlanHandDecisionAnswerFile,
+  decodeSpecHandDecisionAnswerFile,
+} from "../../../src/schemas/handDecisionAnswer.js";
+import { decodeHandDecisionAnswerV0_25_0 } from "../../../src/schemas/history/hand-decision-answer/0.25.0.js";
 import { decodePhaxPlanFile } from "../../../src/schemas/phaxPlan.js";
 import { decodePlanDocumentFile } from "../../../src/schemas/planDocument.js";
 import { decodePhaseFileReconciliationFile } from "../../../src/schemas/reconciliation.js";
@@ -290,7 +296,23 @@ const FORMATS: { readonly [F in FormatId]: FormatParity } = {
   "hand-decision-answer": {
     id: "hand-decision-answer",
     parse: parseHandDecisionAnswer,
-    phax: decodeHandDecisionAnswerFile,
+    phax: decodeHandDecisionAnswerV0_25_0,
+    wrongType: ["decisions", {}],
+    required: "markdown",
+    excess: "error",
+  },
+  "spec-hand-decision-answer": {
+    id: "spec-hand-decision-answer",
+    parse: parseSpecHandDecisionAnswer,
+    phax: decodeSpecHandDecisionAnswerFile,
+    wrongType: ["decisions", {}],
+    required: "markdown",
+    excess: "error",
+  },
+  "plan-hand-decision-answer": {
+    id: "plan-hand-decision-answer",
+    parse: parsePlanHandDecisionAnswer,
+    phax: decodePlanHandDecisionAnswerFile,
     wrongType: ["decisions", {}],
     required: "markdown",
     excess: "error",

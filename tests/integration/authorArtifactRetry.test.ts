@@ -17,6 +17,7 @@ import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
+import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import type { ResolvedRecordsConfig } from "../../src/schemas/recordsConfig.js";
 import type { ResolvedSecurityConfig } from "../../src/schemas/securityConfig.js";
 
@@ -32,7 +33,7 @@ const SPEC_SIDECAR = `docs/specs/${AUTHORING_ID}.json`;
 const FIRST_SESSION = "sess-first" as ClaudeSessionId;
 
 const SPEC_DOCUMENT = {
-  version: 1,
+  $schema: currentSchemaUrl("spec-document"),
   kind: "spec",
   title: "Widget export",
   ground: [{ path: "docs/ideas/widget-export.md", note: "the idea this spec makes precise" }],

@@ -285,7 +285,7 @@ function checkAnswer(
     verdicts,
     md,
     sidecarText: null,
-    documentJson: `${JSON.stringify({ $schema: currentSchemaUrl("hand-decision-answer"), ...decoded }, null, 2)}\n`,
+    documentJson: `${JSON.stringify({ $schema: currentSchemaUrl(`${snapshot.kind}-hand-decision-answer`), ...decoded }, null, 2)}\n`,
     planDocument: null,
   });
 }
@@ -553,7 +553,7 @@ export function decideVerdicts(
           : { variant: "hand", markdown: snapshot.md },
       schemaUrl: currentSchemaUrl(
         snapshot.authored.variant === "hand"
-          ? "hand-decision-answer"
+          ? `${kind}-hand-decision-answer`
           : kind === "spec"
             ? "spec-document"
             : "plan-document",

@@ -30,6 +30,16 @@ import type {
   PhaxPlanExtractionShape,
   parsePhaxPlanExtraction,
   toLatestPhaxPlanExtraction,
+  LatestPlanHandDecisionAnswer,
+  LatestSpecHandDecisionAnswer,
+  PlanHandDecisionAnswer,
+  PlanHandDecisionAnswerShape,
+  SpecHandDecisionAnswer,
+  SpecHandDecisionAnswerShape,
+  parsePlanHandDecisionAnswer,
+  parseSpecHandDecisionAnswer,
+  toLatestPlanHandDecisionAnswer,
+  toLatestSpecHandDecisionAnswer,
   LatestFirstReading,
   LatestInteractiveHandoff,
   LatestInteractiveSession,
@@ -304,9 +314,12 @@ import type {
   GateRequestFile as PhaxGateRequestFile,
 } from "../../src/schemas/gateRequest.js";
 import type {
-  HandDecisionAnswer as PhaxHandDecisionAnswer,
-  HandDecisionAnswerFile as PhaxHandDecisionAnswerFile,
+  PlanHandDecisionAnswer as PhaxPlanHandDecisionAnswer,
+  PlanHandDecisionAnswerFile as PhaxPlanHandDecisionAnswerFile,
+  SpecHandDecisionAnswer as PhaxSpecHandDecisionAnswer,
+  SpecHandDecisionAnswerFile as PhaxSpecHandDecisionAnswerFile,
 } from "../../src/schemas/handDecisionAnswer.js";
+import type { HandDecisionAnswerV0_25_0 as FrozenHandDecisionAnswerV0_25_0 } from "../../src/schemas/history/hand-decision-answer/0.25.0.js";
 import type {
   DecideVerdicts as PhaxDecideVerdicts,
   DecideVerdictsFile as PhaxDecideVerdictsFile,
@@ -593,6 +606,8 @@ const formats: Equals<
   | "gate-report"
   | "brief-report"
   | "hand-decision-answer"
+  | "spec-hand-decision-answer"
+  | "plan-hand-decision-answer"
   | "decision-record-manifest"
   | "review-record-manifest"
   | "cost-ledger"
@@ -616,7 +631,7 @@ if (document.ok) {
   const format: DocumentFormatId = document.format;
   const shape: Equals<
     typeof document.shape,
-    "pre-schema" | "0.19.0" | "0.23.0" | Current<FormatId>
+    "pre-schema" | "0.19.0" | "0.23.0" | "0.27.0" | Current<FormatId>
   > = true;
   void format;
   void shape;
@@ -692,6 +707,8 @@ const shapeIds: Equals<
   | GateReportShape
   | BriefReportShape
   | HandDecisionAnswerShape
+  | SpecHandDecisionAnswerShape
+  | PlanHandDecisionAnswerShape
   | DecisionRecordManifestShape
   | ReviewRecordManifestShape
   | CostLedgerShape
@@ -706,21 +723,24 @@ const shapeIds: Equals<
   | RunListShape
   | DecideVerdictsShape
   | PhaxPlanExtractionShape,
-  "pre-schema" | "0.19.0" | "0.23.0" | Current<FormatId>
+  "pre-schema" | "0.19.0" | "0.23.0" | "0.27.0" | Current<FormatId>
 > = true;
 void shapeIds;
 const eachShapeId: [
   Equals<RegistryShape, "pre-schema" | "0.17.0" | Current<"registry">>,
   Equals<RunStatusShape, "pre-schema" | "0.17.0" | Current<"run-status">>,
   Equals<PhaseStatusShape, "pre-schema" | "0.17.0" | "0.20.0" | Current<"phase-status">>,
-  Equals<PhaxPlanShape, "pre-schema" | "0.17.0" | "0.26.0" | Current<"phax-plan">>,
+  Equals<PhaxPlanShape, "pre-schema" | "0.17.0" | "0.26.0" | "0.28.0" | Current<"phax-plan">>,
   Equals<ComplianceReviewShape, "pre-schema" | Current<"compliance-review">>,
   Equals<PlanApprovalsShape, "pre-schema" | Current<"plan-approvals">>,
   Equals<SpecApprovalsShape, "pre-schema" | Current<"spec-approvals">>,
-  Equals<SpecDocumentShape, "pre-schema" | "0.17.0" | "0.25.0" | Current<"spec-document">>,
+  Equals<
+    SpecDocumentShape,
+    "pre-schema" | "0.17.0" | "0.25.0" | "0.27.0" | Current<"spec-document">
+  >,
   Equals<
     PlanDocumentShape,
-    "pre-schema" | "0.17.0" | "0.20.0" | "0.25.0" | "0.26.0" | Current<"plan-document">
+    "pre-schema" | "0.17.0" | "0.20.0" | "0.25.0" | "0.26.0" | "0.28.0" | Current<"plan-document">
   >,
   Equals<
     PhaseRecordManifestShape,
@@ -1098,21 +1118,42 @@ void latestGateReport.$schema;
 declare const latestBriefReport: LatestBriefReport;
 // @ts-expect-error: the in-memory brief report carries no $schema
 void latestBriefReport.$schema;
-// The hand decision answer is born with $schema: phax's own types, both ways,
-// one current shape, and an in-memory value without $schema
+// The retired hand decision answer is frozen at 0.25.0: its frozen root union
+// is its one current shape, and its in-memory value is that union without
+// $schema. The two answers that replace it are born at 0.32.0 with $schema:
+// phax's own types, one current shape each, in-memory values without $schema
 const handAnswerTypes: [
-  Equals<HandDecisionAnswer, PhaxHandDecisionAnswerFile>,
+  Equals<HandDecisionAnswer, FrozenHandDecisionAnswerV0_25_0>,
   Equals<HandDecisionAnswerShape, Current<"hand-decision-answer">>,
-  Equals<Value<typeof parseHandDecisionAnswer>, PhaxHandDecisionAnswerFile>,
-  Equals<LatestHandDecisionAnswer, PhaxHandDecisionAnswer>,
-  Equals<Parameters<typeof toLatestHandDecisionAnswer>, [value: PhaxHandDecisionAnswerFile]>,
-] = [true, true, true, true, true];
+  Equals<Value<typeof parseHandDecisionAnswer>, FrozenHandDecisionAnswerV0_25_0>,
+  Equals<LatestHandDecisionAnswer, PhaxSpecHandDecisionAnswer | PhaxPlanHandDecisionAnswer>,
+  Equals<Parameters<typeof toLatestHandDecisionAnswer>, [value: FrozenHandDecisionAnswerV0_25_0]>,
+  Equals<SpecHandDecisionAnswer, PhaxSpecHandDecisionAnswerFile>,
+  Equals<PlanHandDecisionAnswer, PhaxPlanHandDecisionAnswerFile>,
+  Equals<SpecHandDecisionAnswerShape, Current<"spec-hand-decision-answer">>,
+  Equals<PlanHandDecisionAnswerShape, Current<"plan-hand-decision-answer">>,
+  Equals<Value<typeof parseSpecHandDecisionAnswer>, PhaxSpecHandDecisionAnswerFile>,
+  Equals<Value<typeof parsePlanHandDecisionAnswer>, PhaxPlanHandDecisionAnswerFile>,
+  Equals<LatestSpecHandDecisionAnswer, PhaxSpecHandDecisionAnswer>,
+  Equals<LatestPlanHandDecisionAnswer, PhaxPlanHandDecisionAnswer>,
+  Equals<
+    Parameters<typeof toLatestSpecHandDecisionAnswer>,
+    [value: PhaxSpecHandDecisionAnswerFile]
+  >,
+  Equals<
+    Parameters<typeof toLatestPlanHandDecisionAnswer>,
+    [value: PhaxPlanHandDecisionAnswerFile]
+  >,
+] = [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true];
 void handAnswerTypes;
+declare const latestSpecHandAnswer: LatestSpecHandDecisionAnswer;
+// @ts-expect-error: the in-memory spec hand decision answer carries no $schema
+void latestSpecHandAnswer.$schema;
 declare const latestHandAnswer: LatestHandDecisionAnswer;
 // @ts-expect-error: the in-memory hand decision answer carries no $schema
 void latestHandAnswer.$schema;
 if (document.ok && document.format === "hand-decision-answer") {
-  const exact: Equals<typeof document.value, PhaxHandDecisionAnswerFile> = true;
+  const exact: Equals<typeof document.value, FrozenHandDecisionAnswerV0_25_0> = true;
   const answerShape: Equals<typeof document.shape, Current<"hand-decision-answer">> = true;
   void exact;
   void answerShape;

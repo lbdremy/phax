@@ -1,0 +1,142 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "phax spec hand decision answer",
+  "$defs": {
+    "NonEmptyString": {
+      "type": "string",
+      "description": "a string matching the pattern ^[\\s\\S]+$",
+      "pattern": "^[\\s\\S]+$"
+    }
+  },
+  "type": "object",
+  "required": [
+    "$schema",
+    "kind",
+    "decisions",
+    "markdown"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "enum": [
+        "https://docs.phax.run/schemas/spec-hand-decision-answer/0.32.0.json"
+      ],
+      "description": "The spec-hand-decision-answer format's shape, exactly: https://docs.phax.run/schemas/spec-hand-decision-answer/0.32.0.json",
+      "const": "https://docs.phax.run/schemas/spec-hand-decision-answer/0.32.0.json"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "spec"
+      ]
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "verdict"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "A question id of the artifact: no whitespace.",
+            "pattern": "^\\S+$"
+          },
+          "verdict": {
+            "type": "object",
+            "required": [
+              "kind",
+              "chosen",
+              "abandoned",
+              "why",
+              "advocate",
+              "principles",
+              "reversibility",
+              "by",
+              "at",
+              "revised"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "decided"
+                ]
+              },
+              "chosen": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "abandoned": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/NonEmptyString"
+                }
+              },
+              "why": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "advocate": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "principles": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/NonEmptyString"
+                }
+              },
+              "reversibility": {
+                "type": "string",
+                "enum": [
+                  "cheap",
+                  "costly",
+                  "irreversible"
+                ]
+              },
+              "by": {
+                "type": "object",
+                "required": [
+                  "kind",
+                  "name"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "operator"
+                    ]
+                  },
+                  "name": {
+                    "$ref": "#/$defs/NonEmptyString"
+                  }
+                },
+                "additionalProperties": false
+              },
+              "at": {
+                "type": "string",
+                "description": "An ISO-8601 UTC timestamp.",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$"
+              },
+              "revised": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/NonEmptyString"
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "description": "The verdicts decided in the session, one per question id; empty when none."
+    },
+    "markdown": {
+      "type": "string",
+      "description": "The artifact's whole revised Markdown, frontmatter included. Only edits outside the frontmatter, the question sections and the decision log are kept; phax writes those.",
+      "pattern": "^[\\s\\S]+$"
+    }
+  },
+  "additionalProperties": false
+}

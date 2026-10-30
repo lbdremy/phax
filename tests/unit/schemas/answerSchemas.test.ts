@@ -31,8 +31,12 @@ const snapshotsDir = resolve(
 );
 
 describe("answerJsonSchema", () => {
-  it("registers the four answer formats of the leaf answers", () => {
+  it("registers the eight answer formats", () => {
     expect(ANSWER_IDS).toEqual([
+      "spec-document",
+      "plan-document",
+      "spec-hand-decision-answer",
+      "plan-hand-decision-answer",
       "first-reading",
       "interactive-handoff",
       "code-review",

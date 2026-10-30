@@ -259,7 +259,7 @@ describe("decide — a hand-authored artifact decided in place", { timeout: 30_0
       "Every run writes one log, rotated daily.",
     );
     const answer = JSON.stringify({
-      $schema: currentSchemaUrl("hand-decision-answer"),
+      $schema: currentSchemaUrl("spec-hand-decision-answer"),
       kind: "spec",
       decisions: [
         {
@@ -304,7 +304,9 @@ describe("decide — a hand-authored artifact decided in place", { timeout: 30_0
     expect(git(["show", "--name-only", "--format=", "HEAD"]).trim()).toBe(SPEC);
     expect(git(["status", "--porcelain"]).trim()).toBe("");
     expect(h.session.invocations).toHaveLength(1);
-    expect(h.backend.resumeCalls[0]?.prompt).toContain(currentSchemaUrl("hand-decision-answer"));
+    expect(h.backend.resumeCalls[0]?.prompt).toContain(
+      currentSchemaUrl("spec-hand-decision-answer"),
+    );
   });
 
   it("refuses a spec whose questions use bold headings, naming the line, with no session", async () => {
@@ -357,7 +359,7 @@ describe("decide — a hand-authored artifact decided in place", { timeout: 30_0
       "Every run writes one log, compressed after a day.",
     );
     const answer = JSON.stringify({
-      $schema: currentSchemaUrl("hand-decision-answer"),
+      $schema: currentSchemaUrl("spec-hand-decision-answer"),
       kind: "spec",
       decisions: [
         {
@@ -385,7 +387,7 @@ describe("decide — a hand-authored artifact decided in place", { timeout: 30_0
     writeRepoFile(PLAN, HAND_PLAN);
     commitAll();
     const answer = JSON.stringify({
-      $schema: currentSchemaUrl("hand-decision-answer"),
+      $schema: currentSchemaUrl("plan-hand-decision-answer"),
       kind: "plan",
       decisions: [
         {
@@ -414,7 +416,7 @@ describe("decide — a hand-authored artifact decided in place", { timeout: 30_0
     commitAll();
     const head = headSha();
     const bad = JSON.stringify({
-      $schema: currentSchemaUrl("hand-decision-answer"),
+      $schema: currentSchemaUrl("spec-hand-decision-answer"),
       kind: "spec",
       decisions: [{ id: "Q1", verdict: decidedVerdict("daily", ["per-run"], { revised: ["§9"] }) }],
       markdown: HAND_SPEC.replace("Recommendation: keep-30", "Recommendation: keep-7"),

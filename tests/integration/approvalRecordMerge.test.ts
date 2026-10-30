@@ -15,7 +15,7 @@ import { renderPlanBody } from "../../src/domain/authoring/renderPlan.js";
 import { makeRootedNodeFileSystemLayer, NodeFileSystemLayer } from "../../src/infra/fs.js";
 import { makeFakeTerminal } from "../../src/infra/fakes/terminal.js";
 import { NodeGitLayer } from "../../src/infra/git.js";
-import { decodePlanDocument } from "../../src/schemas/planDocument.js";
+import { decodePlanDocumentFile } from "../../src/schemas/planDocument.js";
 import { withSchemaUrl } from "../../src/schemas/persisted.js";
 
 // Real-git acceptance for spec approval-record-files §8: every transition
@@ -396,14 +396,14 @@ describe("Plan approval writes its own record file", () => {
         },
       ],
     };
-    const decoded = decodePlanDocument(planDocument);
+    const { version: _version, ...fields } = planDocument;
+    const decoded = decodePlanDocumentFile(withSchemaUrl("plan-document", fields));
     if (Either.isLeft(decoded)) throw new Error("fixture plan document must decode");
     const sidecar = PLAN_A.replace(/\.md$/, ".json");
     writeRepoFile(
       PLAN_A,
       `---\nstatus: Draft\nsource-spec: null\n---\n${renderPlanBody(decoded.right)}`,
     );
-    const { version: _version, ...fields } = planDocument;
     writeRepoFile(sidecar, JSON.stringify(withSchemaUrl("plan-document", fields), null, 2));
     commitAll();
 

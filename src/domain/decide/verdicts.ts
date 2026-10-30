@@ -759,13 +759,13 @@ export function checkHandTranscription(input: {
   RevisionRefusal
 > {
   const { kind, md, parsed, answer, bound, operator, atIso } = input;
-  const stampViolation = handAnswerStampViolation(answer);
+  const stampViolation = handAnswerStampViolation(answer, kind);
   if (stampViolation !== undefined) {
     return Either.left({ path: isObject(answer) ? "$schema" : "", message: stampViolation });
   }
   const named = boundOf(bound);
   const decoded = Either.mapLeft(
-    decodeCurrentHandDecisionAnswer(stampHandAnswer(answer, named, operator, atIso)),
+    decodeCurrentHandDecisionAnswer(stampHandAnswer(answer, named, operator, atIso), kind),
     (error: ParseResult.ParseError) => firstParseIssue(error),
   );
   if (Either.isLeft(decoded)) return Either.left(decoded.left);

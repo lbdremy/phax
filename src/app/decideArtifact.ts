@@ -447,13 +447,14 @@ function checkHand(
 ): Either.Either<AcceptedAnswer, RevisionRefusal> {
   const { kind, md } = ctx.snapshot;
   const decoded = decodeHandAnswer(json, {
+    kind,
     scope: ctx.scope,
     operator: ctx.operator,
     atIso: ctx.atIso,
   });
   if (Either.isLeft(decoded)) return Either.left(decoded.left);
   const answer: HandDecisionAnswer = decoded.right;
-  const documentJson = `${JSON.stringify({ $schema: currentSchemaUrl("hand-decision-answer"), ...answer }, null, 2)}\n`;
+  const documentJson = `${JSON.stringify({ $schema: currentSchemaUrl(`${kind}-hand-decision-answer`), ...answer }, null, 2)}\n`;
   if (parsed === null) {
     return answer.decisions.length === 0
       ? Either.right({ decided: [], md, sidecarText: null, documentJson, planDocument: null })
@@ -549,7 +550,7 @@ function handBack(
       variant: authored.variant,
       schemaUrl: currentSchemaUrl(
         authored.variant === "hand"
-          ? "hand-decision-answer"
+          ? `${kind}-hand-decision-answer`
           : kind === "spec"
             ? "spec-document"
             : "plan-document",

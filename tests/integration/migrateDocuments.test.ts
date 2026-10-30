@@ -27,6 +27,7 @@ import { renderPlanBody } from "../../src/domain/authoring/renderPlan.js";
 import { renderPlanBodyV0_25_0 } from "../../src/domain/authoring/renderPlanV0_25_0.js";
 import { renderPlanBodyV0_26_0 } from "../../src/domain/authoring/renderPlanV0_26_0.js";
 import { renderSpecBodyV0_17_0 } from "../../src/domain/authoring/renderSpecV0_17_0.js";
+import { renderSpecBody } from "../../src/domain/authoring/renderSpec.js";
 import { renderSpecBodyV0_25_0 } from "../../src/domain/authoring/renderSpecV0_25_0.js";
 import {
   ArtifactCommitFailedError,
@@ -47,11 +48,11 @@ import {
   currentSchemaUrl,
   readPlanDocumentFile,
 } from "../../src/schemas/persisted.js";
-import { projectExtractedPlan } from "../../src/schemas/planDocument.js";
+import { projectExtractedPlan, type PlanDocument } from "../../src/schemas/planDocument.js";
 import type { OpenQuestion } from "../../src/schemas/questions.js";
 import { CURRENT_STAMPS } from "../../src/schemas/release.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
-import { SURFACE_SUMMARY_PLACEHOLDER } from "../../src/schemas/specDocument.js";
+import { SURFACE_SUMMARY_PLACEHOLDER, type SpecDocument } from "../../src/schemas/specDocument.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 
 // Real-git acceptance for spec artifact-decide §8 'Plan documents in flight
@@ -532,7 +533,7 @@ describe("migrate-documents — plan documents in flight", { timeout: 30_000 }, 
         Effect.provide(makeRootedNodeFileSystemLayer(repoDir)),
       ),
     );
-    expect(Option.getOrNull(cached)).toEqual(projectExtractedPlan({ version: 1, ...lifted.right }));
+    expect(Option.getOrNull(cached)).toEqual(projectExtractedPlan(lifted.right));
     expect(Option.getOrNull(cached)?.phases.map((phase) => [phase.model, phase.effort])).toEqual([
       ["claude-opus-5-5", "high"],
       ["claude-sonnet-5", "medium"],
@@ -672,6 +673,33 @@ describe("migrate-documents — plan documents in flight", { timeout: 30_000 }, 
     );
   });
 
+  // The strict answer restamped plan-document without changing its body: a
+  // 0.28.0 sidecar reads through its frozen module, and migrating it rewrites
+  // the sidecar alone.
+  it("restamps a 0.28.0 plan to the current stamp, its Markdown byte-identical, and commits the sidecar alone", async () => {
+    const older = plan0_26_0();
+    const doc = {
+      ...older,
+      phases: older.phases.map((phase) => ({ ...phase, testStrategy: [STEP_LINE] })),
+    } as unknown as PlanDocument;
+    const md = planFrontmatter("Draft", null) + renderPlanBody(doc);
+    writeRepoFile(PLAN, md);
+    writeRepoFile(sidecarOf(PLAN), json({ $schema: schemaUrl("plan-document", "0.28.0"), ...doc }));
+    commitAll();
+
+    const result = await migrated();
+
+    expect(JSON.parse(readRepoFile(sidecarOf(PLAN)))).toEqual({
+      $schema: currentSchemaUrl("plan-document"),
+      ...doc,
+    });
+    expect(readRepoFile(PLAN)).toBe(md);
+    expect(headFiles()).toEqual([sidecarOf(PLAN)]);
+    expect(renderDocumentMigrationReport(result)).toContain(
+      `plan-document 0.28.0 → ${CURRENT_STAMPS["plan-document"]}`,
+    );
+  });
+
   // ac-migrate-refuse: the interactive-phases plan as it stood, made live.
   it("refuses a live 0.26.0 plan holding a prose test strategy, naming phase-01, its first departing line and the remedy, leaving it as it was", async () => {
     const archived = join(REPO_ROOT, "docs/plans/archive/2610230951-interactive-phases-plan");
@@ -733,6 +761,34 @@ describe("migrate-documents — plan documents in flight", { timeout: 30_000 }, 
 });
 
 describe("migrate-documents — spec documents in flight", { timeout: 30_000 }, () => {
+  // The strict answer restamped spec-document without changing its body.
+  it("restamps a 0.27.0 spec to the current stamp, its Markdown byte-identical", async () => {
+    const older = spec0_25_0("Plan Prune");
+    const doc = {
+      ...older,
+      surface: older.surface.map((element) => ({ ...element, summary: "An operator can prune." })),
+    } as unknown as SpecDocument;
+    const md = specFrontmatter("Draft") + renderSpecBody(doc);
+    writeRepoFile(PLAN_PRUNE, md);
+    writeRepoFile(
+      sidecarOf(PLAN_PRUNE),
+      json({ $schema: schemaUrl("spec-document", "0.27.0"), ...doc }),
+    );
+    commitAll();
+
+    const result = await migrated();
+
+    expect(JSON.parse(readRepoFile(sidecarOf(PLAN_PRUNE)))).toEqual({
+      $schema: currentSchemaUrl("spec-document"),
+      ...doc,
+    });
+    expect(readRepoFile(PLAN_PRUNE)).toBe(md);
+    expect(headFiles()).toEqual([sidecarOf(PLAN_PRUNE)]);
+    expect(renderDocumentMigrationReport(result)).toContain(
+      `spec-document 0.27.0 → ${CURRENT_STAMPS["spec-document"]}`,
+    );
+  });
+
   it("lifts a Draft 0.17.0 spec by the rationale marker; approve waits for it", async () => {
     const doc = olderSpec("Log rotation", MARKER_CASES);
     writeOlderSpec(LOG_ROTATION, doc, specFrontmatter("Draft"));

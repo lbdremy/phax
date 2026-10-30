@@ -36,9 +36,8 @@ import {
   renderQuestionCounts,
 } from "../../domain/artifact/render.js";
 import type { ArtifactKind, ArtifactStatus } from "../../domain/artifact/status.js";
+import { answerJsonSchema } from "../../schemas/answerSchemas.js";
 import { getDecideVerdictsFileJsonSchema } from "../../schemas/decideVerdicts.js";
-import { getPlanDocumentJsonSchema } from "../../schemas/planDocument.js";
-import { getSpecDocumentJsonSchema } from "../../schemas/specDocument.js";
 import { resolveAuthoringSelection, type Effort } from "../../schemas/phaxConfig.js";
 import { defaultBundleRoot } from "./skills.js";
 import { type DecideCommandOptions, runArtifactDecide } from "./artifactDecide.js";
@@ -517,8 +516,8 @@ export async function runCreateArtifactHeadless(
 type SchemaKind = ArtifactKind | "verdicts";
 
 const DOCUMENT_JSON_SCHEMAS: Readonly<Record<SchemaKind, () => object>> = {
-  spec: getSpecDocumentJsonSchema,
-  plan: getPlanDocumentJsonSchema,
+  spec: () => answerJsonSchema("spec-document"),
+  plan: () => answerJsonSchema("plan-document"),
   verdicts: getDecideVerdictsFileJsonSchema,
 };
 

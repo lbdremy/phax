@@ -1,4 +1,5 @@
 import { Schema } from "effect";
+import { NonEmptyString } from "./strictString.js";
 
 // The questions a spec or plan document carries, in two states: open, or
 // arbitrated with a verdict and the history of its earlier verdicts. A
@@ -18,16 +19,16 @@ const QuestionIdSchema = Schema.String.pipe(
 
 export const QuestionOptionSchema = Schema.Struct({
   id: QuestionIdSchema,
-  label: Schema.NonEmptyString,
-  abandons: Schema.NonEmptyString,
+  label: NonEmptyString,
+  abandons: NonEmptyString,
 });
 
 export const OpenQuestionSchema = Schema.Struct({
   id: QuestionIdSchema,
-  question: Schema.NonEmptyString,
+  question: NonEmptyString,
   options: Schema.Array(QuestionOptionSchema).pipe(Schema.minItems(2)),
-  recommendation: Schema.NonEmptyString,
-  rationale: Schema.NonEmptyString,
+  recommendation: NonEmptyString,
+  rationale: NonEmptyString,
 });
 
 export type OpenQuestion = Schema.Schema.Type<typeof OpenQuestionSchema>;
@@ -49,9 +50,9 @@ const TimestampSchema = Schema.String.pipe(
  */
 export const LiftedVerdictSchema = Schema.Struct({
   kind: Schema.Literal("lifted"),
-  chosen: Schema.NonEmptyString,
-  abandoned: Schema.Array(Schema.NonEmptyString),
-  why: Schema.NonEmptyString,
+  chosen: NonEmptyString,
+  abandoned: Schema.Array(NonEmptyString),
+  why: NonEmptyString,
   at: DateSchema,
   by: Schema.Struct({ kind: Schema.Literal("unattributed") }),
 });
@@ -60,15 +61,15 @@ export type LiftedVerdict = Schema.Schema.Type<typeof LiftedVerdictSchema>;
 
 const decidedVerdictFields = {
   kind: Schema.Literal("decided"),
-  chosen: Schema.NonEmptyString,
-  abandoned: Schema.Array(Schema.NonEmptyString),
-  why: Schema.NonEmptyString,
-  advocate: Schema.NonEmptyString,
-  principles: Schema.Array(Schema.NonEmptyString),
+  chosen: NonEmptyString,
+  abandoned: Schema.Array(NonEmptyString),
+  why: NonEmptyString,
+  advocate: NonEmptyString,
+  principles: Schema.Array(NonEmptyString),
   reversibility: Schema.Literal("cheap", "costly", "irreversible"),
-  by: Schema.Struct({ kind: Schema.Literal("operator"), name: Schema.NonEmptyString }),
+  by: Schema.Struct({ kind: Schema.Literal("operator"), name: NonEmptyString }),
   at: TimestampSchema,
-  revised: Schema.Array(Schema.NonEmptyString),
+  revised: Schema.Array(NonEmptyString),
 };
 
 /** A spec question decided by the operator. */
@@ -106,34 +107,25 @@ export type PlanArbitratedQuestion = Schema.Schema.Type<typeof PlanArbitratedQue
 export const AUTHORING_ARBITRATED_MESSAGE =
   "an authoring session returns open questions only: arbitratedQuestions must be []";
 
-// `arbitratedQuestions` in an authoring answer: always empty. Every entry is
-// refused, so a non-empty array fails at its first entry with
-// `AUTHORING_ARBITRATED_MESSAGE`; the element type is the document's, so an
-// authored document is a sidecar document once its `version` is dropped.
-function authoringArbitratedQuestions<A>() {
-  return Schema.Array(
-    Schema.declare((_: unknown): _ is A => false, {
-      message: () => AUTHORING_ARBITRATED_MESSAGE,
-    }),
-  ).annotations({
-    jsonSchema: {
-      type: "array",
-      maxItems: 0,
-      description:
-        "Always empty: an authoring session leaves every question open, in openQuestions.",
-    },
-  });
-}
-
-export const SpecAuthoringArbitratedQuestionsSchema =
-  authoringArbitratedQuestions<SpecArbitratedQuestion>();
-export const PlanAuthoringArbitratedQuestionsSchema =
-  authoringArbitratedQuestions<PlanArbitratedQuestion>();
-
 /** A document-relative path and what is wrong there. */
 export interface QuestionViolation {
   readonly path: ReadonlyArray<PropertyKey>;
   readonly message: string;
+}
+
+/**
+ * An authoring answer's `arbitratedQuestions`, checked by phax rather than by
+ * the schema (the answer is the published document, whose arbitrated questions
+ * a sidecar carries): an authoring session leaves every question open, so a
+ * non-empty array is refused at its first entry, `<basePath>.arbitratedQuestions[0]`.
+ */
+export function authoringArbitratedViolation(
+  arbitratedQuestions: ReadonlyArray<unknown>,
+  basePath: ReadonlyArray<PropertyKey>,
+): QuestionViolation | undefined {
+  return arbitratedQuestions.length === 0
+    ? undefined
+    : { path: [...basePath, "arbitratedQuestions", 0], message: AUTHORING_ARBITRATED_MESSAGE };
 }
 
 /** The two question arrays of a document, and where they sit in it. */

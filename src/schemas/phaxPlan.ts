@@ -1,5 +1,6 @@
 import { Schema, type Types } from "effect";
 import { schemaUrlField } from "./schemaUrl.js";
+import { NonEmptyString } from "./strictString.js";
 import { TestLineSchema } from "./testLine.js";
 
 /** phax's effort vocabulary: a plan phase's `effort`, and a bound's `effort.min` and `effort.max`. */
@@ -28,7 +29,7 @@ const PhaseIdSchema = Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/));
 export const PhaseOracleSchema = Schema.NullOr(
   Schema.Struct({
     dischargedBy: PhaseIdSchema,
-    files: Schema.Array(Schema.NonEmptyString),
+    files: Schema.Array(NonEmptyString),
   }),
 );
 
@@ -47,9 +48,9 @@ export const PhaseOracleSchema = Schema.NullOr(
 // carries exactly these schemas rather than a copy that could drift.
 export const ExtractedPhaseFields = {
   id: PhaseIdSchema,
-  model: Schema.NonEmptyString,
+  model: NonEmptyString,
   effort: PlanEffortSchema,
-  planMarkdownAnchor: Schema.NonEmptyString,
+  planMarkdownAnchor: NonEmptyString,
   plannedFilesToCreate: Schema.Array(Schema.String),
   plannedFilesToEdit: Schema.Array(Schema.String),
   optionalFilesToEdit: Schema.Array(Schema.String),
@@ -57,8 +58,8 @@ export const ExtractedPhaseFields = {
   oracle: PhaseOracleSchema,
   testLines: Schema.Array(TestLineSchema),
   commit: Schema.Struct({
-    subject: Schema.NonEmptyString,
-    body: Schema.NonEmptyString,
+    subject: NonEmptyString,
+    body: NonEmptyString,
   }),
 };
 
@@ -74,15 +75,15 @@ export const ExtractedRunSchema = Schema.Struct({
   // Loose on purpose: the model is unreliable at emitting a valid slug, so we
   // accept any non-empty string here and slugify it ourselves in
   // `finalizeExtractedPlan` (see `slugifyShortName`).
-  shortName: Schema.NonEmptyString,
-  title: Schema.NonEmptyString,
+  shortName: NonEmptyString,
+  title: NonEmptyString,
   requiredCommands: Schema.Array(Schema.String),
 });
 
 // The persisted phase: the extracted fields plus the heading-derived `title`.
 const PhaseSchema = Schema.Struct({
   id: ExtractedPhaseFields.id,
-  title: Schema.NonEmptyString,
+  title: NonEmptyString,
   model: ExtractedPhaseFields.model,
   effort: ExtractedPhaseFields.effort,
   planMarkdownAnchor: ExtractedPhaseFields.planMarkdownAnchor,
@@ -107,9 +108,9 @@ export const ExtractedPhaxPlanSchema = Schema.Struct({
 // The full plan, after phax merges in the deterministic fields.
 const phaxPlanFields = {
   run: Schema.Struct({
-    shortName: Schema.NonEmptyString,
-    title: Schema.NonEmptyString,
-    branch: Schema.NonEmptyString,
+    shortName: NonEmptyString,
+    title: NonEmptyString,
+    branch: NonEmptyString,
     requiredCommands: Schema.Array(Schema.String),
   }),
   phases: Schema.NonEmptyArray(PhaseSchema),

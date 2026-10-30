@@ -29,17 +29,17 @@ import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
 import type { ResolvedRecordsConfig } from "../../src/schemas/recordsConfig.js";
 import { decodeExtractedPlanCacheEntry } from "../../src/schemas/extractedPlanCacheEntry.js";
+import { answerJsonSchema } from "../../src/schemas/answerSchemas.js";
 import {
-  decodePlanDocument,
+  decodeAuthoredPlanDocument,
   decodePlanDocumentFile,
   projectExtractedPlan,
 } from "../../src/schemas/planDocument.js";
 import { currentSchemaUrl, withSchemaUrl } from "../../src/schemas/persisted.js";
 import type { FormatId } from "../../src/schemas/schemaUrl.js";
 import {
-  decodeSpecDocument,
+  decodeAuthoredSpecDocument,
   decodeSpecDocumentFile,
-  getSpecDocumentJsonSchema,
 } from "../../src/schemas/specDocument.js";
 import type { ResolvedSecurityConfig } from "../../src/schemas/securityConfig.js";
 
@@ -66,7 +66,7 @@ approved:
 `;
 
 const SPEC_DOCUMENT = {
-  version: 1,
+  $schema: currentSchemaUrl("spec-document"),
   kind: "spec",
   title: "Plan Prune",
   ground: [{ path: "docs/ideas/plan-prune.md", note: "the idea this spec makes precise" }],
@@ -123,7 +123,7 @@ const SPEC_DOCUMENT = {
 };
 
 const PLAN_DOCUMENT = {
-  version: 1,
+  $schema: currentSchemaUrl("plan-document"),
   kind: "plan",
   sourceSpec: SOURCE_SPEC,
   completesSpec: true,
@@ -266,9 +266,9 @@ function setup(finalText?: string) {
   return { fs: fs.impl, git: git.impl, backend: backend.impl, run };
 }
 
-/** An authored document as phax persists it: `version` dropped, `$schema` first. */
-function stamped(id: FormatId, doc: { readonly version: number }): object {
-  const { version: _version, ...rest } = doc;
+/** An authored document as phax persists it: the answer itself, `$schema` first at the current stamp. */
+function stamped(id: FormatId, doc: { readonly $schema: string }): object {
+  const { $schema: _schema, ...rest } = doc;
   return withSchemaUrl(id, rest);
 }
 
@@ -294,7 +294,7 @@ describe("authorArtifact — spec", () => {
       recordPush: { kind: "no-record" },
     });
 
-    const doc = decodeSpecDocument(SPEC_DOCUMENT);
+    const doc = decodeAuthoredSpecDocument(SPEC_DOCUMENT);
     if (Either.isLeft(doc)) throw new Error("fixture does not decode");
     const md = fs.getFile(SPEC_PATH) ?? "";
     expect(md).toContain("status: Draft");
@@ -348,9 +348,9 @@ describe("authorArtifact — spec", () => {
     expect(prompt).toBe(backend.runCalls[0]?.prompt);
     expect(prompt).toContain("# phax-spec skill");
     expect(prompt).toContain("Free their slugs.");
-    // The authoring contract is unchanged: version 1, never $schema.
-    expect(prompt).toContain(JSON.stringify(getSpecDocumentJsonSchema(), null, 2));
-    expect(prompt).not.toContain('"$schema": "https://docs.phax.run');
+    // The authoring answer is the published spec-document schema, its $schema a const.
+    expect(prompt).toContain(JSON.stringify(answerJsonSchema("spec-document"), null, 2));
+    expect(prompt).toContain(`"const": "${currentSchemaUrl("spec-document")}"`);
   });
 
   // ac-schema: the prompt carries the JSON Schema with the summary required right after surface.
@@ -361,13 +361,13 @@ describe("authorArtifact — spec", () => {
 
     const prompt = backend.runCalls[0]?.prompt ?? "";
     const item = (
-      getSpecDocumentJsonSchema() as {
+      answerJsonSchema("spec-document") as {
         properties: { surface: { items: { required: string[]; additionalProperties: boolean } } };
       }
     ).properties.surface.items;
     expect(item.required.slice(0, 2)).toEqual(["surface", "summary"]);
     expect(item.additionalProperties).toBe(false);
-    expect(prompt).toContain(JSON.stringify(getSpecDocumentJsonSchema(), null, 2));
+    expect(prompt).toContain(JSON.stringify(answerJsonSchema("spec-document"), null, 2));
     expect(prompt).toContain("One sentence, in the consumer's words");
   });
 
@@ -466,7 +466,7 @@ describe("authorArtifact — plan", () => {
     expect(result.right.sidecarPath).toBe(PLAN_SIDECAR);
     expect(result.right.commit.subject).toBe("docs(plans): draft plan-prune");
 
-    const doc = decodePlanDocument(PLAN_DOCUMENT);
+    const doc = decodeAuthoredPlanDocument(PLAN_DOCUMENT);
     if (Either.isLeft(doc)) throw new Error("fixture does not decode");
     const md = fs.getFile(PLAN_PATH) ?? "";
     expect(md).toContain(`source-spec: ${SOURCE_SPEC}\ncompletes-spec: true\n`);

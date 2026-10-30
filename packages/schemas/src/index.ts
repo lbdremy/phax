@@ -47,9 +47,13 @@ import {
   decideVerdictsFormat,
   handDecisionAnswerFormat,
   phaxPlanExtractionFormat,
+  planHandDecisionAnswerFormat,
+  specHandDecisionAnswerFormat,
   type DecideVerdictsShapes,
   type HandDecisionAnswerShapes,
   type PhaxPlanExtractionShapes,
+  type PlanHandDecisionAnswerShapes,
+  type SpecHandDecisionAnswerShapes,
 } from "./formats/answers.js";
 import {
   authoringRecordManifestFormat,
@@ -397,17 +401,35 @@ export {
   type RunListShape,
 } from "./formats/interactive.js";
 
-// The answer a decide session returns for a hand-authored spec or plan. Its
-// schema and type are phax's own file schema and type.
+// The answer a decide session returns for a hand-authored spec or plan: since
+// 0.32.0 one format per kind, whose schema and type are phax's own file schema
+// and type. The retired hand decision answer, their 0.25.0 root union, is its
+// frozen module's schema and type.
 export {
-  HandDecisionAnswerFileSchema as HandDecisionAnswerSchema,
-  type HandDecisionAnswerFile as HandDecisionAnswer,
-} from "../../../src/schemas/handDecisionAnswer.js";
+  HandDecisionAnswerV0_25_0Schema as HandDecisionAnswerSchema,
+  type HandDecisionAnswerV0_25_0 as HandDecisionAnswer,
+} from "../../../src/schemas/history/hand-decision-answer/0.25.0.js";
 export {
   parseHandDecisionAnswer,
   toLatestHandDecisionAnswer,
   type HandDecisionAnswerShape,
   type LatestHandDecisionAnswer,
+} from "./formats/answers.js";
+export {
+  PlanHandDecisionAnswerFileSchema as PlanHandDecisionAnswerSchema,
+  SpecHandDecisionAnswerFileSchema as SpecHandDecisionAnswerSchema,
+  type PlanHandDecisionAnswerFile as PlanHandDecisionAnswer,
+  type SpecHandDecisionAnswerFile as SpecHandDecisionAnswer,
+} from "../../../src/schemas/handDecisionAnswer.js";
+export {
+  parsePlanHandDecisionAnswer,
+  parseSpecHandDecisionAnswer,
+  toLatestPlanHandDecisionAnswer,
+  toLatestSpecHandDecisionAnswer,
+  type LatestPlanHandDecisionAnswer,
+  type LatestSpecHandDecisionAnswer,
+  type PlanHandDecisionAnswerShape,
+  type SpecHandDecisionAnswerShape,
 } from "./formats/answers.js";
 
 // The verdicts file a person writes for `phax artifact decide --verdicts`.
@@ -505,6 +527,22 @@ export {
   SpecDocumentV0_25_0Schema,
   type SpecDocumentV0_25_0,
 } from "../../../src/schemas/history/spec-document/0.25.0.js";
+export {
+  SpecDocumentV0_27_0Schema,
+  type SpecDocumentV0_27_0,
+} from "../../../src/schemas/history/spec-document/0.27.0.js";
+export {
+  PlanDocumentV0_28_0Schema,
+  type PlanDocumentV0_28_0,
+} from "../../../src/schemas/history/plan-document/0.28.0.js";
+export {
+  PhaxPlanV0_28_0Schema,
+  type PhaxPlanV0_28_0,
+} from "../../../src/schemas/history/phax-plan/0.28.0.js";
+export {
+  HandDecisionAnswerV0_25_0Schema,
+  type HandDecisionAnswerV0_25_0,
+} from "../../../src/schemas/history/hand-decision-answer/0.25.0.js";
 export {
   PhaseFileReconciliationV0_17_0Schema,
   type PhaseFileReconciliationV0_17_0,
@@ -673,6 +711,8 @@ type DocumentShapes = EveryFormat<{
   "cost-ledger": CostLedgerShapes;
   "code-review": CodeReviewShapes;
   "phax-plan-extraction": PhaxPlanExtractionShapes;
+  "spec-hand-decision-answer": SpecHandDecisionAnswerShapes;
+  "plan-hand-decision-answer": PlanHandDecisionAnswerShapes;
 }>;
 
 /** The id of every format `parseDocument` reads: every `FormatId`. */
@@ -723,4 +763,6 @@ export const parseDocument: (input: unknown) => ParsedDocument<DocumentShapes> =
     "cost-ledger": costLedgerFormat,
     "code-review": codeReviewFormat,
     "phax-plan-extraction": phaxPlanExtractionFormat,
+    "spec-hand-decision-answer": specHandDecisionAnswerFormat,
+    "plan-hand-decision-answer": planHandDecisionAnswerFormat,
   });

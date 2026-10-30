@@ -1,7 +1,5 @@
-import { getHandDecisionAnswerFileJsonSchema } from "../../schemas/handDecisionAnswer.js";
-import { getPlanDocumentFileJsonSchema } from "../../schemas/planDocument.js";
+import { answerJsonSchema } from "../../schemas/answerSchemas.js";
 import { OTHER_OPTION_ID, type OpenQuestion } from "../../schemas/questions.js";
-import { getSpecDocumentFileJsonSchema } from "../../schemas/specDocument.js";
 import { type SidecarDocument, serializeSidecar } from "../artifact/sidecar.js";
 import type { ArtifactKind } from "../artifact/status.js";
 import type { Doctrine } from "./doctrine.js";
@@ -35,9 +33,10 @@ export interface VerdictsPromptInput {
   readonly schemaUrl: string;
 }
 
-function answerJsonSchema(kind: ArtifactKind, variant: VerdictsAuthoring["variant"]): object {
-  if (variant === "hand") return getHandDecisionAnswerFileJsonSchema();
-  return kind === "spec" ? getSpecDocumentFileJsonSchema() : getPlanDocumentFileJsonSchema();
+// The published answer schema the session answers: the kind's document for a
+// headless artifact, the kind's hand decision answer for a hand-authored one.
+function answerSchemaOf(kind: ArtifactKind, variant: VerdictsAuthoring["variant"]): object {
+  return answerJsonSchema(variant === "hand" ? `${kind}-hand-decision-answer` : `${kind}-document`);
 }
 
 function arrayPath(kind: ArtifactKind, key: "openQuestions" | "arbitratedQuestions"): string {
@@ -233,7 +232,7 @@ export function buildVerdictsPrompt(input: VerdictsPromptInput): string {
     schemaTitle,
     "",
     "```json",
-    JSON.stringify(answerJsonSchema(kind, authoring.variant), null, 2),
+    JSON.stringify(answerSchemaOf(kind, authoring.variant), null, 2),
     "```",
     "",
   ];

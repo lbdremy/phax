@@ -24,10 +24,10 @@ describe("schemaUrl", () => {
     expect(parseSchemaUrl(schemaUrl(id, "0.10.2"))).toEqual({ formatId: id, release: "0.10.2" });
   });
 
-  it("lists the thirteen formats of spec §4 phax still writes, the two approval record formats, the gate request, the brief request and record, the two reports, the hand decision answer, the decision record manifest, the cost ledger, the architecture request and report, the oracle request and the four documents of a declared stop, the run list, the decide verdicts, the review record manifest, the code review and the plan extraction", () => {
-    expect(FORMAT_IDS).toHaveLength(35);
-    expect(new Set(FORMAT_IDS).size).toBe(35);
-    expect(FORMAT_IDS.slice(-22)).toEqual([
+  it("lists the thirteen formats of spec §4 phax still writes, the two approval record formats, the gate request, the brief request and record, the two reports, the hand decision answer, the decision record manifest, the cost ledger, the architecture request and report, the oracle request and the four documents of a declared stop, the run list, the decide verdicts, the review record manifest, the code review, the plan extraction and the two hand decision answers", () => {
+    expect(FORMAT_IDS).toHaveLength(37);
+    expect(new Set(FORMAT_IDS).size).toBe(37);
+    expect(FORMAT_IDS.slice(-24)).toEqual([
       "plan-approval-record",
       "spec-approval-record",
       "gate-request",
@@ -50,6 +50,8 @@ describe("schemaUrl", () => {
       "review-record-manifest",
       "code-review",
       "phax-plan-extraction",
+      "spec-hand-decision-answer",
+      "plan-hand-decision-answer",
     ]);
     expect(isFormatId("code-review")).toBe(true);
     expect(isFormatId("phase-record-manifest")).toBe(true);
@@ -79,6 +81,8 @@ describe("schemaUrl", () => {
       "review-record-manifest",
       "code-review",
       "phax-plan-extraction",
+      "spec-hand-decision-answer",
+      "plan-hand-decision-answer",
     ]);
     expect(PRE_SCHEMA_FORMAT_IDS).toEqual(
       FORMAT_IDS.filter((id) => !SCHEMA_BORN_FORMAT_IDS.some((born) => born === id)),

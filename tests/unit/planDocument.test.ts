@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { Either, Schema } from "effect";
+import { answerJsonSchema } from "../../src/schemas/answerSchemas.js";
 import {
-  decodePlanDocument,
+  decodeAuthoredPlanDocument,
   decodePlanDocumentFile,
-  getPlanDocumentJsonSchema,
   projectExtractedPlan,
 } from "../../src/schemas/planDocument.js";
 import { ExtractedPhaxPlanSchema } from "../../src/schemas/phaxPlan.js";
@@ -12,6 +12,9 @@ import {
   formatPlanDocumentViolation,
 } from "../../src/schemas/formatError.js";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
+
+const decodePlanDocument = decodeAuthoredPlanDocument;
+const getPlanDocumentJsonSchema = () => answerJsonSchema("plan-document");
 
 // A made-up test line.
 function testLine(guarantee: string, overrides: Record<string, unknown> = {}) {
@@ -56,7 +59,7 @@ function validPhase(n: number) {
 
 function validPlanDocument() {
   return {
-    version: 1,
+    $schema: currentSchemaUrl("plan-document"),
     kind: "plan",
     sourceSpec: "docs/specs/2609230835-headless-authoring.md" as string | null,
     completesSpec: true as boolean | null,
@@ -144,10 +147,10 @@ function fileRejection(doc: unknown): string {
 function rejection(doc: unknown): string {
   const result = decodePlanDocument(doc);
   if (Either.isRight(result)) throw new Error("expected the document to be rejected");
-  return formatFirstViolation(result.left);
+  return result.left;
 }
 
-describe("decodePlanDocument", () => {
+describe("decodeAuthoredPlanDocument", () => {
   it("decodes a full valid plan document", () => {
     expect(Either.isRight(decodePlanDocument(validPlanDocument()))).toBe(true);
   });
@@ -194,6 +197,12 @@ describe("decodePlanDocument", () => {
   it("rejects a document without completesSpec", () => {
     const { completesSpec: _dropped, ...doc } = validPlanDocument();
     expect(rejection(doc)).toBe("completesSpec: is missing");
+  });
+
+  it("refuses a version 1 authoring answer: the answer carries the $schema const", () => {
+    const { $schema: _schema, ...doc } = validPlanDocument();
+    expect(rejection({ version: 1, ...doc })).toMatch(/^version: is unexpected/);
+    expect(rejection(doc)).toBe("$schema: is missing");
   });
 
   it("rejects completesSpec true beside sourceSpec: null", () => {
@@ -243,10 +252,10 @@ describe("decodePlanDocument", () => {
 });
 
 describe("decodePlanDocumentFile", () => {
-  const $schema = "https://docs.phax.run/schemas/plan-document/0.19.0.json";
+  const $schema = currentSchemaUrl("plan-document");
 
   function fileDoc(lineage: { sourceSpec: string | null; completesSpec: boolean | null }) {
-    const { version: _version, ...doc } = validPlanDocument();
+    const { $schema: _current, ...doc } = validPlanDocument();
     return { $schema, ...doc, ...lineage };
   }
 
@@ -378,12 +387,17 @@ describe("projectExtractedPlan", () => {
   });
 });
 
-describe("getPlanDocumentJsonSchema", () => {
-  it("is titled experimental", () => {
-    const schema = getPlanDocumentJsonSchema() as { title: string; required: string[] };
-    expect(schema.title).toBe("phax plan document (experimental)");
+describe("the plan-document answer schema", () => {
+  it("is the published schema, its $schema a const of the current stamp", () => {
+    const schema = getPlanDocumentJsonSchema() as {
+      title: string;
+      required: string[];
+      properties: { $schema: { const: string } };
+    };
+    expect(schema.title).toBe("phax plan document");
+    expect(schema.properties.$schema.const).toBe(currentSchemaUrl("plan-document"));
     expect(schema.required).toEqual([
-      "version",
+      "$schema",
       "kind",
       "sourceSpec",
       "completesSpec",
@@ -393,21 +407,12 @@ describe("getPlanDocumentJsonSchema", () => {
     ]);
   });
 
-  it("states the two legal sourceSpec/completesSpec pairs", () => {
-    const schema = getPlanDocumentJsonSchema() as { allOf: unknown };
-    expect(schema.allOf).toEqual([
-      {
-        oneOf: [
-          {
-            properties: {
-              sourceSpec: { type: "string", minLength: 1 },
-              completesSpec: { type: "boolean" },
-            },
-          },
-          { properties: { sourceSpec: { type: "null" }, completesSpec: { type: "null" } } },
-        ],
-      },
-    ]);
+  it("names the sourceSpec/completesSpec pairing in its description, with no allOf or oneOf", () => {
+    const schema = getPlanDocumentJsonSchema() as { description: string };
+    expect(JSON.stringify(schema)).not.toMatch(/"(allOf|oneOf)"/);
+    expect(schema.description).toContain(
+      "completesSpec is a boolean beside a sourceSpec path and null beside sourceSpec: null",
+    );
   });
 
   it("says an authoring answer's preamble.arbitratedQuestions is empty, and declares the question checks", () => {
@@ -423,10 +428,9 @@ describe("getPlanDocumentJsonSchema", () => {
       "openQuestions",
       "arbitratedQuestions",
     ]);
-    expect(preamble.properties["arbitratedQuestions"]).toMatchObject({
-      type: "array",
-      maxItems: 0,
-    });
+    expect(preamble.properties["arbitratedQuestions"]).toMatchObject({ type: "array" });
+    expect(preamble.properties["arbitratedQuestions"]).not.toHaveProperty("maxItems");
+    expect(schema.description).toContain("its preamble.arbitratedQuestions is []");
     expect(schema.description).toMatch(/^Checked by phax's parser, not by this JSON Schema/);
     expect(schema.description).toContain("`phase`");
   });
@@ -487,19 +491,15 @@ describe("a phase's assignmentReason", () => {
     };
     expect(Either.isRight(decodePlanDocument(reasoned))).toBe(true);
     expect(Either.isRight(decodePlanDocument(validPlanDocument()))).toBe(true);
-    const { version: _version, ...rest } = reasoned;
-    const sidecar = { $schema: currentSchemaUrl("plan-document"), ...rest };
-    expect(Either.isRight(decodePlanDocumentFile(sidecar))).toBe(true);
+    expect(Either.isRight(decodePlanDocumentFile(reasoned))).toBe(true);
   });
 
   it("refuses the old key modelReason as an unknown key, with no alias", () => {
     const { assignmentReason: _reason, ...rest } = validPhase(1);
     const old = { ...validPlanDocument(), phases: [{ ...rest, modelReason: null }] };
     expect(Either.isLeft(decodePlanDocument(old))).toBe(true);
-    const { version: _version, ...doc } = validPlanDocument();
     const sidecar = {
-      $schema: currentSchemaUrl("plan-document"),
-      ...doc,
+      ...validPlanDocument(),
       phases: [{ ...validPhase(1), modelReason: null }],
     };
     expect(Either.isLeft(decodePlanDocumentFile(sidecar))).toBe(true);
@@ -527,7 +527,7 @@ describe("a phase's assignmentReason", () => {
 function refusal(doc: unknown): string {
   const result = decodePlanDocument(doc);
   if (Either.isRight(result)) throw new Error("expected the document to be refused");
-  return formatPlanDocumentViolation(doc, result.left);
+  return result.left;
 }
 
 describe("a phase's test lines", () => {
@@ -601,7 +601,7 @@ describe("a phase's test lines", () => {
   });
 
   it("names the phase by its index when the input holds no string id there", () => {
-    const result = decodePlanDocument(withPhase02Lines([testLine("x", { size: "unit" })]));
+    const result = decodePlanDocumentFile(withPhase02Lines([testLine("x", { size: "unit" })]));
     if (Either.isRight(result)) throw new Error("expected the document to be refused");
     expect(formatPlanDocumentViolation({ phases: [{}, {}] }, result.left)).toMatch(
       /^phases\[1\] test line 1 size: /,
