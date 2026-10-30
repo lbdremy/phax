@@ -67,6 +67,13 @@ export function handsSchemaNatively(
 /**
  * The line appended to a prompt whose Claude Code spawn is handed the schema
  * without its `$schema` property. Prompts still state the whole schema.
+ *
+ * The Claude Code adapter appends it at spawn time, after the caller has
+ * saved its prompt, so a saved prompt (`prompt.md`, `retry-prompt.md`,
+ * `handback-prompt.md`, `code-review-prompt.md`) is what Claude Code received
+ * less this one closing line whenever the spawn took `--json-schema`. The
+ * callers cannot add it themselves: whether a call is handed natively is the
+ * backend's table, which tests inject.
  */
 export const CLAUDE_STAMP_PROMPT_LINE = "phax sets the answer's `$schema` itself, so leave it out.";
 
