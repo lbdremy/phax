@@ -7,13 +7,14 @@ completes-spec: false
 
 First of the two plans of the spec structured-output. It covers §5.1 to §5.12 and every acceptance criterion except plan 2's (ac-vibe, ac-cr-readonly, ac-cr-render, ac-cr-phases, ac-cr-refused, ac-cr-file, and ac-every-call for the compliance review). Plan 2 ships the structured compliance review and completes the spec.
 
-After this plan, each of the seven structured answers has one strict answer schema: spec-document, plan-document, hand-decision-answer, first-reading, interactive-handoff, code-review and the new phax-plan-extraction. Each schema is published by packages/schemas, rendered once by `answerJsonSchema(format)` in src/schemas/answerSchemas.ts, stated in every prompt, and handed as is to Claude Code (`--json-schema`, inline) and Codex (`--output-schema`, a temporary file). phax's decoder (the schema plus the call's coherence checks) stays the only judge on every provider.
+After this plan, the seven structured calls answer eight answer formats, each with one strict answer schema: spec-document, plan-document, the new spec-hand-decision-answer and plan-hand-decision-answer (which replace hand-decision-answer's root union), first-reading, interactive-handoff, code-review and the new phax-plan-extraction. Each schema is published by packages/schemas, rendered once by `answerJsonSchema(format)` in src/schemas/answerSchemas.ts, stated in every prompt, and handed as is to Claude Code (`--json-schema`, inline) and Codex (`--output-schema`, a temporary file). phax's decoder (the schema plus the call's coherence checks) stays the only judge on every provider.
 
-Order: the strict check is the acceptance loop, so it comes first, as an oracle pair (phase-01 freezes its construct table, phase-02 implements it). Then come the answer schemas: first the leaf answers and the new extraction format (phase-03), then the spec, plan, run-plan and hand-decision cascade, closed by the strict test over all seven answers (phase-04). Next, the structured value moves through the Backend port and the session outcome, with `error_max_structured_output_retries` (phase-05). Then the headless code review gains its corrective resume (phase-06), and the provider flags arrive, with their per-call fallback table (phase-07). Last come the real-CLI smoke tests and the docs (phase-08). Every commit is green under the `standard` gate profile.
+Order: the strict check is the acceptance loop, so it comes first, as an oracle pair (phase-01 freezes its construct table, phase-02 implements it). Then come the answer schemas: first the leaf answers and the new extraction format (phase-03), then the spec, plan, run-plan and hand-decision cascade, closed by the strict test over all eight answer formats (phase-04). Next, the structured value moves through the Backend port and the session outcome, with `error_max_structured_output_retries` (phase-05). Then the headless code review gains its corrective resume (phase-06), and the provider flags arrive, with their per-call fallback table (phase-07). Last come the real-CLI smoke tests and the docs (phase-08). Every commit is green under the `standard` gate profile.
 
 Execution-model caveats:
 - The e2e smoke tests (tests/e2e/claudeJsonSchema.test.ts, tests/e2e/codexOutputSchema.test.ts) are gated on PHAX_E2E_RUN=1 and hit the real CLIs. Neither the gate nor a phase agent runs them: the PR review runs them by name, against Claude Code 2.1.314 and codex-cli 0.165.0.
-- When a Claude Code combination fails, flip that call's line in STRUCTURED_CALLS (src/domain/session/structuredCalls.ts) to "prompt", along with its docs row. The tests follow the table, so nothing else changes.
+- Two failures, two remedies. When a Claude Code combination fails (a call's `--resume`, its read-only tools or stream-json), flip that call's line in STRUCTURED_CALLS (src/domain/session/structuredCalls.ts) to "prompt", along with its docs row; the tests follow the table, so nothing else changes. When a provider refuses a schema construct, that rule becomes a coherence check for both providers (spec §10), never a flip and never a provider-only schema.
+- Claude Code's `--json-schema` was probed on 2026-10-30 against the installed 2.1.314 (see Technical arbitrations): it accepts and enforces `minItems: 2`, `exclusiveMinimum`, `minLength` and `pattern`, so the Claude API's structured-output limits do not bind it.
 
 The run is driven by the installed phax 0.31.0 and reads its own plan with it. This run does not migrate the repository's live spec and plan sidecars: after the 0.32.0 release, the operator runs `phax artifact migrate-documents`. The dev build reads the live sidecars through the frozen 0.27.0 and 0.28.0 modules.
 
@@ -33,17 +34,17 @@ All three are already in `security.agentCommands` of phax.json. `pnpm exec tsx` 
 
 ## Technical arbitrations
 
-- hand-decision-answer without a root union: one closed object under the same format id, `{ $schema, kind, decisions, markdown }`. `kind` is the enum spec|plan, and every decided verdict carries `phase`, a phase id or null. Coherence checks: `kind` equals the kind the decide call expects, a spec decision's phase is null and a plan decision's is a phase id. `decodeCurrentHandDecisionAnswer(input, kind)` maps the answer to today's in-memory spec|plan union, so domain/decide changes only at its call. The format gets a `next` snapshot at 0.32.0 and a frozen 0.25.0 module. Loss accepted: the provider can no longer enforce the per-kind verdict shape, so a spec decision with a phase, or a plan decision without one, is caught only by phax's check, at the cost of the one corrective resume. Rejected, two formats: that abandons the single format id, and retires hand-decision-answer, doubling every registry and snapshot.
+- hand-decision-answer without a root union: two formats, by operator decision (2026-10-30). spec-hand-decision-answer and plan-hand-decision-answer are each today's variant as its own closed object, with a `$schema` const: `{ $schema, kind: "spec", decisions: [{ id, verdict }], markdown }`, whose decided verdict has no `phase` field, and `{ $schema, kind: "plan", decisions, markdown }`, whose verdicts carry the phase id. `kind` stays, a one-value literal, so the in-memory spec|plan HandDecisionAnswer union is unchanged. Both are born at 0.32.0 (`next`). decide already knows the kind it expects: it states and hands that kind's format, and decodes with it, so the shape is exact on every provider and no kind or phase coherence check is needed. hand-decision-answer is frozen, not migrated: its 0.25.0 union moves verbatim to src/schemas/history/hand-decision-answer/0.25.0.ts; the format keeps its id, its 0.25.0 snapshot and stamp, and no `next`; the schemas package lists that module as its 0.25.0 release and as its current shape, so `parseHandDecisionAnswer` still reads one and `toLatestHandDecisionAnswer` stays today's union minus `$schema`. phax never wrote one (no decision record holds it) and decodes it nowhere. No shims. Loss accepted: two more format ids in every registry and snapshot, and a retired id the package keeps reading. Rejected, one closed object with `kind` and a nullable `phase`: that abandons the per-variant shape, so a spec decision with a phase or a plan decision without one would pass the schema and fall to a coherence check.
 - Lookahead and stacked patterns of a test line:
   - guarantee: the stacked one-line and trimmed patterns become one lookaround-free pattern, `^E(?:C*E)?$`. C is a char outside the control set and U+2028/U+2029; E is such a char that is also non-whitespace. The pattern's message names the half the value breaks, with today's two messages.
   - oracle: the same single pattern. Its three rules (no ' — ' inside, no leading '— ', no trailing ' ·') become one coherence filter that returns today's first failing message.
   - criterion: the no-whitespace/no-backtick pattern stays. 'neither oracle nor in-phase' becomes a coherence filter with today's message.
 
   The decoder names the same errors as before. Loss accepted: providers no longer enforce the three oracle rules or the criterion's reserved words, so a model can still write them and be refused once. Rejected, a lookaround-free regex for each rule: that abandons readability and any reviewable equivalence.
-- The strict NonEmptyString lives in src/schemas/strictString.ts (`^[\s\S]+$`, identifier NonEmptyString, imports only effect). It replaces Schema.NonEmptyString in every answer schema and in the modules they share: phaxPlan.ts phase fields, questions.ts and testLine.ts. `next` snapshots stamped 0.32.0 go to spec-document, plan-document, hand-decision-answer, first-reading, interactive-handoff and code-review, and also to phax-plan, which shares the phase fields and test lines. phax-plan-extraction is born at 0.32.0. Frozen modules: spec-document 0.27.0, plan-document 0.28.0, hand-decision-answer 0.25.0, first-reading 0.26.0, interactive-handoff 0.26.0, code-review 0.29.0 and phax-plan 0.28.0. phax-plan keeps its release-pattern `$schema`, since it is not an answer, and its decoding does not change. Loss accepted: a non-answer format is restamped with no decoding change, and an older @lbdremy/phax-schemas cannot read a 0.32.0 run plan. Rejected, answer-only copies of the phase fields and test lines: that abandons the single definition the extracted-plan projection relies on, and reopens the drift the shared fields closed.
-- The authoring answer is the published sidecar shape. A headless spec or plan authoring session answers the published spec-document or plan-document schema, with its `$schema` const in place of `version: 1`. The empty `arbitratedQuestions` rule ('an authoring session returns open questions only') moves from `maxItems: 0` and a refusing declare to a coherence check of the authoring decoder, with the same message at the same path. Loss accepted: the provider no longer enforces that the authoring answer has no arbitrated questions. Required by the spec: each answer's schema is its published format's, and there is no second spec-document schema.
-- The strict check encodes the providers' rules locally, offline. The Codex strict rules come from OpenAI strict structured outputs. For Claude Code's `--json-schema`, the check takes the Claude API structured-output limits: minItems above 1, maxItems, numeric bounds, and the inline-size budget. So a question's two-option minimum and code-review's positive `line` become coherence checks for both providers, with today's messages. Loss accepted: these rules leave the published schemas even if the real Claude Code turns out to accept them. The e2e can relax them later, in one change.
-- The structured value crosses the port. SessionOutcome's answer gains a required `structured: { value } | null`. Only the Claude reader sets it, from the result's `structured_output`. A Claude success that carries structured_output answers even with an empty or absent `result`. A success with neither structured_output nor non-blank text is a provider-error. Codex's native answer is its final message text, so its `structured` is null. AgentRunResult and CompletionResult gain the same required field, and the fake backend defaults it to null. All seven calls read through one helper, `answerJson(result)` in src/domain/session/structuredAnswer.ts, and no call parses finalText when a structured value is present. Loss accepted: the Backend port's result shape changes for every caller and fake.
+- The strict NonEmptyString lives in src/schemas/strictString.ts (`^[\s\S]+$`, identifier NonEmptyString, imports only effect). It replaces Schema.NonEmptyString in every answer schema and in the modules they share: phaxPlan.ts phase fields, questions.ts and testLine.ts. `next` snapshots stamped 0.32.0 go to spec-document, plan-document, first-reading, interactive-handoff and code-review, and also to phax-plan, which shares the phase fields and test lines. phax-plan-extraction, spec-hand-decision-answer and plan-hand-decision-answer are born at 0.32.0. Frozen modules: spec-document 0.27.0, plan-document 0.28.0, first-reading 0.26.0, interactive-handoff 0.26.0, code-review 0.29.0 and phax-plan 0.28.0, each listed as its format's release; hand-decision-answer 0.25.0 as its final shape. Effect names its own NonEmptyString `NonEmptyString` too, and when both meet in one schema the first one walked silently takes `$defs.NonEmptyString` (checked on effect 3.21.2), so a test holds every answer schema off Effect's. phax-plan keeps its release-pattern `$schema`, since it is not an answer, and its decoding does not change. Loss accepted: a non-answer format is restamped with no decoding change, and an older @lbdremy/phax-schemas cannot read a 0.32.0 run plan. Rejected, answer-only copies of the phase fields and test lines: that abandons the single definition the extracted-plan projection relies on, and reopens the drift the shared fields closed.
+- The authoring answer is the published sidecar shape. A headless spec or plan authoring session answers the published spec-document or plan-document schema, with its `$schema` const in place of `version: 1`. The empty `arbitratedQuestions` rule ('an authoring session returns open questions only') moves from `maxItems: 0` and a refusing declare to a coherence check of the authoring decoder, run before the file decoder, so a non-empty array is still refused at its first entry with the same message. Loss accepted: the provider no longer enforces that the authoring answer has no arbitrated questions. Required by the spec: each answer's schema is its published format's, and there is no second spec-document schema.
+- The strict check encodes, locally and offline, Codex strict (OpenAI strict structured outputs: closed objects, every key required, no root `anyOf`, no `oneOf`, `allOf`, `not` or conditionals, no lookaround, no `minLength` or `maxLength`; `minItems`, `maxItems` and numeric bounds are supported), plus Claude Code's inline-size budget. Evidence for Claude Code, from the operator's probe of the installed Claude Code 2.1.314 (Haiku, `--json-schema`) on 2026-10-30: a schema with `minItems: 2`, `exclusiveMinimum: 0`, `minLength: 3` and a `pattern` is accepted; with valid values the result is subtype `success` with `structured_output` holding the object and `result` the same JSON text; Claude Code enforces those rules client-side, the model answering through a StructuredOutput tool whose validation refuses values that break `minItems`, `exclusiveMinimum` or `minLength`. So the Claude API's structured-output limits do not apply to Claude Code's `--json-schema`, and a question's two-option minimum (`minItems: 2`) and code-review's positive `line` (`exclusiveMinimum: 0`) stay in the answer schemas, enforced by both providers. `minLength` is still outside Codex strict, so the pattern NonEmptyString stays. Loss accepted: the check holds Claude Code to nothing but the budget; a construct Claude Code refuses shows only in the e2e, which keeps a `minItems: 2` and `exclusiveMinimum: 0` probe as a regression guard.
+- The structured value crosses the port. SessionOutcome's answer gains a required `structured: { value } | null`. Only the Claude reader sets it, from the result's `structured_output`. A Claude success that carries structured_output answers even with an empty or absent `result`. A success with neither structured_output nor non-blank text is a provider-error. A success with no structured_output and a prose `result` is the shape the 2026-10-30 probe saw when the model could not meet the schema (`is_error: false`, after 4 turns, not `error_max_structured_output_retries`): it reads as the answer text, phax's decoder refuses it as not JSON, and the corrective resume runs (§5.7, §5.9). It is neither a provider-error nor accepted; §5.10's provider-error stays for when `error_max_structured_output_retries` does occur. Codex's native answer is its final message text, so its `structured` is null. AgentRunResult and CompletionResult gain the same required field, and the fake backend defaults it to null. All seven calls read through one helper, `answerJson(result)` in src/domain/session/structuredAnswer.ts, and no call parses finalText when a structured value is present. Loss accepted: the Backend port's result shape changes for every caller and fake.
 - Delivery of the schema:
   - Claude Code receives it inline, as minified JSON on `--json-schema`. The strict check's 100 000-byte inline budget, below Linux's 128 KiB single-argument limit, fails a test before a schema could fail a spawn.
   - Codex receives it in `answer.schema.json`, inside a temporary directory the Codex adapter creates per spawn (`phax-answer-schema-*` under the OS tmp dir) and removes once the process ends, whatever the outcome.
@@ -59,7 +60,7 @@ All three are already in `security.agentCommands` of phax.json. `pnpm exec tsx` 
 
 **Recommended model:** claude-sonnet-5-5
 **Recommended effort:** high
-**Assignment reason:** Designs the strict check's contract, the local encoding of two providers' schema rules, which no code in the repository shows yet.
+**Assignment reason:** Designs the strict check's contract, the local encoding of Codex strict's rules and Claude Code's inline budget, which no code in the repository shows yet.
 **Oracle phase:** discharged by phase-02
 **Oracle files:** `tests/unit/schemasPackage/strictCheck.test.ts`
 
@@ -67,17 +68,17 @@ Freeze the strict check's contract before its code exists: a table of JSON Schem
 
 ### Detailed instructions
 
-- Create `packages/schemas/build/strictCheck.ts` as a stub with its final exported surface. Every function throws `new Error("strictCheck: not implemented")`, so each oracle fails on its own assertion, not on a missing export. Export:
+- Create `packages/schemas/build/strictCheck.ts` as a stub with its final exported surface. Every function throws `new Error("strictCheck: not implemented")`, so each oracle fails on its own assertion, not on a missing export (prefix the stub's unused parameters with `_`: tsconfig sets noUnusedParameters). Export:
   - `type StrictProvider = "codex" | "claude-code"`;
   - `interface StrictViolation { readonly path: string; readonly construct: string; readonly providers: readonly StrictProvider[] }`;
   - `const INLINE_SCHEMA_BUDGET_BYTES = 100_000`, a real value;
   - `function strictViolations(schema: unknown): readonly StrictViolation[]`;
   - `function strictCheckFindings(answer: string, schema: unknown): readonly string[]`.
-- Write the contract in the stub's header comment: pure, no I/O, imports nothing at runtime. It encodes, locally because tests stay offline, Codex strict (OpenAI strict structured outputs) and Claude Code's `--json-schema`, taken as the Claude API structured-output limits.
-- The walk: the root, every `properties.<key>`, `items`, every `anyOf[i]`, and every `$defs.<name>` and `definitions.<name>`. A `$ref` is never followed; its target is walked once under `$defs`.
+- Write the contract in the stub's header comment: pure, no I/O, imports nothing at runtime. It encodes, locally because tests stay offline, Codex strict (OpenAI strict structured outputs) and Claude Code's inline-size budget. It records why Claude Code adds nothing else: the 2026-10-30 probe of Claude Code 2.1.314 showed `--json-schema` accepting and enforcing `minItems: 2`, `exclusiveMinimum`, `minLength` and `pattern`.
+- The walk: the root, every `properties.<key>`, `items`, every `anyOf[i]`, and every `$defs.<name>` and `definitions.<name>`. A `$ref` is never followed; its target is walked once under `$defs`. A property name is never read as a keyword (first-reading has a property named `pattern`).
 
   A path is dotted keywords from the root, e.g. `properties.phases.items.properties.oracle` or `$defs.NonEmptyString`. The root itself is `(root)`.
-- Allowed keywords: `type`, `properties`, `required`, `additionalProperties` (only `false`), `items`, `enum`, `const`, `anyOf` (not at the root), `$ref`, `$defs`, `definitions`, `pattern` (without lookaround), `format`, `minItems` (0 or 1), `description`, `title`, and `$schema` only as the root's draft keyword.
+- Allowed keywords: `type`, `properties`, `required`, `additionalProperties` (only `false`), `items`, `enum`, `const`, `anyOf` (not at the root), `$ref`, `$defs`, `definitions`, `pattern` (without lookaround), `format`, `minItems`, `maxItems`, `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`, `multipleOf`, `description`, `title`, and `$schema` only as the root's draft keyword.
 - The construct names, exact:
   - `root not an object`;
   - `root anyOf`;
@@ -88,16 +89,14 @@ Freeze the strict check's contract before its code exists: a table of JSON Schem
   - `open object` (a schema with `type: "object"` or `properties` whose `additionalProperties` is not `false`);
   - `optional key "<name>"` (a property missing from `required`);
   - `no $schema property` (the root has no `$schema` property, or does not require it);
-  - `$schema not a const` (the root's `$schema` property is not `{ const: <string> }`, annotations aside);
-  - `minItems above 1`, `maxItems`;
-  - `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`, `multipleOf`;
+  - `$schema not a const` (the root's `$schema` property carries no string `const`; beside the `const`, `type: "string"`, an `enum` holding that same single value, `description` and `title` are allowed, because Effect renders an annotated `Schema.Literal` as `{ type, enum, description, const }`);
   - `unsupported keyword "<k>"`, for any other keyword (e.g. `patternProperties`, `uniqueItems`, `dependencies`);
   - `inline size above 100000 bytes` (the UTF-8 length of `JSON.stringify(schema)`).
 
-  `providers` is `["claude-code"]` for minItems above 1, maxItems, the five numeric bounds and the inline size, and `["codex", "claude-code"]` for everything else.
-- The finding format is one line per violation, in walk order (root first, then properties in key order, depth first): `✗ <answer>: <construct> at <path> (<rules>)`. `<rules>` is `Codex strict and Claude Code --json-schema`, or `Claude Code --json-schema` alone.
+  `providers` is `["claude-code"]` for the inline size and `["codex"]` for everything else.
+- The finding format is one line per violation, in walk order (root first, then properties in key order, depth first): `✗ <answer>: <construct> at <path> (<rules>)`. `<rules>` is `Codex strict`, or `Claude Code --json-schema inline budget` for the inline size.
 - Create `tests/unit/schemasPackage/strictCheck.test.ts`. Every test carries Vitest's expected-failure marker (`it.fails`, `it.fails.each`), so `pnpm test` stays green against the stub. The fixture schemas are hand-written inside this file: they are what the oracle judges with, and no generator or shared fixture is used.
-- Oracle 1: a conforming schema yields `[]` from both functions. It is a root object with a required `$schema` `{ const }` property, closed objects with every key required, a nested `anyOf` with `{ type: "null" }`, `enum`, `const`, `format`, a `$ref` into `$defs`, `description`, `title` and the root draft `$schema` keyword.
+- Oracle 1: a conforming schema yields `[]` from both functions. It is a root object whose required `$schema` property is exactly what Effect renders for an annotated literal, `{ "type": "string", "enum": [<url>], "description": …, "const": <url> }`, with closed objects with every key required, a nested `anyOf` with `{ type: "null" }`, `enum`, `const`, `format`, an array with `minItems: 2`, an integer with `exclusiveMinimum: 0` beside a `$ref`, a `$ref` into `$defs`, a property named `pattern`, `description`, `title` and the root draft `$schema` keyword.
 - Oracle 2 is `it.fails.each` over a table: one row per construct name above. Each row's schema is the conforming schema with that one construct placed at a known nested path. Expect exactly one violation with that construct, path and providers, and exactly one finding that contains the answer name passed (use `"plan-document"`), the construct and the path.
 - Oracle 3, the acceptance case: `properties.guarantee` carries the pattern `^(?!\s)[\s\S]*\S$`. Expect one finding naming `plan-document` and `lookaround pattern` at that path.
 - Oracle 4: one schema holding three constructs at different depths yields three findings, in walk order.
@@ -122,10 +121,10 @@ Producer: packages/schemas/build/strictCheck.ts. Consumers: the strict-answers t
 
 ### Test strategy
 
-- a schema inside both providers' rules yields no violation and no finding — small · example · empty arrays from both functions · oracle
-- each construct outside Codex strict or Claude Code's --json-schema yields exactly one finding naming the answer, the construct and its path — small · table · the construct table's expected path, construct and providers · oracle · ac-check-fails
+- a schema inside Codex strict and Claude Code's inline budget, with an Effect-rendered $schema const, minItems 2 and an exclusiveMinimum, yields no violation and no finding — small · example · empty arrays from both functions · oracle
+- each construct outside Codex strict or Claude Code's inline budget yields exactly one finding naming the answer, the construct and its path — small · table · the construct table's expected path, construct and providers · oracle · ac-check-fails
 - a lookahead pattern on a nested string field is reported as a lookaround pattern naming the answer — small · example · the expected finding text · oracle · ac-check-fails
-- the Claude-only constructs (minItems above 1, maxItems, numeric bounds, inline size) name Claude Code alone — small · table · the providers of each violation · oracle
+- the inline size names Claude Code alone and every other construct names Codex alone — small · table · the providers of each violation · oracle
 - several violations are reported one per construct in walk order — small · example · the ordered findings list · oracle
 
 ### Implementation order
@@ -153,7 +152,7 @@ The exact exports of packages/schemas/build/strictCheck.ts and their signatures.
 
 ### Commit body
 
-Add the strict check's stub (packages/schemas/build/strictCheck.ts) and its oracles. Each test is an expected failure until the check is implemented: a conforming schema yields nothing, each construct outside Codex strict or Claude Code's --json-schema yields one finding naming the answer, the construct and its path, and a lookahead pattern is named as such.
+Add the strict check's stub (packages/schemas/build/strictCheck.ts) and its oracles. Each test is an expected failure until the check is implemented: a conforming schema yields nothing, each construct outside Codex strict or Claude Code's inline budget yields one finding naming the answer, the construct and its path, and a lookahead pattern is named as such.
 
 ---
 
@@ -162,7 +161,7 @@ Add the strict check's stub (packages/schemas/build/strictCheck.ts) and its orac
 **Recommended model:** claude-sonnet-5-5
 **Recommended effort:** medium
 
-Implement the strict check, so it reports every construct outside Codex strict or Claude Code's --json-schema, naming the answer, the construct and its path.
+Implement the strict check, so it reports every construct outside Codex strict or Claude Code's inline budget, naming the answer, the construct and its path.
 
 ### Detailed instructions
 
@@ -170,7 +169,7 @@ Implement the strict check, so it reports every construct outside Codex strict o
 - Remove the `.fails` markers from `tests/unit/schemasPackage/strictCheck.test.ts`. That is the only change to that file: no test is added, edited or removed there.
 - Drive the internals test-first in a new `tests/unit/schemasPackage/strictCheckWalk.test.ts`. Cover:
   - each `$defs` entry is visited once, and a `$ref` is never followed;
-  - `type: ["string", "null"]` and a nested `anyOf` are allowed;
+  - `type: ["string", "null"]`, a nested `anyOf`, `minItems: 2`, `maxItems` and the numeric bounds are allowed;
   - a `then` without an `if` is reported as `if`;
   - the inline size counts UTF-8 bytes of `JSON.stringify(schema)`, just under and just over the budget.
 - Keep the module pure: no fs, no process, and no import from src/ beyond types.
@@ -219,7 +218,7 @@ Confirmation that every oracle in strictCheck.test.ts passes without its marker 
 
 ### Commit body
 
-Implement strictViolations and strictCheckFindings, which walk a JSON Schema and report every construct outside Codex strict or Claude Code's --json-schema (root unions, oneOf, allOf, lookaround, minLength, open objects, optional keys, a $schema that is not a const, Claude-only array and numeric bounds, the inline-size budget). Each is named with its path. The construct-table oracles now pass.
+Implement strictViolations and strictCheckFindings, which walk a JSON Schema and report every construct outside Codex strict (root unions, oneOf, allOf, lookaround, minLength, open objects, optional keys, a $schema that is not a const) or above Claude Code's inline-size budget. Each is named with its path. The construct-table oracles now pass.
 
 ---
 
@@ -235,12 +234,11 @@ The first-reading, interactive-handoff and code-review answers become strict, wi
 
 - Create `src/schemas/strictString.ts`, importing only effect: `export const NonEmptyString = Schema.String.pipe(Schema.pattern(/^[\s\S]+$/, { message: () => ... }))`, with identifier `NonEmptyString`. It accepts exactly the strings Schema.NonEmptyString accepts. Keep a message close to Effect's non-empty message, so refusals still name the field and say it must not be empty.
 - Create `src/schemas/publishedJsonSchema.ts`. Move into it the body of `renderOne` from packages/schemas/build/jsonSchemas.ts, as `renderPublishedJsonSchema({ schema, title, excess })`: draft-07 `$schema`, the title, `$defs`, and `JSONSchema.fromAST` with the excess strategy. Make jsonSchemas.ts call it, so every unchanged format renders byte-identically.
-- Create `src/schemas/answerSchemas.ts` with three exports:
-  - `answerSchemaUrlField(formatId)`: `Schema.Literal(schemaUrl(formatId, CURRENT_STAMPS[formatId]))`, annotated `jsonSchema: { const: <url> }` and a description. This is the required first key of every answer.
-  - `ANSWER_FORMATS`: format id → `{ label, schema }`, holding first-reading, interactive-handoff, code-review and phax-plan-extraction (phase-04 adds the other three).
-  - `answerJsonSchema(format)`: `renderPublishedJsonSchema` with title `phax <label>` and excess `error`. It is exactly the object packages/schemas/json/<format>.schema.json holds.
-- first-reading (src/schemas/firstReading.ts) and interactive-handoff (src/schemas/interactiveHandoff.ts): use `$schema: answerSchemaUrlField(...)` and the strict NonEmptyString. The guard union stays a nested anyOf, which is allowed.
-- code-review (src/schemas/codeReview.ts): the answer and the file become one shape. Drop CodeReviewAnswerSchema and `version`, and give CodeReviewFileSchema `$schema: answerSchemaUrlField("code-review")`. `line` becomes `Schema.Int` plus a coherence filter keeping today's 'must be a positive integer, actual …' message, annotated `jsonSchema: { description }`, so no exclusiveMinimum is rendered. `readCodeReviewAnswer` decodes with the file schema, using `{ errors: "all", onExcessProperty: "error" }`, and reports the root-level issues `$schema` first, joined by '; '. So `{"version": 1, "findings": []}` is refused naming the missing `$schema` and the unexpected `version`. `codeReviewFileText` is unchanged.
+- Two modules, never one, because the leaf schemas need the stamp and the registry needs the leaf schemas (one module would be an import cycle that throws a ReferenceError at load):
+  - `src/schemas/answerStamp.ts`, importing only effect, ./schemaUrl.js and ./release.js: `answerSchemaUrlField(formatId)`, `Schema.Literal(schemaUrl(formatId, CURRENT_STAMPS[formatId]))` annotated `jsonSchema: { const: <url> }` and a description. It renders as `{ type, enum, description, const }`, which the strict check accepts. This is the required first key of every answer, and the only module the answer schemas import for it;
+  - `src/schemas/answerSchemas.ts`: `ANSWER_FORMATS`, format id → `{ label, schema }`, holding first-reading, interactive-handoff, code-review and phax-plan-extraction (phase-04 adds the other four), and `answerJsonSchema(format)`: `renderPublishedJsonSchema` with title `phax <label>` and excess `error`. It is exactly the object packages/schemas/json/<format>.schema.json holds. No answer schema imports this module.
+- first-reading (src/schemas/firstReading.ts) and interactive-handoff (src/schemas/interactiveHandoff.ts): use `$schema: answerSchemaUrlField(...)` from answerStamp.ts and the strict NonEmptyString. The guard union stays a nested anyOf, which is allowed.
+- code-review (src/schemas/codeReview.ts): the answer and the file become one shape. Drop CodeReviewAnswerSchema and `version`, and give CodeReviewFileSchema `$schema: answerSchemaUrlField("code-review")` and the strict NonEmptyString. `line` keeps `Schema.Int` with `Schema.positive()` and today's message: its `exclusiveMinimum: 0` is inside Codex strict, and Claude Code enforces it. `readCodeReviewAnswer(parsed: unknown)` takes the parsed answer, not text, so phase-05's `answerJson` can feed it; it decodes with the file schema, using `{ errors: "all", onExcessProperty: "error" }`, and reports the root-level issues `$schema` first, joined by '; '. So `{"version": 1, "findings": []}` is refused naming the missing `$schema` and the unexpected `version`. src/app/reviewCode.ts parses the final text (extractJsonDocumentText, a not-JSON refusal as today) before calling it. `codeReviewFileText` is unchanged.
 - New format phax-plan-extraction, in a new `src/schemas/planExtraction.ts`. `PlanExtractionAnswerSchema = { $schema: answerSchemaUrlField("phax-plan-extraction"), plan: NullOr({ run: ExtractedRunSchema, phases: NonEmptyArray(Struct(answer phase fields: the extracted fields without mode and oracle)) }), incomplete: NullOr(NonEmptyString) }`. Add a coherence filter: exactly one of `plan` and `incomplete` is null, otherwise refused with 'plan and incomplete: exactly one of them is null', annotated with a description. Export `readPlanExtractionAnswer(parsed)`, returning Either of `{ kind: "plan", plan } | { kind: "incomplete", reason }`. Refusals use the same all-errors root report as the code review.
 - src/schemas/phaxPlan.ts: remove ExtractionAnswerSchema and getExtractedPlanJsonSchema, and export the answer phase fields that planExtraction.ts needs. ExtractedPhaxPlanSchema keeps `version: 1`: it is the cache's shape, not an answer.
 - Register phax-plan-extraction everywhere a format is registered:
@@ -250,11 +248,14 @@ The first-reading, interactive-handoff and code-review answers become strict, wi
   - the maps in packages/schemas/src/index.ts;
   - a `readPlanExtractionAnswer`-style bridge in src/schemas/persisted.ts if its format lists require one;
   - the decoder map in tests/unit/architecturalGuards.test.ts.
+  - a row in README.md's `## Persisted formats` table, naming the exported parse function (tests/unit/readmePersistedFormats.test.ts holds the table to FORMAT_IDS);
+  - `NEVER_WRITTEN` in tests/integration/persistedProducer.test.ts: phax reads the extraction answer and never writes it;
+  - the schemas-package closure allowlist, `CLOSURE_SRC_ALLOWLIST` in tests/unit/architecturalGuards.test.ts, which must name exactly the src/ modules the package now reaches: strictString.ts, answerStamp.ts, planExtraction.ts, the three new history modules, and any other new src/ module the closure reaches (answerSchemas.ts and publishedJsonSchema.ts stay out of it when no answer schema imports answerSchemas.ts).
 - src/app/extractPlan.ts: the prompt states `answerJsonSchema("phax-plan-extraction")`. Rewrite its rules: report a missing required field, or a test-strategy item not in the line format, as `{ "$schema": <the const>, "plan": null, "incomplete": "<what>" }`, never `{"error": …}`. Decode with readPlanExtractionAnswer:
   - `incomplete` fails with PlanValidationError `The extraction model found the plan incomplete: <reason>`;
   - `plan` gains `version: 1` and goes through withPhaseKinds and decodeExtractedPlan as today.
-  Remove refusalReason. The fallback still has no retry. Update docs/plan-extraction-model.md, which describes the `{"error": …}` answer.
-- src/domain/review/codeReviewPrompt.ts: replace the `{ "version": 1, "findings": [ … ] }` key sketch with the full answer JSON Schema (`answerJsonSchema("code-review")`, pretty-printed). Keep, in words, the closed severity, lens and escape ids and the rule that `line` is a positive integer. src/app/reviewCode.ts reads the answer with the new readCodeReviewAnswer; keep its one-attempt behaviour (phase-06 adds the resume).
+  Remove refusalReason. The fallback still has no retry. Update docs/plan-extraction-model.md, which describes the `{"error": …}` answer. The `ExtractionAnswer` type moves with it: src/domain/plan/phaseHeader.ts (withPhaseKinds) takes the `plan` member of the new answer, and the tests that feed the old `{ version: 1, run, phases }` answer through the fake backend answer the new format: tests/integration/loadOrExtractPlan.test.ts, tests/integration/run.test.ts, tests/unit/loadOrExtractPlan.test.ts and tests/unit/phaseHeader.test.ts.
+- src/domain/review/codeReviewPrompt.ts: replace the `{ "version": 1, "findings": [ … ] }` key sketch with the full answer JSON Schema (`answerJsonSchema("code-review")`, pretty-printed). Replace the empty-answer example too (`{"version":1,"findings":[]}`, line 156 today) with the stamped one. Keep, in words, the closed severity, lens and escape ids and the rule that `line` is a positive integer. src/app/reviewCode.ts reads the answer with the new readCodeReviewAnswer; keep its one-attempt behaviour (phase-06 adds the resume).
 - src/app/interactiveStop.ts and src/app/closeStop.ts: the schema JSON in their prompts becomes `JSON.stringify(answerJsonSchema(format), null, 2)`.
 - Frozen modules. Copy today's shapes, before your edits, into self-contained modules: their own release-pattern `$schema`, their own Effect NonEmptyString, and a header comment like src/schemas/history/plan-document/0.26.0.ts. Never edit them after this phase.
   - FirstReadingFileSchema → `src/schemas/history/first-reading/0.26.0.ts`;
@@ -265,14 +266,15 @@ The first-reading, interactive-handoff and code-review answers become strict, wi
 
   In persisted.ts, the code-review.json reader reads a 0.29.0 file of an older run folder through the frozen module. first-reading and interactive-handoff answers stay on readReport, so an older stamp is refused as `older`.
 - Regenerate the derived files: run `pnpm exec tsx scripts/schemas-check.ts --write`, then run it once more. The `$schema` const follows CURRENT_STAMPS, which moves to 0.32.0 once the `next` snapshot exists, so the second pass rewrites `next` with the 0.32.0 const. `pnpm exec tsx scripts/schemas-check.ts` must then report the derived files current. This writes packages/schemas/snapshots/<format>/next.schema.json for first-reading, interactive-handoff, code-review and phax-plan-extraction, src/schemas/release.ts, packages/schemas/src/generated/index.ts and packages/schemas/history.lock.json.
-- Update the exhaustive registries the schemas tests hold: tests/unit/schemaUrl.test.ts (both lists), tests/unit/schemasPackage/documents.ts (fixtures for every format, extraction included), documents.test.ts, currentShapes.test.ts, jsonSchemas.test.ts, parity.test.ts and tests/type/schemasPackage.ts.
-- Create `tests/unit/schemas/answerRulesKept.test.ts`: a table of answer fixtures per answer, each with the verdict and refused path today's decoder gives. Run every fixture through the new decoder. Each refused fixture is still refused, naming the same field. Each accepted fixture is still accepted, once restamped with the `$schema` const (and, for code-review, without `version`). phase-04 extends the same table.
-- Create `tests/unit/schemas/planExtraction.test.ts` and `tests/unit/schemas/answerSchemas.test.ts`. answerSchemas.test.ts checks that `answerJsonSchema(format)` deep-equals the published file `renderJsonSchemas(JSON_SCHEMA_FORMATS)` writes for each registered answer, and that each label equals FORMAT_DEFINITIONS' label. Update the tests that build code-review answers with `version: 1` (reviewCodeHeadless, headlessCodeReviewRunEnd, codeReview, codeReviewRefusals) and the extraction tests.
+- Update the exhaustive registries the schemas tests hold: tests/unit/schemaUrl.test.ts (both lists), tests/unit/schemasPackage/documents.ts (fixtures for every format, extraction included), documents.test.ts, currentShapes.test.ts, jsonSchemas.test.ts, parity.test.ts and tests/type/schemasPackage.ts. A const `$schema` reads only its own stamp: the package still maps a later stamp to the latest shape at or below it (packages/schemas/src/shapes.ts), so a const-format document stamped above its current stamp is refused at `$schema`, and phax never writes one. Say so in the format's comment, and restate tests/unit/schemasPackage/parseDocument.test.ts's 'reads a %s at the package's own release' case: the answer formats are read at `CURRENT_STAMPS[id]`, and one more case pins the refusal above it. Otherwise that test goes red at the next release opening, for every answer format without a `next`.
+- Create `tests/unit/schemas/answerRulesKept.test.ts`, a differential table: answer fixtures per answer, each decoded by the frozen module of today's shape (first-reading and interactive-handoff 0.26.0, code-review 0.29.0) and by the new decoder. Each fixture the frozen module refuses, the new decoder refuses naming the same field. Each fixture it accepts, the new decoder accepts once restamped with the `$schema` const (and, for code-review, without `version`). The extraction fixtures, which have no frozen module, record today's verdicts. phase-04 extends the same table.
+- Create `tests/unit/schemas/planExtraction.test.ts` and `tests/unit/schemas/answerSchemas.test.ts`. answerSchemas.test.ts checks that `answerJsonSchema(format)` deep-equals the published file `renderJsonSchemas(JSON_SCHEMA_FORMATS)` writes for each registered answer, and that each label equals FORMAT_DEFINITIONS' label. Update the tests that build code-review answers with `version: 1` (reviewCodeHeadless, headlessCodeReviewRunEnd, codeReview, codeReviewRefusals, codeReviewRecord, persistedProducer) and the extraction tests.
 
 ### Planned files to create
 
 - `src/schemas/strictString.ts`
 - `src/schemas/publishedJsonSchema.ts`
+- `src/schemas/answerStamp.ts`
 - `src/schemas/answerSchemas.ts`
 - `src/schemas/planExtraction.ts`
 - `src/schemas/history/first-reading/0.26.0.ts`
@@ -322,6 +324,15 @@ The first-reading, interactive-handoff and code-review answers become strict, wi
 - `tests/unit/review/codeReviewPrompt.test.ts`
 - `tests/integration/reviewCodeHeadless.test.ts`
 - `tests/integration/headlessCodeReviewRunEnd.test.ts`
+- `README.md`
+- `src/domain/plan/phaseHeader.ts`
+- `tests/integration/loadOrExtractPlan.test.ts`
+- `tests/integration/run.test.ts`
+- `tests/unit/loadOrExtractPlan.test.ts`
+- `tests/unit/phaseHeader.test.ts`
+- `tests/unit/schemasPackage/parseDocument.test.ts`
+- `tests/integration/persistedProducer.test.ts`
+- `tests/integration/codeReviewRecord.test.ts`
 
 ### Optional files that may be edited
 
@@ -332,21 +343,20 @@ The first-reading, interactive-handoff and code-review answers become strict, wi
 - `tests/unit/schemasPackage/exports.test.ts`
 - `tests/unit/schemasPackage/runDirectoryFormats.test.ts`
 - `tests/unit/schemasPackage/snapshots.test.ts`
-- `tests/integration/persistedProducer.test.ts`
 - `tests/integration/extractPlanSealed.test.ts`
 - `tests/integration/extractPlanTitles.test.ts`
 - `tests/integration/reviewCodeCommand.test.ts`
-- `tests/integration/codeReviewRecord.test.ts`
 - `tests/integration/declaredStop.test.ts`
 - `tests/integration/declaredStopClose.test.ts`
+- `tests/unit/readmePersistedFormats.test.ts`
 
 ### Boundary contracts
 
-Producer: src/schemas/answerSchemas.ts. Consumers: the prompts (extractPlan, codeReviewPrompt, interactiveStop, closeStop), phase-07's provider flags and phase-04's strict test. Contract: `answerJsonSchema(format)` is the published JSON Schema of that answer format. Producer: src/schemas/planExtraction.ts. Consumer: src/app/extractPlan.ts. Contract: `readPlanExtractionAnswer(parsed)` is a plan or an incomplete reason, or a refusal naming every root issue. Producer: src/schemas/codeReview.ts. Consumer: src/app/reviewCode.ts. Contract: `readCodeReviewAnswer(text)` returns the findings, or the refusal text.
+Producer: src/schemas/answerStamp.ts. Consumers: every answer schema. Contract: `answerSchemaUrlField(format)` is the required `$schema` const of the format's current stamp. Producer: src/schemas/answerSchemas.ts. Consumers: the prompts (extractPlan, codeReviewPrompt, interactiveStop, closeStop), phase-07's provider flags and phase-04's strict test. Contract: `answerJsonSchema(format)` is the published JSON Schema of that answer format. Producer: src/schemas/planExtraction.ts. Consumer: src/app/extractPlan.ts. Contract: `readPlanExtractionAnswer(parsed)` is a plan or an incomplete reason, or a refusal naming every root issue. Producer: src/schemas/codeReview.ts. Consumer: src/app/reviewCode.ts. Contract: `readCodeReviewAnswer(parsed)` returns the findings, or the refusal text.
 
 ### Test strategy
 
-- every fixture the first-reading, interactive-handoff, code-review and extraction decoders refused before is still refused naming its field, and every accepted one is still accepted once restamped — small · table · the fixture table's recorded verdicts and paths · in-phase · ac-accepts
+- every fixture the frozen first-reading, interactive-handoff and code-review modules refuse the new decoders refuse naming the same field, every one they accept is accepted once restamped, and the extraction fixtures keep their verdicts — small · table · the frozen 0.26.0 and 0.29.0 decoders on the same fixtures · in-phase · ac-accepts
 - a code-review answer {version: 1, findings: []} is refused naming the missing $schema and the unexpected version key — small · example · the refusal text · in-phase · ac-unstamped-answer
 - an extraction answer with version and no $schema fails the extraction with no retry, naming both — small · example · the PlanValidationError message and a single complete call · in-phase · ac-unstamped-answer
 - an extraction answer with plan null and an incomplete reason fails with 'The extraction model found the plan incomplete:' followed by the reason — small · example · the error message · in-phase · ac-extraction-incomplete
@@ -354,11 +364,12 @@ Producer: src/schemas/answerSchemas.ts. Consumers: the prompts (extractPlan, cod
 - answerJsonSchema returns, for each registered answer, exactly the published schema the build writes — small · table · renderJsonSchemas output for the same format · in-phase
 - a 0.29.0 code-review.json of an older run folder still reads through its frozen module — small · example · the decoded findings · in-phase
 - the headless code review prompt states the answer's JSON Schema with its $schema const — small · example · the rendered schema text inside the prompt · in-phase
+- a const-stamped answer format read by the package at its current stamp decodes, and one stamped above it is refused at $schema — small · table · parseDocument's result for each answer format · in-phase
 
 ### Implementation order
 
 1. frozen modules copied from today's shapes
-2. strictString.ts, publishedJsonSchema.ts, answerSchemas.ts
+2. strictString.ts, publishedJsonSchema.ts, answerStamp.ts, answerSchemas.ts
 3. firstReading, interactiveHandoff, codeReview schemas
 4. planExtraction.ts and the format registration
 5. package formats, persisted readers
@@ -378,7 +389,7 @@ The `standard` gate profile in phax.json; also `pnpm exec tsx scripts/schemas-ch
 
 ### Expected handoff content
 
-The exports of src/schemas/strictString.ts, answerSchemas.ts (`answerSchemaUrlField`, `ANSWER_FORMATS`, `answerJsonSchema`), publishedJsonSchema.ts and planExtraction.ts, with signatures. The refusal formats of readCodeReviewAnswer and readPlanExtractionAnswer. The stamps CURRENT_STAMPS now gives the four formats. The frozen modules added and their release entries. Every registry touched. Any deviation from the planned file lists, in particular any schemas-package test that had to change.
+The exports of src/schemas/strictString.ts, answerStamp.ts (`answerSchemaUrlField`), answerSchemas.ts (`ANSWER_FORMATS`, `answerJsonSchema`), publishedJsonSchema.ts and planExtraction.ts, with signatures. The refusal formats of readCodeReviewAnswer and readPlanExtractionAnswer. The stamps CURRENT_STAMPS now gives the four formats. The frozen modules added and their release entries. Every registry touched. Any deviation from the planned file lists, in particular any schemas-package test that had to change. The closure allowlist as it now stands. How the package treats a const-format document stamped above its current stamp.
 
 ### Commit subject
 
@@ -386,17 +397,17 @@ The exports of src/schemas/strictString.ts, answerSchemas.ts (`answerSchemaUrlFi
 
 ### Commit body
 
-first-reading, interactive-handoff and code-review answers carry a required $schema const and a strict non-empty pattern; the code-review answer and file are one shape, with $schema in place of version. The extraction fallback answers the new phax-plan-extraction format, born at 0.32.0, which reports an incomplete plan inside its schema. answerJsonSchema renders each answer exactly as packages/schemas publishes it, and the extraction and code review prompts state it. The previous shapes are frozen as history modules and the snapshots record next.
+first-reading, interactive-handoff and code-review answers carry a required $schema const and a strict non-empty pattern; the code-review answer and file are one shape, with $schema in place of version and its positive line kept in the schema. The extraction fallback answers the new phax-plan-extraction format, born at 0.32.0, which reports an incomplete plan inside its schema. answerJsonSchema renders each answer exactly as packages/schemas publishes it, and the extraction and code review prompts state it. The previous shapes are frozen as history modules and the snapshots record next.
 
 ---
 
 ## phase-04 — Strict spec, plan, run-plan and hand-decision answers {#phase-04-strict-document-answers}
 
-**Recommended model:** claude-sonnet-5-5
-**Recommended effort:** high
-**Assignment reason:** A cascade across four published formats, their frozen history, the sidecar migration path and the decide and authoring callers.
+**Recommended model:** claude-opus-5-5
+**Recommended effort:** medium
+**Assignment reason:** A cascade across six published formats, two of them born and one frozen, their history, the sidecar migration path and the decide and authoring callers: a choice that crosses the schemas, domain, app and cli layers.
 
-spec-document, plan-document and hand-decision-answer become strict answers with a `$schema` const and no root union or pairing. Their shared test lines, question schemas and phase fields lose every lookaround, stacked pattern and minLength, which restamps phax-plan. Every rule stays in phax's decoder, and all seven answers now pass the strict check.
+spec-document and plan-document become strict answers with a `$schema` const and no root pairing, and hand-decision-answer's root union becomes two formats, spec-hand-decision-answer and plan-hand-decision-answer, each closed and exact. Their shared test lines, question schemas and phase fields lose every lookaround, stacked pattern and minLength, which restamps phax-plan. Every rule stays in phax's decoder, and all eight answer formats now pass the strict check.
 
 ### Detailed instructions
 
@@ -408,36 +419,35 @@ spec-document, plan-document and hand-decision-answer become strict answers with
   The rendered JSON holds no lookaround and no allOf. src/domain/plan/testLineGrammar.ts must read and render lines exactly as before.
 - Use the strict NonEmptyString (src/schemas/strictString.ts) in src/schemas/phaxPlan.ts (ExtractedPhaseFields, ExtractedRunSchema, PhaseOracleSchema files, phaxPlanFields), questions.ts, planDocument.ts, specDocument.ts and handDecisionAnswer.ts.
 
-  questions.ts: `options` loses `Schema.minItems(2)` in favour of a filter with the same message Effect gives today ('Expected an array of at least 2 item(s), actual …'), annotated with a description. Remove the `authoringArbitratedQuestions` declare schemas and `maxItems: 0`. Export a pure `authoringArbitratedViolation(arbitratedQuestions, basePath)` that returns AUTHORING_ARBITRATED_MESSAGE at `<basePath>.arbitratedQuestions[0]` when the array is not empty.
+  questions.ts: `options` keeps `Schema.minItems(2)`: `minItems: 2` is inside Codex strict, and Claude Code enforces it. Remove the `authoringArbitratedQuestions` declare schemas and `maxItems: 0`. Export a pure `authoringArbitratedViolation(arbitratedQuestions, basePath)` that returns AUTHORING_ARBITRATED_MESSAGE at `<basePath>.arbitratedQuestions[0]` when the array is not empty.
 - src/schemas/planDocument.ts:
   - PlanDocumentFileSchema takes `$schema: answerSchemaUrlField("plan-document")`.
   - The lineage filter keeps its check and message, but its `jsonSchema` becomes a description only: no allOf or oneOf.
-  - Write one combined root description naming the lineage pairing, the question checks and an authoring answer's empty arbitratedQuestions.
-  - Remove PlanDocumentStruct and the `version: 1` PlanDocumentSchema, and add `decodeAuthoredPlanDocument`: the file decoder followed by `authoringArbitratedViolation` at `preamble`, reported through formatFirstViolation's path form.
+  - Write one combined root description naming the lineage pairing, the question checks and an authoring answer's empty arbitratedQuestions (Effect keeps only the last root filter's description).
+  - Remove PlanDocumentStruct and the `version: 1` PlanDocumentSchema, and add `decodeAuthoredPlanDocument`: `authoringArbitratedViolation` at `preamble` first, on the parsed input when its `preamble.arbitratedQuestions` is an array, then the file decoder, so a non-empty array is refused at its first entry as today; both reported through formatFirstViolation's path form.
   - `AuthoredPlanDocument` becomes PlanDocumentFile.
   - `projectExtractedPlan` writes `version: 1` itself.
   - `getPlanDocumentJsonSchema()` returns `answerJsonSchema("plan-document")`; drop getPlanDocumentFileJsonSchema and repoint its callers.
 
-  src/schemas/specDocument.ts gets the same treatment: `$schema` const, traceability filter, `decodeAuthoredSpecDocument` with the authoring rule at the root, and `getSpecDocumentJsonSchema()` returning `answerJsonSchema("spec-document")`.
-- src/schemas/handDecisionAnswer.ts: ONE closed object, `{ $schema: answerSchemaUrlField("hand-decision-answer"), kind: Literal("spec", "plan"), decisions: Array({ id, verdict: { …decided verdict fields, phase: NullOr(phase-NN pattern) } }), markdown }`.
+  src/schemas/specDocument.ts gets the same treatment: `$schema` const, traceability filter, `decodeAuthoredSpecDocument` with the authoring rule at the root, checked first, and `getSpecDocumentJsonSchema()` returning `answerJsonSchema("spec-document")`.
+- hand-decision-answer becomes two formats (Technical arbitrations). src/schemas/handDecisionAnswer.ts exports SpecHandDecisionAnswerFileSchema (`{ $schema: answerSchemaUrlField("spec-hand-decision-answer"), kind: Literal("spec"), decisions: Array({ id, verdict: SpecDecidedVerdictSchema }), markdown }`) and PlanHandDecisionAnswerFileSchema (the same with `"plan-hand-decision-answer"`, `Literal("plan")` and PlanDecidedVerdictSchema), each with its decoder (`onExcessProperty: "error"`). The in-memory `HandDecisionAnswer` union is unchanged, now written as the union of the two types without `$schema`. The old union and `getHandDecisionAnswerFileJsonSchema` leave this module.
 
-  In src/schemas/persisted.ts, `decodeCurrentHandDecisionAnswer(input, kind)` runs these coherence checks:
-  - `kind` equals the expected kind, else `kind: "<got>" is not the <expected> answer this decide session expects`;
-  - each spec decision's `verdict.phase` is null, else `a spec decision names no phase`;
-  - each plan decision's is a phase id, else `a plan decision names the phase it bears on`.
+  Register both formats everywhere a format is registered, as phase-03 did for phax-plan-extraction: FORMAT_IDS and SCHEMA_BORN_FORMAT_IDS (appended, doc comments updated), FORMAT_DEFINITIONS and EXCESS (`error`), two formats in packages/schemas/src/formats/answers.ts (born with `$schema`, current shape `next`, `toLatest` dropping `$schema`, so the latest is today's spec or plan member of the union), the maps in packages/schemas/src/index.ts, README.md's Persisted formats rows, `NEVER_WRITTEN` in tests/integration/persistedProducer.test.ts, and `BRIDGE_ONLY_DECODERS` and the closure allowlist in tests/unit/architecturalGuards.test.ts.
 
-  It then maps the answer to today's in-memory HandDecisionAnswer union: spec verdicts without `phase`. Update the callers in src/domain/decide/handAuthored.ts and src/domain/decide/verdicts.ts. In src/domain/decide/prompt.ts and src/domain/decide/verdictsPrompt.ts, state `answerJsonSchema("hand-decision-answer")`, and say in words that `kind` must be the artifact's kind and when `phase` is null.
-- Register spec-document, plan-document and hand-decision-answer in ANSWER_FORMATS. `phax artifact schema spec|plan` (src/cli/commands/artifact.ts) prints `answerJsonSchema`; `verdicts` is unchanged.
+  hand-decision-answer is frozen, not migrated: move today's union verbatim to `src/schemas/history/hand-decision-answer/0.25.0.ts` (its own release-pattern `$schema`, its own Effect NonEmptyString and its own copy of the verdict schemas). The format keeps its id, its 0.25.0 snapshot and stamp and no `next`. answers.ts lists that module as its 0.25.0 release and as its current shape, so `parseHandDecisionAnswer` still reads one and `toLatestHandDecisionAnswer` stays today's union minus `$schema`. If a schemas-package test refuses a release that is also the current shape, settle it the smallest way and report it. phax decodes it nowhere.
 
-  Rewrite the `artifact schema` help in src/cli/cliDocs.ts: the printed schema is the published answer schema with its `$schema` const, and phax checks what the schema does not express: traceability, the question checks including two or more options, the plan's sourceSpec/completesSpec pairing, and an authoring answer's empty arbitratedQuestions. Then run `pnpm gen:usage-spec` and `pnpm docs:cli`.
+  In src/schemas/persisted.ts, `decodeCurrentHandDecisionAnswer(input, kind)` decodes with the kind's format and drops `$schema`. `handAnswerStampViolation` (src/domain/decide/handAuthored.ts) checks the kind's format stamp. Update the callers in src/domain/decide/handAuthored.ts (HandDecideContext carries the kind) and src/domain/decide/verdicts.ts. In src/domain/decide/prompt.ts and src/domain/decide/verdictsPrompt.ts, state `answerJsonSchema(`${kind}-hand-decision-answer`)` for a hand-authored artifact.
+- Register spec-document, plan-document, spec-hand-decision-answer and plan-hand-decision-answer in ANSWER_FORMATS. `phax artifact schema spec|plan` (src/cli/commands/artifact.ts) prints `answerJsonSchema`; `verdicts` is unchanged.
+
+  Rewrite the `artifact schema` help in src/cli/cliDocs.ts: the printed schema is the published answer schema with its `$schema` const, and phax checks what the schema does not express: traceability, the question checks, the plan's sourceSpec/completesSpec pairing, and an authoring answer's empty arbitratedQuestions. Then run `pnpm gen:usage-spec` and `pnpm docs:cli`.
 - src/app/authorArtifact.ts: decode with `decodeAuthoredSpecDocument` and `decodeAuthoredPlanDocument`. Write the sidecar from the decoded answer, which already carries the current `$schema` const. The authoring prompt's schema is `answerJsonSchema` of the kind's format. Adjust src/app/planCacheStore.ts if projectExtractedPlan's input type changed.
 - Frozen modules. Copy today's shapes into self-contained modules, with their own copies of the question, test-line and lineage checks:
   - SpecDocumentFileSchema → `src/schemas/history/spec-document/0.27.0.ts`;
   - PlanDocumentFileSchema → `src/schemas/history/plan-document/0.28.0.ts`;
   - PhaxPlanFileSchema → `src/schemas/history/phax-plan/0.28.0.ts`;
-  - the union HandDecisionAnswerFileSchema → `src/schemas/history/hand-decision-answer/0.25.0.ts`.
+  - the union HandDecisionAnswerFileSchema → `src/schemas/history/hand-decision-answer/0.25.0.ts`, as above.
 
-  List them as releases with toLatest lifts: spec 0.27.0 and plan 0.28.0 in packages/schemas/src/formats/repository.ts (identity minus `$schema`), hand-decision 0.25.0 in answers.ts, phax-plan 0.28.0 in runDirectory.ts.
+  List the first three as releases with toLatest lifts: spec 0.27.0 and plan 0.28.0 in packages/schemas/src/formats/repository.ts (identity minus `$schema`), phax-plan 0.28.0 in runDirectory.ts.
 
   In persisted.ts:
   - DocumentSidecar reads and lifts 0.27.0 spec and 0.28.0 plan sidecars;
@@ -445,16 +455,17 @@ spec-document, plan-document and hand-decision-answer become strict answers with
 
   src/domain/artifact/documentMigration.ts renders a 0.27.0 or 0.28.0 sidecar's own body with the current renderer on the lifted document, since the body did not change. `phax artifact migrate-documents` then restamps such a sidecar to 0.32.0, leaving its Markdown byte-identical.
 - phax-plan keeps `schemaUrlField` (it is not an answer). Its `next` snapshot changes only through the shared fields.
-- Run `pnpm exec tsx scripts/schemas-check.ts --write` twice, then the check, which must report current. This writes the `next` snapshots for spec-document, plan-document, phax-plan and hand-decision-answer, rewrites phax-plan-extraction's `next` (its test lines changed), and updates release.ts, the generated index and the lock.
-- Create `tests/unit/schemas/strictAnswers.test.ts`. For every ANSWER_FORMATS entry, `strictCheckFindings(format, answerJsonSchema(format))` is empty. The registry holds exactly these seven ids: spec-document, plan-document, hand-decision-answer, first-reading, interactive-handoff, code-review and phax-plan-extraction.
-- Extend tests/unit/schemas/answerRulesKept.test.ts with spec, plan and hand-decision fixtures:
+- Run `pnpm exec tsx scripts/schemas-check.ts --write` twice, then the check, which must report current. This writes the `next` snapshots for spec-document, plan-document, phax-plan, spec-hand-decision-answer and plan-hand-decision-answer, rewrites phax-plan-extraction's `next` (its test lines changed), leaves hand-decision-answer at its 0.25.0 snapshot (the frozen module renders it exactly), and updates release.ts, the generated index and the lock.
+- Create `tests/unit/schemas/strictAnswers.test.ts`. For every ANSWER_FORMATS entry, `strictCheckFindings(format, answerJsonSchema(format))` is empty. The registry holds exactly these eight ids: spec-document, plan-document, spec-hand-decision-answer, plan-hand-decision-answer, first-reading, interactive-handoff, code-review and phax-plan-extraction. A second test walks each answer schema's AST and finds no node of Effect's `Schema.NonEmptyString`: both carry the identifier NonEmptyString, and the first met silently takes `$defs`, so a forgotten one could hide from the strict check.
+- Extend tests/unit/schemas/answerRulesKept.test.ts with spec, plan and hand-decision fixtures, decoded by the frozen 0.27.0, 0.28.0 and 0.25.0 modules and by the new decoders:
   - a lineage cross pair is still refused, now by the coherence check;
-  - a question with one option is still refused;
+  - a question with one option is still refused, by the schema's `minItems`, with Effect's message;
   - each test-line rule is still refused with its message;
-  - an authoring answer with arbitrated questions is refused with AUTHORING_ARBITRATED_MESSAGE.
+  - an authoring answer with arbitrated questions is refused with AUTHORING_ARBITRATED_MESSAGE at its first entry;
+  - a spec hand-decision fixture carrying a verdict `phase` is refused naming that key, and a plan one without it naming `phase`.
 
-  The accepted fixtures stay accepted, apart from the documented changes: `$schema` const; no root union (a spec decision's verdict carries `phase: null`); the pairing as a coherence check. Add a test-line edge table (empty, one char, leading or trailing whitespace, U+2028, U+0085, ' — ' inside, a leading '— ', a trailing ' ·', 'oracle', 'in-phase'), decoded by the frozen 0.28.0 module and by the new schema, which must agree on every row.
-- Update every test that builds an authoring answer with `version: 1` or relies on the old schemas: planDocument, specDocument, handDecisionAnswer, authorArtifact, authorArtifactRetry, artifactNewHeadlessCommand, migrateDocuments, plus the schemas-package registries and fixtures for the four formats (documents.ts, currentShapes, jsonSchemas, parity, repositoryFormats, runDirectoryFormats, tests/type/schemasPackage.ts). Any test that reads this repository's live sidecars must still pass, through the frozen modules.
+  The accepted fixtures stay accepted, apart from the documented changes: `$schema` const; the old union's spec member is a spec-hand-decision-answer and its plan member a plan-hand-decision-answer, each restamped; the pairing as a coherence check. Add a test-line edge table (empty, one char, leading or trailing whitespace, U+2028, U+0085, ' — ' inside, a leading '— ', a trailing ' ·', 'oracle', 'in-phase'), decoded by the frozen 0.28.0 module and by the new schema, which must agree on every row.
+- Update every test that builds an authoring answer with `version: 1` or relies on the old schemas: planDocument, specDocument, handDecisionAnswer, authorArtifact, authorArtifactRetry, artifactNewHeadlessCommand, migrateDocuments, decideArtifact (`projectExtractedPlan` at line 1243) and decideLifecycle (its hand answer, now a spec-hand-decision-answer), plus the schemas-package registries and fixtures for the six formats (schemaUrl.test.ts, documents.ts, documents.test.ts, currentShapes, jsonSchemas, parity, parseDocument, repositoryFormats, runDirectoryFormats, tests/type/schemasPackage.ts). `pnpm docs:cli` also rewrites README.md's generated CLI block. Any test that reads this repository's live sidecars (tests/unit/archivedSpecSidecars.test.ts reads twelve archived 0.27.0 specs) must still pass, through the frozen modules.
 
 ### Planned files to create
 
@@ -465,8 +476,9 @@ spec-document, plan-document and hand-decision-answer become strict answers with
 - `packages/schemas/snapshots/spec-document/next.schema.json`
 - `packages/schemas/snapshots/plan-document/next.schema.json`
 - `packages/schemas/snapshots/phax-plan/next.schema.json`
-- `packages/schemas/snapshots/hand-decision-answer/next.schema.json`
 - `tests/unit/schemas/strictAnswers.test.ts`
+- `packages/schemas/snapshots/spec-hand-decision-answer/next.schema.json`
+- `packages/schemas/snapshots/plan-hand-decision-answer/next.schema.json`
 
 ### Planned files to edit
 
@@ -478,6 +490,8 @@ spec-document, plan-document and hand-decision-answer become strict answers with
 - `src/schemas/handDecisionAnswer.ts`
 - `src/schemas/answerSchemas.ts`
 - `src/schemas/persisted.ts`
+- `src/schemas/schemaUrl.ts`
+- `packages/schemas/build/jsonSchemas.ts`
 - `src/schemas/release.ts`
 - `packages/schemas/src/formats/repository.ts`
 - `packages/schemas/src/formats/answers.ts`
@@ -511,6 +525,14 @@ spec-document, plan-document and hand-decision-answer become strict answers with
 - `tests/unit/schemasPackage/repositoryFormats.test.ts`
 - `tests/unit/schemasPackage/runDirectoryFormats.test.ts`
 - `tests/type/schemasPackage.ts`
+- `README.md`
+- `tests/unit/architecturalGuards.test.ts`
+- `tests/unit/schemaUrl.test.ts`
+- `tests/integration/persistedProducer.test.ts`
+- `tests/integration/decideArtifact.test.ts`
+- `tests/integration/decideLifecycle.test.ts`
+- `tests/unit/schemasPackage/parseDocument.test.ts`
+- `tests/unit/schemasPackage/documents.test.ts`
 
 ### Optional files that may be edited
 
@@ -540,22 +562,25 @@ spec-document, plan-document and hand-decision-answer become strict answers with
 - `tests/integration/legacyRunFiles.test.ts`
 - `tests/unit/schemasPackage/frozenHistory.test.ts`
 - `tests/unit/schemasPackage/exports.test.ts`
-- `tests/unit/schemasPackage/documents.test.ts`
 - `tests/e2e/headlessAuthoring.test.ts`
+- `tests/unit/readmePersistedFormats.test.ts`
+- `tests/unit/schemas/questions.test.ts`
 
 ### Boundary contracts
 
-Producer: src/schemas/persisted.ts. Consumers: src/domain/decide/handAuthored.ts and verdicts.ts. Contract: `decodeCurrentHandDecisionAnswer(input, kind)` returns today's spec|plan HandDecisionAnswer union, or a decoder error naming the field. Producer: src/schemas/planDocument.ts and specDocument.ts. Consumer: src/app/authorArtifact.ts. Contract: `decodeAuthored*Document` returns the sidecar document, with `$schema`, or the first violation. Producer: src/schemas/answerSchemas.ts. Consumer: `phax artifact schema`. Contract: it prints the published answer schema.
+Producer: src/schemas/persisted.ts. Consumers: src/domain/decide/handAuthored.ts and verdicts.ts. Contract: `decodeCurrentHandDecisionAnswer(input, kind)` decodes with the kind's format (spec-hand-decision-answer or plan-hand-decision-answer) and returns today's spec|plan HandDecisionAnswer union, or a decoder error naming the field. Producer: src/schemas/planDocument.ts and specDocument.ts. Consumer: src/app/authorArtifact.ts. Contract: `decodeAuthored*Document` returns the sidecar document, with `$schema`, or the first violation. Producer: src/schemas/answerSchemas.ts. Consumer: `phax artifact schema`. Contract: it prints the published answer schema.
 
 ### Test strategy
 
-- every answer schema phax hands a provider fits Codex strict and Claude Code's --json-schema, and the answer registry holds exactly the seven answers — small · table · strictCheckFindings is empty for each registered answer · in-phase · ac-strict-shape
-- every spec, plan and hand-decision fixture refused before the rewrite is still refused naming its field, and every accepted one is still accepted bar the documented shape changes — small · table · the fixture table's recorded verdicts and paths · in-phase · ac-accepts
+- every answer schema phax hands a provider fits Codex strict and Claude Code's inline budget, and the answer registry holds exactly the eight answer formats — small · table · strictCheckFindings is empty for each registered answer · in-phase · ac-strict-shape
+- every spec, plan and hand-decision fixture the frozen modules refuse is still refused naming its field, and every one they accept is still accepted bar the documented shape changes — small · table · the frozen 0.27.0, 0.28.0 and 0.25.0 decoders on the same fixtures · in-phase · ac-accepts
 - a test line's guarantee, oracle and criterion accept and refuse exactly the strings the lookahead patterns did, with the same messages — small · table · the frozen 0.28.0 plan-document decoder on the same edge strings · in-phase · ac-accepts
 - an authoring answer with a non-empty arbitratedQuestions is refused with the authoring message at its first entry — small · example · AUTHORING_ARBITRATED_MESSAGE at the expected path · in-phase · ac-accepts
-- a hand-decision answer whose kind differs from the session's, or whose verdict phase disagrees with its kind, is refused naming the field — small · table · the coherence messages · in-phase
+- a spec hand-decision answer carrying a verdict phase, or a plan one missing it, is refused by its own format naming the field — small · table · the decoder's refusal path and message · in-phase · ac-accepts
 - a 0.27.0 spec sidecar and a 0.28.0 plan sidecar read through their frozen modules, and migrate-documents restamps them to 0.32.0 with an unchanged body — medium · example · the restamped sidecar and byte-identical Markdown · in-phase
 - phax artifact schema plan prints the published plan-document schema with a $schema const and no allOf or oneOf — medium · smoke · the printed JSON · in-phase
+- a decide session over a hand-authored spec states and decodes spec-hand-decision-answer, and over a hand-authored plan plan-hand-decision-answer — small · example · the schema stated in each prompt and the decoded union member · in-phase
+- no answer schema reaches Effect's NonEmptyString — small · table · an AST walk of each ANSWER_FORMATS schema · in-phase
 
 ### Implementation order
 
@@ -580,7 +605,7 @@ The `standard` gate profile in phax.json; also `pnpm exec tsx scripts/schemas-ch
 
 ### Expected handoff content
 
-The final shapes of the seven answer schemas (top-level keys, and the `$schema` const each now carries). Every coherence check added, with its message and path. The signatures of decodeAuthoredSpecDocument, decodeAuthoredPlanDocument and decodeCurrentHandDecisionAnswer. The frozen modules and release entries added. The stamps CURRENT_STAMPS now gives. How migrate-documents treats 0.27.0 and 0.28.0 sidecars. The tests updated for the authoring answer's `$schema`. Any deviation from the planned file lists, with the reason.
+The final shapes of the eight answer schemas (top-level keys, and the `$schema` const each now carries). Every coherence check added, with its message and path. The signatures of decodeAuthoredSpecDocument, decodeAuthoredPlanDocument and decodeCurrentHandDecisionAnswer. How hand-decision-answer is frozen and what the package's parse and toLatest of the three hand-decision formats return. The frozen modules and release entries added. The stamps CURRENT_STAMPS now gives. How migrate-documents treats 0.27.0 and 0.28.0 sidecars. The tests updated for the authoring answer's `$schema`. Any deviation from the planned file lists, with the reason.
 
 ### Commit subject
 
@@ -588,7 +613,7 @@ The final shapes of the seven answer schemas (top-level keys, and the `$schema` 
 
 ### Commit body
 
-spec-document, plan-document and hand-decision-answer carry a required $schema const. hand-decision-answer is one closed object with kind and a nullable verdict phase. plan-document's sourceSpec/completesSpec pairing, the two-option minimum, the test lines' lookahead rules and an authoring answer's empty arbitratedQuestions move to coherence checks with their messages unchanged. The test line's stacked patterns become one lookaround-free pattern. phax-plan is restamped through the shared fields, with its decoding unchanged. The previous shapes are frozen, and all seven answer schemas pass the strict check.
+spec-document and plan-document carry a required $schema const, and hand-decision-answer's root union becomes two exact formats, spec-hand-decision-answer and plan-hand-decision-answer, born at 0.32.0; hand-decision-answer is frozen at 0.25.0. plan-document's sourceSpec/completesSpec pairing, the test lines' lookahead rules and an authoring answer's empty arbitratedQuestions move to coherence checks with their messages unchanged; the two-option minimum stays in the schema. The test line's stacked patterns become one lookaround-free pattern. phax-plan is restamped through the shared fields, with its decoding unchanged. The previous shapes are frozen, and all eight answer schemas pass the strict check.
 
 ---
 
@@ -607,24 +632,24 @@ A Claude Code result's `structured_output` reaches phax as the session's answer,
   - export `type StructuredValue = { readonly value: unknown }`;
   - the `answer` variant gains a required `structured: StructuredValue | null`;
   - SessionFailure gains an optional `providerSubtype?: string | undefined` (the Claude result subtype that decided the failure); update the reading-order comment.
-- src/domain/session/claudeOutcome.ts. A success result with `structured_output` present reads as an answer: `{ text: result ?? "", structured: { value } }`. A success result without it answers only when `result` is non-blank; otherwise it is a provider-error, `<subtype>: the result carried no result text`.
+- src/domain/session/claudeOutcome.ts. A success result with `structured_output` present reads as an answer: `{ text: result ?? "", structured: { value } }`. A success result without it answers only when `result` is non-blank, as `{ text: result, structured: null }`; otherwise it is a provider-error, `<subtype>: the result carried no result text`. The non-blank case covers what Claude Code 2.1.314 does when the model cannot meet the schema (the 2026-10-30 probe): `success`, `is_error: false`, no `structured_output` and a prose `result`. It is an answer, which phax's decoder then refuses as not JSON.
 
   An error result with subtype `error_max_structured_output_retries` is a provider-error. Its message always starts with the subtype (`error_max_structured_output_retries: <text, else first error>`), and `providerSubtype` is set. Export `isStructuredRetriesExhausted(failure)`: provider claude-code and that subtype, recognized by the subtype alone, never by text. The Codex and Vibe readers set `structured: null`.
-- src/ports/backend.ts: AgentRunResult and CompletionResult gain a required `structured: StructuredValue | null`. The adapters (claudeCode.ts, codexCli.ts, mistralVibe.ts) copy it from the outcome. src/infra/fakes/backend.ts: `addRunResponse`, `addResumeResponse` and `addCompletionResponse` accept a result without `structured` and default it to null.
+- src/ports/backend.ts: AgentRunResult and CompletionResult gain a required `structured: StructuredValue | null`. The adapters (claudeCode.ts, codexCli.ts, mistralVibe.ts) copy it from the outcome. src/infra/fakes/backend.ts: `addRunResponse`, `addResumeResponse` and `addCompletionResponse` accept a result without `structured` and default it to null. Every hand-built Backend layer in the tests returns results without `structured` and must gain `structured: null`: tests/helpers/heldRunFixture.ts, tests/integration/declaredStopRun.test.ts, heldStopClose.test.ts, heldStopCommands.test.ts, heldStopRun.test.ts, networkPause.test.ts, protectedPathsGate.test.ts, stopTranscripts.test.ts, stopTurnCosts.test.ts, and tests/e2e/semanticTrace.declaredStop.test.ts and semanticTrace.heldStop.test.ts (typechecked by `pnpm test:type`).
 - Create `src/domain/session/structuredAnswer.ts` with `answerJson(result: { finalText: string; structured: StructuredValue | null }): Either<unknown, string>`:
   - a structured value is returned as is, and the text is never parsed;
   - otherwise it returns `parseFinalMessageJson(finalText)`, the not-JSON refusal included. An empty final message (Vibe) is refused as not JSON.
 
-  The seven calls read their answer only through it, passing the whole result: authorArtifact (parseAuthoredDocument, first answer and retry), extractPlan (the complete result), decideArtifact and decideVerdicts (checkAnswer, first and retry), interactiveStop (decodeAnswer), closeStop (decodeHandoffAnswer, first and retry) and reviewCode (replace the `finalText === ""` special case: an empty answer is now the not-JSON refusal, still with no resume until phase-06).
+  The seven calls read their answer only through it, passing the whole result: authorArtifact (parseAuthoredDocument, first answer and retry), extractPlan (the complete result), decideArtifact and decideVerdicts (checkAnswer, first and retry), interactiveStop (decodeAnswer), closeStop (decodeHandoffAnswer, first and retry) and reviewCode (feed `readCodeReviewAnswer(parsed)`, and replace the `finalText === ""` special case: an empty answer is now the not-JSON refusal, still with no resume until phase-06).
 - src/app/closeStop.ts, attemptClosingTurn: when the resume of the current session fails with an AgentSessionFailedError whose failure satisfies isStructuredRetriesExhausted, return refusedTurn like a limit or a network failure, and start no new closing session. Make sure refusedTurn records `lastClose` `close-error`, step `closing-turn`, exit 5 for it. Any other provider-error keeps today's lost-session fallback.
 - Authoring and decide already treat a session failure as a failure, never a refusal. Pin it in tests:
   - authoring prints a line starting `✗ claude-code session failed (provider-error):` that names error_max_structured_output_retries, exits 5, and runs no corrective resume;
   - the `decide --verdicts` record names its failure `provider-error`.
 - tests/helpers/fakeProviderCli.ts: a script may set `structuredOutput` (printed on the result event as `structured_output`) and `resultText` (the result's text, possibly empty or absent), and may end with an error result of a given subtype. Use these through the real Claude adapter in the integration tests.
 - Tests:
-  - tests/unit/claudeOutput.test.ts and tests/unit/session/outcome.test.ts: the reader table;
+  - tests/unit/claudeOutput.test.ts and tests/unit/session/outcome.test.ts: the reader table, with a success that carries no structured_output and a prose result;
   - tests/unit/session/structuredAnswer.test.ts;
-  - tests/integration/structuredOutputRead.test.ts: the interactive first turn accepts a structured first-reading beside a prose result and never parses the prose; a success with structured_output and an empty result is an answer; a headless spec authoring answer, delivered as structured_output and valid against the spec-document schema but referencing a missing requirement, is refused naming the ref, resumed once, and written only from the accepted retry;
+  - tests/integration/structuredOutputRead.test.ts: the interactive first turn accepts a structured first-reading beside a prose result and never parses the prose; a success with structured_output and an empty result is an answer; a headless spec authoring session whose first result is a success with a prose result and no structured_output is refused as not JSON, resumed once, and written from the accepted retry; a headless spec authoring answer, delivered as structured_output and valid against the spec-document schema but referencing a missing requirement, is refused naming the ref, resumed once, and written only from the accepted retry;
   - tests/integration/structuredRetriesExhausted.test.ts: authoring, decide --verdicts and a resumed closing turn.
 
 ### Planned files to create
@@ -656,6 +681,17 @@ A Claude Code result's `structured_output` reaches phax as the session's answer,
 - `tests/helpers/fakeProviderCli.ts`
 - `tests/unit/claudeOutput.test.ts`
 - `tests/unit/session/outcome.test.ts`
+- `tests/helpers/heldRunFixture.ts`
+- `tests/integration/declaredStopRun.test.ts`
+- `tests/integration/heldStopClose.test.ts`
+- `tests/integration/heldStopCommands.test.ts`
+- `tests/integration/heldStopRun.test.ts`
+- `tests/integration/networkPause.test.ts`
+- `tests/integration/protectedPathsGate.test.ts`
+- `tests/integration/stopTranscripts.test.ts`
+- `tests/integration/stopTurnCosts.test.ts`
+- `tests/e2e/semanticTrace.declaredStop.test.ts`
+- `tests/e2e/semanticTrace.heldStop.test.ts`
 
 ### Optional files that may be edited
 
@@ -673,6 +709,8 @@ A Claude Code result's `structured_output` reaches phax as the session's answer,
 - `tests/integration/reviewCodeHeadless.test.ts`
 - `tests/integration/decideVerdicts.test.ts`
 - `tests/integration/authorArtifactRetry.test.ts`
+- `src/schemas/codeReview.ts`
+- `tests/unit/extractPlan.test.ts`
 
 ### Boundary contracts
 
@@ -682,6 +720,7 @@ Producer: the session-outcome readers (src/domain/session). Consumers: the provi
 
 - a Claude result carrying structured_output reads as an answer holding that value whether its result text is prose, empty or absent — small · table · the outcome's kind and structured value · in-phase · ac-structured-read
 - a Claude success with neither structured_output nor non-blank text is a provider-error — small · example · failure kind and message · in-phase
+- a Claude success with no structured_output and a prose result is read as that text, refused by phax's decoder as not JSON and resumed once, never a provider-error — medium · example · the refusal line, one resume call and the sidecar written from the retry · in-phase · ac-structured-read
 - the interactive first turn accepts a valid structured first-reading and never parses the prose result text — medium · example · the accepted answer through the fake claude CLI · in-phase · ac-structured-read
 - a spec authoring answer valid against the spec-document schema but referencing a missing requirement is refused naming the ref, resumed once, and written only from the accepted retry — medium · example · the refusal line, one resume call and the written sidecar · in-phase · ac-coherence
 - error_max_structured_output_retries ends authoring with the provider-error line and exit 5 with no resume, fails a decide record as provider-error, and makes a resumed closing turn record close-error at closing-turn exit 5 with no new session — medium · table · exit codes, record failure, lastClose and call counts · in-phase · ac-exhausted
@@ -740,7 +779,7 @@ A headless code review whose answer phax refuses, including an empty answer on M
   - Decode with answerJson then readCodeReviewAnswer. On a refusal, call `opts.output.warn(codeReviewRetryWarning(refusal))` and resume the first session once with `backend.resumeAgentSession`. The resume uses the same read-only options and CODE_REVIEW_AGENT_COMMANDS, `outputJsonlPath` set to `<runPath>/code-review-retry.session.jsonl`, and withInvocationCost role code-review on that stream.
   - Snapshot the worktree around the resume too: a change is put back and fails.
   - An accepted retry writes code-review.json and code-review-session.json as today; record the session id the resume returned. A refused retry fails with codeReviewRefusedTwiceMessage. A session failure of the resume is reported like the first session's failure (sessionFailure and files), never as a refusal.
-- Add `output: OutputPort` to the opts of reviewCodeHeadless and reviewCodeAndRecord. Pass it from src/cli/commands/reviewCode.ts and from the run-end call in src/app/executePlan.ts, using that command's existing output.
+- Add `output: OutputPort` to the opts of reviewCodeHeadless and reviewCodeAndRecord. Pass it from src/cli/commands/reviewCode.ts and from the run-end call in src/app/executePlan.ts, using that command's existing output. tests/integration/persistedProducer.test.ts and codeReviewRecord.test.ts call these use cases and pass it too.
 - src/cli/commands/reviewCode.ts: the failure line keeps its shape, `Code review failed: <reason>. To retry, run: <command>`, with exit 1, or 14 for a network failure. The reason is now the rejected-twice message.
 - src/domain/cost/ledger.ts: the run streams backfill reads list code-review-retry.session.jsonl after code-review.session.jsonl, with role code-review and phase null.
 - src/cli/cliDocs.ts:
@@ -748,7 +787,7 @@ A headless code review whose answer phax refuses, including an empty answer on M
   - cost backfill help: it names the retry stream.
   Run `pnpm gen:usage-spec` and `pnpm docs:cli`.
 - Tests:
-  - tests/integration/reviewCodeHeadless.test.ts: the first answer, stamped with the code-review `$schema`, holds lens "security"; it is refused, the warning printed, one resume made with the first session id, and code-review.json written from the retry (exit 0 by hand). Refused twice: exit 1 naming both refusals and the retry command, with code-review.json and code-review-session.json byte-identical to before. A Vibe-routed review with an empty first answer is refused as not JSON and resumed once. A changed worktree means zero resume calls.
+  - tests/integration/reviewCodeHeadless.test.ts: the first answer, stamped with the code-review `$schema`, holds lens "security"; it is refused, the warning printed, one resume made with the first session id, and code-review.json written from the retry (exit 0 by hand). Refused twice: exit 1 naming both refusals and the retry command, with code-review.json and code-review-session.json byte-identical to before. A Vibe-routed review with an empty first answer is refused as not JSON and resumed once. A first answer `{"version": 1, "findings": []}` is refused naming the missing `$schema` and the unexpected `version`, and resumed once. A changed worktree means zero resume calls.
   - tests/integration/headlessCodeReviewRunEnd.test.ts: the same retry at run end.
   - tests/unit/review/codeReviewRetry.test.ts: the texts.
   - tests/unit/cli/reviewCode.test.ts and tests/unit/costLedgerCodeReviewRole.test.ts.
@@ -771,6 +810,7 @@ A headless code review whose answer phax refuses, including an empty answer on M
 - `tests/integration/headlessCodeReviewRunEnd.test.ts`
 - `tests/unit/cli/reviewCode.test.ts`
 - `tests/unit/costLedgerCodeReviewRole.test.ts`
+- `tests/integration/persistedProducer.test.ts`
 
 ### Optional files that may be edited
 
@@ -790,6 +830,7 @@ Producer: src/app/reviewCode.ts. Consumers: the review-code command and run end.
 
 - a first answer with lens 'security' is refused, printed, resumed once in the same session, and code-review.json is written from the retry, by hand with exit 0 and at run end — medium · example · the warning line, one resume with the first session id and the written findings · in-phase · ac-code-review-retry
 - a code review refused twice exits 1 naming both refusals and the retry command, and leaves code-review.json and code-review-session.json as they were — medium · example · exit code, message and unchanged file bytes · in-phase · ac-code-review-twice
+- a first answer {version: 1, findings: []} is refused naming the missing $schema and the unexpected version, and the session is resumed once — medium · example · the warning line and one resume with the first session id · in-phase · ac-unstamped-answer
 - an empty final answer on Mistral Vibe is refused as not JSON, printed, resumed once, and code-review.json is written from the retry — medium · example · the refusal text, one resume and the written findings · in-phase · ac-vibe-empty
 - a session that changed the worktree has its paths put back and fails with no resume — medium · example · the restored files and zero resume calls · in-phase
 - cost backfill reads the retry stream after the first one with role code-review — small · example · the expected stream order and ledger entries · in-phase
@@ -829,9 +870,9 @@ A headless code review whose answer phax refuses, an empty Vibe answer included,
 
 ## phase-07 — Native structured output on Claude Code and Codex {#phase-07-native-structured-output}
 
-**Recommended model:** claude-opus-5-5
-**Recommended effort:** medium
-**Assignment reason:** Adapters to provider options phax has never passed (Claude Code --json-schema, Codex --output-schema), a per-call fallback table, and seven call sites.
+**Recommended model:** claude-sonnet-5-5
+**Recommended effort:** high
+**Assignment reason:** Hands a new option to two provider adapters through the Backend port, with a per-call table threaded from the backend layer to seven call sites and a temporary-file lifecycle.
 
 Each of the seven structured calls hands its published answer schema to Claude Code (`--json-schema`, inline) and Codex (`--output-schema`, a temporary file), on the first session and on its corrective resume. A per-call table puts a call back on the prompt schema on Claude Code alone. Mistral Vibe keeps the schema in the prompt.
 
@@ -851,7 +892,7 @@ Each of the seven structured calls hands its published answer schema to Claude C
 - The seven call sites set `answerSchema: { call, schema: answerJsonSchema(format) }` on the first session and on the corrective resume:
   - authoring: spec-document or plan-document;
   - extraction `complete`: phax-plan-extraction;
-  - decide handback: spec-document or plan-document for a revised document, hand-decision-answer for a hand-authored artifact;
+  - decide handback: spec-document or plan-document for a revised document, spec-hand-decision-answer or plan-hand-decision-answer for a hand-authored artifact;
   - the `decide --verdicts` writer: the same as the handback;
   - first turn: first-reading;
   - closing turn: interactive-handoff, on the resumed, new and retry sessions;
@@ -868,6 +909,7 @@ Each of the seven structured calls hands its published answer schema to Claude C
   - ac-codex-flag: a `decide --verdicts` writer on a headless spec, routed to Codex, whose first answer is refused; `exec` and `exec resume` carry `--output-schema`, and the logged content equals the published spec-document schema.
   - ac-every-call: a table over the seven calls and every provider each can be routed to (Claude Code alone for extraction and the decide handback). Each Claude Code and Codex spawn carries its schema, and every prompt holds it; a phase turn, a fix turn and the probe carry none.
   - ac-claude-fallback: a backend built with `decide-verdicts` set to "prompt". Its Claude Code spawn has no --json-schema, its prompt holds the schema, and a refusal resumes once; its Codex spawn still carries --output-schema.
+  - the observed refusal shape: headless spec authoring on Claude Code, with `--json-schema` handed, whose first result is a `success` with no `structured_output` and a prose `result`. phax refuses it as not JSON, prints the refusal and resumes once with `--json-schema` again; the accepted retry is written. No provider-error is reported.
 - Do not write the docs page here (phase-08).
 
 ### Planned files to create
@@ -917,6 +959,7 @@ Producer: the seven app call sites. Consumer: the Backend port. Contract: `answe
 - a decide --verdicts writer routed to Codex carries --output-schema on exec and exec resume, naming a file whose content is the published spec-document schema — medium · example · the recorded argv and schema file content of the fake codex CLI · in-phase · ac-codex-flag
 - each of the seven structured calls hands its answer schema on every Claude Code and Codex spawn, every prompt holds it, and a phase turn, a fix turn and the probe carry none — medium · table · the recorded argv and prompts per call and provider · in-phase · ac-every-call
 - a call the table puts on the prompt schema runs on Claude Code without --json-schema, keeps the schema in its prompt and its one corrective resume, while its Codex spawn keeps --output-schema — medium · example · the recorded argv, prompt and resume count with an injected table · in-phase · ac-claude-fallback
+- a Claude Code success with the schema handed, no structured_output and a prose result is refused as not JSON and resumed once with the schema again — medium · example · the recorded argv of both spawns, the refusal line and the written sidecar · in-phase · ac-claude-flag
 - a Mistral Vibe spawn of a structured call holds no schema option and its prompt holds the schema — small · example · the built argv and prompt · in-phase · ac-every-call
 - the Claude Code argv of each call follows its table entry, so flipping one entry flips that call alone — small · table · the STRUCTURED_CALLS entries · in-phase · ac-claude-fallback
 - the codex schema file is removed once the process ends, whatever its outcome — medium · example · the temporary directory is absent after a success and after a failure · in-phase
@@ -964,24 +1007,26 @@ Add the smoke tests that tell, against the real Claude Code and Codex CLIs, whic
 
 ### Detailed instructions
 
-- Create `tests/e2e/claudeJsonSchema.test.ts`, gated on `PHAX_E2E_RUN=1` and `probeProvider("claude")` (tests/e2e/helpers/providers.ts), like tests/e2e/claudeProtectedPaths.test.ts. For each StructuredCallId whose answer schema Claude Code receives, use answerJsonSchema of its format and a minimal valid answer fixture written in the test. Run phax's real Claude adapter (makeNodeBackendLayer), read-only like the call, in a temporary repository (tests/e2e/helpers/tempEnv.ts): a new session, then a `--resume` of it, both with `--json-schema`. Assert that each result carries structured_output that phax's decoder accepts. Name the cases `<call>: new session` and `<call>: resume`.
-- Create `tests/e2e/codexOutputSchema.test.ts`, gated on `PHAX_E2E_RUN=1` and an installed codex. For at least the spec-document, hand-decision-answer and code-review schemas, run `exec` with --output-schema, then `exec resume` with it, through phax's Codex adapter. Assert that each final message decodes.
+- Create `tests/e2e/claudeJsonSchema.test.ts`, gated on `PHAX_E2E_RUN=1` and `probeProvider("claude")` (tests/e2e/helpers/providers.ts), like tests/e2e/claudeProtectedPaths.test.ts. One case per ANSWER_FORMATS entry (eight, once per schema as spec §10 asks), each through the call that hands it and with that call's real options: the extraction format through `complete` with its sealed flags, the others read-only. Use answerJsonSchema of the format and a minimal valid answer fixture written in the test. Run phax's real Claude adapter (makeNodeBackendLayer) in a temporary repository (tests/e2e/helpers/tempEnv.ts): a new session, then a `--resume` of it, both with `--json-schema` (a closing turn and a decide handback resume a person's session; here the resumed session is a headless one, say so). Assert that each result carries structured_output that phax's decoder accepts. Name the cases `<format>: new session` and `<format>: resume`.
+
+  Add the probe as a regression guard: a minimal schema with `minItems: 2` and `exclusiveMinimum: 0`, on a new session and on `--resume`; assert that structured_output holds a value meeting both. It pins the 2026-10-30 evidence that Claude Code's `--json-schema` accepts and enforces them.
+- Create `tests/e2e/codexOutputSchema.test.ts`, gated on `PHAX_E2E_RUN=1` and an installed codex. For spec-document, plan-document (the schema with the test-line patterns), spec-hand-decision-answer, plan-hand-decision-answer and code-review, run `exec` with --output-schema, then `exec resume` with it, through phax's Codex adapter. Assert that each final message decodes.
 - State in each file's header comment:
   - target versions: Claude Code 2.1.314, codex-cli 0.165.0;
   - neither the gate nor a phase agent runs these tests; the PR review runs them by name (`pnpm test:e2e:real tests/e2e/claudeJsonSchema.test.ts`, the same for the codex file);
-  - a Claude Code combination that fails is fixed by flipping that call's STRUCTURED_CALLS line to "prompt", plus its docs row.
+  - the remedy depends on the failure. A Claude Code combination that fails (the resume, the read-only tools or stream-json) is fixed by flipping that call's STRUCTURED_CALLS line to "prompt", plus its docs row. A schema construct a provider refuses (the new session fails on the schema itself) becomes a coherence check for both providers, never a flip (spec §10).
 - Create `docs/structured-answers.md`, the page 'Structured answers and providers', for an operator choosing which provider runs authoring, decide and review roles. It covers what each provider checks and what phax checks after it, and the per-provider table of this release's seven calls:
   - Claude Code: `--json-schema`, or the prompt schema where STRUCTURED_CALLS says "prompt";
   - Codex: `--output-schema`;
   - Mistral Vibe: the schema in the prompt.
 
-  Then: phax's decoder as the only judge, with examples of coherence checks; the one corrective resume (the extraction fallback has none); a Claude Code answer that cannot meet its schema (`error_max_structured_output_retries`) reported as a provider-error and never resumed. For the example, use an authoring or decide answer the schema let through and a coherence check refused, then the corrective resume fixing it. Say that the compliance review joins the table with plan 2.
+  Then: phax's decoder as the only judge, with examples of coherence checks; the one corrective resume (the extraction fallback has none); what Claude Code does when the model cannot meet the schema: it enforces the schema client-side, and on 2026-10-30 ended such a session `success` with a prose result and no structured_output, which phax refuses as not JSON and resumes once; `error_max_structured_output_retries`, when it occurs, is reported as a provider-error and never resumed. For the example, use an authoring or decide answer the schema let through and a coherence check refused, then the corrective resume fixing it. Say that the compliance review joins the table with plan 2.
 - Create `tests/unit/structuredAnswersDocs.test.ts`: the page's table rows equal STRUCTURED_CALLS, both the call ids and Claude Code native or prompt, so a flip that misses the docs fails.
 - Register the page: add `docs/structured-answers.md` to site/build/sources.ts, and route `/guide/structured-answers` (title 'Structured answers and providers', with a description) to site/pages.ts.
 - In docs/upgrading.md, add `### 0.32.0` above 0.31.0. Records and schema readers:
-  - hand-decision-answer loses its root union: one object, with `kind`, and each verdict carries `phase` (null on a spec);
+  - hand-decision-answer is replaced by two formats, spec-hand-decision-answer and plan-hand-decision-answer, each today's variant with a `$schema` const; hand-decision-answer stays readable at 0.25.0 and phax no longer reads or asks for it;
   - plan-document no longer pairs sourceSpec and completesSpec in its schema; phax checks the pair;
-  - every answer's `$schema` is a const of its 0.32.0 stamp (spec and plan sidecars, hand-decision-answer, first-reading, interactive-handoff, code-review), so an older @lbdremy/phax-schemas cannot read them;
+  - every answer's `$schema` is a const of its 0.32.0 stamp (spec and plan sidecars, the two hand-decision formats, first-reading, interactive-handoff, code-review, phax-plan-extraction), so an older @lbdremy/phax-schemas cannot read them, and the package reads a const format only at its own stamps;
   - phax-plan is restamped 0.32.0 with its decoding unchanged;
   - the code-review answer and file are one shape, `$schema` in place of `version`;
   - the new phax-plan-extraction format;
@@ -1013,8 +1058,9 @@ Add the smoke tests that tell, against the real Claude Code and Codex CLIs, whic
 
 ### Test strategy
 
-- Claude Code's --json-schema works with stream-json, read-only tools and --resume for each answer schema it receives (run by name in PR review) — large · smoke · the real CLI's structured_output accepted by phax's decoder · in-phase · ac-claude-flag
-- Codex's --output-schema works on exec and exec resume for the spec-document, hand-decision-answer and code-review schemas (run by name in PR review) — large · smoke · the real CLI's final message accepted by phax's decoder · in-phase · ac-codex-flag
+- Claude Code's --json-schema works with stream-json, the call's tools and --resume for each of the eight answer schemas (run by name in PR review) — large · smoke · the real CLI's structured_output accepted by phax's decoder · in-phase · ac-claude-flag
+- Codex's --output-schema works on exec and exec resume for the spec, plan, two hand-decision and code-review schemas (run by name in PR review) — large · smoke · the real CLI's final message accepted by phax's decoder · in-phase · ac-codex-flag
+- Claude Code's --json-schema accepts and enforces minItems 2 and exclusiveMinimum 0 on a new session and on --resume (run by name in PR review) — large · smoke · structured_output meeting both bounds · in-phase · ac-claude-flag
 - the docs page's per-provider table matches STRUCTURED_CALLS row for row — small · example · the STRUCTURED_CALLS entries · in-phase
 
 ### Implementation order
@@ -1036,7 +1082,7 @@ The `standard` gate profile in phax.json, including the terminal steps: build, s
 
 ### Expected handoff content
 
-The names of the e2e files and of each case, and the exact commands the PR review runs. The docs page route. The rows of its table. The 0.32.0 upgrading bullets. A reminder for the reviewer: flip a call's STRUCTURED_CALLS line and docs row for each failing Claude Code combination; and the operator's follow-ups (the skill text on `$schema` and the pairing; running migrate-documents after the release). Any deviation from the planned file lists, with the reason.
+The names of the e2e files and of each case, and the exact commands the PR review runs. The docs page route. The rows of its table. The 0.32.0 upgrading bullets. A reminder for the reviewer: flip a call's STRUCTURED_CALLS line and docs row for each failing Claude Code combination, and turn a refused schema construct into a coherence check for both providers; and the operator's follow-ups (the skill text on `$schema` and the pairing; running migrate-documents after the release). Any deviation from the planned file lists, with the reason.
 
 ### Commit subject
 
@@ -1044,4 +1090,4 @@ The names of the e2e files and of each case, and the exact commands the PR revie
 
 ### Commit body
 
-Add the real-CLI smoke tests of Claude Code's --json-schema (new session and --resume, read-only tools, stream-json) and of Codex's --output-schema (exec and exec resume), gated on PHAX_E2E_RUN=1 and run by name in review. Add the 'Structured answers and providers' page, with its per-provider table held equal to STRUCTURED_CALLS, and the 0.32.0 upgrade notes for records and schema readers.
+Add the real-CLI smoke tests of Claude Code's --json-schema (each answer schema, new session and --resume, the call's tools, stream-json, and a minItems/exclusiveMinimum probe) and of Codex's --output-schema (exec and exec resume), gated on PHAX_E2E_RUN=1 and run by name in review. Add the 'Structured answers and providers' page, with its per-provider table held equal to STRUCTURED_CALLS, and the 0.32.0 upgrade notes for records and schema readers.
