@@ -98,6 +98,19 @@ describe("buildCompliancePrompt", () => {
     expect(prompt).toContain("findings");
   });
 
+  it("sketches the 0.32.0 shape: the $schema stamp in place of version, and both ledgers", () => {
+    const prompt = buildCompliancePrompt(baseInput);
+    expect(prompt).toContain(
+      '"$schema": "https://docs.phax.run/schemas/compliance-review/0.32.0.json"',
+    );
+    expect(prompt).not.toContain('"version"');
+    expect(prompt).toContain('"unplannedChanges": [');
+    expect(prompt).toContain('"unmetPromises": [');
+    expect(prompt).toContain('"path": "<file the plan did not call for>"');
+    expect(prompt).toContain('"promise": "<what the plan promised>"');
+    expect(prompt).toContain("Give the two ledgers as JSON fields too");
+  });
+
   it("references attentionPoints and pointers fields", () => {
     const prompt = buildCompliancePrompt(baseInput);
     expect(prompt).toContain("attentionPoints");

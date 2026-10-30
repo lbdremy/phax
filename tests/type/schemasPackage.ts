@@ -391,6 +391,7 @@ import type { AuthoringRecordManifestPreSchema as FrozenAuthoringRecordManifest 
 import type { AuthoringRecordManifestV0_17_0 as FrozenAuthoringRecordManifestV0_17_0 } from "../../src/schemas/history/authoring-record-manifest/0.17.0.js";
 import type { AuthoringRecordManifestV0_23_0 as FrozenAuthoringRecordManifestV0_23_0 } from "../../src/schemas/history/authoring-record-manifest/0.23.0.js";
 import type { BriefRecordV0_20_0 as FrozenBriefRecordV0_20_0 } from "../../src/schemas/history/brief-record/0.20.0.js";
+import type { ComplianceReviewV0_17_0 as FrozenComplianceReviewV0_17_0 } from "../../src/schemas/history/compliance-review/0.17.0.js";
 import type { ComplianceReviewPreSchema as FrozenComplianceReview } from "../../src/schemas/history/compliance-review/pre-schema.js";
 import type { GateAttributionV0_17_0 as FrozenGateAttributionV0_17_0 } from "../../src/schemas/history/gate-attribution/0.17.0.js";
 import type { GateAttributionV0_20_0 as FrozenGateAttributionV0_20_0 } from "../../src/schemas/history/gate-attribution/0.20.0.js";
@@ -731,7 +732,7 @@ const eachShapeId: [
   Equals<RunStatusShape, "pre-schema" | "0.17.0" | Current<"run-status">>,
   Equals<PhaseStatusShape, "pre-schema" | "0.17.0" | "0.20.0" | Current<"phase-status">>,
   Equals<PhaxPlanShape, "pre-schema" | "0.17.0" | "0.26.0" | "0.28.0" | Current<"phax-plan">>,
-  Equals<ComplianceReviewShape, "pre-schema" | Current<"compliance-review">>,
+  Equals<ComplianceReviewShape, "pre-schema" | "0.17.0" | Current<"compliance-review">>,
   Equals<PlanApprovalsShape, "pre-schema" | Current<"plan-approvals">>,
   Equals<SpecApprovalsShape, "pre-schema" | Current<"spec-approvals">>,
   Equals<
@@ -808,7 +809,10 @@ const parseValues: [
     Value<typeof parsePhaxPlan>,
     FrozenPhaxPlan | FrozenPhaxPlanV0_17_0 | FrozenPhaxPlanV0_26_0 | PhaxPhaxPlanFile
   >,
-  Equals<Value<typeof parseComplianceReview>, FrozenComplianceReview | PhaxComplianceReviewFile>,
+  Equals<
+    Value<typeof parseComplianceReview>,
+    FrozenComplianceReview | FrozenComplianceReviewV0_17_0 | PhaxComplianceReviewFile
+  >,
   Equals<Value<typeof parsePlanApprovals>, FrozenPlanApprovals | ApprovalRecordFile>,
   Equals<Value<typeof parseSpecApprovals>, FrozenSpecApprovals | SpecApprovalRecordFile>,
   Equals<
@@ -941,6 +945,15 @@ type PhaxPlanWithUnknownLines = Omit<PhaxPhaxPlan, "phases"> & {
   readonly phases: readonly [PhaxPlanPhaseWithUnknownLines, ...PhaxPlanPhaseWithUnknownLines[]];
 };
 
+// A review an older phax wrote holds `Unknown` ledgers.
+type PhaxComplianceReviewWithUnknownLedgers = Omit<
+  PhaxComplianceReview,
+  "unplannedChanges" | "unmetPromises"
+> & {
+  readonly unplannedChanges: PhaxComplianceReview["unplannedChanges"] | Unknown;
+  readonly unmetPromises: PhaxComplianceReview["unmetPromises"] | Unknown;
+};
+
 // Each Latest type is phax's in-memory type: no version, no $schema
 const latestTypes: [
   Equals<LatestRegistry, PhaxRegistry>,
@@ -950,7 +963,7 @@ const latestTypes: [
     PhaxPhaseStatus | (Omit<PhaxPhaseStatus, "base"> & { readonly base: Unknown })
   >,
   Equals<LatestPhaxPlan, PhaxPlanWithUnknownLines>,
-  Equals<LatestComplianceReview, PhaxComplianceReview>,
+  Equals<LatestComplianceReview, PhaxComplianceReviewWithUnknownLedgers>,
   Equals<LatestPlanApprovals, PhaxPlanApprovals>,
   Equals<LatestSpecApprovals, PhaxSpecApprovals>,
   Equals<LatestSpecDocument, PhaxSpecDocumentWithUnknownSummary>,
@@ -1540,7 +1553,7 @@ const toLatestParameters: [
   >,
   Equals<
     Parameters<typeof toLatestComplianceReview>,
-    [value: FrozenComplianceReview | PhaxComplianceReviewFile]
+    [value: FrozenComplianceReview | FrozenComplianceReviewV0_17_0 | PhaxComplianceReviewFile]
   >,
   Equals<
     Parameters<typeof toLatestPlanApprovals>,

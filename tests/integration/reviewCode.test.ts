@@ -15,6 +15,7 @@ import { CODE_REVIEW_PROMPT_FILENAME } from "../../src/domain/review/codeReviewP
 import { resolveRun } from "../../src/app/resolveRunInfo.js";
 import { decodeShortName } from "../../src/domain/branded.js";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
 
 const stateRoot = "/fake-state";
@@ -243,33 +244,46 @@ describe("prepareCodeReviewSession", () => {
     expect(promptContent).not.toContain("phax review-compliance");
   });
 
-  it("new session with a compliance review phax wrote with $schema: prompt reflects it", async () => {
-    const fs = makeFakeFileSystem();
-    fs.impl.setFile(bindingPath, JSON.stringify(claudeBinding));
-    fs.impl.setFile(reconciliationJsonPath, validReconciliationJson);
-    const { version: _version, ...review } = JSON.parse(validComplianceJson) as Record<
-      string,
-      unknown
-    >;
-    fs.impl.setFile(
-      `${runPath}/compliance-review.json`,
-      JSON.stringify({ $schema: currentSchemaUrl("compliance-review"), ...review }),
-    );
+  // The worklist reads only the fields every shape carries: a 0.17.0 review
+  // (no ledger) and a 0.32.0 one (both ledgers) feed the prompt alike.
+  const { version: _version, ...reviewFields } = JSON.parse(validComplianceJson) as Record<
+    string,
+    unknown
+  >;
+  it.each([
+    ["0.17.0", { $schema: schemaUrl("compliance-review", "0.17.0"), ...reviewFields }],
+    [
+      "0.32.0",
+      {
+        $schema: currentSchemaUrl("compliance-review"),
+        ...reviewFields,
+        unplannedChanges: [{ phaseId: "phase-01", path: "src/extra.ts", note: "Not in the plan" }],
+        unmetPromises: [],
+      },
+    ],
+  ])(
+    "new session with a %s compliance review phax wrote: prompt reflects it",
+    async (_shape, file) => {
+      const fs = makeFakeFileSystem();
+      fs.impl.setFile(bindingPath, JSON.stringify(claudeBinding));
+      fs.impl.setFile(reconciliationJsonPath, validReconciliationJson);
+      fs.impl.setFile(`${runPath}/compliance-review.json`, JSON.stringify(file));
 
-    const result = await Effect.runPromise(
-      prepareCodeReviewSession(makeInfo(), defaultConfig, {
-        newSession: false,
-        nowIso,
-        bundledReviewSkill,
-      }).pipe(Effect.provide(makeLayer(fs))),
-    );
+      const result = await Effect.runPromise(
+        prepareCodeReviewSession(makeInfo(), defaultConfig, {
+          newSession: false,
+          nowIso,
+          bundledReviewSkill,
+        }).pipe(Effect.provide(makeLayer(fs))),
+      );
 
-    expect(result.kind).toBe("ready");
-    const promptContent = fs.impl.getFile(promptFilePath);
-    expect(promptContent).toContain("Review the extra file in phase-01");
-    expect(promptContent).toContain("Extra file added");
-    expect(promptContent).not.toContain("phax review-compliance");
-  });
+      expect(result.kind).toBe("ready");
+      const promptContent = fs.impl.getFile(promptFilePath);
+      expect(promptContent).toContain("Review the extra file in phase-01");
+      expect(promptContent).toContain("Extra file added");
+      expect(promptContent).not.toContain("phax review-compliance");
+    },
+  );
 
   it("new session without compliance: prompt includes compliance-missing tip", async () => {
     const fs = makeFakeFileSystem();

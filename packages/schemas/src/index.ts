@@ -484,6 +484,10 @@ export {
   type ComplianceReviewPreSchema,
 } from "../../../src/schemas/history/compliance-review/pre-schema.js";
 export {
+  ComplianceReviewV0_17_0Schema,
+  type ComplianceReviewV0_17_0,
+} from "../../../src/schemas/history/compliance-review/0.17.0.js";
+export {
   PlanApprovalsPreSchemaSchema,
   type PlanApprovalsPreSchema,
 } from "../../../src/schemas/history/plan-approvals/pre-schema.js";

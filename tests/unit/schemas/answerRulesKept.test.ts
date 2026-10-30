@@ -1,7 +1,7 @@
 // The strict answers keep every rule of the shapes they replace. For each
 // answer, a table of fixtures is decoded by the frozen module of today's shape
 // (first-reading and interactive-handoff 0.26.0, code-review 0.29.0,
-// spec-document 0.27.0, plan-document 0.28.0, hand-decision-answer 0.25.0) and
+// compliance-review 0.17.0, spec-document 0.27.0, plan-document 0.28.0, hand-decision-answer 0.25.0) and
 // by the new decoder: a fixture the frozen module refuses, the new decoder
 // refuses naming the same field (and, for the documents, with the same
 // message); a fixture it accepts, the new decoder accepts once restamped with
@@ -14,6 +14,7 @@
 import { Either, ParseResult } from "effect";
 import { describe, expect, it } from "vitest";
 import { decodeCodeReviewFile } from "../../../src/schemas/codeReview.js";
+import { decodeComplianceReviewFile } from "../../../src/schemas/complianceReview.js";
 import { decodeFirstReadingFile } from "../../../src/schemas/firstReading.js";
 import { formatFirstViolation } from "../../../src/schemas/formatError.js";
 import {
@@ -21,6 +22,7 @@ import {
   decodeSpecHandDecisionAnswerFile,
 } from "../../../src/schemas/handDecisionAnswer.js";
 import { decodeCodeReviewV0_29_0 } from "../../../src/schemas/history/code-review/0.29.0.js";
+import { decodeComplianceReviewV0_17_0 } from "../../../src/schemas/history/compliance-review/0.17.0.js";
 import { decodeFirstReadingV0_26_0 } from "../../../src/schemas/history/first-reading/0.26.0.js";
 import { decodeHandDecisionAnswerV0_25_0 } from "../../../src/schemas/history/hand-decision-answer/0.25.0.js";
 import { decodeInteractiveHandoffV0_26_0 } from "../../../src/schemas/history/interactive-handoff/0.26.0.js";
@@ -62,6 +64,8 @@ interface Answer {
   readonly fixtures: ReadonlyArray<readonly [string, Body]>;
   /** Whether a refusal must also carry the frozen module's message. */
   readonly sameMessage?: boolean;
+  /** The body the new decoder reads, when the new shape adds keys the fixtures leave out. */
+  readonly forCurrent?: (body: Body) => Body;
 }
 
 const without = (body: Body, key: string): Body => {
@@ -132,6 +136,32 @@ const withTestLine = (coordinate: string, value: unknown): Body => {
     phases: [{ ...first, testStrategy: [{ ...line, [coordinate]: value }, ...lines] }, ...rest],
   };
 };
+
+const complianceReview: Body = {
+  verdict: "conformant-with-deviations",
+  summary: "The run delivers the plan, with one deviation.",
+  perPhase: [
+    {
+      phaseId: "phase-01",
+      verdict: "conformant-with-deviations",
+      findings: [{ dimension: "files", severity: "deviation", message: "README.md was touched" }],
+    },
+  ],
+  attentionPoints: ["README.md changed"],
+  pointers: ["src/example.ts"],
+};
+const complianceWith = (overrides: Body): Body => ({ ...complianceReview, ...overrides });
+/** A review whose one finding carries `overrides`. */
+const complianceFinding = (overrides: Body): Body =>
+  complianceWith({
+    perPhase: [
+      {
+        phaseId: "phase-01",
+        verdict: "conformant",
+        findings: [{ dimension: "files", severity: "deviation", message: "m", ...overrides }],
+      },
+    ],
+  });
 
 const handVerdict = {
   kind: "decided",
@@ -351,6 +381,56 @@ const ANSWERS: ReadonlyArray<Answer> = [
       ["no findings key", {}],
     ],
   },
+  {
+    id: "compliance-review",
+    frozen: decodeComplianceReviewV0_17_0,
+    frozenStamp: schemaUrl("compliance-review", "0.17.0"),
+    current: decodeComplianceReviewFile,
+    // The 0.17.0 shape has no ledger: the new decoder reads each fixture with both.
+    forCurrent: (body) => ({ ...body, unplannedChanges: [], unmetPromises: [] }),
+    fixtures: [
+      ["a review with one deviation", complianceReview],
+      [
+        "a conformant review with no phase",
+        complianceWith({ verdict: "conformant", perPhase: [] }),
+      ],
+      ["a divergent verdict", complianceWith({ verdict: "divergent" })],
+      ["an empty summary", complianceWith({ summary: "" })],
+      ["no attention point and no pointer", complianceWith({ attentionPoints: [], pointers: [] })],
+      ["the handoff dimension", complianceFinding({ dimension: "handoff" })],
+      ["the concern severity", complianceFinding({ severity: "concern" })],
+      ["an unknown verdict", complianceWith({ verdict: "fine" })],
+      [
+        "an unknown phase verdict",
+        complianceWith({ perPhase: [{ phaseId: "phase-01", verdict: "fine", findings: [] }] }),
+      ],
+      ["an unknown dimension", complianceFinding({ dimension: "style" })],
+      ["an unknown severity", complianceFinding({ severity: "fatal" })],
+      ["a non-string message", complianceFinding({ message: 1 })],
+      ["an extra finding key", complianceFinding({ line: 3 })],
+      [
+        "an empty phase id",
+        complianceWith({ perPhase: [{ phaseId: "", verdict: "conformant", findings: [] }] }),
+      ],
+      [
+        "an extra perPhase key",
+        complianceWith({
+          perPhase: [{ phaseId: "phase-01", verdict: "conformant", findings: [], note: "x" }],
+        }),
+      ],
+      [
+        "a perPhase entry with no findings key",
+        complianceWith({ perPhase: [{ phaseId: "phase-01", verdict: "conformant" }] }),
+      ],
+      ["an attention point that is not a string", complianceWith({ attentionPoints: [1] })],
+      ["a pointer that is not a string", complianceWith({ pointers: [{}] })],
+      ["no summary key", without(complianceReview, "summary")],
+      ["no perPhase key", without(complianceReview, "perPhase")],
+      ["no pointers key", without(complianceReview, "pointers")],
+      ["an extra root key", { ...complianceReview, bogus: true }],
+      ["the agent's old version key", { ...complianceReview, version: 1 }],
+    ],
+  },
 ];
 
 describe.each(ANSWERS)(
@@ -360,7 +440,7 @@ describe.each(ANSWERS)(
 
     it.each(answer.fixtures)("%s", (_name, body) => {
       const frozen = answer.frozen({ $schema: answer.frozenStamp, ...body });
-      const current = answer.current({ $schema: stamp, ...body });
+      const current = answer.current({ $schema: stamp, ...(answer.forCurrent?.(body) ?? body) });
       if (Either.isLeft(frozen)) {
         expect(Either.isLeft(current)).toBe(true);
         if (Either.isLeft(current)) {

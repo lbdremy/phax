@@ -276,10 +276,12 @@ const BRIEF_REPORT = JSON.stringify({
 });
 
 const COMPLIANCE_VERDICT = JSON.stringify({
-  version: 1,
+  $schema: schemaUrl("compliance-review", CURRENT_STAMPS["compliance-review"]),
   verdict: "conformant",
   summary: "The run delivers the plan.",
   perPhase: [{ phaseId: "phase-01", verdict: "conformant", findings: [] }],
+  unplannedChanges: [],
+  unmetPromises: [],
   attentionPoints: [],
   pointers: [],
 });

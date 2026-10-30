@@ -1,0 +1,166 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "phax compliance review",
+  "$defs": {
+    "NonEmptyString": {
+      "type": "string",
+      "description": "a string matching the pattern ^[\\s\\S]+$",
+      "pattern": "^[\\s\\S]+$"
+    }
+  },
+  "type": "object",
+  "required": [
+    "$schema",
+    "verdict",
+    "summary",
+    "perPhase",
+    "unplannedChanges",
+    "unmetPromises",
+    "attentionPoints",
+    "pointers"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "enum": [
+        "https://docs.phax.run/schemas/compliance-review/0.32.0.json"
+      ],
+      "description": "The compliance-review format's shape, exactly: https://docs.phax.run/schemas/compliance-review/0.32.0.json",
+      "const": "https://docs.phax.run/schemas/compliance-review/0.32.0.json"
+    },
+    "verdict": {
+      "type": "string",
+      "enum": [
+        "conformant",
+        "conformant-with-deviations",
+        "divergent"
+      ]
+    },
+    "summary": {
+      "type": "string"
+    },
+    "perPhase": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "phaseId",
+          "verdict",
+          "findings"
+        ],
+        "properties": {
+          "phaseId": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "conformant",
+              "conformant-with-deviations",
+              "divergent"
+            ]
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "dimension",
+                "severity",
+                "message"
+              ],
+              "properties": {
+                "dimension": {
+                  "type": "string",
+                  "enum": [
+                    "objective",
+                    "excluded-scope",
+                    "files",
+                    "tests",
+                    "boundaries",
+                    "commit",
+                    "handoff"
+                  ]
+                },
+                "severity": {
+                  "type": "string",
+                  "enum": [
+                    "info",
+                    "deviation",
+                    "concern"
+                  ]
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "unplannedChanges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "phaseId",
+          "path",
+          "note"
+        ],
+        "properties": {
+          "phaseId": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "path": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "note": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        },
+        "additionalProperties": false
+      },
+      "description": "Every change the plan did not call for: the phase that made it, the path, and a note. An empty list says there was none."
+    },
+    "unmetPromises": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "phaseId",
+          "promise",
+          "note"
+        ],
+        "properties": {
+          "phaseId": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "promise": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "note": {
+            "$ref": "#/$defs/NonEmptyString"
+          }
+        },
+        "additionalProperties": false
+      },
+      "description": "Every promise of the plan a phase did not keep: the phase, the promise, and a note. An empty list says there was none."
+    },
+    "attentionPoints": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "pointers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": false
+}

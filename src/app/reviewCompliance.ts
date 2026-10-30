@@ -14,13 +14,13 @@ import {
   COMPLIANCE_REVIEW_JSON_FILENAME,
 } from "../domain/review/compliancePrompt.js";
 import { resolveReviewSecurityPolicy } from "../domain/security/resolveReviewPolicy.js";
+import { phaseCoverageRefusal } from "../domain/review/compliancePhaseCoverage.js";
 import {
-  decodeComplianceReview,
-  encodeComplianceReviewFile,
+  complianceReviewFileText,
+  readComplianceReviewAnswer,
   type ComplianceReview,
   type Verdict,
 } from "../schemas/complianceReview.js";
-import { withSchemaUrl } from "../schemas/persisted.js";
 import { Backend } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import type { Git } from "../ports/git.js";
@@ -349,7 +349,15 @@ export function reviewCompliance(
       } satisfies ComplianceReviewResult;
     }
 
-    const decodeResult = decodeComplianceReview(parsedJson);
+    // The agent's file is the 0.32.0 answer; a perPhase that does not cover
+    // the run is refused like any other departure from the shape.
+    const decodeResult = Either.flatMap(readComplianceReviewAnswer(parsedJson), (answered) => {
+      const refusal = phaseCoverageRefusal(
+        answered.perPhase.map((p) => p.phaseId),
+        info.planPhases.map((p) => p.id),
+      );
+      return refusal === null ? Either.right(answered) : Either.left(refusal);
+    });
     if (Either.isLeft(decodeResult)) {
       yield* telemetry.recordEvent(
         makeStepCompletedTelemetryEvent({
@@ -367,18 +375,9 @@ export function reviewCompliance(
       } satisfies ComplianceReviewResult;
     }
 
-    // The agent's verdict carries the contract's `version`; the persisted
-    // review carries `$schema` instead.
-    const { version: _version, ...review } = decodeResult.right;
+    const review = decodeResult.right;
     const durableJsonPath = join(info.runPath, COMPLIANCE_REVIEW_JSON_FILENAME);
-    yield* fs.writeAtomic(
-      durableJsonPath,
-      JSON.stringify(
-        encodeComplianceReviewFile(withSchemaUrl("compliance-review", review)),
-        null,
-        2,
-      ),
-    );
+    yield* fs.writeAtomic(durableJsonPath, complianceReviewFileText(review));
 
     yield* telemetry.recordEvent(
       makeArtifactGeneratedTelemetryEvent({

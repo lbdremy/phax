@@ -44,6 +44,7 @@ import {
   type FormatId,
 } from "../../src/schemas/schemaUrl.js";
 import {
+  complianceReviewV0_17_0Document,
   EXAMPLE_BASE,
   EXAMPLE_SURFACE_SUMMARY,
   heldPhaseRecordManifestDocument,
@@ -402,7 +403,6 @@ describe("format readers", () => {
   type StrictReader = (file: string, input: unknown) => Either.Either<object, PersistedReadError>;
   type StrictFormat =
     | "phax-plan"
-    | "compliance-review"
     | "plan-approvals"
     | "spec-approvals"
     | "spec-document"
@@ -410,12 +410,6 @@ describe("format readers", () => {
   const RUN_DIR = "/home/example/.phax/runs/example.example-run";
   it.each<readonly [StrictFormat, StrictReader, string, string]>([
     ["phax-plan", readPhaxPlan, "phax-plan", `${RUN_DIR}/phax-plan.json`],
-    [
-      "compliance-review",
-      readComplianceReviewFile,
-      "compliance review",
-      `${RUN_DIR}/compliance-review.json`,
-    ],
     ["plan-approvals", readPlanApprovalsFile, "plan approvals ledger", "docs/plans/approvals.json"],
     ["spec-approvals", readSpecApprovalsFile, "spec approvals ledger", "docs/specs/approvals.json"],
     ["spec-document", readSpecDocumentFile, "spec document", "docs/specs/2609230835-example.json"],
@@ -458,6 +452,71 @@ describe("format readers", () => {
       read(file, withKey(preSchemaDocuments[id], "$schema", schemaUrl(id, "0.1.0"))),
     );
     expect(both.message).not.toContain("without $schema");
+  });
+
+  // A compliance review is read with the shape it was written in: an older
+  // shape has no ledger and is never lifted with empty ones.
+  describe("compliance-review: shape-tagged read", () => {
+    const file = `${RUN_DIR}/compliance-review.json`;
+    const ledgers = ["unplannedChanges", "unmetPromises"];
+    const { $schema: _schema, ...currentReview } = validDocuments["compliance-review"];
+
+    it("reads a 0.32.0 file as current, with both ledgers", () => {
+      const read = right(readComplianceReviewFile(file, validDocuments["compliance-review"]));
+      expect(read.shape).toBe("current");
+      expect(read.review).toEqual(currentReview);
+      expect(read.review).not.toHaveProperty("$schema");
+      expect(read.review).toHaveProperty("unplannedChanges");
+      expect(read.review).toHaveProperty("unmetPromises");
+    });
+
+    it("reads a 0.17.0 file as 0.17.0, with no ledger key", () => {
+      const read = right(readComplianceReviewFile(file, complianceReviewV0_17_0Document));
+      expect(read.shape).toBe("0.17.0");
+      expect(read.review).toEqual(phaxLatestPreSchema("compliance-review"));
+      for (const key of ledgers) expect(read.review).not.toHaveProperty(key);
+      expect(read.review).not.toHaveProperty("$schema");
+    });
+
+    it("reads a pre-schema file as pre-schema, with no ledger key", () => {
+      const read = right(readComplianceReviewFile(file, preSchemaDocuments["compliance-review"]));
+      expect(read.shape).toBe("pre-schema");
+      expect(read.review).toEqual(phaxLatestPreSchema("compliance-review"));
+      for (const key of ledgers) expect(read.review).not.toHaveProperty(key);
+      expect(read.review).not.toHaveProperty("version");
+    });
+
+    it.each(ledgers)("refuses a 0.32.0 file without %s, naming it and the file", (key) => {
+      const error = left(
+        readComplianceReviewFile(file, withoutKey(validDocuments["compliance-review"], key)),
+      );
+      expect(error.format).toBe("compliance-review");
+      expect(error.message).toMatch(new RegExp(`^${file}: `));
+      expect(error.message).toContain(key);
+    });
+
+    it.each(ledgers)("refuses a 0.17.0 file that carries %s", (key) => {
+      const error = left(
+        readComplianceReviewFile(file, withKey(complianceReviewV0_17_0Document, key, [])),
+      );
+      expect(error.message).toMatch(new RegExp(`^${file}: `));
+      expect(error.message).toContain(key);
+    });
+
+    it("keeps the pre-schema read strict: an unknown key is refused naming the file", () => {
+      const error = left(
+        readComplianceReviewFile(file, withKey(preSchemaDocuments["compliance-review"], "x", 1)),
+      );
+      expect(error.message).toMatch(new RegExp(`^${file}: compliance review without \\$schema`));
+    });
+
+    it("refuses a 0.32.0 file with an unknown key", () => {
+      const error = left(
+        readComplianceReviewFile(file, withKey(validDocuments["compliance-review"], "extra", true)),
+      );
+      expect(error.message).toMatch(new RegExp(`^${file}: `));
+      expect(error.message).not.toContain("without $schema");
+    });
   });
 
   describe("plan-document: completesSpec", () => {
@@ -1109,13 +1168,15 @@ describe("documents from another release", () => {
                     : compareReleases(release, "0.25.0") >= 0
                       ? withModelReasons(validDocuments[id])
                       : withoutPreambleQuestions(validDocuments[id])
-                : id === "phax-plan"
-                  ? compareReleases(release, "0.28.0") >= 0
-                    ? validDocuments[id]
-                    : compareReleases(release, "0.26.0") >= 0
-                      ? withoutTestLines(validDocuments[id])
-                      : withoutPhaseKinds(validDocuments[id])
-                  : validDocuments[id];
+                : id === "compliance-review"
+                  ? withoutKey(withoutKey(validDocuments[id], "unplannedChanges"), "unmetPromises")
+                  : id === "phax-plan"
+                    ? compareReleases(release, "0.28.0") >= 0
+                      ? validDocuments[id]
+                      : compareReleases(release, "0.26.0") >= 0
+                        ? withoutTestLines(validDocuments[id])
+                        : withoutPhaseKinds(validDocuments[id])
+                    : validDocuments[id];
     const result = read(file, withKey(document, "$schema", schemaUrl(id, release)));
     if (!newer) {
       right(result);

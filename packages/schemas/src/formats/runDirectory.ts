@@ -45,6 +45,11 @@ import {
   type CostLedgerV0_26_0,
 } from "../../../../src/schemas/history/cost-ledger/0.26.0.js";
 import {
+  ComplianceReviewV0_17_0Schema,
+  decodeComplianceReviewV0_17_0,
+  type ComplianceReviewV0_17_0,
+} from "../../../../src/schemas/history/compliance-review/0.17.0.js";
+import {
   ComplianceReviewPreSchemaSchema,
   decodeComplianceReviewPreSchema,
   type ComplianceReviewPreSchema,
@@ -382,7 +387,15 @@ function isV0_26_0PhaxPlan(
 
 // ── compliance review
 
-export type ComplianceReviewShapes = { "pre-schema": ComplianceReviewPreSchema } & {
+// The current shape is a strict answer since 0.32.0 (a const `$schema`, two
+// required ledgers); the 0.17.0 shape, which has no ledger, is listed as a
+// release. A const `$schema` reads only its own stamp: a document stamped above
+// the current stamp is refused at `$schema`.
+
+export type ComplianceReviewShapes = {
+  "pre-schema": ComplianceReviewPreSchema;
+  "0.17.0": ComplianceReviewV0_17_0;
+} & {
   [K in CurrentShapeName<"compliance-review">]: ComplianceReviewFile;
 };
 
@@ -393,7 +406,9 @@ export const complianceReviewFormat = defineFormat<ComplianceReviewShapes>({
   id: "compliance-review",
   label: "compliance review",
   preSchema: { schema: ComplianceReviewPreSchemaSchema, decode: decodeComplianceReviewPreSchema },
-  releases: [],
+  releases: [
+    ["0.17.0", { schema: ComplianceReviewV0_17_0Schema, decode: decodeComplianceReviewV0_17_0 }],
+  ],
   current: {
     name: CURRENT_SHAPES["compliance-review"],
     shape: { schema: ComplianceReviewFileSchema, decode: decodeComplianceReviewFile },
@@ -404,19 +419,38 @@ export const complianceReviewFormat = defineFormat<ComplianceReviewShapes>({
 export const parseComplianceReview: (input: unknown) => ParsedShape<ComplianceReviewShapes> =
   complianceReviewFormat.parse;
 
-/** The latest compliance review: phax's in-memory value, with no `version` and no `$schema`. */
-export type LatestComplianceReview = ComplianceReview;
+/**
+ * The latest compliance review: phax's in-memory value, with no `version` and
+ * no `$schema`. A review an older phax wrote never recorded its ledgers: each
+ * is `Unknown`, which a reader treats as 'not recorded'.
+ */
+export type LatestComplianceReview = Omit<
+  ComplianceReview,
+  "unplannedChanges" | "unmetPromises"
+> & {
+  readonly unplannedChanges: ComplianceReview["unplannedChanges"] | Unknown;
+  readonly unmetPromises: ComplianceReview["unmetPromises"] | Unknown;
+};
 
-/** Upgrades a parsed compliance review in memory. Keeps every recorded fact; never invents one. */
+/**
+ * Upgrades a parsed compliance review in memory. Keeps every recorded fact;
+ * never invents one: a 0.17.0 or pre-schema review has `Unknown` ledgers, never
+ * an empty list, because that would say its run had no unplanned change and no
+ * unmet promise.
+ */
 export function toLatestComplianceReview(
-  value: ComplianceReviewPreSchema | ComplianceReviewFile,
+  value: ComplianceReviewPreSchema | ComplianceReviewV0_17_0 | ComplianceReviewFile,
 ): LatestComplianceReview {
-  if ("$schema" in value) {
+  if ("unplannedChanges" in value) {
     const { $schema: _schema, ...recorded } = value;
     return recorded;
   }
+  if ("$schema" in value) {
+    const { $schema: _schema, ...recorded } = value;
+    return { ...recorded, unplannedChanges: UNKNOWN, unmetPromises: UNKNOWN };
+  }
   const { version: _version, ...recorded } = value;
-  return recorded;
+  return { ...recorded, unplannedChanges: UNKNOWN, unmetPromises: UNKNOWN };
 }
 
 // ── cost ledger

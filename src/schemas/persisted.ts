@@ -40,8 +40,11 @@
 // as a refused lift, which still reads. A run status or registry stamped
 // below its current stamp is read by its frozen 0.17.0 decoder, and a phase
 // status by its frozen 0.20.0 decoder, lifted with `mode: "headless"` and
-// `stop: null`. A phase, authoring or decision record manifest or an
-// interactive session stamped below its current stamp is read by the frozen
+// `stop: null`. A compliance review stamped below its current stamp is read by
+// its frozen 0.17.0 decoder, and one written before `$schema` by the pre-schema
+// decoder; neither gains a ledger (`unplannedChanges`, `unmetPromises`), and
+// `readComplianceReviewFile` reports the shape it read. A phase, authoring or
+// decision record manifest or an interactive session stamped below its current stamp is read by the frozen
 // decoder of the release that wrote its shape, and every Vibe usage it carries
 // lifts to unavailable (`liftFrozenTokenUsage`). `readDocumentSidecar`
 // also reports the shape a spec or plan sidecar is stamped at. A format born with `$schema`
@@ -81,7 +84,12 @@ import {
 import { decodeArchitectureReportFile, type ArchitectureReportFile } from "./architecture.js";
 import { decodeBriefReportFile, type BriefReportFile } from "./briefReport.js";
 import { decodeCodeReviewFile, type CodeReview } from "./codeReview.js";
-import { decodeComplianceReviewFile, type ComplianceReview } from "./complianceReview.js";
+import {
+  decodeComplianceReviewFile,
+  type AnyShapeComplianceReview,
+  type ComplianceReview,
+  type ComplianceReviewFile,
+} from "./complianceReview.js";
 import { decodeCostLedgerFile, type CostLedger } from "./costLedger.js";
 import { decodeDecisionRecordManifestFile, liftFrozenDecisionManifest } from "./decisionRecord.js";
 import { decodeReviewRecordManifestFile } from "./reviewRecord.js";
@@ -98,7 +106,11 @@ import {
 import { decodeAuthoringRecordManifestV0_17_0 } from "./history/authoring-record-manifest/0.17.0.js";
 import { decodeAuthoringRecordManifestV0_23_0 } from "./history/authoring-record-manifest/0.23.0.js";
 import { decodeAuthoringRecordManifestPreSchema } from "./history/authoring-record-manifest/pre-schema.js";
-import { decodeComplianceReviewPreSchema } from "./history/compliance-review/pre-schema.js";
+import { decodeComplianceReviewV0_17_0 } from "./history/compliance-review/0.17.0.js";
+import {
+  decodeComplianceReviewPreSchema,
+  type ComplianceReviewPreSchema,
+} from "./history/compliance-review/pre-schema.js";
 import { decodeCostLedgerV0_25_0 } from "./history/cost-ledger/0.25.0.js";
 import { decodeCostLedgerV0_26_0 } from "./history/cost-ledger/0.26.0.js";
 import { decodeDecisionRecordManifestV0_25_0 } from "./history/decision-record-manifest/0.25.0.js";
@@ -573,19 +585,44 @@ export const readPhaxPlanFile: Reader<PhaxPlanRead> = (file, input) => {
 };
 
 /**
- * Reads a run's `compliance-review.json`. The pre-schema review carries every
- * fact phax needs.
+ * A compliance review as read, tagged with the shape it was written in. An
+ * older shape has no ledger: it is never lifted with empty ones, because that
+ * would invent the fact that its run had no unplanned change and no unmet
+ * promise. A reader that needs a ledger refuses the older shapes by name.
  */
-export const readComplianceReviewFile: Reader<ComplianceReview> = (file, input) =>
-  readPersisted(input, {
-    format: "compliance-review",
-    label: "compliance review",
-    file,
-    decodeCurrent: decodeComplianceReviewFile,
-    decodePreSchema: decodeComplianceReviewPreSchema,
-    fromCurrent: ({ $schema: _schema, ...review }) => review,
-    fromPreSchema: ({ version: _version, ...review }) => Either.right(review),
-  });
+export type ComplianceReviewRead =
+  | { readonly shape: "current"; readonly review: ComplianceReview }
+  | { readonly shape: "0.17.0" | "pre-schema"; readonly review: AnyShapeComplianceReview };
+
+/**
+ * Reads a run's `compliance-review.json`. One stamped below the format's
+ * current stamp is read by the frozen 0.17.0 decoder, and one written before
+ * `$schema` by the pre-schema decoder; neither gains a ledger. The read
+ * reports the shape it found.
+ */
+export const readComplianceReviewFile: Reader<ComplianceReviewRead> = (file, input) => {
+  if (isDocumentObject(input) && isStampedBelowCurrent("compliance-review", input)) {
+    const older = decodeComplianceReviewV0_17_0(input);
+    if (Either.isLeft(older)) {
+      return Either.left(readError(file, "compliance-review", formatFirstViolation(older.left)));
+    }
+    const { $schema: _schema, ...review } = older.right;
+    return Either.right({ shape: "0.17.0", review });
+  }
+  return readPersisted<ComplianceReviewFile, ComplianceReviewPreSchema, ComplianceReviewRead>(
+    input,
+    {
+      format: "compliance-review",
+      label: "compliance review",
+      file,
+      decodeCurrent: decodeComplianceReviewFile,
+      decodePreSchema: decodeComplianceReviewPreSchema,
+      fromCurrent: ({ $schema: _schema, ...review }) => ({ shape: "current", review }),
+      fromPreSchema: ({ version: _version, ...review }) =>
+        Either.right({ shape: "pre-schema", review }),
+    },
+  );
+};
 
 /** Reads `docs/plans/approvals.json`. The pre-schema ledger carries every fact phax needs. */
 export const readPlanApprovalsFile: Reader<PlanApprovals> = (file, input) =>

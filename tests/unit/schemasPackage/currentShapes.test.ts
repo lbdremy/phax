@@ -124,7 +124,12 @@ import {
   isRelease,
   type FormatId,
 } from "../../../src/schemas/schemaUrl.js";
-import { EXAMPLE_SURFACE_SUMMARY, preSchemaDocuments, validDocuments } from "./documents.js";
+import {
+  complianceReviewV0_17_0Document,
+  EXAMPLE_SURFACE_SUMMARY,
+  preSchemaDocuments,
+  validDocuments,
+} from "./documents.js";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const snapshotsDir = join(repoRoot, "packages", "schemas", "snapshots");
@@ -292,7 +297,9 @@ const BRIDGE_READERS: { readonly [F in FormatId]: BridgeReader | undefined } = {
   "phase-status": readPhaseStatusFile,
   // The reader reports the shape it read beside the plan; the plan is the lift.
   "phax-plan": (file, input) => Either.map(readPhaxPlanFile(file, input), (read) => read.plan),
-  "compliance-review": readComplianceReviewFile,
+  // The reader reports the shape it read beside the review; the review is the lift.
+  "compliance-review": (file, input) =>
+    Either.map(readComplianceReviewFile(file, input), (read) => read.review),
   "plan-approvals": readPlanApprovalsFile,
   "spec-approvals": readSpecApprovalsFile,
   "phase-record-manifest": readRecordManifestFile,
@@ -347,14 +354,17 @@ const READ_BY_PHAX = FORMAT_IDS.filter((id) => BRIDGE_READERS[id] !== undefined)
 // pre-schema phax-plan stated no test lines: phax gives its phases no
 // `testLines` key, the package `Unknown`. All three are covered below where
 // they part. A pre-schema gate attribution ran no protected-paths check: phax
-// lifts it with `protectedPaths: null`, the package keeps it as recorded.
+// lifts it with `protectedPaths: null`, the package keeps it as recorded. A
+// pre-schema compliance review never recorded its ledgers: phax's reader gives
+// it no ledger key, the package `Unknown` ones.
 const PRE_SCHEMA_READ_BY_PHAX = PRE_SCHEMA_FORMAT_IDS.filter(
   (id) =>
     BRIDGE_READERS[id] !== undefined &&
     id !== "phase-status" &&
     id !== "spec-document" &&
     id !== "phax-plan" &&
-    id !== "gate-attribution",
+    id !== "gate-attribution" &&
+    id !== "compliance-review",
 );
 // A pre-schema phase status upgrades with `base` Unknown, a phax-written one
 // keeps its base; a pre-schema spec document upgrades with each summary
@@ -363,12 +373,15 @@ const PRE_SCHEMA_READ_BY_PHAX = PRE_SCHEMA_FORMAT_IDS.filter(
 // upgrade alike.
 // A pre-schema gate attribution keeps no `protectedPaths`, a phax-written one
 // records it.
+// A pre-schema compliance review upgrades with `Unknown` ledgers, a
+// phax-written one keeps its own.
 const UPGRADED_ALIKE = PRE_SCHEMA_FORMAT_IDS.filter(
   (id) =>
     id !== "phase-status" &&
     id !== "spec-document" &&
     id !== "phax-plan" &&
-    id !== "gate-attribution",
+    id !== "gate-attribution" &&
+    id !== "compliance-review",
 );
 
 /** Each phase without its `testLines` key. */
@@ -416,6 +429,34 @@ describe("phax's bridge and the package agree", () => {
       }),
     );
   });
+
+  // Where they part: a compliance review an older phax wrote never recorded its
+  // ledgers. The package marks each Unknown; phax's reader gives the review no
+  // ledger key at all, tagged with the shape it read. Neither invents an empty list.
+  it.each([
+    ["pre-schema", preSchemaDocuments["compliance-review"], "pre-schema"],
+    ["0.17.0", complianceReviewV0_17_0Document, "0.17.0"],
+  ] as const)(
+    "compliance-review: a %s review's ledgers are Unknown to the package, absent to phax",
+    (_name, document, shape) => {
+      expect(PACKAGE_LATEST["compliance-review"](document)).toMatchObject({
+        unplannedChanges: UNKNOWN,
+        unmetPromises: UNKNOWN,
+      });
+      const read = readComplianceReviewFile("/work/example-repo/compliance-review.json", document);
+      if (Either.isLeft(read)) throw new Error(read.left.message);
+      expect(read.right.shape).toBe(shape);
+      expect(read.right.review).not.toHaveProperty("unplannedChanges");
+      expect(read.right.review).not.toHaveProperty("unmetPromises");
+      // Every other recorded fact reads alike.
+      const {
+        unplannedChanges: _a,
+        unmetPromises: _b,
+        ...recorded
+      } = PACKAGE_LATEST["compliance-review"](document) as Record<string, unknown>;
+      expect(read.right.review).toEqual(recorded);
+    },
+  );
 
   // Where they part: a pre-schema plan sidecar beside a spec path never said
   // whether its plan completes the spec. The package keeps that as Unknown;
