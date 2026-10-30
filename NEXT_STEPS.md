@@ -150,6 +150,15 @@ desktop — none is promised by the announcement.
 
 ## Small follow-ups
 
+- [ ] **Security: allowed shell commands run unconfined on Claude Code and Vibe.** Found 2026-10-30
+      reviewing #176. Only Codex runs a session in an OS sandbox. On Claude Code and Vibe the filesystem
+      limit covers the file-editing tools; an allowed command runs with the user's rights. Reproduced:
+      a read-only session granted `Bash(git diff:*)` ran `git diff --output=leak.txt` and wrote the file,
+      with no denial (`git log` and `git show` take `--output` too). It reaches the headless code review
+      and the compliance review on Claude Code and, by prefix, on Vibe; in phases it reaches every gate
+      command. Probe Claude Code's native Bash sandbox (settings, seatbelt on macOS) with a write
+      allowlist of the worktree (none for a read-only session), apply it to every Claude session, and
+      find Vibe's equivalent; until then `docs/security.md` states the limit.
 - [ ] **Codex never ends a session on network loss.** Codex 0.165, its API unreachable, emits
       `Reconnecting... N/5`, then `Reconnecting... waiting for network` every ~50 s without end and no
       `turn.failed` (2026-10-28, real e2e of `provider-failures`). A Codex phase hangs with nothing on
