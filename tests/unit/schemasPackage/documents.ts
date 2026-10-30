@@ -59,6 +59,7 @@ import {
   AuthoringRecordManifestPreSchemaSchema,
   type AuthoringRecordManifestPreSchema,
 } from "../../../src/schemas/history/authoring-record-manifest/pre-schema.js";
+import { ComplianceReviewV0_17_0Schema } from "../../../src/schemas/history/compliance-review/0.17.0.js";
 import {
   ComplianceReviewPreSchemaSchema,
   type ComplianceReviewPreSchema,
@@ -924,7 +925,15 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
   ),
   "compliance-review": encoded(
     ComplianceReviewFileSchema,
-    withSchemaUrl("compliance-review", stepped(complianceReview)),
+    withSchemaUrl("compliance-review", {
+      ...stepped(complianceReview),
+      unplannedChanges: [
+        { phaseId: "phase-01", path: "README.md", note: "The plan did not list it" },
+      ],
+      unmetPromises: [
+        { phaseId: "phase-01", promise: "A test for the example", note: "No such test exists" },
+      ],
+    }),
   ),
   "plan-approvals": encoded(
     ApprovalRecordFileSchema,
@@ -1453,6 +1462,15 @@ export const versionOnePhaseRecordManifest: Doc = withKey(
   "version",
   1,
 );
+
+/**
+ * A compliance review as the 0.17.0 shape: a release-pattern `$schema` at the
+ * 0.17.0 stamp, then the review, with neither ledger.
+ */
+export const complianceReviewV0_17_0Document: Doc = encoded(ComplianceReviewV0_17_0Schema, {
+  $schema: schemaUrl("compliance-review", "0.17.0"),
+  ...stepped(complianceReview),
+});
 
 // The messages a test expects follow the package's generated values, so a
 // release commit, which names the first supported release, leaves them green.

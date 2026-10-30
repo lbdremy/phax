@@ -14,7 +14,10 @@ import {
   renderReviewNotes,
   type ReviewNoteGroup,
 } from "../../../src/domain/review/reviewNotes.js";
-import type { ComplianceReview } from "../../../src/schemas/complianceReview.js";
+import type {
+  AnyShapeComplianceReview,
+  ComplianceReview,
+} from "../../../src/schemas/complianceReview.js";
 import {
   CODE_REVIEW_ESCAPES,
   CODE_REVIEW_LENSES,
@@ -58,7 +61,8 @@ function makeGlobal(
   return { files, unplanned: unplannedEntries, missing: missingEntries, attentionPoints: files };
 }
 
-const review: ComplianceReview = {
+// The fields every shape carries: a 0.17.0 or pre-schema review has no ledger.
+const review: AnyShapeComplianceReview = {
   verdict: "conformant-with-deviations",
   summary: "COMPLIANCE-SUMMARY-TEXT",
   perPhase: [
@@ -336,6 +340,17 @@ describe("buildShortPrBody — shape", () => {
       "## Needs your review",
     );
     expect(needs).toContain("### Compliance attention points\n\nNone.");
+  });
+
+  it("shows a 0.32.0 review's verdict and attention points as it does an older one's", () => {
+    const current: ComplianceReview = {
+      ...review,
+      unplannedChanges: [{ phaseId: "phase-02", path: "README.md", note: "Not in the plan" }],
+      unmetPromises: [{ phaseId: "phase-01", promise: "A unit test", note: "None found" }],
+    };
+    expect(build({ compliance: { kind: "reviewed", review: current } })).toBe(
+      build({ compliance: { kind: "reviewed", review } }),
+    );
   });
 
   it("writes not reviewed everywhere and no attention points without a review", () => {

@@ -9,7 +9,7 @@ import {
   type PhaseRecordManifestShapes,
 } from "../../../packages/schemas/src/formats/recordManifests.js";
 import { CURRENT_SHAPES, PACKAGE_VERSION } from "../../../packages/schemas/src/generated/index.js";
-import { parseDocument } from "../../../packages/schemas/src/index.js";
+import { parseComplianceReview, parseDocument } from "../../../packages/schemas/src/index.js";
 import type { Parsed } from "../../../packages/schemas/src/parsed.js";
 import {
   defineFormat,
@@ -22,7 +22,12 @@ import { FORMAT_DEFINITIONS } from "../../../packages/schemas/build/jsonSchemas.
 import { ANSWER_FORMATS, type AnswerFormatId } from "../../../src/schemas/answerSchemas.js";
 import { CURRENT_STAMPS } from "../../../src/schemas/release.js";
 import { FORMAT_IDS, schemaUrl, type FormatId } from "../../../src/schemas/schemaUrl.js";
-import { belowOwnReleaseMessage, preSchemaDocuments, validDocuments } from "./documents.js";
+import {
+  belowOwnReleaseMessage,
+  complianceReviewV0_17_0Document,
+  preSchemaDocuments,
+  validDocuments,
+} from "./documents.js";
 
 // A version-2 phase manifest as 0.16.0 wrote it: no `$schema`.
 const v2Manifest = preSchemaDocuments["phase-record-manifest"];
@@ -139,7 +144,9 @@ describe("parseDocument", () => {
     },
   );
 
-  it.each(ANSWER_FORMAT_IDS)(
+  // The compliance review's `$schema` is a const since 0.32.0, as an answer
+  // format's is; it joins ANSWER_FORMATS when it becomes a structured call.
+  it.each([...new Set<FormatId>([...ANSWER_FORMAT_IDS, "compliance-review"])])(
     "refuses a %s stamped above its current stamp at $schema, once a release has named its shape",
     (formatId) => {
       // The format as the next release leaves it: its `next` shape renamed to
@@ -165,6 +172,40 @@ describe("parseDocument", () => {
         $schema: schemaUrl(formatId, CURRENT_STAMPS[formatId]),
       };
       expect(released.parse(own).ok).toBe(true);
+    },
+  );
+
+  // The compliance review reads at each of its shapes: pre-schema, its frozen
+  // 0.17.0 stamp, and its own 0.32.0 stamp; each by its own decoder.
+  it("reads a compliance review at 0.17.0 as shape 0.17.0, and at its own stamp as the current shape", () => {
+    expect(parseDocument(complianceReviewV0_17_0Document)).toEqual({
+      ok: true,
+      format: "compliance-review",
+      shape: "0.17.0",
+      value: complianceReviewV0_17_0Document,
+    });
+    const current = validDocuments["compliance-review"];
+    expect(parseDocument(current)).toMatchObject({
+      ok: true,
+      format: "compliance-review",
+      shape: CURRENT_SHAPES["compliance-review"],
+    });
+  });
+
+  it("reads a compliance review without $schema as shape pre-schema", () => {
+    expect(parseComplianceReview(preSchemaDocuments["compliance-review"])).toMatchObject({
+      ok: true,
+      shape: "pre-schema",
+    });
+  });
+
+  it.each(["unplannedChanges", "unmetPromises"])(
+    "refuses a compliance review at its own stamp without %s, naming it",
+    (key) => {
+      const { [key]: _gone, ...without } = validDocuments["compliance-review"];
+      const result = parseDocument(without);
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error.path).toContain(key);
     },
   );
 

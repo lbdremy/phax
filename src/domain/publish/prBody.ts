@@ -1,5 +1,5 @@
 import type { CodeReview, CodeReviewFinding } from "../../schemas/codeReview.js";
-import type { ComplianceReview } from "../../schemas/complianceReview.js";
+import type { AnyShapeComplianceReview } from "../../schemas/complianceReview.js";
 import type { RecordedSurface } from "../../schemas/surface.js";
 import {
   findUnexplainedGlobalDeviations,
@@ -39,7 +39,7 @@ export interface ShortPrBodyInput {
   }>;
   readonly verifiedSurfaces: readonly RecordedSurface[];
   readonly compliance:
-    | { readonly kind: "reviewed"; readonly review: ComplianceReview }
+    | { readonly kind: "reviewed"; readonly review: AnyShapeComplianceReview }
     | { readonly kind: "not-reviewed" };
   readonly codeReview:
     | { readonly kind: "reviewed"; readonly review: CodeReview }

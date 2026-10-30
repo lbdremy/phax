@@ -375,7 +375,8 @@ export function loadCodeReviewWorklist(
         const complianceJson = JSON.parse(complianceReadResult.right);
         const complianceDecodeResult = readComplianceReviewFile(complianceJsonPath, complianceJson);
         if (Either.isRight(complianceDecodeResult)) {
-          const review = complianceDecodeResult.right;
+          // Only the fields every shape carries: the ledgers are not read here.
+          const { review } = complianceDecodeResult.right;
           complianceBlock = {
             attentionPoints: review.attentionPoints,
             pointers: review.pointers,

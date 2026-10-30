@@ -8,6 +8,8 @@ import type { RunReviewInfo } from "../../src/domain/runReviewInfo.js";
 import type { BranchName, ClaudeSessionId } from "../../src/domain/branded.js";
 import type { ResolvedComplianceReviewConfig } from "../../src/schemas/phaxConfig.js";
 import type { RoutingResolution } from "../../src/domain/routing/types.js";
+import { CURRENT_STAMPS } from "../../src/schemas/release.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 import type { ResolvedSecurityConfig } from "../../src/schemas/securityConfig.js";
 
 // These tests exercise the CLI command logic by calling reviewCompliance directly
@@ -87,10 +89,12 @@ const fakeSessionResult = {
 };
 
 const validJson = JSON.stringify({
-  version: 1,
+  $schema: schemaUrl("compliance-review", CURRENT_STAMPS["compliance-review"]),
   verdict: "conformant-with-deviations",
   summary: "Minor deviations found.",
   perPhase: [{ phaseId: "phase-01", verdict: "conformant-with-deviations", findings: [] }],
+  unplannedChanges: [],
+  unmetPromises: [],
   attentionPoints: [],
   pointers: [],
 });

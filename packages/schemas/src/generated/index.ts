@@ -13,7 +13,7 @@ export const CURRENT_SHAPES = {
   "run-status": "0.26.0",
   "phase-status": "0.26.0",
   "phax-plan": "next",
-  "compliance-review": "0.17.0",
+  "compliance-review": "next",
   "plan-approvals": "0.17.0",
   "spec-approvals": "0.17.0",
   "phase-record-manifest": "0.30.0",

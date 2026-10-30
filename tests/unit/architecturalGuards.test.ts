@@ -560,6 +560,7 @@ const CLOSURE_SRC_ALLOWLIST = [
   "src/schemas/history/authoring-record-manifest/pre-schema.ts",
   "src/schemas/history/brief-record/0.20.0.ts",
   "src/schemas/history/code-review/0.29.0.ts",
+  "src/schemas/history/compliance-review/0.17.0.ts",
   "src/schemas/history/compliance-review/pre-schema.ts",
   "src/schemas/history/cost-ledger/0.25.0.ts",
   "src/schemas/history/cost-ledger/0.26.0.ts",

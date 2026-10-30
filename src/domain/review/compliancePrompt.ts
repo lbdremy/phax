@@ -1,3 +1,6 @@
+import { CURRENT_STAMPS } from "../../schemas/release.js";
+import { schemaUrl } from "../../schemas/schemaUrl.js";
+
 export const COMPLIANCE_REVIEW_MD_FILENAME = "compliance-review.md";
 export const COMPLIANCE_REVIEW_JSON_FILENAME = "compliance-review.json";
 
@@ -18,7 +21,7 @@ export interface BuildCompliancePromptInput {
 }
 
 const COMPLIANCE_REVIEW_JSON_SHAPE = `{
-  "version": 1,
+  "$schema": "${schemaUrl("compliance-review", CURRENT_STAMPS["compliance-review"])}",
   "verdict": "conformant | conformant-with-deviations | divergent",
   "summary": "<one-paragraph run-level summary>",
   "perPhase": [
@@ -33,6 +36,12 @@ const COMPLIANCE_REVIEW_JSON_SHAPE = `{
         }
       ]
     }
+  ],
+  "unplannedChanges": [
+    { "phaseId": "<phase id>", "path": "<file the plan did not call for>", "note": "<why it matters>" }
+  ],
+  "unmetPromises": [
+    { "phaseId": "<phase id>", "promise": "<what the plan promised>", "note": "<what is missing>" }
   ],
   "attentionPoints": ["<human-readable note requiring attention>"],
   "pointers": ["<conformance-out-of-scope pointer, e.g. possible bug at X — confirm via code review>"]
@@ -171,6 +180,8 @@ export function buildCompliancePrompt(input: BuildCompliancePromptInput): string
     "Both files must be written. The md file is the primary deliverable.",
     "The json file must be valid JSON and must conform exactly to the shape above —",
     "use only the listed enum values for `verdict`, `severity`, and `dimension`.",
+    "Give the two ledgers as JSON fields too: `unplannedChanges` and `unmetPromises` are both",
+    "required, and an empty list says there was none. `perPhase` names every phase of the run once.",
     "Unknown keys are not permitted.",
   ].join("\n");
 }

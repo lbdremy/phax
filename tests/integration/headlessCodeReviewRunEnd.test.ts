@@ -31,10 +31,12 @@ import { liftFixturePhaxPlanToCurrent } from "../helpers/liftFixturePhaxPlan.js"
 import { planMdFor } from "../helpers/planMarkdown.js";
 
 const COMPLIANCE_JSON = JSON.stringify({
-  version: 1,
+  $schema: schemaUrl("compliance-review", CURRENT_STAMPS["compliance-review"]),
   verdict: "conformant",
   summary: "All phases conformed.",
   perPhase: [{ phaseId: "phase-01", verdict: "conformant", findings: [] }],
+  unplannedChanges: [],
+  unmetPromises: [],
   attentionPoints: [],
   pointers: [],
 });

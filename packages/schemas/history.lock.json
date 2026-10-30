@@ -4,6 +4,7 @@
   "src/schemas/history/authoring-record-manifest/pre-schema.ts": "88b78714e008259144c422ea9f93413cc126fbaa63eb552803ed7d20f7593003",
   "src/schemas/history/brief-record/0.20.0.ts": "8dc0e8f1153018a9d153deb336a1ca8989e60a4afb21ebd9cf5ee49ab75b154a",
   "src/schemas/history/code-review/0.29.0.ts": "bf395ffaab512a121ce54728e7c4fbd07c78504b97d44b911480e128ce361114",
+  "src/schemas/history/compliance-review/0.17.0.ts": "a40f658dbce576d209fe41c6df89ca0d930e301aecbc5a5711f35eb6ba3bcefb",
   "src/schemas/history/compliance-review/pre-schema.ts": "5448180a590a421b5e3516ce28c97bdaf1eb0706963365e56ae668b3d5334d78",
   "src/schemas/history/cost-ledger/0.25.0.ts": "b4b5bdd3bfc5b25fdc7f0461266cb4b039bdc26dc9aabd426d4839724296bd04",
   "src/schemas/history/cost-ledger/0.26.0.ts": "cdfef89ec11063f314a7e13e109a1d5e273642741e07256624f6d4ec44a0bc08",

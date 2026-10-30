@@ -17,6 +17,7 @@ import { CODE_REVIEW_ESCAPES, CODE_REVIEW_LENSES } from "../../src/schemas/codeR
 import type { ResolvedPublishConfig } from "../../src/schemas/phaxConfig.js";
 import type { ResolvedRecordsConfig } from "../../src/schemas/recordsConfig.js";
 import { currentSchemaUrl, withSchemaUrl } from "../../src/schemas/persisted.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 
 const stateRoot = "/fake-state";
 const shortName = "test-run";
@@ -104,8 +105,9 @@ function seedSuccessPreconditions(args: {
 
 const constNow = () => now;
 
+// A 0.17.0 compliance review: no ledger. An older run folder holds one.
 const complianceReviewJson = JSON.stringify({
-  $schema: currentSchemaUrl("compliance-review"),
+  $schema: schemaUrl("compliance-review", "0.17.0"),
   verdict: "conformant-with-deviations",
   summary: "Mostly as planned.",
   perPhase: [
@@ -381,28 +383,44 @@ describe("publishRun", () => {
     expect(github.impl.calls.some((c) => c.method === "createPullRequest")).toBe(false);
   });
 
-  it("carries the compliance verdict and attention points from compliance-review.json, never a finding", async () => {
-    const { fs, git, layers } = setupLayers();
-    seedSuccessPreconditions({ fs, git });
-    fs.impl.setFile(`${runPath}/compliance-review.json`, complianceReviewJson);
-
-    await Effect.runPromise(
-      publishRun(makeInfo(), defaultConfig(), {
-        repoRoot,
-        now: constNow,
-        phaxVersion: "0.0.0-test",
-      }).pipe(Effect.provide(layers)),
-    );
-
-    const body = fs.impl.getFile(`${runPath}/pr-body.md`)!;
-    expect(body).toContain("**Compliance** conformant-with-deviations");
-    expect(body).toContain("### Compliance attention points");
-    expect(body).toContain("- Check the greeting fallback in phase-01");
-    expect(body).not.toContain("The greeting module was added without a planned entry");
-    expect(body).not.toContain("Mostly as planned.");
-    expect(body).not.toContain("## Plan compliance review");
-    expect(body).not.toContain("## Phase details");
+  // The same review in the 0.32.0 shape: the ledgers are the only addition.
+  const currentComplianceReviewJson = JSON.stringify({
+    ...JSON.parse(complianceReviewJson),
+    $schema: currentSchemaUrl("compliance-review"),
+    unplannedChanges: [
+      { phaseId: "phase-01", path: "src/greet.ts", note: "The plan did not list it" },
+    ],
+    unmetPromises: [],
   });
+
+  it.each([
+    ["a 0.17.0", complianceReviewJson],
+    ["a 0.32.0", currentComplianceReviewJson],
+  ])(
+    "carries the compliance verdict and attention points from %s compliance-review.json, never a finding",
+    async (_shape, json) => {
+      const { fs, git, layers } = setupLayers();
+      seedSuccessPreconditions({ fs, git });
+      fs.impl.setFile(`${runPath}/compliance-review.json`, json);
+
+      await Effect.runPromise(
+        publishRun(makeInfo(), defaultConfig(), {
+          repoRoot,
+          now: constNow,
+          phaxVersion: "0.0.0-test",
+        }).pipe(Effect.provide(layers)),
+      );
+
+      const body = fs.impl.getFile(`${runPath}/pr-body.md`)!;
+      expect(body).toContain("**Compliance** conformant-with-deviations");
+      expect(body).toContain("### Compliance attention points");
+      expect(body).toContain("- Check the greeting fallback in phase-01");
+      expect(body).not.toContain("The greeting module was added without a planned entry");
+      expect(body).not.toContain("Mostly as planned.");
+      expect(body).not.toContain("## Plan compliance review");
+      expect(body).not.toContain("## Phase details");
+    },
+  );
 
   const codeReviewFinding = {
     severity: "bug",

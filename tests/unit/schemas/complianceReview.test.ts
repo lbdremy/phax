@@ -1,13 +1,17 @@
 import { Either } from "effect";
 import { describe, expect, it } from "vitest";
 import {
-  decodeComplianceReview,
+  complianceReviewFileText,
   decodeComplianceReviewFile,
+  readComplianceReviewAnswer,
 } from "../../../src/schemas/complianceReview.js";
 import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
 
-const validReview = {
-  version: 1,
+const CURRENT_URL = "https://docs.phax.run/schemas/compliance-review/0.32.0.json";
+
+// The answer is the file's own shape: `$schema`, the review, both ledgers.
+const validAnswer = {
+  $schema: CURRENT_URL,
   verdict: "conformant",
   summary: "All phases conformed to the plan.",
   perPhase: [
@@ -23,60 +27,126 @@ const validReview = {
       ],
     },
   ],
+  unplannedChanges: [],
+  unmetPromises: [],
   attentionPoints: [],
   pointers: [],
 };
 
-describe("decodeComplianceReview", () => {
-  it("accepts a well-formed review", () => {
-    const result = decodeComplianceReview(validReview);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.verdict).toBe("conformant");
-      expect(result.right.version).toBe(1);
-      expect(result.right.perPhase).toHaveLength(1);
-      expect(result.right.perPhase[0]?.phaseId).toBe("phase-01");
-      expect(result.right.perPhase[0]?.findings[0]?.dimension).toBe("objective");
+function withPhase(findings: unknown[]) {
+  return { ...validAnswer, perPhase: [{ phaseId: "phase-01", verdict: "conformant", findings }] };
+}
+
+function refusal(answer: unknown): string {
+  const read = readComplianceReviewAnswer(answer);
+  if (Either.isRight(read)) throw new Error("expected a refusal");
+  return read.left;
+}
+
+describe("readComplianceReviewAnswer", () => {
+  it("accepts a 0.32.0 answer and returns the review without $schema", () => {
+    const read = readComplianceReviewAnswer(validAnswer);
+    expect(Either.isRight(read)).toBe(true);
+    if (Either.isRight(read)) {
+      expect(read.right.verdict).toBe("conformant");
+      expect(read.right).not.toHaveProperty("$schema");
+      expect(read.right.perPhase[0]?.phaseId).toBe("phase-01");
+      expect(read.right.unplannedChanges).toEqual([]);
+      expect(read.right.unmetPromises).toEqual([]);
     }
   });
 
-  it("accepts conformant-with-deviations verdict", () => {
-    const result = decodeComplianceReview({
-      ...validReview,
-      verdict: "conformant-with-deviations",
+  it("keeps the entries of both ledgers", () => {
+    const read = readComplianceReviewAnswer({
+      ...validAnswer,
+      unplannedChanges: [{ phaseId: "phase-01", path: "README.md", note: "Not in the plan" }],
+      unmetPromises: [{ phaseId: "phase-01", promise: "A unit test", note: "None found" }],
     });
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.verdict).toBe("conformant-with-deviations");
+    expect(Either.isRight(read)).toBe(true);
+    if (Either.isRight(read)) {
+      expect(read.right.unplannedChanges).toEqual([
+        { phaseId: "phase-01", path: "README.md", note: "Not in the plan" },
+      ]);
+      expect(read.right.unmetPromises).toEqual([
+        { phaseId: "phase-01", promise: "A unit test", note: "None found" },
+      ]);
     }
   });
 
-  it("accepts divergent verdict", () => {
-    const result = decodeComplianceReview({ ...validReview, verdict: "divergent" });
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.verdict).toBe("divergent");
+  it("refuses an answer without unmetPromises, naming the key", () => {
+    const { unmetPromises: _gone, ...answer } = validAnswer;
+    expect(refusal(answer)).toContain("unmetPromises");
+  });
+
+  it("refuses an answer without unplannedChanges, naming the key", () => {
+    const { unplannedChanges: _gone, ...answer } = validAnswer;
+    expect(refusal(answer)).toContain("unplannedChanges");
+  });
+
+  it("refuses the agent's old shape, naming the missing $schema and the unexpected version", () => {
+    const { $schema: _schema, ...rest } = validAnswer;
+    const text = refusal({ version: 1, ...rest });
+    expect(text).toContain("$schema");
+    expect(text).toContain("version");
+  });
+
+  it("refuses a $schema naming an older stamp of the format", () => {
+    expect(
+      refusal({ ...validAnswer, $schema: schemaUrl("compliance-review", "0.17.0") }),
+    ).toContain("$schema");
+  });
+
+  it("refuses a ledger entry with an empty field, naming it", () => {
+    expect(
+      refusal({
+        ...validAnswer,
+        unplannedChanges: [{ phaseId: "phase-01", path: "", note: "x" }],
+      }),
+    ).toContain("path");
+  });
+
+  it("refuses an empty phase id", () => {
+    expect(
+      refusal({ ...validAnswer, perPhase: [{ phaseId: "", verdict: "conformant", findings: [] }] }),
+    ).toContain("phaseId");
+  });
+
+  it("accepts all three verdicts", () => {
+    for (const verdict of ["conformant", "conformant-with-deviations", "divergent"]) {
+      expect(Either.isRight(readComplianceReviewAnswer({ ...validAnswer, verdict }))).toBe(true);
     }
   });
 
-  it("accepts all valid severity values", () => {
+  it("refuses an invalid verdict, severity or dimension", () => {
+    expect(Either.isLeft(readComplianceReviewAnswer({ ...validAnswer, verdict: "fine" }))).toBe(
+      true,
+    );
+    expect(
+      Either.isLeft(
+        readComplianceReviewAnswer(
+          withPhase([{ dimension: "objective", severity: "critical", message: "x" }]),
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      Either.isLeft(
+        readComplianceReviewAnswer(
+          withPhase([{ dimension: "style", severity: "info", message: "x" }]),
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it("accepts every severity and every dimension", () => {
     for (const severity of ["info", "deviation", "concern"]) {
-      const review = {
-        ...validReview,
-        perPhase: [
-          {
-            phaseId: "phase-01",
-            verdict: "conformant",
-            findings: [{ dimension: "objective", severity, message: "test" }],
-          },
-        ],
-      };
-      const result = decodeComplianceReview(review);
-      expect(Either.isRight(result)).toBe(true);
+      expect(
+        Either.isRight(
+          readComplianceReviewAnswer(
+            withPhase([{ dimension: "objective", severity, message: "x" }]),
+          ),
+        ),
+      ).toBe(true);
     }
-  });
-
-  it("accepts all valid dimension values", () => {
     for (const dimension of [
       "objective",
       "excluded-scope",
@@ -86,98 +156,45 @@ describe("decodeComplianceReview", () => {
       "commit",
       "handoff",
     ]) {
-      const review = {
-        ...validReview,
-        perPhase: [
-          {
-            phaseId: "phase-01",
-            verdict: "conformant",
-            findings: [{ dimension, severity: "info", message: "test" }],
-          },
-        ],
-      };
-      const result = decodeComplianceReview(review);
-      expect(Either.isRight(result)).toBe(true);
+      expect(
+        Either.isRight(
+          readComplianceReviewAnswer(withPhase([{ dimension, severity: "info", message: "x" }])),
+        ),
+      ).toBe(true);
     }
   });
 
-  it("rejects an invalid verdict literal", () => {
-    const result = decodeComplianceReview({ ...validReview, verdict: "invalid-verdict" });
-    expect(Either.isLeft(result)).toBe(true);
+  it("refuses an unknown key at the top, in a finding, in a perPhase entry and in a ledger entry", () => {
+    expect(Either.isLeft(readComplianceReviewAnswer({ ...validAnswer, bogus: true }))).toBe(true);
+    expect(
+      Either.isLeft(
+        readComplianceReviewAnswer(
+          withPhase([{ dimension: "objective", severity: "info", message: "x", extra: 1 }]),
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      Either.isLeft(
+        readComplianceReviewAnswer({
+          ...validAnswer,
+          perPhase: [{ phaseId: "phase-01", verdict: "conformant", findings: [], extra: 1 }],
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      Either.isLeft(
+        readComplianceReviewAnswer({
+          ...validAnswer,
+          unmetPromises: [{ phaseId: "phase-01", promise: "p", note: "n", extra: 1 }],
+        }),
+      ),
+    ).toBe(true);
   });
 
-  it("rejects an invalid severity literal", () => {
-    const review = {
-      ...validReview,
-      perPhase: [
-        {
-          phaseId: "phase-01",
-          verdict: "conformant",
-          findings: [{ dimension: "objective", severity: "critical", message: "test" }],
-        },
-      ],
-    };
-    const result = decodeComplianceReview(review);
-    expect(Either.isLeft(result)).toBe(true);
-  });
-
-  it("rejects an invalid dimension literal", () => {
-    const review = {
-      ...validReview,
-      perPhase: [
-        {
-          phaseId: "phase-01",
-          verdict: "conformant",
-          findings: [{ dimension: "unknown-dim", severity: "info", message: "test" }],
-        },
-      ],
-    };
-    const result = decodeComplianceReview(review);
-    expect(Either.isLeft(result)).toBe(true);
-  });
-
-  it("rejects an unknown top-level key", () => {
-    const result = decodeComplianceReview({ ...validReview, bogusField: true });
-    expect(Either.isLeft(result)).toBe(true);
-  });
-
-  it("rejects an unknown key inside a finding", () => {
-    const review = {
-      ...validReview,
-      perPhase: [
-        {
-          phaseId: "phase-01",
-          verdict: "conformant",
-          findings: [{ dimension: "objective", severity: "info", message: "test", extra: "bad" }],
-        },
-      ],
-    };
-    const result = decodeComplianceReview(review);
-    expect(Either.isLeft(result)).toBe(true);
-  });
-
-  it("rejects an unknown key inside a perPhase entry", () => {
-    const review = {
-      ...validReview,
-      perPhase: [{ phaseId: "phase-01", verdict: "conformant", findings: [], extra: "bad" }],
-    };
-    const result = decodeComplianceReview(review);
-    expect(Either.isLeft(result)).toBe(true);
-  });
-
-  it("accepts a review with empty perPhase, attentionPoints, and pointers", () => {
-    const result = decodeComplianceReview({
-      ...validReview,
-      perPhase: [],
-      attentionPoints: [],
-      pointers: [],
-    });
-    expect(Either.isRight(result)).toBe(true);
-  });
-
-  it("accepts a review with multiple phases and attention points", () => {
-    const result = decodeComplianceReview({
-      ...validReview,
+  it("accepts an empty perPhase and several phases", () => {
+    expect(Either.isRight(readComplianceReviewAnswer({ ...validAnswer, perPhase: [] }))).toBe(true);
+    const several = readComplianceReviewAnswer({
+      ...validAnswer,
       perPhase: [
         { phaseId: "phase-01", verdict: "conformant", findings: [] },
         {
@@ -189,40 +206,45 @@ describe("decodeComplianceReview", () => {
       attentionPoints: ["Review phase-02 extra file"],
       pointers: ["Possible bug at src/foo.ts — confirm via code review"],
     });
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.perPhase).toHaveLength(2);
-      expect(result.right.attentionPoints).toHaveLength(1);
-      expect(result.right.pointers).toHaveLength(1);
+    expect(Either.isRight(several)).toBe(true);
+    if (Either.isRight(several)) {
+      expect(several.right.perPhase).toHaveLength(2);
+      expect(several.right.attentionPoints).toHaveLength(1);
+      expect(several.right.pointers).toHaveLength(1);
     }
   });
 });
 
 describe("decodeComplianceReviewFile", () => {
-  const { version: _version, ...review } = validReview;
-  const file = { $schema: schemaUrl("compliance-review", "0.17.0"), ...review };
-
-  it("accepts the persisted review: $schema, then the review, no version", () => {
-    const result = decodeComplianceReviewFile(file);
-    expect(Either.isRight(result)).toBe(true);
+  it("accepts the 0.32.0 file", () => {
+    expect(Either.isRight(decodeComplianceReviewFile(validAnswer))).toBe(true);
   });
 
-  it("rejects the agent's verdict, which carries version and no $schema", () => {
-    expect(Either.isLeft(decodeComplianceReviewFile(validReview))).toBe(true);
+  it("refuses the 0.17.0 file: its stamp is not the format's current one", () => {
+    const file = { ...validAnswer, $schema: schemaUrl("compliance-review", "0.17.0") };
+    expect(Either.isLeft(decodeComplianceReviewFile(file))).toBe(true);
   });
 
-  it("rejects a persisted review that also carries version", () => {
-    expect(Either.isLeft(decodeComplianceReviewFile({ ...file, version: 1 }))).toBe(true);
+  it("refuses a file that also carries version", () => {
+    expect(Either.isLeft(decodeComplianceReviewFile({ ...validAnswer, version: 1 }))).toBe(true);
   });
 
-  it("rejects a $schema naming another format", () => {
-    const other = { ...file, $schema: schemaUrl("phax-plan", "0.17.0") };
+  it("refuses a $schema naming another format", () => {
+    const other = { ...validAnswer, $schema: schemaUrl("phax-plan", "0.32.0") };
     expect(Either.isLeft(decodeComplianceReviewFile(other))).toBe(true);
   });
+});
 
-  it("the agent contract still rejects a $schema key", () => {
-    expect(Either.isLeft(decodeComplianceReview({ ...validReview, $schema: file.$schema }))).toBe(
-      true,
-    );
+describe("complianceReviewFileText", () => {
+  const { $schema: _schema, ...review } = validAnswer;
+
+  it("starts with the $schema at the 0.32.0 stamp, indented by 2", () => {
+    const text = complianceReviewFileText(review as Parameters<typeof complianceReviewFileText>[0]);
+    expect(text.startsWith(`{\n  "$schema": "${CURRENT_URL}",\n  "verdict"`)).toBe(true);
+  });
+
+  it("round-trips through the file decoder", () => {
+    const text = complianceReviewFileText(review as Parameters<typeof complianceReviewFileText>[0]);
+    expect(JSON.parse(text)).toEqual(validAnswer);
   });
 });

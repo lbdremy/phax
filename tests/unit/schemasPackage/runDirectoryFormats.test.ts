@@ -25,6 +25,7 @@ import type { PreSchemaFormatId } from "../../../src/schemas/schemaUrl.js";
 import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
 import { decodePhaseStatusFile, decodeRunStatusFile } from "../../../src/schemas/status.js";
 import {
+  complianceReviewV0_17_0Document,
   EXAMPLE_BASE,
   preSchemaDocuments,
   preSchemaUnsupported,
@@ -83,6 +84,9 @@ const FORMATS: ReadonlyArray<RunDirectoryFormat> = [
     parse: parseComplianceReview,
     phax: decodeComplianceReviewFile,
     toLatest: toLatestComplianceReview,
+    // No older phax recorded the ledgers: an empty list would say its run had no
+    // unplanned change and no unmet promise.
+    unrecorded: { unplannedChanges: UNKNOWN, unmetPromises: UNKNOWN },
   },
 ];
 
@@ -202,6 +206,51 @@ describe.each([
 
   it("rejects a document that carries both $schema and version", () => {
     expect(parse(withKey(written, "version", 1)).ok).toBe(false);
+  });
+});
+
+describe("the compliance review's ledger history", () => {
+  const ledgers = ["unplannedChanges", "unmetPromises"] as const;
+
+  it("parses a 0.17.0 document as shape 0.17.0 through the frozen module", () => {
+    expect(parseComplianceReview(complianceReviewV0_17_0Document)).toEqual({
+      ok: true,
+      shape: "0.17.0",
+      value: complianceReviewV0_17_0Document,
+    });
+  });
+
+  it("lifts a 0.17.0 document with Unknown ledgers, never an empty list", () => {
+    const result = parseComplianceReview(complianceReviewV0_17_0Document);
+    if (!result.ok || result.shape !== "0.17.0") throw new Error("document rejected");
+    const latest = toLatestComplianceReview(result.value);
+    expect(latest).toEqual({
+      ...withoutKey(complianceReviewV0_17_0Document, "$schema"),
+      unplannedChanges: UNKNOWN,
+      unmetPromises: UNKNOWN,
+    });
+    for (const key of ledgers) expect(latest[key]).toBe(UNKNOWN);
+  });
+
+  it("keeps the ledgers of a current document as recorded", () => {
+    const result = parseComplianceReview(validDocuments["compliance-review"]);
+    if (!result.ok) throw new Error("document rejected");
+    const latest = toLatestComplianceReview(result.value);
+    expect(latest.unplannedChanges).toEqual(
+      validDocuments["compliance-review"]["unplannedChanges"],
+    );
+    expect(latest.unmetPromises).toEqual(validDocuments["compliance-review"]["unmetPromises"]);
+  });
+
+  it.each(ledgers)("refuses a current document without %s", (key) => {
+    const result = parseComplianceReview(withoutKey(validDocuments["compliance-review"], key));
+    expect(result.ok).toBe(false);
+  });
+
+  it("refuses a 0.17.0 document that carries a ledger", () => {
+    expect(
+      parseComplianceReview(withKey(complianceReviewV0_17_0Document, "unmetPromises", [])).ok,
+    ).toBe(false);
   });
 });
 

@@ -90,13 +90,15 @@ const fakePlanMd = "# Plan\n\nThis is the plan.\n";
 const fakeReconciliationMd = "# Global File Reconciliation\n\nAll files planned.\n";
 
 const validComplianceJson = JSON.stringify({
-  version: 1,
+  $schema: schemaUrl("compliance-review", CURRENT_STAMPS["compliance-review"]),
   verdict: "conformant",
   summary: "All phases conformed.",
   perPhase: [
     { phaseId: "phase-01", verdict: "conformant", findings: [] },
     { phaseId: "phase-02", verdict: "conformant", findings: [] },
   ],
+  unplannedChanges: [],
+  unmetPromises: [],
   attentionPoints: [],
   pointers: [],
 });
@@ -197,8 +199,8 @@ describe("reviewCompliance", () => {
     expect(fs.impl.getFile(`${runPath}/compliance-review.md`)).toContain("Compliance Review");
     expect(fs.impl.getFile(`${runPath}/compliance-review.json`)).toContain("conformant");
 
-    // The durable review names its format and release, and drops the agent
-    // contract's version; the agent's own file keeps the version-1 contract.
+    // The agent's answer and the durable review are one shape: `$schema` first,
+    // at the format's current stamp, then the review with both ledgers.
     const durable = JSON.parse(fs.impl.getFile(`${runPath}/compliance-review.json`)!) as Record<
       string,
       unknown
@@ -208,14 +210,16 @@ describe("reviewCompliance", () => {
       schemaUrl("compliance-review", CURRENT_STAMPS["compliance-review"]),
     );
     expect(durable).not.toHaveProperty("version");
-    const { version: _version, ...verdict } = JSON.parse(validComplianceJson) as Record<
+    expect(durable).toEqual(JSON.parse(validComplianceJson));
+    expect(durable["unplannedChanges"]).toEqual([]);
+    expect(durable["unmetPromises"]).toEqual([]);
+    expect(fs.impl.getFile(`${phaxContextPath}/compliance-review.json`)).toBe(validComplianceJson);
+    // The in-memory review carries no `$schema`.
+    const { $schema: _schema, ...verdict } = JSON.parse(validComplianceJson) as Record<
       string,
       unknown
     >;
-    expect(durable).toEqual({ $schema: durable["$schema"], ...verdict });
-    expect(fs.impl.getFile(`${phaxContextPath}/compliance-review.json`)).toBe(validComplianceJson);
     expect(result.review).toEqual(verdict);
-    expect(result.review).not.toHaveProperty("version");
 
     // Agent invoked fresh (runAgent, not resumeAgentSession)
     expect(backend.impl.runCalls).toHaveLength(1);
@@ -380,6 +384,56 @@ describe("reviewCompliance", () => {
     expect(result.kind).toBe("generated");
     expect(result.verdict).toBe("unknown");
     expect(result.structuredVerdictMissing).toBe(true);
+  });
+
+  // The agent's file must be the 0.32.0 answer, and its perPhase must cover the run.
+  const validBody = JSON.parse(validComplianceJson) as Record<string, unknown>;
+  const { $schema: _stamp, ...fieldsOfFile } = validBody;
+  const [firstPhase] = validBody["perPhase"] as unknown[];
+  it.each([
+    ["the old version-1 shape", { version: 1, ...fieldsOfFile }],
+    ["no unmetPromises", { ...validBody, unmetPromises: undefined }],
+    ["no unplannedChanges", { ...validBody, unplannedChanges: undefined }],
+    ["a perPhase missing a phase of the run", { ...validBody, perPhase: [firstPhase] }],
+    [
+      "a perPhase naming a phase twice",
+      { ...validBody, perPhase: [firstPhase, firstPhase, firstPhase] },
+    ],
+    [
+      "a perPhase naming a phase the run does not have",
+      {
+        ...validBody,
+        perPhase: [
+          ...(validBody["perPhase"] as unknown[]),
+          { phaseId: "phase-09", verdict: "conformant", findings: [] },
+        ],
+      },
+    ],
+  ])("returns verdict unknown and writes no json when the file has %s", async (_name, body) => {
+    const fs = makeFakeFileSystem();
+    const backend = makeFakeBackend();
+
+    fs.impl.setFile(`${runPath}/plan.md`, fakePlanMd);
+    fs.impl.setFile(`${runPath}/global-file-reconciliation.md`, fakeReconciliationMd);
+    backend.impl.addRunResponse(fakeSessionResult);
+    agentWrites(
+      backend,
+      fs,
+      `${phaxContextPath}/compliance-review.md`,
+      "# Compliance Review\n\nConformant.\n",
+    );
+    agentWrites(backend, fs, `${phaxContextPath}/compliance-review.json`, JSON.stringify(body));
+
+    const result = await Effect.runPromise(
+      reviewCompliance(makeInfo(), enabledConfig(), fakeResolution, fakeSecurity, {}).pipe(
+        Effect.provide(setupLayers(backend, fs)),
+      ),
+    );
+
+    expect(result.kind).toBe("generated");
+    expect(result.verdict).toBe("unknown");
+    expect(result.structuredVerdictMissing).toBe(true);
+    expect(fs.impl.getFile(`${runPath}/compliance-review.json`)).toBeUndefined();
   });
 
   it("returns failed when agent invocation fails, does not throw", async () => {

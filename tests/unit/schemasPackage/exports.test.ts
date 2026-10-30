@@ -90,6 +90,7 @@ describe("schemas package entry", () => {
       "CodeReviewV0_29_0Schema",
       "ComplianceReviewPreSchemaSchema",
       "ComplianceReviewSchema",
+      "ComplianceReviewV0_17_0Schema",
       "CostLedgerSchema",
       "CostLedgerV0_25_0Schema",
       "CostLedgerV0_26_0Schema",

@@ -43,6 +43,8 @@ import {
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
 import type { ResolvedRecordsConfig } from "../../src/schemas/recordsConfig.js";
+import { CURRENT_STAMPS } from "../../src/schemas/release.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 import type { ResolvedSecurityConfig } from "../../src/schemas/securityConfig.js";
 import { liftFixturePhaxPlanToCurrent } from "../helpers/liftFixturePhaxPlan.js";
 import { isolateGit } from "../helpers/isolateGit.js";
@@ -51,10 +53,12 @@ import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js"
 
 const COMPLIANCE_MD = "# Compliance Review\n\nConformant.\n";
 const COMPLIANCE_AGENT_JSON = JSON.stringify({
-  version: 1,
+  $schema: schemaUrl("compliance-review", CURRENT_STAMPS["compliance-review"]),
   verdict: "conformant",
   summary: "All phases conformed.",
   perPhase: [{ phaseId: "phase-01", verdict: "conformant", findings: [] }],
+  unplannedChanges: [],
+  unmetPromises: [],
   attentionPoints: [],
   pointers: [],
 });
