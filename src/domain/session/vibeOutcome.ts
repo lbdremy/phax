@@ -76,7 +76,13 @@ export function readVibeOutcome(ended: EndedSession, exported: VibeExportRead): 
     if (ended.end.kind === "exited" && ended.end.code === 0) {
       return found === undefined
         ? providerError(NO_COMPLETION_ANSWER, streamSessionId)
-        : { kind: "answer", provider: PROVIDER, text: found.finalText, sessionId: streamSessionId };
+        : {
+            kind: "answer",
+            provider: PROVIDER,
+            text: found.finalText,
+            structured: null,
+            sessionId: streamSessionId,
+          };
     }
     return {
       kind: "failure",
@@ -112,7 +118,7 @@ export function readVibeOutcome(ended: EndedSession, exported: VibeExportRead): 
   if (decoded.right.outcome === "finished") {
     return found === undefined
       ? providerError(NO_ANSWER, sessionId)
-      : { kind: "answer", provider: PROVIDER, text: found.finalText, sessionId };
+      : { kind: "answer", provider: PROVIDER, text: found.finalText, structured: null, sessionId };
   }
   return { kind: "failure", failure: exportFailure(decoded.right, ended.stderr, sessionId) };
 }

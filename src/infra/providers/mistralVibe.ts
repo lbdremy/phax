@@ -432,7 +432,7 @@ export function runVibeCompletion(
         sessionFailureError(outcome.failure, { agentErrorLog: null, transcript: null }),
       );
     }
-    return { finalText: outcome.text };
+    return { finalText: outcome.text, structured: outcome.structured };
   });
 }
 
@@ -570,6 +570,7 @@ export function runVibeAgent(
       sessionId: capturedSessionId,
       outputPath: transcriptPath,
       finalText: outcome.text,
+      structured: outcome.structured,
     };
   });
 }

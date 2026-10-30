@@ -325,6 +325,7 @@ function turnLayer(sessionId: string, during?: (cwd: string) => void) {
           sessionId: sessionId as ClaudeSessionId,
           outputPath: "",
           finalText: FIRST_READING,
+          structured: null,
         };
       }),
     resumeAgentSession: unused,

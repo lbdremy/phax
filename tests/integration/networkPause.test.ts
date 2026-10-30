@@ -260,7 +260,7 @@ function playingBackend(turns: Turn[], outage: { current: Outage | null }): Back
           join(options.cwd, "src", `${phase}.ts`),
           `export const ${phase.replace("-", "")} = 1;\n`,
         );
-        return { sessionId, outputPath: "", finalText: "" };
+        return { sessionId, outputPath: "", finalText: "", structured: null };
       });
     },
     resumeAgentSession: (sessionId, _prompt, options) => {
@@ -270,7 +270,7 @@ function playingBackend(turns: Turn[], outage: { current: Outage | null }): Back
       if (failed !== null) return failed;
       return Effect.sync(() => {
         writeFileSync(join(options.cwd, ".phax-context", "phase-handoff.md"), handoffOf(phase));
-        return { sessionId, outputPath: "", finalText: "" };
+        return { sessionId, outputPath: "", finalText: "", structured: null };
       });
     },
     complete: unused,

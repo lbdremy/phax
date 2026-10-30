@@ -37,6 +37,27 @@ interface FakeCliScript {
   readonly writeFile?: { readonly path: string; readonly content: string };
   /** Report a rate limit instead of answering. */
   readonly rateLimit?: boolean;
+  /**
+   * Claude only: printed on the result event as `structured_output`, as Claude
+   * Code does when it was given `--json-schema`. Absent by default.
+   */
+  readonly structuredOutput?: unknown;
+  /**
+   * Claude only: the result event's own text. `finalText` (the assistant
+   * message's text) by default; `""` is an empty result and `null` leaves the
+   * result key out.
+   */
+  readonly resultText?: string | null;
+  /**
+   * Claude only: end with an error result of this subtype instead of a
+   * success (`is_error: true`, exit code 1), e.g.
+   * `error_max_structured_output_retries`.
+   */
+  readonly errorResult?: {
+    readonly subtype: string;
+    readonly text?: string;
+    readonly errors?: readonly string[];
+  };
   /** False keeps the session out of the store, as a provider that lost it would. Default true. */
   readonly keepStore?: boolean;
   /** The usage of the assistant message Claude prints; a few tokens by default. */
@@ -206,11 +227,25 @@ process.stdin.on("end", () => answer(() => {
       usage: script.assistantUsage ?? { input_tokens: 10, output_tokens: 5, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 },
     },
   });
+  if (script.errorResult !== undefined) {
+    print({
+      type: "result",
+      subtype: script.errorResult.subtype,
+      is_error: true,
+      ...(script.errorResult.text === undefined ? {} : { result: script.errorResult.text }),
+      ...(script.errorResult.errors === undefined ? {} : { errors: script.errorResult.errors }),
+      session_id: id,
+    });
+    process.exitCode = 1;
+    return;
+  }
+  const resultText = script.resultText === undefined ? script.finalText : script.resultText;
   print({
     type: "result",
     subtype: "success",
     is_error: false,
-    result: script.finalText,
+    ...(resultText === null ? {} : { result: resultText }),
+    ...("structuredOutput" in script ? { structured_output: script.structuredOutput } : {}),
     session_id: id,
     ...(script.resultModelUsage === undefined ? {} : { modelUsage: script.resultModelUsage, duration_ms: 1000 }),
   });

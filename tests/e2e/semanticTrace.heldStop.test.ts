@@ -212,18 +212,23 @@ const backend: BackendOps = {
       if (options.phaseFolderPath !== undefined) {
         await persistSessionId(sessionId, options.phaseFolderPath);
       }
-      return { sessionId, outputPath: "", finalText: "" };
+      return { sessionId, outputPath: "", finalText: "", structured: null };
     });
   },
   resumeAgentSession: (sessionId, _prompt, options) => {
     if (options.readOnly === true) {
       stream(options);
-      return Effect.succeed({ sessionId, outputPath: "", finalText: CLOSING_ANSWER });
+      return Effect.succeed({
+        sessionId,
+        outputPath: "",
+        finalText: CLOSING_ANSWER,
+        structured: null,
+      });
     }
     const phase = phaseOf(options);
     return Effect.sync(() => {
       writeFileSync(join(options.cwd, ".phax-context", "phase-handoff.md"), handoffOf(phase));
-      return { sessionId, outputPath: "", finalText: "" };
+      return { sessionId, outputPath: "", finalText: "", structured: null };
     });
   },
   complete: unused,

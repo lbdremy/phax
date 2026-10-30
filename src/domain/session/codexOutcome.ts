@@ -36,7 +36,13 @@ export function readCodexOutcome(ended: EndedSession): SessionOutcome {
   }
   if (turnEnd?.kind === "completed") {
     if (events.agentMessage !== undefined) {
-      return { kind: "answer", provider: PROVIDER, text: events.agentMessage, sessionId };
+      return {
+        kind: "answer",
+        provider: PROVIDER,
+        text: events.agentMessage,
+        structured: null,
+        sessionId,
+      };
     }
     return noAnswer(sessionId);
   }

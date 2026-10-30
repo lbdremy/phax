@@ -9,7 +9,7 @@ import { Cause, Effect, Either, Exit } from "effect";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import type { PhaseId, RunId, WorktreePath } from "../domain/branded.js";
-import { parseFinalMessageJson } from "../domain/authoring/retry.js";
+import { answerJson } from "../domain/session/structuredAnswer.js";
 import {
   InvalidTransitionError,
   RateLimitError,
@@ -165,8 +165,8 @@ function failedAttempt(error: unknown): TurnAttempt {
   };
 }
 
-function decodeAnswer(finalText: string): Either.Either<FirstReading, string> {
-  return Either.flatMap(parseFinalMessageJson(finalText), (parsed) =>
+function decodeAnswer(result: AgentRunResult): Either.Either<FirstReading, string> {
+  return Either.flatMap(answerJson(result), (parsed) =>
     Either.match(readFirstReadingAnswer(parsed), {
       onLeft: (error) => Either.left(describeReportError(error)),
       onRight: ({ $schema: _schema, ...reading }) => Either.right(reading),
@@ -230,7 +230,7 @@ function attemptTurn(
       ),
     );
     if (Either.isLeft(first)) return failedAttempt(first.left);
-    const answer = decodeAnswer(first.right.finalText);
+    const answer = decodeAnswer(first.right);
     if (Either.isRight(answer)) {
       return { kind: "answered", sessionId: first.right.sessionId, reading: answer.right };
     }
@@ -248,7 +248,7 @@ function attemptTurn(
       ),
     );
     if (Either.isLeft(retry)) return failedAttempt(retry.left);
-    const retried = decodeAnswer(retry.right.finalText);
+    const retried = decodeAnswer(retry.right);
     if (Either.isRight(retried)) {
       return { kind: "answered", sessionId: retry.right.sessionId, reading: retried.right };
     }

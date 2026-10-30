@@ -11,7 +11,7 @@ import type { SecurityMode } from "../domain/security/types.js";
 import type { ResolvedSecurityConfig } from "../schemas/securityConfig.js";
 import { resolveReviewSecurityPolicy } from "../domain/security/resolveReviewPolicy.js";
 import { CODE_REVIEW_AGENT_COMMANDS } from "../domain/security/agentCommands.js";
-import { extractJsonDocumentText } from "../domain/authoring/jsonText.js";
+import { answerJson } from "../domain/session/structuredAnswer.js";
 import {
   buildCodeReviewPrompt,
   buildCodeReviewPositionalPrompt,
@@ -532,18 +532,9 @@ export function reviewCodeHeadless(
       } satisfies HeadlessCodeReviewResult;
     }
 
-    const finalText = agentResult.right.finalText.trim();
-    if (finalText === "") return fail("the session gave no answer");
-
-    let parsedAnswer: unknown;
-    try {
-      parsedAnswer = JSON.parse(extractJsonDocumentText(finalText));
-    } catch (error) {
-      return fail(
-        `answer refused: not JSON: ${error instanceof Error ? error.message : String(error)}`,
-      );
-    }
-    const answer = readCodeReviewAnswer(parsedAnswer);
+    const parsedAnswer = answerJson(agentResult.right);
+    if (Either.isLeft(parsedAnswer)) return fail(`answer refused: ${parsedAnswer.left}`);
+    const answer = readCodeReviewAnswer(parsedAnswer.right);
     if (Either.isLeft(answer)) return fail(`answer refused: ${answer.left}`);
 
     const review = answer.right;

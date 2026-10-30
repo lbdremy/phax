@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   FAILURE_KINDS,
+  isStructuredRetriesExhausted,
   isTransientFailure,
   readClaudeOutcome,
   readCodexOutcome,
@@ -139,8 +140,213 @@ describe("readClaudeOutcome", () => {
       kind: "answer",
       provider: "claude-code",
       text: "PONG",
+      structured: null,
       sessionId: CLAUDE_SESSION,
     });
+  });
+
+  // A result carrying structured_output answers with that value, whatever its text.
+  it.each([
+    ["prose", "Here is the answer."],
+    ["empty", ""],
+    ["absent", undefined],
+  ])("reads a structured_output beside a %s result as the answer holding that value", (_, text) => {
+    const value = { $schema: "https://example.test/x.json", kind: "ok" };
+    const outcome = readClaudeOutcome(
+      ended(
+        [
+          claudeInit,
+          {
+            type: "result",
+            subtype: "success",
+            is_error: false,
+            ...(text === undefined ? {} : { result: text }),
+            structured_output: value,
+            session_id: CLAUDE_SESSION,
+          },
+        ],
+        exited(0),
+      ),
+    );
+    expect(outcome).toEqual({
+      kind: "answer",
+      provider: "claude-code",
+      text: text ?? "",
+      structured: { value },
+      sessionId: CLAUDE_SESSION,
+    });
+  });
+
+  // What Claude Code 2.1.314 printed when the model could not meet the schema
+  // (probe, 2026-10-30): an answer for phax's decoder to refuse, not an error.
+  it("reads a success with no structured_output and a prose result as that text", () => {
+    const outcome = readClaudeOutcome(
+      ended(
+        [
+          claudeInit,
+          {
+            type: "result",
+            subtype: "success",
+            is_error: false,
+            num_turns: 4,
+            result: "I could not produce a valid object.",
+            session_id: CLAUDE_SESSION,
+          },
+        ],
+        exited(0),
+      ),
+    );
+    expect(outcome).toEqual({
+      kind: "answer",
+      provider: "claude-code",
+      text: "I could not produce a valid object.",
+      structured: null,
+      sessionId: CLAUDE_SESSION,
+    });
+  });
+
+  it.each([
+    ["no result key", {}],
+    ["a blank result", { result: "  \n" }],
+    ["an empty result", { result: "" }],
+  ])(
+    "reads a success with neither structured_output nor text (%s) as a provider-error",
+    (_, extra) => {
+      const failure = failureOf(
+        readClaudeOutcome(
+          ended(
+            [
+              claudeInit,
+              {
+                type: "result",
+                subtype: "success",
+                is_error: false,
+                ...extra,
+                session_id: CLAUDE_SESSION,
+              },
+            ],
+            exited(0),
+          ),
+        ),
+      );
+      expect(failure.kind).toBe("provider-error");
+      expect(failure.message).toBe("success: the result carried no result text");
+      expect(failure.sessionId).toBe(CLAUDE_SESSION);
+    },
+  );
+
+  // The API refuses a handed schema holding a property key outside its
+  // pattern before the model answers; Claude Code ends with an error result.
+  it("reads the API 400 property-key refusal as a provider-error worded by its text", () => {
+    const text =
+      "API Error: 400 tools.0.custom.input_schema.properties: Property keys should match pattern '^[a-zA-Z0-9_.-]{1,64}$'";
+    const failure = failureOf(
+      readClaudeOutcome(
+        ended(
+          [
+            claudeInit,
+            {
+              type: "result",
+              subtype: "success",
+              is_error: true,
+              terminal_reason: "api_error",
+              api_error_status: 400,
+              result: text,
+              session_id: CLAUDE_SESSION,
+            },
+          ],
+          exited(1),
+        ),
+      ),
+    );
+    expect(failure.kind).toBe("provider-error");
+    expect(failure.message).toBe(text);
+    expect(isStructuredRetriesExhausted(failure)).toBe(false);
+  });
+
+  it("reads error_max_structured_output_retries as a provider-error naming the subtype", () => {
+    const failure = failureOf(
+      readClaudeOutcome(
+        ended(
+          [
+            claudeInit,
+            {
+              type: "result",
+              subtype: "error_max_structured_output_retries",
+              is_error: true,
+              errors: ["Failed to provide valid structured output after 5 attempts"],
+              session_id: CLAUDE_SESSION,
+            },
+          ],
+          exited(1),
+        ),
+      ),
+    );
+    expect(failure).toEqual({
+      provider: "claude-code",
+      kind: "provider-error",
+      message:
+        "error_max_structured_output_retries: Failed to provide valid structured output after 5 attempts",
+      sessionId: CLAUDE_SESSION,
+      resetAt: null,
+      providerSubtype: "error_max_structured_output_retries",
+    });
+    expect(isStructuredRetriesExhausted(failure)).toBe(true);
+  });
+
+  it("starts the message with the subtype whether the result carries text or not", () => {
+    const withText = failureOf(
+      readClaudeOutcome(
+        ended(
+          [
+            {
+              type: "result",
+              subtype: "error_max_structured_output_retries",
+              is_error: true,
+              result: "gave up",
+              session_id: CLAUDE_SESSION,
+            },
+          ],
+          exited(1),
+        ),
+      ),
+    );
+    const bare = failureOf(
+      readClaudeOutcome(
+        ended(
+          [
+            {
+              type: "result",
+              subtype: "error_max_structured_output_retries",
+              is_error: true,
+              session_id: CLAUDE_SESSION,
+            },
+          ],
+          exited(1),
+        ),
+      ),
+    );
+    expect(withText.message).toBe("error_max_structured_output_retries: gave up");
+    expect(bare.message).toBe("error_max_structured_output_retries");
+  });
+
+  it("recognizes exhausted retries by the subtype alone, never by text", () => {
+    const base = { kind: "provider-error", sessionId: null, resetAt: null } as const;
+    expect(
+      isStructuredRetriesExhausted({
+        ...base,
+        provider: "claude-code",
+        message: "error_max_structured_output_retries: x",
+      }),
+    ).toBe(false);
+    expect(
+      isStructuredRetriesExhausted({
+        ...base,
+        provider: "codex-cli",
+        message: "x",
+        providerSubtype: "error_max_structured_output_retries",
+      }),
+    ).toBe(false);
   });
 
   it("reads an error_during_execution result as a provider-error naming the subtype", () => {
@@ -483,6 +689,7 @@ describe("readCodexOutcome", () => {
       kind: "answer",
       provider: "codex-cli",
       text: "DONE",
+      structured: null,
       sessionId: CODEX_THREAD,
     });
   });
@@ -713,6 +920,7 @@ describe("readVibeOutcome", () => {
       kind: "answer",
       provider: "mistral-vibe",
       text: "PONG",
+      structured: null,
       sessionId: VIBE_SESSION,
     });
   });

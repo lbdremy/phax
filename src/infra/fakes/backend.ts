@@ -38,6 +38,10 @@ interface FailureKnob {
   readonly files: SessionFailureFiles;
 }
 
+/** A queued result as a test writes it: the structured value may be left out. */
+type WithOptionalStructured<T extends { readonly structured: unknown }> = Omit<T, "structured"> &
+  Partial<Pick<T, "structured">>;
+
 type SessionError = AgentSessionFailedError | RateLimitError | UsageLimitError;
 
 const NO_FILES: SessionFailureFiles = { agentErrorLog: null, transcript: null };
@@ -120,16 +124,19 @@ export class FakeBackendImpl implements BackendOps {
     this.onResumeAgent = callback;
   }
 
-  addRunResponse(result: AgentRunResult): void {
-    this.runResponses.push(result);
+  /** Queue a run result; a result without `structured` carries none (null). */
+  addRunResponse(result: WithOptionalStructured<AgentRunResult>): void {
+    this.runResponses.push({ structured: null, ...result });
   }
 
-  addResumeResponse(result: AgentRunResult): void {
-    this.resumeResponses.push(result);
+  /** Queue a resume result; a result without `structured` carries none (null). */
+  addResumeResponse(result: WithOptionalStructured<AgentRunResult>): void {
+    this.resumeResponses.push({ structured: null, ...result });
   }
 
-  addCompletionResponse(result: CompletionResult): void {
-    this.completeResponses.push(result);
+  /** Queue a completion result; a result without `structured` carries none (null). */
+  addCompletionResponse(result: WithOptionalStructured<CompletionResult>): void {
+    this.completeResponses.push({ structured: null, ...result });
   }
 
   /** Queue a probe that ended; stderr defaults to empty. */

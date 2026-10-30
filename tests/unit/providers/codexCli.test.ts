@@ -188,6 +188,7 @@ describe("readCodexOutcome on the captured codex --json sample", () => {
       kind: "answer",
       provider: "codex-cli",
       text: "ok",
+      structured: null,
       sessionId: "019e8fb5-be1b-7040-b45a-150db63ddff2",
     });
   });
