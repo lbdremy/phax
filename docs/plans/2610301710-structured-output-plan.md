@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2610271515-structured-output.md
 completes-spec: true
+approved:
+  date: 2026-10-30
+  baseline: 7ac6d6b
 ---
 # Structured compliance review
 
