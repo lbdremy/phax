@@ -161,6 +161,11 @@ desktop — none is promised by the announcement.
 - [ ] **Most `phax resume` hints outside network and handoff still lack `--yes`.** The
       awaiting-review, hold-point and stop-record sections of `resume-instructions.md` and the reducer
       trace details print `phax resume <run>`, which only previews.
+- [ ] **Codex with a ChatGPT login accepts only `gpt-6-luna`.** Probed 2026-10-30 (codex-cli 0.165.0):
+      `gpt-6-sol`, the config default, and `gpt-5.5` fail the turn with "model is not supported when
+      using Codex with a ChatGPT account". phax's routing catalog offers both for Codex, so a phase routed
+      there fails as a provider error. Read the login kind and restrict the Codex models it can route to,
+      or refuse at preflight naming the supported model.
 - [ ] **A `**/` protected glob does not see inside a submodule, and nothing says so.** With a
       submodule declared, `phax validate` refuses `vendor/lint-rules/allow.json` but accepts
       `**/allow.json` and `vendor/**/allow.json`, which never match the submodule's files (spec
