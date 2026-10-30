@@ -194,7 +194,7 @@ export function runCodexCompletion(
         sessionFailureError(outcome.failure, { agentErrorLog: null, transcript: null }),
       );
     }
-    return { finalText: outcome.text };
+    return { finalText: outcome.text, structured: outcome.structured };
   });
 }
 
@@ -334,6 +334,7 @@ export function runCodexAgent(
       sessionId: capturedSessionId,
       outputPath: options.outputJsonlPath ?? "",
       finalText: outcome.text,
+      structured: outcome.structured,
     };
   });
 }

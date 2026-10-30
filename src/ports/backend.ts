@@ -10,6 +10,7 @@ import type {
 import type { ProviderId } from "../domain/routing/types.js";
 import type { ProtectedList } from "../domain/security/protectedPaths.js";
 import type { SecurityPolicy } from "../domain/security/types.js";
+import type { StructuredValue } from "../domain/session/outcome.js";
 import type { FsError } from "./fs.js";
 
 export interface CompletionOptions {
@@ -21,6 +22,8 @@ export interface CompletionOptions {
 
 export interface CompletionResult {
   readonly finalText: string;
+  /** The provider's native structured answer (Claude Code's `structured_output`), else null. */
+  readonly structured: StructuredValue | null;
 }
 
 export interface ProbeOptions {
@@ -83,6 +86,8 @@ export interface AgentRunResult {
   readonly sessionId: ClaudeSessionId;
   readonly outputPath: string;
   readonly finalText: string;
+  /** The provider's native structured answer (Claude Code's `structured_output`), else null. */
+  readonly structured: StructuredValue | null;
 }
 
 /** One recorded session whose transcript is asked for, in its provider's own store. */

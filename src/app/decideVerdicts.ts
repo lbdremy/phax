@@ -7,7 +7,7 @@ import {
 } from "../domain/artifact/arbiter.js";
 import { type SidecarDocument, sidecarPathFor } from "../domain/artifact/sidecar.js";
 import type { ArtifactKind } from "../domain/artifact/status.js";
-import { parseFinalMessageJson } from "../domain/authoring/retry.js";
+import { answerJson } from "../domain/session/structuredAnswer.js";
 import type { Doctrine } from "../domain/decide/doctrine.js";
 import { planPhaseIds } from "../domain/decide/handAuthored.js";
 import { type VerdictsModel, resolveVerdictsModel } from "../domain/decide/model.js";
@@ -241,10 +241,10 @@ interface CheckContext {
 }
 
 function checkAnswer(
-  finalText: string,
+  result: AgentRunResult,
   ctx: CheckContext,
 ): Either.Either<AcceptedTranscription, RevisionRefusal> {
-  const answer = parseFinalMessageJson(finalText);
+  const answer = answerJson(result);
   if (Either.isLeft(answer)) return Either.left({ path: "", message: answer.left });
   const { snapshot, bound, doctrine, operator, atIso } = ctx;
   const { authored } = snapshot;
@@ -337,7 +337,7 @@ function runWriter(
         ? yield* backend.runAgent(prompt, firstOptions)
         : yield* backend.resumeAgentSession(session.id, prompt, firstOptions);
     observed.sessionIds.push(first.sessionId);
-    const firstAnswer = checkAnswer(first.finalText, ctx);
+    const firstAnswer = checkAnswer(first, ctx);
     if (Either.isRight(firstAnswer)) return firstAnswer.right;
 
     const firstRefusal = describeRevisionRefusal(firstAnswer.left);
@@ -352,7 +352,7 @@ function runWriter(
       outputJsonlPath: join(folder, DECIDE_RETRY_TRANSCRIPT_FILENAME),
     });
     observed.sessionIds.push(retried.sessionId);
-    const retryAnswer = checkAnswer(retried.finalText, ctx);
+    const retryAnswer = checkAnswer(retried, ctx);
     if (Either.isRight(retryAnswer)) return retryAnswer.right;
     return yield* Effect.fail(
       new DecideDocumentError({

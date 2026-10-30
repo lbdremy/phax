@@ -20,6 +20,8 @@ const ClaudeResultOutcomeEventSchema = Schema.Struct({
   subtype: Schema.String,
   is_error: Schema.Boolean,
   result: Schema.optional(Schema.String),
+  // Printed only when `--json-schema` was given: the answer as the schema-checked value.
+  structured_output: Schema.optional(Schema.Unknown),
   session_id: Schema.optional(Schema.String),
   errors: Schema.optional(Schema.Array(Schema.String)),
   terminal_reason: Schema.optional(Schema.String),

@@ -269,7 +269,7 @@ export function runClaudeCompletion(
         sessionFailureError(outcome.failure, { agentErrorLog: null, transcript: null }),
       );
     }
-    return { finalText: outcome.text };
+    return { finalText: outcome.text, structured: outcome.structured };
   });
 }
 
@@ -425,6 +425,7 @@ export function runClaudeAgent(
       sessionId: capturedSessionId,
       outputPath: options.outputJsonlPath ?? "",
       finalText: outcome.text,
+      structured: outcome.structured,
     };
   });
 }

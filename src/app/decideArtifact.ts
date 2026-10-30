@@ -16,7 +16,7 @@ import {
   sidecarRemedy,
 } from "../domain/artifact/sidecar.js";
 import type { ArtifactKind } from "../domain/artifact/status.js";
-import { parseFinalMessageJson } from "../domain/authoring/retry.js";
+import { answerJson } from "../domain/session/structuredAnswer.js";
 import type { Doctrine } from "../domain/decide/doctrine.js";
 import {
   decodeHandAnswer,
@@ -62,7 +62,7 @@ import {
 import { resolveReviewSecurityPolicy } from "../domain/security/resolveReviewPolicy.js";
 import { claudeReadOnlyFlags } from "../domain/session/claudePermissionFlags.js";
 import { buildDecideInvocation } from "../domain/session/claude.js";
-import { Backend, type AgentRunOptions } from "../ports/backend.js";
+import { Backend, type AgentRunOptions, type AgentRunResult } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import type { GitHub } from "../ports/github.js";
@@ -498,10 +498,10 @@ function checkHand(
 }
 
 function checkAnswer(
-  finalText: string,
+  result: AgentRunResult,
   ctx: CheckContext,
 ): Either.Either<AcceptedAnswer, RevisionRefusal> {
-  const parsed = parseFinalMessageJson(finalText);
+  const parsed = answerJson(result);
   if (Either.isLeft(parsed)) return Either.left({ path: "", message: parsed.left });
   const { authored } = ctx.snapshot;
   return authored.variant === "headless"
@@ -562,7 +562,7 @@ function handBack(
       outputJsonlPath: join(folder, DECIDE_TRANSCRIPT_FILENAME),
     });
     observed.sessionIds.push(first.sessionId);
-    const firstAnswer = checkAnswer(first.finalText, ctx);
+    const firstAnswer = checkAnswer(first, ctx);
     if (Either.isRight(firstAnswer)) return firstAnswer.right;
 
     const firstRefusal = describeRevisionRefusal(firstAnswer.left);
@@ -577,7 +577,7 @@ function handBack(
       outputJsonlPath: join(folder, DECIDE_RETRY_TRANSCRIPT_FILENAME),
     });
     observed.sessionIds.push(retried.sessionId);
-    const retryAnswer = checkAnswer(retried.finalText, ctx);
+    const retryAnswer = checkAnswer(retried, ctx);
     if (Either.isRight(retryAnswer)) return retryAnswer.right;
     return yield* Effect.fail(
       new DecideDocumentError({

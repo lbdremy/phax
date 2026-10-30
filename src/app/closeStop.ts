@@ -20,7 +20,7 @@ import { Effect, Either } from "effect";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import type { ClaudeSessionId, PhaseId, RunId } from "../domain/branded.js";
-import { parseFinalMessageJson } from "../domain/authoring/retry.js";
+import { answerJson } from "../domain/session/structuredAnswer.js";
 import {
   GateFailedError,
   GateStepRefusedError,
@@ -73,6 +73,7 @@ import type { ProviderId } from "../domain/routing/types.js";
 import { stopPostureOf } from "../domain/security/stopPosture.js";
 import type { SecurityPolicy } from "../domain/security/types.js";
 import { getSessionAdapter } from "../domain/session/index.js";
+import { isStructuredRetriesExhausted } from "../domain/session/outcome.js";
 import { Backend, type AgentRunOptions, type AgentRunResult } from "../ports/backend.js";
 import { FileSystem, FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
@@ -335,6 +336,11 @@ const networkRefusal = (error: AgentSessionFailedError): Refusal => ({
   exitCode: 14,
   detail: error.failure.message,
 });
+
+// A closing turn whose model could not meet the handed schema is a provider
+// failure to record, never to retry in a new session.
+const isStructuredRetriesError = (error: unknown): error is AgentSessionFailedError =>
+  error instanceof AgentSessionFailedError && isStructuredRetriesExhausted(error.failure);
 
 /** The refusal a failed closing turn records: its limit, its network failure, else a close error. */
 function closingTurnRefusal(error: unknown): Refusal {
@@ -733,8 +739,8 @@ const CLOSING_TURN_STREAM = /^closing-turn-(\d{2})\.jsonl$/;
 const handoffSchemaJson = (): string =>
   JSON.stringify(answerJsonSchema("interactive-handoff"), null, 2);
 
-function decodeHandoffAnswer(finalText: string): Either.Either<InteractiveHandoff, string> {
-  return Either.flatMap(parseFinalMessageJson(finalText), (parsed) =>
+function decodeHandoffAnswer(result: AgentRunResult): Either.Either<InteractiveHandoff, string> {
+  return Either.flatMap(answerJson(result), (parsed) =>
     Either.match(readInteractiveHandoffAnswer(parsed), {
       onLeft: (error) => Either.left(describeReportError(error)),
       onRight: ({ $schema: _schema, ...answer }) => Either.right(answer),
@@ -822,7 +828,13 @@ function attemptClosingTurn(
       );
       if (Either.isRight(resumed)) {
         first = { result: resumed.right, binding, source: "closing-turn-resumed", label };
-      } else if (isLimit(resumed.left) || isNetworkFailure(resumed.left)) {
+      } else if (
+        isLimit(resumed.left) ||
+        isNetworkFailure(resumed.left) ||
+        isStructuredRetriesError(resumed.left)
+      ) {
+        // A limit, a lost network and a model that could not meet the schema
+        // would fail the same way in a new session: no new session starts.
         return refusedTurn(resumed.left);
       }
     }
@@ -869,7 +881,7 @@ function attemptClosingTurn(
       };
     }
 
-    const answer = decodeHandoffAnswer(first.result.finalText);
+    const answer = decodeHandoffAnswer(first.result);
     if (Either.isRight(answer)) {
       return {
         kind: "answered",
@@ -892,7 +904,7 @@ function attemptClosingTurn(
     if (Either.isLeft(retry)) {
       return refusedTurn(retry.left);
     }
-    const retried = decodeHandoffAnswer(retry.right.finalText);
+    const retried = decodeHandoffAnswer(retry.right);
     if (Either.isRight(retried)) {
       return {
         kind: "answered",

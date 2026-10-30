@@ -18,7 +18,7 @@ import {
   UsageLimitError,
 } from "../domain/errors.js";
 import { formatParseError } from "../schemas/formatError.js";
-import { extractJsonDocumentText } from "../domain/authoring/jsonText.js";
+import { answerJson } from "../domain/session/structuredAnswer.js";
 
 const decodeExtractedPlan = Schema.decodeUnknownEither(ExtractedPhaxPlanSchema, {
   onExcessProperty: "error",
@@ -88,10 +88,8 @@ export function extractPlanLlm(
       (dir) => fs.remove(dir).pipe(Effect.orElse(() => Effect.void)),
     );
 
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(extractJsonDocumentText(runResult.finalText));
-    } catch {
+    const parsed = answerJson(runResult);
+    if (Either.isLeft(parsed)) {
       return yield* Effect.fail(
         new PlanValidationError({
           message: `Claude returned non-JSON output. Raw response: ${runResult.finalText.slice(0, 300)}`,
@@ -99,7 +97,7 @@ export function extractPlanLlm(
       );
     }
 
-    const answer = readPlanExtractionAnswer(parsed);
+    const answer = readPlanExtractionAnswer(parsed.right);
     if (Either.isLeft(answer)) {
       return yield* Effect.fail(
         new PlanValidationError({

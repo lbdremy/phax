@@ -1,7 +1,7 @@
 import { Effect, Either } from "effect";
 import { join } from "node:path";
 import type { ClaudeSessionId } from "../domain/branded.js";
-import { Backend, type AgentRunOptions } from "../ports/backend.js";
+import { Backend, type AgentRunOptions, type AgentRunResult } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import type { GitHub } from "../ports/github.js";
@@ -28,10 +28,10 @@ import {
   RETRY_PROMPT_FILENAME,
   RETRY_TRANSCRIPT_FILENAME,
   buildRetryPrompt,
-  parseFinalMessageJson,
   refusedTwiceMessage,
   retryWarning,
 } from "../domain/authoring/retry.js";
+import { answerJson } from "../domain/session/structuredAnswer.js";
 import { renderPlanBody } from "../domain/authoring/renderPlan.js";
 import { renderSpecBody } from "../domain/authoring/renderSpec.js";
 import type { RoutingResolution } from "../domain/routing/types.js";
@@ -191,9 +191,9 @@ export function authoringCommitMessage(input: {
 // position, or the first schema violation).
 function parseAuthoredDocument(
   kind: ArtifactKind,
-  finalText: string,
+  result: AgentRunResult,
 ): Either.Either<AuthoredDocument, string> {
-  const parsed = parseFinalMessageJson(finalText);
+  const parsed = answerJson(result);
   if (Either.isLeft(parsed)) return Either.left(parsed.left);
 
   if (kind === "spec") {
@@ -265,7 +265,7 @@ function retryRefusedDocument(
     session.observed.retrySessionId = retried.sessionId;
     yield* keepAuthoringSession(session.folder, options, session.observed);
 
-    const parsed = parseAuthoredDocument(input.kind, retried.finalText);
+    const parsed = parseAuthoredDocument(input.kind, retried);
     if (Either.isLeft(parsed)) {
       return yield* Effect.fail(
         new AuthoringDocumentError({
@@ -357,7 +357,7 @@ function runAuthoringSession(
     session.observed.sessionId = agentResult.sessionId;
     yield* keepAuthoringSession(session.folder, options, session.observed);
 
-    const firstAnswer = parseAuthoredDocument(input.kind, agentResult.finalText);
+    const firstAnswer = parseAuthoredDocument(input.kind, agentResult);
     const accepted = Either.isRight(firstAnswer)
       ? firstAnswer.right
       : yield* retryRefusedDocument(

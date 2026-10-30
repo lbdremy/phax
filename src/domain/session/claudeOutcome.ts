@@ -9,6 +9,17 @@ import { classifyVerdictText, extractResetAt, failureWithoutVerdict } from "./si
 const PROVIDER = "claude-code";
 const LABEL = "claude";
 
+/** The result subtype Claude Code ends with when the model could not meet `--json-schema`. */
+const STRUCTURED_RETRIES_SUBTYPE = "error_max_structured_output_retries";
+
+/**
+ * Whether a failure is Claude Code giving up on the handed schema after its
+ * own retries. Recognized by the result subtype alone, never by text.
+ */
+export function isStructuredRetriesExhausted(failure: SessionFailure): boolean {
+  return failure.provider === PROVIDER && failure.providerSubtype === STRUCTURED_RETRIES_SUBTYPE;
+}
+
 /**
  * The kind an error result's structured fields give when its text matches no
  * signature: an HTTP 429, or a synthetic API-error message categorized
@@ -44,12 +55,23 @@ function errorResultFailure(
     result.subtype === "error_max_turns" ? "max-turns" : "provider-error";
   const text = result.result;
   const firstError = result.errors?.[0];
-  const message =
-    text !== undefined && text.trim().length > 0
-      ? text
-      : firstError === undefined
-        ? result.subtype
-        : `${result.subtype}: ${firstError}`;
+  const hasText = text !== undefined && text.trim().length > 0;
+  if (result.subtype === STRUCTURED_RETRIES_SUBTYPE) {
+    const detail = hasText ? text : firstError;
+    return {
+      provider: PROVIDER,
+      kind: "provider-error",
+      message: detail === undefined ? result.subtype : `${result.subtype}: ${detail}`,
+      sessionId,
+      resetAt: null,
+      providerSubtype: result.subtype,
+    };
+  }
+  const message = hasText
+    ? text
+    : firstError === undefined
+      ? result.subtype
+      : `${result.subtype}: ${firstError}`;
   const kind =
     (text !== undefined ? classifyVerdictText(text) : null) ??
     structuredKind(result, apiErrorCategory) ??
@@ -103,7 +125,11 @@ function trailingRetryFailure(
 
 /**
  * Reads an ended Claude Code session: the last decodable `result` event
- * decides, whatever the exit code; with none, the process's end, the
+ * decides, whatever the exit code. A success answers with its
+ * `structured_output` when it carries one (its text may be empty), else with
+ * its `result` when that is non-blank: a prose result with no structured
+ * output is what Claude Code prints when the model could not meet the schema,
+ * and it reads as text for phax's decoder to refuse; with none, the process's end, the
  * `api_retry` the session was still in when it ended, and stderr (see
  * outcome.ts).
  */
@@ -112,9 +138,24 @@ export function readClaudeOutcome(ended: EndedSession): SessionOutcome {
   const { result } = events;
   if (result !== undefined) {
     const sessionId = result.session_id ?? events.initSessionId ?? null;
-    if (!result.is_error) {
-      if (result.result !== undefined) {
-        return { kind: "answer", provider: PROVIDER, text: result.result, sessionId };
+    if (!result.is_error && result.subtype !== STRUCTURED_RETRIES_SUBTYPE) {
+      if (result.structured_output !== undefined) {
+        return {
+          kind: "answer",
+          provider: PROVIDER,
+          text: result.result ?? "",
+          structured: { value: result.structured_output },
+          sessionId,
+        };
+      }
+      if (result.result !== undefined && result.result.trim().length > 0) {
+        return {
+          kind: "answer",
+          provider: PROVIDER,
+          text: result.result,
+          structured: null,
+          sessionId,
+        };
       }
       return {
         kind: "failure",

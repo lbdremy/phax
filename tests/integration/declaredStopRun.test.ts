@@ -290,6 +290,7 @@ function playingBackend(opts: {
           sessionId: SESSION_FIRST_TURN as ClaudeSessionId,
           outputPath: "",
           finalText: FIRST_READING,
+          structured: null,
         });
       }
       const phase = phaseOf(options);
@@ -298,7 +299,12 @@ function playingBackend(opts: {
           join(options.cwd, "src", `${phase}.ts`),
           `export const ${phase.replace("-", "")} = 1;\n`,
         );
-        return { sessionId: `sess-${phase}` as ClaudeSessionId, outputPath: "", finalText: "" };
+        return {
+          sessionId: `sess-${phase}` as ClaudeSessionId,
+          outputPath: "",
+          finalText: "",
+          structured: null,
+        };
       });
     },
     resumeAgentSession: (sessionId, prompt, options) => {
@@ -308,7 +314,12 @@ function playingBackend(opts: {
           return opts.readOnlyBackend.resumeAgentSession(sessionId, prompt, options);
         }
         stream(options);
-        return Effect.succeed({ sessionId, outputPath: "", finalText: CLOSING_ANSWER });
+        return Effect.succeed({
+          sessionId,
+          outputPath: "",
+          finalText: CLOSING_ANSWER,
+          structured: null,
+        });
       }
       const phase = phaseOf(options);
       return Effect.sync(() => {
@@ -316,7 +327,7 @@ function playingBackend(opts: {
           join(options.cwd, ".phax-context", "phase-handoff.md"),
           handoffOf(phase, opts.handoffTail?.[phase]),
         );
-        return { sessionId, outputPath: "", finalText: "" };
+        return { sessionId, outputPath: "", finalText: "", structured: null };
       });
     },
     complete: unused,

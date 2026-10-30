@@ -64,6 +64,25 @@ describe("scanClaudeOutcomeEvents", () => {
     });
   });
 
+  it("reads a result's structured_output of any shape, and leaves it absent without one", () => {
+    const withValue = scanClaudeOutcomeEvents([
+      JSON.stringify({
+        type: "result",
+        subtype: "success",
+        is_error: false,
+        result: "",
+        structured_output: { $schema: "x", items: [1, null] },
+        session_id: "s1",
+      }),
+    ]);
+    expect(withValue.result?.structured_output).toEqual({ $schema: "x", items: [1, null] });
+    const without = scanClaudeOutcomeEvents([
+      JSON.stringify({ type: "result", subtype: "success", is_error: false, session_id: "s1" }),
+    ]);
+    expect(without.result).toBeDefined();
+    expect(without.result?.structured_output).toBeUndefined();
+  });
+
   it("keeps the last api_retry only when no other event follows it", () => {
     const trailing = scanClaudeOutcomeEvents([
       retry(1, "unknown", null),

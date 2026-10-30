@@ -336,6 +336,7 @@ function makeHeldBackend(): HeldBackend {
           sessionId: backend.firstTurnSession as ClaudeSessionId,
           outputPath: "",
           finalText: FIRST_READING,
+          structured: null,
         });
       }
       if (rateLimited.delete(phase)) {
@@ -360,7 +361,7 @@ function makeHeldBackend(): HeldBackend {
         if (options.phaseFolderPath !== undefined) {
           await persistSessionId(sessionId, options.phaseFolderPath);
         }
-        return { sessionId, outputPath: "", finalText: "" };
+        return { sessionId, outputPath: "", finalText: "", structured: null };
       });
     },
     resumeAgentSession: (sessionId, prompt, options) => {
@@ -369,7 +370,12 @@ function makeHeldBackend(): HeldBackend {
       stream(options);
       if (options.readOnly === true) {
         backend.onReadOnly?.(phase);
-        return Effect.succeed({ sessionId, outputPath: "", finalText: CLOSING_ANSWER });
+        return Effect.succeed({
+          sessionId,
+          outputPath: "",
+          finalText: CLOSING_ANSWER,
+          structured: null,
+        });
       }
       return Effect.sync(() => {
         const broken = brokenHandoffs.delete(phase);
@@ -378,7 +384,7 @@ function makeHeldBackend(): HeldBackend {
           broken ? "## What was delivered\n- Half a handoff.\n" : handoffOf(phase),
         );
         backend.onHandoff?.(phase, options.phaseFolderPath);
-        return { sessionId, outputPath: "", finalText: "" };
+        return { sessionId, outputPath: "", finalText: "", structured: null };
       });
     },
     complete: unused,

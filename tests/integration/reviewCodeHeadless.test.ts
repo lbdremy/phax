@@ -177,8 +177,17 @@ describe("reviewCodeHeadless", () => {
 
   it.each([
     ["a refused answer", answerOf(finding({ lens: "everything" })), /^answer refused: .*lens/],
-    ["text that is not JSON", "not json at all", /^answer refused: not JSON/],
-    ["a session that gave no answer", undefined, /^the session gave no answer$/],
+    [
+      "text that is not JSON",
+      "not json at all",
+      /^answer refused: the session's final message is not JSON/,
+    ],
+    // An empty answer is the not-JSON refusal, like any other text that does not parse.
+    [
+      "a session that gave no answer",
+      undefined,
+      /^answer refused: the session's final message is not JSON/,
+    ],
   ])(
     "%s fails with its reason and leaves both files as they were",
     async (_name, answer, reason) => {

@@ -1,5 +1,5 @@
 import type { ProviderId } from "../routing/types.js";
-import { readClaudeOutcome } from "./claudeOutcome.js";
+import { isStructuredRetriesExhausted, readClaudeOutcome } from "./claudeOutcome.js";
 import { readCodexOutcome } from "./codexOutcome.js";
 import { readVibeOutcome } from "./vibeOutcome.js";
 
@@ -14,7 +14,11 @@ import { readVibeOutcome } from "./vibeOutcome.js";
  *    Codex `turn.failed` or `turn.completed`, or a Vibe export with an
  *    outcome. Its verdict wins over the exit code: an error result fails a
  *    session that exited 0, and a success verdict answers a session that then
- *    exited non-zero. A Codex `turn.completed` with no (or a blank) agent
+ *    exited non-zero. A Claude success carrying `structured_output` answers
+ *    with that value even when its text is empty; one without it answers only
+ *    from a non-blank `result`; a Claude error result is a failure whatever it
+ *    carries, `error_max_structured_output_retries` included (that failure
+ *    names the subtype in `providerSubtype`). A Codex `turn.completed` with no (or a blank) agent
  *    message, or a Codex stream that exits 0 with no turn end, fails as
  *    `provider-error` (no answer was found).
  * 2. With none, a process that ended on a signal or a timeout is `killed`.
@@ -76,7 +80,12 @@ export interface SessionFailure {
   readonly message: string;
   readonly sessionId: string | null;
   readonly resetAt: string | null;
+  /** The Claude result subtype that decided the failure, when one did. */
+  readonly providerSubtype?: string | undefined;
 }
+
+/** A provider's native structured answer: the value itself, never its text. */
+export type StructuredValue = { readonly value: unknown };
 
 /** What an ended session reads as. */
 export type SessionOutcome =
@@ -84,6 +93,8 @@ export type SessionOutcome =
       readonly kind: "answer";
       readonly provider: ProviderId;
       readonly text: string;
+      /** Set only from Claude Code's `structured_output`; null for every other answer. */
+      readonly structured: StructuredValue | null;
       readonly sessionId: string | null;
     }
   | { readonly kind: "failure"; readonly failure: SessionFailure };
@@ -116,4 +127,4 @@ export function isTransientFailure(kind: FailureKind): boolean {
 
 // The readers: Claude Code (`--output-format stream-json`), Codex
 // (`codex exec --json`) and Mistral Vibe (its stream and its `export.json`).
-export { readClaudeOutcome, readCodexOutcome, readVibeOutcome };
+export { isStructuredRetriesExhausted, readClaudeOutcome, readCodexOutcome, readVibeOutcome };
