@@ -683,19 +683,13 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
     throw new Error("writeDecisionRecord wrote no record");
   }
 
-  // A compliance review with a fake agent, whose verdict file phax decodes.
-  const phaxContext = `${WORKTREE}/.phax-context`;
+  // A compliance review with a fake agent, whose final answer phax decodes.
   seed(`${RUN_PATH}/global-file-reconciliation.md`, "# Global File Reconciliation\n");
   seed(`${PHASE_FOLDER}/phase-handoff.md`, "## What was delivered\nThe example module.\n");
-  // The agent writes its files during its session: phax clears any earlier ones first.
-  backend.impl.setOnRunAgent(() => {
-    seed(`${phaxContext}/compliance-review.md`, "# Compliance Review\n\nConformant.\n");
-    seed(`${phaxContext}/compliance-review.json`, COMPLIANCE_VERDICT);
-  });
   backend.impl.addRunResponse({
     sessionId: "session-review" as ClaudeSessionId,
     outputPath: `${RUN_PATH}/compliance-review.session.jsonl`,
-    finalText: "Review complete.",
+    finalText: COMPLIANCE_VERDICT,
   });
   // The review's stream, from which phax appends the run's cost ledger entry.
   seed(
@@ -737,7 +731,7 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
       { enabled: true, model: "example-model", effort: "medium" },
       resolution,
       { mode: "secure", config: security },
-      {},
+      { output: { log() {}, warn() {}, error() {} } },
     ),
   );
   if (Either.isLeft(reviewed) || reviewed.right.kind !== "generated") {

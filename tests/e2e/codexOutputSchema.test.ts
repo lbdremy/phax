@@ -24,7 +24,8 @@ import { probeProvider } from "./helpers/providers.js";
 
 // Smoke test of Codex's `--output-schema` through phax's real Codex adapter:
 // `exec` and then `exec resume` of the same session, for the spec, plan, two
-// hand-decision and code-review answer schemas. The final message must decode
+// hand-decision, code-review and compliance-review answer schemas (each case
+// is run by name in PR review). The final message must decode
 // with phax's decoder. Codex gets the whole schema, `$schema` included, so the
 // model writes the stamp itself.
 //
@@ -53,6 +54,7 @@ const FORMATS = [
   "spec-hand-decision-answer",
   "plan-hand-decision-answer",
   "code-review",
+  "compliance-review",
 ] as const satisfies readonly AnswerFormatId[];
 
 const CALL_OF: Readonly<Record<(typeof FORMATS)[number], StructuredCallId>> = {
@@ -61,6 +63,7 @@ const CALL_OF: Readonly<Record<(typeof FORMATS)[number], StructuredCallId>> = {
   "spec-hand-decision-answer": "decide-handback",
   "plan-hand-decision-answer": "decide-handback",
   "code-review": "code-review",
+  "compliance-review": "compliance-review",
 };
 
 const askFor = (answer: unknown): string =>

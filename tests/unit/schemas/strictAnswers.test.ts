@@ -17,7 +17,7 @@ import { NonEmptyString } from "../../../src/schemas/strictString.js";
 const ANSWER_IDS = Object.keys(ANSWER_FORMATS) as ReadonlyArray<AnswerFormatId>;
 
 describe("the answer registry", () => {
-  it("holds exactly the eight answer formats", () => {
+  it("holds exactly the nine answer formats", () => {
     expect([...ANSWER_IDS].toSorted()).toEqual(
       [
         "spec-document",
@@ -27,6 +27,7 @@ describe("the answer registry", () => {
         "first-reading",
         "interactive-handoff",
         "code-review",
+        "compliance-review",
         "phax-plan-extraction",
       ].toSorted(),
     );

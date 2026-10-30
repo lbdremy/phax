@@ -35,6 +35,8 @@ import type { AgentRunOptions } from "../../src/ports/backend.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import type { CostLedgerEntry } from "../../src/schemas/costLedger.js";
 import { readCostLedgerFile } from "../../src/schemas/persisted.js";
+import { CURRENT_STAMPS } from "../../src/schemas/release.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 import {
   resolveAuthoringConfig,
   resolveCodeReviewConfig,
@@ -308,10 +310,24 @@ describe("cost ledger at run time", () => {
         finalText: "",
       });
     }
+    // The compliance review answers with its final message, naming both phases.
     backend.impl.addRunResponse({
       sessionId: "session-review" as ClaudeSessionId,
       outputPath: "",
-      finalText: "",
+      finalText: JSON.stringify({
+        $schema: schemaUrl("compliance-review", CURRENT_STAMPS["compliance-review"]),
+        verdict: "conformant",
+        summary: "Both phases conformed.",
+        perPhase: ["phase-01", "phase-02"].map((phaseId) => ({
+          phaseId,
+          verdict: "conformant",
+          findings: [],
+        })),
+        unplannedChanges: [],
+        unmetPromises: [],
+        attentionPoints: [],
+        pointers: [],
+      }),
     });
     for (const phase of ["phase-01", "phase-02"]) {
       const resumes = gateFailsOnce ? 2 : 1;

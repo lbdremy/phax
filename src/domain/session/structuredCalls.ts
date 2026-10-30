@@ -1,6 +1,6 @@
 import type { ProviderId } from "../routing/types.js";
 
-/** The seven calls that ask a provider for a structured answer. */
+/** The eight calls that ask a provider for a structured answer. */
 export type StructuredCallId =
   | "authoring"
   | "plan-extraction"
@@ -8,7 +8,8 @@ export type StructuredCallId =
   | "decide-verdicts"
   | "first-turn"
   | "closing-turn"
-  | "code-review";
+  | "code-review"
+  | "compliance-review";
 
 /** How each provider receives a call's answer schema: natively, or only in the prompt. */
 export type StructuredCallsTable = {
@@ -32,6 +33,7 @@ export const STRUCTURED_CALLS: StructuredCallsTable = {
   "first-turn": { claudeCode: "native" },
   "closing-turn": { claudeCode: "native" },
   "code-review": { claudeCode: "native" },
+  "compliance-review": { claudeCode: "native" },
 };
 
 /** The answer schema a structured call hands to its provider, with the call it belongs to. */

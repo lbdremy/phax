@@ -105,7 +105,7 @@ export async function runReviewCompliance(
     resolution,
     { mode: config.security.profile, config: config.security },
     reviewRecordTargetFor({ config, namespace, info, crossProject }),
-    opts.verbose !== undefined ? { verbose: opts.verbose } : {},
+    { ...(opts.verbose !== undefined ? { verbose: opts.verbose } : {}), output: out },
   ).pipe(Effect.provide(buildLayer()));
 
   const result = await Effect.runPromise(Effect.either(effect));
@@ -116,6 +116,9 @@ export async function runReviewCompliance(
 
   const outcome = result.right;
   const review = outcome.review;
+  // The command as the operator typed the run: the run key when it belongs to
+  // another project. The failure line and the records warnings both name it.
+  const retryCommand = `phax review-compliance ${crossProject ? runKey(namespace, shortName) : shortName}`;
 
   if (review.kind === "disabled") {
     out.error(
@@ -132,34 +135,22 @@ export async function runReviewCompliance(
         review.sessionFailureFiles ?? { agentErrorLog: null, transcript: null },
       );
       if (isSessionFailureError(err)) {
-        for (const line of renderSessionFailure(err, `phax review-compliance ${shortName}`)) {
+        for (const line of renderSessionFailure(err, retryCommand)) {
           out.error(line);
         }
         return review.sessionFailure.kind === "network" ? exitCodeForError(err) : 1;
       }
     }
-    out.error(
-      `Compliance review failed: ${review.failureReason ?? "unknown error"}. ` +
-        `To retry, run: phax review-compliance ${shortName}`,
-    );
+    out.error(`Compliance review failed: ${review.failureReason}. To retry, run: ${retryCommand}`);
     return 1;
   }
 
   // generated
-  const verdict =
-    review.structuredVerdictMissing === true ? "unknown" : (review.verdict ?? "unknown");
-  out.log(`Verdict: ${verdict}`);
-  if (review.mdArtifactPath !== undefined) {
-    out.log(`Compliance review: ${review.mdArtifactPath}`);
-  }
+  out.log(`Verdict: ${review.review.verdict}`);
+  out.log(`Compliance review: ${review.mdArtifactPath}`);
   const notice = reviewEntryNotice(outcome);
   if (notice !== undefined) out.log(notice);
-  const retryRef = crossProject ? runKey(namespace, shortName) : shortName;
-  for (const warning of reviewEntryWarnings(
-    outcome,
-    "compliance-review",
-    `phax review-compliance ${retryRef}`,
-  )) {
+  for (const warning of reviewEntryWarnings(outcome, "compliance-review", retryCommand)) {
     out.warn(warning);
   }
   return 0;

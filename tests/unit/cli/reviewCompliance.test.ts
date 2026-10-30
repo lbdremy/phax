@@ -35,6 +35,13 @@ function noEntry(review: Record<string, unknown>) {
   } as never);
 }
 
+const GENERATED = {
+  kind: "generated",
+  review: { verdict: "conformant" },
+  mdArtifactPath: "/run/compliance-review.md",
+  jsonArtifactPath: "/run/compliance-review.json",
+};
+
 vi.mock("../../../src/app/loadRouting.js", () => ({
   loadModelRouting: vi.fn(),
   loadProviderConfig: vi.fn(),
@@ -167,9 +174,7 @@ describe("runReviewCompliance", () => {
     const { reviewComplianceAndRecord } = vi.mocked(
       await import("../../../src/app/reviewCompliance.js"),
     );
-    reviewComplianceAndRecord.mockReturnValue(
-      noEntry({ kind: "generated", verdict: "conformant", structuredVerdictMissing: false }),
-    );
+    reviewComplianceAndRecord.mockReturnValue(noEntry(GENERATED));
 
     const { loadModelRouting, loadProviderConfig } = vi.mocked(
       await import("../../../src/app/loadRouting.js"),
@@ -221,9 +226,7 @@ describe("runReviewCompliance", () => {
     const { reviewComplianceAndRecord } = vi.mocked(
       await import("../../../src/app/reviewCompliance.js"),
     );
-    reviewComplianceAndRecord.mockReturnValue(
-      noEntry({ kind: "generated", verdict: "conformant", structuredVerdictMissing: false }),
-    );
+    reviewComplianceAndRecord.mockReturnValue(noEntry(GENERATED));
 
     const { loadModelRouting, loadProviderConfig } = vi.mocked(
       await import("../../../src/app/loadRouting.js"),
@@ -255,7 +258,7 @@ describe("runReviewCompliance", () => {
     );
     reviewComplianceAndRecord.mockReturnValue(
       Effect.succeed({
-        review: { kind: "generated", verdict: "conformant", mdArtifactPath: "/run/x.md" },
+        review: GENERATED,
         record: { kind: "write-failed", message: "disk full" },
         push: { kind: "no-record" },
       } as never),
@@ -296,7 +299,7 @@ describe("runReviewCompliance", () => {
     );
     reviewComplianceAndRecord.mockReturnValue(
       Effect.succeed({
-        review: { kind: "generated", verdict: "conformant", mdArtifactPath: "/run/x.md" },
+        review: GENERATED,
         record: {
           kind: "written",
           commitSha: "0123456789abcdef",
@@ -320,5 +323,93 @@ describe("runReviewCompliance", () => {
       "Recorded: 2610270900-my-run/compliance-review (01234567), pushed to origin",
     );
     expect(lines.some((l) => l.startsWith("WARN:"))).toBe(false);
+  });
+
+  async function runWith(
+    outcome: unknown,
+    options: { readonly crossProject?: boolean; readonly argument?: string } = {},
+  ) {
+    const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
+    loadConfig.mockReturnValue(Either.right(makeConfig(true)));
+    const { resolveRunRef } = vi.mocked(await import("../../../src/app/resolveRunRef.js"));
+    const crossProject = options.crossProject ?? false;
+    resolveRunRef.mockReturnValue(
+      Either.right({
+        namespace: crossProject ? "other-ns" : "louloupapers",
+        shortName: FAKE_SHORT_NAME,
+        info: makeInfo(),
+        crossProject,
+      }),
+    );
+    const { reviewComplianceAndRecord } = vi.mocked(
+      await import("../../../src/app/reviewCompliance.js"),
+    );
+    reviewComplianceAndRecord.mockReturnValue(outcome as never);
+    const { loadModelRouting, loadProviderConfig } = vi.mocked(
+      await import("../../../src/app/loadRouting.js"),
+    );
+    loadModelRouting.mockReturnValue(Effect.succeed(DEFAULT_MODEL_ROUTING));
+    loadProviderConfig.mockReturnValue(Effect.succeed(DEFAULT_PROVIDER_CONFIG));
+    const printed = makeOutput();
+    const code = await runReviewCompliance(options.argument ?? FAKE_SHORT_NAME, {}, printed.out);
+    return { code, reviewComplianceAndRecord, ...printed };
+  }
+
+  const refusedTwice = Effect.succeed({
+    review: {
+      kind: "failed",
+      failureReason: "compliance-review answer rejected twice — first answer: a; retry: b",
+    },
+    record: { kind: "no-entry" },
+    push: { kind: "no-record" },
+  });
+
+  it("prints the failure and its retry command, exits 1 and never prints Verdict: unknown", async () => {
+    const { code, lines, errors } = await runWith(refusedTwice);
+
+    expect(code).toBe(1);
+    expect(errors).toEqual([
+      "Compliance review failed: compliance-review answer rejected twice — first answer: a; retry: b. " +
+        `To retry, run: phax review-compliance ${FAKE_SHORT_NAME}`,
+    ]);
+    expect(lines.join("\n")).not.toContain("Verdict");
+    expect(errors.join("\n")).not.toContain("unknown");
+  });
+
+  it("names the run key in the retry command of a run of another project", async () => {
+    const { errors } = await runWith(refusedTwice, { crossProject: true });
+
+    expect(errors[0]).toContain(
+      `To retry, run: phax review-compliance other-ns.${FAKE_SHORT_NAME}`,
+    );
+  });
+
+  it("names the same run key in the records warnings of a run of another project", async () => {
+    const { lines } = await runWith(
+      Effect.succeed({
+        review: GENERATED,
+        record: { kind: "write-failed", message: "disk full" },
+        push: { kind: "no-record" },
+      }),
+      { crossProject: true },
+    );
+
+    expect(
+      lines.some((l) => l.includes(`rerun \`phax review-compliance other-ns.${FAKE_SHORT_NAME}\``)),
+    ).toBe(true);
+  });
+
+  it("prints the verdict and the Markdown path of a generated review", async () => {
+    const { code, lines } = await runWith(noEntry(GENERATED));
+
+    expect(code).toBe(0);
+    expect(lines).toContain("Verdict: conformant");
+    expect(lines).toContain("Compliance review: /run/compliance-review.md");
+  });
+
+  it("hands the command's output port to the use case, for the refusal warning", async () => {
+    const { reviewComplianceAndRecord, out } = await runWith(noEntry(GENERATED));
+
+    expect(reviewComplianceAndRecord.mock.calls[0]?.[5]).toMatchObject({ output: out });
   });
 });

@@ -13,18 +13,29 @@ import {
   COMPLIANCE_REVIEW_MD_FILENAME,
   COMPLIANCE_REVIEW_JSON_FILENAME,
 } from "../domain/review/compliancePrompt.js";
+import {
+  COMPLIANCE_REVIEW_RETRY_STREAM_FILENAME,
+  COMPLIANCE_REVIEW_STREAM_FILENAME,
+  complianceRefusedTwiceMessage,
+  complianceRetryPrompt,
+  complianceRetryWarning,
+} from "../domain/review/complianceRetry.js";
+import { renderComplianceReviewMarkdown } from "../domain/review/complianceMarkdown.js";
 import { resolveReviewSecurityPolicy } from "../domain/security/resolveReviewPolicy.js";
+import { CODE_REVIEW_AGENT_COMMANDS } from "../domain/security/agentCommands.js";
 import { phaseCoverageRefusal } from "../domain/review/compliancePhaseCoverage.js";
+import { answerJson } from "../domain/session/structuredAnswer.js";
+import { answerJsonSchema } from "../schemas/answerSchemas.js";
 import {
   complianceReviewFileText,
   readComplianceReviewAnswer,
   type ComplianceReview,
-  type Verdict,
 } from "../schemas/complianceReview.js";
-import { Backend } from "../ports/backend.js";
+import { Backend, type AgentRunResult } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import type { Git } from "../ports/git.js";
 import type { GitHub } from "../ports/github.js";
+import type { OutputPort } from "../ports/output.js";
 import {
   NO_REVIEW_ENTRY,
   recordReviewEntry,
@@ -45,42 +56,69 @@ import {
 const GLOBAL_RECONCILIATION_FILENAME = "global-file-reconciliation.md";
 const PLAN_FILENAME = "plan.md";
 
-export type ComplianceReviewResultKind = "disabled" | "generated" | "failed";
-
-export interface ComplianceReviewResult {
-  readonly kind: ComplianceReviewResultKind;
-  readonly verdict?: Verdict | "unknown";
-  readonly review?: ComplianceReview;
-  readonly structuredVerdictMissing?: boolean;
-  readonly mdArtifactPath?: string;
-  readonly failureReason?: string;
-  /** In memory only, never persisted: the failed session, when the agent's session failed. */
-  readonly sessionFailure?: SessionFailure | null;
-  /** In memory only: the agent-error.log and transcript the failed session left. */
-  readonly sessionFailureFiles?: SessionFailureFiles | null;
-}
+export type ComplianceReviewResult =
+  | { readonly kind: "disabled" }
+  | {
+      readonly kind: "generated";
+      readonly review: ComplianceReview;
+      readonly mdArtifactPath: string;
+      readonly jsonArtifactPath: string;
+    }
+  | {
+      readonly kind: "failed";
+      readonly failureReason: string;
+      /** In memory only, never persisted: the failed session, when the agent's session failed. */
+      readonly sessionFailure?: SessionFailure | null;
+      /** In memory only: the agent-error.log and transcript the failed session left. */
+      readonly sessionFailureFiles?: SessionFailureFiles | null;
+    };
 
 export interface ReviewComplianceOpts {
   readonly verbose?: boolean;
+  /** Where the refusal of a first answer is printed before the session is resumed. */
+  readonly output: OutputPort;
 }
 
+/** A session's final answer, decoded: the review, or why phax refuses it. */
+function decodeComplianceAnswer(
+  result: AgentRunResult,
+  runPhaseIds: readonly string[],
+): Either.Either<ComplianceReview, string> {
+  const parsed = answerJson(result);
+  if (Either.isLeft(parsed)) return Either.left(parsed.left);
+  return Either.flatMap(readComplianceReviewAnswer(parsed.right), (answered) => {
+    const refusal = phaseCoverageRefusal(
+      answered.perPhase.map((p) => p.phaseId),
+      runPhaseIds,
+    );
+    return refusal === null ? Either.right(answered) : Either.left(refusal);
+  });
+}
+
+/**
+ * Review a run against its plan in one read-only session that answers with
+ * its final message. An accepted answer becomes compliance-review.json and,
+ * rendered from the answer alone, compliance-review.md, replaced together or
+ * left as they were. A refused-twice answer, a failed session and a failed
+ * write fail the review, write nothing and leave an earlier review's files
+ * untouched.
+ */
 export function reviewCompliance(
   info: RunReviewInfo,
   config: ResolvedComplianceReviewConfig,
   resolution: RoutingResolution,
   security: { mode: SecurityMode; config: ResolvedSecurityConfig },
-  _opts: ReviewComplianceOpts,
+  opts: ReviewComplianceOpts,
 ): Effect.Effect<ComplianceReviewResult, FsError, Backend | FileSystem | SystemTelemetry> {
-  return Effect.gen(function* () {
-    if (!config.enabled) {
-      return { kind: "disabled" } satisfies ComplianceReviewResult;
-    }
+  if (!config.enabled) {
+    return Effect.succeed({ kind: "disabled" } satisfies ComplianceReviewResult);
+  }
+  const runId = info.runId as RunId;
 
+  return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const backend = yield* Backend;
     const telemetry = yield* SystemTelemetry;
-
-    const runId = info.runId as RunId;
 
     yield* telemetry.recordEvent(
       makeStepStartedTelemetryEvent({
@@ -90,66 +128,37 @@ export function reviewCompliance(
       }),
     );
 
+    const fail = (reason: string) =>
+      ({ kind: "failed", failureReason: reason }) satisfies ComplianceReviewResult;
+
     const reconciliationPath = join(info.runPath, GLOBAL_RECONCILIATION_FILENAME);
     const reconciliationExistsResult = yield* Effect.either(fs.exists(reconciliationPath));
     if (Either.isLeft(reconciliationExistsResult) || !reconciliationExistsResult.right) {
-      const reason = Either.isLeft(reconciliationExistsResult)
-        ? `Could not check for global reconciliation: ${reconciliationExistsResult.left.message}`
-        : `Missing global file reconciliation at "${reconciliationPath}" — cannot run compliance review`;
-      yield* telemetry.recordEvent(
-        makeStepCompletedTelemetryEvent({
-          runId,
-          operationId: info.shortName,
-          step: "compliance.review",
-          result: "failure",
-        }),
+      return fail(
+        Either.isLeft(reconciliationExistsResult)
+          ? `Could not check for global reconciliation: ${reconciliationExistsResult.left.message}`
+          : `Missing global file reconciliation at "${reconciliationPath}" — cannot run compliance review`,
       );
-      return { kind: "failed", failureReason: reason } satisfies ComplianceReviewResult;
     }
 
     const reconciliationReadResult = yield* Effect.either(fs.readText(reconciliationPath));
     if (Either.isLeft(reconciliationReadResult)) {
-      const reason = `Could not read global reconciliation: ${reconciliationReadResult.left.message}`;
-      yield* telemetry.recordEvent(
-        makeStepCompletedTelemetryEvent({
-          runId,
-          operationId: info.shortName,
-          step: "compliance.review",
-          result: "failure",
-        }),
-      );
-      return { kind: "failed", failureReason: reason } satisfies ComplianceReviewResult;
+      return fail(`Could not read global reconciliation: ${reconciliationReadResult.left.message}`);
     }
 
     const planPath = join(info.runPath, PLAN_FILENAME);
     const planExistsResult = yield* Effect.either(fs.exists(planPath));
     if (Either.isLeft(planExistsResult) || !planExistsResult.right) {
-      const reason = Either.isLeft(planExistsResult)
-        ? `Could not check for plan.md: ${planExistsResult.left.message}`
-        : `Missing plan.md at "${planPath}" — cannot run compliance review`;
-      yield* telemetry.recordEvent(
-        makeStepCompletedTelemetryEvent({
-          runId,
-          operationId: info.shortName,
-          step: "compliance.review",
-          result: "failure",
-        }),
+      return fail(
+        Either.isLeft(planExistsResult)
+          ? `Could not check for plan.md: ${planExistsResult.left.message}`
+          : `Missing plan.md at "${planPath}" — cannot run compliance review`,
       );
-      return { kind: "failed", failureReason: reason } satisfies ComplianceReviewResult;
     }
 
     const planReadResult = yield* Effect.either(fs.readText(planPath));
     if (Either.isLeft(planReadResult)) {
-      const reason = `Could not read plan.md: ${planReadResult.left.message}`;
-      yield* telemetry.recordEvent(
-        makeStepCompletedTelemetryEvent({
-          runId,
-          operationId: info.shortName,
-          step: "compliance.review",
-          result: "failure",
-        }),
-      );
-      return { kind: "failed", failureReason: reason } satisfies ComplianceReviewResult;
+      return fail(`Could not read plan.md: ${planReadResult.left.message}`);
     }
 
     const phaseHandoffs: Array<{ phaseId: string; handoffMd: string }> = [];
@@ -170,18 +179,10 @@ export function reviewCompliance(
       handoffMd: r.handoffMd,
     }));
 
-    const phaxContextPath = join(info.worktreePath, ".phax-context");
-    yield* fs.mkdirp(phaxContextPath);
+    const firstPhase = info.phaseStatuses.toSorted((a, b) => a.phaseIndex - b.phaseIndex)[0];
 
-    const agentMdPath = join(phaxContextPath, COMPLIANCE_REVIEW_MD_FILENAME);
-    const agentJsonPath = join(phaxContextPath, COMPLIANCE_REVIEW_JSON_FILENAME);
-    // A previous review's files in the worktree would be read back as this
-    // one's when its session writes none: only what this invocation writes
-    // counts (and becomes a records entry).
-    for (const stale of [agentMdPath, agentJsonPath]) {
-      if (yield* fs.exists(stale)) yield* fs.remove(stale);
-    }
-
+    // The session answers and writes nothing: no file is made under the
+    // worktree, and what it reads of the change it reads with git.
     const prompt = buildCompliancePrompt({
       planMd: planReadResult.right,
       reconciliationMd: reconciliationReadResult.right,
@@ -189,8 +190,9 @@ export function reviewCompliance(
       phaseHandoffs,
       reviewedPhases,
       worktreePath: info.worktreePath,
-      mdArtifactPath: agentMdPath,
-      jsonArtifactPath: agentJsonPath,
+      baseRef: firstPhase?.base ?? null,
+      runBranch: info.branch,
+      gitCommands: CODE_REVIEW_AGENT_COMMANDS,
     });
 
     const policy = resolveReviewSecurityPolicy({
@@ -199,211 +201,157 @@ export function reviewCompliance(
       config: security.config,
     });
 
-    const outputJsonlPath = join(info.runPath, "compliance-review.session.jsonl");
+    const provider = resolution.selected.provider;
+    const outputJsonlPath = join(info.runPath, COMPLIANCE_REVIEW_STREAM_FILENAME);
 
-    const agentResult = yield* Effect.either(
+    const sessionOptions = {
+      provider,
+      model: resolution.selected.concreteModel,
+      effort: resolution.selected.thinking ?? config.effort,
+      cwd: info.worktreePath,
+      security: { ...policy, agentCommands: [...CODE_REVIEW_AGENT_COMMANDS] },
+      agentCommands: CODE_REVIEW_AGENT_COMMANDS,
+      // The review answers and never writes: its reading tools and the
+      // read-only git above, whatever the policy allows.
+      readOnly: true,
+      answerSchema: { call: "compliance-review", schema: answerJsonSchema("compliance-review") },
+    } as const;
+    const costOf = (streamPath: string) =>
+      ({
+        role: "compliance",
+        phase: null,
+        runId,
+        runPath: info.runPath,
+        provider,
+        streamPath,
+      }) as const;
+
+    /**
+     * One session (the first, or the corrective resume). A failed session is
+     * reported with its failure and files, never as a refusal; otherwise the
+     * session's result is returned.
+     */
+    const session = <E extends Error, R>(
+      run: Effect.Effect<AgentRunResult, E, R>,
+    ): Effect.Effect<ComplianceReviewResult | AgentRunResult, never, R> =>
+      Effect.map(Effect.either(run), (outcome) => {
+        if (Either.isRight(outcome)) return outcome.right;
+        const sessionError = outcome.left instanceof AgentSessionFailedError ? outcome.left : null;
+        return {
+          ...fail(`Agent invocation failed: ${outcome.left.message}`),
+          sessionFailure: sessionError?.failure ?? null,
+          sessionFailureFiles:
+            sessionError === null
+              ? null
+              : { agentErrorLog: sessionError.agentErrorLog, transcript: sessionError.transcript },
+        } satisfies ComplianceReviewResult;
+      });
+
+    const runPhaseIds = info.planPhases.map((p) => p.id);
+
+    const firstRun = yield* session(
       withInvocationCost(
-        backend.runAgent(prompt, {
-          provider: resolution.selected.provider,
-          model: resolution.selected.concreteModel,
-          effort: resolution.selected.thinking ?? config.effort,
-          cwd: info.worktreePath,
-          security: policy,
-          outputJsonlPath,
-        }),
-        {
-          role: "compliance",
-          phase: null,
-          runId,
-          runPath: info.runPath,
-          provider: resolution.selected.provider,
-          streamPath: outputJsonlPath,
-        },
+        backend.runAgent(prompt, { ...sessionOptions, outputJsonlPath }),
+        costOf(outputJsonlPath),
       ),
     );
+    if ("kind" in firstRun) return firstRun;
 
-    if (Either.isLeft(agentResult)) {
-      const reason = `Agent invocation failed: ${agentResult.left.message}`;
-      yield* telemetry.recordEvent(
-        makeStepCompletedTelemetryEvent({
-          runId,
-          operationId: info.shortName,
-          step: "compliance.review",
-          result: "failure",
-        }),
+    let answer = decodeComplianceAnswer(firstRun, runPhaseIds);
+    if (Either.isLeft(answer)) {
+      const firstRefusal = answer.left;
+      opts.output.warn(complianceRetryWarning(firstRefusal));
+      const retryPath = join(info.runPath, COMPLIANCE_REVIEW_RETRY_STREAM_FILENAME);
+      const retryRun = yield* session(
+        withInvocationCost(
+          backend.resumeAgentSession(firstRun.sessionId, complianceRetryPrompt(firstRefusal), {
+            ...sessionOptions,
+            outputJsonlPath: retryPath,
+          }),
+          costOf(retryPath),
+        ),
       );
-      const sessionError =
-        agentResult.left instanceof AgentSessionFailedError ? agentResult.left : null;
-      return {
-        kind: "failed",
-        failureReason: reason,
-        sessionFailure: sessionError?.failure ?? null,
-        sessionFailureFiles:
-          sessionError === null
-            ? null
-            : { agentErrorLog: sessionError.agentErrorLog, transcript: sessionError.transcript },
-      } satisfies ComplianceReviewResult;
+      if ("kind" in retryRun) return retryRun;
+      answer = decodeComplianceAnswer(retryRun, runPhaseIds);
+      if (Either.isLeft(answer)) {
+        return fail(complianceRefusedTwiceMessage(firstRefusal, answer.left));
+      }
     }
 
-    const mdExistsResult = yield* Effect.either(fs.exists(agentMdPath));
-    const mdExists = Either.isRight(mdExistsResult) && mdExistsResult.right;
+    const review = answer.right;
+    const jsonArtifactPath = join(info.runPath, COMPLIANCE_REVIEW_JSON_FILENAME);
+    const mdArtifactPath = join(info.runPath, COMPLIANCE_REVIEW_MD_FILENAME);
 
-    if (!mdExists) {
-      yield* telemetry.recordEvent(
-        makeStepCompletedTelemetryEvent({
-          runId,
-          operationId: info.shortName,
-          step: "compliance.review",
-          result: "failure",
-        }),
+    // The pair is replaced together or left as it was: a failed second write
+    // puts the first file back (or removes it when there was none).
+    const keepPair = Effect.gen(function* () {
+      const previousJson = (yield* fs.exists(jsonArtifactPath))
+        ? yield* fs.readText(jsonArtifactPath)
+        : undefined;
+      yield* fs.writeAtomic(jsonArtifactPath, complianceReviewFileText(review));
+      const mdWrite = yield* Effect.either(
+        fs.writeAtomic(mdArtifactPath, renderComplianceReviewMarkdown(info.runId, review)),
       );
-      return {
-        kind: "failed",
-        failureReason: `Agent did not write the compliance-review.md artifact at "${agentMdPath}"`,
-      } satisfies ComplianceReviewResult;
-    }
-
-    const mdReadResult = yield* Effect.either(fs.readText(agentMdPath));
-    if (Either.isLeft(mdReadResult)) {
-      yield* telemetry.recordEvent(
-        makeStepCompletedTelemetryEvent({
-          runId,
-          operationId: info.shortName,
-          step: "compliance.review",
-          result: "failure",
-        }),
-      );
-      return {
-        kind: "failed",
-        failureReason: `Could not read compliance-review.md: ${mdReadResult.left.message}`,
-      } satisfies ComplianceReviewResult;
-    }
-
-    const durableMdPath = join(info.runPath, COMPLIANCE_REVIEW_MD_FILENAME);
-    yield* fs.writeAtomic(durableMdPath, mdReadResult.right);
-
-    yield* telemetry.recordEvent(
-      makeArtifactGeneratedTelemetryEvent({
-        runId,
-        operationId: info.shortName,
-        artifact: COMPLIANCE_REVIEW_MD_FILENAME,
-        path: durableMdPath,
-      }),
-    );
-
-    const jsonExistsResult = yield* Effect.either(fs.exists(agentJsonPath));
-    const jsonExists = Either.isRight(jsonExistsResult) && jsonExistsResult.right;
-
-    if (!jsonExists) {
-      yield* telemetry.recordEvent(
-        makeStepCompletedTelemetryEvent({
-          runId,
-          operationId: info.shortName,
-          step: "compliance.review",
-          result: "success",
-        }),
-      );
-      return {
-        kind: "generated",
-        verdict: "unknown",
-        structuredVerdictMissing: true,
-        mdArtifactPath: durableMdPath,
-      } satisfies ComplianceReviewResult;
-    }
-
-    const jsonReadResult = yield* Effect.either(fs.readText(agentJsonPath));
-    if (Either.isLeft(jsonReadResult)) {
-      yield* telemetry.recordEvent(
-        makeStepCompletedTelemetryEvent({
-          runId,
-          operationId: info.shortName,
-          step: "compliance.review",
-          result: "success",
-        }),
-      );
-      return {
-        kind: "generated",
-        verdict: "unknown",
-        structuredVerdictMissing: true,
-        mdArtifactPath: durableMdPath,
-      } satisfies ComplianceReviewResult;
-    }
-
-    let parsedJson: unknown;
-    try {
-      parsedJson = JSON.parse(jsonReadResult.right);
-    } catch {
-      yield* telemetry.recordEvent(
-        makeStepCompletedTelemetryEvent({
-          runId,
-          operationId: info.shortName,
-          step: "compliance.review",
-          result: "success",
-        }),
-      );
-      return {
-        kind: "generated",
-        verdict: "unknown",
-        structuredVerdictMissing: true,
-        mdArtifactPath: durableMdPath,
-      } satisfies ComplianceReviewResult;
-    }
-
-    // The agent's file is the 0.32.0 answer; a perPhase that does not cover
-    // the run is refused like any other departure from the shape.
-    const decodeResult = Either.flatMap(readComplianceReviewAnswer(parsedJson), (answered) => {
-      const refusal = phaseCoverageRefusal(
-        answered.perPhase.map((p) => p.phaseId),
-        info.planPhases.map((p) => p.id),
-      );
-      return refusal === null ? Either.right(answered) : Either.left(refusal);
+      if (Either.isLeft(mdWrite)) {
+        yield* Effect.either(
+          previousJson === undefined
+            ? fs.remove(jsonArtifactPath)
+            : fs.writeAtomic(jsonArtifactPath, previousJson),
+        );
+        return yield* Effect.fail(mdWrite.left);
+      }
     });
-    if (Either.isLeft(decodeResult)) {
-      yield* telemetry.recordEvent(
-        makeStepCompletedTelemetryEvent({
-          runId,
-          operationId: info.shortName,
-          step: "compliance.review",
-          result: "success",
-        }),
-      );
-      return {
-        kind: "generated",
-        verdict: "unknown",
-        structuredVerdictMissing: true,
-        mdArtifactPath: durableMdPath,
-      } satisfies ComplianceReviewResult;
+    const kept = yield* Effect.either(keepPair);
+    if (Either.isLeft(kept)) {
+      return fail(`the review could not be kept: ${kept.left.message}`);
     }
 
-    const review = decodeResult.right;
-    const durableJsonPath = join(info.runPath, COMPLIANCE_REVIEW_JSON_FILENAME);
-    yield* fs.writeAtomic(durableJsonPath, complianceReviewFileText(review));
-
-    yield* telemetry.recordEvent(
-      makeArtifactGeneratedTelemetryEvent({
-        runId,
-        operationId: info.shortName,
-        artifact: COMPLIANCE_REVIEW_JSON_FILENAME,
-        path: durableJsonPath,
-      }),
-    );
-
-    yield* telemetry.recordEvent(
-      makeStepCompletedTelemetryEvent({
-        runId,
-        operationId: info.shortName,
-        step: "compliance.review",
-        result: "success",
-      }),
-    );
+    for (const [artifact, path] of [
+      [COMPLIANCE_REVIEW_JSON_FILENAME, jsonArtifactPath],
+      [COMPLIANCE_REVIEW_MD_FILENAME, mdArtifactPath],
+    ] as const) {
+      yield* telemetry.recordEvent(
+        makeArtifactGeneratedTelemetryEvent({
+          runId,
+          operationId: info.shortName,
+          artifact,
+          path,
+        }),
+      );
+    }
 
     return {
       kind: "generated",
-      verdict: review.verdict,
       review,
-      mdArtifactPath: durableMdPath,
+      mdArtifactPath,
+      jsonArtifactPath,
     } satisfies ComplianceReviewResult;
-  });
+  }).pipe(
+    Effect.tap((result) =>
+      Effect.flatMap(SystemTelemetry, (telemetry) =>
+        telemetry.recordEvent(
+          makeStepCompletedTelemetryEvent({
+            runId,
+            operationId: info.shortName,
+            step: "compliance.review",
+            result: result.kind === "generated" ? "success" : "failure",
+          }),
+        ),
+      ),
+    ),
+    Effect.tapError(() =>
+      Effect.flatMap(SystemTelemetry, (telemetry) =>
+        telemetry.recordEvent(
+          makeStepCompletedTelemetryEvent({
+            runId,
+            operationId: info.shortName,
+            step: "compliance.review",
+            result: "failure",
+          }),
+        ),
+      ),
+    ),
+  );
 }
 
 export interface ComplianceReviewRecordOutcome extends ReviewEntryOutcome {
@@ -414,7 +362,7 @@ export interface ComplianceReviewRecordOutcome extends ReviewEntryOutcome {
  * Run the compliance review, then keep the compliance-review.json it wrote
  * as a `compliance-review` entry on the records branch of the run's own
  * project. A records concern never fails the review: the outcome reports it
- * for the caller to warn about.
+ * for the caller to warn about. A review that failed records nothing.
  */
 export function reviewComplianceAndRecord(
   info: RunReviewInfo,
@@ -431,7 +379,7 @@ export function reviewComplianceAndRecord(
   return Effect.gen(function* () {
     const review = yield* reviewCompliance(info, config, resolution, security, opts);
     // Only a compliance-review.json written by this invocation is an entry.
-    if (review.kind !== "generated" || review.review === undefined) {
+    if (review.kind !== "generated") {
       return { review, ...NO_REVIEW_ENTRY };
     }
     const entry = yield* recordReviewEntry({

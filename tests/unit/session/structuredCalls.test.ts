@@ -17,6 +17,7 @@ const CALLS: readonly StructuredCallId[] = [
   "first-turn",
   "closing-turn",
   "code-review",
+  "compliance-review",
 ];
 
 const allPrompt: StructuredCallsTable = Object.fromEntries(
@@ -24,7 +25,7 @@ const allPrompt: StructuredCallsTable = Object.fromEntries(
 ) as unknown as StructuredCallsTable;
 
 describe("STRUCTURED_CALLS", () => {
-  it("has a line for exactly the seven structured calls", () => {
+  it("has a line for exactly the eight structured calls", () => {
     expect(Object.keys(STRUCTURED_CALLS).toSorted()).toEqual([...CALLS].toSorted());
   });
 
