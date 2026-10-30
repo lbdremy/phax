@@ -5,6 +5,7 @@
 // and what the provider flags hand over. No answer schema imports this module:
 // it imports them (the stamp they need lives in answerStamp.ts).
 import { CodeReviewFileSchema } from "./codeReview.js";
+import { ComplianceReviewFileSchema } from "./complianceReview.js";
 import { FirstReadingFileSchema } from "./firstReading.js";
 import {
   PlanHandDecisionAnswerFileSchema,
@@ -32,6 +33,7 @@ export const ANSWER_FORMATS = {
   "first-reading": { label: "first reading", schema: FirstReadingFileSchema },
   "interactive-handoff": { label: "interactive handoff", schema: InteractiveHandoffFileSchema },
   "code-review": { label: "code review", schema: CodeReviewFileSchema },
+  "compliance-review": { label: "compliance review", schema: ComplianceReviewFileSchema },
   "phax-plan-extraction": { label: "plan extraction", schema: PlanExtractionAnswerSchema },
 } as const satisfies Partial<
   Record<FormatId, { readonly label: string; readonly schema: unknown }>

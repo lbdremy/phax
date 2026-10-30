@@ -2810,10 +2810,22 @@ export function executePlan(
             reviewResolution,
             { mode: securityMode, config: config.security },
             runEndReviewRecordTarget(config, namespace),
-            opts.verbose !== undefined ? { verbose: opts.verbose } : {},
+            {
+              ...(opts.verbose !== undefined ? { verbose: opts.verbose } : {}),
+              output: {
+                log: (message) => process.stderr.write(`[phax] ${message}\n`),
+                warn: (message) => process.stderr.write(`[phax] Warning: ${message}\n`),
+                error: (message) => process.stderr.write(`[phax] Error: ${message}\n`),
+              },
+            },
           ).pipe(
             Effect.tap((outcome) =>
               Effect.sync(() => {
+                if (outcome.review.kind === "failed") {
+                  process.stderr.write(
+                    `[phax] Warning: compliance review failed: ${outcome.review.failureReason} — rerun it with \`phax review-compliance ${shortName}\`\n`,
+                  );
+                }
                 for (const warning of reviewEntryWarnings(
                   outcome,
                   "compliance-review",

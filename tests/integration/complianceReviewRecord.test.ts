@@ -6,7 +6,7 @@
 // remote. Nothing reaches GitHub: every test uses makeFakeGitHub().
 import { Effect, Either, Layer } from "effect";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -51,7 +51,6 @@ import { isolateGit } from "../helpers/isolateGit.js";
 import { planMdFor } from "../helpers/planMarkdown.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 
-const COMPLIANCE_MD = "# Compliance Review\n\nConformant.\n";
 const COMPLIANCE_AGENT_JSON = JSON.stringify({
   $schema: schemaUrl("compliance-review", CURRENT_STAMPS["compliance-review"]),
   verdict: "conformant",
@@ -145,11 +144,12 @@ describe("compliance review entry at run end", () => {
   }
 
   /**
-   * One run with the compliance review on. `reviewWrites` is what the review
-   * agent leaves under .phax-context; `onReview` runs when its session starts.
+   * One run with the compliance review on. `review` is what the review session
+   * answers: a valid answer, or prose that its corrective resume does not fix;
+   * `onReview` runs when its session starts.
    */
   async function runOnce(opts: {
-    readonly reviewWrites: "md-and-json" | "md-only";
+    readonly review: "accepted" | "refused-twice";
     readonly onReview?: (git: ReturnType<typeof makeFakeGit>) => void;
   }) {
     const plan = Either.getOrThrow(
@@ -195,25 +195,30 @@ describe("compliance review entry at run end", () => {
       const stream = options.outputJsonlPath ?? "";
       if (!stream.endsWith("compliance-review.session.jsonl")) return;
       opts.onReview?.(git);
-      const context = join(worktreeOf(), ".phax-context");
-      mkdirSync(context, { recursive: true });
-      writeFileSync(join(context, "compliance-review.md"), COMPLIANCE_MD);
-      if (opts.reviewWrites === "md-and-json") {
-        writeFileSync(join(context, "compliance-review.json"), COMPLIANCE_AGENT_JSON);
-      }
     });
-    for (const sessionId of ["session-phase-01", "session-review"]) {
-      backend.impl.addRunResponse({
-        sessionId: sessionId as ClaudeSessionId,
-        outputPath: "",
-        finalText: "",
-      });
-    }
+    backend.impl.addRunResponse({
+      sessionId: "session-phase-01" as ClaudeSessionId,
+      outputPath: "",
+      finalText: "",
+    });
+    backend.impl.addRunResponse({
+      sessionId: "session-review" as ClaudeSessionId,
+      outputPath: "",
+      finalText: opts.review === "accepted" ? COMPLIANCE_AGENT_JSON : "Prose, not JSON.",
+    });
+    // The phase's handoff resume comes first, then the review's corrective one.
     backend.impl.addResumeResponse({
       sessionId: "session-phase-01" as ClaudeSessionId,
       outputPath: "",
       finalText: "",
     });
+    if (opts.review === "refused-twice") {
+      backend.impl.addResumeResponse({
+        sessionId: "session-review" as ClaudeSessionId,
+        outputPath: "",
+        finalText: "More prose, still not JSON.",
+      });
+    }
     const layers = Layer.mergeAll(
       git.layer,
       shell.layer,
@@ -252,7 +257,7 @@ describe("compliance review entry at run end", () => {
   }
 
   it("commits the generated compliance-review.json as an entry after the phase records", async () => {
-    const { git, runPath, runId, outcome } = await runOnce({ reviewWrites: "md-and-json" });
+    const { git, runPath, runId, outcome } = await runOnce({ review: "accepted" });
     expect(Either.isRight(outcome)).toBe(true);
 
     const commits = recordCommits(git);
@@ -272,7 +277,7 @@ describe("compliance review entry at run end", () => {
 
   it("leaves the file in the run folder, the run in review_open and a warning when the commit fails", async () => {
     const { git, runPath, runId, outcome, stderr } = await runOnce({
-      reviewWrites: "md-and-json",
+      review: "accepted",
       onReview: (fake) => fake.impl.failNextWriteTreeCommit("disk full"),
     });
     expect(Either.isRight(outcome)).toBe(true);
@@ -293,10 +298,24 @@ describe("compliance review entry at run end", () => {
     expect(runId).not.toBe("");
   });
 
-  it("commits no entry when the review wrote no JSON answer", async () => {
-    const { git, outcome } = await runOnce({ reviewWrites: "md-only" });
+  it("commits no entry, writes no file and warns when the review is refused twice, and the run stays in review_open", async () => {
+    const { git, runPath, outcome, stderr } = await runOnce({ review: "refused-twice" });
     expect(Either.isRight(outcome)).toBe(true);
     expect(recordCommits(git)).toHaveLength(1);
+
+    const state = JSON.parse(await readFile(join(runPath, "run-status.json"), "utf8")) as {
+      readonly state?: string;
+    };
+    expect(state.state).toBe("review_open");
+    expect(existsSync(join(runPath, "compliance-review.json"))).toBe(false);
+    expect(existsSync(join(runPath, "compliance-review.md"))).toBe(false);
+    // The refusal is printed before the resume; the failure, then, names the retry command.
+    expect(stderr).toContain("[phax] Warning: compliance-review answer refused");
+    expect(stderr).toContain(
+      `[phax] Warning: compliance review failed: compliance-review answer rejected twice`,
+    );
+    expect(stderr).toContain(`rerun it with \`phax review-compliance ${SHORT_NAME}\``);
+    expect(stderr).not.toContain("unknown");
   });
 });
 
@@ -397,28 +416,28 @@ describe("compliance review entry by hand (real git)", () => {
   function review(
     summary: string,
     opts: {
-      readonly writesJson?: boolean;
+      readonly refusedTwice?: boolean;
       readonly runInfo?: RunReviewInfo;
       readonly target?: ReviewRecordTarget | ReviewRecordUnresolved;
     } = {},
   ) {
     const runInfo = opts.runInfo ?? info();
     const backend = makeFakeBackend();
-    backend.impl.setOnRunAgent(() => {
-      const context = join(runInfo.worktreePath, ".phax-context");
-      mkdirSync(context, { recursive: true });
-      writeFileSync(join(context, "compliance-review.md"), COMPLIANCE_MD);
-      if (opts.writesJson === false) return;
-      writeFileSync(
-        join(context, "compliance-review.json"),
-        JSON.stringify({ ...JSON.parse(COMPLIANCE_AGENT_JSON), summary }),
-      );
-    });
     backend.impl.addRunResponse({
       sessionId: "session-hand" as ClaudeSessionId,
       outputPath: "",
-      finalText: "",
+      finalText:
+        opts.refusedTwice === true
+          ? "Prose, not JSON."
+          : JSON.stringify({ ...JSON.parse(COMPLIANCE_AGENT_JSON), summary }),
     });
+    if (opts.refusedTwice === true) {
+      backend.impl.addResumeResponse({
+        sessionId: "session-hand" as ClaudeSessionId,
+        outputPath: "",
+        finalText: "More prose, still not JSON.",
+      });
+    }
     const layers = Layer.mergeAll(
       backend.layer,
       NodeFileSystemLayer,
@@ -438,7 +457,7 @@ describe("compliance review entry by hand (real git)", () => {
           repoRoot: repoDir,
           push: { publishRemote: "origin" },
         },
-        {},
+        { output: { log() {}, warn() {}, error() {} } },
       ).pipe(Effect.provide(layers)),
     );
   }
@@ -475,19 +494,21 @@ describe("compliance review entry by hand (real git)", () => {
     expect(summaryAt(remoteDir, remoteCommits[1] ?? "")).toBe("second review");
   });
 
-  it("reads only this review's files: a rerun whose session writes no json records nothing", async () => {
+  it("records an entry only after an accepted answer: a rerun refused twice records nothing and keeps the first review", async () => {
     const first = await review("first review");
     expect(first.record.kind).toBe("written");
 
-    const second = await review("second review", { writesJson: false });
-    expect(second.review.kind).toBe("generated");
-    expect(second.review.verdict).toBe("unknown");
-    expect(second.review.structuredVerdictMissing).toBe(true);
+    const second = await review("second review", { refusedTwice: true });
+    expect(second.review.kind).toBe("failed");
     expect(second.record.kind).toBe("no-entry");
     expect(second.push.kind).toBe("no-record");
 
     const commits = runGit(["rev-list", RECORDS_BRANCH_NAME], repoDir).trim().split("\n");
     expect(commits).toHaveLength(1);
+    const kept = JSON.parse(await readFile(join(runPath, "compliance-review.json"), "utf8")) as {
+      summary: string;
+    };
+    expect(kept.summary).toBe("first review");
   });
 
   describe("a run of another project", () => {

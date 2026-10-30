@@ -20,10 +20,10 @@ export interface CompletionOptions {
   readonly effort: string;
   readonly cwd: string;
   /**
-   * The published answer schema of a structured call. Only the seven
+   * The published answer schema of a structured call. Only the eight
    * structured calls set it, on their first session and on their corrective
-   * resume; phase turns, fix attempts, handoff generation, the compliance
-   * review and the probe never do. The backend hands it to the provider as a
+   * resume; phase turns, fix attempts, handoff generation and the probe never
+   * do. The backend hands it to the provider as a
    * native option where the call table allows (Claude Code's `--json-schema`,
    * Codex's `--output-schema`); Mistral Vibe never receives it.
    */

@@ -4,6 +4,8 @@ import {
   COMPLIANCE_REVIEW_MD_FILENAME,
   COMPLIANCE_REVIEW_JSON_FILENAME,
 } from "../../../src/domain/review/compliancePrompt.js";
+import { CODE_REVIEW_AGENT_COMMANDS } from "../../../src/domain/security/agentCommands.js";
+import { answerJsonSchema } from "../../../src/schemas/answerSchemas.js";
 
 const baseInput = {
   planMd: "# My Plan\n\nPhase 01 details here.",
@@ -22,9 +24,9 @@ const baseInput = {
     handoffMd: string;
   }>,
   worktreePath: "/home/user/.phax/worktrees/my-run/phase-02",
-  mdArtifactPath: "/home/user/.phax/worktrees/my-run/phase-02/.phax-context/compliance-review.md",
-  jsonArtifactPath:
-    "/home/user/.phax/worktrees/my-run/phase-02/.phax-context/compliance-review.json",
+  baseRef: null as string | null,
+  runBranch: "feature/my-run",
+  gitCommands: CODE_REVIEW_AGENT_COMMANDS,
 };
 
 describe("buildCompliancePrompt", () => {
@@ -40,10 +42,28 @@ describe("buildCompliancePrompt", () => {
     expect(prompt).toContain("src/foo.ts");
   });
 
-  it("includes both absolute artifact paths", () => {
+  it("names no file to write: the session answers and phax writes the files", () => {
     const prompt = buildCompliancePrompt(baseInput);
-    expect(prompt).toContain(baseInput.mdArtifactPath);
-    expect(prompt).toContain(baseInput.jsonArtifactPath);
+    expect(prompt).not.toContain(".phax-context");
+    expect(prompt).not.toContain(COMPLIANCE_REVIEW_MD_FILENAME);
+    expect(prompt).not.toContain(COMPLIANCE_REVIEW_JSON_FILENAME);
+    expect(prompt).not.toMatch(/MUST write/);
+  });
+
+  it("is read-only and lists the granted git commands", () => {
+    const prompt = buildCompliancePrompt(baseInput);
+    expect(prompt).toContain("You write no file and edit nothing");
+    for (const command of CODE_REVIEW_AGENT_COMMANDS) expect(prompt).toContain(`\`${command}\``);
+  });
+
+  it("gives the run's branch, and its diff and log commands when a base is known", () => {
+    const withBase = buildCompliancePrompt({ ...baseInput, baseRef: "a1b2c3d" });
+    expect(withBase).toContain("`feature/my-run`, started from `a1b2c3d`");
+    expect(withBase).toContain("`git diff a1b2c3d..HEAD`");
+    expect(withBase).toContain("`git log a1b2c3d..HEAD`");
+    const withoutBase = buildCompliancePrompt(baseInput);
+    expect(withoutBase).toContain("`feature/my-run`; no base commit was noted");
+    expect(withoutBase).not.toContain("..HEAD");
   });
 
   it("includes per-phase instructions for every supplied phase", () => {
@@ -79,13 +99,6 @@ describe("buildCompliancePrompt", () => {
     expect(prompt).toContain("handoff");
   });
 
-  it("includes an explicit no-edit instruction", () => {
-    const prompt = buildCompliancePrompt(baseInput);
-    // Must instruct agent not to touch tracked source
-    const lower = prompt.toLowerCase();
-    expect(lower).toMatch(/do not (edit|modify|touch|change)/);
-  });
-
   it("includes a conformance-only instruction", () => {
     const prompt = buildCompliancePrompt(baseInput);
     const lower = prompt.toLowerCase();
@@ -98,17 +111,22 @@ describe("buildCompliancePrompt", () => {
     expect(prompt).toContain("findings");
   });
 
-  it("sketches the 0.32.0 shape: the $schema stamp in place of version, and both ledgers", () => {
+  it("states the published answer schema in full, as the answer to give", () => {
+    const prompt = buildCompliancePrompt(baseInput);
+    expect(prompt).toContain(JSON.stringify(answerJsonSchema("compliance-review"), null, 2));
+    expect(prompt).toContain("https://docs.phax.run/schemas/compliance-review/0.32.0.json");
+    expect(prompt).toContain("Your final message is your answer: one JSON object alone");
+    expect(prompt).not.toContain('"version"');
+  });
+
+  it("states the coherence rule with the run's phase ids, and what each ledger holds", () => {
     const prompt = buildCompliancePrompt(baseInput);
     expect(prompt).toContain(
-      '"$schema": "https://docs.phax.run/schemas/compliance-review/0.32.0.json"',
+      "`perPhase` names each of these phase ids exactly once, in any order: `phase-01`, `phase-02`.",
     );
-    expect(prompt).not.toContain('"version"');
-    expect(prompt).toContain('"unplannedChanges": [');
-    expect(prompt).toContain('"unmetPromises": [');
-    expect(prompt).toContain('"path": "<file the plan did not call for>"');
-    expect(prompt).toContain('"promise": "<what the plan promised>"');
-    expect(prompt).toContain("Give the two ledgers as JSON fields too");
+    expect(prompt).toContain("`unplannedChanges` are the files touched beyond the plan");
+    expect(prompt).toContain("`unmetPromises` are the tests or artifacts the plan promised");
+    expect(prompt).toContain("Either ledger may be `[]`");
   });
 
   it("references attentionPoints and pointers fields", () => {
@@ -210,15 +228,5 @@ describe("filename constants", () => {
 
   it("COMPLIANCE_REVIEW_JSON_FILENAME is compliance-review.json", () => {
     expect(COMPLIANCE_REVIEW_JSON_FILENAME).toBe("compliance-review.json");
-  });
-
-  it("prompt names the MD filename constant", () => {
-    const prompt = buildCompliancePrompt(baseInput);
-    expect(prompt).toContain(COMPLIANCE_REVIEW_MD_FILENAME);
-  });
-
-  it("prompt names the JSON filename constant", () => {
-    const prompt = buildCompliancePrompt(baseInput);
-    expect(prompt).toContain(COMPLIANCE_REVIEW_JSON_FILENAME);
   });
 });

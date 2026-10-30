@@ -23,6 +23,9 @@ import { extractPlanLlm } from "../../src/app/extractPlan.js";
 import { seedPaths, writeSeed } from "../../src/app/interactiveFiles.js";
 import { runFirstTurn } from "../../src/app/interactiveStop.js";
 import { reviewCodeHeadless } from "../../src/app/reviewCode.js";
+import { reviewCompliance } from "../../src/app/reviewCompliance.js";
+import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
+import { buildVibeArgs } from "../../src/infra/providers/mistralVibe.js";
 import type { BranchName, PhaseId, RunId } from "../../src/domain/branded.js";
 import { AgentSessionFailedError } from "../../src/domain/errors.js";
 import { serializeSidecar } from "../../src/domain/artifact/sidecar.js";
@@ -614,6 +617,71 @@ async function driveCodeReview(provider: ProviderId, table?: StructuredCallsTabl
   );
 }
 
+// The made-up compliance review of a one-phase run: a run folder holding its
+// plan, its global reconciliation and one phase, reviewed through the real use
+// case. Its fake file system never holds a stream, so no cost is appended.
+const COMPLIANCE_PHASE = { id: "phase-01", title: "Phase 01" } as const;
+
+function complianceInfo(runPath: string, worktreePath: string): RunReviewInfo {
+  return {
+    namespace: "test-project",
+    shortName: "my-run",
+    runId: "my-run-001",
+    runState: "review_open",
+    branch: "feature/my-run",
+    runTitle: "My Run",
+    finalPhaseBranch: "feature/my-run--phase-01" as BranchName,
+    stateRoot: dirname(dirname(runPath)),
+    runPath,
+    finalPhaseId: "phase-01",
+    finalPhaseTitle: "Phase 01",
+    worktreePath,
+    claudeSessionId: undefined,
+    gateProfileId: "full",
+    phaseStatuses: [],
+    planPhases: [COMPLIANCE_PHASE],
+    updatedAt: "2026-10-30T11:00:00.000Z",
+    stoppedReason: undefined,
+    lastError: undefined,
+  };
+}
+
+function complianceRunFolder(runPath: string) {
+  const fs = makeFakeFileSystem();
+  fs.impl.setFile(join(runPath, "plan.md"), "# Made-up plan\n");
+  fs.impl.setFile(join(runPath, "global-file-reconciliation.md"), "# Reconciliation\n");
+  return fs;
+}
+
+async function driveComplianceReview(
+  provider: ProviderId,
+  table?: StructuredCallsTable,
+): Promise<void> {
+  const runPath = join(root, "compliance-state", "runs", "my-run");
+  const worktreePath = join(root, "compliance-worktree");
+  mkdirSync(runPath, { recursive: true });
+  mkdirSync(worktreePath, { recursive: true });
+  await Effect.runPromise(
+    Effect.either(
+      reviewCompliance(
+        complianceInfo(runPath, worktreePath),
+        { enabled: true, model: "claude-opus-5-5", effort: "high" },
+        resolutionOn(provider, provider === "codex-cli" ? "gpt-6-luna" : "claude-opus-5-5"),
+        { mode: "secure", config: authoringSecurity },
+        { output: { log() {}, warn() {}, error() {} } },
+      ).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            complianceRunFolder(runPath).layer,
+            backendLayer(table),
+            NoopSystemTelemetryLayer,
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
 async function driveExtraction(table?: StructuredCallsTable): Promise<void> {
   await Effect.runPromise(
     Effect.either(
@@ -859,6 +927,13 @@ const DRIVERS: readonly CallDriver[] = [
     retries: true,
     drive: (provider, table) => driveCodeReview(provider, table),
   },
+  {
+    call: "compliance-review",
+    format: "compliance-review",
+    providers: ["claude-code", "codex-cli"],
+    retries: true,
+    drive: (provider, table) => driveComplianceReview(provider, table),
+  },
 ];
 
 describe("ac-every-call: each structured call hands its answer schema on every spawn", () => {
@@ -922,9 +997,9 @@ describe("ac-every-call: each structured call hands its answer schema on every s
   );
 
   // A phase turn, a fix turn, a handoff turn and the probe hand no schema
-  // because no call site but the seven structured calls sets `answerSchema`:
+  // because no call site but the eight structured calls sets `answerSchema`:
   // a census of the source, so a new site fails here until it joins the table.
-  it("sets answerSchema at the seven structured call sites alone, one site per call", () => {
+  it("sets answerSchema at the eight structured call sites alone, one site per call", () => {
     const srcRoot = join(import.meta.dirname, "..", "..", "src");
     const sites: string[] = [];
     for (const name of readdirSync(srcRoot, { recursive: true }) as string[]) {
@@ -944,10 +1019,69 @@ describe("ac-every-call: each structured call hands its answer schema on every s
         "app/extractPlan.ts plan-extraction",
         "app/interactiveStop.ts first-turn",
         "app/reviewCode.ts code-review",
+        "app/reviewCompliance.ts compliance-review",
       ].toSorted(),
     );
     expect(sites.map((site) => site.split(" ")[1]).toSorted()).toEqual(
       Object.keys(STRUCTURED_CALLS).toSorted(),
     );
+  });
+});
+
+describe("ac-vibe: the compliance review on Mistral Vibe", () => {
+  it("states the schema in its prompt and hands the Vibe argv no schema option, on the session and its resume", async () => {
+    const runPath = join(root, "vibe-state", "runs", "my-run");
+    const backend = makeFakeBackend();
+    // The first answer is not JSON: the corrective resume follows.
+    backend.impl.addRunResponse({
+      sessionId: "vibe-session" as never,
+      outputPath: join(runPath, "compliance-review.session.jsonl"),
+      finalText: "",
+    });
+    backend.impl.addResumeResponse({
+      sessionId: "vibe-session" as never,
+      outputPath: join(runPath, "compliance-review-retry.session.jsonl"),
+      finalText: "",
+    });
+    await Effect.runPromise(
+      Effect.either(
+        reviewCompliance(
+          complianceInfo(runPath, join(root, "vibe-worktree")),
+          { enabled: true, model: "claude-opus-5-5", effort: "high" },
+          resolutionOn("mistral-vibe", "claude-opus-5-5"),
+          { mode: "secure", config: authoringSecurity },
+          { output: { log() {}, warn() {}, error() {} } },
+        ).pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              complianceRunFolder(runPath).layer,
+              backend.layer,
+              NoopSystemTelemetryLayer,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    const first = backend.impl.runCalls[0]!;
+    const resume = backend.impl.resumeCalls[0]!;
+    expect(first.prompt).toContain(statedSchema("compliance-review"));
+    for (const [prompt, options, resumeId] of [
+      [first.prompt, first.options, undefined],
+      [resume.prompt, resume.options, "vibe-session"],
+    ] as const) {
+      expect(options.provider).toBe("mistral-vibe");
+      // The use case hands the schema; the Vibe adapter turns it into no option at all.
+      expect(options.answerSchema?.call).toBe("compliance-review");
+      const withSchema = buildVibeArgs({ executable: "vibe" }, prompt, options, resumeId);
+      const withoutSchema = buildVibeArgs(
+        { executable: "vibe" },
+        prompt,
+        { ...options, answerSchema: undefined },
+        resumeId,
+      );
+      expect(withSchema).toEqual(withoutSchema);
+      expect(withSchema.filter((arg) => /schema/i.test(arg) && arg !== prompt)).toEqual([]);
+    }
   });
 });

@@ -1,5 +1,4 @@
-import { CURRENT_STAMPS } from "../../schemas/release.js";
-import { schemaUrl } from "../../schemas/schemaUrl.js";
+import { answerJsonSchema } from "../../schemas/answerSchemas.js";
 
 export const COMPLIANCE_REVIEW_MD_FILENAME = "compliance-review.md";
 export const COMPLIANCE_REVIEW_JSON_FILENAME = "compliance-review.json";
@@ -16,36 +15,17 @@ export interface BuildCompliancePromptInput {
     handoffMd: string;
   }>;
   readonly worktreePath: string;
-  readonly mdArtifactPath: string;
-  readonly jsonArtifactPath: string;
+  /** The commit the run started from, or null when no phase noted one. */
+  readonly baseRef: string | null;
+  /** The run's branch, holding every phase's commits. */
+  readonly runBranch: string;
+  /** The git commands the session may run, read only. */
+  readonly gitCommands: readonly string[];
 }
 
-const COMPLIANCE_REVIEW_JSON_SHAPE = `{
-  "$schema": "${schemaUrl("compliance-review", CURRENT_STAMPS["compliance-review"])}",
-  "verdict": "conformant | conformant-with-deviations | divergent",
-  "summary": "<one-paragraph run-level summary>",
-  "perPhase": [
-    {
-      "phaseId": "<phase id>",
-      "verdict": "conformant | conformant-with-deviations | divergent",
-      "findings": [
-        {
-          "dimension": "objective | excluded-scope | files | tests | boundaries | commit | handoff",
-          "severity": "info | deviation | concern",
-          "message": "<finding text>"
-        }
-      ]
-    }
-  ],
-  "unplannedChanges": [
-    { "phaseId": "<phase id>", "path": "<file the plan did not call for>", "note": "<why it matters>" }
-  ],
-  "unmetPromises": [
-    { "phaseId": "<phase id>", "promise": "<what the plan promised>", "note": "<what is missing>" }
-  ],
-  "attentionPoints": ["<human-readable note requiring attention>"],
-  "pointers": ["<conformance-out-of-scope pointer, e.g. possible bug at X — confirm via code review>"]
-}`;
+function idList(ids: readonly string[]): string {
+  return ids.map((id) => `\`${id}\``).join(", ");
+}
 
 export function buildCompliancePrompt(input: BuildCompliancePromptInput): string {
   const {
@@ -55,8 +35,9 @@ export function buildCompliancePrompt(input: BuildCompliancePromptInput): string
     phaseHandoffs,
     reviewedPhases,
     worktreePath,
-    mdArtifactPath,
-    jsonArtifactPath,
+    baseRef,
+    runBranch,
+    gitCommands,
   } = input;
 
   const reviewedPhasesSection =
@@ -124,13 +105,19 @@ export function buildCompliancePrompt(input: BuildCompliancePromptInput): string
     "2. **Trust the reconciliation.** The global file reconciliation below is the authoritative",
     "   file-level fact source (planned vs unplanned/missing/extra-touched). Do not recompute",
     "   diffs — spend your reasoning on the semantic judgments listed above.",
-    "3. **Do not edit tracked source.** Your only writes are the two artifact files at the",
-    "   absolute paths provided below. Do not modify any other file.",
+    "3. **Read only.** You write no file and edit nothing. You can read files, and run only these",
+    `   read-only git commands: ${idList(gitCommands)}.`,
     "4. **Fresh perspective.** You have no memory of the execution session.",
     "",
     "## Worktree path (for code inspection)",
     "",
     worktreePath,
+    "",
+    "## The change",
+    "",
+    baseRef === null
+      ? `The run's branch is \`${runBranch}\`; no base commit was noted.`
+      : `The run's branch is \`${runBranch}\`, started from \`${baseRef}\`: \`git diff ${baseRef}..HEAD\` is the whole change and \`git log ${baseRef}..HEAD\` lists its commits.`,
     "",
     "## Plan",
     "",
@@ -160,28 +147,20 @@ export function buildCompliancePrompt(input: BuildCompliancePromptInput): string
     "- Finding severity: `info` | `deviation` | `concern`",
     "- Finding dimension: `objective` | `excluded-scope` | `files` | `tests` | `boundaries` | `commit` | `handoff`",
     "",
-    "## Required output",
+    "## Answer",
     "",
-    `You MUST write exactly two files and nothing else:`,
+    "Your final message is your answer: one JSON object alone, with no code fence and no commentary,",
+    "valid against this JSON Schema, with every key required and no other key:",
     "",
-    `**1. ${mdArtifactPath}** (${COMPLIANCE_REVIEW_MD_FILENAME})`,
-    "   Human-readable prose following this structure:",
-    "   - Verdict (run-level)",
-    "   - Per-phase findings (one section per phase)",
-    "   - Unplanned-change ledger (files touched beyond the plan)",
-    "   - Unmet-promise ledger (promised tests/artifacts missing)",
-    "   - Attention points (anything requiring human follow-up)",
+    "```json",
+    JSON.stringify(answerJsonSchema("compliance-review"), null, 2),
+    "```",
     "",
-    `**2. ${jsonArtifactPath}** (${COMPLIANCE_REVIEW_JSON_FILENAME})`,
-    "   Machine-readable verdict matching this exact shape:",
-    "",
-    COMPLIANCE_REVIEW_JSON_SHAPE,
-    "",
-    "Both files must be written. The md file is the primary deliverable.",
-    "The json file must be valid JSON and must conform exactly to the shape above —",
-    "use only the listed enum values for `verdict`, `severity`, and `dimension`.",
-    "Give the two ledgers as JSON fields too: `unplannedChanges` and `unmetPromises` are both",
-    "required, and an empty list says there was none. `perPhase` names every phase of the run once.",
-    "Unknown keys are not permitted.",
+    `- \`perPhase\` names each of these phase ids exactly once, in any order: ${idList(phases.map((p) => p.id))}.`,
+    "- `unplannedChanges` are the files touched beyond the plan (read them from the reconciliation),",
+    "  each with its `phaseId`, the `path` and a `note`.",
+    "- `unmetPromises` are the tests or artifacts the plan promised and you did not find, each with",
+    "  its `phaseId`, the `promise` and a `note`.",
+    "- Either ledger may be `[]`: an empty list says there was none.",
   ].join("\n");
 }

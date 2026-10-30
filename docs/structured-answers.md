@@ -1,6 +1,6 @@
 # Structured answers and providers
 
-Some of phax's jobs end with an answer in a fixed shape: a headless spec or plan, a decide verdict, a plan extraction, a first reading, a closing handoff, a code review. Each of these is a JSON document with its own published schema. This page is for choosing which provider runs those roles: what each provider checks of an answer, and what phax checks after it.
+Some of phax's jobs end with an answer in a fixed shape: a headless spec or plan, a decide verdict, a plan extraction, a first reading, a closing handoff, a code review, a compliance review. Each of these is a JSON document with its own published schema. This page is for choosing which provider runs those roles: what each provider checks of an answer, and what phax checks after it.
 
 ## One schema, handed three ways
 
@@ -15,12 +15,19 @@ Every answer has one strict schema (closed objects, every key required), publish
 | `first-turn`       | `--json-schema` | `--output-schema` | schema in prompt |
 | `closing-turn`     | `--json-schema` | `--output-schema` | schema in prompt |
 | `code-review`      | `--json-schema` | `--output-schema` | schema in prompt |
+| `compliance-review` | `--json-schema` | `--output-schema` | schema in prompt |
 
 - **Claude Code** gets the schema inline on `--json-schema`, without its root `$schema` property: the API refuses a property key outside `^[a-zA-Z0-9_.-]{1,64}$`. phax sets the answer's `$schema` itself and tells the model to leave it out. A call whose cell reads `prompt` instead keeps the schema in the prompt alone: it is the fallback for a Claude Code combination (a `--resume`, the read-only tools, stream-json) that the real-CLI smoke test showed failing.
 - **Codex** gets the whole schema in a temporary `answer.schema.json` on `--output-schema`, on `exec` and on `exec resume`, and the file is removed when the process ends.
 - **Mistral Vibe** has no such option: it reads the schema in the prompt, like Claude Code on a `prompt` call.
 
-The compliance review joins this table with the next release.
+## The compliance review
+
+The compliance review is a read-only session, on every provider, granted the same read-only git commands as the headless code review (`git log`, `git diff`, `git show`, `git status`, `git ls-files`, `git blame`) and no other shell. It writes no file: it answers. Its answer carries the verdict, a summary, one entry per phase, the two ledgers (`unplannedChanges` and `unmetPromises`, each possibly empty), the attention points and the pointers.
+
+phax writes `compliance-review.json` (the answer as given) and renders `compliance-review.md` from the answer alone, in the run folder, replacing both together. A failed review writes neither: an earlier review's two files stay as they were, and no records entry is made. A review whose answer is refused twice is a failure, not a review with an unknown verdict.
+
+For example, a three-phase run (`phase-01` to `phase-03`) gets an answer that names `phase-01`, `phase-02` and `phase-04`. The schema lets it through; the coverage check refuses it (`perPhase: phase "phase-04" is not a phase of this run; perPhase: phase "phase-03" is missing`). phax prints the refusal and resumes the session once, the model answers again naming the three phases of the run, and the second answer is the one phax writes.
 
 ## phax's decoder is the only judge
 
@@ -30,7 +37,8 @@ Some rules cannot be written in a schema every provider accepts. phax keeps them
 
 - an authoring session returns open questions only, so a non-empty `arbitratedQuestions` is refused at its first entry;
 - a plan document's `sourceSpec` and `completesSpec` must pair up;
-- a test line's oracle must not contain ` — ` inside, start with `— ` or end with ` ·`.
+- a test line's oracle must not contain ` — ` inside, start with `— ` or end with ` ·`;
+- a compliance answer's `perPhase` names each phase of the run exactly once, in any order.
 
 ## The one corrective resume
 

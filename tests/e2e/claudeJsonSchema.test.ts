@@ -23,10 +23,11 @@ import { removeTempDir } from "../helpers/tempGit.js";
 import { probeProvider } from "./helpers/providers.js";
 
 // Smoke test of Claude Code's `--json-schema` through phax's real Claude
-// adapter: each of the eight answer schemas, on a new session and on a
+// adapter: each of the nine answer schemas, on a new session and on a
 // `--resume` of it, with the call's own options (read-only tools and
 // stream-json; the extraction format through `complete`, which has no
-// session). The result must carry a `structured_output` that phax's decoder
+// session). The compliance-review cases run read-only like the others and are
+// run by name in PR review. The result must carry a `structured_output` that phax's decoder
 // accepts once the adapter has set the format's `$schema` stamp. Two chains
 // then cross schemas as real sessions do: started under one call's schema,
 // resumed with none (the person's interactive resume), then resumed under
@@ -62,6 +63,7 @@ const CALL_OF: Readonly<Record<AnswerFormatId, StructuredCallId>> = {
   "first-reading": "first-turn",
   "interactive-handoff": "closing-turn",
   "code-review": "code-review",
+  "compliance-review": "compliance-review",
   "phax-plan-extraction": "plan-extraction",
 };
 

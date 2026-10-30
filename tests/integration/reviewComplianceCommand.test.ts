@@ -20,7 +20,6 @@ const stateRoot = "/fake-state";
 const shortName = "my-run";
 const runPath = `${stateRoot}/runs/${shortName}`;
 const worktreePath = "/fake/worktrees/my-run--phase-01";
-const phaxContextPath = `${worktreePath}/.phax-context`;
 
 function makeInfo(overrides: Partial<RunReviewInfo> = {}): RunReviewInfo {
   return {
@@ -82,12 +81,6 @@ const fakeSecurity = {
   } satisfies ResolvedSecurityConfig,
 };
 
-const fakeSessionResult = {
-  sessionId: "sess-cmd-test" as ClaudeSessionId,
-  outputPath: `${runPath}/compliance-review.session.jsonl`,
-  finalText: "Review complete.",
-};
-
 const validJson = JSON.stringify({
   $schema: schemaUrl("compliance-review", CURRENT_STAMPS["compliance-review"]),
   verdict: "conformant-with-deviations",
@@ -99,118 +92,80 @@ const validJson = JSON.stringify({
   pointers: [],
 });
 
-function setupLayers(
-  backend: ReturnType<typeof makeFakeBackend>,
-  fs: ReturnType<typeof makeFakeFileSystem>,
-) {
-  return Layer.mergeAll(backend.layer, fs.layer, NoopSystemTelemetryLayer);
-}
+const answering = (finalText: string) => ({
+  sessionId: "sess-cmd-test" as ClaudeSessionId,
+  outputPath: `${runPath}/compliance-review.session.jsonl`,
+  finalText,
+});
 
-/**
- * Files the fake agent writes during its session, as a real agent does: phax
- * clears any earlier review files before the session, so a test cannot seed
- * them up front.
- */
-const agentFiles = new WeakMap<object, Array<readonly [string, string]>>();
-function agentWrites(
-  backend: ReturnType<typeof makeFakeBackend>,
-  fs: ReturnType<typeof makeFakeFileSystem>,
-  path: string,
-  content: string,
-): void {
-  let files = agentFiles.get(backend);
-  if (files === undefined) {
-    const list: Array<readonly [string, string]> = [];
-    files = list;
-    agentFiles.set(backend, list);
-    backend.impl.setOnRunAgent(() => {
-      for (const [file, text] of list) fs.impl.setFile(file, text);
-    });
-  }
-  files.push([path, content]);
+function setup() {
+  const fs = makeFakeFileSystem();
+  const backend = makeFakeBackend();
+  const output = { log() {}, warn() {}, error() {} };
+  const layer = Layer.mergeAll(backend.layer, fs.layer, NoopSystemTelemetryLayer);
+  const review = (config: ResolvedComplianceReviewConfig = enabledConfig) =>
+    Effect.runPromise(
+      reviewCompliance(makeInfo(), config, fakeResolution, fakeSecurity, { output }).pipe(
+        Effect.provide(layer),
+      ),
+    );
+  return { fs, backend, review };
 }
 
 describe("review-compliance command (use-case layer)", () => {
   it("returns disabled when config is not enabled", async () => {
-    const fs = makeFakeFileSystem();
-    const backend = makeFakeBackend();
+    const t = setup();
 
-    const result = await Effect.runPromise(
-      reviewCompliance(makeInfo(), disabledConfig, fakeResolution, fakeSecurity, {}).pipe(
-        Effect.provide(setupLayers(backend, fs)),
-      ),
-    );
+    const result = await t.review(disabledConfig);
 
     expect(result.kind).toBe("disabled");
     // Command renders the not-enabled error and exits 1
   });
 
-  it("returns generated with verdict when backend writes valid artifacts", async () => {
-    const fs = makeFakeFileSystem();
-    const backend = makeFakeBackend();
+  it("returns generated with the review and both file paths for an accepted answer", async () => {
+    const t = setup();
+    t.fs.impl.setFile(`${runPath}/plan.md`, "# Plan\n");
+    t.fs.impl.setFile(`${runPath}/global-file-reconciliation.md`, "# Reconciliation\n");
+    t.backend.impl.addRunResponse(answering(validJson));
 
-    fs.impl.setFile(`${runPath}/plan.md`, "# Plan\n");
-    fs.impl.setFile(`${runPath}/global-file-reconciliation.md`, "# Reconciliation\n");
-    backend.impl.addRunResponse(fakeSessionResult);
-    agentWrites(backend, fs, `${phaxContextPath}/compliance-review.md`, "# Review\n\nAll good.\n");
-    agentWrites(backend, fs, `${phaxContextPath}/compliance-review.json`, validJson);
-
-    const result = await Effect.runPromise(
-      reviewCompliance(makeInfo(), enabledConfig, fakeResolution, fakeSecurity, {}).pipe(
-        Effect.provide(setupLayers(backend, fs)),
-      ),
-    );
+    const result = await t.review();
 
     // Command renders verdict + artifact path, exits 0
     expect(result.kind).toBe("generated");
-    expect(result.verdict).toBe("conformant-with-deviations");
+    if (result.kind !== "generated") return;
+    expect(result.review.verdict).toBe("conformant-with-deviations");
     expect(result.mdArtifactPath).toBe(`${runPath}/compliance-review.md`);
-    expect(result.structuredVerdictMissing).toBeUndefined();
+    expect(result.jsonArtifactPath).toBe(`${runPath}/compliance-review.json`);
   });
 
   it("returns failed when plan.md is absent", async () => {
-    const fs = makeFakeFileSystem();
-    const backend = makeFakeBackend();
+    const t = setup();
+    t.fs.impl.setFile(`${runPath}/global-file-reconciliation.md`, "# Reconciliation\n");
 
-    fs.impl.setFile(`${runPath}/global-file-reconciliation.md`, "# Reconciliation\n");
-    // No plan.md
-
-    const result = await Effect.runPromise(
-      reviewCompliance(makeInfo(), enabledConfig, fakeResolution, fakeSecurity, {}).pipe(
-        Effect.provide(setupLayers(backend, fs)),
-      ),
-    );
+    const result = await t.review();
 
     // Command renders failure reason + retry hint, exits 1
     expect(result.kind).toBe("failed");
-    expect(result.failureReason).toBeDefined();
-    expect(backend.impl.runCalls).toHaveLength(0);
+    expect(result.kind === "failed" && result.failureReason).toMatch(/plan\.md/);
+    expect(t.backend.impl.runCalls).toHaveLength(0);
   });
 
-  it("returns generated with unknown verdict when json is missing", async () => {
-    const fs = makeFakeFileSystem();
-    const backend = makeFakeBackend();
+  it("returns failed, not an unknown verdict, when the answer is refused twice", async () => {
+    const t = setup();
+    t.fs.impl.setFile(`${runPath}/plan.md`, "# Plan\n");
+    t.fs.impl.setFile(`${runPath}/global-file-reconciliation.md`, "# Reconciliation\n");
+    t.backend.impl.addRunResponse(answering("Some prose, not JSON."));
+    t.backend.impl.addResumeResponse(answering("More prose."));
 
-    fs.impl.setFile(`${runPath}/plan.md`, "# Plan\n");
-    fs.impl.setFile(`${runPath}/global-file-reconciliation.md`, "# Reconciliation\n");
-    backend.impl.addRunResponse(fakeSessionResult);
-    agentWrites(
-      backend,
-      fs,
-      `${phaxContextPath}/compliance-review.md`,
-      "# Review\n\nSome prose.\n",
+    const result = await t.review();
+
+    // Command renders the failure line and its retry command, exits 1
+    expect(result.kind).toBe("failed");
+    expect(result.kind === "failed" && result.failureReason).toMatch(
+      /^compliance-review answer rejected twice/,
     );
-    // No json artifact
-
-    const result = await Effect.runPromise(
-      reviewCompliance(makeInfo(), enabledConfig, fakeResolution, fakeSecurity, {}).pipe(
-        Effect.provide(setupLayers(backend, fs)),
-      ),
-    );
-
-    // Command renders "unknown" verdict, exits 0 (advisory)
-    expect(result.kind).toBe("generated");
-    expect(result.verdict).toBe("unknown");
-    expect(result.structuredVerdictMissing).toBe(true);
+    expect(result).not.toHaveProperty("verdict");
+    expect(t.fs.impl.getFile(`${runPath}/compliance-review.json`)).toBeUndefined();
+    expect(t.fs.impl.getFile(`${runPath}/compliance-review.md`)).toBeUndefined();
   });
 });

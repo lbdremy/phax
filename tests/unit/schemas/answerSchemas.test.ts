@@ -31,7 +31,7 @@ const snapshotsDir = resolve(
 );
 
 describe("answerJsonSchema", () => {
-  it("registers the eight answer formats", () => {
+  it("registers the nine answer formats", () => {
     expect(ANSWER_IDS).toEqual([
       "spec-document",
       "plan-document",
@@ -40,6 +40,7 @@ describe("answerJsonSchema", () => {
       "first-reading",
       "interactive-handoff",
       "code-review",
+      "compliance-review",
       "phax-plan-extraction",
     ]);
   });

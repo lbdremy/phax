@@ -9,6 +9,7 @@ import type { RunReviewInfo } from "../../src/domain/runReviewInfo.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import { encodePhaseFileReconciliation } from "../../src/schemas/reconciliation.js";
+import { CODE_REVIEW_AGENT_COMMANDS } from "../../src/domain/security/agentCommands.js";
 import type { PhaseStatus } from "../../src/schemas/status.js";
 import { phaseStatus } from "../helpers/phaseStatusFixture.js";
 import { reconciliationResult } from "../helpers/reconciliationFixture.js";
@@ -242,8 +243,9 @@ describe("the review surfaces of a run with stops", () => {
         handoffMd: r.handoffMd,
       })),
       worktreePath: "/fake/worktrees/phase-04",
-      mdArtifactPath: "/fake/compliance-review.md",
-      jsonArtifactPath: "/fake/compliance-review.json",
+      baseRef: null,
+      runBranch: "feature/invoice-export",
+      gitCommands: CODE_REVIEW_AGENT_COMMANDS,
     });
 
     expect(prompt).toContain("### Phase phase-02 (held stop)");

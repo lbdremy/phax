@@ -17,6 +17,7 @@ import {
   DEFAULT_PROVIDER_CONFIG,
 } from "../../src/domain/routing/defaults.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
+import { CODE_REVIEW_AGENT_COMMANDS } from "../../src/domain/security/agentCommands.js";
 import { NodeGitLayer } from "../../src/infra/git.js";
 import { NodeShellLayer } from "../../src/infra/shell.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
@@ -217,8 +218,9 @@ describe("a plan with no Mode line, run without --hold", { timeout: 60_000 }, ()
       phaseHandoffs: [],
       reviewedPhases: [],
       worktreePath: info.worktreePath,
-      mdArtifactPath: "/example/compliance-review.md",
-      jsonArtifactPath: "/example/compliance-review.json",
+      baseRef: null,
+      runBranch: info.branch,
+      gitCommands: CODE_REVIEW_AGENT_COMMANDS,
     });
     expect(prompt).not.toContain("## Reviewed phases");
     expect(prompt).not.toContain("A person corrected this phase");

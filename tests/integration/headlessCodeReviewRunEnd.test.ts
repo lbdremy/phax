@@ -4,7 +4,7 @@
 // goes wrong never fails the run. Drives executePlan with fake ports; nothing
 // reaches GitHub: every test uses makeFakeGitHub().
 import { Effect, Either, Layer } from "effect";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -207,12 +207,8 @@ describe("headless code review at run end", () => {
     const backend = makeFakeBackend();
     backend.impl.setOnRunAgent((_prompt, options) => {
       const stream = options.outputJsonlPath ?? "";
-      const context = join(worktreeOf(), ".phax-context");
-      mkdirSync(context, { recursive: true });
       if (stream.endsWith("compliance-review.session.jsonl")) {
         sessions.push("compliance");
-        writeFileSync(join(context, "compliance-review.md"), "# Compliance Review\n");
-        writeFileSync(join(context, "compliance-review.json"), COMPLIANCE_JSON);
       } else if (stream.endsWith("code-review.session.jsonl")) {
         sessions.push("code-review");
         codeCalls.push({ model: options.model, effort: options.effort });
@@ -225,7 +221,8 @@ describe("headless code review at run end", () => {
     });
     const responses: [string, string][] = [
       ["session-phase-01", ""],
-      ["session-compliance", ""],
+      // The compliance review answers with its final message.
+      ["session-compliance", COMPLIANCE_JSON],
     ];
     // The code review answers with its final message.
     if (opts.codeSession !== false) responses.push(["session-code-review", opts.answer ?? ""]);
