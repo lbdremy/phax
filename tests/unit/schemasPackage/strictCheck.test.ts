@@ -367,13 +367,13 @@ const rows: readonly Row[] = [
 
 describe("strict check oracles", () => {
   // Oracle 1: a conforming schema yields nothing.
-  it.fails("yields no violation and no finding for a conforming schema", () => {
+  it("yields no violation and no finding for a conforming schema", () => {
     const schema = conforming();
     expect(strictViolations(schema)).toEqual([]);
     expect(strictCheckFindings(ANSWER, schema)).toEqual([]);
   });
 
-  it.fails("accepts a schema of exactly the inline budget", () => {
+  it("accepts a schema of exactly the inline budget", () => {
     const schema = paddedTo(INLINE_SCHEMA_BUDGET_BYTES);
     expect(new TextEncoder().encode(JSON.stringify(schema)).length).toBe(
       INLINE_SCHEMA_BUDGET_BYTES,
@@ -382,7 +382,7 @@ describe("strict check oracles", () => {
     expect(strictCheckFindings(ANSWER, schema)).toEqual([]);
   });
 
-  it.fails("refuses a schema one byte above the inline budget", () => {
+  it("refuses a schema one byte above the inline budget", () => {
     const schema = paddedTo(INLINE_SCHEMA_BUDGET_BYTES + 1);
     expect(strictViolations(schema)).toEqual([
       {
@@ -394,7 +394,7 @@ describe("strict check oracles", () => {
   });
 
   // Oracle 2: each construct yields exactly one violation and one finding.
-  it.fails.each(rows)("$name yields one violation and one finding", (row) => {
+  it.each(rows)("$name yields one violation and one finding", (row) => {
     const schema = row.build();
     expect(strictViolations(schema)).toEqual([
       { path: row.path, construct: row.construct, providers: row.providers },
@@ -405,7 +405,7 @@ describe("strict check oracles", () => {
   });
 
   // Oracle 3: the acceptance case, the lookahead the guarantee pattern holds today.
-  it.fails("names a lookahead guarantee pattern as a lookaround pattern", () => {
+  it("names a lookahead guarantee pattern as a lookaround pattern", () => {
     const schema = mutated((s) => {
       child(s, "properties", "guarantee")["pattern"] = "^(?!\\s)[\\s\\S]*\\S$";
     })();
@@ -417,7 +417,7 @@ describe("strict check oracles", () => {
   // Oracle 4: one finding per violation, root first, then properties in key
   // order, depth first: the deep entries violation precedes the shallower
   // nested one, which a breadth-first walk would reverse.
-  it.fails("reports several violations in walk order", () => {
+  it("reports several violations in walk order", () => {
     const schema = mutated((s) => {
       s["allOf"] = [{ type: "object" }];
       child(s, ...ENTRY_GUARANTEE.split("."))["pattern"] = "^(?=a)[\\s\\S]*$";
