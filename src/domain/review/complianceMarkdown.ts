@@ -50,9 +50,46 @@ export interface ComplianceReviewToRender {
   readonly pointers: readonly string[];
 }
 
+function section(title: string, items: readonly string[]): string[] {
+  return ["", title, "", ...(items.length === 0 ? ["None."] : items)];
+}
+
 export function renderComplianceReviewMarkdown(
-  _runId: string,
-  _review: ComplianceReviewToRender,
+  runId: string,
+  review: ComplianceReviewToRender,
 ): string {
-  throw new Error("complianceMarkdown: not implemented");
+  const lines = [
+    `# Compliance review — ${runId}`,
+    "",
+    `Verdict: ${review.verdict}`,
+    "",
+    review.summary.trim() === "" ? "None." : review.summary,
+  ];
+  for (const phase of review.perPhase) {
+    lines.push(
+      ...section(
+        `## ${phase.phaseId} — ${phase.verdict}`,
+        phase.findings.map((f) => `- ${f.dimension} · ${f.severity} — ${f.message}`),
+      ),
+    );
+  }
+  lines.push(
+    ...section(
+      "## Unplanned changes",
+      review.unplannedChanges.map((c) => `- ${c.phaseId} · ${c.path} — ${c.note}`),
+    ),
+    ...section(
+      "## Unmet promises",
+      review.unmetPromises.map((p) => `- ${p.phaseId} · ${p.promise} — ${p.note}`),
+    ),
+    ...section(
+      "## Attention points",
+      review.attentionPoints.map((p) => `- ${p}`),
+    ),
+    ...section(
+      "## Pointers",
+      review.pointers.map((p) => `- ${p}`),
+    ),
+  );
+  return `${lines.join("\n")}\n`;
 }

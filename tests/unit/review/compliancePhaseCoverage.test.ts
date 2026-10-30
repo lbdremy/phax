@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { phaseCoverageRefusal } from "../../../src/domain/review/compliancePhaseCoverage.js";
 
 describe("phaseCoverageRefusal", () => {
-  it.fails.each([
+  it.each([
     {
       name: "the same phases in the same order",
       answered: ["phase-01", "phase-02", "phase-03"],

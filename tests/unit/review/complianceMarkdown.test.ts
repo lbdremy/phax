@@ -75,17 +75,17 @@ const goldenMarkdown = [
 ].join("\n");
 
 describe("renderComplianceReviewMarkdown", () => {
-  it.fails("renders the golden review exactly", () => {
+  it("renders the golden review exactly", () => {
     expect(renderComplianceReviewMarkdown(RUN_ID, golden)).toBe(goldenMarkdown);
   });
 
-  it.fails("renders the same review identically twice", () => {
+  it("renders the same review identically twice", () => {
     expect(renderComplianceReviewMarkdown(RUN_ID, golden)).toBe(
       renderComplianceReviewMarkdown(RUN_ID, golden),
     );
   });
 
-  it.fails.each([{ summary: "" }, { summary: "  \n " }])(
+  it.each([{ summary: "" }, { summary: "  \n " }])(
     "renders None. everywhere for an empty review (summary $summary)",
     ({ summary }) => {
       const review: ComplianceReviewToRender = {
@@ -130,7 +130,7 @@ describe("renderComplianceReviewMarkdown", () => {
     },
   );
 
-  it.fails("keeps the answer's order for findings and ledger entries", () => {
+  it("keeps the answer's order for findings and ledger entries", () => {
     const review: ComplianceReviewToRender = {
       verdict: "non-conformant",
       summary: "Two of everything.",
