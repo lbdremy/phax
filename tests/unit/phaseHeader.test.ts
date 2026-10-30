@@ -9,7 +9,7 @@ import {
   withPhaseKinds,
   type PhaseHeader,
 } from "../../src/domain/plan/phaseHeader.js";
-import type { ExtractionAnswer } from "../../src/schemas/phaxPlan.js";
+import type { ExtractionPlan } from "../../src/schemas/planExtraction.js";
 
 function plan(headerLines: readonly string[], rest = ""): string {
   return [
@@ -262,7 +262,7 @@ describe("phaseKinds", () => {
 });
 
 /** An extraction model's answer phase: no title, no mode, no oracle. */
-function answerPhase(id: string): ExtractionAnswer["phases"][number] {
+function answerPhase(id: string): ExtractionPlan["phases"][number] {
   return {
     id,
     model: "claude-sonnet-5-5",
@@ -276,9 +276,8 @@ function answerPhase(id: string): ExtractionAnswer["phases"][number] {
   };
 }
 
-function answer([first, ...rest]: readonly [string, ...string[]]): ExtractionAnswer {
+function answer([first, ...rest]: readonly [string, ...string[]]): ExtractionPlan {
   return {
-    version: 1,
     run: { shortName: "plan", title: "Plan", requiredCommands: [] },
     phases: [answerPhase(first), ...rest.map(answerPhase)],
   };

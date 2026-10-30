@@ -1,9 +1,12 @@
 // The first reading: what a declared interactive phase's read-only first turn
 // answers in its final message, once per turn. Born with `$schema`; every key
-// is required and any other key is refused. phax decodes it at the boundary
+// is required and any other key is refused. From 0.32.0 it is a strict answer:
+// its `$schema` is a const naming the current stamp (`answerSchemaUrlField`) and
+// its strings are `strictString`'s pattern. phax decodes it at the boundary
 // (`readFirstReadingAnswer`) and never writes it back as a document.
 import { Schema } from "effect";
-import { schemaUrlField } from "./schemaUrl.js";
+import { answerSchemaUrlField } from "./answerStamp.js";
+import { NonEmptyString } from "./strictString.js";
 
 const PhaseIdSchema = Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/));
 
@@ -13,17 +16,17 @@ const PhaseIdSchema = Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/));
  * refused.
  */
 export const FirstReadingFileSchema = Schema.Struct({
-  $schema: schemaUrlField("first-reading"),
-  pattern: Schema.NonEmptyArray(Schema.NonEmptyString).annotations({
+  $schema: answerSchemaUrlField("first-reading"),
+  pattern: Schema.NonEmptyArray(NonEmptyString).annotations({
     description: "The pattern the phase introduces, one statement per item.",
   }),
   copiedBy: Schema.Array(
     Schema.Struct({
       phase: PhaseIdSchema.annotations({ description: "The phase that copied the pattern." }),
-      what: Schema.NonEmptyString.annotations({ description: "What it copied." }),
+      what: NonEmptyString.annotations({ description: "What it copied." }),
     }),
   ),
-  toCheck: Schema.Array(Schema.NonEmptyString).annotations({
+  toCheck: Schema.Array(NonEmptyString).annotations({
     description: "What the person should check first.",
   }),
 });

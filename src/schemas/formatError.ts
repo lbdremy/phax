@@ -135,6 +135,33 @@ export function formatFirstViolation(err: ParseResult.ParseError): string {
 }
 
 /**
+ * A refused provider answer as one line, from a decode that reported every
+ * issue (`errors: "all"`). The issues about the answer's own keys (`$schema`,
+ * a key missing, a key it does not name) and about the answer itself are
+ * reported together, `$schema` first and joined by `; ` (`$schema: is missing;
+ * version: is unexpected, …`): a model that answered an older shape is told the
+ * whole difference at once. Without one, the first violation reads as
+ * `formatFirstViolation` reads it, at its full path.
+ */
+export function formatAnswerViolations(err: ParseResult.ParseError): string {
+  const issues = ParseResult.ArrayFormatter.formatErrorSync(err);
+  const line = (issue: ParseResult.ArrayFormatterIssue): string => {
+    const path = formatIssuePath(issue.path);
+    return path.length > 0 ? `${path}: ${issue.message}` : issue.message;
+  };
+  const ownKeys = issues.filter(
+    ({ path, message }) =>
+      path.length === 0 ||
+      (path.length === 1 &&
+        (path[0] === "$schema" || message === "is missing" || message.startsWith("is unexpected"))),
+  );
+  if (ownKeys.length === 0) return issues[0] === undefined ? err.message : line(issues[0]);
+  const stamp = ownKeys.filter(({ path }) => path[0] === "$schema");
+  const others = ownKeys.filter(({ path }) => path[0] !== "$schema");
+  return [...stamp, ...others].map(line).join("; ");
+}
+
+/**
  * The first violation of a plan document or plan sidecar as one line. A
  * violation at `phases[i].testStrategy[j]` or below names the phase and the
  * line, `<phase id> test line <j + 1> <path inside the line>: <message>`

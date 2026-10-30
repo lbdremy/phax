@@ -41,6 +41,7 @@ import { withoutAnnotations } from "../../../packages/schemas/build/snapshots.js
 import {
   decideVerdictsFormat,
   handDecisionAnswerFormat,
+  phaxPlanExtractionFormat,
 } from "../../../packages/schemas/src/formats/answers.js";
 import {
   architectureReportFormat,
@@ -140,6 +141,7 @@ const DECODERS: { readonly [F in JsonSchemaFormatId]: Decode } = {
   "review-stop": reviewStopFormat.current.shape.decode,
   "run-list": runListFormat.current.shape.decode,
   "decide-verdicts": decideVerdictsFormat.current.shape.decode,
+  "phax-plan-extraction": phaxPlanExtractionFormat.current.shape.decode,
   "record-manifest": decodeRecordManifestFile,
 };
 
@@ -235,10 +237,10 @@ describe("the JSON Schema table", () => {
 });
 
 describe("renderJsonSchemas over the real table", () => {
-  it("renders 35 files and no failure", () => {
+  it("renders 36 files and no failure", () => {
     expect(rendered.failures).toEqual([]);
     expect([...rendered.files.keys()]).toEqual(JSON_SCHEMA_FORMATS.map(({ fileName }) => fileName));
-    expect(rendered.files.size).toBe(35);
+    expect(rendered.files.size).toBe(36);
   });
 
   it.each(JSON_SCHEMA_FORMATS)(

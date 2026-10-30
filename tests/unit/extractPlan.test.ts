@@ -4,6 +4,7 @@ import { extractPlanLlm } from "../../src/app/extractPlan.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { ExtractedPhaxPlanSchema, decodePhaxPlanFile } from "../../src/schemas/phaxPlan.js";
+import { answerJsonSchema } from "../../src/schemas/answerSchemas.js";
 import { CURRENT_STAMPS } from "../../src/schemas/release.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 
@@ -147,11 +148,16 @@ describe("PhaxPlanFileSchema — requiredCommands", () => {
 });
 
 /** The extraction model's final text: a plan answer carrying these phases. */
+const EXTRACTION_STAMP = schemaUrl("phax-plan-extraction", CURRENT_STAMPS["phax-plan-extraction"]);
+
 function answer(phases: readonly object[]): string {
   return JSON.stringify({
-    version: 1,
-    run: { shortName: "my-run", title: "My Run", requiredCommands: [] },
-    phases,
+    $schema: EXTRACTION_STAMP,
+    plan: {
+      run: { shortName: "my-run", title: "My Run", requiredCommands: [] },
+      phases,
+    },
+    incomplete: null,
   });
 }
 
@@ -265,6 +271,62 @@ describe("extractPlanLlm — mode and oracle come from the header lines", () => 
       "testLines is [] for a phase whose `### Test strategy` section is absent, empty or `- (none)`",
     );
     expect(prompt).toContain("If a test strategy item is not in that line format");
+    expect(prompt).toContain(`"incomplete": "<the phase and the item>"`);
+    expect(prompt).not.toContain('{"error"');
+    expect(prompt).toContain(JSON.stringify(answerJsonSchema("phax-plan-extraction"), null, 2));
+  });
+
+  it("fails with the reason when the model reports the plan incomplete, in one call", async () => {
+    const fs = makeFakeFileSystem();
+    const backend = makeFakeBackend();
+    backend.impl.addCompletionResponse({
+      finalText: JSON.stringify({
+        $schema: EXTRACTION_STAMP,
+        plan: null,
+        incomplete: "phase-02 has no commit subject",
+      }),
+    });
+    const result = await Effect.runPromise(
+      Effect.either(
+        extractPlanLlm(PLAN_MD, { model: "claude-sonnet-4-6", effort: "low" }).pipe(
+          Effect.provide(Layer.merge(fs.layer, backend.layer)),
+        ),
+      ),
+    );
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left.message).toBe(
+        "The extraction model found the plan incomplete: phase-02 has no commit subject",
+      );
+    }
+    expect(backend.impl.completeCalls).toHaveLength(1);
+  });
+
+  it("refuses an answer with version and no $schema, naming both, without a retry", async () => {
+    const fs = makeFakeFileSystem();
+    const backend = makeFakeBackend();
+    backend.impl.addCompletionResponse({
+      finalText: JSON.stringify({
+        version: 1,
+        run: { shortName: "my-run", title: "My Run", requiredCommands: [] },
+        phases: [baseAnswerPhase, secondAnswerPhase],
+      }),
+    });
+    const result = await Effect.runPromise(
+      Effect.either(
+        extractPlanLlm(PLAN_MD, { model: "claude-sonnet-4-6", effort: "low" }).pipe(
+          Effect.provide(Layer.merge(fs.layer, backend.layer)),
+        ),
+      ),
+    );
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left.message).toMatch(
+        /^Extracted JSON failed schema validation: \$schema: is missing/,
+      );
+      expect(result.left.message).toContain("version: is unexpected");
+    }
+    expect(backend.impl.completeCalls).toHaveLength(1);
   });
 
   it("refuses an answer whose phases carry mode or oracle", async () => {

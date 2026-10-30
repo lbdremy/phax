@@ -25,6 +25,8 @@ import {
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
 import type { ResolvedRecordsConfig } from "../../src/schemas/recordsConfig.js";
+import { CURRENT_STAMPS } from "../../src/schemas/release.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 import { liftFixturePhaxPlanToCurrent } from "../helpers/liftFixturePhaxPlan.js";
 import { planMdFor } from "../helpers/planMarkdown.js";
 
@@ -72,7 +74,8 @@ const finding = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
-const answerOf = (...findings: unknown[]) => JSON.stringify({ version: 1, findings });
+const answerOf = (...findings: unknown[]) =>
+  JSON.stringify({ $schema: schemaUrl("code-review", CURRENT_STAMPS["code-review"]), findings });
 
 const HEADING = "### Code review findings";
 

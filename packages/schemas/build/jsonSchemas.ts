@@ -2,8 +2,12 @@
 // persisted format, rendered from the schema its parse function decodes with.
 // A refinement JSON Schema cannot express fails its format rather than being
 // dropped: effect's JSONSchema renders an unannotated refinement as its base.
-import { JSONSchema, SchemaAST, type Schema } from "effect";
+import { SchemaAST, type Schema } from "effect";
 import { RecordManifestSchema } from "../../../src/schemas/authoringRecord.js";
+import {
+  renderPublishedJsonSchema,
+  type Excess,
+} from "../../../src/schemas/publishedJsonSchema.js";
 import { FORMAT_IDS, type FormatId } from "../../../src/schemas/schemaUrl.js";
 import { briefRecordFormat, briefRequestFormat } from "../src/formats/brief.js";
 import {
@@ -38,7 +42,11 @@ import {
 } from "../src/formats/interactive.js";
 import { oracleRequestFormat } from "../src/formats/oracleRequest.js";
 import { briefReportFormat, gateReportFormat } from "../src/formats/reports.js";
-import { decideVerdictsFormat, handDecisionAnswerFormat } from "../src/formats/answers.js";
+import {
+  decideVerdictsFormat,
+  handDecisionAnswerFormat,
+  phaxPlanExtractionFormat,
+} from "../src/formats/answers.js";
 import {
   codeReviewFormat,
   complianceReviewFormat,
@@ -49,13 +57,7 @@ import {
   runStatusFormat,
 } from "../src/formats/runDirectory.js";
 
-const DRAFT_07 = "http://json-schema.org/draft-07/schema#";
-
-/**
- * How a format's decoder treats a key its schema does not name: `error`
- * rejects it, `ignore` accepts and drops it. The JSON Schema follows suit.
- */
-export type Excess = "error" | "ignore";
+export type { Excess };
 
 /** One file of `packages/schemas/json/`. */
 export interface JsonSchemaFormat {
@@ -122,6 +124,7 @@ export const FORMAT_DEFINITIONS: { readonly [F in FormatId]: CurrentShape } = {
   "review-stop": reviewStopFormat,
   "run-list": runListFormat,
   "decide-verdicts": decideVerdictsFormat,
+  "phax-plan-extraction": phaxPlanExtractionFormat,
 };
 
 // phax's decoders for the run directory's status files, the registry and the
@@ -162,6 +165,7 @@ const EXCESS: { readonly [F in JsonSchemaFormatId]: Excess } = {
   "review-stop": "error",
   "run-list": "error",
   "decide-verdicts": "error",
+  "phax-plan-extraction": "error",
   "record-manifest": "error",
 };
 
@@ -247,28 +251,6 @@ export function findJsonSchemaGaps(schema: Schema.Schema.Any): string[] {
 }
 
 /**
- * `JSONSchema.make` with the format's excess-property strategy, which only
- * `fromAST` takes, and the table's root title.
- */
-function renderOne(entry: JsonSchemaFormat): Record<string, unknown> {
-  const definitions: Record<string, JSONSchema.JsonSchema7> = {};
-  const rendered: Record<string, unknown> = {
-    ...JSONSchema.fromAST(entry.schema.ast, {
-      definitions,
-      target: "jsonSchema7",
-      additionalPropertiesStrategy: entry.excess === "ignore" ? "allow" : "strict",
-    }),
-  };
-  const { title: _ownTitle, ...body } = rendered;
-  return {
-    $schema: DRAFT_07,
-    title: entry.title,
-    ...(Object.keys(definitions).length > 0 ? { $defs: definitions } : {}),
-    ...body,
-  };
-}
-
-/**
  * Renders every entry. A format with a gap or a rendering error gets a
  * failure naming it and no file; every other format gets its file content.
  */
@@ -288,7 +270,18 @@ export function renderJsonSchemas(table: ReadonlyArray<JsonSchemaFormat>): {
       continue;
     }
     try {
-      files.set(entry.fileName, `${JSON.stringify(renderOne(entry), null, 2)}\n`);
+      files.set(
+        entry.fileName,
+        `${JSON.stringify(
+          renderPublishedJsonSchema({
+            schema: entry.schema,
+            title: entry.title,
+            excess: entry.excess,
+          }),
+          null,
+          2,
+        )}\n`,
+      );
     } catch (error) {
       failures.push({
         format: entry.format,

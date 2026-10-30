@@ -3,7 +3,10 @@
 // and review stop phax writes. Each is born with `$schema`: no pre-schema
 // shape, and a document without `$schema` is unreadable. Each refuses a key it
 // does not name. The current shape, named by `CURRENT_SHAPES`, is phax's own
-// file schema and decoder.
+// file schema and decoder. The first reading and the handoff are strict
+// answers from 0.32.0 (a const `$schema`, the strict non-empty pattern); each
+// lists its frozen 0.26.0 shape as a release. A const `$schema` reads only its
+// own stamp: a document stamped above the current stamp is refused at `$schema`.
 import {
   FirstReadingFileSchema,
   decodeFirstReadingFile,
@@ -16,6 +19,16 @@ import {
   type InteractiveHandoff,
   type InteractiveHandoffFile,
 } from "../../../../src/schemas/interactiveHandoff.js";
+import {
+  FirstReadingV0_26_0Schema,
+  decodeFirstReadingV0_26_0,
+  type FirstReadingV0_26_0,
+} from "../../../../src/schemas/history/first-reading/0.26.0.js";
+import {
+  InteractiveHandoffV0_26_0Schema,
+  decodeInteractiveHandoffV0_26_0,
+  type InteractiveHandoffV0_26_0,
+} from "../../../../src/schemas/history/interactive-handoff/0.26.0.js";
 import {
   InteractiveSessionFileSchema,
   decodeInteractiveSessionFile,
@@ -57,6 +70,8 @@ import { defineFormat, type CurrentShapeName } from "../shapes.js";
 // ── first reading
 
 export type FirstReadingShapes = {
+  "0.26.0": FirstReadingV0_26_0;
+} & {
   [K in CurrentShapeName<"first-reading">]: FirstReadingFile;
 };
 
@@ -67,7 +82,7 @@ export const firstReadingFormat = defineFormat<FirstReadingShapes>({
   id: "first-reading",
   label: "first reading",
   preSchema: null,
-  releases: [],
+  releases: [["0.26.0", { schema: FirstReadingV0_26_0Schema, decode: decodeFirstReadingV0_26_0 }]],
   current: {
     name: CURRENT_SHAPES["first-reading"],
     shape: { schema: FirstReadingFileSchema, decode: decodeFirstReadingFile },
@@ -81,8 +96,13 @@ export const parseFirstReading: (input: unknown) => ParsedShape<FirstReadingShap
 /** The latest first reading: phax's in-memory value, with no `$schema`. */
 export type LatestFirstReading = FirstReading;
 
-/** Upgrades a parsed first reading in memory: drops `$schema`, keeps every other fact. */
-export function toLatestFirstReading(value: FirstReadingFile): LatestFirstReading {
+/**
+ * Upgrades a parsed first reading in memory: drops `$schema`, keeps every other
+ * fact. A 0.26.0 reading is valid in the current shape as it is.
+ */
+export function toLatestFirstReading(
+  value: FirstReadingFile | FirstReadingV0_26_0,
+): LatestFirstReading {
   const { $schema: _schema, ...recorded } = value;
   return recorded;
 }
@@ -90,6 +110,8 @@ export function toLatestFirstReading(value: FirstReadingFile): LatestFirstReadin
 // ── interactive handoff
 
 export type InteractiveHandoffShapes = {
+  "0.26.0": InteractiveHandoffV0_26_0;
+} & {
   [K in CurrentShapeName<"interactive-handoff">]: InteractiveHandoffFile;
 };
 
@@ -100,7 +122,12 @@ export const interactiveHandoffFormat = defineFormat<InteractiveHandoffShapes>({
   id: "interactive-handoff",
   label: "interactive handoff",
   preSchema: null,
-  releases: [],
+  releases: [
+    [
+      "0.26.0",
+      { schema: InteractiveHandoffV0_26_0Schema, decode: decodeInteractiveHandoffV0_26_0 },
+    ],
+  ],
   current: {
     name: CURRENT_SHAPES["interactive-handoff"],
     shape: { schema: InteractiveHandoffFileSchema, decode: decodeInteractiveHandoffFile },
@@ -114,9 +141,12 @@ export const parseInteractiveHandoff: (input: unknown) => ParsedShape<Interactiv
 /** The latest interactive handoff: phax's in-memory value, with no `$schema`. */
 export type LatestInteractiveHandoff = InteractiveHandoff;
 
-/** Upgrades a parsed interactive handoff in memory: drops `$schema`, keeps every other fact. */
+/**
+ * Upgrades a parsed interactive handoff in memory: drops `$schema`, keeps every
+ * other fact. A 0.26.0 handoff is valid in the current shape as it is.
+ */
 export function toLatestInteractiveHandoff(
-  value: InteractiveHandoffFile,
+  value: InteractiveHandoffFile | InteractiveHandoffV0_26_0,
 ): LatestInteractiveHandoff {
   const { $schema: _schema, ...recorded } = value;
   return recorded;

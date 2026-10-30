@@ -1,6 +1,10 @@
 import { Either } from "effect";
 import { describe, expect, it } from "vitest";
 import { codeReviewFileText, readCodeReviewAnswer } from "../../../src/schemas/codeReview.js";
+import { CURRENT_STAMPS } from "../../../src/schemas/release.js";
+import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
+
+const STAMP = schemaUrl("code-review", CURRENT_STAMPS["code-review"]);
 
 const finding = {
   severity: "bug",
@@ -13,20 +17,20 @@ const finding = {
   suggestion: "Refuse an empty --name with exit 2.",
 };
 
-const answer = (findings: readonly unknown[]): string => JSON.stringify({ version: 1, findings });
+const answer = (findings: readonly unknown[]): unknown => ({ $schema: STAMP, findings });
 
-function accept(text: string) {
-  const result = readCodeReviewAnswer(text);
+function accept(parsed: unknown) {
+  const result = readCodeReviewAnswer(parsed);
   if (Either.isLeft(result)) throw new Error(`refused: ${result.left}`);
   return result.right;
 }
 
 describe("the code-review answer contract", () => {
-  it("accepts a version 1 answer and writes $schema first, then the findings", () => {
+  it("accepts a stamped answer and writes $schema first, then the findings", () => {
     const review = accept(answer([finding]));
     const file = JSON.parse(codeReviewFileText(review)) as Record<string, unknown>;
     expect(Object.keys(file)).toEqual(["$schema", "findings"]);
-    expect(file["$schema"]).toBe("https://docs.phax.run/schemas/code-review/0.29.0.json");
+    expect(file["$schema"]).toBe(STAMP);
     expect(file["findings"]).toEqual([finding]);
     expect(file).not.toHaveProperty("version");
   });
@@ -59,17 +63,18 @@ describe("the code-review answer contract", () => {
     return rest;
   };
 
-  const refused: ReadonlyArray<readonly [string, string, readonly string[]]> = [
+  const refused: ReadonlyArray<readonly [string, unknown, readonly string[]]> = [
     ["an unknown lens", answer([{ ...finding, lens: "security" }]), ["lens", "security"]],
     ["a missing suggestion", answer([without("suggestion")]), ["suggestion"]],
     ["an extra finding key", answer([{ ...finding, confidence: 0.9 }]), ["confidence"]],
-    ["text that is not JSON", "not json {", []],
     ["an unknown severity", answer([{ ...finding, severity: "critical" }]), []],
     ["an unknown escape", answer([{ ...finding, escape: "flaky" }]), []],
-    ["version 2", JSON.stringify({ version: 2, findings: [] }), []],
-    ["no findings key", JSON.stringify({ version: 1 }), []],
-    ["an extra top-level key", JSON.stringify({ version: 1, findings: [], summary: "x" }), []],
-    ["findings that is not an array", JSON.stringify({ version: 1, findings: {} }), []],
+    ["no $schema", { findings: [] }, ["$schema"]],
+    ["another $schema", { $schema: STAMP.replace("code-review", "run-list"), findings: [] }, []],
+    ["a version in place of $schema", { version: 1, findings: [] }, ["$schema", "version"]],
+    ["no findings key", { $schema: STAMP }, ["findings"]],
+    ["an extra top-level key", { $schema: STAMP, findings: [], summary: "x" }, ["summary"]],
+    ["findings that is not an array", { $schema: STAMP, findings: {} }, []],
     ["line 0", answer([{ ...finding, line: 0 }]), []],
     ["a fractional line", answer([{ ...finding, line: 4.5 }]), []],
     ["a string line", answer([{ ...finding, line: "42" }]), []],
@@ -78,15 +83,23 @@ describe("the code-review answer contract", () => {
     ["an empty suggestion", answer([{ ...finding, suggestion: "" }]), []],
     ["an empty criterion", answer([{ ...finding, criterion: "" }]), []],
     ["a missing criterion", answer([without("criterion")]), []],
-    ["the text null", "null", []],
-    ["the text []", "[]", []],
+    ["null", null, []],
+    ["an array", [], []],
   ];
 
-  it.each(refused)("refuses %s", (_name, text, mentions) => {
-    const result = readCodeReviewAnswer(text);
+  it.each(refused)("refuses %s", (_name, parsed, mentions) => {
+    const result = readCodeReviewAnswer(parsed);
     expect(Either.isLeft(result)).toBe(true);
     if (Either.isLeft(result)) {
       for (const word of mentions) expect(result.left).toContain(word);
+    }
+  });
+
+  it("refuses an unstamped answer naming the missing $schema and the unexpected version", () => {
+    const result = readCodeReviewAnswer({ version: 1, findings: [] });
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left).toMatch(/^\$schema: is missing; version: is unexpected/);
     }
   });
 });

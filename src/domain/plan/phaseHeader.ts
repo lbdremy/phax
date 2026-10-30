@@ -12,7 +12,8 @@ import { fromMarkdown } from "mdast-util-from-markdown";
 import { toString } from "mdast-util-to-string";
 import type { Heading, Paragraph, Parent, RootContent } from "mdast";
 import { Either } from "effect";
-import type { ExtractionAnswer, PhaseMode, PhaseOracle } from "../../schemas/phaxPlan.js";
+import type { PhaseMode, PhaseOracle } from "../../schemas/phaxPlan.js";
+import type { ExtractionPlan } from "../../schemas/planExtraction.js";
 import { splitFrontmatter } from "../artifact/frontmatter.js";
 import { PlanValidationError } from "../errors.js";
 
@@ -275,7 +276,7 @@ export function phaseKinds(header: PhaseHeader, nextPhaseId: string | null): Pha
   return { mode, oracle: { dischargedBy, files: [...declaration.files] } };
 }
 
-type AnswerPhase = ExtractionAnswer["phases"][number];
+type AnswerPhase = ExtractionPlan["phases"][number];
 
 /**
  * An extraction answer phase with `mode` and `oracle` set directly after
@@ -286,7 +287,7 @@ type KindedPhase = Omit<AnswerPhase, "testLines" | "commit"> &
   Pick<AnswerPhase, "testLines" | "commit">;
 
 /**
- * The extraction model's answer with every phase's `mode` and `oracle` read
+ * The extraction model's plan with every phase's `mode` and `oracle` read
  * from plan.md's header lines (`phaseKinds`), placed directly after
  * `optionalFilesToEdit` and before the answer's own `testLines`, so the key
  * order is `…, optionalFilesToEdit, mode, oracle, testLines, commit`. An answer phase with no `## phase-NN` heading in
@@ -294,10 +295,10 @@ type KindedPhase = Omit<AnswerPhase, "testLines" | "commit"> &
  * in plan.md, as on the deterministic path.
  */
 export function withPhaseKinds(
-  answer: ExtractionAnswer,
+  answer: ExtractionPlan,
   planMd: string,
 ): Either.Either<
-  Omit<ExtractionAnswer, "phases"> & { readonly phases: readonly KindedPhase[] },
+  Omit<ExtractionPlan, "phases"> & { readonly phases: readonly KindedPhase[] },
   PlanValidationError
 > {
   const headers = readPhaseHeaders(planMd);

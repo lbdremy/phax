@@ -22,6 +22,8 @@ import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NodeGitLayer } from "../../src/infra/git.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import type { ResolvedRecordsConfig } from "../../src/schemas/recordsConfig.js";
+import { CURRENT_STAMPS } from "../../src/schemas/release.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 import type { ResolvedSecurityConfig } from "../../src/schemas/securityConfig.js";
 import { isolateGit } from "../helpers/isolateGit.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
@@ -61,7 +63,7 @@ const security = {
 
 function answerWith(message: string): string {
   return JSON.stringify({
-    version: 1,
+    $schema: schemaUrl("code-review", CURRENT_STAMPS["code-review"]),
     findings: [
       {
         severity: "concern",

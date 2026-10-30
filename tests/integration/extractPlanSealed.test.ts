@@ -5,6 +5,10 @@ import { extractPlanLlm } from "../../src/app/extractPlan.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { PlanValidationError, RateLimitError } from "../../src/domain/errors.js";
+import { CURRENT_STAMPS } from "../../src/schemas/release.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
+
+const STAMP = schemaUrl("phax-plan-extraction", CURRENT_STAMPS["phax-plan-extraction"]);
 
 const PLAN_MD = [
   "# Plan — Sealed extraction test",
@@ -16,21 +20,24 @@ const PLAN_MD = [
 
 function validJson(): string {
   return JSON.stringify({
-    version: 1,
-    run: { shortName: "sealed-test", title: "Sealed extraction test", requiredCommands: [] },
-    phases: [
-      {
-        id: "phase-01",
-        model: "claude-sonnet-4-6",
-        effort: "low",
-        planMarkdownAnchor: "#phase-01-alpha",
-        plannedFilesToCreate: [],
-        plannedFilesToEdit: [],
-        optionalFilesToEdit: [],
-        testLines: [],
-        commit: { subject: "feat: phase-01", body: "body" },
-      },
-    ],
+    $schema: STAMP,
+    plan: {
+      run: { shortName: "sealed-test", title: "Sealed extraction test", requiredCommands: [] },
+      phases: [
+        {
+          id: "phase-01",
+          model: "claude-sonnet-4-6",
+          effort: "low",
+          planMarkdownAnchor: "#phase-01-alpha",
+          plannedFilesToCreate: [],
+          plannedFilesToEdit: [],
+          optionalFilesToEdit: [],
+          testLines: [],
+          commit: { subject: "feat: phase-01", body: "body" },
+        },
+      ],
+    },
+    incomplete: null,
   });
 }
 
@@ -146,10 +153,14 @@ describe("extractPlanLlm — sealed completion path", () => {
     );
   });
 
-  it("reports an {error} answer as the model's reason", async () => {
+  it("reports an incomplete answer as the model's reason", async () => {
     const { fakeBackend, layer } = setup();
     fakeBackend.impl.addCompletionResponse({
-      finalText: JSON.stringify({ error: "phase-01 is missing commit.subject" }),
+      finalText: JSON.stringify({
+        $schema: STAMP,
+        plan: null,
+        incomplete: "phase-01 is missing commit.subject",
+      }),
     });
 
     const result = await Effect.runPromise(

@@ -3,7 +3,9 @@ import { Effect, Layer } from "effect";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { loadOrExtractPlan } from "../../src/app/loadOrExtractPlan.js";
-import type { ExtractionAnswer } from "../../src/schemas/phaxPlan.js";
+import type { PlanExtractionAnswer } from "../../src/schemas/planExtraction.js";
+import { CURRENT_STAMPS } from "../../src/schemas/release.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 
 // Integration test: verifies that phax run's extraction step (loadOrExtractPlan)
 // reuses a cached extraction across calls and re-extracts only on --refresh.
@@ -22,26 +24,29 @@ Phase description.
 `;
 
 // The extraction model's answer: no mode and no oracle, phax reads those.
-const EXTRACTED: ExtractionAnswer = {
-  version: 1,
-  run: {
-    shortName: "run-cache-test",
-    title: "Run Cache Test",
-    requiredCommands: [],
-  },
-  phases: [
-    {
-      id: "phase-01",
-      model: MODEL,
-      effort: EFFORT,
-      planMarkdownAnchor: "phase-01-first-phase",
-      plannedFilesToCreate: [],
-      plannedFilesToEdit: [],
-      optionalFilesToEdit: [],
-      testLines: [],
-      commit: { subject: "feat: phase one", body: "Does phase one." },
+const EXTRACTED: PlanExtractionAnswer = {
+  $schema: schemaUrl("phax-plan-extraction", CURRENT_STAMPS["phax-plan-extraction"]),
+  plan: {
+    run: {
+      shortName: "run-cache-test",
+      title: "Run Cache Test",
+      requiredCommands: [],
     },
-  ],
+    phases: [
+      {
+        id: "phase-01",
+        model: MODEL,
+        effort: EFFORT,
+        planMarkdownAnchor: "phase-01-first-phase",
+        plannedFilesToCreate: [],
+        plannedFilesToEdit: [],
+        optionalFilesToEdit: [],
+        testLines: [],
+        commit: { subject: "feat: phase one", body: "Does phase one." },
+      },
+    ],
+  },
+  incomplete: null,
 };
 
 function makeLayer(

@@ -18,7 +18,10 @@ import {
   unknownFormatMessage,
   type Shape,
 } from "../../../packages/schemas/src/shapes.js";
-import { FORMAT_IDS, schemaUrl } from "../../../src/schemas/schemaUrl.js";
+import { FORMAT_DEFINITIONS } from "../../../packages/schemas/build/jsonSchemas.js";
+import { ANSWER_FORMATS, type AnswerFormatId } from "../../../src/schemas/answerSchemas.js";
+import { CURRENT_STAMPS } from "../../../src/schemas/release.js";
+import { FORMAT_IDS, schemaUrl, type FormatId } from "../../../src/schemas/schemaUrl.js";
 import { belowOwnReleaseMessage, preSchemaDocuments, validDocuments } from "./documents.js";
 
 // A version-2 phase manifest as 0.16.0 wrote it: no `$schema`.
@@ -26,6 +29,17 @@ const v2Manifest = preSchemaDocuments["phase-record-manifest"];
 
 // Derived from the package version, so a release bump never breaks these tests.
 const NEWER_RELEASE = `${Number(PACKAGE_VERSION.split(".")[0]) + 1}.0.0`;
+const NEXT_PACKAGE_VERSION = `${PACKAGE_VERSION.split(".")[0]}.${Number(PACKAGE_VERSION.split(".")[1]) + 1}.0`;
+
+// The answer formats: each reads under a `$schema` const naming its own stamp.
+const ANSWER_FORMAT_IDS = Object.keys(ANSWER_FORMATS) as ReadonlyArray<AnswerFormatId>;
+
+/** The stamp a document of `formatId` carries to be read as the package's current shape. */
+function ownStamp(formatId: FormatId): string {
+  return (ANSWER_FORMAT_IDS as ReadonlyArray<string>).includes(formatId)
+    ? CURRENT_STAMPS[formatId]
+    : PACKAGE_VERSION;
+}
 
 function expectFailure(result: Parsed<unknown>, path: string, message?: string) {
   expect(result.ok).toBe(false);
@@ -107,12 +121,14 @@ describe("parseDocument", () => {
     },
   );
 
+  // An answer format's `$schema` is a const, its current stamp: it reads only
+  // that stamp. Any other format reads any stamp up to the package's release.
   it.each(FORMAT_IDS)(
     "reads a %s at the package's own release with phax's decoder, as its current shape",
     (formatId) => {
       const document = {
         ...validDocuments[formatId],
-        $schema: schemaUrl(formatId, PACKAGE_VERSION),
+        $schema: schemaUrl(formatId, ownStamp(formatId)),
       };
       expect(parseDocument(document)).toEqual({
         ok: true,
@@ -120,6 +136,35 @@ describe("parseDocument", () => {
         shape: CURRENT_SHAPES[formatId],
         value: document,
       });
+    },
+  );
+
+  it.each(ANSWER_FORMAT_IDS)(
+    "refuses a %s stamped above its current stamp at $schema, once a release has named its shape",
+    (formatId) => {
+      // The format as the next release leaves it: its `next` shape renamed to
+      // the stamp, the package one release later. The stamp's const reads only
+      // itself, so a later stamp maps to that shape and fails there.
+      const definition = FORMAT_DEFINITIONS[formatId];
+      const released = defineFormat(
+        {
+          ...definition,
+          current: { name: CURRENT_STAMPS[formatId], shape: definition.current.shape },
+        } as never,
+        { packageVersion: NEXT_PACKAGE_VERSION },
+      );
+      const above = {
+        ...validDocuments[formatId],
+        $schema: schemaUrl(formatId, NEXT_PACKAGE_VERSION),
+      };
+      const result = released.parse(above);
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error.path).toBe("$schema");
+      const own = {
+        ...validDocuments[formatId],
+        $schema: schemaUrl(formatId, CURRENT_STAMPS[formatId]),
+      };
+      expect(released.parse(own).ok).toBe(true);
     },
   );
 

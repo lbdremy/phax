@@ -15,13 +15,21 @@ import type {
   OracleRequestShape,
   parseOracleRequest,
   toLatestOracleRequest,
+  CodeReviewV0_29_0,
   FirstReading,
   FirstReadingShape,
+  FirstReadingV0_26_0,
   InteractiveHandoff,
   InteractiveHandoffShape,
+  InteractiveHandoffV0_26_0,
   InteractiveSession,
   InteractiveSessionShape,
   InteractiveSessionV0_26_0,
+  LatestPhaxPlanExtraction,
+  PhaxPlanExtraction,
+  PhaxPlanExtractionShape,
+  parsePhaxPlanExtraction,
+  toLatestPhaxPlanExtraction,
   LatestFirstReading,
   LatestInteractiveHandoff,
   LatestInteractiveSession,
@@ -305,6 +313,10 @@ import type {
 } from "../../src/schemas/decideVerdicts.js";
 import type { DecisionRecordManifestV0_25_0 as FrozenDecisionRecordManifestV0_25_0 } from "../../src/schemas/history/decision-record-manifest/0.25.0.js";
 import type { DecisionRecordManifestV0_28_0 as FrozenDecisionRecordManifestV0_28_0 } from "../../src/schemas/history/decision-record-manifest/0.28.0.js";
+import type { CodeReviewV0_29_0 as FrozenCodeReviewV0_29_0 } from "../../src/schemas/history/code-review/0.29.0.js";
+import type { FirstReadingV0_26_0 as FrozenFirstReadingV0_26_0 } from "../../src/schemas/history/first-reading/0.26.0.js";
+import type { InteractiveHandoffV0_26_0 as FrozenInteractiveHandoffV0_26_0 } from "../../src/schemas/history/interactive-handoff/0.26.0.js";
+import type { PlanExtractionAnswer as PhaxPlanExtractionFile } from "../../src/schemas/planExtraction.js";
 import type { InteractiveSessionV0_26_0 as FrozenInteractiveSessionV0_26_0 } from "../../src/schemas/history/interactive-session/0.26.0.js";
 import type { ReviewStopV0_26_0 as FrozenReviewStopV0_26_0 } from "../../src/schemas/history/review-stop/0.26.0.js";
 import type { RunListV0_26_0 as FrozenRunListV0_26_0 } from "../../src/schemas/history/run-list/0.26.0.js";
@@ -594,6 +606,7 @@ const formats: Equals<
   | "review-stop"
   | "run-list"
   | "decide-verdicts"
+  | "phax-plan-extraction"
 > = true;
 void formats;
 // parseDocument is complete: it reads every persisted format id, and no other
@@ -691,7 +704,8 @@ const shapeIds: Equals<
   | InteractiveSessionShape
   | ReviewStopShape
   | RunListShape
-  | DecideVerdictsShape,
+  | DecideVerdictsShape
+  | PhaxPlanExtractionShape,
   "pre-schema" | "0.19.0" | "0.23.0" | Current<FormatId>
 > = true;
 void shapeIds;
@@ -1209,19 +1223,36 @@ if (document.ok && document.format === "cost-ledger") {
 // shape, and an in-memory value without $schema
 const codeReviewTypes: [
   Equals<CodeReview, PhaxCodeReviewFile>,
-  Equals<CodeReviewShape, Current<"code-review">>,
-  Equals<Value<typeof parseCodeReview>, PhaxCodeReviewFile>,
+  Equals<CodeReviewShape, "0.29.0" | Current<"code-review">>,
+  Equals<Value<typeof parseCodeReview>, FrozenCodeReviewV0_29_0 | PhaxCodeReviewFile>,
   Equals<LatestCodeReview, PhaxCodeReview>,
-  Equals<Parameters<typeof toLatestCodeReview>, [value: PhaxCodeReviewFile]>,
-] = [true, true, true, true, true];
+  Equals<
+    Parameters<typeof toLatestCodeReview>,
+    [value: PhaxCodeReviewFile | FrozenCodeReviewV0_29_0]
+  >,
+  Equals<CodeReviewV0_29_0, FrozenCodeReviewV0_29_0>,
+] = [true, true, true, true, true, true];
 void codeReviewTypes;
 declare const latestCodeReview: LatestCodeReview;
 // @ts-expect-error: the in-memory code review carries no $schema
 void latestCodeReview.$schema;
 if (document.ok && document.format === "code-review") {
-  const exact: Equals<typeof document.value, PhaxCodeReviewFile> = true;
+  const exact: Equals<typeof document.value, FrozenCodeReviewV0_29_0 | PhaxCodeReviewFile> = true;
   void exact;
 }
+// The plan extraction answer is born at 0.32.0 with $schema: phax's own file
+// type, one current shape, and an in-memory value without $schema
+const planExtractionTypes: [
+  Equals<PhaxPlanExtraction, PhaxPlanExtractionFile>,
+  Equals<PhaxPlanExtractionShape, Current<"phax-plan-extraction">>,
+  Equals<Value<typeof parsePhaxPlanExtraction>, PhaxPlanExtractionFile>,
+  Equals<LatestPhaxPlanExtraction, Omit<PhaxPlanExtractionFile, "$schema">>,
+  Equals<Parameters<typeof toLatestPhaxPlanExtraction>, [value: PhaxPlanExtractionFile]>,
+] = [true, true, true, true, true];
+void planExtractionTypes;
+declare const latestPhaxPlanExtraction: LatestPhaxPlanExtraction;
+// @ts-expect-error: the in-memory plan extraction carries no $schema
+void latestPhaxPlanExtraction.$schema;
 // The architecture request and report are born with $schema: phax's own file
 // types, one current shape each, and in-memory values without $schema
 const architectureTypes: [
@@ -1258,15 +1289,26 @@ void latestOracleRequest.$schema;
 // without $schema
 const interactiveTypes: [
   Equals<FirstReading, PhaxFirstReadingFile>,
-  Equals<FirstReadingShape, Current<"first-reading">>,
-  Equals<Value<typeof parseFirstReading>, PhaxFirstReadingFile>,
+  Equals<FirstReadingShape, "0.26.0" | Current<"first-reading">>,
+  Equals<Value<typeof parseFirstReading>, FrozenFirstReadingV0_26_0 | PhaxFirstReadingFile>,
   Equals<LatestFirstReading, PhaxFirstReading>,
-  Equals<Parameters<typeof toLatestFirstReading>, [value: PhaxFirstReadingFile]>,
+  Equals<
+    Parameters<typeof toLatestFirstReading>,
+    [value: PhaxFirstReadingFile | FrozenFirstReadingV0_26_0]
+  >,
+  Equals<FirstReadingV0_26_0, FrozenFirstReadingV0_26_0>,
   Equals<InteractiveHandoff, PhaxInteractiveHandoffFile>,
-  Equals<InteractiveHandoffShape, Current<"interactive-handoff">>,
-  Equals<Value<typeof parseInteractiveHandoff>, PhaxInteractiveHandoffFile>,
+  Equals<InteractiveHandoffShape, "0.26.0" | Current<"interactive-handoff">>,
+  Equals<
+    Value<typeof parseInteractiveHandoff>,
+    FrozenInteractiveHandoffV0_26_0 | PhaxInteractiveHandoffFile
+  >,
   Equals<LatestInteractiveHandoff, PhaxInteractiveHandoff>,
-  Equals<Parameters<typeof toLatestInteractiveHandoff>, [value: PhaxInteractiveHandoffFile]>,
+  Equals<
+    Parameters<typeof toLatestInteractiveHandoff>,
+    [value: PhaxInteractiveHandoffFile | FrozenInteractiveHandoffV0_26_0]
+  >,
+  Equals<InteractiveHandoffV0_26_0, FrozenInteractiveHandoffV0_26_0>,
   Equals<InteractiveSession, PhaxInteractiveSessionFile>,
   Equals<InteractiveSessionShape, "0.26.0" | Current<"interactive-session">>,
   Equals<
@@ -1295,6 +1337,8 @@ const interactiveTypes: [
   Equals<Parameters<typeof toLatestRunList>, [value: PhaxRunListFile | FrozenRunListV0_26_0]>,
   Equals<RunListV0_26_0, FrozenRunListV0_26_0>,
 ] = [
+  true,
+  true,
   true,
   true,
   true,

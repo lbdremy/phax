@@ -16,6 +16,11 @@ import {
   type HandDecisionAnswer,
   type HandDecisionAnswerFile,
 } from "../../../../src/schemas/handDecisionAnswer.js";
+import {
+  PlanExtractionAnswerSchema,
+  decodePlanExtractionAnswer,
+  type PlanExtractionAnswer,
+} from "../../../../src/schemas/planExtraction.js";
 import { CURRENT_SHAPES } from "../generated/index.js";
 import type { ParsedShape } from "../parsed.js";
 import { defineFormat, type CurrentShapeName } from "../shapes.js";
@@ -98,4 +103,47 @@ export type LatestDecideVerdicts = DecideVerdicts;
 export function toLatestDecideVerdicts(value: DecideVerdictsFile): LatestDecideVerdicts {
   const { $schema: _schema, ...verdicts } = value;
   return verdicts;
+}
+
+// ── plan extraction
+
+// Born at 0.32.0 with `$schema`: no pre-schema shape and no earlier release,
+// and a document without `$schema` is unreadable. It refuses a key it does not
+// name, at any level. The latest value is phax's in-memory value, with no
+// `$schema`. A const `$schema` reads only its own stamp: a document stamped
+// above the format's current stamp (and at or below the package's release) is
+// refused at `$schema`, and phax never writes one.
+
+export type PhaxPlanExtractionShapes = {
+  [K in CurrentShapeName<"phax-plan-extraction">]: PlanExtractionAnswer;
+};
+
+/** The id of every plan extraction shape the package reads. */
+export type PhaxPlanExtractionShape = keyof PhaxPlanExtractionShapes;
+
+export const phaxPlanExtractionFormat = defineFormat<PhaxPlanExtractionShapes>({
+  id: "phax-plan-extraction",
+  label: "plan extraction",
+  preSchema: null,
+  releases: [],
+  current: {
+    name: CURRENT_SHAPES["phax-plan-extraction"],
+    shape: { schema: PlanExtractionAnswerSchema, decode: decodePlanExtractionAnswer },
+  },
+});
+
+/**
+ * Reads the answer the fallback extraction model gave for a plan.md: the
+ * extracted plan, or why the plan is incomplete. Never throws.
+ */
+export const parsePhaxPlanExtraction: (input: unknown) => ParsedShape<PhaxPlanExtractionShapes> =
+  phaxPlanExtractionFormat.parse;
+
+/** The latest plan extraction: phax's in-memory value, with no `$schema`. */
+export type LatestPhaxPlanExtraction = Omit<PlanExtractionAnswer, "$schema">;
+
+/** Upgrades a parsed plan extraction in memory: drops `$schema`, keeps the plan and the reason. */
+export function toLatestPhaxPlanExtraction(value: PlanExtractionAnswer): LatestPhaxPlanExtraction {
+  const { $schema: _schema, ...answer } = value;
+  return answer;
 }

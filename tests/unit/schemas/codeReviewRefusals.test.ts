@@ -3,6 +3,8 @@
 import { Either } from "effect";
 import { describe, expect, it } from "vitest";
 import { readCodeReviewAnswer } from "../../../src/schemas/codeReview.js";
+import { CURRENT_STAMPS } from "../../../src/schemas/release.js";
+import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
 
 const finding = (overrides: Record<string, unknown> = {}) => ({
   severity: "bug",
@@ -17,7 +19,10 @@ const finding = (overrides: Record<string, unknown> = {}) => ({
 });
 
 const refusal = (overrides: Record<string, unknown>) => {
-  const read = readCodeReviewAnswer(JSON.stringify({ version: 1, findings: [finding(overrides)] }));
+  const read = readCodeReviewAnswer({
+    $schema: schemaUrl("code-review", CURRENT_STAMPS["code-review"]),
+    findings: [finding(overrides)],
+  });
   return Either.isLeft(read) ? read.left : undefined;
 };
 

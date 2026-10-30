@@ -23,6 +23,11 @@ import {
   type CodeReviewFile,
 } from "../../../../src/schemas/codeReview.js";
 import {
+  CodeReviewV0_29_0Schema,
+  decodeCodeReviewV0_29_0,
+  type CodeReviewV0_29_0,
+} from "../../../../src/schemas/history/code-review/0.29.0.js";
+import {
   CostLedgerFileSchema,
   decodeCostLedgerFile,
   type CostLedger,
@@ -449,11 +454,16 @@ export function toLatestCostLedger(
 
 // ── code review
 
-// Born with `$schema`: no pre-schema shape and no earlier release, and a
-// document without `$schema` is unreadable. It refuses a key it does not name,
-// at any level.
+// Born with `$schema`: no pre-schema shape, and a document without `$schema` is
+// unreadable. It refuses a key it does not name, at any level. The current
+// shape is a strict answer since 0.32.0 (a const `$schema`, the strict
+// non-empty pattern); the 0.29.0 shape is listed as a release. A const
+// `$schema` reads only its own stamp: a document stamped above the current
+// stamp is refused at `$schema`.
 
 export type CodeReviewShapes = {
+  "0.29.0": CodeReviewV0_29_0;
+} & {
   [K in CurrentShapeName<"code-review">]: CodeReviewFile;
 };
 
@@ -464,7 +474,7 @@ export const codeReviewFormat = defineFormat<CodeReviewShapes>({
   id: "code-review",
   label: "code review",
   preSchema: null,
-  releases: [],
+  releases: [["0.29.0", { schema: CodeReviewV0_29_0Schema, decode: decodeCodeReviewV0_29_0 }]],
   current: {
     name: CURRENT_SHAPES["code-review"],
     shape: { schema: CodeReviewFileSchema, decode: decodeCodeReviewFile },
@@ -478,8 +488,11 @@ export const parseCodeReview: (input: unknown) => ParsedShape<CodeReviewShapes> 
 /** The latest code review: phax's in-memory value, with no `$schema`. */
 export type LatestCodeReview = CodeReview;
 
-/** Upgrades a parsed code review in memory: drops `$schema`, keeps every finding. */
-export function toLatestCodeReview(value: CodeReviewFile): LatestCodeReview {
+/**
+ * Upgrades a parsed code review in memory: drops `$schema`, keeps every finding.
+ * A 0.29.0 review is valid in the current shape as it is.
+ */
+export function toLatestCodeReview(value: CodeReviewFile | CodeReviewV0_29_0): LatestCodeReview {
   const { $schema: _schema, ...review } = value;
   return review;
 }

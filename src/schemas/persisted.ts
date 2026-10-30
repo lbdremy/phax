@@ -170,6 +170,7 @@ import {
 import { decodeRegistryFile, type Registry } from "./registry.js";
 import { describeReportIssue } from "./report.js";
 import { CURRENT_STAMPS, PHAX_RELEASE } from "./release.js";
+import { decodeCodeReviewV0_29_0 } from "./history/code-review/0.29.0.js";
 import { decodeReviewStopV0_26_0 } from "./history/review-stop/0.26.0.js";
 import { decodeReviewStopFile, type ReviewStop } from "./reviewStop.js";
 import { liftFrozenTokenUsage } from "./runRecord.js";
@@ -1411,15 +1412,27 @@ export const readCostLedgerFile: Reader<CostLedger> = (file, input) => {
   });
 };
 
+// A code review stamped below the format's current stamp is the 0.29.0 file of
+// an older run folder, read by the frozen 0.29.0 decoder; its findings are valid
+// in the current shape as they are.
 /** Reads a run's `code-review.json`. Born with `$schema`. */
-export const readCodeReviewFile: Reader<CodeReview> = (file, input) =>
-  readSchemaBornPersisted(input, {
+export const readCodeReviewFile: Reader<CodeReview> = (file, input) => {
+  if (isDocumentObject(input) && isStampedBelowCurrent("code-review", input)) {
+    const older = decodeCodeReviewV0_29_0(input);
+    if (Either.isLeft(older)) {
+      return Either.left(readError(file, "code-review", formatFirstViolation(older.left)));
+    }
+    const { $schema: _schema, ...review } = older.right;
+    return Either.right(review);
+  }
+  return readSchemaBornPersisted(input, {
     format: "code-review",
     label: "code review",
     file,
     decodeCurrent: decodeCodeReviewFile,
     fromCurrent: ({ $schema: _schema, ...review }) => review,
   });
+};
 
 /**
  * Reads a phase's `file-reconciliation.json`. It never carried a `version`:

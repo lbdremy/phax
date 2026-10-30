@@ -5,7 +5,7 @@
 // changed either is refused, its versions kept aside and the worktree
 // restored, so no one's edit is lost. The session id always comes from the
 // turn's stream. Nothing here reads stdin.
-import { Cause, Effect, Either, Exit, JSONSchema } from "effect";
+import { Cause, Effect, Either, Exit } from "effect";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import type { PhaseId, RunId, WorktreePath } from "../domain/branded.js";
@@ -51,7 +51,8 @@ import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import type { Shell, ShellError } from "../ports/shell.js";
 import type { SystemTelemetry } from "../ports/systemTelemetry.js";
-import { FirstReadingFileSchema, type FirstReading } from "../schemas/firstReading.js";
+import { answerJsonSchema } from "../schemas/answerSchemas.js";
+import type { FirstReading } from "../schemas/firstReading.js";
 import type { InteractiveSession } from "../schemas/interactiveSession.js";
 import {
   currentSchemaUrl,
@@ -129,7 +130,7 @@ const now = (): string => new Date().toISOString();
 const turnLabel = (turn: number): string => `first-turn-${String(turn).padStart(2, "0")}`;
 
 const firstReadingSchemaJson = (): string =>
-  JSON.stringify(JSONSchema.make(FirstReadingFileSchema), null, 2);
+  JSON.stringify(answerJsonSchema("first-reading"), null, 2);
 
 function emptySession(input: FirstTurnInput): InteractiveSession {
   return {

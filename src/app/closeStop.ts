@@ -16,7 +16,7 @@
 // pair whose corrections change one of the pair's oracle files ends its gate
 // with the `authored` oracle step, naming the stopped phase; a held
 // discharging phase is never judged again, and only flags such a change.
-import { Effect, Either, JSONSchema } from "effect";
+import { Effect, Either } from "effect";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import type { ClaudeSessionId, PhaseId, RunId } from "../domain/branded.js";
@@ -79,10 +79,8 @@ import { Git, type GitError } from "../ports/git.js";
 import { Shell, type ShellError } from "../ports/shell.js";
 import type { SystemTelemetry } from "../ports/systemTelemetry.js";
 import type { GateStepResult } from "../schemas/gateAttribution.js";
-import {
-  InteractiveHandoffFileSchema,
-  type InteractiveHandoff,
-} from "../schemas/interactiveHandoff.js";
+import { answerJsonSchema } from "../schemas/answerSchemas.js";
+import type { InteractiveHandoff } from "../schemas/interactiveHandoff.js";
 import type { InteractiveSession } from "../schemas/interactiveSession.js";
 import {
   currentSchemaUrl,
@@ -733,7 +731,7 @@ type ClosingAttempt =
 const CLOSING_TURN_STREAM = /^closing-turn-(\d{2})\.jsonl$/;
 
 const handoffSchemaJson = (): string =>
-  JSON.stringify(JSONSchema.make(InteractiveHandoffFileSchema), null, 2);
+  JSON.stringify(answerJsonSchema("interactive-handoff"), null, 2);
 
 function decodeHandoffAnswer(finalText: string): Either.Either<InteractiveHandoff, string> {
   return Either.flatMap(parseFinalMessageJson(finalText), (parsed) =>

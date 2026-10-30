@@ -6,7 +6,9 @@ import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { loadOrExtractPlan } from "../../src/app/loadOrExtractPlan.js";
 import { planCacheKey } from "../../src/domain/planCache/key.js";
 import { cacheEntryPath, planMdSha256 } from "../../src/app/planCacheStore.js";
-import type { ExtractionAnswer } from "../../src/schemas/phaxPlan.js";
+import type { PlanExtractionAnswer } from "../../src/schemas/planExtraction.js";
+import { CURRENT_STAMPS } from "../../src/schemas/release.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 
 const PLAN_MD_PATH = "/workspace/plan.md";
 const STATE_ROOT = "/fake-state";
@@ -21,9 +23,8 @@ const PLAN_MD = `# Plan — My Test Run
 Phase description.
 `;
 
-// The extraction model's answer: no mode and no oracle, phax reads those.
-const EXTRACTED: ExtractionAnswer = {
-  version: 1,
+// The plan the extraction model answers: no mode and no oracle, phax reads those.
+const EXTRACTED: NonNullable<PlanExtractionAnswer["plan"]> = {
   run: {
     shortName: "my-test-run",
     title: "My Test Run",
@@ -44,7 +45,13 @@ const EXTRACTED: ExtractionAnswer = {
   ],
 };
 
-const EXTRACTED_JSON = JSON.stringify(EXTRACTED);
+const EXTRACTION_ANSWER = {
+  $schema: schemaUrl("phax-plan-extraction", CURRENT_STAMPS["phax-plan-extraction"]),
+  plan: EXTRACTED,
+  incomplete: null,
+} satisfies PlanExtractionAnswer;
+
+const EXTRACTED_JSON = JSON.stringify(EXTRACTION_ANSWER);
 
 function makeLayer(
   fsImpl: ReturnType<typeof makeFakeFileSystem>,
@@ -251,7 +258,7 @@ describe("loadOrExtractPlan — noExtract: true on a miss", () => {
         effort: EFFORT,
         extractorVersion: 2,
         extractedAt: NOW_ISO,
-        extracted: EXTRACTED,
+        extracted: { version: 1, ...EXTRACTED },
       }),
     );
 
@@ -305,6 +312,7 @@ describe("loadOrExtractPlan — a departing test line", () => {
         extractorVersion: 4,
         extractedAt: NOW_ISO,
         extracted: {
+          version: 1,
           ...EXTRACTED,
           phases: [{ ...fields, mode: "headless", oracle: null, testLines, commit }],
         },
