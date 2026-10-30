@@ -66,7 +66,8 @@ function architectureLine(provider: boolean, bounds: boolean): string {
 // The full prompt of a headless authoring session, in a fixed order: the skill
 // text verbatim, the output contract, the document JSON Schema, the source spec
 // and its criterion ids (plan only), then the brief. Pure: the same input yields the same prompt, so
-// the recorded prompt.md reproduces the session's input exactly.
+// the recorded prompt.md reproduces the session's input, less the closing line
+// a native Claude Code spawn appends (see CLAUDE_STAMP_PROMPT_LINE).
 export function buildAuthoringPrompt(input: AuthoringPromptInput): string {
   const documentName = `${input.kind} document`;
   const sections: string[] = [
