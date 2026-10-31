@@ -35,6 +35,7 @@ import {
   type ReportError,
 } from "../../src/schemas/persisted.js";
 import { CURRENT_STAMPS, PHAX_RELEASE } from "../../src/schemas/release.js";
+import { ANSWER_FORMATS } from "../../src/schemas/answerSchemas.js";
 import { readTestStrategyText } from "../../src/domain/plan/testLineGrammar.js";
 import { SURFACE_SUMMARY_PLACEHOLDER } from "../../src/schemas/specDocument.js";
 import {
@@ -1178,6 +1179,14 @@ describe("documents from another release", () => {
                         : withoutPhaseKinds(validDocuments[id])
                     : validDocuments[id];
     const result = read(file, withKey(document, "$schema", schemaUrl(id, release)));
+    // An answer format's $schema is a const of its own stamps: a release above
+    // its current stamp that this phax did not outgrow names no shape it wrote.
+    const constAbove =
+      id in ANSWER_FORMATS && !newer && compareReleases(release, CURRENT_STAMPS[id]) > 0;
+    if (constAbove) {
+      expect(left(result).message).toContain(`$schema`);
+      return;
+    }
     if (!newer) {
       right(result);
       return;
