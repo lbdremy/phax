@@ -379,6 +379,20 @@ does not rot; the plans written against it do.
 
 ## Longer horizon (unspecced, revisit deliberately)
 
+- [ ] **`isolated` mode on smolvm: the provider CLIs in a microVM.** Raised 2026-10-31 by the operator,
+      after #176 showed that on Claude Code and Vibe an allowed command runs unconfined.
+      https://github.com/smol-machines/smolvm (Apache-2.0) boots OCI images as microVMs
+      (Hypervisor.framework on Apple Silicon, KVM on Linux) in under a second, with networking off by
+      default plus `--allow-host`/`--allow-cidr`, and credentials injected as placeholders the code
+      cannot read. The idea: bundle `claude` and `vibe` in an image and wrap each CLI in a shim that
+      forwards argv, stdin/stdout (stream-json), exit codes, signals and a TTY, adding a real
+      filesystem jail (the worktree read-write for a phase, read-only for a review) and enforced
+      `provider-only` egress. It fills the `isolated` mode `docs/security.md` lists as planned.
+      Do it as a spike (agent builds the harness, real runs on the operator's machine) answering:
+      the sign-in (Claude's OAuth and Vibe's login live in the macOS Keychain; does the credential
+      placeholder carry them, or only API keys?), the worktree's darwin `node_modules` and native
+      binaries (oxlint, tsgo) inside a Linux guest, host-directory mount modes, and shim
+      transparency.
 - [ ] **A Claude Code plugin for phax, after the 1.0 freeze.** Raised 2026-10-08. Ship phax's
       skills (`phax-planning`, `phax-spec`, the `phax-decide-*` skills) as one plugin instead of
       copies under `~/.claude/skills/`, with a small mod for the operator's interactive session:
