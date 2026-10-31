@@ -1,7 +1,7 @@
 // answerJsonSchema is the one rendering of an answer's schema: the prompts state
 // it and the provider flags hand it over. It is exactly the published schema the
 // build writes for the format, so a model is never given a copy that could drift.
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -51,9 +51,16 @@ describe("answerJsonSchema", () => {
     expect(answerJsonSchema(id)).toEqual(JSON.parse(published ?? "null"));
   });
 
-  it.each(ANSWER_IDS)("%s: is the schema its next snapshot records", (id) => {
-    const snapshot = readFileSync(join(snapshotsDir, id, "next.schema.json"), "utf8");
-    expect(`${JSON.stringify(answerJsonSchema(id), null, 2)}\n`).toBe(snapshot);
+  // The current snapshot is next.schema.json while the release is open, and the
+  // release-named file once the cut renames it.
+  it.each(ANSWER_IDS)("%s: is the schema its current snapshot records", (id) => {
+    const next = join(snapshotsDir, id, "next.schema.json");
+    const current = existsSync(next)
+      ? next
+      : join(snapshotsDir, id, `${CURRENT_STAMPS[id]}.schema.json`);
+    expect(`${JSON.stringify(answerJsonSchema(id), null, 2)}\n`).toBe(
+      readFileSync(current, "utf8"),
+    );
   });
 
   it.each(ANSWER_IDS)("%s: carries the label of its format definition", (id) => {
