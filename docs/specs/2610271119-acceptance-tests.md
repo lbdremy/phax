@@ -1,8 +1,11 @@
 ---
-status: Draft
+status: Approved
 date: 2026-10-27
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
+approved:
+  date: 2026-10-31
+  baseline: f7945f2
 ---
 # Acceptance tests, not oracles
 
