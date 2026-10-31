@@ -55,3 +55,18 @@ Leave §9 empty unless something cannot be settled from the decisions above; two
 **Surfaces.** A surface's `summary`, `before` and `after` are read by users in the release notes: a capitalized sentence and short real examples, with no implementation notes.
 
 **Output:** your final message is the spec document JSON and nothing else: no sentence before or after it, and no code fence.
+
+**Note, 2026-10-31: audit, retarget to 0.33.0, four plans.** An audit against main, after releases 0.29.0 to 0.32.0, brought the spec up to date. It now:
+- stamps every renamed format 0.33.0 through `next` snapshots, and adds `phax-plan-extraction`, which also carries the loop and the technique;
+- freezes each format's 0.32.0-release shape, and keeps `oracle-request` readable at 0.26.0;
+- keeps the strict answer schemas strict: an old name in an answer is refused by the enum, never by name;
+- makes the criterion refusal `a criterion is neither 'acceptance', 'in-phase' nor 'oracle'` normative;
+- covers the protected-path recovery texts;
+- keeps the code review's `acceptance` and `boundary` lenses as they are;
+- names the risk to this repository's `phax.json` while the installed phax drives the runs.
+
+The operator kept the full rename in one spec, shipped as four plans:
+1. persisted and published formats;
+2. lint, CLI and config refusals;
+3. prompts, messages and telemetry;
+4. skills, docs, site and example, under `--allow-skill-edits`. Plan 4 completes the spec.
