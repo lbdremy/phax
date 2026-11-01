@@ -178,7 +178,13 @@ export function gateArtifactsInOrder(
   reports.sort((a, b) => a.step - b.step);
   const ordered: Array<readonly [string, Uint8Array]> = [];
   for (const { attempt, stem } of attempts) {
-    for (const name of [`${stem}.log`, `${stem}.request.json`, `${stem}.oracle-request.json`]) {
+    // A record written before 0.33.0 holds `.oracle-request.json`, a later one `.acceptance-request.json`.
+    for (const name of [
+      `${stem}.log`,
+      `${stem}.request.json`,
+      `${stem}.acceptance-request.json`,
+      `${stem}.oracle-request.json`,
+    ]) {
       const bytes = artifacts.get(name);
       if (bytes !== undefined) ordered.push([name, bytes]);
     }

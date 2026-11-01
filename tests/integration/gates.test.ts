@@ -19,10 +19,10 @@ import {
   ORACLE_PROVIDER_TIMEOUT_MS,
   runGates,
   serializeGateRequest,
-  serializeOracleRequest,
+  serializeAcceptanceRequest,
 } from "../../src/app/gates.js";
 import { makeGateRequest } from "../../src/domain/gate/gateRequest.js";
-import { makeOracleRequest } from "../../src/domain/gate/oracleRequest.js";
+import { makeAcceptanceRequest } from "../../src/domain/gate/acceptanceRequest.js";
 import { FileSystem } from "../../src/ports/fs.js";
 import { selectGateSteps } from "../../src/domain/gate/selectSteps.js";
 import { GateFailedError, GateStepRefusedError } from "../../src/domain/errors.js";
@@ -1483,15 +1483,26 @@ describe("runGates with a report step", () => {
 describe("runGates with an oracle step (Node shell)", () => {
   const reportUrl = currentSchemaUrl("gate-report");
   const oracleFiles = ["tests/refunds.test.ts", "tests/prune.test.ts"];
-  const oracleRequest = serializeOracleRequest(
-    makeOracleRequest({
+  const oracleRequest = serializeAcceptanceRequest(
+    makeAcceptanceRequest({
       role: {
         role: "oracle",
         pair: { oraclePhase: "phase-01", dischargingPhase: "phase-02", files: oracleFiles },
       },
       phaseId,
       base: "0123456789abcdef0123456789abcdef01234567",
-      oracleCommit: null,
+      acceptanceCommit: null,
+    }),
+  );
+  const passedRequest = serializeAcceptanceRequest(
+    makeAcceptanceRequest({
+      role: {
+        role: "discharging",
+        pair: { oraclePhase: "phase-01", dischargingPhase: "phase-02", files: oracleFiles },
+      },
+      phaseId: "phase-02",
+      base: "0123456789abcdef0123456789abcdef01234567",
+      acceptanceCommit: "89abcdef0123456789abcdef0123456789abcdef",
     }),
   );
   const markerFinding = {
@@ -1547,7 +1558,7 @@ describe("runGates with an oracle step (Node shell)", () => {
       dir,
       logPath: join(phaseFolder, "checks-attempt-01.log"),
       requestPath: join(phaseFolder, "checks-attempt-01.request.json"),
-      oracleRequestPath: join(phaseFolder, "checks-attempt-01.oracle-request.json"),
+      oracleRequestPath: join(phaseFolder, "checks-attempt-01.acceptance-request.json"),
       attributionPath: join(phaseFolder, "gate-attribution.json"),
     };
   }
@@ -1558,6 +1569,7 @@ describe("runGates with an oracle step (Node shell)", () => {
     mode: string,
     timeoutMs = ORACLE_PROVIDER_TIMEOUT_MS,
     command = `node ./oracles.mjs ${mode}`,
+    request = oracleRequest,
   ) {
     return Effect.runPromise(
       Effect.either(
@@ -1568,7 +1580,7 @@ describe("runGates with an oracle step (Node shell)", () => {
           attributionPath: ws.attributionPath,
           phaseId,
           gateRequest,
-          oracleStep: { kind: "run", command, request: oracleRequest, timeoutMs },
+          oracleStep: { kind: "run", command, request, timeoutMs },
         }).pipe(Effect.provide(Layer.mergeAll(NodeFileSystemLayer, NodeShellLayer))),
       ),
     );
@@ -1690,9 +1702,63 @@ describe("runGates with an oracle step (Node shell)", () => {
     expect(readFileSync(ws.oracleRequestPath, "utf8")).toBe(oracleRequest);
     const lines = readLogLines(ws);
     expect(lineAfter(lines, "$ node ./oracles.mjs pass")).toBe(
-      "stdin: checks-attempt-01.oracle-request.json",
+      "stdin: checks-attempt-01.acceptance-request.json",
     );
     expect(lines).toContain("report: checks-attempt-01.report-03.json");
+  });
+
+  it("writes an authored acceptance-request stamped 0.33.0, with no acceptanceCommit", async () => {
+    const ws = workspace();
+
+    await runOracle(ws, configured, "pass");
+
+    const stdin = JSON.parse(seen(ws)?.stdin ?? "null") as Record<string, unknown>;
+    expect(stdin).toEqual({
+      $schema: "https://docs.phax.run/schemas/acceptance-request/0.33.0.json",
+      verdict: "authored",
+      phase: phaseId,
+      acceptancePhase: phaseId,
+      base: "0123456789abcdef0123456789abcdef01234567",
+      files: oracleFiles,
+    });
+    expect(Object.keys(stdin)).toEqual([
+      "$schema",
+      "verdict",
+      "phase",
+      "acceptancePhase",
+      "base",
+      "files",
+    ]);
+    expect(readFileSync(ws.oracleRequestPath, "utf8")).toBe(seen(ws)?.stdin);
+    expect(existsSync(ws.oracleRequestPath.replace("acceptance-request", "oracle-request"))).toBe(
+      false,
+    );
+  });
+
+  it("writes a passed acceptance-request with acceptanceCommit, saved as the same bytes", async () => {
+    const ws = workspace();
+
+    await runOracle(
+      ws,
+      configured,
+      "pass",
+      ORACLE_PROVIDER_TIMEOUT_MS,
+      "node ./oracles.mjs pass",
+      passedRequest,
+    );
+
+    const stdin = JSON.parse(seen(ws)?.stdin ?? "null") as Record<string, unknown>;
+    expect(stdin).toEqual({
+      $schema: "https://docs.phax.run/schemas/acceptance-request/0.33.0.json",
+      verdict: "passed",
+      phase: "phase-02",
+      acceptancePhase: "phase-01",
+      base: "0123456789abcdef0123456789abcdef01234567",
+      acceptanceCommit: "89abcdef0123456789abcdef0123456789abcdef",
+      files: oracleFiles,
+    });
+    expect(readFileSync(ws.oracleRequestPath, "utf8")).toBe(passedRequest);
+    expect(seen(ws)?.stdin).toBe(passedRequest);
   });
 
   it("fails on a finding, carrying it as the oracle step's report findings", async () => {
@@ -1794,8 +1860,8 @@ describe("runGates with an oracle step (fake ports)", () => {
       }),
       stderr: "",
     });
-    const request = serializeOracleRequest(
-      makeOracleRequest({
+    const request = serializeAcceptanceRequest(
+      makeAcceptanceRequest({
         role: {
           role: "discharging",
           pair: {
@@ -1806,7 +1872,7 @@ describe("runGates with an oracle step (fake ports)", () => {
         },
         phaseId,
         base: "0123456789abcdef0123456789abcdef01234567",
-        oracleCommit: "89abcdef0123456789abcdef0123456789abcdef",
+        acceptanceCommit: "89abcdef0123456789abcdef0123456789abcdef",
       }),
     );
 

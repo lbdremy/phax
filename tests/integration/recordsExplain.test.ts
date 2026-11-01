@@ -692,7 +692,22 @@ describe("records explain and list (real git)", () => {
       expect(ordinary.text).not.toContain("oracle   ");
     });
 
-    it("lists the oracle request right after the attempt's request under --gates", () => {
+    it("lists the acceptance request right after the attempt's request under --gates", () => {
+      const artifacts = new Map<string, Uint8Array>([
+        ["checks-attempt-01.acceptance-request.json", bytes("{}")],
+        ["checks-attempt-01.report-02.json", bytes("{}")],
+        ["checks-attempt-01.request.json", bytes("{}")],
+        ["checks-attempt-01.log", bytes("one")],
+      ]);
+      expect(gateArtifactsInOrder(artifacts).map(([name]) => name)).toEqual([
+        "checks-attempt-01.log",
+        "checks-attempt-01.request.json",
+        "checks-attempt-01.acceptance-request.json",
+        "checks-attempt-01.report-02.json",
+      ]);
+    });
+
+    it("still lists the oracle request of a record written by 0.32.0 or before", () => {
       const artifacts = new Map<string, Uint8Array>([
         ["checks-attempt-01.oracle-request.json", bytes("{}")],
         ["checks-attempt-01.report-02.json", bytes("{}")],

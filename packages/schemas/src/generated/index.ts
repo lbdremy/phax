@@ -46,4 +46,5 @@ export const CURRENT_SHAPES = {
   "phax-plan-extraction": "next",
   "spec-hand-decision-answer": "0.32.0",
   "plan-hand-decision-answer": "0.32.0",
+  "acceptance-request": "next",
 } as const;

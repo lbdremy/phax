@@ -76,6 +76,7 @@ const packageRoot = resolve(
 describe("schemas package entry", () => {
   it("exports exactly parseDocument, each format's schema, pre-schema schema, parse and upgrade, and the unknown marker at runtime", () => {
     expect(Object.keys(entry).toSorted()).toEqual([
+      "AcceptanceRequestSchema",
       "ArchitectureReportSchema",
       "ArchitectureRequestSchema",
       "AuthoringRecordManifestPreSchemaSchema",
@@ -115,7 +116,7 @@ describe("schemas package entry", () => {
       "InteractiveHandoffV0_26_0Schema",
       "InteractiveSessionSchema",
       "InteractiveSessionV0_26_0Schema",
-      "OracleRequestSchema",
+      "OracleRequestV0_26_0Schema",
       "PhaseFileReconciliationPreSchemaSchema",
       "PhaseFileReconciliationSchema",
       "PhaseFileReconciliationV0_17_0Schema",
@@ -175,6 +176,7 @@ describe("schemas package entry", () => {
       "SpecHandDecisionAnswerSchema",
       "UNKNOWN",
       "isUnknown",
+      "parseAcceptanceRequest",
       "parseArchitectureReport",
       "parseArchitectureRequest",
       "parseAuthoringRecordManifest",
@@ -194,7 +196,6 @@ describe("schemas package entry", () => {
       "parseHandDecisionAnswer",
       "parseInteractiveHandoff",
       "parseInteractiveSession",
-      "parseOracleRequest",
       "parsePhaseFileReconciliation",
       "parsePhaseRecordManifest",
       "parsePhaseStatus",
@@ -214,6 +215,7 @@ describe("schemas package entry", () => {
       "parseSpecApprovals",
       "parseSpecDocument",
       "parseSpecHandDecisionAnswer",
+      "toLatestAcceptanceRequest",
       "toLatestArchitectureReport",
       "toLatestArchitectureRequest",
       "toLatestAuthoringRecordManifest",
@@ -232,7 +234,6 @@ describe("schemas package entry", () => {
       "toLatestHandDecisionAnswer",
       "toLatestInteractiveHandoff",
       "toLatestInteractiveSession",
-      "toLatestOracleRequest",
       "toLatestPhaseFileReconciliation",
       "toLatestPhaseRecordManifest",
       "toLatestPhaseStatus",
@@ -257,11 +258,12 @@ describe("schemas package entry", () => {
   it("exports a schema, a parse function and an upgrade for every format id, a pre-schema schema for every format with a pre-schema shape, a schema for every released shape that is no longer current, plus the union, parseDocument and the unknown marker", () => {
     expect(Object.keys(entry).toSorted()).toEqual(
       [
-        ...FORMAT_IDS.map(pascal).flatMap((name) => [
-          `${name}Schema`,
-          `parse${name}`,
-          `toLatest${name}`,
-        ]),
+        // oracle-request has no schema, parse or upgrade of its own since 0.33.0:
+        // `parseAcceptanceRequest` and `toLatestAcceptanceRequest` read and lift it,
+        // and its frozen 0.26.0 module is exported with the released shapes below.
+        ...FORMAT_IDS.filter((id) => id !== "oracle-request")
+          .map(pascal)
+          .flatMap((name) => [`${name}Schema`, `parse${name}`, `toLatest${name}`]),
         ...PRE_SCHEMA_FORMAT_IDS.map((id) => `${pascal(id)}PreSchemaSchema`),
         ...FORMAT_IDS.flatMap((id) =>
           FORMAT_DEFINITIONS[id].releases.map(

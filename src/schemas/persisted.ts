@@ -197,9 +197,9 @@ import {
   decodeSpecDocumentPreSchema,
   type SpecDocumentPreSchema,
 } from "./history/spec-document/pre-schema.js";
+import { decodeAcceptanceRequestFile, type AcceptanceRequest } from "./acceptanceRequest.js";
 import { decodeInteractiveHandoffFile, type InteractiveHandoffFile } from "./interactiveHandoff.js";
 import { decodeInteractiveSessionFile, type InteractiveSession } from "./interactiveSession.js";
-import { decodeOracleRequestFile, type OracleRequest } from "./oracleRequest.js";
 import {
   decodePhaxPlanFile,
   type PhaxPlan,
@@ -1584,16 +1584,18 @@ export const readInteractiveSessionFile: Reader<InteractiveSession> = (file, inp
 };
 
 /**
- * Reads a gate attempt's `checks-attempt-NN.oracle-request.json`. Born with
- * `$schema`. Read back only by a close finished from a commit that already
- * landed, to recover whether its gate ran the `authored` step.
+ * Reads a gate attempt's `checks-attempt-NN.acceptance-request.json`. Born
+ * with `$schema` at 0.33.0. Read back only by a close finished from a commit
+ * that already landed, to recover whether its gate ran the `authored` step. A
+ * saved `oracle-request` is never read back: a run stopped under 0.32.0 can no
+ * longer resume.
  */
-export const readOracleRequestFile: Reader<OracleRequest> = (file, input) =>
+export const readAcceptanceRequestFile: Reader<AcceptanceRequest> = (file, input) =>
   readSchemaBornPersisted(input, {
-    format: "oracle-request",
-    label: "oracle request",
+    format: "acceptance-request",
+    label: "acceptance request",
     file,
-    decodeCurrent: decodeOracleRequestFile,
+    decodeCurrent: decodeAcceptanceRequestFile,
     fromCurrent: ({ $schema: _schema, ...request }) => request,
   });
 

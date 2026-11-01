@@ -16,7 +16,12 @@ import {
   type ReviewStopShapes,
   type RunListShapes,
 } from "./formats/interactive.js";
-import { oracleRequestFormat, type OracleRequestShapes } from "./formats/oracleRequest.js";
+import {
+  acceptanceRequestFormat,
+  oracleRequestFormat,
+  type AcceptanceRequestShapes,
+  type OracleRequestShapes,
+} from "./formats/acceptanceRequest.js";
 import {
   briefRecordFormat,
   briefRequestFormat,
@@ -341,18 +346,20 @@ export {
   type LatestArchitectureRequest,
 } from "./formats/architecture.js";
 
-// The oracle request phax writes on the oracles provider's stdin, once per
-// oracle step. Its schema and type are phax's own file schema and type.
+// The acceptance request phax writes on the acceptance provider's stdin, once
+// per acceptance step. Its schema and type are phax's own file schema and type.
+// The oracle request it replaced is frozen at 0.26.0: `parseAcceptanceRequest`
+// reads both, and `toLatestAcceptanceRequest` lifts either.
 export {
-  OracleRequestFileSchema as OracleRequestSchema,
-  type OracleRequestFile as OracleRequest,
-} from "../../../src/schemas/oracleRequest.js";
+  AcceptanceRequestFileSchema as AcceptanceRequestSchema,
+  type AcceptanceRequestFile as AcceptanceRequest,
+} from "../../../src/schemas/acceptanceRequest.js";
 export {
-  parseOracleRequest,
-  toLatestOracleRequest,
-  type LatestOracleRequest,
-  type OracleRequestShape,
-} from "./formats/oracleRequest.js";
+  parseAcceptanceRequest,
+  toLatestAcceptanceRequest,
+  type AcceptanceRequestShape,
+  type LatestAcceptanceRequest,
+} from "./formats/acceptanceRequest.js";
 
 // The documents of a declared interactive stop: the first reading and the
 // interactive handoff a phase's turns answer, and the interactive session and
@@ -560,6 +567,10 @@ export {
   type HandDecisionAnswerV0_25_0,
 } from "../../../src/schemas/history/hand-decision-answer/0.25.0.js";
 export {
+  OracleRequestV0_26_0Schema,
+  type OracleRequestV0_26_0,
+} from "../../../src/schemas/history/oracle-request/0.26.0.js";
+export {
   PhaseFileReconciliationV0_17_0Schema,
   type PhaseFileReconciliationV0_17_0,
 } from "../../../src/schemas/history/phase-file-reconciliation/0.17.0.js";
@@ -745,6 +756,7 @@ type DocumentShapes = EveryFormat<{
   "phax-plan-extraction": PhaxPlanExtractionShapes;
   "spec-hand-decision-answer": SpecHandDecisionAnswerShapes;
   "plan-hand-decision-answer": PlanHandDecisionAnswerShapes;
+  "acceptance-request": AcceptanceRequestShapes;
 }>;
 
 /** The id of every format `parseDocument` reads: every `FormatId`. */
@@ -797,4 +809,5 @@ export const parseDocument: (input: unknown) => ParsedDocument<DocumentShapes> =
     "phax-plan-extraction": phaxPlanExtractionFormat,
     "spec-hand-decision-answer": specHandDecisionAnswerFormat,
     "plan-hand-decision-answer": planHandDecisionAnswerFormat,
+    "acceptance-request": acceptanceRequestFormat,
   });

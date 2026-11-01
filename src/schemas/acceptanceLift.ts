@@ -5,6 +5,7 @@
 // the schemas package publishes it. Each function keeps every other fact as it
 // was recorded.
 import { Array as Arr } from "effect";
+import type { AcceptanceRequest } from "./acceptanceRequest.js";
 import type { GateStepResult } from "./gateAttribution.js";
 import type { PhaseAcceptance, PhaxPlan, PhaxPlanPhase } from "./phaxPlan.js";
 import type { PlanDocument, PlanDocumentPhase } from "./planDocument.js";
@@ -277,4 +278,46 @@ export function liftStopStep(stop: PhaseStopToLift): PhaseStop {
   );
   // `Object.fromEntries` loses the key types; the entries above rebuild exactly a current stop.
   return Object.fromEntries(entries) as PhaseStop;
+}
+
+/**
+ * An oracle request as phax 0.26.0 to 0.32.x wrote it, `$schema` dropped: the
+ * two variants of `oracle-request` at 0.26.0.
+ */
+export type OracleRequestToLift =
+  | {
+      readonly verdict: "authored";
+      readonly phase: string;
+      readonly oraclePhase: string;
+      readonly base: string;
+      readonly files: readonly [string, ...string[]];
+    }
+  | {
+      readonly verdict: "discharged";
+      readonly phase: string;
+      readonly oraclePhase: string;
+      readonly base: string;
+      readonly oracleCommit: string;
+      readonly files: readonly [string, ...string[]];
+    };
+
+/**
+ * An oracle request lifted to the latest acceptance request: `authored` stays
+ * `authored`, `discharged` becomes `passed`, `oraclePhase` becomes
+ * `acceptancePhase` and `oracleCommit` becomes `acceptanceCommit`. Keys come in
+ * the acceptance request's order, every other fact as it was recorded.
+ */
+export function liftOracleRequest(request: OracleRequestToLift): AcceptanceRequest {
+  const { phase, base, files } = request;
+  if (request.verdict === "authored") {
+    return { verdict: "authored", phase, acceptancePhase: request.oraclePhase, base, files };
+  }
+  return {
+    verdict: "passed",
+    phase,
+    acceptancePhase: request.oraclePhase,
+    base,
+    acceptanceCommit: request.oracleCommit,
+    files,
+  };
 }

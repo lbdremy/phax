@@ -299,8 +299,8 @@ function refusedClose(result: Either.Either<unknown, unknown>): StopCloseRefused
   return result.left as StopCloseRefusedError;
 }
 
-const oracleRequestSchema = expect.stringMatching(
-  /\/schemas\/oracle-request\/\d+\.\d+\.\d+\.json$/,
+const acceptanceRequestSchema = expect.stringMatching(
+  /\/schemas\/acceptance-request\/\d+\.\d+\.\d+\.json$/,
 );
 
 beforeEach(() => {
@@ -334,10 +334,10 @@ describe("a held oracle phase", { timeout: 60_000 }, () => {
     expect(phase02["base"]).toBe(phase01["commitHash"]);
     const [, closing, discharged] = requests();
     expect(closing).toEqual({
-      $schema: oracleRequestSchema,
+      $schema: acceptanceRequestSchema,
       verdict: "authored",
       phase: "phase-02",
-      oraclePhase: "phase-02",
+      acceptancePhase: "phase-02",
       base: phase01["commitHash"],
       files: [ORACLE_FILE],
     });
@@ -355,10 +355,10 @@ describe("a held oracle phase", { timeout: 60_000 }, () => {
     const reviewCommit = (phase02["stop"] as { reviewCommit: string }).reviewCommit;
     expect(gitIn(tree(run, "phase-02"), "rev-parse", `${reviewCommit}^`)).toBe(c2);
     expect(discharged).toMatchObject({
-      verdict: "discharged",
+      verdict: "passed",
       phase: "phase-03",
-      oraclePhase: "phase-02",
-      oracleCommit: reviewCommit,
+      acceptancePhase: "phase-02",
+      acceptanceCommit: reviewCommit,
     });
     expect(requests()).toHaveLength(3);
     // The closing gate's attribution ends with the oracle step, under review-gate/.
@@ -381,8 +381,8 @@ describe("a held oracle phase", { timeout: 60_000 }, () => {
     const result = await resumeHeldRun(run);
 
     expect(Either.isRight(result)).toBe(true);
-    expect(verdicts()).toEqual(["authored:phase-02", "discharged:phase-03"]);
-    expect(requests()[1]?.["oracleCommit"]).toBe(c2);
+    expect(verdicts()).toEqual(["authored:phase-02", "passed:phase-03"]);
+    expect(requests()[1]?.["acceptanceCommit"]).toBe(c2);
     expect(readPhaseStatus(run, "phase-02")["stop"]).toMatchObject({
       outcome: "corrected",
       acceptanceStep: "none",
@@ -468,12 +468,12 @@ describe("a declared review between the pair", { timeout: 60_000 }, () => {
     expect(Either.isRight(result)).toBe(true);
     const phase02 = readPhaseStatus(run, "phase-02");
     const phase03 = readPhaseStatus(run, "phase-03");
-    expect(verdicts()).toEqual(["authored:phase-02", "authored:phase-03", "discharged:phase-04"]);
+    expect(verdicts()).toEqual(["authored:phase-02", "authored:phase-03", "passed:phase-04"]);
     expect(requests()[1]).toEqual({
-      $schema: oracleRequestSchema,
+      $schema: acceptanceRequestSchema,
       verdict: "authored",
       phase: "phase-03",
-      oraclePhase: "phase-02",
+      acceptancePhase: "phase-02",
       base: phase02["base"],
       files: [ORACLE_FILE],
     });
@@ -484,14 +484,14 @@ describe("a declared review between the pair", { timeout: 60_000 }, () => {
       acceptanceStep: "authored",
       closedBy: ADA_EXAMPLE,
     });
-    expect(requests()[2]?.["oracleCommit"]).toBe(phase03["commitHash"]);
+    expect(requests()[2]?.["acceptanceCommit"]).toBe(phase03["commitHash"]);
     expect(phase03["commitHash"]).not.toBe(phase02["commitHash"]);
   });
 
   it("is not reset once its discharge has started", async () => {
     const run = await startStopped(FIVE_PHASES, { selection: "none" });
     writeIn(run, "phase-03", ORACLE_FILE, CORRECTED_TEST);
-    writeFileSync(failFlag(), "discharged");
+    writeFileSync(failFlag(), "passed");
     const result = await resumeHeldRun(run);
     if (Either.isRight(result)) throw new Error("expected the discharge to fail");
     expect(result.left).toBeInstanceOf(GateAttemptsExhaustedError);
@@ -538,12 +538,12 @@ const HOLD_DISCHARGE: RunHold = { selection: "listed", phases: ["phase-03"] };
 describe("a held discharge closes on its configured steps", { timeout: 60_000 }, () => {
   it("closes unchanged with no request", async () => {
     const run = await startStopped(FOUR_PHASES, HOLD_DISCHARGE);
-    expect(verdicts()).toEqual(["authored:phase-02", "discharged:phase-03"]);
+    expect(verdicts()).toEqual(["authored:phase-02", "passed:phase-03"]);
 
     const result = await resumeHeldRun(run);
 
     expect(Either.isRight(result)).toBe(true);
-    expect(verdicts()).toEqual(["authored:phase-02", "discharged:phase-03"]);
+    expect(verdicts()).toEqual(["authored:phase-02", "passed:phase-03"]);
     expect(run.closed[0]?.report).toMatchObject({
       cause: "held",
       outcome: "unchanged",
@@ -559,7 +559,7 @@ describe("a held discharge closes on its configured steps", { timeout: 60_000 },
     const result = await resumeHeldRun(run);
 
     expect(Either.isRight(result)).toBe(true);
-    expect(verdicts()).toEqual(["authored:phase-02", "discharged:phase-03"]);
+    expect(verdicts()).toEqual(["authored:phase-02", "passed:phase-03"]);
     const closed = run.closed[0]!;
     expect(closed.report).toMatchObject({
       cause: "held",
@@ -595,7 +595,7 @@ describe("a held discharge closes on its configured steps", { timeout: 60_000 },
     expect(error.lastClose).toMatchObject({ result: "gate-failed" });
     expect(backendCalls(run, "phase-03")).toHaveLength(callsBefore);
     expect(headOf(run, "phase-03")).toBe(c3);
-    expect(verdicts()).toEqual(["authored:phase-02", "discharged:phase-03"]);
+    expect(verdicts()).toEqual(["authored:phase-02", "passed:phase-03"]);
   });
 });
 
@@ -702,8 +702,8 @@ describe("an authored close interrupted after its review commit", { timeout: 60_
       closedBy: ADA_EXAMPLE,
     });
     // No request at the finishing close: its gate ran before the commit.
-    expect(verdicts()).toEqual(["authored:phase-02", "authored:phase-02", "discharged:phase-03"]);
-    expect(requests()[2]?.["oracleCommit"]).toBe(landed);
+    expect(verdicts()).toEqual(["authored:phase-02", "authored:phase-02", "passed:phase-03"]);
+    expect(requests()[2]?.["acceptanceCommit"]).toBe(landed);
   });
 });
 
@@ -768,7 +768,7 @@ describe("a held acceptance phase closed with a correction", { timeout: 60_000 }
     // The correction changes the acceptance file: the close's gate passes the authored step.
     writeIn(run, "phase-03", ORACLE_FILE, CORRECTED_TEST);
     expect(Either.isRight(await resumeHeldRun(run))).toBe(true);
-    expect(verdicts()).toEqual(["authored:phase-03", "authored:phase-03", "discharged:phase-04"]);
+    expect(verdicts()).toEqual(["authored:phase-03", "authored:phase-03", "passed:phase-04"]);
 
     const status = readPhaseStatus(run, "phase-03");
     expect(status["$schema"]).toBe(stamp("phase-status"));

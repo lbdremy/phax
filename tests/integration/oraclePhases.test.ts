@@ -99,7 +99,9 @@ function id(n: number): string {
 }
 
 async function oracleRequests(h: { runPath: string }, phase: string): Promise<string[]> {
-  return (await readdir(join(h.runPath, phase))).filter((f) => f.endsWith(".oracle-request.json"));
+  return (await readdir(join(h.runPath, phase))).filter((f) =>
+    f.endsWith(".acceptance-request.json"),
+  );
 }
 
 function source(p: Pair): string {
@@ -398,16 +400,19 @@ describe("oracle phases in a run", () => {
     const phase02 = await h.readJson("phase-02", "status.json");
     expect(phase02["base"]).toBe(phase01["commitHash"]);
     expect(authored!.request).toEqual({
-      $schema: expect.stringMatching(/\/schemas\/oracle-request\/[^/]+\.json$/),
+      $schema: expect.stringMatching(/\/schemas\/acceptance-request\/0\.33\.0\.json$/),
       verdict: "authored",
       phase: "phase-02",
-      oraclePhase: "phase-02",
+      acceptancePhase: "phase-02",
       base: phase01["commitHash"],
       files: ORACLE_FILES,
     });
     expect(authored!.commitsBefore).toBe(0);
     expect(
-      await readFile(join(h.runPath, "phase-02", "checks-attempt-01.oracle-request.json"), "utf8"),
+      await readFile(
+        join(h.runPath, "phase-02", "checks-attempt-01.acceptance-request.json"),
+        "utf8",
+      ),
     ).toBe(authored!.stdin);
 
     // The discharged request names the tip of phase-02's branch.
@@ -416,12 +421,12 @@ describe("oracle phases in a run", () => {
     );
     expect(phase02["commitHash"]).toBe(phase02Tip);
     expect(discharged!.request).toEqual({
-      $schema: expect.stringMatching(/\/schemas\/oracle-request\/[^/]+\.json$/),
-      verdict: "discharged",
+      $schema: expect.stringMatching(/\/schemas\/acceptance-request\/0\.33\.0\.json$/),
+      verdict: "passed",
       phase: "phase-03",
-      oraclePhase: "phase-02",
+      acceptancePhase: "phase-02",
       base: phase02["base"],
-      oracleCommit: phase02Tip,
+      acceptanceCommit: phase02Tip,
       files: ORACLE_FILES,
     });
 
@@ -496,14 +501,14 @@ describe("oracle phases in a run", () => {
       "phase-02",
       "phase-03",
     ]);
-    expect(existsSync(join(h.runPath, "phase-02", "checks-attempt-02.oracle-request.json"))).toBe(
-      true,
-    );
+    expect(
+      existsSync(join(h.runPath, "phase-02", "checks-attempt-02.acceptance-request.json")),
+    ).toBe(true);
   });
 
   it("exhausts an always-finding discharge, resumes with the same commit, and never resets the committed oracle phase", async () => {
     const h = await setup(planOf(3, { oracle: 2, discharging: 3 }), {
-      answer: (request) => (request["verdict"] === "discharged" ? unmarked : passing),
+      answer: (request) => (request["verdict"] === "passed" ? unmarked : passing),
     });
 
     const result = await h.execute();
@@ -518,7 +523,7 @@ describe("oracle phases in a run", () => {
     expect(instructions).toContain("--skip-oracle");
     expect(instructions).toContain("the phase's configured gate still runs");
     const phase02 = await h.readJson("phase-02", "status.json");
-    const discharges = () => h.providerCalls.filter((c) => c.request["verdict"] === "discharged");
+    const discharges = () => h.providerCalls.filter((c) => c.request["verdict"] === "passed");
     expect(discharges()).toHaveLength(2);
     expect(h.fixPrompts()[0]).toContain("found: the refund test is still marked");
 
@@ -526,7 +531,7 @@ describe("oracle phases in a run", () => {
     const resumed = await h.execute(2);
 
     expect(Either.isLeft(resumed) && resumed.left instanceof GateAttemptsExhaustedError).toBe(true);
-    expect(new Set(discharges().map((c) => c.request["oracleCommit"]))).toEqual(
+    expect(new Set(discharges().map((c) => c.request["acceptanceCommit"]))).toEqual(
       new Set([phase02["commitHash"]]),
     );
 
@@ -550,14 +555,14 @@ describe("oracle phases in a run", () => {
     const rerun = await h.execute(2);
 
     expect(Either.isRight(rerun)).toBe(true);
-    expect(discharges().at(-1)?.request["oracleCommit"]).toBe(phase02["commitHash"]);
+    expect(discharges().at(-1)?.request["acceptanceCommit"]).toBe(phase02["commitHash"]);
   });
 
   describe("a skipped oracle step", () => {
     async function exhaustDischarge(publish: boolean) {
       const h = await setup(planOf(3, { oracle: 2, discharging: 3 }), {
         publish,
-        answer: (request) => (request["verdict"] === "discharged" ? unmarked : passing),
+        answer: (request) => (request["verdict"] === "passed" ? unmarked : passing),
       });
       if (publish) h.fakeGit.impl.addExistingRemote("origin");
       const first = await h.execute();
@@ -575,7 +580,7 @@ describe("oracle phases in a run", () => {
       const again = await h.execute(2);
       expect(Either.isLeft(again) && again.left instanceof GateAttemptsExhaustedError).toBe(true);
       expect(h.providerCalls).toHaveLength(callsBefore + 2);
-      expect(h.providerCalls.at(-1)?.request["verdict"]).toBe("discharged");
+      expect(h.providerCalls.at(-1)?.request["verdict"]).toBe("passed");
       await h.noteSession("phase-03");
 
       const callsBeforeSkip = h.providerCalls.length;
@@ -640,18 +645,16 @@ describe("oracle phases in a run", () => {
       const phase02 = await h.readJson("phase-02", "status.json");
       const later = h.providerCalls.slice(callsBefore);
       expect(later.map((c) => [basename(c.cwd), c.request["verdict"]])).toEqual([
-        ["phase-03", "discharged"],
+        ["phase-03", "passed"],
       ]);
-      expect(later[0]?.request["oracleCommit"]).toBe(phase02["commitHash"]);
+      expect(later[0]?.request["acceptanceCommit"]).toBe(phase02["commitHash"]);
     });
 
     it("reaches no later phase", async () => {
       const second = { oracle: 3, discharging: 4, files: ["tests/prune.test.ts"] };
       const h = await setup(planOf(4, [{ oracle: 1, discharging: 2 }, second]), {
         answer: (request) =>
-          request["verdict"] === "discharged" && request["phase"] === "phase-02"
-            ? unmarked
-            : passing,
+          request["verdict"] === "passed" && request["phase"] === "phase-02" ? unmarked : passing,
       });
       const first = await h.execute();
       if (Either.isRight(first)) throw new Error("expected the run to stop");
@@ -669,7 +672,7 @@ describe("oracle phases in a run", () => {
       ]);
       expect(h.providerCalls.slice(callsBefore).map((c) => c.request["verdict"])).toEqual([
         "authored",
-        "discharged",
+        "passed",
       ]);
     });
   });
@@ -721,7 +724,7 @@ describe("oracle phases in a run", () => {
         { command: "pnpm test", surface: "local", result: "pass" },
         { command: "pnpm lint", surface: "structural", result: "pass" },
       ]);
-      expect(existsSync(join(h.runPath, phase, "checks-attempt-01.oracle-request.json"))).toBe(
+      expect(existsSync(join(h.runPath, phase, "checks-attempt-01.acceptance-request.json"))).toBe(
         false,
       );
     }

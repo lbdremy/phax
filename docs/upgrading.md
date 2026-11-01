@@ -21,6 +21,18 @@ phax schema upgrade                   # phax.schema.json, the editor schema of p
 
 Only the releases that ask for something are listed. phax never asks for a step silently: a command that needs one refuses with exit 12 and names it.
 
+### 0.33.0
+
+- **Plan documents, run plans and extraction answers: `plan-document`, `phax-plan` and `phax-plan-extraction` are stamped 0.33.0.** A phase's `oracle: { dischargedBy, files }` key is `acceptance: { passedBy, files }`, a test line's loop `oracle` is `acceptance`, the technique `boundary` is accepted, and the criterion words `acceptance`, `in-phase` and `oracle` are reserved: no criterion id may be one of them.
+- **Records and schema readers: `run-status`, `phase-status`, `gate-attribution` and `phase-record-manifest` are stamped 0.33.0.** A run's hold selection `oracle` is recorded `acceptance`, a corrected stop's `oracleStep` is `acceptanceStep`, a gate step's surface `oracle` and a record's verified surface `oracle` are `acceptance`, and a record's role is `acceptance` with `passedBy` or `passing` with `acceptancePhase`, in place of `oracle` with `dischargedBy` or `discharging` with `oraclePhase`.
+- **Provider and run folders: the new `acceptance-request` replaces `oracle-request`.** The provider reads an `acceptance-request` stamped 0.33.0 on stdin, with verdict `authored` or `passed` and the keys `phase`, `acceptancePhase`, `base` and `files`, plus `acceptanceCommit` on `passed`. phax saves it as `checks-attempt-NN.acceptance-request.json`. `oracle-request` is frozen at 0.26.0 and read only: phax writes it nowhere.
+- **Schema readers: renamed exports in `@lbdremy/phax-schemas`.** `parseAcceptanceRequest` reads an `acceptance-request` and an `oracle-request` at 0.26.0, and `toLatestAcceptanceRequest` lifts either to the latest acceptance request (`discharged` becomes `passed`, `oraclePhase` becomes `acceptancePhase`, `oracleCommit` becomes `acceptanceCommit`). `OracleRequestSchema`, `parseOracleRequest`, `toLatestOracleRequest` and the types `OracleRequest`, `LatestOracleRequest` and `OracleRequestShape` are gone; `OracleRequestV0_26_0Schema` stays for the frozen shape. An older `@lbdremy/phax-schemas` cannot read 0.33.0 documents.
+- **Older records read under the new names.** A plan sidecar, run plan, status file, gate attribution or record manifest written by an earlier release still reads, lifted to the acceptance names when phax or `@lbdremy/phax-schemas` reads it. `phax records explain` lists a record's `.acceptance-request.json`, and `.oracle-request.json` for a record written before.
+- **Run `phax artifact migrate-documents` once.** It restamps every live spec and plan sidecar at 0.33.0. Until then `approve`, `reopen` and `decide` refuse, naming the command.
+- **Runs in flight.** A `phax-plan.json` extracted by 0.32.0 or older is refused by `phax resume` and `phax validate --plan`, which name `phax archive <run> --force`. Finish the run with the release that started it, or archive it and run its plan again. `phax ls` and `phax session-info` still show it.
+
+The configuration, hand-written plan, command-line and provider steps of this release are listed here when they ship.
+
 ### 0.32.0
 
 - **Records and schema readers: `hand-decision-answer` is two formats.** `spec-hand-decision-answer` and `plan-hand-decision-answer` are each the old variant with a `$schema` const. `hand-decision-answer` stays readable at 0.25.0, and phax no longer reads or asks for it.

@@ -20,7 +20,7 @@ import {
   UNKNOWN,
   parseArchitectureReport,
   parseArchitectureRequest,
-  parseOracleRequest,
+  parseAcceptanceRequest,
   parseFirstReading,
   parseInteractiveHandoff,
   parseInteractiveSession,
@@ -57,7 +57,7 @@ import {
   parseSpecDocument,
   toLatestArchitectureReport,
   toLatestArchitectureRequest,
-  toLatestOracleRequest,
+  toLatestAcceptanceRequest,
   toLatestFirstReading,
   toLatestInteractiveHandoff,
   toLatestInteractiveSession,
@@ -94,6 +94,7 @@ import {
   toLatestSpecDocument,
 } from "../../../packages/schemas/src/index.js";
 import {
+  readAcceptanceRequestFile,
   readBriefRecordFile,
   readBriefRequestFile,
   readComplianceReviewFile,
@@ -278,7 +279,9 @@ const PACKAGE_LATEST: { readonly [F in FormatId]: PackageLatest } = {
   "code-review": latest(parseCodeReview, toLatestCodeReview),
   "architecture-request": latest(parseArchitectureRequest, toLatestArchitectureRequest),
   "architecture-report": latest(parseArchitectureReport, toLatestArchitectureReport),
-  "oracle-request": latest(parseOracleRequest, toLatestOracleRequest),
+  // parseAcceptanceRequest reads both requests: an oracle request is lifted to the acceptance names.
+  "oracle-request": latest(parseAcceptanceRequest, toLatestAcceptanceRequest),
+  "acceptance-request": latest(parseAcceptanceRequest, toLatestAcceptanceRequest),
   "first-reading": latest(parseFirstReading, toLatestFirstReading),
   "interactive-handoff": latest(parseInteractiveHandoff, toLatestInteractiveHandoff),
   "interactive-session": latest(parseInteractiveSession, toLatestInteractiveSession),
@@ -331,9 +334,11 @@ const BRIDGE_READERS: { readonly [F in FormatId]: BridgeReader | undefined } = {
   // readArchitectureReport, which names no file.
   "architecture-request": undefined,
   "architecture-report": undefined,
-  // phax writes the oracle request on the oracles provider's stdin and never
-  // reads it back.
+  // phax writes the acceptance request on the acceptance provider's stdin and
+  // reads it back only to finish a stop's close; it writes and reads no oracle
+  // request since 0.33.0 (frozen at 0.26.0).
   "oracle-request": undefined,
+  "acceptance-request": readAcceptanceRequestFile,
   // phax reads the first reading and the interactive handoff only as a turn's
   // answer, through readFirstReadingAnswer and readInteractiveHandoffAnswer,
   // which name no file.

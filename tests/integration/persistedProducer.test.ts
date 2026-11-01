@@ -19,9 +19,9 @@ import {
   ORACLE_PROVIDER_TIMEOUT_MS,
   runGates,
   serializeGateRequest,
-  serializeOracleRequest,
+  serializeAcceptanceRequest,
 } from "../../src/app/gates.js";
-import { makeOracleRequest } from "../../src/domain/gate/oracleRequest.js";
+import { makeAcceptanceRequest } from "../../src/domain/gate/acceptanceRequest.js";
 import { pushBrief, writePhaseBriefRequest } from "../../src/app/pushedBrief.js";
 import { phaseBriefRequest } from "../../src/domain/brief/request.js";
 import { makeGateRequest } from "../../src/domain/gate/gateRequest.js";
@@ -335,7 +335,7 @@ function formatAt(
   if (name === "brief-request.json") return "brief-request";
   if (/^brief-\d{2,}\.json$/.test(name)) return "brief-record";
   if (/\.report-\d{2,}\.json$/.test(name)) return "gate-report";
-  if (name.endsWith(".oracle-request.json")) return "oracle-request";
+  if (name.endsWith(".acceptance-request.json")) return "acceptance-request";
   if (name.endsWith(".request.json")) return "gate-request";
   if (name === "record.json") {
     if (location.startsWith("records:decision/")) return "decision-record-manifest";
@@ -573,8 +573,8 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
       oracleStep: {
         kind: "run",
         command: "./oracles",
-        request: serializeOracleRequest(
-          makeOracleRequest({
+        request: serializeAcceptanceRequest(
+          makeAcceptanceRequest({
             role: {
               role: "oracle",
               pair: {
@@ -585,7 +585,7 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
             },
             phaseId: "phase-01",
             base: "0123456789abcdef0123456789abcdef01234567",
-            oracleCommit: null,
+            acceptanceCommit: null,
           }),
         ),
         timeoutMs: ORACLE_PROVIDER_TIMEOUT_MS,
@@ -839,6 +839,9 @@ const NEVER_WRITTEN: ReadonlyArray<FormatId> = [
   "hand-decision-answer",
   "spec-hand-decision-answer",
   "plan-hand-decision-answer",
+  // phax wrote an oracle request until 0.32.0 and writes the acceptance
+  // request since: oracle-request is frozen at 0.26.0 and read only.
+  "oracle-request",
   // phax never writes the first reading or the interactive handoff as a file:
   // each is a declared interactive phase's turn answer, read at the boundary.
   "first-reading",

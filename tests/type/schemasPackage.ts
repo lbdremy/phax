@@ -10,11 +10,11 @@ import type {
   parseArchitectureRequest,
   toLatestArchitectureReport,
   toLatestArchitectureRequest,
-  LatestOracleRequest,
-  OracleRequest,
-  OracleRequestShape,
-  parseOracleRequest,
-  toLatestOracleRequest,
+  AcceptanceRequest,
+  AcceptanceRequestShape,
+  LatestAcceptanceRequest,
+  parseAcceptanceRequest,
+  toLatestAcceptanceRequest,
   CodeReviewV0_29_0,
   FirstReading,
   FirstReadingShape,
@@ -271,9 +271,10 @@ import type {
   ArchitectureRequestFile as PhaxArchitectureRequestFile,
 } from "../../src/schemas/architecture.js";
 import type {
-  OracleRequest as PhaxOracleRequest,
-  OracleRequestFile as PhaxOracleRequestFile,
-} from "../../src/schemas/oracleRequest.js";
+  AcceptanceRequest as PhaxAcceptanceRequest,
+  AcceptanceRequestFile as PhaxAcceptanceRequestFile,
+} from "../../src/schemas/acceptanceRequest.js";
+import type { OracleRequestV0_26_0 as FrozenOracleRequestV0_26_0 } from "../../src/schemas/history/oracle-request/0.26.0.js";
 import type {
   FirstReading as PhaxFirstReading,
   FirstReadingFile as PhaxFirstReadingFile,
@@ -629,6 +630,7 @@ const formats: Equals<
   | "architecture-request"
   | "architecture-report"
   | "oracle-request"
+  | "acceptance-request"
   | "first-reading"
   | "interactive-handoff"
   | "interactive-session"
@@ -729,7 +731,7 @@ const shapeIds: Equals<
   | CodeReviewShape
   | ArchitectureRequestShape
   | ArchitectureReportShape
-  | OracleRequestShape
+  | AcceptanceRequestShape
   | FirstReadingShape
   | InteractiveHandoffShape
   | InteractiveSessionShape
@@ -1373,19 +1375,31 @@ void architectureTypes;
 declare const latestArchitectureReport: LatestArchitectureReport;
 // @ts-expect-error: the in-memory architecture report carries no $schema
 void latestArchitectureReport.$schema;
-// The oracle request is born with $schema too: phax's own file type, one
-// current shape, and an in-memory value without $schema
-const oracleRequestTypes: [
-  Equals<OracleRequest, PhaxOracleRequestFile>,
-  Equals<OracleRequestShape, Current<"oracle-request">>,
-  Equals<Value<typeof parseOracleRequest>, PhaxOracleRequestFile>,
-  Equals<LatestOracleRequest, PhaxOracleRequest>,
-  Equals<Parameters<typeof toLatestOracleRequest>, [value: PhaxOracleRequestFile]>,
-] = [true, true, true, true, true];
-void oracleRequestTypes;
-declare const latestOracleRequest: LatestOracleRequest;
-// @ts-expect-error: the in-memory oracle request carries no $schema
-void latestOracleRequest.$schema;
+// The acceptance request is born with $schema too: phax's own file type, an
+// in-memory value without $schema, and one parse function that also reads the
+// oracle request it replaced, frozen at 0.26.0
+const acceptanceRequestTypes: [
+  Equals<AcceptanceRequest, PhaxAcceptanceRequestFile>,
+  Equals<AcceptanceRequestShape, Current<"acceptance-request"> | Current<"oracle-request">>,
+  Equals<
+    Value<typeof parseAcceptanceRequest>,
+    PhaxAcceptanceRequestFile | FrozenOracleRequestV0_26_0
+  >,
+  Equals<ShapeValue<typeof parseAcceptanceRequest, "0.26.0">, FrozenOracleRequestV0_26_0>,
+  Equals<
+    ShapeValue<typeof parseAcceptanceRequest, Current<"acceptance-request">>,
+    PhaxAcceptanceRequestFile
+  >,
+  Equals<LatestAcceptanceRequest, PhaxAcceptanceRequest>,
+  Equals<
+    Parameters<typeof toLatestAcceptanceRequest>,
+    [value: PhaxAcceptanceRequestFile | FrozenOracleRequestV0_26_0]
+  >,
+] = [true, true, true, true, true, true, true];
+void acceptanceRequestTypes;
+declare const latestAcceptanceRequest: LatestAcceptanceRequest;
+// @ts-expect-error: the in-memory acceptance request carries no $schema
+void latestAcceptanceRequest.$schema;
 // The four documents of a declared interactive stop are born with $schema
 // too: phax's own file types, one current shape each, and an in-memory value
 // without $schema

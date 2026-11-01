@@ -20,6 +20,7 @@
   "src/schemas/history/hand-decision-answer/0.25.0.ts": "a70a2e54c06cf1e8f1d3e77bd1c5a15f1c7859d029f9d5e3f390efb364ce0c6e",
   "src/schemas/history/interactive-handoff/0.26.0.ts": "30a0fe44a4f8f43cfd49ed80eca4377d7a6549aa0ac2d0945ede98c9de195a7d",
   "src/schemas/history/interactive-session/0.26.0.ts": "e152f861fe239089c79faf6ce4644718251082bdf0af1022ee966ec0ffbb64e1",
+  "src/schemas/history/oracle-request/0.26.0.ts": "73be0c73eee0cb22888af571df4de770515e6b284c9fd397bdb6b5c1100f761c",
   "src/schemas/history/phase-file-reconciliation/0.17.0.ts": "5dabbfe52d4fbab025a6bd60571ac84e83329cae23761f48b180e4736c3a5730",
   "src/schemas/history/phase-file-reconciliation/pre-schema.ts": "9d0e70a9abdf1cc387baa8d5699b04a8af268d09706a064bd6abb42f232ddd75",
   "src/schemas/history/phase-record-manifest/0.17.0.ts": "8d3421054c0b491444ddf226a02fdd7a120d4df181bb31ef9bf6b013a42c8c5b",

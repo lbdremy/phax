@@ -4,7 +4,7 @@ import { CURRENT_SHAPES } from "../../../packages/schemas/src/generated/index.js
 import {
   parseArchitectureReport,
   parseArchitectureRequest,
-  parseOracleRequest,
+  parseAcceptanceRequest,
   parseFirstReading,
   parseInteractiveHandoff,
   parseInteractiveSession,
@@ -57,7 +57,8 @@ import {
 import { decodeFirstReadingFile } from "../../../src/schemas/firstReading.js";
 import { decodeInteractiveHandoffFile } from "../../../src/schemas/interactiveHandoff.js";
 import { decodeInteractiveSessionFile } from "../../../src/schemas/interactiveSession.js";
-import { decodeOracleRequestFile } from "../../../src/schemas/oracleRequest.js";
+import { decodeAcceptanceRequestFile } from "../../../src/schemas/acceptanceRequest.js";
+import { decodeOracleRequestV0_26_0 } from "../../../src/schemas/history/oracle-request/0.26.0.js";
 import { decodePlanExtractionAnswer } from "../../../src/schemas/planExtraction.js";
 import { decodeReviewStopFile } from "../../../src/schemas/reviewStop.js";
 import { decodeRunListFile } from "../../../src/schemas/runList.js";
@@ -368,10 +369,19 @@ const FORMATS: { readonly [F in FormatId]: FormatParity } = {
     required: "body",
     excess: "error",
   },
+  // Frozen at 0.26.0: phax decodes it nowhere, so its parity is with the frozen module.
   "oracle-request": {
     id: "oracle-request",
-    parse: parseOracleRequest,
-    phax: decodeOracleRequestFile,
+    parse: parseAcceptanceRequest,
+    phax: decodeOracleRequestV0_26_0,
+    wrongType: ["files", {}],
+    required: "files",
+    excess: "error",
+  },
+  "acceptance-request": {
+    id: "acceptance-request",
+    parse: parseAcceptanceRequest,
+    phax: decodeAcceptanceRequestFile,
     wrongType: ["files", {}],
     required: "files",
     excess: "error",

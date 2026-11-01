@@ -35,7 +35,10 @@ import {
 } from "../domain/errors.js";
 import type { HeldStopClosed, OracleStep, PhaxEventBase, StopCommitted } from "../domain/events.js";
 import { attemptLogName, nextAttemptNumber } from "../domain/gate/attemptFiles.js";
-import { makeReviewOracleRequest, oracleRequestPathFor } from "../domain/gate/oracleRequest.js";
+import {
+  acceptanceRequestPathFor,
+  makeReviewAcceptanceRequest,
+} from "../domain/gate/acceptanceRequest.js";
 import { selectGateSteps } from "../domain/gate/selectSteps.js";
 import {
   REVIEWED_WITHOUT_CHANGE_HANDOFF,
@@ -88,7 +91,7 @@ import {
   describeReportError,
   readGateAttributionFile,
   readInteractiveHandoffAnswer,
-  readOracleRequestFile,
+  readAcceptanceRequestFile,
 } from "../schemas/persisted.js";
 import type { GateStep } from "../schemas/phaxConfig.js";
 import type { PhaxPlanPhase } from "../schemas/phaxPlan.js";
@@ -99,7 +102,7 @@ import { dispatch, type DispatcherContext } from "./dispatcher.js";
 import {
   ORACLE_PROVIDER_TIMEOUT_MS,
   runGates,
-  serializeOracleRequest,
+  serializeAcceptanceRequest,
   type OracleStep as GateOracleStep,
 } from "./gates.js";
 import {
@@ -542,7 +545,10 @@ function landedOracleStep(
 ): Effect.Effect<OracleStep, never, FileSystem> {
   return Effect.gen(function* () {
     if (gateLog === null) return "none";
-    const request = yield* readDocument(oracleRequestPathFor(gateLog), readOracleRequestFile);
+    const request = yield* readDocument(
+      acceptanceRequestPathFor(gateLog),
+      readAcceptanceRequestFile,
+    );
     if (request?.verdict !== "authored" || request.phase !== input.phase.id) return "none";
     const attribution = yield* readDocument(
       join(layout.gateFolder, "gate-attribution.json"),
@@ -619,8 +625,8 @@ function decideOracleStep(
       step: {
         kind: "run",
         command: input.oracles.command,
-        request: serializeOracleRequest(
-          makeReviewOracleRequest({ pair, phaseId: input.phase.id, base }),
+        request: serializeAcceptanceRequest(
+          makeReviewAcceptanceRequest({ pair, phaseId: input.phase.id, base }),
         ),
         timeoutMs: ORACLE_PROVIDER_TIMEOUT_MS,
       },

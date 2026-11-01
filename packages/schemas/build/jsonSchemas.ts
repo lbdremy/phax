@@ -40,7 +40,7 @@ import {
   reviewStopFormat,
   runListFormat,
 } from "../src/formats/interactive.js";
-import { oracleRequestFormat } from "../src/formats/oracleRequest.js";
+import { acceptanceRequestFormat, oracleRequestFormat } from "../src/formats/acceptanceRequest.js";
 import { briefReportFormat, gateReportFormat } from "../src/formats/reports.js";
 import {
   decideVerdictsFormat,
@@ -129,6 +129,7 @@ export const FORMAT_DEFINITIONS: { readonly [F in FormatId]: CurrentShape } = {
   "phax-plan-extraction": phaxPlanExtractionFormat,
   "spec-hand-decision-answer": specHandDecisionAnswerFormat,
   "plan-hand-decision-answer": planHandDecisionAnswerFormat,
+  "acceptance-request": acceptanceRequestFormat,
 };
 
 // phax's decoders for the run directory's status files, the registry and the
@@ -172,6 +173,7 @@ const EXCESS: { readonly [F in JsonSchemaFormatId]: Excess } = {
   "phax-plan-extraction": "error",
   "spec-hand-decision-answer": "error",
   "plan-hand-decision-answer": "error",
+  "acceptance-request": "error",
   "record-manifest": "error",
 };
 
