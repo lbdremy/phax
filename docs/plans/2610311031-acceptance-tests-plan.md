@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2610271119-acceptance-tests.md
 completes-spec: false
+approved:
+  date: 2026-11-01
+  baseline: bb543ac
 ---
 # Acceptance formats
 
