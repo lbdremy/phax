@@ -178,7 +178,7 @@ function planOf(specs: readonly PhaseSpec[]): { plan: PhaxPlan; planMd: string }
         plannedFilesToEdit: [],
         optionalFilesToEdit: spec.interactive === true ? ["src/export/invoiceRow.ts"] : [],
         mode: spec.interactive === true ? "interactive" : "headless",
-        oracle: null,
+        acceptance: null,
         testLines: [],
         commit: { subject: `feat(export): ${spec.title.toLowerCase()}`, body: "Made-up body." },
       }),

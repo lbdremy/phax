@@ -173,7 +173,7 @@ export function invoiceExportPlan(
         plannedFilesToEdit: [],
         optionalFilesToEdit: spec.interactive === true ? ["src/invoiceRow.ts"] : [],
         mode: spec.interactive === true ? "interactive" : "headless",
-        oracle: null,
+        acceptance: null,
         testLines: [],
         commit: { subject: `feat(export): ${spec.title.toLowerCase()}`, body: "Made-up body." },
       }),

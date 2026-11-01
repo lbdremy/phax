@@ -1,6 +1,6 @@
 /**
- * Oracle pairs (oracle-phases), resolved from `phax-plan.json`'s `oracle` keys:
- * each non-null `oracle` names the phase that discharges it and the files it
+ * Oracle pairs (oracle-phases), resolved from `phax-plan.json`'s `acceptance` keys:
+ * each non-null `acceptance` names the phase that passes it and the files it
  * pins. Pure: callers pass the plan's phases.
  */
 import type { PhaxPlanPhase } from "../../schemas/phaxPlan.js";
@@ -18,18 +18,18 @@ export type OracleRole =
   | { readonly role: "oracle"; readonly pair: OraclePair }
   | { readonly role: "discharging"; readonly pair: OraclePair };
 
-type PairPhase = Pick<PhaxPlanPhase, "id" | "oracle">;
+type PairPhase = Pick<PhaxPlanPhase, "id" | "acceptance">;
 
 /** Every pair of the plan, in plan order of the oracle phase. */
 export function oraclePairs(phases: ReadonlyArray<PairPhase>): readonly OraclePair[] {
   return phases.flatMap((phase) =>
-    phase.oracle === null
+    phase.acceptance === null
       ? []
       : [
           {
             oraclePhase: phase.id,
-            dischargingPhase: phase.oracle.dischargedBy,
-            files: phase.oracle.files,
+            dischargingPhase: phase.acceptance.passedBy,
+            files: phase.acceptance.files,
           },
         ],
   );

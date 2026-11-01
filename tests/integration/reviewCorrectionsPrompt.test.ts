@@ -35,7 +35,7 @@ const phases: readonly PhaxPlanPhase[] = Array.from({ length: 6 }, (_, i) => {
     plannedFilesToEdit: [],
     optionalFilesToEdit: [],
     mode: INTERACTIVE.has(id) ? "interactive" : "headless",
-    oracle: null,
+    acceptance: null,
     testLines: [],
     commit: { subject: `feat(credit): step ${i + 1}`, body: "Made-up body." },
   };

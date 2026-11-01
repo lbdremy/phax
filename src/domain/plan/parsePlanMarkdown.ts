@@ -506,7 +506,7 @@ function walkPlan(planMd: string): PlanWalkResult {
         plannedFilesToEdit: editE.right,
         optionalFilesToEdit: optionalE.right,
         mode: kinds.mode,
-        oracle: kinds.oracle,
+        acceptance: kinds.acceptance,
         testLines: strategy.lines.map(({ line }) => line),
         commit: { subject: subjectE.right, body: bodyE.right },
       });

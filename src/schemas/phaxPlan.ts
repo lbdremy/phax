@@ -22,13 +22,14 @@ export const PhaseModeSchema = Schema.Literal("headless", "interactive");
 const PhaseIdSchema = Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/));
 
 /**
- * A phase's oracle (oracle-phases): the phase that discharges it and the files
- * it pins, or null. An empty `files` list is admitted here: whether a plan's
- * oracle is well formed beyond its shape is a lint rule.
+ * A phase's acceptance tests (acceptance-tests): the phase that passes them and
+ * the acceptance test files it pins, or null. An empty `files` list is admitted
+ * here: whether a plan's acceptance pair is well formed beyond its shape is a
+ * lint rule.
  */
-export const PhaseOracleSchema = Schema.NullOr(
+export const PhaseAcceptanceSchema = Schema.NullOr(
   Schema.Struct({
-    dischargedBy: PhaseIdSchema,
+    passedBy: PhaseIdSchema,
     files: Schema.Array(NonEmptyString),
   }),
 );
@@ -38,7 +39,7 @@ export const PhaseOracleSchema = Schema.NullOr(
 // not round-tripped through the model's JSON. A `"` in a title would otherwise
 // derail the model into malformed output, which the strict `onExcessProperty`
 // decode rejects — keeping the trip-wire but removing the failure mode.
-// `mode` and `oracle` are phax's own reading of the phase's header lines in
+// `mode` and `acceptance` are phax's own reading of the phase's header lines in
 // plan.md (`phaseKinds`), as the title is its reading of the heading, so the
 // model's answer (`ExtractionAnswerSchema`) leaves them out too. `testLines`
 // are extracted on both paths: the deterministic parser reads the phase's
@@ -55,7 +56,7 @@ export const ExtractedPhaseFields = {
   plannedFilesToEdit: Schema.Array(Schema.String),
   optionalFilesToEdit: Schema.Array(Schema.String),
   mode: PhaseModeSchema,
-  oracle: PhaseOracleSchema,
+  acceptance: PhaseAcceptanceSchema,
   testLines: Schema.Array(TestLineSchema),
   commit: Schema.Struct({
     subject: NonEmptyString,
@@ -68,7 +69,7 @@ const ExtractedPhaseSchema = Schema.Struct(ExtractedPhaseFields);
 // What the extraction model emits per phase: the extracted fields, test lines
 // included, without the two phax reads from the header lines. The
 // phax-plan-extraction answer (planExtraction.ts) carries exactly these.
-const { mode: _mode, oracle: _oracle, ...answerPhaseFieldsRest } = ExtractedPhaseFields;
+const { mode: _mode, acceptance: _acceptance, ...answerPhaseFieldsRest } = ExtractedPhaseFields;
 export const answerPhaseFields = answerPhaseFieldsRest;
 
 export const ExtractedRunSchema = Schema.Struct({
@@ -91,7 +92,7 @@ const PhaseSchema = Schema.Struct({
   plannedFilesToEdit: ExtractedPhaseFields.plannedFilesToEdit,
   optionalFilesToEdit: ExtractedPhaseFields.optionalFilesToEdit,
   mode: ExtractedPhaseFields.mode,
-  oracle: ExtractedPhaseFields.oracle,
+  acceptance: ExtractedPhaseFields.acceptance,
   testLines: ExtractedPhaseFields.testLines,
   commit: ExtractedPhaseFields.commit,
 });
@@ -122,7 +123,7 @@ export type PhaxPlan = Types.Simplify<Schema.Struct.Type<typeof phaxPlanFields>>
 export type PhaxPlanPhase = Schema.Schema.Type<typeof PhaseSchema>;
 export type Effort = Schema.Schema.Type<typeof PlanEffortSchema>;
 export type PhaseMode = Schema.Schema.Type<typeof PhaseModeSchema>;
-export type PhaseOracle = Schema.Schema.Type<typeof PhaseOracleSchema>;
+export type PhaseAcceptance = Schema.Schema.Type<typeof PhaseAcceptanceSchema>;
 
 /** `phax-plan.json` as phax writes it: `$schema` first, then the plan. Unknown keys are rejected. */
 export const PhaxPlanFileSchema = Schema.Struct({

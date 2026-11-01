@@ -167,22 +167,22 @@ const validPlan = {
       plannedFilesToEdit: [],
       optionalFilesToEdit: [],
       mode: "headless",
-      oracle: null,
+      acceptance: null,
       testLines: [],
       commit: { subject: "ai(phase-01): do thing", body: "Does the thing." },
     },
   ],
 } as const;
 
-describe("decodePhaxPlanFile — mode, oracle and testLines", () => {
+describe("decodePhaxPlanFile — mode, acceptance and testLines", () => {
   const withPhase = (phase: object) => ({ ...validPlan, phases: [phase] });
 
-  it("carries mode, oracle then testLines directly after optionalFilesToEdit, in the schema and the decoded phase", () => {
+  it("carries mode, acceptance then testLines directly after optionalFilesToEdit, in the schema and the decoded phase", () => {
     const decoded = Either.getOrThrow(decodePhaxPlanFile(validPlan));
     expect(Object.keys(decoded.phases[0]!).slice(-5)).toEqual([
       "optionalFilesToEdit",
       "mode",
-      "oracle",
+      "acceptance",
       "testLines",
       "commit",
     ]);
@@ -196,7 +196,7 @@ describe("decodePhaxPlanFile — mode, oracle and testLines", () => {
     expect(Object.keys(phaseProps).slice(-5)).toEqual([
       "optionalFilesToEdit",
       "mode",
-      "oracle",
+      "acceptance",
       "testLines",
       "commit",
     ]);
@@ -224,34 +224,35 @@ describe("decodePhaxPlanFile — mode, oracle and testLines", () => {
     }
   });
 
-  it("accepts an interactive phase and an oracle, including one with no files", () => {
+  it("accepts an interactive phase and acceptance tests, including one with no files", () => {
     for (const phase of [
       { ...validPlan.phases[0], mode: "interactive" },
-      { ...validPlan.phases[0], oracle: { dischargedBy: "phase-02", files: ["tests/a.test.ts"] } },
-      { ...validPlan.phases[0], oracle: { dischargedBy: "phase-02", files: [] } },
+      { ...validPlan.phases[0], acceptance: { passedBy: "phase-02", files: ["tests/a.test.ts"] } },
+      { ...validPlan.phases[0], acceptance: { passedBy: "phase-02", files: [] } },
     ]) {
       expect(Either.isRight(decodePhaxPlanFile(withPhase(phase)))).toBe(true);
     }
   });
 
-  it('refuses "mode": "review", a missing mode, and a missing oracle', () => {
+  it('refuses "mode": "review", a missing mode, and a missing acceptance', () => {
     const { mode: _mode, ...noMode } = validPlan.phases[0];
-    const { oracle: _oracle, ...noOracle } = validPlan.phases[0];
-    for (const phase of [{ ...validPlan.phases[0], mode: "review" }, noMode, noOracle]) {
+    const { acceptance: _acceptance, ...noAcceptance } = validPlan.phases[0];
+    for (const phase of [{ ...validPlan.phases[0], mode: "review" }, noMode, noAcceptance]) {
       expect(Either.isLeft(decodePhaxPlanFile(withPhase(phase)))).toBe(true);
     }
   });
 
-  it("refuses an oracle without files, with an extra key, or with a malformed discharging phase", () => {
-    for (const oracle of [
-      { dischargedBy: "phase-03" },
-      { dischargedBy: "phase-03", files: [], extra: true },
-      { dischargedBy: "next", files: [] },
-      { dischargedBy: "phase-03", files: [""] },
+  it("refuses acceptance tests without files, with an extra key, or with a malformed passing phase", () => {
+    for (const acceptance of [
+      { passedBy: "phase-03" },
+      { passedBy: "phase-03", files: [], extra: true },
+      { passedBy: "next", files: [] },
+      { passedBy: "phase-03", files: [""] },
+      { dischargedBy: "phase-03", files: [] },
     ]) {
-      expect(Either.isLeft(decodePhaxPlanFile(withPhase({ ...validPlan.phases[0], oracle })))).toBe(
-        true,
-      );
+      expect(
+        Either.isLeft(decodePhaxPlanFile(withPhase({ ...validPlan.phases[0], acceptance }))),
+      ).toBe(true);
     }
   });
 });

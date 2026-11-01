@@ -58,9 +58,9 @@ function section(title: string, content: string): string {
 }
 
 // The header paragraph: model and effort, the optional assignment reason, then
-// the phase's kinds. A headless phase writes no Mode line and a null oracle no
-// oracle line; an oracle always names its discharging phase, so it reads back
-// unchanged wherever the phase sits.
+// the phase's kinds. A headless phase writes no Mode line and a null acceptance
+// no oracle lines; an acceptance always names its passing phase, so it reads
+// back unchanged wherever the phase sits.
 function headerLines(phase: PlanDocumentPhase): string[] {
   return [
     `**Recommended model:** ${phase.model}`,
@@ -69,11 +69,13 @@ function headerLines(phase: PlanDocumentPhase): string[] {
       ? []
       : [`**Assignment reason:** ${phase.assignmentReason}`]),
     ...(phase.mode === "interactive" ? ["**Mode:** interactive"] : []),
-    ...(phase.oracle === null
+    ...(phase.acceptance === null
       ? []
       : [
-          `**Oracle phase:** discharged by ${phase.oracle.dischargedBy}`,
-          `**Oracle files:** ${phase.oracle.files.map(inlineCode).join(", ")}`,
+          // The header lines keep their old words until the next plan renames
+          // them together with lint and the reader.
+          `**Oracle phase:** discharged by ${phase.acceptance.passedBy}`,
+          `**Oracle files:** ${phase.acceptance.files.map(inlineCode).join(", ")}`,
         ]),
   ];
 }

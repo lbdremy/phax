@@ -225,7 +225,7 @@ describe("oracleDeclaration", () => {
 
 describe("phaseKinds", () => {
   it("is headless with no oracle for a phase without declarations", () => {
-    expect(phaseKinds(only(plan([])), "phase-02")).toEqual({ mode: "headless", oracle: null });
+    expect(phaseKinds(only(plan([])), "phase-02")).toEqual({ mode: "headless", acceptance: null });
   });
 
   it("is interactive exactly when declaresInteractive", () => {
@@ -235,8 +235,8 @@ describe("phaseKinds", () => {
 
   it("resolves yes to the next phase id", () => {
     const header = only(plan(["**Oracle phase:** yes", "**Oracle files:** `a.ts`, b.ts"]));
-    expect(phaseKinds(header, "phase-02").oracle).toEqual({
-      dischargedBy: "phase-02",
+    expect(phaseKinds(header, "phase-02").acceptance).toEqual({
+      passedBy: "phase-02",
       files: ["a.ts", "b.ts"],
     });
   });
@@ -246,8 +246,8 @@ describe("phaseKinds", () => {
       plan(["**Oracle phase:** discharged by phase-04", "**Oracle files:** a.ts"]),
     );
     for (const next of ["phase-02", null]) {
-      expect(phaseKinds(header, next).oracle).toEqual({
-        dischargedBy: "phase-04",
+      expect(phaseKinds(header, next).acceptance).toEqual({
+        passedBy: "phase-04",
         files: ["a.ts"],
       });
     }
@@ -255,9 +255,9 @@ describe("phaseKinds", () => {
 
   it("is null for yes on the last phase, and for a malformed declaration", () => {
     const yes = only(plan(["**Oracle phase:** yes", "**Oracle files:** a.ts"]));
-    expect(phaseKinds(yes, null).oracle).toBeNull();
+    expect(phaseKinds(yes, null).acceptance).toBeNull();
     const malformed = only(plan(["**Oracle phase:** maybe", "**Oracle files:** a.ts"]));
-    expect(phaseKinds(malformed, "phase-02").oracle).toBeNull();
+    expect(phaseKinds(malformed, "phase-02").acceptance).toBeNull();
   });
 });
 
@@ -302,20 +302,20 @@ describe("withPhaseKinds", () => {
     "",
   ].join("\n");
 
-  it("adds each phase's mode and oracle from its header lines, after optionalFilesToEdit and before the answer's testLines", () => {
+  it("adds each phase's mode and acceptance from its header lines, after optionalFilesToEdit and before the answer's testLines", () => {
     const result = withPhaseKinds(answer(["phase-01", "phase-02"]), twoPhases);
     if (Either.isLeft(result)) throw new Error(result.left.message);
     const [first, second] = result.right.phases;
     expect(first).toMatchObject({
       mode: "headless",
-      oracle: { dischargedBy: "phase-02", files: ["a.test.ts"] },
+      acceptance: { passedBy: "phase-02", files: ["a.test.ts"] },
       testLines: [],
     });
-    expect(second).toMatchObject({ mode: "interactive", oracle: null });
+    expect(second).toMatchObject({ mode: "interactive", acceptance: null });
     expect(Object.keys(first!).slice(-5)).toEqual([
       "optionalFilesToEdit",
       "mode",
-      "oracle",
+      "acceptance",
       "testLines",
       "commit",
     ]);

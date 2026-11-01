@@ -728,7 +728,7 @@ export function withoutPreambleQuestions(doc: Doc): Doc {
     ...preamble
   } = doc["preamble"] as Doc;
   const phases = (doc["phases"] as Doc[]).map(
-    ({ assignmentReason: _reason, mode: _mode, oracle: _oracle, ...phase }) =>
+    ({ assignmentReason: _reason, mode: _mode, acceptance: _acceptance, ...phase }) =>
       withTestStrategyText(phase),
   );
   return { ...doc, preamble, phases };
@@ -743,11 +743,38 @@ function withTestStrategyText(phase: Doc): Doc {
 }
 
 /**
+ * A phase with the key an older shape wrote it under: `acceptance: { passedBy,
+ * files }` as `oracle: { dischargedBy, files }`, in the key's own position.
+ */
+export function withOracleKey(phase: Doc): Doc {
+  return Object.fromEntries(
+    Object.entries(phase).map(([key, value]) => {
+      if (key !== "acceptance") return [key, value];
+      if (value === null) return ["oracle", null];
+      const { passedBy, ...rest } = value as Doc;
+      return ["oracle", { dischargedBy: passedBy, ...rest }];
+    }),
+  );
+}
+
+/**
+ * A current plan document or phax-plan as every shape before 0.33.0 wrote its
+ * phases: each phase's `acceptance` under the `oracle` key.
+ */
+export function withOracleKeys(doc: Doc): Doc {
+  return { ...doc, phases: (doc["phases"] as Doc[]).map(withOracleKey) };
+}
+
+/**
  * A current plan document as the frozen 0.26.0 shape wrote it: each phase's
- * test lines are the string the line format renders.
+ * test lines are the string the line format renders, and its acceptance tests
+ * sit under the `oracle` key.
  */
 export function withTestStrategyStrings(doc: Doc): Doc {
-  return { ...doc, phases: (doc["phases"] as Doc[]).map(withTestStrategyText) };
+  return {
+    ...doc,
+    phases: (doc["phases"] as Doc[]).map((phase) => withOracleKey(withTestStrategyText(phase))),
+  };
 }
 
 /**
@@ -757,7 +784,7 @@ export function withTestStrategyStrings(doc: Doc): Doc {
  */
 export function withModelReasons(doc: Doc): Doc {
   const phases = (doc["phases"] as Doc[]).map(
-    ({ assignmentReason, model, effort, mode: _mode, oracle: _oracle, ...phase }) => ({
+    ({ assignmentReason, model, effort, mode: _mode, acceptance: _acceptance, ...phase }) => ({
       ...withTestStrategyText(phase),
       modelReason: assignmentReason,
       model,
@@ -773,7 +800,7 @@ export function withModelReasons(doc: Doc): Doc {
  */
 export function withoutPhaseKinds(doc: Doc): Doc {
   const phases = (withoutTestLines(doc)["phases"] as Doc[]).map(
-    ({ mode: _mode, oracle: _oracle, ...phase }) => phase,
+    ({ mode: _mode, acceptance: _acceptance, ...phase }) => phase,
   );
   return { ...doc, phases };
 }
@@ -802,7 +829,7 @@ export function withoutTestLines(doc: Doc): Doc {
 
 /**
  * A plan document with what an older shape lifts to: the preamble's question
- * arrays both empty, and `mode: "headless"`, `oracle: null` and a null
+ * arrays both empty, and `mode: "headless"`, `acceptance: null` and a null
  * `assignmentReason` on every phase.
  */
 function withEmptyQuestions(doc: Doc): Doc {
@@ -811,7 +838,7 @@ function withEmptyQuestions(doc: Doc): Doc {
     ...phase,
     testStrategy: EXAMPLE_TEST_LINES,
     mode: "headless",
-    oracle: null,
+    acceptance: null,
     assignmentReason: null,
   }));
   return {
@@ -880,7 +907,7 @@ function liftPreSchema(id: PreSchemaFormatId, summary: unknown): Doc {
     const phases = (rest["phases"] as Doc[]).map((phase) => ({
       ...phase,
       mode: "headless",
-      oracle: null,
+      acceptance: null,
     }));
     return { ...rest, phases };
   }
@@ -916,10 +943,13 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
     withSchemaUrl("phax-plan", {
       run: phaxPlan.run,
       phases: [
-        { ...phaxPlan.phases[0], mode: "headless" as const, oracle: null, testLines: [] },
-        ...phaxPlan.phases
-          .slice(1)
-          .map((phase) => ({ ...phase, mode: "headless" as const, oracle: null, testLines: [] })),
+        { ...phaxPlan.phases[0], mode: "headless" as const, acceptance: null, testLines: [] },
+        ...phaxPlan.phases.slice(1).map((phase) => ({
+          ...phase,
+          mode: "headless" as const,
+          acceptance: null,
+          testLines: [],
+        })),
       ],
     }),
   ),
@@ -998,14 +1028,14 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
           ...planDocument.phases[0],
           testStrategy: EXAMPLE_TEST_LINES,
           mode: "headless",
-          oracle: null,
+          acceptance: null,
           assignmentReason: null,
         },
         ...planDocument.phases.slice(1).map((phase) => ({
           ...phase,
           testStrategy: EXAMPLE_TEST_LINES,
           mode: "headless" as const,
-          oracle: null,
+          acceptance: null,
           assignmentReason: null,
         })),
       ],

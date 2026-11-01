@@ -438,7 +438,7 @@ describe("phax artifact status — unmigrated sidecars", () => {
     const { preamble, phases, ...rest } = base;
     const { openQuestions: _o, arbitratedQuestions: _a, ...olderPreamble } = preamble;
     const olderPhases = phases.map(
-      ({ assignmentReason: _r, mode: _m, oracle: _oracle, testStrategy, ...phase }) => ({
+      ({ assignmentReason: _r, mode: _m, acceptance: _oracle, testStrategy, ...phase }) => ({
         ...phase,
         testStrategy: testStrategy.map((line) => `- ${renderTestLine(line)}`).join("\n"),
       }),
@@ -472,7 +472,11 @@ describe("phax artifact status — unmigrated sidecars", () => {
         $schema: schemaUrl("plan-document", "0.26.0"),
         ...rest,
         preamble: { ...rest.preamble, openQuestions: OPEN_Q3_Q4 },
-        phases: phases.map((phase) => ({ ...phase, testStrategy: "Unit." })),
+        phases: phases.map(({ acceptance, ...phase }) => ({
+          ...phase,
+          oracle: acceptance,
+          testStrategy: "Unit.",
+        })),
       }),
     );
     commitAll();

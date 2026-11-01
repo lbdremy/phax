@@ -163,7 +163,7 @@ export function lintPlan(
       ...testLineFindings({
         phases: plan.phases.map((phase) => ({
           id: phase.id,
-          oracle: phase.oracle,
+          oracle: phase.acceptance,
           lines: phase.testLines.map((line, i) => ({
             item: itemsOf.get(phase.id)?.[i] ?? i + 1,
             loop: line.loop,

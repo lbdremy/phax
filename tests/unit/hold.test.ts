@@ -4,8 +4,8 @@ import { parseHoldValue, resolveHold, type HoldRequest } from "../../src/domain/
 
 type Phase = Parameters<typeof resolveHold>[1][number];
 
-const headless = (id: string): Phase => ({ id, mode: "headless", oracle: null });
-const interactive = (id: string): Phase => ({ id, mode: "interactive", oracle: null });
+const headless = (id: string): Phase => ({ id, mode: "headless", acceptance: null });
+const interactive = (id: string): Phase => ({ id, mode: "interactive", acceptance: null });
 
 // The made-up invoice-export plan: six phases, phase-03 interactive.
 const INVOICE_EXPORT: readonly Phase[] = [
@@ -23,7 +23,7 @@ const ORACLE_VARIANT: readonly Phase[] = [
   {
     id: "phase-02",
     mode: "headless",
-    oracle: { dischargedBy: "phase-03", files: ["tests/invoiceRow.test.ts"] },
+    acceptance: { passedBy: "phase-03", files: ["tests/invoiceRow.test.ts"] },
   },
   headless("phase-03"),
   headless("phase-04"),

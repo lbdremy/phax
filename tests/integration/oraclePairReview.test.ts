@@ -136,10 +136,10 @@ function planOf(specs: readonly PhaseSpec[]): { plan: PhaxPlan; planMd: string }
       plannedFilesToEdit: spec.edit ?? [],
       optionalFilesToEdit: spec.optional ?? [],
       mode: spec.interactive === true ? "interactive" : "headless",
-      oracle:
+      acceptance:
         spec.dischargedBy === undefined
           ? null
-          : { dischargedBy: spec.dischargedBy, files: spec.oracleFiles ?? [ORACLE_FILE] },
+          : { passedBy: spec.dischargedBy, files: spec.oracleFiles ?? [ORACLE_FILE] },
       testLines: [],
       commit: { subject: `feat(export): ${spec.title.toLowerCase()}`, body: "Made-up body." },
     }),
@@ -166,11 +166,11 @@ function planOf(specs: readonly PhaseSpec[]): { plan: PhaxPlan; planMd: string }
       `**Recommended model:** ${phase.model}`,
       `**Recommended effort:** ${phase.effort}`,
       ...(phase.mode === "interactive" ? ["**Mode:** interactive"] : []),
-      ...(phase.oracle === null
+      ...(phase.acceptance === null
         ? []
         : [
-            `**Oracle phase:** discharged by ${phase.oracle.dischargedBy}`,
-            `**Oracle files:** ${phase.oracle.files.map((f) => `\`${f}\``).join(", ")}`,
+            `**Oracle phase:** discharged by ${phase.acceptance.passedBy}`,
+            `**Oracle files:** ${phase.acceptance.files.map((f) => `\`${f}\``).join(", ")}`,
           ]),
       "",
       "### Detailed instructions",

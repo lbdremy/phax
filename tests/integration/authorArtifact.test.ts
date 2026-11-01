@@ -147,7 +147,7 @@ const PLAN_DOCUMENT = {
       plannedFilesToEdit: ["src/cli/main.ts"],
       optionalFilesToEdit: [],
       mode: "headless",
-      oracle: null,
+      acceptance: null,
       commit: { subject: "feat(cli): phax prune", body: "Add `phax prune`." },
       objective: "Free a slug once its run is archived.",
       detailedInstructions: ["Add the use case."],

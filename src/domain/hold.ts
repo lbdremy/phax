@@ -52,7 +52,7 @@ export interface HoldFinding {
 interface HoldPhase {
   readonly id: string;
   readonly mode: "headless" | "interactive";
-  readonly oracle: PhaxPlanPhase["oracle"];
+  readonly acceptance: PhaxPlanPhase["acceptance"];
 }
 
 export type HoldResolution =
@@ -88,7 +88,7 @@ function select(
         };
   }
   if (request.kind === "oracle") {
-    const ids = phases.filter((p) => p.oracle !== null).map((p) => p.id);
+    const ids = phases.filter((p) => p.acceptance !== null).map((p) => p.id);
     return ids.length > 0
       ? { ids, findings: [] }
       : {

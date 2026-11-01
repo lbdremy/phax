@@ -78,7 +78,7 @@ All done.
     "src/optional.ts"
   ],
   "mode": "headless",
-  "oracle": null,
+  "acceptance": null,
   "commit": {
     "subject": "feat: report errors",
     "body": "Commit body of phase-03."

@@ -220,9 +220,9 @@ describe("runResume --skip-oracle", () => {
         phases: [
           {
             id: "phase-01",
-            oracle: paired ? { dischargedBy: "phase-02", files: ["tests/a.test.ts"] } : null,
+            acceptance: paired ? { passedBy: "phase-02", files: ["tests/a.test.ts"] } : null,
           },
-          { id: "phase-02", oracle: null },
+          { id: "phase-02", acceptance: null },
         ],
       } as never),
     );
@@ -353,7 +353,9 @@ describe("runResume — a committed phase owing its handoff", () => {
       }),
     );
     inspectResumeOfRun.mockReturnValue(inspection(decisionAt("phase-01", 0, "running", owedStep)));
-    loadPlan.mockReturnValue(Either.right({ phases: [{ id: "phase-01", oracle: null }] } as never));
+    loadPlan.mockReturnValue(
+      Either.right({ phases: [{ id: "phase-01", acceptance: null }] } as never),
+    );
     return inspectResumeOfRun;
   }
 

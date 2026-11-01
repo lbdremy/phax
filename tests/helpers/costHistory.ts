@@ -366,7 +366,7 @@ function planFilePhase(phase: PlanFilePhase): PhaxPlan["phases"][number] {
     plannedFilesToEdit: [...(phase.edit ?? [])],
     optionalFilesToEdit: [...(phase.optional ?? [])],
     mode: phase.mode ?? "headless",
-    oracle: null,
+    acceptance: null,
     testLines: [],
     commit: { subject: `feat: ${phase.id}`, body: "Made up." },
   };

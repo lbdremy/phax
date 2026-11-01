@@ -66,7 +66,7 @@ import {
   readTestStrategyText,
   type TestLineDeparture,
 } from "../domain/plan/testLineGrammar.js";
-import { liftPlanDocumentTestLines } from "./acceptanceLift.js";
+import { liftPhaseKey, liftPhaxPlanWithoutTestLines, liftPlanDocument } from "./acceptanceLift.js";
 import {
   decodeApprovalRecordFile,
   decodePlanRecordFile,
@@ -518,9 +518,9 @@ export type PhaxPlanRead =
 
 /**
  * Lifts the phases of a phax-plan older than `mode`: each gains
- * `mode: "headless"` and `oracle: null` after `optionalFilesToEdit`. Every
- * phase an older phax ran was headless, and no oracle phase existed. No phase
- * gains `testLines`.
+ * `mode: "headless"` and `acceptance: null` after `optionalFilesToEdit`. Every
+ * phase an older phax ran was headless, and no acceptance phase existed. No
+ * phase gains `testLines`.
  */
 function liftPhaxPlanPhases(phases: PhaxPlanV0_17_0["phases"]): AnyShapePhaxPlan["phases"] {
   return Arr.map(phases, (phase) => ({
@@ -533,18 +533,19 @@ function liftPhaxPlanPhases(phases: PhaxPlanV0_17_0["phases"]): AnyShapePhaxPlan
     plannedFilesToEdit: phase.plannedFilesToEdit,
     optionalFilesToEdit: phase.optionalFilesToEdit,
     mode: "headless",
-    oracle: null,
+    acceptance: null,
     commit: phase.commit,
   }));
 }
 
-// A phax-plan of the 0.28.0 or 0.32.0 shape without its `testLines`: what a run
-// started by an earlier release extracted, shown or sized, never resumed.
+// A phax-plan of the 0.28.0 or 0.32.0 shape without its `testLines`, its
+// phases' `oracle` key lifted to `acceptance`: what a run started by an earlier
+// release extracted, shown or sized, never resumed.
 function withoutTestLines(plan: Omit<PhaxPlanV0_32_0, "$schema">): AnyShapePhaxPlan {
-  return {
+  return liftPhaxPlanWithoutTestLines({
     run: plan.run,
     phases: Arr.map(plan.phases, ({ testLines: _testLines, ...phase }) => phase),
-  };
+  });
 }
 
 /**
@@ -588,7 +589,7 @@ export const readPhaxPlanFile: Reader<PhaxPlanRead> = (file, input) => {
         return Either.left(readError(file, "phax-plan", formatFirstViolation(v0_26_0.left)));
       }
       const { $schema: _schema, ...plan } = v0_26_0.right;
-      return Either.right({ shape: "0.26.0", plan });
+      return Either.right({ shape: "0.26.0", plan: liftPhaxPlanWithoutTestLines(plan) });
     }
     const older = decodePhaxPlanV0_17_0(input);
     if (Either.isLeft(older)) {
@@ -973,10 +974,12 @@ export function liftPlanDocumentV0_26_0(older: PlanDocumentV0_26_0Value): PlanDo
       return { kind: "refused", phase: older.phases[i]?.id ?? `phases[${String(i)}]`, departure };
     }
   }
-  const phases = Arr.map(older.phases, (phase, i) => ({
-    ...phase,
-    testStrategy: (readings[i]?.lines ?? []).map(({ line }) => line),
-  }));
+  const phases = Arr.map(older.phases, (phase, i) =>
+    liftPhaseKey({
+      ...phase,
+      testStrategy: (readings[i]?.lines ?? []).map(({ line }) => line),
+    }),
+  );
   return { kind: "lifted", document: { ...older, phases } };
 }
 
@@ -1056,12 +1059,13 @@ function readPlanDocumentSidecar(
           readError(file, "plan-document", formatPlanDocumentViolation(input, frozen.left)),
         );
       }
-      // The 0.32.0 document differs from the current one by its test lines' loop.
+      // The 0.32.0 document differs from the current one by its test lines' loop
+      // and its phases' `oracle` key.
       const { $schema: _schema, ...value } = frozen.right;
       return Either.right({
         kind: "plan",
         shape: "0.32.0",
-        lift: { kind: "lifted", document: liftPlanDocumentTestLines(value) },
+        lift: { kind: "lifted", document: liftPlanDocument(value) },
         older: value,
       });
     }
@@ -1077,7 +1081,7 @@ function readPlanDocumentSidecar(
       return Either.right({
         kind: "plan",
         shape: "0.28.0",
-        lift: { kind: "lifted", document: liftPlanDocumentTestLines(value) },
+        lift: { kind: "lifted", document: liftPlanDocument(value) },
         older: value,
       });
     }
@@ -1155,8 +1159,9 @@ function readPlanDocumentSidecar(
  *   on each surface element;
  * - a plan stamped 0.32.0 or later, below its current stamp, is read by the
  *   frozen 0.32.0 decoder, and one stamped 0.28.0 or later by the frozen 0.28.0
- *   decoder; each is lifted by `liftPlanDocumentTestLines` (the test lines' loop
- *   `oracle` becomes `acceptance`, every other fact kept); one stamped 0.26.0 or
+ *   decoder; each is lifted by `liftPlanDocument` (the test lines' loop `oracle`
+ *   becomes `acceptance` and each phase's `oracle: { dischargedBy, files }`
+ *   becomes `acceptance: { passedBy, files }`, every other fact kept); one stamped 0.26.0 or
  *   later by the frozen 0.26.0 decoder; one stamped 0.25.0 or later by the frozen 0.25.0
  *   decoder, stepped with each `modelReason` carried over as
  *   `assignmentReason`; one stamped below 0.25.0 by the frozen 0.20.0

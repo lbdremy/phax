@@ -87,6 +87,12 @@ function makeConfig(namespace = "myproject"): ResolvedConfig {
   };
 }
 
+// A phase as every plan before 0.33.0 wrote it: its acceptance tests under `oracle`.
+function asOracleKey<P extends { acceptance: unknown }>(phase: Omit<P, never>) {
+  const { acceptance, ...rest } = phase;
+  return { ...rest, oracle: acceptance };
+}
+
 function makePhase(i: number): PhaxPlan["phases"][number] {
   return {
     id: `phase-0${i + 1}`,
@@ -97,7 +103,7 @@ function makePhase(i: number): PhaxPlan["phases"][number] {
     plannedFilesToEdit: [],
     optionalFilesToEdit: [],
     mode: "headless",
-    oracle: null,
+    acceptance: null,
     testLines: [],
     commit: { subject: `feat: phase ${i + 1}`, body: "" },
     title: `Phase ${i + 1}`,
@@ -250,17 +256,22 @@ describe("runValidate", () => {
     {
       shape: "0.17.0",
       stamp: "0.25.0",
-      older: ({ mode: _mode, oracle: _oracle, testLines: _lines, ...phase }: PhaxPlanPhase) =>
-        phase,
+      older: ({
+        mode: _mode,
+        acceptance: _acceptance,
+        testLines: _lines,
+        ...phase
+      }: PhaxPlanPhase) => phase,
     },
     {
       shape: "0.26.0",
       stamp: "0.26.0",
-      older: ({ testLines: _lines, ...phase }: PhaxPlanPhase) => phase,
+      older: ({ testLines: _lines, ...phase }: PhaxPlanPhase) => asOracleKey(phase),
     },
-    // 0.28.0 up to 0.32.0 carried testLines in the loop `oracle`.
-    { shape: "0.28.0", stamp: "0.28.0", older: (phase: PhaxPlanPhase) => phase },
-    { shape: "0.32.0", stamp: "0.32.0", older: (phase: PhaxPlanPhase) => phase },
+    // 0.28.0 up to 0.32.0 carried testLines in the loop `oracle`, and the
+    // `oracle` key where the current shape has `acceptance`.
+    { shape: "0.28.0", stamp: "0.28.0", older: asOracleKey },
+    { shape: "0.32.0", stamp: "0.32.0", older: asOracleKey },
   ])(
     "--plan on a phax-plan.json in the $shape shape: exits 2 naming the shape and the way out",
     async ({ shape, stamp, older }) => {

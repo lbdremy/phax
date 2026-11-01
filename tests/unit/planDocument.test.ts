@@ -42,7 +42,7 @@ function validPhase(n: number) {
     plannedFilesToEdit: ["README.md"],
     optionalFilesToEdit: [],
     mode: "headless" as "headless" | "interactive",
-    oracle: null as { dischargedBy: string; files: string[] } | null,
+    acceptance: null as { passedBy: string; files: string[] } | null,
     commit: { subject: `feat: phase ${n}`, body: `Phase ${n} body.` },
     objective: "Deliver the phase.",
     detailedInstructions: ["Write the module."],
@@ -337,7 +337,7 @@ describe("projectExtractedPlan", () => {
         plannedFilesToEdit: ["README.md"],
         optionalFilesToEdit: [],
         mode: "headless",
-        oracle: null,
+        acceptance: null,
         testLines: doc.phases[n - 1]!.testStrategy,
         commit: { subject: `feat: phase ${n}`, body: `Phase ${n} body.` },
       })),
@@ -345,7 +345,7 @@ describe("projectExtractedPlan", () => {
     expect(projected.phases[0].testLines).toHaveLength(2);
   });
 
-  it("projects the test strategy as testLines, directly after oracle, and [] for a phase with none", () => {
+  it("projects the test strategy as testLines, directly after acceptance, and [] for a phase with none", () => {
     const doc = Either.getOrThrow(
       decodePlanDocument({
         ...validPlanDocument(),
@@ -355,24 +355,24 @@ describe("projectExtractedPlan", () => {
     const [first, second] = projectExtractedPlan(doc).phases;
     expect(first!.testLines).toEqual(doc.phases[0].testStrategy);
     expect(second!.testLines).toEqual([]);
-    expect(Object.keys(first!).slice(-3)).toEqual(["oracle", "testLines", "commit"]);
+    expect(Object.keys(first!).slice(-3)).toEqual(["acceptance", "testLines", "commit"]);
   });
 
-  it("projects mode and oracle unchanged, directly after optionalFilesToEdit", () => {
-    const oracle = { dischargedBy: "phase-02", files: ["tests/a.test.ts"] };
+  it("projects mode and acceptance unchanged, directly after optionalFilesToEdit", () => {
+    const acceptance = { passedBy: "phase-02", files: ["tests/a.test.ts"] };
     const doc = Either.getOrThrow(
       decodePlanDocument({
         ...validPlanDocument(),
-        phases: [{ ...validPhase(1), mode: "interactive", oracle }, validPhase(2)],
+        phases: [{ ...validPhase(1), mode: "interactive", acceptance }, validPhase(2)],
       }),
     );
     const [first, second] = projectExtractedPlan(doc).phases;
-    expect(first).toMatchObject({ mode: "interactive", oracle });
-    expect(second).toMatchObject({ mode: "headless", oracle: null });
+    expect(first).toMatchObject({ mode: "interactive", acceptance });
+    expect(second).toMatchObject({ mode: "headless", acceptance: null });
     expect(Object.keys(first!).slice(-5)).toEqual([
       "optionalFilesToEdit",
       "mode",
-      "oracle",
+      "acceptance",
       "testLines",
       "commit",
     ]);
@@ -461,27 +461,38 @@ describe("a phase's assignmentReason", () => {
     expect(required.slice(-3)).toEqual(["assignmentReason", "model", "effort"]);
   });
 
-  it("follows mode and oracle, which follow optionalFilesToEdit", () => {
+  it("follows mode and acceptance, which follow optionalFilesToEdit", () => {
     const { properties, required } = phaseObject();
     for (const keys of [properties, required]) {
       const at = keys.indexOf("optionalFilesToEdit");
-      expect(keys.slice(at, at + 3)).toEqual(["optionalFilesToEdit", "mode", "oracle"]);
+      expect(keys.slice(at, at + 3)).toEqual(["optionalFilesToEdit", "mode", "acceptance"]);
     }
   });
 
-  it("requires mode and oracle on every phase, and refuses a mode or oracle outside their shapes", () => {
+  it("requires mode and acceptance on every phase, and refuses a mode or acceptance outside their shapes", () => {
     const { mode: _mode, ...noMode } = validPhase(1);
-    const { oracle: _oracle, ...noOracle } = validPhase(1);
+    const { acceptance: _acceptance, ...noAcceptance } = validPhase(1);
     for (const phase of [
       noMode,
-      noOracle,
+      noAcceptance,
       { ...validPhase(1), mode: "review" },
-      { ...validPhase(1), oracle: { dischargedBy: "phase-03" } },
+      { ...validPhase(1), acceptance: { passedBy: "phase-03" } },
+      { ...validPhase(1), acceptance: { dischargedBy: "phase-03", files: [] } },
     ]) {
       expect(Either.isLeft(decodePlanDocument({ ...validPlanDocument(), phases: [phase] }))).toBe(
         true,
       );
     }
+  });
+
+  it("refuses a current sidecar whose phase carries the oracle key, as an excess property", () => {
+    const { acceptance, ...rest } = validPhase(1);
+    const result = decodePlanDocument({
+      ...validPlanDocument(),
+      phases: [{ ...rest, oracle: acceptance }],
+    });
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) expect(String(result.left)).toContain("oracle");
   });
 
   it("admits a reason and null, in the authoring answer and the sidecar", () => {

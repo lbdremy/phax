@@ -128,10 +128,10 @@ function planOf(count: number, pairs: Pair | readonly Pair[] | null): PhaxPlan {
       plannedFilesToEdit: asDischarging === undefined ? [] : [source(asDischarging)],
       optionalFilesToEdit: [],
       mode: "headless" as const,
-      oracle:
+      acceptance:
         asOracle === undefined
           ? null
-          : { dischargedBy: id(asOracle.discharging), files: asOracle.files ?? ORACLE_FILES },
+          : { passedBy: id(asOracle.discharging), files: asOracle.files ?? ORACLE_FILES },
       testLines: [],
       commit: { subject: `feat: step ${n}`, body: "Made up." },
     };
@@ -149,10 +149,10 @@ function planMdOf(plan: PhaxPlan): string {
   for (const phase of plan.phases) {
     lines.push(`## ${phase.id} — ${phase.title} {${phase.planMarkdownAnchor}}`, "");
     lines.push(`**Recommended model:** ${phase.model}`, `**Recommended effort:** ${phase.effort}`);
-    if (phase.oracle !== null) {
+    if (phase.acceptance !== null) {
       lines.push(
-        `**Oracle phase:** discharged by ${phase.oracle.dischargedBy}`,
-        `**Oracle files:** ${phase.oracle.files.map((f) => `\`${f}\``).join(", ")}`,
+        `**Oracle phase:** discharged by ${phase.acceptance.passedBy}`,
+        `**Oracle files:** ${phase.acceptance.files.map((f) => `\`${f}\``).join(", ")}`,
       );
     }
     lines.push("", `Carry out ${phase.id}'s made-up instructions.`, "");

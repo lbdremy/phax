@@ -54,7 +54,7 @@ function fixture(): PlanDocument {
         plannedFilesToEdit: ["src/schemas/phaxPlan.ts", "docs/cli/reference_v2_.md"],
         optionalFilesToEdit: ["docs/cli/inventory.md"],
         mode: "headless",
-        oracle: null,
+        acceptance: null,
         commit: {
           subject: "feat(schemas): spec and plan document schemas with `phax artifact schema`",
           body: "Add the experimental spec document and plan document formats.\n\n- a strict projection\n- JSON Schema export\n\nUnit-tested; usage spec regenerated.",
@@ -99,7 +99,7 @@ function fixture(): PlanDocument {
         plannedFilesToEdit: [],
         optionalFilesToEdit: [],
         mode: "headless",
-        oracle: null,
+        acceptance: null,
         commit: { subject: "feat(authoring): renderers", body: "Add the renderers." },
         objective: "Render both documents.",
         detailedInstructions: [],
@@ -179,7 +179,7 @@ describe("renderPlanBody round trip through the deterministic parser", () => {
       plannedFilesToEdit: ["src/schemas/phaxPlan.ts", "docs/cli/reference_v2_.md"],
       optionalFilesToEdit: ["docs/cli/inventory.md"],
       mode: "headless",
-      oracle: null,
+      acceptance: null,
       testLines: doc.phases[0].testStrategy,
       commit: {
         subject: "feat(schemas): spec and plan document schemas with `phax artifact schema`",
@@ -739,7 +739,7 @@ describe("renderPlanBody with interactive and oracle phases", () => {
       phases: [
         {
           ...first,
-          oracle: { dischargedBy: "phase-03", files: ["tests/a.test.ts", "tests/b.test.ts"] },
+          acceptance: { passedBy: "phase-03", files: ["tests/a.test.ts", "tests/b.test.ts"] },
         },
         { ...second, assignmentReason: REASON, mode: "interactive" },
         {
@@ -782,8 +782,8 @@ describe("renderPlanBody with interactive and oracle phases", () => {
     const { parsed, fromMarkdown, fromDocument } = roundTrip(doc, md);
     expect(fromMarkdown.plan).toEqual(fromDocument.plan);
     expect(parsed.phases).toEqual(projectExtractedPlan(doc).phases);
-    expect(parsed.phases.map((phase) => [phase.mode, phase.oracle])).toEqual([
-      ["headless", { dischargedBy: "phase-03", files: ["tests/a.test.ts", "tests/b.test.ts"] }],
+    expect(parsed.phases.map((phase) => [phase.mode, phase.acceptance])).toEqual([
+      ["headless", { passedBy: "phase-03", files: ["tests/a.test.ts", "tests/b.test.ts"] }],
       ["interactive", null],
       ["headless", null],
     ]);

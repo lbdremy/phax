@@ -15,7 +15,7 @@ const decodeExtracted = Schema.decodeUnknownEither(ExtractedPhaxPlanSchema, {
 const PHAX_PLAN_URL = schemaUrl("phax-plan", CURRENT_STAMPS["phax-plan"]);
 
 // The extraction model's answer phase: no `title` (derived from the plan
-// heading), no `mode` and no `oracle` (read from the header lines), its own
+// heading), no `mode` and no `acceptance` (read from the header lines), its own
 // `testLines`.
 const baseAnswerPhase = {
   id: "phase-01",
@@ -29,12 +29,12 @@ const baseAnswerPhase = {
   commit: { subject: "feat: do thing", body: "Does the thing." },
 };
 
-// The extracted phase: the answer plus phax's `mode` and `oracle`, before the test lines.
+// The extracted phase: the answer plus phax's `mode` and `acceptance`, before the test lines.
 const { commit: baseCommit, testLines: baseLines, ...baseAnswerFields } = baseAnswerPhase;
 const baseExtractedPhase = {
   ...baseAnswerFields,
   mode: "headless",
-  oracle: null,
+  acceptance: null,
   testLines: baseLines,
   commit: baseCommit,
 };
@@ -209,17 +209,17 @@ describe("extractPlanLlm — mode and oracle come from the header lines", () => 
     if (!Either.isRight(result)) return;
     const [first, second] = result.right.phases;
     expect(first!.mode).toBe("interactive");
-    expect(first!.oracle).toEqual({
-      dischargedBy: "phase-02",
+    expect(first!.acceptance).toEqual({
+      passedBy: "phase-02",
       files: ["tests/a.test.ts", "tests/b.test.ts"],
     });
     expect(second!.mode).toBe("headless");
-    expect(second!.oracle).toBeNull();
+    expect(second!.acceptance).toBeNull();
     const keys = Object.keys(first!);
     expect(keys.slice(keys.indexOf("optionalFilesToEdit"))).toEqual([
       "optionalFilesToEdit",
       "mode",
-      "oracle",
+      "acceptance",
       "testLines",
       "commit",
     ]);
@@ -329,11 +329,15 @@ describe("extractPlanLlm — mode and oracle come from the header lines", () => 
     expect(backend.impl.completeCalls).toHaveLength(1);
   });
 
-  it("refuses an answer whose phases carry mode or oracle", async () => {
+  it("refuses an answer whose phases carry mode or acceptance, or the former oracle key", async () => {
     const withMode = await extract(
       answer([{ ...baseAnswerPhase, mode: "headless" }, secondAnswerPhase]),
     );
     expect(Either.isLeft(withMode)).toBe(true);
+    const withAcceptance = await extract(
+      answer([{ ...baseAnswerPhase, acceptance: null }, secondAnswerPhase]),
+    );
+    expect(Either.isLeft(withAcceptance)).toBe(true);
     const withOracle = await extract(
       answer([{ ...baseAnswerPhase, oracle: null }, secondAnswerPhase]),
     );

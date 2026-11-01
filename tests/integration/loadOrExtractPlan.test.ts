@@ -314,7 +314,7 @@ describe("loadOrExtractPlan — a departing test line", () => {
         extracted: {
           version: 1,
           ...EXTRACTED,
-          phases: [{ ...fields, mode: "headless", oracle: null, testLines, commit }],
+          phases: [{ ...fields, mode: "headless", acceptance: null, testLines, commit }],
         },
       }),
     );

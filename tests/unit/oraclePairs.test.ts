@@ -16,11 +16,11 @@ import {
 // A five-phase plan with one pair: phase-02 authors tests/prune.test.ts and
 // phase-04 discharges it.
 const phases = [
-  { id: "phase-01", oracle: null },
-  { id: "phase-02", oracle: { dischargedBy: "phase-04", files: ["tests/prune.test.ts"] } },
-  { id: "phase-03", oracle: null },
-  { id: "phase-04", oracle: null },
-  { id: "phase-05", oracle: null },
+  { id: "phase-01", acceptance: null },
+  { id: "phase-02", acceptance: { passedBy: "phase-04", files: ["tests/prune.test.ts"] } },
+  { id: "phase-03", acceptance: null },
+  { id: "phase-04", acceptance: null },
+  { id: "phase-05", acceptance: null },
 ];
 
 const pair = {
@@ -32,11 +32,11 @@ const pair = {
 describe("oraclePairs", () => {
   it("lists a pair per non-null oracle, in plan order", () => {
     const two = [
-      { id: "phase-01", oracle: { dischargedBy: "phase-03", files: ["tests/refunds.test.ts"] } },
-      { id: "phase-02", oracle: null },
-      { id: "phase-03", oracle: null },
-      { id: "phase-04", oracle: { dischargedBy: "phase-05", files: ["tests/prune.test.ts"] } },
-      { id: "phase-05", oracle: null },
+      { id: "phase-01", acceptance: { passedBy: "phase-03", files: ["tests/refunds.test.ts"] } },
+      { id: "phase-02", acceptance: null },
+      { id: "phase-03", acceptance: null },
+      { id: "phase-04", acceptance: { passedBy: "phase-05", files: ["tests/prune.test.ts"] } },
+      { id: "phase-05", acceptance: null },
     ];
     expect(oraclePairs(two).map((p) => [p.oraclePhase, p.dischargingPhase])).toEqual([
       ["phase-01", "phase-03"],
@@ -45,7 +45,7 @@ describe("oraclePairs", () => {
   });
 
   it("is empty for a plan without an oracle", () => {
-    expect(oraclePairs(phases.map(({ id }) => ({ id, oracle: null })))).toEqual([]);
+    expect(oraclePairs(phases.map(({ id }) => ({ id, acceptance: null })))).toEqual([]);
   });
 });
 
@@ -166,10 +166,10 @@ describe("stopOraclePairs", () => {
 
   it("lists every pair a stop sits in, in plan order", () => {
     const overlapping = [
-      { id: "phase-01", oracle: { dischargedBy: "phase-04", files: ["tests/refunds.test.ts"] } },
-      { id: "phase-02", oracle: { dischargedBy: "phase-03", files: ["tests/prune.test.ts"] } },
-      { id: "phase-03", oracle: null },
-      { id: "phase-04", oracle: null },
+      { id: "phase-01", acceptance: { passedBy: "phase-04", files: ["tests/refunds.test.ts"] } },
+      { id: "phase-02", acceptance: { passedBy: "phase-03", files: ["tests/prune.test.ts"] } },
+      { id: "phase-03", acceptance: null },
+      { id: "phase-04", acceptance: null },
     ];
     expect(stopOraclePairs(overlapping, "phase-02").map((p) => p.oraclePhase)).toEqual([
       "phase-01",

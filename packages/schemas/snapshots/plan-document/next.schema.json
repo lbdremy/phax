@@ -528,7 +528,7 @@
           "plannedFilesToEdit",
           "optionalFilesToEdit",
           "mode",
-          "oracle",
+          "acceptance",
           "boundaryContracts",
           "testStrategy",
           "implementationOrder",
@@ -586,16 +586,16 @@
               "interactive"
             ]
           },
-          "oracle": {
+          "acceptance": {
             "anyOf": [
               {
                 "type": "object",
                 "required": [
-                  "dischargedBy",
+                  "passedBy",
                   "files"
                 ],
                 "properties": {
-                  "dischargedBy": {
+                  "passedBy": {
                     "type": "string",
                     "description": "a string matching the pattern ^phase-\\d{2}$",
                     "pattern": "^phase-\\d{2}$"

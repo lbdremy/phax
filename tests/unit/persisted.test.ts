@@ -63,6 +63,7 @@ import {
   EXAMPLE_TEST_LINES,
   withoutPhaseKinds,
   withoutPreambleQuestions,
+  withOracleKeys,
   withoutTestLines,
   type Doc,
 } from "./schemasPackage/documents.js";
@@ -120,7 +121,7 @@ function withEmptyQuestions(doc: Readonly<Record<string, unknown>>) {
     phases: (doc["phases"] as Array<Record<string, unknown>>).map((phase) => ({
       ...withTestLines(phase),
       mode: "headless",
-      oracle: null,
+      acceptance: null,
       assignmentReason: null,
     })),
   };
@@ -736,7 +737,7 @@ describe("format readers", () => {
         phases: (reasoned["phases"] as Doc[]).map(({ modelReason, model, effort, ...phase }) => ({
           ...withTestLines(phase),
           mode: "headless",
-          oracle: null,
+          acceptance: null,
           assignmentReason: modelReason,
           model,
           effort,
@@ -841,7 +842,8 @@ describe("format readers", () => {
     // The test line loop `oracle` became `acceptance` at 0.33.0: a sidecar stamped
     // 0.28.0 or 0.32.0 is read by its frozen decoder, which still states the
     // old loop, and lifted through src/schemas/acceptanceLift.ts.
-    const withOldLoops = (doc: Doc): Doc => withLoops(doc, "oracle");
+    // Its phases carry the `oracle` key too, renamed `acceptance` at 0.33.0.
+    const withOldLoops = (doc: Doc): Doc => withOracleKeys(withLoops(doc, "oracle"));
 
     it.each([
       ["0.32.0", "0.32.0"],
@@ -890,7 +892,7 @@ describe("format readers", () => {
 
     it("keeps the loop in-phase, and every other fact, when a 0.32.0 sidecar lifts", () => {
       const older = withKey(
-        validDocuments["plan-document"],
+        withOracleKeys(validDocuments["plan-document"]),
         "$schema",
         schemaUrl("plan-document", "0.32.0"),
       );
@@ -901,7 +903,7 @@ describe("format readers", () => {
 
     it("refuses the loop acceptance in a 0.32.0 sidecar and the loop oracle in a current one, naming the file, phase and line", () => {
       const acceptance = withKey(
-        {
+        withOracleKeys({
           ...validDocuments["plan-document"],
           phases: (validDocuments["plan-document"]["phases"] as Doc[]).map((phase) => ({
             ...phase,
@@ -910,7 +912,7 @@ describe("format readers", () => {
               loop: "acceptance",
             })),
           })),
-        },
+        }),
         "$schema",
         schemaUrl("plan-document", "0.32.0"),
       );
@@ -918,7 +920,8 @@ describe("format readers", () => {
         `${file}: phase-01 test line 1 loop: Expected "oracle", actual "acceptance"`,
       );
       expect(
-        left(readPlanDocumentFile(file, withOldLoops(validDocuments["plan-document"]))).message,
+        left(readPlanDocumentFile(file, withLoops(validDocuments["plan-document"], "oracle")))
+          .message,
       ).toBe(`${file}: phase-01 test line 1 loop: Expected "acceptance", actual "oracle"`);
     });
 
@@ -1271,7 +1274,7 @@ describe("documents from another release", () => {
                   : withoutKey(withoutSurfaceSummary(validDocuments[id]), "arbitratedQuestions")
               : id === "plan-document"
                 ? compareReleases(release, "0.28.0") >= 0
-                  ? validDocuments[id]
+                  ? withOracleKeys(validDocuments[id])
                   : compareReleases(release, "0.26.0") >= 0
                     ? withTestStrategyStrings(validDocuments[id])
                     : compareReleases(release, "0.25.0") >= 0
@@ -1281,9 +1284,9 @@ describe("documents from another release", () => {
                   ? withoutKey(withoutKey(validDocuments[id], "unplannedChanges"), "unmetPromises")
                   : id === "phax-plan"
                     ? compareReleases(release, "0.28.0") >= 0
-                      ? validDocuments[id]
+                      ? withOracleKeys(validDocuments[id])
                       : compareReleases(release, "0.26.0") >= 0
-                        ? withoutTestLines(validDocuments[id])
+                        ? withOracleKeys(withoutTestLines(validDocuments[id]))
                         : withoutPhaseKinds(validDocuments[id])
                     : validDocuments[id];
     const result = read(file, withKey(document, "$schema", schemaUrl(id, release)));
@@ -1492,7 +1495,7 @@ describe("files stamped by an earlier release in the current shape", () => {
 // run can refuse an older one while the display readers take the lift.
 describe("readPhaxPlanFile's shapes", () => {
   const file = "/home/example/.phax/runs/example.example-run/phax-plan.json";
-  // phax's lift: mode headless, oracle null, and never a `testLines` key.
+  // phax's lift: mode headless, acceptance null, and never a `testLines` key.
   const lifted = phaxLatestPreSchema("phax-plan");
 
   it("reads a file at the current stamp as shape current", () => {
@@ -1507,12 +1510,16 @@ describe("readPhaxPlanFile's shapes", () => {
     "reads a file stamped %s as shape 0.26.0, its phases given no testLines",
     (release) => {
       const older = withKey(
-        withoutTestLines(validDocuments["phax-plan"]),
+        withOracleKeys(withoutTestLines(validDocuments["phax-plan"])),
         "$schema",
         schemaUrl("phax-plan", release),
       );
       const read = right(readPhaxPlanFile(file, older));
-      expect(read).toEqual({ shape: "0.26.0", plan: withoutKey(older, "$schema") });
+      // The phases' `oracle` key is read as `acceptance`.
+      expect(read).toEqual({
+        shape: "0.26.0",
+        plan: withoutKey(withoutTestLines(validDocuments["phax-plan"]), "$schema"),
+      });
       expect(read.plan.phases.every((p) => !("testLines" in p))).toBe(true);
     },
   );
@@ -1535,25 +1542,28 @@ describe("readPhaxPlanFile's shapes", () => {
         criterion: "AC-1",
       };
       const older = withKey(
-        {
+        withOracleKeys({
           ...validDocuments["phax-plan"],
           phases: (validDocuments["phax-plan"]["phases"] as Doc[]).map((phase) => ({
             ...phase,
             testLines: [line],
           })),
-        },
+        }),
         "$schema",
         schemaUrl("phax-plan", release),
       );
       const read = right(readPhaxPlanFile(file, older));
-      expect(read).toEqual({ shape, plan: withoutTestLines(withoutKey(older, "$schema")) });
+      expect(read).toEqual({
+        shape,
+        plan: withoutKey(withoutTestLines(validDocuments["phax-plan"]), "$schema"),
+      });
       expect(read.plan.phases.every((p) => !("testLines" in p))).toBe(true);
     },
   );
 
   it("refuses the loop acceptance in a 0.32.0-stamped file, and the loop oracle in a current one, naming the file", () => {
     const stamped = withKey(
-      phaxPlanWithLoop("acceptance"),
+      withOracleKeys(phaxPlanWithLoop("acceptance")),
       "$schema",
       schemaUrl("phax-plan", "0.32.0"),
     );
@@ -1574,7 +1584,7 @@ describe("readPhaxPlanFile's shapes", () => {
   });
 
   // Literal release: the answer must not change when a release is cut.
-  it("reads a file stamped 0.20.0 as shape 0.17.0, lifted with mode headless and oracle null", () => {
+  it("reads a file stamped 0.20.0 as shape 0.17.0, lifted with mode headless and acceptance null", () => {
     const older = withKey(
       withoutPhaseKinds(validDocuments["phax-plan"]),
       "$schema",
@@ -1582,7 +1592,9 @@ describe("readPhaxPlanFile's shapes", () => {
     );
     const read = right(readPhaxPlanFile(file, older));
     expect(read).toEqual({ shape: "0.17.0", plan: lifted });
-    expect(read.plan.phases.every((p) => p.mode === "headless" && p.oracle === null)).toBe(true);
+    expect(read.plan.phases.every((p) => p.mode === "headless" && p.acceptance === null)).toBe(
+      true,
+    );
   });
 
   it("reads a file without $schema as shape pre-schema, lifted the same way", () => {
@@ -1636,5 +1648,68 @@ describe("brief request and record files", () => {
     expect(left(read(file, withoutKey(document, "$schema"))).message).toBe(
       `${file}: ${label} has no $schema — every ${label} is written with one`,
     );
+  });
+});
+
+// The phase key `oracle: { dischargedBy, files }` became `acceptance: { passedBy,
+// files }` at 0.33.0: phax's readers lift every older plan to it, in the key's
+// place, and keep a run plan of the 0.32.0 and 0.28.0 shapes readable for display.
+describe("a plan's phase key, acceptance with passedBy", () => {
+  const files = ["tests/a.test.ts", "tests/b.test.ts"];
+  const acceptanceOf = (i: number) => (i === 0 ? { passedBy: "phase-02", files } : null);
+  const planDocument: Doc = {
+    ...validDocuments["plan-document"],
+    phases: (validDocuments["plan-document"]["phases"] as Doc[]).map((phase, i) => ({
+      ...phase,
+      acceptance: acceptanceOf(i),
+    })),
+  };
+  const phaxPlan: Doc = {
+    ...validDocuments["phax-plan"],
+    phases: (validDocuments["phax-plan"]["phases"] as Doc[]).map((phase, i) => ({
+      ...phase,
+      acceptance: acceptanceOf(i),
+    })),
+  };
+  const docFile = "/work/example-repo/docs/plans/plan.json";
+  const planFile = "/home/example/.phax/runs/example.example-run/phax-plan.json";
+
+  it.each([
+    ["0.32.0", withOracleKeys(planDocument)],
+    ["0.28.0", withOracleKeys(planDocument)],
+    ["0.26.0", withTestStrategyStrings(planDocument)],
+  ])("lifts a plan sidecar stamped %s to acceptance, passedBy and files kept", (release, doc) => {
+    const older = withKey(doc, "$schema", schemaUrl("plan-document", release));
+    const lifted = right(readPlanDocumentFile(docFile, older));
+    expect(lifted.phases.map((phase) => phase.acceptance)).toEqual([
+      { passedBy: "phase-02", files },
+    ]);
+    const keys = Object.keys(lifted.phases[0]!);
+    expect(keys).not.toContain("oracle");
+    expect(keys[keys.indexOf("mode") + 1]).toBe("acceptance");
+  });
+
+  it("refuses a current plan sidecar that carries the oracle phase key", () => {
+    expect(left(readPlanDocumentFile(docFile, withOracleKeys(planDocument))).message).toContain(
+      "oracle",
+    );
+  });
+
+  it.each([
+    ["0.32.0", "0.32.0", withOracleKeys(phaxPlan)],
+    ["0.28.0", "0.28.0", withOracleKeys(phaxPlan)],
+    ["0.26.0", "0.26.0", withOracleKeys(withoutTestLines(phaxPlan))],
+  ])("lifts a run plan stamped %s, shape %s, to acceptance for display", (release, shape, doc) => {
+    const older = withKey(doc, "$schema", schemaUrl("phax-plan", release));
+    const read = right(readPhaxPlanFile(planFile, older));
+    expect(read.shape).toBe(shape);
+    expect(read.plan.phases.map((phase) => phase.acceptance)).toEqual([
+      { passedBy: "phase-02", files },
+    ]);
+    expect(read.plan.phases.every((phase) => !("oracle" in phase))).toBe(true);
+  });
+
+  it("refuses a current run plan that carries the oracle phase key", () => {
+    expect(left(readPhaxPlanFile(planFile, withOracleKeys(phaxPlan))).message).toContain("oracle");
   });
 });
