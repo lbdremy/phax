@@ -596,3 +596,96 @@ describe("the spec document's traceability", () => {
     expect(file.description).toContain("`refs` entry names an existing requirement");
   });
 });
+
+const withTestLoop = (doc: Doc, loop: string): Doc =>
+  withKey(
+    doc,
+    "phases",
+    (doc["phases"] as Doc[]).map((phase) => ({
+      ...phase,
+      testStrategy: (phase["testStrategy"] as Doc[]).map((line) => ({ ...line, loop })),
+    })),
+  );
+
+// The test line's loop `oracle` became `acceptance` at 0.33.0: a document
+// stamped 0.28.0 up to 0.32.0 states its lines with the old loop and the
+// package lifts it, keeping every other fact; one at the current stamp states
+// `acceptance` and is read as written (ac-migrate, ac-read-old).
+describe("the plan document's test line loop", () => {
+  const current = validDocuments["plan-document"];
+  const lifted = (loop: string): Doc => withoutKey(withTestLoop(current, loop), "$schema");
+
+  it.each([
+    ["0.32.0", "0.32.0"],
+    ["0.28.0", "0.28.0"],
+    ["0.31.0", "0.28.0"],
+  ])(
+    "parses a document stamped %s as shape %s and lifts the loop oracle to acceptance",
+    (release, shape) => {
+      const old = withKey(
+        withTestLoop(current, "oracle"),
+        "$schema",
+        schemaUrl("plan-document", release),
+      );
+      const result = parsePlanDocument(old);
+      expect(result).toEqual({ ok: true, shape, value: old });
+      if (!result.ok) throw new Error("document rejected");
+      expect(toLatestPlanDocument(result.value)).toEqual(lifted("acceptance"));
+    },
+  );
+
+  it("lifts a 0.26.0 document whose test strategy states the loop oracle to acceptance, not Unknown", () => {
+    const strings = withTestStrategyStrings(current);
+    const old = withKey(
+      withKey(
+        strings,
+        "phases",
+        (strings["phases"] as Doc[]).map((phase) => ({
+          ...phase,
+          testStrategy: String(phase["testStrategy"]).replaceAll(" · in-phase", " · oracle"),
+        })),
+      ),
+      "$schema",
+      schemaUrl("plan-document", "0.26.0"),
+    );
+    const result = parsePlanDocument(old);
+    if (!result.ok) throw new Error("document rejected");
+    expect(toLatestPlanDocument(result.value)).toEqual(lifted("acceptance"));
+  });
+
+  it("keeps the loop in-phase, and every other coordinate, when it lifts", () => {
+    const old = withKey(
+      withTestLoop(current, "in-phase"),
+      "$schema",
+      schemaUrl("plan-document", "0.32.0"),
+    );
+    const result = parsePlanDocument(old);
+    if (!result.ok) throw new Error("document rejected");
+    expect(toLatestPlanDocument(result.value)).toEqual(lifted("in-phase"));
+  });
+
+  it("refuses the loop acceptance in a 0.32.0 document, and the loop oracle at the current stamp", () => {
+    const stamped = withKey(
+      withTestLoop(current, "acceptance"),
+      "$schema",
+      schemaUrl("plan-document", "0.32.0"),
+    );
+    expect(parsePlanDocument(stamped).ok).toBe(false);
+    expect(parsePlanDocument(withTestLoop(current, "oracle")).ok).toBe(false);
+    expect(parsePlanDocument(withTestLoop(current, "acceptance")).ok).toBe(true);
+  });
+
+  it("lifts a 0.32.0 oracle-loop test line of a boundary-free shape unchanged but for the loop", () => {
+    const old = withKey(
+      withTestLoop(current, "oracle"),
+      "$schema",
+      schemaUrl("plan-document", "0.32.0"),
+    );
+    const result = parsePlanDocument(old);
+    if (!result.ok) throw new Error("document rejected");
+    const [phase] = toLatestPlanDocument(result.value).phases;
+    expect(phase.testStrategy).toEqual(
+      EXAMPLE_TEST_LINES.map((line) => ({ ...line, loop: "acceptance" })),
+    );
+  });
+});

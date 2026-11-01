@@ -8,8 +8,9 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Effect, Either, Layer } from "effect";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { dispatch } from "../../src/app/dispatcher.js";
+import { loadPlan } from "../../src/app/loadPlan.js";
 import { resolveRun } from "../../src/app/resolveRunInfo.js";
 import {
   decodeShortName,
@@ -18,14 +19,20 @@ import {
   type RunId,
   type WorktreePath,
 } from "../../src/domain/branded.js";
-import { RateLimitError } from "../../src/domain/errors.js";
+import { runLs } from "../../src/cli/commands/ls.js";
+import { PlanValidationError, RateLimitError } from "../../src/domain/errors.js";
 import type { PhaxEvent } from "../../src/domain/events.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { makeFakeSystemTelemetry } from "../../src/infra/fakes/systemTelemetry.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
+import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
+import { runStatusFile } from "../helpers/runStatusFixture.js";
+
+vi.mock("../../src/app/loadConfig.js", () => ({ loadConfig: vi.fn() }));
 
 const NAMESPACE = "example";
 const SHORT_NAME = "example-run";
@@ -156,3 +163,197 @@ describe("a run status written before $schema", () => {
     expect(result.left.startsWith(`${runStatusPath}: run status without $schema`)).toBe(true);
   });
 });
+
+// ac-in-flight: a run started by phax 0.32.0 holds a phax-plan.json stamped
+// 0.32.0, whose test lines state the loop `oracle`. This phax shows the run and
+// never resumes it: `phax resume` and `phax validate --plan` read the plan
+// through `loadPlan`, which refuses it, naming the two ways out.
+describe("a run whose phax-plan.json an earlier release stamped", () => {
+  let stateRoot: string;
+  let runPath: string;
+  let planPath: string;
+
+  const oldLine = {
+    guarantee: "every pair is refused as the table says",
+    size: "small",
+    technique: "table",
+    oracle: "transition table",
+    loop: "oracle",
+    criterion: "AC-1",
+  };
+  const phase = (id: string, index: number) => ({
+    id,
+    title: `Step ${id}`,
+    model: "claude-sonnet-5-5",
+    effort: "medium",
+    planMarkdownAnchor: `#${id}-step`,
+    plannedFilesToCreate: [],
+    plannedFilesToEdit: [],
+    optionalFilesToEdit: [],
+    mode: "headless",
+    oracle: index === 0 ? { dischargedBy: "phase-02", files: ["tests/a.test.ts"] } : null,
+    testLines: [oldLine],
+    commit: { subject: `feat: ${id}`, body: "Do the step." },
+  });
+  const plan = (release: string) => ({
+    $schema: schemaUrl("phax-plan", release),
+    run: {
+      shortName: SHORT_NAME,
+      title: "Example run",
+      branch: `phax/${SHORT_NAME}`,
+      requiredCommands: [],
+    },
+    phases: [phase("phase-01", 0), phase("phase-02", 1)],
+  });
+
+  beforeEach(() => {
+    stateRoot = mkdtempSync(join(tmpdir(), "phax-inflight-run-"));
+    runPath = join(stateRoot, "runs", `${NAMESPACE}.${SHORT_NAME}`);
+    planPath = join(runPath, "phax-plan.json");
+    mkdirSync(join(runPath, "phase-01"), { recursive: true });
+    writeFileSync(
+      join(runPath, "run-status.json"),
+      JSON.stringify(
+        runStatusFile({
+          namespace: NAMESPACE,
+          shortName: SHORT_NAME,
+          runId: "run-0001",
+          state: "interrupted",
+          createdAt: CREATED_AT,
+          updatedAt: CREATED_AT,
+          phasesCount: 2,
+          currentPhaseIndex: 0,
+          gateProfileId: "standard",
+          planRepoRelPath: "docs/plans/example.md",
+        }),
+        null,
+        2,
+      ),
+    );
+    writeFileSync(join(runPath, "phase-01", "status.json"), JSON.stringify(phaseStatus, null, 2));
+    writeFileSync(
+      join(stateRoot, "registry.json"),
+      JSON.stringify({
+        $schema: currentSchemaUrl("registry"),
+        runs: [
+          {
+            namespace: NAMESPACE,
+            shortName: SHORT_NAME,
+            runId: "run-0001",
+            state: "interrupted",
+            branch: `phax/${SHORT_NAME}`,
+            projectName: NAMESPACE,
+            phasesCount: 2,
+            createdAt: CREATED_AT,
+            updatedAt: CREATED_AT,
+          },
+        ],
+      }),
+    );
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+    rmSync(stateRoot, { recursive: true, force: true });
+  });
+
+  // 0.31.0 and 0.28.0 read as the 0.28.0 shape: no phax-plan stamped in
+  // [0.28.0, 0.32.0) resumes as current any more.
+  it.each([
+    ["0.32.0", "0.32.0"],
+    ["0.31.0", "0.28.0"],
+    ["0.28.0", "0.28.0"],
+  ])(
+    "is refused by loadPlan, which resume and validate --plan call, when stamped %s, naming the shape and `phax archive <run> --force`",
+    (release, shape) => {
+      writeFileSync(planPath, JSON.stringify(plan(release), null, 2));
+      const qualified = `${NAMESPACE}.${SHORT_NAME}`;
+
+      const result = loadPlan(planPath, { run: qualified });
+
+      expect(Either.isLeft(result)).toBe(true);
+      if (Either.isRight(result)) return;
+      expect(result.left).toBeInstanceOf(PlanValidationError);
+      expect(result.left.message).toContain(`${planPath}: phax-plan in the ${shape} shape`);
+      expect(result.left.message).toContain("an older phax wrote it");
+      expect(result.left.message).toContain(`\`phax archive ${qualified} --force\``);
+    },
+  );
+
+  it("is still read for display: resolveRun shows its phases, without test lines", () => {
+    writeFileSync(planPath, JSON.stringify(plan("0.32.0"), null, 2));
+
+    const result = resolveRun(NAMESPACE, Either.getOrThrow(decodeShortName(SHORT_NAME)), stateRoot);
+
+    if (Either.isLeft(result)) throw new Error(result.left);
+    expect(result.right.planPhases.map((p) => p.id)).toEqual(["phase-01", "phase-02"]);
+    expect(result.right.planPhases.every((p) => !("testLines" in p))).toBe(true);
+  });
+
+  it("is listed by phax ls, with the phases its plan names", async () => {
+    writeFileSync(planPath, JSON.stringify(plan("0.32.0"), null, 2));
+    const { loadConfig } = await import("../../src/app/loadConfig.js");
+    vi.mocked(loadConfig).mockReturnValue(Either.right(lsConfig(stateRoot)));
+    const lines: string[] = [];
+    const errors: string[] = [];
+
+    const code = await runLs(
+      {},
+      {
+        log: (m: string) => lines.push(m),
+        warn: (m: string) => lines.push(`WARN: ${m}`),
+        error: (m: string) => errors.push(m),
+      },
+    );
+
+    expect(errors).toEqual([]);
+    expect(code).toBe(0);
+    const row = lines
+      .join("\n")
+      .split("\n")
+      .find((l) => l.includes(SHORT_NAME));
+    expect(row).toBeDefined();
+    // The current phase, `1/2` of the plan's two phases, is read from the old plan.
+    expect(row).toContain("1/2");
+  });
+});
+
+/** The slice of a resolved config `phax ls` reads, with every path made up. */
+function lsConfig(stateRoot: string): ResolvedConfig {
+  return {
+    raw: {} as never,
+    namespace: NAMESPACE,
+    stateRoot,
+    repoRoot: stateRoot,
+    maxFixAttempts: 3,
+    extractPlanModel: "claude-sonnet-5-5",
+    extractPlanEffort: "low",
+    fileReconciliationMode: "report_only",
+    security: {
+      profile: "secure",
+      filesystem: { allowRead: [], allowWrite: [] },
+      network: { profile: "provider-only" },
+      mcp: { mode: "disabled", allow: [] },
+      agentCommands: [],
+    },
+    publish: {
+      auto: false,
+      remote: "origin",
+      provider: "github",
+      pushBranch: true,
+      createPullRequest: true,
+    },
+    complianceReview: { enabled: false, model: "claude-sonnet-4-6", effort: "medium" },
+    codeReview: { enabled: false, model: "claude-opus-5-5", effort: "high" },
+    authoring: {
+      spec: { model: "claude-opus-5-5", effort: "high" },
+      plan: { model: "claude-opus-5-5", effort: "high" },
+    },
+    records: {
+      enabled: false,
+      transcript: false,
+      destination: { kind: "in-repo" },
+      autoPush: false,
+    },
+  } as unknown as ResolvedConfig;
+}

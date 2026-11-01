@@ -1,7 +1,7 @@
 // The strict answers keep every rule of the shapes they replace. For each
 // answer, a table of fixtures is decoded by the frozen module of today's shape
 // (first-reading and interactive-handoff 0.26.0, code-review 0.29.0,
-// compliance-review 0.17.0, spec-document 0.27.0, plan-document 0.28.0, hand-decision-answer 0.25.0) and
+// compliance-review 0.17.0, spec-document 0.27.0, plan-document 0.32.0, hand-decision-answer 0.25.0) and
 // by the new decoder: a fixture the frozen module refuses, the new decoder
 // refuses naming the same field (and, for the documents, with the same
 // message); a fixture it accepts, the new decoder accepts once restamped with
@@ -26,7 +26,7 @@ import { decodeComplianceReviewV0_17_0 } from "../../../src/schemas/history/comp
 import { decodeFirstReadingV0_26_0 } from "../../../src/schemas/history/first-reading/0.26.0.js";
 import { decodeHandDecisionAnswerV0_25_0 } from "../../../src/schemas/history/hand-decision-answer/0.25.0.js";
 import { decodeInteractiveHandoffV0_26_0 } from "../../../src/schemas/history/interactive-handoff/0.26.0.js";
-import { decodePlanDocumentV0_28_0 } from "../../../src/schemas/history/plan-document/0.28.0.js";
+import { decodePlanDocumentV0_32_0 } from "../../../src/schemas/history/plan-document/0.32.0.js";
 import { decodeSpecDocumentV0_27_0 } from "../../../src/schemas/history/spec-document/0.27.0.js";
 import { decodeInteractiveHandoffFile } from "../../../src/schemas/interactiveHandoff.js";
 import {
@@ -66,6 +66,10 @@ interface Answer {
   readonly sameMessage?: boolean;
   /** The body the new decoder reads, when the new shape adds keys the fixtures leave out. */
   readonly forCurrent?: (body: Body) => Body;
+  /** The body the frozen module reads, when the fixtures hold a value the frozen shape wrote differently. */
+  readonly forFrozen?: (body: Body) => Body;
+  /** The fixtures both refuse at the same path, with a message the new shape reworded on purpose. */
+  readonly rewordedMessages?: ReadonlyArray<string>;
 }
 
 const without = (body: Body, key: string): Body => {
@@ -136,6 +140,17 @@ const withTestLine = (coordinate: string, value: unknown): Body => {
     phases: [{ ...first, testStrategy: [{ ...line, [coordinate]: value }, ...lines] }, ...rest],
   };
 };
+
+/** A current plan body as the frozen 0.32.0 shape wrote it: the loop `acceptance` was `oracle`. */
+function withOldLoops(body: Body): Body {
+  const phases = (body["phases"] as ReadonlyArray<Body>).map((phase) => ({
+    ...phase,
+    testStrategy: (phase["testStrategy"] as ReadonlyArray<Body>).map((line) =>
+      line["loop"] === "acceptance" ? { ...line, loop: "oracle" } : line,
+    ),
+  }));
+  return { ...body, phases };
+}
 
 const complianceReview: Body = {
   verdict: "conformant-with-deviations",
@@ -209,10 +224,14 @@ const ANSWERS: ReadonlyArray<Answer> = [
   },
   {
     id: "plan-document",
-    frozen: decodePlanDocumentV0_28_0,
-    frozenStamp: schemaUrl("plan-document", "0.28.0"),
+    frozen: decodePlanDocumentV0_32_0,
+    frozenStamp: schemaUrl("plan-document", "0.32.0"),
     current: decodePlanDocumentFile,
     sameMessage: true,
+    // The frozen shape wrote the loop `oracle` where the current one writes `acceptance`.
+    forFrozen: withOldLoops,
+    // The reserved criterion words gained `acceptance`; the message names all three.
+    rewordedMessages: ["a criterion 'oracle'", "a criterion 'in-phase'"],
     fixtures: [
       ["a spec-less plan", planBody],
       ["a plan of a spec", { ...planBody, sourceSpec: SPEC_PATH, completesSpec: false }],
@@ -439,7 +458,10 @@ describe.each(ANSWERS)(
     const stamp = schemaUrl(answer.id, CURRENT_STAMPS[answer.id]);
 
     it.each(answer.fixtures)("%s", (_name, body) => {
-      const frozen = answer.frozen({ $schema: answer.frozenStamp, ...body });
+      const frozen = answer.frozen({
+        $schema: answer.frozenStamp,
+        ...(answer.forFrozen?.(body) ?? body),
+      });
       const current = answer.current({ $schema: stamp, ...(answer.forCurrent?.(body) ?? body) });
       if (Either.isLeft(frozen)) {
         expect(Either.isLeft(current)).toBe(true);
@@ -450,7 +472,7 @@ describe.each(ANSWERS)(
           if (!answer.id.endsWith("-hand-decision-answer")) {
             expect(firstPath(current.left)).toBe(firstPath(frozen.left));
           }
-          if (answer.sameMessage === true) {
+          if (answer.sameMessage === true && answer.rewordedMessages?.includes(_name) !== true) {
             expect(formatFirstViolation(current.left)).toBe(formatFirstViolation(frozen.left));
           }
         }
@@ -461,7 +483,9 @@ describe.each(ANSWERS)(
 
     it("is a table of both verdicts", () => {
       const verdicts = answer.fixtures.map(([, body]) =>
-        Either.isLeft(answer.frozen({ $schema: answer.frozenStamp, ...body })),
+        Either.isLeft(
+          answer.frozen({ $schema: answer.frozenStamp, ...(answer.forFrozen?.(body) ?? body) }),
+        ),
       );
       expect(verdicts).toContain(true);
       expect(verdicts).toContain(false);
@@ -615,8 +639,11 @@ describe("the hand decision answers' verdict phase", () => {
 });
 
 // The test line's lookahead and stacked patterns became one lookaround-free
-// pattern plus coherence filters: the frozen 0.28.0 module and the new schema
-// agree on every edge string, on every coordinate, verdict and message alike.
+// pattern plus coherence filters: the frozen 0.32.0 module and the new schema
+// agree on every edge string, on every coordinate, verdict and message alike,
+// except the criterion words the new shape reserves on purpose: `oracle` and
+// `in-phase` are refused by both, with a reworded message, and `acceptance` is
+// accepted by the frozen module and refused by the new one.
 describe("a test line's edge strings", () => {
   const EDGES: ReadonlyArray<readonly [string, string]> = [
     ["empty", ""],
@@ -642,8 +669,8 @@ describe("a test line's edge strings", () => {
 
   it.each(rows)("%s: %s", (coordinate, _name, value) => {
     const body = withTestLine(coordinate, value);
-    const frozen = decodePlanDocumentV0_28_0({
-      $schema: schemaUrl("plan-document", "0.28.0"),
+    const frozen = decodePlanDocumentV0_32_0({
+      $schema: schemaUrl("plan-document", "0.32.0"),
       ...body,
     });
     const current = decodePlanDocumentFile({
@@ -651,7 +678,8 @@ describe("a test line's edge strings", () => {
       ...body,
     });
     expect(Either.isLeft(current)).toBe(Either.isLeft(frozen));
-    if (Either.isLeft(frozen) && Either.isLeft(current)) {
+    const reworded = coordinate === "criterion" && (value === "oracle" || value === "in-phase");
+    if (Either.isLeft(frozen) && Either.isLeft(current) && !reworded) {
       expect(formatFirstViolation(current.left)).toBe(formatFirstViolation(frozen.left));
     }
   });

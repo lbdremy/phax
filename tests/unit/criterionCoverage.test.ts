@@ -3,7 +3,7 @@ import { criterionCoverage, type CoveragePhase } from "../../src/domain/plan/cri
 
 const phase = (
   id: string,
-  ...lines: Array<[item: number, loop: "oracle" | "in-phase", criterion: string | null]>
+  ...lines: Array<[item: number, loop: "acceptance" | "in-phase", criterion: string | null]>
 ): CoveragePhase => ({
   id,
   lines: lines.map(([item, loop, criterion]) => ({ item, loop, criterion })),
@@ -33,7 +33,7 @@ describe("criterionCoverage", () => {
     {
       name: "each criterion lists its lines in plan and line order, ids in spec order",
       phases: [
-        phase("phase-01", [1, "oracle", "ac-b"], [2, "in-phase", "ac-a"]),
+        phase("phase-01", [1, "acceptance", "ac-b"], [2, "in-phase", "ac-a"]),
         phase("phase-02", [1, "in-phase", "ac-b"]),
       ],
       ids: ["ac-a", "ac-b", "ac-c"],
@@ -43,7 +43,7 @@ describe("criterionCoverage", () => {
           {
             id: "ac-b",
             namedBy: [
-              { phase: "phase-01", loop: "oracle" },
+              { phase: "phase-01", loop: "acceptance" },
               { phase: "phase-02", loop: "in-phase" },
             ],
           },

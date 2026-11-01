@@ -1,17 +1,18 @@
 import { Either, Schema } from "effect";
+import { liftTestLoop } from "../../schemas/acceptanceLift.js";
 import {
   TEST_LOOPS,
   TEST_SIZES,
   TEST_TECHNIQUES,
   TestLineSchema,
   type TestLine,
-  type TestLoop,
 } from "../../schemas/testLine.js";
 
 // The test line grammar: one line of a phase's `### Test strategy` section,
 // `<guarantee> — <size> · <technique> · <oracle> · <loop>[ · <criterion>]`,
-// read from the right. Pure, and imports only `effect` and the test line
-// schema, because the schemas package reads older plan sidecars through it.
+// read from the right. Pure, and imports only `effect`, the test line schema
+// and the loop lift, because the schemas package reads older plan sidecars
+// through it.
 // Reading a rendered section returns its lines: for every list of lines,
 // `readTestStrategyText(lines.map((l) => `- ${renderTestLine(l)}`).join("\n"))`
 // returns them, with no departure.
@@ -49,8 +50,23 @@ const COORDINATES_START = new RegExp(
   `^(?:${TEST_SIZES.join("|")})${DOT}(?:${TEST_TECHNIQUES.join("|")})${DOT}`,
 );
 
-function isLoop(field: string): field is TestLoop {
-  return (TEST_LOOPS as ReadonlyArray<string>).includes(field);
+/** How a section is read: `beforeAcceptance` reads a section written before 0.33.0, whose loop `oracle` is now `acceptance`. */
+export interface TestLineReadOptions {
+  readonly beforeAcceptance?: boolean;
+}
+
+// The loop words a section may end with: the current ones, and, for a section
+// written before 0.33.0, the old `oracle`, which `liftTestLoop` reads as
+// `acceptance`. No older line holds `oracle` as a criterion (it was reserved).
+function isLoop(field: string, options: TestLineReadOptions): boolean {
+  return (
+    (TEST_LOOPS as ReadonlyArray<string>).includes(field) ||
+    (options.beforeAcceptance === true && field === "oracle")
+  );
+}
+
+function asLoop(field: string): string {
+  return field === "oracle" ? liftTestLoop("oracle") : field;
 }
 
 // The guarantee ends at the last ` — ` followed by a size, ` · `, a
@@ -67,7 +83,7 @@ function coordinatesStart(text: string): number {
  * Reads one entry's text as a test line, or null when it departs: no
  * coordinates, a loop missing, or a value the schema refuses.
  */
-export function parseTestLine(text: string): TestLine | null {
+export function parseTestLine(text: string, options: TestLineReadOptions = {}): TestLine | null {
   const at = coordinatesStart(text);
   if (at < 0) return null;
   const guarantee = text.slice(0, at);
@@ -77,14 +93,14 @@ export function parseTestLine(text: string): TestLine | null {
   let loop: string;
   let criterion: string | null;
   let oracleFields: string[];
-  if (isLoop(last)) {
-    loop = last;
+  if (isLoop(last, options)) {
+    loop = asLoop(last);
     criterion = null;
     oracleFields = rest.slice(0, -1);
   } else {
     const beforeLast = rest.at(-2);
-    if (beforeLast === undefined || !isLoop(beforeLast)) return null;
-    loop = beforeLast;
+    if (beforeLast === undefined || !isLoop(beforeLast, options)) return null;
+    loop = asLoop(beforeLast);
     criterion = last;
     oracleFields = rest.slice(0, -2);
   }
@@ -123,9 +139,13 @@ interface Item {
  * item. Items are numbered from 1. A lone `(none)` item, or no item, is no
  * line. Every item that is not a test line departs: a stray item, an entry
  * `parseTestLine` refuses, an item holding U+2028, U+2029 or U+0085, and
- * `(none)` beside other items.
+ * `(none)` beside other items. A section written before 0.33.0 is read with
+ * `beforeAcceptance`, so its loop `oracle` reads as `acceptance`.
  */
-export function readTestStrategyText(text: string): TestStrategyReading {
+export function readTestStrategyText(
+  text: string,
+  options: TestLineReadOptions = {},
+): TestStrategyReading {
   const items: Item[] = [];
   let previousBlank = true;
   for (const raw of text.split(/\r?\n/)) {
@@ -161,7 +181,7 @@ export function readTestStrategyText(text: string): TestStrategyReading {
   const lines: NumberedTestLine[] = [];
   const departures: TestLineDeparture[] = [];
   for (const item of items) {
-    const line = item.stray || item.broken ? null : parseTestLine(item.text);
+    const line = item.stray || item.broken ? null : parseTestLine(item.text, options);
     if (line === null) departures.push({ line: item.number, text: item.text });
     else lines.push({ item: item.number, line });
   }

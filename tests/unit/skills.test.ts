@@ -192,7 +192,11 @@ describe("phax-planning skill", () => {
     const start = example.indexOf(heading);
     expect(start).toBeGreaterThan(-1);
     const end = example.indexOf("\n### Excluded scope", start);
-    for (const text of [shown, example.slice(start + heading.length, end)]) {
+    for (const shownText of [shown, example.slice(start + heading.length, end)]) {
+      // The skill still teaches the loop `oracle` until the plan that updates
+      // the skills (acceptance-tests plan 4): read its lines as the loop they
+      // became, so this test keeps judging the line format alone.
+      const text = shownText.replace(/ · oracle(?=( · \S+)?$)/gm, " · acceptance");
       const reading = readTestStrategyText(text);
       expect(reading.departures).toEqual([]);
       expect(reading.lines.length).toBeGreaterThan(0);

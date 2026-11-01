@@ -28,10 +28,16 @@ import {
   type HandDecisionAnswerV0_25_0,
 } from "../../../../src/schemas/history/hand-decision-answer/0.25.0.js";
 import {
+  PhaxPlanExtractionV0_32_0Schema,
+  decodePhaxPlanExtractionV0_32_0,
+  type PhaxPlanExtractionV0_32_0,
+} from "../../../../src/schemas/history/phax-plan-extraction/0.32.0.js";
+import {
   PlanExtractionAnswerSchema,
   decodePlanExtractionAnswer,
   type PlanExtractionAnswer,
 } from "../../../../src/schemas/planExtraction.js";
+import { liftPlanExtractionTestLines } from "../../../../src/schemas/acceptanceLift.js";
 import { CURRENT_SHAPES } from "../generated/index.js";
 import type { ParsedShape } from "../parsed.js";
 import { defineFormat, type CurrentShapeName } from "../shapes.js";
@@ -225,14 +231,17 @@ export function toLatestDecideVerdicts(value: DecideVerdictsFile): LatestDecideV
 
 // ── plan extraction
 
-// Born at 0.32.0 with `$schema`: no pre-schema shape and no earlier release,
-// and a document without `$schema` is unreadable. It refuses a key it does not
-// name, at any level. The latest value is phax's in-memory value, with no
-// `$schema`. A const `$schema` reads only its own stamp: a document stamped
-// above the format's current stamp (and at or below the package's release) is
-// refused at `$schema`, and phax never writes one.
+// Born at 0.32.0 with `$schema`: no pre-schema shape, and a document without
+// `$schema` is unreadable. It refuses a key it does not name, at any level. Its
+// 0.32.0 shape, written before the `acceptance` loop, is listed as a release.
+// The latest value is phax's in-memory value, with no `$schema`. A const
+// `$schema` reads only its own stamp: a document stamped above the format's
+// current stamp (and at or below the package's release) is refused at
+// `$schema`, and phax never writes one.
 
 export type PhaxPlanExtractionShapes = {
+  "0.32.0": PhaxPlanExtractionV0_32_0;
+} & {
   [K in CurrentShapeName<"phax-plan-extraction">]: PlanExtractionAnswer;
 };
 
@@ -243,7 +252,12 @@ export const phaxPlanExtractionFormat = defineFormat<PhaxPlanExtractionShapes>({
   id: "phax-plan-extraction",
   label: "plan extraction",
   preSchema: null,
-  releases: [],
+  releases: [
+    [
+      "0.32.0",
+      { schema: PhaxPlanExtractionV0_32_0Schema, decode: decodePhaxPlanExtractionV0_32_0 },
+    ],
+  ],
   current: {
     name: CURRENT_SHAPES["phax-plan-extraction"],
     shape: { schema: PlanExtractionAnswerSchema, decode: decodePlanExtractionAnswer },
@@ -260,8 +274,14 @@ export const parsePhaxPlanExtraction: (input: unknown) => ParsedShape<PhaxPlanEx
 /** The latest plan extraction: phax's in-memory value, with no `$schema`. */
 export type LatestPhaxPlanExtraction = Omit<PlanExtractionAnswer, "$schema">;
 
-/** Upgrades a parsed plan extraction in memory: drops `$schema`, keeps the plan and the reason. */
-export function toLatestPhaxPlanExtraction(value: PlanExtractionAnswer): LatestPhaxPlanExtraction {
+/**
+ * Upgrades a parsed plan extraction in memory: drops `$schema`, keeps the plan
+ * and the reason, and lifts the extracted test lines' loop `oracle` to
+ * `acceptance` (`liftPlanExtractionTestLines`).
+ */
+export function toLatestPhaxPlanExtraction(
+  value: PhaxPlanExtractionV0_32_0 | PlanExtractionAnswer,
+): LatestPhaxPlanExtraction {
   const { $schema: _schema, ...answer } = value;
-  return answer;
+  return liftPlanExtractionTestLines(answer);
 }

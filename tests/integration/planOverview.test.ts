@@ -89,7 +89,7 @@ Does part ${index + 1}.
 ${blocks.join("\n")}`;
 }
 
-const line = (guarantee: string, loop: "in-phase" | "oracle", criterion?: string): string =>
+const line = (guarantee: string, loop: "in-phase" | "acceptance", criterion?: string): string =>
   `- ${guarantee} — small · example · the findings · ${loop}${criterion === undefined ? "" : ` · ${criterion}`}`;
 
 const reportJson = (parts: readonly object[]): string =>
@@ -200,7 +200,7 @@ const TWO_PHASES = [
   {
     oracle: true,
     create: ["tests/unit/export.test.ts"],
-    lines: [line("exports are listed", "oracle", "ac-a")],
+    lines: [line("exports are listed", "acceptance", "ac-a")],
   },
   {
     create: ["src/export/core/write.ts", "scripts/export.sh"],
@@ -299,6 +299,34 @@ describe("planOverview", () => {
       slug: "invoice-export",
       uncovered: ["ac-c"],
     });
+  });
+
+  // ac-loop: the overview shows a criterion covered by an acceptance line.
+  it("shows a criterion covered by a line in the acceptance loop", async () => {
+    const text =
+      "- every (state, transition) pair is accepted or refused as the table says — small · table · transition table · acceptance · AC-3";
+    const outcome = await run({
+      [PLAN_PATH]: planMd([
+        { oracle: true, create: ["tests/unit/export.test.ts"], lines: [text] },
+        { create: ["src/export/core/write.ts"], lines: [line("it is passed", "in-phase")] },
+      ]),
+      [`${REPO_ROOT}/${SPEC_REL}`]: "# Invoice export\n",
+      [`${REPO_ROOT}/${SPEC_JSON_REL}`]: specJson(["AC-3"]),
+    });
+    const overview = overviewOf(outcome);
+
+    expect(overview.coverage).toMatchObject({
+      kind: "criteria",
+      criteria: [{ id: "AC-3", lines: [{ phase: "phase-01", loop: "acceptance" }] }],
+      uncovered: [],
+    });
+    expect(overview.phases[0]!.testLines).toEqual([
+      expect.objectContaining({
+        loop: "acceptance",
+        oracle: "transition table",
+        criterion: "AC-3",
+      }),
+    ]);
   });
 
   it("says why no criterion is known when the spec has no sidecar", async () => {

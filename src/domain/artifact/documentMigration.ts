@@ -6,10 +6,10 @@ import {
 } from "../../schemas/persisted.js";
 import { CURRENT_STAMPS } from "../../schemas/release.js";
 import { compareReleases } from "../../schemas/schemaUrl.js";
-import { renderPlanBody } from "../authoring/renderPlan.js";
 import { renderPlanBodyV0_25_0 } from "../authoring/renderPlanV0_25_0.js";
 import { renderSpecBody } from "../authoring/renderSpec.js";
 import { renderPlanBodyV0_26_0 } from "../authoring/renderPlanV0_26_0.js";
+import { renderPlanBodyV0_32_0 } from "../authoring/renderPlanV0_32_0.js";
 import { renderSpecBodyV0_17_0 } from "../authoring/renderSpecV0_17_0.js";
 import { renderSpecBodyV0_25_0 } from "../authoring/renderSpecV0_25_0.js";
 import { validateArtifact } from "./document.js";
@@ -87,9 +87,12 @@ function formatOf(kind: ArtifactKind): DocumentFormat {
 }
 
 // The body the sidecar's own shape renders: the current rendering for
-// spec-document 0.27.0 and plan-document 0.28.0, whose body did not change
-// when the strict answer restamped them (a migration rewrites the sidecar and
-// leaves the Markdown byte-identical); the rendering frozen at spec-document
+// spec-document 0.27.0, whose body did not change when the strict answer
+// restamped it (a migration rewrites the sidecar and leaves the Markdown
+// byte-identical); the rendering frozen at plan-document 0.32.0 for both
+// 0.32.0 and 0.28.0 plan sidecars (their test lines end `· oracle`, and the
+// current rendering writes `· acceptance`, so the migration re-renders the
+// body); the rendering frozen at spec-document
 // 0.25.0 (no `Summary:` lines), the one frozen at spec-document 0.17.0
 // (positional questions), the one frozen at plan-document 0.26.0 (test
 // strategies as written), the one frozen at plan-document 0.25.0 (its
@@ -109,8 +112,9 @@ function renderOwnShape(sidecar: Exclude<DocumentSidecar, { readonly shape: "cur
     }
   }
   switch (sidecar.shape) {
+    case "0.32.0":
     case "0.28.0":
-      return renderPlanBody(sidecar.older);
+      return renderPlanBodyV0_32_0(sidecar.older);
     case "0.26.0":
       return renderPlanBodyV0_26_0(sidecar.older);
     case "0.25.0":

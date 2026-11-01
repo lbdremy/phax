@@ -9,6 +9,8 @@ import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { lintPlan, type LintReport } from "../../src/app/lintPlan.js";
 import { hasLintErrors } from "../../src/domain/plan/lint.js";
+import { readPlanDeterministic } from "../../src/domain/plan/parsePlanMarkdown.js";
+import { Either } from "effect";
 import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
 import { withSchemaUrl } from "../../src/schemas/persisted.js";
 import { encodeSpecDocumentFile, type SpecDocument } from "../../src/schemas/specDocument.js";
@@ -114,7 +116,7 @@ completes-spec: true
 ${blocks.join("\n")}`;
 }
 
-const line = (guarantee: string, loop: "in-phase" | "oracle", criterion?: string): string =>
+const line = (guarantee: string, loop: "in-phase" | "acceptance", criterion?: string): string =>
   `- ${guarantee} — small · example · the findings · ${loop}${criterion === undefined ? "" : ` · ${criterion}`}`;
 
 /** A made-up spec document with these acceptance criteria. */
@@ -217,12 +219,12 @@ describe("lint's test-line rules (oracles)", () => {
         {
           oracle: true,
           create: ORACLE_FILE,
-          lines: [line("exports are listed", "oracle", "ac-a")],
+          lines: [line("exports are listed", "acceptance", "ac-a")],
         },
         {
           lines: [
             line("exports are written", "in-phase", "ac-b"),
-            line("exports are sorted", "oracle"),
+            line("exports are sorted", "acceptance"),
           ],
         },
       ]);
@@ -232,8 +234,50 @@ describe("lint's test-line rules (oracles)", () => {
       expect(hasLintErrors(report.findings)).toBe(true);
     });
 
+    // ac-loop: an oracle phase, still declared with the old header lines, whose
+    // line is in the acceptance loop.
+    it("gives no tests error to an acceptance-loop line on an oracle phase, and extracts it with the loop acceptance and its oracle", async () => {
+      const text =
+        "- every (state, transition) pair is accepted or refused as the table says — small · table · transition table · acceptance · AC-3";
+      const plan = planMd([
+        { oracle: true, create: ORACLE_FILE, lines: [text] },
+        { lines: [line("the table is passed", "in-phase")] },
+      ]);
+      const report = await runLint(plan, liveSpec(["AC-3"]));
+
+      expect(testsRows(report)).toEqual([]);
+      expect(hasLintErrors(report.findings)).toBe(false);
+
+      const reading = readPlanDeterministic(plan);
+      if (Either.isLeft(reading)) throw new Error(reading.left.message);
+      expect(reading.right.plan.phases[0].testLines).toEqual([
+        {
+          guarantee: "every (state, transition) pair is accepted or refused as the table says",
+          size: "small",
+          technique: "table",
+          oracle: "transition table",
+          loop: "acceptance",
+          criterion: "AC-3",
+        },
+      ]);
+    });
+
+    it("departs a line still in the old oracle loop, as no test line, so the oracle phase has no acceptance line", async () => {
+      const plan = planMd([
+        {
+          oracle: true,
+          create: ORACLE_FILE,
+          lines: ["- exports are listed — small · example · the findings · oracle · ac-a"],
+        },
+        { lines: [line("exports are written", "in-phase", "ac-b")] },
+      ]);
+      const report = await runLint(plan, liveSpec(["ac-a", "ac-b"]));
+      const messages = testsRows(report).map((r) => r.message);
+      expect(messages).toContain(silent("phase-01"));
+    });
+
     it("flags an oracle-loop line on an ordinary phase", async () => {
-      const plan = planMd([{ lines: [line("exports are listed", "oracle", "ac-a")] }]);
+      const plan = planMd([{ lines: [line("exports are listed", "acceptance", "ac-a")] }]);
       const report = await runLint(plan, liveSpec(["ac-a"]));
 
       expect(testsRows(report)).toEqual([row("error", "phase-01", misplaced(1, "phase-01"))]);
@@ -345,7 +389,7 @@ describe("lint's test-line rules (oracles)", () => {
 
   describe("the order", () => {
     it("lists the oracle-loop error, the unknown id, then the uncovered warnings", async () => {
-      const plan = planMd([{ lines: [line("exports are listed", "oracle", "ac-z")] }]);
+      const plan = planMd([{ lines: [line("exports are listed", "acceptance", "ac-z")] }]);
       const report = await runLint(plan, liveSpec(["ac-a", "ac-b"]));
 
       expect(testsRows(report)).toEqual([

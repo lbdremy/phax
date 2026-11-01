@@ -59,15 +59,20 @@ describe("test line grammar", () => {
   });
 
   it("reads an oracle holding ' · ' whole, with and without a criterion", () => {
-    expect(parseTestLine("g — small · table · rows · and columns · oracle")).toEqual(
-      line({ guarantee: "g", technique: "table", oracle: "rows · and columns", loop: "oracle" }),
-    );
-    expect(parseTestLine("g — small · table · rows · and columns · oracle · ac-rows")).toEqual(
+    expect(parseTestLine("g — small · table · rows · and columns · acceptance")).toEqual(
       line({
         guarantee: "g",
         technique: "table",
         oracle: "rows · and columns",
-        loop: "oracle",
+        loop: "acceptance",
+      }),
+    );
+    expect(parseTestLine("g — small · table · rows · and columns · acceptance · ac-rows")).toEqual(
+      line({
+        guarantee: "g",
+        technique: "table",
+        oracle: "rows · and columns",
+        loop: "acceptance",
         criterion: "ac-rows",
       }),
     );
@@ -189,15 +194,43 @@ describe("test line grammar", () => {
     });
   });
 
-  it("reads a last field equal to a loop value as the loop, and the schema refuses `oracle` as a criterion", () => {
-    expect(parseTestLine("g — small · example · o · oracle")).toEqual(
-      line({ guarantee: "g", oracle: "o", loop: "oracle" }),
+  it("reads a last field equal to a loop value as the loop, and the schema refuses the three reserved words as a criterion", () => {
+    expect(parseTestLine("g — small · example · o · acceptance")).toEqual(
+      line({ guarantee: "g", oracle: "o", loop: "acceptance" }),
     );
-    expect(parseTestLine("g — small · example · o · in-phase · oracle")).toEqual(
-      line({ guarantee: "g", oracle: "o · in-phase", loop: "oracle" }),
+    expect(parseTestLine("g — small · example · o · in-phase · acceptance")).toEqual(
+      line({ guarantee: "g", oracle: "o · in-phase", loop: "acceptance" }),
     );
+    expect(refused(line({ criterion: "acceptance" }))).toBe(true);
     expect(refused(line({ criterion: "oracle" }))).toBe(true);
     expect(refused(line({ criterion: "in-phase" }))).toBe(true);
+  });
+
+  it("reads the boundary technique, and departs a line whose loop is the old `oracle`", () => {
+    expect(parseTestLine("g — small · boundary · the limits · in-phase")).toEqual(
+      line({ guarantee: "g", technique: "boundary", oracle: "the limits" }),
+    );
+    const text = "g — small · example · o · oracle";
+    expect(readTestStrategyText(`- ${text}`)).toEqual({
+      lines: [],
+      departures: [{ line: 1, text }],
+    });
+  });
+
+  it("reads the old loop `oracle` as `acceptance` only in a section written before 0.33.0", () => {
+    const text = "- g — small · example · o · oracle · ac-x\n- h — small · table · p · in-phase";
+    const old = readTestStrategyText(text, { beforeAcceptance: true });
+    expect(old.departures).toEqual([]);
+    expect(old.lines.map(({ line: l }) => [l.guarantee, l.loop, l.criterion])).toEqual([
+      ["g", "acceptance", "ac-x"],
+      ["h", "in-phase", null],
+    ]);
+    expect(readTestStrategyText(text).departures).toEqual([
+      { line: 1, text: text.split("\n")[0]!.slice(2) },
+    ]);
+    expect(
+      parseTestLine("g — small · example · o · acceptance", { beforeAcceptance: true }),
+    ).toEqual(line({ guarantee: "g", oracle: "o", loop: "acceptance" }));
   });
 
   it("departs `--` or `-` in place of `—`, and an unknown size", () => {
@@ -218,7 +251,7 @@ describe("test line grammar", () => {
       "Write these first:",
       "- g — small · example · o · in-phase",
       "- not a test line",
-      "* h — medium · property · p · oracle · ac-h",
+      "* h — medium · property · p · acceptance · ac-h",
     ].join("\n");
     const reading = readTestStrategyText(text);
     expect(reading.departures).toEqual([
@@ -234,17 +267,17 @@ describe("test line grammar", () => {
 
   it("reads `*` and `+` bullets after up to three spaces", () => {
     expect(
-      linesOf("   * g — small · example · o · in-phase\n+ h — large · fuzz · p · oracle"),
+      linesOf("   * g — small · example · o · in-phase\n+ h — large · fuzz · p · acceptance"),
     ).toEqual([
       line({ guarantee: "g", oracle: "o" }),
-      line({ guarantee: "h", size: "large", technique: "fuzz", oracle: "p", loop: "oracle" }),
+      line({ guarantee: "h", size: "large", technique: "fuzz", oracle: "p", loop: "acceptance" }),
     ]);
   });
 
   it.each([
     ["without a criterion", line()],
     ["with a criterion", line({ criterion: "ac-store" })],
-    ["on every coordinate", line({ size: "medium", technique: "metamorphic", loop: "oracle" })],
+    ["on every coordinate", line({ size: "medium", technique: "metamorphic", loop: "acceptance" })],
     ["with a long guarantee", line({ guarantee: "a — b · c — d", oracle: "e · f" })],
   ])("renders and reads back a line %s unchanged", (_label, value) => {
     expect(renderTestLine(value).startsWith("- ")).toBe(false);
@@ -278,6 +311,7 @@ describe("the render → parse round trip", () => {
     " ·",
     "`",
     "`x · y`",
+    "acceptance",
     "oracle",
     "in-phase",
     "small",
@@ -290,8 +324,20 @@ describe("the render → parse round trip", () => {
     "- ",
     "(none)",
   ];
-  const CRITERIA = [null, "ac-1", "—", "·", "small", "example", "a—b", "x·y", "`ac`", "oracle"];
-  const LOOPS = ["oracle", "in-phase"] as const;
+  const CRITERIA = [
+    null,
+    "ac-1",
+    "—",
+    "·",
+    "small",
+    "example",
+    "a—b",
+    "x·y",
+    "`ac`",
+    "acceptance",
+    "oracle",
+  ];
+  const LOOPS = ["acceptance", "in-phase"] as const;
 
   // Each fragment alone, around a word, and each pair around and between words.
   const texts = [

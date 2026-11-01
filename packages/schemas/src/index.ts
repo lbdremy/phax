@@ -544,6 +544,18 @@ export {
   type PhaxPlanV0_28_0,
 } from "../../../src/schemas/history/phax-plan/0.28.0.js";
 export {
+  PlanDocumentV0_32_0Schema,
+  type PlanDocumentV0_32_0,
+} from "../../../src/schemas/history/plan-document/0.32.0.js";
+export {
+  PhaxPlanV0_32_0Schema,
+  type PhaxPlanV0_32_0,
+} from "../../../src/schemas/history/phax-plan/0.32.0.js";
+export {
+  PhaxPlanExtractionV0_32_0Schema,
+  type PhaxPlanExtractionV0_32_0,
+} from "../../../src/schemas/history/phax-plan-extraction/0.32.0.js";
+export {
   HandDecisionAnswerV0_25_0Schema,
   type HandDecisionAnswerV0_25_0,
 } from "../../../src/schemas/history/hand-decision-answer/0.25.0.js";

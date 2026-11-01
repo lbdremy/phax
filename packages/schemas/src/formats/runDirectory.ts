@@ -6,7 +6,8 @@
 // lists its 0.17.0 shape, written before phases carried `mode` and `oracle`,
 // its 0.26.0 shape, written before phases carried `testLines`, and its
 // 0.28.0 shape, the current one before the strict test lines and non-empty
-// strings restamped it, as releases, and lifts them as phax's reader does. The registry and run
+// strings restamped it, and its 0.32.0 shape, written before the `acceptance`
+// loop, as releases, and lifts them as phax's reader does. The registry and run
 // status list their 0.17.0 shapes, and phase status its 0.20.0 shape, written
 // before `awaiting_review`; a phase status that old is lifted with
 // `mode: "headless"` and `stop: null`.
@@ -85,10 +86,16 @@ import {
   type PhaxPlanV0_28_0,
 } from "../../../../src/schemas/history/phax-plan/0.28.0.js";
 import {
+  PhaxPlanV0_32_0Schema,
+  decodePhaxPlanV0_32_0,
+  type PhaxPlanV0_32_0,
+} from "../../../../src/schemas/history/phax-plan/0.32.0.js";
+import {
   PhaxPlanPreSchemaSchema,
   decodePhaxPlanPreSchema,
   type PhaxPlanPreSchema,
 } from "../../../../src/schemas/history/phax-plan/pre-schema.js";
+import { liftPhaxPlanTestLines } from "../../../../src/schemas/acceptanceLift.js";
 import {
   RegistryV0_17_0Schema,
   decodeRegistryV0_17_0,
@@ -290,6 +297,7 @@ export type PhaxPlanShapes = {
   "0.17.0": PhaxPlanV0_17_0;
   "0.26.0": PhaxPlanV0_26_0;
   "0.28.0": PhaxPlanV0_28_0;
+  "0.32.0": PhaxPlanV0_32_0;
 } & {
   [K in CurrentShapeName<"phax-plan">]: PhaxPlanFile;
 };
@@ -305,6 +313,7 @@ export const phaxPlanFormat = defineFormat<PhaxPlanShapes>({
     ["0.17.0", { schema: PhaxPlanV0_17_0Schema, decode: decodePhaxPlanV0_17_0 }],
     ["0.26.0", { schema: PhaxPlanV0_26_0Schema, decode: decodePhaxPlanV0_26_0 }],
     ["0.28.0", { schema: PhaxPlanV0_28_0Schema, decode: decodePhaxPlanV0_28_0 }],
+    ["0.32.0", { schema: PhaxPlanV0_32_0Schema, decode: decodePhaxPlanV0_32_0 }],
   ],
   current: {
     name: CURRENT_SHAPES["phax-plan"],
@@ -338,12 +347,12 @@ export type LatestPhaxPlan = Omit<PhaxPlan, "phases"> & {
  * `Unknown`: its plan may have stated lines no older phax read, so an empty
  * list would invent the fact that it tested nothing.
  */
-export function toLatestPhaxPlan(
-  value: PhaxPlanPreSchema | PhaxPlanV0_17_0 | PhaxPlanV0_26_0 | PhaxPlanV0_28_0 | PhaxPlanFile,
-): LatestPhaxPlan {
+export function toLatestPhaxPlan(value: PhaxPlanParsed): LatestPhaxPlan {
   if (isCurrentPhaxPlan(value)) {
     const { $schema: _schema, ...recorded } = value;
-    return recorded;
+    // A 0.28.0 or 0.32.0 plan carries test lines with the loop `oracle`:
+    // lifted to `acceptance` (`liftPhaxPlanTestLines`); a current one is kept.
+    return liftPhaxPlanTestLines(recorded);
   }
   const { run, phases } = value;
   if (isV0_26_0PhaxPlan(value)) {
@@ -368,13 +377,22 @@ export function toLatestPhaxPlan(
   };
 }
 
+type PhaxPlanParsed =
+  | PhaxPlanPreSchema
+  | PhaxPlanV0_17_0
+  | PhaxPlanV0_26_0
+  | PhaxPlanV0_28_0
+  | PhaxPlanV0_32_0
+  | PhaxPlanFile;
+
 /**
- * Whether a parsed phax-plan carries test lines: the current shape, or the
- * 0.28.0 one, which is the current shape under a release-pattern `$schema`.
+ * Whether a parsed phax-plan carries test lines: the current shape, the 0.32.0
+ * one, or the 0.28.0 one, which is the 0.32.0 shape under a release-pattern
+ * `$schema`.
  */
 function isCurrentPhaxPlan(
-  value: PhaxPlanPreSchema | PhaxPlanV0_17_0 | PhaxPlanV0_26_0 | PhaxPlanV0_28_0 | PhaxPlanFile,
-): value is PhaxPlanFile | PhaxPlanV0_28_0 {
+  value: PhaxPlanParsed,
+): value is PhaxPlanFile | PhaxPlanV0_28_0 | PhaxPlanV0_32_0 {
   return "testLines" in value.phases[0];
 }
 
