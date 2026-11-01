@@ -131,6 +131,7 @@ import {
   preSchemaDocuments,
   validDocuments,
   withKey,
+  withOracleKey,
   type Doc,
 } from "./documents.js";
 
@@ -536,10 +537,17 @@ describe("phax's bridge and the package agree", () => {
     "plan-document: a %s sidecar with the loop oracle is lifted to acceptance by the bridge and by toLatest alike",
     (release) => {
       const current = validDocuments["plan-document"];
-      const oldLoops = (current["phases"] as Doc[]).map((phase) => ({
-        ...phase,
-        testStrategy: (phase["testStrategy"] as Doc[]).map((line) => ({ ...line, loop: "oracle" })),
-      }));
+      // The phases also carry the `oracle` key a sidecar had before 0.33.0.
+      const oldLoops = (current["phases"] as Doc[]).map((phase, i) =>
+        withOracleKey({
+          ...phase,
+          acceptance: i === 0 ? { passedBy: "phase-02", files: ["tests/a.test.ts"] } : null,
+          testStrategy: (phase["testStrategy"] as Doc[]).map((line) => ({
+            ...line,
+            loop: "oracle",
+          })),
+        }),
+      );
       const document = withKey(
         withKey(current, "phases", oldLoops),
         "$schema",
@@ -551,6 +559,10 @@ describe("phax's bridge and the package agree", () => {
       const lines = read.right.phases.flatMap((phase) => phase.testStrategy);
       expect(lines.length).toBeGreaterThan(0);
       expect(lines.every((line) => line.loop === "acceptance")).toBe(true);
+      expect(read.right.phases[0]?.acceptance).toEqual({
+        passedBy: "phase-02",
+        files: ["tests/a.test.ts"],
+      });
     },
   );
 

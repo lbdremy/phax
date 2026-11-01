@@ -77,7 +77,7 @@ import {
   decodePlanDocumentPreSchema,
   type PlanDocumentPreSchema,
 } from "../../../../src/schemas/history/plan-document/pre-schema.js";
-import { liftPlanDocumentTestLines } from "../../../../src/schemas/acceptanceLift.js";
+import { liftPhaseKey, liftPlanDocument } from "../../../../src/schemas/acceptanceLift.js";
 import {
   SpecApprovalsPreSchemaSchema,
   decodeSpecApprovalsPreSchema,
@@ -492,8 +492,10 @@ function liftTestStrategy(text: string): LatestPlanPhase["testStrategy"] {
  * becomes `assignmentReason`; an older shape carried no questions, so its
  * preamble's `openQuestions` and `arbitratedQuestions` are empty, and no
  * phase reason, so each phase's `assignmentReason` is null. Every shape older
- * than 0.26.0 gets `mode: "headless"` and `oracle: null` on its phases: no
- * phax that wrote them ran an interactive or an oracle phase. Every older
+ * than 0.26.0 gets `mode: "headless"` and `acceptance: null` on its phases: no
+ * phax that wrote them ran an interactive or an acceptance phase; a later
+ * older shape's `oracle: { dischargedBy, files }` becomes `acceptance: {
+ * passedBy, files }`. Every older
  * shape's `testStrategy` string becomes its test lines when it follows the
  * line format, and `Unknown` otherwise. A 0.28.0 or 0.32.0 document's test
  * lines keep every coordinate, and their loop `oracle` becomes `acceptance`.
@@ -501,16 +503,16 @@ function liftTestStrategy(text: string): LatestPlanPhase["testStrategy"] {
 export function toLatestPlanDocument(value: PlanDocumentParsed): LatestPlanDocument {
   if (isCurrentPlanDocument(value)) {
     const { $schema: _schema, ...recorded } = value;
-    // A 0.28.0 or 0.32.0 document carries test lines with the loop `oracle`:
-    // lifted to `acceptance` (`liftPlanDocumentTestLines`); a current one is kept.
-    return liftPlanDocumentTestLines(recorded);
+    // A 0.28.0 or 0.32.0 document carries test lines with the loop `oracle` and
+    // phases with the `oracle` key: lifted to `acceptance` and `passedBy`
+    // (`liftPlanDocument`); a current one is kept.
+    return liftPlanDocument(recorded);
   }
   if (isPlanDocumentV0_26_0(value)) {
     const { $schema: _schema, ...recorded } = value;
-    const phases = Arr.map(value.phases, (phase) => ({
-      ...phase,
-      testStrategy: liftTestStrategy(phase.testStrategy),
-    }));
+    const phases = Arr.map(value.phases, (phase) =>
+      liftPhaseKey({ ...phase, testStrategy: liftTestStrategy(phase.testStrategy) }),
+    );
     return { ...recorded, phases };
   }
   if (isPlanDocumentV0_25_0(value)) {
@@ -520,7 +522,7 @@ export function toLatestPlanDocument(value: PlanDocumentParsed): LatestPlanDocum
       ...phase,
       testStrategy: liftTestStrategy(phase.testStrategy),
       mode: "headless" as const,
-      oracle: null,
+      acceptance: null,
       assignmentReason: modelReason,
       model,
       effort,
@@ -528,14 +530,14 @@ export function toLatestPlanDocument(value: PlanDocumentParsed): LatestPlanDocum
     return { ...recorded, phases };
   }
   const preamble = { ...value.preamble, openQuestions: [], arbitratedQuestions: [] };
-  // mode, oracle and assignmentReason join model and effort at the end of each
-  // phase; the other keys keep their recorded order (the lift is built in
+  // mode, acceptance and assignmentReason join model and effort at the end of
+  // each phase; the other keys keep their recorded order (the lift is built in
   // memory, never written).
   const phases = Arr.map(value.phases, ({ model, effort, ...phase }) => ({
     ...phase,
     testStrategy: liftTestStrategy(phase.testStrategy),
     mode: "headless" as const,
-    oracle: null,
+    acceptance: null,
     assignmentReason: null,
     model,
     effort,

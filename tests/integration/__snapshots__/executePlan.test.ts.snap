@@ -67,7 +67,7 @@ Carry out phase-01's made-up instructions.
   ],
   "optionalFilesToEdit": [],
   "mode": "headless",
-  "oracle": null,
+  "acceptance": null,
   "commit": {
     "subject": "ai(phase-01): step 01",
     "body": "Does step 01."
@@ -235,7 +235,7 @@ Ready to proceed.
   ],
   "optionalFilesToEdit": [],
   "mode": "headless",
-  "oracle": null,
+  "acceptance": null,
   "commit": {
     "subject": "ai(phase-02): step 02",
     "body": "Does step 02."

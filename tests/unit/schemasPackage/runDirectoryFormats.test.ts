@@ -31,6 +31,8 @@ import {
   preSchemaUnsupported,
   validDocuments,
   withKey,
+  withOracleKey,
+  withOracleKeys,
   withoutKey,
   type Doc,
 } from "./documents.js";
@@ -75,9 +77,9 @@ const FORMATS: ReadonlyArray<RunDirectoryFormat> = [
     parse: parsePhaxPlan,
     phax: decodePhaxPlanFile,
     toLatest: toLatestPhaxPlan,
-    // Every phase an older phax ran was headless, and no oracle phase existed;
+    // Every phase an older phax ran was headless, and no acceptance phase existed;
     // no older phax read test lines.
-    phaseLift: { mode: "headless", oracle: null, testLines: UNKNOWN },
+    phaseLift: { mode: "headless", acceptance: null, testLines: UNKNOWN },
   },
   {
     id: "compliance-review",
@@ -268,9 +270,11 @@ describe("toLatestPhaxPlan", () => {
 
 describe("the phax-plan's mode, oracle and test lines history", () => {
   const current = validDocuments["phax-plan"];
-  /** A phax-plan as phax 0.26.0 and 0.27.x wrote it: `$schema`, phases without testLines. */
+  /** A phax-plan as phax 0.26.0 and 0.27.x wrote it: `$schema`, phases without testLines, the `oracle` key. */
   function withoutLines(release: string): Doc {
-    const phases = (current["phases"] as Doc[]).map((phase) => withoutKey(phase, "testLines"));
+    const phases = (current["phases"] as Doc[]).map((phase) =>
+      withOracleKey(withoutKey(phase, "testLines")),
+    );
     return withKey(withKey(current, "phases", phases), "$schema", schemaUrl("phax-plan", release));
   }
   /** A phax-plan as phax 0.17.0 through 0.25.x wrote it: `$schema`, phases without mode, oracle and testLines. */
@@ -302,12 +306,12 @@ describe("the phax-plan's mode, oracle and test lines history", () => {
     expect(toLatestPhaxPlan(result.value)).toEqual(liftedCurrent());
   });
 
-  // 0.28.0 is the last shape before the strict strings: the same keys, so its
-  // lift is the document itself, `$schema` dropped.
+  // 0.28.0 is the last shape before the strict strings: the same keys but the
+  // phase key, so its lift is the document with `oracle` read as `acceptance`.
   it.each(["0.28.0", "0.31.0"])(
-    "parses a document stamped %s as shape 0.28.0 through the frozen module, lifting it to itself",
+    "parses a document stamped %s as shape 0.28.0 through the frozen module, lifting its phase key to acceptance",
     (release) => {
-      const document = withKey(current, "$schema", schemaUrl("phax-plan", release));
+      const document = withKey(withOracleKeys(current), "$schema", schemaUrl("phax-plan", release));
       const result = parsePhaxPlan(document);
       expect(result).toEqual({ ok: true, shape: "0.28.0", value: document });
       if (!result.ok) throw new Error("document rejected");
@@ -334,23 +338,23 @@ describe("the phax-plan's mode, oracle and test lines history", () => {
     expect(parsePhaxPlan(older("0.26.0"))).toMatchObject({ ok: false });
   });
 
-  it("lifts an older document's phases with mode headless, oracle null and testLines Unknown, keeping every recorded fact", () => {
+  it("lifts an older document's phases with mode headless, acceptance null and testLines Unknown, keeping every recorded fact", () => {
     const result = parsePhaxPlan(older("0.17.0"));
     if (!result.ok) throw new Error("document rejected");
     expect(toLatestPhaxPlan(result.value)).toEqual(liftedCurrent());
   });
 
-  it("keeps an interactive phase and its oracle as recorded", () => {
+  it("keeps an interactive phase and its acceptance tests as recorded", () => {
     const phases = (current["phases"] as Doc[]).map((phase) => ({
       ...phase,
       mode: "interactive",
-      oracle: { dischargedBy: "phase-02", files: ["tests/a.test.ts"] },
+      acceptance: { passedBy: "phase-02", files: ["tests/a.test.ts"] },
     }));
     const result = parsePhaxPlan(withKey(current, "phases", phases));
     if (!result.ok) throw new Error("document rejected");
     expect(toLatestPhaxPlan(result.value).phases[0]).toMatchObject({
       mode: "interactive",
-      oracle: { dischargedBy: "phase-02", files: ["tests/a.test.ts"] },
+      acceptance: { passedBy: "phase-02", files: ["tests/a.test.ts"] },
     });
   });
 });
@@ -437,7 +441,11 @@ describe("the phax-plan's test line loop", () => {
   ])(
     "parses a plan stamped %s as shape %s and lifts the loop oracle to acceptance",
     (release, shape) => {
-      const old = withKey(withLines(current, "oracle"), "$schema", schemaUrl("phax-plan", release));
+      const old = withKey(
+        withOracleKeys(withLines(current, "oracle")),
+        "$schema",
+        schemaUrl("phax-plan", release),
+      );
       const result = parsePhaxPlan(old);
       expect(result).toEqual({ ok: true, shape, value: old });
       if (!result.ok) throw new Error("document rejected");
@@ -449,12 +457,57 @@ describe("the phax-plan's test line loop", () => {
 
   it("refuses the loop acceptance in a 0.32.0 plan, and the loop oracle at the current stamp", () => {
     const stamped = withKey(
-      withLines(current, "acceptance"),
+      withOracleKeys(withLines(current, "acceptance")),
       "$schema",
       schemaUrl("phax-plan", "0.32.0"),
     );
     expect(parsePhaxPlan(stamped).ok).toBe(false);
     expect(parsePhaxPlan(withLines(current, "oracle")).ok).toBe(false);
     expect(parsePhaxPlan(withLines(current, "acceptance")).ok).toBe(true);
+  });
+});
+
+const withoutLines = (doc: Doc): Doc =>
+  withKey(
+    doc,
+    "phases",
+    (doc["phases"] as Doc[]).map((phase) => withoutKey(phase, "testLines")),
+  );
+
+// The phase key `oracle: { dischargedBy, files }` became `acceptance: { passedBy,
+// files }` at 0.33.0: every older phax-plan lifts to it (ac-read-old).
+describe("the phax-plan's phase key", () => {
+  const current = validDocuments["phax-plan"];
+  const files = ["tests/a.test.ts", "tests/b.test.ts"];
+  const withAcceptance: Doc = withKey(
+    current,
+    "phases",
+    (current["phases"] as Doc[]).map((phase, i) => ({
+      ...phase,
+      acceptance: i === 0 ? { passedBy: "phase-02", files } : null,
+    })),
+  );
+
+  it.each([
+    ["0.32.0", withOracleKeys(withAcceptance)],
+    ["0.28.0", withOracleKeys(withAcceptance)],
+    ["0.26.0", withOracleKeys(withoutLines(withAcceptance))],
+  ])("lifts the oracle key of a plan stamped %s to acceptance with passedBy", (release, doc) => {
+    const old = withKey(doc, "$schema", schemaUrl("phax-plan", release));
+    const parsed = parsePhaxPlan(old);
+    if (!parsed.ok) throw new Error("document rejected");
+    const [first, second] = toLatestPhaxPlan(parsed.value).phases;
+    expect(first.acceptance).toEqual({ passedBy: "phase-02", files });
+    expect(second?.acceptance ?? null).toBeNull();
+    const keys = Object.keys(first);
+    expect(keys).not.toContain("oracle");
+    expect(keys.slice(keys.indexOf("mode"), keys.indexOf("mode") + 2)).toEqual([
+      "mode",
+      "acceptance",
+    ]);
+  });
+
+  it("refuses an oracle phase key at the current stamp", () => {
+    expect(parsePhaxPlan(withOracleKeys(withAcceptance)).ok).toBe(false);
   });
 });

@@ -61,7 +61,7 @@ function planPhase(id: string, title: string, mode: "headless" | "interactive"):
     plannedFilesToEdit: [],
     optionalFilesToEdit: [],
     mode,
-    oracle: null,
+    acceptance: null,
     testLines: [],
     commit: { subject: `feat(export): ${title.toLowerCase()}`, body: "Made-up body." },
   };

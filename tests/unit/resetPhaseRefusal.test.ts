@@ -28,7 +28,7 @@ function status(
   });
 }
 
-function planPhase(index: number, oracle: PxOracle = null): PhaxPlanPhase {
+function planPhase(index: number, acceptance: PxAcceptance = null): PhaxPlanPhase {
   const id = `phase-${String(index + 1).padStart(2, "0")}`;
   return {
     id,
@@ -40,12 +40,12 @@ function planPhase(index: number, oracle: PxOracle = null): PhaxPlanPhase {
     plannedFilesToEdit: [],
     optionalFilesToEdit: [],
     mode: "headless",
-    oracle,
+    acceptance,
     testLines: [],
     commit: { subject: `feat: ${id}`, body: "Made up." },
   };
 }
-type PxOracle = PhaxPlanPhase["oracle"];
+type PxAcceptance = PhaxPlanPhase["acceptance"];
 
 const RESETTABLE: PhaxState = { run: "failed", cause: "unknown" };
 const RUNNING: PhaxState = { run: "running", phase: { state: "running" } };
@@ -88,7 +88,7 @@ function input(
 
 const PAIR_PLAN = [
   planPhase(0),
-  planPhase(1, { dischargedBy: "phase-03", files: ["tests/refunds.test.ts"] }),
+  planPhase(1, { passedBy: "phase-03", files: ["tests/refunds.test.ts"] }),
   planPhase(2),
 ];
 
@@ -160,7 +160,7 @@ describe("resetPhaseRefusal", () => {
   describe("a closed authored stop", () => {
     const plan = [
       planPhase(0),
-      planPhase(1, { dischargedBy: "phase-04", files: ["tests/refunds.test.ts"] }),
+      planPhase(1, { passedBy: "phase-04", files: ["tests/refunds.test.ts"] }),
       { ...planPhase(2), mode: "interactive" as const },
       planPhase(3),
     ];

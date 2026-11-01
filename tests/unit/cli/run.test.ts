@@ -162,7 +162,7 @@ function makePlan(shortName = "fixbug"): PhaxPlan {
         plannedFilesToEdit: [],
         optionalFilesToEdit: [],
         mode: "headless",
-        oracle: null,
+        acceptance: null,
         testLines: [],
         commit: { subject: "test commit", body: "test body" },
       },

@@ -37,7 +37,7 @@ function phase(id: string, extra: Record<string, unknown> = {}) {
     optionalFilesToEdit: [],
     commit: { subject: "feat: invoice export", body: "Exports invoices." },
     mode: "headless",
-    oracle: null,
+    acceptance: null,
     ...extra,
   };
 }
@@ -55,7 +55,7 @@ function makePlan(): PhaxPlan {
     phases: [
       phase("phase-01"),
       phase("phase-02", {
-        oracle: { dischargedBy: "phase-03", files: ["tests/invoiceRow.test.ts"] },
+        acceptance: { passedBy: "phase-03", files: ["tests/invoiceRow.test.ts"] },
       }),
       phase("phase-03"),
       phase("phase-04"),

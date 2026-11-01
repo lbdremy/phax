@@ -137,7 +137,7 @@ const CURRENT_PLAN_DOCUMENT = {
     ...phase,
     testStrategy: [PRUNE_TEST_LINE],
     mode: "headless",
-    oracle: null,
+    acceptance: null,
     assignmentReason: null,
   })),
 };

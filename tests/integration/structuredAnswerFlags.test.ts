@@ -833,7 +833,7 @@ async function driveClosingTurn(provider: ProviderId, table?: StructuredCallsTab
           plannedFilesToEdit: [],
           optionalFilesToEdit: [],
           mode: "interactive",
-          oracle: null,
+          acceptance: null,
           testLines: [],
           commit: { subject: "feat(export): review the export record", body: "Made-up body." },
         },

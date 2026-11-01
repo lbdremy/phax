@@ -123,7 +123,7 @@ function phase(id: string) {
     plannedFilesToEdit: [],
     optionalFilesToEdit: [],
     mode: "headless",
-    oracle: null,
+    acceptance: null,
     commit: { subject: `feat: ${id}`, body: "Do the step." },
     objective: "Do the step.",
     detailedInstructions: [],

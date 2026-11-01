@@ -14,12 +14,12 @@ const oracleCommit = "89abcdef0123456789abcdef0123456789abcdef";
 
 // acme-billing's refunds plan: phase-02 pins two oracle files, phase-03 discharges them.
 const phases = [
-  { id: "phase-01", oracle: null },
+  { id: "phase-01", acceptance: null },
   {
     id: "phase-02",
-    oracle: { dischargedBy: "phase-03", files: ["tests/refunds.test.ts", "tests/prune.test.ts"] },
+    acceptance: { passedBy: "phase-03", files: ["tests/refunds.test.ts", "tests/prune.test.ts"] },
   },
-  { id: "phase-03", oracle: null },
+  { id: "phase-03", acceptance: null },
 ];
 
 function roleOf(id: string) {

@@ -133,7 +133,7 @@ const plan: PhaxPlan = {
       plannedFilesToEdit: [],
       optionalFilesToEdit: [],
       mode: "headless",
-      oracle: null,
+      acceptance: null,
       testLines: [],
       commit: { subject: "feat: add the example module", body: "Adds the example module." },
     },

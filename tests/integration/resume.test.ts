@@ -502,6 +502,12 @@ describe("executePlan — resume from startIndex: 1", () => {
   });
 });
 
+// A phase as every plan before 0.33.0 wrote it: its acceptance tests under `oracle`.
+function asOracleKey(phase: Record<string, unknown>): Record<string, unknown> {
+  const { acceptance, ...rest } = phase;
+  return { ...rest, oracle: acceptance };
+}
+
 // Literal releases: the answer must not change when a release is cut.
 const OLDER_PLAN_SHAPES = [
   {
@@ -509,7 +515,7 @@ const OLDER_PLAN_SHAPES = [
     stamp: "0.25.0",
     older: ({
       mode: _mode,
-      oracle: _oracle,
+      acceptance: _acceptance,
       testLines: _lines,
       ...phase
     }: Record<string, unknown>) => phase,
@@ -517,12 +523,13 @@ const OLDER_PLAN_SHAPES = [
   {
     shape: "0.26.0",
     stamp: "0.26.0",
-    older: ({ testLines: _lines, ...phase }: Record<string, unknown>) => phase,
+    older: ({ testLines: _lines, ...phase }: Record<string, unknown>) => asOracleKey(phase),
   },
   // 0.28.0 up to 0.32.0 carried testLines in the loop `oracle`; the plan this
-  // fixture writes states none, so only the stamp makes it an older shape.
-  { shape: "0.28.0", stamp: "0.28.0", older: (phase: Record<string, unknown>) => phase },
-  { shape: "0.32.0", stamp: "0.32.0", older: (phase: Record<string, unknown>) => phase },
+  // fixture writes states none, so the stamp and the `oracle` key make it an
+  // older shape.
+  { shape: "0.28.0", stamp: "0.28.0", older: asOracleKey },
+  { shape: "0.32.0", stamp: "0.32.0", older: asOracleKey },
 ] as const;
 
 describe.each(OLDER_PLAN_SHAPES)(

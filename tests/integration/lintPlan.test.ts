@@ -325,7 +325,7 @@ function planWithQuestions(): PlanDocument {
           plannedFilesToEdit: ["src/a.ts"],
           optionalFilesToEdit: [],
           mode: "headless",
-          oracle: null,
+          acceptance: null,
           commit: { subject: "feat(test): do thing", body: "Does the thing." },
           objective: "Do the thing.",
           detailedInstructions: [],

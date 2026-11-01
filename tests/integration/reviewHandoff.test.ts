@@ -100,7 +100,7 @@ function setupPhaseFiles(
   );
 }
 
-function planPhase(id: string, oracle: PhaxPlan["phases"][number]["oracle"]) {
+function planPhase(id: string, acceptance: PhaxPlan["phases"][number]["acceptance"]) {
   return {
     id,
     title: `Made-up ${id}`,
@@ -111,7 +111,7 @@ function planPhase(id: string, oracle: PhaxPlan["phases"][number]["oracle"]) {
     plannedFilesToEdit: [],
     optionalFilesToEdit: [],
     mode: "headless" as const,
-    oracle,
+    acceptance,
     testLines: [],
     commit: { subject: `feat: ${id}`, body: "Made up." },
   };
@@ -123,10 +123,7 @@ function oraclePlanJson(pair: boolean): string {
     run: { shortName, title: "Refunds", branch: "feature/test-run", requiredCommands: [] },
     phases: [
       phase("phase-01", null),
-      phase(
-        "phase-02",
-        pair ? { dischargedBy: "phase-03", files: ["tests/refunds.test.ts"] } : null,
-      ),
+      phase("phase-02", pair ? { passedBy: "phase-03", files: ["tests/refunds.test.ts"] } : null),
       phase("phase-03", null),
     ],
   };

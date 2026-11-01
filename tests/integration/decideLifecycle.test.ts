@@ -206,7 +206,7 @@ function planPhase(id: string): PlanDocument["phases"][number] {
     plannedFilesToEdit: [`src/${id}.ts`],
     optionalFilesToEdit: [],
     mode: "headless",
-    oracle: null,
+    acceptance: null,
     commit: { subject: `feat: ${id}`, body: "Do the step." },
     objective: "Do the step.",
     detailedInstructions: ["Do it."],

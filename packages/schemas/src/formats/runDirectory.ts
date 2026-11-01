@@ -95,7 +95,7 @@ import {
   decodePhaxPlanPreSchema,
   type PhaxPlanPreSchema,
 } from "../../../../src/schemas/history/phax-plan/pre-schema.js";
-import { liftPhaxPlanTestLines } from "../../../../src/schemas/acceptanceLift.js";
+import { liftPhaseKey, liftPhaxPlan } from "../../../../src/schemas/acceptanceLift.js";
 import {
   RegistryV0_17_0Schema,
   decodeRegistryV0_17_0,
@@ -342,24 +342,27 @@ export type LatestPhaxPlan = Omit<PhaxPlan, "phases"> & {
 /**
  * Upgrades a parsed phax-plan in memory. Keeps every recorded fact; never
  * invents one: a 0.17.0 or pre-schema plan's phases get `mode: "headless"`
- * and `oracle: null`, because every phase a phax of those shapes ran was
- * headless and no oracle phase existed. Every older phase's `testLines` is
+ * and `acceptance: null`, because every phase a phax of those shapes ran was
+ * headless and no acceptance phase existed. A phase's `oracle: { dischargedBy,
+ * files }` of any later older shape becomes `acceptance: { passedBy, files }`.
+ * Every older phase's `testLines` is
  * `Unknown`: its plan may have stated lines no older phax read, so an empty
  * list would invent the fact that it tested nothing.
  */
 export function toLatestPhaxPlan(value: PhaxPlanParsed): LatestPhaxPlan {
   if (isCurrentPhaxPlan(value)) {
     const { $schema: _schema, ...recorded } = value;
-    // A 0.28.0 or 0.32.0 plan carries test lines with the loop `oracle`:
-    // lifted to `acceptance` (`liftPhaxPlanTestLines`); a current one is kept.
-    return liftPhaxPlanTestLines(recorded);
+    // A 0.28.0 or 0.32.0 plan carries test lines with the loop `oracle` and
+    // phases with the `oracle` key: lifted to `acceptance` and `passedBy`
+    // (`liftPhaxPlan`); a current one is kept.
+    return liftPhaxPlan(recorded);
   }
   const { run, phases } = value;
   if (isV0_26_0PhaxPlan(value)) {
     return {
       run,
       phases: Arr.map(value.phases, ({ commit, ...phase }) => ({
-        ...phase,
+        ...liftPhaseKey(phase),
         testLines: UNKNOWN,
         commit,
       })),
@@ -370,7 +373,7 @@ export function toLatestPhaxPlan(value: PhaxPlanParsed): LatestPhaxPlan {
     phases: Arr.map(phases, ({ commit, ...phase }) => ({
       ...phase,
       mode: "headless" as const,
-      oracle: null,
+      acceptance: null,
       testLines: UNKNOWN,
       commit,
     })),

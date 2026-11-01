@@ -142,7 +142,7 @@ Write src/phase-01.ts.
   "plannedFilesToEdit": [],
   "optionalFilesToEdit": [],
   "mode": "headless",
-  "oracle": null,
+  "acceptance": null,
   "commit": {
     "subject": "feat(export): step one",
     "body": "Made-up body."
@@ -442,7 +442,7 @@ Write src/phase-01.ts.
   "plannedFilesToEdit": [],
   "optionalFilesToEdit": [],
   "mode": "headless",
-  "oracle": null,
+  "acceptance": null,
   "commit": {
     "subject": "feat(export): step one",
     "body": "Made-up body."
@@ -741,7 +741,7 @@ Write src/phase-01.ts.
   "plannedFilesToEdit": [],
   "optionalFilesToEdit": [],
   "mode": "headless",
-  "oracle": null,
+  "acceptance": null,
   "commit": {
     "subject": "feat(export): step one",
     "body": "Made-up body."

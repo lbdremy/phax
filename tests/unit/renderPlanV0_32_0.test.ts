@@ -7,7 +7,7 @@ import { decideDocumentMigration } from "../../src/domain/artifact/documentMigra
 import { artifactBody } from "../../src/domain/artifact/sidecar.js";
 import { renderPlanBody } from "../../src/domain/authoring/renderPlan.js";
 import { renderPlanBodyV0_32_0 } from "../../src/domain/authoring/renderPlanV0_32_0.js";
-import { liftPlanDocumentTestLines } from "../../src/schemas/acceptanceLift.js";
+import { liftPlanDocument } from "../../src/schemas/acceptanceLift.js";
 import { decodePlanDocumentV0_28_0 } from "../../src/schemas/history/plan-document/0.28.0.js";
 import { decodePlanDocumentV0_32_0 } from "../../src/schemas/history/plan-document/0.32.0.js";
 import type { PlanDocumentV0_32_0Value } from "../../src/schemas/persisted.js";
@@ -49,11 +49,12 @@ function frozen28(sidecarText: string): PlanDocumentV0_32_0Value {
 function plan0_32_0(): PlanDocumentV0_32_0Value {
   const { $schema: _schema, ...doc } = validDocuments["plan-document"] as Record<string, unknown>;
   const [first] = doc["phases"] as Array<Record<string, unknown>>;
+  const { acceptance: _acceptance, ...firstPhase } = first!;
   return {
     ...doc,
     phases: [
       {
-        ...first,
+        ...firstPhase,
         oracle: { dischargedBy: "phase-04", files: ["tests/a.test.ts"] },
         testStrategy: [
           {
@@ -104,7 +105,7 @@ describe("renderPlanBodyV0_32_0", () => {
 
   it("differs from the current rendering in the test lines' loop only", () => {
     const value = plan0_32_0();
-    const lifted = liftPlanDocumentTestLines(value);
+    const lifted = liftPlanDocument(value);
     expect(renderPlanBody(lifted)).toBe(
       renderPlanBodyV0_32_0(value).replace("· oracle · AC-1", "· acceptance · AC-1"),
     );

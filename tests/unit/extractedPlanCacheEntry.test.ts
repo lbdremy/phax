@@ -22,7 +22,7 @@ const VALID_EXTRACTED = {
       plannedFilesToEdit: [],
       optionalFilesToEdit: [],
       mode: "headless",
-      oracle: null,
+      acceptance: null,
       testLines: [
         {
           guarantee: "the thing is done",
@@ -44,10 +44,10 @@ const V3_EXTRACTED = {
   phases: VALID_EXTRACTED.phases.map(({ testLines: _lines, ...phase }) => phase),
 };
 
-// The entry's phases as extractor version 2 wrote them: no mode, no oracle, no testLines.
+// The entry's phases as extractor version 2 wrote them: no mode, no acceptance, no testLines.
 const V2_EXTRACTED = {
   ...VALID_EXTRACTED,
-  phases: V3_EXTRACTED.phases.map(({ mode: _mode, oracle: _oracle, ...phase }) => phase),
+  phases: V3_EXTRACTED.phases.map(({ mode: _mode, acceptance: _acceptance, ...phase }) => phase),
 };
 
 function makeEntry(overrides?: Record<string, unknown>) {
@@ -112,14 +112,14 @@ describe("decodeExtractedPlanCacheEntry", () => {
     expect(Either.isLeft(result)).toBe(true);
   });
 
-  it("fails on an entry whose phases carry no mode and no oracle", () => {
+  it("fails on an entry whose phases carry no mode and no acceptance", () => {
     const result = decodeExtractedPlanCacheEntry(
       makeEntry({ extractorVersion: 2, extracted: V2_EXTRACTED }),
     );
     expect(Either.isLeft(result)).toBe(true);
   });
 
-  it("decodes an interactive phase with an oracle", () => {
+  it("decodes an interactive phase with acceptance tests", () => {
     const result = decodeExtractedPlanCacheEntry(
       makeEntry({
         extracted: {
@@ -128,7 +128,7 @@ describe("decodeExtractedPlanCacheEntry", () => {
             {
               ...VALID_EXTRACTED.phases[0],
               mode: "interactive",
-              oracle: { dischargedBy: "phase-02", files: ["tests/a.test.ts"] },
+              acceptance: { passedBy: "phase-02", files: ["tests/a.test.ts"] },
             },
           ],
         },

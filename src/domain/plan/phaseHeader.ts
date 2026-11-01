@@ -12,7 +12,7 @@ import { fromMarkdown } from "mdast-util-from-markdown";
 import { toString } from "mdast-util-to-string";
 import type { Heading, Paragraph, Parent, RootContent } from "mdast";
 import { Either } from "effect";
-import type { PhaseMode, PhaseOracle } from "../../schemas/phaxPlan.js";
+import type { PhaseAcceptance, PhaseMode } from "../../schemas/phaxPlan.js";
 import type { ExtractionPlan } from "../../schemas/planExtraction.js";
 import { splitFrontmatter } from "../artifact/frontmatter.js";
 import { PlanValidationError } from "../errors.js";
@@ -252,34 +252,35 @@ export function oracleDeclaration(header: PhaseHeader): OracleDeclaration | null
   return { dischargedBy: { kind: "phase", id: discharged[1]! }, files: header.oracleFiles };
 }
 
-/** A phase's `mode` and `oracle`, as the plan document and phax-plan.json carry them. */
+/** A phase's `mode` and `acceptance`, as the plan document and phax-plan.json carry them. */
 export interface PhaseKinds {
   readonly mode: PhaseMode;
-  readonly oracle: PhaseOracle;
+  readonly acceptance: PhaseAcceptance;
 }
 
 /**
- * The only source of a phase's `mode` and `oracle`: phax's reading of its
+ * The only source of a phase's `mode` and `acceptance`: phax's reading of its
  * header lines. `mode` is `interactive` exactly when `declaresInteractive`.
- * `oracle` is `oracleDeclaration` resolved, `next` to `nextPhaseId`; it is
- * null when the declaration is, or when it says `next` and no phase follows.
- * A declaration phax cannot read or resolve yields headless and null here, and
- * an error of the `interactive` or `oracles` check, never an extraction failure.
+ * `acceptance` is `oracleDeclaration` resolved, `next` to `nextPhaseId`, its
+ * discharge being the passing phase (`passedBy`); it is null when the
+ * declaration is, or when it says `next` and no phase follows. A declaration
+ * phax cannot read or resolve yields headless and null here, and an error of
+ * the `interactive` or `oracles` check, never an extraction failure.
  */
 export function phaseKinds(header: PhaseHeader, nextPhaseId: string | null): PhaseKinds {
   const mode = declaresInteractive(header) ? "interactive" : "headless";
   const declaration = oracleDeclaration(header);
-  if (declaration === null) return { mode, oracle: null };
-  const dischargedBy =
+  if (declaration === null) return { mode, acceptance: null };
+  const passedBy =
     declaration.dischargedBy.kind === "phase" ? declaration.dischargedBy.id : nextPhaseId;
-  if (dischargedBy === null) return { mode, oracle: null };
-  return { mode, oracle: { dischargedBy, files: [...declaration.files] } };
+  if (passedBy === null) return { mode, acceptance: null };
+  return { mode, acceptance: { passedBy, files: [...declaration.files] } };
 }
 
 type AnswerPhase = ExtractionPlan["phases"][number];
 
 /**
- * An extraction answer phase with `mode` and `oracle` set directly after
+ * An extraction answer phase with `mode` and `acceptance` set directly after
  * `optionalFilesToEdit`, before the answer's `testLines`.
  */
 type KindedPhase = Omit<AnswerPhase, "testLines" | "commit"> &
@@ -287,10 +288,10 @@ type KindedPhase = Omit<AnswerPhase, "testLines" | "commit"> &
   Pick<AnswerPhase, "testLines" | "commit">;
 
 /**
- * The extraction model's plan with every phase's `mode` and `oracle` read
+ * The extraction model's plan with every phase's `mode` and `acceptance` read
  * from plan.md's header lines (`phaseKinds`), placed directly after
  * `optionalFilesToEdit` and before the answer's own `testLines`, so the key
- * order is `…, optionalFilesToEdit, mode, oracle, testLines, commit`. An answer phase with no `## phase-NN` heading in
+ * order is `…, optionalFilesToEdit, mode, acceptance, testLines, commit`. An answer phase with no `## phase-NN` heading in
  * plan.md fails, naming it. The next phase of an oracle is the next heading
  * in plan.md, as on the deterministic path.
  */
@@ -314,7 +315,7 @@ export function withPhaseKinds(
     const index = headers.findIndex((h) => h.phase === phase.id);
     const kinds = phaseKinds(headers[index]!, headers[index + 1]?.phase ?? null);
     const { testLines, commit, ...fields } = phase;
-    return { ...fields, mode: kinds.mode, oracle: kinds.oracle, testLines, commit };
+    return { ...fields, mode: kinds.mode, acceptance: kinds.acceptance, testLines, commit };
   });
   return Either.right({ ...answer, phases });
 }

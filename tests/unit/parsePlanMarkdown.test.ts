@@ -146,7 +146,7 @@ describe("extractPlanDeterministic", () => {
           plannedFilesToEdit: ["package.json"],
           optionalFilesToEdit: [],
           mode: "headless",
-          oracle: null,
+          acceptance: null,
           testLines: [],
           commit: { subject: "feat(a): alpha", body: "Alpha body paragraph." },
         },
@@ -159,7 +159,7 @@ describe("extractPlanDeterministic", () => {
           plannedFilesToEdit: ["src/d.ts"],
           optionalFilesToEdit: ["src/e.ts"],
           mode: "headless",
-          oracle: null,
+          acceptance: null,
           testLines: [],
           commit: { subject: "feat(b): beta", body: "Beta body paragraph." },
         },
@@ -661,15 +661,15 @@ describe("mode and oracle, read from the header lines", () => {
       "headless",
       "headless",
     ]);
-    expect(extracted.every((p) => p.oracle === null)).toBe(true);
+    expect(extracted.every((p) => p.acceptance === null)).toBe(true);
   });
 
-  it("puts mode and oracle directly after optionalFilesToEdit, then testLines", () => {
+  it("puts mode and acceptance directly after optionalFilesToEdit, then testLines", () => {
     const [first] = extractedPhases(plan({}));
     expect(Object.keys(first!).slice(-5)).toEqual([
       "optionalFilesToEdit",
       "mode",
-      "oracle",
+      "acceptance",
       "testLines",
       "commit",
     ]);
@@ -684,8 +684,8 @@ describe("mode and oracle, read from the header lines", () => {
         ],
       }),
     );
-    expect(extracted[1]!.oracle).toEqual({
-      dischargedBy: "phase-03",
+    expect(extracted[1]!.acceptance).toEqual({
+      passedBy: "phase-03",
       files: ["tests/z.test.ts", "tests/a.test.ts"],
     });
     expect(extracted[1]!.mode).toBe("headless");
@@ -700,8 +700,8 @@ describe("mode and oracle, read from the header lines", () => {
         ],
       }),
     );
-    expect(extracted[1]!.oracle).toEqual({
-      dischargedBy: "phase-05",
+    expect(extracted[1]!.acceptance).toEqual({
+      passedBy: "phase-05",
       files: ["tests/b.test.ts", "tests/a.test.ts"],
     });
   });
@@ -715,7 +715,7 @@ describe("mode and oracle, read from the header lines", () => {
     });
     expect(collectPlanStructureErrors(md)).toEqual([]);
     const extracted = extractedPhases(md);
-    expect(extracted.map((p) => [p.mode, p.oracle])).toEqual(ids.map(() => ["headless", null]));
+    expect(extracted.map((p) => [p.mode, p.acceptance])).toEqual(ids.map(() => ["headless", null]));
   });
 });
 

@@ -141,7 +141,7 @@ function planOf(): { plan: PhaxPlan; planMd: string } {
         plannedFilesToEdit: [],
         optionalFilesToEdit: [],
         mode: "headless",
-        oracle: null,
+        acceptance: null,
         testLines: [],
         commit: { subject: `feat(export): step ${i + 1}`, body: "Made-up body." },
       }),

@@ -142,7 +142,7 @@ function planOf(model: string, effort: "medium" | "high"): { plan: PhaxPlan; pla
     plannedFilesToEdit: [SKILL_FILE],
     optionalFilesToEdit: [],
     mode: "headless",
-    oracle: null,
+    acceptance: null,
     testLines: [],
     commit: { subject: "feat(export): step one", body: "Made-up body." },
   };

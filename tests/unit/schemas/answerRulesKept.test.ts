@@ -41,7 +41,7 @@ import {
   decodeAuthoredSpecDocument,
   decodeSpecDocumentFile,
 } from "../../../src/schemas/specDocument.js";
-import { validDocuments } from "../schemasPackage/documents.js";
+import { validDocuments, withOracleKey } from "../schemasPackage/documents.js";
 
 type Decode = (input: unknown) => Either.Either<unknown, ParseResult.ParseError>;
 type Body = Readonly<Record<string, unknown>>;
@@ -141,14 +141,20 @@ const withTestLine = (coordinate: string, value: unknown): Body => {
   };
 };
 
-/** A current plan body as the frozen 0.32.0 shape wrote it: the loop `acceptance` was `oracle`. */
+/**
+ * A current plan body as the frozen 0.32.0 shape wrote it: the loop `acceptance`
+ * was `oracle`, and a phase's `acceptance: { passedBy, files }` was
+ * `oracle: { dischargedBy, files }`.
+ */
 function withOldLoops(body: Body): Body {
-  const phases = (body["phases"] as ReadonlyArray<Body>).map((phase) => ({
-    ...phase,
-    testStrategy: (phase["testStrategy"] as ReadonlyArray<Body>).map((line) =>
-      line["loop"] === "acceptance" ? { ...line, loop: "oracle" } : line,
-    ),
-  }));
+  const phases = (body["phases"] as ReadonlyArray<Body>).map((phase) =>
+    withOracleKey({
+      ...phase,
+      testStrategy: (phase["testStrategy"] as ReadonlyArray<Body>).map((line) =>
+        line["loop"] === "acceptance" ? { ...line, loop: "oracle" } : line,
+      ),
+    }),
+  );
   return { ...body, phases };
 }
 
@@ -228,7 +234,8 @@ const ANSWERS: ReadonlyArray<Answer> = [
     frozenStamp: schemaUrl("plan-document", "0.32.0"),
     current: decodePlanDocumentFile,
     sameMessage: true,
-    // The frozen shape wrote the loop `oracle` where the current one writes `acceptance`.
+    // The frozen shape wrote the loop `oracle` where the current one writes
+    // `acceptance`, and the phase key `oracle` where the current one writes `acceptance`.
     forFrozen: withOldLoops,
     // The reserved criterion words gained `acceptance`; the message names all three.
     rewordedMessages: ["a criterion 'oracle'", "a criterion 'in-phase'"],
@@ -249,7 +256,8 @@ const ANSWERS: ReadonlyArray<Answer> = [
       ["a criterion 'oracle'", withTestLine("criterion", "oracle")],
       ["a criterion 'in-phase'", withTestLine("criterion", "in-phase")],
       ["a criterion holding a space", withTestLine("criterion", "ac one")],
-      ["a phase with no oracle key", { ...planBody, phases: [without(planPhases[0]!, "oracle")] }],
+      // A phase with no `acceptance` key is refused at a path the rename moved:
+      // tests/unit/planDocument.test.ts holds that rule.
       ["an extra root key", { ...planBody, version: 1 }],
     ],
   },
@@ -546,6 +554,7 @@ describe("phax-plan-extraction: keeps the verdicts of the extraction answer it r
     ],
     ["a phase with no testLines", plan({}, { testLines: undefined }), "plan.phases[0].testLines"],
     ["a phase carrying mode", plan({}, { mode: "headless" }), "plan.phases[0].mode"],
+    ["a phase carrying acceptance", plan({}, { acceptance: null }), "plan.phases[0].acceptance"],
     ["a phase carrying oracle", plan({}, { oracle: null }), "plan.phases[0].oracle"],
     ["a phase carrying a title", plan({}, { title: "First" }), "plan.phases[0].title"],
     [
@@ -671,7 +680,7 @@ describe("a test line's edge strings", () => {
     const body = withTestLine(coordinate, value);
     const frozen = decodePlanDocumentV0_32_0({
       $schema: schemaUrl("plan-document", "0.32.0"),
-      ...body,
+      ...withOldLoops(body),
     });
     const current = decodePlanDocumentFile({
       $schema: validDocuments["plan-document"]["$schema"],

@@ -98,7 +98,7 @@ async function seedRun(
 }
 
 /** A made-up phase of a current `phax-plan.json`. */
-function planPhase(id: string, oracle: PhaxPlan["phases"][number]["oracle"]) {
+function planPhase(id: string, acceptance: PhaxPlan["phases"][number]["acceptance"]) {
   return {
     id,
     title: `Made-up ${id}`,
@@ -109,7 +109,7 @@ function planPhase(id: string, oracle: PhaxPlan["phases"][number]["oracle"]) {
     plannedFilesToEdit: [],
     optionalFilesToEdit: [],
     mode: "headless" as const,
-    oracle,
+    acceptance,
     testLines: [],
     commit: { subject: `feat: ${id}`, body: "Made up." },
   };
@@ -309,7 +309,7 @@ describe("resetPhase", () => {
         },
         phases: [
           planPhase("phase-01", null),
-          planPhase("phase-02", { dischargedBy: "phase-03", files: ["tests/refunds.test.ts"] }),
+          planPhase("phase-02", { passedBy: "phase-03", files: ["tests/refunds.test.ts"] }),
           planPhase("phase-03", null),
         ],
       };
@@ -494,7 +494,7 @@ describe("resetPhase", () => {
         },
         phases: [
           planPhase("phase-01", null),
-          planPhase("phase-02", { dischargedBy: "phase-04", files: ["tests/refunds.test.ts"] }),
+          planPhase("phase-02", { passedBy: "phase-04", files: ["tests/refunds.test.ts"] }),
           { ...planPhase("phase-03", null), mode: "interactive" as const },
           planPhase("phase-04", null),
           planPhase("phase-05", null),
@@ -971,7 +971,7 @@ describe("previewResetPhase refuses what resetPhase refuses", () => {
       join(runPath, "phax-plan.json"),
       planOf([
         planPhase("phase-01", null),
-        planPhase("phase-02", { dischargedBy: "phase-03", files: ["tests/refunds.test.ts"] }),
+        planPhase("phase-02", { passedBy: "phase-03", files: ["tests/refunds.test.ts"] }),
         planPhase("phase-03", null),
       ]),
     );
@@ -1059,7 +1059,7 @@ describe("previewResetPhase refuses what resetPhase refuses", () => {
       join(runPath, "phax-plan.json"),
       planOf([
         planPhase("phase-01", null),
-        planPhase("phase-02", { dischargedBy: "phase-04", files: ["tests/refunds.test.ts"] }),
+        planPhase("phase-02", { passedBy: "phase-04", files: ["tests/refunds.test.ts"] }),
         { ...planPhase("phase-03", null), mode: "interactive" as const },
         planPhase("phase-04", null),
         planPhase("phase-05", null),

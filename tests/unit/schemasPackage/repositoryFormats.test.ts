@@ -48,6 +48,7 @@ import {
   withKey,
   withoutKey,
   withModelReasons,
+  withOracleKeys,
   withoutPreambleQuestions,
   withTestStrategyStrings,
   EXAMPLE_TEST_LINES,
@@ -387,7 +388,7 @@ describe("the plan document's question history", () => {
         ...phase,
         testStrategy: EXAMPLE_TEST_LINES,
         mode: "headless",
-        oracle: null,
+        acceptance: null,
         assignmentReason: null,
       })),
     });
@@ -452,11 +453,15 @@ describe("the plan document's question history", () => {
   });
 
   // 0.28.0 is the last shape before the strict answer: the same keys under a
-  // release-pattern `$schema`, lifted to itself.
+  // release-pattern `$schema`, its phases' `oracle` key lifted to `acceptance`.
   it.each(["0.28.0", "0.31.0"])(
-    "parses a document stamped %s as shape 0.28.0 and lifts it to itself",
+    "parses a document stamped %s as shape 0.28.0 and lifts its phase key to acceptance",
     (release) => {
-      const v0_28_0 = withKey(current, "$schema", schemaUrl("plan-document", release));
+      const v0_28_0 = withKey(
+        withOracleKeys(current),
+        "$schema",
+        schemaUrl("plan-document", release),
+      );
       const result = parsePlanDocument(v0_28_0);
       expect(result).toEqual({ ok: true, shape: "0.28.0", value: v0_28_0 });
       if (!result.ok) throw new Error("document rejected");
@@ -623,7 +628,7 @@ describe("the plan document's test line loop", () => {
     "parses a document stamped %s as shape %s and lifts the loop oracle to acceptance",
     (release, shape) => {
       const old = withKey(
-        withTestLoop(current, "oracle"),
+        withOracleKeys(withTestLoop(current, "oracle")),
         "$schema",
         schemaUrl("plan-document", release),
       );
@@ -655,7 +660,7 @@ describe("the plan document's test line loop", () => {
 
   it("keeps the loop in-phase, and every other coordinate, when it lifts", () => {
     const old = withKey(
-      withTestLoop(current, "in-phase"),
+      withOracleKeys(withTestLoop(current, "in-phase")),
       "$schema",
       schemaUrl("plan-document", "0.32.0"),
     );
@@ -666,7 +671,7 @@ describe("the plan document's test line loop", () => {
 
   it("refuses the loop acceptance in a 0.32.0 document, and the loop oracle at the current stamp", () => {
     const stamped = withKey(
-      withTestLoop(current, "acceptance"),
+      withOracleKeys(withTestLoop(current, "acceptance")),
       "$schema",
       schemaUrl("plan-document", "0.32.0"),
     );
@@ -677,7 +682,7 @@ describe("the plan document's test line loop", () => {
 
   it("lifts a 0.32.0 oracle-loop test line of a boundary-free shape unchanged but for the loop", () => {
     const old = withKey(
-      withTestLoop(current, "oracle"),
+      withOracleKeys(withTestLoop(current, "oracle")),
       "$schema",
       schemaUrl("plan-document", "0.32.0"),
     );
@@ -687,5 +692,48 @@ describe("the plan document's test line loop", () => {
     expect(phase.testStrategy).toEqual(
       EXAMPLE_TEST_LINES.map((line) => ({ ...line, loop: "acceptance" })),
     );
+  });
+});
+
+// The phase key `oracle: { dischargedBy, files }` became `acceptance: { passedBy,
+// files }` at 0.33.0: every older plan document lifts to it, keeping the files
+// and the key's place (ac-migrate, ac-read-old).
+describe("the plan document's phase key", () => {
+  const current = validDocuments["plan-document"];
+  const files = ["tests/a.test.ts", "tests/b.test.ts"];
+  const withAcceptance: Doc = withKey(
+    current,
+    "phases",
+    (current["phases"] as Doc[]).map((phase, i) => ({
+      ...phase,
+      acceptance: i === 0 ? { passedBy: "phase-02", files } : null,
+    })),
+  );
+
+  it.each([
+    ["0.32.0", withOracleKeys(withAcceptance)],
+    ["0.28.0", withOracleKeys(withAcceptance)],
+    ["0.26.0", withTestStrategyStrings(withAcceptance)],
+  ])(
+    "lifts the oracle key of a document stamped %s to acceptance with passedBy",
+    (release, doc) => {
+      const old = withKey(doc, "$schema", schemaUrl("plan-document", release));
+      const parsed = parsePlanDocument(old);
+      if (!parsed.ok) throw new Error("document rejected");
+      const [first, second] = toLatestPlanDocument(parsed.value).phases;
+      expect(first.acceptance).toEqual({ passedBy: "phase-02", files });
+      expect(second?.acceptance ?? null).toBeNull();
+      const keys = Object.keys(first);
+      expect(keys).not.toContain("oracle");
+      expect(keys.slice(keys.indexOf("mode"), keys.indexOf("mode") + 2)).toEqual([
+        "mode",
+        "acceptance",
+      ]);
+    },
+  );
+
+  it("refuses an oracle phase key at the current stamp", () => {
+    const old = withOracleKeys(withAcceptance);
+    expect(parsePlanDocument(old).ok).toBe(false);
   });
 });

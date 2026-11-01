@@ -99,7 +99,7 @@ function buildMinimalExtracted() {
         plannedFilesToEdit: ["src/app/bar.ts"],
         optionalFilesToEdit: [],
         mode: "headless" as const,
-        oracle: null,
+        acceptance: null,
         testLines: [],
         commit: {
           subject: "feat: do something",

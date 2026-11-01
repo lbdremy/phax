@@ -117,7 +117,7 @@ type OverviewPlanPhase = Pick<
   | "model"
   | "effort"
   | "mode"
-  | "oracle"
+  | "acceptance"
   | "plannedFilesToCreate"
   | "plannedFilesToEdit"
   | "testLines"

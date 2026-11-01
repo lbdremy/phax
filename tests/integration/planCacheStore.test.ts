@@ -31,7 +31,7 @@ const EXTRACTED: ExtractedPhaxPlan = {
       plannedFilesToEdit: [],
       optionalFilesToEdit: [],
       mode: "headless",
-      oracle: null,
+      acceptance: null,
       testLines: [],
       commit: { subject: "feat: do thing", body: "Does the thing." },
     },
@@ -157,7 +157,7 @@ describe("readCacheEntry — corrupted file", () => {
 });
 
 describe("readCacheEntry — an entry under an older extractor version", () => {
-  const { mode: _mode, oracle: _oracle, testLines: _lines, ...v2Phase } = EXTRACTED.phases[0]!;
+  const { mode: _mode, acceptance: _oracle, testLines: _lines, ...v2Phase } = EXTRACTED.phases[0]!;
   const { testLines: _v3Lines, ...v3Phase } = EXTRACTED.phases[0]!;
 
   // 4: test lines in the loop `oracle`, which no current reader reads.

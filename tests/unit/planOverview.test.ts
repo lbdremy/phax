@@ -29,7 +29,7 @@ type Phase = Pick<
   | "model"
   | "effort"
   | "mode"
-  | "oracle"
+  | "acceptance"
   | "plannedFilesToCreate"
   | "plannedFilesToEdit"
   | "testLines"
@@ -41,7 +41,7 @@ const phase = (id: string, over: Partial<Phase> = {}): Phase => ({
   model: "claude-sonnet-5-5",
   effort: "medium",
   mode: "headless",
-  oracle: null,
+  acceptance: null,
   plannedFilesToCreate: [],
   plannedFilesToEdit: [],
   testLines: [],
@@ -51,7 +51,7 @@ const phase = (id: string, over: Partial<Phase> = {}): Phase => ({
 const PHASES: readonly Phase[] = [
   phase("phase-01", {
     title: "Oracles",
-    oracle: { dischargedBy: "phase-02", files: ["tests/a.test.ts"] },
+    acceptance: { passedBy: "phase-02", files: ["tests/a.test.ts"] },
     plannedFilesToCreate: ["tests/a.test.ts"],
     testLines: [line("the rule holds", "acceptance", "ac-a")],
   }),

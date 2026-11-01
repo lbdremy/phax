@@ -85,7 +85,7 @@ function headlessPlan(): { plan: PhaxPlan; planMd: string } {
         plannedFilesToEdit: [],
         optionalFilesToEdit: [],
         mode: "headless",
-        oracle: null,
+        acceptance: null,
         testLines: [],
         commit: { subject: `feat(export): ${title.toLowerCase()}`, body: "Made-up body." },
       }),

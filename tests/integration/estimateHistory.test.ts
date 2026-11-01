@@ -55,7 +55,7 @@ function writeRegistry(fs: ReturnType<typeof setup>["fs"], entries: readonly Reg
 
 /**
  * `phaxPlanJson`'s plan as an older phax wrote it: stamped 0.25.0 with no
- * mode, oracle or testLines, or stamped 0.26.0 with no testLines.
+ * mode, acceptance or testLines, or stamped 0.26.0 with no testLines.
  */
 function olderPhaxPlanJson(
   stamp: "0.25.0" | "0.26.0",
@@ -65,8 +65,8 @@ function olderPhaxPlanJson(
   return JSON.stringify({
     ...plan,
     $schema: schemaUrl("phax-plan", stamp),
-    phases: plan.phases.map(({ mode, oracle, testLines: _lines, ...phase }) =>
-      stamp === "0.26.0" ? { ...phase, mode, oracle } : phase,
+    phases: plan.phases.map(({ mode, acceptance, testLines: _lines, ...phase }) =>
+      stamp === "0.26.0" ? { ...phase, mode, oracle: acceptance } : phase,
     ),
   });
 }

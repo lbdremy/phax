@@ -595,7 +595,7 @@ describe("migrate-documents — plan documents in flight", { timeout: 30_000 }, 
     ["0.20.0", (fm: string) => writeOlderPlan(null, fm)],
     ["0.25.0", (fm: string) => writeV0_25_0Plan(fm)],
   ] as const)(
-    "lifts a %s plan with mode headless and oracle null on every phase, adding no line to plan.md",
+    "lifts a %s plan with mode headless and acceptance null on every phase, adding no line to plan.md",
     async (_release, write) => {
       const md = write(planFrontmatter("Draft", null));
       commitAll();
@@ -610,14 +610,14 @@ describe("migrate-documents — plan documents in flight", { timeout: 30_000 }, 
         /^https:\/\/docs\.phax\.run\/schemas\/plan-document\/\d+\.\d+\.\d+\.json$/,
       );
       expect(sidecar.$schema).toBe(currentSchemaUrl("plan-document"));
-      expect(sidecar.phases.map((phase) => [phase["mode"], phase["oracle"]])).toEqual([
+      expect(sidecar.phases.map((phase) => [phase["mode"], phase["acceptance"]])).toEqual([
         ["headless", null],
         ["headless", null],
       ]);
       for (const phase of sidecar.phases) {
         const keys = Object.keys(phase);
         const at = keys.indexOf("optionalFilesToEdit");
-        expect(keys.slice(at, at + 3)).toEqual(["optionalFilesToEdit", "mode", "oracle"]);
+        expect(keys.slice(at, at + 3)).toEqual(["optionalFilesToEdit", "mode", "acceptance"]);
       }
       const after = readRepoFile(PLAN);
       expect(after).not.toMatch(/\*\*Mode:\*\*|\*\*Oracle (phase|files):\*\*/);
@@ -680,13 +680,26 @@ describe("migrate-documents — plan documents in flight", { timeout: 30_000 }, 
   // the sidecar alone.
   it("restamps a 0.28.0 plan to the current stamp, its Markdown byte-identical, and commits the sidecar alone", async () => {
     const older = plan0_26_0();
-    const doc = {
+    // The 0.28.0 sidecar still carries the `oracle` key; the current document
+    // carries `acceptance` in its place.
+    const doc28 = {
       ...older,
       phases: older.phases.map((phase) => ({ ...phase, testStrategy: [STEP_LINE] })),
+    };
+    const doc = {
+      ...older,
+      phases: older.phases.map(({ oracle: _oracle, ...phase }) => ({
+        ...phase,
+        acceptance: null,
+        testStrategy: [STEP_LINE],
+      })),
     } as unknown as PlanDocument;
     const md = planFrontmatter("Draft", null) + renderPlanBody(doc);
     writeRepoFile(PLAN, md);
-    writeRepoFile(sidecarOf(PLAN), json({ $schema: schemaUrl("plan-document", "0.28.0"), ...doc }));
+    writeRepoFile(
+      sidecarOf(PLAN),
+      json({ $schema: schemaUrl("plan-document", "0.28.0"), ...doc28 }),
+    );
     commitAll();
 
     const result = await migrated();
@@ -1353,17 +1366,27 @@ describe("migrate-documents — the acceptance loop", { timeout: 30_000 }, () =>
 
       const sidecar = JSON.parse(readRepoFile(sidecarOf(PLAN))) as {
         $schema: string;
-        phases: Array<{ testStrategy: unknown[]; oracle: unknown }>;
+        phases: Array<{ testStrategy: unknown[]; acceptance: unknown; oracle?: unknown }>;
       };
       expect(sidecar.$schema).toBe(currentSchemaUrl("plan-document"));
       expect(sidecar.phases.map((phase) => phase.testStrategy)).toEqual([
         [{ ...ORACLE_LINE, loop: "acceptance" }],
         [STEP_LINE],
       ]);
+      // ac-migrate, the phase key half: `oracle: { dischargedBy, files }` is
+      // rewritten `acceptance: { passedBy, files }`, in the same place, and the
+      // old key is gone.
+      expect(sidecar.phases.map((phase) => phase.acceptance)).toEqual([
+        { passedBy: "phase-02", files: ["tests/unit/pruneStore.test.ts"] },
+        null,
+      ]);
+      expect(sidecar.phases.every((phase) => !("oracle" in phase))).toBe(true);
       const after = readRepoFile(PLAN);
       expect(after).toContain("· acceptance · AC-1");
       expect(after).not.toContain("· oracle · AC-1");
       expect(after).toBe(md.replace("· oracle · AC-1", "· acceptance · AC-1"));
+      // The header lines are read into the new key and re-rendered with their old
+      // words; the next plan renames them together with lint.
       expect(after).toContain("**Oracle phase:** discharged by phase-02");
 
       expect(git(["rev-list", "--count", `${head}..HEAD`]).trim()).toBe("1");
