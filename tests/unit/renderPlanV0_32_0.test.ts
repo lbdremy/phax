@@ -18,8 +18,8 @@ import { validDocuments } from "./schemasPackage/documents.js";
 // 0.28.0 sidecar's own body: the layout phax 0.28.0 to 0.32.0 wrote, its
 // `**Oracle phase:**` and `**Oracle files:**` lines and its `oracle` loop
 // included. Checked against bodies phax actually wrote: the repository's
-// archived plans stamped 0.28.0 and its live plan stamped 0.32.0, each beside
-// its sidecar. Read only, never written.
+// archived plans stamped 0.28.0 and 0.32.0, each beside its sidecar. Archived
+// plans are never migrated, so they keep these stamps. Read only, never written.
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
@@ -35,8 +35,8 @@ function stampedPlans(dir: string, release: string): string[] {
 }
 
 const ARCHIVE = join(ROOT, "docs", "plans", "archive");
-const LIVE = join(ROOT, "docs", "plans");
 const STAMPED_0_28_0 = stampedPlans(ARCHIVE, "0.28.0");
+const STAMPED_0_32_0 = stampedPlans(ARCHIVE, "0.32.0");
 
 function frozen28(sidecarText: string): PlanDocumentV0_32_0Value {
   const decoded = decodePlanDocumentV0_28_0(JSON.parse(sidecarText));
@@ -72,9 +72,9 @@ function plan0_32_0(): PlanDocumentV0_32_0Value {
 }
 
 describe("renderPlanBodyV0_32_0", () => {
-  it("finds archived 0.28.0 plans and the live acceptance-tests plan at 0.32.0", () => {
+  it("finds archived plans at 0.28.0 and at 0.32.0, the acceptance-tests plan among them", () => {
     expect(STAMPED_0_28_0.length).toBeGreaterThan(0);
-    expect(stampedPlans(LIVE, "0.32.0")).toContain("2610311031-acceptance-tests-plan");
+    expect(STAMPED_0_32_0).toContain("2610311031-acceptance-tests-plan");
   });
 
   it.each(STAMPED_0_28_0)("reproduces the archived 0.28.0 plan %s's body byte for byte", (name) => {
@@ -83,11 +83,10 @@ describe("renderPlanBodyV0_32_0", () => {
     expect(renderPlanBodyV0_32_0(frozen28(sidecarText))).toBe(artifactBody(md));
   });
 
-  it("reproduces the live 0.32.0 acceptance-tests plan's body byte for byte", () => {
-    const name = "2610311031-acceptance-tests-plan";
-    const md = readFileSync(join(LIVE, `${name}.md`), "utf8");
+  it.each(STAMPED_0_32_0)("reproduces the archived 0.32.0 plan %s's body byte for byte", (name) => {
+    const md = readFileSync(join(ARCHIVE, `${name}.md`), "utf8");
     const decoded = decodePlanDocumentV0_32_0(
-      JSON.parse(readFileSync(join(LIVE, `${name}.json`), "utf8")),
+      JSON.parse(readFileSync(join(ARCHIVE, `${name}.json`), "utf8")),
     );
     if (Either.isLeft(decoded)) throw new Error(decoded.left.message);
     const { $schema: _schema, ...value } = decoded.right;
