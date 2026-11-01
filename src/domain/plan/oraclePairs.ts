@@ -4,7 +4,7 @@
  * pins. Pure: callers pass the plan's phases.
  */
 import type { PhaxPlanPhase } from "../../schemas/phaxPlan.js";
-import type { RecordOracleRole } from "../../schemas/runRecord.js";
+import type { RecordAcceptanceRole } from "../../schemas/runRecord.js";
 import type { PhaseStop } from "../../schemas/status.js";
 
 export interface OraclePair {
@@ -143,7 +143,7 @@ export function latestAuthoredCommit(
     const status = statusOf(phase.id);
     const stop = status?.stop ?? null;
     if (stop === null || stop.status !== "closed" || stop.outcome !== "corrected") continue;
-    if (stop.oracleStep !== "authored") continue;
+    if (stop.acceptanceStep !== "authored") continue;
     if (stop.cause === "held") return stop.reviewCommit;
     if (status?.commitHash !== undefined) return status.commitHash;
   }
@@ -151,11 +151,11 @@ export function latestAuthoredCommit(
 }
 
 /** The role as a phase record's manifest stores it. */
-export function recordOracleRole(role: OracleRole | null): RecordOracleRole {
+export function recordOracleRole(role: OracleRole | null): RecordAcceptanceRole {
   if (role === null) return null;
   return role.role === "oracle"
-    ? { role: "oracle", dischargedBy: role.pair.dischargingPhase }
-    : { role: "discharging", oraclePhase: role.pair.oraclePhase };
+    ? { role: "acceptance", passedBy: role.pair.dischargingPhase }
+    : { role: "passing", acceptancePhase: role.pair.oraclePhase };
 }
 
 /** The last oracle-step result of one side of a pair, `not run` when it has none. */

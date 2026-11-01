@@ -5,9 +5,13 @@
 // the schemas package publishes it. Each function keeps every other fact as it
 // was recorded.
 import { Array as Arr } from "effect";
+import type { GateStepResult } from "./gateAttribution.js";
 import type { PhaseAcceptance, PhaxPlan, PhaxPlanPhase } from "./phaxPlan.js";
 import type { PlanDocument, PlanDocumentPhase } from "./planDocument.js";
 import type { ExtractionPlan, PlanExtractionAnswer } from "./planExtraction.js";
+import type { RecordAcceptanceRole } from "./runRecord.js";
+import type { PhaseStop, RunHold } from "./status.js";
+import type { RecordedSurface } from "./surface.js";
 import type { TestLine, TestLoop, TestSize, TestTechnique } from "./testLine.js";
 
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
@@ -186,4 +190,91 @@ export function liftPlanExtractionTestLines(
           },
     incomplete,
   };
+}
+
+/** The surface a recorded step carried before 0.33.0: `oracle` for an oracle pair's step. */
+export type RecordedSurfaceBeforeAcceptance = "local" | "structural" | "product" | "oracle";
+
+/** The recorded surface `oracle` is now `acceptance`; every other surface is kept. */
+export function liftRecordedSurface(
+  surface: RecordedSurfaceBeforeAcceptance | RecordedSurface,
+): RecordedSurface {
+  return surface === "oracle" ? "acceptance" : surface;
+}
+
+/**
+ * A record's verified surfaces lifted: each surface mapped, then the list
+ * sorted again, because phax always writes it sorted and `acceptance` sorts
+ * where `oracle` did not.
+ */
+export function liftVerifiedSurfaces(
+  surfaces: ReadonlyArray<RecordedSurfaceBeforeAcceptance | RecordedSurface>,
+): ReadonlyArray<RecordedSurface> {
+  return surfaces.map(liftRecordedSurface).toSorted();
+}
+
+/** A gate step as a shape before 0.33.0 recorded it: the appended step on the `oracle` surface. */
+export type GateStepToLift =
+  | GateStepResult
+  | {
+      readonly command: string;
+      readonly surface: "oracle";
+      readonly result: "pass" | "fail" | "refused" | "skipped";
+    };
+
+/** A gate step with its surface lifted (`liftRecordedSurface`); its command and result kept. */
+export function liftGateStep(step: GateStepToLift): GateStepResult {
+  return step.surface === "oracle" ? { ...step, surface: "acceptance" } : step;
+}
+
+/** A record manifest's role before 0.33.0: `oracle` with `dischargedBy`, `discharging` with `oraclePhase`. */
+export type RecordRoleToLift =
+  | RecordAcceptanceRole
+  | { readonly role: "oracle"; readonly dischargedBy: string }
+  | { readonly role: "discharging"; readonly oraclePhase: string };
+
+/**
+ * A record role lifted: `oracle` + `dischargedBy` becomes `acceptance` +
+ * `passedBy`, `discharging` + `oraclePhase` becomes `passing` +
+ * `acceptancePhase`, and null stays null. A role already lifted is kept.
+ */
+export function liftRecordRole(role: RecordRoleToLift): RecordAcceptanceRole {
+  if (role === null) return null;
+  if (role.role === "oracle") return { role: "acceptance", passedBy: role.dischargedBy };
+  if (role.role === "discharging") return { role: "passing", acceptancePhase: role.oraclePhase };
+  return role;
+}
+
+/** A run's hold before 0.33.0: the selection `oracle` held the oracle phases. */
+export type RunHoldToLift =
+  | RunHold
+  | { readonly selection: "oracle"; readonly phases: readonly [string, ...string[]] };
+
+/** The hold selection `oracle` is now `acceptance`, its phases kept; every other hold is kept. */
+export function liftHoldSelection(hold: RunHoldToLift): RunHold {
+  return hold.selection === "oracle" ? { selection: "acceptance", phases: hold.phases } : hold;
+}
+
+type ClosedStop = Extract<NonNullable<PhaseStop>, { readonly acceptanceStep: unknown }>;
+
+/** A phase stop before 0.33.0: a corrected close named its step `oracleStep`. */
+export type PhaseStopToLift =
+  | PhaseStop
+  | (ClosedStop extends infer S
+      ? S extends { readonly acceptanceStep: infer A }
+        ? Omit<S, "acceptanceStep"> & { readonly oracleStep: A }
+        : never
+      : never);
+
+/**
+ * A stop with its key `oracleStep` renamed `acceptanceStep`, in the key's own
+ * position, its value (`authored | none`) kept. Any other stop is kept.
+ */
+export function liftStopStep(stop: PhaseStopToLift): PhaseStop {
+  if (stop === null || !("oracleStep" in stop)) return stop as PhaseStop;
+  const entries = Object.entries(stop).map(([key, value]): [string, unknown] =>
+    key === "oracleStep" ? ["acceptanceStep", value] : [key, value],
+  );
+  // `Object.fromEntries` loses the key types; the entries above rebuild exactly a current stop.
+  return Object.fromEntries(entries) as PhaseStop;
 }

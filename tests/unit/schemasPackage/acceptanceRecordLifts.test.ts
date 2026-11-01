@@ -41,21 +41,21 @@ function latest(format: LiftFormat, input: unknown): unknown {
 }
 
 describe("the package lifts an older document to the acceptance names", () => {
-  it.fails.each(liftCases)("$label", ({ format, input, expected }) => {
+  it.each(liftCases)("$label", ({ format, input, expected }) => {
     expect(parseDocument(input)).toMatchObject({ ok: true, format });
     expect(latest(format, input)).toEqual(expected);
   });
 });
 
 describe("the package parses a 0.33.0 document with the acceptance names", () => {
-  it.fails.each(stampCases)("$label", ({ format, written, expected }) => {
+  it.each(stampCases)("$label", ({ format, written, expected }) => {
     expect(parseDocument(written)).toMatchObject({ ok: true, format });
     expect(latest(format, written)).toEqual(expected);
   });
 });
 
 describe("a lifted record manifest keeps its verified surfaces sorted", () => {
-  it.fails("oracle becomes acceptance and sorts first", () => {
+  it("oracle becomes acceptance and sorts first", () => {
     const input = liftCases.find(
       (c) => c.format === "phase-record-manifest" && c.label.includes("0.30.0 of an oracle phase"),
     )?.input;

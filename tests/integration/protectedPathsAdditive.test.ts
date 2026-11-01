@@ -445,7 +445,7 @@ describe.each<ProviderName>(["claude-code", "codex-cli", "mistral-vibe"])(
         if (Either.isLeft(observed.result)) throw observed.result.left as Error;
 
         // The records' values, spelled out: security.json at version 3 and
-        // gate-attribution.json at 0.31.0, each with `protectedPaths: null`.
+        // gate-attribution.json at 0.33.0, each with `protectedPaths: null`.
         const worktree = join(world.stateRoot, "worktrees", `${NAMESPACE}.${SHORT}`, "phase-01");
         const commandPrecision = provider === "codex-cli";
         expect(readJson(join(observed.phaseFolder, "security.json"))).toEqual({
@@ -474,7 +474,7 @@ describe.each<ProviderName>(["claude-code", "codex-cli", "mistral-vibe"])(
           stop: null,
         });
         expect(readJson(join(observed.phaseFolder, "gate-attribution.json"))).toEqual({
-          $schema: "https://docs.phax.run/schemas/gate-attribution/0.31.0.json",
+          $schema: "https://docs.phax.run/schemas/gate-attribution/0.33.0.json",
           phase: "phase-01",
           steps: [{ command: "node scripts/gate.mjs", surface: "local", result: "pass" }],
           protectedPaths: null,

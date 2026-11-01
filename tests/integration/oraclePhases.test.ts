@@ -429,7 +429,7 @@ describe("oracle phases in a run", () => {
     expect((await h.readJson("phase-02", "gate-attribution.json"))["steps"]).toEqual([
       { command: "pnpm test", surface: "local", result: "pass" },
       { command: "pnpm lint", surface: "structural", result: "pass" },
-      { command: ORACLES, surface: "oracle", result: "pass" },
+      { command: ORACLES, surface: "acceptance", result: "pass" },
     ]);
 
     // Marker removal in the oracle files is never an unplanned edit.
@@ -447,7 +447,7 @@ describe("oracle phases in a run", () => {
 
     expect(Either.isRight(result)).toBe(true);
     const body = await readFile(join(h.runPath, "pr-body.md"), "utf8");
-    expect(body).toContain("**Verified surfaces** local, oracle, structural");
+    expect(body).toContain("**Verified surfaces** acceptance, local, structural");
   });
 
   it("calls the provider at the pair's two phases only", async () => {
@@ -589,7 +589,7 @@ describe("oracle phases in a run", () => {
       expect(await h.readJson("phase-03", "status.json")).toMatchObject({ state: "review_open" });
       const attribution = await h.readJson("phase-03", "gate-attribution.json");
       const steps = attribution["steps"] as GateAttribution["steps"];
-      expect(steps.at(-1)).toEqual({ command: ORACLES, surface: "oracle", result: "skipped" });
+      expect(steps.at(-1)).toEqual({ command: ORACLES, surface: "acceptance", result: "skipped" });
       expect(verifiedSurfaces({ phase: "phase-03", steps } as GateAttribution)).toEqual([
         "local",
         "structural",
@@ -614,7 +614,7 @@ describe("oracle phases in a run", () => {
       expect(steps).toEqual([
         { command: "pnpm test", surface: "local", result: "pass" },
         { command: "pnpm lint", surface: "structural", result: "pass" },
-        { command: ORACLES, surface: "oracle", result: "skipped" },
+        { command: ORACLES, surface: "acceptance", result: "skipped" },
       ]);
     });
 
@@ -634,7 +634,7 @@ describe("oracle phases in a run", () => {
       const steps = (await h.readJson("phase-02", "gate-attribution.json"))["steps"];
       expect((steps as GateAttribution["steps"]).at(-1)).toEqual({
         command: ORACLES,
-        surface: "oracle",
+        surface: "acceptance",
         result: "skipped",
       });
       const phase02 = await h.readJson("phase-02", "status.json");

@@ -1,7 +1,7 @@
 import type { PhaseMode } from "../../schemas/phaxPlan.js";
 import type { ProviderId } from "../../schemas/providerId.js";
 import type {
-  RecordOracleRole,
+  RecordAcceptanceRole,
   RecordPhaseOutcome,
   RecordShape,
   RecordStop,
@@ -30,8 +30,8 @@ export interface AssembleRecordInput {
   readonly outcome: RecordPhaseOutcome;
   readonly usage: TokenUsage;
   readonly verifiedSurfaces: readonly RecordedSurface[];
-  /** The phase's role in an oracle pair, or null when it is in none. */
-  readonly oracle: RecordOracleRole;
+  /** The phase's role in an acceptance pair, or null when it is in none. */
+  readonly acceptance: RecordAcceptanceRole;
   /** The plan's mode for the phase. */
   readonly mode: PhaseMode;
   /** The phase's stop, or null when it never stopped. */
@@ -99,7 +99,7 @@ export function assembleRecord(input: AssembleRecordInput): AssembledRecord {
     outcome: input.outcome,
     usage: input.usage,
     verifiedSurfaces: input.verifiedSurfaces,
-    oracle: input.oracle,
+    acceptance: input.acceptance,
     mode: input.mode,
     stop: input.stop,
   };

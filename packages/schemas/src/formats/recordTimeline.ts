@@ -42,6 +42,12 @@ import {
   type GateAttributionV0_26_0,
 } from "../../../../src/schemas/history/gate-attribution/0.26.0.js";
 import {
+  GateAttributionV0_31_0Schema,
+  decodeGateAttributionV0_31_0,
+  type GateAttributionV0_31_0,
+} from "../../../../src/schemas/history/gate-attribution/0.31.0.js";
+import { liftGateStep } from "../../../../src/schemas/acceptanceLift.js";
+import {
   PhaseFileReconciliationV0_17_0Schema,
   decodePhaseFileReconciliationV0_17_0,
   type PhaseFileReconciliationV0_17_0,
@@ -57,6 +63,7 @@ import {
   type PhaseFileReconciliation,
   type PhaseFileReconciliationFile,
 } from "../../../../src/schemas/reconciliation.js";
+import { compareReleases, parseSchemaUrl } from "../../../../src/schemas/schemaUrl.js";
 import { CURRENT_SHAPES } from "../generated/index.js";
 import type { ParsedShape } from "../parsed.js";
 import { defineFormat, type CurrentShapeName } from "../shapes.js";
@@ -77,6 +84,7 @@ export type GateAttributionShapes = {
   "0.20.0": GateAttributionV0_20_0;
   "0.21.0": GateAttributionV0_21_0;
   "0.26.0": GateAttributionV0_26_0;
+  "0.31.0": GateAttributionV0_31_0;
 } & {
   [K in CurrentShapeName<"gate-attribution">]: GateAttributionFile;
 };
@@ -93,6 +101,7 @@ export const gateAttributionFormat = defineFormat<GateAttributionShapes>({
     ["0.20.0", { schema: GateAttributionV0_20_0Schema, decode: decodeGateAttributionV0_20_0 }],
     ["0.21.0", { schema: GateAttributionV0_21_0Schema, decode: decodeGateAttributionV0_21_0 }],
     ["0.26.0", { schema: GateAttributionV0_26_0Schema, decode: decodeGateAttributionV0_26_0 }],
+    ["0.31.0", { schema: GateAttributionV0_31_0Schema, decode: decodeGateAttributionV0_31_0 }],
   ],
   current: {
     name: CURRENT_SHAPES["gate-attribution"],
@@ -109,10 +118,16 @@ export type LatestGateAttribution = GateAttribution;
 
 /**
  * Upgrades a parsed gate attribution in memory: drops `$schema`, keeps every
- * other fact. The current shape becomes the latest value; an older shape keeps
- * its recorded value, under its own type, and is never mapped onto the latest.
+ * other fact. The current shape becomes the latest value, and so do the
+ * 0.31.0 and 0.26.0 shapes, as phax's reader lifts them: their `oracle` step
+ * surface becomes `acceptance` (`liftGateStep`), and a 0.26.0 one, which ran
+ * no protected-paths check, gets `protectedPaths: null`. A shape older than
+ * 0.26.0 keeps its recorded value, under its own type, and is never mapped
+ * onto the latest.
  */
-export function toLatestGateAttribution(value: GateAttributionFile): LatestGateAttribution;
+export function toLatestGateAttribution(
+  value: GateAttributionFile | GateAttributionV0_31_0 | GateAttributionV0_26_0,
+): LatestGateAttribution;
 export function toLatestGateAttribution(value: GateAttributionPreSchema): GateAttributionPreSchema;
 export function toLatestGateAttribution(
   value: GateAttributionV0_17_0,
@@ -124,8 +139,20 @@ export function toLatestGateAttribution(
   value: GateAttributionV0_21_0,
 ): Omit<GateAttributionV0_21_0, "$schema">;
 export function toLatestGateAttribution(
-  value: GateAttributionV0_26_0,
-): Omit<GateAttributionV0_26_0, "$schema">;
+  value:
+    | GateAttributionPreSchema
+    | GateAttributionV0_17_0
+    | GateAttributionV0_20_0
+    | GateAttributionV0_21_0
+    | GateAttributionV0_26_0
+    | GateAttributionV0_31_0
+    | GateAttributionFile,
+):
+  | LatestGateAttribution
+  | GateAttributionPreSchema
+  | Omit<GateAttributionV0_17_0, "$schema">
+  | Omit<GateAttributionV0_20_0, "$schema">
+  | Omit<GateAttributionV0_21_0, "$schema">;
 export function toLatestGateAttribution(
   value:
     | GateAttributionPreSchema
@@ -133,34 +160,40 @@ export function toLatestGateAttribution(
     | GateAttributionV0_20_0
     | GateAttributionV0_21_0
     | GateAttributionV0_26_0
+    | GateAttributionV0_31_0
     | GateAttributionFile,
 ):
   | LatestGateAttribution
   | GateAttributionPreSchema
   | Omit<GateAttributionV0_17_0, "$schema">
   | Omit<GateAttributionV0_20_0, "$schema">
-  | Omit<GateAttributionV0_21_0, "$schema">
-  | Omit<GateAttributionV0_26_0, "$schema">;
-export function toLatestGateAttribution(
-  value:
-    | GateAttributionPreSchema
-    | GateAttributionV0_17_0
-    | GateAttributionV0_20_0
-    | GateAttributionV0_21_0
-    | GateAttributionV0_26_0
-    | GateAttributionFile,
-):
-  | LatestGateAttribution
-  | GateAttributionPreSchema
-  | Omit<GateAttributionV0_17_0, "$schema">
-  | Omit<GateAttributionV0_20_0, "$schema">
-  | Omit<GateAttributionV0_21_0, "$schema">
-  | Omit<GateAttributionV0_26_0, "$schema"> {
-  if ("$schema" in value) {
-    const { $schema: _schema, ...recorded } = value;
-    return recorded;
+  | Omit<GateAttributionV0_21_0, "$schema"> {
+  if (!("$schema" in value)) return value;
+  if ("protectedPaths" in value) {
+    const { $schema: _schema, steps, ...recorded } = value;
+    return { ...recorded, steps: steps.map(liftGateStep) };
   }
-  return value;
+  if (isGateAttributionV0_26_0(value)) {
+    const { $schema: _schema, steps, ...recorded } = value;
+    return { ...recorded, steps: steps.map(liftGateStep), protectedPaths: null };
+  }
+  const { $schema: _schema, ...recorded } = value;
+  return recorded;
+}
+
+/**
+ * Whether a stamped attribution without `protectedPaths` is of the 0.26.0
+ * shape: the format reads every stamp from 0.26.0 below 0.31.0 as it.
+ */
+function isGateAttributionV0_26_0(
+  value:
+    | GateAttributionV0_17_0
+    | GateAttributionV0_20_0
+    | GateAttributionV0_21_0
+    | GateAttributionV0_26_0,
+): value is GateAttributionV0_26_0 {
+  const named = parseSchemaUrl(value.$schema);
+  return named !== undefined && compareReleases(named.release, "0.26.0") >= 0;
 }
 
 // ── phase file reconciliation

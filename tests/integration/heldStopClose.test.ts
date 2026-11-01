@@ -386,7 +386,7 @@ describe("closing a held stop", () => {
         status: "closed",
         outcome: "corrected",
         reviewCommit: closed.reviewCommit,
-        oracleStep: "none",
+        acceptanceStep: "none",
       },
     });
     expect(existsSync(reviewStopPath())).toBe(false);

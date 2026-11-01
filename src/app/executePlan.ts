@@ -509,7 +509,7 @@ export function executePlan(
         model: args.model,
         effort: args.effort,
         outcome: args.outcome,
-        oracle: recordOracleRole(oracleRoleOf(plan.phases, args.phaseId)),
+        acceptance: recordOracleRole(oracleRoleOf(plan.phases, args.phaseId)),
         mode: args.mode,
         stop: args.stop,
         // A session's usage reads a vibe session's `export.json`, beside the

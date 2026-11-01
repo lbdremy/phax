@@ -80,7 +80,7 @@ describe("GateAttributionFileSchema", () => {
       protectedPaths: null,
       steps: [
         { command: "pnpm test", surface: "local", result: "pass" },
-        { command: "oracles provider", surface: "oracle", result: "pass" },
+        { command: "oracles provider", surface: "acceptance", result: "pass" },
       ],
     };
 
@@ -119,7 +119,7 @@ describe("GateAttributionFileSchema", () => {
       protectedPaths: null,
       steps: [
         { command: "pnpm test", surface: "local", result: "pass" },
-        { command: "oracles provider", surface: "oracle", result: "skipped" },
+        { command: "oracles provider", surface: "acceptance", result: "skipped" },
       ],
     };
 

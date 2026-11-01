@@ -17,7 +17,7 @@ const baseInput: AssembleRecordInput = {
   outcome: "committed",
   usage: UNAVAILABLE_TOKEN_USAGE,
   verifiedSurfaces: [],
-  oracle: null,
+  acceptance: null,
   mode: "headless",
   stop: null,
 };
@@ -206,12 +206,12 @@ describe("assembleRecord", () => {
     },
   );
 
-  it("writes the phase's mode and stop into the manifest, after its oracle role", () => {
+  it("writes the phase's mode and stop into the manifest, after its acceptance role", () => {
     const { manifest } = assembleRecord({ ...baseInput, stop: HELD_STOP });
     expect(manifest.mode).toBe("headless");
     expect(manifest.stop).toEqual(HELD_STOP);
     const keys = Object.keys(manifest);
-    expect(keys.slice(keys.indexOf("oracle"))).toEqual(["oracle", "mode", "stop"]);
+    expect(keys.slice(keys.indexOf("acceptance"))).toEqual(["acceptance", "mode", "stop"]);
     expect(assembleRecord({ ...baseInput, mode: "interactive" }).manifest).toMatchObject({
       mode: "interactive",
       stop: null,
@@ -252,13 +252,13 @@ describe("selectRecordArtifacts", () => {
     });
   });
 
-  it("places the oracle role in the manifest after verifiedSurfaces", () => {
-    const oracle = { role: "oracle", dischargedBy: "phase-04" } as const;
-    const { manifest } = assembleRecord({ ...baseInput, oracle });
-    expect(manifest.oracle).toEqual(oracle);
+  it("places the acceptance role in the manifest after verifiedSurfaces", () => {
+    const acceptance = { role: "acceptance", passedBy: "phase-04" } as const;
+    const { manifest } = assembleRecord({ ...baseInput, acceptance });
+    expect(manifest.acceptance).toEqual(acceptance);
     const keys = Object.keys(manifest);
-    expect(keys.indexOf("oracle")).toBe(keys.indexOf("verifiedSurfaces") + 1);
-    expect(assembleRecord(baseInput).manifest.oracle).toBeNull();
+    expect(keys.indexOf("acceptance")).toBe(keys.indexOf("verifiedSurfaces") + 1);
+    expect(assembleRecord(baseInput).manifest.acceptance).toBeNull();
   });
 
   it("a phase record treats only output.jsonl as its transcript", () => {

@@ -268,7 +268,7 @@ describe("explain's address: which trailers name a record", () => {
       outcome: "committed",
       usage: { available: false },
       verifiedSurfaces: [],
-      oracle: null,
+      acceptance: null,
       mode: "headless",
       stop: null,
     };

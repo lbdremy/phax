@@ -127,7 +127,7 @@ describe("recordStopFromPersisted", () => {
     status: "closed",
     outcome: "corrected",
     reviewCommit: R2,
-    oracleStep: "none",
+    acceptanceStep: "none",
     closedBy: ADA,
   };
   const declaredUnchanged: PhaseStop = {
@@ -156,7 +156,7 @@ describe("recordStopFromPersisted", () => {
         cause: "declared",
         status: "closed",
         outcome: "corrected",
-        oracleStep: "none",
+        acceptanceStep: "none",
         closedBy: ADA,
       },
       [X1],

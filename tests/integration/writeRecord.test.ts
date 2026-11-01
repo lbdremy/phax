@@ -118,7 +118,7 @@ describe("writeRecord", () => {
       model: "claude-opus-4-8",
       effort: "high",
       outcome: "committed",
-      oracle: null,
+      acceptance: null,
       mode: "headless",
       stop: null,
       usage: { kind: "session", sessionId: undefined },
@@ -381,19 +381,19 @@ describe("writeRecord", () => {
     await seedPhaseFolder({ "prompt.md": "p\n" });
 
     await run(writeRecord(baseInput()));
-    expect(readManifest("run-1/phase-01")["oracle"]).toBeNull();
+    expect(readManifest("run-1/phase-01")["acceptance"]).toBeNull();
 
     await run(
       writeRecord(
         baseInput({
           phaseId: "phase-02",
-          oracle: { role: "discharging", oraclePhase: "phase-01" },
+          acceptance: { role: "passing", acceptancePhase: "phase-01" },
         }),
       ),
     );
-    expect(readManifest("run-1/phase-02")["oracle"]).toEqual({
-      role: "discharging",
-      oraclePhase: "phase-01",
+    expect(readManifest("run-1/phase-02")["acceptance"]).toEqual({
+      role: "passing",
+      acceptancePhase: "phase-01",
     });
   });
 

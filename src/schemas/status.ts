@@ -57,7 +57,7 @@ export const RunHoldSchema = Schema.Union(
   Schema.Struct({ selection: Schema.Literal("none") }),
   Schema.Struct({ selection: Schema.Literal("all"), phases: HoldPhasesSchema }),
   Schema.Struct({ selection: Schema.Literal("listed"), phases: HoldPhasesSchema }),
-  Schema.Struct({ selection: Schema.Literal("oracle"), phases: HoldPhasesSchema }),
+  Schema.Struct({ selection: Schema.Literal("acceptance"), phases: HoldPhasesSchema }),
 );
 
 export type RunHold = Schema.Schema.Type<typeof RunHoldSchema>;
@@ -85,7 +85,8 @@ const runStatusFields = {
   // `phax resume` inherits it. Optional like `planRepoRelPath`: existing
   // run-status.json files must still decode, and absent means no consent.
   allowSkillEdits: Schema.optionalWith(Schema.Boolean, { exact: true }),
-  // The hold resolved when the run was named (`phax run --hold`) and never
+  // The hold resolved when the run was named (`phax run --hold`; the CLI word
+  // `oracle` selects `acceptance`) and never
   // changed, so every `phax resume` holds exactly these phases. Required: the
   // readers lift a run written before it to `none`.
   hold: RunHoldSchema,
@@ -123,9 +124,9 @@ const ClosedBySchema = Schema.Struct({
   })
   .annotations({ jsonSchema: { additionalProperties: false } });
 
-const OracleStepSchema = Schema.Literal("authored", "none").annotations({
+const AcceptanceStepSchema = Schema.Literal("authored", "none").annotations({
   description:
-    "Whether the close's gate ended with the `authored` oracle step, which passed, since the close committed.",
+    "Whether the close's gate ended with the `authored` acceptance step, which passed, since the close committed.",
 });
 
 // The decoder refuses any other key on a stop, so the published JSON Schema
@@ -149,7 +150,7 @@ export const PhaseStopSchema = Schema.NullOr(
       cause: Schema.Literal("declared"),
       status: Schema.Literal("closed"),
       outcome: Schema.Literal("corrected"),
-      oracleStep: OracleStepSchema,
+      acceptanceStep: AcceptanceStepSchema,
       closedBy: ClosedBySchema,
     }).annotations(strictStop),
     Schema.Struct({
@@ -167,7 +168,7 @@ export const PhaseStopSchema = Schema.NullOr(
       status: Schema.Literal("closed"),
       outcome: Schema.Literal("corrected"),
       reviewCommit: FullCommitShaSchema,
-      oracleStep: OracleStepSchema,
+      acceptanceStep: AcceptanceStepSchema,
       closedBy: ClosedBySchema,
     }).annotations(strictStop),
     Schema.Struct({

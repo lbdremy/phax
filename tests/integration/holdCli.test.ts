@@ -214,7 +214,7 @@ describe("phax run --hold", { timeout: 60_000 }, () => {
     };
 
     it.each([
-      ["--hold oracle", "oracle", { selection: "oracle", phases: ["phase-02"] }],
+      ["--hold oracle", "oracle", { selection: "acceptance", phases: ["phase-02"] }],
       [
         "--hold phase-02,phase-03",
         "phase-02,phase-03",

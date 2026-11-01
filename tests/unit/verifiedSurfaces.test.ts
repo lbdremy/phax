@@ -8,7 +8,7 @@ const withOracle = (result: "pass" | "fail" | "refused" | "skipped"): GateAttrib
   steps: [
     { command: "pnpm test", surface: "structural", result: "pass" },
     { command: "pnpm lint", surface: "local", result: "pass" },
-    { command: "oracles provider", surface: "oracle", result },
+    { command: "oracles provider", surface: "acceptance", result },
   ],
 });
 
@@ -78,7 +78,7 @@ describe("verifiedSurfaces", () => {
   });
 
   it("verifies the oracle surface only when its step passed", () => {
-    expect(verifiedSurfaces(withOracle("pass"))).toEqual(["local", "oracle", "structural"]);
+    expect(verifiedSurfaces(withOracle("pass"))).toEqual(["acceptance", "local", "structural"]);
     expect(verifiedSurfaces(withOracle("fail"))).toEqual(["local", "structural"]);
     expect(verifiedSurfaces(withOracle("refused"))).toEqual(["local", "structural"]);
   });
@@ -100,7 +100,7 @@ describe("runVerifiedSurfaces", () => {
       withOracle("pass"),
     ];
 
-    expect(runVerifiedSurfaces(records)).toEqual(["local", "oracle", "product", "structural"]);
+    expect(runVerifiedSurfaces(records)).toEqual(["acceptance", "local", "product", "structural"]);
   });
 
   it("drops a surface any record skipped, even when another record verified it", () => {

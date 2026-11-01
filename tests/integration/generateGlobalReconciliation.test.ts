@@ -57,7 +57,7 @@ const HELD_CORRECTED: PhaseStop = {
   status: "closed",
   outcome: "corrected",
   reviewCommit: "a".repeat(40),
-  oracleStep: "none",
+  acceptanceStep: "none",
   closedBy: { name: "Ada Example", email: "ada@example.com" },
 };
 
@@ -433,7 +433,7 @@ describe("generateGlobalReconciliation", () => {
                 cause: "declared",
                 status: "closed",
                 outcome: "corrected",
-                oracleStep: "none",
+                acceptanceStep: "none",
                 closedBy: { name: "Ada Example", email: "ada@example.com" },
               },
             },

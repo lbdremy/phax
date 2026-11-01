@@ -66,7 +66,16 @@ import {
   readTestStrategyText,
   type TestLineDeparture,
 } from "../domain/plan/testLineGrammar.js";
-import { liftPhaseKey, liftPhaxPlanWithoutTestLines, liftPlanDocument } from "./acceptanceLift.js";
+import {
+  liftGateStep,
+  liftHoldSelection,
+  liftPhaseKey,
+  liftPhaxPlanWithoutTestLines,
+  liftPlanDocument,
+  liftRecordRole,
+  liftStopStep,
+  liftVerifiedSurfaces,
+} from "./acceptanceLift.js";
 import {
   decodeApprovalRecordFile,
   decodePlanRecordFile,
@@ -119,14 +128,20 @@ import { decodeCostLedgerV0_26_0 } from "./history/cost-ledger/0.26.0.js";
 import { decodeDecisionRecordManifestV0_25_0 } from "./history/decision-record-manifest/0.25.0.js";
 import { decodeDecisionRecordManifestV0_28_0 } from "./history/decision-record-manifest/0.28.0.js";
 import { decodeGateAttributionV0_26_0 } from "./history/gate-attribution/0.26.0.js";
+import { decodeGateAttributionV0_31_0 } from "./history/gate-attribution/0.31.0.js";
 import { decodeGateAttributionPreSchema } from "./history/gate-attribution/pre-schema.js";
 import { decodePhaseFileReconciliationV0_17_0 } from "./history/phase-file-reconciliation/0.17.0.js";
 import { decodePhaseFileReconciliationPreSchema } from "./history/phase-file-reconciliation/pre-schema.js";
 import { decodeInteractiveSessionV0_26_0 } from "./history/interactive-session/0.26.0.js";
 import { decodePhaseRecordManifestV0_17_0 } from "./history/phase-record-manifest/0.17.0.js";
 import { decodePhaseRecordManifestV0_26_0 } from "./history/phase-record-manifest/0.26.0.js";
+import {
+  decodePhaseRecordManifestV0_30_0,
+  type PhaseRecordManifestV0_30_0,
+} from "./history/phase-record-manifest/0.30.0.js";
 import { decodePhaseRecordManifestPreSchema } from "./history/phase-record-manifest/pre-schema.js";
 import { decodePhaseStatusV0_20_0 } from "./history/phase-status/0.20.0.js";
+import { decodePhaseStatusV0_26_0 } from "./history/phase-status/0.26.0.js";
 import { decodePhaseStatusPreSchema } from "./history/phase-status/pre-schema.js";
 import { decodePhaxPlanV0_17_0, type PhaxPlanV0_17_0 } from "./history/phax-plan/0.17.0.js";
 import { decodePhaxPlanV0_26_0 } from "./history/phax-plan/0.26.0.js";
@@ -162,6 +177,7 @@ import {
 import { decodeRegistryV0_17_0 } from "./history/registry/0.17.0.js";
 import { decodeRegistryPreSchema } from "./history/registry/pre-schema.js";
 import { decodeRunStatusV0_17_0 } from "./history/run-status/0.17.0.js";
+import { decodeRunStatusV0_26_0 } from "./history/run-status/0.26.0.js";
 import { decodeRunStatusPreSchema } from "./history/run-status/pre-schema.js";
 import { decodeSpecApprovalRecordV0_19_0 } from "./history/spec-approval-record/0.19.0.js";
 import { decodeSpecApprovalsPreSchema } from "./history/spec-approvals/pre-schema.js";
@@ -206,7 +222,7 @@ import { CURRENT_STAMPS, PHAX_RELEASE } from "./release.js";
 import { decodeCodeReviewV0_29_0 } from "./history/code-review/0.29.0.js";
 import { decodeReviewStopV0_26_0 } from "./history/review-stop/0.26.0.js";
 import { decodeReviewStopFile, type ReviewStop } from "./reviewStop.js";
-import { liftFrozenTokenUsage } from "./runRecord.js";
+import { liftFrozenTokenUsage, type TokenUsage } from "./runRecord.js";
 import {
   compareReleases,
   parseSchemaUrl,
@@ -433,12 +449,22 @@ export const readRegistryFile: Reader<Registry> = (file, input) => {
 
 /**
  * Reads a run's `run-status.json`. The pre-schema run status carries every
- * fact phax needs. One stamped below the format's current stamp is read by
- * the frozen 0.17.0 decoder and lifted with `hold: { selection: "none" }`: its
- * states are a subset of the current ones, and no earlier phax could hold a
- * run. A current-stamp document without `hold` stays refused.
+ * fact phax needs. One stamped 0.26.0 or later, below the format's current
+ * stamp, is read by the frozen 0.26.0 decoder and its hold selection lifted
+ * (`oracle` → `acceptance`). One stamped earlier is read by the frozen 0.17.0
+ * decoder and lifted with `hold: { selection: "none" }`: its states are a
+ * subset of the current ones, and no earlier phax could hold a run. A
+ * current-stamp document without `hold` stays refused.
  */
 export const readRunStatusFile: Reader<RunStatus> = (file, input) => {
+  if (isDocumentObject(input) && isStampedAtOrAbove("run-status", input, "0.26.0")) {
+    const older = decodeRunStatusV0_26_0(input);
+    if (Either.isLeft(older)) {
+      return Either.left(readError(file, "run-status", formatFirstViolation(older.left)));
+    }
+    const { $schema: _schema, hold, ...status } = older.right;
+    return Either.right({ ...status, hold: liftHoldSelection(hold) });
+  }
   if (isDocumentObject(input) && isStampedBelowCurrent("run-status", input)) {
     const older = decodeRunStatusV0_17_0(input);
     if (Either.isLeft(older)) {
@@ -463,7 +489,9 @@ export const readRunStatusFile: Reader<RunStatus> = (file, input) => {
  * Reads a phase's `status.json`. A pre-schema phase status never recorded
  * `base`, the commit its branch was created from, so it is refused rather than
  * given one re-derived from git. A status stamped below the format's current
- * stamp is read by the frozen 0.20.0 decoder, so one written by 0.17.0–0.19.x,
+ * stamp and 0.26.0 or later is read by the frozen 0.26.0 decoder and a closed
+ * stop's `oracleStep` lifted to `acceptanceStep`. One stamped earlier is read
+ * by the frozen 0.20.0 decoder, so one written by 0.17.0–0.19.x,
  * which lacks `base`, is refused too; one it reads is lifted with
  * `mode: "headless"` and `stop: null`, because no phax before it could run an
  * interactive phase or stop. A phase awaiting review enters that state only
@@ -479,6 +507,14 @@ export const readPhaseStatusFile: Reader<PhaseStatus> = (file, input) =>
   );
 
 const readPhaseStatusShape: Reader<PhaseStatus> = (file, input) => {
+  if (isDocumentObject(input) && isStampedAtOrAbove("phase-status", input, "0.26.0")) {
+    const older = decodePhaseStatusV0_26_0(input);
+    if (Either.isLeft(older)) {
+      return Either.left(readError(file, "phase-status", formatFirstViolation(older.left)));
+    }
+    const { $schema: _schema, stop, ...status } = older.right;
+    return Either.right({ ...status, stop: liftStopStep(stop) });
+  }
   if (isDocumentObject(input) && isStampedBelowCurrent("phase-status", input)) {
     const older = decodePhaseStatusV0_20_0(input);
     if (Either.isLeft(older)) {
@@ -1309,17 +1345,28 @@ function isPassOrFail<S extends { readonly result: string }>(
  * Reads a phase's `gate-attribution.json`. It never carried a `version`: a
  * pre-schema attribution whose every step result is `pass` or `fail` is the
  * in-memory value, with `protectedPaths: null`; any other is refused. One
- * stamped below the current stamp is read by the frozen 0.26.0 decoder, which
- * every earlier stamp's files also satisfy, and lifted with `protectedPaths: null`.
+ * stamped 0.31.0 or later, below the current stamp, is read by the frozen
+ * 0.31.0 decoder; one stamped earlier by the frozen 0.26.0 decoder, which
+ * every earlier stamp's files also satisfy, and lifted with
+ * `protectedPaths: null`. Every older shape's `oracle` step surface is lifted
+ * to `acceptance`, and so is a pre-schema one's.
  */
 export const readGateAttributionFile: Reader<GateAttribution> = (file, input) => {
+  if (isDocumentObject(input) && isStampedAtOrAbove("gate-attribution", input, "0.31.0")) {
+    const older = decodeGateAttributionV0_31_0(input);
+    if (Either.isLeft(older)) {
+      return Either.left(readError(file, "gate-attribution", formatFirstViolation(older.left)));
+    }
+    const { $schema: _schema, steps, ...attribution } = older.right;
+    return Either.right({ ...attribution, steps: steps.map(liftGateStep) });
+  }
   if (isDocumentObject(input) && isStampedBelowCurrent("gate-attribution", input)) {
     const older = decodeGateAttributionV0_26_0(input);
     if (Either.isLeft(older)) {
       return Either.left(readError(file, "gate-attribution", formatFirstViolation(older.left)));
     }
-    const { $schema: _schema, ...attribution } = older.right;
-    return Either.right({ ...attribution, protectedPaths: null });
+    const { $schema: _schema, steps, ...attribution } = older.right;
+    return Either.right({ ...attribution, steps: steps.map(liftGateStep), protectedPaths: null });
   }
   return readPersisted(input, {
     format: "gate-attribution",
@@ -1696,6 +1743,20 @@ const readAuthoringRecordManifest: Reader<RecordManifest> = (file, input) => {
   });
 };
 
+/**
+ * Whether `input`'s own `$schema` names `format` at `release` or later, and
+ * below its current stamp: the range a frozen shape's decoder reads.
+ */
+function isStampedAtOrAbove(
+  format: FormatId,
+  input: Readonly<Record<string, unknown>>,
+  release: string,
+): boolean {
+  if (!isStampedBelowCurrent(format, input)) return false;
+  const named = parseSchemaUrl(input["$schema"]);
+  return named !== undefined && compareReleases(named.release, release) >= 0;
+}
+
 /** Whether `input`'s own `$schema` names `format` at a release below its current stamp. */
 function isStampedBelowCurrent(
   format: FormatId,
@@ -1711,16 +1772,28 @@ function isStampedBelowCurrent(
 }
 
 // A phase manifest stamped below the format's current stamp is read by the
-// frozen 0.26.0 decoder when stamped 0.26.0 or later, else by the frozen
-// 0.17.0 decoder. One written before `oracle` (pre-schema, or read by the
-// 0.17.0 decoder) is upgraded with `oracle: null`, `mode: "headless"` and
-// `stop: null`: no phax before it could run an oracle phase or stop a phase.
-// Every lift turns a Vibe usage into unavailable.
+// frozen 0.30.0 decoder when stamped 0.30.0 or later, by the frozen 0.26.0
+// decoder when stamped 0.26.0 or later, else by the frozen 0.17.0 decoder.
+// The 0.30.0 and 0.26.0 shapes' `oracle` role becomes the `acceptance` role
+// and their `oracle` verified surface `acceptance`, sorted again. One written
+// before the role (pre-schema, or read by the 0.17.0 decoder) is upgraded with
+// `acceptance: null`, `mode: "headless"` and `stop: null`: no phax before it
+// could run an oracle phase or stop a phase. Every lift of a frozen usage
+// turns a Vibe session cost into unavailable.
 function readPhaseRecordManifestAs(label: string): Reader<RecordManifest> {
   return (file, input) => {
     if (isDocumentObject(input) && isStampedBelowCurrent("phase-record-manifest", input)) {
       // `isStampedBelowCurrent` has parsed the stamp, so the release is there.
       const release = parseSchemaUrl(input["$schema"])?.release ?? "0.0.0";
+      if (compareReleases(release, "0.30.0") >= 0) {
+        const older = decodePhaseRecordManifestV0_30_0(input);
+        if (Either.isLeft(older)) {
+          return Either.left(
+            readError(file, "phase-record-manifest", formatFirstViolation(older.left)),
+          );
+        }
+        return Either.right(liftOracleRecordManifest(older.right));
+      }
       if (compareReleases(release, "0.26.0") >= 0) {
         const older = decodePhaseRecordManifestV0_26_0(input);
         if (Either.isLeft(older)) {
@@ -1728,8 +1801,10 @@ function readPhaseRecordManifestAs(label: string): Reader<RecordManifest> {
             readError(file, "phase-record-manifest", formatFirstViolation(older.left)),
           );
         }
-        const { $schema: _schema, usage, ...manifest } = older.right;
-        return Either.right({ ...manifest, usage: liftFrozenTokenUsage(usage) });
+        const { usage, ...manifest } = older.right;
+        return Either.right(
+          liftOracleRecordManifest({ ...manifest, usage: liftFrozenTokenUsage(usage) }),
+        );
       }
       const older = decodePhaseRecordManifestV0_17_0(input);
       if (Either.isLeft(older)) {
@@ -1741,7 +1816,7 @@ function readPhaseRecordManifestAs(label: string): Reader<RecordManifest> {
       return Either.right({
         ...manifest,
         usage: liftFrozenTokenUsage(usage),
-        oracle: null,
+        acceptance: null,
         mode: "headless",
         stop: null,
       });
@@ -1757,11 +1832,30 @@ function readPhaseRecordManifestAs(label: string): Reader<RecordManifest> {
         Either.right({
           ...manifest,
           usage: liftFrozenTokenUsage(usage),
-          oracle: null,
+          acceptance: null,
           mode: "headless",
           stop: null,
         }),
     });
+  };
+}
+
+/**
+ * A phase manifest of the 0.26.0 or 0.30.0 shape, its usage already current:
+ * `$schema` dropped, the `oracle` role key renamed `acceptance` and its value
+ * lifted (`liftRecordRole`), in the key's own position, and the verified
+ * surfaces lifted (`liftVerifiedSurfaces`).
+ */
+function liftOracleRecordManifest(
+  manifest: Omit<PhaseRecordManifestV0_30_0, "usage"> & { readonly usage: TokenUsage },
+): RecordManifest {
+  const { $schema: _schema, oracle, verifiedSurfaces, mode, stop, ...head } = manifest;
+  return {
+    ...head,
+    verifiedSurfaces: liftVerifiedSurfaces(verifiedSurfaces),
+    acceptance: liftRecordRole(oracle),
+    mode,
+    stop,
   };
 }
 

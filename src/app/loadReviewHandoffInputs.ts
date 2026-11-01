@@ -155,7 +155,7 @@ function loadOracleStepResult(
     const parsed = yield* Effect.try(() => JSON.parse(raw) as unknown);
     const read = readGateAttributionFile(path, parsed);
     if (Either.isLeft(read)) return "not run" as const;
-    const last = read.right.steps.findLast((step) => step.surface === "oracle");
+    const last = read.right.steps.findLast((step) => step.surface === "acceptance");
     return last?.result ?? ("not run" as const);
   }).pipe(Effect.orElseSucceed((): OraclePairResult => "not run"));
 }

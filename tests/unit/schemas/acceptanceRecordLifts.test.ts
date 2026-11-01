@@ -21,7 +21,7 @@ const READERS: Readonly<Record<LiftFormat, Read>> = {
 };
 
 describe("phax reads an older document under the acceptance names", () => {
-  it.fails.each(liftCases)("$label", ({ format, input, expected }) => {
+  it.each(liftCases)("$label", ({ format, input, expected }) => {
     const result = READERS[format](`/runs/run-0001/${format}.json`, input);
     expect(Either.isRight(result)).toBe(true);
     expect(Either.getOrUndefined(result)).toEqual(expected);
@@ -29,7 +29,7 @@ describe("phax reads an older document under the acceptance names", () => {
 });
 
 describe("phax reads a 0.33.0 document with the acceptance names and refuses the oracle names", () => {
-  it.fails.each(stampCases)("$label", ({ format, written, expected, refused }) => {
+  it.each(stampCases)("$label", ({ format, written, expected, refused }) => {
     const read = READERS[format](`/runs/run-0001/${format}.json`, written);
     expect(Either.isRight(read)).toBe(true);
     expect(Either.getOrUndefined(read)).toEqual(expected);

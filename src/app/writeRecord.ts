@@ -13,7 +13,7 @@ import type { PhaseMode } from "../schemas/phaxPlan.js";
 import {
   encodeRunRecordManifest,
   UNAVAILABLE_TOKEN_USAGE,
-  type RecordOracleRole,
+  type RecordAcceptanceRole,
   type RecordPhaseOutcome,
   type RecordStop,
   type TokenUsage,
@@ -49,8 +49,8 @@ export interface WriteRecordInput {
   readonly model: string;
   readonly effort: string;
   readonly outcome: RecordPhaseOutcome;
-  /** The phase's role in an oracle pair, or null when it is in none. */
-  readonly oracle: RecordOracleRole;
+  /** The phase's role in an acceptance pair, or null when it is in none. */
+  readonly acceptance: RecordAcceptanceRole;
   readonly records: ResolvedRecordsConfig;
   /** Back-reference recorded when the phase committed; absent for a phase that never did. */
   readonly sourceSha?: string | undefined;
@@ -112,7 +112,7 @@ export function writeRecord(
       outcome: input.outcome,
       usage,
       verifiedSurfaces: verifiedSurfacesForPhase,
-      oracle: input.oracle,
+      acceptance: input.acceptance,
       mode: input.mode,
       stop: input.stop,
     });

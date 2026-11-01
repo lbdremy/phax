@@ -115,7 +115,7 @@ export function resetPhaseRefusal(input: ResetRefusalInput): ResetRefusal | null
     target.stop !== null &&
     target.stop.status === "closed" &&
     target.stop.outcome === "corrected" &&
-    target.stop.oracleStep === "authored";
+    target.stop.acceptanceStep === "authored";
   if (authoredStop && planPhases !== undefined) {
     for (const pair of stopOraclePairs(planPhases, target.phaseId)) {
       const status = phaseStatuses.find((p) => p.phaseId === pair.dischargingPhase);
