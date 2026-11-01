@@ -77,7 +77,11 @@ import {
   decodePlanDocumentPreSchema,
   type PlanDocumentPreSchema,
 } from "../../../../src/schemas/history/plan-document/pre-schema.js";
-import { liftPhaseKey, liftPlanDocument } from "../../../../src/schemas/acceptanceLift.js";
+import {
+  liftPhaseKey,
+  liftPlanDocument,
+  newlyReservedCriterionAt,
+} from "../../../../src/schemas/acceptanceLift.js";
 import {
   SpecApprovalsPreSchemaSchema,
   decodeSpecApprovalsPreSchema,
@@ -498,15 +502,27 @@ function liftTestStrategy(text: string): LatestPlanPhase["testStrategy"] {
  * passedBy, files }`. Every older
  * shape's `testStrategy` string becomes its test lines when it follows the
  * line format, and `Unknown` otherwise. A 0.28.0 or 0.32.0 document's test
- * lines keep every coordinate, and their loop `oracle` becomes `acceptance`.
+ * lines keep every coordinate, and their loop `oracle` becomes `acceptance`; a
+ * phase of theirs holding a criterion `acceptance` has an `Unknown`
+ * `testStrategy`, since 0.33.0 reserves that word.
  */
 export function toLatestPlanDocument(value: PlanDocumentParsed): LatestPlanDocument {
   if (isCurrentPlanDocument(value)) {
     const { $schema: _schema, ...recorded } = value;
     // A 0.28.0 or 0.32.0 document carries test lines with the loop `oracle` and
     // phases with the `oracle` key: lifted to `acceptance` and `passedBy`
-    // (`liftPlanDocument`); a current one is kept.
-    return liftPlanDocument(recorded);
+    // (`liftPlanDocument`); a current one is kept. A phase holding a line whose
+    // criterion is `acceptance`, a word 0.33.0 reserves, has no current lines:
+    // its `testStrategy` is `Unknown` (`newlyReservedCriterionAt`).
+    const lifted = liftPlanDocument(recorded);
+    return {
+      ...lifted,
+      phases: Arr.map(lifted.phases, (phase, i) =>
+        newlyReservedCriterionAt(recorded.phases[i]?.testStrategy ?? []) < 0
+          ? phase
+          : { ...phase, testStrategy: UNKNOWN },
+      ),
+    };
   }
   if (isPlanDocumentV0_26_0(value)) {
     const { $schema: _schema, ...recorded } = value;

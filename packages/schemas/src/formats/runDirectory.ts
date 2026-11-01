@@ -105,6 +105,7 @@ import {
   liftPhaseKey,
   liftPhaxPlan,
   liftStopStep,
+  newlyReservedCriterionAt,
 } from "../../../../src/schemas/acceptanceLift.js";
 import {
   RegistryV0_17_0Schema,
@@ -378,8 +379,9 @@ export type LatestPhaxPlan = Omit<PhaxPlan, "phases"> & {
  * and `acceptance: null`, because every phase a phax of those shapes ran was
  * headless and no acceptance phase existed. A phase's `oracle: { dischargedBy,
  * files }` of any later older shape becomes `acceptance: { passedBy, files }`.
- * Every older phase's `testLines` is
- * `Unknown`: its plan may have stated lines no older phax read, so an empty
+ * A 0.28.0 or 0.32.0 phase holding a criterion `acceptance`, which 0.33.0
+ * reserves, has `Unknown` `testLines`. Every phase older than those shapes has
+ * `Unknown` `testLines` too: its plan may have stated lines no older phax read, so an empty
  * list would invent the fact that it tested nothing.
  */
 export function toLatestPhaxPlan(value: PhaxPlanParsed): LatestPhaxPlan {
@@ -387,8 +389,18 @@ export function toLatestPhaxPlan(value: PhaxPlanParsed): LatestPhaxPlan {
     const { $schema: _schema, ...recorded } = value;
     // A 0.28.0 or 0.32.0 plan carries test lines with the loop `oracle` and
     // phases with the `oracle` key: lifted to `acceptance` and `passedBy`
-    // (`liftPhaxPlan`); a current one is kept.
-    return liftPhaxPlan(recorded);
+    // (`liftPhaxPlan`); a current one is kept. A phase holding a line whose
+    // criterion is `acceptance`, a word 0.33.0 reserves, has no current lines:
+    // its `testLines` is `Unknown` (`newlyReservedCriterionAt`).
+    const lifted = liftPhaxPlan(recorded);
+    return {
+      ...lifted,
+      phases: Arr.map(lifted.phases, (phase, i) =>
+        newlyReservedCriterionAt(recorded.phases[i]?.testLines ?? []) < 0
+          ? phase
+          : { ...phase, testLines: UNKNOWN },
+      ),
+    };
   }
   const { run, phases } = value;
   if (isV0_26_0PhaxPlan(value)) {

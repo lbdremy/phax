@@ -104,6 +104,16 @@ export function liftTestLoop(loop: TestLoopBeforeAcceptance | TestLoop): TestLoo
   return loop === "oracle" ? "acceptance" : loop;
 }
 
+/**
+ * The index of the first line whose criterion is `acceptance`, or -1. A
+ * release before 0.33.0 accepted that word as a criterion id; 0.33.0 reserves
+ * it as the loop. Such a line has no current shape: a reader refuses it, or
+ * records its lines unknown, and never renames the criterion.
+ */
+export function newlyReservedCriterionAt(lines: ReadonlyArray<TestLineToLift>): number {
+  return lines.findIndex((line) => line.criterion === "acceptance");
+}
+
 /** A test line with its loop lifted; every other coordinate kept, in its place. */
 export function liftTestLine(line: TestLineToLift): TestLine {
   return { ...line, loop: liftTestLoop(line.loop) };

@@ -680,6 +680,31 @@ describe("the plan document's test line loop", () => {
     expect(parsePlanDocument(withTestLoop(current, "acceptance")).ok).toBe(true);
   });
 
+  // 0.33.0 reserves `acceptance`, which an earlier release took as a criterion id.
+  it.each(["0.28.0", "0.32.0"])(
+    "records Unknown the test strategy of a %s phase whose line names the criterion acceptance",
+    (release) => {
+      const reserved = withKey(
+        current,
+        "phases",
+        (current["phases"] as Doc[]).map((phase) => ({
+          ...phase,
+          testStrategy: (phase["testStrategy"] as Doc[]).map((line) => ({
+            ...line,
+            loop: "in-phase",
+            criterion: "acceptance",
+          })),
+        })),
+      );
+      const old = withKey(withOracleKeys(reserved), "$schema", schemaUrl("plan-document", release));
+      const result = parsePlanDocument(old);
+      if (!result.ok) throw new Error("document rejected");
+      for (const phase of toLatestPlanDocument(result.value).phases) {
+        expect(isUnknown(phase.testStrategy)).toBe(true);
+      }
+    },
+  );
+
   it("lifts a 0.32.0 oracle-loop test line of a boundary-free shape unchanged but for the loop", () => {
     const old = withKey(
       withOracleKeys(withTestLoop(current, "oracle")),
