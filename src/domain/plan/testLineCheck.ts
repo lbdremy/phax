@@ -53,7 +53,7 @@ export function testLineFindings(input: {
   const findings: LintFinding[] = [];
   for (const phase of phases) {
     for (const line of phase.lines) {
-      if (line.loop === "oracle" && phase.oracle === null) {
+      if (line.loop === "acceptance" && phase.oracle === null) {
         findings.push(
           finding(
             "error",
@@ -72,7 +72,7 @@ export function testLineFindings(input: {
         );
       }
     }
-    if (phase.oracle !== null && !phase.lines.some((l) => l.loop === "oracle")) {
+    if (phase.oracle !== null && !phase.lines.some((l) => l.loop === "acceptance")) {
       findings.push(
         finding(
           "error",

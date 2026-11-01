@@ -79,7 +79,7 @@ function fixture(): PlanDocument {
             size: "small",
             technique: "table",
             oracle: "the refusal message",
-            loop: "oracle",
+            loop: "acceptance",
             criterion: "ac-strict",
           },
         ],
@@ -205,7 +205,7 @@ describe("renderPlanBody round trip through the deterministic parser", () => {
     { name: "one plain line", lines: [madeUpLine("it works", {})] },
     {
       name: "a criterion and the oracle loop",
-      lines: [madeUpLine("it is refused", { loop: "oracle", criterion: "ac-refuse" })],
+      lines: [madeUpLine("it is refused", { loop: "acceptance", criterion: "ac-refuse" })],
     },
     {
       name: "code spans, an em dash and a middle dot in the guarantee",
@@ -344,7 +344,7 @@ Consumer: phase-02's renderers. Producer: this phase.
 ### Test strategy
 
 - a full valid spec document decodes — small · example · \`decodeSpecDocument\`'s result · in-phase
-- an unknown key is refused — small · table · the refusal message · oracle · ac-strict
+- an unknown key is refused — small · table · the refusal message · acceptance · ac-strict
 
 ### Implementation order
 
@@ -804,7 +804,7 @@ describe("renderPlanBody test lines", () => {
     const sections = strategySections(renderPlanBody(doc));
     expect(sections).toEqual([
       "- a full valid spec document decodes — small · example · `decodeSpecDocument`'s result · in-phase\n" +
-        "- an unknown key is refused — small · table · the refusal message · oracle · ac-strict",
+        "- an unknown key is refused — small · table · the refusal message · acceptance · ac-strict",
       "- (none)",
     ]);
     expect(

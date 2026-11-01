@@ -519,6 +519,10 @@ const OLDER_PLAN_SHAPES = [
     stamp: "0.26.0",
     older: ({ testLines: _lines, ...phase }: Record<string, unknown>) => phase,
   },
+  // 0.28.0 up to 0.32.0 carried testLines in the loop `oracle`; the plan this
+  // fixture writes states none, so only the stamp makes it an older shape.
+  { shape: "0.28.0", stamp: "0.28.0", older: (phase: Record<string, unknown>) => phase },
+  { shape: "0.32.0", stamp: "0.32.0", older: (phase: Record<string, unknown>) => phase },
 ] as const;
 
 describe.each(OLDER_PLAN_SHAPES)(

@@ -738,7 +738,7 @@ describe("test lines, read from each phase's ### Test strategy", () => {
         makePhase({
           testStrategy: [
             EXPORTER_LINE_TEXT,
-            "- a malformed row is refused — small · table · the refusal · oracle",
+            "- a malformed row is refused — small · table · the refusal · acceptance",
           ].join("\n"),
         }),
       ],
@@ -750,7 +750,7 @@ describe("test lines, read from each phase's ### Test strategy", () => {
         size: "small",
         technique: "table",
         oracle: "the refusal",
-        loop: "oracle",
+        loop: "acceptance",
         criterion: null,
       },
     ]);
@@ -770,9 +770,9 @@ describe("test lines, read from each phase's ### Test strategy", () => {
 
   it("gives two plans that differ in one line different extractions and cache seeds", () => {
     const one = makePlan({ phases: [makePhase({ testStrategy: EXPORTER_LINE_TEXT })] });
-    const other = one.replace("· in-phase · ac-row", "· oracle · ac-row");
+    const other = one.replace("· in-phase · ac-row", "· acceptance · ac-row");
     expect(extractedPhases(one)[0]!.testLines[0]!.loop).toBe("in-phase");
-    expect(extractedPhases(other)[0]!.testLines[0]!.loop).toBe("oracle");
+    expect(extractedPhases(other)[0]!.testLines[0]!.loop).toBe("acceptance");
     expect(planCacheKey(one, "m", "low")).not.toBe(planCacheKey(other, "m", "low"));
   });
 
@@ -846,7 +846,7 @@ describe("test lines, read from each phase's ### Test strategy", () => {
     { name: "a lone `- (none)`", text: "- (none)" },
     {
       name: "`*` and `+` bullets",
-      text: "* g — small · example · x · in-phase\n+ h — large · smoke · y · oracle",
+      text: "* g — small · example · x · in-phase\n+ h — large · smoke · y · acceptance",
     },
     { name: "an unknown size", text: "- g — huge · example · x · in-phase" },
     { name: "a U+2028 inside an entry", text: "- g h — small · example · x · in-phase" },

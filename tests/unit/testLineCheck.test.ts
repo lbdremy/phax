@@ -12,7 +12,7 @@ const NONE: CriteriaInput = { kind: "no-source-spec" };
 const phase = (
   id: string,
   oracle: object | null,
-  ...lines: Array<[item: number, loop: "oracle" | "in-phase", criterion: string | null]>
+  ...lines: Array<[item: number, loop: "acceptance" | "in-phase", criterion: string | null]>
 ): TestLineCheckPhase => ({
   id,
   oracle,
@@ -29,7 +29,10 @@ const row = (severity: "error" | "warning", phaseId: string | null, message: str
 describe("testLineFindings", () => {
   it("flags an oracle-loop line on a phase that is not an oracle phase", () => {
     expect(
-      testLineFindings({ phases: [phase("phase-01", null, [3, "oracle", null])], criteria: NONE }),
+      testLineFindings({
+        phases: [phase("phase-01", null, [3, "acceptance", null])],
+        criteria: NONE,
+      }),
     ).toEqual([
       row(
         "error",
@@ -74,7 +77,7 @@ describe("testLineFindings", () => {
     expect(
       testLineFindings({
         phases: [
-          phase("phase-01", null, [1, "oracle", "ac-z"]),
+          phase("phase-01", null, [1, "acceptance", "ac-z"]),
           phase("phase-02", ORACLE, [1, "in-phase", "ac-b"]),
         ],
         criteria: criteria("ac-a", "ac-b", "ac-c"),
@@ -98,7 +101,7 @@ describe("testLineFindings", () => {
 
   it("puts a line's oracle-loop error before its unknown-criterion error, then the phase's silent-oracle error", () => {
     const messages = testLineFindings({
-      phases: [phase("phase-01", null, [1, "oracle", "ac-z"]), phase("phase-02", ORACLE)],
+      phases: [phase("phase-01", null, [1, "acceptance", "ac-z"]), phase("phase-02", ORACLE)],
       criteria: criteria("ac-a"),
     }).map((f) => f.message);
     expect(messages.slice(0, 3)).toEqual([
@@ -137,7 +140,10 @@ describe("testLineFindings", () => {
 
   it("numbers kept lines by source item when a departing item precedes them", () => {
     expect(
-      testLineFindings({ phases: [phase("phase-01", null, [2, "oracle", null])], criteria: NONE }),
+      testLineFindings({
+        phases: [phase("phase-01", null, [2, "acceptance", null])],
+        criteria: NONE,
+      }),
     ).toEqual([
       row(
         "error",

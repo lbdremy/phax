@@ -534,6 +534,7 @@ describe("a phase's test lines", () => {
   const SIZES = ["small", "medium", "large"];
   const TECHNIQUES = [
     "example",
+    "boundary",
     "table",
     "property",
     "metamorphic",
@@ -542,7 +543,7 @@ describe("a phase's test lines", () => {
     "contract",
     "smoke",
   ];
-  const LOOPS = ["oracle", "in-phase"];
+  const LOOPS = ["acceptance", "in-phase"];
 
   // A plan whose phase-02 holds `lines`.
   function withPhase02Lines(lines: unknown[]) {

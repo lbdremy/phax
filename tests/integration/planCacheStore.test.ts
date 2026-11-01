@@ -160,12 +160,20 @@ describe("readCacheEntry — an entry under an older extractor version", () => {
   const { mode: _mode, oracle: _oracle, testLines: _lines, ...v2Phase } = EXTRACTED.phases[0]!;
   const { testLines: _v3Lines, ...v3Phase } = EXTRACTED.phases[0]!;
 
-  // 2: phases without mode, oracle and testLines; 3: phases without testLines.
+  // 4: test lines in the loop `oracle`, which no current reader reads.
+  const v4Phase = {
+    ...EXTRACTED.phases[0]!,
+    testLines: EXTRACTED.phases[0]!.testLines.map((line) => ({ ...line, loop: "oracle" })),
+  };
+
+  // 2: phases without mode, oracle and testLines; 3: phases without testLines;
+  // 4: phases whose test lines are in the loop `oracle`.
   it.each([
     { version: 2, phase: v2Phase },
     { version: 3, phase: v3Phase },
+    { version: 4, phase: v4Phase },
   ])(
-    "is never looked up under version $version: the version 4 key misses it",
+    "is never looked up under version $version: the version 5 key misses it",
     async ({ version, phase }) => {
       const { impl, layer } = makeFakeFileSystem();
       const olderKey = planCacheKey(PLAN_MD, MODEL, EFFORT, version);
@@ -184,7 +192,7 @@ describe("readCacheEntry — an entry under an older extractor version", () => {
       );
 
       const currentKey = planCacheKey(PLAN_MD, MODEL, EFFORT);
-      expect(EXTRACTOR_VERSION).toBe(4);
+      expect(EXTRACTOR_VERSION).toBe(5);
       expect(currentKey).not.toBe(olderKey);
       const result = await Effect.runPromise(
         readCacheEntry(STATE_ROOT, currentKey).pipe(Effect.provide(layer)),

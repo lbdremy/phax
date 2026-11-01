@@ -1,6 +1,8 @@
 // A test line: one guarantee of a phase's test strategy, placed on the four
 // closed coordinates of the phax-planning skill (size, technique, oracle,
-// loop) and an optional acceptance criterion id. The plan document carries a
+// loop) and an optional acceptance criterion id. The loop is `acceptance`
+// (written by an acceptance phase, passed by a later one) or `in-phase`; the
+// techniques include `boundary`. The plan document carries a
 // phase's test strategy as a list of them. Imports only `effect`, because the
 // schemas package publishes it. The text coordinates are refined with one
 // lookaround-free pattern each, so the exported JSON Schema states what a
@@ -13,6 +15,7 @@ import { Schema } from "effect";
 export const TestSizeSchema = Schema.Literal("small", "medium", "large");
 export const TestTechniqueSchema = Schema.Literal(
   "example",
+  "boundary",
   "table",
   "property",
   "metamorphic",
@@ -21,7 +24,7 @@ export const TestTechniqueSchema = Schema.Literal(
   "contract",
   "smoke",
 );
-export const TestLoopSchema = Schema.Literal("oracle", "in-phase");
+export const TestLoopSchema = Schema.Literal("acceptance", "in-phase");
 
 export type TestSize = Schema.Schema.Type<typeof TestSizeSchema>;
 export type TestTechnique = Schema.Schema.Type<typeof TestTechniqueSchema>;
@@ -87,6 +90,12 @@ const OracleSchema = oneLineText("oracle").pipe(
   }),
 );
 
+// The words a criterion id may not be: the loop values, plus `oracle`. `oracle`
+// stays reserved although it is no longer a loop, so that a later check can
+// recognize the old loop by name and refuse it instead of reading it as a
+// criterion.
+export const RESERVED_CRITERIA: ReadonlyArray<string> = [...TEST_LOOPS, "oracle"];
+
 const CriterionSchema = Schema.String.pipe(
   // eslint-disable-next-line no-control-regex
   Schema.pattern(/^[^\s`\x00-\x1F\x7F-\x9F]+$/, {
@@ -95,12 +104,12 @@ const CriterionSchema = Schema.String.pipe(
   }),
   Schema.filter(
     (criterion) =>
-      !TEST_LOOPS.includes(criterion as TestLoop) ||
-      "a criterion is neither 'oracle' nor 'in-phase', the loop values",
+      !RESERVED_CRITERIA.includes(criterion) ||
+      "a criterion is neither 'acceptance', 'in-phase' nor 'oracle'",
     {
       jsonSchema: {
         description:
-          "An acceptance criterion id from the source spec's JSON sidecar: a run of non-whitespace characters, no backtick, neither 'oracle' nor 'in-phase' (that last checked by phax, not by this JSON Schema).",
+          "An acceptance criterion id from the source spec's JSON sidecar: a run of non-whitespace characters, no backtick, neither 'acceptance', 'in-phase' nor 'oracle' (that last checked by phax, not by this JSON Schema).",
       },
     },
   ),

@@ -136,6 +136,30 @@ function withTestLines(phase: Record<string, unknown>) {
 const readPhaxPlan = (file: string, input: unknown) =>
   Either.map(readPhaxPlanFile(file, input), (read) => read.plan);
 
+/** A plan document with every test line in `loop`. */
+function withLoops(doc: Doc, loop: string): Doc {
+  return {
+    ...doc,
+    phases: (doc["phases"] as Doc[]).map((phase) => ({
+      ...phase,
+      testStrategy: (phase["testStrategy"] as Doc[]).map((line) => ({ ...line, loop })),
+    })),
+  };
+}
+
+/** A phax-plan whose phases each hold one test line in `loop`. */
+function phaxPlanWithLoop(loop: string): Doc {
+  return {
+    ...validDocuments["phax-plan"],
+    phases: (validDocuments["phax-plan"]["phases"] as Doc[]).map((phase) => ({
+      ...phase,
+      testLines: [
+        { guarantee: "g", size: "small", technique: "example", oracle: "o", loop, criterion: null },
+      ],
+    })),
+  };
+}
+
 function right<A>(result: Either.Either<A, PersistedReadError>): A {
   if (Either.isLeft(result)) throw new Error(`expected a value, got ${result.left.message}`);
   return result.right;
@@ -814,6 +838,90 @@ describe("format readers", () => {
       );
     });
 
+    // The test line loop `oracle` became `acceptance` at 0.33.0: a sidecar stamped
+    // 0.28.0 or 0.32.0 is read by its frozen decoder, which still states the
+    // old loop, and lifted through src/schemas/acceptanceLift.ts.
+    const withOldLoops = (doc: Doc): Doc => withLoops(doc, "oracle");
+
+    it.each([
+      ["0.32.0", "0.32.0"],
+      ["0.28.0", "0.28.0"],
+      ["0.31.0", "0.28.0"],
+    ])(
+      "lifts a sidecar stamped %s, shape %s, with the loop oracle read as acceptance",
+      (release, shape) => {
+        const older = withKey(
+          withOldLoops(validDocuments["plan-document"]),
+          "$schema",
+          schemaUrl("plan-document", release),
+        );
+        const sidecar = right(readDocumentSidecar("plan", file, older));
+        expect(sidecar).toMatchObject({ kind: "plan", shape, older: withoutKey(older, "$schema") });
+        const lifted = right(readPlanDocumentFile(file, older));
+        expect(lifted).toEqual(
+          withoutKey(withLoops(validDocuments["plan-document"], "acceptance"), "$schema"),
+        );
+        // The value the frozen decoder read keeps the loop it was written with.
+        if (sidecar.kind !== "plan" || sidecar.shape === "current") throw new Error("not older");
+        expect(JSON.stringify(sidecar.older)).toContain('"loop":"oracle"');
+      },
+    );
+
+    // A 0.26.0 test strategy is text, read by the grammar as a section written
+    // before 0.33.0: its loop `oracle` is read as `acceptance`, not refused.
+    it("lifts a 0.26.0 sidecar whose test strategy states the loop oracle, reading it as acceptance", () => {
+      const strings = withTestStrategyStrings(validDocuments["plan-document"]);
+      const v0_26_0 = withKey(
+        {
+          ...strings,
+          phases: (strings["phases"] as Doc[]).map((phase) => ({
+            ...phase,
+            testStrategy: String(phase["testStrategy"]).replaceAll(" · in-phase", " · oracle"),
+          })),
+        },
+        "$schema",
+        schemaUrl("plan-document", "0.26.0"),
+      );
+      const lifted = right(readPlanDocumentFile(file, v0_26_0));
+      const lines = lifted.phases.flatMap((phase) => phase.testStrategy);
+      expect(lines.length).toBeGreaterThan(0);
+      expect(lines.every((l) => l.loop === "acceptance")).toBe(true);
+    });
+
+    it("keeps the loop in-phase, and every other fact, when a 0.32.0 sidecar lifts", () => {
+      const older = withKey(
+        validDocuments["plan-document"],
+        "$schema",
+        schemaUrl("plan-document", "0.32.0"),
+      );
+      expect(right(readPlanDocumentFile(file, older))).toEqual(
+        withoutKey(validDocuments["plan-document"], "$schema"),
+      );
+    });
+
+    it("refuses the loop acceptance in a 0.32.0 sidecar and the loop oracle in a current one, naming the file, phase and line", () => {
+      const acceptance = withKey(
+        {
+          ...validDocuments["plan-document"],
+          phases: (validDocuments["plan-document"]["phases"] as Doc[]).map((phase) => ({
+            ...phase,
+            testStrategy: (phase["testStrategy"] as Doc[]).map((line) => ({
+              ...line,
+              loop: "acceptance",
+            })),
+          })),
+        },
+        "$schema",
+        schemaUrl("plan-document", "0.32.0"),
+      );
+      expect(left(readPlanDocumentFile(file, acceptance)).message).toBe(
+        `${file}: phase-01 test line 1 loop: Expected "oracle", actual "acceptance"`,
+      );
+      expect(
+        left(readPlanDocumentFile(file, withOldLoops(validDocuments["plan-document"]))).message,
+      ).toBe(`${file}: phase-01 test line 1 loop: Expected "acceptance", actual "oracle"`);
+    });
+
     it("refuses a 0.25.0 sidecar that carries assignmentReason, naming the file", () => {
       const refused = left(
         readPlanDocumentFile(
@@ -1408,6 +1516,52 @@ describe("readPhaxPlanFile's shapes", () => {
       expect(read.plan.phases.every((p) => !("testLines" in p))).toBe(true);
     },
   );
+
+  // A run plan an earlier release extracted states its test lines with the old
+  // loop: it is read for display, never handed to a run (ac-in-flight).
+  it.each([
+    ["0.32.0", "0.32.0"],
+    ["0.31.0", "0.28.0"],
+    ["0.28.0", "0.28.0"],
+  ])(
+    "reads a file stamped %s as shape %s, its phases given no testLines and their old loop accepted",
+    (release, shape) => {
+      const line = {
+        guarantee: "every pair is refused as the table says",
+        size: "small",
+        technique: "table",
+        oracle: "transition table",
+        loop: "oracle",
+        criterion: "AC-1",
+      };
+      const older = withKey(
+        {
+          ...validDocuments["phax-plan"],
+          phases: (validDocuments["phax-plan"]["phases"] as Doc[]).map((phase) => ({
+            ...phase,
+            testLines: [line],
+          })),
+        },
+        "$schema",
+        schemaUrl("phax-plan", release),
+      );
+      const read = right(readPhaxPlanFile(file, older));
+      expect(read).toEqual({ shape, plan: withoutTestLines(withoutKey(older, "$schema")) });
+      expect(read.plan.phases.every((p) => !("testLines" in p))).toBe(true);
+    },
+  );
+
+  it("refuses the loop acceptance in a 0.32.0-stamped file, and the loop oracle in a current one, naming the file", () => {
+    const stamped = withKey(
+      phaxPlanWithLoop("acceptance"),
+      "$schema",
+      schemaUrl("phax-plan", "0.32.0"),
+    );
+    expect(left(readPhaxPlanFile(file, stamped)).message).toMatch(new RegExp(`^${file}: `));
+    expect(left(readPhaxPlanFile(file, phaxPlanWithLoop("oracle"))).message).toMatch(
+      new RegExp(`^${file}: `),
+    );
+  });
 
   it("refuses a 0.26.0-stamped file whose phases carry testLines, naming the file", () => {
     const older = withKey(validDocuments["phax-plan"], "$schema", schemaUrl("phax-plan", "0.26.0"));

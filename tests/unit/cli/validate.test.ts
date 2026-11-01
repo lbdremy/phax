@@ -258,6 +258,9 @@ describe("runValidate", () => {
       stamp: "0.26.0",
       older: ({ testLines: _lines, ...phase }: PhaxPlanPhase) => phase,
     },
+    // 0.28.0 up to 0.32.0 carried testLines in the loop `oracle`.
+    { shape: "0.28.0", stamp: "0.28.0", older: (phase: PhaxPlanPhase) => phase },
+    { shape: "0.32.0", stamp: "0.32.0", older: (phase: PhaxPlanPhase) => phase },
   ])(
     "--plan on a phax-plan.json in the $shape shape: exits 2 naming the shape and the way out",
     async ({ shape, stamp, older }) => {

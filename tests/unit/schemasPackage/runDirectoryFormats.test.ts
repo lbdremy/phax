@@ -410,3 +410,51 @@ describe("the phase status's base history", () => {
     expect(result).toMatchObject({ ok: false, error: { path: "base" } });
   });
 });
+
+// The test line's loop `oracle` became `acceptance` at 0.33.0: a phax-plan
+// stamped 0.28.0 up to 0.32.0 states its lines with the old loop and the
+// package lifts it to `acceptance`, keeping every other fact (ac-read-old).
+describe("the phax-plan's test line loop", () => {
+  const current = validDocuments["phax-plan"];
+  const line = {
+    guarantee: "every pair is refused as the table says",
+    size: "small",
+    technique: "table",
+    oracle: "transition table",
+    criterion: "AC-1",
+  };
+  const withLines = (doc: Doc, loop: string): Doc =>
+    withKey(
+      doc,
+      "phases",
+      (doc["phases"] as Doc[]).map((phase) => ({ ...phase, testLines: [{ ...line, loop }] })),
+    );
+
+  it.each([
+    ["0.32.0", "0.32.0"],
+    ["0.28.0", "0.28.0"],
+    ["0.31.0", "0.28.0"],
+  ])(
+    "parses a plan stamped %s as shape %s and lifts the loop oracle to acceptance",
+    (release, shape) => {
+      const old = withKey(withLines(current, "oracle"), "$schema", schemaUrl("phax-plan", release));
+      const result = parsePhaxPlan(old);
+      expect(result).toEqual({ ok: true, shape, value: old });
+      if (!result.ok) throw new Error("document rejected");
+      expect(toLatestPhaxPlan(result.value)).toEqual(
+        withoutKey(withLines(current, "acceptance"), "$schema"),
+      );
+    },
+  );
+
+  it("refuses the loop acceptance in a 0.32.0 plan, and the loop oracle at the current stamp", () => {
+    const stamped = withKey(
+      withLines(current, "acceptance"),
+      "$schema",
+      schemaUrl("phax-plan", "0.32.0"),
+    );
+    expect(parsePhaxPlan(stamped).ok).toBe(false);
+    expect(parsePhaxPlan(withLines(current, "oracle")).ok).toBe(false);
+    expect(parsePhaxPlan(withLines(current, "acceptance")).ok).toBe(true);
+  });
+});

@@ -26,6 +26,7 @@ import type { ArtifactKind } from "../../src/domain/artifact/status.js";
 import { renderPlanBody } from "../../src/domain/authoring/renderPlan.js";
 import { renderPlanBodyV0_25_0 } from "../../src/domain/authoring/renderPlanV0_25_0.js";
 import { renderPlanBodyV0_26_0 } from "../../src/domain/authoring/renderPlanV0_26_0.js";
+import { renderPlanBodyV0_32_0 } from "../../src/domain/authoring/renderPlanV0_32_0.js";
 import { renderSpecBodyV0_17_0 } from "../../src/domain/authoring/renderSpecV0_17_0.js";
 import { renderSpecBody } from "../../src/domain/authoring/renderSpec.js";
 import { renderSpecBodyV0_25_0 } from "../../src/domain/authoring/renderSpecV0_25_0.js";
@@ -43,6 +44,7 @@ import { NodeGitLayer } from "../../src/infra/git.js";
 import {
   type PlanDocumentV0_25_0Value,
   type PlanDocumentV0_26_0Value,
+  type PlanDocumentV0_32_0Value,
   type SpecDocumentV0_17_0Value,
   type SpecDocumentV0_25_0Value,
   currentSchemaUrl,
@@ -1298,5 +1300,156 @@ describe("phax artifact migrate-documents — the command", { timeout: 30_000 },
       /^committed [0-9a-f]{7} chore\(artifacts\): migrate documents/,
     );
     expect(existsSync(join(repoDir, sidecarOf(LOG_ROTATION)))).toBe(true);
+  });
+});
+
+// ── The acceptance loop (spec acceptance-tests: ac-migrate, ac-unmigrated, ac-archived)
+
+// The 0.32.0 shape: an oracle phase whose test line is in the loop `oracle`,
+// declared with the `**Oracle phase:**` header lines this plan still writes.
+const ORACLE_LINE = {
+  guarantee: "every pair is refused as the table says",
+  size: "small",
+  technique: "table",
+  oracle: "transition table",
+  loop: "oracle",
+  criterion: "AC-1",
+};
+
+function plan0_32_0(): PlanDocumentV0_32_0Value {
+  const older = plan0_26_0();
+  return {
+    ...older,
+    phases: older.phases.map((phase, i) => ({
+      ...phase,
+      oracle:
+        i === 0 ? { dischargedBy: "phase-02", files: ["tests/unit/pruneStore.test.ts"] } : null,
+      testStrategy: [i === 0 ? ORACLE_LINE : STEP_LINE],
+    })),
+  } as unknown as PlanDocumentV0_32_0Value;
+}
+
+// A headless plan stamped `release` (0.32.0 and 0.28.0 render alike), its body
+// the frozen 0.32.0 rendering.
+function writePlan0_32_0(path: string, frontmatter: string, release = "0.32.0"): string {
+  const doc = plan0_32_0();
+  const md = frontmatter + renderPlanBodyV0_32_0(doc);
+  writeRepoFile(path, md);
+  writeRepoFile(sidecarOf(path), json({ $schema: schemaUrl("plan-document", release), ...doc }));
+  return md;
+}
+
+describe("migrate-documents — the acceptance loop", { timeout: 30_000 }, () => {
+  // ac-migrate, the loop half: the plan.md header lines keep their wording in
+  // this release, so only the test line changes in the body.
+  it.each(["0.32.0", "0.28.0"])(
+    "rewrites a %s plan's sidecar at the current stamp with the loop acceptance, and its plan.md test line, in one commit",
+    async (release) => {
+      const md = writePlan0_32_0(PLAN, planFrontmatter("Draft", null), release);
+      commitAll();
+      const head = headSha();
+
+      const result = await migrated();
+
+      const sidecar = JSON.parse(readRepoFile(sidecarOf(PLAN))) as {
+        $schema: string;
+        phases: Array<{ testStrategy: unknown[]; oracle: unknown }>;
+      };
+      expect(sidecar.$schema).toBe(currentSchemaUrl("plan-document"));
+      expect(sidecar.phases.map((phase) => phase.testStrategy)).toEqual([
+        [{ ...ORACLE_LINE, loop: "acceptance" }],
+        [STEP_LINE],
+      ]);
+      const after = readRepoFile(PLAN);
+      expect(after).toContain("· acceptance · AC-1");
+      expect(after).not.toContain("· oracle · AC-1");
+      expect(after).toBe(md.replace("· oracle · AC-1", "· acceptance · AC-1"));
+      expect(after).toContain("**Oracle phase:** discharged by phase-02");
+
+      expect(git(["rev-list", "--count", `${head}..HEAD`]).trim()).toBe("1");
+      expect(headFiles()).toEqual([PLAN, sidecarOf(PLAN)].toSorted());
+      expect(porcelain()).toBe("");
+      expect(renderDocumentMigrationReport(result)).toContain(
+        `plan-document ${release} → ${CURRENT_STAMPS["plan-document"]}`,
+      );
+      expect(lineOf(await statusLines(PLAN), "Authored")).toBe(
+        `Authored:          headless — sidecar ${sidecarOf(PLAN)} (in sync)`,
+      );
+    },
+  );
+
+  it("refuses a 0.32.0 plan whose body was edited by hand, writing nothing", async () => {
+    const md = writePlan0_32_0(PLAN, planFrontmatter("Draft", null));
+    writeRepoFile(PLAN, md.replace("Two phases: the store, then the command.", "Edited."));
+    commitAll();
+    const head = headSha();
+
+    const result = await migrate();
+
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left).toBeInstanceOf(DocumentMigrationRefusedError);
+      expect(result.left.message.split("\n")[0]).toBe(
+        `migrate refused: ${PLAN} is not its sidecar's plan-document 0.32.0 rendering — a hand edit would be overwritten`,
+      );
+    }
+    expect(headSha()).toBe(head);
+    expect(porcelain()).toBe("");
+  });
+
+  // ac-unmigrated
+  it("refuses to approve a plan whose sidecar is still 0.32.0, exit 12, naming migrate-documents", async () => {
+    writePlan0_32_0(PLAN, planFrontmatter("Draft", null));
+    commitAll();
+    const head = headSha();
+
+    const refused = await approve(PLAN);
+
+    expect(Either.isLeft(refused)).toBe(true);
+    if (Either.isLeft(refused)) {
+      expect(refused.left).toBeInstanceOf(DocumentMigrationRequiredError);
+      expect(exitCodeForError(refused.left)).toBe(12);
+      expect(refused.left.message).toBe(
+        `Approval refused: ${sidecarOf(PLAN)} is stamped plan-document 0.32.0 — run \`phax artifact migrate-documents\` first`,
+      );
+    }
+    expect(headSha()).toBe(head);
+    expect(porcelain()).toBe("");
+    expect(lineOf(await statusLines(PLAN), "Authored")).toBe(
+      `Authored:          headless — sidecar ${sidecarOf(PLAN)} (plan-document 0.32.0 — migrate with \`phax artifact migrate-documents\`)`,
+    );
+  });
+
+  // ac-archived
+  it("leaves archived plans and specs that hold the oracle names byte for byte, out of the commit, and reads their status", async () => {
+    const archivedPlan = "docs/plans/archive/2609011000-old-prune-plan.md";
+    const archivedPlanMd = writePlan0_32_0(archivedPlan, planFrontmatter("Completed", null));
+    const archivedSpec = "docs/specs/archive/2609011000-old-prune.md";
+    const archivedSpecMd = writeV0_25_0Spec(
+      archivedSpec,
+      {
+        ...spec0_25_0("Old prune"),
+        context: "The oracle phase writes the oracle; a later phase discharges it.",
+      },
+      specFrontmatter("Completed"),
+    );
+    const planSidecar = readRepoFile(sidecarOf(archivedPlan));
+    const specSidecar = readRepoFile(sidecarOf(archivedSpec));
+    writePlan0_32_0(PLAN, planFrontmatter("Draft", null));
+    commitAll();
+
+    await migrated();
+
+    expect(headFiles()).toEqual([PLAN, sidecarOf(PLAN)].toSorted());
+    expect(readRepoFile(archivedPlan)).toBe(archivedPlanMd);
+    expect(readRepoFile(sidecarOf(archivedPlan))).toBe(planSidecar);
+    expect(readRepoFile(archivedSpec)).toBe(archivedSpecMd);
+    expect(readRepoFile(sidecarOf(archivedSpec))).toBe(specSidecar);
+    expect(porcelain()).toBe("");
+    expect(await migrated()).toEqual({ kind: "nothing-to-migrate" });
+
+    const status = await statusLines(archivedPlan);
+    expect(status.filter((line) => line.startsWith("ERROR"))).toEqual([]);
+    expect(lineOf(status, "Status")).toBeDefined();
   });
 });

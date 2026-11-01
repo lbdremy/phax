@@ -17,10 +17,12 @@
 // document without `$schema` is read only by the frozen pre-schema decoder,
 // then stepped to the current shape. Six formats also read an older
 // `$schema` shape: a phax-plan stamped below its current stamp is read by the
-// frozen 0.26.0 decoder when stamped 0.26.0 or later, and below that by the
-// frozen 0.17.0 decoder and lifted with `mode: "headless"` and `oracle: null`
-// on every phase, never given `testLines`, and `readPhaxPlanFile` reports the
-// shape it read; an
+// frozen 0.32.0 decoder when stamped 0.32.0 or later, by the frozen 0.28.0
+// decoder when stamped 0.28.0 or later, by the frozen 0.26.0 decoder when
+// stamped 0.26.0 or later, and below that by the
+// frozen 0.17.0 decoder (the last two lifted with `mode: "headless"` and
+// `oracle: null` on every phase), never given `testLines`, and
+// `readPhaxPlanFile` reports the shape it read; an
 // authoring record manifest stamped below its current
 // stamp is read by the frozen 0.17.0 decoder, then stepped to the current
 // shape, so the records already on phax/records/v1 stay listed; a spec or plan
@@ -64,6 +66,7 @@ import {
   readTestStrategyText,
   type TestLineDeparture,
 } from "../domain/plan/testLineGrammar.js";
+import { liftPlanDocumentTestLines } from "./acceptanceLift.js";
 import {
   decodeApprovalRecordFile,
   decodePlanRecordFile,
@@ -128,6 +131,7 @@ import { decodePhaseStatusPreSchema } from "./history/phase-status/pre-schema.js
 import { decodePhaxPlanV0_17_0, type PhaxPlanV0_17_0 } from "./history/phax-plan/0.17.0.js";
 import { decodePhaxPlanV0_26_0 } from "./history/phax-plan/0.26.0.js";
 import { decodePhaxPlanV0_28_0 } from "./history/phax-plan/0.28.0.js";
+import { decodePhaxPlanV0_32_0, type PhaxPlanV0_32_0 } from "./history/phax-plan/0.32.0.js";
 import { decodePhaxPlanPreSchema, type PhaxPlanPreSchema } from "./history/phax-plan/pre-schema.js";
 import { decodePlanApprovalRecordV0_19_0 } from "./history/plan-approval-record/0.19.0.js";
 import { decodePlanApprovalsPreSchema } from "./history/plan-approvals/pre-schema.js";
@@ -147,6 +151,10 @@ import {
   decodePlanDocumentV0_28_0,
   type PlanDocumentV0_28_0,
 } from "./history/plan-document/0.28.0.js";
+import {
+  decodePlanDocumentV0_32_0,
+  type PlanDocumentV0_32_0,
+} from "./history/plan-document/0.32.0.js";
 import {
   decodePlanDocumentPreSchema,
   type PlanDocumentPreSchema,
@@ -491,7 +499,7 @@ const readPhaseStatusShape: Reader<PhaseStatus> = (file, input) => {
 };
 
 /** The shape a run's `phax-plan.json` was read in. */
-export type PhaxPlanShape = "current" | "0.26.0" | "0.17.0" | "pre-schema";
+export type PhaxPlanShape = "current" | "0.32.0" | "0.28.0" | "0.26.0" | "0.17.0" | "pre-schema";
 
 /**
  * The plan every shape of `phax-plan.json` satisfies: its phases carry no
@@ -530,29 +538,49 @@ function liftPhaxPlanPhases(phases: PhaxPlanV0_17_0["phases"]): AnyShapePhaxPlan
   }));
 }
 
+// A phax-plan of the 0.28.0 or 0.32.0 shape without its `testLines`: what a run
+// started by an earlier release extracted, shown or sized, never resumed.
+function withoutTestLines(plan: Omit<PhaxPlanV0_32_0, "$schema">): AnyShapePhaxPlan {
+  return {
+    run: plan.run,
+    phases: Arr.map(plan.phases, ({ testLines: _testLines, ...phase }) => phase),
+  };
+}
+
 /**
  * Reads a run's `phax-plan.json`, reporting the shape it read: a file at the
- * current stamp by the current decoder (`current`); one stamped 0.28.0 or
- * later, below the current stamp, by the frozen 0.28.0 decoder, whose plan is
- * the current in-memory one (`current` too, so an in-flight run resumes); one
+ * current stamp by the current decoder (`current`); one stamped 0.32.0 or
+ * later, below the current stamp, by the frozen 0.32.0 decoder (`0.32.0`); one
+ * stamped 0.28.0 or later by the frozen 0.28.0 decoder (`0.28.0`); one
  * stamped 0.26.0 or later by the frozen 0.26.0 decoder (`0.26.0`); one
  * stamped lower by the frozen 0.17.0 decoder (`0.17.0`); and one without
- * `$schema` by the pre-schema decoder (`pre-schema`). The two oldest are lifted
- * with `liftPhaxPlanPhases`; no older shape is given `testLines`. A caller that
- * hands the plan to a run accepts only `current`; one that only displays or
- * sizes it takes `.plan`, an `AnyShapePhaxPlan`, whatever the shape.
+ * `$schema` by the pre-schema decoder (`pre-schema`). Every shape below
+ * `current` is lifted to an `AnyShapePhaxPlan`: the two oldest with
+ * `liftPhaxPlanPhases`, and none is given `testLines`, because the plan.md an
+ * earlier release extracted it from holds the earlier test line words. A
+ * caller that hands the plan to a run accepts only `current`, so a run started
+ * by an earlier release is finished by that release or archived; one that only
+ * displays or sizes it takes `.plan`, whatever the shape.
  */
 export const readPhaxPlanFile: Reader<PhaxPlanRead> = (file, input) => {
   if (isDocumentObject(input) && isStampedBelowCurrent("phax-plan", input)) {
     // `isStampedBelowCurrent` has parsed the stamp, so the release is there.
     const release = parseSchemaUrl(input["$schema"])?.release ?? "0.0.0";
+    if (compareReleases(release, "0.32.0") >= 0) {
+      const v0_32_0 = decodePhaxPlanV0_32_0(input);
+      if (Either.isLeft(v0_32_0)) {
+        return Either.left(readError(file, "phax-plan", formatFirstViolation(v0_32_0.left)));
+      }
+      const { $schema: _schema, ...plan } = v0_32_0.right;
+      return Either.right({ shape: "0.32.0", plan: withoutTestLines(plan) });
+    }
     if (compareReleases(release, "0.28.0") >= 0) {
       const v0_28_0 = decodePhaxPlanV0_28_0(input);
       if (Either.isLeft(v0_28_0)) {
         return Either.left(readError(file, "phax-plan", formatFirstViolation(v0_28_0.left)));
       }
       const { $schema: _schema, ...plan } = v0_28_0.right;
-      return Either.right({ shape: "current", plan });
+      return Either.right({ shape: "0.28.0", plan: withoutTestLines(plan) });
     }
     if (compareReleases(release, "0.26.0") >= 0) {
       const v0_26_0 = decodePhaxPlanV0_26_0(input);
@@ -736,9 +764,17 @@ export type PlanDocumentV0_26_0Value = DistributiveOmit<PlanDocumentV0_26_0, "$s
 
 /**
  * A plan document in its 0.28.0 shape, as a 0.28.0 sidecar carried it: the
- * current in-memory document under a release-pattern `$schema`, which is dropped.
+ * 0.32.0 document's shape under a release-pattern `$schema`, which is dropped.
+ * Its test lines have the loop `oracle | in-phase`.
  */
 export type PlanDocumentV0_28_0Value = DistributiveOmit<PlanDocumentV0_28_0, "$schema">;
+
+/**
+ * A plan document in its 0.32.0 shape, as a 0.32.0 sidecar carried it: the
+ * strict answer under a const `$schema`, which is dropped. Its test lines have
+ * the loop `oracle | in-phase`.
+ */
+export type PlanDocumentV0_32_0Value = DistributiveOmit<PlanDocumentV0_32_0, "$schema">;
 
 /**
  * An older plan document lifted to the current in-memory shape, or the reason
@@ -787,6 +823,12 @@ export type SpecDocumentSidecar =
  */
 export type PlanDocumentSidecar =
   | { readonly kind: "plan"; readonly shape: "current"; readonly document: PlanDocument }
+  | {
+      readonly kind: "plan";
+      readonly shape: "0.32.0";
+      readonly lift: PlanDocumentLift;
+      readonly older: PlanDocumentV0_32_0Value;
+    }
   | {
       readonly kind: "plan";
       readonly shape: "0.28.0";
@@ -916,12 +958,15 @@ function planDocumentV0_25_0AsV0_26_0(older: PlanDocumentV0_25_0Value): PlanDocu
 
 /**
  * Lifts a 0.26.0 plan document to the current in-memory shape: every phase's
- * `testStrategy` string is read as test lines (`readTestStrategyText`), in
+ * `testStrategy` string is read as test lines (`readTestStrategyText`, a
+ * section written before 0.33.0: its loop `oracle` reads as `acceptance`), in
  * its place. The first phase in plan order with a departure refuses the lift,
  * naming its first departure; nothing else changes.
  */
 export function liftPlanDocumentV0_26_0(older: PlanDocumentV0_26_0Value): PlanDocumentLift {
-  const readings = Arr.map(older.phases, (phase) => readTestStrategyText(phase.testStrategy));
+  const readings = Arr.map(older.phases, (phase) =>
+    readTestStrategyText(phase.testStrategy, { beforeAcceptance: true }),
+  );
   for (const [i, reading] of readings.entries()) {
     const [departure] = reading.departures;
     if (departure !== undefined) {
@@ -1004,6 +1049,22 @@ function readPlanDocumentSidecar(
   if (isDocumentObject(input) && isStampedBelowCurrent("plan-document", input)) {
     // `isStampedBelowCurrent` has parsed the stamp, so the release is there.
     const release = parseSchemaUrl(input["$schema"])?.release ?? "0.0.0";
+    if (compareReleases(release, "0.32.0") >= 0) {
+      const frozen = decodePlanDocumentV0_32_0(input);
+      if (Either.isLeft(frozen)) {
+        return Either.left(
+          readError(file, "plan-document", formatPlanDocumentViolation(input, frozen.left)),
+        );
+      }
+      // The 0.32.0 document differs from the current one by its test lines' loop.
+      const { $schema: _schema, ...value } = frozen.right;
+      return Either.right({
+        kind: "plan",
+        shape: "0.32.0",
+        lift: { kind: "lifted", document: liftPlanDocumentTestLines(value) },
+        older: value,
+      });
+    }
     if (compareReleases(release, "0.28.0") >= 0) {
       const frozen = decodePlanDocumentV0_28_0(input);
       if (Either.isLeft(frozen)) {
@@ -1011,12 +1072,12 @@ function readPlanDocumentSidecar(
           readError(file, "plan-document", formatPlanDocumentViolation(input, frozen.left)),
         );
       }
-      // The 0.28.0 document is the current in-memory one: its lift is itself.
+      // The 0.28.0 document is the 0.32.0 one under a release-pattern `$schema`.
       const { $schema: _schema, ...value } = frozen.right;
       return Either.right({
         kind: "plan",
         shape: "0.28.0",
-        lift: { kind: "lifted", document: value },
+        lift: { kind: "lifted", document: liftPlanDocumentTestLines(value) },
         older: value,
       });
     }
@@ -1092,8 +1153,10 @@ function readPlanDocumentSidecar(
  *   decoder, and one written before `$schema` by the pre-schema decoder, both
  *   lifted by `liftMarkedQuestions`. Every lift sets the summary placeholder
  *   on each surface element;
- * - a plan stamped 0.28.0 or later, below its current stamp, is read by the
- *   frozen 0.28.0 decoder, its lift the document itself; one stamped 0.26.0 or
+ * - a plan stamped 0.32.0 or later, below its current stamp, is read by the
+ *   frozen 0.32.0 decoder, and one stamped 0.28.0 or later by the frozen 0.28.0
+ *   decoder; each is lifted by `liftPlanDocumentTestLines` (the test lines' loop
+ *   `oracle` becomes `acceptance`, every other fact kept); one stamped 0.26.0 or
  *   later by the frozen 0.26.0 decoder; one stamped 0.25.0 or later by the frozen 0.25.0
  *   decoder, stepped with each `modelReason` carried over as
  *   `assignmentReason`; one stamped below 0.25.0 by the frozen 0.20.0

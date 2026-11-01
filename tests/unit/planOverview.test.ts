@@ -53,7 +53,7 @@ const PHASES: readonly Phase[] = [
     title: "Oracles",
     oracle: { dischargedBy: "phase-02", files: ["tests/a.test.ts"] },
     plannedFilesToCreate: ["tests/a.test.ts"],
-    testLines: [line("the rule holds", "oracle", "ac-a")],
+    testLines: [line("the rule holds", "acceptance", "ac-a")],
   }),
   phase("phase-02", {
     title: "Discharge",
@@ -111,7 +111,7 @@ describe("the overview's layout", () => {
         "phase-01 — Oracles  claude-sonnet-5-5 · medium · headless",
         "  oracle role  oracle phase, discharged by phase-02",
         "  files        tests/a.test.ts",
-        "  - the rule holds — small · example · the findings · oracle · ac-a",
+        "  - the rule holds — small · example · the findings · acceptance · ac-a",
         "",
         "phase-02 — Discharge  claude-sonnet-5-5 · medium · headless",
         "  oracle role  discharges phase-01",
@@ -233,7 +233,7 @@ describe("the coverage block", () => {
         {
           id: "ac-a",
           lines: [
-            { phase: "phase-01", loop: "oracle" },
+            { phase: "phase-01", loop: "acceptance" },
             { phase: "phase-02", loop: "in-phase" },
           ],
         },
@@ -245,7 +245,7 @@ describe("the coverage block", () => {
     expect(renderOverview(built).split("\n\n").at(-1)).toBe(
       [
         "acceptance criteria of invoice-export",
-        "  ac-a       phase-01 oracle, phase-02 in-phase",
+        "  ac-a       phase-01 acceptance, phase-02 in-phase",
         "  ac-b       phase-02 in-phase",
         "  ac-c       (no test line)",
         "  uncovered  ac-c",
@@ -256,12 +256,12 @@ describe("the coverage block", () => {
   // The JSON keeps one entry per line; the text counts a repeated (phase, loop).
   it("counts the lines of one phase and loop naming a criterion, keeping one JSON entry per line", () => {
     const phases = [
-      phase("phase-01", { testLines: [line("it is read", "oracle", "ac-a")] }),
+      phase("phase-01", { testLines: [line("it is read", "acceptance", "ac-a")] }),
       phase("phase-02", {
         testLines: [
           line("it is read", "in-phase", "ac-a"),
           line("it is shown", "in-phase", "ac-a"),
-          line("it is kept", "oracle", "ac-a"),
+          line("it is kept", "acceptance", "ac-a"),
           line("it is sorted", "in-phase", "ac-a"),
         ],
       }),
@@ -273,17 +273,17 @@ describe("the coverage block", () => {
         {
           id: "ac-a",
           lines: [
-            { phase: "phase-01", loop: "oracle" },
+            { phase: "phase-01", loop: "acceptance" },
             { phase: "phase-02", loop: "in-phase" },
             { phase: "phase-02", loop: "in-phase" },
-            { phase: "phase-02", loop: "oracle" },
+            { phase: "phase-02", loop: "acceptance" },
             { phase: "phase-02", loop: "in-phase" },
           ],
         },
       ],
     });
     expect(renderOverview(built).split("\n").at(-2)).toBe(
-      "  ac-a       phase-01 oracle, phase-02 in-phase ×3, phase-02 oracle",
+      "  ac-a       phase-01 acceptance, phase-02 in-phase ×3, phase-02 acceptance",
     );
   });
 

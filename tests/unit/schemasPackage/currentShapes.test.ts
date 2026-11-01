@@ -122,6 +122,7 @@ import {
   SCHEMA_BORN_FORMAT_IDS,
   compareReleases,
   isRelease,
+  schemaUrl,
   type FormatId,
 } from "../../../src/schemas/schemaUrl.js";
 import {
@@ -129,6 +130,8 @@ import {
   EXAMPLE_SURFACE_SUMMARY,
   preSchemaDocuments,
   validDocuments,
+  withKey,
+  type Doc,
 } from "./documents.js";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
@@ -524,6 +527,56 @@ describe("phax's bridge and the package agree", () => {
       phases: object[];
     };
     expect(written.phases.every((p) => "testLines" in p && Array.isArray(p.testLines))).toBe(true);
+  });
+
+  // The test line loop `oracle` became `acceptance` at 0.33.0: phax's reader and the
+  // package lift a plan document stamped 0.28.0 or 0.32.0 through the same
+  // functions (src/schemas/acceptanceLift.ts), so they read it alike.
+  it.each(["0.28.0", "0.32.0"])(
+    "plan-document: a %s sidecar with the loop oracle is lifted to acceptance by the bridge and by toLatest alike",
+    (release) => {
+      const current = validDocuments["plan-document"];
+      const oldLoops = (current["phases"] as Doc[]).map((phase) => ({
+        ...phase,
+        testStrategy: (phase["testStrategy"] as Doc[]).map((line) => ({ ...line, loop: "oracle" })),
+      }));
+      const document = withKey(
+        withKey(current, "phases", oldLoops),
+        "$schema",
+        schemaUrl("plan-document", release),
+      );
+      const read = readPlanDocumentFile("/work/example-repo/plan.json", document);
+      if (Either.isLeft(read)) throw new Error(read.left.message);
+      expect(read.right).toEqual(PACKAGE_LATEST["plan-document"](document));
+      const lines = read.right.phases.flatMap((phase) => phase.testStrategy);
+      expect(lines.length).toBeGreaterThan(0);
+      expect(lines.every((line) => line.loop === "acceptance")).toBe(true);
+    },
+  );
+
+  it("phax-plan-extraction: a 0.32.0 answer with the loop oracle is lifted to acceptance by toLatest", () => {
+    const current = validDocuments["phax-plan-extraction"];
+    const plan = current["plan"] as Doc;
+    const line = {
+      guarantee: "every pair is refused as the table says",
+      size: "small",
+      technique: "table",
+      oracle: "transition table",
+      loop: "oracle",
+      criterion: "AC-1",
+    };
+    const phases = (plan["phases"] as Doc[]).map((phase) => ({ ...phase, testLines: [line] }));
+    const document = withKey(
+      withKey(current, "plan", { ...plan, phases }),
+      "$schema",
+      schemaUrl("phax-plan-extraction", "0.32.0"),
+    );
+    const lifted = PACKAGE_LATEST["phax-plan-extraction"](document) as {
+      plan: { phases: Array<{ testLines: unknown[] }> };
+    };
+    expect(lifted.plan.phases.map((phase) => phase.testLines)).toEqual(
+      phases.map(() => [{ ...line, loop: "acceptance" }]),
+    );
   });
 
   it.each(UPGRADED_ALIKE)(
