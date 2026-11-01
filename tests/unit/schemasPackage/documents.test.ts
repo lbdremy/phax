@@ -14,7 +14,8 @@ import {
 import { decodeFirstReadingFile } from "../../../src/schemas/firstReading.js";
 import { decodeInteractiveHandoffFile } from "../../../src/schemas/interactiveHandoff.js";
 import { decodeInteractiveSessionFile } from "../../../src/schemas/interactiveSession.js";
-import { decodeOracleRequestFile } from "../../../src/schemas/oracleRequest.js";
+import { decodeAcceptanceRequestFile } from "../../../src/schemas/acceptanceRequest.js";
+import { decodeOracleRequestV0_26_0 } from "../../../src/schemas/history/oracle-request/0.26.0.js";
 import { decodePlanExtractionAnswer } from "../../../src/schemas/planExtraction.js";
 import { decodeReviewStopFile } from "../../../src/schemas/reviewStop.js";
 import { decodeRunListFile } from "../../../src/schemas/runList.js";
@@ -112,7 +113,8 @@ const PHAX_DECODERS: { readonly [F in FormatId]: Decode } = {
   "code-review": decodeCodeReviewFile,
   "architecture-request": decodeArchitectureRequestFile,
   "architecture-report": decodeArchitectureReportFile,
-  "oracle-request": decodeOracleRequestFile,
+  "oracle-request": decodeOracleRequestV0_26_0,
+  "acceptance-request": decodeAcceptanceRequestFile,
   "first-reading": decodeFirstReadingFile,
   "interactive-handoff": decodeInteractiveHandoffFile,
   "interactive-session": decodeInteractiveSessionFile,

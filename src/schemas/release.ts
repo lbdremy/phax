@@ -43,4 +43,5 @@ export const CURRENT_STAMPS = {
   "phax-plan-extraction": "0.33.0",
   "spec-hand-decision-answer": "0.32.0",
   "plan-hand-decision-answer": "0.32.0",
+  "acceptance-request": "0.33.0",
 } as const;

@@ -20,8 +20,11 @@ import { requestPathFor } from "../domain/gate/gateRequest.js";
 import { stepRecordPathFor } from "../domain/gate/attemptFiles.js";
 import { commandWords } from "../domain/gate/commandWords.js";
 import { encodeGateRequestFile, type GateRequest } from "../schemas/gateRequest.js";
-import { encodeOracleRequestFile, type OracleRequest } from "../schemas/oracleRequest.js";
-import { oracleRequestPathFor } from "../domain/gate/oracleRequest.js";
+import {
+  encodeAcceptanceRequestFile,
+  type AcceptanceRequest,
+} from "../schemas/acceptanceRequest.js";
+import { acceptanceRequestPathFor } from "../domain/gate/acceptanceRequest.js";
 import type { RecordedSurface } from "../schemas/surface.js";
 
 export interface GateOutcome {
@@ -48,12 +51,17 @@ export function serializeGateRequest(request: GateRequest): string {
 export const ORACLE_PROVIDER_TIMEOUT_MS = 120_000;
 
 /**
- * The exact bytes of an oracle request: what the oracles provider reads on
- * stdin and what is saved as `checks-attempt-NN.oracle-request.json`. Stamped
- * with oracle-request's current stamp, two-space indented, no trailing newline.
+ * The exact bytes of an acceptance request: what the acceptance provider reads
+ * on stdin and what is saved as `checks-attempt-NN.acceptance-request.json`.
+ * Stamped with acceptance-request's current stamp, two-space indented, no
+ * trailing newline.
  */
-export function serializeOracleRequest(request: OracleRequest): string {
-  return JSON.stringify(encodeOracleRequestFile(withSchemaUrl("oracle-request", request)), null, 2);
+export function serializeAcceptanceRequest(request: AcceptanceRequest): string {
+  return JSON.stringify(
+    encodeAcceptanceRequestFile(withSchemaUrl("acceptance-request", request)),
+    null,
+    2,
+  );
 }
 
 export function resolveGateProfile(
@@ -105,7 +113,7 @@ export interface RunGatesOptions {
    *  phase that discharges one. Run once every configured step has passed,
    *  last, under the `oracle` surface: `command` is split on whitespace (no
    *  shell), `request` is written on its stdin and saved beside the log as
-   *  `oracleRequestPathFor(attemptLogPath)`, and `timeoutMs` caps it. A
+   *  `acceptanceRequestPathFor(attemptLogPath)`, and `timeoutMs` caps it. A
    *  `skipped` step spawns nothing and writes no request: it is recorded as
    *  `skipped`, last, and the attempt passes. */
   readonly oracleStep?: OracleStep;
@@ -369,10 +377,10 @@ export function runGates(
       // Every configured step passed: phax appends the oracle step, last. Its
       // request is saved beside the log before the provider reads it.
       const rawCommand = oracleStep.command;
-      const oracleRequestPath = oracleRequestPathFor(attemptLogPath);
-      yield* fs.writeAtomic(oracleRequestPath, oracleStep.request);
+      const acceptanceRequestPath = acceptanceRequestPathFor(attemptLogPath);
+      yield* fs.writeAtomic(acceptanceRequestPath, oracleStep.request);
       logLines.push(`$ ${rawCommand}`);
-      logLines.push(`stdin: ${basename(oracleRequestPath)}`);
+      logLines.push(`stdin: ${basename(acceptanceRequestPath)}`);
       const spawned = yield* Effect.either(
         shell.run({
           command: parseCommandTokens(rawCommand),

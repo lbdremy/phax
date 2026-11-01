@@ -5,7 +5,6 @@ import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { Either } from "effect";
 import { parseGateReport } from "../../packages/schemas/src/index.js";
-import { serializeOracleRequest } from "../../src/app/gates.js";
 import { decodePhaxConfig } from "../../src/schemas/phaxConfig.js";
 import {
   currentSchemaUrl,
@@ -94,6 +93,12 @@ function answerOf(stdout: string): GateReport {
 function checkedFindings(report: GateReport) {
   if (report.outcome !== "checked") throw new Error(`expected a checked report: ${report.reason}`);
   return report.findings;
+}
+
+// The example still reads an oracle-request (plan 4 moves it to acceptance-request): phax
+// writes none since 0.33.0, so the test stamps the frozen 0.26.0 shape itself.
+function serializeOracleRequest(request: object): string {
+  return JSON.stringify({ $schema: currentSchemaUrl("oracle-request"), ...request }, null, 2);
 }
 
 function authored(cwd: string, base: string, files: readonly [string, ...string[]]) {

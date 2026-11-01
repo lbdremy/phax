@@ -21,7 +21,9 @@ export const SCHEMA_URL_BASE = "https://docs.phax.run/schemas";
  * then the decide verdicts of spec artifact-decide-verdicts, then the review
  * record manifest and the code review of spec headless-code-review,
  * then the plan extraction answer and the spec and plan hand decision answers
- * of spec structured-output, appended so existing order stays stable.
+ * of spec structured-output, then the acceptance request of spec
+ * acceptance-tests, which replaces the oracle request (kept in this list,
+ * frozen at 0.26.0), appended so existing order stays stable.
  */
 export const FORMAT_IDS = [
   "registry",
@@ -61,6 +63,7 @@ export const FORMAT_IDS = [
   "phax-plan-extraction",
   "spec-hand-decision-answer",
   "plan-hand-decision-answer",
+  "acceptance-request",
 ] as const;
 
 export type FormatId = (typeof FORMAT_IDS)[number];
@@ -91,7 +94,10 @@ export function isFormatId(value: string): value is FormatId {
  * spec headless-code-review. So is the plan extraction answer the fallback
  * extraction model returns, which phax reads but never writes, of spec
  * structured-output, and the spec and plan hand decision answers that replace
- * the hand decision answer's root union, of the same spec.
+ * the hand decision answer's root union, of the same spec. So is the
+ * acceptance request phax writes on the acceptance provider's stdin, of spec
+ * acceptance-tests, born at 0.33.0 beside the oracle request it replaces
+ * (frozen at 0.26.0, still listed here).
  */
 export const SCHEMA_BORN_FORMAT_IDS = [
   "plan-approval-record",
@@ -118,6 +124,7 @@ export const SCHEMA_BORN_FORMAT_IDS = [
   "phax-plan-extraction",
   "spec-hand-decision-answer",
   "plan-hand-decision-answer",
+  "acceptance-request",
 ] as const satisfies ReadonlyArray<FormatId>;
 
 export type SchemaBornFormatId = (typeof SCHEMA_BORN_FORMAT_IDS)[number];

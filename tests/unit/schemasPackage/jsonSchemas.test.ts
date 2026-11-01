@@ -55,7 +55,10 @@ import {
   reviewStopFormat,
   runListFormat,
 } from "../../../packages/schemas/src/formats/interactive.js";
-import { oracleRequestFormat } from "../../../packages/schemas/src/formats/oracleRequest.js";
+import {
+  acceptanceRequestFormat,
+  oracleRequestFormat,
+} from "../../../packages/schemas/src/formats/acceptanceRequest.js";
 import {
   codeReviewFormat,
   complianceReviewFormat,
@@ -135,6 +138,7 @@ const DECODERS: { readonly [F in JsonSchemaFormatId]: Decode } = {
   "architecture-request": architectureRequestFormat.current.shape.decode,
   "architecture-report": architectureReportFormat.current.shape.decode,
   "oracle-request": oracleRequestFormat.current.shape.decode,
+  "acceptance-request": acceptanceRequestFormat.current.shape.decode,
   "first-reading": firstReadingFormat.current.shape.decode,
   "interactive-handoff": interactiveHandoffFormat.current.shape.decode,
   "interactive-session": interactiveSessionFormat.current.shape.decode,
@@ -211,6 +215,7 @@ describe("the JSON Schema table", () => {
       architectureRequestFormat,
       architectureReportFormat,
       oracleRequestFormat,
+      acceptanceRequestFormat,
       firstReadingFormat,
       interactiveHandoffFormat,
       interactiveSessionFormat,
@@ -242,7 +247,7 @@ describe("renderJsonSchemas over the real table", () => {
   it("renders 38 files and no failure", () => {
     expect(rendered.failures).toEqual([]);
     expect([...rendered.files.keys()]).toEqual(JSON_SCHEMA_FORMATS.map(({ fileName }) => fileName));
-    expect(rendered.files.size).toBe(38);
+    expect(rendered.files.size).toBe(39);
   });
 
   it.each(JSON_SCHEMA_FORMATS)(

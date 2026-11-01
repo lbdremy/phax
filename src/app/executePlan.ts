@@ -113,7 +113,7 @@ import {
   ORACLE_PROVIDER_TIMEOUT_MS,
   recordGateProfileInRunStatus,
   serializeGateRequest,
-  serializeOracleRequest,
+  serializeAcceptanceRequest,
   type OracleStep,
 } from "./gates.js";
 import { makeGateRequest } from "../domain/gate/gateRequest.js";
@@ -179,7 +179,7 @@ import {
 } from "../domain/plan/oraclePairs.js";
 import { oracleFindings } from "../domain/plan/oracleCheck.js";
 import { readPhaseHeaders } from "../domain/plan/phaseHeader.js";
-import { makeOracleRequest } from "../domain/gate/oracleRequest.js";
+import { makeAcceptanceRequest } from "../domain/gate/acceptanceRequest.js";
 
 function isRateLimitError(e: unknown): e is RateLimitError | UsageLimitError {
   return e instanceof RateLimitError || e instanceof UsageLimitError;
@@ -733,7 +733,9 @@ export function executePlan(
       return {
         kind: "run",
         command: config.oracles.command,
-        request: serializeOracleRequest(makeOracleRequest({ role, phaseId, base, oracleCommit })),
+        request: serializeAcceptanceRequest(
+          makeAcceptanceRequest({ role, phaseId, base, acceptanceCommit: oracleCommit }),
+        ),
         timeoutMs: ORACLE_PROVIDER_TIMEOUT_MS,
       };
     });

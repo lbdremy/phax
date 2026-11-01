@@ -111,7 +111,8 @@ import {
 import { FirstReadingFileSchema } from "../../../src/schemas/firstReading.js";
 import { InteractiveHandoffFileSchema } from "../../../src/schemas/interactiveHandoff.js";
 import { InteractiveSessionFileSchema } from "../../../src/schemas/interactiveSession.js";
-import { OracleRequestFileSchema } from "../../../src/schemas/oracleRequest.js";
+import { AcceptanceRequestFileSchema } from "../../../src/schemas/acceptanceRequest.js";
+import { OracleRequestV0_26_0Schema } from "../../../src/schemas/history/oracle-request/0.26.0.js";
 import { PlanExtractionAnswerSchema } from "../../../src/schemas/planExtraction.js";
 import { ReviewStopFileSchema } from "../../../src/schemas/reviewStop.js";
 import { RunListFileSchema } from "../../../src/schemas/runList.js";
@@ -1151,12 +1152,23 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
       ],
     }),
   ),
+  // Frozen at 0.26.0: the request phax 0.32.0 and below wrote.
   "oracle-request": encoded(
-    OracleRequestFileSchema,
+    OracleRequestV0_26_0Schema,
     withSchemaUrl("oracle-request", {
       verdict: "authored",
       phase: "phase-02",
       oraclePhase: "phase-02",
+      base: EXAMPLE_BASE,
+      files: ["tests/prune.test.ts"],
+    }),
+  ),
+  "acceptance-request": encoded(
+    AcceptanceRequestFileSchema,
+    withSchemaUrl("acceptance-request", {
+      verdict: "authored",
+      phase: "phase-02",
+      acceptancePhase: "phase-02",
       base: EXAMPLE_BASE,
       files: ["tests/prune.test.ts"],
     }),
