@@ -1,5 +1,5 @@
 import { Either, Schema } from "effect";
-import { liftTestLoop } from "../../schemas/acceptanceLift.js";
+import { liftTestLoop, type TestLineToLift } from "../../schemas/acceptanceLift.js";
 import {
   TEST_LOOPS,
   TEST_SIZES,
@@ -37,8 +37,8 @@ export interface TestStrategyReading {
   readonly departures: ReadonlyArray<TestLineDeparture>;
 }
 
-/** One line, without its `- ` bullet and unescaped. */
-export function renderTestLine(line: TestLine): string {
+/** One line, without its `- ` bullet and unescaped; a line of a shape before 0.33.0 as it was written. */
+export function renderTestLine(line: TestLine | TestLineToLift): string {
   const fields = [line.size, line.technique, line.oracle, line.loop];
   const coordinates = (line.criterion === null ? fields : [...fields, line.criterion]).join(DOT);
   return `${line.guarantee}${DASH}${coordinates}`;
@@ -55,14 +55,17 @@ export interface TestLineReadOptions {
   readonly beforeAcceptance?: boolean;
 }
 
-// The loop words a section may end with: the current ones, and, for a section
-// written before 0.33.0, the old `oracle`, which `liftTestLoop` reads as
-// `acceptance`. No older line holds `oracle` as a criterion (it was reserved).
+// The loop words a line may end with. A section written before 0.33.0 knew only
+// `oracle` and `in-phase`, and `liftTestLoop` reads its `oracle` as
+// `acceptance`. There, a trailing `acceptance` was a criterion, which the
+// schema now refuses, so the line departs instead of being read with another
+// loop. No older line holds `oracle` as a criterion (it was reserved).
+const LOOPS_BEFORE_ACCEPTANCE: ReadonlyArray<string> = ["oracle", "in-phase"];
+
 function isLoop(field: string, options: TestLineReadOptions): boolean {
-  return (
-    (TEST_LOOPS as ReadonlyArray<string>).includes(field) ||
-    (options.beforeAcceptance === true && field === "oracle")
-  );
+  const loops: ReadonlyArray<string> =
+    options.beforeAcceptance === true ? LOOPS_BEFORE_ACCEPTANCE : TEST_LOOPS;
+  return loops.includes(field);
 }
 
 function asLoop(field: string): string {

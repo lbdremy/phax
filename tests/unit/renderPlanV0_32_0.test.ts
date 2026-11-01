@@ -138,6 +138,38 @@ describe("migrate-documents over a 0.32.0 sidecar", () => {
     expect(decision.migration.sidecarText).toContain('"loop": "acceptance"');
   });
 
+  // 0.33.0 reserves `acceptance`, which an earlier release took as a criterion id.
+  it.each(["0.28.0", "0.32.0"])(
+    "refuses a %s sidecar whose test line names the criterion acceptance, naming the line",
+    (release) => {
+      const value = plan0_32_0();
+      const [phase] = value.phases;
+      const reserved = {
+        ...value,
+        phases: [
+          {
+            ...phase!,
+            testStrategy: [
+              { ...phase!.testStrategy[0]!, loop: "in-phase", criterion: "acceptance" },
+            ],
+          },
+        ],
+      } as unknown as PlanDocumentV0_32_0Value;
+      const decision = decideDocumentMigration({
+        kind: "plan",
+        path,
+        sidecarPath: "docs/plans/2610010000-example-plan.json",
+        md: frontmatter + renderPlanBodyV0_32_0(reserved),
+        sidecarJson: JSON.stringify({ ...reserved, $schema: schemaUrl("plan-document", release) }),
+      });
+      expect(decision.kind).toBe("refuse");
+      if (decision.kind !== "refuse") return;
+      expect(decision.refusal.problem).toBe(
+        'phase-01 testStrategy line 1 departs from the test line format: "every pair is refused as the table says — small · table · transition table · in-phase · acceptance"',
+      );
+    },
+  );
+
   it("refuses a body edited by hand", () => {
     const edited = (frontmatter + renderPlanBodyV0_32_0(plan0_32_0())).replace(
       "An example plan.",

@@ -228,9 +228,20 @@ describe("test line grammar", () => {
     expect(readTestStrategyText(text).departures).toEqual([
       { line: 1, text: text.split("\n")[0]!.slice(2) },
     ]);
-    expect(
-      parseTestLine("g — small · example · o · acceptance", { beforeAcceptance: true }),
-    ).toEqual(line({ guarantee: "g", oracle: "o", loop: "acceptance" }));
+  });
+
+  it("departs a section written before 0.33.0 whose line ends in `acceptance`, then a criterion", () => {
+    // Before 0.33.0 `acceptance` was no loop: a trailing one was a criterion,
+    // now reserved, and a line ending in it is never read with another loop.
+    const text =
+      "- g — small · example · o · in-phase · acceptance\n- h — small · example · o · acceptance";
+    expect(readTestStrategyText(text, { beforeAcceptance: true })).toEqual({
+      lines: [],
+      departures: [
+        { line: 1, text: "g — small · example · o · in-phase · acceptance" },
+        { line: 2, text: "h — small · example · o · acceptance" },
+      ],
+    });
   });
 
   it("departs `--` or `-` in place of `—`, and an unknown size", () => {

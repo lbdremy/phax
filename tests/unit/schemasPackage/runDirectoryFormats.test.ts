@@ -455,6 +455,27 @@ describe("the phax-plan's test line loop", () => {
     },
   );
 
+  // 0.33.0 reserves `acceptance`, which an earlier release took as a criterion id.
+  it.each(["0.28.0", "0.32.0"])(
+    "records Unknown the test lines of a %s phase whose line names the criterion acceptance",
+    (release) => {
+      const reserved = withKey(
+        current,
+        "phases",
+        (current["phases"] as Doc[]).map((phase) => ({
+          ...phase,
+          testLines: [{ ...line, loop: "in-phase", criterion: "acceptance" }],
+        })),
+      );
+      const old = withKey(withOracleKeys(reserved), "$schema", schemaUrl("phax-plan", release));
+      const result = parsePhaxPlan(old);
+      if (!result.ok) throw new Error("document rejected");
+      for (const phase of toLatestPhaxPlan(result.value).phases) {
+        expect(phase.testLines).toBe(UNKNOWN);
+      }
+    },
+  );
+
   it("refuses the loop acceptance in a 0.32.0 plan, and the loop oracle at the current stamp", () => {
     const stamped = withKey(
       withOracleKeys(withLines(current, "acceptance")),

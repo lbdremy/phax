@@ -64,6 +64,7 @@ import { Array as Arr, Either, type ParseResult } from "effect";
 import {
   departureMessage,
   readTestStrategyText,
+  renderTestLine,
   type TestLineDeparture,
 } from "../domain/plan/testLineGrammar.js";
 import {
@@ -75,6 +76,8 @@ import {
   liftRecordRole,
   liftStopStep,
   liftVerifiedSurfaces,
+  newlyReservedCriterionAt,
+  type PlanDocumentToLift,
 } from "./acceptanceLift.js";
 import {
   decodeApprovalRecordFile,
@@ -994,6 +997,28 @@ function planDocumentV0_25_0AsV0_26_0(older: PlanDocumentV0_25_0Value): PlanDocu
 }
 
 /**
+ * Lifts a 0.28.0 or 0.32.0 plan document to the current in-memory shape
+ * (`liftPlanDocument`). The first phase in plan order holding a line whose
+ * criterion is `acceptance` (`newlyReservedCriterionAt`) refuses the lift,
+ * naming that line as it was written: 0.33.0 reserves the word, and a rename
+ * would invent a criterion the spec does not hold.
+ */
+function liftStructuredPlanDocument(older: PlanDocumentToLift): PlanDocumentLift {
+  for (const phase of older.phases) {
+    const at = newlyReservedCriterionAt(phase.testStrategy);
+    const line = phase.testStrategy[at];
+    if (line !== undefined) {
+      return {
+        kind: "refused",
+        phase: phase.id,
+        departure: { line: at + 1, text: renderTestLine(line) },
+      };
+    }
+  }
+  return { kind: "lifted", document: liftPlanDocument(older) };
+}
+
+/**
  * Lifts a 0.26.0 plan document to the current in-memory shape: every phase's
  * `testStrategy` string is read as test lines (`readTestStrategyText`, a
  * section written before 0.33.0: its loop `oracle` reads as `acceptance`), in
@@ -1101,7 +1126,7 @@ function readPlanDocumentSidecar(
       return Either.right({
         kind: "plan",
         shape: "0.32.0",
-        lift: { kind: "lifted", document: liftPlanDocument(value) },
+        lift: liftStructuredPlanDocument(value),
         older: value,
       });
     }
@@ -1117,7 +1142,7 @@ function readPlanDocumentSidecar(
       return Either.right({
         kind: "plan",
         shape: "0.28.0",
-        lift: { kind: "lifted", document: liftPlanDocument(value) },
+        lift: liftStructuredPlanDocument(value),
         older: value,
       });
     }
@@ -1195,9 +1220,10 @@ function readPlanDocumentSidecar(
  *   on each surface element;
  * - a plan stamped 0.32.0 or later, below its current stamp, is read by the
  *   frozen 0.32.0 decoder, and one stamped 0.28.0 or later by the frozen 0.28.0
- *   decoder; each is lifted by `liftPlanDocument` (the test lines' loop `oracle`
+ *   decoder; each is lifted by `liftStructuredPlanDocument` (the test lines' loop `oracle`
  *   becomes `acceptance` and each phase's `oracle: { dischargedBy, files }`
- *   becomes `acceptance: { passedBy, files }`, every other fact kept); one stamped 0.26.0 or
+ *   becomes `acceptance: { passedBy, files }`, every other fact kept), or
+ *   refused at the first line whose criterion is `acceptance`; one stamped 0.26.0 or
  *   later by the frozen 0.26.0 decoder; one stamped 0.25.0 or later by the frozen 0.25.0
  *   decoder, stepped with each `modelReason` carried over as
  *   `assignmentReason`; one stamped below 0.25.0 by the frozen 0.20.0
