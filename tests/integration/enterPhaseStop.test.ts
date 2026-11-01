@@ -286,7 +286,7 @@ describe("planEnterPhase and a closed interactive phase", () => {
         cause: "declared",
         status: "closed",
         outcome: "corrected",
-        oracleStep: "none",
+        acceptanceStep: "none",
         closedBy: { name: "Ada Example", email: "ada@example.com" },
       },
     });

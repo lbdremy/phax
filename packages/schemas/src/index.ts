@@ -612,9 +612,17 @@ export {
   type PhaseStatusV0_20_0,
 } from "../../../src/schemas/history/phase-status/0.20.0.js";
 export {
+  PhaseStatusV0_26_0Schema,
+  type PhaseStatusV0_26_0,
+} from "../../../src/schemas/history/phase-status/0.26.0.js";
+export {
   RunStatusV0_17_0Schema,
   type RunStatusV0_17_0,
 } from "../../../src/schemas/history/run-status/0.17.0.js";
+export {
+  RunStatusV0_26_0Schema,
+  type RunStatusV0_26_0,
+} from "../../../src/schemas/history/run-status/0.26.0.js";
 export {
   RegistryV0_17_0Schema,
   type RegistryV0_17_0,
@@ -644,6 +652,10 @@ export {
   type GateAttributionV0_26_0,
 } from "../../../src/schemas/history/gate-attribution/0.26.0.js";
 export {
+  GateAttributionV0_31_0Schema,
+  type GateAttributionV0_31_0,
+} from "../../../src/schemas/history/gate-attribution/0.31.0.js";
+export {
   PhaseRecordManifestV0_17_0Schema,
   type PhaseRecordManifestV0_17_0,
 } from "../../../src/schemas/history/phase-record-manifest/0.17.0.js";
@@ -651,6 +663,10 @@ export {
   PhaseRecordManifestV0_26_0Schema,
   type PhaseRecordManifestV0_26_0,
 } from "../../../src/schemas/history/phase-record-manifest/0.26.0.js";
+export {
+  PhaseRecordManifestV0_30_0Schema,
+  type PhaseRecordManifestV0_30_0,
+} from "../../../src/schemas/history/phase-record-manifest/0.30.0.js";
 export {
   BriefRecordV0_20_0Schema,
   type BriefRecordV0_20_0,

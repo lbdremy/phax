@@ -66,6 +66,11 @@ import {
   type PhaseStatusV0_20_0,
 } from "../../../../src/schemas/history/phase-status/0.20.0.js";
 import {
+  PhaseStatusV0_26_0Schema,
+  decodePhaseStatusV0_26_0,
+  type PhaseStatusV0_26_0,
+} from "../../../../src/schemas/history/phase-status/0.26.0.js";
+import {
   PhaseStatusV0_17_0Schema,
   decodePhaseStatusV0_17_0,
   type PhaseStatusV0_17_0,
@@ -95,7 +100,12 @@ import {
   decodePhaxPlanPreSchema,
   type PhaxPlanPreSchema,
 } from "../../../../src/schemas/history/phax-plan/pre-schema.js";
-import { liftPhaseKey, liftPhaxPlan } from "../../../../src/schemas/acceptanceLift.js";
+import {
+  liftHoldSelection,
+  liftPhaseKey,
+  liftPhaxPlan,
+  liftStopStep,
+} from "../../../../src/schemas/acceptanceLift.js";
 import {
   RegistryV0_17_0Schema,
   decodeRegistryV0_17_0,
@@ -111,6 +121,11 @@ import {
   decodeRunStatusV0_17_0,
   type RunStatusV0_17_0,
 } from "../../../../src/schemas/history/run-status/0.17.0.js";
+import {
+  RunStatusV0_26_0Schema,
+  decodeRunStatusV0_26_0,
+  type RunStatusV0_26_0,
+} from "../../../../src/schemas/history/run-status/0.26.0.js";
 import {
   RunStatusPreSchemaSchema,
   decodeRunStatusPreSchema,
@@ -182,7 +197,11 @@ export function toLatestRegistry(
 
 // ── run status
 
-export type RunStatusShapes = { "pre-schema": RunStatusPreSchema; "0.17.0": RunStatusV0_17_0 } & {
+export type RunStatusShapes = {
+  "pre-schema": RunStatusPreSchema;
+  "0.17.0": RunStatusV0_17_0;
+  "0.26.0": RunStatusV0_26_0;
+} & {
   [K in CurrentShapeName<"run-status">]: RunStatusFile;
 };
 
@@ -193,7 +212,10 @@ export const runStatusFormat = defineFormat<RunStatusShapes>({
   id: "run-status",
   label: "run status",
   preSchema: { schema: RunStatusPreSchemaSchema, decode: decodeRunStatusPreSchema },
-  releases: [["0.17.0", { schema: RunStatusV0_17_0Schema, decode: decodeRunStatusV0_17_0 }]],
+  releases: [
+    ["0.17.0", { schema: RunStatusV0_17_0Schema, decode: decodeRunStatusV0_17_0 }],
+    ["0.26.0", { schema: RunStatusV0_26_0Schema, decode: decodeRunStatusV0_26_0 }],
+  ],
   current: {
     name: CURRENT_SHAPES["run-status"],
     shape: { schema: RunStatusFileSchema, decode: decodeRunStatusFile },
@@ -207,14 +229,17 @@ export const parseRunStatus: (input: unknown) => ParsedShape<RunStatusShapes> =
 /** The latest run status: phax's in-memory value, with no `version` and no `$schema`. */
 export type LatestRunStatus = RunStatus;
 
-/** Upgrades a parsed run status in memory. Keeps every recorded fact; never invents one. */
+/**
+ * Upgrades a parsed run status in memory. Keeps every recorded fact; never
+ * invents one. A 0.26.0 hold selection `oracle` is lifted to `acceptance`.
+ */
 export function toLatestRunStatus(
-  value: RunStatusPreSchema | RunStatusV0_17_0 | RunStatusFile,
+  value: RunStatusPreSchema | RunStatusV0_17_0 | RunStatusV0_26_0 | RunStatusFile,
 ): LatestRunStatus {
   // No earlier phax could hold a run, so a value without `hold` is lifted with `none`.
   if ("hold" in value) {
-    const { $schema: _schema, ...recorded } = value;
-    return recorded;
+    const { $schema: _schema, hold, ...recorded } = value;
+    return { ...recorded, hold: liftHoldSelection(hold) };
   }
   if ("$schema" in value) {
     const { $schema: _schema, ...recorded } = value;
@@ -230,6 +255,7 @@ export type PhaseStatusShapes = {
   "pre-schema": PhaseStatusPreSchema;
   "0.17.0": PhaseStatusV0_17_0;
   "0.20.0": PhaseStatusV0_20_0;
+  "0.26.0": PhaseStatusV0_26_0;
 } & {
   [K in CurrentShapeName<"phase-status">]: PhaseStatusFile;
 };
@@ -244,6 +270,7 @@ export const phaseStatusFormat = defineFormat<PhaseStatusShapes>({
   releases: [
     ["0.17.0", { schema: PhaseStatusV0_17_0Schema, decode: decodePhaseStatusV0_17_0 }],
     ["0.20.0", { schema: PhaseStatusV0_20_0Schema, decode: decodePhaseStatusV0_20_0 }],
+    ["0.26.0", { schema: PhaseStatusV0_26_0Schema, decode: decodePhaseStatusV0_26_0 }],
   ],
   current: {
     name: CURRENT_SHAPES["phase-status"],
@@ -268,14 +295,20 @@ export type LatestPhaseStatus =
  * Upgrades a parsed phase status in memory. Keeps every recorded fact; never
  * invents one: a shape older than `base` has an `Unknown` base. A shape older
  * than `mode` gets `mode: "headless"` and `stop: null`, because no phax that
- * wrote it could run an interactive phase or stop.
+ * wrote it could run an interactive phase or stop. A 0.26.0 closed stop's
+ * `oracleStep` is lifted to `acceptanceStep`.
  */
 export function toLatestPhaseStatus(
-  value: PhaseStatusPreSchema | PhaseStatusV0_17_0 | PhaseStatusV0_20_0 | PhaseStatusFile,
+  value:
+    | PhaseStatusPreSchema
+    | PhaseStatusV0_17_0
+    | PhaseStatusV0_20_0
+    | PhaseStatusV0_26_0
+    | PhaseStatusFile,
 ): LatestPhaseStatus {
   if ("mode" in value) {
-    const { $schema: _schema, ...recorded } = value;
-    return recorded;
+    const { $schema: _schema, stop, ...recorded } = value;
+    return { ...recorded, stop: liftStopStep(stop) };
   }
   const headless = { mode: "headless", stop: null } as const;
   if ("base" in value) {

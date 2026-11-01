@@ -153,7 +153,7 @@ describe("gate-attribution's released shapes", () => {
     expect(parseGateAttribution(stampedAt("0.20.0", "refused"))).toMatchObject({ ok: false });
   });
 
-  it("reads a 0.26.0 attribution as shape 0.26.0, an oracle step included", () => {
+  it("reads a 0.26.0 attribution as shape 0.26.0, an oracle step included, and lifts it to the latest", () => {
     const document = {
       ...stampedAt("0.26.0", "refused"),
       steps: [
@@ -164,8 +164,16 @@ describe("gate-attribution's released shapes", () => {
     const parsed = parseGateAttribution(document);
     expect(parsed).toEqual({ ok: true, shape: "0.26.0", value: document });
     if (!parsed.ok || parsed.shape !== "0.26.0") return;
-    const { $schema: _schema, ...recorded } = document;
-    expect(toLatestGateAttribution(parsed.value)).toEqual(recorded);
+    // The oracle step's surface is lifted to acceptance, and a 0.26.0 attribution
+    // ran no protected-paths check.
+    expect(toLatestGateAttribution(parsed.value)).toEqual({
+      phase: document.phase,
+      steps: [
+        ...attributionSteps("refused"),
+        { command: "oracles provider", surface: "acceptance", result: "skipped" },
+      ],
+      protectedPaths: null,
+    });
   });
 
   it("refuses an attribution at the current stamp without protectedPaths", () => {

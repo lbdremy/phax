@@ -1626,7 +1626,11 @@ describe("runGates with an oracle step (Node shell)", () => {
       expect(Either.isRight(result)).toBe(true);
       expect(seen(ws)).toBeUndefined();
       expect(existsSync(ws.oracleRequestPath)).toBe(false);
-      const skipped = { command: "node ./oracles.mjs pass", surface: "oracle", result: "skipped" };
+      const skipped = {
+        command: "node ./oracles.mjs pass",
+        surface: "acceptance",
+        result: "skipped",
+      };
       expect(readAttribution(ws).steps).toEqual([
         { command: "node ./check.mjs 0", surface: "local", result: "pass" },
         { command: "node ./check.mjs 0", surface: "structural", result: "pass" },
@@ -1668,7 +1672,7 @@ describe("runGates with an oracle step (Node shell)", () => {
       { command: "node ./check.mjs 0", surface: "local", result: "pass" },
       { command: "node ./check.mjs 0", surface: "structural", result: "pass" },
       { command: "node ./check.mjs 0", surface: "product", result: "pass" },
-      { command: "node ./oracles.mjs pass", surface: "oracle", result: "pass" },
+      { command: "node ./oracles.mjs pass", surface: "acceptance", result: "pass" },
     ]);
     // The report is saved byte for byte at position steps + 1.
     expect(readFileSync(join(ws.dir, "phase-01", "checks-attempt-01.report-04.json"), "utf8")).toBe(
@@ -1706,7 +1710,7 @@ describe("runGates with an oracle step (Node shell)", () => {
     }
     expect(readAttribution(ws).steps.at(-1)).toEqual({
       command: "node ./oracles.mjs finding",
-      surface: "oracle",
+      surface: "acceptance",
       result: "fail",
     });
   });
@@ -1726,7 +1730,7 @@ describe("runGates with an oracle step (Node shell)", () => {
     }
     expect(readAttribution(ws).steps.at(-1)).toEqual({
       command: "node ./oracles.mjs refused",
-      surface: "oracle",
+      surface: "acceptance",
       result: "refused",
     });
   });
@@ -1757,7 +1761,7 @@ describe("runGates with an oracle step (Node shell)", () => {
       }
       const recorded = readAttribution(ws).steps;
       expect(recorded).toHaveLength(3);
-      expect(recorded.at(-1)).toMatchObject({ surface: "oracle", result: "fail" });
+      expect(recorded.at(-1)).toMatchObject({ surface: "acceptance", result: "fail" });
       const log = readFileSync(ws.logPath, "utf8");
       expect(log).toContain("provider error:");
       expect(log).toContain(logged);

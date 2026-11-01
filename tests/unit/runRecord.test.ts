@@ -23,7 +23,7 @@ const baseManifest = {
   outcome: "committed" as const,
   usage: UNAVAILABLE_TOKEN_USAGE,
   verifiedSurfaces: [] as const,
-  oracle: null,
+  acceptance: null,
   mode: "headless" as const,
   stop: null,
 };
@@ -167,36 +167,44 @@ describe("RunRecordManifestSchema", () => {
     expect(Either.isRight(result)).toBe(true);
   });
 
-  it("decodes the oracle surface among the verified surfaces", () => {
+  it("decodes the acceptance surface among the verified surfaces, and refuses oracle", () => {
     const result = decodeRunRecordManifestFile({
       ...baseManifest,
-      verifiedSurfaces: ["local", "oracle"],
+      verifiedSurfaces: ["acceptance", "local"],
     });
     expect(Either.isRight(result)).toBe(true);
+    const old = decodeRunRecordManifestFile({ ...baseManifest, verifiedSurfaces: ["oracle"] });
+    expect(Either.isLeft(old)).toBe(true);
   });
 
-  it("requires the oracle role, null or one of the two variants", () => {
-    const { oracle: _oracle, ...withoutOracle } = baseManifest;
-    expect(Either.isLeft(decodeRunRecordManifestFile(withoutOracle))).toBe(true);
-    for (const oracle of [
+  it("requires the acceptance role, null or one of the two variants", () => {
+    const { acceptance: _acceptance, ...withoutRole } = baseManifest;
+    expect(Either.isLeft(decodeRunRecordManifestFile(withoutRole))).toBe(true);
+    for (const acceptance of [
       null,
-      { role: "oracle", dischargedBy: "phase-04" },
-      { role: "discharging", oraclePhase: "phase-02" },
+      { role: "acceptance", passedBy: "phase-04" },
+      { role: "passing", acceptancePhase: "phase-02" },
     ]) {
-      expect(Either.isRight(decodeRunRecordManifestFile({ ...baseManifest, oracle }))).toBe(true);
+      expect(Either.isRight(decodeRunRecordManifestFile({ ...baseManifest, acceptance }))).toBe(
+        true,
+      );
     }
   });
 
-  it("refuses an oracle role with a missing, extra or mismatched key", () => {
-    for (const oracle of [
-      { role: "oracle" },
-      { role: "oracle", dischargedBy: "phase-04", oraclePhase: "phase-02" },
-      { role: "oracle", oraclePhase: "phase-02" },
-      { role: "discharging", dischargedBy: "phase-04" },
-      { role: "oracle", dischargedBy: "04" },
-      { role: "other", dischargedBy: "phase-04" },
+  it("refuses an acceptance role with a missing, extra or mismatched key, or an oracle one", () => {
+    for (const acceptance of [
+      { role: "acceptance" },
+      { role: "acceptance", passedBy: "phase-04", acceptancePhase: "phase-02" },
+      { role: "acceptance", acceptancePhase: "phase-02" },
+      { role: "passing", passedBy: "phase-04" },
+      { role: "acceptance", passedBy: "04" },
+      { role: "other", passedBy: "phase-04" },
+      { role: "oracle", dischargedBy: "phase-04" },
+      { role: "discharging", oraclePhase: "phase-02" },
     ]) {
-      expect(Either.isLeft(decodeRunRecordManifestFile({ ...baseManifest, oracle }))).toBe(true);
+      expect(Either.isLeft(decodeRunRecordManifestFile({ ...baseManifest, acceptance }))).toBe(
+        true,
+      );
     }
   });
 

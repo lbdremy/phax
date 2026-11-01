@@ -52,7 +52,7 @@ const phaseManifest = {
   outcome: "committed",
   usage: { available: false },
   verifiedSurfaces: ["local"],
-  oracle: null,
+  acceptance: null,
   mode: "headless",
   stop: null,
 };

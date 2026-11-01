@@ -64,6 +64,7 @@ import {
   withoutPhaseKinds,
   withoutPreambleQuestions,
   withOracleKeys,
+  withOracleRole,
   withoutTestLines,
   type Doc,
 } from "./schemasPackage/documents.js";
@@ -996,11 +997,11 @@ describe("format readers", () => {
       const { version: _version, ...recorded } = preSchemaDocuments[id];
       // A pre-schema authoring session was never retried: it upgrades with retry none.
       // A pre-schema phase manifest predates oracle phases and stops: it
-      // upgrades with oracle null, mode headless and stop null.
+      // upgrades with acceptance null, mode headless and stop null.
       const expected =
         id === "authoring-record-manifest"
           ? { ...recorded, retry: "none" }
-          : { ...recorded, oracle: null, mode: "headless", stop: null };
+          : { ...recorded, acceptance: null, mode: "headless", stop: null };
       const fromPreSchema = right(readRecordManifestFile(file, preSchemaDocuments[id]));
       const fromCurrent = right(readRecordManifestFile(file, validDocuments[id]));
       expect(fromPreSchema).toEqual(expected);
@@ -1045,26 +1046,26 @@ describe("format readers", () => {
     );
   });
 
-  it("readRecordManifestFile lifts a manifest stamped 0.17.0 to oracle null, mode headless and stop null, and refuses a current one without any of them", () => {
+  it("readRecordManifestFile lifts a manifest stamped 0.17.0 to acceptance null, mode headless and stop null, and refuses a current one without any of them", () => {
     const file = "run-0001/phase-01/record.json";
     const unstopped = withoutKey(
       withoutKey(validDocuments["phase-record-manifest"], "mode"),
       "stop",
     );
     const older = withKey(
-      withoutKey(unstopped, "oracle"),
+      withoutKey(unstopped, "acceptance"),
       "$schema",
       schemaUrl("phase-record-manifest", "0.17.0"),
     );
     expect(right(readRecordManifestFile(file, older))).toMatchObject({
-      oracle: null,
+      acceptance: null,
       mode: "headless",
       stop: null,
     });
     expect(right(readRecordManifestFile(file, older))).not.toHaveProperty("$schema");
 
     // q-dev-records: a current-stamped manifest without mode or stop stays refused.
-    for (const key of ["oracle", "mode", "stop"]) {
+    for (const key of ["acceptance", "mode", "stop"]) {
       const current = withoutKey(validDocuments["phase-record-manifest"], key);
       expect(left(readRecordManifestFile(file, current)).format).toBe("phase-record-manifest");
     }
@@ -1250,9 +1251,11 @@ describe("documents from another release", () => {
     // frozen 0.17.0 shape (no arbitratedQuestions either); a plan document, as the frozen
     // 0.26.0 shape (test strategies as strings), the frozen 0.25.0 shape (modelReason) or
     // the frozen 0.20.0 shape, which has no preamble questions.
-    // A phase manifest stamped 0.26.0 or later, or an authoring manifest stamped
-    // 0.23.0 or later, below its current stamp is read as the frozen shape of
-    // that release, which differs from the current one only in a Vibe usage.
+    // A phase manifest stamped 0.26.0 or later, below its current stamp, is
+    // read as the frozen shape of that release, which carries the role under
+    // `oracle`; an authoring manifest stamped 0.23.0 or later, as the frozen
+    // shape of that release, which differs from the current one only in a
+    // Vibe usage.
     const below = compareReleases(release, CURRENT_STAMPS[id]) < 0;
     const document = !below
       ? validDocuments[id]
@@ -1262,8 +1265,8 @@ describe("documents from another release", () => {
           : withoutKey(validDocuments[id], "retry")
         : id === "phase-record-manifest"
           ? compareReleases(release, "0.26.0") >= 0
-            ? validDocuments[id]
-            : withoutKey(withoutKey(withoutKey(validDocuments[id], "oracle"), "mode"), "stop")
+            ? withOracleRole(validDocuments[id])
+            : withoutKey(withoutKey(withoutKey(validDocuments[id], "acceptance"), "mode"), "stop")
           : id === "plan-approval-record" || id === "spec-approval-record"
             ? withoutKey(validDocuments[id], "approvedBy")
             : id === "spec-document"

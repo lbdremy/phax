@@ -96,7 +96,7 @@ describe("resolveHold", () => {
 
   it("resolves oracle to the oracle phases", () => {
     expect(resolve({ kind: "oracle" }, ORACLE_VARIANT)).toEqual({
-      hold: { selection: "oracle", phases: ["phase-02"] },
+      hold: { selection: "acceptance", phases: ["phase-02"] },
       findings: [],
     });
   });

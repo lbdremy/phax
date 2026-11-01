@@ -766,6 +766,32 @@ export function withOracleKeys(doc: Doc): Doc {
 }
 
 /**
+ * A current phase record manifest as the 0.26.0 and 0.30.0 shapes wrote it:
+ * its role under the `oracle` key, in the key's own position (`acceptance` +
+ * `passedBy` as `oracle` + `dischargedBy`, `passing` + `acceptancePhase` as
+ * `discharging` + `oraclePhase`), and its `acceptance` verified surface as
+ * `oracle`.
+ */
+export function withOracleRole(manifest: Doc): Doc {
+  const role = (value: unknown): unknown => {
+    if (value === null) return null;
+    const recorded = value as Doc;
+    return recorded["role"] === "acceptance"
+      ? { role: "oracle", dischargedBy: recorded["passedBy"] }
+      : { role: "discharging", oraclePhase: recorded["acceptancePhase"] };
+  };
+  return Object.fromEntries(
+    Object.entries(manifest).map(([key, value]) => {
+      if (key === "acceptance") return ["oracle", role(value)];
+      if (key === "verifiedSurfaces") {
+        return [key, (value as string[]).map((s) => (s === "acceptance" ? "oracle" : s))];
+      }
+      return [key, value];
+    }),
+  );
+}
+
+/**
  * A current plan document as the frozen 0.26.0 shape wrote it: each phase's
  * test lines are the string the line format renders, and its acceptance tests
  * sit under the `oracle` key.
@@ -978,7 +1004,7 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
     withSchemaUrl("phase-record-manifest", {
       ...stepped(phaseRecordManifest),
       usage: liftFrozenTokenUsage(phaseRecordManifest.usage),
-      oracle: null,
+      acceptance: null,
       mode: "headless",
       stop: null,
     }),
@@ -1278,7 +1304,7 @@ export const phaseStatusStopDocuments: Readonly<Record<string, Doc>> = {
     cause: "declared",
     status: "closed",
     outcome: "corrected",
-    oracleStep: "authored",
+    acceptanceStep: "authored",
     closedBy: { name: "Ada Example", email: "ada@example.com" },
   }),
   "declared closed unchanged": phaseStatusWithStop("committed", "interactive", {
@@ -1296,7 +1322,7 @@ export const phaseStatusStopDocuments: Readonly<Record<string, Doc>> = {
     status: "closed",
     outcome: "corrected",
     reviewCommit: EXAMPLE_REVIEW_COMMIT,
-    oracleStep: "none",
+    acceptanceStep: "none",
     closedBy: { name: "Ada Example", email: "ada@example.com" },
   }),
   "held closed unchanged": phaseStatusWithStop("committed", "headless", {
@@ -1459,7 +1485,7 @@ export const heldPhaseRecordManifestDocument: Doc = encoded(
   withSchemaUrl("phase-record-manifest", {
     ...stepped(phaseRecordManifest),
     usage: liftFrozenTokenUsage(phaseRecordManifest.usage),
-    oracle: null,
+    acceptance: null,
     mode: "headless",
     stop: {
       cause: "held",

@@ -639,7 +639,7 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
       model: "example-model",
       effort: "medium",
       outcome: "committed",
-      oracle: null,
+      acceptance: null,
       mode: "headless",
       stop: null,
       usage: { kind: "session", sessionId: undefined },

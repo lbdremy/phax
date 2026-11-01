@@ -92,7 +92,7 @@ beforeEach(() => {
               cause: "declared",
               status: "closed",
               outcome: "corrected",
-              oracleStep: "none",
+              acceptanceStep: "none",
               closedBy: { name: "Ada Example", email: "ada@example.com" },
             }
           : null,
@@ -194,7 +194,7 @@ describe("later prompts after two closed stops", () => {
                 status: "closed",
                 outcome: "corrected",
                 reviewCommit: "b1c2d3e4f5a60718293a4b5c6d7e8f9012345679",
-                oracleStep: "none",
+                acceptanceStep: "none",
                 closedBy: { name: "Ada Example", email: "ada@example.com" },
               },
             }

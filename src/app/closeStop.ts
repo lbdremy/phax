@@ -549,7 +549,7 @@ function landedOracleStep(
       readGateAttributionFile,
     );
     const last = attribution?.steps.at(-1);
-    return last?.surface === "oracle" && last.result === "pass" ? "authored" : "none";
+    return last?.surface === "acceptance" && last.result === "pass" ? "authored" : "none";
   });
 }
 

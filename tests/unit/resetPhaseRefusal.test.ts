@@ -64,7 +64,7 @@ const closedAuthored = {
   cause: "declared",
   status: "closed",
   outcome: "corrected",
-  oracleStep: "authored",
+  acceptanceStep: "authored",
   closedBy: { name: "Ada Example", email: "ada@example.com" },
 } as const;
 

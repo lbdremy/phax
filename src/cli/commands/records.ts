@@ -423,11 +423,11 @@ function renderFoundRecord(
     `gates    ${manifest.outcome} after ${record.checksAttemptCount} attempt(s)   surfaces  ${surfacesLabel}`,
   );
 
-  if (manifest.oracle !== null) {
+  if (manifest.acceptance !== null) {
     const role =
-      manifest.oracle.role === "oracle"
-        ? `oracle phase, discharged by ${manifest.oracle.dischargedBy}`
-        : `discharges ${manifest.oracle.oraclePhase}`;
+      manifest.acceptance.role === "acceptance"
+        ? `oracle phase, discharged by ${manifest.acceptance.passedBy}`
+        : `discharges ${manifest.acceptance.acceptancePhase}`;
     const step =
       record.oracleStep === null
         ? "not run"

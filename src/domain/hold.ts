@@ -131,7 +131,9 @@ export function resolveHold(request: HoldRequest, phases: readonly HoldPhase[]):
   const { ids, findings } = select(request, phases);
   const held = nonEmpty(ids);
   if (findings.length > 0 || held === null) return { hold: null, findings };
-  return { hold: { selection: request.kind, phases: held }, findings: [] };
+  // The CLI word `oracle` selects the acceptance phases, recorded as `acceptance`.
+  const selection = request.kind === "oracle" ? "acceptance" : request.kind;
+  return { hold: { selection, phases: held }, findings: [] };
 }
 
 /** Whether the run's recorded hold selects `phaseId`. */

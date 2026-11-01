@@ -10,18 +10,19 @@ const ConfiguredStepResultSchema = Schema.Struct({
 });
 
 /**
- * The oracle step: carried only by the step phax appends at an oracle pair's
- * gate. `skipped` records `phax resume --skip-oracle`: the step was not run.
+ * The acceptance step: carried only by the step phax appends at an acceptance
+ * pair's gate. `skipped` records `phax resume --skip-oracle`: the step was not
+ * run.
  */
-const OracleStepResultSchema = Schema.Struct({
+const AcceptanceStepResultSchema = Schema.Struct({
   command: Schema.NonEmptyString,
-  surface: Schema.Literal("oracle"),
+  surface: Schema.Literal("acceptance"),
   result: Schema.Literal("pass", "fail", "refused", "skipped"),
 });
 
-export type OracleStepResult = Schema.Schema.Type<typeof OracleStepResultSchema>;
+export type AcceptanceStepResult = Schema.Schema.Type<typeof AcceptanceStepResultSchema>;
 
-const GateStepResultSchema = Schema.Union(ConfiguredStepResultSchema, OracleStepResultSchema);
+const GateStepResultSchema = Schema.Union(ConfiguredStepResultSchema, AcceptanceStepResultSchema);
 
 export type GateStepResult = Schema.Schema.Type<typeof GateStepResultSchema>;
 

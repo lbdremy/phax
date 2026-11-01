@@ -196,7 +196,7 @@ describe("closing a stop", () => {
               cause: "declared",
               status: "closed",
               outcome: "corrected",
-              oracleStep: "none",
+              acceptanceStep: "none",
               closedBy: { name: "Ada Example", email: "ada@example.com" },
             },
           },

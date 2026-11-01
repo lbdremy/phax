@@ -122,7 +122,7 @@ describe("aggregateVerifiedSurfaces", () => {
     expect(read).toEqual(Either.right({ phase: "phase-01", steps, protectedPaths: null }));
   });
 
-  it("round-trips a 0.31.0 attribution that passed and one that failed the check", () => {
+  it("round-trips a 0.33.0 attribution that passed and one that failed the check", () => {
     const steps = [{ command: "pnpm test", surface: "local" as const, result: "pass" as const }];
     const pass: GateAttribution = {
       phase: "phase-01",
@@ -141,7 +141,7 @@ describe("aggregateVerifiedSurfaces", () => {
       const written = JSON.parse(
         JSON.stringify(encodeGateAttributionFile(withSchemaUrl("gate-attribution", attribution))),
       );
-      expect(written.$schema).toBe(schemaUrl("gate-attribution", "0.31.0"));
+      expect(written.$schema).toBe(schemaUrl("gate-attribution", "0.33.0"));
       expect(readGateAttributionFile("gate-attribution.json", written)).toEqual(
         Either.right(attribution),
       );
@@ -160,7 +160,7 @@ describe("aggregateVerifiedSurfaces", () => {
     expect(Either.isLeft(read)).toBe(true);
   });
 
-  it("leaves oracle off the run when a later phase skipped the oracle another one verified", async () => {
+  it("leaves acceptance off the run when a later phase skipped the step another one verified", async () => {
     const fakeFs = makeFakeFileSystem();
     fakeFs.impl.setFile(
       `${runPath}/phase-02/gate-attribution.json`,
@@ -170,7 +170,7 @@ describe("aggregateVerifiedSurfaces", () => {
           protectedPaths: null,
           steps: [
             { command: "pnpm test", surface: "local", result: "pass" },
-            { command: "node tools/oracles.mjs", surface: "oracle", result: "pass" },
+            { command: "node tools/oracles.mjs", surface: "acceptance", result: "pass" },
           ],
         }),
       ),
@@ -183,7 +183,7 @@ describe("aggregateVerifiedSurfaces", () => {
           protectedPaths: null,
           steps: [
             { command: "pnpm test", surface: "local", result: "pass" },
-            { command: "node tools/oracles.mjs", surface: "oracle", result: "skipped" },
+            { command: "node tools/oracles.mjs", surface: "acceptance", result: "skipped" },
           ],
         }),
       ),

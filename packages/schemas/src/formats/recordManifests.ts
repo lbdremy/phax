@@ -60,6 +60,12 @@ import {
   type PhaseRecordManifestV0_26_0,
 } from "../../../../src/schemas/history/phase-record-manifest/0.26.0.js";
 import {
+  PhaseRecordManifestV0_30_0Schema,
+  decodePhaseRecordManifestV0_30_0,
+  type PhaseRecordManifestV0_30_0,
+} from "../../../../src/schemas/history/phase-record-manifest/0.30.0.js";
+import { liftRecordRole, liftVerifiedSurfaces } from "../../../../src/schemas/acceptanceLift.js";
+import {
   PhaseRecordManifestPreSchemaSchema,
   decodePhaseRecordManifestPreSchema,
   type PhaseRecordManifestPreSchema,
@@ -100,6 +106,7 @@ export type PhaseRecordManifestShapes = {
   "pre-schema": PhaseRecordManifestPreSchema;
   "0.17.0": PhaseRecordManifestV0_17_0;
   "0.26.0": PhaseRecordManifestV0_26_0;
+  "0.30.0": PhaseRecordManifestV0_30_0;
 } & {
   [K in CurrentShapeName<"phase-record-manifest">]: PhaseRecordManifest;
 };
@@ -123,6 +130,10 @@ export const phaseRecordManifestFormat = defineFormat<PhaseRecordManifestShapes>
       "0.26.0",
       { schema: PhaseRecordManifestV0_26_0Schema, decode: decodePhaseRecordManifestV0_26_0 },
     ],
+    [
+      "0.30.0",
+      { schema: PhaseRecordManifestV0_30_0Schema, decode: decodePhaseRecordManifestV0_30_0 },
+    ],
   ],
   current: {
     name: CURRENT_SHAPES["phase-record-manifest"],
@@ -139,30 +150,44 @@ export type LatestPhaseRecordManifest = RunRecordManifest;
 
 /**
  * Upgrades a parsed manifest in memory. Keeps every recorded fact; never
- * invents one: a shape older than `oracle`, `mode` and `stop` gets
- * `oracle: null`, `mode: "headless"` and `stop: null`, because no phax that
- * wrote it could run an oracle phase or stop a phase. Its recorded surfaces
- * are kept as they are. A Vibe usage a shape older than 0.30.0 recorded
- * counted a whole session from the session's `meta.json`: it becomes
- * `{ available: false }`.
+ * invents one: a shape older than the role, `mode` and `stop` gets
+ * `acceptance: null`, `mode: "headless"` and `stop: null`, because no phax
+ * that wrote it could run an oracle phase or stop a phase. The 0.26.0 and
+ * 0.30.0 shapes' `oracle` role is lifted to the `acceptance` role
+ * (`liftRecordRole`) and their verified surfaces lifted and sorted again
+ * (`liftVerifiedSurfaces`), as phax's reader does. A Vibe usage a shape older
+ * than 0.30.0 recorded counted a whole session from the session's
+ * `meta.json`: it becomes `{ available: false }`.
  */
 export function toLatestPhaseRecordManifest(
   value:
     | PhaseRecordManifestPreSchema
     | PhaseRecordManifestV0_17_0
     | PhaseRecordManifestV0_26_0
+    | PhaseRecordManifestV0_30_0
     | PhaseRecordManifest,
 ): LatestPhaseRecordManifest {
-  if ("stop" in value) {
-    const { $schema: _schema, usage, ...recorded } = value;
-    return { ...recorded, usage: liftFrozenTokenUsage(usage) };
+  if ("acceptance" in value) {
+    const { $schema: _schema, ...recorded } = value;
+    return recorded;
+  }
+  if ("oracle" in value) {
+    const { $schema: _schema, usage, verifiedSurfaces, oracle, mode, stop, ...recorded } = value;
+    return {
+      ...recorded,
+      usage: liftFrozenTokenUsage(usage),
+      verifiedSurfaces: liftVerifiedSurfaces(verifiedSurfaces),
+      acceptance: liftRecordRole(oracle),
+      mode,
+      stop,
+    };
   }
   if ("$schema" in value) {
     const { $schema: _schema, usage, ...recorded } = value;
     return {
       ...recorded,
       usage: liftFrozenTokenUsage(usage),
-      oracle: null,
+      acceptance: null,
       mode: "headless",
       stop: null,
     };
@@ -171,7 +196,7 @@ export function toLatestPhaseRecordManifest(
   return {
     ...recorded,
     usage: liftFrozenTokenUsage(usage),
-    oracle: null,
+    acceptance: null,
     mode: "headless",
     stop: null,
   };

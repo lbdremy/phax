@@ -77,12 +77,12 @@ describe("oracleSkipRefusal", () => {
 describe("recordOracleRole", () => {
   it("maps a role to the manifest's value", () => {
     expect(recordOracleRole(oracleRoleOf(phases, "phase-02"))).toEqual({
-      role: "oracle",
-      dischargedBy: "phase-04",
+      role: "acceptance",
+      passedBy: "phase-04",
     });
     expect(recordOracleRole(oracleRoleOf(phases, "phase-04"))).toEqual({
-      role: "discharging",
-      oraclePhase: "phase-02",
+      role: "passing",
+      acceptancePhase: "phase-02",
     });
     expect(recordOracleRole(null)).toBeNull();
   });
@@ -212,7 +212,7 @@ const heldAuthored = (reviewCommit: string): Stop => ({
   status: "closed",
   outcome: "corrected",
   reviewCommit,
-  oracleStep: "authored",
+  acceptanceStep: "authored",
   closedBy: { name: "Ada Example", email: "ada@example.com" },
 });
 
@@ -226,7 +226,7 @@ describe("latestAuthoredCommit", () => {
     cause: "declared",
     status: "closed",
     outcome: "corrected",
-    oracleStep: "authored",
+    acceptanceStep: "authored",
     closedBy: { name: "Ada Example", email: "ada@example.com" },
   };
 
@@ -274,7 +274,7 @@ describe("latestAuthoredCommit", () => {
           status: "closed",
           outcome: "corrected",
           reviewCommit: R3,
-          oracleStep: "none",
+          acceptanceStep: "none",
           closedBy: { name: "Ada Example", email: "ada@example.com" },
         }),
       ],

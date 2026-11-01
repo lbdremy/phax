@@ -405,11 +405,14 @@ import type { CostLedgerV0_25_0 as FrozenCostLedgerV0_25_0 } from "../../src/sch
 import type { CostLedgerV0_26_0 as FrozenCostLedgerV0_26_0 } from "../../src/schemas/history/cost-ledger/0.26.0.js";
 import type { GateAttributionV0_21_0 as FrozenGateAttributionV0_21_0 } from "../../src/schemas/history/gate-attribution/0.21.0.js";
 import type { GateAttributionV0_26_0 as FrozenGateAttributionV0_26_0 } from "../../src/schemas/history/gate-attribution/0.26.0.js";
+import type { GateAttributionV0_31_0 as FrozenGateAttributionV0_31_0 } from "../../src/schemas/history/gate-attribution/0.31.0.js";
 import type { PhaseRecordManifestV0_17_0 as FrozenPhaseRecordManifestV0_17_0 } from "../../src/schemas/history/phase-record-manifest/0.17.0.js";
 import type { PhaseRecordManifestV0_26_0 as FrozenPhaseRecordManifestV0_26_0 } from "../../src/schemas/history/phase-record-manifest/0.26.0.js";
+import type { PhaseRecordManifestV0_30_0 as FrozenPhaseRecordManifestV0_30_0 } from "../../src/schemas/history/phase-record-manifest/0.30.0.js";
 import type { PhaseRecordManifestPreSchema as FrozenPhaseRecordManifest } from "../../src/schemas/history/phase-record-manifest/pre-schema.js";
 import type { PhaseStatusV0_17_0 as FrozenPhaseStatusV0_17_0 } from "../../src/schemas/history/phase-status/0.17.0.js";
 import type { PhaseStatusV0_20_0 as FrozenPhaseStatusV0_20_0 } from "../../src/schemas/history/phase-status/0.20.0.js";
+import type { PhaseStatusV0_26_0 as FrozenPhaseStatusV0_26_0 } from "../../src/schemas/history/phase-status/0.26.0.js";
 import type { PhaseStatusPreSchema as FrozenPhaseStatus } from "../../src/schemas/history/phase-status/pre-schema.js";
 import type { PhaxPlanV0_17_0 as FrozenPhaxPlanV0_17_0 } from "../../src/schemas/history/phax-plan/0.17.0.js";
 import type { PhaxPlanV0_26_0 as FrozenPhaxPlanV0_26_0 } from "../../src/schemas/history/phax-plan/0.26.0.js";
@@ -431,6 +434,7 @@ import type { PlanDocumentPreSchema as FrozenPlanDocument } from "../../src/sche
 import type { RegistryV0_17_0 as FrozenRegistryV0_17_0 } from "../../src/schemas/history/registry/0.17.0.js";
 import type { RegistryPreSchema as FrozenRegistry } from "../../src/schemas/history/registry/pre-schema.js";
 import type { RunStatusV0_17_0 as FrozenRunStatusV0_17_0 } from "../../src/schemas/history/run-status/0.17.0.js";
+import type { RunStatusV0_26_0 as FrozenRunStatusV0_26_0 } from "../../src/schemas/history/run-status/0.26.0.js";
 import type { RunStatusPreSchema as FrozenRunStatus } from "../../src/schemas/history/run-status/pre-schema.js";
 import type { SpecApprovalsPreSchema as FrozenSpecApprovals } from "../../src/schemas/history/spec-approvals/pre-schema.js";
 import type { SpecDocumentPreSchema as FrozenSpecDocument } from "../../src/schemas/history/spec-document/pre-schema.js";
@@ -466,6 +470,7 @@ const asParsed: Parsed<
   | FrozenPhaseRecordManifest
   | FrozenPhaseRecordManifestV0_17_0
   | FrozenPhaseRecordManifestV0_26_0
+  | FrozenPhaseRecordManifestV0_30_0
   | PhaseRecordManifest
 > = parsed;
 void asParsed;
@@ -474,13 +479,14 @@ void asParsed;
 if (parsed.ok) {
   const shape: Equals<
     typeof parsed.shape,
-    "pre-schema" | "0.17.0" | "0.26.0" | Current<"phase-record-manifest">
+    "pre-schema" | "0.17.0" | "0.26.0" | "0.30.0" | Current<"phase-record-manifest">
   > = true;
   const exact: Equals<
     typeof parsed.value,
     | FrozenPhaseRecordManifest
     | FrozenPhaseRecordManifestV0_17_0
     | FrozenPhaseRecordManifestV0_26_0
+    | FrozenPhaseRecordManifestV0_30_0
     | RunRecordManifestFile
   > = true;
   void shape;
@@ -639,7 +645,7 @@ if (document.ok) {
   const format: DocumentFormatId = document.format;
   const shape: Equals<
     typeof document.shape,
-    "pre-schema" | "0.19.0" | "0.23.0" | "0.27.0" | Current<FormatId>
+    "pre-schema" | "0.19.0" | "0.23.0" | "0.27.0" | "0.31.0" | Current<FormatId>
   > = true;
   void format;
   void shape;
@@ -731,13 +737,13 @@ const shapeIds: Equals<
   | RunListShape
   | DecideVerdictsShape
   | PhaxPlanExtractionShape,
-  "pre-schema" | "0.19.0" | "0.23.0" | "0.27.0" | Current<FormatId>
+  "pre-schema" | "0.19.0" | "0.23.0" | "0.27.0" | "0.31.0" | Current<FormatId>
 > = true;
 void shapeIds;
 const eachShapeId: [
   Equals<RegistryShape, "pre-schema" | "0.17.0" | Current<"registry">>,
-  Equals<RunStatusShape, "pre-schema" | "0.17.0" | Current<"run-status">>,
-  Equals<PhaseStatusShape, "pre-schema" | "0.17.0" | "0.20.0" | Current<"phase-status">>,
+  Equals<RunStatusShape, "pre-schema" | "0.17.0" | "0.26.0" | Current<"run-status">>,
+  Equals<PhaseStatusShape, "pre-schema" | "0.17.0" | "0.20.0" | "0.26.0" | Current<"phase-status">>,
   Equals<
     PhaxPlanShape,
     "pre-schema" | "0.17.0" | "0.26.0" | "0.28.0" | "0.32.0" | Current<"phax-plan">
@@ -762,7 +768,7 @@ const eachShapeId: [
   >,
   Equals<
     PhaseRecordManifestShape,
-    "pre-schema" | "0.17.0" | "0.26.0" | Current<"phase-record-manifest">
+    "pre-schema" | "0.17.0" | "0.26.0" | "0.30.0" | Current<"phase-record-manifest">
   >,
   Equals<
     AuthoringRecordManifestShape,
@@ -770,7 +776,13 @@ const eachShapeId: [
   >,
   Equals<
     GateAttributionShape,
-    "pre-schema" | "0.17.0" | "0.20.0" | "0.21.0" | "0.26.0" | Current<"gate-attribution">
+    | "pre-schema"
+    | "0.17.0"
+    | "0.20.0"
+    | "0.21.0"
+    | "0.26.0"
+    | "0.31.0"
+    | Current<"gate-attribution">
   >,
   Equals<
     PhaseFileReconciliationShape,
@@ -816,11 +828,15 @@ const parseValues: [
   Equals<Value<typeof parseRegistry>, FrozenRegistry | FrozenRegistryV0_17_0 | PhaxRegistryFile>,
   Equals<
     Value<typeof parseRunStatus>,
-    FrozenRunStatus | FrozenRunStatusV0_17_0 | PhaxRunStatusFile
+    FrozenRunStatus | FrozenRunStatusV0_17_0 | FrozenRunStatusV0_26_0 | PhaxRunStatusFile
   >,
   Equals<
     Value<typeof parsePhaseStatus>,
-    FrozenPhaseStatus | FrozenPhaseStatusV0_17_0 | FrozenPhaseStatusV0_20_0 | PhaxPhaseStatusFile
+    | FrozenPhaseStatus
+    | FrozenPhaseStatusV0_17_0
+    | FrozenPhaseStatusV0_20_0
+    | FrozenPhaseStatusV0_26_0
+    | PhaxPhaseStatusFile
   >,
   Equals<
     Value<typeof parsePhaxPlan>,
@@ -859,6 +875,7 @@ const parseValues: [
     | FrozenPhaseRecordManifest
     | FrozenPhaseRecordManifestV0_17_0
     | FrozenPhaseRecordManifestV0_26_0
+    | FrozenPhaseRecordManifestV0_30_0
     | RunRecordManifestFile
   >,
   Equals<
@@ -875,6 +892,7 @@ const parseValues: [
     | FrozenGateAttributionV0_20_0
     | FrozenGateAttributionV0_21_0
     | FrozenGateAttributionV0_26_0
+    | FrozenGateAttributionV0_31_0
     | PhaxGateAttributionFile
   >,
   Equals<
@@ -1565,7 +1583,7 @@ const toLatestParameters: [
   >,
   Equals<
     Parameters<typeof toLatestRunStatus>,
-    [value: FrozenRunStatus | FrozenRunStatusV0_17_0 | PhaxRunStatusFile]
+    [value: FrozenRunStatus | FrozenRunStatusV0_17_0 | FrozenRunStatusV0_26_0 | PhaxRunStatusFile]
   >,
   Equals<
     Parameters<typeof toLatestPhaseStatus>,
@@ -1574,6 +1592,7 @@ const toLatestParameters: [
         | FrozenPhaseStatus
         | FrozenPhaseStatusV0_17_0
         | FrozenPhaseStatusV0_20_0
+        | FrozenPhaseStatusV0_26_0
         | PhaxPhaseStatusFile,
     ]
   >,
@@ -1631,6 +1650,7 @@ const toLatestParameters: [
         | FrozenPhaseRecordManifest
         | FrozenPhaseRecordManifestV0_17_0
         | FrozenPhaseRecordManifestV0_26_0
+        | FrozenPhaseRecordManifestV0_30_0
         | RunRecordManifestFile,
     ]
   >,
@@ -1653,6 +1673,7 @@ const toLatestParameters: [
         | FrozenGateAttributionV0_20_0
         | FrozenGateAttributionV0_21_0
         | FrozenGateAttributionV0_26_0
+        | FrozenGateAttributionV0_31_0
         | PhaxGateAttributionFile,
     ]
   >,
@@ -1799,6 +1820,7 @@ const anyManifestAsParsed: Parsed<
   | FrozenPhaseRecordManifest
   | FrozenPhaseRecordManifestV0_17_0
   | FrozenPhaseRecordManifestV0_26_0
+  | FrozenPhaseRecordManifestV0_30_0
   | PhaseRecordManifest
   | FrozenAuthoringRecordManifest
   | AuthoringRecordManifestV0_17_0
@@ -1853,6 +1875,7 @@ if (anyManifest.ok) {
       | FrozenPhaseRecordManifest
       | FrozenPhaseRecordManifestV0_17_0
       | FrozenPhaseRecordManifestV0_26_0
+      | FrozenPhaseRecordManifestV0_30_0
       | RunRecordManifestFile
     > = true;
     void exact;

@@ -117,18 +117,19 @@ export function liftFrozenTokenUsage(usage: FrozenTokenUsage): TokenUsage {
 const PhaseIdSchema = Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/));
 
 /**
- * The phase's role in an oracle pair: null when it is in none; `oracle` for
- * the phase that authors the tests, naming the phase that discharges them;
- * `discharging` for the phase that discharges them, naming the oracle phase.
+ * The phase's role in an acceptance pair: null when it is in none;
+ * `acceptance` for the phase that writes the tests, naming the phase that
+ * passes them; `passing` for the phase that passes them, naming the
+ * acceptance phase.
  */
-export const RecordOracleRoleSchema = Schema.NullOr(
+export const RecordAcceptanceRoleSchema = Schema.NullOr(
   Schema.Union(
-    Schema.Struct({ role: Schema.Literal("oracle"), dischargedBy: PhaseIdSchema }),
-    Schema.Struct({ role: Schema.Literal("discharging"), oraclePhase: PhaseIdSchema }),
+    Schema.Struct({ role: Schema.Literal("acceptance"), passedBy: PhaseIdSchema }),
+    Schema.Struct({ role: Schema.Literal("passing"), acceptancePhase: PhaseIdSchema }),
   ),
 );
 
-export type RecordOracleRole = Schema.Schema.Type<typeof RecordOracleRoleSchema>;
+export type RecordAcceptanceRole = Schema.Schema.Type<typeof RecordAcceptanceRoleSchema>;
 
 const RecordClosedBySchema = Schema.Struct({
   name: Schema.NonEmptyString,
@@ -220,7 +221,7 @@ const runRecordManifestFields = {
   outcome: RecordPhaseOutcomeSchema,
   usage: TokenUsageSchema,
   verifiedSurfaces: Schema.Array(RecordedSurfaceSchema),
-  oracle: RecordOracleRoleSchema,
+  acceptance: RecordAcceptanceRoleSchema,
   mode: PhaseModeSchema,
   stop: RecordStopSchema,
 };

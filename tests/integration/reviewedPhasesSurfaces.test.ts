@@ -120,7 +120,7 @@ const STOPPED = [
     status: "closed",
     outcome: "corrected",
     reviewCommit: REVIEW_COMMIT,
-    oracleStep: "none",
+    acceptanceStep: "none",
     closedBy: ADA,
   }),
   status(
@@ -130,7 +130,7 @@ const STOPPED = [
       cause: "declared",
       status: "closed",
       outcome: "corrected",
-      oracleStep: "none",
+      acceptanceStep: "none",
       closedBy: ADA,
     },
     "interactive",

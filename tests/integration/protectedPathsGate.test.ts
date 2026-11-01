@@ -735,7 +735,7 @@ describe("a secure codex-cli phase and an unsafe claude-code phase", () => {
 
 describe("the gate-attribution record of a failed check", () => {
   it(
-    "carries the 0.31.0 $schema and the fail result with path, kind and entry",
+    "carries the 0.33.0 $schema and the fail result with path, kind and entry",
     { timeout: 60_000 },
     async () => {
       const observed = await runPhase({
@@ -750,7 +750,7 @@ describe("the gate-attribution record of a failed check", () => {
         $schema: string;
       };
       expect(attribution.$schema).toBe(currentSchemaUrl("gate-attribution"));
-      expect(attribution.$schema).toContain("0.31.0");
+      expect(attribution.$schema).toContain("0.33.0");
       expect(attribution).toMatchObject({
         phase: "phase-01",
         steps: [{ command: "node scripts/accept-debt.js", surface: "local", result: "pass" }],

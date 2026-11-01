@@ -316,7 +316,7 @@ describe(
         outcome: "committed",
         usage: { available: false },
         verifiedSurfaces: expect.any(Array),
-        oracle: null,
+        acceptance: null,
         mode: "interactive",
         stop: {
           cause: "declared",

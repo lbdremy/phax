@@ -19,6 +19,7 @@ import {
   preSchemaDocuments,
   validDocuments,
   withKey,
+  withOracleRole,
   withoutKey,
   type Doc,
 } from "./schemasPackage/documents.js";
@@ -76,14 +77,16 @@ const USAGES: ReadonlyArray<readonly [provider: string, usage: Doc, lifted: Doc]
 type Frozen = (stamp: string, usage: Doc) => Doc;
 
 const phase: Frozen = (stamp, usage) =>
-  withKey(
+  withOracleRole(
     withKey(
-      validDocuments["phase-record-manifest"],
-      "$schema",
-      schemaUrl("phase-record-manifest", stamp),
+      withKey(
+        validDocuments["phase-record-manifest"],
+        "$schema",
+        schemaUrl("phase-record-manifest", stamp),
+      ),
+      "usage",
+      usage,
     ),
-    "usage",
-    usage,
   );
 
 const authoring: Frozen = (stamp, usage) =>

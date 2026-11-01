@@ -317,7 +317,7 @@ afterEach(() => {
 
 // ── A held oracle phase ────────────────────────────────────────────────────
 
-const HOLD_ORACLE: RunHold = { selection: "oracle", phases: ["phase-02"] };
+const HOLD_ORACLE: RunHold = { selection: "acceptance", phases: ["phase-02"] };
 
 describe("a held oracle phase", { timeout: 60_000 }, () => {
   it("is judged again when its review changes an oracle file, and the discharge judges the review commit", async () => {
@@ -348,7 +348,7 @@ describe("a held oracle phase", { timeout: 60_000 }, () => {
         cause: "held",
         status: "closed",
         outcome: "corrected",
-        oracleStep: "authored",
+        acceptanceStep: "authored",
         closedBy: ADA_EXAMPLE,
       },
     });
@@ -367,7 +367,7 @@ describe("a held oracle phase", { timeout: 60_000 }, () => {
     );
     expect((attribution["steps"] as unknown[]).at(-1)).toEqual({
       command: ORACLES.command,
-      surface: "oracle",
+      surface: "acceptance",
       result: "pass",
     });
     expect(run.closed[0]?.report).toMatchObject({ cause: "held", oracleStep: "authored" });
@@ -385,7 +385,7 @@ describe("a held oracle phase", { timeout: 60_000 }, () => {
     expect(requests()[1]?.["oracleCommit"]).toBe(c2);
     expect(readPhaseStatus(run, "phase-02")["stop"]).toMatchObject({
       outcome: "corrected",
-      oracleStep: "none",
+      acceptanceStep: "none",
     });
   });
 
@@ -481,7 +481,7 @@ describe("a declared review between the pair", { timeout: 60_000 }, () => {
       cause: "declared",
       status: "closed",
       outcome: "corrected",
-      oracleStep: "authored",
+      acceptanceStep: "authored",
       closedBy: ADA_EXAMPLE,
     });
     expect(requests()[2]?.["oracleCommit"]).toBe(phase03["commitHash"]);
@@ -698,11 +698,105 @@ describe("an authored close interrupted after its review commit", { timeout: 60_
       status: "closed",
       outcome: "corrected",
       reviewCommit: landed,
-      oracleStep: "authored",
+      acceptanceStep: "authored",
       closedBy: ADA_EXAMPLE,
     });
     // No request at the finishing close: its gate ran before the commit.
     expect(verdicts()).toEqual(["authored:phase-02", "authored:phase-02", "discharged:phase-03"]);
     expect(requests()[2]?.["oracleCommit"]).toBe(landed);
+  });
+});
+
+// ── The acceptance names a held, corrected pair records (ac-status-record) ──
+
+// phase-03 pins the invoice test until phase-04 passes it.
+const ACCEPTANCE_AT_PHASE_03 = planOf([
+  { title: "Export port" },
+  { title: "Invoice header" },
+  { title: "Invoice CSV record", dischargedBy: "phase-04", create: [ORACLE_FILE, SOURCE] },
+  { title: "Invoice totals", edit: [SOURCE] },
+]);
+
+const RECORDS_BRANCH = "phax/records/v1";
+
+/** The record.json of `phaseId` on the records branch: each records commit holds only its own record. */
+function recordManifestOf(run: HeldRun, phaseId: string): Record<string, unknown> {
+  const repo = run.world.repoRoot;
+  const key = `${run.runId as string}/${phaseId}`;
+  const commit = gitIn(repo, "rev-list", RECORDS_BRANCH)
+    .split("\n")
+    .filter(Boolean)
+    .find((c) =>
+      gitIn(repo, "ls-tree", "-r", "--name-only", c).split("\n").includes(`${key}/record.json`),
+    );
+  if (commit === undefined) throw new Error(`no record of ${phaseId}`);
+  return JSON.parse(gitIn(repo, "show", `${commit}:${key}/record.json`)) as Record<string, unknown>;
+}
+
+const stamp = (format: string): string => `https://docs.phax.run/schemas/${format}/0.33.0.json`;
+
+describe("a held acceptance phase closed with a correction", { timeout: 60_000 }, () => {
+  it("records acceptanceStep authored in status.json and the acceptance and passing roles in the manifests, all at 0.33.0", async () => {
+    const { run, result } = await startHeldRun(
+      world,
+      { selection: "acceptance", phases: ["phase-03"] },
+      {
+        plan: ACCEPTANCE_AT_PHASE_03,
+        oracles: ORACLES,
+        records: true,
+        prepare: (r) => {
+          r.backend.onBuild = (phase, worktree) => {
+            if (phase !== "phase-03") return;
+            for (const [path, content] of [
+              [ORACLE_FILE, AUTHORED_TEST],
+              [SOURCE, CORRECTED_SOURCE],
+            ] as const) {
+              mkdirSync(dirname(join(worktree, path)), { recursive: true });
+              writeFileSync(join(worktree, path), content);
+            }
+          };
+        },
+      },
+    );
+    if (Either.isRight(result)) throw new Error("the run did not stop");
+    expect(result.left).toBeInstanceOf(AwaitingReviewStopError);
+    expect(readRunStatus(run)).toMatchObject({
+      $schema: stamp("run-status"),
+      hold: { selection: "acceptance", phases: ["phase-03"] },
+    });
+
+    // The correction changes the acceptance file: the close's gate passes the authored step.
+    writeIn(run, "phase-03", ORACLE_FILE, CORRECTED_TEST);
+    expect(Either.isRight(await resumeHeldRun(run))).toBe(true);
+    expect(verdicts()).toEqual(["authored:phase-03", "authored:phase-03", "discharged:phase-04"]);
+
+    const status = readPhaseStatus(run, "phase-03");
+    expect(status["$schema"]).toBe(stamp("phase-status"));
+    expect(status["stop"]).toMatchObject({
+      cause: "held",
+      status: "closed",
+      outcome: "corrected",
+      acceptanceStep: "authored",
+    });
+    expect(status["stop"]).not.toHaveProperty("oracleStep");
+
+    const closing = readJson(join(run.runPath, "phase-03", "review-gate", "gate-attribution.json"));
+    expect(closing["$schema"]).toBe(stamp("gate-attribution"));
+    expect((closing["steps"] as unknown[]).at(-1)).toEqual({
+      command: ORACLES.command,
+      surface: "acceptance",
+      result: "pass",
+    });
+
+    const authored = recordManifestOf(run, "phase-03");
+    expect(authored["$schema"]).toBe(stamp("phase-record-manifest"));
+    expect(authored["acceptance"]).toEqual({ role: "acceptance", passedBy: "phase-04" });
+    expect(authored["verifiedSurfaces"]).toContain("acceptance");
+    expect(authored).not.toHaveProperty("oracle");
+
+    const passing = recordManifestOf(run, "phase-04");
+    expect(passing["$schema"]).toBe(stamp("phase-record-manifest"));
+    expect(passing["acceptance"]).toEqual({ role: "passing", acceptancePhase: "phase-03" });
+    expect(passing).not.toHaveProperty("oracle");
   });
 });

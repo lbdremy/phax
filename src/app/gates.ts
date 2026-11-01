@@ -184,7 +184,7 @@ export function runGates(
             exitCode: params.exitCode,
             logPath: attemptLogPath,
             reportFindings: params.reportFindings ?? null,
-            failedStep: params.surface === "oracle" ? "oracle" : "configured",
+            failedStep: params.surface === "acceptance" ? "oracle" : "configured",
             ...(params.stderr ? { stderrExcerpt: params.stderr } : {}),
           }),
         );
@@ -267,7 +267,7 @@ export function runGates(
               exitCode: result.exitCode,
               logPath: attemptLogPath,
               phaseId: phaseId ?? "",
-              failedStep: surface === "oracle" ? "oracle" : "configured",
+              failedStep: surface === "acceptance" ? "oracle" : "configured",
               protectedChanges: [],
             }),
           );
@@ -364,7 +364,7 @@ export function runGates(
       // Every configured step passed: the operator discharged the oracle step.
       logLines.push(`oracle step skipped by the operator: ${oracleStep.command}`);
       logLines.push("");
-      stepResults.push({ command: oracleStep.command, surface: "oracle", result: "skipped" });
+      stepResults.push({ command: oracleStep.command, surface: "acceptance", result: "skipped" });
     } else if (oracleStep !== undefined) {
       // Every configured step passed: phax appends the oracle step, last. Its
       // request is saved beside the log before the provider reads it.
@@ -387,10 +387,10 @@ export function runGates(
         const error = spawned.left;
         logLines.push(`provider error: ${error.message}`);
         logLines.push("");
-        stepResults.push({ command: rawCommand, surface: "oracle", result: "fail" });
+        stepResults.push({ command: rawCommand, surface: "acceptance", result: "fail" });
         return yield* failGate({
           rawCommand,
-          surface: "oracle",
+          surface: "acceptance",
           exitCode: error.exitCode ?? -1,
           message: `Gate step "${rawCommand}": ${error.message}`,
           stderr: error.stderrExcerpt ?? "",
@@ -399,7 +399,7 @@ export function runGates(
       const result = spawned.right;
       yield* judgeReport({
         rawCommand,
-        surface: "oracle",
+        surface: "acceptance",
         position: steps.length + 1,
         result,
         stdoutLine: logResult(result),

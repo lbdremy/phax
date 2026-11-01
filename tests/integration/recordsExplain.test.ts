@@ -155,7 +155,7 @@ function attribution(phase: string, result: "pass" | "fail" | "skipped"): string
       protectedPaths: null,
       steps: [
         { command: "pnpm test", surface: "local", result: "pass" },
-        { command: "node tools/oracles.mjs", surface: "oracle", result },
+        { command: "node tools/oracles.mjs", surface: "acceptance", result },
       ],
     }),
   );
@@ -223,7 +223,7 @@ describe("records explain and list (real git)", () => {
         },
       },
       verifiedSurfaces: ["local", "product"],
-      oracle: null,
+      acceptance: null,
       mode: "headless",
       stop: null,
     };
@@ -334,7 +334,7 @@ describe("records explain and list (real git)", () => {
         },
       },
       verifiedSurfaces: [],
-      oracle: null,
+      acceptance: null,
       mode: "headless",
       stop: null,
     };
@@ -372,7 +372,7 @@ describe("records explain and list (real git)", () => {
       outcome: "failed",
       usage: { available: false },
       verifiedSurfaces: [],
-      oracle: null,
+      acceptance: null,
       mode: "headless",
       stop: null,
     };
@@ -526,7 +526,7 @@ describe("records explain and list (real git)", () => {
         outcome: "committed",
         usage: { available: false },
         verifiedSurfaces: ["local"],
-        oracle: null,
+        acceptance: null,
         mode: "headless",
         stop: null,
       };
@@ -572,7 +572,7 @@ describe("records explain and list (real git)", () => {
         outcome: "committed",
         usage: { available: false },
         verifiedSurfaces: ["local"],
-        oracle: null,
+        acceptance: null,
         mode: "headless",
         stop: null,
       };
@@ -599,7 +599,7 @@ describe("records explain and list (real git)", () => {
         outcome: "committed",
         usage: { available: false },
         verifiedSurfaces: ["local"],
-        oracle: null,
+        acceptance: null,
         mode: "headless",
         stop: null,
       };
@@ -639,7 +639,7 @@ describe("records explain and list (real git)", () => {
         provider: "claude-code" as const,
         outcome: "committed" as const,
         usage: { available: false as const },
-        verifiedSurfaces: ["local", "oracle"] as const,
+        verifiedSurfaces: ["acceptance", "local"] as const,
         mode: "headless" as const,
         stop: null,
       };
@@ -651,7 +651,7 @@ describe("records explain and list (real git)", () => {
           phaseId: "phase-02",
           sourceSha: authoredSha,
           verifiedSurfaces: [...base.verifiedSurfaces],
-          oracle: { role: "oracle", dischargedBy: "phase-03" },
+          acceptance: { role: "acceptance", passedBy: "phase-03" },
         },
         { "gate-attribution.json": attribution("phase-02", "pass") },
       );
@@ -663,7 +663,7 @@ describe("records explain and list (real git)", () => {
           phaseId: "phase-03",
           sourceSha: dischargedSha,
           verifiedSurfaces: ["local"],
-          oracle: { role: "discharging", oraclePhase: "phase-02" },
+          acceptance: { role: "passing", acceptancePhase: "phase-02" },
         },
         { "gate-attribution.json": attribution("phase-03", "skipped") },
       );
@@ -675,7 +675,7 @@ describe("records explain and list (real git)", () => {
           phaseId: "phase-04",
           sourceSha: ordinarySha,
           verifiedSurfaces: ["local"],
-          oracle: null,
+          acceptance: null,
         },
         {},
       );
@@ -722,7 +722,7 @@ describe("records explain and list (real git)", () => {
         outcome: "committed",
         usage: { available: false },
         verifiedSurfaces: ["local"],
-        oracle: null,
+        acceptance: null,
         mode: "headless",
         stop: null,
       };
@@ -793,7 +793,7 @@ describe("records explain and list (real git)", () => {
         outcome: "committed",
         usage: { available: false },
         verifiedSurfaces: ["local"],
-        oracle: null,
+        acceptance: null,
         mode: "headless",
         stop: null,
       };
@@ -1075,7 +1075,7 @@ describe("records explain and list (real git)", () => {
           outcome: "committed",
           usage: { available: false },
           verifiedSurfaces: ["local"],
-          oracle: null,
+          acceptance: null,
           mode: "headless",
           stop: null,
         },
@@ -1431,7 +1431,7 @@ describe("records explain and list (real git)", () => {
           outcome: "committed",
           usage: { available: false },
           verifiedSurfaces: ["local"],
-          oracle: null,
+          acceptance: null,
           mode: "headless",
           stop: null,
         },
