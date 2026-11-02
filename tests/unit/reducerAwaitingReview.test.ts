@@ -177,7 +177,7 @@ describe("closing a stop", () => {
       hash: "0123456789abcdef0123456789abcdef01234567",
       closure: {
         outcome: "corrected",
-        oracleStep: "none",
+        acceptanceStep: "none",
         closedBy: { name: "Ada Example", email: "ada@example.com" },
       },
     });

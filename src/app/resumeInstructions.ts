@@ -30,7 +30,7 @@ export interface ResumeInstructionsInput {
   /** The refused step, its reason and its remedy (kind `gate_refused`). */
   readonly refusal?: GateRefusal | undefined;
   /** Which step stopped the phase (kinds `gates_exhausted` and `gate_refused`). */
-  readonly failedStep?: "configured" | "oracle" | "protected-paths" | undefined;
+  readonly failedStep?: "configured" | "acceptance" | "protected-paths" | undefined;
   /** The protected paths still changed (kinds `gates_exhausted` and `gate_refused`). */
   readonly protectedChanges?: readonly ProtectedChange[] | undefined;
   /** The phase's last fix transcript, or null when none was made (kind `gates_exhausted`). */
@@ -45,8 +45,8 @@ export interface ResumeInstructionsInput {
   readonly platform: KeepAwakePlatform;
 }
 
-/** Operator-only: the wrong-oracle recovery; no agent prompt carries it. */
-const OracleSkipSentence =
+/** Operator-only: the wrong-acceptance-test recovery; no agent prompt carries it. */
+const AcceptanceSkipSentence =
   "Either resume as is — the gate, oracle step included, is re-run first — or, if the oracle itself is wrong, correct it in the phase worktree and resume with --skip-acceptance: the phase's configured gate still runs, with the usual fix loop, and the oracle step is recorded as skipped.";
 
 function stepsToMarkdown(steps: readonly NextStep[]): string[] {
@@ -163,10 +163,10 @@ function buildGateExhaustionInstructions(input: ResumeInstructionsInput): string
           "This run paused because its gate attempts changed protected paths, and the fix",
           "attempts did not put them back. Every gate step passed.",
         ]
-      : failedStep === "oracle"
+      : failedStep === "acceptance"
         ? [
             "This run paused because the oracle step failed after exhausting all fix attempts.",
-            OracleSkipSentence,
+            AcceptanceSkipSentence,
           ]
         : [
             "This run paused because its gate checks failed after exhausting all fix attempts.",
@@ -200,7 +200,7 @@ function buildGateRefusalInstructions(input: ResumeInstructionsInput): string {
     remedy: "(not recorded)",
   };
   // A refusal is a step's: it is never the protected-paths check.
-  const failedStep = input.failedStep === "oracle" ? "oracle" : "configured";
+  const failedStep = input.failedStep === "acceptance" ? "acceptance" : "configured";
   const protectedChanges = input.protectedChanges ?? [];
   const wn = buildWhatsNext(
     {
@@ -218,7 +218,7 @@ function buildGateRefusalInstructions(input: ResumeInstructionsInput): string {
     `# Resume Instructions: ${input.shortName}`,
     "",
     `This run paused because the gate step \`${refusal.command}\` refused to run.`,
-    ...(failedStep === "oracle"
+    ...(failedStep === "acceptance"
       ? [
           "No fix attempt was made. Fix the cause and resume — the gate, oracle step included, is",
           "re-run first, with the full fix budget — or, if the oracle itself is wrong, correct it in",

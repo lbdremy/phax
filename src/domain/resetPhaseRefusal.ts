@@ -6,13 +6,13 @@
 import type { PhaxPlanPhase } from "../schemas/phaxPlan.js";
 import type { PhaseStatus } from "../schemas/status.js";
 import type { PhaseResetRequested } from "./events.js";
-import { oracleRoleOf, stopOraclePairs } from "./plan/oraclePairs.js";
+import { acceptanceRoleOf, stopAcceptancePairs } from "./plan/acceptancePairs.js";
 import { interpret } from "./reducer.js";
 import type { PhaxState } from "./state.js";
 
 export type ResetRefusalReason =
   | "phase_not_at_stop"
-  | "phase_blocked_by_discharge"
+  | "phase_blocked_by_passing"
   | "phase_blocked_by_later_committed"
   | "not_resettable";
 
@@ -23,7 +23,7 @@ export interface ResetRefusal {
 
 export const TERMINAL_COMMITTED_STATES = new Set<PhaseStatus["state"]>(["committed", "cleaned_up"]);
 
-// A discharge the next resume restarts at, so `--skip-acceptance` reaches its oracle step.
+// A passing phase the next resume restarts at, so `--skip-acceptance` reaches its acceptance step.
 const STOPPED_AT_GATE_STATES = new Set<PhaseStatus["state"]>([
   "gates_exhausted",
   "gates_failed",
@@ -90,40 +90,41 @@ export function resetPhaseRefusal(input: ResetRefusalInput): ResetRefusal | null
   );
   if (notAtStop !== null) return notAtStop;
 
-  // An oracle phase is not reset once its discharge has started: the
-  // discharge judges this phase's commit, which a reset would discard. A
-  // committed oracle phase is never resettable anyway.
-  const role = planPhases === undefined ? null : oracleRoleOf(planPhases, target.phaseId);
-  const discharging = role?.role === "oracle" ? role.pair.dischargingPhase : undefined;
-  const dischargingStatus = phaseStatuses.find((p) => p.phaseId === discharging);
-  if (dischargingStatus !== undefined && dischargingStatus.state !== "pending") {
+  // An acceptance phase is not reset once its passing phase has started: the
+  // passing phase judges this phase's commit, which a reset would discard. A
+  // committed acceptance phase is never resettable anyway.
+  const role = planPhases === undefined ? null : acceptanceRoleOf(planPhases, target.phaseId);
+  const passing = role?.role === "acceptance" ? role.pair.passingPhase : undefined;
+  const passingStatus = phaseStatuses.find((p) => p.phaseId === passing);
+  if (passingStatus !== undefined && passingStatus.state !== "pending") {
     return {
-      reason: "phase_blocked_by_discharge",
-      // The skip recovery applies only while the discharge is the stopped
-      // phase: a resume skips the oracle step of the phase it restarts at.
+      reason: "phase_blocked_by_passing",
+      // The skip recovery applies only while the passing phase is the stopped
+      // phase: a resume skips the acceptance step of the phase it restarts at.
       message:
-        `Cannot reset "${target.phaseId}" of run "${shortName}": its discharging phase "${dischargingStatus.phaseId}" is ${dischargingStatus.state}, and a committed oracle phase is not reset.` +
-        (STOPPED_AT_GATE_STATES.has(dischargingStatus.state)
-          ? ` To correct the oracle, edit it in ${dischargingStatus.phaseId} (\`phax enter-phase ${shortName} ${dischargingStatus.phaseId}\`), then run \`phax resume ${shortName} --yes --skip-acceptance\`: the configured gate still runs.`
+        `Cannot reset "${target.phaseId}" of run "${shortName}": its discharging phase "${passingStatus.phaseId}" is ${passingStatus.state}, and a committed oracle phase is not reset.` +
+        (STOPPED_AT_GATE_STATES.has(passingStatus.state)
+          ? ` To correct the oracle, edit it in ${passingStatus.phaseId} (\`phax enter-phase ${shortName} ${passingStatus.phaseId}\`), then run \`phax resume ${shortName} --yes --skip-acceptance\`: the configured gate still runs.`
           : ""),
     };
   }
 
   // Nor is a phase whose closed stop ran the `authored` step once its
-  // pair's discharge has started: the discharge judges this phase's commit.
+  // pair's passing phase has started: the passing phase judges this phase's
+  // commit.
   const authoredStop =
     target.stop !== null &&
     target.stop.status === "closed" &&
     target.stop.outcome === "corrected" &&
     target.stop.acceptanceStep === "authored";
   if (authoredStop && planPhases !== undefined) {
-    for (const pair of stopOraclePairs(planPhases, target.phaseId)) {
-      const status = phaseStatuses.find((p) => p.phaseId === pair.dischargingPhase);
+    for (const pair of stopAcceptancePairs(planPhases, target.phaseId)) {
+      const status = phaseStatuses.find((p) => p.phaseId === pair.passingPhase);
       if (status === undefined || status.state === "pending") continue;
       return {
-        reason: "phase_blocked_by_discharge",
-        // The same recovery as for the oracle phase (§5.36), while the
-        // discharge is the stopped phase.
+        reason: "phase_blocked_by_passing",
+        // The same recovery as for the acceptance phase (§5.36), while the
+        // passing phase is the stopped phase.
         message:
           `Cannot reset '${target.phaseId}' of run '${shortName}': its discharging phase '${status.phaseId}' is ${status.state}, and the discharge judges this phase's commit.` +
           (STOPPED_AT_GATE_STATES.has(status.state)

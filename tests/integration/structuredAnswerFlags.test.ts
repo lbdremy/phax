@@ -242,7 +242,7 @@ async function author(options: {
     publishRemote: "origin",
     architectureProvider: false,
     assignmentBounds: false,
-    oraclesProvider: false,
+    acceptanceProvider: false,
     output: { warn: (message) => warnings.push(message) },
   };
   const result = await Effect.runPromise(
@@ -845,7 +845,7 @@ async function driveClosingTurn(provider: ProviderId, table?: StructuredCallsTab
         gateRequest: Effect.succeed("{}"),
         fileReconciliationMode: "report_only",
         phases: [],
-        oracles: null,
+        acceptance: null,
         mainCheckout: stopped.repoRoot,
       });
     });

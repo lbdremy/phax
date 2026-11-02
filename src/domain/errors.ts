@@ -143,9 +143,9 @@ export class GateFailedError extends Data.TaggedError("GateFailedError")<{
     readonly step: number;
     readonly findings: readonly GateFinding[];
   } | null;
-  /** Which step failed: a configured gate step, or the oracle step phax
-   *  appends for an oracle pair. */
-  failedStep: "configured" | "oracle";
+  /** Which step failed: a configured gate step, or the acceptance step phax
+   *  appends for an acceptance pair. */
+  failedStep: "configured" | "acceptance";
   stderrExcerpt?: string;
 }> {}
 
@@ -154,13 +154,13 @@ export class GateAttemptsExhaustedError extends Data.TaggedError("GateAttemptsEx
   logPath: string;
   attempt: number;
   phaseId: string;
-  /** What exhausted the fix loop: a configured gate step or the oracle step
+  /** What exhausted the fix loop: a configured gate step or the acceptance step
    *  (with the protected changes the attempt also found, possibly none), or
    *  the protected-paths check alone. One field, since a TaggedError cannot
    *  take a union as its type argument. */
   failure:
     | {
-        readonly failedStep: "configured" | "oracle";
+        readonly failedStep: "configured" | "acceptance";
         readonly command: string;
         readonly exitCode: number;
         readonly protectedChanges: readonly ProtectedChange[];
@@ -184,8 +184,8 @@ export class GateStepRefusedError extends Data.TaggedError("GateStepRefusedError
   exitCode: number;
   logPath: string;
   phaseId: string;
-  /** Which step refused: a configured gate step, or the oracle step. */
-  failedStep: "configured" | "oracle";
+  /** Which step refused: a configured gate step, or the acceptance step. */
+  failedStep: "configured" | "acceptance";
   /** The protected changes the same attempt found, possibly none. */
   protectedChanges: readonly ProtectedChange[];
 }> {}
@@ -546,14 +546,14 @@ export class AcceptancePreflightError extends Data.TaggedError("AcceptancePrefli
   planPath: string;
 }> {}
 
-/** A discharging phase's oracle phase noted no commit (it was skipped for
- *  producing no changes): there are no oracles to discharge, and no resume
- *  can give the oracle phase a commit. Refused at the discharging phase's
+/** A passing phase's acceptance phase noted no commit (it was skipped for
+ *  producing no changes): there are no acceptance tests to pass, and no resume
+ *  can give the acceptance phase a commit. Refused at the passing phase's
  *  entry, before its agent runs; the run fails. */
-export class OracleCommitMissingError extends Data.TaggedError("OracleCommitMissingError")<{
+export class AcceptanceCommitMissingError extends Data.TaggedError("AcceptanceCommitMissingError")<{
   message: string;
-  oraclePhase: string;
-  dischargingPhase: string;
+  acceptancePhase: string;
+  passingPhase: string;
 }> {}
 
 // The errors of the bounds check (the `models` errors lint reports from the

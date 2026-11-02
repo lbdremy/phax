@@ -12,8 +12,8 @@ import { createRunFolder } from "../../src/app/runFolder.js";
 import { decodeShortName, type ClaudeSessionId, type RunId } from "../../src/domain/branded.js";
 import {
   GateAttemptsExhaustedError,
+  AcceptanceCommitMissingError,
   GateStepRefusedError,
-  OracleCommitMissingError,
   PhaseHadNoChangesError,
 } from "../../src/domain/errors.js";
 import { exitCodeForError } from "../../src/cli/commands/runLayers.js";
@@ -216,7 +216,7 @@ interface ProviderCall {
   readonly commitsBefore: number;
 }
 
-describe("oracle phases in a run", () => {
+describe("acceptance phases in a run", () => {
   let stateRoot: string;
 
   beforeEach(async () => {
@@ -538,7 +538,7 @@ describe("oracle phases in a run", () => {
       command: ORACLES,
       reason: REASON,
       remedy: REMEDY,
-      failedStep: "oracle",
+      failedStep: "acceptance",
     });
     expect(h.fixPrompts()).toEqual([]);
     expect(await h.readJson("phase-02", "status.json")).toMatchObject({ state: "gates_exhausted" });
@@ -572,7 +572,7 @@ describe("oracle phases in a run", () => {
 
     if (Either.isRight(result)) throw new Error("expected the run to stop");
     expect(result.left).toBeInstanceOf(GateAttemptsExhaustedError);
-    expect(result.left).toMatchObject({ failure: { failedStep: "oracle" } });
+    expect(result.left).toMatchObject({ failure: { failedStep: "acceptance" } });
     expect(await h.readJson("phase-03", "status.json")).toMatchObject({ state: "gates_exhausted" });
     const instructions = await readFile(join(h.runPath, "resume-instructions.md"), "utf8");
     expect(instructions).toContain("the oracle step failed after exhausting all fix attempts");
@@ -597,7 +597,7 @@ describe("oracle phases in a run", () => {
     const refusedReset = await h.reset("phase-02");
     if (Either.isRight(refusedReset)) throw new Error("expected the reset to be refused");
     expect(refusedReset.left).toBeInstanceOf(ResetPhaseError);
-    expect(refusedReset.left).toMatchObject({ reason: "phase_blocked_by_discharge" });
+    expect(refusedReset.left).toMatchObject({ reason: "phase_blocked_by_passing" });
     expect(refusedReset.left.message).toBe(
       `Cannot reset "phase-02" of run "refunds": its discharging phase "phase-03" is gates_exhausted, and a committed oracle phase is not reset. To correct the oracle, edit it in phase-03 (\`phax enter-phase refunds phase-03\`), then run \`phax resume refunds --yes --skip-acceptance\`: the configured gate still runs.`,
     );
@@ -749,8 +749,8 @@ describe("oracle phases in a run", () => {
     const resumed = await h.execute(2);
 
     if (Either.isRight(resumed)) throw new Error("expected the discharge to be refused");
-    expect(resumed.left).toBeInstanceOf(OracleCommitMissingError);
-    expect(resumed.left).toMatchObject({ oraclePhase: "phase-02", dischargingPhase: "phase-03" });
+    expect(resumed.left).toBeInstanceOf(AcceptanceCommitMissingError);
+    expect(resumed.left).toMatchObject({ acceptancePhase: "phase-02", passingPhase: "phase-03" });
     expect(resumed.left.message).toBe(
       [
         `Cannot run discharging phase "phase-03" of run "refunds": its oracle phase "phase-02" is skipped and noted no commit, so there are no oracles to discharge.`,

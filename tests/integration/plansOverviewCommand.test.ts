@@ -258,7 +258,7 @@ describe("phax plans overview", () => {
         id: string;
         placement: unknown;
         testLines: unknown[];
-        oracleRole: unknown;
+        acceptanceRole: unknown;
       }>;
       coverage: unknown;
     };
@@ -269,7 +269,7 @@ describe("phax plans overview", () => {
     expect(overview.architecture).toEqual({ kind: "parts" });
     expect(overview.coverage).toEqual({ kind: "no-source-spec" });
     expect(overview.phases).toHaveLength(1);
-    expect(overview.phases[0]!.oracleRole).toEqual({ kind: "none" });
+    expect(overview.phases[0]!.acceptanceRole).toEqual({ kind: "none" });
     expect(overview.phases[0]!.placement).toEqual([
       { part: "domain", files: ["src/domain/x.ts"] },
       { part: null, files: ["scripts/y.sh"] },

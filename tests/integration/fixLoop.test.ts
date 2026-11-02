@@ -1205,9 +1205,9 @@ describe("runGatesWithFixLoop", () => {
     expect(fakeFs.impl.getFile(`${phaseFolderPath}/checks-attempt-02.log`)).toBeDefined();
   });
 
-  describe("an oracle step", () => {
+  describe("an acceptance step", () => {
     const reportUrl = currentSchemaUrl("gate-report");
-    const oracleStep = {
+    const acceptanceStep = {
       kind: "run",
       command: "./oracles",
       request: '{"made-up":"request"}',
@@ -1236,13 +1236,13 @@ describe("runGatesWithFixLoop", () => {
       );
 
       const outcome = await Effect.runPromise(
-        runGatesWithFixLoop({ ...baseOpts, oracleStep }).pipe(Effect.provide(layer)),
+        runGatesWithFixLoop({ ...baseOpts, acceptanceStep }).pipe(Effect.provide(layer)),
       );
 
       expect(outcome.attemptLogPath).toContain("checks-attempt-02");
       const providerCalls = fakeShell.impl.calls.filter((c) => c.command[0] === "./oracles");
       expect(providerCalls).toHaveLength(2);
-      expect(providerCalls.every((c) => c.stdin === oracleStep.request)).toBe(true);
+      expect(providerCalls.every((c) => c.stdin === acceptanceStep.request)).toBe(true);
       const { prompt } = fakeBackend.impl.resumeCalls[0]!;
       expect(prompt).toContain("**Failed step:** `./oracles` (1 finding)");
       expect(prompt).toContain("- tests/refunds.test.ts:12");
@@ -1271,7 +1271,9 @@ describe("runGatesWithFixLoop", () => {
       );
 
       const result = await Effect.runPromise(
-        Effect.either(runGatesWithFixLoop({ ...baseOpts, oracleStep }).pipe(Effect.provide(layer))),
+        Effect.either(
+          runGatesWithFixLoop({ ...baseOpts, acceptanceStep }).pipe(Effect.provide(layer)),
+        ),
       );
 
       expect(Either.isLeft(result)).toBe(true);
@@ -1291,14 +1293,16 @@ describe("runGatesWithFixLoop", () => {
       });
 
       const result = await Effect.runPromise(
-        Effect.either(runGatesWithFixLoop({ ...baseOpts, oracleStep }).pipe(Effect.provide(layer))),
+        Effect.either(
+          runGatesWithFixLoop({ ...baseOpts, acceptanceStep }).pipe(Effect.provide(layer)),
+        ),
       );
 
       expect(Either.isLeft(result)).toBe(true);
       if (Either.isLeft(result)) {
         expect(result.left).toBeInstanceOf(GateAttemptsExhaustedError);
         expect((result.left as GateAttemptsExhaustedError).failure).toMatchObject({
-          failedStep: "oracle",
+          failedStep: "acceptance",
           command: "./oracles",
         });
       }

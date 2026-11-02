@@ -47,7 +47,7 @@ export interface ResumeContext {
   /** The refused step, its reason and its remedy; set for kind `gate_refused`. */
   readonly refusal?: GateRefusal | undefined;
   /** Which step stopped the phase; set for kinds `gates_exhausted` and `gate_refused`. */
-  readonly failedStep?: "configured" | "oracle" | "protected-paths" | undefined;
+  readonly failedStep?: "configured" | "acceptance" | "protected-paths" | undefined;
   /** The protected paths still changed; set for kinds `gates_exhausted`, `gate_refused` and `protected_paths_changed`. */
   readonly protectedChanges?: readonly ProtectedChange[] | undefined;
   /** The last fix transcript of the phase, or null when none was made; set for kind `gates_exhausted`. */

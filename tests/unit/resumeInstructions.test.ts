@@ -104,8 +104,8 @@ describe("buildResumeInstructions — oracle step stops", () => {
     refusal: { command: "node tools/oracle.mjs", reason: "r", remedy: "m" },
   };
 
-  it("an oracle exhaustion names --skip-acceptance and the configured gate", () => {
-    const md = buildResumeInstructions({ ...exhausted, failedStep: "oracle" });
+  it("an acceptance exhaustion names --skip-acceptance and the configured gate", () => {
+    const md = buildResumeInstructions({ ...exhausted, failedStep: "acceptance" });
     expect(md).toContain(
       "This run paused because the oracle step failed after exhausting all fix attempts.",
     );
@@ -114,8 +114,8 @@ describe("buildResumeInstructions — oracle step stops", () => {
     expect(md).not.toContain("reset-phase");
   });
 
-  it("an oracle refusal names --skip-acceptance and the configured gate", () => {
-    const md = buildResumeInstructions({ ...refused, failedStep: "oracle" });
+  it("an acceptance refusal names --skip-acceptance and the configured gate", () => {
+    const md = buildResumeInstructions({ ...refused, failedStep: "acceptance" });
     expect(md).toContain("refused to run");
     expect(md).toContain("resume with --skip-acceptance: the phase's configured gate still runs");
     // One paragraph names both ways on; the resume advice is not repeated.

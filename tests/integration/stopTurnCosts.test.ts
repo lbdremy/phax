@@ -262,7 +262,7 @@ describe("a declared stop closed after the person continued C1", { timeout: 30_0
         gateRequest: Effect.succeed("{}"),
         fileReconciliationMode: "report_only" as const,
         phases: [PHASE_03],
-        oracles: null,
+        acceptance: null,
         mainCheckout: run.world.repoRoot,
       });
     });
@@ -416,7 +416,7 @@ describe("a held stop closed by a turn that resumes its builder", { timeout: 30_
           gateRequest: Effect.succeed("{}"),
           fileReconciliationMode: "report_only" as const,
           phases: run.plan.phases,
-          oracles: null,
+          acceptance: null,
           mainCheckout: world.repoRoot,
         }),
       );

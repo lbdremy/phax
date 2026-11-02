@@ -144,7 +144,7 @@ describe("resetPhaseRefusal", () => {
   it("refuses an oracle phase whose discharge is stopped at its gate, with the recovery", () => {
     const statuses = [status(0, "committed"), status(1, "committed"), status(2, "failed")];
     expect(resetPhaseRefusal(input(statuses, 1, { planPhases: PAIR_PLAN }))).toEqual({
-      reason: "phase_blocked_by_discharge",
+      reason: "phase_blocked_by_passing",
       message: `Cannot reset "phase-02" of run "refunds": its discharging phase "phase-03" is failed, and a committed oracle phase is not reset. To correct the oracle, edit it in phase-03 (\`phax enter-phase refunds phase-03\`), then run \`phax resume refunds --yes --skip-acceptance\`: the configured gate still runs.`,
     });
   });
@@ -152,7 +152,7 @@ describe("resetPhaseRefusal", () => {
   it("refuses an oracle phase whose discharge is past its gate, without the recovery", () => {
     const statuses = [status(0, "committed"), status(1, "committed"), status(2, "review_open")];
     expect(resetPhaseRefusal(input(statuses, 1, { planPhases: PAIR_PLAN }))).toEqual({
-      reason: "phase_blocked_by_discharge",
+      reason: "phase_blocked_by_passing",
       message: `Cannot reset "phase-02" of run "refunds": its discharging phase "phase-03" is review_open, and a committed oracle phase is not reset.`,
     });
   });
@@ -173,14 +173,14 @@ describe("resetPhaseRefusal", () => {
 
     it("refuses once the pair's discharge has started, with single quotes and the recovery", () => {
       expect(resetPhaseRefusal(input(reviewed("failed"), 2, { planPhases: plan }))).toEqual({
-        reason: "phase_blocked_by_discharge",
+        reason: "phase_blocked_by_passing",
         message: `Cannot reset 'phase-03' of run 'refunds': its discharging phase 'phase-04' is failed, and the discharge judges this phase's commit. To correct the oracle, edit it in phase-04 (\`phax enter-phase refunds phase-04\`), then run \`phax resume refunds --yes --skip-acceptance\`: the configured gate still runs.`,
       });
     });
 
     it("names no recovery once the discharge is past its gate", () => {
       expect(resetPhaseRefusal(input(reviewed("review_open"), 2, { planPhases: plan }))).toEqual({
-        reason: "phase_blocked_by_discharge",
+        reason: "phase_blocked_by_passing",
         message: `Cannot reset 'phase-03' of run 'refunds': its discharging phase 'phase-04' is review_open, and the discharge judges this phase's commit.`,
       });
     });
@@ -188,7 +188,7 @@ describe("resetPhaseRefusal", () => {
     it("adds no such refusal before the discharge starts", () => {
       expect(
         resetPhaseRefusal(input(reviewed("pending"), 2, { planPhases: plan }))?.reason,
-      ).not.toBe("phase_blocked_by_discharge");
+      ).not.toBe("phase_blocked_by_passing");
     });
   });
 
@@ -230,7 +230,7 @@ describe("resetPhaseRefusal", () => {
     it("a discharge that has started beats a later committed phase", () => {
       const statuses = [status(0, "committed"), status(1, "committed"), status(2, "committed")];
       const result = resetPhaseRefusal(input(statuses, 1, { planPhases: PAIR_PLAN }));
-      expect(result?.reason).toBe("phase_blocked_by_discharge");
+      expect(result?.reason).toBe("phase_blocked_by_passing");
     });
 
     it("a later committed phase beats not_resettable, and the state is not composed", () => {

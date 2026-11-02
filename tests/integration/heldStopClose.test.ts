@@ -219,7 +219,7 @@ const closeInput = (r: HeldRun = run) => ({
   gateRequest: Effect.succeed("{}"),
   fileReconciliationMode: "report_only" as const,
   phases: r.plan.phases,
-  oracles: null,
+  acceptance: null,
   mainCheckout: r.world.repoRoot,
 });
 
@@ -340,7 +340,7 @@ describe("closing a held stop", () => {
       phaseCommit: c2,
       handoffSource: "closing-turn-resumed",
       changedPaths: ["src/invoiceRow.ts", "tests/invoiceRow.test.ts"],
-      oracleStep: "none",
+      acceptanceStep: "none",
     });
     expect(closed.gateSteps.map((s) => [s.command, s.result])).toEqual([
       ["pnpm typecheck", "pass"],

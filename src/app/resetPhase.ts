@@ -357,7 +357,7 @@ function selectTargetPhase(
 
 /**
  * The phases of the run's `phax-plan.json` in any shape, from which the
- * oracle pairs come; undefined when it is unreadable, which names no pair:
+ * acceptance pairs come; undefined when it is unreadable, which names no pair:
  * such a run cannot resume anyway.
  */
 function readPlanPhases(

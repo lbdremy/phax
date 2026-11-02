@@ -40,7 +40,7 @@ export interface SemanticTraceSnapshotEntry {
   readonly mcpMode?: string;
   readonly downgraded?: boolean;
   readonly skippedForSecurity?: readonly { readonly provider: string; readonly reason: string }[];
-  // oracle.edits.unjudged
+  // acceptance.edits.unjudged
   readonly files?: readonly string[];
   // stop.transcript
   readonly sessionId?: string;
@@ -114,7 +114,7 @@ export const projectEvent = (e: SemanticTelemetryEvent): SemanticTraceSnapshotEn
         downgraded: e.downgraded,
         skippedForSecurity: e.skippedForSecurity,
       };
-    case "oracle.edits.unjudged":
+    case "acceptance.edits.unjudged":
       return { type: e.type, ...opId, files: e.files };
     case "stop.transcript":
       return {

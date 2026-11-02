@@ -243,7 +243,7 @@ const sampleEvents: { readonly [K in PhaxEventType]: PhaxEvent & { type: K } } =
     hash: "abc123",
     closure: {
       outcome: "corrected",
-      oracleStep: "none",
+      acceptanceStep: "none",
       closedBy: { name: "Ada Example", email: "ada@example.com" },
     },
   },
@@ -256,7 +256,7 @@ const sampleEvents: { readonly [K in PhaxEventType]: PhaxEvent & { type: K } } =
     closure: {
       outcome: "corrected",
       reviewCommit: "def456",
-      oracleStep: "none",
+      acceptanceStep: "none",
       closedBy: { name: "Ada Example", email: "ada@example.com" },
     },
   },

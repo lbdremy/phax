@@ -293,7 +293,7 @@ async function closeThroughCli(run: StoppedRun) {
       fileReconciliationMode: "report_only",
       // A plan with no oracle pair: the close never runs an oracle step.
       phases: [],
-      oracles: null,
+      acceptance: null,
       mainCheckout: run.world.repoRoot,
     });
   });

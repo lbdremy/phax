@@ -5,7 +5,7 @@ import {
   makeAcceptanceRequest,
   makeReviewAcceptanceRequest,
 } from "../../src/domain/gate/acceptanceRequest.js";
-import { oracleRoleOf } from "../../src/domain/plan/oraclePairs.js";
+import { acceptanceRoleOf } from "../../src/domain/plan/acceptancePairs.js";
 import { decodeAcceptanceRequestFile } from "../../src/schemas/acceptanceRequest.js";
 import { withSchemaUrl } from "../../src/schemas/persisted.js";
 
@@ -23,7 +23,7 @@ const phases = [
 ];
 
 function roleOf(id: string) {
-  const role = oracleRoleOf(phases, id);
+  const role = acceptanceRoleOf(phases, id);
   if (role === null) throw new Error(`${id} has no acceptance role`);
   return role;
 }

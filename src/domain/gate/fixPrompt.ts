@@ -7,7 +7,7 @@ import {
   type ProtectedChange,
 } from "../security/protectedPaths.js";
 
-/** A configured or oracle step failed; the attempt may also have changed protected paths. */
+/** A configured or acceptance step failed; the attempt may also have changed protected paths. */
 interface StepFailurePromptInput {
   readonly command: string;
   readonly exitCode: number;
@@ -24,8 +24,8 @@ interface StepFailurePromptInput {
    *  gate attempt: each finding with one of them is marked `still failing`. */
   readonly stillFailing: ReadonlySet<string>;
   /** Which step failed: a configured gate step, which the agent may run, or
-   *  the oracle step, which only phax runs, at the gate. */
-  readonly failedStep: "configured" | "oracle";
+   *  the acceptance step, which only phax runs, at the gate. */
+  readonly failedStep: "configured" | "acceptance";
   /** The protected paths the same attempt found changed, possibly none. */
   readonly protectedChanges: readonly ProtectedChange[];
   /** The phase base commit the protected paths are checked against, or null
@@ -59,12 +59,12 @@ function putBack(base: string): string[] {
   ];
 }
 
-function requiredActionTail(failedStep: "configured" | "oracle"): string[] {
+function requiredActionTail(failedStep: "configured" | "acceptance"): string[] {
   return [
     "Make the minimum changes required to pass the gate.",
     "Do not change unrelated code or introduce new features.",
     "",
-    failedStep === "oracle"
+    failedStep === "acceptance"
       ? "The oracles provider runs only at the gate; it will judge again after your changes. Do not run it yourself."
       : "Make sure to run the failed command after your changes to verify the gate now passes.",
     "The gate run will be re-attempted automatically after your changes.",

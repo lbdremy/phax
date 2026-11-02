@@ -182,7 +182,7 @@ function setup(first: string | undefined, retry?: string) {
     publishRemote: "origin",
     architectureProvider: false,
     assignmentBounds: false,
-    oraclesProvider: false,
+    acceptanceProvider: false,
     output: { warn: (message) => events.push(`warn: ${message}`) },
     ...overrides,
   });

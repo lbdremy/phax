@@ -2,6 +2,7 @@ import { Effect, Either, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 import { decodeRunId } from "../../../src/domain/branded.js";
 import {
+  makeAcceptanceEditsUnjudgedTelemetryEvent,
   makeStepStartedTelemetryEvent,
   makeStepCompletedTelemetryEvent,
 } from "../../../src/domain/telemetry/events.js";
@@ -101,6 +102,22 @@ describe("makeSystemTelemetryLayer", () => {
       expect(lines[0]).toContain("step.started");
       expect(lines[0]).toContain("config.discover");
       expect(lines[1]).toContain("step.completed");
+    });
+
+    it("prints an unjudged acceptance edit as the acceptance.edits.unjudged console line", async () => {
+      const { out, lines } = makeTestOutput();
+      const { layer } = buildWithFakeFs({ output: out, verbose: true, runId });
+
+      const event = makeAcceptanceEditsUnjudgedTelemetryEvent({
+        runId,
+        operationId: "phase-03",
+        files: ["tests/a.test.ts", "tests/b.test.ts"],
+      });
+      await runWith(layer, SystemTelemetry.pipe(Effect.flatMap((t) => t.recordEvent(event))));
+
+      expect(lines).toEqual([
+        "phax·acceptance.edits.unjudged  files=[tests/a.test.ts,tests/b.test.ts]",
+      ]);
     });
 
     it("does not write to disk when tracePath is undefined", async () => {

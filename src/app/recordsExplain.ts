@@ -53,8 +53,8 @@ export interface ExplainedRecord {
   readonly promptByteLength?: number;
   readonly diffStat?: RecordDiffStat;
   readonly handoffPresent: boolean;
-  /** The last step with surface `oracle` in the record's own `gate-attribution.json`, or null. */
-  readonly oracleStep: Pick<AcceptanceStepResult, "command" | "result"> | null;
+  /** The last step with surface `acceptance` in the record's own `gate-attribution.json`, or null. */
+  readonly acceptanceStep: Pick<AcceptanceStepResult, "command" | "result"> | null;
   /** Artifact contents by file name (e.g. `"prompt.md"`), excluding `record.json`. */
   readonly artifacts: ReadonlyMap<string, Uint8Array>;
 }
@@ -132,8 +132,10 @@ function decodeText(bytes: Uint8Array): string {
   return new TextDecoder().decode(bytes);
 }
 
-/** The last oracle step of a record's `gate-attribution.json` artifact; null when absent or unreadable. */
-function lastOracleStep(artifacts: ReadonlyMap<string, Uint8Array>): ExplainedRecord["oracleStep"] {
+/** The last acceptance step of a record's `gate-attribution.json` artifact; null when absent or unreadable. */
+function lastAcceptanceStep(
+  artifacts: ReadonlyMap<string, Uint8Array>,
+): ExplainedRecord["acceptanceStep"] {
   const bytes = artifacts.get("gate-attribution.json");
   if (bytes === undefined) return null;
   let parsed: unknown;
@@ -552,7 +554,7 @@ function explainPhaseRecord(
     ...(promptBytes !== undefined ? { promptByteLength: promptBytes.length } : {}),
     ...(diffBytes !== undefined ? { diffStat: parseDiffStat(decodeText(diffBytes)) } : {}),
     handoffPresent: artifacts.has("phase-handoff.md"),
-    oracleStep: lastOracleStep(artifacts),
+    acceptanceStep: lastAcceptanceStep(artifacts),
     artifacts,
   });
 }

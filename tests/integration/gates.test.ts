@@ -16,7 +16,7 @@ import { join } from "node:path";
 import { Effect, Either, Layer } from "effect";
 import { afterAll, describe, expect, it } from "vitest";
 import {
-  ORACLE_PROVIDER_TIMEOUT_MS,
+  ACCEPTANCE_PROVIDER_TIMEOUT_MS,
   runGates,
   serializeGateRequest,
   serializeAcceptanceRequest,
@@ -1478,16 +1478,16 @@ describe("runGates with a report step", () => {
   });
 });
 
-// The oracle step phax appends for an oracle pair, through the real Node shell.
+// The acceptance step phax appends for an acceptance pair, through the real Node shell.
 // The provider is a made-up script in a temp dir; it records its stdin and cwd.
-describe("runGates with an oracle step (Node shell)", () => {
+describe("runGates with an acceptance step (Node shell)", () => {
   const reportUrl = currentSchemaUrl("gate-report");
   const oracleFiles = ["tests/refunds.test.ts", "tests/prune.test.ts"];
   const oracleRequest = serializeAcceptanceRequest(
     makeAcceptanceRequest({
       role: {
-        role: "oracle",
-        pair: { oraclePhase: "phase-01", dischargingPhase: "phase-02", files: oracleFiles },
+        role: "acceptance",
+        pair: { acceptancePhase: "phase-01", passingPhase: "phase-02", files: oracleFiles },
       },
       phaseId,
       base: "0123456789abcdef0123456789abcdef01234567",
@@ -1497,8 +1497,8 @@ describe("runGates with an oracle step (Node shell)", () => {
   const passedRequest = serializeAcceptanceRequest(
     makeAcceptanceRequest({
       role: {
-        role: "discharging",
-        pair: { oraclePhase: "phase-01", dischargingPhase: "phase-02", files: oracleFiles },
+        role: "passing",
+        pair: { acceptancePhase: "phase-01", passingPhase: "phase-02", files: oracleFiles },
       },
       phaseId: "phase-02",
       base: "0123456789abcdef0123456789abcdef01234567",
@@ -1567,7 +1567,7 @@ describe("runGates with an oracle step (Node shell)", () => {
     ws: Workspace,
     gateSteps: readonly GateStep[],
     mode: string,
-    timeoutMs = ORACLE_PROVIDER_TIMEOUT_MS,
+    timeoutMs = ACCEPTANCE_PROVIDER_TIMEOUT_MS,
     command = `node ./oracles.mjs ${mode}`,
     request = oracleRequest,
   ) {
@@ -1580,7 +1580,7 @@ describe("runGates with an oracle step (Node shell)", () => {
           attributionPath: ws.attributionPath,
           phaseId,
           gateRequest,
-          oracleStep: { kind: "run", command, request, timeoutMs },
+          acceptanceStep: { kind: "run", command, request, timeoutMs },
         }).pipe(Effect.provide(Layer.mergeAll(NodeFileSystemLayer, NodeShellLayer))),
       ),
     );
@@ -1592,7 +1592,7 @@ describe("runGates with an oracle step (Node shell)", () => {
   ];
 
   it("caps the provider at 120 s", () => {
-    expect(ORACLE_PROVIDER_TIMEOUT_MS).toBe(120_000);
+    expect(ACCEPTANCE_PROVIDER_TIMEOUT_MS).toBe(120_000);
   });
 
   it("spawns no provider when a configured step fails, and the record ends with that step", async () => {
@@ -1624,7 +1624,7 @@ describe("runGates with an oracle step (Node shell)", () => {
             attributionPath: ws.attributionPath,
             phaseId,
             gateRequest,
-            oracleStep: { kind: "skipped", command: "node ./oracles.mjs pass" },
+            acceptanceStep: { kind: "skipped", command: "node ./oracles.mjs pass" },
           }).pipe(Effect.provide(Layer.mergeAll(NodeFileSystemLayer, NodeShellLayer))),
         ),
       );
@@ -1742,7 +1742,7 @@ describe("runGates with an oracle step (Node shell)", () => {
       ws,
       configured,
       "pass",
-      ORACLE_PROVIDER_TIMEOUT_MS,
+      ACCEPTANCE_PROVIDER_TIMEOUT_MS,
       "node ./oracles.mjs pass",
       passedRequest,
     );
@@ -1805,13 +1805,19 @@ describe("runGates with an oracle step (Node shell)", () => {
     [
       "a missing command",
       "pass",
-      ORACLE_PROVIDER_TIMEOUT_MS,
+      ACCEPTANCE_PROVIDER_TIMEOUT_MS,
       "./no-such-oracles",
       "provider error:",
     ],
-    ["non-JSON", "nonjson", ORACLE_PROVIDER_TIMEOUT_MS, undefined, "stdout is not JSON"],
-    ["no $schema", "noschema", ORACLE_PROVIDER_TIMEOUT_MS, undefined, reportUrl],
-    ["exit 3 with no finding", "exit3", ORACLE_PROVIDER_TIMEOUT_MS, undefined, "provider error:"],
+    ["non-JSON", "nonjson", ACCEPTANCE_PROVIDER_TIMEOUT_MS, undefined, "stdout is not JSON"],
+    ["no $schema", "noschema", ACCEPTANCE_PROVIDER_TIMEOUT_MS, undefined, reportUrl],
+    [
+      "exit 3 with no finding",
+      "exit3",
+      ACCEPTANCE_PROVIDER_TIMEOUT_MS,
+      undefined,
+      "provider error:",
+    ],
     ["the time cap", "sleep", 200, undefined, "timed out after 200ms"],
   ] as const)(
     "fails the oracle step as broken on %s",
@@ -1863,10 +1869,10 @@ describe("runGates with an oracle step (fake ports)", () => {
     const request = serializeAcceptanceRequest(
       makeAcceptanceRequest({
         role: {
-          role: "discharging",
+          role: "passing",
           pair: {
-            oraclePhase: "phase-00",
-            dischargingPhase: phaseId,
+            acceptancePhase: "phase-00",
+            passingPhase: phaseId,
             files: ["tests/refunds.test.ts"],
           },
         },
@@ -1885,7 +1891,7 @@ describe("runGates with an oracle step (fake ports)", () => {
           attributionPath,
           phaseId,
           gateRequest,
-          oracleStep: { kind: "run", command: "./oracles --check", request, timeoutMs: 1000 },
+          acceptanceStep: { kind: "run", command: "./oracles --check", request, timeoutMs: 1000 },
         }).pipe(
           Effect.provide(Layer.mergeAll(Layer.succeed(FileSystem, recording), fakeShell.layer)),
         ),

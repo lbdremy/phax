@@ -106,7 +106,7 @@ describe("recordStopOf", () => {
       outcome: "corrected" as const,
       reviewCommit: R2,
       phaseCommit: "c".repeat(40),
-      unjudgedOracleFiles: [],
+      unjudgedAcceptanceTestFiles: [],
       closedBy: { ...ADA },
       sessions: [{ ...X0, startedAt: "2026-10-24T09:00:00.000Z" }],
       handoffSource: "person" as const,

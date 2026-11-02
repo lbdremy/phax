@@ -2,7 +2,7 @@ import { matchesAnyGlob } from "../architecture/glob.js";
 import type { PhaxPlanPhase } from "../../schemas/phaxPlan.js";
 import type { TestLine, TestLoop } from "../../schemas/testLine.js";
 import { criterionCoverage, type NoCriterionIdsReason } from "./criterionCoverage.js";
-import { oracleRoleOf } from "./oraclePairs.js";
+import { acceptanceRoleOf } from "./acceptancePairs.js";
 
 // The plan overview (test-strategy §5.13–§5.20): a plan laid out phase by
 // phase before it runs. Pure: the use case reads the plan, the source spec and
@@ -45,9 +45,9 @@ type OverviewArchitecture =
   | { readonly kind: "none" }
   | { readonly kind: "failed"; readonly message: string };
 
-type OverviewOracleRole =
-  | { readonly kind: "oracle"; readonly dischargedBy: string }
-  | { readonly kind: "discharging"; readonly oraclePhase: string }
+type OverviewAcceptanceRole =
+  | { readonly kind: "acceptance"; readonly passedBy: string }
+  | { readonly kind: "passing"; readonly acceptancePhase: string }
   | { readonly kind: "none" };
 
 /** The planned files held by one part; `part: null` holds those no part holds. */
@@ -62,7 +62,7 @@ export interface OverviewPhase {
   readonly model: string;
   readonly effort: string;
   readonly mode: "headless" | "interactive";
-  readonly oracleRole: OverviewOracleRole;
+  readonly acceptanceRole: OverviewAcceptanceRole;
   readonly placement: readonly OverviewPlacement[];
   readonly testLines: readonly TestLine[];
 }
@@ -154,12 +154,15 @@ function placementOf(files: readonly string[], architecture: ArchitectureOutcome
   return entries;
 }
 
-function oracleRole(phases: readonly OverviewPlanPhase[], phaseId: string): OverviewOracleRole {
-  const role = oracleRoleOf(phases, phaseId);
+function acceptanceRole(
+  phases: readonly OverviewPlanPhase[],
+  phaseId: string,
+): OverviewAcceptanceRole {
+  const role = acceptanceRoleOf(phases, phaseId);
   if (role === null) return { kind: "none" };
-  return role.role === "oracle"
-    ? { kind: "oracle", dischargedBy: role.pair.dischargingPhase }
-    : { kind: "discharging", oraclePhase: role.pair.oraclePhase };
+  return role.role === "acceptance"
+    ? { kind: "acceptance", passedBy: role.pair.passingPhase }
+    : { kind: "passing", acceptancePhase: role.pair.acceptancePhase };
 }
 
 function coverageOf(
@@ -221,7 +224,7 @@ export function buildOverview(input: {
       model: phase.model,
       effort: phase.effort,
       mode: phase.mode,
-      oracleRole: oracleRole(phases, phase.id),
+      acceptanceRole: acceptanceRole(phases, phase.id),
       placement: placementOf(plannedFilesOf(phase), architecture),
       testLines: phase.testLines,
     })),

@@ -32,7 +32,7 @@ import {
   type AssignmentPreflightError,
   InteractivePreflightError,
   type InvalidTransitionError,
-  OracleCommitMissingError,
+  AcceptanceCommitMissingError,
   AcceptancePreflightError,
   type PlanSectionsPreflightError,
   RateLimitError,
@@ -110,11 +110,11 @@ import type { ProviderId } from "../domain/routing/types.js";
 import { reconcilePhaseFiles } from "./reconcilePhaseFiles.js";
 import { dispatch, type DispatcherContext } from "./dispatcher.js";
 import {
-  ORACLE_PROVIDER_TIMEOUT_MS,
+  ACCEPTANCE_PROVIDER_TIMEOUT_MS,
   recordGateProfileInRunStatus,
   serializeGateRequest,
   serializeAcceptanceRequest,
-  type OracleStep,
+  type AcceptanceGateStep,
 } from "./gates.js";
 import { makeGateRequest } from "../domain/gate/gateRequest.js";
 import { phaseBriefRequest } from "../domain/brief/request.js";
@@ -171,12 +171,12 @@ import {
 } from "./agentBinding.js";
 import { providerToAdapter } from "../domain/providerAdapter.js";
 import {
-  dischargedOracleFiles,
+  acceptanceRoleOf,
   latestAuthoredCommit,
-  oracleRoleOf,
-  recordOracleRole,
-  type OraclePair,
-} from "../domain/plan/oraclePairs.js";
+  passedAcceptanceTestFiles,
+  recordAcceptanceRole,
+  type AcceptancePair,
+} from "../domain/plan/acceptancePairs.js";
 import { acceptanceFindings } from "../domain/plan/acceptanceCheck.js";
 import { readPhaseHeaders } from "../domain/plan/phaseHeader.js";
 import { makeAcceptanceRequest } from "../domain/gate/acceptanceRequest.js";
@@ -350,10 +350,10 @@ export interface ExecutePlanOptions {
   // branch (spec 27). Absent for callers with no lifecycle artifact to complete
   // (most tests); completeRunArtifacts is itself a no-op for loose paths.
   readonly planRepoRelPath?: string | undefined;
-  // Skips the oracle step of the phase at `startIndex`, in this invocation,
+  // Skips the acceptance step of the phase at `startIndex`, in this invocation,
   // when that phase's gate runs: the configured gate and its fix loop still
   // run. Never persisted and never reaches a later phase. The resume command
-  // sets it after checking the phase's oracle role.
+  // sets it after checking the phase's acceptance role.
   readonly skipAcceptance?: boolean | undefined;
   // Called once a stop's close has finished, before its cleanup and
   // the next phase, so the caller can print the close as it happens.
@@ -409,7 +409,7 @@ export type ExecutePlanError =
   | AssignmentPreflightError
   | InteractivePreflightError
   | AcceptancePreflightError
-  | OracleCommitMissingError
+  | AcceptanceCommitMissingError
   | PhaseHadNoChangesError
   | RecordsDestinationRefusedError
   | RecordsSyncRequiredError
@@ -509,7 +509,7 @@ export function executePlan(
         model: args.model,
         effort: args.effort,
         outcome: args.outcome,
-        acceptance: recordOracleRole(oracleRoleOf(plan.phases, args.phaseId)),
+        acceptance: recordAcceptanceRole(acceptanceRoleOf(plan.phases, args.phaseId)),
         mode: args.mode,
         stop: args.stop,
         // A session's usage reads a vibe session's `export.json`, beside the
@@ -687,23 +687,23 @@ export function executePlan(
     return makeGateRequest({ phaseId, base, terminal: isFinal, phases: plan.phases });
   }
 
-  // The oracle step of a phase in an oracle pair, or undefined for any other
-  // phase. Its request is built from the oracle phase's status.json facts
-  // only, never from git, on every phase entry, so a resume, a reset or a
-  // re-run names the oracle phase's current base and commit. The oracles
+  // The acceptance step of a phase in an acceptance pair, or undefined for any
+  // other phase. Its request is built from the acceptance phase's status.json
+  // facts only, never from git, on every phase entry, so a resume, a reset or a
+  // re-run names the acceptance phase's current base and commit. The acceptance
   // command runs only from phax: it is in no grant, frozen command set or
   // prompt list.
-  function oracleStepFor(
+  function acceptanceStepFor(
     phaseFolderPath: string,
     phaseId: string,
     skip: boolean,
   ): Effect.Effect<
-    OracleStep | undefined,
-    FsError | AcceptancePreflightError | OracleCommitMissingError,
+    AcceptanceGateStep | undefined,
+    FsError | AcceptancePreflightError | AcceptanceCommitMissingError,
     FileSystem
   > {
     return Effect.gen(function* () {
-      const role = oracleRoleOf(plan.phases, phaseId);
+      const role = acceptanceRoleOf(plan.phases, phaseId);
       if (role === null) return undefined;
       if (config.acceptance === undefined) {
         // The preflight refuses this plan; never skip the step.
@@ -725,33 +725,34 @@ export function executePlan(
           }),
         );
       }
-      const oracleFolder =
-        role.role === "oracle" ? phaseFolderPath : join(runPath, role.pair.oraclePhase);
+      const acceptanceFolder =
+        role.role === "acceptance" ? phaseFolderPath : join(runPath, role.pair.acceptancePhase);
       if (skip) return { kind: "skipped", command: config.acceptance.command };
-      const base = yield* readPhaseBase(oracleFolder);
-      const oracleCommit = role.role === "oracle" ? null : yield* oracleCommitOf(role.pair);
+      const base = yield* readPhaseBase(acceptanceFolder);
+      const acceptanceCommit =
+        role.role === "acceptance" ? null : yield* acceptanceCommitOf(role.pair);
       return {
         kind: "run",
         command: config.acceptance.command,
         request: serializeAcceptanceRequest(
-          makeAcceptanceRequest({ role, phaseId, base, acceptanceCommit: oracleCommit }),
+          makeAcceptanceRequest({ role, phaseId, base, acceptanceCommit }),
         ),
-        timeoutMs: ORACLE_PROVIDER_TIMEOUT_MS,
+        timeoutMs: ACCEPTANCE_PROVIDER_TIMEOUT_MS,
       };
     });
   }
 
-  // The commit a discharging phase judges, from status.json facts only: the
+  // The commit a passing phase judges, from status.json facts only: the
   // latest commit of the pair that passed `authored` (a closed stop's that ran
-  // the step, or else the oracle phase's own). An oracle phase that noted no
-  // commit was skipped for producing no changes, so there is nothing to
-  // discharge, and no resume can change that.
-  function oracleCommitOf(
-    pair: OraclePair,
-  ): Effect.Effect<string, FsError | OracleCommitMissingError, FileSystem> {
+  // the step, or else the acceptance phase's own). An acceptance phase that
+  // noted no commit was skipped for producing no changes, so there is nothing
+  // to pass, and no resume can change that.
+  function acceptanceCommitOf(
+    pair: AcceptancePair,
+  ): Effect.Effect<string, FsError | AcceptanceCommitMissingError, FileSystem> {
     return Effect.gen(function* () {
-      const from = plan.phases.findIndex((p) => p.id === pair.oraclePhase);
-      const to = plan.phases.findIndex((p) => p.id === pair.dischargingPhase);
+      const from = plan.phases.findIndex((p) => p.id === pair.acceptancePhase);
+      const to = plan.phases.findIndex((p) => p.id === pair.passingPhase);
       // A phase of the pair a reset archived, or one not entered, has no status.
       const statuses = yield* Effect.forEach(plan.phases.slice(from, to), (p) =>
         Effect.gen(function* () {
@@ -762,17 +763,17 @@ export function executePlan(
         }),
       );
       // Read through readPhaseCommit, which refuses a noted hash that is not a full name.
-      const noted = yield* readPhaseCommit(join(runPath, pair.oraclePhase));
+      const noted = yield* readPhaseCommit(join(runPath, pair.acceptancePhase));
       const latest = latestAuthoredCommit(pair, plan.phases, statuses.flat());
       if (noted.commit !== null && latest !== null) return latest;
       return yield* Effect.fail(
-        new OracleCommitMissingError({
+        new AcceptanceCommitMissingError({
           message: [
-            `Cannot run discharging phase "${pair.dischargingPhase}" of run "${shortName}": its oracle phase "${pair.oraclePhase}" is ${noted.state} and noted no commit, so there are no oracles to discharge.`,
+            `Cannot run discharging phase "${pair.passingPhase}" of run "${shortName}": its oracle phase "${pair.acceptancePhase}" is ${noted.state} and noted no commit, so there are no oracles to discharge.`,
             `No resume gives a skipped oracle phase a commit: archive the run (phax archive ${shortName} --force) and run a corrected plan whose oracle phase writes its oracles.`,
           ].join("\n"),
-          oraclePhase: pair.oraclePhase,
-          dischargingPhase: pair.dischargingPhase,
+          acceptancePhase: pair.acceptancePhase,
+          passingPhase: pair.passingPhase,
         }),
       );
     });
@@ -1550,8 +1551,8 @@ export function executePlan(
       const isResumeFromCommit = i === startIndex && resumeFromCommit;
       const isResumeFromCleanup = i === startIndex && resumeFromCleanup;
       const isResumeFromCompletion = i === startIndex && resumeFromCompletion;
-      // A discharging phase judges its oracle phase's commit: refuse before
-      // anything of the phase runs when the oracle phase noted none.
+      // A passing phase judges its acceptance phase's commit: refuse before
+      // anything of the phase runs when the acceptance phase noted none.
       // A stop's re-entry, a closed stop's and a hold point's skip it: that
       // phase's gate already ran.
       const gateAlreadyRan =
@@ -1561,9 +1562,9 @@ export function executePlan(
           resumeFromClosedStop ||
           resumeAtHoldPoint ||
           resumeAfterHandoff);
-      const phaseOracleRole = oracleRoleOf(plan.phases, phase.id);
-      if (phaseOracleRole?.role === "discharging" && !gateAlreadyRan) {
-        yield* oracleCommitOf(phaseOracleRole.pair);
+      const phaseAcceptanceRole = acceptanceRoleOf(plan.phases, phase.id);
+      if (phaseAcceptanceRole?.role === "passing" && !gateAlreadyRan) {
+        yield* acceptanceCommitOf(phaseAcceptanceRole.pair);
       }
       // The preflight already refused skill-declaring phases without consent,
       // so the `[]` branch is defense in depth only.
@@ -1634,7 +1635,7 @@ export function executePlan(
               ),
               fileReconciliationMode: config.fileReconciliationMode,
               phases: plan.phases,
-              oracles: config.acceptance ?? null,
+              acceptance: config.acceptance ?? null,
               mainCheckout: config.repoRoot,
             });
             closeInFlight = false;
@@ -1882,7 +1883,7 @@ export function executePlan(
             ),
             fileReconciliationMode: config.fileReconciliationMode,
             phases: plan.phases,
-            oracles: config.acceptance ?? null,
+            acceptance: config.acceptance ?? null,
             mainCheckout: config.repoRoot,
           });
           closeInFlight = false;
@@ -2213,7 +2214,7 @@ export function executePlan(
           reviewCorrections,
           gateCommands: gateCommandStrings,
           briefSection,
-          oracleRole: oracleRoleOf(plan.phases, phase.id),
+          acceptanceRole: acceptanceRoleOf(plan.phases, phase.id),
           ...(config.protectedPaths === undefined
             ? {}
             : { protectedPaths: config.protectedPaths.map((entry) => entry.glob) }),
@@ -2367,7 +2368,7 @@ export function executePlan(
         const gateRequest = serializeGateRequest(
           phaseFacts ?? phaseFactsAt(phaseBase, phase.id, isFinal),
         );
-        const oracleStep = yield* oracleStepFor(
+        const acceptanceStep = yield* acceptanceStepFor(
           phaseFolderPath,
           phase.id,
           skipAcceptance && i === startIndex,
@@ -2390,7 +2391,7 @@ export function executePlan(
           phaseId: phase.id,
           runPath,
           gateRequest,
-          ...(oracleStep === undefined ? {} : { oracleStep }),
+          ...(acceptanceStep === undefined ? {} : { acceptanceStep }),
           ...(isResumeFromGate ? { worktreePath: worktreePath as string } : {}),
         });
         gateLogPath = gateOutcome.attemptLogPath;
@@ -2517,7 +2518,7 @@ export function executePlan(
             phaseFolderPath,
             runId: runId as string,
             fileReconciliationMode: config.fileReconciliationMode,
-            oracleFiles: dischargedOracleFiles(plan.phases, phase.id),
+            acceptanceTestFiles: passedAcceptanceTestFiles(plan.phases, phase.id),
           });
         }
 

@@ -18,10 +18,10 @@ export interface ReconcilePhaseFilesOptions {
   readonly phaseFolderPath: string;
   readonly runId: string;
   readonly fileReconciliationMode: "report_only" | "warn";
-  /** The oracle files the phase discharges (`dischargedOracleFiles`), counted
-   *  as optional files: removing a marker is never an unplanned edit, and an
-   *  untouched oracle file is never a missing edit. */
-  readonly oracleFiles: readonly string[];
+  /** The acceptance test files the phase passes (`passedAcceptanceTestFiles`),
+   *  counted as optional files: removing a marker is never an unplanned edit,
+   *  and an untouched acceptance test file is never a missing edit. */
+  readonly acceptanceTestFiles: readonly string[];
   /** `agent` (the default): the phase's commit against its planned files.
    *  `review`: a closed interactive stop's commit, every changed file a
    *  review correction (`reconcileReview`). */
@@ -40,7 +40,7 @@ const outputBase = (output: ReconcilePhaseFilesOptions["output"]): string =>
 const plannedFilesOf = (opts: WriteReconciliationOptions): PlannedFiles => ({
   create: opts.phase.plannedFilesToCreate,
   edit: opts.phase.plannedFilesToEdit,
-  optional: [...new Set([...opts.phase.optionalFilesToEdit, ...opts.oracleFiles])],
+  optional: [...new Set([...opts.phase.optionalFilesToEdit, ...opts.acceptanceTestFiles])],
 });
 
 export function reconcilePhaseFiles(

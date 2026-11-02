@@ -11,19 +11,19 @@ function renderRows(rows: readonly Row[]): string[] {
   return rows.map(([label, value]) => `  ${label.padEnd(width)}  ${value}`);
 }
 
-function oracleRoleText(role: OverviewPhase["oracleRole"]): string {
+function acceptanceRoleText(role: OverviewPhase["acceptanceRole"]): string {
   switch (role.kind) {
-    case "oracle":
-      return `oracle phase, discharged by ${role.dischargedBy}`;
-    case "discharging":
-      return `discharges ${role.oraclePhase}`;
+    case "acceptance":
+      return `oracle phase, discharged by ${role.passedBy}`;
+    case "passing":
+      return `discharges ${role.acceptancePhase}`;
     case "none":
       return "none";
   }
 }
 
 function renderPhase(phase: OverviewPhase, hasParts: boolean): string[] {
-  const rows: Row[] = [["oracle role", oracleRoleText(phase.oracleRole)]];
+  const rows: Row[] = [["oracle role", acceptanceRoleText(phase.acceptanceRole)]];
   for (const { part, files } of phase.placement) {
     if (files.length === 0) continue;
     rows.push([part ?? (hasParts ? "(no part)" : "files"), files.join(", ")]);

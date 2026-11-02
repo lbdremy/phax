@@ -102,8 +102,8 @@ export interface AuthorArtifactInput {
   readonly publishRemote: string;
   /** Whether `architecture` is declared in a config layer, read by the caller. */
   readonly architectureProvider: boolean;
-  /** Whether `oracles` is declared in a config layer, read by the caller. */
-  readonly oraclesProvider: boolean;
+  /** Whether `acceptance` is declared in a config layer, read by the caller. */
+  readonly acceptanceProvider: boolean;
   /** Whether `assignments` is declared in phax.json, read by the caller. */
   readonly assignmentBounds: boolean;
   /**
@@ -497,7 +497,7 @@ export function authorArtifact(
       slug: input.slug,
       architectureProvider: input.kind === "plan" ? input.architectureProvider : null,
       assignmentBounds: input.kind === "plan" ? input.assignmentBounds : null,
-      oraclesProvider: input.kind === "plan" ? input.oraclesProvider : null,
+      acceptanceProvider: input.kind === "plan" ? input.acceptanceProvider : null,
     });
     yield* fs.mkdirp(folder);
     yield* fs.writeAtomic(join(folder, AUTHORING_BRIEF_FILENAME), input.brief.text);

@@ -6,7 +6,7 @@ import {
   makeAdapterCallSucceededTelemetryEvent,
   makeArtifactGeneratedTelemetryEvent,
   makeGateEvaluatedTelemetryEvent,
-  makeOracleEditsUnjudgedTelemetryEvent,
+  makeAcceptanceEditsUnjudgedTelemetryEvent,
   makeStopTranscriptTelemetryEvent,
   makeSecurityPolicyAppliedTelemetryEvent,
   makeStateTransitionTelemetryEvent,
@@ -252,17 +252,17 @@ describe("makeSecurityPolicyAppliedTelemetryEvent", () => {
   });
 });
 
-describe("makeOracleEditsUnjudgedTelemetryEvent", () => {
+describe("makeAcceptanceEditsUnjudgedTelemetryEvent", () => {
   it("produces a value the schema accepts, projected with its files", () => {
-    const event = makeOracleEditsUnjudgedTelemetryEvent({
+    const event = makeAcceptanceEditsUnjudgedTelemetryEvent({
       runId,
       operationId: "phase-03",
       files: ["tests/export/invoiceRow.test.ts"],
     });
-    expect(event.type).toBe("oracle.edits.unjudged");
+    expect(event.type).toBe("acceptance.edits.unjudged");
     expect(Either.isRight(decodeSemanticTelemetryEvent(event))).toBe(true);
     expect(projectEvent(event)).toEqual({
-      type: "oracle.edits.unjudged",
+      type: "acceptance.edits.unjudged",
       operationId: "phase-03",
       files: ["tests/export/invoiceRow.test.ts"],
     });
@@ -327,7 +327,7 @@ describe("SemanticTelemetryEventSchema accepted types", () => {
         "artifact.generated",
         "agent.model.resolved",
         "security.policy.applied",
-        "oracle.edits.unjudged",
+        "acceptance.edits.unjudged",
         "stop.transcript",
       ].toSorted(),
     );

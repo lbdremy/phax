@@ -352,7 +352,7 @@ describe("transcripts at a declared stop's close", () => {
     gateRequest: Effect.succeed("{}"),
     fileReconciliationMode: "report_only" as const,
     phases: [PHASE_03],
-    oracles: null,
+    acceptance: null,
     mainCheckout: run.world.repoRoot,
   });
 
@@ -709,7 +709,7 @@ describe("transcripts at a held stop's close", () => {
     gateRequest: Effect.succeed("{}"),
     fileReconciliationMode: "report_only" as const,
     phases: run.plan.phases,
-    oracles: null,
+    acceptance: null,
     mainCheckout: run.world.repoRoot,
   });
 
@@ -923,7 +923,7 @@ describe("a Vibe session and its declared stop's close, with VIBE_HOME unreadabl
     gateRequest: Effect.succeed("{}"),
     fileReconciliationMode: "report_only" as const,
     phases: [PHASE_03],
-    oracles: null,
+    acceptance: null,
     mainCheckout: run.world.repoRoot,
   });
 

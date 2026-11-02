@@ -258,7 +258,7 @@ describe("a headless spec authoring session answered through structured_output",
       publishRemote: "origin",
       architectureProvider: false,
       assignmentBounds: false,
-      oraclesProvider: false,
+      acceptanceProvider: false,
       output: { warn: (message) => warnings.push(message) },
     };
     const result = await Effect.runPromise(
