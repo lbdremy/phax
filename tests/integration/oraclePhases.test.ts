@@ -79,7 +79,7 @@ const unmarked = JSON.stringify({
   review: [],
 });
 const REASON = "the oracle files are not test files";
-const REMEDY = "list test files under **Oracle files:**";
+const REMEDY = "list test files under **Acceptance test files:**";
 const refused = JSON.stringify({
   $schema: reportUrl,
   outcome: "refused",
@@ -153,8 +153,8 @@ function planMdOf(plan: PhaxPlan): string {
     lines.push(`**Recommended model:** ${phase.model}`, `**Recommended effort:** ${phase.effort}`);
     if (phase.acceptance !== null) {
       lines.push(
-        `**Oracle phase:** discharged by ${phase.acceptance.passedBy}`,
-        `**Oracle files:** ${phase.acceptance.files.map((f) => `\`${f}\``).join(", ")}`,
+        `**Acceptance phase:** passed by ${phase.acceptance.passedBy}`,
+        `**Acceptance test files:** ${phase.acceptance.files.map((f) => `\`${f}\``).join(", ")}`,
       );
     }
     lines.push("", `Carry out ${phase.id}'s made-up instructions.`, "");

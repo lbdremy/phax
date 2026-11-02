@@ -123,11 +123,15 @@ describe("testLineDepartureFindings", () => {
           phase: "phase-02",
           lines: [{ item: 2, line }],
           departures: [
-            { line: 1, text: "write tests" },
-            { line: 3, text: "and more" },
+            { line: 1, text: "write tests", kind: "format" },
+            { line: 3, text: "and more", kind: "format" },
           ],
         },
-        { phase: "phase-03", lines: [], departures: [{ line: 1, text: "prose" }] },
+        {
+          phase: "phase-03",
+          lines: [],
+          departures: [{ line: 1, text: "prose", kind: "format" }],
+        },
       ]),
     ).toEqual([
       {

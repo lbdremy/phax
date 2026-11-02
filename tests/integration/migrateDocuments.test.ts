@@ -1319,7 +1319,7 @@ describe("phax artifact migrate-documents — the command", { timeout: 30_000 },
 // ── The acceptance loop (spec acceptance-tests: ac-migrate, ac-unmigrated, ac-archived)
 
 // The 0.32.0 shape: an oracle phase whose test line is in the loop `oracle`,
-// declared with the `**Oracle phase:**` header lines this plan still writes.
+// declared with the `**Oracle phase:**` header lines the 0.32.0 renderer writes.
 const ORACLE_LINE = {
   guarantee: "every pair is refused as the table says",
   size: "small",
@@ -1353,8 +1353,8 @@ function writePlan0_32_0(path: string, frontmatter: string, release = "0.32.0"):
 }
 
 describe("migrate-documents — the acceptance loop", { timeout: 30_000 }, () => {
-  // ac-migrate, the loop half: the plan.md header lines keep their wording in
-  // this release, so only the test line changes in the body.
+  // ac-migrate: the sidecar's loop and phase key, and plan.md's test line and
+  // header lines, all in one commit.
   it.each(["0.32.0", "0.28.0"])(
     "rewrites a %s plan's sidecar at the current stamp with the loop acceptance, and its plan.md test line, in one commit",
     async (release) => {
@@ -1384,10 +1384,21 @@ describe("migrate-documents — the acceptance loop", { timeout: 30_000 }, () =>
       const after = readRepoFile(PLAN);
       expect(after).toContain("· acceptance · AC-1");
       expect(after).not.toContain("· oracle · AC-1");
-      expect(after).toBe(md.replace("· oracle · AC-1", "· acceptance · AC-1"));
-      // The header lines are read into the new key and re-rendered with their old
-      // words; the next plan renames them together with lint.
-      expect(after).toContain("**Oracle phase:** discharged by phase-02");
+      // ac-migrate, the header half: the header lines are re-rendered with the
+      // acceptance words, and nothing else in the body changes.
+      expect(after).toBe(
+        md
+          .replace("· oracle · AC-1", "· acceptance · AC-1")
+          .replace(
+            "**Oracle phase:** discharged by phase-02",
+            "**Acceptance phase:** passed by phase-02",
+          )
+          .replace("**Oracle files:**", "**Acceptance test files:**"),
+      );
+      expect(after).toContain("**Acceptance phase:** passed by phase-02");
+      expect(after).toContain("**Acceptance test files:** `tests/unit/pruneStore.test.ts`");
+      expect(after).not.toContain("**Oracle phase:**");
+      expect(after).not.toContain("**Oracle files:**");
 
       expect(git(["rev-list", "--count", `${head}..HEAD`]).trim()).toBe("1");
       expect(headFiles()).toEqual([PLAN, sidecarOf(PLAN)].toSorted());

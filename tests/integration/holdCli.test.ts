@@ -49,7 +49,10 @@ vi.mock("../../src/infra/providers/dispatcher.js", async (importOriginal) => {
 });
 
 const INTERACTIVE_LINE = "**Mode:** interactive";
-const ORACLE_PAIR_LINES = ["**Oracle phase:** yes", "**Oracle files:** `src/step-02.ts`"];
+const ORACLE_PAIR_LINES = [
+  "**Acceptance phase:** yes",
+  "**Acceptance test files:** `src/step-02.ts`",
+];
 
 // The made-up six-phase plan: phase-03 is declared interactive and phase-06 is the final phase.
 const SIX_PHASES: Fixture = {

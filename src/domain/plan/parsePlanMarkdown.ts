@@ -486,8 +486,8 @@ function walkPlan(planMd: string): PlanWalkResult {
       Either.isRight(bodyE)
     ) {
       // A declaration line never adds a structure error here: its defects are
-      // the `interactive` and `oracles` checks' errors, and it reads as
-      // headless with no oracle.
+      // the `interactive` and `acceptance` checks' errors, and it reads as
+      // headless with no acceptance.
       const nextBlock = phaseBlocks[index + 1];
       const nextId = nextBlock
         ? (toString(nextBlock.heading).trim().match(PHASE_HEADING_RE)?.[1]?.toLowerCase() ?? null)

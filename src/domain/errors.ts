@@ -527,7 +527,7 @@ export class PlanSectionsPreflightError extends Data.TaggedError("PlanSectionsPr
   planPath: string;
 }> {}
 
-// A phase declares a Mode or oracle line this phax cannot run (yet), or a malformed one.
+// A phase declares a Mode or acceptance line this phax cannot run (yet), or a malformed one.
 export class InteractivePreflightError extends Data.TaggedError("InteractivePreflightError")<{
   message: string;
   findings: readonly LintFinding[];
@@ -540,7 +540,7 @@ export class HoldPreflightError extends Data.TaggedError("HoldPreflightError")<{
   findings: readonly { readonly phase: string | null; readonly message: string }[];
 }> {}
 
-export class OraclePreflightError extends Data.TaggedError("OraclePreflightError")<{
+export class AcceptancePreflightError extends Data.TaggedError("AcceptancePreflightError")<{
   message: string;
   findings: readonly LintFinding[];
   planPath: string;

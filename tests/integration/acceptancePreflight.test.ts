@@ -58,7 +58,7 @@ function extract(planMd: string) {
 
 describe("acceptance: extraction of the acceptance header lines", () => {
   // ac-header: the written phax-plan.json carries the pair at 0.33.0.
-  it.fails("ac-header: the extracted phase carries acceptance, at phax-plan 0.33.0", async () => {
+  it("ac-header: the extracted phase carries acceptance, at phax-plan 0.33.0", async () => {
     const { result } = extract(acHeaderPlan());
     const extracted = await result;
     expect(Either.isRight(extracted)).toBe(true);
@@ -77,7 +77,7 @@ describe("acceptance: extraction of the acceptance header lines", () => {
   });
 
   // ac-loop-old: refused before the cache and before any model call.
-  it.fails("ac-loop-old: a line in the oracle loop is refused before any model call", async () => {
+  it("ac-loop-old: a line in the oracle loop is refused before any model call", async () => {
     const { result, fakeBackend, fakeShell } = extract(acLoopOldPlan());
     const outcome = await result;
 
@@ -169,7 +169,7 @@ function makeInput(planMd: string): RunPreflightInput {
 
 describe("acceptance: the acceptance-phases run preflight", () => {
   // ac-header-old: the preflight reports exactly what lint's acceptance check reports.
-  it.fails("ac-header-old: the Oracle lines fail the run with Acceptance preflight failed", async () => {
+  it("ac-header-old: the Oracle lines fail the run with Acceptance preflight failed", async () => {
     const fs = makeFakeFileSystem();
     const shell = makeFakeShell();
     const result = await Effect.runPromise(

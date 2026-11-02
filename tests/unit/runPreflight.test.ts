@@ -15,7 +15,7 @@ import {
   ConfigValidationError,
   InteractivePreflightError,
   ModelPreflightError,
-  OraclePreflightError,
+  AcceptancePreflightError,
   PlanSectionsPreflightError,
   RecordsSyncRequiredError,
   SecurityPreflightError,
@@ -334,15 +334,15 @@ const REFUSALS = {
       LINT_HINT,
     ].join("\n"),
   },
-  "oracle-phases": {
+  "acceptance-phases": {
     input: makeInput({
       plan: oraclePlan,
-      planMd: `${planMdWithHeader(["**Oracle phase:** yes", "**Oracle files:** `a.ts`"])}\n## phase-02 — Phase phase-02 {#phase-02}\n\n**Recommended model:** ${GOOD_MODEL}\n**Recommended effort:** medium\n`,
+      planMd: `${planMdWithHeader(["**Acceptance phase:** yes", "**Acceptance test files:** `a.ts`"])}\n## phase-02 — Phase phase-02 {#phase-02}\n\n**Recommended model:** ${GOOD_MODEL}\n**Recommended effort:** medium\n`,
     }),
-    errorClass: OraclePreflightError,
+    errorClass: AcceptancePreflightError,
     message: [
-      "Oracle preflight failed: 1 error(s).",
-      '  phase-01  oracle phase declared, but no "oracles" provider is configured (phax.json, phax.local.json or ~/.phax/config.json)',
+      "Acceptance preflight failed: 1 error(s).",
+      '  phase-01  acceptance phase declared, but no "acceptance" provider is configured (phax.json, phax.local.json or ~/.phax/config.json)',
       LINT_HINT,
     ].join("\n"),
   },
@@ -359,7 +359,7 @@ describe("runPreflights", () => {
       "phase-models",
       "phase-sections",
       "assignment-bounds",
-      "oracle-phases",
+      "acceptance-phases",
       "interactive-phases",
     ]);
   });
@@ -438,8 +438,8 @@ describe("runPreflights", () => {
     }
   });
 
-  it("oracle-phases passes a well-formed pair once a provider is configured", async () => {
-    const input = REFUSALS["oracle-phases"].input;
+  it("acceptance-phases passes a well-formed pair once a provider is configured", async () => {
+    const input = REFUSALS["acceptance-phases"].input;
     const result = await run({
       ...input,
       config: makeConfig({ acceptance: { command: "./fake-oracles" } } as Partial<ResolvedConfig>),
@@ -447,32 +447,32 @@ describe("runPreflights", () => {
     expect(Either.isRight(result)).toBe(true);
   });
 
-  it("oracle-phases refuses a plan whose oracle phase repeats an oracle file", async () => {
+  it("acceptance-phases refuses a plan whose oracle phase repeats an oracle file", async () => {
     const result = await run({
-      ...REFUSALS["oracle-phases"].input,
+      ...REFUSALS["acceptance-phases"].input,
       config: makeConfig({ acceptance: { command: "./fake-oracles" } } as Partial<ResolvedConfig>),
-      planMd: `${planMdWithHeader(["**Oracle phase:** yes", "**Oracle files:** `a.ts`, `a.ts`"])}\n## phase-02 — Phase phase-02 {#phase-02}\n\n**Recommended model:** ${GOOD_MODEL}\n**Recommended effort:** medium\n`,
+      planMd: `${planMdWithHeader(["**Acceptance phase:** yes", "**Acceptance test files:** `a.ts`, `a.ts`"])}\n## phase-02 — Phase phase-02 {#phase-02}\n\n**Recommended model:** ${GOOD_MODEL}\n**Recommended effort:** medium\n`,
     });
     expect(Either.isLeft(result)).toBe(true);
     if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(OraclePreflightError);
+      expect(result.left).toBeInstanceOf(AcceptancePreflightError);
       expect(result.left.message).toContain(
-        "phase-01  oracle file a.ts is listed more than once on **Oracle files:**: list each oracle file once",
+        "phase-01  acceptance test file a.ts is listed more than once on **Acceptance test files:**: list each acceptance test file once",
       );
     }
   });
 
-  it("oracle-phases refuses a plan with an interactive phase before interactive-phases does", async () => {
+  it("acceptance-phases refuses a plan with an interactive phase before interactive-phases does", async () => {
     const planMd = [
-      planMdWithHeader(["**Oracle phase:** yes", "**Oracle files:** `a.ts`"]),
+      planMdWithHeader(["**Acceptance phase:** yes", "**Acceptance test files:** `a.ts`"]),
       "## phase-02 — Phase phase-02 {#phase-02}\n\n**Recommended model:** m\n**Recommended effort:** medium\n**Mode:** interactive\n",
     ].join("\n");
     const result = await run(makeInput({ plan: oraclePlan, planMd }));
     expect(Either.isLeft(result)).toBe(true);
     if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(OraclePreflightError);
+      expect(result.left).toBeInstanceOf(AcceptancePreflightError);
       expect(result.left.message).toContain(
-        "phase-02  an interactive phase takes no oracle role: it discharges phase-01",
+        "phase-02  an interactive phase takes no acceptance role: it passes phase-01",
       );
     }
   });

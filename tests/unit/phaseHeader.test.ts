@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { Either } from "effect";
 import {
   declaresInteractive,
-  oracleDeclaration,
+  acceptanceDeclaration,
   phaseKinds,
   readHeaderParagraph,
   readPhaseHeaders,
@@ -56,26 +56,23 @@ describe("readHeaderParagraph", () => {
     expect(readHeaderParagraph("**Recommended model:** x").hasModelReason).toBe(false);
   });
 
-  it("reads oracle files with and without a backtick wrap, dropping empty entries", () => {
-    expect(readHeaderParagraph("**Oracle files:** `a.ts`, b.ts, , `c/d.ts`").oracleFiles).toEqual([
-      "a.ts",
-      "b.ts",
-      "c/d.ts",
-    ]);
-    expect(readHeaderParagraph("**Oracle files:**").oracleFiles).toEqual([]);
-    expect(readHeaderParagraph("**Mode:** interactive").oracleFiles).toBeNull();
+  it("reads acceptance test files with and without a backtick wrap, dropping empty entries", () => {
+    expect(
+      readHeaderParagraph("**Acceptance test files:** `a.ts`, b.ts, , `c/d.ts`").acceptanceFiles,
+    ).toEqual(["a.ts", "b.ts", "c/d.ts"]);
+    expect(readHeaderParagraph("**Acceptance test files:**").acceptanceFiles).toEqual([]);
+    expect(readHeaderParagraph("**Mode:** interactive").acceptanceFiles).toBeNull();
   });
 
   it("keeps a comma inside a code span as part of its path", () => {
-    expect(readHeaderParagraph("**Oracle files:** `a,b.test.ts`, `c.ts`").oracleFiles).toEqual([
-      "a,b.test.ts",
-      "c.ts",
-    ]);
+    expect(
+      readHeaderParagraph("**Acceptance test files:** `a,b.test.ts`, `c.ts`").acceptanceFiles,
+    ).toEqual(["a,b.test.ts", "c.ts"]);
   });
 
   it("reports repeated declaration labels", () => {
     const header = readHeaderParagraph(
-      "**Mode:** interactive\n**Mode:** interactive\n**Oracle phase:** yes",
+      "**Mode:** interactive\n**Mode:** interactive\n**Acceptance phase:** yes",
     );
     expect(header.repeated).toEqual(["Mode"]);
   });
@@ -122,16 +119,16 @@ describe("readPhaseHeaders", () => {
       plan([
         "**Assignment reason:** why",
         "**Mode:** interactive",
-        "**Oracle phase:** discharged by phase-04",
-        "**Oracle files:** `x.ts`",
+        "**Acceptance phase:** passed by phase-04",
+        "**Acceptance test files:** `x.ts`",
       ]),
     );
     expect(header).toMatchObject({
       phase: "phase-01",
       assignmentReason: "why",
       mode: "interactive",
-      oraclePhase: "discharged by phase-04",
-      oracleFiles: ["x.ts"],
+      acceptancePhase: "passed by phase-04",
+      acceptanceFiles: ["x.ts"],
       repeated: [],
       misplaced: [],
     });
@@ -144,8 +141,10 @@ describe("readPhaseHeaders", () => {
   });
 
   it("flags a declaration in a list item under a ### section", () => {
-    const header = only(plan([], "- **Oracle phase:** yes\n- nested\n  - Oracle files: a.ts\n"));
-    expect(header.misplaced).toEqual(["Oracle phase", "Oracle files"]);
+    const header = only(
+      plan([], "- **Acceptance phase:** yes\n- nested\n  - Acceptance test files: a.ts\n"),
+    );
+    expect(header.misplaced).toEqual(["Acceptance phase", "Acceptance test files"]);
   });
 
   it("flags a declaration in a second paragraph that carries no Recommended model", () => {
@@ -161,6 +160,40 @@ describe("readPhaseHeaders", () => {
   it("reports a Model reason line set off from the header by a blank line", () => {
     const header = only(plan(["", "**Model reason:** old label"]));
     expect(header.hasModelReason).toBe(true);
+  });
+
+  it.each([
+    ["in the header paragraph", ["**Oracle phase:** yes", "**Oracle files:** `a.ts`"], ""],
+    ["outside the header paragraph", [], "**Oracle phase:** yes\n\n- Oracle files: a.ts\n"],
+    [
+      "split across the header and a later paragraph",
+      ["*Oracle phase*: yes"],
+      "Oracle files: a.ts",
+    ],
+  ])("recognizes the old Oracle labels %s and declares nothing", (_name, lines, rest) => {
+    const header = only(plan(lines, rest));
+    expect(header).toMatchObject({
+      hasOraclePhaseLine: true,
+      hasOracleFilesLine: true,
+      acceptancePhase: null,
+      acceptanceFiles: null,
+      repeated: [],
+      misplaced: [],
+    });
+    expect(acceptanceDeclaration(header)).toBeNull();
+    expect(phaseKinds(header, "phase-02")).toEqual({ mode: "headless", acceptance: null });
+  });
+
+  it("flags each old label on its own, and neither on a phase without them", () => {
+    const phaseOnly = only(plan(["**Oracle phase:** passed by phase-04"]));
+    expect(phaseOnly.hasOraclePhaseLine).toBe(true);
+    expect(phaseOnly.hasOracleFilesLine).toBe(false);
+    const filesOnly = only(plan([], "**Oracle files:** a.ts"));
+    expect(filesOnly.hasOraclePhaseLine).toBe(false);
+    expect(filesOnly.hasOracleFilesLine).toBe(true);
+    const none = only(plan(["**Acceptance phase:** yes", "**Acceptance test files:** a.ts"]));
+    expect(none.hasOraclePhaseLine).toBe(false);
+    expect(none.hasOracleFilesLine).toBe(false);
   });
 
   it("treats inline code and code blocks as prose", () => {
@@ -184,47 +217,47 @@ describe("declaresInteractive", () => {
   });
 });
 
-describe("oracleDeclaration", () => {
+describe("acceptanceDeclaration", () => {
   it("reads yes as the next phase", () => {
-    const header = only(plan(["**Oracle phase:** yes", "**Oracle files:** `a.ts`"]));
-    expect(oracleDeclaration(header)).toEqual({ dischargedBy: { kind: "next" }, files: ["a.ts"] });
+    const header = only(plan(["**Acceptance phase:** yes", "**Acceptance test files:** `a.ts`"]));
+    expect(acceptanceDeclaration(header)).toEqual({ passedBy: { kind: "next" }, files: ["a.ts"] });
   });
 
-  it("reads discharged by phase-NN", () => {
+  it("reads passed by phase-NN", () => {
     const header = only(
-      plan(["**Oracle phase:** discharged by phase-04", "**Oracle files:** a.ts"]),
+      plan(["**Acceptance phase:** passed by phase-04", "**Acceptance test files:** a.ts"]),
     );
-    expect(oracleDeclaration(header)).toEqual({
-      dischargedBy: { kind: "phase", id: "phase-04" },
+    expect(acceptanceDeclaration(header)).toEqual({
+      passedBy: { kind: "phase", id: "phase-04" },
       files: ["a.ts"],
     });
   });
 
   it("allows an empty files list", () => {
-    const header = only(plan(["**Oracle phase:** yes", "**Oracle files:**"]));
-    expect(oracleDeclaration(header)).toEqual({ dischargedBy: { kind: "next" }, files: [] });
+    const header = only(plan(["**Acceptance phase:** yes", "**Acceptance test files:**"]));
+    expect(acceptanceDeclaration(header)).toEqual({ passedBy: { kind: "next" }, files: [] });
   });
 
   it.each([
-    ["a malformed value", ["**Oracle phase:** maybe", "**Oracle files:** a.ts"]],
-    ["a missing files line", ["**Oracle phase:** yes"]],
-    ["a missing phase line", ["**Oracle files:** a.ts"]],
+    ["a malformed value", ["**Acceptance phase:** maybe", "**Acceptance test files:** a.ts"]],
+    ["a missing files line", ["**Acceptance phase:** yes"]],
+    ["a missing phase line", ["**Acceptance test files:** a.ts"]],
     [
       "a repeated line",
-      ["**Oracle phase:** yes", "**Oracle phase:** yes", "**Oracle files:** a.ts"],
+      ["**Acceptance phase:** yes", "**Acceptance phase:** yes", "**Acceptance test files:** a.ts"],
     ],
   ])("is null for %s", (_name, lines) => {
-    expect(oracleDeclaration(only(plan(lines)))).toBeNull();
+    expect(acceptanceDeclaration(only(plan(lines)))).toBeNull();
   });
 
   it("is null when a line sits outside the header", () => {
-    const header = only(plan(["**Oracle phase:** yes"], "**Oracle files:** a.ts"));
-    expect(oracleDeclaration(header)).toBeNull();
+    const header = only(plan(["**Acceptance phase:** yes"], "**Acceptance test files:** a.ts"));
+    expect(acceptanceDeclaration(header)).toBeNull();
   });
 });
 
 describe("phaseKinds", () => {
-  it("is headless with no oracle for a phase without declarations", () => {
+  it("is headless with no acceptance for a phase without declarations", () => {
     expect(phaseKinds(only(plan([])), "phase-02")).toEqual({ mode: "headless", acceptance: null });
   });
 
@@ -234,16 +267,18 @@ describe("phaseKinds", () => {
   });
 
   it("resolves yes to the next phase id", () => {
-    const header = only(plan(["**Oracle phase:** yes", "**Oracle files:** `a.ts`, b.ts"]));
+    const header = only(
+      plan(["**Acceptance phase:** yes", "**Acceptance test files:** `a.ts`, b.ts"]),
+    );
     expect(phaseKinds(header, "phase-02").acceptance).toEqual({
       passedBy: "phase-02",
       files: ["a.ts", "b.ts"],
     });
   });
 
-  it("keeps an explicit discharging phase, with or without a next phase", () => {
+  it("keeps an explicit passing phase, with or without a next phase", () => {
     const header = only(
-      plan(["**Oracle phase:** discharged by phase-04", "**Oracle files:** a.ts"]),
+      plan(["**Acceptance phase:** passed by phase-04", "**Acceptance test files:** a.ts"]),
     );
     for (const next of ["phase-02", null]) {
       expect(phaseKinds(header, next).acceptance).toEqual({
@@ -254,14 +289,16 @@ describe("phaseKinds", () => {
   });
 
   it("is null for yes on the last phase, and for a malformed declaration", () => {
-    const yes = only(plan(["**Oracle phase:** yes", "**Oracle files:** a.ts"]));
+    const yes = only(plan(["**Acceptance phase:** yes", "**Acceptance test files:** a.ts"]));
     expect(phaseKinds(yes, null).acceptance).toBeNull();
-    const malformed = only(plan(["**Oracle phase:** maybe", "**Oracle files:** a.ts"]));
+    const malformed = only(
+      plan(["**Acceptance phase:** maybe", "**Acceptance test files:** a.ts"]),
+    );
     expect(phaseKinds(malformed, "phase-02").acceptance).toBeNull();
   });
 });
 
-/** An extraction model's answer phase: no title, no mode, no oracle. */
+/** An extraction model's answer phase: no title, no mode, no acceptance. */
 function answerPhase(id: string): ExtractionPlan["phases"][number] {
   return {
     id,
@@ -291,8 +328,8 @@ describe("withPhaseKinds", () => {
     "",
     "**Recommended model:** claude-sonnet-5-5",
     "**Recommended effort:** medium",
-    "**Oracle phase:** yes",
-    "**Oracle files:** `a.test.ts`",
+    "**Acceptance phase:** yes",
+    "**Acceptance test files:** `a.test.ts`",
     "",
     "## phase-02 — Two {#phase-02-two}",
     "",

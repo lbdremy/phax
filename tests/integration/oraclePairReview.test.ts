@@ -21,7 +21,7 @@ import {
   GateAttemptsExhaustedError,
   StopCloseRefusedError,
 } from "../../src/domain/errors.js";
-import { oracleFindings } from "../../src/domain/plan/oracleCheck.js";
+import { acceptanceFindings } from "../../src/domain/plan/acceptanceCheck.js";
 import { readPhaseHeaders } from "../../src/domain/plan/phaseHeader.js";
 import {
   DEFAULT_MODEL_ROUTING,
@@ -169,8 +169,8 @@ function planOf(specs: readonly PhaseSpec[]): { plan: PhaxPlan; planMd: string }
       ...(phase.acceptance === null
         ? []
         : [
-            `**Oracle phase:** discharged by ${phase.acceptance.passedBy}`,
-            `**Oracle files:** ${phase.acceptance.files.map((f) => `\`${f}\``).join(", ")}`,
+            `**Acceptance phase:** passed by ${phase.acceptance.passedBy}`,
+            `**Acceptance test files:** ${phase.acceptance.files.map((f) => `\`${f}\``).join(", ")}`,
           ]),
       "",
       "### Detailed instructions",
@@ -453,7 +453,7 @@ describe("a held oracle phase", { timeout: 60_000 }, () => {
 describe("a declared review between the pair", { timeout: 60_000 }, () => {
   it("lints clean, is judged again at its close, and moves the oracle commit", async () => {
     expect(
-      oracleFindings({
+      acceptanceFindings({
         headers: readPhaseHeaders(FIVE_PHASES.planMd),
         phases: FIVE_PHASES.plan.phases,
         providerConfigured: true,

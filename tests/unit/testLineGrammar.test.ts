@@ -81,7 +81,7 @@ describe("test line grammar", () => {
   it("departs an oracle holding ' — ', which the schema refuses", () => {
     expect(readTestStrategyText("- g — small · example · a — b · in-phase")).toEqual({
       lines: [],
-      departures: [{ line: 1, text: "g — small · example · a — b · in-phase" }],
+      departures: [{ line: 1, text: "g — small · example · a — b · in-phase", kind: "format" }],
     });
     expect(refused(line({ oracle: "a — b" }))).toBe(true);
   });
@@ -96,7 +96,9 @@ describe("test line grammar", () => {
       "g — small · example · o · `in-phase`",
       "g — small · example · o · in-phase · `ac-a`",
     ]) {
-      expect(readTestStrategyText(`- ${text}`).departures, text).toEqual([{ line: 1, text }]);
+      expect(readTestStrategyText(`- ${text}`).departures, text).toEqual([
+        { line: 1, text, kind: "format" },
+      ]);
     }
     expect(refused(line({ criterion: "`ac-a`" }))).toBe(true);
   });
@@ -153,7 +155,7 @@ describe("test line grammar", () => {
     const paragraphs = `${wrapped}\n\n  A second paragraph.`;
     expect(readTestStrategyText(paragraphs)).toEqual({
       lines: [{ item: 1, line: line() }],
-      departures: [{ line: 2, text: "A second paragraph." }],
+      departures: [{ line: 2, text: "A second paragraph.", kind: "format" }],
     });
   });
 
@@ -177,7 +179,7 @@ describe("test line grammar", () => {
     const entry = `g — small · example · o${ch}p · in-phase`;
     const reading = readTestStrategyText(`- g — small · example · o · in-phase\n- ${entry}`);
     expect(reading.lines).toHaveLength(1);
-    expect(reading.departures).toEqual([{ line: 2, text: entry }]);
+    expect(reading.departures).toEqual([{ line: 2, text: entry, kind: "format" }]);
     expect(departureMessage(reading.departures[0]!)).toBe(
       `test line 2 departs from the format: "${entry}"`,
     );
@@ -190,7 +192,7 @@ describe("test line grammar", () => {
     expect(readTestStrategyText("\n  \n")).toEqual({ lines: [], departures: [] });
     expect(readTestStrategyText("- g — small · example · o · in-phase\n- (none)")).toEqual({
       lines: [{ item: 1, line: line({ guarantee: "g", oracle: "o" }) }],
-      departures: [{ line: 2, text: "(none)" }],
+      departures: [{ line: 2, text: "(none)", kind: "format" }],
     });
   });
 
@@ -213,7 +215,7 @@ describe("test line grammar", () => {
     const text = "g — small · example · o · oracle";
     expect(readTestStrategyText(`- ${text}`)).toEqual({
       lines: [],
-      departures: [{ line: 1, text }],
+      departures: [{ line: 1, text, kind: "retired-loop" }],
     });
   });
 
@@ -226,8 +228,35 @@ describe("test line grammar", () => {
       ["h", "in-phase", null],
     ]);
     expect(readTestStrategyText(text).departures).toEqual([
-      { line: 1, text: text.split("\n")[0]!.slice(2) },
+      { line: 1, text: text.split("\n")[0]!.slice(2), kind: "retired-loop" },
     ]);
+  });
+
+  it.each(["g — small · example · o · oracle", "g — small · example · o · oracle · AC-3"])(
+    "departs %s as a retired loop, named by its message",
+    (text) => {
+      const [departure] = readTestStrategyText(`- ${text}`).departures;
+      expect(departure).toEqual({ line: 1, text, kind: "retired-loop" });
+      expect(departureMessage(departure!)).toBe(
+        "test line 1 uses the loop 'oracle', which is no longer read: write 'acceptance'",
+      );
+    },
+  );
+
+  it.each([
+    "g -- small · example · o · oracle",
+    "g — unit · example · o · oracle · AC-3",
+    "g — small · example · oracle",
+  ])("departs %s, an oracle line with another defect, as a format departure", (text) => {
+    const [departure] = readTestStrategyText(`- ${text}`).departures;
+    expect(departure).toEqual({ line: 1, text, kind: "format" });
+    expect(departureMessage(departure!)).toBe(`test line 1 departs from the format: "${text}"`);
+  });
+
+  it("never departs as a retired loop in a section written before 0.33.0", () => {
+    const text = "- g -- small · example · o · oracle\n- h — small · example · o · acceptance";
+    const reading = readTestStrategyText(text, { beforeAcceptance: true });
+    expect(reading.departures.map((d) => d.kind)).toEqual(["format", "format"]);
   });
 
   it("departs a section written before 0.33.0 whose line ends in `acceptance`, then a criterion", () => {
@@ -238,8 +267,8 @@ describe("test line grammar", () => {
     expect(readTestStrategyText(text, { beforeAcceptance: true })).toEqual({
       lines: [],
       departures: [
-        { line: 1, text: "g — small · example · o · in-phase · acceptance" },
-        { line: 2, text: "h — small · example · o · acceptance" },
+        { line: 1, text: "g — small · example · o · in-phase · acceptance", kind: "format" },
+        { line: 2, text: "h — small · example · o · acceptance", kind: "format" },
       ],
     });
   });
@@ -252,7 +281,7 @@ describe("test line grammar", () => {
     ]) {
       expect(readTestStrategyText(`- ${text}`)).toEqual({
         lines: [],
-        departures: [{ line: 1, text }],
+        departures: [{ line: 1, text, kind: "format" }],
       });
     }
   });
@@ -266,8 +295,8 @@ describe("test line grammar", () => {
     ].join("\n");
     const reading = readTestStrategyText(text);
     expect(reading.departures).toEqual([
-      { line: 1, text: "Write these first:" },
-      { line: 3, text: "not a test line" },
+      { line: 1, text: "Write these first:", kind: "format" },
+      { line: 3, text: "not a test line", kind: "format" },
     ]);
     expect(reading.lines.map(({ item }) => item)).toEqual([2, 4]);
     expect(reading.departures.map(departureMessage)).toEqual([

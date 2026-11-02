@@ -235,11 +235,14 @@ const CASES: Record<string, RecheckCase> = {
   },
   "the run folder's plan.md gains an oracle declaration": {
     change: (roots) =>
-      addHeaderLines(roots, ["**Oracle phase:** yes", "**Oracle files:** `src/step-01.ts`"]),
+      addHeaderLines(roots, [
+        "**Acceptance phase:** yes",
+        "**Acceptance test files:** `src/step-01.ts`",
+      ]),
     message: (roots) =>
       [
-        `Oracle preflight failed: 1 error(s).`,
-        `  phase-01  oracle phase declared, but no "oracles" provider is configured (phax.json, phax.local.json or ~/.phax/config.json)`,
+        `Acceptance preflight failed: 1 error(s).`,
+        `  phase-01  acceptance phase declared, but no "acceptance" provider is configured (phax.json, phax.local.json or ~/.phax/config.json)`,
         `Fix the plan, then check it with \`phax plans lint ${runPlanMdPath(roots)}\`.`,
       ].join("\n"),
   },
@@ -424,7 +427,12 @@ describe("phax resume — re-checks the inputs that can change before any worktr
       config: { acceptance: { command: "node tools/oracles.mjs" } },
       plan: {
         phases: [
-          { headerLines: ["**Oracle phase:** yes", "**Oracle files:** `src/step-01.ts`"] },
+          {
+            headerLines: [
+              "**Acceptance phase:** yes",
+              "**Acceptance test files:** `src/step-01.ts`",
+            ],
+          },
           {},
         ],
       },
@@ -455,9 +463,57 @@ describe("phax resume — re-checks the inputs that can change before any worktr
     expect(code).toBe(11);
     expect(out.errors).toEqual([
       `phax resume failed: ${[
-        `Oracle preflight failed: 1 error(s).`,
-        `  phase-01  oracle phase declared, but no "oracles" provider is configured (phax.json, phax.local.json or ~/.phax/config.json)`,
+        `Acceptance preflight failed: 1 error(s).`,
+        `  phase-01  acceptance phase declared, but no "acceptance" provider is configured (phax.json, phax.local.json or ~/.phax/config.json)`,
         `Fix the plan, then check it with \`phax plans lint ${runPlanMdPath(r)}\`.`,
+      ].join("\n")}`,
+    ]);
+    expect(
+      existsSync(join(r.stateRoot, "worktrees", `${r.namespace}.${shortName}`, "phase-02")),
+    ).toBe(false);
+    expect(git(["worktree", "list", "--porcelain"], r.repo)).toBe(worktreesBefore);
+  });
+
+  // ac-header-old: the run folder's plan.md edited back to the Oracle lines.
+  it("refuses an acceptance run whose plan.md was edited back to the Oracle lines, naming both", async () => {
+    const r = createPreflightRepo({
+      config: { acceptance: { command: "node tools/oracles.mjs" } },
+      plan: {
+        phases: [
+          {
+            headerLines: [
+              "**Acceptance phase:** yes",
+              "**Acceptance test files:** `src/step-01.ts`",
+            ],
+          },
+          {},
+        ],
+      },
+    });
+    roots = r;
+    process.chdir(r.repo);
+
+    const shortName = await pauseAfterPhase01(r);
+
+    const worktreesBefore = git(["worktree", "list", "--porcelain"], r.repo);
+    const planMdPath = runPlanMdPath(r);
+    const planMd = readFileSync(planMdPath, "utf8");
+    const edited = planMd
+      .replace("**Acceptance phase:** yes", "**Oracle phase:** yes")
+      .replace("**Acceptance test files:**", "**Oracle files:**");
+    expect(edited).not.toBe(planMd);
+    writeFileSync(planMdPath, edited);
+    const out = recordingOutput();
+
+    const code = await runResume(shortName, { yes: true }, out.port);
+
+    expect(code).toBe(11);
+    expect(out.errors).toEqual([
+      `phax resume failed: ${[
+        `Acceptance preflight failed: 2 error(s).`,
+        `  phase-01  **Oracle phase:** is no longer read: write **Acceptance phase:**`,
+        `  phase-01  **Oracle files:** is no longer read: write **Acceptance test files:**`,
+        `Fix the plan, then check it with \`phax plans lint ${planMdPath}\`.`,
       ].join("\n")}`,
     ]);
     expect(

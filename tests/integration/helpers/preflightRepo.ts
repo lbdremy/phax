@@ -52,7 +52,7 @@ interface FixtureConfig {
 interface FixturePhase {
   readonly model?: string;
   readonly effort?: string;
-  /** Extra header lines (Mode, Oracle phase, Model reason, …), right after the effort line. */
+  /** Extra header lines (Mode, Acceptance phase, Model reason, …), right after the effort line. */
   readonly headerLines?: readonly string[];
   readonly plannedFilesToCreate?: readonly string[];
   readonly plannedFilesToEdit?: readonly string[];
