@@ -16,22 +16,15 @@ these specs landed and were completed: `planning-skill-defaults` (two plans), `a
 
 ### Approved, not yet planned
 
-- [ ] **`acceptance-tests`** — `docs/specs/2610271119-acceptance-tests.md`, re-approved 2026-10-31
-      (brief `docs/briefs/acceptance-tests.md`). "Oracle phases" become acceptance phases:
-      "acceptance" everywhere, "pass" replaces "discharge", the test line's loop becomes
-      `acceptance | in-phase`; "oracle" keeps only its literature meaning (the test line's fourth
-      field, the `wrong-oracle` escape; Barr et al. 2015). Adds the `boundary` technique. Old names
-      in person-written files are refused, naming the new ones. Four plans; plan 1, the formats,
-      merged (#177); plan 2, lint, the header lines, the config key, `--hold`/`--skip-acceptance`
-      and the old-name refusals, merged (#178); plan 3, prompts, messages, help texts, telemetry
-      and the source scan of oracle words, merged (#180). Until plan 4, this repository's
-      `phax.json` keeps the `oracles` key the installed phax reads, which the editor schemas now
-      flag.
-      - Plan 4 (`--allow-skill-edits`, completes the spec): skills, docs, site, the example, this
-        repository's `phax.json` and `knip.json`; the example-provider test built again from phax's
-        own `serializeAcceptanceRequest`.
-      - **No release before plan 4 merges:** until then the bundled example reads only
-        `oracle-request`.
+- [ ] **Release 0.33.0, then finish `acceptance-tests` (#177, #178, #180, #181).** The spec is
+      complete. The installed 0.32.0 refuses this repository's `phax.json` (`acceptance` key), so
+      no `phax run` here until 0.33.0 is released and installed. Then:
+      - `phax archive acceptance-docs-and-skills` (its run is not archived yet, and its local
+        branches and worktrees stay until then);
+      - `phax artifact migrate-documents` on the live spec and plan sidecars;
+      - `phax skills install` for the copies outside this repository.
+      Optional follow-up: no skill teaches that the criterion ids `acceptance`, `in-phase` and
+      `oracle` are reserved; only lint reports it.
 
 ### Briefs written, spec not yet authored
 
@@ -98,6 +91,7 @@ A rise in execution defects on default phases is the signal to tighten the polic
 | 2026-11-01 | `acceptance-tests` plan 1, acceptance formats (#177) | 3 × sonnet-5-5 / high, 1 × sonnet-5-5 / medium, 1 × opus-5-5 / medium (with a reason), with one acceptance pair; the headless code review on; plan authored at opus-5-5 / medium, not reviewed by an agent | $32.02 ($28.41 for the phases, $10.16 of it the Opus phase-04; one $0.17 fix attempt; $2.49 for the code review) | 2 / 2 | The plan reserved the criterion `acceptance` but lifted older test lines unchanged, so a 0.28.0 or 0.32.0 plan holding that criterion (valid then) crashed `migrate-documents` with an unhandled ParseError and the package produced invalid latest values; the pre-0.33.0 grammar also read a trailing `acceptance` as the loop. The plan also accepted cutting the example-provider test from phax's serializer until plan 4, so only the release order now guards the bundled `examples/vitest-oracles`, which reads `oracle-request` only. Execution made the frozen-renderer test read the plan from `docs/plans/`, which the run's own completion commit archives: every phase gate was green and CI on the PR was red, because no gate runs on the tree after the archival commit. Execution's upgrading entry said migrate-documents restamps spec sidecars. The headless code review: 2 findings, both confirmed; the PR review found the CI break and the reserved-criterion crash. The real e2e passed (held and declared stops, 22 Claude, 6 Codex, headless authoring). |
 | 2026-11-02 | `acceptance-tests` plan 2, acceptance lint and config (#178) | 1 × sonnet-5-5 / high, 1 × sonnet-5-5 / medium, 1 × opus-5-5 / medium, with one acceptance pair; the headless code review on; plan authored at opus-5-5 / medium, not reviewed by an agent | $12.53 ($8.80 for the phases, $5.57 of it the Opus phase-03; $3.20 for the code review) | 2 / 2 | The plan followed the spec's lint sketch, which sized the check column for `acceptance` and missed that `interactive` is wider, so the column is one space wider than §6 shows; and it did not say what lint reports on a half-rewritten plan (old header lines beside the new loop, or the reverse), where the `tests` check added a row pointing at the wrong fix. Execution left the `phax run` help describing the `oracle-request` fields phax no longer sends, and closeStop asking for an `"oracles"` provider. The headless code review: 4 findings, all addressed; the PR review found the help text and the half-rewritten rows. The real e2e passed except `resetPhase`, already red on main and fixed apart (#179). |
 | 2026-11-02 | `acceptance-tests` plan 3, acceptance words (#180) | 1 × sonnet-5-5 / high, 2 × sonnet-5-5 / medium, no acceptance pair (every entry the quoted strings flow through changes shape in the plan); the headless code review on; plan authored at opus-5-5 / medium, not reviewed by an agent | $8.59 ($5.96 for the phases, $3.92 of it phase-01's rename; $2.35 for the code review) | 1 / 1 | The plan specified the source scan's allowlist as line patterns without saying a pattern must span the word it allows, so one allowed `<oracle>` exempted every other oracle word on a long help line; it also let whole-file entries cover package modules that define current formats, not only lifts, and left the current JSON Schemas out of the scan though §8 names them. Execution wrote the ac-read-old fixture with a phase passing itself and left the surfaces row unasserted. The headless code review: 4 findings, 3 fixed, the label width kept as the spec shows; the PR review found the case-insensitive and per-entry staleness gaps in the allowlist. The real e2e passed (6 files). |
+| 2026-11-02 | `acceptance-tests` plan 4, acceptance docs and skills (#181) | 1 × sonnet-5-5 / high, 2 × sonnet-5-5 / medium, no acceptance pair (0.32.0 would send an `oracle-request` to the moved example); `--allow-skill-edits`; the headless code review on; plan authored at opus-5-5 / medium, not reviewed by an agent | $6.56 ($4.04 for the phases; $2.29 for the code review) | 0 / 3 | Execution renamed oracle to acceptance word for word where oracle meant any test that judges the code, so two skills called a wrong test "an acceptance-test question" and an idea note's declared pairing became a provider; it rewrote the docs page's plan section to the spec's `publish` example but left the request and finding samples on the old refunds pair; it scanned only three file types under `examples/` though the plan said every file. The headless code review: 4 findings, 3 fixed, the phax.json timing accepted by the operator; the PR review found the narrowed literature sense and the passing-phase wording. The real e2e passed (4 files), and the example's test 54/54. |
 
 ## Road to 1.0.0 — assessed 2026-09-15 at v0.14.0, rechecked 2026-10-05 at v0.18.0
 
