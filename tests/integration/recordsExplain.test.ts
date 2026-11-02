@@ -694,13 +694,13 @@ describe("records explain and list (real git)", () => {
 
     it("explains the passing phase of a record written by 0.32.0 under the acceptance words", async () => {
       const runId = "run-old-1786800000013";
-      const sha = commitWithTrailers(repoDir, runId, "phase-03");
+      const sha = commitWithTrailers(repoDir, runId, "phase-04");
       // Raw JSON in the frozen shapes of phase-record-manifest 0.30.0 and
       // gate-attribution 0.31.0, bypassing the current encoder.
       const manifest = {
         $schema: "https://docs.phax.run/schemas/phase-record-manifest/0.30.0.json",
         runId,
-        phaseId: "phase-03",
+        phaseId: "phase-04",
         shape: "skeleton",
         sourceSha: sha,
         model: "claude-sonnet-5",
@@ -715,7 +715,7 @@ describe("records explain and list (real git)", () => {
       };
       const oldAttribution = {
         $schema: "https://docs.phax.run/schemas/gate-attribution/0.31.0.json",
-        phase: "phase-03",
+        phase: "phase-04",
         steps: [
           { command: "pnpm test", surface: "local", result: "pass" },
           { command: "node tools/oracles.mjs", surface: "oracle", result: "pass" },
@@ -724,9 +724,9 @@ describe("records explain and list (real git)", () => {
       };
       await writeRecordDocumentCommit(
         repoDir,
-        `${runId}/phase-03`,
+        `${runId}/phase-04`,
         manifest,
-        phaseRecordMessage(runId, "phase-03", "committed", "skeleton"),
+        phaseRecordMessage(runId, "phase-04", "committed", "skeleton"),
         { "gate-attribution.json": JSON.stringify(oldAttribution) },
       );
 
@@ -734,6 +734,8 @@ describe("records explain and list (real git)", () => {
       expect(explained.logs).toContain(
         "acceptance   passes phase-03 — node tools/oracles.mjs: pass",
       );
+      expect(explained.text).toContain("surfaces  acceptance, local");
+      expect(explained.text).not.toMatch(/oracle(?!s\.mjs)/);
     });
 
     it("lists the acceptance request right after the attempt's request under --gates", () => {
