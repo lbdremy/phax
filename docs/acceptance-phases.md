@@ -20,16 +20,16 @@ The agent is never granted the provider. It runs only from phax, at the gate, so
 
 ## The request
 
-At the gate of an acceptance phase and of the phase that passes it, after every configured step passed, phax writes one JSON document to the provider's stdin and saves it as `checks-attempt-NN.acceptance-request.json` beside the attempt's log. For the acceptance phase (`authored`):
+At the gate of an acceptance phase and of the phase that passes it, after every configured step passed, phax writes one JSON document to the provider's stdin and saves it as `checks-attempt-NN.acceptance-request.json` beside the attempt's log. For the acceptance phase, phase-03 of the `publish` plan [below](#write-an-acceptance-first-plan) (`authored`):
 
 ```json
 {
   "$schema": "https://docs.phax.run/schemas/acceptance-request/<release>.json",
   "verdict": "authored",
-  "phase": "phase-02",
-  "acceptancePhase": "phase-02",
+  "phase": "phase-03",
+  "acceptancePhase": "phase-03",
   "base": "3f2a91c…",
-  "files": ["tests/refunds.test.ts"]
+  "files": ["tests/e2e/publish.test.ts"]
 }
 ```
 
@@ -39,11 +39,11 @@ For the passing phase (`passed`) the document adds `acceptanceCommit`, the commi
 {
   "$schema": "https://docs.phax.run/schemas/acceptance-request/<release>.json",
   "verdict": "passed",
-  "phase": "phase-03",
-  "acceptancePhase": "phase-02",
+  "phase": "phase-04",
+  "acceptancePhase": "phase-03",
   "base": "3f2a91c…",
   "acceptanceCommit": "8be04d7…",
-  "files": ["tests/refunds.test.ts"]
+  "files": ["tests/e2e/publish.test.ts"]
 }
 ```
 
@@ -62,10 +62,10 @@ The provider prints a `gate-report` on stdout, and phax judges it like any repor
     "outcome": "checked",
     "findings": [
       {
-        "id": "acceptance-changed:tests/refunds.test.ts:caps a refund at the invoice total",
+        "id": "acceptance-changed:tests/e2e/publish.test.ts:publishing refuses a red gate",
         "rule": "After the acceptance phase, only the expected-failure markers may change in an acceptance test file",
-        "location": { "file": "tests/refunds.test.ts", "lines": [42, 42] },
-        "message": "expect(refund.amount).toBe(120) became toBe(100) since the acceptance commit",
+        "location": { "file": "tests/e2e/publish.test.ts", "lines": [12, 12] },
+        "message": "toEqual({ refused: \"gate\" }) became toEqual({ refused: \"tests\" }) since the acceptance commit",
         "related": [],
         "guide": null
       }
@@ -154,7 +154,7 @@ A person can read the acceptance tests before the code is written against them. 
 
 - **The `authored` re-run.** When the person's corrections at a stop change an acceptance test file of the pair the stop sits in, `phax resume` runs the acceptance provider's `authored` verdict again as the last step of the closing gate, after every configured step passed. The request is the usual `acceptance-request`, with `phase` naming the stopped phase, `acceptancePhase` the acceptance phase, and `files` the pair's acceptance test files. A finding goes to the person like any red gate (exit 4). Corrections that touch the acceptance test files of two pairs are refused, because one gate attempt carries one request, as is a gate step that writes an acceptance test file the corrections did not change.
 - **`acceptanceCommit`.** The passing phase judges the latest commit of the pair that passed `authored`: the review commit of the last stop in the pair whose close ran the step, or the acceptance phase's own commit when none did. The request's `acceptanceCommit` names it.
-- **A held passing phase.** Holding the passing phase stops it after it passed its own `passed` verdict. Its close runs the configured steps only, with no acceptance step. For each acceptance test file its corrections changed, it warns that the pass was judged before the stop and that the acceptance provider does not see the change, and records the files in the close's trace. It refuses nothing.
+- **A held passing phase.** Holding the passing phase stops it after it passed its own `passed` verdict. Its close runs the configured steps only, with no acceptance step. For each acceptance test file its corrections changed, it warns that its acceptance step ran before the stop and that the acceptance provider does not see the change, and records the files in the close's trace. It refuses nothing.
 - **Reset.** `phax reset-phase` refuses a phase whose closed stop ran the `authored` step once the pair's passing phase has started, as it does the acceptance phase itself, because the passing phase judges that commit.
 - **`--skip-acceptance`.** `phax resume --skip-acceptance` on a run awaiting review at a stop in a pair exits 1: a close's `authored` step is never skipped. At a stop in no pair it exits 1 too, because that phase has no acceptance step. When the acceptance provider is broken, undo the correction to the acceptance test file, or `phax reset-phase` the stop.
 
