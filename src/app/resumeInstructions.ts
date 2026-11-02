@@ -221,8 +221,8 @@ function buildGateRefusalInstructions(input: ResumeInstructionsInput): string {
     ...(failedStep === "acceptance"
       ? [
           "No fix attempt was made. Fix the cause and resume — the gate, acceptance step included, is",
-          "re-run first, with the full fix budget — or, if the acceptance test itself is wrong,",
-          "correct it in the phase worktree and resume with --skip-acceptance: the phase's configured gate still runs,",
+          "re-run first, with the full fix budget — or, if the acceptance test itself is wrong, correct it",
+          "in the phase worktree and resume with --skip-acceptance: the phase's configured gate still runs,",
           "with the usual fix loop, and the acceptance step is recorded as skipped.",
         ]
       : [

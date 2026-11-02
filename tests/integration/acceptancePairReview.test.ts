@@ -76,11 +76,11 @@ vi.mock("../../src/cli/commands/runLayers.js", async (importOriginal) => {
   return { ...original, makeGlobalTelemetryJournalLayerOrNoop: () => noop };
 });
 
-const ORACLES = { command: "./fake-oracles" } as const;
-const ORACLE_FILE = "tests/export/invoiceRow.test.ts";
+const ACCEPTANCE = { command: "./fake-oracles" } as const;
+const ACCEPTANCE_FILE = "tests/export/invoiceRow.test.ts";
 /** The main checkout's git identity (see `createHeldWorld`), who closes every stop. */
 const ADA_EXAMPLE = { name: "Ada Example", email: "ada@example.test" } as const;
-const PORT_ORACLE_FILE = "tests/export/port.test.ts";
+const PORT_ACCEPTANCE_FILE = "tests/export/port.test.ts";
 const SOURCE = "src/export/invoiceRow.ts";
 
 const AUTHORED_TEST = "it('totals a row', () => expect(invoiceRow(row).total).toBe(120));\n";
@@ -101,7 +101,7 @@ const FAILING = JSON.stringify({
     {
       id: "oracle-total tests/export/invoiceRow.test.ts",
       rule: "an oracle pins the specified total",
-      location: { file: ORACLE_FILE, lines: [1, 1] },
+      location: { file: ACCEPTANCE_FILE, lines: [1, 1] },
       message: "the invoice test pins the wrong total",
       related: [],
       guide: null,
@@ -114,8 +114,8 @@ const FAILING = JSON.stringify({
 
 interface PhaseSpec {
   readonly title: string;
-  readonly dischargedBy?: string;
-  readonly oracleFiles?: readonly string[];
+  readonly passedBy?: string;
+  readonly acceptanceFiles?: readonly string[];
   readonly interactive?: boolean;
   readonly create?: readonly string[];
   readonly edit?: readonly string[];
@@ -137,9 +137,9 @@ function planOf(specs: readonly PhaseSpec[]): { plan: PhaxPlan; planMd: string }
       optionalFilesToEdit: spec.optional ?? [],
       mode: spec.interactive === true ? "interactive" : "headless",
       acceptance:
-        spec.dischargedBy === undefined
+        spec.passedBy === undefined
           ? null
-          : { passedBy: spec.dischargedBy, files: spec.oracleFiles ?? [ORACLE_FILE] },
+          : { passedBy: spec.passedBy, files: spec.acceptanceFiles ?? [ACCEPTANCE_FILE] },
       testLines: [],
       commit: { subject: `feat(export): ${spec.title.toLowerCase()}`, body: "Made-up body." },
     }),
@@ -185,7 +185,7 @@ function planOf(specs: readonly PhaseSpec[]): { plan: PhaxPlan; planMd: string }
 // The four-phase variant: phase-02 pins the invoice test, phase-03 discharges it.
 const FOUR_PHASES = planOf([
   { title: "Export port" },
-  { title: "Invoice CSV record", dischargedBy: "phase-03", create: [ORACLE_FILE, SOURCE] },
+  { title: "Invoice CSV record", passedBy: "phase-03", create: [ACCEPTANCE_FILE, SOURCE] },
   { title: "Invoice totals", edit: [SOURCE] },
   { title: "Export command" },
 ]);
@@ -193,8 +193,8 @@ const FOUR_PHASES = planOf([
 // The five-phase variant: declared phase-03 reviews the pair phase-04 discharges.
 const FIVE_PHASES = planOf([
   { title: "Export port" },
-  { title: "Invoice CSV record", dischargedBy: "phase-04", create: [ORACLE_FILE, SOURCE] },
-  { title: "Review the invoice tests", interactive: true, optional: [ORACLE_FILE, SOURCE] },
+  { title: "Invoice CSV record", passedBy: "phase-04", create: [ACCEPTANCE_FILE, SOURCE] },
+  { title: "Review the invoice tests", interactive: true, optional: [ACCEPTANCE_FILE, SOURCE] },
   { title: "Invoice totals", edit: [SOURCE] },
   { title: "Export command" },
 ]);
@@ -204,11 +204,11 @@ const FIVE_PHASES = planOf([
 const TWO_PAIRS = planOf([
   {
     title: "Export port",
-    dischargedBy: "phase-04",
-    oracleFiles: [PORT_ORACLE_FILE],
-    create: [PORT_ORACLE_FILE, "src/phase-01.ts"],
+    passedBy: "phase-04",
+    acceptanceFiles: [PORT_ACCEPTANCE_FILE],
+    create: [PORT_ACCEPTANCE_FILE, "src/phase-01.ts"],
   },
-  { title: "Invoice CSV record", dischargedBy: "phase-03", create: [ORACLE_FILE, SOURCE] },
+  { title: "Invoice CSV record", passedBy: "phase-03", create: [ACCEPTANCE_FILE, SOURCE] },
   { title: "Invoice totals", edit: [SOURCE] },
   { title: "Port totals", edit: ["src/phase-01.ts"] },
   { title: "Export command" },
@@ -264,9 +264,9 @@ function build(phase: string, worktree: string): void {
     mkdirSync(dirname(join(worktree, path)), { recursive: true });
     writeFileSync(join(worktree, path), content);
   };
-  if (phase === "phase-01") write(PORT_ORACLE_FILE, "it('opens the port', () => {});\n");
+  if (phase === "phase-01") write(PORT_ACCEPTANCE_FILE, "it('opens the port', () => {});\n");
   if (phase === "phase-02") {
-    write(ORACLE_FILE, AUTHORED_TEST);
+    write(ACCEPTANCE_FILE, AUTHORED_TEST);
     write(SOURCE, "export const invoiceRow = (row) => ({ total: row.gross });\n");
   }
 }
@@ -277,7 +277,7 @@ async function startStopped(
 ): Promise<HeldRun> {
   const { run, result } = await startHeldRun(world, hold, {
     plan,
-    acceptance: ORACLES,
+    acceptance: ACCEPTANCE,
     prepare: (r) => {
       r.backend.onBuild = build;
     },
@@ -325,7 +325,7 @@ describe("a held oracle phase", { timeout: 60_000 }, () => {
     const c2 = headOf(run, "phase-02");
     expect(verdicts()).toEqual(["authored:phase-02"]);
 
-    writeIn(run, "phase-02", ORACLE_FILE, CORRECTED_TEST);
+    writeIn(run, "phase-02", ACCEPTANCE_FILE, CORRECTED_TEST);
     const result = await resumeHeldRun(run);
 
     expect(Either.isRight(result)).toBe(true);
@@ -339,7 +339,7 @@ describe("a held oracle phase", { timeout: 60_000 }, () => {
       phase: "phase-02",
       acceptancePhase: "phase-02",
       base: phase01["commitHash"],
-      files: [ORACLE_FILE],
+      files: [ACCEPTANCE_FILE],
     });
     expect(phase02).toMatchObject({
       state: "cleaned_up",
@@ -366,7 +366,7 @@ describe("a held oracle phase", { timeout: 60_000 }, () => {
       join(run.runPath, "phase-02", "review-gate", "gate-attribution.json"),
     );
     expect((attribution["steps"] as unknown[]).at(-1)).toEqual({
-      command: ORACLES.command,
+      command: ACCEPTANCE.command,
       surface: "acceptance",
       result: "pass",
     });
@@ -392,7 +392,7 @@ describe("a held oracle phase", { timeout: 60_000 }, () => {
   it("keeps the stop on a failing authored verdict: exit 4", async () => {
     const run = await startStopped(FOUR_PHASES, HOLD_ORACLE);
     const c2 = headOf(run, "phase-02");
-    writeIn(run, "phase-02", ORACLE_FILE, CORRECTED_TEST);
+    writeIn(run, "phase-02", ACCEPTANCE_FILE, CORRECTED_TEST);
     writeFileSync(failFlag(), "authored");
 
     const error = refusedClose(await resumeHeldRun(run));
@@ -411,8 +411,8 @@ describe("a held oracle phase", { timeout: 60_000 }, () => {
 
   it("refuses corrections that touch two pairs' oracle files, sending no request", async () => {
     const run = await startStopped(TWO_PAIRS, { selection: "listed", phases: ["phase-02"] });
-    writeIn(run, "phase-02", ORACLE_FILE, CORRECTED_TEST);
-    writeIn(run, "phase-02", PORT_ORACLE_FILE, "it('opens the port twice', () => {});\n");
+    writeIn(run, "phase-02", ACCEPTANCE_FILE, CORRECTED_TEST);
+    writeIn(run, "phase-02", PORT_ACCEPTANCE_FILE, "it('opens the port twice', () => {});\n");
 
     const error = refusedClose(await resumeHeldRun(run));
 
@@ -429,7 +429,7 @@ describe("a held oracle phase", { timeout: 60_000 }, () => {
     const run = await startStopped(FOUR_PHASES, HOLD_ORACLE);
     // A gate step, outside the worktree, that appends to the oracle file.
     const step = join(world.root, "write-oracle");
-    writeFileSync(step, `#!/bin/sh\nprintf 'extra\\n' >> ${ORACLE_FILE}\n`);
+    writeFileSync(step, `#!/bin/sh\nprintf 'extra\\n' >> ${ACCEPTANCE_FILE}\n`);
     chmodSync(step, 0o755);
     const profiles = run.config.raw.gateProfiles as unknown as Record<string, unknown[]>;
     profiles["standard"] = [
@@ -442,7 +442,7 @@ describe("a held oracle phase", { timeout: 60_000 }, () => {
 
     expect(error.lastClose).toMatchObject({ result: "close-error", exitCode: 1, step: "gate" });
     expect((error.lastClose as { detail: string }).detail).toContain(
-      `a gate step wrote ${ORACLE_FILE}, an acceptance test file of pair phase-02 → phase-03`,
+      `a gate step wrote ${ACCEPTANCE_FILE}, an acceptance test file of pair phase-02 → phase-03`,
     );
     expect(verdicts()).toEqual(["authored:phase-02"]);
   });
@@ -462,7 +462,7 @@ describe("a declared review between the pair", { timeout: 60_000 }, () => {
     const run = await startStopped(FIVE_PHASES, { selection: "none" });
     expect(readPhaseStatus(run, "phase-03")["state"]).toBe("awaiting_review");
 
-    writeIn(run, "phase-03", ORACLE_FILE, CORRECTED_TEST);
+    writeIn(run, "phase-03", ACCEPTANCE_FILE, CORRECTED_TEST);
     const result = await resumeHeldRun(run);
 
     expect(Either.isRight(result)).toBe(true);
@@ -475,7 +475,7 @@ describe("a declared review between the pair", { timeout: 60_000 }, () => {
       phase: "phase-03",
       acceptancePhase: "phase-02",
       base: phase02["base"],
-      files: [ORACLE_FILE],
+      files: [ACCEPTANCE_FILE],
     });
     expect(phase03["stop"]).toEqual({
       cause: "declared",
@@ -490,7 +490,7 @@ describe("a declared review between the pair", { timeout: 60_000 }, () => {
 
   it("is not reset once its discharge has started", async () => {
     const run = await startStopped(FIVE_PHASES, { selection: "none" });
-    writeIn(run, "phase-03", ORACLE_FILE, CORRECTED_TEST);
+    writeIn(run, "phase-03", ACCEPTANCE_FILE, CORRECTED_TEST);
     writeFileSync(failFlag(), "passed");
     const result = await resumeHeldRun(run);
     if (Either.isRight(result)) throw new Error("expected the discharge to fail");
@@ -555,7 +555,7 @@ describe("a held discharge closes on its configured steps", { timeout: 60_000 },
     const run = await startStopped(FOUR_PHASES, HOLD_DISCHARGE);
     const c3 = headOf(run, "phase-03");
 
-    writeIn(run, "phase-03", ORACLE_FILE, CORRECTED_TEST);
+    writeIn(run, "phase-03", ACCEPTANCE_FILE, CORRECTED_TEST);
     const result = await resumeHeldRun(run);
 
     expect(Either.isRight(result)).toBe(true);
@@ -566,11 +566,11 @@ describe("a held discharge closes on its configured steps", { timeout: 60_000 },
       outcome: "corrected",
       phaseCommit: c3,
       acceptanceStep: "none",
-      unjudgedAcceptanceTestFiles: [ORACLE_FILE],
+      unjudgedAcceptanceTestFiles: [ACCEPTANCE_FILE],
     });
     expect(closed.report.gateSteps.map((s) => s.surface)).toEqual(["local"]);
     expect(renderStopClosed(closed)).toContain(
-      `  warning: ${ORACLE_FILE}: an acceptance test file changed at the passing phase; the passing phase was judged before the stop, so the acceptance provider does not see this change`,
+      `  warning: ${ACCEPTANCE_FILE}: an acceptance test file changed at the passing phase; the passing phase's acceptance step ran before the stop, so the acceptance provider does not see this change`,
     );
     expect(
       run.telemetry.impl.events().filter((e) => e.type === "acceptance.edits.unjudged"),
@@ -579,7 +579,7 @@ describe("a held discharge closes on its configured steps", { timeout: 60_000 },
         type: "acceptance.edits.unjudged",
         runId: run.runId,
         operationId: "phase-03",
-        files: [ORACLE_FILE],
+        files: [ACCEPTANCE_FILE],
       },
     ]);
   });
@@ -588,7 +588,7 @@ describe("a held discharge closes on its configured steps", { timeout: 60_000 },
     const run = await startStopped(FOUR_PHASES, HOLD_DISCHARGE);
     const c3 = headOf(run, "phase-03");
     const callsBefore = backendCalls(run, "phase-03").length;
-    writeIn(run, "phase-03", ORACLE_FILE, CORRECTED_TEST);
+    writeIn(run, "phase-03", ACCEPTANCE_FILE, CORRECTED_TEST);
     run.failingGates.add("pnpm typecheck");
 
     const error = refusedClose(await resumeHeldRun(run));
@@ -657,7 +657,7 @@ describe("an authored close interrupted after its review commit", { timeout: 60_
             gateRequest: Effect.succeed("{}"),
             fileReconciliationMode: "report_only",
             phases: run.plan.phases,
-            acceptance: ORACLES,
+            acceptance: ACCEPTANCE,
             mainCheckout: run.world.repoRoot,
           });
         }).pipe(
@@ -678,7 +678,7 @@ describe("an authored close interrupted after its review commit", { timeout: 60_
   it("is finished by the next close, which still reports authored, and the discharge names that commit", async () => {
     const run = await startStopped(FOUR_PHASES, HOLD_ORACLE);
     const c2 = headOf(run, "phase-02");
-    writeIn(run, "phase-02", ORACLE_FILE, CORRECTED_TEST);
+    writeIn(run, "phase-02", ACCEPTANCE_FILE, CORRECTED_TEST);
 
     const first = refusedClose(await closeThatFailsAfterItsCommit(run));
     expect(first.lastClose).toMatchObject({ result: "close-error", step: "files" });
@@ -715,7 +715,7 @@ describe("an authored close interrupted after its review commit", { timeout: 60_
 const ACCEPTANCE_AT_PHASE_03 = planOf([
   { title: "Export port" },
   { title: "Invoice header" },
-  { title: "Invoice CSV record", dischargedBy: "phase-04", create: [ORACLE_FILE, SOURCE] },
+  { title: "Invoice CSV record", passedBy: "phase-04", create: [ACCEPTANCE_FILE, SOURCE] },
   { title: "Invoice totals", edit: [SOURCE] },
 ]);
 
@@ -744,13 +744,13 @@ describe("a held acceptance phase closed with a correction", { timeout: 60_000 }
       { selection: "acceptance", phases: ["phase-03"] },
       {
         plan: ACCEPTANCE_AT_PHASE_03,
-        acceptance: ORACLES,
+        acceptance: ACCEPTANCE,
         records: true,
         prepare: (r) => {
           r.backend.onBuild = (phase, worktree) => {
             if (phase !== "phase-03") return;
             for (const [path, content] of [
-              [ORACLE_FILE, AUTHORED_TEST],
+              [ACCEPTANCE_FILE, AUTHORED_TEST],
               [SOURCE, CORRECTED_SOURCE],
             ] as const) {
               mkdirSync(dirname(join(worktree, path)), { recursive: true });
@@ -768,7 +768,7 @@ describe("a held acceptance phase closed with a correction", { timeout: 60_000 }
     });
 
     // The correction changes the acceptance file: the close's gate passes the authored step.
-    writeIn(run, "phase-03", ORACLE_FILE, CORRECTED_TEST);
+    writeIn(run, "phase-03", ACCEPTANCE_FILE, CORRECTED_TEST);
     expect(Either.isRight(await resumeHeldRun(run))).toBe(true);
     expect(verdicts()).toEqual(["authored:phase-03", "authored:phase-03", "passed:phase-04"]);
 
@@ -785,7 +785,7 @@ describe("a held acceptance phase closed with a correction", { timeout: 60_000 }
     const closing = readJson(join(run.runPath, "phase-03", "review-gate", "gate-attribution.json"));
     expect(closing["$schema"]).toBe(stamp("gate-attribution"));
     expect((closing["steps"] as unknown[]).at(-1)).toEqual({
-      command: ORACLES.command,
+      command: ACCEPTANCE.command,
       surface: "acceptance",
       result: "pass",
     });

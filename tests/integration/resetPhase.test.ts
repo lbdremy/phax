@@ -452,7 +452,7 @@ describe("resetPhase", () => {
     // declared phase-03 reviews it, phase-04 discharges it.
     async function seedReviewedPair(
       phase04State: PhaseStatus["state"],
-      oracleStep: "authored" | "none",
+      acceptanceStep: "authored" | "none",
     ) {
       const { runPath } = await seedRun(stateRoot, {
         runState: "failed",
@@ -480,7 +480,7 @@ describe("resetPhase", () => {
             cause: "declared",
             status: "closed",
             outcome: "corrected",
-            acceptanceStep: oracleStep,
+            acceptanceStep,
             closedBy: { name: "Ada Example", email: "ada@example.com" },
           },
         }),
