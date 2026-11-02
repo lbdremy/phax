@@ -207,10 +207,10 @@ export function invoiceExportPlan(
 function configOf(
   world: HeldWorld,
   records: boolean,
-  oracles: { readonly command: string } | undefined,
+  acceptance: { readonly command: string } | undefined,
 ): ResolvedConfig {
   return {
-    ...(oracles === undefined ? {} : { oracles }),
+    ...(acceptance === undefined ? {} : { acceptance }),
     raw: {
       version: 1,
       name: NAMESPACE,
@@ -457,8 +457,8 @@ export interface HeldRunOptions {
   readonly providerConfig?: ProviderConfig;
   /** Another made-up plan and its plan.md; the invoice-export plan by default. */
   readonly plan?: { readonly plan: PhaxPlan; readonly planMd: string };
-  /** The configured oracles provider; none by default. */
-  readonly oracles?: { readonly command: string };
+  /** The configured acceptance provider; none by default. */
+  readonly acceptance?: { readonly command: string };
 }
 
 /** Name a run of the invoice-export plan that records `hold`, without running it. */
@@ -469,7 +469,7 @@ async function createHeldRun(
 ): Promise<HeldRun> {
   const shortName = Either.getOrThrow(decodeShortName(SHORT));
   const { plan, planMd } = opts.plan ?? invoiceExportPlan();
-  const config = configOf(world, opts.records ?? false, opts.oracles);
+  const config = configOf(world, opts.records ?? false, opts.acceptance);
   const { runPath, runId } = await Effect.runPromise(
     createRunFolder(shortName, planMd, plan, config, undefined, undefined, hold).pipe(
       Effect.provide(NodeFileSystemLayer),

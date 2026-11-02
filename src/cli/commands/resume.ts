@@ -64,6 +64,8 @@ export interface ResumeCommandOptions {
   verbose?: boolean;
   trace?: boolean;
   providerPriority?: string;
+  skipAcceptance?: boolean;
+  /** The retired spelling of `skipAcceptance`: read only to be refused. */
   skipOracle?: boolean;
 }
 
@@ -72,6 +74,11 @@ export async function runResume(
   opts: ResumeCommandOptions,
   out: OutputPort,
 ): Promise<number> {
+  // First statement: nothing is read or written for a retired flag.
+  if (opts.skipOracle === true) {
+    out.error("--skip-oracle is no longer read: write --skip-acceptance");
+    return 1;
+  }
   const configResult = loadConfig(process.cwd());
   if (Either.isLeft(configResult)) {
     reportConfigError(configResult.left, out);
@@ -188,7 +195,7 @@ export async function runResume(
   }
   const plan = planResult.right;
 
-  if (opts.skipOracle === true) {
+  if (opts.skipAcceptance === true) {
     const skipRefusal =
       runStatus.state === "awaiting_review"
         ? stopSkipOracleRefusal(plan.phases, shortName, decision.nextPhaseId)
@@ -211,9 +218,9 @@ export async function runResume(
       `  Finishing ${decision.nextPhaseId} first: its handoff is in place, its record and cleanup did not run.`,
     );
   }
-  if (opts.skipOracle === true) {
+  if (opts.skipAcceptance === true) {
     out.log(
-      `  Skipping the oracle step of ${decision.nextPhaseId} (--skip-oracle); its configured gate still runs.`,
+      `  Skipping the acceptance step of ${decision.nextPhaseId} (--skip-acceptance); its configured gate still runs.`,
     );
   }
 
@@ -288,7 +295,7 @@ export async function runResume(
           runPath,
           runId,
           startIndex: decision.nextPhaseIndex,
-          skipOracle: opts.skipOracle === true,
+          skipAcceptance: opts.skipAcceptance === true,
           phaxVersion: readPackageVersion(),
           routing,
           providerConfig,
@@ -433,7 +440,7 @@ export async function runResume(
           ...(opts.providerPriority === undefined
             ? []
             : ["--provider-priority", opts.providerPriority]),
-          ...(opts.skipOracle === true ? ["--skip-oracle"] : []),
+          ...(opts.skipAcceptance === true ? ["--skip-acceptance"] : []),
         ]);
         for (const line of renderSessionFailure(err, retry)) out.error(line);
         for (const followUp of followUps) out.warn(followUp);

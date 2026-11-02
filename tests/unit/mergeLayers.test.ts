@@ -362,23 +362,23 @@ describe("mergeConfigLayers", () => {
     });
   });
 
-  describe("oracles: scalar override", () => {
-    const project = makeProject({ oracles: { command: "project-oracles" } });
-    const globalUser = makeOverlay({ oracles: { command: "global-oracles" } });
-    const localUser = makeOverlay({ oracles: { command: "local-oracles" } });
+  describe("acceptance: scalar override", () => {
+    const project = makeProject({ acceptance: { command: "project-oracles" } });
+    const globalUser = makeOverlay({ acceptance: { command: "global-oracles" } });
+    const localUser = makeOverlay({ acceptance: { command: "local-oracles" } });
 
     it("resolves from local, then global once local is cleared, then project", () => {
-      expect(mergeConfigLayers({ project, globalUser, localUser }).oracles).toEqual({
+      expect(mergeConfigLayers({ project, globalUser, localUser }).acceptance).toEqual({
         command: "local-oracles",
       });
-      expect(mergeConfigLayers({ project, globalUser }).oracles).toEqual({
+      expect(mergeConfigLayers({ project, globalUser }).acceptance).toEqual({
         command: "global-oracles",
       });
-      expect(mergeConfigLayers({ project }).oracles).toEqual({ command: "project-oracles" });
+      expect(mergeConfigLayers({ project }).acceptance).toEqual({ command: "project-oracles" });
     });
 
     it("a user layer can declare it when the project has none", () => {
-      expect(mergeConfigLayers({ project: makeProject(), localUser }).oracles).toEqual({
+      expect(mergeConfigLayers({ project: makeProject(), localUser }).acceptance).toEqual({
         command: "local-oracles",
       });
     });
@@ -388,7 +388,7 @@ describe("mergeConfigLayers", () => {
         project: makeProject(),
         localUser: makeOverlay({ state: { root: "~/.local" } }),
       });
-      expect(result.oracles).toBeUndefined();
+      expect(result.acceptance).toBeUndefined();
     });
   });
 

@@ -10,13 +10,13 @@ import type { RunHold } from "../schemas/status.js";
 export type HoldRequest =
   | { readonly kind: "none" }
   | { readonly kind: "all" }
-  | { readonly kind: "oracle" }
+  | { readonly kind: "acceptance" }
   | { readonly kind: "listed"; readonly phases: readonly [string, ...string[]] };
 
 const PHASE_ID = /^phase-\d{2}$/;
 
 function refusal(value: string): string {
-  const base = `--hold '${value}' is not a hold selection: give no value, oracle, or phase ids such as phase-02,phase-04`;
+  const base = `--hold '${value}' is not a hold selection: give no value, acceptance, or phase ids such as phase-02,phase-04`;
   // A malformed phase id (`phase-2`) is a typo, not a run name that swallowed the flag.
   const oneWord = value !== "" && !value.includes(",") && !value.startsWith("phase-");
   return oneWord
@@ -30,10 +30,13 @@ function refusal(value: string): string {
  */
 export function parseHoldValue(value: true | string): Either.Either<HoldRequest, string> {
   if (value === true) return Either.right({ kind: "all" });
-  if (value === "oracle") return Either.right({ kind: "oracle" });
   const items = value.split(",");
-  if (items.includes("oracle") && items.length > 1) {
-    return Either.left(`--hold '${value}' is not a hold selection: oracle stands alone`);
+  if (items.includes("oracle")) {
+    return Either.left("--hold 'oracle' is no longer read: write --hold acceptance");
+  }
+  if (value === "acceptance") return Either.right({ kind: "acceptance" });
+  if (items.includes("acceptance")) {
+    return Either.left(`--hold '${value}' is not a hold selection: acceptance stands alone`);
   }
   const [first, ...rest] = items;
   if (first === undefined || !PHASE_ID.test(first) || !rest.every((i) => PHASE_ID.test(i))) {
@@ -87,7 +90,7 @@ function select(
           ],
         };
   }
-  if (request.kind === "oracle") {
+  if (request.kind === "acceptance") {
     const ids = phases.filter((p) => p.acceptance !== null).map((p) => p.id);
     return ids.length > 0
       ? { ids, findings: [] }
@@ -96,7 +99,7 @@ function select(
           findings: [
             {
               phase: null,
-              message: "--hold oracle selects no phase: the plan declares no oracle phase",
+              message: "--hold acceptance selects no phase: the plan declares no acceptance phase",
             },
           ],
         };
@@ -131,9 +134,7 @@ export function resolveHold(request: HoldRequest, phases: readonly HoldPhase[]):
   const { ids, findings } = select(request, phases);
   const held = nonEmpty(ids);
   if (findings.length > 0 || held === null) return { hold: null, findings };
-  // The CLI word `oracle` selects the acceptance phases, recorded as `acceptance`.
-  const selection = request.kind === "oracle" ? "acceptance" : request.kind;
-  return { hold: { selection, phases: held }, findings: [] };
+  return { hold: { selection: request.kind, phases: held }, findings: [] };
 }
 
 /** Whether the run's recorded hold selects `phaseId`. */

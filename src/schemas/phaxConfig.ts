@@ -52,14 +52,14 @@ export const ArchitectureConfigSchema = Schema.Struct({
 
 export type ArchitectureConfig = Schema.Schema.Type<typeof ArchitectureConfigSchema>;
 
-export const OraclesConfigSchema = Schema.Struct({
+export const AcceptanceConfigSchema = Schema.Struct({
   command: Schema.NonEmptyString.annotations({
     description:
-      'The oracles provider command. The string is split on whitespace with no shell — use a wrapper script for paths with spaces or pipelines. At the gate of an oracle phase or its discharging phase only, phax writes an oracle request {"$schema": "https://docs.phax.run/schemas/oracle-request/<release>.json", "verdict", "phase", "oraclePhase", "base", "files"} (plus "oracleCommit" on a "discharged" request) to its stdin, and judges the gate report the provider prints on stdout exactly like an `output: "gate-report"` step, with a fixed 120 s limit. `phax plans lint`, `phax validate`, the run preflight and authoring never run it. Full contract: `phax --usage`, cmd run.',
+      'The acceptance provider command. The string is split on whitespace with no shell — use a wrapper script for paths with spaces or pipelines. At the gate of an acceptance phase or its passing phase only, phax writes an acceptance request {"$schema": "https://docs.phax.run/schemas/acceptance-request/<release>.json", "verdict", "phase", "acceptancePhase", "base", "files"} (plus "acceptanceCommit" on a "passed" request) to its stdin, and judges the gate report the provider prints on stdout exactly like an `output: "gate-report"` step, with a fixed 120 s limit. `phax plans lint`, `phax validate`, the run preflight and authoring never run it. Full contract: `phax --usage`, cmd run.',
   }),
 });
 
-export type OraclesConfig = Schema.Schema.Type<typeof OraclesConfigSchema>;
+export type AcceptanceConfig = Schema.Schema.Type<typeof AcceptanceConfigSchema>;
 
 export interface ResolvedPublishConfig {
   readonly auto: boolean;
@@ -270,9 +270,9 @@ export const PhaxConfigSchema = Schema.Struct({
     description:
       "The architecture provider: a command that answers, for the whole repository or for some paths, the repository's architecture as a report (a Markdown body, then the parts of the code with their globs), which phax renders to Markdown. Serves `phax architecture`.",
   }),
-  oracles: Schema.optional(OraclesConfigSchema).annotations({
+  acceptance: Schema.optional(AcceptanceConfigSchema).annotations({
     description:
-      "The oracles provider: a command that judges the oracles an oracle phase authors and its discharging phase discharges.",
+      "The acceptance provider: a command that judges the acceptance tests an acceptance phase writes and its passing phase passes.",
   }),
   review: Schema.optional(
     Schema.Struct({
@@ -332,7 +332,7 @@ export interface ResolvedConfig {
   readonly brief?: BriefConfig;
   readonly planAuditor?: PlanAuditorConfig;
   readonly architecture?: ArchitectureConfig;
-  readonly oracles?: OraclesConfig;
+  readonly acceptance?: AcceptanceConfig;
   readonly complianceReview: ResolvedComplianceReviewConfig;
   readonly codeReview: ResolvedCodeReviewConfig;
   readonly authoring: ResolvedAuthoringConfig;
@@ -384,9 +384,9 @@ export const PhaxUserOverlaySchema = Schema.Struct({
     description:
       "The architecture provider: a command that answers, for the whole repository or for some paths, the repository's architecture as a report (a Markdown body, then the parts of the code with their globs), which phax renders to Markdown. Serves `phax architecture`.",
   }),
-  oracles: Schema.optional(OraclesConfigSchema).annotations({
+  acceptance: Schema.optional(AcceptanceConfigSchema).annotations({
     description:
-      "The oracles provider: a command that judges the oracles an oracle phase authors and its discharging phase discharges.",
+      "The acceptance provider: a command that judges the acceptance tests an acceptance phase writes and its passing phase passes.",
   }),
   review: Schema.optional(
     Schema.Struct({

@@ -179,9 +179,11 @@ export function mergeConfigLayers(input: {
     localUser?.architecture?.command ??
     globalUser?.architecture?.command ??
     project.architecture?.command;
-  // oracles: scalar override, like architecture
-  const oraclesCommand =
-    localUser?.oracles?.command ?? globalUser?.oracles?.command ?? project.oracles?.command;
+  // acceptance: scalar override, like architecture
+  const acceptanceCommand =
+    localUser?.acceptance?.command ??
+    globalUser?.acceptance?.command ??
+    project.acceptance?.command;
 
   // review.compliance: per-field scalar override (enabled is required when compliance is present)
   const hasCompliance =
@@ -322,7 +324,7 @@ export function mergeConfigLayers(input: {
     ...(architectureCommand !== undefined
       ? { architecture: { command: architectureCommand } }
       : {}),
-    ...(oraclesCommand !== undefined ? { oracles: { command: oraclesCommand } } : {}),
+    ...(acceptanceCommand !== undefined ? { acceptance: { command: acceptanceCommand } } : {}),
     ...(compliance !== undefined || codeReview !== undefined
       ? {
           review: {

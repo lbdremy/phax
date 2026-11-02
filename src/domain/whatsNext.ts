@@ -123,7 +123,7 @@ function oracleCorrectionSteps(
     {
       title:
         "Then resume without the oracle step — the configured gate still runs, with the usual fix loop",
-      command: `phax resume ${shortName} --yes --skip-oracle`,
+      command: `phax resume ${shortName} --yes --skip-acceptance`,
     },
   ];
 }
@@ -166,7 +166,7 @@ function protectedWaysOn(shortName: string, phaseArg: string): NextStep[] {
  * its own steps, never a phase reset, with the protected file put back in the
  * same pass through the worktree and the base-branch way added: fixing the
  * gate in the worktree for a configured step, the oracle correction with
- * `--skip-oracle` for the oracle step, where the check still runs.
+ * `--skip-acceptance` for the oracle step, where the check still runs.
  */
 function protectedExhaustionSteps(
   shortName: string,

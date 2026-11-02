@@ -42,6 +42,19 @@ function validateNameField(raw: unknown): ConfigValidationError | undefined {
   return undefined;
 }
 
+// The 0.32.0 spelling of the acceptance provider key. A layer owning it is
+// refused before the decode, naming its own file, so the remedy is the new key
+// rather than an unknown-key error (or a silently ignored block).
+function retiredOraclesKeyError(raw: unknown, filePath: string): ConfigValidationError | undefined {
+  if (typeof raw !== "object" || raw === null || !Object.hasOwn(raw, "oracles")) {
+    return undefined;
+  }
+  return new ConfigValidationError({
+    message: `${filePath}: "oracles" is no longer read: write "acceptance"`,
+    path: filePath,
+  });
+}
+
 function findGitRoot(startDir: string): string | undefined {
   try {
     const root = execSync("git rev-parse --show-toplevel", {
@@ -269,6 +282,8 @@ function readUserOverlay(
       }),
     );
   }
+  const retiredKey = retiredOraclesKeyError(raw, filePath);
+  if (retiredKey) return Either.left(retiredKey);
   // Refused before the decode, so the refusal names the remedy rather than an
   // unknown key: the bounds and the protected files are the repository's, not a
   // workstation's.
@@ -412,6 +427,9 @@ export function loadConfig(
     );
   }
 
+  const retiredKey = retiredOraclesKeyError(raw, configPath);
+  if (retiredKey) return Either.left(retiredKey);
+
   const nameError = validateNameField(raw);
   if (nameError) return Either.left(nameError);
 
@@ -496,7 +514,7 @@ export function loadConfig(
     ...(config.brief !== undefined ? { brief: config.brief } : {}),
     ...(config.planAuditor !== undefined ? { planAuditor: config.planAuditor } : {}),
     ...(config.architecture !== undefined ? { architecture: config.architecture } : {}),
-    ...(config.oracles !== undefined ? { oracles: config.oracles } : {}),
+    ...(config.acceptance !== undefined ? { acceptance: config.acceptance } : {}),
     complianceReview: resolveComplianceReviewConfig(config.review?.compliance),
     codeReview: resolveCodeReviewConfig(config.review?.code),
     authoring: resolveAuthoringConfig(config.authoring),

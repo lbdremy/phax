@@ -11,7 +11,7 @@ const ConfiguredStepResultSchema = Schema.Struct({
 
 /**
  * The acceptance step: carried only by the step phax appends at an acceptance
- * pair's gate. `skipped` records `phax resume --skip-oracle`: the step was not
+ * pair's gate. `skipped` records `phax resume --skip-acceptance`: the step was not
  * run.
  */
 const AcceptanceStepResultSchema = Schema.Struct({

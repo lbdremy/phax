@@ -47,7 +47,7 @@ export interface ResumeInstructionsInput {
 
 /** Operator-only: the wrong-oracle recovery; no agent prompt carries it. */
 const OracleSkipSentence =
-  "Either resume as is — the gate, oracle step included, is re-run first — or, if the oracle itself is wrong, correct it in the phase worktree and resume with --skip-oracle: the phase's configured gate still runs, with the usual fix loop, and the oracle step is recorded as skipped.";
+  "Either resume as is — the gate, oracle step included, is re-run first — or, if the oracle itself is wrong, correct it in the phase worktree and resume with --skip-acceptance: the phase's configured gate still runs, with the usual fix loop, and the oracle step is recorded as skipped.";
 
 function stepsToMarkdown(steps: readonly NextStep[]): string[] {
   const lines: string[] = [];
@@ -222,7 +222,7 @@ function buildGateRefusalInstructions(input: ResumeInstructionsInput): string {
       ? [
           "No fix attempt was made. Fix the cause and resume — the gate, oracle step included, is",
           "re-run first, with the full fix budget — or, if the oracle itself is wrong, correct it in",
-          "the phase worktree and resume with --skip-oracle: the phase's configured gate still runs,",
+          "the phase worktree and resume with --skip-acceptance: the phase's configured gate still runs,",
           "with the usual fix loop, and the oracle step is recorded as skipped.",
         ]
       : [

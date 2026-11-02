@@ -72,10 +72,26 @@ describe("resume subcommand argv parsing", () => {
     expect(spy.mock.calls[0]?.[1].yes).toBeUndefined();
   });
 
-  it("forwards --skip-oracle to runResume", async () => {
+  it("forwards --skip-acceptance to runResume", async () => {
+    const spy = await parseAndCapture(["resume", "foo", "--yes", "--skip-acceptance"]);
+    expect(spy).toHaveBeenCalledOnce();
+    expect(spy.mock.calls[0]?.[1]).toMatchObject({ yes: true, skipAcceptance: true });
+    expect(spy.mock.calls[0]?.[1].skipOracle).toBeUndefined();
+  });
+
+  it("forwards the retired --skip-oracle to runResume, which refuses it", async () => {
     const spy = await parseAndCapture(["resume", "foo", "--yes", "--skip-oracle"]);
     expect(spy).toHaveBeenCalledOnce();
     expect(spy.mock.calls[0]?.[1]).toMatchObject({ yes: true, skipOracle: true });
+    expect(spy.mock.calls[0]?.[1].skipAcceptance).toBeUndefined();
+  });
+
+  it("lists --skip-acceptance in help and never the retired --skip-oracle", () => {
+    const p = makeProgram();
+    registerResumeCommand(p, vi.fn().mockResolvedValue(0), noopOut, () => ({}));
+    const help = p.commands.find((c) => c.name() === "resume")!.helpInformation();
+    expect(help).toContain("--skip-acceptance");
+    expect(help).not.toContain("--skip-oracle");
   });
 
   it("forwards --provider-priority to runResume", async () => {

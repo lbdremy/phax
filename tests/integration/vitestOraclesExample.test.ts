@@ -5,7 +5,6 @@ import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { Either } from "effect";
 import { parseGateReport } from "../../packages/schemas/src/index.js";
-import { decodePhaxConfig } from "../../src/schemas/phaxConfig.js";
 import {
   currentSchemaUrl,
   describeReportError,
@@ -639,9 +638,13 @@ describe("examples/vitest-oracles, stability", () => {
 
 describe("phax's own oracles declaration", () => {
   it("declares the example as the oracles command and the example answers there", () => {
-    const decoded = decodePhaxConfig(JSON.parse(readFileSync(join(repoRoot, "phax.json"), "utf8")));
-    if (Either.isLeft(decoded)) throw new Error("phax.json does not decode");
-    const command = decoded.right.oracles?.command;
+    // Read raw, not through decodePhaxConfig: this repository's phax.json still says
+    // `oracles` for the installed phax that drives its runs. Plan 4 of acceptance-tests
+    // renames the key and restores the decode.
+    const raw = JSON.parse(readFileSync(join(repoRoot, "phax.json"), "utf8")) as {
+      readonly oracles?: { readonly command?: string };
+    };
+    const command = raw.oracles?.command;
     expect(command).toBe("node examples/vitest-oracles/main.mjs");
 
     const [file, ...args] = (command ?? "").split(/\s+/);

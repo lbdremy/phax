@@ -104,32 +104,32 @@ describe("buildResumeInstructions — oracle step stops", () => {
     refusal: { command: "node tools/oracle.mjs", reason: "r", remedy: "m" },
   };
 
-  it("an oracle exhaustion names --skip-oracle and the configured gate", () => {
+  it("an oracle exhaustion names --skip-acceptance and the configured gate", () => {
     const md = buildResumeInstructions({ ...exhausted, failedStep: "oracle" });
     expect(md).toContain(
       "This run paused because the oracle step failed after exhausting all fix attempts.",
     );
-    expect(md).toContain("resume with --skip-oracle: the phase's configured gate still runs");
-    expect(md).toContain("phax resume refunds --yes --skip-oracle");
+    expect(md).toContain("resume with --skip-acceptance: the phase's configured gate still runs");
+    expect(md).toContain("phax resume refunds --yes --skip-acceptance");
     expect(md).not.toContain("reset-phase");
   });
 
-  it("an oracle refusal names --skip-oracle and the configured gate", () => {
+  it("an oracle refusal names --skip-acceptance and the configured gate", () => {
     const md = buildResumeInstructions({ ...refused, failedStep: "oracle" });
     expect(md).toContain("refused to run");
-    expect(md).toContain("resume with --skip-oracle: the phase's configured gate still runs");
+    expect(md).toContain("resume with --skip-acceptance: the phase's configured gate still runs");
     // One paragraph names both ways on; the resume advice is not repeated.
     expect(md).not.toContain("Either resume as is");
     expect(md.split("No fix attempt was made.")).toHaveLength(2);
-    expect(md).toContain("phax resume refunds --yes --skip-oracle");
+    expect(md).toContain("phax resume refunds --yes --skip-acceptance");
   });
 
-  it("a configured step names no --skip-oracle", () => {
+  it("a configured step names no --skip-acceptance", () => {
     for (const input of [exhausted, refused]) {
       expect(buildResumeInstructions({ ...input, failedStep: "configured" })).not.toContain(
-        "--skip-oracle",
+        "--skip-acceptance",
       );
-      expect(buildResumeInstructions(input)).not.toContain("--skip-oracle");
+      expect(buildResumeInstructions(input)).not.toContain("--skip-acceptance");
     }
   });
 });

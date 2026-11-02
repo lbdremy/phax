@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -171,7 +171,7 @@ function makeReviewOpenRefusal() {
   };
 }
 
-describe("runResume --skip-oracle", () => {
+describe("runResume --skip-acceptance", () => {
   let stateRoot: string;
   let runPath: string;
 
@@ -238,29 +238,29 @@ describe("runResume --skip-oracle", () => {
 
     for (const yes of [true, false]) {
       const { out, errors, lines } = makeOutput();
-      const code = await runResume("my-run", { yes, skipOracle: true }, out);
+      const code = await runResume("my-run", { yes, skipAcceptance: true }, out);
       expect(code).toBe(1);
       expect(errors).toEqual([
-        "--skip-oracle: phase-01 is neither an oracle phase nor a discharging phase; it has no oracle step to skip.",
+        "--skip-acceptance: phase-01 is neither an oracle phase nor a discharging phase; it has no oracle step to skip.",
       ]);
       expect(lines.join("\n")).not.toContain("would resume");
     }
     expect(executePlan).not.toHaveBeenCalled();
   });
 
-  it("logs the skipping line and passes skipOracle: true at a discharging phase", async () => {
+  it("logs the skipping line and passes skipAcceptance: true at a discharging phase", async () => {
     const executePlan = await setupMocks("phase-02", true);
     const { runResume } = await import("../../../src/cli/commands/resume.js");
     const { out, lines } = makeOutput();
 
-    const code = await runResume("my-run", { yes: true, skipOracle: true }, out);
+    const code = await runResume("my-run", { yes: true, skipAcceptance: true }, out);
 
     expect(code).toBe(0);
     expect(lines).toContain(
-      "  Skipping the oracle step of phase-02 (--skip-oracle); its configured gate still runs.",
+      "  Skipping the acceptance step of phase-02 (--skip-acceptance); its configured gate still runs.",
     );
     expect(executePlan).toHaveBeenCalledOnce();
-    expect(executePlan.mock.calls[0]?.[0]).toMatchObject({ skipOracle: true, startIndex: 1 });
+    expect(executePlan.mock.calls[0]?.[0]).toMatchObject({ skipAcceptance: true, startIndex: 1 });
     const { readPackageVersion } = await import("../../../src/cli/commands/usage.js");
     expect(executePlan.mock.calls[0]?.[0].phaxVersion).toBe(readPackageVersion());
   });
@@ -272,10 +272,10 @@ describe("runResume --skip-oracle", () => {
 
     for (const yes of [true, false]) {
       const { out, errors, lines } = makeOutput();
-      const code = await runResume("my-run", { yes, skipOracle: true }, out);
+      const code = await runResume("my-run", { yes, skipAcceptance: true }, out);
       expect(code).toBe(1);
       expect(errors).toEqual([
-        "--skip-oracle: my-run awaits review at phase-01; a close's authored oracle step is never skipped. Undo the oracle-file correction, or reset the stop.",
+        "--skip-acceptance: my-run awaits review at phase-01; a close's authored oracle step is never skipped. Undo the oracle-file correction, or reset the stop.",
       ]);
       expect(lines.join("\n")).not.toContain("would resume");
     }
@@ -288,24 +288,48 @@ describe("runResume --skip-oracle", () => {
     const { runResume } = await import("../../../src/cli/commands/resume.js");
     const { out, errors } = makeOutput();
 
-    const code = await runResume("my-run", { yes: true, skipOracle: true }, out);
+    const code = await runResume("my-run", { yes: true, skipAcceptance: true }, out);
 
     expect(code).toBe(1);
     expect(errors).toEqual([
-      "--skip-oracle: phase-01 is neither an oracle phase nor a discharging phase; it has no oracle step to skip.",
+      "--skip-acceptance: phase-01 is neither an oracle phase nor a discharging phase; it has no oracle step to skip.",
     ]);
     expect(executePlan).not.toHaveBeenCalled();
   });
 
-  it("passes skipOracle: false without the flag", async () => {
+  it("passes skipAcceptance: false without the flag", async () => {
     const executePlan = await setupMocks("phase-02", true);
     const { runResume } = await import("../../../src/cli/commands/resume.js");
     const { out, lines } = makeOutput();
 
     await runResume("my-run", { yes: true }, out);
 
-    expect(lines.join("\n")).not.toContain("Skipping the oracle step");
-    expect(executePlan.mock.calls[0]?.[0]).toMatchObject({ skipOracle: false });
+    expect(lines.join("\n")).not.toContain("Skipping the acceptance step");
+    expect(executePlan.mock.calls[0]?.[0]).toMatchObject({ skipAcceptance: false });
+  });
+
+  it("refuses the retired --skip-oracle first: exit 1, nothing read, nothing run, no status written", async () => {
+    writeRunStatus(runPath, "awaiting_review");
+    const executePlan = await setupMocks("phase-02", true);
+    const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
+    const { resolveRunRef } = vi.mocked(await import("../../../src/app/resolveRunRef.js"));
+    const { runResume } = await import("../../../src/cli/commands/resume.js");
+    const statusPath = join(runPath, "run-status.json");
+    const before = readFileSync(statusPath, "utf8");
+    loadConfig.mockClear();
+
+    for (const yes of [true, false]) {
+      const { out, errors, lines, warnings } = makeOutput();
+      const code = await runResume("my-run", { yes, skipOracle: true }, out);
+      expect(code).toBe(1);
+      expect(errors).toEqual(["--skip-oracle is no longer read: write --skip-acceptance"]);
+      expect(lines).toEqual([]);
+      expect(warnings).toEqual([]);
+    }
+    expect(loadConfig).not.toHaveBeenCalled();
+    expect(resolveRunRef).not.toHaveBeenCalled();
+    expect(executePlan).not.toHaveBeenCalled();
+    expect(readFileSync(statusPath, "utf8")).toBe(before);
   });
 
   it("the final message counts every committed phase, from executePlan's completedPhaseCount", async () => {

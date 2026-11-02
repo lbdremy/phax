@@ -523,7 +523,7 @@ describe("lintPlan", () => {
       'oracle phase declared, but no "oracles" provider is configured (phax.json, phax.local.json or ~/.phax/config.json)';
     const withProvider = {
       ...config,
-      oracles: { command: "./fake-oracles" },
+      acceptance: { command: "./fake-oracles" },
     } as unknown as ResolvedConfig;
 
     // Phase 1 of PLAN_WITH_TWO_PHASES creates src/a.ts and edits src/b.ts.

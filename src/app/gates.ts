@@ -47,7 +47,7 @@ export function serializeGateRequest(request: GateRequest): string {
   return JSON.stringify(encodeGateRequestFile(withSchemaUrl("gate-request", request)), null, 2);
 }
 
-/** The oracles provider's wall-clock cap. Fixed: the `oracles` block holds only `command`. */
+/** The oracles provider's wall-clock cap. Fixed: the `acceptance` block holds only `command`. */
 export const ORACLE_PROVIDER_TIMEOUT_MS = 120_000;
 
 /**
@@ -120,7 +120,7 @@ export interface RunGatesOptions {
 }
 
 /** The oracle step: run with its command, serialized request and time cap, or
- *  skipped by the operator (`phax resume --skip-oracle`), with its command only. */
+ *  skipped by the operator (`phax resume --skip-acceptance`), with its command only. */
 export type OracleStep =
   | {
       readonly kind: "run";

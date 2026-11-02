@@ -3,7 +3,8 @@ import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildProgram } from "../../src/cli/program.js";
-import { extractCommandTree, type CommandNode } from "../../src/cli/introspect.js";
+import { Command, Option } from "commander";
+import { extractCommandTree, RETIRED_OPTIONS, type CommandNode } from "../../src/cli/introspect.js";
 
 const repoRoot = join(fileURLToPath(import.meta.url), "../../..");
 const specPath = join(repoRoot, "phax.usage.kdl");
@@ -170,5 +171,24 @@ describe("Commander/Usage parity gate", () => {
       "Usage spec flags absent from Commander — remove them from phax.usage.kdl\nor add the missing options to program.ts:\n" +
         violations.join("\n"),
     ).toEqual([]);
+  });
+
+  it("skips exactly the retired options: registered and hidden, in neither the snapshot nor the spec", () => {
+    expect(RETIRED_OPTIONS).toEqual(["--skip-oracle"]);
+    const resume = buildProgram().commands.find((c) => c.name() === "resume")!;
+    for (const long of RETIRED_OPTIONS) {
+      const option = resume.options.find((o) => o.long === long);
+      expect(option?.hidden, `${long} stays registered, hidden`).toBe(true);
+      const bare = long.replace(/^--/, "");
+      expect(commanderMap.get("phax resume")?.flags.has(bare)).toBe(false);
+      expect(usageMap.get("phax resume")?.flags.has(bare)).toBe(false);
+    }
+  });
+
+  it("still walks any other hidden option, so an undocumented one fails the parity check", () => {
+    const program = new Command("phax");
+    program.addOption(new Option("--secret").hideHelp());
+    program.addOption(new Option("--skip-oracle").hideHelp());
+    expect(extractCommandTree(program).flags).toEqual(["secret"]);
   });
 });
