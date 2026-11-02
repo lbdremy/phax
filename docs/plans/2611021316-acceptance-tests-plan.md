@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2610271119-acceptance-tests.md
 completes-spec: true
+approved:
+  date: 2026-11-02
+  baseline: d570159
 ---
 # Acceptance docs and skills
 
