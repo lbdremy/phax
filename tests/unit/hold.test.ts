@@ -6,6 +6,11 @@ type Phase = Parameters<typeof resolveHold>[1][number];
 
 const headless = (id: string): Phase => ({ id, mode: "headless", acceptance: null });
 const interactive = (id: string): Phase => ({ id, mode: "interactive", acceptance: null });
+const acceptancePhase = (id: string, passedBy: string): Phase => ({
+  id,
+  mode: "headless",
+  acceptance: { passedBy, files: ["tests/refunds.test.ts"] },
+});
 
 // The made-up invoice-export plan: six phases, phase-03 interactive.
 const INVOICE_EXPORT: readonly Phase[] = [
@@ -29,7 +34,7 @@ const ORACLE_VARIANT: readonly Phase[] = [
   headless("phase-04"),
 ];
 
-const FORMS = "give no value, oracle, or phase ids such as phase-02,phase-04";
+const FORMS = "give no value, acceptance, or phase ids such as phase-02,phase-04";
 const refusal = (value: string) => `--hold '${value}' is not a hold selection: ${FORMS}`;
 const NAME_HINT = "(put the run's name before --hold, or write --hold=<selection>)";
 
@@ -40,7 +45,7 @@ const resolve = (request: HoldRequest, phases: readonly Phase[] = INVOICE_EXPORT
 describe("parseHoldValue", () => {
   it.each<readonly [string, true | string, HoldRequest]>([
     ["a bare flag", true, { kind: "all" }],
-    ["the oracle keyword", "oracle", { kind: "oracle" }],
+    ["the acceptance keyword", "acceptance", { kind: "acceptance" }],
     ["one phase id", "phase-02", { kind: "listed", phases: ["phase-02"] }],
     [
       "a list of phase ids",
@@ -55,9 +60,24 @@ describe("parseHoldValue", () => {
     ["a one-digit id", "phase-2", refusal("phase-2")],
     ["a three-digit id", "phase-100", refusal("phase-100")],
     [
-      "oracle mixed into a list",
+      "acceptance mixed into a list",
+      "acceptance,phase-02",
+      "--hold 'acceptance,phase-02' is not a hold selection: acceptance stands alone",
+    ],
+    [
+      "the retired oracle keyword",
+      "oracle",
+      "--hold 'oracle' is no longer read: write --hold acceptance",
+    ],
+    [
+      "the retired oracle keyword in a list",
       "oracle,phase-02",
-      "--hold 'oracle,phase-02' is not a hold selection: oracle stands alone",
+      "--hold 'oracle' is no longer read: write --hold acceptance",
+    ],
+    [
+      "the retired oracle keyword after a phase id",
+      "phase-02,oracle",
+      "--hold 'oracle' is no longer read: write --hold acceptance",
     ],
     ["an empty item", "phase-02,,phase-04", refusal("phase-02,,phase-04")],
     ["a repeated id", "phase-02,phase-02", refusal("phase-02,phase-02")],
@@ -94,9 +114,24 @@ describe("resolveHold", () => {
     });
   });
 
-  it("resolves oracle to the oracle phases", () => {
-    expect(resolve({ kind: "oracle" }, ORACLE_VARIANT)).toEqual({
+  it("resolves acceptance to the acceptance phases", () => {
+    expect(resolve({ kind: "acceptance" }, ORACLE_VARIANT)).toEqual({
       hold: { selection: "acceptance", phases: ["phase-02"] },
+      findings: [],
+    });
+  });
+
+  it("resolves acceptance to every acceptance phase of a plan, in plan order", () => {
+    const plan: readonly Phase[] = [
+      headless("phase-01"),
+      headless("phase-02"),
+      acceptancePhase("phase-03", "phase-04"),
+      headless("phase-04"),
+      acceptancePhase("phase-05", "phase-06"),
+      headless("phase-06"),
+    ];
+    expect(resolve({ kind: "acceptance" }, plan)).toEqual({
+      hold: { selection: "acceptance", phases: ["phase-03", "phase-05"] },
       findings: [],
     });
   });
@@ -138,11 +173,11 @@ describe("resolveHold", () => {
       "is the final phase: it already stays open in review_open",
     ],
     [
-      "oracle with no oracle phase",
-      { kind: "oracle" },
+      "acceptance with no acceptance phase",
+      { kind: "acceptance" },
       INVOICE_EXPORT,
       [null],
-      "--hold oracle selects no phase: the plan declares no oracle phase",
+      "--hold acceptance selects no phase: the plan declares no acceptance phase",
     ],
     [
       "a bare hold on a one-phase plan",

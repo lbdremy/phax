@@ -58,7 +58,7 @@ const SIX_PHASES: Fixture = {
   },
 };
 
-const HOLD_USAGE = "give no value, oracle, or phase ids such as phase-02,phase-04";
+const HOLD_USAGE = "give no value, acceptance, or phase ids such as phase-02,phase-04";
 const HINT = "(put the run's name before --hold, or write --hold=<selection>)";
 
 const recordedHold = (r: PreflightRepo): unknown => {
@@ -143,7 +143,13 @@ describe("phax run --hold", { timeout: 60_000 }, () => {
     it.each([
       ["phase-2", `--hold 'phase-2' is not a hold selection: ${HOLD_USAGE}`],
       ["phase-100", `--hold 'phase-100' is not a hold selection: ${HOLD_USAGE}`],
-      ["oracle,phase-02", "--hold 'oracle,phase-02' is not a hold selection: oracle stands alone"],
+      [
+        "acceptance,phase-02",
+        "--hold 'acceptance,phase-02' is not a hold selection: acceptance stands alone",
+      ],
+      // ac-hold-old: the retired word is refused with the new one named.
+      ["oracle", "--hold 'oracle' is no longer read: write --hold acceptance"],
+      ["oracle,phase-02", "--hold 'oracle' is no longer read: write --hold acceptance"],
       ["phase-02,,phase-04", `--hold 'phase-02,,phase-04' is not a hold selection: ${HOLD_USAGE}`],
       ["phase-02,phase-02", `--hold 'phase-02,phase-02' is not a hold selection: ${HOLD_USAGE}`],
       // `phax run --hold foo --plan plan.md`: the run's name swallowed by the flag.
@@ -187,10 +193,10 @@ describe("phax run --hold", { timeout: 60_000 }, () => {
         "Hold preflight failed: 1 error(s).\n  -  --hold selects no phase: the plan has no headless phase before its final phase",
       ],
       [
-        "--hold oracle on a plan with no oracle phase",
+        "--hold acceptance on a plan with no acceptance phase",
         SIX_PHASES,
-        "oracle",
-        "Hold preflight failed: 1 error(s).\n  -  --hold oracle selects no phase: the plan declares no oracle phase",
+        "acceptance",
+        "Hold preflight failed: 1 error(s).\n  -  --hold acceptance selects no phase: the plan declares no acceptance phase",
       ],
     ];
 
@@ -209,12 +215,12 @@ describe("phax run --hold", { timeout: 60_000 }, () => {
   describe("holds the phases of an oracle pair", () => {
     // The four-phase variant: phase-02 pins src/step-02.ts, which phase-03 discharges.
     const ORACLE_VARIANT: Fixture = {
-      config: { oracles: { command: "./fake-oracles" } },
+      config: { acceptance: { command: "./fake-oracles" } },
       plan: { phases: [{}, { headerLines: ORACLE_PAIR_LINES }, {}, {}] },
     };
 
     it.each([
-      ["--hold oracle", "oracle", { selection: "acceptance", phases: ["phase-02"] }],
+      ["--hold acceptance", "acceptance", { selection: "acceptance", phases: ["phase-02"] }],
       [
         "--hold phase-02,phase-03",
         "phase-02,phase-03",
@@ -230,6 +236,27 @@ describe("phax run --hold", { timeout: 60_000 }, () => {
       expect(out.errors.join("\n")).not.toContain("Hold preflight failed");
       expect(out.logs).toContain(`Run: ${r.namespace}.foo`);
       expect(recordedHold(r)).toEqual(expected);
+    });
+  });
+
+  describe("--hold acceptance stamps the run at 0.33.0", () => {
+    // The stop itself (exit 13, awaiting_review) needs a backend that commits: the
+    // held-run fixtures (heldStopRun, oraclePairReview) cover it.
+    it("records the hold in a run-status.json stamped 0.33.0", async () => {
+      const r = enter({
+        config: { acceptance: { command: "./fake-oracles" } },
+        plan: { phases: [{}, { headerLines: ORACLE_PAIR_LINES }, {}, {}] },
+      });
+      const out = recordingOutput();
+
+      await runRun({ plan: "plan.md", hold: "acceptance" }, out.port);
+
+      const [run] = snapshotRepo(r).runs;
+      const status = JSON.parse(
+        readFileSync(join(r.stateRoot, "runs", run!, "run-status.json"), "utf8"),
+      ) as { $schema: string; hold: unknown };
+      expect(status.$schema).toBe("https://docs.phax.run/schemas/run-status/0.33.0.json");
+      expect(status.hold).toEqual({ selection: "acceptance", phases: ["phase-02"] });
     });
   });
 
@@ -281,7 +308,7 @@ describe("the hold is fixed for the run and comes only from the flag", () => {
     const hold = run.options.find((o) => o.long === "--hold");
     expect(hold?.flags).toBe("--hold [selection]");
     expect(hold?.description).toBe(
-      "Stop for review once these headless phases commit: no value for every phase but the final one, oracle, or phase ids such as phase-02,phase-04",
+      "Stop for review once these headless phases commit: no value for every phase but the final one, acceptance, or phase ids such as phase-02,phase-04",
     );
     expect(resume.options.map((o) => o.long)).not.toContain("--hold");
   });

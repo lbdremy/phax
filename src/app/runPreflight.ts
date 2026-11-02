@@ -397,7 +397,7 @@ const checks = {
     const findings = oracleFindings({
       headers,
       phases: input.plan.phases,
-      providerConfigured: input.config.oracles !== undefined,
+      providerConfigured: input.config.acceptance !== undefined,
     });
     if (findings.length === 0) return Effect.void;
     return Effect.fail(

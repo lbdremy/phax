@@ -354,7 +354,7 @@ export interface ExecutePlanOptions {
   // when that phase's gate runs: the configured gate and its fix loop still
   // run. Never persisted and never reaches a later phase. The resume command
   // sets it after checking the phase's oracle role.
-  readonly skipOracle?: boolean | undefined;
+  readonly skipAcceptance?: boolean | undefined;
   // Called once a stop's close has finished, before its cleanup and
   // the next phase, so the caller can print the close as it happens.
   readonly onStopClosed?: ((closed: ClosedStop) => void) | undefined;
@@ -442,7 +442,7 @@ export function executePlan(
     providerConfig = DEFAULT_PROVIDER_CONFIG,
     securityMode: passedSecurityMode,
     allowSkillEdits = false,
-    skipOracle = false,
+    skipAcceptance = false,
   } = opts;
 
   // Use the passed securityMode if provided, otherwise fall back to config
@@ -705,7 +705,7 @@ export function executePlan(
     return Effect.gen(function* () {
       const role = oracleRoleOf(plan.phases, phaseId);
       if (role === null) return undefined;
-      if (config.oracles === undefined) {
+      if (config.acceptance === undefined) {
         // The preflight refuses this plan; never skip the step.
         const planPath = join(runPath, "plan.md");
         const findings = oracleFindings({
@@ -727,12 +727,12 @@ export function executePlan(
       }
       const oracleFolder =
         role.role === "oracle" ? phaseFolderPath : join(runPath, role.pair.oraclePhase);
-      if (skip) return { kind: "skipped", command: config.oracles.command };
+      if (skip) return { kind: "skipped", command: config.acceptance.command };
       const base = yield* readPhaseBase(oracleFolder);
       const oracleCommit = role.role === "oracle" ? null : yield* oracleCommitOf(role.pair);
       return {
         kind: "run",
-        command: config.oracles.command,
+        command: config.acceptance.command,
         request: serializeAcceptanceRequest(
           makeAcceptanceRequest({ role, phaseId, base, acceptanceCommit: oracleCommit }),
         ),
@@ -1634,7 +1634,7 @@ export function executePlan(
               ),
               fileReconciliationMode: config.fileReconciliationMode,
               phases: plan.phases,
-              oracles: config.oracles ?? null,
+              oracles: config.acceptance ?? null,
               mainCheckout: config.repoRoot,
             });
             closeInFlight = false;
@@ -1882,7 +1882,7 @@ export function executePlan(
             ),
             fileReconciliationMode: config.fileReconciliationMode,
             phases: plan.phases,
-            oracles: config.oracles ?? null,
+            oracles: config.acceptance ?? null,
             mainCheckout: config.repoRoot,
           });
           closeInFlight = false;
@@ -2370,7 +2370,7 @@ export function executePlan(
         const oracleStep = yield* oracleStepFor(
           phaseFolderPath,
           phase.id,
-          skipOracle && i === startIndex,
+          skipAcceptance && i === startIndex,
         );
         // The protected list is checked against the base read before the
         // agent's turn, never re-derived from git or re-read after the turn; a

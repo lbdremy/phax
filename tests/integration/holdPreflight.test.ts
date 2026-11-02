@@ -144,7 +144,7 @@ describe("the hold step of freshRunPreflight", () => {
   });
 
   it("resolves oracle and the pair's phases with no finding", async () => {
-    const oracle = await preflight({ kind: "oracle" });
+    const oracle = await preflight({ kind: "acceptance" });
     expect(Either.isRight(oracle.result) && oracle.result.right.hold).toEqual({
       selection: "acceptance",
       phases: ["phase-02"],

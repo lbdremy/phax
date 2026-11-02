@@ -8,7 +8,7 @@ import type { Command, Option, Argument } from "commander";
 import { buildProgram } from "../src/cli/program.js";
 import { cliDocs } from "../src/cli/cliDocs.js";
 import { cliCompleters } from "../src/cli/cliCompleters.js";
-import { isHiddenCommand } from "../src/cli/introspect.js";
+import { isHiddenCommand, isRetiredOption } from "../src/cli/introspect.js";
 
 const repoRoot = join(fileURLToPath(import.meta.url), "../..");
 const pkg = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8")) as {
@@ -88,7 +88,9 @@ function emitCommand(cmd: Command, indent: string, parentPath = ""): string[] {
   }
 
   for (const opt of cmd.options) {
-    if (isAutoAdded(opt)) continue;
+    // A retired option stays registered only to be refused by name (see
+    // RETIRED_OPTIONS); the contract never lists it. Other hidden options are emitted.
+    if (isAutoAdded(opt) || isRetiredOption(opt)) continue;
     lines.push(emitFlag(opt, inner, false));
   }
 

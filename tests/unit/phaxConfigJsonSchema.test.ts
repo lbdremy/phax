@@ -71,7 +71,7 @@ describe("getPhaxConfigJsonSchema", () => {
         "brief",
         "planAuditor",
         "architecture",
-        "oracles",
+        "acceptance",
         "review",
         "authoring",
         "gateProfiles",
@@ -104,7 +104,7 @@ describe("getPhaxConfigJsonSchema", () => {
         "brief",
         "planAuditor",
         "architecture",
-        "oracles",
+        "acceptance",
         "review",
         "authoring",
         "gateProfiles",
@@ -119,19 +119,21 @@ describe("getPhaxConfigJsonSchema", () => {
     ["project", getPhaxConfigJsonSchema],
     ["user", getPhaxUserOverlayJsonSchema],
   ])(
-    "describes the oracles block in the %s schema: a required non-empty command, no other key",
+    "describes the acceptance block in the %s schema: a required non-empty command, no other key",
     (_name, get) => {
       const schema = get() as Record<string, unknown>;
-      const oracles = (schema["properties"] as Record<string, Record<string, unknown>>)["oracles"]!;
-      expect(oracles["description"]).toContain("oracles provider");
-      expect(Object.keys(oracles["properties"] as object)).toEqual(["command"]);
-      expect(oracles["required"]).toEqual(["command"]);
-      expect(oracles["additionalProperties"]).toBe(false);
-      const command = (oracles["properties"] as Record<string, Record<string, unknown>>)[
+      const properties = schema["properties"] as Record<string, Record<string, unknown>>;
+      expect(Object.keys(properties)).not.toContain("oracles");
+      const acceptance = properties["acceptance"]!;
+      expect(acceptance["description"]).toContain("acceptance provider");
+      expect(Object.keys(acceptance["properties"] as object)).toEqual(["command"]);
+      expect(acceptance["required"]).toEqual(["command"]);
+      expect(acceptance["additionalProperties"]).toBe(false);
+      const command = (acceptance["properties"] as Record<string, Record<string, unknown>>)[
         "command"
       ]!;
       expect(command["minLength"]).toBe(1);
-      expect(command["description"]).toContain("oracle request");
+      expect(command["description"]).toContain("acceptance request");
       expect(command["description"]).toContain("120 s");
     },
   );

@@ -45,7 +45,7 @@ export function oracleRoleOf(phases: ReadonlyArray<PairPhase>, phaseId: string):
 }
 
 /**
- * Why `phaseId` may not skip its oracle step (`phax resume --skip-oracle`), or
+ * Why `phaseId` may not skip its oracle step (`phax resume --skip-acceptance`), or
  * null when it may: only an oracle phase and a discharging phase have one.
  */
 export function oracleSkipRefusal(
@@ -57,7 +57,7 @@ export function oracleSkipRefusal(
 }
 
 function noOracleStep(phaseId: string): string {
-  return `--skip-oracle: ${phaseId} is neither an oracle phase nor a discharging phase; it has no oracle step to skip.`;
+  return `--skip-acceptance: ${phaseId} is neither an oracle phase nor a discharging phase; it has no oracle step to skip.`;
 }
 
 /**
@@ -75,7 +75,7 @@ export function stopSkipOracleRefusal(
   const inPair =
     oracleRoleOf(phases, phaseId) !== null || stopOraclePairs(phases, phaseId).length > 0;
   if (!inPair) return noOracleStep(phaseId);
-  return `--skip-oracle: ${run} awaits review at ${phaseId}; a close's authored oracle step is never skipped. Undo the oracle-file correction, or reset the stop.`;
+  return `--skip-acceptance: ${run} awaits review at ${phaseId}; a close's authored oracle step is never skipped. Undo the oracle-file correction, or reset the stop.`;
 }
 
 /**

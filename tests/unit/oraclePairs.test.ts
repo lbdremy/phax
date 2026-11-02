@@ -68,7 +68,7 @@ describe("oracleSkipRefusal", () => {
   it("refuses any other phase, naming it", () => {
     for (const id of ["phase-01", "phase-03", "phase-05"]) {
       expect(oracleSkipRefusal(phases, id)).toBe(
-        `--skip-oracle: ${id} is neither an oracle phase nor a discharging phase; it has no oracle step to skip.`,
+        `--skip-acceptance: ${id} is neither an oracle phase nor a discharging phase; it has no oracle step to skip.`,
       );
     }
   });
@@ -138,7 +138,7 @@ describe("stopSkipOracleRefusal", () => {
     ["the discharging phase", "phase-04"],
   ])("names the run and the stop at %s of a pair", (_name, phaseId) => {
     expect(stopSkipOracleRefusal(phases, "invoice-export", phaseId)).toBe(
-      `--skip-oracle: invoice-export awaits review at ${phaseId}; a close's authored oracle step is never skipped. Undo the oracle-file correction, or reset the stop.`,
+      `--skip-acceptance: invoice-export awaits review at ${phaseId}; a close's authored oracle step is never skipped. Undo the oracle-file correction, or reset the stop.`,
     );
   });
 

@@ -199,7 +199,7 @@ function makeConfig(stateRoot: string, provider: boolean, publish: boolean): Res
       destination: { kind: "in-repo" },
       autoPush: false,
     },
-    ...(provider ? { oracles: { command: ORACLES } } : {}),
+    ...(provider ? { acceptance: { command: ORACLES } } : {}),
   };
 }
 
@@ -315,7 +315,7 @@ describe("oracle phases in a run", () => {
     const { runPath, runId } = await Effect.runPromise(
       createRunFolder(shortName, planMd, plan, config, undefined, true).pipe(Effect.provide(layer)),
     );
-    const execute = (startIndex = 0, options: { readonly skipOracle?: boolean } = {}) =>
+    const execute = (startIndex = 0, options: { readonly skipAcceptance?: boolean } = {}) =>
       Effect.runPromise(
         Effect.either(
           executePlan({
@@ -444,6 +444,63 @@ describe("oracle phases in a run", () => {
     expect(reconciliation["optionalTouched"]).toEqual(expect.arrayContaining(ORACLE_FILES));
   });
 
+  // ac-request-authored: the acceptance phase's gate request.
+  it("sends the acceptance phase an authored request with no acceptanceCommit", async () => {
+    const plan = planOf(3, { oracle: 2, discharging: 3 });
+    const h = await setup(plan);
+    h.fakeGit.impl.enqueueDiffNameStatus(worktreeOf("phase-03"), [
+      { status: "modified", path: "src/refunds.ts" },
+      { status: "modified", path: "tests/refunds.test.ts" },
+      { status: "modified", path: "tests/prune.test.ts" },
+    ]);
+
+    expect(Either.isRight(await h.execute())).toBe(true);
+
+    const [authored] = h.providerCalls;
+    expect(Object.keys(authored!.request).toSorted()).toEqual(
+      ["$schema", "acceptancePhase", "base", "files", "phase", "verdict"].toSorted(),
+    );
+    expect(authored!.request["verdict"]).toBe("authored");
+    expect(authored!.request["phase"]).toBe("phase-02");
+    expect(authored!.request["acceptancePhase"]).toBe("phase-02");
+    expect(authored!.request).not.toHaveProperty("acceptanceCommit");
+    expect(authored!.request["$schema"]).toBe(
+      "https://docs.phax.run/schemas/acceptance-request/0.33.0.json",
+    );
+  });
+
+  // ac-provider: the provider configured under `acceptance` judges the passing phase.
+  it("sends the passing phase a passed request, saves it, and attributes the step to acceptance", async () => {
+    const plan = planOf(3, { oracle: 2, discharging: 3 });
+    const h = await setup(plan);
+    h.fakeGit.impl.enqueueDiffNameStatus(worktreeOf("phase-03"), [
+      { status: "modified", path: "src/refunds.ts" },
+      { status: "modified", path: "tests/refunds.test.ts" },
+      { status: "modified", path: "tests/prune.test.ts" },
+    ]);
+
+    expect(Either.isRight(await h.execute())).toBe(true);
+
+    const passed = h.providerCalls[1]!;
+    expect(passed.request["$schema"]).toBe(
+      "https://docs.phax.run/schemas/acceptance-request/0.33.0.json",
+    );
+    expect(passed.request["verdict"]).toBe("passed");
+    expect(passed.request["acceptancePhase"]).toBe("phase-02");
+    expect(typeof passed.request["acceptanceCommit"]).toBe("string");
+    expect(
+      await readFile(
+        join(h.runPath, "phase-03", "checks-attempt-01.acceptance-request.json"),
+        "utf8",
+      ),
+    ).toBe(passed.stdin);
+    expect((await h.readJson("phase-03", "gate-attribution.json"))["steps"]).toContainEqual({
+      command: ORACLES,
+      surface: "acceptance",
+      result: "pass",
+    });
+  });
+
   it("lists oracle among the PR body's verified surfaces once the pair passed", async () => {
     const h = await setup(planOf(3, { oracle: 2, discharging: 3 }), { publish: true });
     h.fakeGit.impl.addExistingRemote("origin");
@@ -488,7 +545,7 @@ describe("oracle phases in a run", () => {
     const instructions = await readFile(join(h.runPath, "resume-instructions.md"), "utf8");
     expect(instructions).toContain(REASON);
     expect(instructions).toContain(REMEDY);
-    expect(instructions).toContain("phax resume refunds --yes --skip-oracle");
+    expect(instructions).toContain("phax resume refunds --yes --skip-acceptance");
     expect(instructions).toContain("the phase's configured gate still runs");
 
     h.harness.answer = () => passing;
@@ -520,7 +577,7 @@ describe("oracle phases in a run", () => {
     const instructions = await readFile(join(h.runPath, "resume-instructions.md"), "utf8");
     expect(instructions).toContain("the oracle step failed after exhausting all fix attempts");
     expect(instructions).toContain("phax resume refunds --yes");
-    expect(instructions).toContain("--skip-oracle");
+    expect(instructions).toContain("--skip-acceptance");
     expect(instructions).toContain("the phase's configured gate still runs");
     const phase02 = await h.readJson("phase-02", "status.json");
     const discharges = () => h.providerCalls.filter((c) => c.request["verdict"] === "passed");
@@ -542,7 +599,7 @@ describe("oracle phases in a run", () => {
     expect(refusedReset.left).toBeInstanceOf(ResetPhaseError);
     expect(refusedReset.left).toMatchObject({ reason: "phase_blocked_by_discharge" });
     expect(refusedReset.left.message).toBe(
-      `Cannot reset "phase-02" of run "refunds": its discharging phase "phase-03" is gates_exhausted, and a committed oracle phase is not reset. To correct the oracle, edit it in phase-03 (\`phax enter-phase refunds phase-03\`), then run \`phax resume refunds --yes --skip-oracle\`: the configured gate still runs.`,
+      `Cannot reset "phase-02" of run "refunds": its discharging phase "phase-03" is gates_exhausted, and a committed oracle phase is not reset. To correct the oracle, edit it in phase-03 (\`phax enter-phase refunds phase-03\`), then run \`phax resume refunds --yes --skip-acceptance\`: the configured gate still runs.`,
     );
     expect(await readFile(join(h.runPath, "phase-02", "status.json"), "utf8")).toBe(statusBefore);
 
@@ -585,7 +642,7 @@ describe("oracle phases in a run", () => {
 
       const callsBeforeSkip = h.providerCalls.length;
       const requestsBeforeSkip = await oracleRequests(h, "phase-03");
-      const resumed = await h.execute(2, { skipOracle: true });
+      const resumed = await h.execute(2, { skipAcceptance: true });
 
       expect(Either.isRight(resumed)).toBe(true);
       expect(h.providerCalls).toHaveLength(callsBeforeSkip);
@@ -609,7 +666,7 @@ describe("oracle phases in a run", () => {
       const fixesBefore = h.fixPrompts().length;
       h.harness.failConfigured = 1;
 
-      const resumed = await h.execute(2, { skipOracle: true });
+      const resumed = await h.execute(2, { skipAcceptance: true });
 
       expect(Either.isRight(resumed)).toBe(true);
       expect(h.fixPrompts()).toHaveLength(fixesBefore + 1);
@@ -633,7 +690,7 @@ describe("oracle phases in a run", () => {
       await h.noteSession("phase-02");
       const callsBefore = h.providerCalls.length;
 
-      const resumed = await h.execute(1, { skipOracle: true });
+      const resumed = await h.execute(1, { skipAcceptance: true });
 
       expect(Either.isRight(resumed)).toBe(true);
       const steps = (await h.readJson("phase-02", "gate-attribution.json"))["steps"];
@@ -663,7 +720,7 @@ describe("oracle phases in a run", () => {
       await h.noteSession("phase-02");
       const callsBefore = h.providerCalls.length;
 
-      const resumed = await h.execute(1, { skipOracle: true });
+      const resumed = await h.execute(1, { skipAcceptance: true });
 
       expect(Either.isRight(resumed)).toBe(true);
       expect(h.providerCalls.slice(callsBefore).map((c) => basename(c.cwd))).toEqual([

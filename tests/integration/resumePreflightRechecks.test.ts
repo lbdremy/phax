@@ -419,9 +419,9 @@ describe("phax resume — re-checks the inputs that can change before any worktr
     expect(git(["worktree", "list", "--porcelain"], r.repo)).toBe(worktreesBefore);
   });
 
-  it("refuses a well-formed oracle run once phax.json loses its oracles block", async () => {
+  it("refuses a well-formed oracle run once phax.json loses its acceptance block", async () => {
     const r = createPreflightRepo({
-      config: { oracles: { command: "node tools/oracles.mjs" } },
+      config: { acceptance: { command: "node tools/oracles.mjs" } },
       plan: {
         phases: [
           { headerLines: ["**Oracle phase:** yes", "**Oracle files:** `src/step-01.ts`"] },
@@ -444,10 +444,10 @@ describe("phax resume — re-checks the inputs that can change before any worktr
 
     const worktreesBefore = git(["worktree", "list", "--porcelain"], r.repo);
     const phaxJsonPath = join(r.repo, "phax.json");
-    const { oracles: _oracles, ...withoutOracles } = JSON.parse(
+    const { acceptance: _acceptance, ...withoutAcceptance } = JSON.parse(
       readFileSync(phaxJsonPath, "utf8"),
     ) as Record<string, unknown>;
-    writeFileSync(phaxJsonPath, JSON.stringify(withoutOracles, null, 2));
+    writeFileSync(phaxJsonPath, JSON.stringify(withoutAcceptance, null, 2));
     const out = recordingOutput();
 
     const code = await runResume(shortName, { yes: true }, out.port);

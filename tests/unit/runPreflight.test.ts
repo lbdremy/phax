@@ -442,7 +442,7 @@ describe("runPreflights", () => {
     const input = REFUSALS["oracle-phases"].input;
     const result = await run({
       ...input,
-      config: makeConfig({ oracles: { command: "./fake-oracles" } } as Partial<ResolvedConfig>),
+      config: makeConfig({ acceptance: { command: "./fake-oracles" } } as Partial<ResolvedConfig>),
     });
     expect(Either.isRight(result)).toBe(true);
   });
@@ -450,7 +450,7 @@ describe("runPreflights", () => {
   it("oracle-phases refuses a plan whose oracle phase repeats an oracle file", async () => {
     const result = await run({
       ...REFUSALS["oracle-phases"].input,
-      config: makeConfig({ oracles: { command: "./fake-oracles" } } as Partial<ResolvedConfig>),
+      config: makeConfig({ acceptance: { command: "./fake-oracles" } } as Partial<ResolvedConfig>),
       planMd: `${planMdWithHeader(["**Oracle phase:** yes", "**Oracle files:** `a.ts`, `a.ts`"])}\n## phase-02 — Phase phase-02 {#phase-02}\n\n**Recommended model:** ${GOOD_MODEL}\n**Recommended effort:** medium\n`,
     });
     expect(Either.isLeft(result)).toBe(true);

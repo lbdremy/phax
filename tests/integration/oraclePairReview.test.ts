@@ -277,7 +277,7 @@ async function startStopped(
 ): Promise<HeldRun> {
   const { run, result } = await startHeldRun(world, hold, {
     plan,
-    oracles: ORACLES,
+    acceptance: ORACLES,
     prepare: (r) => {
       r.backend.onBuild = build;
     },
@@ -525,7 +525,7 @@ describe("a declared review between the pair", { timeout: 60_000 }, () => {
     expect(state).toBe("gates_exhausted");
     // The discharge stopped at its gate: the refusal names the recovery.
     expect(reset.left.message).toBe(
-      `Cannot reset 'phase-03' of run '${SHORT}': its discharging phase 'phase-04' is ${state}, and the discharge judges this phase's commit. To correct the oracle, edit it in phase-04 (\`phax enter-phase ${SHORT} phase-04\`), then run \`phax resume ${SHORT} --yes --skip-oracle\`: the configured gate still runs.`,
+      `Cannot reset 'phase-03' of run '${SHORT}': its discharging phase 'phase-04' is ${state}, and the discharge judges this phase's commit. To correct the oracle, edit it in phase-04 (\`phax enter-phase ${SHORT} phase-04\`), then run \`phax resume ${SHORT} --yes --skip-acceptance\`: the configured gate still runs.`,
     );
     expect(readFileSync(join(run.runPath, "phase-03", "status.json"), "utf8")).toBe(before);
   });
@@ -742,7 +742,7 @@ describe("a held acceptance phase closed with a correction", { timeout: 60_000 }
       { selection: "acceptance", phases: ["phase-03"] },
       {
         plan: ACCEPTANCE_AT_PHASE_03,
-        oracles: ORACLES,
+        acceptance: ORACLES,
         records: true,
         prepare: (r) => {
           r.backend.onBuild = (phase, worktree) => {

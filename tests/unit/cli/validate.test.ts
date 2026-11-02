@@ -633,12 +633,12 @@ describe("runValidate", () => {
     });
   });
 
-  describe("oracles provider block", () => {
+  describe("acceptance provider block", () => {
     let repoDir: string;
     let cwdSpy: ReturnType<typeof vi.spyOn>;
 
     beforeEach(async () => {
-      repoDir = realpathSync(mkdtempSync(join(tmpdir(), "phax-validate-oracles-")));
+      repoDir = realpathSync(mkdtempSync(join(tmpdir(), "phax-validate-acceptance-")));
       execSync("git init", { cwd: repoDir, stdio: "ignore" });
       vi.stubEnv("HOME", repoDir);
       cwdSpy = vi.spyOn(process, "cwd").mockReturnValue(repoDir);
@@ -672,8 +672,8 @@ describe("runValidate", () => {
       );
     }
 
-    it("accepts an oracles block with a command", async () => {
-      writeConfig({ oracles: { command: "./fake-oracles" } });
+    it("accepts an acceptance block with a command", async () => {
+      writeConfig({ acceptance: { command: "./fake-oracles" } });
       const { out, errors } = makeOutput();
       expect(await runValidate({}, out)).toBe(0);
       expect(errors).toEqual([]);
@@ -683,7 +683,7 @@ describe("runValidate", () => {
       writeConfig({});
       writeFileSync(
         join(repoDir, "phax.local.json"),
-        JSON.stringify({ oracles: { command: "./fake-oracles" } }),
+        JSON.stringify({ acceptance: { command: "./fake-oracles" } }),
       );
       const { out, errors } = makeOutput();
       expect(await runValidate({}, out)).toBe(0);
@@ -691,18 +691,41 @@ describe("runValidate", () => {
     });
 
     it("exits 2 for a timeout key, naming it", async () => {
-      writeConfig({ oracles: { command: "./fake-oracles", timeout: 30 } });
+      writeConfig({ acceptance: { command: "./fake-oracles", timeout: 30 } });
       const { out, errors } = makeOutput();
       expect(await runValidate({}, out)).toBe(2);
       expect(errors.join("\n")).toContain("timeout");
-      expect(errors.join("\n")).toContain("oracles");
+      expect(errors.join("\n")).toContain("acceptance");
     });
 
     it("exits 2 for an empty command, naming it", async () => {
-      writeConfig({ oracles: { command: "" } });
+      writeConfig({ acceptance: { command: "" } });
       const { out, errors } = makeOutput();
       expect(await runValidate({}, out)).toBe(2);
-      expect(errors.join("\n")).toContain("oracles.command");
+      expect(errors.join("\n")).toContain("acceptance.command");
+    });
+
+    // ac-provider-old: the retired key is refused naming its file and the new key.
+    it("exits 2 for an oracles key in phax.local.json, naming the file and the new key", async () => {
+      writeConfig({});
+      writeFileSync(
+        join(repoDir, "phax.local.json"),
+        JSON.stringify({ oracles: { command: "node scripts/acceptance-verdicts.mjs" } }),
+      );
+      const { out, errors } = makeOutput();
+      expect(await runValidate({}, out)).toBe(2);
+      expect(errors.join("\n")).toContain(
+        'phax.local.json: "oracles" is no longer read: write "acceptance"',
+      );
+    });
+
+    it("exits 2 for an oracles key in phax.json, naming the file and the new key", async () => {
+      writeConfig({ oracles: { command: "node scripts/acceptance-verdicts.mjs" } });
+      const { out, errors } = makeOutput();
+      expect(await runValidate({}, out)).toBe(2);
+      expect(errors.join("\n")).toContain(
+        'phax.json: "oracles" is no longer read: write "acceptance"',
+      );
     });
 
     it("exits 2 for a configured step with surface oracle, naming the surface", async () => {

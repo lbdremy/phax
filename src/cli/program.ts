@@ -233,7 +233,7 @@ export function buildProgram(): Command {
     )
     .option(
       "--hold [selection]",
-      "Stop for review once these headless phases commit: no value for every phase but the final one, oracle, or phase ids such as phase-02,phase-04",
+      "Stop for review once these headless phases commit: no value for every phase but the final one, acceptance, or phase ids such as phase-02,phase-04",
     )
     .action(
       async (

@@ -55,7 +55,7 @@ const config = {
   },
   complianceReview: { enabled: false, model: "claude-sonnet-4-6", effort: "medium" },
   // An oracles provider, so an oracle pair raises no `oracles` error.
-  oracles: { command: "node made-up-oracles.mjs" },
+  acceptance: { command: "node made-up-oracles.mjs" },
 } as unknown as ResolvedConfig;
 
 interface PhaseSpec {

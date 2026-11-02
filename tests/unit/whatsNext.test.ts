@@ -187,7 +187,7 @@ describe("buildWhatsNext", () => {
       expect(wn.steps[2]?.command).toContain("phax reset-phase proj <phase-id>");
     });
 
-    it("names the oracle step and the --skip-oracle correction, and no reset, for an oracle failure", () => {
+    it("names the oracle step and the --skip-acceptance correction, and no reset, for an oracle failure", () => {
       const wn = buildWhatsNext(
         {
           kind: "gates_exhausted",
@@ -203,7 +203,7 @@ describe("buildWhatsNext", () => {
       expect(wn.steps.map((s) => s.command)).toEqual([
         "phax resume proj --yes",
         "phax enter-phase proj phase-03",
-        "phax resume proj --yes --skip-oracle",
+        "phax resume proj --yes --skip-acceptance",
       ]);
       expect(wn.steps[2]?.title).toContain("the configured gate still runs");
       expect(renderWhatsNext(wn)).not.toContain("reset-phase");
@@ -272,7 +272,7 @@ describe("buildWhatsNext", () => {
       ]);
     });
 
-    it("keeps the oracle correction with --skip-oracle after an oracle step's exhaustion", () => {
+    it("keeps the oracle correction with --skip-acceptance after an oracle step's exhaustion", () => {
       const wn = buildWhatsNext({ ...exhausted, failedStep: "oracle" }, NOW);
       expect(wn.headline).toContain(
         "The oracle step failed after all fix attempts, and protected paths changed.",
@@ -283,7 +283,7 @@ describe("buildWhatsNext", () => {
         "phax resume proj --yes",
         undefined,
         "phax enter-phase proj phase-03",
-        "phax resume proj --yes --skip-oracle",
+        "phax resume proj --yes --skip-acceptance",
       ]);
       expect(wn.steps[2]?.title).toContain("base branch");
       expect(wn.steps[3]?.title).toContain("the oracle itself is wrong");
@@ -323,14 +323,14 @@ describe("buildWhatsNext", () => {
       protectedChanges: [],
     } as const;
 
-    it("appends the --skip-oracle correction, and no reset, for an oracle refusal", () => {
+    it("appends the --skip-acceptance correction, and no reset, for an oracle refusal", () => {
       const configured = buildWhatsNext(refusal, NOW);
       const wn = buildWhatsNext({ ...refusal, failedStep: "oracle" }, NOW);
       expect(wn.headline).toBe(configured.headline);
       expect(wn.steps.slice(0, 2)).toEqual(configured.steps);
       expect(wn.steps.slice(2).map((s) => s.command)).toEqual([
         "phax enter-phase hello-world.greet phase-01",
-        "phax resume hello-world.greet --yes --skip-oracle",
+        "phax resume hello-world.greet --yes --skip-acceptance",
       ]);
       expect(renderWhatsNext(wn)).not.toContain("reset-phase");
     });

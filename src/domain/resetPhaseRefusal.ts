@@ -23,7 +23,7 @@ export interface ResetRefusal {
 
 export const TERMINAL_COMMITTED_STATES = new Set<PhaseStatus["state"]>(["committed", "cleaned_up"]);
 
-// A discharge the next resume restarts at, so `--skip-oracle` reaches its oracle step.
+// A discharge the next resume restarts at, so `--skip-acceptance` reaches its oracle step.
 const STOPPED_AT_GATE_STATES = new Set<PhaseStatus["state"]>([
   "gates_exhausted",
   "gates_failed",
@@ -104,7 +104,7 @@ export function resetPhaseRefusal(input: ResetRefusalInput): ResetRefusal | null
       message:
         `Cannot reset "${target.phaseId}" of run "${shortName}": its discharging phase "${dischargingStatus.phaseId}" is ${dischargingStatus.state}, and a committed oracle phase is not reset.` +
         (STOPPED_AT_GATE_STATES.has(dischargingStatus.state)
-          ? ` To correct the oracle, edit it in ${dischargingStatus.phaseId} (\`phax enter-phase ${shortName} ${dischargingStatus.phaseId}\`), then run \`phax resume ${shortName} --yes --skip-oracle\`: the configured gate still runs.`
+          ? ` To correct the oracle, edit it in ${dischargingStatus.phaseId} (\`phax enter-phase ${shortName} ${dischargingStatus.phaseId}\`), then run \`phax resume ${shortName} --yes --skip-acceptance\`: the configured gate still runs.`
           : ""),
     };
   }
@@ -127,7 +127,7 @@ export function resetPhaseRefusal(input: ResetRefusalInput): ResetRefusal | null
         message:
           `Cannot reset '${target.phaseId}' of run '${shortName}': its discharging phase '${status.phaseId}' is ${status.state}, and the discharge judges this phase's commit.` +
           (STOPPED_AT_GATE_STATES.has(status.state)
-            ? ` To correct the oracle, edit it in ${status.phaseId} (\`phax enter-phase ${shortName} ${status.phaseId}\`), then run \`phax resume ${shortName} --yes --skip-oracle\`: the configured gate still runs.`
+            ? ` To correct the oracle, edit it in ${status.phaseId} (\`phax enter-phase ${shortName} ${status.phaseId}\`), then run \`phax resume ${shortName} --yes --skip-acceptance\`: the configured gate still runs.`
             : ""),
       };
     }

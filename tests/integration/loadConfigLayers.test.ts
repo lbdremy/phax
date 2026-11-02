@@ -375,3 +375,86 @@ describe("loadConfig invalid user file error handling", () => {
     }
   });
 });
+
+describe("the acceptance provider key across the three layers (ac-provider-old)", () => {
+  const COMMAND = "node scripts/acceptance-verdicts.mjs";
+
+  it("merges acceptance with local over global over project", () => {
+    writeProjectConfig({ ...baseConfig, acceptance: { command: "project-acceptance" } });
+    const projectOnly = loadConfig(repoDir);
+    expect(Either.isRight(projectOnly) && projectOnly.right.acceptance).toEqual({
+      command: "project-acceptance",
+    });
+
+    writeGlobalUserConfig({ acceptance: { command: "global-acceptance" } });
+    const withGlobal = loadConfig(repoDir);
+    expect(Either.isRight(withGlobal) && withGlobal.right.acceptance).toEqual({
+      command: "global-acceptance",
+    });
+
+    writeLocalUserConfig({ acceptance: { command: "local-acceptance" } });
+    const withLocal = loadConfig(repoDir);
+    expect(Either.isRight(withLocal) && withLocal.right.acceptance).toEqual({
+      command: "local-acceptance",
+    });
+    expect(Either.isRight(withLocal) && "oracles" in withLocal.right).toBe(false);
+  });
+
+  it("leaves acceptance unset when no layer declares it", () => {
+    writeProjectConfig(baseConfig);
+    const result = loadConfig(repoDir);
+    expect(Either.isRight(result) && result.right.acceptance).toBeUndefined();
+  });
+
+  it.each([
+    [
+      "phax.json",
+      () => writeProjectConfig({ ...baseConfig, oracles: { command: COMMAND } }),
+      () => join(repoDir, "phax.json"),
+    ],
+    [
+      "phax.local.json",
+      () => {
+        writeProjectConfig(baseConfig);
+        writeLocalUserConfig({ oracles: { command: COMMAND } });
+      },
+      () => join(repoDir, "phax.local.json"),
+    ],
+    [
+      "~/.phax/config.json",
+      () => {
+        writeProjectConfig(baseConfig);
+        writeGlobalUserConfig({ oracles: { command: COMMAND } });
+      },
+      () => join(tempHome, ".phax", "config.json"),
+    ],
+  ])("refuses an oracles key in %s, naming that file", (_layer, write, expectedPath) => {
+    write();
+    const result = loadConfig(repoDir);
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      const path = expectedPath();
+      expect(result.left.path).toBe(path);
+      expect(result.left.message).toBe(`${path}: "oracles" is no longer read: write "acceptance"`);
+    }
+  });
+
+  it("refuses the key even when its block is malformed, and even beside a valid acceptance key", () => {
+    writeProjectConfig({ ...baseConfig, acceptance: { command: "ok" }, oracles: "not a block" });
+    const result = loadConfig(repoDir);
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) {
+      expect(result.left.message).toBe(
+        `${join(repoDir, "phax.json")}: "oracles" is no longer read: write "acceptance"`,
+      );
+    }
+  });
+
+  it("names the layer at fault when the other layers are fine", () => {
+    writeProjectConfig({ ...baseConfig, acceptance: { command: "project-acceptance" } });
+    writeGlobalUserConfig({ acceptance: { command: "global-acceptance" } });
+    writeLocalUserConfig({ oracles: { command: COMMAND } });
+    const result = loadConfig(repoDir);
+    expect(Either.isLeft(result) && result.left.path).toBe(join(repoDir, "phax.local.json"));
+  });
+});

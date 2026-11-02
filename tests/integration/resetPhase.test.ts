@@ -388,14 +388,14 @@ describe("resetPhase", () => {
       const error = result.left as ResetPhaseError;
       expect(error.reason).toBe("phase_blocked_by_discharge");
       expect(error.message).toBe(
-        `Cannot reset "phase-02" of run "my-run": its discharging phase "phase-03" is failed, and a committed oracle phase is not reset. To correct the oracle, edit it in phase-03 (\`phax enter-phase my-run phase-03\`), then run \`phax resume my-run --yes --skip-oracle\`: the configured gate still runs.`,
+        `Cannot reset "phase-02" of run "my-run": its discharging phase "phase-03" is failed, and a committed oracle phase is not reset. To correct the oracle, edit it in phase-03 (\`phax enter-phase my-run phase-03\`), then run \`phax resume my-run --yes --skip-acceptance\`: the configured gate still runs.`,
       );
       expect(await snapshot(runPath)).toEqual(before);
       expect(fakeGit.impl.calls.some((c) => c.method === "removeWorktree")).toBe(false);
       expect(fakeGit.impl.deletedBranches).toEqual([]);
     });
 
-    it("names no --skip-oracle recovery once the discharge is past its gate", async () => {
+    it("names no --skip-acceptance recovery once the discharge is past its gate", async () => {
       const { runPath } = await seedPair("review_open");
       await writePairPlan(runPath);
 
@@ -538,12 +538,12 @@ describe("resetPhase", () => {
       expect(result.left).toMatchObject({
         reason: "phase_blocked_by_discharge",
         message:
-          "Cannot reset 'phase-03' of run 'my-run': its discharging phase 'phase-04' is failed, and the discharge judges this phase's commit. To correct the oracle, edit it in phase-04 (`phax enter-phase my-run phase-04`), then run `phax resume my-run --yes --skip-oracle`: the configured gate still runs.",
+          "Cannot reset 'phase-03' of run 'my-run': its discharging phase 'phase-04' is failed, and the discharge judges this phase's commit. To correct the oracle, edit it in phase-04 (`phax enter-phase my-run phase-04`), then run `phax resume my-run --yes --skip-acceptance`: the configured gate still runs.",
       });
       expect(await snapshot(runPath)).toEqual(before);
     });
 
-    it("names no --skip-oracle recovery once phase-04 is past its gate", async () => {
+    it("names no --skip-acceptance recovery once phase-04 is past its gate", async () => {
       await seedReviewedPair("review_open", "authored");
 
       const result = await reset("phase-03");
@@ -1005,13 +1005,13 @@ describe("previewResetPhase refuses what resetPhase refuses", () => {
     expect(refusal.reason).toBe("phase_blocked_by_later_committed");
   });
 
-  it("refuses an oracle phase whose discharge is stopped at its gate, with the --skip-oracle recovery", async () => {
+  it("refuses an oracle phase whose discharge is stopped at its gate, with the --skip-acceptance recovery", async () => {
     const runPath = await seedPair("failed");
 
     const refusal = await expectSameRefusal(runPath, "phase-02");
 
     expect(refusal.reason).toBe("phase_blocked_by_discharge");
-    expect(refusal.message).toContain("--skip-oracle");
+    expect(refusal.message).toContain("--skip-acceptance");
   });
 
   it("refuses an oracle phase whose discharge is past its gate, without the recovery", async () => {
@@ -1020,7 +1020,7 @@ describe("previewResetPhase refuses what resetPhase refuses", () => {
     const refusal = await expectSameRefusal(runPath, "phase-02");
 
     expect(refusal.reason).toBe("phase_blocked_by_discharge");
-    expect(refusal.message).not.toContain("--skip-oracle");
+    expect(refusal.message).not.toContain("--skip-acceptance");
   });
 
   it("refuses a closed authored stop whose discharge has started", async () => {

@@ -1,4 +1,4 @@
-import type { Command } from "commander";
+import { Option, type Command } from "commander";
 import type { OutputPort } from "../../ports/output.js";
 import type { runResume } from "./resume.js";
 
@@ -20,9 +20,11 @@ export function registerResumeCommand(
       "Comma-separated provider priority override (e.g. mistral-vibe,claude-code)",
     )
     .option(
-      "--skip-oracle",
-      "Skip the oracle step of the phase this resume restarts at; its configured gate still runs",
+      "--skip-acceptance",
+      "Skip the acceptance step of the phase this resume restarts at; its configured gate still runs",
     )
+    // Registered only so runResume can refuse it by name; never listed in help.
+    .addOption(new Option("--skip-oracle").hideHelp())
     .action(
       async (
         shortName: string,
@@ -31,6 +33,7 @@ export function registerResumeCommand(
           verbose?: boolean;
           trace?: boolean;
           providerPriority?: string;
+          skipAcceptance?: boolean;
           skipOracle?: boolean;
         },
       ) => {

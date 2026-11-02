@@ -505,7 +505,7 @@ describe("phax run — a preflight refusal precedes naming", () => {
 
   it("a well-formed oracle pair with a provider passes the preflight and names the run", async () => {
     const r = enter({
-      config: { oracles: { command: "./fake-oracles" } },
+      config: { acceptance: { command: "./fake-oracles" } },
       plan: { phases: [{ headerLines: ORACLE_LINES }, {}] },
     });
     const out = recordingOutput();
@@ -519,7 +519,7 @@ describe("phax run — a preflight refusal precedes naming", () => {
 
   it("a configured gate step claiming the oracle surface is a config error: exit 2, no run", async () => {
     const r = enter({
-      config: { oracles: { command: "./fake-oracles" } },
+      config: { acceptance: { command: "./fake-oracles" } },
       plan: { phases: [{ headerLines: ORACLE_LINES }, {}] },
     });
     const phaxJsonPath = join(r.repo, "phax.json");
@@ -556,7 +556,7 @@ describe("phax run — a preflight refusal precedes naming", () => {
   // Lint and the run preflight report the same `oracles` error rows for the
   // same plan.md: lint's rows, printed as the preflight prints them, are the
   // rows of the preflight's refusal, in the same order.
-  const PROVIDER = { oracles: { command: "./fake-oracles" } };
+  const PROVIDER = { acceptance: { command: "./fake-oracles" } };
   it.each([
     ["no provider", { plan: { phases: [{ headerLines: ORACLE_LINES }, {}] } }],
     [

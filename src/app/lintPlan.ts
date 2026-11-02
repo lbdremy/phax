@@ -109,7 +109,7 @@ export function lintPlan(
     // not the plan parses.
     const headers = readPhaseHeaders(planMd);
     findings.push(...reasonLabelFindings(headers));
-    const oracleInput = { headers, providerConfigured: config.oracles !== undefined };
+    const oracleInput = { headers, providerConfigured: config.acceptance !== undefined };
     // Test lines too: a departure never hides the checks that need a parsed plan.
     const departures = testLineDepartureFindings(readPlanTestStrategies(planMd));
 
