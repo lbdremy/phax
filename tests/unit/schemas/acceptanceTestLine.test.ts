@@ -7,6 +7,8 @@ import { answerJsonSchema } from "../../../src/schemas/answerSchemas.js";
 import { decodeAuthoredPlanDocument } from "../../../src/schemas/planDocument.js";
 import { RESERVED_CRITERIA, TEST_LOOPS, TEST_TECHNIQUES } from "../../../src/schemas/testLine.js";
 import { renderTestLine, parseTestLine } from "../../../src/domain/plan/testLineGrammar.js";
+import { snapshotPath } from "../../../packages/schemas/build/snapshots.js";
+import { CURRENT_SHAPES } from "../../../packages/schemas/src/generated/index.js";
 import { validDocuments } from "../schemasPackage/documents.js";
 
 // The test line at 0.33.0: the loop `acceptance | in-phase`, the technique
@@ -45,12 +47,11 @@ function enumsOf(node: unknown, property: "technique" | "loop"): unknown[][] {
   return [...found, ...Object.values(json).flatMap((child) => enumsOf(child, property))];
 }
 
-function snapshot(formatId: string): Json {
+// The format's current snapshot: `next` while a release is pending, the
+// release's own stamp once it is cut.
+function snapshot(formatId: keyof typeof CURRENT_SHAPES): Json {
   return JSON.parse(
-    readFileSync(
-      join(repoRoot, "packages/schemas/snapshots", formatId, "next.schema.json"),
-      "utf8",
-    ),
+    readFileSync(join(repoRoot, snapshotPath(formatId, CURRENT_SHAPES[formatId])), "utf8"),
   ) as Json;
 }
 
@@ -90,14 +91,14 @@ describe("the techniques and loops of a test line (ac-boundary, ac-loop)", () =>
     expect(enums).toEqual([TECHNIQUES]);
   });
 
-  it.each(["phax-plan", "phax-plan-extraction"])(
+  it.each(["phax-plan", "phax-plan-extraction"] as const)(
     "lists the nine techniques, exactly and in order, in the published %s schema",
     (formatId) => {
       expect(enumsOf(snapshot(formatId), "technique")).toEqual([TECHNIQUES]);
     },
   );
 
-  it.each(["plan-document", "phax-plan", "phax-plan-extraction"])(
+  it.each(["plan-document", "phax-plan", "phax-plan-extraction"] as const)(
     "lists the loops acceptance and in-phase in the published %s schema",
     (formatId) => {
       expect([...TEST_LOOPS]).toEqual(["acceptance", "in-phase"]);

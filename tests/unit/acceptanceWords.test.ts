@@ -14,6 +14,8 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { snapshotPath } from "../../packages/schemas/build/snapshots.js";
+import { CURRENT_SHAPES } from "../../packages/schemas/src/generated/index.js";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -673,8 +675,11 @@ describe("acceptance words in the sources (ac-oracle-kept, source half)", () => 
     expect(files).toContain("examples/vitest-acceptance/main.mjs");
     expect(files).toContain("src/cli/cliDocs.ts");
     expect(files).toContain("phax.schema.json");
-    expect(files).toContain("packages/schemas/snapshots/plan-document/next.schema.json");
-    expect(files).not.toContain("packages/schemas/snapshots/plan-document/0.32.0.schema.json");
+    // Only the current snapshot of a format: `next` while a release is
+    // pending, the release's own stamp once it is cut.
+    expect(files.filter((file) => file.startsWith(`${SNAPSHOTS_DIR}/plan-document/`))).toEqual([
+      snapshotPath("plan-document", CURRENT_SHAPES["plan-document"]),
+    ]);
     expect(files).toContain("packages/schemas/src/index.ts");
     expect(files).toContain("phax.usage.kdl");
     expect(files).toContain("docs/cli/reference.md");
