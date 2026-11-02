@@ -1,6 +1,6 @@
 // The source half of the spec acceptance-tests' ac-oracle-kept scan: the words
-// oracle and discharge may appear in the sources only where spec §5.21 keeps
-// them. Plan 4 (the docs and the example) widens SCANNED_ROOTS and
+// oracle and discharge may appear in the sources, the usage contract, the CLI
+// reference and the current JSON Schemas only where spec §5.21 keeps them. Plan 4 (the docs and the example) widens SCANNED_ROOTS and
 // SCANNED_FILES below to the README, docs, site, example and skills and
 // claims the criterion; every entry here stays.
 //
@@ -15,7 +15,14 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..
 /** Directories scanned recursively, as TypeScript sources. Plan 4 adds more. */
 export const SCANNED_ROOTS: readonly string[] = ["src", "packages/schemas/src"];
 /** Single files scanned beside the roots. Plan 4 adds more. */
-export const SCANNED_FILES: readonly string[] = ["phax.usage.kdl", "docs/cli/reference.md"];
+export const SCANNED_FILES: readonly string[] = [
+  "phax.usage.kdl",
+  "docs/cli/reference.md",
+  "phax.schema.json",
+  "phax.user.schema.json",
+];
+/** Each format's current JSON Schema snapshot is scanned too; older ones are frozen. */
+const SNAPSHOTS_DIR = "packages/schemas/snapshots";
 
 /** The categories of §5.21 an entry's reason names. */
 export type KeptCategory =
@@ -34,10 +41,11 @@ export interface AllowEntry {
   readonly file: string;
   /**
    * Absent for a whole-file entry (frozen modules and readers or lifts only).
-   * A line entry allows only the words its own match covers, so an allowed
-   * token never exempts another word on the same line.
+   * Each pattern allows only the words its own match spans, so an allowed
+   * token never exempts another word on the same line, and each pattern must
+   * still allow something, or the entry is stale.
    */
-  readonly line?: RegExp;
+  readonly lines?: readonly RegExp[];
 }
 
 export const ALLOWLIST: readonly AllowEntry[] = [
@@ -66,7 +74,13 @@ export const ALLOWLIST: readonly AllowEntry[] = [
     id: "lift-format-record-manifests",
     reason: "reader or lift of an earlier shape",
     file: "packages/schemas/src/formats/recordManifests.ts",
-    line: /could run an oracle phase|`oracle` role|"oracle" in value|oracle, mode|liftRecordRole\(oracle\)/,
+    lines: [
+      /could run an oracle phase/,
+      /`oracle` role/,
+      /"oracle" in value/,
+      /oracle, mode/,
+      /liftRecordRole\(oracle\)/,
+    ],
   },
 
   // ── Lift comments in the package modules that also define current formats.
@@ -74,25 +88,32 @@ export const ALLOWLIST: readonly AllowEntry[] = [
     id: "lift-format-repository",
     reason: "reader or lift of an earlier shape",
     file: "packages/schemas/src/formats/repository.ts",
-    line: /`oracle: \{ dischargedBy, files \}`|loop `oracle`|the `oracle` key/,
+    lines: [/`oracle: \{ dischargedBy, files \}`/, /loop `oracle`/, /the `oracle` key/],
   },
   {
     id: "lift-format-run-directory",
     reason: "reader or lift of an earlier shape",
     file: "packages/schemas/src/formats/runDirectory.ts",
-    line: /`mode` and `oracle`|hold selection `oracle`|`oracleStep` is lifted|`oracle: \{ dischargedBy|loop `oracle`|the `oracle` key/,
+    lines: [
+      /`mode` and `oracle`/,
+      /hold selection `oracle`/,
+      /`oracleStep` is lifted/,
+      /`oracle: \{ dischargedBy/,
+      /loop `oracle`/,
+      /the `oracle` key/,
+    ],
   },
   {
     id: "lift-format-record-timeline",
     reason: "reader or lift of an earlier shape",
     file: "packages/schemas/src/formats/recordTimeline.ts",
-    line: /their `oracle` step/,
+    lines: [/their `oracle` step/],
   },
   {
     id: "lift-format-answers",
     reason: "reader or lift of an earlier shape",
     file: "packages/schemas/src/formats/answers.ts",
-    line: /loop `oracle`/,
+    lines: [/loop `oracle`/],
   },
   {
     id: "lift-format-acceptance-request",
@@ -100,30 +121,36 @@ export const ALLOWLIST: readonly AllowEntry[] = [
     file: "packages/schemas/src/formats/acceptanceRequest.ts",
   },
 
+  {
+    id: "frozen-oracle-request-snapshot",
+    reason: "retired oracle-request format id and exports",
+    file: "packages/schemas/snapshots/oracle-request/*.schema.json",
+  },
+
   // ── Readers of files an earlier release wrote.
   {
     id: "records-explain-old-stem",
     reason: "reader or lift of an earlier shape",
     file: "src/app/recordsExplain.ts",
-    line: /oracle-request\.json/,
+    lines: [/oracle-request\.json/],
   },
   {
     id: "attempt-files-old-stem",
     reason: "reader or lift of an earlier shape",
     file: "src/domain/gate/attemptFiles.ts",
-    line: /oracle-request\\?\.json/,
+    lines: [/oracle-request\\?\.json/],
   },
   {
     id: "document-migration-own-shape",
     reason: "reader or lift of an earlier shape",
     file: "src/domain/artifact/documentMigration.ts",
-    line: /test lines end `· oracle`|no oracle, no reason/,
+    lines: [/test lines end `· oracle`/, /no oracle, no reason/],
   },
   {
     id: "plan-cache-key-history",
     reason: "reader or lift of an earlier shape",
     file: "src/domain/planCache/key.ts",
-    line: /an earlier extractor read as `oracle`/,
+    lines: [/an earlier extractor read as `oracle`/],
   },
 
   // ── The retired oracle-request format id and its exports.
@@ -131,31 +158,37 @@ export const ALLOWLIST: readonly AllowEntry[] = [
     id: "schema-url-retired-format",
     reason: "retired oracle-request format id and exports",
     file: "src/schemas/schemaUrl.ts",
-    line: /oracle-request|oracle request|oracle-phases/,
+    lines: [/oracle-request/, /oracle request/, /oracle-phases/],
   },
   {
     id: "release-retired-format",
     reason: "retired oracle-request format id and exports",
     file: "src/schemas/release.ts",
-    line: /"oracle-request"/,
+    lines: [/"oracle-request"/],
   },
   {
     id: "generated-index-retired-format",
     reason: "retired oracle-request format id and exports",
     file: "packages/schemas/src/generated/index.ts",
-    line: /"oracle-request"/,
+    lines: [/"oracle-request"/],
   },
   {
     id: "schemas-package-retired-format",
     reason: "retired oracle-request format id and exports",
     file: "packages/schemas/src/index.ts",
-    line: /oracleRequestFormat|OracleRequestShapes|OracleRequestV0_26_0|oracle-request|oracle request/,
+    lines: [
+      /oracleRequestFormat/,
+      /OracleRequestShapes/,
+      /OracleRequestV0_26_0/,
+      /oracle-request/,
+      /oracle request/,
+    ],
   },
   {
     id: "acceptance-request-schema-retired-format",
     reason: "retired oracle-request format id and exports",
     file: "src/schemas/acceptanceRequest.ts",
-    line: /`oracle-request`/,
+    lines: [/`oracle-request`/],
   },
 
   // ── Old-name refusals.
@@ -163,67 +196,87 @@ export const ALLOWLIST: readonly AllowEntry[] = [
     id: "config-oracles-key",
     reason: "old-name refusal",
     file: "src/app/loadConfig.ts",
-    line: /retiredOraclesKeyError|"oracles"/,
+    lines: [/retiredOraclesKeyError/, /"oracles"/],
   },
   {
     id: "hold-oracle-selection",
     reason: "old-name refusal",
     file: "src/domain/hold.ts",
-    line: /"oracle"|--hold 'oracle'/,
+    lines: [/includes\("oracle"\)/, /--hold 'oracle' is no longer read/],
   },
   {
     id: "skip-oracle-option",
     reason: "old-name refusal",
     file: "src/cli/introspect.ts",
-    line: /--skip-oracle/,
+    lines: [/--skip-oracle/],
   },
   {
     id: "skip-oracle-register",
     reason: "old-name refusal",
     file: "src/cli/commands/resumeRegister.ts",
-    line: /--skip-oracle|skipOracle/,
+    lines: [/--skip-oracle/, /skipOracle/],
   },
   {
     id: "skip-oracle-resume",
     reason: "old-name refusal",
     file: "src/cli/commands/resume.ts",
-    line: /--skip-oracle|skipOracle/,
+    lines: [/--skip-oracle/, /skipOracle/],
   },
   {
     id: "lint-old-header-lines",
     reason: "old-name refusal",
     file: "src/app/lintPlan.ts",
-    line: /hasOraclePhaseLine|hasOracleFilesLine/,
+    lines: [/hasOraclePhaseLine/, /hasOracleFilesLine/],
   },
   {
     id: "phase-header-old-labels",
     reason: "old-name refusal",
     file: "src/domain/plan/phaseHeader.ts",
-    line: /Oracle phase|Oracle files|hasOraclePhaseLine|hasOracleFilesLine|old Oracle lines|Oracle lines/,
+    lines: [
+      /Oracle phase/,
+      /Oracle files/,
+      /hasOraclePhaseLine/,
+      /hasOracleFilesLine/,
+      /old Oracle lines/,
+      /Oracle lines/,
+    ],
   },
   {
     id: "acceptance-check-old-lines",
     reason: "old-name refusal",
     file: "src/domain/plan/acceptanceCheck.ts",
-    line: /Oracle phase|Oracle files|hasOraclePhaseLine|hasOracleFilesLine/,
+    lines: [/Oracle phase/, /Oracle files/, /hasOraclePhaseLine/, /hasOracleFilesLine/],
   },
   {
     id: "test-line-check-retired",
     reason: "old-name refusal",
     file: "src/domain/plan/testLineCheck.ts",
-    line: /\*\*Oracle phase:\*\*|\*\*Oracle files:\*\*|old loop `oracle`/,
+    lines: [/\*\*Oracle phase:\*\*/, /\*\*Oracle files:\*\*/, /old loop `oracle`/],
   },
   {
     id: "test-line-grammar-retired-loop",
     reason: "old-name refusal",
     file: "src/domain/plan/testLineGrammar.ts",
-    line: /loop `oracle`|loop 'oracle'|"oracle"|`oracle`|its loop is `oracle`/,
+    lines: [
+      /its loop is `oracle`/,
+      /loop `oracle`/,
+      /`oracle` and `in-phase`/,
+      /reads its `oracle` as/,
+      /holds `oracle` as a criterion/,
+      /\["oracle", "in-phase"\]/,
+      /field === "oracle" \? liftTestLoop\("oracle"\)/,
+      /uses the loop 'oracle', which is no longer read/,
+    ],
   },
   {
     id: "test-line-criterion-filter",
     reason: "old-name refusal",
     file: "src/schemas/testLine.ts",
-    line: /"oracle"|'oracle'|plus `oracle`|`oracle`/,
+    lines: [
+      /plus `oracle`\. `oracle`/,
+      /\[\.\.\.TEST_LOOPS, "oracle"\]/,
+      /'in-phase' nor 'oracle'/,
+    ],
   },
 
   // ── The test line's fourth field.
@@ -231,43 +284,67 @@ export const ALLOWLIST: readonly AllowEntry[] = [
     id: "field-test-line-schema",
     reason: "test line fourth field",
     file: "src/schemas/testLine.ts",
-    line: /ORACLE_RULES|oracleViolation|OracleSchema|oneLineText\("oracle"\)|oracle:|oracle\.|oracle's|an oracle never|<oracle>|\(oracle:|size, technique, oracle|oracle\)/i,
+    lines: [
+      /size, technique, oracle/,
+      /[Tt]he oracle's three/,
+      /ORACLE_RULES/,
+      /function oracleViolation\(oracle: string\)/,
+      /oracle\.(includes|startsWith|endsWith)\(/,
+      /an oracle never (contains|starts with|ends with)/,
+      /const OracleSchema = oneLineText\("oracle"\)/,
+      /\(oracle\) => oracleViolation\(oracle\)/,
+      /oracle: OracleSchema/,
+      /<oracle>/,
+    ],
   },
   {
     id: "field-test-line-grammar",
     reason: "test line fourth field",
     file: "src/domain/plan/testLineGrammar.ts",
-    line: /<oracle>|line\.oracle|oracleFields|oracle: /,
+    lines: [/<oracle>/, /line\.oracle/, /oracleFields/, /oracle: oracleFields/],
   },
   {
     id: "field-plan-document",
     reason: "test line fourth field",
     file: "src/schemas/planDocument.ts",
-    line: /<oracle>/,
+    lines: [/<oracle>/],
   },
   {
     id: "field-extract-plan-prompt",
     reason: "test line fourth field",
     file: "src/app/extractPlan.ts",
-    line: /<oracle>/,
+    lines: [/<oracle>/],
   },
   {
     id: "field-help-text",
     reason: "test line fourth field",
     file: "src/cli/cliDocs.ts",
-    line: /<oracle>/,
+    lines: [/<oracle>/],
   },
   {
     id: "field-usage-contract",
     reason: "test line fourth field",
     file: "phax.usage.kdl",
-    line: /<oracle>/,
+    lines: [/<oracle>/],
   },
   {
     id: "field-cli-reference",
     reason: "test line fourth field",
     file: "docs/cli/reference.md",
-    line: /<oracle>/,
+    lines: [/<oracle>/],
+  },
+
+  {
+    id: "field-json-schemas",
+    reason: "test line fourth field",
+    file: "packages/schemas/snapshots/*/*.schema.json",
+    lines: [/^\s*"oracle",$/, /"oracle": \{/, /<oracle>/],
+  },
+  {
+    id: "criterion-filter-json-schemas",
+    reason: "old-name refusal",
+    file: "packages/schemas/snapshots/*/*.schema.json",
+    lines: [/'in-phase' nor 'oracle'/],
   },
 
   // ── The wrong-oracle escape of the code review.
@@ -275,7 +352,13 @@ export const ALLOWLIST: readonly AllowEntry[] = [
     id: "wrong-oracle-escape",
     reason: "wrong-oracle escape",
     file: "src/schemas/codeReview.ts",
-    line: /"wrong-oracle"/,
+    lines: [/"wrong-oracle"/],
+  },
+  {
+    id: "wrong-oracle-escape-json-schema",
+    reason: "wrong-oracle escape",
+    file: "packages/schemas/snapshots/code-review/*.schema.json",
+    lines: [/"wrong-oracle"/],
   },
 
   // ── Prose about what judges a test.
@@ -283,7 +366,7 @@ export const ALLOWLIST: readonly AllowEntry[] = [
     id: "render-plan-round-trip",
     reason: "prose about what judges a test",
     file: "src/domain/authoring/renderPlan.ts",
-    line: /is the oracle/,
+    lines: [/is the oracle/],
   },
 ];
 
@@ -296,7 +379,7 @@ export interface Occurrence {
   readonly text: string;
 }
 
-const WORDS = /oracle|discharg/gi;
+export const WORDS = /oracle|discharg/gi;
 
 function globToRegExp(glob: string): RegExp {
   const source = glob
@@ -321,8 +404,31 @@ function listFiles(dir: string): string[] {
   return out;
 }
 
+function compareVersions(a: string, b: string): number {
+  const [left, right] = [a, b].map((version) => version.split(".").map(Number));
+  for (let i = 0; i < 3; i += 1) {
+    const diff = (left![i] ?? 0) - (right![i] ?? 0);
+    if (diff !== 0) return diff;
+  }
+  return 0;
+}
+
+// The current shape of each format: `next` while one is pending, else the
+// latest release. Older snapshots are frozen shapes of earlier releases.
+function currentSchemaSnapshots(): string[] {
+  return readdirSync(path.join(REPO_ROOT, SNAPSHOTS_DIR))
+    .toSorted()
+    .flatMap((format) => {
+      const names = readdirSync(path.join(REPO_ROOT, SNAPSHOTS_DIR, format))
+        .filter((name) => name.endsWith(".schema.json") && name !== "pre-schema.schema.json")
+        .map((name) => name.slice(0, -".schema.json".length));
+      const current = names.includes("next") ? "next" : names.toSorted(compareVersions).at(-1);
+      return current === undefined ? [] : [`${SNAPSHOTS_DIR}/${format}/${current}.schema.json`];
+    });
+}
+
 export function scannedFiles(): string[] {
-  return [...SCANNED_ROOTS.flatMap(listFiles), ...SCANNED_FILES];
+  return [...SCANNED_ROOTS.flatMap(listFiles), ...SCANNED_FILES, ...currentSchemaSnapshots()];
 }
 
 export function findOccurrences(files: readonly string[]): Occurrence[] {
@@ -338,27 +444,37 @@ export function findOccurrences(files: readonly string[]): Occurrence[] {
   return found;
 }
 
-// A line entry allows an occurrence only when one of its matches on that line
+// A pattern allows an occurrence only when one of its matches on that line
 // spans the occurrence's word.
-function allows(entry: AllowEntry, occurrence: Occurrence): boolean {
-  if (!globToRegExp(entry.file).test(occurrence.file)) return false;
-  if (entry.line === undefined) return true;
+function spans(pattern: RegExp, occurrence: Occurrence): boolean {
   const start = occurrence.column;
   const end = start + occurrence.word.length;
-  const pattern = new RegExp(entry.line.source, `${entry.line.flags.replace("g", "")}g`);
-  for (const match of occurrence.text.matchAll(pattern)) {
+  const global = new RegExp(pattern.source, `${pattern.flags.replace("g", "")}g`);
+  for (const match of occurrence.text.matchAll(global)) {
     if (match[0].length === 0) continue;
     if (match.index <= start && match.index + match[0].length >= end) return true;
   }
   return false;
 }
 
+function inFile(entry: AllowEntry, occurrence: Occurrence): boolean {
+  return globToRegExp(entry.file).test(occurrence.file);
+}
+
+export function allows(entry: AllowEntry, occurrence: Occurrence): boolean {
+  if (!inFile(entry, occurrence)) return false;
+  return entry.lines === undefined || entry.lines.some((pattern) => spans(pattern, occurrence));
+}
+
 describe("acceptance words in the sources (ac-oracle-kept, source half)", () => {
   const files = scannedFiles();
   const occurrences = findOccurrences(files);
 
-  it("scans the sources, the usage contract and the CLI reference", () => {
+  it("scans the sources, the usage contract, the CLI reference and the JSON Schemas", () => {
     expect(files).toContain("src/cli/cliDocs.ts");
+    expect(files).toContain("phax.schema.json");
+    expect(files).toContain("packages/schemas/snapshots/plan-document/next.schema.json");
+    expect(files).not.toContain("packages/schemas/snapshots/plan-document/0.32.0.schema.json");
     expect(files).toContain("packages/schemas/src/index.ts");
     expect(files).toContain("phax.usage.kdl");
     expect(files).toContain("docs/cli/reference.md");
@@ -371,13 +487,19 @@ describe("acceptance words in the sources (ac-oracle-kept, source half)", () => 
     ).toEqual([]);
   });
 
-  it("has no allowlist entry that allows nothing", () => {
-    const stale = ALLOWLIST.filter((entry) => !occurrences.some((o) => allows(entry, o)));
-    expect(stale.map((entry) => entry.id)).toEqual([]);
+  it("has no allowlist entry or pattern that allows nothing", () => {
+    const stale = ALLOWLIST.flatMap((entry) => {
+      const inEntry = occurrences.filter((o) => inFile(entry, o));
+      if (entry.lines === undefined) return inEntry.length === 0 ? [entry.id] : [];
+      return entry.lines
+        .filter((pattern) => !inEntry.some((o) => spans(pattern, o)))
+        .map((pattern) => `${entry.id} ${String(pattern)}`);
+    });
+    expect(stale).toEqual([]);
   });
 
   it("holds whole-file entries only for frozen, reader and lift modules", () => {
-    const wholeFile = ALLOWLIST.filter((entry) => entry.line === undefined);
+    const wholeFile = ALLOWLIST.filter((entry) => entry.lines === undefined);
     for (const entry of wholeFile) {
       expect([
         "frozen shape of an earlier release",
@@ -392,7 +514,7 @@ describe("acceptance words in the sources (ac-oracle-kept, source half)", () => 
       id: "field",
       reason: "test line fourth field",
       file: "src/cli/cliDocs.ts",
-      line: /<oracle>/,
+      lines: [/<oracle>/],
     };
     const text = "write <oracle> after the technique; an oracle phase is discharged";
     const [field, phase, discharge] = [...text.matchAll(WORDS)].map(
