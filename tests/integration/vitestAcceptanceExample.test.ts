@@ -5,6 +5,9 @@ import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { Either } from "effect";
 import { parseGateReport } from "../../packages/schemas/src/index.js";
+import { serializeAcceptanceRequest } from "../../src/app/gates.js";
+import { makeAcceptanceRequest } from "../../src/domain/gate/acceptanceRequest.js";
+import { decodePhaxConfig } from "../../src/schemas/phaxConfig.js";
 import {
   currentSchemaUrl,
   describeReportError,
@@ -13,7 +16,7 @@ import {
 import type { GateReport } from "../../src/schemas/gateReport.js";
 
 const repoRoot = new URL("../../", import.meta.url).pathname.replace(/\/$/, "");
-const mainScript = join(repoRoot, "examples/vitest-oracles/main.mjs");
+const mainScript = join(repoRoot, "examples/vitest-acceptance/main.mjs");
 
 const PRUNE = "tests/prune.test.ts";
 const REFUNDS = "tests/refunds.test.ts";
@@ -37,7 +40,7 @@ function git(cwd: string, args: readonly string[]): string {
 
 /** A fresh temporary git repository, an acme-billing-like one. */
 function makeRepo(): string {
-  const cwd = mkdtempSync(join(tmpdir(), "phax-vitest-oracles-"));
+  const cwd = mkdtempSync(join(tmpdir(), "phax-vitest-acceptance-"));
   tempDirs.push(cwd);
   git(cwd, ["init", "-q"]);
   return cwd;
@@ -76,7 +79,7 @@ function run(
   return { stdout, stderr, status };
 }
 
-// Read as phax reads an oracles provider's answer, and as a consumer reads it
+// Read as phax reads an acceptance provider's answer, and as a consumer reads it
 // through the schemas package.
 function answerOf(stdout: string): GateReport {
   expect(stdout.endsWith("\n")).toBe(true);
@@ -94,38 +97,43 @@ function checkedFindings(report: GateReport) {
   return report.findings;
 }
 
-// The example still reads an oracle-request (plan 4 moves it to acceptance-request): phax
-// writes none since 0.33.0, so the test stamps the frozen 0.26.0 shape itself.
-function serializeOracleRequest(request: object): string {
-  return JSON.stringify({ $schema: currentSchemaUrl("oracle-request"), ...request }, null, 2);
+// Every request is written by phax's own serializer, so the example is held to what phax sends.
+function authoredRequest(base: string, files: readonly string[]): string {
+  return serializeAcceptanceRequest(
+    makeAcceptanceRequest({
+      role: {
+        role: "acceptance",
+        pair: { acceptancePhase: "phase-01", passingPhase: "phase-02", files },
+      },
+      phaseId: "phase-01",
+      base,
+      acceptanceCommit: null,
+    }),
+  );
 }
 
 function authored(cwd: string, base: string, files: readonly [string, ...string[]]) {
-  const request = serializeOracleRequest({
-    verdict: "authored",
-    phase: "phase-01",
-    oraclePhase: "phase-01",
-    base,
-    files,
-  });
-  const { stdout, status } = run(cwd, request);
+  const { stdout, status } = run(cwd, authoredRequest(base, files));
   return { report: answerOf(stdout), status, stdout };
 }
 
-function discharged(
+function passed(
   cwd: string,
   base: string,
-  oracleCommit: string,
+  acceptanceCommit: string,
   files: readonly [string, ...string[]],
 ) {
-  const request = serializeOracleRequest({
-    verdict: "discharged",
-    phase: "phase-02",
-    oraclePhase: "phase-01",
-    base,
-    oracleCommit,
-    files,
-  });
+  const request = serializeAcceptanceRequest(
+    makeAcceptanceRequest({
+      role: {
+        role: "passing",
+        pair: { acceptancePhase: "phase-01", passingPhase: "phase-02", files },
+      },
+      phaseId: "phase-02",
+      base,
+      acceptanceCommit,
+    }),
+  );
   const { stdout, status } = run(cwd, request);
   return { report: answerOf(stdout), status, stdout };
 }
@@ -143,7 +151,7 @@ const PRUNE_BASE = lines(
   "});",
 );
 
-describe("examples/vitest-oracles, authored verdict", () => {
+describe("examples/vitest-acceptance, authored verdict", () => {
   it("asks a marker of every added or modified test, and of no deleted or unchanged one", () => {
     const cwd = makeRepo();
     const base = commit(cwd, { [PRUNE]: PRUNE_BASE });
@@ -168,11 +176,11 @@ describe("examples/vitest-oracles, authored verdict", () => {
     const { report, status } = authored(cwd, base, [PRUNE]);
     const findings = checkedFindings(report);
     expect(findings.map((f) => f.id)).toEqual([
-      `oracle-unmarked:${PRUNE}:keeps the newest run`,
-      `oracle-unmarked:${PRUNE}:caps a refund at the invoice total`,
+      `acceptance-unmarked:${PRUNE}:keeps the newest run`,
+      `acceptance-unmarked:${PRUNE}:caps a refund at the invoice total`,
     ]);
     expect(findings[0]).toEqual({
-      id: `oracle-unmarked:${PRUNE}:keeps the newest run`,
+      id: `acceptance-unmarked:${PRUNE}:keeps the newest run`,
       rule: expect.stringContaining("expected-failure marker"),
       location: { file: PRUNE, lines: [4, 6] },
       message: expect.stringContaining("keeps the newest run"),
@@ -233,7 +241,7 @@ describe("examples/vitest-oracles, authored verdict", () => {
     edit(cwd, { [REFUNDS]: body("[[1, 100], [2, 250]]", "", ".fails") });
     const { report, status } = authored(cwd, base, [REFUNDS]);
     expect(checkedFindings(report).map((f) => f.id)).toEqual([
-      `oracle-unmarked:${REFUNDS}:outer > inner > charges %i`,
+      `acceptance-unmarked:${REFUNDS}:outer > inner > charges %i`,
     ]);
     expect(status).toBe(1);
   });
@@ -251,8 +259,8 @@ describe("examples/vitest-oracles, authored verdict", () => {
     const ids = checkedFindings(authored(cwd, base, [REFUNDS]).report).map((f) => f.id);
     expect(ids).toHaveLength(3);
     expect(ids.slice(0, 2)).toEqual([
-      `oracle-unmarked:${REFUNDS}:refunds`,
-      `oracle-unmarked:${REFUNDS}:refunds #2`,
+      `acceptance-unmarked:${REFUNDS}:refunds`,
+      `acceptance-unmarked:${REFUNDS}:refunds #2`,
     ]);
     expect(ids[2]).toContain('"name":"TITLE"');
   });
@@ -305,7 +313,7 @@ describe("examples/vitest-oracles, authored verdict", () => {
     const { report, status } = authored(cwd, base, [REFUNDS]);
     const findings = checkedFindings(report);
     expect(findings).toHaveLength(1);
-    expect(findings[0]?.id).toMatch(new RegExp(`^oracle-not-run:${REFUNDS}:`));
+    expect(findings[0]?.id).toMatch(new RegExp(`^acceptance-not-run:${REFUNDS}:`));
     expect(findings[0]?.message).toContain(reason);
     expect(status).toBe(1);
   });
@@ -327,10 +335,10 @@ describe("examples/vitest-oracles, authored verdict", () => {
     const base = commit(cwd, { [PRUNE]: PRUNE_BASE });
     edit(cwd, { [REFUNDS]: "test('refunds', () => {});\n" });
     const ids = checkedFindings(authored(cwd, base, [REFUNDS, REFUNDS]).report).map((f) => f.id);
-    expect(ids).toEqual([`oracle-unmarked:${REFUNDS}:refunds`]);
+    expect(ids).toEqual([`acceptance-unmarked:${REFUNDS}:refunds`]);
   });
 
-  it("reports an unparsable oracle file as a finding, not a refusal", () => {
+  it("reports an unparsable acceptance test file as a finding, not a refusal", () => {
     const cwd = makeRepo();
     const base = commit(cwd, { [PRUNE]: PRUNE_BASE });
     edit(cwd, { [PRUNE]: lines("it.fails('keeps the newest run', () => {", "  expect(") });
@@ -338,14 +346,14 @@ describe("examples/vitest-oracles, authored verdict", () => {
     const findings = checkedFindings(report);
     expect(findings).toHaveLength(1);
     expect(findings[0]).toMatchObject({
-      id: `oracle-unparsable:${PRUNE}`,
+      id: `acceptance-unparsable:${PRUNE}`,
       location: { file: PRUNE },
     });
     expect(status).toBe(1);
   });
 });
 
-const REFUNDS_ORACLE = lines(
+const REFUNDS_ACCEPTANCE = lines(
   "import { expect, test } from 'vitest'",
   "import { refund } from '../src/refund'",
   "",
@@ -358,26 +366,26 @@ const REFUNDS_ORACLE = lines(
   "})",
 );
 
-/** The oracle with every `test.fails` marker removed. */
+/** The acceptance test with every `test.fails` marker removed. */
 function stripBoth(text: string): string {
   return text.replaceAll("test.fails(", "test(");
 }
 
-function dischargeRepo() {
+function passingRepo() {
   const cwd = makeRepo();
   const base = commit(cwd, { [PRUNE]: PRUNE_BASE });
-  const oracleCommit = commit(cwd, { [REFUNDS]: REFUNDS_ORACLE });
-  return { cwd, base, oracleCommit };
+  const acceptanceCommit = commit(cwd, { [REFUNDS]: REFUNDS_ACCEPTANCE });
+  return { cwd, base, acceptanceCommit };
 }
 
-/** A one-test oracle expecting `value`. */
-function oracle(value: string): string {
+/** A one-test acceptance test expecting `value`. */
+function acceptanceTest(value: string): string {
   return `test.fails('refunds', () => { expect(f()).toBe(${value}); });\n`;
 }
 
-describe("examples/vitest-oracles, discharged verdict", () => {
+describe("examples/vitest-acceptance, passed verdict", () => {
   it("passes when both markers are removed and the file is only reformatted", () => {
-    const { cwd, base, oracleCommit } = dischargeRepo();
+    const { cwd, base, acceptanceCommit } = passingRepo();
     edit(cwd, {
       [REFUNDS]: lines(
         'import { expect, test } from "vitest";',
@@ -395,18 +403,18 @@ describe("examples/vitest-oracles, discharged verdict", () => {
         "});",
       ),
     });
-    const { report, status } = discharged(cwd, base, oracleCommit, [REFUNDS]);
+    const { report, status } = passed(cwd, base, acceptanceCommit, [REFUNDS]);
     expect(report).toMatchObject({ outcome: "checked", findings: [], review: [] });
     expect(status).toBe(0);
   });
 
   it("names the one marker still left", () => {
-    const { cwd, base, oracleCommit } = dischargeRepo();
-    edit(cwd, { [REFUNDS]: REFUNDS_ORACLE.replace("test.fails('refunds", "test('refunds") });
-    const { report, status } = discharged(cwd, base, oracleCommit, [REFUNDS]);
+    const { cwd, base, acceptanceCommit } = passingRepo();
+    edit(cwd, { [REFUNDS]: REFUNDS_ACCEPTANCE.replace("test.fails('refunds", "test('refunds") });
+    const { report, status } = passed(cwd, base, acceptanceCommit, [REFUNDS]);
     const findings = checkedFindings(report);
     expect(findings.map((f) => f.id)).toEqual([
-      `oracle-marker-left:${REFUNDS}:caps a refund at the invoice total`,
+      `acceptance-marker-left:${REFUNDS}:caps a refund at the invoice total`,
     ]);
     expect(findings[0]?.location).toEqual({ file: REFUNDS, lines: [8, 10] });
     expect(status).toBe(1);
@@ -415,37 +423,39 @@ describe("examples/vitest-oracles, discharged verdict", () => {
   it.each([
     {
       change: "an assertion edited",
-      working: stripBoth(REFUNDS_ORACLE).replace("toBe(120)", "toBe(100)"),
+      working: stripBoth(REFUNDS_ACCEPTANCE).replace("toBe(120)", "toBe(100)"),
       names: "caps a refund at the invoice total",
     },
     {
       change: "a test deleted",
-      working: stripBoth(REFUNDS_ORACLE.slice(0, REFUNDS_ORACLE.indexOf("test.fails('caps"))),
+      working: stripBoth(
+        REFUNDS_ACCEPTANCE.slice(0, REFUNDS_ACCEPTANCE.indexOf("test.fails('caps")),
+      ),
       names: "caps a refund at the invoice total",
     },
     {
       change: "a test added",
-      working: stripBoth(REFUNDS_ORACLE) + "\ntest('refunds twice', () => {})\n",
+      working: stripBoth(REFUNDS_ACCEPTANCE) + "\ntest('refunds twice', () => {})\n",
       names: "refunds twice",
     },
     {
       change: "a marker swapped for a skip",
-      working: stripBoth(REFUNDS_ORACLE).replace("test('caps", "test.skip('caps"),
+      working: stripBoth(REFUNDS_ACCEPTANCE).replace("test('caps", "test.skip('caps"),
       names: "caps a refund at the invoice total",
     },
     {
       change: "an import edited",
-      working: stripBoth(REFUNDS_ORACLE).replace("'../src/refund'", "'../src/refunds'"),
+      working: stripBoth(REFUNDS_ACCEPTANCE).replace("'../src/refund'", "'../src/refunds'"),
       names: "outside any test",
     },
   ])("finds the file changed when $change", ({ working, names }) => {
-    const { cwd, base, oracleCommit } = dischargeRepo();
+    const { cwd, base, acceptanceCommit } = passingRepo();
     edit(cwd, { [REFUNDS]: working });
-    const { report, status } = discharged(cwd, base, oracleCommit, [REFUNDS]);
+    const { report, status } = passed(cwd, base, acceptanceCommit, [REFUNDS]);
     const findings = checkedFindings(report);
     expect(findings).toHaveLength(1);
     expect(findings[0]).toMatchObject({
-      id: `oracle-changed:${REFUNDS}`,
+      id: `acceptance-changed:${REFUNDS}`,
       location: { file: REFUNDS },
       message: expect.stringContaining(names),
     });
@@ -458,73 +468,73 @@ describe("examples/vitest-oracles, discharged verdict", () => {
   ])("finds the file changed when %s changes", (_what, before, after) => {
     const cwd = makeRepo();
     const base = commit(cwd, { [PRUNE]: PRUNE_BASE });
-    const oracleCommit = commit(cwd, { [REFUNDS]: oracle(before) });
-    edit(cwd, { [REFUNDS]: oracle(after).replace("test.fails(", "test(") });
-    const { report, status } = discharged(cwd, base, oracleCommit, [REFUNDS]);
-    expect(checkedFindings(report).map((f) => f.id)).toEqual([`oracle-changed:${REFUNDS}`]);
+    const acceptanceCommit = commit(cwd, { [REFUNDS]: acceptanceTest(before) });
+    edit(cwd, { [REFUNDS]: acceptanceTest(after).replace("test.fails(", "test(") });
+    const { report, status } = passed(cwd, base, acceptanceCommit, [REFUNDS]);
+    expect(checkedFindings(report).map((f) => f.id)).toEqual([`acceptance-changed:${REFUNDS}`]);
     expect(status).toBe(1);
   });
 
-  it("finds the file changed when the oracle file is deleted", () => {
-    const { cwd, base, oracleCommit } = dischargeRepo();
+  it("finds the file changed when the acceptance test file is deleted", () => {
+    const { cwd, base, acceptanceCommit } = passingRepo();
     edit(cwd, { [REFUNDS]: null });
-    const { report, status } = discharged(cwd, base, oracleCommit, [REFUNDS]);
+    const { report, status } = passed(cwd, base, acceptanceCommit, [REFUNDS]);
     expect(checkedFindings(report)).toMatchObject([
-      { id: `oracle-changed:${REFUNDS}`, location: { file: REFUNDS } },
+      { id: `acceptance-changed:${REFUNDS}`, location: { file: REFUNDS } },
     ]);
     expect(status).toBe(1);
   });
 
-  it("finds a file that the oracle commit lacks and the working tree has changed", () => {
-    const { cwd, base, oracleCommit } = dischargeRepo();
+  it("finds a file that the acceptance commit lacks and the working tree has changed", () => {
+    const { cwd, base, acceptanceCommit } = passingRepo();
     edit(cwd, {
-      [REFUNDS]: REFUNDS_ORACLE.replaceAll("test.fails(", "test("),
+      [REFUNDS]: REFUNDS_ACCEPTANCE.replaceAll("test.fails(", "test("),
       "tests/extra.test.ts": "it('x', () => {});\n",
     });
-    const { report } = discharged(cwd, base, oracleCommit, [REFUNDS, "tests/extra.test.ts"]);
+    const { report } = passed(cwd, base, acceptanceCommit, [REFUNDS, "tests/extra.test.ts"]);
     expect(checkedFindings(report).map((f) => f.id)).toEqual([
-      `oracle-changed:tests/extra.test.ts`,
+      `acceptance-changed:tests/extra.test.ts`,
     ]);
   });
 
-  it("finds nothing for a file absent at the oracle commit and in the working tree", () => {
-    const { cwd, base, oracleCommit } = dischargeRepo();
-    edit(cwd, { [REFUNDS]: REFUNDS_ORACLE.replaceAll("test.fails(", "test(") });
-    const { report, status } = discharged(cwd, base, oracleCommit, [REFUNDS, "tests/none.test.ts"]);
+  it("finds nothing for a file absent at the acceptance commit and in the working tree", () => {
+    const { cwd, base, acceptanceCommit } = passingRepo();
+    edit(cwd, { [REFUNDS]: REFUNDS_ACCEPTANCE.replaceAll("test.fails(", "test(") });
+    const { report, status } = passed(cwd, base, acceptanceCommit, [REFUNDS, "tests/none.test.ts"]);
     expect(checkedFindings(report)).toEqual([]);
     expect(status).toBe(0);
   });
 
   it("reports an unparsable working-tree file as a finding", () => {
-    const { cwd, base, oracleCommit } = dischargeRepo();
+    const { cwd, base, acceptanceCommit } = passingRepo();
     edit(cwd, { [REFUNDS]: "test('x', () => {\n" });
-    const { report, status } = discharged(cwd, base, oracleCommit, [REFUNDS]);
-    expect(checkedFindings(report).map((f) => f.id)).toEqual([`oracle-unparsable:${REFUNDS}`]);
+    const { report, status } = passed(cwd, base, acceptanceCommit, [REFUNDS]);
+    expect(checkedFindings(report).map((f) => f.id)).toEqual([`acceptance-unparsable:${REFUNDS}`]);
     expect(status).toBe(1);
   });
 
-  it("refuses an oracle file that does not parse at the oracle commit, naming the recovery", () => {
+  it("refuses an acceptance test file that does not parse at the acceptance commit, naming the recovery", () => {
     const cwd = makeRepo();
     const base = commit(cwd, { [PRUNE]: PRUNE_BASE });
-    const oracleCommit = commit(cwd, { [REFUNDS]: "test.fails('x', () => {\n" });
-    edit(cwd, { [REFUNDS]: REFUNDS_ORACLE });
-    const { report, status } = discharged(cwd, base, oracleCommit, [REFUNDS]);
+    const acceptanceCommit = commit(cwd, { [REFUNDS]: "test.fails('x', () => {\n" });
+    edit(cwd, { [REFUNDS]: REFUNDS_ACCEPTANCE });
+    const { report, status } = passed(cwd, base, acceptanceCommit, [REFUNDS]);
     expect(report).toMatchObject({
       outcome: "refused",
       reason: expect.stringContaining(REFUNDS),
-      remedy: expect.stringContaining("--skip-oracle"),
+      remedy: expect.stringContaining("--skip-acceptance"),
     });
     expect(status).toBe(1);
   });
 });
 
-describe("examples/vitest-oracles, requests it cannot read", () => {
+describe("examples/vitest-acceptance, requests it cannot read", () => {
   const sha = "a".repeat(40);
   const valid = {
-    $schema: "https://docs.phax.run/schemas/oracle-request/0.21.0.json",
+    $schema: currentSchemaUrl("acceptance-request"),
     verdict: "authored",
     phase: "phase-01",
-    oraclePhase: "phase-01",
+    acceptancePhase: "phase-01",
     base: sha,
     files: ["tests/refunds.test.ts"],
   };
@@ -542,16 +552,25 @@ describe("examples/vitest-oracles, requests it cannot read", () => {
       reason: "$schema",
     },
     {
-      name: "a verdict other than authored or discharged",
-      stdin: JSON.stringify({ ...valid, verdict: "approved" }),
+      name: "an oracle-request 0.26.0 document",
+      stdin: JSON.stringify({
+        ...valid,
+        $schema: "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+        oraclePhase: "phase-01",
+      }),
+      reason: "$schema",
+    },
+    {
+      name: "a verdict other than authored or passed",
+      stdin: JSON.stringify({ ...valid, verdict: "discharged" }),
       reason: "verdict",
     },
     { name: "stdin that is not JSON", stdin: "this is not json", reason: "JSON" },
     { name: "an empty stdin", stdin: "", reason: "JSON" },
     {
       name: "a key the variant does not have",
-      stdin: JSON.stringify({ ...valid, oracleCommit: sha }),
-      reason: "oracleCommit",
+      stdin: JSON.stringify({ ...valid, acceptanceCommit: sha }),
+      reason: "acceptanceCommit",
     },
     { name: "a key the variant lacks", stdin: JSON.stringify(without("base")), reason: "base" },
     {
@@ -598,22 +617,22 @@ describe("examples/vitest-oracles, requests it cannot read", () => {
     expect(status).toBe(1);
   });
 
-  it("refuses an oracleCommit that is not a commit of the repository", () => {
+  it("refuses an acceptanceCommit that is not a commit of the repository", () => {
     const cwd = makeRepo();
     const base = commit(cwd, { [PRUNE]: PRUNE_BASE });
-    const { report } = discharged(cwd, base, "b".repeat(40), [PRUNE]);
+    const { report } = passed(cwd, base, "b".repeat(40), [PRUNE]);
     expect(report).toMatchObject({
       outcome: "refused",
       reason: expect.stringContaining("b".repeat(40)),
     });
   });
 
-  it("accepts any X.Y.Z release of the oracle-request format", () => {
+  it("accepts any X.Y.Z release of the acceptance-request format", () => {
     const cwd = makeRepo();
     const base = commit(cwd, { [PRUNE]: PRUNE_BASE });
     const stdin = JSON.stringify({
       ...valid,
-      $schema: "https://docs.phax.run/schemas/oracle-request/9.9.9.json",
+      $schema: "https://docs.phax.run/schemas/acceptance-request/9.9.9.json",
       base,
       files: [PRUNE],
     });
@@ -621,13 +640,13 @@ describe("examples/vitest-oracles, requests it cannot read", () => {
   });
 });
 
-describe("examples/vitest-oracles, stability", () => {
+describe("examples/vitest-acceptance, stability", () => {
   it("prints identical stdout for the same request twice", () => {
     const cwd = makeRepo();
     const base = commit(cwd, { [PRUNE]: PRUNE_BASE });
     edit(cwd, {
       [PRUNE]: PRUNE_BASE.replace("[1, 2]", "[1, 2, 3]"),
-      [REFUNDS]: REFUNDS_ORACLE.replaceAll("test.fails(", "test("),
+      [REFUNDS]: REFUNDS_ACCEPTANCE.replaceAll("test.fails(", "test("),
     });
     const first = authored(cwd, base, [PRUNE, REFUNDS]);
     const second = authored(cwd, base, [PRUNE, REFUNDS]);
@@ -636,25 +655,17 @@ describe("examples/vitest-oracles, stability", () => {
   });
 });
 
-describe("phax's own oracles declaration", () => {
-  it("declares the example as the oracles command and the example answers there", () => {
-    // Read raw, not through decodePhaxConfig: this repository's phax.json still says
-    // `oracles` for the installed phax that drives its runs. Plan 4 of acceptance-tests
-    // renames the key and restores the decode.
-    const raw = JSON.parse(readFileSync(join(repoRoot, "phax.json"), "utf8")) as {
-      readonly oracles?: { readonly command?: string };
-    };
-    const command = raw.oracles?.command;
-    expect(command).toBe("node examples/vitest-oracles/main.mjs");
+describe("phax's own acceptance declaration", () => {
+  it("declares the example as the acceptance command and the example answers there", () => {
+    const decoded = decodePhaxConfig(JSON.parse(readFileSync(join(repoRoot, "phax.json"), "utf8")));
+    if (Either.isLeft(decoded)) throw new Error("phax.json does not decode");
+    const command = decoded.right.acceptance?.command;
+    expect(command).toBe("node examples/vitest-acceptance/main.mjs");
 
     const [file, ...args] = (command ?? "").split(/\s+/);
-    const request = serializeOracleRequest({
-      verdict: "authored",
-      phase: "phase-01",
-      oraclePhase: "phase-01",
-      base: git(repoRoot, ["rev-parse", "HEAD"]),
-      files: ["tests/integration/exampleProviders.test.ts"],
-    });
+    const request = authoredRequest(git(repoRoot, ["rev-parse", "HEAD"]), [
+      "tests/integration/exampleProviders.test.ts",
+    ]);
     const { stdout, status } = spawnSync(file ?? "", args, {
       input: request,
       cwd: repoRoot,
@@ -671,7 +682,9 @@ describe("the example stays outside the CLI", () => {
       .filter((path) => path.endsWith(".ts"))
       .filter((path) => {
         const text = readFileSync(join(repoRoot, "src", path), "utf8");
-        return /examples\/vitest-oracles/.test(text) || /from\s+["'][^"']*\/examples\//.test(text);
+        return (
+          /examples\/vitest-acceptance/.test(text) || /from\s+["'][^"']*\/examples\//.test(text)
+        );
       });
     expect(offenders).toEqual([]);
   });
@@ -684,6 +697,8 @@ describe("the example stays outside the CLI", () => {
   });
 
   it("is not part of phax's command spec", () => {
-    expect(readFileSync(join(repoRoot, "phax.usage.kdl"), "utf8")).not.toContain("vitest-oracles");
+    expect(readFileSync(join(repoRoot, "phax.usage.kdl"), "utf8")).not.toContain(
+      "vitest-acceptance",
+    );
   });
 });

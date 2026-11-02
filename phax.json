@@ -45,7 +45,7 @@
     "setup": ["pnpm install"],
     "cleanup": ["rm -rf node_modules"]
   },
-  "oracles": { "command": "node examples/vitest-oracles/main.mjs" },
+  "acceptance": { "command": "node examples/vitest-acceptance/main.mjs" },
   "gateProfiles": {
     "standard": [
       { "command": "pnpm format", "surface": "local", "firing": "every-phase" },

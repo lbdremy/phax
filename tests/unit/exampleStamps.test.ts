@@ -15,8 +15,8 @@ const repoRoot = resolve(import.meta.dirname, "../..");
 const FILES = [
   "examples/hello-world/audit.mjs",
   "examples/hello-world/brief.mjs",
-  "examples/vitest-oracles/main.mjs",
-  "examples/vitest-oracles/README.md",
+  "examples/vitest-acceptance/main.mjs",
+  "examples/vitest-acceptance/README.md",
   "README.md",
 ];
 
