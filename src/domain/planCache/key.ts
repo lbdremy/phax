@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { splitFrontmatter } from "../artifact/frontmatter.js";
 
 // 2: the key hashes the plan body without its frontmatter block (was: the whole file).
-// 3: phases carry mode and oracle, read from the header lines.
+// 3: phases carry mode and acceptance (the key an earlier extractor read as `oracle`), read from the header lines.
 // 4: phases carry testLines.
 // 5: the test line's loop is acceptance | in-phase and boundary joins the techniques.
 export const EXTRACTOR_VERSION = 5;

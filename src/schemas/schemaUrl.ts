@@ -82,8 +82,8 @@ export function isFormatId(value: string): value is FormatId {
  * the manifest of a decide session's decision record, and a run's cost
  * ledger. So are the architecture request phax writes on an architecture
  * provider's stdin and the architecture report the provider prints, of spec
- * planning-skill-defaults, and the oracle request phax writes on the oracles
- * provider's stdin, of spec oracle-phases. So are the first reading and the
+ * planning-skill-defaults, and the oracle request phax wrote on the provider's
+ * stdin (retired, frozen at 0.26.0), of spec oracle-phases. So are the first reading and the
  * interactive handoff a declared phase's turns answer, which phax reads but
  * never writes, and the interactive session and review stop phax writes, of
  * spec interactive-phases. So is the run list `phax ls --json` prints, of the

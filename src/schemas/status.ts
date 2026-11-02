@@ -86,7 +86,7 @@ const runStatusFields = {
   // run-status.json files must still decode, and absent means no consent.
   allowSkillEdits: Schema.optionalWith(Schema.Boolean, { exact: true }),
   // The hold resolved when the run was named (`phax run --hold`; the CLI word
-  // `oracle` selects `acceptance`) and never
+  // `acceptance` holds the acceptance phases) and never
   // changed, so every `phax resume` holds exactly these phases. Required: the
   // readers lift a run written before it to `none`.
   hold: RunHoldSchema,

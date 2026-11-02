@@ -4,7 +4,7 @@
 // writes it. Exactly one of `plan` and `incomplete` is non-null: the plan the
 // model extracted, or why it found the plan incomplete. The plan is the
 // extracted one without the two things phax reads from plan.md's header lines
-// itself (`mode` and `oracle`, see `withPhaseKinds`) and without the cache's
+// itself (`mode` and `acceptance`, see `withPhaseKinds`) and without the cache's
 // `version`. Every key is required and any other key is refused. A const
 // `$schema` reads only its own stamp: the schemas package still maps a later
 // stamp to the latest shape at or below it, so a document stamped above the
@@ -17,7 +17,7 @@ import { NonEmptyString } from "./strictString.js";
 
 const EXACTLY_ONE = "plan and incomplete: exactly one of them is null";
 
-/** The plan the model extracted: its run and phases, a phase without `mode` and `oracle`. */
+/** The plan the model extracted: its run and phases, a phase without `mode` and `acceptance`. */
 const ExtractionPlanSchema = Schema.Struct({
   run: ExtractedRunSchema,
   phases: Schema.NonEmptyArray(Schema.Struct(answerPhaseFields)),
