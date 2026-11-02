@@ -32,7 +32,11 @@ export interface AllowEntry {
   readonly reason: KeptCategory;
   /** A path glob relative to the repository root: `*` within a segment, `**` across segments. */
   readonly file: string;
-  /** Absent for a whole-file entry (frozen modules and readers or lifts only). */
+  /**
+   * Absent for a whole-file entry (frozen modules and readers or lifts only).
+   * A line entry allows only the words its own match covers, so an allowed
+   * token never exempts another word on the same line.
+   */
   readonly line?: RegExp;
 }
 
@@ -59,29 +63,36 @@ export const ALLOWLIST: readonly AllowEntry[] = [
     file: "src/schemas/acceptanceLift.ts",
   },
   {
+    id: "lift-format-record-manifests",
+    reason: "reader or lift of an earlier shape",
+    file: "packages/schemas/src/formats/recordManifests.ts",
+    line: /could run an oracle phase|`oracle` role|"oracle" in value|oracle, mode|liftRecordRole\(oracle\)/,
+  },
+
+  // ── Lift comments in the package modules that also define current formats.
+  {
     id: "lift-format-repository",
     reason: "reader or lift of an earlier shape",
     file: "packages/schemas/src/formats/repository.ts",
+    line: /`oracle: \{ dischargedBy, files \}`|loop `oracle`|the `oracle` key/,
   },
   {
     id: "lift-format-run-directory",
     reason: "reader or lift of an earlier shape",
     file: "packages/schemas/src/formats/runDirectory.ts",
-  },
-  {
-    id: "lift-format-record-manifests",
-    reason: "reader or lift of an earlier shape",
-    file: "packages/schemas/src/formats/recordManifests.ts",
+    line: /`mode` and `oracle`|hold selection `oracle`|`oracleStep` is lifted|`oracle: \{ dischargedBy|loop `oracle`|the `oracle` key/,
   },
   {
     id: "lift-format-record-timeline",
     reason: "reader or lift of an earlier shape",
     file: "packages/schemas/src/formats/recordTimeline.ts",
+    line: /their `oracle` step/,
   },
   {
     id: "lift-format-answers",
     reason: "reader or lift of an earlier shape",
     file: "packages/schemas/src/formats/answers.ts",
+    line: /loop `oracle`/,
   },
   {
     id: "lift-format-acceptance-request",
@@ -206,13 +217,13 @@ export const ALLOWLIST: readonly AllowEntry[] = [
     id: "test-line-grammar-retired-loop",
     reason: "old-name refusal",
     file: "src/domain/plan/testLineGrammar.ts",
-    line: /loop `oracle`|loop 'oracle'|LOOPS_BEFORE_ACCEPTANCE|"oracle"|`oracle`|liftTestLoop|its loop is `oracle`/,
+    line: /loop `oracle`|loop 'oracle'|"oracle"|`oracle`|its loop is `oracle`/,
   },
   {
     id: "test-line-criterion-filter",
     reason: "old-name refusal",
     file: "src/schemas/testLine.ts",
-    line: /RESERVED_CRITERIA|'oracle'|reserved words|plus `oracle`|`oracle`/,
+    line: /"oracle"|'oracle'|plus `oracle`|`oracle`/,
   },
 
   // ── The test line's fourth field.
@@ -276,13 +287,16 @@ export const ALLOWLIST: readonly AllowEntry[] = [
   },
 ];
 
+/** One oracle or discharge word, located by its line and its column on it. */
 export interface Occurrence {
   readonly file: string;
   readonly line: number;
+  readonly column: number;
+  readonly word: string;
   readonly text: string;
 }
 
-const WORDS = [/oracle/i, /discharg/i];
+const WORDS = /oracle|discharg/gi;
 
 function globToRegExp(glob: string): RegExp {
   const source = glob
@@ -316,17 +330,27 @@ export function findOccurrences(files: readonly string[]): Occurrence[] {
   for (const file of files) {
     const lines = readFileSync(path.join(REPO_ROOT, file), "utf8").split("\n");
     lines.forEach((text, index) => {
-      if (WORDS.some((word) => word.test(text))) {
-        found.push({ file, line: index + 1, text: text.trim() });
+      for (const match of text.matchAll(WORDS)) {
+        found.push({ file, line: index + 1, column: match.index, word: match[0], text });
       }
     });
   }
   return found;
 }
 
+// A line entry allows an occurrence only when one of its matches on that line
+// spans the occurrence's word.
 function allows(entry: AllowEntry, occurrence: Occurrence): boolean {
   if (!globToRegExp(entry.file).test(occurrence.file)) return false;
-  return entry.line === undefined || entry.line.test(occurrence.text);
+  if (entry.line === undefined) return true;
+  const start = occurrence.column;
+  const end = start + occurrence.word.length;
+  const pattern = new RegExp(entry.line.source, `${entry.line.flags.replace("g", "")}g`);
+  for (const match of occurrence.text.matchAll(pattern)) {
+    if (match[0].length === 0) continue;
+    if (match.index <= start && match.index + match[0].length >= end) return true;
+  }
+  return false;
 }
 
 describe("acceptance words in the sources (ac-oracle-kept, source half)", () => {
@@ -342,7 +366,9 @@ describe("acceptance words in the sources (ac-oracle-kept, source half)", () => 
 
   it("finds no oracle or discharge outside an allowlist entry", () => {
     const unallowed = occurrences.filter((o) => !ALLOWLIST.some((entry) => allows(entry, o)));
-    expect(unallowed.map((o) => `${o.file}:${String(o.line)}: ${o.text}`)).toEqual([]);
+    expect(
+      unallowed.map((o) => `${o.file}:${String(o.line)}:${String(o.column + 1)}: ${o.text.trim()}`),
+    ).toEqual([]);
   });
 
   it("has no allowlist entry that allows nothing", () => {
@@ -359,6 +385,28 @@ describe("acceptance words in the sources (ac-oracle-kept, source half)", () => 
         "retired oracle-request format id and exports",
       ]).toContain(entry.reason);
     }
+  });
+
+  it("allows only the word an entry's match spans, not the rest of its line", () => {
+    const entry: AllowEntry = {
+      id: "field",
+      reason: "test line fourth field",
+      file: "src/cli/cliDocs.ts",
+      line: /<oracle>/,
+    };
+    const text = "write <oracle> after the technique; an oracle phase is discharged";
+    const [field, phase, discharge] = [...text.matchAll(WORDS)].map(
+      (match): Occurrence => ({
+        file: "src/cli/cliDocs.ts",
+        line: 1,
+        column: match.index,
+        word: match[0],
+        text,
+      }),
+    );
+    expect(allows(entry, field!)).toBe(true);
+    expect(allows(entry, phase!)).toBe(false);
+    expect(allows(entry, discharge!)).toBe(false);
   });
 
   it("gives every entry a unique id", () => {
