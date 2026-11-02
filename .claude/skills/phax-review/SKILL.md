@@ -147,9 +147,9 @@ The developer is in the session and owns every change.
 1. Report what you saw using the change first: the surface pass, before any code finding.
 2. Then the findings, most severe first, in the form above.
 3. Propose fixes; apply one only when the developer confirms it.
-4. Never edit a test to make the code pass. When a finding says an acceptance test or a test is
-   wrong, say so and let the developer decide: changing what judges the code is an
-   acceptance-test question, not a fix (`phax-decide-review`, `R4`).
+4. Never edit a test to make the code pass. When a finding says a test is wrong, say so and
+   let the developer decide: changing what judges the code is a question for the spec, not
+   a fix (`phax-decide-review`, `R4`).
 
 ## What not to do
 

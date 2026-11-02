@@ -1,6 +1,6 @@
 # Acceptance phases
 
-An acceptance phase writes the tests that a later phase has to pass. phax judges the two apart: when the acceptance phase finishes, a provider you configure checks that the tests are marked as expected failures; when the next phase, the passing phase, finishes, the provider checks that the only thing that changed in them is the removal of those marks. A test the code cannot pass unchanged is not rewritten to fit: the run pauses and the disagreement goes back to the spec. This page is for the repository owner who configures an `acceptance` provider, and for the planner who writes an acceptance-first plan.
+An acceptance phase writes the tests that a later phase has to pass. phax judges the two apart: when the acceptance phase finishes, a provider you configure checks that the tests are marked as expected failures; when its passing phase finishes, the provider checks that the only thing that changed in them is the removal of those marks. A test the code cannot pass unchanged is not rewritten to fit: the run pauses and the disagreement goes back to the spec. This page is for the repository owner who configures an `acceptance` provider, and for the planner who writes an acceptance-first plan.
 
 phax itself knows no test framework, no marker and no test-file convention. The provider does.
 

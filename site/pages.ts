@@ -241,7 +241,7 @@ export default definePageMap({
       title: "Acceptance phases",
       source: "docs/acceptance-phases.md",
       description:
-        "Declare an acceptance provider, and write a plan whose acceptance tests are written in one phase and passed in the next.",
+        "Declare an acceptance provider, and write a plan whose acceptance tests are written in one phase and passed in a later one.",
     },
     {
       route: "/guide/assignment-bounds",

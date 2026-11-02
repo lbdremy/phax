@@ -82,11 +82,11 @@ handoffs, docs, the PR's tables).
 - `P3` (`C4`) **Acceptance first, when the surface is shown and a provider is configured.** When
   an `acceptance` provider is configured (phax.json or its overlays; the headless authoring
   prompt says whether one is) and the spec shows the surface with real before/after
-  artifacts, write the tests in an acceptance phase that precedes the implementing
-  phase; the implementing phase changes those files only by removing the markers, judged by
+  artifacts, write the tests in an acceptance phase that precedes the passing
+  phase; the passing phase changes those files only by removing the markers, judged by
   the acceptance provider. With no `acceptance` provider, or when the surface is only described,
   keep test and code in one phase and rely on the compliance review's `tests` dimension. If
-  an acceptance test written first turns out wrong, the implementing phase changes it only by
+  an acceptance test written first turns out wrong, the passing phase changes it only by
   removing the markers: the run pauses and the disagreement goes back to the spec — that is
   the intended behaviour, not a failure. An acceptance test is the acceptance loop, never the inner
   one: it tests the shown surface through a stable entry and traces to an acceptance

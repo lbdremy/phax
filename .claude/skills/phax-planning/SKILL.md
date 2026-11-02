@@ -300,7 +300,7 @@ provider judges both gates.
   phase: `**Acceptance phase:** yes` (the next phase passes it) or
   `**Acceptance phase:** passed by phase-NN`, then `**Acceptance test files:** <paths>`.
 - **The acceptance test files are a subset of the acceptance phase's planned files** to create or edit.
-  The phase may plan stubs that are not acceptance tests.
+  The phase may plan stubs that are not acceptance test files.
 - **The acceptance phase marks its tests.** Every test it adds or modifies carries the test
   runner's expected-failure marker, so the test command stays green; it may delete tests.
 - **The passing phase** (the next phase, or the one named) removes the markers and writes
@@ -443,8 +443,8 @@ from its default and depart only for a reason:
   or extends the suite both run.
 - **Randomized tests run on a fixed seed in the gate**, and a counterexample a property
   finds becomes an example test that stays.
-- **Every acceptance criterion the phase serves appears on at least one line**, as an
-  acceptance or in-phase.
+- **Every acceptance criterion the phase serves appears on at least one line**, in the
+  `acceptance` or the `in-phase` loop.
 - **A new technique is a planned dependency.** A technique the project has no library for
   (a property-based testing library, a mutation tool) is not planned silently: adding the
   dependency is a phase of its own, or an arbitration.
