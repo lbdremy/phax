@@ -68,7 +68,7 @@ describe("acceptanceSkipRefusal", () => {
   it("refuses any other phase, naming it", () => {
     for (const id of ["phase-01", "phase-03", "phase-05"]) {
       expect(acceptanceSkipRefusal(phases, id)).toBe(
-        `--skip-acceptance: ${id} is neither an oracle phase nor a discharging phase; it has no oracle step to skip.`,
+        `--skip-acceptance: ${id} is neither an acceptance phase nor a passing phase; it has no acceptance step to skip.`,
       );
     }
   });
@@ -107,9 +107,9 @@ describe("renderAcceptancePairsSection", () => {
       ]),
     ).toBe(
       [
-        "## Oracle pairs",
+        "## Acceptance pairs",
         "",
-        "| Oracle phase | Discharged by | Authored | Discharged |",
+        "| Acceptance phase | Passed by | Authored | Passed |",
         "| --- | --- | --- | --- |",
         "| phase-02 | phase-03 | pass | pass |",
         "| phase-04 | phase-05 | fail | not run |",
@@ -138,7 +138,7 @@ describe("stopSkipAcceptanceRefusal", () => {
     ["the passing phase", "phase-04"],
   ])("names the run and the stop at %s of a pair", (_name, phaseId) => {
     expect(stopSkipAcceptanceRefusal(phases, "invoice-export", phaseId)).toBe(
-      `--skip-acceptance: invoice-export awaits review at ${phaseId}; a close's authored oracle step is never skipped. Undo the oracle-file correction, or reset the stop.`,
+      `--skip-acceptance: invoice-export awaits review at ${phaseId}; a close's authored acceptance step is never skipped. Undo the acceptance-test-file correction, or reset the stop.`,
     );
   });
 

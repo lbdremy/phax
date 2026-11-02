@@ -442,7 +442,7 @@ describe("a held oracle phase", { timeout: 60_000 }, () => {
 
     expect(error.lastClose).toMatchObject({ result: "close-error", exitCode: 1, step: "gate" });
     expect((error.lastClose as { detail: string }).detail).toContain(
-      `a gate step wrote ${ORACLE_FILE}, an oracle file of pair phase-02 → phase-03`,
+      `a gate step wrote ${ORACLE_FILE}, an acceptance test file of pair phase-02 → phase-03`,
     );
     expect(verdicts()).toEqual(["authored:phase-02"]);
   });
@@ -525,7 +525,7 @@ describe("a declared review between the pair", { timeout: 60_000 }, () => {
     expect(state).toBe("gates_exhausted");
     // The discharge stopped at its gate: the refusal names the recovery.
     expect(reset.left.message).toBe(
-      `Cannot reset 'phase-03' of run '${SHORT}': its discharging phase 'phase-04' is ${state}, and the discharge judges this phase's commit. To correct the oracle, edit it in phase-04 (\`phax enter-phase ${SHORT} phase-04\`), then run \`phax resume ${SHORT} --yes --skip-acceptance\`: the configured gate still runs.`,
+      `Cannot reset 'phase-03' of run '${SHORT}': its passing phase 'phase-04' is ${state}, and the passing phase judges this phase's commit. To correct the acceptance test, edit it in phase-04 (\`phax enter-phase ${SHORT} phase-04\`), then run \`phax resume ${SHORT} --yes --skip-acceptance\`: the configured gate still runs.`,
     );
     expect(readFileSync(join(run.runPath, "phase-03", "status.json"), "utf8")).toBe(before);
   });
@@ -570,7 +570,7 @@ describe("a held discharge closes on its configured steps", { timeout: 60_000 },
     });
     expect(closed.report.gateSteps.map((s) => s.surface)).toEqual(["local"]);
     expect(renderStopClosed(closed)).toContain(
-      `  warning: ${ORACLE_FILE}: an oracle file changed at the discharge; the discharge was judged before the stop, so the oracles provider does not see this change`,
+      `  warning: ${ORACLE_FILE}: an acceptance test file changed at the passing phase; the passing phase was judged before the stop, so the acceptance provider does not see this change`,
     );
     expect(
       run.telemetry.impl.events().filter((e) => e.type === "acceptance.edits.unjudged"),

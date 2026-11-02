@@ -33,9 +33,9 @@ export interface AuthoringPromptInput {
 }
 
 const ACCEPTANCE_CONFIGURED_LINE =
-  '- An oracles provider is configured ("oracles" in phax config): you may declare an oracle phase and its discharging phase, as the skill\'s oracle-phase section says.';
+  '- An acceptance provider is configured ("acceptance" in phax config): you may declare an acceptance phase and its passing phase, as the skill\'s acceptance-phase section says.';
 const ACCEPTANCE_ABSENT_LINE =
-  "- No oracles provider is configured: declare no oracle phase; every phase's `oracle` is null.";
+  "- No acceptance provider is configured: declare no acceptance phase; every phase's `acceptance` is null.";
 
 const ARCHITECTURE_CONFIGURED_LINE =
   "- An architecture provider is configured: before cutting phases and assigning models, run `phax architecture` (or `phax architecture <path>...` for the parts the plan touches) and plan against its answer.";

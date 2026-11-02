@@ -47,7 +47,7 @@ export interface ResumeInstructionsInput {
 
 /** Operator-only: the wrong-acceptance-test recovery; no agent prompt carries it. */
 const AcceptanceSkipSentence =
-  "Either resume as is — the gate, oracle step included, is re-run first — or, if the oracle itself is wrong, correct it in the phase worktree and resume with --skip-acceptance: the phase's configured gate still runs, with the usual fix loop, and the oracle step is recorded as skipped.";
+  "Either resume as is — the gate, acceptance step included, is re-run first — or, if the acceptance test itself is wrong, correct it in the phase worktree and resume with --skip-acceptance: the phase's configured gate still runs, with the usual fix loop, and the acceptance step is recorded as skipped.";
 
 function stepsToMarkdown(steps: readonly NextStep[]): string[] {
   const lines: string[] = [];
@@ -165,7 +165,7 @@ function buildGateExhaustionInstructions(input: ResumeInstructionsInput): string
         ]
       : failedStep === "acceptance"
         ? [
-            "This run paused because the oracle step failed after exhausting all fix attempts.",
+            "This run paused because the acceptance step failed after exhausting all fix attempts.",
             AcceptanceSkipSentence,
           ]
         : [
@@ -220,10 +220,10 @@ function buildGateRefusalInstructions(input: ResumeInstructionsInput): string {
     `This run paused because the gate step \`${refusal.command}\` refused to run.`,
     ...(failedStep === "acceptance"
       ? [
-          "No fix attempt was made. Fix the cause and resume — the gate, oracle step included, is",
-          "re-run first, with the full fix budget — or, if the oracle itself is wrong, correct it in",
-          "the phase worktree and resume with --skip-acceptance: the phase's configured gate still runs,",
-          "with the usual fix loop, and the oracle step is recorded as skipped.",
+          "No fix attempt was made. Fix the cause and resume — the gate, acceptance step included, is",
+          "re-run first, with the full fix budget — or, if the acceptance test itself is wrong,",
+          "correct it in the phase worktree and resume with --skip-acceptance: the phase's configured gate still runs,",
+          "with the usual fix loop, and the acceptance step is recorded as skipped.",
         ]
       : [
           "No fix attempt was made. Fix the cause, then resume — the gate is re-run first,",

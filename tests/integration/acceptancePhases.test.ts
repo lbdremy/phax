@@ -575,7 +575,7 @@ describe("acceptance phases in a run", () => {
     expect(result.left).toMatchObject({ failure: { failedStep: "acceptance" } });
     expect(await h.readJson("phase-03", "status.json")).toMatchObject({ state: "gates_exhausted" });
     const instructions = await readFile(join(h.runPath, "resume-instructions.md"), "utf8");
-    expect(instructions).toContain("the oracle step failed after exhausting all fix attempts");
+    expect(instructions).toContain("the acceptance step failed after exhausting all fix attempts");
     expect(instructions).toContain("phax resume refunds --yes");
     expect(instructions).toContain("--skip-acceptance");
     expect(instructions).toContain("the phase's configured gate still runs");
@@ -599,7 +599,7 @@ describe("acceptance phases in a run", () => {
     expect(refusedReset.left).toBeInstanceOf(ResetPhaseError);
     expect(refusedReset.left).toMatchObject({ reason: "phase_blocked_by_passing" });
     expect(refusedReset.left.message).toBe(
-      `Cannot reset "phase-02" of run "refunds": its discharging phase "phase-03" is gates_exhausted, and a committed oracle phase is not reset. To correct the oracle, edit it in phase-03 (\`phax enter-phase refunds phase-03\`), then run \`phax resume refunds --yes --skip-acceptance\`: the configured gate still runs.`,
+      `Cannot reset "phase-02" of run "refunds": its passing phase "phase-03" is gates_exhausted, and a committed acceptance phase is not reset. To correct the acceptance test, edit it in phase-03 (\`phax enter-phase refunds phase-03\`), then run \`phax resume refunds --yes --skip-acceptance\`: the configured gate still runs.`,
     );
     expect(await readFile(join(h.runPath, "phase-02", "status.json"), "utf8")).toBe(statusBefore);
 
@@ -753,8 +753,8 @@ describe("acceptance phases in a run", () => {
     expect(resumed.left).toMatchObject({ acceptancePhase: "phase-02", passingPhase: "phase-03" });
     expect(resumed.left.message).toBe(
       [
-        `Cannot run discharging phase "phase-03" of run "refunds": its oracle phase "phase-02" is skipped and noted no commit, so there are no oracles to discharge.`,
-        "No resume gives a skipped oracle phase a commit: archive the run (phax archive refunds --force) and run a corrected plan whose oracle phase writes its oracles.",
+        `Cannot run passing phase "phase-03" of run "refunds": its acceptance phase "phase-02" is skipped and noted no commit, so there are no acceptance tests to pass.`,
+        "No resume gives a skipped acceptance phase a commit: archive the run (phax archive refunds --force) and run a corrected plan whose acceptance phase writes its acceptance tests.",
       ].join("\n"),
     );
     expect(exitCodeForError(resumed.left)).toBe(11);

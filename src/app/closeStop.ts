@@ -608,7 +608,7 @@ function decideAcceptanceStep(
         closeError(
           "gate",
           new Error(
-            `the corrections change oracle files of ${pairs.length} oracle pairs (${pairs.map(pairName).join(", ")}), and one close judges one pair: undo the oracle-file corrections of all but one pair, or reset the stop`,
+            `the corrections change acceptance test files of ${pairs.length} acceptance pairs (${pairs.map(pairName).join(", ")}), and one close judges one pair: undo the acceptance-test-file corrections of all but one pair, or reset the stop`,
           ),
         ),
       );
@@ -619,7 +619,7 @@ function decideAcceptanceStep(
         closeError(
           "gate",
           new Error(
-            `the corrections change ${files.join(", ")}, an oracle file of pair ${pairName(pair)}, and no "acceptance" provider is configured to judge them: configure one, or undo the oracle-file correction`,
+            `the corrections change ${files.join(", ")}, an acceptance test file of pair ${pairName(pair)}, and no "acceptance" provider is configured to judge them: configure one, or undo the acceptance-test-file correction`,
           ),
         ),
       );
@@ -659,7 +659,7 @@ function refuseGateAcceptanceWrites(
           closeError(
             "gate",
             new Error(
-              `a gate step wrote ${written}, an oracle file of pair ${pairName(pair)} that the corrections did not change: no oracle step judges it; make the gate leave oracle files alone, then resume`,
+              `a gate step wrote ${written}, an acceptance test file of pair ${pairName(pair)} that the corrections did not change: no acceptance step judges it; make the gate leave acceptance test files alone, then resume`,
             ),
           ),
         );

@@ -199,7 +199,7 @@ describe("buildWhatsNext", () => {
         },
         NOW,
       );
-      expect(wn.headline).toBe("The oracle step failed after all fix attempts.");
+      expect(wn.headline).toBe("The acceptance step failed after all fix attempts.");
       expect(wn.steps.map((s) => s.command)).toEqual([
         "phax resume proj --yes",
         "phax enter-phase proj phase-03",
@@ -275,7 +275,7 @@ describe("buildWhatsNext", () => {
     it("keeps the oracle correction with --skip-acceptance after an oracle step's exhaustion", () => {
       const wn = buildWhatsNext({ ...exhausted, failedStep: "acceptance" }, NOW);
       expect(wn.headline).toContain(
-        "The oracle step failed after all fix attempts, and protected paths changed.",
+        "The acceptance step failed after all fix attempts, and protected paths changed.",
       );
       expect(wn.headline).toContain("packages/a/steme.baseline.json — edited");
       expect(wn.steps.map((s) => s.command)).toEqual([
@@ -286,7 +286,7 @@ describe("buildWhatsNext", () => {
         "phax resume proj --yes --skip-acceptance",
       ]);
       expect(wn.steps[2]?.title).toContain("base branch");
-      expect(wn.steps[3]?.title).toContain("the oracle itself is wrong");
+      expect(wn.steps[3]?.title).toContain("the acceptance test itself is wrong");
       expect(wn.steps[3]?.detail?.[0]).toContain("The protected-path check still runs");
       expect(renderWhatsNext(wn)).not.toContain("reset-phase");
     });

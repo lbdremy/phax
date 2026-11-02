@@ -196,7 +196,7 @@ export function renderStopClosed(closed: ClosedStop): string[] {
 
 /** The warning for an acceptance test file a held passing phase's corrections changed. */
 function unjudgedAcceptanceTestWarning(file: string): string {
-  return `  warning: ${file}: an oracle file changed at the discharge; the discharge was judged before the stop, so the oracles provider does not see this change`;
+  return `  warning: ${file}: an acceptance test file changed at the passing phase; the passing phase was judged before the stop, so the acceptance provider does not see this change`;
 }
 
 function refusalReason(lastClose: RefusedClose): string {

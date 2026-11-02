@@ -107,7 +107,7 @@ describe("buildResumeInstructions — oracle step stops", () => {
   it("an acceptance exhaustion names --skip-acceptance and the configured gate", () => {
     const md = buildResumeInstructions({ ...exhausted, failedStep: "acceptance" });
     expect(md).toContain(
-      "This run paused because the oracle step failed after exhausting all fix attempts.",
+      "This run paused because the acceptance step failed after exhausting all fix attempts.",
     );
     expect(md).toContain("resume with --skip-acceptance: the phase's configured gate still runs");
     expect(md).toContain("phax resume refunds --yes --skip-acceptance");

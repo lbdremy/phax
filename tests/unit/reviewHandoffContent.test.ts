@@ -85,7 +85,7 @@ describe("buildReviewHandoffContent — without compliance", () => {
 
 describe("buildReviewHandoffContent — acceptance pairs", () => {
   const acceptancePairsMd =
-    "## Oracle pairs\n\n| Oracle phase | Discharged by | Authored | Discharged |";
+    "## Acceptance pairs\n\n| Acceptance phase | Passed by | Authored | Passed |";
 
   it("renders the section between the unexplained deviations and the compliance review", () => {
     const output = buildReviewHandoffContent(info, globalEmpty, globalMd, phaseContents, {
@@ -93,8 +93,10 @@ describe("buildReviewHandoffContent — acceptance pairs", () => {
       complianceReviewMd: "conformant",
     });
     const at = (heading: string) => output.indexOf(heading);
-    expect(at("## Deviations not explained in any handoff")).toBeLessThan(at("## Oracle pairs"));
-    expect(at("## Oracle pairs")).toBeLessThan(at("## Plan compliance review"));
+    expect(at("## Deviations not explained in any handoff")).toBeLessThan(
+      at("## Acceptance pairs"),
+    );
+    expect(at("## Acceptance pairs")).toBeLessThan(at("## Plan compliance review"));
   });
 
   it("omitted section is byte-identical to no extras", () => {

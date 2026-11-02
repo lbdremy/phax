@@ -54,7 +54,7 @@ function protectedPathsLines(globs: readonly string[] | undefined): string[] {
 }
 
 /**
- * The `## Oracle role` section (reworded by the next phase): one fixed
+ * The `## Acceptance role` section: one fixed
  * paragraph per role, naming the counterpart phase and the acceptance test
  * files. It names no test framework or marker.
  */
@@ -63,9 +63,9 @@ function acceptanceRoleLines(role: AcceptanceRole | null): string[] {
   const files = role.pair.files.join(", ");
   const paragraph =
     role.role === "acceptance"
-      ? `This phase writes the oracles that ${role.pair.passingPhase} will discharge. In the oracle files (${files}), every test you add or modify must carry your test framework's expected-failure marker, so that the test command stays green. You may delete tests. The oracles provider checks this at the gate.`
-      : `This phase discharges the oracles ${role.pair.acceptancePhase} wrote. In the oracle files (${files}), the only change allowed is removing every expected-failure marker. Make the implementation satisfy the oracles as written. If an oracle cannot pass unchanged, stop and say so in the handoff: that is a spec question, not a bug to work around.`;
-  return ["## Oracle role", "", paragraph, ""];
+      ? `This phase writes the acceptance tests that ${role.pair.passingPhase} will pass. In the acceptance test files (${files}), every test you add or modify must carry your test framework's expected-failure marker, so that the test command stays green. You may delete tests. The acceptance provider checks this at the gate.`
+      : `This phase passes the acceptance tests ${role.pair.acceptancePhase} wrote. In the acceptance test files (${files}), the only change allowed is removing every expected-failure marker. Make the implementation pass the acceptance tests as written. If an acceptance test cannot pass unchanged, stop and say so in the handoff: that is a spec question, not a bug to work around.`;
+  return ["## Acceptance role", "", paragraph, ""];
 }
 
 // The `## Previous phase handoff` body. A missing handoff is never shown as a

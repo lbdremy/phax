@@ -177,7 +177,7 @@ describe("buildFixPrompt for a failing gate report", () => {
 
 describe("buildFixPrompt for a failing oracle step", () => {
   const ORACLE_LINE =
-    "The oracles provider runs only at the gate; it will judge again after your changes. Do not run it yourself.";
+    "The acceptance provider runs only at the gate; it will judge again after your changes. Do not run it yourself.";
   const RUN_LINE =
     "Make sure to run the failed command after your changes to verify the gate now passes.";
 

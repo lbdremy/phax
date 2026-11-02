@@ -371,7 +371,7 @@ export function runGates(
 
     if (acceptanceStep?.kind === "skipped") {
       // Every configured step passed: the operator skipped the acceptance step.
-      logLines.push(`oracle step skipped by the operator: ${acceptanceStep.command}`);
+      logLines.push(`acceptance step skipped by the operator: ${acceptanceStep.command}`);
       logLines.push("");
       stepResults.push({
         command: acceptanceStep.command,
