@@ -17,11 +17,14 @@ import { describe, expect, it } from "vitest";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
-/** A directory scanned recursively: files with one of `extensions`, minus the excluded prefixes. */
+/**
+ * A directory scanned recursively: files with one of `extensions` (every file
+ * when `extensions` is "every file"), minus the excluded prefixes.
+ */
 export interface ScannedRoot {
   readonly dir: string;
   /** File suffixes read, with their dot: `.ts`, `.md`. */
-  readonly extensions: readonly string[];
+  readonly extensions: readonly string[] | "every file";
   /** Repo-relative path prefixes (`docs/specs`) whose files and folders are skipped. */
   readonly exclude: readonly string[];
 }
@@ -44,7 +47,8 @@ export const SCANNED_ROOTS: readonly ScannedRoot[] = [
     extensions: [".ts", ".tsx"],
     exclude: ["site/generated", "site/doc_build", "site/node_modules"],
   },
-  { dir: "examples", extensions: [".mjs", ".md", ".json"], exclude: [] },
+  // An example may be adapted to any runner, in any language: read them all.
+  { dir: "examples", extensions: "every file", exclude: [] },
 ];
 /** Single files scanned beside the roots. */
 export const SCANNED_FILES: readonly string[] = [
@@ -72,7 +76,8 @@ export type KeptCategory =
   | "test line fourth field"
   | "wrong-oracle escape"
   | "prose about what judges a test"
-  | "0.33.0 upgrading entry";
+  | "0.33.0 upgrading entry"
+  | "archived spec slug oracle-phases";
 
 export interface AllowEntry {
   readonly id: string;
@@ -213,7 +218,13 @@ export const ALLOWLIST: readonly AllowEntry[] = [
     id: "schema-url-retired-format",
     reason: "retired oracle-request format id and exports",
     file: "src/schemas/schemaUrl.ts",
-    lines: [/oracle-request/, /oracle request/, /oracle-phases/],
+    lines: [/oracle-request/, /oracle request/],
+  },
+  {
+    id: "schema-url-archived-spec-slug",
+    reason: "archived spec slug oracle-phases",
+    file: "src/schemas/schemaUrl.ts",
+    lines: [/of spec oracle-phases/],
   },
   {
     id: "release-retired-format",
@@ -543,7 +554,11 @@ function listFiles(root: ScannedRoot, dir: string = root.dir): string[] {
     if (root.exclude.some((prefix) => rel === prefix || rel.startsWith(`${prefix}/`))) continue;
     const stat = statSync(path.join(REPO_ROOT, rel));
     if (stat.isDirectory()) out.push(...listFiles(root, rel));
-    else if (root.extensions.some((extension) => rel.endsWith(extension))) out.push(rel);
+    else if (
+      root.extensions === "every file" ||
+      root.extensions.some((extension) => rel.endsWith(extension))
+    )
+      out.push(rel);
   }
   return out;
 }
