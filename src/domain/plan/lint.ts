@@ -10,15 +10,18 @@ import type { ProviderConfig } from "../../schemas/providerConfig.js";
 import type { PlanAuditResponse } from "../../schemas/planAudit.js";
 
 export type LintSeverity = "error" | "warning";
-export type LintCheck =
-  | "structure"
-  | "files"
-  | "commands"
-  | "models"
-  | "interactive"
-  | "acceptance"
-  | "tests"
-  | "advisory";
+/** Every lint check; the renderer sizes its check column from the longest. */
+export const LINT_CHECKS = [
+  "structure",
+  "files",
+  "commands",
+  "models",
+  "interactive",
+  "acceptance",
+  "tests",
+  "advisory",
+] as const;
+export type LintCheck = (typeof LINT_CHECKS)[number];
 
 export interface LintFinding {
   readonly severity: LintSeverity;

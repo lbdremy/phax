@@ -1,4 +1,4 @@
-import type { LintFinding } from "./lint.js";
+import { LINT_CHECKS, type LintFinding } from "./lint.js";
 
 export interface RenderableLintReport {
   readonly plan: string;
@@ -7,7 +7,7 @@ export interface RenderableLintReport {
 
 // Widest member of each closed set, so the columns never ragged-shift.
 const SEVERITY_WIDTH = "warning".length;
-const CHECK_WIDTH = "structure".length;
+const CHECK_WIDTH = Math.max(...LINT_CHECKS.map((check) => check.length));
 const PHASE_WIDTH = "phase-NN".length;
 
 function plural(count: number, noun: string): string {
