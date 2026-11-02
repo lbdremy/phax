@@ -241,7 +241,7 @@ describe("runResume --skip-acceptance", () => {
       const code = await runResume("my-run", { yes, skipAcceptance: true }, out);
       expect(code).toBe(1);
       expect(errors).toEqual([
-        "--skip-acceptance: phase-01 is neither an oracle phase nor a discharging phase; it has no oracle step to skip.",
+        "--skip-acceptance: phase-01 is neither an acceptance phase nor a passing phase; it has no acceptance step to skip.",
       ]);
       expect(lines.join("\n")).not.toContain("would resume");
     }
@@ -275,7 +275,7 @@ describe("runResume --skip-acceptance", () => {
       const code = await runResume("my-run", { yes, skipAcceptance: true }, out);
       expect(code).toBe(1);
       expect(errors).toEqual([
-        "--skip-acceptance: my-run awaits review at phase-01; a close's authored oracle step is never skipped. Undo the oracle-file correction, or reset the stop.",
+        "--skip-acceptance: my-run awaits review at phase-01; a close's authored acceptance step is never skipped. Undo the acceptance-test-file correction, or reset the stop.",
       ]);
       expect(lines.join("\n")).not.toContain("would resume");
     }
@@ -292,7 +292,7 @@ describe("runResume --skip-acceptance", () => {
 
     expect(code).toBe(1);
     expect(errors).toEqual([
-      "--skip-acceptance: phase-01 is neither an oracle phase nor a discharging phase; it has no oracle step to skip.",
+      "--skip-acceptance: phase-01 is neither an acceptance phase nor a passing phase; it has no acceptance step to skip.",
     ]);
     expect(executePlan).not.toHaveBeenCalled();
   });

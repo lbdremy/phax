@@ -1649,7 +1649,7 @@ describe("runGates with an acceptance step (Node shell)", () => {
         skipped,
       ]);
       expect(readFileSync(ws.logPath, "utf8")).toContain(
-        "oracle step skipped by the operator: node ./oracles.mjs pass",
+        "acceptance step skipped by the operator: node ./oracles.mjs pass",
       );
       const stepRecord = JSON.parse(
         readFileSync(join(ws.dir, "phase-01", "checks-attempt-01.attribution.json"), "utf8"),

@@ -65,7 +65,7 @@ function requiredActionTail(failedStep: "configured" | "acceptance"): string[] {
     "Do not change unrelated code or introduce new features.",
     "",
     failedStep === "acceptance"
-      ? "The oracles provider runs only at the gate; it will judge again after your changes. Do not run it yourself."
+      ? "The acceptance provider runs only at the gate; it will judge again after your changes. Do not run it yourself."
       : "Make sure to run the failed command after your changes to verify the gate now passes.",
     "The gate run will be re-attempted automatically after your changes.",
   ];

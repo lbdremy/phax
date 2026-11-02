@@ -60,7 +60,7 @@ export function acceptanceSkipRefusal(
 }
 
 function noAcceptanceStep(phaseId: string): string {
-  return `--skip-acceptance: ${phaseId} is neither an oracle phase nor a discharging phase; it has no oracle step to skip.`;
+  return `--skip-acceptance: ${phaseId} is neither an acceptance phase nor a passing phase; it has no acceptance step to skip.`;
 }
 
 /**
@@ -78,7 +78,7 @@ export function stopSkipAcceptanceRefusal(
   const inPair =
     acceptanceRoleOf(phases, phaseId) !== null || stopAcceptancePairs(phases, phaseId).length > 0;
   if (!inPair) return noAcceptanceStep(phaseId);
-  return `--skip-acceptance: ${run} awaits review at ${phaseId}; a close's authored oracle step is never skipped. Undo the oracle-file correction, or reset the stop.`;
+  return `--skip-acceptance: ${run} awaits review at ${phaseId}; a close's authored acceptance step is never skipped. Undo the acceptance-test-file correction, or reset the stop.`;
 }
 
 /**
@@ -184,9 +184,9 @@ export function renderAcceptancePairsSection(
     (row) => `| ${row.acceptancePhase} | ${row.passingPhase} | ${row.authored} | ${row.passed} |`,
   );
   return [
-    "## Oracle pairs",
+    "## Acceptance pairs",
     "",
-    "| Oracle phase | Discharged by | Authored | Discharged |",
+    "| Acceptance phase | Passed by | Authored | Passed |",
     "| --- | --- | --- | --- |",
     ...lines,
   ].join("\n");

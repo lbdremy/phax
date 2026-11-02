@@ -116,13 +116,13 @@ function acceptanceCorrectionSteps(
 ): NextStep[] {
   return [
     {
-      title: "Or, if the oracle itself is wrong, correct it in the phase worktree",
+      title: "Or, if the acceptance test itself is wrong, correct it in the phase worktree",
       ...(correctionDetail.length === 0 ? {} : { detail: correctionDetail }),
       command: `phax enter-phase ${shortName} ${phaseArg}`,
     },
     {
       title:
-        "Then resume without the oracle step — the configured gate still runs, with the usual fix loop",
+        "Then resume without the acceptance step — the configured gate still runs, with the usual fix loop",
       command: `phax resume ${shortName} --yes --skip-acceptance`,
     },
   ];
@@ -187,12 +187,12 @@ function protectedExhaustionSteps(
       },
       {
         title:
-          "Then let the fix loop try again — the gate, oracle step and protected-path check included, is re-run first",
+          "Then let the fix loop try again — the gate, acceptance step and protected-path check included, is re-run first",
         command: `phax resume ${shortName} --yes`,
       },
       baseBranchWay,
       ...acceptanceCorrectionSteps(shortName, phaseArg, [
-        `${putBack} The protected-path check still runs without the oracle step.`,
+        `${putBack} The protected-path check still runs without the acceptance step.`,
       ]),
     ];
   }
@@ -272,7 +272,7 @@ export function buildWhatsNext(scenario: WhatsNextScenario, now: Date): WhatsNex
             scenario.failedStep === "protected-paths"
               ? "Gates failed after all fix attempts: protected paths changed."
               : scenario.failedStep === "acceptance"
-                ? "The oracle step failed after all fix attempts, and protected paths changed."
+                ? "The acceptance step failed after all fix attempts, and protected paths changed."
                 : "Gates failed after all fix attempts, and protected paths changed.",
             ...protectedHeadlineLines(scenario.protectedChanges),
             scenario.lastFixTranscript === null
@@ -284,10 +284,11 @@ export function buildWhatsNext(scenario: WhatsNextScenario, now: Date): WhatsNex
       }
       if (scenario.failedStep === "acceptance") {
         return {
-          headline: "The oracle step failed after all fix attempts.",
+          headline: "The acceptance step failed after all fix attempts.",
           steps: [
             {
-              title: "Let the fix loop try again — the gate, oracle step included, is re-run first",
+              title:
+                "Let the fix loop try again — the gate, acceptance step included, is re-run first",
               command: `phax resume ${scenario.shortName} --yes`,
             },
             ...acceptanceCorrectionSteps(scenario.shortName, phaseArg),

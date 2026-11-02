@@ -145,7 +145,7 @@ describe("resetPhaseRefusal", () => {
     const statuses = [status(0, "committed"), status(1, "committed"), status(2, "failed")];
     expect(resetPhaseRefusal(input(statuses, 1, { planPhases: PAIR_PLAN }))).toEqual({
       reason: "phase_blocked_by_passing",
-      message: `Cannot reset "phase-02" of run "refunds": its discharging phase "phase-03" is failed, and a committed oracle phase is not reset. To correct the oracle, edit it in phase-03 (\`phax enter-phase refunds phase-03\`), then run \`phax resume refunds --yes --skip-acceptance\`: the configured gate still runs.`,
+      message: `Cannot reset "phase-02" of run "refunds": its passing phase "phase-03" is failed, and a committed acceptance phase is not reset. To correct the acceptance test, edit it in phase-03 (\`phax enter-phase refunds phase-03\`), then run \`phax resume refunds --yes --skip-acceptance\`: the configured gate still runs.`,
     });
   });
 
@@ -153,7 +153,7 @@ describe("resetPhaseRefusal", () => {
     const statuses = [status(0, "committed"), status(1, "committed"), status(2, "review_open")];
     expect(resetPhaseRefusal(input(statuses, 1, { planPhases: PAIR_PLAN }))).toEqual({
       reason: "phase_blocked_by_passing",
-      message: `Cannot reset "phase-02" of run "refunds": its discharging phase "phase-03" is review_open, and a committed oracle phase is not reset.`,
+      message: `Cannot reset "phase-02" of run "refunds": its passing phase "phase-03" is review_open, and a committed acceptance phase is not reset.`,
     });
   });
 
@@ -174,14 +174,14 @@ describe("resetPhaseRefusal", () => {
     it("refuses once the pair's discharge has started, with single quotes and the recovery", () => {
       expect(resetPhaseRefusal(input(reviewed("failed"), 2, { planPhases: plan }))).toEqual({
         reason: "phase_blocked_by_passing",
-        message: `Cannot reset 'phase-03' of run 'refunds': its discharging phase 'phase-04' is failed, and the discharge judges this phase's commit. To correct the oracle, edit it in phase-04 (\`phax enter-phase refunds phase-04\`), then run \`phax resume refunds --yes --skip-acceptance\`: the configured gate still runs.`,
+        message: `Cannot reset 'phase-03' of run 'refunds': its passing phase 'phase-04' is failed, and the passing phase judges this phase's commit. To correct the acceptance test, edit it in phase-04 (\`phax enter-phase refunds phase-04\`), then run \`phax resume refunds --yes --skip-acceptance\`: the configured gate still runs.`,
       });
     });
 
     it("names no recovery once the discharge is past its gate", () => {
       expect(resetPhaseRefusal(input(reviewed("review_open"), 2, { planPhases: plan }))).toEqual({
         reason: "phase_blocked_by_passing",
-        message: `Cannot reset 'phase-03' of run 'refunds': its discharging phase 'phase-04' is review_open, and the discharge judges this phase's commit.`,
+        message: `Cannot reset 'phase-03' of run 'refunds': its passing phase 'phase-04' is review_open, and the passing phase judges this phase's commit.`,
       });
     });
 

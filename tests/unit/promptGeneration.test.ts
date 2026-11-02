@@ -377,7 +377,7 @@ describe("buildPhasePrompt", () => {
   });
 
   it("a null acceptance role adds no section", () => {
-    expect(buildPhasePrompt(base)).not.toContain("## Oracle role");
+    expect(buildPhasePrompt(base)).not.toContain("## Acceptance role");
   });
 
   it("states the acceptance phase's role right after the current phase section", () => {
@@ -387,10 +387,10 @@ describe("buildPhasePrompt", () => {
       files: ["tests/refunds.test.ts", "tests/prune.test.ts"],
     });
     expect(acceptance).toContain(
-      "## Oracle role\n\nThis phase writes the oracles that phase-03 will discharge. In the oracle files (tests/refunds.test.ts, tests/prune.test.ts), every test you add or modify must carry your test framework's expected-failure marker, so that the test command stays green. You may delete tests. The oracles provider checks this at the gate.\n\n## Previous phase handoff",
+      "## Acceptance role\n\nThis phase writes the acceptance tests that phase-03 will pass. In the acceptance test files (tests/refunds.test.ts, tests/prune.test.ts), every test you add or modify must carry your test framework's expected-failure marker, so that the test command stays green. You may delete tests. The acceptance provider checks this at the gate.\n\n## Previous phase handoff",
     );
     expect(acceptance.indexOf("## Approved plan: current phase")).toBeLessThan(
-      acceptance.indexOf("## Oracle role"),
+      acceptance.indexOf("## Acceptance role"),
     );
   });
 
@@ -401,7 +401,7 @@ describe("buildPhasePrompt", () => {
       files: ["tests/refunds.test.ts"],
     });
     expect(passing).toContain(
-      "This phase discharges the oracles phase-02 wrote. In the oracle files (tests/refunds.test.ts), the only change allowed is removing every expected-failure marker. Make the implementation satisfy the oracles as written. If an oracle cannot pass unchanged, stop and say so in the handoff: that is a spec question, not a bug to work around.",
+      "This phase passes the acceptance tests phase-02 wrote. In the acceptance test files (tests/refunds.test.ts), the only change allowed is removing every expected-failure marker. Make the implementation pass the acceptance tests as written. If an acceptance test cannot pass unchanged, stop and say so in the handoff: that is a spec question, not a bug to work around.",
     );
   });
 

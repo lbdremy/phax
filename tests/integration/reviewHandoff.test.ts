@@ -166,12 +166,14 @@ describe("generateReviewHandoff — oracle pairs", () => {
 
     const handoff = impl.getFile(`${runPath}/review-handoff.md`)!;
     expect(handoff).toContain(
-      "## Oracle pairs\n\n| Oracle phase | Discharged by | Authored | Discharged |\n| --- | --- | --- | --- |\n| phase-02 | phase-03 | pass | pass |\n",
+      "## Acceptance pairs\n\n| Acceptance phase | Passed by | Authored | Passed |\n| --- | --- | --- | --- |\n| phase-02 | phase-03 | pass | pass |\n",
     );
     expect(handoff.indexOf("## Deviations not explained in any handoff")).toBeLessThan(
-      handoff.indexOf("## Oracle pairs"),
+      handoff.indexOf("## Acceptance pairs"),
     );
-    expect(handoff.indexOf("## Oracle pairs")).toBeLessThan(handoff.indexOf("## Phase details"));
+    expect(handoff.indexOf("## Acceptance pairs")).toBeLessThan(
+      handoff.indexOf("## Phase details"),
+    );
   });
 
   it("says skipped for a discharge the operator skipped", async () => {
@@ -232,7 +234,7 @@ describe("generateReviewHandoff — oracle pairs", () => {
       generateReviewHandoff(info, { allowPartial: false }).pipe(Effect.provide(layers)),
     );
 
-    expect(impl.getFile(`${runPath}/review-handoff.md`)).not.toContain("## Oracle pairs");
+    expect(impl.getFile(`${runPath}/review-handoff.md`)).not.toContain("## Acceptance pairs");
   });
 });
 

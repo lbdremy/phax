@@ -388,7 +388,7 @@ describe("resetPhase", () => {
       const error = result.left as ResetPhaseError;
       expect(error.reason).toBe("phase_blocked_by_passing");
       expect(error.message).toBe(
-        `Cannot reset "phase-02" of run "my-run": its discharging phase "phase-03" is failed, and a committed oracle phase is not reset. To correct the oracle, edit it in phase-03 (\`phax enter-phase my-run phase-03\`), then run \`phax resume my-run --yes --skip-acceptance\`: the configured gate still runs.`,
+        `Cannot reset "phase-02" of run "my-run": its passing phase "phase-03" is failed, and a committed acceptance phase is not reset. To correct the acceptance test, edit it in phase-03 (\`phax enter-phase my-run phase-03\`), then run \`phax resume my-run --yes --skip-acceptance\`: the configured gate still runs.`,
       );
       expect(await snapshot(runPath)).toEqual(before);
       expect(fakeGit.impl.calls.some((c) => c.method === "removeWorktree")).toBe(false);
@@ -405,7 +405,7 @@ describe("resetPhase", () => {
       const error = result.left as ResetPhaseError;
       expect(error.reason).toBe("phase_blocked_by_passing");
       expect(error.message).toBe(
-        `Cannot reset "phase-02" of run "my-run": its discharging phase "phase-03" is review_open, and a committed oracle phase is not reset.`,
+        `Cannot reset "phase-02" of run "my-run": its passing phase "phase-03" is review_open, and a committed acceptance phase is not reset.`,
       );
     });
 
@@ -538,7 +538,7 @@ describe("resetPhase", () => {
       expect(result.left).toMatchObject({
         reason: "phase_blocked_by_passing",
         message:
-          "Cannot reset 'phase-03' of run 'my-run': its discharging phase 'phase-04' is failed, and the discharge judges this phase's commit. To correct the oracle, edit it in phase-04 (`phax enter-phase my-run phase-04`), then run `phax resume my-run --yes --skip-acceptance`: the configured gate still runs.",
+          "Cannot reset 'phase-03' of run 'my-run': its passing phase 'phase-04' is failed, and the passing phase judges this phase's commit. To correct the acceptance test, edit it in phase-04 (`phax enter-phase my-run phase-04`), then run `phax resume my-run --yes --skip-acceptance`: the configured gate still runs.",
       });
       expect(await snapshot(runPath)).toEqual(before);
     });
@@ -552,7 +552,7 @@ describe("resetPhase", () => {
       expect(result.left).toMatchObject({
         reason: "phase_blocked_by_passing",
         message:
-          "Cannot reset 'phase-03' of run 'my-run': its discharging phase 'phase-04' is review_open, and the discharge judges this phase's commit.",
+          "Cannot reset 'phase-03' of run 'my-run': its passing phase 'phase-04' is review_open, and the passing phase judges this phase's commit.",
       });
     });
 

@@ -14,16 +14,16 @@ function renderRows(rows: readonly Row[]): string[] {
 function acceptanceRoleText(role: OverviewPhase["acceptanceRole"]): string {
   switch (role.kind) {
     case "acceptance":
-      return `oracle phase, discharged by ${role.passedBy}`;
+      return `acceptance phase, passed by ${role.passedBy}`;
     case "passing":
-      return `discharges ${role.acceptancePhase}`;
+      return `passes ${role.acceptancePhase}`;
     case "none":
       return "none";
   }
 }
 
 function renderPhase(phase: OverviewPhase, hasParts: boolean): string[] {
-  const rows: Row[] = [["oracle role", acceptanceRoleText(phase.acceptanceRole)]];
+  const rows: Row[] = [["acceptance role", acceptanceRoleText(phase.acceptanceRole)]];
   for (const { part, files } of phase.placement) {
     if (files.length === 0) continue;
     rows.push([part ?? (hasParts ? "(no part)" : "files"), files.join(", ")]);

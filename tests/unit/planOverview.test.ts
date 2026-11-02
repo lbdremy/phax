@@ -109,18 +109,18 @@ describe("the overview's layout", () => {
         "architecture: no provider configured — planned files shown",
         "",
         "phase-01 — Oracles  claude-sonnet-5-5 · medium · headless",
-        "  oracle role  oracle phase, discharged by phase-02",
-        "  files        tests/a.test.ts",
+        "  acceptance role  acceptance phase, passed by phase-02",
+        "  files            tests/a.test.ts",
         "  - the rule holds — small · example · the findings · acceptance · ac-a",
         "",
         "phase-02 — Discharge  claude-sonnet-5-5 · medium · headless",
-        "  oracle role  discharges phase-01",
-        "  files        src/domain/x.ts, tests/a.test.ts",
+        "  acceptance role  passes phase-01",
+        "  files            src/domain/x.ts, tests/a.test.ts",
         "  - it is read — small · example · the findings · in-phase · ac-a",
         "  - it is shown — small · example · the findings · in-phase · ac-b",
         "",
         "phase-03 — Review screen  claude-opus-5-5 · high · interactive",
-        "  oracle role  none",
+        "  acceptance role  none",
         "  (no planned files)",
         "  (no test lines)",
         "",
@@ -170,9 +170,9 @@ describe("the placement", () => {
     ]);
     const text = renderOverview(built);
     expect(text).toContain("architecture: parts from the configured provider");
-    expect(text).toContain("  domain       src/domain/x.ts");
-    expect(text).toContain("  app          src/app/z.ts");
-    expect(text).toContain("  (no part)    scripts/y.sh");
+    expect(text).toContain("  domain           src/domain/x.ts");
+    expect(text).toContain("  app              src/app/z.ts");
+    expect(text).toContain("  (no part)        scripts/y.sh");
   });
 
   it("lists a file under two parts that both match it, in report order", () => {
@@ -201,7 +201,7 @@ describe("the placement", () => {
       architecture: PARTS,
     });
     expect(built.phases[0]!.placement).toEqual([{ part: null, files: ["docs/x.md"] }]);
-    expect(renderOverview(built)).toContain("  (no part)    docs/x.md");
+    expect(renderOverview(built)).toContain("  (no part)        docs/x.md");
   });
 
   it("without parts, holds every file in the one null entry", () => {

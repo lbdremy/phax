@@ -193,8 +193,8 @@ describe("phax plans overview", () => {
         "architecture: no provider configured — planned files shown",
         "",
         "phase-01 — Add the widget  claude-sonnet-5-5 · medium · headless",
-        "  oracle role  none",
-        "  files        src/domain/x.ts, scripts/y.sh",
+        "  acceptance role  none",
+        "  files            src/domain/x.ts, scripts/y.sh",
         "  - the widget is shown — small · example · the rendered widget · in-phase",
         "",
         "no source spec: no criterion coverage",
@@ -215,8 +215,8 @@ describe("phax plans overview", () => {
     expect(result.stderr).toBe("");
     expect(result.status).toBe(0);
     expect(result.stdout).toContain("architecture: parts from the configured provider");
-    expect(result.stdout).toContain("  domain       src/domain/x.ts");
-    expect(result.stdout).toContain("  (no part)    scripts/y.sh");
+    expect(result.stdout).toContain("  domain           src/domain/x.ts");
+    expect(result.stdout).toContain("  (no part)        scripts/y.sh");
     expect(callCount(provider.calls)).toBe(1);
     const request = JSON.parse(readFileSync(provider.calls, "utf8")) as { files: string[] };
     expect(request.files).toEqual(["src/domain/x.ts", "scripts/y.sh"]);
@@ -237,7 +237,7 @@ describe("phax plans overview", () => {
     expect(stderr).toHaveLength(1);
     expect(stderr[0]).toMatch(/^Warning: architecture provider failed: .*the provider is down/);
     expect(result.stdout).toContain("architecture: provider failed — planned files shown");
-    expect(result.stdout).toContain("  files        src/domain/x.ts, scripts/y.sh");
+    expect(result.stdout).toContain("  files            src/domain/x.ts, scripts/y.sh");
     expect(git(["status", "--porcelain"])).toBe("");
   });
 

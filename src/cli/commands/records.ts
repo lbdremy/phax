@@ -426,13 +426,13 @@ function renderFoundRecord(
   if (manifest.acceptance !== null) {
     const role =
       manifest.acceptance.role === "acceptance"
-        ? `oracle phase, discharged by ${manifest.acceptance.passedBy}`
-        : `discharges ${manifest.acceptance.acceptancePhase}`;
+        ? `acceptance phase, passed by ${manifest.acceptance.passedBy}`
+        : `passes ${manifest.acceptance.acceptancePhase}`;
     const step =
       record.acceptanceStep === null
         ? "not run"
         : `${record.acceptanceStep.command}: ${record.acceptanceStep.result}`;
-    out.log(`oracle   ${role} — ${step}`);
+    out.log(`acceptance   ${role} — ${step}`);
   }
 
   if (manifest.sourceSha !== undefined) {

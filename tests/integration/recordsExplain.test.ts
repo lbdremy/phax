@@ -155,7 +155,7 @@ function attribution(phase: string, result: "pass" | "fail" | "skipped"): string
       protectedPaths: null,
       steps: [
         { command: "pnpm test", surface: "local", result: "pass" },
-        { command: "node tools/oracles.mjs", surface: "acceptance", result },
+        { command: "node tools/acceptance.mjs", surface: "acceptance", result },
       ],
     }),
   );
@@ -682,14 +682,58 @@ describe("records explain and list (real git)", () => {
 
       const authored = await records(["explain", authoredSha]);
       expect(authored.logs).toContain(
-        "oracle   oracle phase, discharged by phase-03 — node tools/oracles.mjs: pass",
+        "acceptance   acceptance phase, passed by phase-03 — node tools/acceptance.mjs: pass",
       );
       const discharged = await records(["explain", dischargedSha]);
       expect(discharged.logs).toContain(
-        "oracle   discharges phase-02 — node tools/oracles.mjs: skipped",
+        "acceptance   passes phase-02 — node tools/acceptance.mjs: skipped",
       );
       const ordinary = await records(["explain", ordinarySha]);
-      expect(ordinary.text).not.toContain("oracle   ");
+      expect(ordinary.text).not.toContain("acceptance   ");
+    });
+
+    it("explains the passing phase of a record written by 0.32.0 under the acceptance words", async () => {
+      const runId = "run-old-1786800000013";
+      const sha = commitWithTrailers(repoDir, runId, "phase-03");
+      // Raw JSON in the frozen shapes of phase-record-manifest 0.30.0 and
+      // gate-attribution 0.31.0, bypassing the current encoder.
+      const manifest = {
+        $schema: "https://docs.phax.run/schemas/phase-record-manifest/0.30.0.json",
+        runId,
+        phaseId: "phase-03",
+        shape: "skeleton",
+        sourceSha: sha,
+        model: "claude-sonnet-5",
+        effort: "high",
+        provider: "claude-code",
+        outcome: "committed",
+        usage: { available: false },
+        verifiedSurfaces: ["local", "oracle"],
+        oracle: { role: "discharging", oraclePhase: "phase-03" },
+        mode: "headless",
+        stop: null,
+      };
+      const oldAttribution = {
+        $schema: "https://docs.phax.run/schemas/gate-attribution/0.31.0.json",
+        phase: "phase-03",
+        steps: [
+          { command: "pnpm test", surface: "local", result: "pass" },
+          { command: "node tools/oracles.mjs", surface: "oracle", result: "pass" },
+        ],
+        protectedPaths: null,
+      };
+      await writeRecordDocumentCommit(
+        repoDir,
+        `${runId}/phase-03`,
+        manifest,
+        phaseRecordMessage(runId, "phase-03", "committed", "skeleton"),
+        { "gate-attribution.json": JSON.stringify(oldAttribution) },
+      );
+
+      const explained = await records(["explain", sha]);
+      expect(explained.logs).toContain(
+        "acceptance   passes phase-03 — node tools/oracles.mjs: pass",
+      );
     });
 
     it("lists the acceptance request right after the attempt's request under --gates", () => {

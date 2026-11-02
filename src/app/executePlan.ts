@@ -769,8 +769,8 @@ export function executePlan(
       return yield* Effect.fail(
         new AcceptanceCommitMissingError({
           message: [
-            `Cannot run discharging phase "${pair.passingPhase}" of run "${shortName}": its oracle phase "${pair.acceptancePhase}" is ${noted.state} and noted no commit, so there are no oracles to discharge.`,
-            `No resume gives a skipped oracle phase a commit: archive the run (phax archive ${shortName} --force) and run a corrected plan whose oracle phase writes its oracles.`,
+            `Cannot run passing phase "${pair.passingPhase}" of run "${shortName}": its acceptance phase "${pair.acceptancePhase}" is ${noted.state} and noted no commit, so there are no acceptance tests to pass.`,
+            `No resume gives a skipped acceptance phase a commit: archive the run (phax archive ${shortName} --force) and run a corrected plan whose acceptance phase writes its acceptance tests.`,
           ].join("\n"),
           acceptancePhase: pair.acceptancePhase,
           passingPhase: pair.passingPhase,

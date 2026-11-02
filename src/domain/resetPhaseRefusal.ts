@@ -102,9 +102,9 @@ export function resetPhaseRefusal(input: ResetRefusalInput): ResetRefusal | null
       // The skip recovery applies only while the passing phase is the stopped
       // phase: a resume skips the acceptance step of the phase it restarts at.
       message:
-        `Cannot reset "${target.phaseId}" of run "${shortName}": its discharging phase "${passingStatus.phaseId}" is ${passingStatus.state}, and a committed oracle phase is not reset.` +
+        `Cannot reset "${target.phaseId}" of run "${shortName}": its passing phase "${passingStatus.phaseId}" is ${passingStatus.state}, and a committed acceptance phase is not reset.` +
         (STOPPED_AT_GATE_STATES.has(passingStatus.state)
-          ? ` To correct the oracle, edit it in ${passingStatus.phaseId} (\`phax enter-phase ${shortName} ${passingStatus.phaseId}\`), then run \`phax resume ${shortName} --yes --skip-acceptance\`: the configured gate still runs.`
+          ? ` To correct the acceptance test, edit it in ${passingStatus.phaseId} (\`phax enter-phase ${shortName} ${passingStatus.phaseId}\`), then run \`phax resume ${shortName} --yes --skip-acceptance\`: the configured gate still runs.`
           : ""),
     };
   }
@@ -126,9 +126,9 @@ export function resetPhaseRefusal(input: ResetRefusalInput): ResetRefusal | null
         // The same recovery as for the acceptance phase (§5.36), while the
         // passing phase is the stopped phase.
         message:
-          `Cannot reset '${target.phaseId}' of run '${shortName}': its discharging phase '${status.phaseId}' is ${status.state}, and the discharge judges this phase's commit.` +
+          `Cannot reset '${target.phaseId}' of run '${shortName}': its passing phase '${status.phaseId}' is ${status.state}, and the passing phase judges this phase's commit.` +
           (STOPPED_AT_GATE_STATES.has(status.state)
-            ? ` To correct the oracle, edit it in ${status.phaseId} (\`phax enter-phase ${shortName} ${status.phaseId}\`), then run \`phax resume ${shortName} --yes --skip-acceptance\`: the configured gate still runs.`
+            ? ` To correct the acceptance test, edit it in ${status.phaseId} (\`phax enter-phase ${shortName} ${status.phaseId}\`), then run \`phax resume ${shortName} --yes --skip-acceptance\`: the configured gate still runs.`
             : ""),
       };
     }

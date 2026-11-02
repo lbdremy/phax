@@ -140,20 +140,20 @@ describe("buildAuthoringPrompt", () => {
     }
   });
 
-  it("a plan prompt states whether an oracles provider is configured, a spec prompt neither", () => {
+  it("a plan prompt states whether an acceptance provider is configured, a spec prompt neither", () => {
     expect(planPrompt(true, false, false, true)).toContain(
-      '- An oracles provider is configured ("oracles" in phax config): you may declare an oracle phase',
+      '- An acceptance provider is configured ("acceptance" in phax config): you may declare an acceptance phase and its passing phase, as the skill\'s acceptance-phase section says.',
     );
     expect(planPrompt(true, false, false, false)).toContain(
-      "- No oracles provider is configured: declare no oracle phase; every phase's `oracle` is null.",
+      "- No acceptance provider is configured: declare no acceptance phase; every phase's `acceptance` is null.",
     );
-    expect(specPrompt()).not.toContain("oracles provider");
+    expect(specPrompt()).not.toContain("acceptance provider");
   });
 
-  it("places the oracles bullet right after the architecture bullet", () => {
+  it("places the acceptance bullet right after the architecture bullet", () => {
     const lines = planPrompt(true, false, false, true).split("\n");
     const architecture = lines.findIndex((l) => l.includes("No architecture provider"));
-    expect(lines[architecture + 1]).toContain("An oracles provider is configured");
+    expect(lines[architecture + 1]).toContain("An acceptance provider is configured");
   });
 
   it("names no decide command", () => {
