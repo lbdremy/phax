@@ -15,7 +15,7 @@ against something it was given:
 
 - **the gate** of every phase: the change against its tests, types, lint and the other
   configured checks;
-- **the oracle pairs**, when the plan declares any: the code against acceptance tests
+- **the acceptance pairs**, when the plan declares any: the code against acceptance tests
   frozen before it was written;
 - **the compliance review**, when it ran: each phase against its section of the plan.
 
@@ -31,7 +31,7 @@ gate: it starts from the user, and it spends its attention on what the tests can
   read the product goal, the surface section (its before and after examples), and the
   acceptance criteria with their ids.
 - **Each phase's test strategy**: one line per guarantee, with its size, technique, oracle,
-  loop (`oracle` or `in-phase`) and the acceptance criterion it covers (`phax-planning`,
+  loop (`acceptance` or `in-phase`) and the acceptance criterion it covers (`phax-planning`,
   *Test strategy*). This is the map of what the tests claim to prove.
 - **The worklist** in the session's prompt: the files the reconciliation flagged, and the
   compliance findings.
@@ -43,7 +43,7 @@ Treat a handoff's claims as claims: check them in the diff.
 
 ## The order: outside-in
 
-The run built the change from the inside, or from a frozen oracle inward. Review it the
+The run built the change from the inside, or from a frozen acceptance test inward. Review it the
 other way, from the person who uses it.
 
 1. **Use it before you read it.** Run the change the way its user would: the spec's before
@@ -52,7 +52,7 @@ other way, from the person who uses it.
    tell you what to expect. Note every place where a first-time user would be surprised,
    stuck or misled.
 2. **Acceptance criteria, then their tests.** For each criterion, find the test that
-   asserts it: the oracle when the plan froze one. Read the test against the criterion's
+   asserts it: the acceptance test when the plan froze one. Read the test against the criterion's
    text, not against the code. A criterion with no test, or with a test that asserts
    something weaker than the criterion says, is a finding.
 3. **Boundaries.** External input decoded where it enters; persisted formats (a new field
@@ -89,7 +89,7 @@ test you have read asserts.
 
 | Escape | Why the tests miss it | What to check |
 | --- | --- | --- |
-| `wrong-oracle` | A test compares with what its author believed. A frozen oracle that is wrong passes the whole run. | The oracle against the criterion's text. Review the oracles first. |
+| `wrong-oracle` | A test compares with what its author believed. A frozen acceptance test whose oracle is wrong passes the whole run. | The acceptance test against the criterion's text. Review the acceptance tests first. |
 | `same-author` | An `in-phase` test is written by the agent that wrote the code, with the same misreading. | Assertions that restate what the code does instead of what the spec asks. |
 | `weakened` | Under a failing gate, a fix attempt may delete an assertion, skip a test or widen a matcher. | The tests a phase changed after a failing gate attempt: its gate logs say which attempts failed, its `fix-attempt-NN.jsonl` transcripts in the run folder what each one edited. |
 | `fake-drift` | A small test runs against a fake; nothing binds the fake to the real adapter. | Each fake used: which contract test runs the same cases against the real one? Each behaviour of a real dependency that only a fake, or the author's belief, encodes. |
@@ -111,12 +111,12 @@ Tests have defects too, and a defect there hides the others.
 - **It is not deterministic.** The clock, randomness without a fixed seed, ordering, the
   network, shared state between tests.
 - **It was left switched off.** `.skip`, `.only`, `.todo`, or an expected-failure marker
-  left after its oracle was discharged.
+  left after its acceptance phase was passed.
 - **It never ran.** A test the gate does not execute: behind an environment variable,
   outside the gate's profile, needing credentials or a real service. It has proved
   nothing in this run, its own setup included. List each one; one that is the only test
   of a criterion is an `omission` finding.
-- **The oracle failed for the wrong reason.** At its oracle phase it must fail on its
+- **The acceptance test failed for the wrong reason.** At its acceptance phase it must fail on its
   assertion, not on a crash, an import error or a missing fixture.
 
 ## Writing a finding
@@ -147,14 +147,14 @@ The developer is in the session and owns every change.
 1. Report what you saw using the change first: the surface pass, before any code finding.
 2. Then the findings, most severe first, in the form above.
 3. Propose fixes; apply one only when the developer confirms it.
-4. Never edit a test to make the code pass. When a finding says an oracle or a test is
-   wrong, say so and let the developer decide: changing what judges the code is an oracle
-   question, not a fix (`phax-decide-review`, `R4`).
+4. Never edit a test to make the code pass. When a finding says an acceptance test or a test is
+   wrong, say so and let the developer decide: changing what judges the code is an
+   acceptance-test question, not a fix (`phax-decide-review`, `R4`).
 
 ## What not to do
 
 - Read the code before using the change.
-- Restate what the gate, the oracles or the compliance review already established. Say so
+- Restate what the gate, the acceptance step or the compliance review already established. Say so
   when you disagree with one of them, and why.
 - Raise a preference above `info`.
 - Report a finding without its escape: if the tests do catch it, it is not a finding.

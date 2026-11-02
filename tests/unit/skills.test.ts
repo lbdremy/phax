@@ -165,7 +165,7 @@ describe("phax-planning skill", () => {
     expect(tests).toMatch(/\| Kind of code\s+\|/);
     expect(tests).not.toMatch(/\| Layer\s+\|/);
     expect(tests).toContain(
-      "- <guarantee> — <size> · <technique> · <oracle> · <oracle | in-phase>[ · <acceptance criterion id>]",
+      "- <guarantee> — <size> · <technique> · <oracle> · <acceptance | in-phase>[ · <acceptance criterion id>]",
     );
     expect(tests).toContain("`phax plans lint`");
     expect(tests).toContain("phax plans overview");
@@ -193,21 +193,17 @@ describe("phax-planning skill", () => {
     expect(start).toBeGreaterThan(-1);
     const end = example.indexOf("\n### Excluded scope", start);
     for (const shownText of [shown, example.slice(start + heading.length, end)]) {
-      // The skill still teaches the loop `oracle` until the plan that updates
-      // the skills (acceptance-tests plan 4): read its lines as the loop they
-      // became, so this test keeps judging the line format alone.
-      const text = shownText.replace(/ · oracle(?=( · \S+)?$)/gm, " · acceptance");
-      const reading = readTestStrategyText(text);
+      const reading = readTestStrategyText(shownText);
       expect(reading.departures).toEqual([]);
       expect(reading.lines.length).toBeGreaterThan(0);
     }
   });
 
-  it("holds oracles to the acceptance loop", () => {
-    const section = sectionOf(content, "### What makes a good oracle");
+  it("holds acceptance tests to the acceptance loop", () => {
+    const section = sectionOf(content, "### What makes a good acceptance test");
     expect(section).toContain("the acceptance loop, not test-driven development");
     expect(section).toContain("**It fails for the reason it states.**");
-    expect(section).toContain("**Not every test is an oracle.**");
+    expect(section).toContain("**Not every test is an acceptance test.**");
   });
 
   it("reads the repository's architecture from `phax architecture`, or from its code and documentation", () => {
