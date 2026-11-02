@@ -129,9 +129,10 @@ describe.skipIf(!shouldRun)("E2E reset-phase → resume fresh re-execution", () 
 
     // --- Step 1: initial run → gate exhaustion ---
 
+    // The first run creates the phase branch: phax refuses a branch that already
+    // exists with no status.json, since it cannot know the commit it started from.
     const fakeGit1 = makeFakeGit();
     fakeGit1.impl.setRepoIsClean(true);
-    fakeGit1.impl.addExistingBranch(PHASE_BRANCH);
 
     const fakeShell1 = makeFakeShell();
     fakeShell1.impl.setResponse("true", { exitCode: 1, stdout: "", stderr: "gate failed" });
