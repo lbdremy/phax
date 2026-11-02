@@ -38,6 +38,18 @@ describe("reportConfigError", () => {
     expect(errors.some((e) => e.includes("phax validate"))).toBe(true);
   });
 
+  // An overlay's refusal names its file: the hint does not send the operator to phax.json alone.
+  it("points at the overlay the error names, not only phax.json", () => {
+    const { out, errors } = makeFakeOut();
+    const err = new ConfigValidationError({
+      message: '/home/me/.phax/config.json: "oracles" is no longer read: write "acceptance"',
+    });
+    reportConfigError(err, out);
+    expect(errors.at(-1)).toContain(
+      "in phax.json, or in the overlay the error names (phax.local.json or ~/.phax/config.json)",
+    );
+  });
+
   it("includes phax schema upgrade hint", () => {
     const { out, errors } = makeFakeOut();
     const err = new ConfigValidationError({ message: "some error" });
