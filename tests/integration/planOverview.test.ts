@@ -48,7 +48,7 @@ function planMd(
     const id = `phase-0${index + 1}`;
     const oracle =
       phase.oracle === true
-        ? `\n**Oracle phase:** yes\n**Oracle files:** ${(phase.create ?? [])[0]}`
+        ? `\n**Acceptance phase:** yes\n**Acceptance test files:** ${(phase.create ?? [])[0]}`
         : "";
     return `## ${id} — Phase ${index + 1} {#${id}-part}
 

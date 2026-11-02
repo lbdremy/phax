@@ -102,11 +102,14 @@ describe("renderPlanBodyV0_32_0", () => {
     );
   });
 
-  it("differs from the current rendering in the test lines' loop only", () => {
+  it("differs from the current rendering in the header lines and the test lines' loop only", () => {
     const value = plan0_32_0();
     const lifted = liftPlanDocument(value);
     expect(renderPlanBody(lifted)).toBe(
-      renderPlanBodyV0_32_0(value).replace("· oracle · AC-1", "· acceptance · AC-1"),
+      renderPlanBodyV0_32_0(value)
+        .replace("**Oracle phase:** discharged by", "**Acceptance phase:** passed by")
+        .replace("**Oracle files:**", "**Acceptance test files:**")
+        .replace("· oracle · AC-1", "· acceptance · AC-1"),
     );
   });
 });

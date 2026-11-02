@@ -16,7 +16,7 @@ export type LintCheck =
   | "commands"
   | "models"
   | "interactive"
-  | "oracles"
+  | "acceptance"
   | "tests"
   | "advisory";
 

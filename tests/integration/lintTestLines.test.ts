@@ -54,7 +54,7 @@ const config = {
     createPullRequest: true,
   },
   complianceReview: { enabled: false, model: "claude-sonnet-4-6", effort: "medium" },
-  // An oracles provider, so an oracle pair raises no `oracles` error.
+  // An acceptance provider, so an acceptance pair raises no `acceptance` error.
   acceptance: { command: "node made-up-oracles.mjs" },
 } as unknown as ResolvedConfig;
 
@@ -71,7 +71,9 @@ function planMd(phases: readonly PhaseSpec[]): string {
     const id = `phase-0${index + 1}`;
     const create = phase.create ?? `src/export/part${index + 1}.ts`;
     const oracleHeader =
-      phase.oracle === true ? `\n**Oracle phase:** yes\n**Oracle files:** ${create}` : "";
+      phase.oracle === true
+        ? `\n**Acceptance phase:** yes\n**Acceptance test files:** ${create}`
+        : "";
     return `## ${id} — Phase ${index + 1} {#${id}-part}
 
 **Recommended model:** claude-sonnet-5-5
@@ -205,16 +207,16 @@ const row = (severity: "error" | "warning", phase: string | null, message: strin
 const unknown = (n: number, id: string) =>
   `test line ${n} names criterion "${id}", which invoice-export does not have`;
 const misplaced = (n: number, phase: string) =>
-  `test line ${n} is in the oracle loop, but ${phase} is not an oracle phase`;
+  `test line ${n} is in the acceptance loop, but ${phase} is not an acceptance phase`;
 const silent = (phase: string) =>
-  `${phase} is an oracle phase, but none of its test lines is in the oracle loop`;
+  `${phase} is an acceptance phase, but none of its test lines is in the acceptance loop`;
 const uncovered = (id: string) => `criterion "${id}" of invoice-export is named by no test line`;
 
 const ORACLE_FILE = "tests/unit/invoiceExport.test.ts";
 
-describe("lint's test-line rules (oracles)", () => {
-  describe("the oracle loop", () => {
-    it("flags an oracle-loop line on a phase that discharges an oracle", async () => {
+describe("lint's test-line rules (acceptance)", () => {
+  describe("the acceptance loop", () => {
+    it("flags an acceptance-loop line on a phase that passes an acceptance phase", async () => {
       const plan = planMd([
         {
           oracle: true,
@@ -234,9 +236,8 @@ describe("lint's test-line rules (oracles)", () => {
       expect(hasLintErrors(report.findings)).toBe(true);
     });
 
-    // ac-loop: an oracle phase, still declared with the old header lines, whose
-    // line is in the acceptance loop.
-    it("gives no tests error to an acceptance-loop line on an oracle phase, and extracts it with the loop acceptance and its oracle", async () => {
+    // ac-loop: an acceptance phase whose line is in the acceptance loop.
+    it("gives no tests error to an acceptance-loop line on an acceptance phase, and extracts it with the loop acceptance and its oracle", async () => {
       const text =
         "- every (state, transition) pair is accepted or refused as the table says — small · table · transition table · acceptance · AC-3";
       const plan = planMd([
@@ -262,7 +263,7 @@ describe("lint's test-line rules (oracles)", () => {
       ]);
     });
 
-    it("departs a line still in the old oracle loop, as no test line, so the oracle phase has no acceptance line", async () => {
+    it("departs a line still in the old oracle loop as a retired loop, so the acceptance phase has no acceptance line", async () => {
       const plan = planMd([
         {
           oracle: true,
@@ -273,17 +274,20 @@ describe("lint's test-line rules (oracles)", () => {
       ]);
       const report = await runLint(plan, liveSpec(["ac-a", "ac-b"]));
       const messages = testsRows(report).map((r) => r.message);
+      expect(messages).toContain(
+        "test line 1 uses the loop 'oracle', which is no longer read: write 'acceptance'",
+      );
       expect(messages).toContain(silent("phase-01"));
     });
 
-    it("flags an oracle-loop line on an ordinary phase", async () => {
+    it("flags an acceptance-loop line on an ordinary phase", async () => {
       const plan = planMd([{ lines: [line("exports are listed", "acceptance", "ac-a")] }]);
       const report = await runLint(plan, liveSpec(["ac-a"]));
 
       expect(testsRows(report)).toEqual([row("error", "phase-01", misplaced(1, "phase-01"))]);
     });
 
-    it("flags an oracle phase whose lines are all in-phase", async () => {
+    it("flags an acceptance phase whose lines are all in-phase", async () => {
       const plan = planMd([
         {
           oracle: true,
@@ -297,7 +301,7 @@ describe("lint's test-line rules (oracles)", () => {
       expect(testsRows(report)).toEqual([row("error", "phase-01", silent("phase-01"))]);
     });
 
-    it("flags an oracle phase with no test line at all", async () => {
+    it("flags an acceptance phase with no test line at all", async () => {
       const plan = planMd([
         { oracle: true, create: ORACLE_FILE, lines: ["- (none)"] },
         {
@@ -388,7 +392,7 @@ describe("lint's test-line rules (oracles)", () => {
   });
 
   describe("the order", () => {
-    it("lists the oracle-loop error, the unknown id, then the uncovered warnings", async () => {
+    it("lists the acceptance-loop error, the unknown id, then the uncovered warnings", async () => {
       const plan = planMd([{ lines: [line("exports are listed", "acceptance", "ac-z")] }]);
       const report = await runLint(plan, liveSpec(["ac-a", "ac-b"]));
 

@@ -17,7 +17,7 @@ function makePhase(
     model?: string;
     effort?: string;
     reason?: string;
-    /** Header lines after the effort and reason lines: Mode, Oracle phase, Oracle files. */
+    /** Header lines after the effort and reason lines: Mode, Acceptance phase, Acceptance test files. */
     header?: readonly string[];
     create?: string;
     edit?: string;
@@ -679,8 +679,8 @@ describe("mode and oracle, read from the header lines", () => {
     const extracted = extractedPhases(
       plan({
         "phase-02": [
-          "**Oracle phase:** yes",
-          "**Oracle files:** `tests/z.test.ts`, `tests/a.test.ts`",
+          "**Acceptance phase:** yes",
+          "**Acceptance test files:** `tests/z.test.ts`, `tests/a.test.ts`",
         ],
       }),
     );
@@ -695,8 +695,8 @@ describe("mode and oracle, read from the header lines", () => {
     const extracted = extractedPhases(
       plan({
         "phase-02": [
-          "**Oracle phase:** discharged by phase-05",
-          "**Oracle files:** tests/b.test.ts, `tests/a.test.ts`",
+          "**Acceptance phase:** passed by phase-05",
+          "**Acceptance test files:** tests/b.test.ts, `tests/a.test.ts`",
         ],
       }),
     );
@@ -709,9 +709,9 @@ describe("mode and oracle, read from the header lines", () => {
   it("reads a malformed or unresolvable declaration as headless with no oracle, and still extracts", () => {
     const md = plan({
       "phase-01": ["**Mode:** review"],
-      "phase-02": ["**Oracle phase:** maybe", "**Oracle files:** `tests/a.test.ts`"],
-      "phase-03": ["**Oracle phase:** yes"],
-      "phase-06": ["**Oracle phase:** yes", "**Oracle files:** `tests/a.test.ts`"],
+      "phase-02": ["**Acceptance phase:** maybe", "**Acceptance test files:** `tests/a.test.ts`"],
+      "phase-03": ["**Acceptance phase:** yes"],
+      "phase-06": ["**Acceptance phase:** yes", "**Acceptance test files:** `tests/a.test.ts`"],
     });
     expect(collectPlanStructureErrors(md)).toEqual([]);
     const extracted = extractedPhases(md);
@@ -877,7 +877,10 @@ describe("test lines, read from each phase's ### Test strategy", () => {
       [exporterLine],
     ]);
     expect(reading.right.departures).toEqual([
-      { phase: "phase-01", departure: { line: 1, text: "add unit tests for the exporter" } },
+      {
+        phase: "phase-01",
+        departure: { line: 1, text: "add unit tests for the exporter", kind: "format" },
+      },
     ]);
     expect(reading.right.lineItems).toEqual([
       { phase: "phase-01", items: [2] },
@@ -915,7 +918,7 @@ describe("test lines, read from each phase's ### Test strategy", () => {
       phases: [makePhase({ testStrategy: "- nope" }).replace(" {#phase-01-alpha}", "")],
     });
     expect(readPlanTestStrategies(md)).toEqual([
-      { phase: "phase-01", lines: [], departures: [{ line: 1, text: "nope" }] },
+      { phase: "phase-01", lines: [], departures: [{ line: 1, text: "nope", kind: "format" }] },
     ]);
   });
 });

@@ -1011,7 +1011,7 @@ function liftStructuredPlanDocument(older: PlanDocumentToLift): PlanDocumentLift
       return {
         kind: "refused",
         phase: phase.id,
-        departure: { line: at + 1, text: renderTestLine(line) },
+        departure: { line: at + 1, text: renderTestLine(line), kind: "format" },
       };
     }
   }

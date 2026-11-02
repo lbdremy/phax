@@ -20,10 +20,15 @@ import {
 const DASH = " — ";
 const DOT = " · ";
 
-/** A section item that is not a test line: its source item number and its text. */
+/**
+ * A section item that is not a test line: its source item number, its text,
+ * and its kind. `retired-loop` is a line that reads only under the loops
+ * before 0.33.0 (its loop is `oracle`); any other departure is `format`.
+ */
 export interface TestLineDeparture {
   readonly line: number;
   readonly text: string;
+  readonly kind: "format" | "retired-loop";
 }
 
 /** A test line with its source item number, counting stray items. */
@@ -143,7 +148,9 @@ interface Item {
  * line. Every item that is not a test line departs: a stray item, an entry
  * `parseTestLine` refuses, an item holding U+2028, U+2029 or U+0085, and
  * `(none)` beside other items. A section written before 0.33.0 is read with
- * `beforeAcceptance`, so its loop `oracle` reads as `acceptance`.
+ * `beforeAcceptance`, so its loop `oracle` reads as `acceptance`. Without it,
+ * an entry that departs but reads under the loops before 0.33.0 departs as
+ * `retired-loop`; with it, every departure is `format`.
  */
 export function readTestStrategyText(
   text: string,
@@ -184,14 +191,33 @@ export function readTestStrategyText(
   const lines: NumberedTestLine[] = [];
   const departures: TestLineDeparture[] = [];
   for (const item of items) {
-    const line = item.stray || item.broken ? null : parseTestLine(item.text, options);
-    if (line === null) departures.push({ line: item.number, text: item.text });
-    else lines.push({ item: item.number, line });
+    const readable = !item.stray && !item.broken;
+    const line = readable ? parseTestLine(item.text, options) : null;
+    if (line !== null) {
+      lines.push({ item: item.number, line });
+      continue;
+    }
+    const retired =
+      readable &&
+      options.beforeAcceptance !== true &&
+      parseTestLine(item.text, { beforeAcceptance: true }) !== null;
+    departures.push({
+      line: item.number,
+      text: item.text,
+      kind: retired ? "retired-loop" : "format",
+    });
   }
   return { lines, departures };
 }
 
-/** `test line <n> departs from the format: "<text>"`. */
+/**
+ * `test line <n> uses the loop 'oracle', which is no longer read: write
+ * 'acceptance'` for a `retired-loop` departure; `test line <n> departs from
+ * the format: "<text>"` otherwise.
+ */
 export function departureMessage(d: TestLineDeparture): string {
+  if (d.kind === "retired-loop") {
+    return `test line ${String(d.line)} uses the loop 'oracle', which is no longer read: write 'acceptance'`;
+  }
   return `test line ${String(d.line)} departs from the format: "${d.text}"`;
 }

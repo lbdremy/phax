@@ -762,7 +762,7 @@ describe("renderPlanBody with interactive and oracle phases", () => {
   it("renders the oracle lines, files as comma-separated code spans, after the effort line", () => {
     const md = renderPlanBody(kinded());
     expect(section(md, "phase-01")).toContain(
-      "**Recommended model:** claude-opus-5-5\n**Recommended effort:** high\n**Oracle phase:** discharged by phase-03\n**Oracle files:** `tests/a.test.ts`, `tests/b.test.ts`\n\n",
+      "**Recommended model:** claude-opus-5-5\n**Recommended effort:** high\n**Acceptance phase:** passed by phase-03\n**Acceptance test files:** `tests/a.test.ts`, `tests/b.test.ts`\n\n",
     );
   });
 

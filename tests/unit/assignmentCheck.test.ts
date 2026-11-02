@@ -80,8 +80,10 @@ function header(
     assignmentReason,
     hasModelReason,
     mode: null,
-    oraclePhase: null,
-    oracleFiles: null,
+    acceptancePhase: null,
+    acceptanceFiles: null,
+    hasOraclePhaseLine: false,
+    hasOracleFilesLine: false,
     repeated: [],
     misplaced: [],
   };

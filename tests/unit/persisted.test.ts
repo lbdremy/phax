@@ -797,7 +797,11 @@ describe("format readers", () => {
         lift: {
           kind: "refused",
           phase: "phase-01",
-          departure: { line: 1, text: "Write the store test first. Then the command." },
+          departure: {
+            line: 1,
+            text: "Write the store test first. Then the command.",
+            kind: "format",
+          },
         },
       });
       expect(left(readPlanDocumentFile(file, proseWithText)).message).toBe(
@@ -821,7 +825,7 @@ describe("format readers", () => {
       expect(refused.shape !== "current" && refused.lift).toEqual({
         kind: "refused",
         phase: "phase-01",
-        departure: { line: 1, text: "Unit." },
+        departure: { line: 1, text: "Unit.", kind: "format" },
       });
     });
 

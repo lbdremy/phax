@@ -25,7 +25,7 @@ import {
   type LintFinding,
 } from "../domain/plan/lint.js";
 import { interactiveFindings } from "../domain/plan/interactiveCheck.js";
-import { oracleFindings } from "../domain/plan/oracleCheck.js";
+import { acceptanceFindings } from "../domain/plan/acceptanceCheck.js";
 import { testLineFindings } from "../domain/plan/testLineCheck.js";
 import { readSourceSpecCriteria } from "./sourceSpecCriteria.js";
 import { readPhaseHeaders } from "../domain/plan/phaseHeader.js";
@@ -109,7 +109,7 @@ export function lintPlan(
     // not the plan parses.
     const headers = readPhaseHeaders(planMd);
     findings.push(...reasonLabelFindings(headers));
-    const oracleInput = { headers, providerConfigured: config.acceptance !== undefined };
+    const acceptanceInput = { headers, providerConfigured: config.acceptance !== undefined };
     // Test lines too: a departure never hides the checks that need a parsed plan.
     const departures = testLineDepartureFindings(readPlanTestStrategies(planMd));
 
@@ -128,7 +128,7 @@ export function lintPlan(
       // say why it could not be parsed.
       findings.push(
         ...interactiveFindings({ headers, phases: null }),
-        ...oracleFindings({ ...oracleInput, phases: null }),
+        ...acceptanceFindings({ ...acceptanceInput, phases: null }),
         ...departures,
       );
       return { plan: reportPath, findings };
@@ -144,7 +144,7 @@ export function lintPlan(
       });
       findings.push(
         ...interactiveFindings({ headers, phases: null }),
-        ...oracleFindings({ ...oracleInput, phases: null }),
+        ...acceptanceFindings({ ...acceptanceInput, phases: null }),
         ...departures,
       );
       return { plan: reportPath, findings };
@@ -153,7 +153,7 @@ export function lintPlan(
     const { plan, warnings } = finalized.right;
     findings.push(
       ...interactiveFindings({ headers, phases: plan.phases }),
-      ...oracleFindings({ ...oracleInput, phases: plan.phases }),
+      ...acceptanceFindings({ ...acceptanceInput, phases: plan.phases }),
       ...departures,
     );
     // The rules on the kept lines, numbered by their source items.
@@ -163,7 +163,7 @@ export function lintPlan(
       ...testLineFindings({
         phases: plan.phases.map((phase) => ({
           id: phase.id,
-          oracle: phase.acceptance,
+          acceptance: phase.acceptance,
           lines: phase.testLines.map((line, i) => ({
             item: itemsOf.get(phase.id)?.[i] ?? i + 1,
             loop: line.loop,

@@ -1,6 +1,8 @@
 /**
  * phax's own reading of a phase's header lines in plan.md: Assignment reason,
- * Model reason, Mode, Oracle phase and Oracle files. Pure: no model, no I/O.
+ * Mode, Acceptance phase and Acceptance test files, and the old labels Model
+ * reason, Oracle phase and Oracle files, recognised only to be refused by
+ * name. Pure: no model, no I/O.
  *
  * One line grammar, shared by lint, the run preflight and both extraction
  * paths (`phaseKinds`): a label is recognised at the start of a line, bold or not
@@ -18,7 +20,10 @@ import { splitFrontmatter } from "../artifact/frontmatter.js";
 import { PlanValidationError } from "../errors.js";
 
 /** The declaration labels a phase may carry only in its header paragraph. */
-type DeclarationLabel = "Mode" | "Oracle phase" | "Oracle files";
+type DeclarationLabel = "Mode" | "Acceptance phase" | "Acceptance test files";
+
+/** The labels no longer read: recognised anywhere in a phase, never declarations. */
+type OldLabel = "Model reason" | "Oracle phase" | "Oracle files";
 
 /** What one header paragraph's lines say. */
 export interface HeaderParagraph {
@@ -28,10 +33,14 @@ export interface HeaderParagraph {
   readonly hasModelReason: boolean;
   /** The raw value of the `**Mode:**` line, null when absent. */
   readonly mode: string | null;
-  /** The raw value of the `**Oracle phase:**` line, null when absent. */
-  readonly oraclePhase: string | null;
-  /** The `**Oracle files:**` entries, null when the line is absent. */
-  readonly oracleFiles: readonly string[] | null;
+  /** The raw value of the `**Acceptance phase:**` line, null when absent. */
+  readonly acceptancePhase: string | null;
+  /** The `**Acceptance test files:**` entries, null when the line is absent. */
+  readonly acceptanceFiles: readonly string[] | null;
+  /** Whether an old `**Oracle phase:**` line is present. It declares nothing. */
+  readonly hasOraclePhaseLine: boolean;
+  /** Whether an old `**Oracle files:**` line is present. It declares nothing. */
+  readonly hasOracleFilesLine: boolean;
   /** The declaration labels that appear more than once in the header paragraph. */
   readonly repeated: readonly DeclarationLabel[];
 }
@@ -42,35 +51,43 @@ export interface PhaseHeader extends HeaderParagraph {
   readonly misplaced: readonly DeclarationLabel[];
 }
 
-type OracleDischarge = { readonly kind: "next" } | { readonly kind: "phase"; readonly id: string };
+type AcceptancePassing =
+  | { readonly kind: "next" }
+  | { readonly kind: "phase"; readonly id: string };
 
-export interface OracleDeclaration {
-  readonly dischargedBy: OracleDischarge;
+export interface AcceptanceDeclaration {
+  readonly passedBy: AcceptancePassing;
   readonly files: readonly string[];
 }
 
-type LineLabel = DeclarationLabel | "Assignment reason" | "Model reason";
+type LineLabel = DeclarationLabel | OldLabel | "Assignment reason";
 
 const LABELS: readonly LineLabel[] = [
   "Assignment reason",
   "Model reason",
   "Mode",
+  "Acceptance phase",
+  "Acceptance test files",
   "Oracle phase",
   "Oracle files",
 ];
-const DECLARATION_LABELS: readonly DeclarationLabel[] = ["Mode", "Oracle phase", "Oracle files"];
+const DECLARATION_LABELS: readonly DeclarationLabel[] = [
+  "Mode",
+  "Acceptance phase",
+  "Acceptance test files",
+];
 
 // `**Label:** value`, `**Label**: value` or `Label: value`, with `*` or `_`
 // emphasis of one or two markers in place of `**`, and after any blockquote
 // markers: a typo in the emphasis must never hide a declaration.
 const EMPHASIS = "(?:\\*{1,2}|_{1,2})";
 const LINE_RE = new RegExp(
-  `^\\s*(?:>\\s*)*(?:${EMPHASIS}\\s*)?(${LABELS.map((l) => l.replace(" ", "\\s+")).join("|")})\\s*(?::\\s*${EMPHASIS}|${EMPHASIS}\\s*:|:)(.*)$`,
+  `^\\s*(?:>\\s*)*(?:${EMPHASIS}\\s*)?(${LABELS.map((l) => l.replaceAll(" ", "\\s+")).join("|")})\\s*(?::\\s*${EMPHASIS}|${EMPHASIS}\\s*:|:)(.*)$`,
   "i",
 );
 
 const PHASE_HEADING_RE = /^(phase-\d{2})\b/i;
-const DISCHARGED_BY_RE = /^discharged by (phase-\d{2})$/;
+const PASSED_BY_RE = /^passed by (phase-\d{2})$/;
 
 function canonicalLabel(raw: string): LineLabel {
   const flat = raw.replace(/\s+/g, " ").toLowerCase();
@@ -79,6 +96,10 @@ function canonicalLabel(raw: string): LineLabel {
 
 function isDeclaration(label: LineLabel): label is DeclarationLabel {
   return (DECLARATION_LABELS as readonly string[]).includes(label);
+}
+
+function isOld(label: LineLabel): label is OldLabel {
+  return label === "Model reason" || label === "Oracle phase" || label === "Oracle files";
 }
 
 interface LabelledLine {
@@ -129,15 +150,17 @@ export function readHeaderParagraph(source: string): HeaderParagraph {
   const lines = labelledLines(source);
   const first = (label: LineLabel): string | null =>
     lines.find((l) => l.label === label)?.value ?? null;
-  const oracleFiles = first("Oracle files");
+  const acceptanceFiles = first("Acceptance test files");
   const assignmentReason = first("Assignment reason");
   return {
     assignmentReason:
       assignmentReason === null || assignmentReason === "" ? null : assignmentReason,
     hasModelReason: lines.some((l) => l.label === "Model reason"),
     mode: first("Mode"),
-    oraclePhase: first("Oracle phase"),
-    oracleFiles: oracleFiles === null ? null : splitEntries(oracleFiles),
+    acceptancePhase: first("Acceptance phase"),
+    acceptanceFiles: acceptanceFiles === null ? null : splitEntries(acceptanceFiles),
+    hasOraclePhaseLine: lines.some((l) => l.label === "Oracle phase"),
+    hasOracleFilesLine: lines.some((l) => l.label === "Oracle files"),
     repeated: DECLARATION_LABELS.filter(
       (label) => lines.filter((l) => l.label === label).length > 1,
     ),
@@ -164,10 +187,11 @@ function sourceOf(body: string, node: RootContent): string {
 
 /**
  * One phase block's header: its header paragraph read by `readHeaderParagraph`,
- * and the declaration labels misplaced in its other paragraphs and list items.
- * `nodes` are the root-level nodes under the phase's `##` heading; `body` is
- * the markdown they were parsed from, frontmatter skipped. The deterministic
- * walk reads its phase blocks through this, so both readers share one grammar.
+ * the declaration labels misplaced in its other paragraphs and list items, and
+ * the old labels wherever they sit. `nodes` are the root-level nodes under the
+ * phase's `##` heading; `body` is the markdown they were parsed from,
+ * frontmatter skipped. The deterministic walk reads its phase blocks through
+ * this, so both readers share one grammar.
  */
 export function readPhaseBlock(
   phase: string,
@@ -179,22 +203,24 @@ export function readPhaseBlock(
   );
   const header = readHeaderParagraph(headerNode === undefined ? "" : sourceOf(body, headerNode));
   const misplaced = new Set<DeclarationLabel>();
-  // The old label is refused wherever it sits in the phase, so a reason set
+  // The old labels are refused wherever they sit in the phase, so a line set
   // off by a blank line is never dropped without a word.
-  let modelReasonElsewhere = false;
+  const oldElsewhere = new Set<OldLabel>();
   for (const node of nodes) {
     for (const paragraph of paragraphsOf(node)) {
       if (paragraph === headerNode) continue;
       for (const line of labelledLines(sourceOf(body, paragraph))) {
         if (isDeclaration(line.label)) misplaced.add(line.label);
-        if (line.label === "Model reason") modelReasonElsewhere = true;
+        if (isOld(line.label)) oldElsewhere.add(line.label);
       }
     }
   }
   return {
     phase,
     ...header,
-    hasModelReason: header.hasModelReason || modelReasonElsewhere,
+    hasModelReason: header.hasModelReason || oldElsewhere.has("Model reason"),
+    hasOraclePhaseLine: header.hasOraclePhaseLine || oldElsewhere.has("Oracle phase"),
+    hasOracleFilesLine: header.hasOracleFilesLine || oldElsewhere.has("Oracle files"),
     misplaced: DECLARATION_LABELS.filter((label) => misplaced.has(label)),
   };
 }
@@ -234,22 +260,23 @@ export function declaresInteractive(header: PhaseHeader): boolean {
 }
 
 /**
- * The phase's oracle declaration when it is well formed: both oracle lines
- * appear exactly once and only in the header paragraph, and the Oracle phase
- * value is exactly `yes` or `discharged by phase-NN`. Null otherwise.
+ * The phase's acceptance declaration when it is well formed: both acceptance
+ * lines appear exactly once and only in the header paragraph, and the
+ * Acceptance phase value is exactly `yes` or `passed by phase-NN`. Null
+ * otherwise. The old Oracle lines never declare anything.
  */
-export function oracleDeclaration(header: PhaseHeader): OracleDeclaration | null {
-  if (header.oraclePhase === null || header.oracleFiles === null) return null;
-  const oracleLabels: readonly DeclarationLabel[] = ["Oracle phase", "Oracle files"];
-  if (oracleLabels.some((l) => header.repeated.includes(l) || header.misplaced.includes(l))) {
+export function acceptanceDeclaration(header: PhaseHeader): AcceptanceDeclaration | null {
+  if (header.acceptancePhase === null || header.acceptanceFiles === null) return null;
+  const labels: readonly DeclarationLabel[] = ["Acceptance phase", "Acceptance test files"];
+  if (labels.some((l) => header.repeated.includes(l) || header.misplaced.includes(l))) {
     return null;
   }
-  if (header.oraclePhase === "yes") {
-    return { dischargedBy: { kind: "next" }, files: header.oracleFiles };
+  if (header.acceptancePhase === "yes") {
+    return { passedBy: { kind: "next" }, files: header.acceptanceFiles };
   }
-  const discharged = header.oraclePhase.match(DISCHARGED_BY_RE);
-  if (discharged === null) return null;
-  return { dischargedBy: { kind: "phase", id: discharged[1]! }, files: header.oracleFiles };
+  const passed = header.acceptancePhase.match(PASSED_BY_RE);
+  if (passed === null) return null;
+  return { passedBy: { kind: "phase", id: passed[1]! }, files: header.acceptanceFiles };
 }
 
 /** A phase's `mode` and `acceptance`, as the plan document and phax-plan.json carry them. */
@@ -261,18 +288,17 @@ export interface PhaseKinds {
 /**
  * The only source of a phase's `mode` and `acceptance`: phax's reading of its
  * header lines. `mode` is `interactive` exactly when `declaresInteractive`.
- * `acceptance` is `oracleDeclaration` resolved, `next` to `nextPhaseId`, its
- * discharge being the passing phase (`passedBy`); it is null when the
- * declaration is, or when it says `next` and no phase follows. A declaration
- * phax cannot read or resolve yields headless and null here, and an error of
- * the `interactive` or `oracles` check, never an extraction failure.
+ * `acceptance` is `acceptanceDeclaration` resolved, `next` to `nextPhaseId`;
+ * it is null when the declaration is, or when it says `next` and no phase
+ * follows. A declaration phax cannot read or resolve yields headless and null
+ * here, and an error of the `interactive` or `acceptance` check, never an
+ * extraction failure.
  */
 export function phaseKinds(header: PhaseHeader, nextPhaseId: string | null): PhaseKinds {
   const mode = declaresInteractive(header) ? "interactive" : "headless";
-  const declaration = oracleDeclaration(header);
+  const declaration = acceptanceDeclaration(header);
   if (declaration === null) return { mode, acceptance: null };
-  const passedBy =
-    declaration.dischargedBy.kind === "phase" ? declaration.dischargedBy.id : nextPhaseId;
+  const passedBy = declaration.passedBy.kind === "phase" ? declaration.passedBy.id : nextPhaseId;
   if (passedBy === null) return { mode, acceptance: null };
   return { mode, acceptance: { passedBy, files: [...declaration.files] } };
 }
@@ -292,8 +318,8 @@ type KindedPhase = Omit<AnswerPhase, "testLines" | "commit"> &
  * from plan.md's header lines (`phaseKinds`), placed directly after
  * `optionalFilesToEdit` and before the answer's own `testLines`, so the key
  * order is `…, optionalFilesToEdit, mode, acceptance, testLines, commit`. An answer phase with no `## phase-NN` heading in
- * plan.md fails, naming it. The next phase of an oracle is the next heading
- * in plan.md, as on the deterministic path.
+ * plan.md fails, naming it. The next phase of an acceptance phase is the next
+ * heading in plan.md, as on the deterministic path.
  */
 export function withPhaseKinds(
   answer: ExtractionPlan,

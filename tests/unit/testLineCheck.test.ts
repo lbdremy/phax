@@ -5,17 +5,17 @@ import {
   type TestLineCheckPhase,
 } from "../../src/domain/plan/testLineCheck.js";
 
-const ORACLE = { dischargedBy: "phase-02", files: ["tests/a.test.ts"] };
+const ACCEPTANCE = { passedBy: "phase-02", files: ["tests/a.test.ts"] };
 const criteria = (...ids: string[]): CriteriaInput => ({ kind: "criteria", slug: "spec-x", ids });
 const NONE: CriteriaInput = { kind: "no-source-spec" };
 
 const phase = (
   id: string,
-  oracle: object | null,
+  acceptance: object | null,
   ...lines: Array<[item: number, loop: "acceptance" | "in-phase", criterion: string | null]>
 ): TestLineCheckPhase => ({
   id,
-  oracle,
+  acceptance,
   lines: lines.map(([item, loop, criterion]) => ({ item, loop, criterion })),
 });
 
@@ -27,7 +27,7 @@ const row = (severity: "error" | "warning", phaseId: string | null, message: str
 });
 
 describe("testLineFindings", () => {
-  it("flags an oracle-loop line on a phase that is not an oracle phase", () => {
+  it("flags an acceptance-loop line on a phase that is not an acceptance phase", () => {
     expect(
       testLineFindings({
         phases: [phase("phase-01", null, [3, "acceptance", null])],
@@ -37,27 +37,30 @@ describe("testLineFindings", () => {
       row(
         "error",
         "phase-01",
-        "test line 3 is in the oracle loop, but phase-01 is not an oracle phase",
+        "test line 3 is in the acceptance loop, but phase-01 is not an acceptance phase",
       ),
     ]);
   });
 
-  it("flags an oracle phase with no oracle-loop line, none at all included", () => {
+  it("flags an acceptance phase with no acceptance-loop line, none at all included", () => {
     expect(
       testLineFindings({
-        phases: [phase("phase-01", ORACLE, [1, "in-phase", null]), phase("phase-02", ORACLE)],
+        phases: [
+          phase("phase-01", ACCEPTANCE, [1, "in-phase", null]),
+          phase("phase-02", ACCEPTANCE),
+        ],
         criteria: NONE,
       }),
     ).toEqual([
       row(
         "error",
         "phase-01",
-        "phase-01 is an oracle phase, but none of its test lines is in the oracle loop",
+        "phase-01 is an acceptance phase, but none of its test lines is in the acceptance loop",
       ),
       row(
         "error",
         "phase-02",
-        "phase-02 is an oracle phase, but none of its test lines is in the oracle loop",
+        "phase-02 is an acceptance phase, but none of its test lines is in the acceptance loop",
       ),
     ]);
   });
@@ -78,7 +81,7 @@ describe("testLineFindings", () => {
       testLineFindings({
         phases: [
           phase("phase-01", null, [1, "acceptance", "ac-z"]),
-          phase("phase-02", ORACLE, [1, "in-phase", "ac-b"]),
+          phase("phase-02", ACCEPTANCE, [1, "in-phase", "ac-b"]),
         ],
         criteria: criteria("ac-a", "ac-b", "ac-c"),
       }),
@@ -86,28 +89,28 @@ describe("testLineFindings", () => {
       row(
         "error",
         "phase-01",
-        "test line 1 is in the oracle loop, but phase-01 is not an oracle phase",
+        "test line 1 is in the acceptance loop, but phase-01 is not an acceptance phase",
       ),
       row("error", "phase-01", 'test line 1 names criterion "ac-z", which spec-x does not have'),
       row(
         "error",
         "phase-02",
-        "phase-02 is an oracle phase, but none of its test lines is in the oracle loop",
+        "phase-02 is an acceptance phase, but none of its test lines is in the acceptance loop",
       ),
       row("warning", null, 'criterion "ac-a" of spec-x is named by no test line'),
       row("warning", null, 'criterion "ac-c" of spec-x is named by no test line'),
     ]);
   });
 
-  it("puts a line's oracle-loop error before its unknown-criterion error, then the phase's silent-oracle error", () => {
+  it("puts a line's acceptance-loop error before its unknown-criterion error, then the phase's silent-acceptance error", () => {
     const messages = testLineFindings({
-      phases: [phase("phase-01", null, [1, "acceptance", "ac-z"]), phase("phase-02", ORACLE)],
+      phases: [phase("phase-01", null, [1, "acceptance", "ac-z"]), phase("phase-02", ACCEPTANCE)],
       criteria: criteria("ac-a"),
     }).map((f) => f.message);
     expect(messages.slice(0, 3)).toEqual([
-      "test line 1 is in the oracle loop, but phase-01 is not an oracle phase",
+      "test line 1 is in the acceptance loop, but phase-01 is not an acceptance phase",
       'test line 1 names criterion "ac-z", which spec-x does not have',
-      "phase-02 is an oracle phase, but none of its test lines is in the oracle loop",
+      "phase-02 is an acceptance phase, but none of its test lines is in the acceptance loop",
     ]);
   });
 
@@ -148,7 +151,7 @@ describe("testLineFindings", () => {
       row(
         "error",
         "phase-01",
-        "test line 2 is in the oracle loop, but phase-01 is not an oracle phase",
+        "test line 2 is in the acceptance loop, but phase-01 is not an acceptance phase",
       ),
     ]);
   });

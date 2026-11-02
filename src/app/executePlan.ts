@@ -33,7 +33,7 @@ import {
   InteractivePreflightError,
   type InvalidTransitionError,
   OracleCommitMissingError,
-  OraclePreflightError,
+  AcceptancePreflightError,
   type PlanSectionsPreflightError,
   RateLimitError,
   RecordsDestinationRefusedError,
@@ -177,7 +177,7 @@ import {
   recordOracleRole,
   type OraclePair,
 } from "../domain/plan/oraclePairs.js";
-import { oracleFindings } from "../domain/plan/oracleCheck.js";
+import { acceptanceFindings } from "../domain/plan/acceptanceCheck.js";
 import { readPhaseHeaders } from "../domain/plan/phaseHeader.js";
 import { makeAcceptanceRequest } from "../domain/gate/acceptanceRequest.js";
 
@@ -408,7 +408,7 @@ export type ExecutePlanError =
   | PlanSectionsPreflightError
   | AssignmentPreflightError
   | InteractivePreflightError
-  | OraclePreflightError
+  | AcceptancePreflightError
   | OracleCommitMissingError
   | PhaseHadNoChangesError
   | RecordsDestinationRefusedError
@@ -699,7 +699,7 @@ export function executePlan(
     skip: boolean,
   ): Effect.Effect<
     OracleStep | undefined,
-    FsError | OraclePreflightError | OracleCommitMissingError,
+    FsError | AcceptancePreflightError | OracleCommitMissingError,
     FileSystem
   > {
     return Effect.gen(function* () {
@@ -708,15 +708,15 @@ export function executePlan(
       if (config.acceptance === undefined) {
         // The preflight refuses this plan; never skip the step.
         const planPath = join(runPath, "plan.md");
-        const findings = oracleFindings({
+        const findings = acceptanceFindings({
           headers: readPhaseHeaders(planMd),
           phases: plan.phases,
           providerConfigured: false,
         });
         return yield* Effect.fail(
-          new OraclePreflightError({
+          new AcceptancePreflightError({
             message: [
-              `Oracle preflight failed: ${findings.length} error(s).`,
+              `Acceptance preflight failed: ${findings.length} error(s).`,
               ...findings.map((f) => `  ${f.phase ?? "-"}  ${f.message}`),
               `Fix the plan, then check it with \`phax plans lint ${planPath}\`.`,
             ].join("\n"),

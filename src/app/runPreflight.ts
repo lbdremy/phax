@@ -17,7 +17,7 @@ import {
   HoldPreflightError,
   InteractivePreflightError,
   ModelPreflightError,
-  OraclePreflightError,
+  AcceptancePreflightError,
   PlanSectionsPreflightError,
   RecordsSyncRequiredError,
   SecurityPreflightError,
@@ -28,7 +28,7 @@ import {
 import { resolveHold, type HoldRequest } from "../domain/hold.js";
 import { interactiveFindings } from "../domain/plan/interactiveCheck.js";
 import { reasonLabelFindings, type LintFinding } from "../domain/plan/lint.js";
-import { oracleFindings } from "../domain/plan/oracleCheck.js";
+import { acceptanceFindings } from "../domain/plan/acceptanceCheck.js";
 import { readPhaseHeaders, type PhaseHeader } from "../domain/plan/phaseHeader.js";
 import { locatePlanSections, type PlanSections } from "../domain/plan/sections.js";
 import { preflightPhaseModels } from "../domain/routing/preflight.js";
@@ -63,7 +63,7 @@ export const RUN_PREFLIGHT_CHECKS = [
   "phase-models",
   "phase-sections",
   "assignment-bounds",
-  "oracle-phases",
+  "acceptance-phases",
   "interactive-phases",
 ] as const;
 
@@ -96,7 +96,7 @@ export type RunPreflightRefusal =
   | PlanSectionsPreflightError
   | AssignmentPreflightError
   | InteractivePreflightError
-  | OraclePreflightError;
+  | AcceptancePreflightError;
 
 export type RunPreflightError = RunPreflightRefusal | FsError;
 
@@ -165,7 +165,7 @@ function planSectionsRefusal(
 }
 
 function declarationRefusalMessage(
-  kind: "Interactive" | "Oracle",
+  kind: "Interactive" | "Acceptance",
   findings: readonly LintFinding[],
   planPath: string,
 ): string {
@@ -390,19 +390,19 @@ const checks = {
     );
   },
 
-  // The oracle lines and pairs: exactly the errors `phax plans lint` reports.
-  // Runs before the interactive check, so a plan with any `oracles` error is
-  // refused here, with every `oracles` row.
-  "oracle-phases": (input, _gateSteps, _planSections, headers) => {
-    const findings = oracleFindings({
+  // The acceptance lines and pairs: exactly the errors `phax plans lint`
+  // reports. Runs before the interactive check, so a plan with any
+  // `acceptance` error is refused here, with every `acceptance` row.
+  "acceptance-phases": (input, _gateSteps, _planSections, headers) => {
+    const findings = acceptanceFindings({
       headers,
       phases: input.plan.phases,
       providerConfigured: input.config.acceptance !== undefined,
     });
     if (findings.length === 0) return Effect.void;
     return Effect.fail(
-      new OraclePreflightError({
-        message: declarationRefusalMessage("Oracle", findings, input.planPath),
+      new AcceptancePreflightError({
+        message: declarationRefusalMessage("Acceptance", findings, input.planPath),
         findings,
         planPath: input.planPath,
       }),

@@ -20,8 +20,8 @@ export type CriteriaInput =
 
 export interface TestLineCheckPhase {
   readonly id: string;
-  /** Null when the phase is not an oracle phase. */
-  readonly oracle: object | null;
+  /** Null when the phase is not an acceptance phase. */
+  readonly acceptance: object | null;
   /** The kept lines, each with the item number it has in plan.md. */
   readonly lines: ReadonlyArray<{
     readonly item: number;
@@ -38,8 +38,9 @@ const finding = (
 
 /**
  * The `tests` findings of lint's rules on test lines (test-strategy §5.7–§5.12),
- * departures excluded: per phase in plan order, each line's oracle-loop error
- * then its unknown-criterion error, then the phase's silent-oracle error; then
+ * departures excluded: per phase in plan order, each line's acceptance-loop
+ * error then its unknown-criterion error, then the phase's silent-acceptance
+ * error; then
  * the plan-level warnings: the one line saying why no criterion is checked, or
  * the uncovered criteria in spec order. A phase with nothing to state gets no
  * finding.
@@ -53,12 +54,12 @@ export function testLineFindings(input: {
   const findings: LintFinding[] = [];
   for (const phase of phases) {
     for (const line of phase.lines) {
-      if (line.loop === "acceptance" && phase.oracle === null) {
+      if (line.loop === "acceptance" && phase.acceptance === null) {
         findings.push(
           finding(
             "error",
             phase.id,
-            `test line ${line.item} is in the oracle loop, but ${phase.id} is not an oracle phase`,
+            `test line ${line.item} is in the acceptance loop, but ${phase.id} is not an acceptance phase`,
           ),
         );
       }
@@ -72,12 +73,12 @@ export function testLineFindings(input: {
         );
       }
     }
-    if (phase.oracle !== null && !phase.lines.some((l) => l.loop === "acceptance")) {
+    if (phase.acceptance !== null && !phase.lines.some((l) => l.loop === "acceptance")) {
       findings.push(
         finding(
           "error",
           phase.id,
-          `${phase.id} is an oracle phase, but none of its test lines is in the oracle loop`,
+          `${phase.id} is an acceptance phase, but none of its test lines is in the acceptance loop`,
         ),
       );
     }

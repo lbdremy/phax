@@ -128,7 +128,7 @@ function architectureReportJson(parts: readonly object[]): string {
   });
 }
 
-const oracleRows = (report: LintReport) => report.findings.filter((f) => f.check === "oracles");
+const oracleRows = (report: LintReport) => report.findings.filter((f) => f.check === "acceptance");
 const interactiveRows = (report: LintReport) =>
   report.findings.filter((f) => f.check === "interactive");
 const interactiveRow = (phase: string, message: string) => ({
@@ -518,9 +518,9 @@ describe("lintPlan", () => {
     });
   });
 
-  describe("oracles", () => {
+  describe("acceptance", () => {
     const NO_PROVIDER =
-      'oracle phase declared, but no "oracles" provider is configured (phax.json, phax.local.json or ~/.phax/config.json)';
+      'acceptance phase declared, but no "acceptance" provider is configured (phax.json, phax.local.json or ~/.phax/config.json)';
     const withProvider = {
       ...config,
       acceptance: { command: "./fake-oracles" },
@@ -530,7 +530,7 @@ describe("lintPlan", () => {
     const pairPlan = (files: string, dischargedBy = "yes") =>
       PLAN_WITH_TWO_PHASES.replace(
         "**Recommended effort:** medium\n\n### Planned files to create\n\n- src/a.ts",
-        `**Recommended effort:** medium\n**Oracle phase:** ${dischargedBy}\n**Oracle files:** ${files}\n\n### Planned files to create\n\n- src/a.ts`,
+        `**Recommended effort:** medium\n**Acceptance phase:** ${dischargedBy}\n**Acceptance test files:** ${files}\n\n### Planned files to create\n\n- src/a.ts`,
       );
 
     it("reports a missing provider for a declared oracle phase", async () => {
@@ -567,20 +567,20 @@ describe("lintPlan", () => {
       );
 
       expect(oracleRows(report).map((f) => f.message)).toEqual([
-        "oracle file src/other.ts is not among this phase's planned files to create or to edit",
+        "acceptance test file src/other.ts is not among this phase's planned files to create or to edit",
       ]);
     });
 
     it("reports the last-phase rule once, not twice", async () => {
       const report = await runLint(
-        planMd({ header: ["**Oracle phase:** yes", "**Oracle files:** `src/a.ts`"] }),
+        planMd({ header: ["**Acceptance phase:** yes", "**Acceptance test files:** `src/a.ts`"] }),
         {},
         { config: withProvider },
       );
 
       expect(oracleRows(report).map((f) => f.message)).toEqual([
-        "oracle phase is discharged by the next phase, and phase-01 is the last phase",
-        "oracle file src/a.ts is not among this phase's planned files to create or to edit",
+        "acceptance phase is passed by the next phase, and phase-01 is the last phase",
+        "acceptance test file src/a.ts is not among this phase's planned files to create or to edit",
       ]);
     });
 
@@ -668,7 +668,7 @@ describe("lintPlan", () => {
       ]);
     });
 
-    it("reports the departure after the interactive and oracles rows", async () => {
+    it("reports the departure after the interactive and acceptance rows", async () => {
       const report = await runLint(
         planMd({ header: ["**Mode:** sometimes"], testStrategy: "- prose" }),
       );

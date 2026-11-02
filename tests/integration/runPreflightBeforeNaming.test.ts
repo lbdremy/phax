@@ -102,7 +102,7 @@ const REQUIRED_COMMANDS_MESSAGE = [
 ].join("\n");
 
 const INTERACTIVE_LINE = "**Mode:** interactive";
-const ORACLE_LINES = ["**Oracle phase:** yes", "**Oracle files:** `src/step-01.ts`"];
+const ORACLE_LINES = ["**Acceptance phase:** yes", "**Acceptance test files:** `src/step-01.ts`"];
 const LINT_HINT = "Fix the plan, then check it with `phax plans lint plan.md`.";
 // A plan whose last phase is interactive and plans nothing: one placement error.
 const LAST_INTERACTIVE_PHASES = [
@@ -115,10 +115,12 @@ const INTERACTIVE_MESSAGE = [
   LINT_HINT,
 ].join("\n");
 const NO_PROVIDER_ROW =
-  '  phase-01  oracle phase declared, but no "oracles" provider is configured (phax.json, phax.local.json or ~/.phax/config.json)';
-const ORACLE_MESSAGE = ["Oracle preflight failed: 1 error(s).", NO_PROVIDER_ROW, LINT_HINT].join(
-  "\n",
-);
+  '  phase-01  acceptance phase declared, but no "acceptance" provider is configured (phax.json, phax.local.json or ~/.phax/config.json)';
+const ORACLE_MESSAGE = [
+  "Acceptance preflight failed: 1 error(s).",
+  NO_PROVIDER_ROW,
+  LINT_HINT,
+].join("\n");
 // The same text lint prints for the label error, under the model preflight header.
 const MODEL_REASON_MESSAGE = [
   "Model preflight failed: 1 phase(s) have invalid model configuration.",
@@ -281,7 +283,7 @@ const SCENARIOS = {
     exitCode: 11,
     errorLine: () => `phax run failed: ${INTERACTIVE_MESSAGE}`,
   },
-  "oracle-phases": {
+  "acceptance-phases": {
     fixture: { plan: { phases: [{ headerLines: ORACLE_LINES }, {}] } },
     exitCode: 11,
     errorLine: () => `phax run failed: ${ORACLE_MESSAGE}`,
@@ -356,15 +358,15 @@ const EXTRA_SCENARIOS: Record<string, RefusalScenario> = {
         "Check the plan with `phax plans lint plan.md`.",
       ].join("\n")}`,
   },
-  "oracle-phases (an interactive last phase declaring an oracle phase)": {
+  "acceptance-phases (an interactive last phase declaring an acceptance phase)": {
     fixture: { plan: { phases: [{}, { headerLines: [INTERACTIVE_LINE, ...ORACLE_LINES] }] } },
     exitCode: 11,
     errorLine: () =>
       `phax run failed: ${[
-        "Oracle preflight failed: 4 error(s).",
-        "  phase-02  oracle phase is discharged by the next phase, and phase-02 is the last phase",
-        "  phase-02  oracle file src/step-01.ts is not among this phase's planned files to create or to edit",
-        "  phase-02  an interactive phase takes no oracle role: it declares an oracle phase",
+        "Acceptance preflight failed: 4 error(s).",
+        "  phase-02  acceptance phase is passed by the next phase, and phase-02 is the last phase",
+        "  phase-02  acceptance test file src/step-01.ts is not among this phase's planned files to create or to edit",
+        "  phase-02  an interactive phase takes no acceptance role: it declares an acceptance phase",
         NO_PROVIDER_ROW.replace("phase-01", "phase-02"),
         LINT_HINT,
       ].join("\n")}`,
@@ -567,8 +569,8 @@ describe("phax run — a preflight refusal precedes naming", () => {
           phases: [
             {
               headerLines: [
-                "**Oracle phase:** yes",
-                "**Oracle files:** `src/step-01.ts`, `src/other.ts`",
+                "**Acceptance phase:** yes",
+                "**Acceptance test files:** `src/step-01.ts`, `src/other.ts`",
               ],
             },
             {},
@@ -588,8 +590,8 @@ describe("phax run — a preflight refusal precedes naming", () => {
           phases: [
             {
               headerLines: [
-                "**Oracle phase:** discharged by phase-09",
-                "**Oracle files:** `src/step-01.ts`",
+                "**Acceptance phase:** passed by phase-09",
+                "**Acceptance test files:** `src/step-01.ts`",
               ],
             },
             {},
@@ -598,12 +600,17 @@ describe("phax run — a preflight refusal precedes naming", () => {
       },
     ],
     [
-      "a malformed Oracle phase line",
+      "a malformed Acceptance phase line",
       {
         config: PROVIDER,
         plan: {
           phases: [
-            { headerLines: ["**Oracle phase:** maybe", "**Oracle files:** `src/step-01.ts`"] },
+            {
+              headerLines: [
+                "**Acceptance phase:** maybe",
+                "**Acceptance test files:** `src/step-01.ts`",
+              ],
+            },
             {},
           ],
         },
@@ -614,7 +621,7 @@ describe("phax run — a preflight refusal precedes naming", () => {
       { plan: { phases: [{ headerLines: ORACLE_LINES }, { headerLines: [INTERACTIVE_LINE] }] } },
     ],
   ] satisfies [string, Fixture][])(
-    "lint and the run preflight report the same oracles rows: %s",
+    "lint and the run preflight report the same acceptance rows: %s",
     async (_label, fixture) => {
       const r = enter(fixture);
       const config = Either.getOrThrow(loadConfig(r.repo));
@@ -627,7 +634,7 @@ describe("phax run — a preflight refusal precedes naming", () => {
         }).pipe(Effect.provide(Layer.merge(NodeFileSystemLayer, makeFakeShell().layer))),
       );
       const lintRows = report.findings
-        .filter((f) => f.check === "oracles" && f.severity === "error")
+        .filter((f) => f.check === "acceptance" && f.severity === "error")
         .map((f) => `  ${f.phase ?? "-"}  ${f.message}`);
       expect(lintRows.length).toBeGreaterThan(0);
       const out = recordingOutput();
@@ -636,7 +643,7 @@ describe("phax run — a preflight refusal precedes naming", () => {
 
       expect(code).toBe(11);
       expect(out.errors).toEqual([
-        `phax run failed: ${[`Oracle preflight failed: ${lintRows.length} error(s).`, ...lintRows, LINT_HINT].join("\n")}`,
+        `phax run failed: ${[`Acceptance preflight failed: ${lintRows.length} error(s).`, ...lintRows, LINT_HINT].join("\n")}`,
       ]);
       expect(snapshotRepo(r).runs).toEqual([]);
     },

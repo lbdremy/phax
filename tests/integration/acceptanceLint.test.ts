@@ -91,7 +91,7 @@ function lint(plan: string, config: ResolvedConfig = withProvider): Promise<Lint
 
 describe("acceptance: the plan side of lint", () => {
   // ac-header: a phase with the new header lines lints with no error at all.
-  it.fails("ac-header: the new header lines lint with no error", async () => {
+  it("ac-header: the new header lines lint with no error", async () => {
     const report = await lint(acHeaderPlan());
 
     expect(report.findings.filter((f) => f.severity === "error")).toEqual([]);
@@ -104,7 +104,7 @@ describe("acceptance: the plan side of lint", () => {
     { name: "a phase line without its files line", plan: acHeaderNoFilesPlan, row: NO_FILES_ROW },
   ] as const;
   for (const c of headerRules) {
-    it.fails(`ac-header-rules: ${c.name} is refused with the acceptance message`, async () => {
+    it(`ac-header-rules: ${c.name} is refused with the acceptance message`, async () => {
       const report = await lint(c.plan());
 
       expect(report.findings).toContainEqual(c.row);
@@ -113,7 +113,7 @@ describe("acceptance: the plan side of lint", () => {
   }
 
   // ac-header-old: both Oracle lines are refused by name.
-  it.fails("ac-header-old: the Oracle phase and Oracle files lines are each refused", async () => {
+  it("ac-header-old: the Oracle phase and Oracle files lines are each refused", async () => {
     const report = await lint(acHeaderOldPlan());
 
     expect(report.findings).toContainEqual(OLD_PHASE_ROW);
@@ -122,7 +122,7 @@ describe("acceptance: the plan side of lint", () => {
   });
 
   // ac-loop-rules: a misplaced acceptance line and a silent acceptance phase.
-  it.fails("ac-loop-rules: both loop rules say acceptance", async () => {
+  it("ac-loop-rules: both loop rules say acceptance", async () => {
     const report = await lint(acLoopRulesPlan());
 
     expect(report.findings).toContainEqual(MISPLACED_ROW);
@@ -131,7 +131,7 @@ describe("acceptance: the plan side of lint", () => {
   });
 
   // ac-loop-old: a line in the retired oracle loop is refused by name.
-  it.fails("ac-loop-old: a line in the oracle loop is refused by name", async () => {
+  it("ac-loop-old: a line in the oracle loop is refused by name", async () => {
     const report = await lint(acLoopOldPlan());
 
     expect(report.findings).toContainEqual(OLD_LOOP_ROW);
@@ -139,7 +139,7 @@ describe("acceptance: the plan side of lint", () => {
   });
 
   // ac-provider-missing: no acceptance key in any layer.
-  it.fails("ac-provider-missing: an acceptance phase with no provider is named", async () => {
+  it("ac-provider-missing: an acceptance phase with no provider is named", async () => {
     const report = await lint(acHeaderPlan(), withoutProvider);
 
     expect(report.findings).toContainEqual(NO_PROVIDER_ROW);
