@@ -75,9 +75,10 @@ handoffs, docs, the PR's tables).
 - `R3` (`C1`) **A finding that reveals a contradiction reopens the spec, it is not patched.**
   If two findings, or a finding and a requirement, cannot both be satisfied, the
   disagreement goes back to `decide` on the spec (spec doctrine `S8`). Plan the rest.
-- `R4` (`C4`) **Acceptance tests are not fix targets.** A fix phase never plans a test, matrix or
-  fixture that judges the code it changes. If the finding says the test is wrong, that is
-  an acceptance-test question: escalate (plan doctrine `P3`).
+- `R4` (`C4`) **Acceptance tests are not fix targets.** A fix phase never plans an acceptance
+  test, nor any test, matrix or fixture that judges the code it changes. If the finding says
+  the test is wrong, that is a question about what judges the code, for the spec: escalate
+  (plan doctrine `P3`).
 - `R5` (`C1`) **Group by cause, not by file.** One phase per root cause; findings that share a
   cause share a phase; a phase names its findings by id so the next `--headless` pass
   can tick them.
