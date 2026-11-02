@@ -1,24 +1,25 @@
-// Reads the oracle request phax writes on stdin. Every defect that makes the
+// Reads the acceptance request phax writes on stdin. Every defect that makes the
 // request unreadable comes back as a refusal: one line naming the defect, one
 // line saying what to do.
 
-const SCHEMA = /^https:\/\/docs\.phax\.run\/schemas\/oracle-request\/\d+\.\d+\.\d+\.json$/;
+const SCHEMA = /^https:\/\/docs\.phax\.run\/schemas\/acceptance-request\/\d+\.\d+\.\d+\.json$/;
 const PHASE_ID = /^phase-\d{2}$/;
 const COMMIT = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
 const SCRIPT_FILE = /\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs)$/;
 
 const KEYS = {
-  authored: ["$schema", "verdict", "phase", "oraclePhase", "base", "files"],
-  discharged: ["$schema", "verdict", "phase", "oraclePhase", "base", "oracleCommit", "files"],
+  authored: ["$schema", "verdict", "phase", "acceptancePhase", "base", "files"],
+  passed: ["$schema", "verdict", "phase", "acceptancePhase", "base", "acceptanceCommit", "files"],
 };
 
-const FROM_PHAX = "Run this provider only as phax's oracles command, which writes a valid request.";
+const FROM_PHAX =
+  "Run this provider only as phax's acceptance command, which writes a valid request.";
 
 function refuse(reason, remedy) {
   return { refused: { reason, remedy } };
 }
 
-/** The first defect of an oracle file path, or null. */
+/** The first defect of an acceptance test file path, or null. */
 function pathDefect(path) {
   if (typeof path !== "string" || path === "") return "is not a non-empty string";
   if (path.startsWith("/") || /^[A-Za-z]:[\\/]/.test(path)) return "is absolute";
@@ -31,7 +32,7 @@ function pathDefect(path) {
 
 /**
  * Decode the raw stdin text: `{ request }`, or `{ refused: { reason, remedy } }`.
- * Whether `base` and `oracleCommit` are commits of the repository is git.mjs's check.
+ * Whether `base` and `acceptanceCommit` are commits of the repository is git.mjs's check.
  */
 export function readRequest(text) {
   let value;
@@ -48,7 +49,7 @@ export function readRequest(text) {
   }
   if (!SCHEMA.test(value.$schema)) {
     return refuse(
-      `$schema ${JSON.stringify(value.$schema)} does not name the oracle-request format`,
+      `$schema ${JSON.stringify(value.$schema)} does not name the acceptance-request format`,
       FROM_PHAX,
     );
   }
@@ -58,7 +59,7 @@ export function readRequest(text) {
       : undefined;
   if (keys === undefined) {
     return refuse(
-      `verdict ${JSON.stringify(value.verdict)} is neither "authored" nor "discharged"`,
+      `verdict ${JSON.stringify(value.verdict)} is neither "authored" nor "passed"`,
       FROM_PHAX,
     );
   }
@@ -70,7 +71,7 @@ export function readRequest(text) {
   if (extra !== undefined) {
     return refuse(`the ${value.verdict} request does not take a ${extra} key`, FROM_PHAX);
   }
-  for (const key of ["phase", "oraclePhase"]) {
+  for (const key of ["phase", "acceptancePhase"]) {
     if (typeof value[key] !== "string" || !PHASE_ID.test(value[key])) {
       return refuse(
         `${key} ${JSON.stringify(value[key])} is not a phase id like phase-01`,
@@ -78,7 +79,7 @@ export function readRequest(text) {
       );
     }
   }
-  for (const key of ["base", "oracleCommit"]) {
+  for (const key of ["base", "acceptanceCommit"]) {
     if (!Object.hasOwn(value, key)) continue;
     if (typeof value[key] !== "string" || !COMMIT.test(value[key])) {
       return refuse(`${key} ${JSON.stringify(value[key])} is not a full commit hash`, FROM_PHAX);
@@ -92,7 +93,7 @@ export function readRequest(text) {
     if (defect !== null) {
       return refuse(
         `file path ${JSON.stringify(path)} ${defect}`,
-        "Declare the oracle files as relative paths to test scripts inside the working tree.",
+        "Declare the acceptance test files as relative paths to test scripts inside the working tree.",
       );
     }
   }

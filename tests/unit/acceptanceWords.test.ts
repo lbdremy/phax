@@ -1,9 +1,9 @@
 // The spec acceptance-tests' ac-oracle-kept scan: the words oracle and
-// discharge may appear in the sources, the usage contract, the CLI reference,
-// the current JSON Schemas and the skills only where spec §5.21 keeps them.
-// Plan 4 widens SCANNED_ROOTS and SCANNED_FILES below in three phases: the
-// skills (phase-01), then the live docs and the site sources (phase-02), then
-// the README, the docs page and the examples (phase-03); every entry here stays.
+// discharge may appear in the sources, the usage contract, the JSON Schemas, the
+// README, the live docs, the site sources, the examples and the skills only where
+// spec §5.21 keeps them. Plan 4 widened SCANNED_ROOTS and SCANNED_FILES below in
+// three phases: the skills (phase-01), then the live docs and the site sources
+// (phase-02), then the README, the docs page and the examples (phase-03).
 // One line-based reader serves every file type: a word is an occurrence wherever
 // it appears, code spans and fences included. docs/upgrading.md is read only
 // through the end of its 0.33.0 entry (READ_THROUGH), as §8 leaves the entries of
@@ -27,9 +27,8 @@ export interface ScannedRoot {
 }
 
 /**
- * Directories scanned recursively. Phase-03 adds `examples`. The live docs leave
- * out what records decisions in the words of their day, and
- * docs/acceptance-phases.md until phase-03 moves its example path.
+ * Directories scanned recursively. The live docs leave out what records
+ * decisions in the words of their day.
  */
 export const SCANNED_ROOTS: readonly ScannedRoot[] = [
   { dir: "src", extensions: [".ts"], exclude: [] },
@@ -38,22 +37,18 @@ export const SCANNED_ROOTS: readonly ScannedRoot[] = [
   {
     dir: "docs",
     extensions: [".md"],
-    exclude: [
-      "docs/specs",
-      "docs/plans",
-      "docs/briefs",
-      "docs/releases",
-      "docs/acceptance-phases.md",
-    ],
+    exclude: ["docs/specs", "docs/plans", "docs/briefs", "docs/releases"],
   },
   {
     dir: "site",
     extensions: [".ts", ".tsx"],
     exclude: ["site/generated", "site/doc_build", "site/node_modules"],
   },
+  { dir: "examples", extensions: [".mjs", ".md", ".json"], exclude: [] },
 ];
-/** Single files scanned beside the roots. Phase-03 adds README.md. */
+/** Single files scanned beside the roots. */
 export const SCANNED_FILES: readonly string[] = [
+  "README.md",
   "phax.usage.kdl",
   "phax.schema.json",
   "phax.user.schema.json",
@@ -487,6 +482,24 @@ export const ALLOWLIST: readonly AllowEntry[] = [
   },
 
   {
+    id: "readme-retired-format-row",
+    reason: "retired oracle-request format id and exports",
+    file: "README.md",
+    lines: [/Oracle request/, /oracle-request/],
+  },
+  {
+    id: "readme-test-line-field",
+    reason: "test line fourth field",
+    file: "README.md",
+    lines: [/<oracle>/],
+  },
+  {
+    id: "docs-acceptance-phases-old-stem",
+    reason: "reader or lift of an earlier shape",
+    file: "docs/acceptance-phases.md",
+    lines: [/\.oracle-request\.json/],
+  },
+  {
     id: "field-plan-overview",
     reason: "test line fourth field",
     file: "docs/plan-overview.md",
@@ -639,7 +652,10 @@ describe("acceptance words in the sources (ac-oracle-kept, source half)", () => 
   const files = scannedFiles();
   const occurrences = findOccurrences(files);
 
-  it("scans the sources, the usage contract, the live docs, the site sources, the JSON Schemas and the skills", () => {
+  it("scans the sources, the usage contract, the JSON Schemas, the README, the live docs, the site sources, the examples and the skills", () => {
+    expect(files).toContain("README.md");
+    expect(files).toContain("docs/acceptance-phases.md");
+    expect(files).toContain("examples/vitest-acceptance/main.mjs");
     expect(files).toContain("src/cli/cliDocs.ts");
     expect(files).toContain("phax.schema.json");
     expect(files).toContain("packages/schemas/snapshots/plan-document/next.schema.json");

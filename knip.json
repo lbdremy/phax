@@ -15,14 +15,14 @@
     "site/build/*.ts",
     "site/theme/index.tsx",
     "site/theme/css.d.ts",
-    "examples/vitest-oracles/main.mjs"
+    "examples/vitest-acceptance/main.mjs"
   ],
   "project": [
     "src/**/*.ts",
     "tests/**/*.ts",
     "packages/schemas/**/*.ts",
     "site/**/*.{ts,tsx}",
-    "examples/vitest-oracles/**/*.mjs"
+    "examples/vitest-acceptance/**/*.mjs"
   ],
   "ignore": ["site/generated/**", "site/doc_build/**"],
   "ignoreDependencies": [

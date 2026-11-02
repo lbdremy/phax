@@ -6,15 +6,15 @@ import { parse, strippedProgram, testsOf } from "./syntax.mjs";
 
 // One rule per finding kind, which is also the prefix of the finding's id.
 const RULES = {
-  "oracle-unmarked":
-    "In the oracle phase, every test added or modified in an oracle file carries the runner's expected-failure marker",
-  "oracle-not-run":
-    "In the oracle phase, every test added or modified in an oracle file runs: no skip, todo, only, skipIf or runIf on it or an enclosing block, and a test function",
-  "oracle-marker-left":
-    "After the oracle phase, no test of an oracle file keeps the runner's expected-failure marker",
-  "oracle-changed":
-    "After the oracle phase, only the expected-failure markers may change in an oracle file",
-  "oracle-unparsable": "An oracle file parses",
+  "acceptance-unmarked":
+    "In the acceptance phase, every test added or modified in an acceptance test file carries the runner's expected-failure marker",
+  "acceptance-not-run":
+    "In the acceptance phase, every test added or modified in an acceptance test file runs: no skip, todo, only, skipIf or runIf on it or an enclosing block, and a test function",
+  "acceptance-marker-left":
+    "After the acceptance phase, no test of an acceptance test file keeps the runner's expected-failure marker",
+  "acceptance-changed":
+    "After the acceptance phase, only the expected-failure markers may change in an acceptance test file",
+  "acceptance-unparsable": "An acceptance test file parses",
 };
 
 function finding(kind, file, subject, lines, message) {
@@ -30,7 +30,7 @@ function finding(kind, file, subject, lines, message) {
 
 function unparsable(file, error) {
   return finding(
-    "oracle-unparsable",
+    "acceptance-unparsable",
     file,
     undefined,
     [error.line, error.line],
@@ -38,7 +38,7 @@ function unparsable(file, error) {
   );
 }
 
-/** Judge the oracle phase: a new or modified test carries a marker. */
+/** Judge the acceptance phase: a new or modified test carries a marker. */
 export function authoredFindings(cwd, request) {
   const findings = [];
   for (const file of request.files) {
@@ -64,7 +64,7 @@ export function authoredFindings(cwd, request) {
       if (test.notRun !== null) {
         findings.push(
           finding(
-            "oracle-not-run",
+            "acceptance-not-run",
             file,
             test.identity,
             [test.start, test.end],
@@ -75,7 +75,7 @@ export function authoredFindings(cwd, request) {
       if (test.marked) continue;
       findings.push(
         finding(
-          "oracle-unmarked",
+          "acceptance-unmarked",
           file,
           test.identity,
           [test.start, test.end],
@@ -99,12 +99,12 @@ function firstTestDifference(nowTests, thenTests) {
   return deleted === undefined ? null : `test "${deleted.identity}" was deleted`;
 }
 
-/** Judge the discharging phase: no marker left, and nothing else changed since `oracleCommit`. */
-export function dischargedFindings(cwd, request) {
+/** Judge the passing phase: no marker left, and nothing else changed since `acceptanceCommit`. */
+export function passedFindings(cwd, request) {
   const findings = [];
   for (const file of request.files) {
     const now = fileNow(cwd, file);
-    const thenText = fileAt(cwd, request.oracleCommit, file);
+    const thenText = fileAt(cwd, request.acceptanceCommit, file);
     if (now === null && thenText === null) continue;
 
     let thenParsed;
@@ -113,8 +113,8 @@ export function dischargedFindings(cwd, request) {
       if (thenParsed.error !== undefined) {
         return {
           refused: {
-            reason: `${file} does not parse at the oracle commit ${request.oracleCommit} (line ${thenParsed.error.line}): ${thenParsed.error.message}`,
-            remedy: `Correct the oracle in the phase's worktree, then run phax resume <run> --skip-oracle; the fix loop cannot repair a committed oracle.`,
+            reason: `${file} does not parse at the acceptance commit ${request.acceptanceCommit} (line ${thenParsed.error.line}): ${thenParsed.error.message}`,
+            remedy: `Correct the acceptance test in the phase's worktree, then run phax resume <run> --skip-acceptance; the fix loop cannot repair a committed acceptance test.`,
           },
         };
       }
@@ -122,11 +122,11 @@ export function dischargedFindings(cwd, request) {
     if (now === null) {
       findings.push(
         finding(
-          "oracle-changed",
+          "acceptance-changed",
           file,
           undefined,
           null,
-          `${file} was deleted since the oracle commit`,
+          `${file} was deleted since the acceptance commit`,
         ),
       );
       continue;
@@ -141,7 +141,7 @@ export function dischargedFindings(cwd, request) {
       if (!test.marked) continue;
       findings.push(
         finding(
-          "oracle-marker-left",
+          "acceptance-marker-left",
           file,
           test.identity,
           [test.start, test.end],
@@ -152,11 +152,11 @@ export function dischargedFindings(cwd, request) {
     if (thenParsed === undefined) {
       findings.push(
         finding(
-          "oracle-changed",
+          "acceptance-changed",
           file,
           undefined,
           null,
-          `${file} was added since the oracle commit`,
+          `${file} was added since the acceptance commit`,
         ),
       );
     } else if (strippedProgram(parsed.program) !== strippedProgram(thenParsed.program)) {
@@ -165,11 +165,11 @@ export function dischargedFindings(cwd, request) {
         firstTestDifference(nowTests, thenTests) ?? "the change lies outside any test";
       findings.push(
         finding(
-          "oracle-changed",
+          "acceptance-changed",
           file,
           undefined,
           null,
-          `${file} changed since the oracle commit beyond its markers: ${difference}`,
+          `${file} changed since the acceptance commit beyond its markers: ${difference}`,
         ),
       );
     }

@@ -81,7 +81,7 @@ phax records the step under the `acceptance` surface in the phase's `gate-attrib
 
 ## An example provider
 
-[`examples/vitest-oracles/`](../examples/vitest-oracles/) is a Vitest provider that phax's own repository declares as `node examples/vitest-oracles/main.mjs`. It lives in the repository only: no package ships it, so copy it and adapt it to your runner.
+[`examples/vitest-acceptance/`](../examples/vitest-acceptance/) is a Vitest provider that phax's own repository declares as `node examples/vitest-acceptance/main.mjs`. It lives in the repository only: no package ships it, so copy it and adapt it to your runner.
 
 - **`authored`.** Every test the acceptance test files add or modify since `base` must carry `.fails` and must run: a `skip`, `todo`, `only`, `skipIf` or `runIf` on the test or an enclosing `describe`, or a test with no function, is a finding, since such a test passes both verdicts and never judges the code. A deleted test and an unchanged test are never findings, and an acceptance test file that does not parse is one finding.
 - **`passed`.** No `.fails` is left in the acceptance test files, and each file's syntax tree, with its markers removed, equals its tree at `acceptanceCommit`. Removing the markers is the only change allowed; the finding for any other change names the first test that differs.
