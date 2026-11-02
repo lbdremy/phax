@@ -22,6 +22,18 @@ export interface TestLineCheckPhase {
   readonly id: string;
   /** Null when the phase is not an acceptance phase. */
   readonly acceptance: object | null;
+  /**
+   * Whether the phase carries an old `**Oracle phase:**` or `**Oracle files:**`
+   * line. Its own `acceptance` row names the fix, so the phase is not told its
+   * acceptance-loop lines are out of place.
+   */
+  readonly retiredHeader: boolean;
+  /**
+   * Whether a line of the phase departed in the old loop `oracle`. Its own
+   * `tests` row names the fix, so the phase is not told it has no line in the
+   * acceptance loop.
+   */
+  readonly retiredLoop: boolean;
   /** The kept lines, each with the item number it has in plan.md. */
   readonly lines: ReadonlyArray<{
     readonly item: number;
@@ -40,7 +52,8 @@ const finding = (
  * The `tests` findings of lint's rules on test lines (test-strategy §5.7–§5.12),
  * departures excluded: per phase in plan order, each line's acceptance-loop
  * error then its unknown-criterion error, then the phase's silent-acceptance
- * error; then
+ * error, a phase half rewritten from the old names excepted (`retiredHeader`,
+ * `retiredLoop`); then
  * the plan-level warnings: the one line saying why no criterion is checked, or
  * the uncovered criteria in spec order. A phase with nothing to state gets no
  * finding.
@@ -54,7 +67,7 @@ export function testLineFindings(input: {
   const findings: LintFinding[] = [];
   for (const phase of phases) {
     for (const line of phase.lines) {
-      if (line.loop === "acceptance" && phase.acceptance === null) {
+      if (line.loop === "acceptance" && phase.acceptance === null && !phase.retiredHeader) {
         findings.push(
           finding(
             "error",
@@ -73,7 +86,11 @@ export function testLineFindings(input: {
         );
       }
     }
-    if (phase.acceptance !== null && !phase.lines.some((l) => l.loop === "acceptance")) {
+    if (
+      phase.acceptance !== null &&
+      !phase.retiredLoop &&
+      !phase.lines.some((l) => l.loop === "acceptance")
+    ) {
       findings.push(
         finding(
           "error",

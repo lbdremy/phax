@@ -392,3 +392,52 @@ describe("acceptanceFindings: pairs", () => {
     ]);
   });
 });
+
+// The old labels' rows come first, one per label per phase, and beside a valid
+// new pair they add nothing else. The run preflight prints lint's rows in this
+// order.
+describe("acceptanceFindings: old header labels", () => {
+  const OLD_PHASE = "**Oracle phase:** is no longer read: write **Acceptance phase:**";
+  const OLD_FILES = "**Oracle files:** is no longer read: write **Acceptance test files:**";
+  const all = (phases: readonly PlanPhase[], rest = "") =>
+    acceptanceFindings({
+      headers: headersOf(phases, rest),
+      phases: planned(phases),
+      providerConfigured: true,
+    }).map((f) => `${f.phase}: ${f.message}`);
+
+  it("puts an old label's row, found outside the header, before a malformed line's row", () => {
+    const phases = [
+      {
+        header: ["**Acceptance phase:** maybe", "**Acceptance test files:** `a.ts`"],
+        create: ["a.ts"],
+      },
+      plain,
+    ];
+    expect(all(phases, "- **Oracle phase:** yes")).toEqual([
+      `phase-01: ${OLD_PHASE}`,
+      'phase-01: **Acceptance phase:** "maybe" is not a declaration: write "yes" or "passed by phase-NN"',
+    ]);
+  });
+
+  it("adds only the old labels' rows to a phase that also declares a valid new pair", () => {
+    const phases = [
+      {
+        header: [
+          ...ORACLE("`tests/refunds.test.ts`", "passed by phase-02"),
+          "**Oracle phase:** yes",
+          "**Oracle files:** `tests/refunds.test.ts`",
+        ],
+        create: ["tests/refunds.test.ts"],
+      },
+      plain,
+    ];
+    expect(all(phases)).toEqual([`phase-01: ${OLD_PHASE}`, `phase-01: ${OLD_FILES}`]);
+  });
+
+  it("reports an old label repeated in one phase once", () => {
+    expect(
+      all([{ header: ["**Oracle phase:** yes"] }, plain], "- **Oracle phase:** yes, again"),
+    ).toEqual([`phase-01: ${OLD_PHASE}`]);
+  });
+});

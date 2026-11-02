@@ -16,6 +16,8 @@ const phase = (
 ): TestLineCheckPhase => ({
   id,
   acceptance,
+  retiredHeader: false,
+  retiredLoop: false,
   lines: lines.map(([item, loop, criterion]) => ({ item, loop, criterion })),
 });
 
@@ -154,5 +156,19 @@ describe("testLineFindings", () => {
         "test line 2 is in the acceptance loop, but phase-01 is not an acceptance phase",
       ),
     ]);
+  });
+
+  // A plan half rewritten from the old names: the old-label or old-loop row
+  // already names the fix, so the loop rules do not add a misleading one.
+  it("adds no loop row to a phase whose old header line or old loop is already refused", () => {
+    expect(
+      testLineFindings({
+        phases: [
+          { ...phase("phase-03", null, [1, "acceptance", null]), retiredHeader: true },
+          { ...phase("phase-04", ACCEPTANCE, [1, "in-phase", null]), retiredLoop: true },
+        ],
+        criteria: NONE,
+      }),
+    ).toEqual([]);
   });
 });
