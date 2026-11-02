@@ -1,0 +1,15 @@
+{
+  "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+  "artifact": "docs/plans/2611020805-acceptance-tests-plan.md",
+  "planFingerprint": "5a0c82458b840acfb64b08d57465ad4257377195c2401fa576ab24bccb8eabbb",
+  "approvedAt": "2026-11-02T08:35:50.670Z",
+  "baseline": "c2d7ca11749b3fe2a75d76aeeb40929d2a746fba",
+  "sourceSpec": {
+    "path": "docs/specs/2610271119-acceptance-tests.md",
+    "fingerprint": "a272430c7681c8d61d54db0e42293e2f2d1af5b42e3dd2248247491f5a77a80a"
+  },
+  "approvedBy": {
+    "kind": "operator",
+    "name": "Rémy Loubradou"
+  }
+}
