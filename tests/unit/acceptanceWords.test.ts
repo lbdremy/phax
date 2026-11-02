@@ -4,6 +4,10 @@
 // Plan 4 widens SCANNED_ROOTS and SCANNED_FILES below in three phases: the
 // skills (phase-01), then the live docs and the site sources (phase-02), then
 // the README, the docs page and the examples (phase-03); every entry here stays.
+// One line-based reader serves every file type: a word is an occurrence wherever
+// it appears, code spans and fences included. docs/upgrading.md is read only
+// through the end of its 0.33.0 entry (READ_THROUGH), as §8 leaves the entries of
+// earlier releases out of scope.
 //
 // Reads files only: no phax process, no network, no HOME.
 import { readdirSync, readFileSync, statSync } from "node:fs";
@@ -22,19 +26,45 @@ export interface ScannedRoot {
   readonly exclude: readonly string[];
 }
 
-/** Directories scanned recursively. Phase-02 and phase-03 add more. */
+/**
+ * Directories scanned recursively. Phase-03 adds `examples`. The live docs leave
+ * out what records decisions in the words of their day, and
+ * docs/acceptance-phases.md until phase-03 moves its example path.
+ */
 export const SCANNED_ROOTS: readonly ScannedRoot[] = [
   { dir: "src", extensions: [".ts"], exclude: [] },
   { dir: "packages/schemas/src", extensions: [".ts"], exclude: [] },
   { dir: ".claude/skills", extensions: [".md"], exclude: [] },
+  {
+    dir: "docs",
+    extensions: [".md"],
+    exclude: [
+      "docs/specs",
+      "docs/plans",
+      "docs/briefs",
+      "docs/releases",
+      "docs/acceptance-phases.md",
+    ],
+  },
+  {
+    dir: "site",
+    extensions: [".ts", ".tsx"],
+    exclude: ["site/generated", "site/doc_build", "site/node_modules"],
+  },
 ];
-/** Single files scanned beside the roots. Plan 4 adds more. */
+/** Single files scanned beside the roots. Phase-03 adds README.md. */
 export const SCANNED_FILES: readonly string[] = [
   "phax.usage.kdl",
-  "docs/cli/reference.md",
   "phax.schema.json",
   "phax.user.schema.json",
 ];
+/**
+ * Files read only from their start through the end of the named section: the
+ * heading's own section, up to the next heading of the same level.
+ */
+const READ_THROUGH: Readonly<Record<string, string>> = {
+  "docs/upgrading.md": "### 0.33.0",
+};
 /** Each format's current JSON Schema snapshot is scanned too; older ones are frozen. */
 const SNAPSHOTS_DIR = "packages/schemas/snapshots";
 
@@ -46,7 +76,8 @@ export type KeptCategory =
   | "retired oracle-request format id and exports"
   | "test line fourth field"
   | "wrong-oracle escape"
-  | "prose about what judges a test";
+  | "prose about what judges a test"
+  | "0.33.0 upgrading entry";
 
 export interface AllowEntry {
   readonly id: string;
@@ -54,7 +85,14 @@ export interface AllowEntry {
   /** A path glob relative to the repository root: `*` within a segment, `**` across segments. */
   readonly file: string;
   /**
-   * Absent for a whole-file entry (frozen modules and readers or lifts only).
+   * A heading line (`### 0.33.0`) whose section the entry allows in full: from
+   * that line to the next heading of the same level. Only with the "0.33.0
+   * upgrading entry" reason, and never with `lines`.
+   */
+  readonly section?: string;
+  /**
+   * Absent for a whole-file entry (frozen modules and readers or lifts only)
+   * and for a section entry.
    * Each pattern allows only the words its own match spans, so an allowed
    * token never exempts another word on the same line, and each pattern must
    * still allow something, or the entry is stale.
@@ -95,6 +133,14 @@ export const ALLOWLIST: readonly AllowEntry[] = [
       /oracle, mode/,
       /liftRecordRole\(oracle\)/,
     ],
+  },
+
+  // ── The 0.33.0 upgrading entry names the old names it renames.
+  {
+    id: "upgrading-0-33-0",
+    reason: "0.33.0 upgrading entry",
+    file: "docs/upgrading.md",
+    section: "### 0.33.0",
   },
 
   // ── Lift comments in the package modules that also define current formats.
@@ -415,6 +461,43 @@ export const ALLOWLIST: readonly AllowEntry[] = [
     file: "src/domain/authoring/renderPlan.ts",
     lines: [/is the oracle/],
   },
+  {
+    id: "prose-agentic-practices",
+    reason: "prose about what judges a test",
+    file: "docs/comparisons/agentic-practices.md",
+    lines: [/The task verifier, or oracle/],
+  },
+  {
+    id: "prose-idea-artifact-decide",
+    reason: "prose about what judges a test",
+    file: "docs/ideas/artifact-decide.md",
+    lines: [/An oracle is independent of what it/],
+  },
+  {
+    id: "prose-idea-change-gates",
+    reason: "prose about what judges a test",
+    file: "docs/ideas/change-gates-from-the-harness.md",
+    lines: [/oracle-separation lint/, /a file and its oracle/],
+  },
+  {
+    id: "prose-idea-headless-code-review",
+    reason: "prose about what judges a test",
+    file: "docs/ideas/headless-code-review.md",
+    lines: [/oracle-separation lint/, /oracle separation/, /its oracle together/],
+  },
+
+  {
+    id: "field-plan-overview",
+    reason: "test line fourth field",
+    file: "docs/plan-overview.md",
+    lines: [/<oracle>/, /technique, oracle, loop, criterion/],
+  },
+  {
+    id: "field-structured-answers",
+    reason: "test line fourth field",
+    file: "docs/structured-answers.md",
+    lines: [/a test line's oracle must not/],
+  },
 ];
 
 /** One oracle or discharge word, located by its line and its column on it. */
@@ -483,10 +566,37 @@ export function scannedFiles(): string[] {
   ];
 }
 
+function readLines(file: string): string[] {
+  return readFileSync(path.join(REPO_ROOT, file), "utf8").split("\n");
+}
+
+/**
+ * The section a heading opens: its 1-based first line and its 1-based last line,
+ * which is the line before the next heading of the same or a higher level.
+ * Undefined when the file has no such heading.
+ */
+export function sectionBounds(
+  lines: readonly string[],
+  heading: string,
+): { readonly start: number; readonly end: number } | undefined {
+  const index = lines.indexOf(heading);
+  if (index === -1) return undefined;
+  const level = /^#+/.exec(heading)?.[0].length ?? 1;
+  const next = new RegExp(`^#{1,${String(level)}} `);
+  const after = lines.findIndex((text, i) => i > index && next.test(text));
+  return { start: index + 1, end: after === -1 ? lines.length : after };
+}
+
 export function findOccurrences(files: readonly string[]): Occurrence[] {
   const found: Occurrence[] = [];
   for (const file of files) {
-    const lines = readFileSync(path.join(REPO_ROOT, file), "utf8").split("\n");
+    const all = readLines(file);
+    const through = READ_THROUGH[file];
+    const bounds = through === undefined ? undefined : sectionBounds(all, through);
+    if (through !== undefined && bounds === undefined) {
+      throw new Error(`${file} has no "${through}" heading to read through`);
+    }
+    const lines = bounds === undefined ? all : all.slice(0, bounds.end);
     lines.forEach((text, index) => {
       for (const match of text.matchAll(WORDS)) {
         found.push({ file, line: index + 1, column: match.index, word: match[0], text });
@@ -513,8 +623,15 @@ function inFile(entry: AllowEntry, occurrence: Occurrence): boolean {
   return globToRegExp(entry.file).test(occurrence.file);
 }
 
+function inSection(entry: AllowEntry, occurrence: Occurrence): boolean {
+  if (entry.section === undefined) return false;
+  const bounds = sectionBounds(readLines(occurrence.file), entry.section);
+  return bounds !== undefined && occurrence.line >= bounds.start && occurrence.line <= bounds.end;
+}
+
 export function allows(entry: AllowEntry, occurrence: Occurrence): boolean {
   if (!inFile(entry, occurrence)) return false;
+  if (entry.section !== undefined) return inSection(entry, occurrence);
   return entry.lines === undefined || entry.lines.some((pattern) => spans(pattern, occurrence));
 }
 
@@ -522,7 +639,7 @@ describe("acceptance words in the sources (ac-oracle-kept, source half)", () => 
   const files = scannedFiles();
   const occurrences = findOccurrences(files);
 
-  it("scans the sources, the usage contract, the CLI reference, the JSON Schemas and the skills", () => {
+  it("scans the sources, the usage contract, the live docs, the site sources, the JSON Schemas and the skills", () => {
     expect(files).toContain("src/cli/cliDocs.ts");
     expect(files).toContain("phax.schema.json");
     expect(files).toContain("packages/schemas/snapshots/plan-document/next.schema.json");
@@ -532,6 +649,25 @@ describe("acceptance words in the sources (ac-oracle-kept, source half)", () => 
     expect(files).toContain("docs/cli/reference.md");
     expect(files).toContain(".claude/skills/phax-planning/SKILL.md");
     expect(files).toContain(".claude/skills/phax-review/SKILL.md");
+    expect(files).toContain("docs/upgrading.md");
+    expect(files).toContain("docs/plan-overview.md");
+    expect(files).toContain("docs/comparisons/agentic-practices.md");
+    expect(files).toContain("site/pages.ts");
+    expect(files).toContain("site/build/sources.ts");
+    expect(files.filter((file) => /^docs\/(specs|plans|briefs|releases)\//.test(file))).toEqual([]);
+    expect(files.filter((file) => file.startsWith("site/generated/"))).toEqual([]);
+  });
+
+  it("reads docs/upgrading.md only through its 0.33.0 entry", () => {
+    const read = occurrences.filter((o) => o.file === "docs/upgrading.md");
+    const lines = readLines("docs/upgrading.md");
+    const bounds = sectionBounds(lines, "### 0.33.0");
+    expect(bounds).toBeDefined();
+    expect(read.length).toBeGreaterThan(0);
+    expect(Math.max(...read.map((o) => o.line))).toBeLessThanOrEqual(bounds!.end);
+    // The entries of 0.32.0 and before still name the words they shipped with.
+    const earlier = new RegExp(WORDS.source, "i");
+    expect(lines.slice(bounds!.end).some((text) => earlier.test(text))).toBe(true);
   });
 
   it("finds no oracle or discharge outside an allowlist entry", () => {
@@ -544,6 +680,9 @@ describe("acceptance words in the sources (ac-oracle-kept, source half)", () => 
   it("has no allowlist entry or pattern that allows nothing", () => {
     const stale = ALLOWLIST.flatMap((entry) => {
       const inEntry = occurrences.filter((o) => inFile(entry, o));
+      if (entry.section !== undefined) {
+        return inEntry.some((o) => allows(entry, o)) ? [] : [entry.id];
+      }
       if (entry.lines === undefined) return inEntry.length === 0 ? [entry.id] : [];
       return entry.lines
         .filter((pattern) => !inEntry.some((o) => spans(pattern, o)))
@@ -553,7 +692,9 @@ describe("acceptance words in the sources (ac-oracle-kept, source half)", () => 
   });
 
   it("holds whole-file entries only for frozen, reader and lift modules", () => {
-    const wholeFile = ALLOWLIST.filter((entry) => entry.lines === undefined);
+    const wholeFile = ALLOWLIST.filter(
+      (entry) => entry.lines === undefined && entry.section === undefined,
+    );
     for (const entry of wholeFile) {
       expect([
         "frozen shape of an earlier release",
@@ -561,6 +702,44 @@ describe("acceptance words in the sources (ac-oracle-kept, source half)", () => 
         "retired oracle-request format id and exports",
       ]).toContain(entry.reason);
     }
+  });
+
+  it("allows a section entry only with the 0.33.0 upgrading entry reason, and no line patterns", () => {
+    const sections = ALLOWLIST.filter((entry) => entry.section !== undefined);
+    expect(sections.map((entry) => entry.id)).toEqual(["upgrading-0-33-0"]);
+    for (const entry of sections) {
+      expect(entry.reason).toBe("0.33.0 upgrading entry");
+      expect(entry.lines).toBeUndefined();
+      expect(entry.section).toBe(READ_THROUGH[entry.file]);
+    }
+    for (const entry of ALLOWLIST.filter((e) => e.reason === "0.33.0 upgrading entry")) {
+      expect(entry.section).toBeDefined();
+    }
+  });
+
+  it("allows every word inside a section entry's section and none outside it", () => {
+    const entry = ALLOWLIST.find((e) => e.id === "upgrading-0-33-0")!;
+    const lines = readLines("docs/upgrading.md");
+    const bounds = sectionBounds(lines, "### 0.33.0")!;
+    const at = (line: number): Occurrence => ({
+      file: "docs/upgrading.md",
+      line,
+      column: 0,
+      word: "oracle",
+      text: lines[line - 1]!,
+    });
+    expect(allows(entry, at(bounds.start))).toBe(true);
+    expect(allows(entry, at(bounds.end))).toBe(true);
+    expect(allows(entry, at(bounds.start - 1))).toBe(false);
+    expect(allows(entry, at(bounds.end + 1))).toBe(false);
+    expect(allows(entry, { ...at(bounds.start), file: "docs/plan-overview.md" })).toBe(false);
+  });
+
+  it("ends a section at the next heading of its level or above, and misses an absent heading", () => {
+    const lines = ["# T", "### a", "x", "#### sub", "y", "### b", "z"];
+    expect(sectionBounds(lines, "### a")).toEqual({ start: 2, end: 5 });
+    expect(sectionBounds(lines, "### b")).toEqual({ start: 6, end: 7 });
+    expect(sectionBounds(lines, "### c")).toBeUndefined();
   });
 
   it("allows only the word an entry's match spans, not the rest of its line", () => {

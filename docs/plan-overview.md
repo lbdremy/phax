@@ -1,6 +1,6 @@
 # Reading a plan's overview
 
-Before you approve or run a plan, you want its shape in one view: what each phase builds and where, which phases form an oracle pair, which tests each phase writes, and whether every acceptance criterion of the source spec has a test. `phax plans overview` lays that out. No model reads the plan.
+Before you approve or run a plan, you want its shape in one view: what each phase builds and where, which phases form an acceptance pair, which tests each phase writes, and whether every acceptance criterion of the source spec has a test. `phax plans overview` lays that out. No model reads the plan.
 
 ```bash
 phax plans overview docs/plans/2610240900-invoice-export-plan.md
@@ -13,26 +13,26 @@ The overview of a made-up three-phase plan, with an architecture provider config
 invoice-export — Export invoices as CSV  (Approved · source spec invoice-export)
 architecture: parts from the configured provider
 
-phase-01 — Oracles for the export  claude-opus-5-5 · high · headless
-  oracle role  oracle phase, discharged by phase-02
-  (no part)    tests/integration/invoiceExport.test.ts
-  - the export totals every invoice as the spec's table says — small · table · the spec's totals table · oracle · ac-1
-  - an export of an empty ledger is a header-only file — small · example · the file's content · oracle · ac-2
+phase-01 — Acceptance tests for the export  claude-opus-5-5 · high · headless
+  acceptance role  acceptance phase, passed by phase-02
+  (no part)        tests/integration/invoiceExport.test.ts
+  - the export totals every invoice as the spec's table says — small · table · the spec's totals table · acceptance · ac-1
+  - an export of an empty ledger is a header-only file — small · example · the file's content · acceptance · ac-2
 
 phase-02 — Invoice export  claude-sonnet-5-5 · medium · headless
-  oracle role   discharges phase-01
-  core-billing  src/core/billing/export.ts
-  cli           src/cli/commands/exportInvoices.ts
+  acceptance role  passes phase-01
+  core-billing     src/core/billing/export.ts
+  cli              src/cli/commands/exportInvoices.ts
   - a ledger decodes or is refused with a typed error, never a crash — small · fuzz · the decoder's refusal · in-phase · ac-1
 
 phase-03 — Document the export  claude-sonnet-5-5 · low · headless
-  oracle role  none
-  (no part)    docs/invoice-export.md
+  acceptance role  none
+  (no part)        docs/invoice-export.md
   (no test lines)
 
 acceptance criteria of invoice-export
-  ac-1       phase-01 oracle, phase-02 in-phase
-  ac-2       phase-01 oracle
+  ac-1       phase-01 acceptance, phase-02 in-phase
+  ac-2       phase-01 acceptance
   ac-3       (no test line)
   uncovered  ac-3
 ```
@@ -40,7 +40,7 @@ acceptance criteria of invoice-export
 ## Reading it
 
 - **The header** names the plan (its artifact slug, or the run's short name for a loose plan.md), its title, its frontmatter status and its source spec (`no source spec` without one). A loose plan.md with no frontmatter block says `no frontmatter`. One whose block does not decode, for example a `source-spec` with no `status`, says `frontmatter does not decode: status: is missing · source spec not read`: nothing is taken from a block that does not decode, its `source-spec` included. A plan under `docs/plans/` never gets that far: it fails artifact validation first.
-- **Each phase block** starts with the phase's model, effort and mode. The `oracle role` row says whether the phase writes oracles (`oracle phase, discharged by phase-02`), discharges an earlier oracle phase (`discharges phase-01`), or neither (`none`). See [Oracle phases](oracle-phases.md).
+- **Each phase block** starts with the phase's model, effort and mode. The `acceptance role` row says whether the phase writes acceptance tests (`acceptance phase, passed by phase-02`), passes an earlier acceptance phase (`passes phase-01`), or neither (`none`). See [Acceptance phases](acceptance-phases.md).
 - **The parts.** Each row is a part of the repository's architecture and the planned files, to create or to edit, that part holds, in the order the provider reports its parts. A file is shown under every part whose globs match it. Files no part holds sit under `(no part)`. Phase-02 touches two parts, so it is the phase to read for boundary crossings. A phase that plans no file to create or edit has no such row, and shows `(no planned files)` in its place.
 - **The test lines** are the phase's `### Test strategy` lines in the line format of the phax-planning skill (`<guarantee> — <size> · <technique> · <oracle> · <loop>[ · <criterion>]`), or `(no test lines)`. A phase that tests nothing is not flagged.
 - **The coverage block** ends the overview: each acceptance criterion of the source spec, with the phases and loops whose lines name it, then the criteria no line names. When several lines of one phase and loop name the same criterion, the pair is shown once with its count, `phase-02 in-phase ×2`. A criterion no line names shows `(no test line)`, and the `uncovered` row reads `(none)` when every criterion is named. Here `ac-3` has no test, and `phax plans lint` says so as a warning:
@@ -73,8 +73,8 @@ A `source-spec` that is not a spec path inside the repository, such as `../other
 - `frontmatter.kind`: `decoded` (with `status`), `none`, or `undecodable` (with `problem`).
 - `sourceSpec`: `{ path, slug }` as the frontmatter declares it, or `null` without one (or when the frontmatter does not decode).
 - `architecture.kind`: `parts`, `none` or `failed` (with `message`).
-- `phases[]`: `id`, `title`, `model`, `effort`, `mode`, `oracleRole`, `placement` and `testLines`.
-- `phases[].oracleRole.kind`: `oracle` (with `dischargedBy`), `discharging` (with `oraclePhase`) or `none`.
+- `phases[]`: `id`, `title`, `model`, `effort`, `mode`, `acceptanceRole`, `placement` and `testLines`.
+- `phases[].acceptanceRole.kind`: `acceptance` (with `passedBy`), `passing` (with `acceptancePhase`) or `none`.
 - `phases[].placement`: a list of `{ part, files }`, ending with the `{ part: null }` entry of the files no part holds.
 - `phases[].testLines`: the phase's lines as `{ guarantee, size, technique, oracle, loop, criterion }`.
 - `coverage.kind`: `criteria` (with `spec`, `slug`, `criteria` as a list of `{ id, lines }` where `lines` holds one `{ phase, loop }` per naming line, uncounted, and `uncovered`), `no-source-spec`, `frontmatter-undecodable` (with `message`), or `no-criterion-ids` (with `spec`, `message` and a `reason` of `not-a-spec-path`, `no-sidecar`, `not-found` or `unreadable`).
