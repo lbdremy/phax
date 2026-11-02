@@ -429,9 +429,9 @@ function renderFoundRecord(
         ? `oracle phase, discharged by ${manifest.acceptance.passedBy}`
         : `discharges ${manifest.acceptance.acceptancePhase}`;
     const step =
-      record.oracleStep === null
+      record.acceptanceStep === null
         ? "not run"
-        : `${record.oracleStep.command}: ${record.oracleStep.result}`;
+        : `${record.acceptanceStep.command}: ${record.acceptanceStep.result}`;
     out.log(`oracle   ${role} — ${step}`);
   }
 

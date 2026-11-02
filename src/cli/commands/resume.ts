@@ -17,7 +17,10 @@ import {
 } from "../../domain/errors.js";
 import { buildWhatsNext, renderWhatsNext, toKeepAwakePlatform } from "../../domain/whatsNext.js";
 import { runKey } from "../../domain/runRef.js";
-import { oracleSkipRefusal, stopSkipOracleRefusal } from "../../domain/plan/oraclePairs.js";
+import {
+  acceptanceSkipRefusal,
+  stopSkipAcceptanceRefusal,
+} from "../../domain/plan/acceptancePairs.js";
 import { loadConfig } from "../../app/loadConfig.js";
 import { loadPlan } from "../../app/loadPlan.js";
 import { inspectResumeOfRun } from "../../app/resume.js";
@@ -198,8 +201,8 @@ export async function runResume(
   if (opts.skipAcceptance === true) {
     const skipRefusal =
       runStatus.state === "awaiting_review"
-        ? stopSkipOracleRefusal(plan.phases, shortName, decision.nextPhaseId)
-        : oracleSkipRefusal(plan.phases, decision.nextPhaseId);
+        ? stopSkipAcceptanceRefusal(plan.phases, shortName, decision.nextPhaseId)
+        : acceptanceSkipRefusal(plan.phases, decision.nextPhaseId);
     if (skipRefusal !== null) {
       out.error(skipRefusal);
       return 1;

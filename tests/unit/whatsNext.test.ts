@@ -193,7 +193,7 @@ describe("buildWhatsNext", () => {
           kind: "gates_exhausted",
           shortName: "proj",
           phaseId: "phase-03",
-          failedStep: "oracle",
+          failedStep: "acceptance",
           protectedChanges: [],
           lastFixTranscript: null,
         },
@@ -273,7 +273,7 @@ describe("buildWhatsNext", () => {
     });
 
     it("keeps the oracle correction with --skip-acceptance after an oracle step's exhaustion", () => {
-      const wn = buildWhatsNext({ ...exhausted, failedStep: "oracle" }, NOW);
+      const wn = buildWhatsNext({ ...exhausted, failedStep: "acceptance" }, NOW);
       expect(wn.headline).toContain(
         "The oracle step failed after all fix attempts, and protected paths changed.",
       );
@@ -325,7 +325,7 @@ describe("buildWhatsNext", () => {
 
     it("appends the --skip-acceptance correction, and no reset, for an oracle refusal", () => {
       const configured = buildWhatsNext(refusal, NOW);
-      const wn = buildWhatsNext({ ...refusal, failedStep: "oracle" }, NOW);
+      const wn = buildWhatsNext({ ...refusal, failedStep: "acceptance" }, NOW);
       expect(wn.headline).toBe(configured.headline);
       expect(wn.steps.slice(0, 2)).toEqual(configured.steps);
       expect(wn.steps.slice(2).map((s) => s.command)).toEqual([

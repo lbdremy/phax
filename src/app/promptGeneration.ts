@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import type { PhaxPlan, PhaxPlanPhase } from "../schemas/phaxPlan.js";
 import { renderPlanOutline } from "../domain/plan/outline.js";
-import type { OracleRole } from "../domain/plan/oraclePairs.js";
+import type { AcceptanceRole } from "../domain/plan/acceptancePairs.js";
 import {
   renderReviewCorrectionsSection,
   type ReviewCorrectionStop,
@@ -28,8 +28,8 @@ export interface BuildPhasePromptOptions {
   readonly gateCommands: string[];
   /** The `## Brief for this phase` section, present exactly when a brief provider is configured. */
   readonly briefSection?: string | undefined;
-  /** The phase's role in an oracle pair, or null for an ordinary phase. */
-  readonly oracleRole: OracleRole | null;
+  /** The phase's role in an acceptance pair, or null for an ordinary phase. */
+  readonly acceptanceRole: AcceptanceRole | null;
   /** The protected globs, the loaded phax.json's path included; absent when nothing is declared. */
   readonly protectedPaths?: readonly string[] | undefined;
 }
@@ -54,16 +54,17 @@ function protectedPathsLines(globs: readonly string[] | undefined): string[] {
 }
 
 /**
- * The `## Oracle role` section: one fixed paragraph per role, naming the
- * counterpart phase and the oracle files. It names no test framework or marker.
+ * The `## Oracle role` section (reworded by the next phase): one fixed
+ * paragraph per role, naming the counterpart phase and the acceptance test
+ * files. It names no test framework or marker.
  */
-function oracleRoleLines(role: OracleRole | null): string[] {
+function acceptanceRoleLines(role: AcceptanceRole | null): string[] {
   if (role === null) return [];
   const files = role.pair.files.join(", ");
   const paragraph =
-    role.role === "oracle"
-      ? `This phase writes the oracles that ${role.pair.dischargingPhase} will discharge. In the oracle files (${files}), every test you add or modify must carry your test framework's expected-failure marker, so that the test command stays green. You may delete tests. The oracles provider checks this at the gate.`
-      : `This phase discharges the oracles ${role.pair.oraclePhase} wrote. In the oracle files (${files}), the only change allowed is removing every expected-failure marker. Make the implementation satisfy the oracles as written. If an oracle cannot pass unchanged, stop and say so in the handoff: that is a spec question, not a bug to work around.`;
+    role.role === "acceptance"
+      ? `This phase writes the oracles that ${role.pair.passingPhase} will discharge. In the oracle files (${files}), every test you add or modify must carry your test framework's expected-failure marker, so that the test command stays green. You may delete tests. The oracles provider checks this at the gate.`
+      : `This phase discharges the oracles ${role.pair.acceptancePhase} wrote. In the oracle files (${files}), the only change allowed is removing every expected-failure marker. Make the implementation satisfy the oracles as written. If an oracle cannot pass unchanged, stop and say so in the handoff: that is a spec question, not a bug to work around.`;
   return ["## Oracle role", "", paragraph, ""];
 }
 
@@ -94,7 +95,7 @@ export function buildPhasePrompt(opts: BuildPhasePromptOptions): string {
     reviewCorrections,
     gateCommands,
     briefSection,
-    oracleRole,
+    acceptanceRole,
     protectedPaths,
   } = opts;
   const handoffSection = renderPreviousHandoff(previousHandoff);
@@ -147,7 +148,7 @@ export function buildPhasePrompt(opts: BuildPhasePromptOptions): string {
     "",
     phaseSection,
     "",
-    ...oracleRoleLines(oracleRole),
+    ...acceptanceRoleLines(acceptanceRole),
     "## Previous phase handoff",
     "",
     handoffSection,
@@ -225,7 +226,7 @@ export interface GeneratePhasePromptOptions {
   readonly reviewCorrections?: readonly ReviewCorrectionStop[] | undefined;
   readonly gateCommands: string[];
   readonly briefSection?: string | undefined;
-  readonly oracleRole: OracleRole | null;
+  readonly acceptanceRole: AcceptanceRole | null;
 }
 
 export function generatePhasePrompt(

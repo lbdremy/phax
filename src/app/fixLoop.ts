@@ -35,7 +35,7 @@ import { makeSystemErrorReport } from "../domain/telemetry/errors.js";
 import { isAgentFailure, reportAgentFailure } from "./telemetry/reportBuilders.js";
 import { withInvocationCost } from "./costLedger.js";
 import { dispatch } from "./dispatcher.js";
-import { runGates, type GateOutcome, type OracleStep } from "./gates.js";
+import { runGates, type AcceptanceGateStep, type GateOutcome } from "./gates.js";
 import type { GateStep } from "../schemas/phaxConfig.js";
 import { buildFixPrompt } from "../domain/gate/fixPrompt.js";
 import { reportPathFor } from "../domain/gate/reportPath.js";
@@ -53,13 +53,13 @@ import { recordProtectedPaths } from "./gateAttribution.js";
 import { checkProtectedPaths } from "./protectedPathsCheck.js";
 
 /**
- * What failed an attempt: a configured or oracle step (with the protected
+ * What failed an attempt: a configured or acceptance step (with the protected
  * changes the same attempt found, possibly none), or the protected-paths check
  * alone, when every step passed.
  */
 type AttemptFailure = { readonly logPath: string } & (
   | {
-      readonly failedStep: "configured" | "oracle";
+      readonly failedStep: "configured" | "acceptance";
       readonly command: string;
       readonly exitCode: number;
       readonly reportFindings: GateFailedError["reportFindings"];
@@ -93,8 +93,8 @@ export interface RunGatesWithFixLoopOptions {
   readonly worktreePath?: string;
   /** The phase's serialized gate request, passed unchanged to every attempt. */
   readonly gateRequest: string;
-  /** The phase's oracle step, passed unchanged to every attempt. */
-  readonly oracleStep?: OracleStep;
+  /** The phase's acceptance step, passed unchanged to every attempt. */
+  readonly acceptanceStep?: AcceptanceGateStep;
   /** The protected list and the phase base to check every attempt's files
    *  against, or null when the project declares none: then nothing is
    *  observed and no record is rewritten. */
@@ -134,7 +134,7 @@ export function runGatesWithFixLoop(
     phaseId,
     runPath,
     gateRequest,
-    oracleStep,
+    acceptanceStep,
     protectedPaths,
   } = opts;
   const resolvedWorktreePath = opts.worktreePath ?? cwd;
@@ -267,7 +267,7 @@ export function runGatesWithFixLoop(
           attributionPath: join(phaseFolderPath, "gate-attribution.json"),
           phaseId,
           gateRequest,
-          ...(oracleStep === undefined ? {} : { oracleStep }),
+          ...(acceptanceStep === undefined ? {} : { acceptanceStep }),
         }),
       );
 

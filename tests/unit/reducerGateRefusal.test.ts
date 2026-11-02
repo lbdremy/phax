@@ -77,12 +77,12 @@ describe("GateStepRefused reducer — a refusal reuses the gate-failure pause", 
     });
   });
 
-  it("carries an oracle failedStep into the resume instructions context", () => {
-    const result = interpret(gatesFailed, { ...refused, failedStep: "oracle" });
+  it("carries an acceptance failedStep into the resume instructions context", () => {
+    const result = interpret(gatesFailed, { ...refused, failedStep: "acceptance" });
     if (result.kind !== "Handled") throw new Error(`expected Handled, got ${result.kind}`);
     const write = result.effects.find((e) => e.type === "WriteResumeInstructions");
     if (write?.type !== "WriteResumeInstructions") throw new Error("no WriteResumeInstructions");
-    expect(write.ctx.failedStep).toBe("oracle");
+    expect(write.ctx.failedStep).toBe("acceptance");
   });
 
   it("emits the gate.refused and resume.available traces", () => {

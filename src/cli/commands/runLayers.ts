@@ -58,7 +58,7 @@ import {
   PlanNotApprovedError,
   HoldPreflightError,
   InteractivePreflightError,
-  OracleCommitMissingError,
+  AcceptanceCommitMissingError,
   AcceptancePreflightError,
   PlanSectionsPreflightError,
   AssignmentPreflightError,
@@ -234,7 +234,7 @@ export function exitCodeForError(err: unknown): number {
     err instanceof InteractivePreflightError ||
     err instanceof HoldPreflightError ||
     err instanceof AcceptancePreflightError ||
-    err instanceof OracleCommitMissingError ||
+    err instanceof AcceptanceCommitMissingError ||
     err instanceof RecordsSyncRequiredError
   )
     return 11;

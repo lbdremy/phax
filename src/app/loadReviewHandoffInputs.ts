@@ -27,11 +27,11 @@ import {
   type AnyShapePhaxPlan,
 } from "../schemas/persisted.js";
 import {
-  oraclePairs,
-  renderOraclePairsSection,
-  type OraclePairResult,
-  type OraclePairRow,
-} from "../domain/plan/oraclePairs.js";
+  acceptancePairs,
+  renderAcceptancePairsSection,
+  type AcceptancePairResult,
+  type AcceptancePairRow,
+} from "../domain/plan/acceptancePairs.js";
 import { SOURCE_SPEC_OUTCOME_FILENAME } from "./completeRunArtifacts.js";
 
 export interface PhaseContent {
@@ -142,12 +142,12 @@ export function loadReviewNotes(
   return Effect.map(loadReviewNoteGroups(info), renderReviewNotes);
 }
 
-// The last oracle-step result in one phase's gate-attribution.json, or
-// `not run` when the file is missing, unreadable or has no oracle step.
-function loadOracleStepResult(
+// The last acceptance-step result in one phase's gate-attribution.json, or
+// `not run` when the file is missing, unreadable or has no acceptance step.
+function loadAcceptanceStepResult(
   runPath: string,
   phaseId: string,
-): Effect.Effect<OraclePairResult, never, FileSystem> {
+): Effect.Effect<AcceptancePairResult, never, FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const path = join(runPath, phaseId, "gate-attribution.json");
@@ -157,13 +157,13 @@ function loadOracleStepResult(
     if (Either.isLeft(read)) return "not run" as const;
     const last = read.right.steps.findLast((step) => step.surface === "acceptance");
     return last?.result ?? ("not run" as const);
-  }).pipe(Effect.orElseSucceed((): OraclePairResult => "not run"));
+  }).pipe(Effect.orElseSucceed((): AcceptancePairResult => "not run"));
 }
 
-// The review handoff's `## Oracle pairs` section, read from the run's
+// The review handoff's acceptance pairs section, read from the run's
 // phax-plan.json (any shape) and each side's gate-attribution.json, or
-// undefined when the plan declares no oracle phase or cannot be read.
-export function loadOraclePairsSection(
+// undefined when the plan declares no acceptance phase or cannot be read.
+export function loadAcceptancePairsSection(
   info: RunReviewInfo,
 ): Effect.Effect<string | undefined, never, FileSystem> {
   return Effect.gen(function* () {
@@ -175,16 +175,16 @@ export function loadOraclePairsSection(
     if (Either.isLeft(read)) return undefined;
     // Any shape: the pairs need no test lines.
     const plan: AnyShapePhaxPlan = read.right.plan;
-    const rows: OraclePairRow[] = [];
-    for (const pair of oraclePairs(plan.phases)) {
+    const rows: AcceptancePairRow[] = [];
+    for (const pair of acceptancePairs(plan.phases)) {
       rows.push({
-        oraclePhase: pair.oraclePhase,
-        dischargingPhase: pair.dischargingPhase,
-        authored: yield* loadOracleStepResult(info.runPath, pair.oraclePhase),
-        discharged: yield* loadOracleStepResult(info.runPath, pair.dischargingPhase),
+        acceptancePhase: pair.acceptancePhase,
+        passingPhase: pair.passingPhase,
+        authored: yield* loadAcceptanceStepResult(info.runPath, pair.acceptancePhase),
+        passed: yield* loadAcceptanceStepResult(info.runPath, pair.passingPhase),
       });
     }
-    return renderOraclePairsSection(rows);
+    return renderAcceptancePairsSection(rows);
   }).pipe(Effect.orElseSucceed(() => undefined));
 }
 

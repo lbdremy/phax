@@ -386,7 +386,7 @@ describe("resetPhase", () => {
       if (Either.isRight(result)) throw new Error("unreachable");
       expect(result.left).toBeInstanceOf(ResetPhaseError);
       const error = result.left as ResetPhaseError;
-      expect(error.reason).toBe("phase_blocked_by_discharge");
+      expect(error.reason).toBe("phase_blocked_by_passing");
       expect(error.message).toBe(
         `Cannot reset "phase-02" of run "my-run": its discharging phase "phase-03" is failed, and a committed oracle phase is not reset. To correct the oracle, edit it in phase-03 (\`phax enter-phase my-run phase-03\`), then run \`phax resume my-run --yes --skip-acceptance\`: the configured gate still runs.`,
       );
@@ -403,7 +403,7 @@ describe("resetPhase", () => {
 
       if (Either.isRight(result)) throw new Error("unreachable");
       const error = result.left as ResetPhaseError;
-      expect(error.reason).toBe("phase_blocked_by_discharge");
+      expect(error.reason).toBe("phase_blocked_by_passing");
       expect(error.message).toBe(
         `Cannot reset "phase-02" of run "my-run": its discharging phase "phase-03" is review_open, and a committed oracle phase is not reset.`,
       );
@@ -417,7 +417,7 @@ describe("resetPhase", () => {
 
       expect(Either.isLeft(result)).toBe(true);
       if (Either.isLeft(result)) {
-        expect((result.left as ResetPhaseError).reason).toBe("phase_blocked_by_discharge");
+        expect((result.left as ResetPhaseError).reason).toBe("phase_blocked_by_passing");
       }
     });
 
@@ -536,7 +536,7 @@ describe("resetPhase", () => {
 
       if (Either.isRight(result)) throw new Error("expected the reset to be refused");
       expect(result.left).toMatchObject({
-        reason: "phase_blocked_by_discharge",
+        reason: "phase_blocked_by_passing",
         message:
           "Cannot reset 'phase-03' of run 'my-run': its discharging phase 'phase-04' is failed, and the discharge judges this phase's commit. To correct the oracle, edit it in phase-04 (`phax enter-phase my-run phase-04`), then run `phax resume my-run --yes --skip-acceptance`: the configured gate still runs.",
       });
@@ -550,7 +550,7 @@ describe("resetPhase", () => {
 
       if (Either.isRight(result)) throw new Error("expected the reset to be refused");
       expect(result.left).toMatchObject({
-        reason: "phase_blocked_by_discharge",
+        reason: "phase_blocked_by_passing",
         message:
           "Cannot reset 'phase-03' of run 'my-run': its discharging phase 'phase-04' is review_open, and the discharge judges this phase's commit.",
       });
@@ -568,7 +568,7 @@ describe("resetPhase", () => {
 
         // Some other rule may refuse it, never the discharge rule.
         if (Either.isLeft(result)) {
-          expect((result.left as ResetPhaseError).reason).not.toBe("phase_blocked_by_discharge");
+          expect((result.left as ResetPhaseError).reason).not.toBe("phase_blocked_by_passing");
         }
       }
     });
@@ -1010,7 +1010,7 @@ describe("previewResetPhase refuses what resetPhase refuses", () => {
 
     const refusal = await expectSameRefusal(runPath, "phase-02");
 
-    expect(refusal.reason).toBe("phase_blocked_by_discharge");
+    expect(refusal.reason).toBe("phase_blocked_by_passing");
     expect(refusal.message).toContain("--skip-acceptance");
   });
 
@@ -1019,7 +1019,7 @@ describe("previewResetPhase refuses what resetPhase refuses", () => {
 
     const refusal = await expectSameRefusal(runPath, "phase-02");
 
-    expect(refusal.reason).toBe("phase_blocked_by_discharge");
+    expect(refusal.reason).toBe("phase_blocked_by_passing");
     expect(refusal.message).not.toContain("--skip-acceptance");
   });
 
@@ -1068,7 +1068,7 @@ describe("previewResetPhase refuses what resetPhase refuses", () => {
 
     const refusal = await expectSameRefusal(runPath, "phase-03");
 
-    expect(refusal.reason).toBe("phase_blocked_by_discharge");
+    expect(refusal.reason).toBe("phase_blocked_by_passing");
     expect(refusal.message).toContain("'phase-04'");
   });
 

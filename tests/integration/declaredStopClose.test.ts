@@ -210,7 +210,7 @@ const closeInput = (run: StoppedRun) => ({
   fileReconciliationMode: "report_only" as const,
   // A plan with no oracle pair: the close never runs an oracle step.
   phases: [PHASE_03],
-  oracles: null,
+  acceptance: null,
   mainCheckout: run.world.repoRoot,
 });
 

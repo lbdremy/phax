@@ -152,7 +152,7 @@ const closeInput = () => ({
   gateRequest: Effect.succeed("{}"),
   fileReconciliationMode: "report_only" as const,
   phases: run.plan.phases,
-  oracles: null,
+  acceptance: null,
   mainCheckout: run.world.repoRoot,
 });
 

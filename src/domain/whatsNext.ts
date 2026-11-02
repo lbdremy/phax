@@ -41,7 +41,7 @@ export type WhatsNextScenario =
       readonly kind: "gates_exhausted";
       readonly shortName: string;
       readonly phaseId?: string | undefined;
-      readonly failedStep: "configured" | "oracle" | "protected-paths";
+      readonly failedStep: "configured" | "acceptance" | "protected-paths";
       /** The protected paths still changed, possibly none. */
       readonly protectedChanges: readonly ProtectedChange[];
       /** The phase's last fix transcript, or null when no fix was made. */
@@ -51,7 +51,7 @@ export type WhatsNextScenario =
       readonly kind: "gate_refused";
       readonly shortName: string;
       readonly phaseId: string;
-      readonly failedStep: "configured" | "oracle";
+      readonly failedStep: "configured" | "acceptance";
       readonly command: string;
       readonly reason: string;
       readonly remedy: string;
@@ -107,9 +107,9 @@ export function resumeWhenClearCommand(
   }
 }
 
-/** The recovery for a wrong oracle: correct it in the phase worktree, resume
- *  without its step. `correctionDetail` is said under the correction. */
-function oracleCorrectionSteps(
+/** The recovery for a wrong acceptance test: correct it in the phase worktree,
+ *  resume without its step. `correctionDetail` is said under the correction. */
+function acceptanceCorrectionSteps(
   shortName: string,
   phaseArg: string,
   correctionDetail: readonly string[] = [],
@@ -165,13 +165,13 @@ function protectedWaysOn(shortName: string, phaseArg: string): NextStep[] {
  * The check alone failing gets the two protected ways on. A failed step keeps
  * its own steps, never a phase reset, with the protected file put back in the
  * same pass through the worktree and the base-branch way added: fixing the
- * gate in the worktree for a configured step, the oracle correction with
- * `--skip-acceptance` for the oracle step, where the check still runs.
+ * gate in the worktree for a configured step, the acceptance correction with
+ * `--skip-acceptance` for the acceptance step, where the check still runs.
  */
 function protectedExhaustionSteps(
   shortName: string,
   phaseArg: string,
-  failedStep: "configured" | "oracle" | "protected-paths",
+  failedStep: "configured" | "acceptance" | "protected-paths",
 ): NextStep[] {
   if (failedStep === "protected-paths") return protectedWaysOn(shortName, phaseArg);
   const baseBranchWay: NextStep = {
@@ -179,7 +179,7 @@ function protectedExhaustionSteps(
       "Or, if the protected change is wanted, make it on the base branch yourself and start a new run",
   };
   const putBack = "Put each protected file back to its content at the phase base.";
-  if (failedStep === "oracle") {
+  if (failedStep === "acceptance") {
     return [
       {
         title: "Put each protected file back to its content at the phase base",
@@ -191,7 +191,7 @@ function protectedExhaustionSteps(
         command: `phax resume ${shortName} --yes`,
       },
       baseBranchWay,
-      ...oracleCorrectionSteps(shortName, phaseArg, [
+      ...acceptanceCorrectionSteps(shortName, phaseArg, [
         `${putBack} The protected-path check still runs without the oracle step.`,
       ]),
     ];
@@ -271,7 +271,7 @@ export function buildWhatsNext(scenario: WhatsNextScenario, now: Date): WhatsNex
           headline: [
             scenario.failedStep === "protected-paths"
               ? "Gates failed after all fix attempts: protected paths changed."
-              : scenario.failedStep === "oracle"
+              : scenario.failedStep === "acceptance"
                 ? "The oracle step failed after all fix attempts, and protected paths changed."
                 : "Gates failed after all fix attempts, and protected paths changed.",
             ...protectedHeadlineLines(scenario.protectedChanges),
@@ -282,7 +282,7 @@ export function buildWhatsNext(scenario: WhatsNextScenario, now: Date): WhatsNex
           steps: protectedExhaustionSteps(scenario.shortName, phaseArg, scenario.failedStep),
         };
       }
-      if (scenario.failedStep === "oracle") {
+      if (scenario.failedStep === "acceptance") {
         return {
           headline: "The oracle step failed after all fix attempts.",
           steps: [
@@ -290,7 +290,7 @@ export function buildWhatsNext(scenario: WhatsNextScenario, now: Date): WhatsNex
               title: "Let the fix loop try again — the gate, oracle step included, is re-run first",
               command: `phax resume ${scenario.shortName} --yes`,
             },
-            ...oracleCorrectionSteps(scenario.shortName, phaseArg),
+            ...acceptanceCorrectionSteps(scenario.shortName, phaseArg),
           ],
         };
       }
@@ -348,8 +348,8 @@ export function buildWhatsNext(scenario: WhatsNextScenario, now: Date): WhatsNex
                     "Or, if the protected change is wanted, make it on the base branch yourself and start a new run",
                 },
               ]),
-          ...(scenario.failedStep === "oracle"
-            ? oracleCorrectionSteps(scenario.shortName, scenario.phaseId)
+          ...(scenario.failedStep === "acceptance"
+            ? acceptanceCorrectionSteps(scenario.shortName, scenario.phaseId)
             : []),
         ],
       };

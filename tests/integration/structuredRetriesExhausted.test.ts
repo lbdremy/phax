@@ -164,7 +164,7 @@ describe("a headless authoring session that ends with exhausted structured-outpu
       publishRemote: "origin",
       architectureProvider: false,
       assignmentBounds: false,
-      oraclesProvider: false,
+      acceptanceProvider: false,
       output: { warn: () => undefined },
     };
     return Effect.runPromise(
@@ -332,7 +332,7 @@ describe("a resumed closing turn", () => {
           gateRequest: Effect.succeed("{}"),
           fileReconciliationMode: "report_only" as const,
           phases: [PHASE_03],
-          oracles: null,
+          acceptance: null,
           mainCheckout: run.world.repoRoot,
         }),
       );

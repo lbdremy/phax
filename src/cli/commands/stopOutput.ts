@@ -186,14 +186,16 @@ export function renderStopClosed(closed: ClosedStop): string[] {
   }
   lines.push(`  handoff     ${handoffLine(report.handoffSource)}${handoffFile}`);
   if (report.cause === "held" && report.outcome === "corrected") {
-    for (const file of report.unjudgedOracleFiles) lines.push(unjudgedOracleWarning(file));
+    for (const file of report.unjudgedAcceptanceTestFiles) {
+      lines.push(unjudgedAcceptanceTestWarning(file));
+    }
   }
   lines.push(done);
   return lines;
 }
 
-/** The warning for an oracle file a held discharge's corrections changed. */
-function unjudgedOracleWarning(file: string): string {
+/** The warning for an acceptance test file a held passing phase's corrections changed. */
+function unjudgedAcceptanceTestWarning(file: string): string {
   return `  warning: ${file}: an oracle file changed at the discharge; the discharge was judged before the stop, so the oracles provider does not see this change`;
 }
 

@@ -370,7 +370,7 @@ describe("a held oracle phase", { timeout: 60_000 }, () => {
       surface: "acceptance",
       result: "pass",
     });
-    expect(run.closed[0]?.report).toMatchObject({ cause: "held", oracleStep: "authored" });
+    expect(run.closed[0]?.report).toMatchObject({ cause: "held", acceptanceStep: "authored" });
   });
 
   it("sends no request at closing when the review changes only the source, and the discharge judges C2", async () => {
@@ -547,11 +547,11 @@ describe("a held discharge closes on its configured steps", { timeout: 60_000 },
     expect(run.closed[0]?.report).toMatchObject({
       cause: "held",
       outcome: "unchanged",
-      oracleStep: "none",
+      acceptanceStep: "none",
     });
   });
 
-  it("commits an oracle-file change with no request, warning about it and tracing it", async () => {
+  it("commits an acceptance test file change with no request, warning about it and tracing it", async () => {
     const run = await startStopped(FOUR_PHASES, HOLD_DISCHARGE);
     const c3 = headOf(run, "phase-03");
 
@@ -565,16 +565,18 @@ describe("a held discharge closes on its configured steps", { timeout: 60_000 },
       cause: "held",
       outcome: "corrected",
       phaseCommit: c3,
-      oracleStep: "none",
-      unjudgedOracleFiles: [ORACLE_FILE],
+      acceptanceStep: "none",
+      unjudgedAcceptanceTestFiles: [ORACLE_FILE],
     });
     expect(closed.report.gateSteps.map((s) => s.surface)).toEqual(["local"]);
     expect(renderStopClosed(closed)).toContain(
       `  warning: ${ORACLE_FILE}: an oracle file changed at the discharge; the discharge was judged before the stop, so the oracles provider does not see this change`,
     );
-    expect(run.telemetry.impl.events().filter((e) => e.type === "oracle.edits.unjudged")).toEqual([
+    expect(
+      run.telemetry.impl.events().filter((e) => e.type === "acceptance.edits.unjudged"),
+    ).toEqual([
       {
-        type: "oracle.edits.unjudged",
+        type: "acceptance.edits.unjudged",
         runId: run.runId,
         operationId: "phase-03",
         files: [ORACLE_FILE],
@@ -655,7 +657,7 @@ describe("an authored close interrupted after its review commit", { timeout: 60_
             gateRequest: Effect.succeed("{}"),
             fileReconciliationMode: "report_only",
             phases: run.plan.phases,
-            oracles: ORACLES,
+            acceptance: ORACLES,
             mainCheckout: run.world.repoRoot,
           });
         }).pipe(
@@ -691,7 +693,7 @@ describe("an authored close interrupted after its review commit", { timeout: 60_
       cause: "held",
       handoffSource: "earlier-close",
       reviewCommit: landed,
-      oracleStep: "authored",
+      acceptanceStep: "authored",
     });
     expect(readPhaseStatus(run, "phase-02")["stop"]).toEqual({
       cause: "held",

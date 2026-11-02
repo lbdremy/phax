@@ -47,8 +47,8 @@ export function serializeGateRequest(request: GateRequest): string {
   return JSON.stringify(encodeGateRequestFile(withSchemaUrl("gate-request", request)), null, 2);
 }
 
-/** The oracles provider's wall-clock cap. Fixed: the `acceptance` block holds only `command`. */
-export const ORACLE_PROVIDER_TIMEOUT_MS = 120_000;
+/** The acceptance provider's wall-clock cap. Fixed: the `acceptance` block holds only `command`. */
+export const ACCEPTANCE_PROVIDER_TIMEOUT_MS = 120_000;
 
 /**
  * The exact bytes of an acceptance request: what the acceptance provider reads
@@ -109,19 +109,19 @@ export interface RunGatesOptions {
    *  the stdin of every step that declares `input: "gate-request"`, and saved
    *  beside the attempt log before the attempt's first declaring step. */
   readonly gateRequest: string;
-  /** The oracle step, set exactly when the phase is an oracle phase or the
-   *  phase that discharges one. Run once every configured step has passed,
-   *  last, under the `oracle` surface: `command` is split on whitespace (no
+  /** The acceptance step, set exactly when the phase is an acceptance phase or
+   *  the phase that passes one. Run once every configured step has passed,
+   *  last, under the `acceptance` surface: `command` is split on whitespace (no
    *  shell), `request` is written on its stdin and saved beside the log as
    *  `acceptanceRequestPathFor(attemptLogPath)`, and `timeoutMs` caps it. A
    *  `skipped` step spawns nothing and writes no request: it is recorded as
    *  `skipped`, last, and the attempt passes. */
-  readonly oracleStep?: OracleStep;
+  readonly acceptanceStep?: AcceptanceGateStep;
 }
 
-/** The oracle step: run with its command, serialized request and time cap, or
+/** The acceptance step: run with its command, serialized request and time cap, or
  *  skipped by the operator (`phax resume --skip-acceptance`), with its command only. */
-export type OracleStep =
+export type AcceptanceGateStep =
   | {
       readonly kind: "run";
       readonly command: string;
@@ -137,7 +137,8 @@ export function runGates(
   GateFailedError | GateStepRefusedError | FsError | ShellError,
   Shell | FileSystem
 > {
-  const { steps, cwd, attemptLogPath, attributionPath, phaseId, gateRequest, oracleStep } = opts;
+  const { steps, cwd, attemptLogPath, attributionPath, phaseId, gateRequest, acceptanceStep } =
+    opts;
   const requestPath = requestPathFor(attemptLogPath);
   return Effect.gen(function* () {
     const shell = yield* Shell;
@@ -192,7 +193,7 @@ export function runGates(
             exitCode: params.exitCode,
             logPath: attemptLogPath,
             reportFindings: params.reportFindings ?? null,
-            failedStep: params.surface === "acceptance" ? "oracle" : "configured",
+            failedStep: params.surface === "acceptance" ? "acceptance" : "configured",
             ...(params.stderr ? { stderrExcerpt: params.stderr } : {}),
           }),
         );
@@ -201,7 +202,7 @@ export function runGates(
 
     /**
      * Judges a report step's result, a configured `output: "gate-report"` step
-     * and the oracle step alike, and records it. Succeeds only when the step
+     * and the acceptance step alike, and records it. Succeeds only when the step
      * passed; any other verdict fails the gate.
      */
     function judgeReport(params: {
@@ -275,7 +276,7 @@ export function runGates(
               exitCode: result.exitCode,
               logPath: attemptLogPath,
               phaseId: phaseId ?? "",
-              failedStep: surface === "acceptance" ? "oracle" : "configured",
+              failedStep: surface === "acceptance" ? "acceptance" : "configured",
               protectedChanges: [],
             }),
           );
@@ -368,25 +369,29 @@ export function runGates(
       stepResults.push({ command: rawCommand, surface: step.surface, result: "pass" });
     }
 
-    if (oracleStep?.kind === "skipped") {
-      // Every configured step passed: the operator discharged the oracle step.
-      logLines.push(`oracle step skipped by the operator: ${oracleStep.command}`);
+    if (acceptanceStep?.kind === "skipped") {
+      // Every configured step passed: the operator skipped the acceptance step.
+      logLines.push(`oracle step skipped by the operator: ${acceptanceStep.command}`);
       logLines.push("");
-      stepResults.push({ command: oracleStep.command, surface: "acceptance", result: "skipped" });
-    } else if (oracleStep !== undefined) {
-      // Every configured step passed: phax appends the oracle step, last. Its
-      // request is saved beside the log before the provider reads it.
-      const rawCommand = oracleStep.command;
+      stepResults.push({
+        command: acceptanceStep.command,
+        surface: "acceptance",
+        result: "skipped",
+      });
+    } else if (acceptanceStep !== undefined) {
+      // Every configured step passed: phax appends the acceptance step, last.
+      // Its request is saved beside the log before the provider reads it.
+      const rawCommand = acceptanceStep.command;
       const acceptanceRequestPath = acceptanceRequestPathFor(attemptLogPath);
-      yield* fs.writeAtomic(acceptanceRequestPath, oracleStep.request);
+      yield* fs.writeAtomic(acceptanceRequestPath, acceptanceStep.request);
       logLines.push(`$ ${rawCommand}`);
       logLines.push(`stdin: ${basename(acceptanceRequestPath)}`);
       const spawned = yield* Effect.either(
         shell.run({
           command: parseCommandTokens(rawCommand),
           cwd,
-          stdin: oracleStep.request,
-          timeoutMs: oracleStep.timeoutMs,
+          stdin: acceptanceStep.request,
+          timeoutMs: acceptanceStep.timeoutMs,
         }),
       );
       if (Either.isLeft(spawned)) {

@@ -18,7 +18,7 @@ function specPrompt(): string {
     slug: "plan-prune",
     architectureProvider: null,
     assignmentBounds: null,
-    oraclesProvider: null,
+    acceptanceProvider: null,
   });
 }
 
@@ -37,7 +37,7 @@ function planPrompt(
   completesSpec: boolean,
   architectureProvider = false,
   assignmentBounds = false,
-  oraclesProvider = false,
+  acceptanceProvider = false,
   criteria: SpecCriteria = CRITERIA,
 ): string {
   return buildAuthoringPrompt({
@@ -54,7 +54,7 @@ function planPrompt(
     slug: "plan-prune",
     architectureProvider,
     assignmentBounds,
-    oraclesProvider,
+    acceptanceProvider,
   });
 }
 
@@ -173,7 +173,7 @@ describe("buildAuthoringPrompt", () => {
       slug: "catalog-refresh",
       architectureProvider: false,
       assignmentBounds: false,
-      oraclesProvider: false,
+      acceptanceProvider: false,
     });
 
     expect(prompt).toContain("Set `sourceSpec` to null");

@@ -138,7 +138,7 @@ async function promptFor(phaseIndex: number): Promise<string> {
     previousReconciliation: await provided(readPreviousReconciliation(runPath, phases, phaseIndex)),
     reviewCorrections: await provided(readReviewCorrections(runPath, phases, phaseIndex, statuses)),
     gateCommands: ["pnpm test"],
-    oracleRole: null,
+    acceptanceRole: null,
   });
 }
 

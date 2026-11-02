@@ -1,9 +1,9 @@
 import type { AcceptanceRequest } from "../../schemas/acceptanceRequest.js";
-import type { OraclePair, OracleRole } from "../plan/oraclePairs.js";
+import type { AcceptancePair, AcceptanceRole } from "../plan/acceptancePairs.js";
 
 export interface MakeAcceptanceRequestInput {
-  /** The gated phase's role in its pair, from `oracleRoleOf`. */
-  readonly role: OracleRole;
+  /** The gated phase's role in its pair, from `acceptanceRoleOf`. */
+  readonly role: AcceptanceRole;
   /** The gated phase. */
   readonly phaseId: string;
   /** The acceptance phase's base, as noted in its status. */
@@ -20,19 +20,19 @@ export interface MakeAcceptanceRequestInput {
  */
 export function makeAcceptanceRequest(input: MakeAcceptanceRequestInput): AcceptanceRequest {
   const { role, phaseId, base, acceptanceCommit } = input;
-  const files = toNonEmpty(role.pair.files, role.pair.oraclePhase);
-  if (role.role === "oracle") {
+  const files = toNonEmpty(role.pair.files, role.pair.acceptancePhase);
+  if (role.role === "acceptance") {
     return { verdict: "authored", phase: phaseId, acceptancePhase: phaseId, base, files };
   }
   if (acceptanceCommit === null) {
     throw new Error(
-      `The passed request of ${phaseId} needs the commit of ${role.pair.oraclePhase}`,
+      `The passed request of ${phaseId} needs the commit of ${role.pair.acceptancePhase}`,
     );
   }
   return {
     verdict: "passed",
     phase: phaseId,
-    acceptancePhase: role.pair.oraclePhase,
+    acceptancePhase: role.pair.acceptancePhase,
     base,
     acceptanceCommit,
     files,
@@ -41,7 +41,7 @@ export function makeAcceptanceRequest(input: MakeAcceptanceRequestInput): Accept
 
 export interface MakeReviewAcceptanceRequestInput {
   /** The pair the stop sits in whose acceptance test files the corrections changed. */
-  readonly pair: OraclePair;
+  readonly pair: AcceptancePair;
   /** The stopped phase, which the request names as `phase`. */
   readonly phaseId: string;
   /** The acceptance phase's base, as noted in its status. */
@@ -60,9 +60,9 @@ export function makeReviewAcceptanceRequest(
   return {
     verdict: "authored",
     phase: phaseId,
-    acceptancePhase: pair.oraclePhase,
+    acceptancePhase: pair.acceptancePhase,
     base,
-    files: toNonEmpty(pair.files, pair.oraclePhase),
+    files: toNonEmpty(pair.files, pair.acceptancePhase),
   };
 }
 

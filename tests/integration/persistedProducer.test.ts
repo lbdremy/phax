@@ -16,7 +16,7 @@ import { authorArtifact, type AuthorArtifactInput } from "../../src/app/authorAr
 import { dispatch, type DispatcherContext } from "../../src/app/dispatcher.js";
 import { stampBriefRequest } from "../../src/app/briefProvider.js";
 import {
-  ORACLE_PROVIDER_TIMEOUT_MS,
+  ACCEPTANCE_PROVIDER_TIMEOUT_MS,
   runGates,
   serializeGateRequest,
   serializeAcceptanceRequest,
@@ -498,7 +498,7 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
         publishRemote: "origin",
         architectureProvider: false,
         assignmentBounds: false,
-        oraclesProvider: false,
+        acceptanceProvider: false,
         output: { warn: () => {} },
         ...overrides,
       }),
@@ -559,8 +559,8 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
     }),
   );
 
-  // A third gate attempt with the oracle step: the gate saves the oracle
-  // request it writes on the provider's stdin.
+  // A third gate attempt with the acceptance step: the gate saves the
+  // acceptance request it writes on the provider's stdin.
   shell.impl.setResponse("./oracles", { exitCode: 0, stdout: FAILING_REPORT, stderr: "" });
   await run(
     runGates({
@@ -570,16 +570,16 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
       attributionPath: `${PHASE_FOLDER}/gate-attribution.json`,
       phaseId: "phase-01",
       gateRequest: "",
-      oracleStep: {
+      acceptanceStep: {
         kind: "run",
         command: "./oracles",
         request: serializeAcceptanceRequest(
           makeAcceptanceRequest({
             role: {
-              role: "oracle",
+              role: "acceptance",
               pair: {
-                oraclePhase: "phase-01",
-                dischargingPhase: "phase-02",
+                acceptancePhase: "phase-01",
+                passingPhase: "phase-02",
                 files: ["tests/refunds.test.ts"],
               },
             },
@@ -588,7 +588,7 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
             acceptanceCommit: null,
           }),
         ),
-        timeoutMs: ORACLE_PROVIDER_TIMEOUT_MS,
+        timeoutMs: ACCEPTANCE_PROVIDER_TIMEOUT_MS,
       },
     }),
   );
@@ -601,7 +601,7 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
       phaseFolderPath: PHASE_FOLDER,
       runId: created.right.runId,
       fileReconciliationMode: "report_only",
-      oracleFiles: [],
+      acceptanceTestFiles: [],
     }),
   );
   if (Either.isLeft(reconciled)) throw new Error("reconcilePhaseFiles failed");

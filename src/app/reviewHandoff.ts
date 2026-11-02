@@ -12,7 +12,7 @@ import { SystemTelemetry } from "../ports/systemTelemetry.js";
 import { writeFinalReport } from "./finalReport.js";
 import { generateGlobalReconciliation } from "./generateGlobalReconciliation.js";
 import {
-  loadOraclePairsSection,
+  loadAcceptancePairsSection,
   loadPhaseContents,
   loadReviewedPhases,
   loadReviewNotes,
@@ -39,10 +39,10 @@ export interface ReviewHandoffExtras {
   // The `## Review notes` section gathered from the phases' last gate
   // attempts, rendered directly before `## Phase details`.
   readonly reviewNotesMd?: string | undefined;
-  // The `## Oracle pairs` section, rendered after the unexplained deviations
+  // The acceptance pairs section, rendered after the unexplained deviations
   // and before the plan compliance review.
-  readonly oraclePairsMd?: string | undefined;
-  // The `## Reviewed phases` section, rendered after the oracle pairs and
+  readonly acceptancePairsMd?: string | undefined;
+  // The `## Reviewed phases` section, rendered after the acceptance pairs and
   // before the plan compliance review; absent when no phase stopped.
   readonly reviewedPhasesMd?: string | undefined;
 }
@@ -83,7 +83,7 @@ export function buildReviewHandoffContent(
     complianceReviewMd,
     sourceSpecOutcomeMd,
     reviewNotesMd,
-    oraclePairsMd,
+    acceptancePairsMd,
     reviewedPhasesMd,
   } = extras;
   const passed = info.phaseStatuses.filter(
@@ -141,7 +141,7 @@ ${buildAttentionSection(global)}
 ## Deviations not explained in any handoff
 
 ${buildUnexplainedSection(global, phases)}
-${oraclePairsMd !== undefined ? `\n${oraclePairsMd.trimEnd()}\n` : ""}${reviewedPhasesMd !== undefined ? `\n${reviewedPhasesMd.trimEnd()}\n` : ""}${complianceReviewMd !== undefined ? `\n${PLAN_COMPLIANCE_REVIEW_HEADING}\n\n${complianceReviewMd.trimEnd()}\n` : ""}${reviewNotesMd !== undefined ? `\n${reviewNotesMd.trimEnd()}\n` : ""}
+${acceptancePairsMd !== undefined ? `\n${acceptancePairsMd.trimEnd()}\n` : ""}${reviewedPhasesMd !== undefined ? `\n${reviewedPhasesMd.trimEnd()}\n` : ""}${complianceReviewMd !== undefined ? `\n${PLAN_COMPLIANCE_REVIEW_HEADING}\n\n${complianceReviewMd.trimEnd()}\n` : ""}${reviewNotesMd !== undefined ? `\n${reviewNotesMd.trimEnd()}\n` : ""}
 ## Phase details
 
 ${phaseDetails}
@@ -181,7 +181,7 @@ export function generateReviewHandoff(
 
     const sourceSpecOutcomeMd = yield* loadSourceSpecOutcome(info);
     const reviewNotesMd = yield* loadReviewNotes(info);
-    const oraclePairsMd = yield* loadOraclePairsSection(info);
+    const acceptancePairsMd = yield* loadAcceptancePairsSection(info);
     const reviewedPhases = yield* loadReviewedPhases(info);
     const reviewedPhasesMd =
       reviewedPhases.length === 0
@@ -190,7 +190,7 @@ export function generateReviewHandoff(
     const reviewHandoffContent = buildReviewHandoffContent(info, global, globalMd, phaseContents, {
       sourceSpecOutcomeMd,
       reviewNotesMd,
-      oraclePairsMd,
+      acceptancePairsMd,
       reviewedPhasesMd,
     });
     yield* fs.writeAtomic(join(info.runPath, "review-handoff.md"), reviewHandoffContent);

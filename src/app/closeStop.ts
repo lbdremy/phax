@@ -12,10 +12,10 @@
 // are. It transitions only through `StopCloseRefused`, and `StopCommitted`
 // or `HeldStopClosed`: every failure before that returns the run to the
 // stop, and none restores or resets the person's corrections: only a closing
-// turn's own edits are moved aside and put back. A stop inside an oracle
-// pair whose corrections change one of the pair's oracle files ends its gate
-// with the `authored` oracle step, naming the stopped phase; a held
-// discharging phase is never judged again, and only flags such a change.
+// turn's own edits are moved aside and put back. A stop inside an acceptance
+// pair whose corrections change one of the pair's acceptance test files ends
+// its gate with the `authored` acceptance step, naming the stopped phase; a
+// held passing phase is never judged again, and only flags such a change.
 import { Effect, Either } from "effect";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
@@ -33,7 +33,12 @@ import {
   type RegistryCorruptionError,
   type SetupCommandFailedError,
 } from "../domain/errors.js";
-import type { HeldStopClosed, OracleStep, PhaxEventBase, StopCommitted } from "../domain/events.js";
+import type {
+  ClosedAcceptanceStep,
+  HeldStopClosed,
+  PhaxEventBase,
+  StopCommitted,
+} from "../domain/events.js";
 import { attemptLogName, nextAttemptNumber } from "../domain/gate/attemptFiles.js";
 import {
   acceptanceRequestPathFor,
@@ -67,11 +72,11 @@ import {
   worktreeChangeVerdict,
 } from "../domain/interactive/worktreeChange.js";
 import {
-  dischargedOracleFiles,
   pairsChangedByCorrections,
-  stopOraclePairs,
-  type OraclePair,
-} from "../domain/plan/oraclePairs.js";
+  passedAcceptanceTestFiles,
+  stopAcceptancePairs,
+  type AcceptancePair,
+} from "../domain/plan/acceptancePairs.js";
 import type { ProviderId } from "../domain/routing/types.js";
 import { stopPostureOf } from "../domain/security/stopPosture.js";
 import type { SecurityPolicy } from "../domain/security/types.js";
@@ -100,10 +105,10 @@ import { buildHeldReviewCommitBody, buildInteractiveCommitBody } from "./commit.
 import { withInvocationCost } from "./costLedger.js";
 import { dispatch, type DispatcherContext } from "./dispatcher.js";
 import {
-  ORACLE_PROVIDER_TIMEOUT_MS,
+  ACCEPTANCE_PROVIDER_TIMEOUT_MS,
   runGates,
   serializeAcceptanceRequest,
-  type OracleStep as GateOracleStep,
+  type AcceptanceGateStep,
 } from "./gates.js";
 import {
   dropPersonHandoffCopy,
@@ -136,7 +141,7 @@ import {
   tracedStep,
   tracedTurnCall,
   traceTranscript,
-  traceUnjudgedOracleEdits,
+  traceUnjudgedAcceptanceEdits,
 } from "./telemetry/stopTelemetry.js";
 
 export interface CloseStopInput {
@@ -155,10 +160,10 @@ export interface CloseStopInput {
    */
   readonly gateRequest: Effect.Effect<string, FsError, FileSystem>;
   readonly fileReconciliationMode: "report_only" | "warn";
-  /** The plan's phases, in plan order: the oracle pairs the stop sits in come from them. */
+  /** The plan's phases, in plan order: the acceptance pairs the stop sits in come from them. */
   readonly phases: readonly PhaxPlanPhase[];
-  /** The configured oracles provider, or null when no layer declares one. */
-  readonly oracles: { readonly command: string } | null;
+  /** The configured acceptance provider, or null when no layer declares one. */
+  readonly acceptance: { readonly command: string } | null;
   /** The checkout `phax resume` runs in: its git configuration names who closes the stop. */
   readonly mainCheckout: string;
 }
@@ -192,8 +197,8 @@ interface CloseReportFacts {
   readonly gateSteps: readonly GateStepResult[];
   /** The paths the corrections changed, sorted. */
   readonly changedPaths: readonly string[];
-  /** Whether the close's gate ended with the `authored` oracle step, which passed. */
-  readonly oracleStep: OracleStep;
+  /** Whether the close's gate ended with the `authored` acceptance step, which passed. */
+  readonly acceptanceStep: ClosedAcceptanceStep;
   /** The stop's recorded sessions with their transcripts' outcomes, oldest first. */
   readonly sessions: readonly ClosedStopSession[];
 }
@@ -202,9 +207,9 @@ interface CloseReportFacts {
  * What a close came to, by the stop's cause and its outcome. A declared close
  * always commits: `commit` is the phase's commit. A held close commits only
  * corrections: `reviewCommit` sits on top of `phaseCommit`, which is never
- * rewritten. At a held discharging phase, `unjudgedOracleFiles` names the
- * oracle files of the pair it discharges that the corrections changed: the
- * discharge was judged before the stop, so no oracle step sees them.
+ * rewritten. At a held passing phase, `unjudgedAcceptanceTestFiles` names the
+ * acceptance test files of the pair it passes that the corrections changed:
+ * its pass was judged before the stop, so no acceptance step sees them.
  */
 export type CloseReport =
   | (CloseReportFacts & {
@@ -217,7 +222,7 @@ export type CloseReport =
       readonly outcome: "corrected";
       readonly phaseCommit: string;
       readonly reviewCommit: string;
-      readonly unjudgedOracleFiles: readonly string[];
+      readonly unjudgedAcceptanceTestFiles: readonly string[];
     })
   | (CloseReportFacts & {
       readonly cause: "held";
@@ -490,7 +495,7 @@ function finishLandedCommit(
       changedPaths,
       // Git cannot tell whether the landed commit's gate ran the authored
       // step: the attempt's own files do.
-      oracleStep: yield* landedOracleStep(input, layout, gateLog),
+      acceptanceStep: yield* landedAcceptanceStep(input, layout, gateLog),
       // The commit landed before the copy, or after it: the same step, which
       // keeps an earlier copy whose store file has gone.
       sessions: yield* captureTranscripts(input, layout.cause),
@@ -512,7 +517,7 @@ function finishLandedCommit(
           outcome: "corrected",
           phaseCommit: closeBase,
           reviewCommit: head,
-          unjudgedOracleFiles: unjudgedOracleFiles(input, changedPaths),
+          unjudgedAcceptanceTestFiles: unjudgedAcceptanceTestFiles(input, changedPaths),
         } satisfies CloseReport;
     }
   });
@@ -534,15 +539,15 @@ function readDocument<T>(
 
 /**
  * Whether the gate of a landed close ran the `authored` step, which passed:
- * its `Gate-Log` attempt has an oracle request beside it, an `authored`
+ * its `Gate-Log` attempt has an acceptance request beside it, an `authored`
  * request naming the stopped phase, and the close's gate attribution records
- * the oracle step as passed. Anything else was no oracle step.
+ * the acceptance step as passed. Anything else was no acceptance step.
  */
-function landedOracleStep(
+function landedAcceptanceStep(
   input: CloseStopInput,
   layout: CloseLayout,
   gateLog: string | null,
-): Effect.Effect<OracleStep, never, FileSystem> {
+): Effect.Effect<ClosedAcceptanceStep, never, FileSystem> {
   return Effect.gen(function* () {
     if (gateLog === null) return "none";
     const request = yield* readDocument(
@@ -560,40 +565,40 @@ function landedOracleStep(
 }
 
 /**
- * The oracle files a held discharging phase's corrections changed, in the
- * pair's declaration order; none at any other phase.
+ * The acceptance test files a held passing phase's corrections changed, in
+ * the pair's declaration order; none at any other phase.
  */
-function unjudgedOracleFiles(
+function unjudgedAcceptanceTestFiles(
   input: CloseStopInput,
   changedPaths: readonly string[],
 ): readonly string[] {
-  return dischargedOracleFiles(input.phases, input.phase.id).filter((file) =>
+  return passedAcceptanceTestFiles(input.phases, input.phase.id).filter((file) =>
     changedPaths.includes(file),
   );
 }
 
 /** A pair as the close's messages name it. */
-const pairName = (pair: OraclePair): string => `${pair.oraclePhase} → ${pair.dischargingPhase}`;
+const pairName = (pair: AcceptancePair): string => `${pair.acceptancePhase} → ${pair.passingPhase}`;
 
 /**
- * The oracle step a close's gate ends with, decided before the gate from the
- * corrections (the worktree against HEAD's tree): the `authored` step when
- * they change the oracle files of exactly one pair the stop sits in, none
- * when they change none. Corrections touching two pairs' oracle files are
- * refused, since one gate attempt carries one oracle request, and so is one
- * pair's with no oracles provider to judge it.
+ * The acceptance step a close's gate ends with, decided before the gate from
+ * the corrections (the worktree against HEAD's tree): the `authored` step when
+ * they change the acceptance test files of exactly one pair the stop sits in,
+ * none when they change none. Corrections touching two pairs' acceptance test
+ * files are refused, since one gate attempt carries one acceptance request,
+ * and so is one pair's with no acceptance provider to judge it.
  */
-function decideOracleStep(
+function decideAcceptanceStep(
   input: CloseStopInput,
   correctedPaths: readonly string[],
 ): Effect.Effect<
-  { readonly pair: OraclePair | null; readonly step: GateOracleStep | undefined },
+  { readonly pair: AcceptancePair | null; readonly step: AcceptanceGateStep | undefined },
   CloseRefusal,
   FileSystem
 > {
   return Effect.gen(function* () {
     const pairs = pairsChangedByCorrections(
-      stopOraclePairs(input.phases, input.phase.id),
+      stopAcceptancePairs(input.phases, input.phase.id),
       correctedPaths,
     );
     const [pair, ...others] = pairs;
@@ -609,7 +614,7 @@ function decideOracleStep(
       );
     }
     const files = pair.files.filter((f) => correctedPaths.includes(f));
-    if (input.oracles === null) {
+    if (input.acceptance === null) {
       return yield* refuse(
         closeError(
           "gate",
@@ -619,34 +624,35 @@ function decideOracleStep(
         ),
       );
     }
-    const base = yield* at("gate", readPhaseBase(join(input.runPath, pair.oraclePhase)));
+    const base = yield* at("gate", readPhaseBase(join(input.runPath, pair.acceptancePhase)));
     return {
       pair,
       step: {
         kind: "run",
-        command: input.oracles.command,
+        command: input.acceptance.command,
         request: serializeAcceptanceRequest(
           makeReviewAcceptanceRequest({ pair, phaseId: input.phase.id, base }),
         ),
-        timeoutMs: ORACLE_PROVIDER_TIMEOUT_MS,
+        timeoutMs: ACCEPTANCE_PROVIDER_TIMEOUT_MS,
       },
     };
   });
 }
 
 /**
- * A gate step that wrote an oracle file the corrections had not changed is
- * refused: the oracle step, if any, judged another pair's files, so no step
- * judges that write. `judged` is the pair the pre-gate decision chose.
+ * A gate step that wrote an acceptance test file the corrections had not
+ * changed is refused: the acceptance step, if any, judged another pair's
+ * files, so no step judges that write. `judged` is the pair the pre-gate
+ * decision chose.
  */
-function refuseGateOracleWrites(
+function refuseGateAcceptanceWrites(
   input: CloseStopInput,
-  judged: OraclePair | null,
+  judged: AcceptancePair | null,
   gatedPaths: readonly string[],
 ): Effect.Effect<void, CloseRefusal> {
   return Effect.gen(function* () {
-    for (const pair of stopOraclePairs(input.phases, input.phase.id)) {
-      if (pair.oraclePhase === judged?.oraclePhase) continue;
+    for (const pair of stopAcceptancePairs(input.phases, input.phase.id)) {
+      if (pair.acceptancePhase === judged?.acceptancePhase) continue;
       const written = pair.files.find((f) => gatedPaths.includes(f));
       if (written !== undefined) {
         return yield* refuse(
@@ -674,7 +680,7 @@ function reconcileReview(input: CloseStopInput, layout: CloseLayout) {
     phaseFolderPath: input.phaseFolder,
     runId: input.runId,
     fileReconciliationMode: input.fileReconciliationMode,
-    oracleFiles: [],
+    acceptanceTestFiles: [],
   });
 }
 
@@ -683,7 +689,7 @@ function reconcileReview(input: CloseStopInput, layout: CloseLayout) {
 function runCloseGate(
   input: CloseStopInput,
   layout: CloseLayout,
-  oracleStep: GateOracleStep | undefined,
+  acceptanceStep: AcceptanceGateStep | undefined,
 ): Effect.Effect<
   { readonly log: string; readonly steps: readonly GateStepResult[] },
   CloseRefusal,
@@ -707,7 +713,7 @@ function runCloseGate(
           gateRequest,
           // Last, once every configured step passed; a failed or refused
           // verdict is a red gate like any other step's.
-          ...(oracleStep === undefined ? {} : { oracleStep }),
+          ...(acceptanceStep === undefined ? {} : { acceptanceStep }),
         }),
       ),
     );
@@ -1306,11 +1312,11 @@ function closeSteps(
           );
 
     // 2. Gate, ending with the `authored` step when the corrections change
-    // the oracle files of a pair the stop sits in. A stop in no pair reads
-    // nothing more of git.
-    const inPairs = stopOraclePairs(input.phases, input.phase.id).length > 0;
-    const oracle = inPairs
-      ? yield* decideOracleStep(
+    // the acceptance test files of a pair the stop sits in. A stop in no pair
+    // reads nothing more of git.
+    const inPairs = stopAcceptancePairs(input.phases, input.phase.id).length > 0;
+    const acceptance = inPairs
+      ? yield* decideAcceptanceStep(
           input,
           yield* pathsBetween(
             yield* at("commit", git.headTree(input.worktree)),
@@ -1318,14 +1324,14 @@ function closeSteps(
           ),
         )
       : { pair: null, step: undefined };
-    const gate = yield* runCloseGate(input, layout, oracle.step);
+    const gate = yield* runCloseGate(input, layout, acceptance.step);
 
     // 3. Gated tree.
     const gated = yield* at("commit", git.snapshotWorktree(input.worktree));
     const headTree = yield* at("commit", git.headTree(input.worktree));
     const changed = gated !== headTree;
     const changedPaths = yield* pathsBetween(headTree, gated);
-    yield* refuseGateOracleWrites(input, oracle.pair, changedPaths);
+    yield* refuseGateAcceptanceWrites(input, acceptance.pair, changedPaths);
 
     // 4. Handoff.
     const person = yield* at("files", fingerprintPersonHandoff(input.worktree));
@@ -1401,8 +1407,8 @@ function closeSteps(
       gateLog: gate.log,
       gateSteps: gate.steps,
       changedPaths,
-      // The gate passed, so an oracle step it ran passed too.
-      oracleStep: oracle.step === undefined ? "none" : "authored",
+      // The gate passed, so an acceptance step it ran passed too.
+      acceptanceStep: acceptance.step === undefined ? "none" : "authored",
       sessions,
     } as const;
 
@@ -1434,7 +1440,7 @@ function closeSteps(
               phaseFolderPath: input.phaseFolder,
               runId: input.runId,
               fileReconciliationMode: input.fileReconciliationMode,
-              oracleFiles: [],
+              acceptanceTestFiles: [],
             }),
           );
           return {
@@ -1454,7 +1460,7 @@ function closeSteps(
           outcome: "corrected",
           phaseCommit,
           reviewCommit,
-          unjudgedOracleFiles: unjudgedOracleFiles(input, changedPaths),
+          unjudgedAcceptanceTestFiles: unjudgedAcceptanceTestFiles(input, changedPaths),
         } satisfies CloseReport;
       }
     }
@@ -1499,7 +1505,11 @@ function closedEvent(
         hash: report.commit,
         closure:
           report.outcome === "corrected"
-            ? { outcome: "corrected", oracleStep: report.oracleStep, closedBy: report.closedBy }
+            ? {
+                outcome: "corrected",
+                acceptanceStep: report.acceptanceStep,
+                closedBy: report.closedBy,
+              }
             : { outcome: "unchanged", closedBy: report.closedBy },
       };
     case "held":
@@ -1512,7 +1522,7 @@ function closedEvent(
             ? {
                 outcome: "corrected",
                 reviewCommit: report.reviewCommit,
-                oracleStep: report.oracleStep,
+                acceptanceStep: report.acceptanceStep,
                 closedBy: report.closedBy,
               }
             : { outcome: "unchanged", closedBy: report.closedBy },
@@ -1527,9 +1537,10 @@ function closedEvent(
  * base (HEAD at the phase's base, or at a held stop at the phase commit;
  * finishing a close whose commit already landed); a turn left in progress
  * settled; the gate's non-terminal steps once (a held stop's under
- * `review-gate/`), then the `authored` oracle step when the corrections
- * change an oracle file of the one pair the stop sits in; the gated tree
- * snapshotted, refused if a gate step wrote an oracle file no step judged; the handoff (the person's
+ * `review-gate/`), then the `authored` acceptance step when the corrections
+ * change an acceptance test file of the one pair the stop sits in; the gated
+ * tree snapshotted, refused if a gate step wrote an acceptance test file no
+ * step judged; the handoff (the person's
  * file, the fixed handoff of an unchanged stop, or a read-only closing turn);
  * a check that the tree is still the gated one; the handoff file, the commit
  * of exactly that tree and its diff; the review reconciliation; then
@@ -1586,10 +1597,10 @@ export function closeStop(
 
     const report = closed.right;
     if (report.cause === "held" && report.outcome === "corrected") {
-      // q-discharge-oracle-edit: flagged, never refused.
-      yield* traceUnjudgedOracleEdits(
+      // An acceptance test edit at a held passing phase: flagged, never refused.
+      yield* traceUnjudgedAcceptanceEdits(
         { runId: input.runId, phaseId: input.phase.id },
-        report.unjudgedOracleFiles,
+        report.unjudgedAcceptanceTestFiles,
       );
     }
     const stamp = { ...base, eventId: randomUUID(), occurredAt: now() };

@@ -345,9 +345,9 @@ describe("the JSON value", () => {
     const json = JSON.parse(JSON.stringify(built, null, 2)) as PlanOverview;
     expect(json).toEqual(built);
     expect(json.architecture).toEqual({ kind: "parts" });
-    expect(json.phases.map((p) => p.oracleRole)).toEqual([
-      { kind: "oracle", dischargedBy: "phase-02" },
-      { kind: "discharging", oraclePhase: "phase-01" },
+    expect(json.phases.map((p) => p.acceptanceRole)).toEqual([
+      { kind: "acceptance", passedBy: "phase-02" },
+      { kind: "passing", acceptancePhase: "phase-01" },
       { kind: "none" },
     ]);
     // Every file the rendering shows is in the document, and the reverse.

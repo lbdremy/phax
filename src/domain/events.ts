@@ -87,13 +87,13 @@ interface GateFailedFields extends PhaxEventBase {
   readonly attempt: number;
 }
 
-// A failed step (configured or oracle) keeps its command and exit code and
+// A failed step (configured or acceptance) keeps its command and exit code and
 // carries the protected changes the same attempt found, possibly none. The
 // protected-paths variant is the check alone: no command, no exit code.
 export type GateFailed = GateFailedFields &
   (
     | {
-        readonly failedStep: "configured" | "oracle";
+        readonly failedStep: "configured" | "acceptance";
         readonly command: string;
         readonly exitCode: number;
         readonly protectedChanges: readonly ProtectedChange[];
@@ -127,7 +127,7 @@ interface FixAttemptsExhaustedFields extends PhaxEventBase {
 export type FixAttemptsExhausted = FixAttemptsExhaustedFields &
   (
     | {
-        readonly failedStep: "configured" | "oracle";
+        readonly failedStep: "configured" | "acceptance";
         readonly command: string;
         readonly protectedChanges: readonly ProtectedChange[];
       }
@@ -148,7 +148,7 @@ export interface GateStepRefused extends PhaxEventBase {
   readonly command: string;
   readonly reason: string;
   readonly remedy: string;
-  readonly failedStep: "configured" | "oracle";
+  readonly failedStep: "configured" | "acceptance";
   /** The protected changes the same attempt found, possibly none. */
   readonly protectedChanges: readonly ProtectedChange[];
 }
@@ -282,8 +282,8 @@ export interface StopCloseRefused extends PhaxEventBase {
   readonly lastClose: LastClose;
 }
 
-/** Whether a close's gate ended with the `authored` oracle step, which passed. */
-export type OracleStep = "authored" | "none";
+/** Whether a close's gate ended with the `authored` acceptance step, which passed. */
+export type ClosedAcceptanceStep = "authored" | "none";
 
 /** Who closed a stop: the git identity of the checkout that ran the close. */
 export interface StopCloser {
@@ -300,7 +300,7 @@ export interface StopCommitted extends PhaxEventBase {
   readonly closure:
     | {
         readonly outcome: "corrected";
-        readonly oracleStep: OracleStep;
+        readonly acceptanceStep: ClosedAcceptanceStep;
         readonly closedBy: StopCloser;
       }
     | { readonly outcome: "unchanged"; readonly closedBy: StopCloser };
@@ -317,7 +317,7 @@ export interface HeldStopClosed extends PhaxEventBase {
     | {
         readonly outcome: "corrected";
         readonly reviewCommit: string;
-        readonly oracleStep: OracleStep;
+        readonly acceptanceStep: ClosedAcceptanceStep;
         readonly closedBy: StopCloser;
       }
     | { readonly outcome: "unchanged"; readonly closedBy: StopCloser };

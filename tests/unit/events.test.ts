@@ -243,7 +243,7 @@ const samples = {
     closure: {
       outcome: "corrected",
       reviewCommit: "def456",
-      oracleStep: "none",
+      acceptanceStep: "none",
       closedBy: { name: "Ada Example", email: "ada@example.com" },
     },
   },

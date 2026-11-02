@@ -185,7 +185,7 @@ describe("buildFixPrompt for a failing oracle step", () => {
     ["a finding", { ...reportInput, command: "node tools/vitest-oracles.mjs" }],
     ["a broken provider", { ...baseInput, command: "node tools/vitest-oracles.mjs" }],
   ])("tells the agent not to run the provider on %s", (_label, input) => {
-    const prompt = buildFixPrompt({ ...input, failedStep: "oracle" });
+    const prompt = buildFixPrompt({ ...input, failedStep: "acceptance" });
 
     expect(prompt).toContain(ORACLE_LINE);
     expect(prompt).not.toContain(RUN_LINE);

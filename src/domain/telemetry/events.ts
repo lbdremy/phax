@@ -103,12 +103,12 @@ export interface SecurityPolicyAppliedTelemetryEvent {
 }
 
 /**
- * A held discharge's close committed corrections to oracle files of the pair
- * it discharges: its discharge was judged before the stop, so the oracles
- * provider never sees these edits.
+ * A held passing phase's close committed corrections to acceptance test files
+ * of the pair it passes: its pass was judged before the stop, so the
+ * acceptance provider never sees these edits.
  */
-export interface OracleEditsUnjudgedTelemetryEvent {
-  readonly type: "oracle.edits.unjudged";
+export interface AcceptanceEditsUnjudgedTelemetryEvent {
+  readonly type: "acceptance.edits.unjudged";
   readonly runId: RunId;
   readonly operationId: string;
   readonly files: readonly string[];
@@ -139,7 +139,7 @@ export type SemanticTelemetryEvent =
   | ArtifactGeneratedTelemetryEvent
   | ModelResolvedTelemetryEvent
   | SecurityPolicyAppliedTelemetryEvent
-  | OracleEditsUnjudgedTelemetryEvent
+  | AcceptanceEditsUnjudgedTelemetryEvent
   | StopTranscriptTelemetryEvent;
 
 export const makeStateTransitionTelemetryEvent = (
@@ -185,9 +185,9 @@ export const makeSecurityPolicyAppliedTelemetryEvent = (
   ...fields,
 });
 
-export const makeOracleEditsUnjudgedTelemetryEvent = (
-  fields: Omit<OracleEditsUnjudgedTelemetryEvent, "type">,
-): OracleEditsUnjudgedTelemetryEvent => ({ type: "oracle.edits.unjudged", ...fields });
+export const makeAcceptanceEditsUnjudgedTelemetryEvent = (
+  fields: Omit<AcceptanceEditsUnjudgedTelemetryEvent, "type">,
+): AcceptanceEditsUnjudgedTelemetryEvent => ({ type: "acceptance.edits.unjudged", ...fields });
 
 export const makeStopTranscriptTelemetryEvent = (
   fields: Omit<StopTranscriptTelemetryEvent, "type">,

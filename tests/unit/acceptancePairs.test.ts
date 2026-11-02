@@ -1,20 +1,20 @@
 import { describe, expect, it } from "vitest";
 import {
-  dischargedOracleFiles,
+  acceptancePairs,
+  acceptanceRoleOf,
+  acceptanceSkipRefusal,
   latestAuthoredCommit,
-  oraclePairs,
-  oracleRoleOf,
-  oracleSkipRefusal,
   pairsChangedByCorrections,
-  recordOracleRole,
-  renderOraclePairsSection,
-  stopOraclePairs,
-  stopSkipOracleRefusal,
+  passedAcceptanceTestFiles,
+  recordAcceptanceRole,
+  renderAcceptancePairsSection,
+  stopAcceptancePairs,
+  stopSkipAcceptanceRefusal,
   type AuthoredCommitStatus,
-} from "../../src/domain/plan/oraclePairs.js";
+} from "../../src/domain/plan/acceptancePairs.js";
 
 // A five-phase plan with one pair: phase-02 authors tests/prune.test.ts and
-// phase-04 discharges it.
+// phase-04 passes it.
 const phases = [
   { id: "phase-01", acceptance: null },
   { id: "phase-02", acceptance: { passedBy: "phase-04", files: ["tests/prune.test.ts"] } },
@@ -24,13 +24,13 @@ const phases = [
 ];
 
 const pair = {
-  oraclePhase: "phase-02",
-  dischargingPhase: "phase-04",
+  acceptancePhase: "phase-02",
+  passingPhase: "phase-04",
   files: ["tests/prune.test.ts"],
 };
 
-describe("oraclePairs", () => {
-  it("lists a pair per non-null oracle, in plan order", () => {
+describe("acceptancePairs", () => {
+  it("lists a pair per non-null acceptance, in plan order", () => {
     const two = [
       { id: "phase-01", acceptance: { passedBy: "phase-03", files: ["tests/refunds.test.ts"] } },
       { id: "phase-02", acceptance: null },
@@ -38,71 +38,71 @@ describe("oraclePairs", () => {
       { id: "phase-04", acceptance: { passedBy: "phase-05", files: ["tests/prune.test.ts"] } },
       { id: "phase-05", acceptance: null },
     ];
-    expect(oraclePairs(two).map((p) => [p.oraclePhase, p.dischargingPhase])).toEqual([
+    expect(acceptancePairs(two).map((p) => [p.acceptancePhase, p.passingPhase])).toEqual([
       ["phase-01", "phase-03"],
       ["phase-04", "phase-05"],
     ]);
   });
 
-  it("is empty for a plan without an oracle", () => {
-    expect(oraclePairs(phases.map(({ id }) => ({ id, acceptance: null })))).toEqual([]);
+  it("is empty for a plan without an acceptance phase", () => {
+    expect(acceptancePairs(phases.map(({ id }) => ({ id, acceptance: null })))).toEqual([]);
   });
 });
 
-describe("oracleRoleOf", () => {
-  it("names the oracle phase and the discharging phase, and no other", () => {
-    expect(oracleRoleOf(phases, "phase-02")).toEqual({ role: "oracle", pair });
-    expect(oracleRoleOf(phases, "phase-04")).toEqual({ role: "discharging", pair });
+describe("acceptanceRoleOf", () => {
+  it("names the acceptance phase and the passing phase, and no other", () => {
+    expect(acceptanceRoleOf(phases, "phase-02")).toEqual({ role: "acceptance", pair });
+    expect(acceptanceRoleOf(phases, "phase-04")).toEqual({ role: "passing", pair });
     for (const id of ["phase-01", "phase-03", "phase-05", "phase-09"]) {
-      expect(oracleRoleOf(phases, id)).toBeNull();
+      expect(acceptanceRoleOf(phases, id)).toBeNull();
     }
   });
 });
 
-describe("oracleSkipRefusal", () => {
-  it("is null for an oracle phase and a discharging phase", () => {
-    expect(oracleSkipRefusal(phases, "phase-02")).toBeNull();
-    expect(oracleSkipRefusal(phases, "phase-04")).toBeNull();
+describe("acceptanceSkipRefusal", () => {
+  it("is null for an acceptance phase and a passing phase", () => {
+    expect(acceptanceSkipRefusal(phases, "phase-02")).toBeNull();
+    expect(acceptanceSkipRefusal(phases, "phase-04")).toBeNull();
   });
 
   it("refuses any other phase, naming it", () => {
     for (const id of ["phase-01", "phase-03", "phase-05"]) {
-      expect(oracleSkipRefusal(phases, id)).toBe(
+      expect(acceptanceSkipRefusal(phases, id)).toBe(
         `--skip-acceptance: ${id} is neither an oracle phase nor a discharging phase; it has no oracle step to skip.`,
       );
     }
   });
 });
 
-describe("recordOracleRole", () => {
+describe("recordAcceptanceRole", () => {
   it("maps a role to the manifest's value", () => {
-    expect(recordOracleRole(oracleRoleOf(phases, "phase-02"))).toEqual({
+    expect(recordAcceptanceRole(acceptanceRoleOf(phases, "phase-02"))).toEqual({
       role: "acceptance",
       passedBy: "phase-04",
     });
-    expect(recordOracleRole(oracleRoleOf(phases, "phase-04"))).toEqual({
+    expect(recordAcceptanceRole(acceptanceRoleOf(phases, "phase-04"))).toEqual({
       role: "passing",
       acceptancePhase: "phase-02",
     });
-    expect(recordOracleRole(null)).toBeNull();
+    expect(recordAcceptanceRole(null)).toBeNull();
   });
 });
 
-describe("renderOraclePairsSection", () => {
+describe("renderAcceptancePairsSection", () => {
   it("renders one table row per pair", () => {
     expect(
-      renderOraclePairsSection([
+      renderAcceptancePairsSection([
         {
-          oraclePhase: "phase-02",
-          dischargingPhase: "phase-03",
+          acceptancePhase: "phase-02",
+          passingPhase: "phase-03",
           authored: "pass",
-          discharged: "pass",
+          passed: "pass",
         },
         {
-          oraclePhase: "phase-04",
-          dischargingPhase: "phase-05",
+          acceptancePhase: "phase-04",
+          passingPhase: "phase-05",
           authored: "fail",
-          discharged: "not run",
+          passed: "not run",
         },
       ]),
     ).toBe(
@@ -118,50 +118,50 @@ describe("renderOraclePairsSection", () => {
   });
 
   it("renders nothing for no pair", () => {
-    expect(renderOraclePairsSection([])).toBeUndefined();
+    expect(renderAcceptancePairsSection([])).toBeUndefined();
   });
 });
 
-describe("dischargedOracleFiles", () => {
-  it("gives the pair's files at the discharging phase only", () => {
-    expect(dischargedOracleFiles(phases, "phase-04")).toEqual(["tests/prune.test.ts"]);
+describe("passedAcceptanceTestFiles", () => {
+  it("gives the pair's files at the passing phase only", () => {
+    expect(passedAcceptanceTestFiles(phases, "phase-04")).toEqual(["tests/prune.test.ts"]);
     for (const id of ["phase-01", "phase-02", "phase-03", "phase-05"]) {
-      expect(dischargedOracleFiles(phases, id)).toEqual([]);
+      expect(passedAcceptanceTestFiles(phases, id)).toEqual([]);
     }
   });
 });
 
-describe("stopSkipOracleRefusal", () => {
+describe("stopSkipAcceptanceRefusal", () => {
   it.each([
-    ["the oracle phase", "phase-02"],
+    ["the acceptance phase", "phase-02"],
     ["a phase strictly between", "phase-03"],
-    ["the discharging phase", "phase-04"],
+    ["the passing phase", "phase-04"],
   ])("names the run and the stop at %s of a pair", (_name, phaseId) => {
-    expect(stopSkipOracleRefusal(phases, "invoice-export", phaseId)).toBe(
+    expect(stopSkipAcceptanceRefusal(phases, "invoice-export", phaseId)).toBe(
       `--skip-acceptance: invoice-export awaits review at ${phaseId}; a close's authored oracle step is never skipped. Undo the oracle-file correction, or reset the stop.`,
     );
   });
 
   it.each(["phase-01", "phase-05"])(
-    "gives a stop at %s, in no pair, the no-oracle-step refusal",
+    "gives a stop at %s, in no pair, the no-acceptance-step refusal",
     (phaseId) => {
-      expect(stopSkipOracleRefusal(phases, "invoice-export", phaseId)).toBe(
-        oracleSkipRefusal(phases, phaseId),
+      expect(stopSkipAcceptanceRefusal(phases, "invoice-export", phaseId)).toBe(
+        acceptanceSkipRefusal(phases, phaseId),
       );
     },
   );
 });
 
-describe("stopOraclePairs", () => {
+describe("stopAcceptancePairs", () => {
   it.each([
-    ["the oracle phase", "phase-02", [pair]],
+    ["the acceptance phase", "phase-02", [pair]],
     ["a phase strictly between", "phase-03", [pair]],
-    ["the discharging phase", "phase-04", []],
+    ["the passing phase", "phase-04", []],
     ["a phase before the pair", "phase-01", []],
     ["a phase after the pair", "phase-05", []],
     ["a phase the plan does not have", "phase-09", []],
   ])("a stop at %s", (_label, stop, expected) => {
-    expect(stopOraclePairs(phases, stop)).toEqual(expected);
+    expect(stopAcceptancePairs(phases, stop)).toEqual(expected);
   });
 
   it("lists every pair a stop sits in, in plan order", () => {
@@ -171,12 +171,12 @@ describe("stopOraclePairs", () => {
       { id: "phase-03", acceptance: null },
       { id: "phase-04", acceptance: null },
     ];
-    expect(stopOraclePairs(overlapping, "phase-02").map((p) => p.oraclePhase)).toEqual([
+    expect(stopAcceptancePairs(overlapping, "phase-02").map((p) => p.acceptancePhase)).toEqual([
       "phase-01",
       "phase-02",
     ]);
-    // phase-03 discharges phase-02's pair, so it sits only in phase-01's.
-    expect(stopOraclePairs(overlapping, "phase-03").map((p) => p.oraclePhase)).toEqual([
+    // phase-03 passes phase-02's pair, so it sits only in phase-01's.
+    expect(stopAcceptancePairs(overlapping, "phase-03").map((p) => p.acceptancePhase)).toEqual([
       "phase-01",
     ]);
   });
@@ -184,14 +184,14 @@ describe("stopOraclePairs", () => {
 
 describe("pairsChangedByCorrections", () => {
   const other = {
-    oraclePhase: "phase-05",
-    dischargingPhase: "phase-06",
+    acceptancePhase: "phase-05",
+    passingPhase: "phase-06",
     files: ["tests/a.test.ts"],
   };
 
   it.each([
-    ["an oracle file", ["src/prune.ts", "tests/prune.test.ts"], [pair]],
-    ["no oracle file", ["src/prune.ts"], []],
+    ["an acceptance test file", ["src/prune.ts", "tests/prune.test.ts"], [pair]],
+    ["no acceptance test file", ["src/prune.ts"], []],
     ["nothing", [], []],
     ["both pairs' files", ["tests/a.test.ts", "tests/prune.test.ts"], [pair, other]],
   ])("keeps the pairs whose files the corrections change: %s", (_label, paths, expected) => {
@@ -231,14 +231,18 @@ describe("latestAuthoredCommit", () => {
   };
 
   it.each<readonly [string, readonly AuthoredCommitStatus[], string | null]>([
-    ["no stop: the oracle phase's commit", [status("phase-02", C2), status("phase-03", C3)], C2],
+    [
+      "no stop: the acceptance phase's commit",
+      [status("phase-02", C2), status("phase-03", C3)],
+      C2,
+    ],
     [
       "a declared authored stop: its commit",
       [status("phase-02", C2), status("phase-03", C3, declaredAuthored)],
       C3,
     ],
     [
-      "a held authored stop at the oracle phase: its review commit",
+      "a held authored stop at the acceptance phase: its review commit",
       [status("phase-02", C2, heldAuthored(R2)), status("phase-03", C3)],
       R2,
     ],
@@ -266,7 +270,7 @@ describe("latestAuthoredCommit", () => {
       C2,
     ],
     [
-      "a corrected stop that ran no oracle step is ignored",
+      "a corrected stop that ran no acceptance step is ignored",
       [
         status("phase-02", C2),
         status("phase-03", C3, {
@@ -286,11 +290,11 @@ describe("latestAuthoredCommit", () => {
       C2,
     ],
     [
-      "the discharge's own authored stop is ignored",
+      "the passing phase's own authored stop is ignored",
       [status("phase-02", C2), status("phase-04", "d4".repeat(20), heldAuthored(R3))],
       C2,
     ],
-    ["no commit noted by the oracle phase", [status("phase-02", undefined)], null],
+    ["no commit noted by the acceptance phase", [status("phase-02", undefined)], null],
   ])("%s", (_label, statuses, expected) => {
     expect(latestAuthoredCommit(pair, phases, statuses)).toBe(expected);
   });

@@ -75,7 +75,7 @@ const heldClosedCorrected: PhaxEvent = {
   closure: {
     outcome: "corrected",
     reviewCommit: REVIEW_COMMIT,
-    oracleStep: "authored",
+    acceptanceStep: "authored",
     closedBy: { name: "Ada Example", email: "ada@example.com" },
   },
 };
@@ -319,7 +319,7 @@ describe("closing a held stop", () => {
       hash: REVIEW_COMMIT,
       closure: {
         outcome: "corrected",
-        oracleStep: "authored",
+        acceptanceStep: "authored",
         closedBy: { name: "Ada Example", email: "ada@example.com" },
       },
     });

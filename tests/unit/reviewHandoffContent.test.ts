@@ -83,13 +83,13 @@ describe("buildReviewHandoffContent — without compliance", () => {
   });
 });
 
-describe("buildReviewHandoffContent — oracle pairs", () => {
-  const oraclePairsMd =
+describe("buildReviewHandoffContent — acceptance pairs", () => {
+  const acceptancePairsMd =
     "## Oracle pairs\n\n| Oracle phase | Discharged by | Authored | Discharged |";
 
   it("renders the section between the unexplained deviations and the compliance review", () => {
     const output = buildReviewHandoffContent(info, globalEmpty, globalMd, phaseContents, {
-      oraclePairsMd,
+      acceptancePairsMd,
       complianceReviewMd: "conformant",
     });
     const at = (heading: string) => output.indexOf(heading);
@@ -100,7 +100,7 @@ describe("buildReviewHandoffContent — oracle pairs", () => {
   it("omitted section is byte-identical to no extras", () => {
     expect(
       buildReviewHandoffContent(info, globalEmpty, globalMd, phaseContents, {
-        oraclePairsMd: undefined,
+        acceptancePairsMd: undefined,
       }),
     ).toBe(buildReviewHandoffContent(info, globalEmpty, globalMd, phaseContents));
   });
