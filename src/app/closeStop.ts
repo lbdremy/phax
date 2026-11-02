@@ -614,7 +614,7 @@ function decideOracleStep(
         closeError(
           "gate",
           new Error(
-            `the corrections change ${files.join(", ")}, an oracle file of pair ${pairName(pair)}, and no "oracles" provider is configured to judge them: configure one, or undo the oracle-file correction`,
+            `the corrections change ${files.join(", ")}, an oracle file of pair ${pairName(pair)}, and no "acceptance" provider is configured to judge them: configure one, or undo the oracle-file correction`,
           ),
         ),
       );

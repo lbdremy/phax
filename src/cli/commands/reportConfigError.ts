@@ -7,7 +7,7 @@ export function reportConfigError(err: ConfigValidationError, out: OutputPort): 
     out.error(`  at: ${err.path}`);
   }
   out.error(
-    `Fix the reported field(s) in phax.json, then run \`phax validate\` to recheck. ` +
+    `Fix the reported field(s) in phax.json, or in the overlay the error names (phax.local.json or ~/.phax/config.json), then run \`phax validate\` to recheck. ` +
       `If your editor isn't flagging this, run \`phax schema upgrade\` to refresh the local schema.`,
   );
 }
