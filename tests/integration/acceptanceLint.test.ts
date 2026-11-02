@@ -13,6 +13,8 @@ import {
   acLoopOldPlan,
   acLoopRulesPlan,
   DISCHARGED_BY_ROW,
+  halfRewrittenOldHeaderPlan,
+  halfRewrittenOldLoopPlan,
   MISPLACED_ROW,
   NO_FILES_ROW,
   NO_PROVIDER_ROW,
@@ -144,5 +146,22 @@ describe("acceptance: the plan side of lint", () => {
 
     expect(report.findings).toContainEqual(NO_PROVIDER_ROW);
     expect(hasLintErrors(report.findings)).toBe(true);
+  });
+});
+
+const errors = (report: LintReport) => report.findings.filter((f) => f.severity === "error");
+
+// A plan rewritten halfway from the old names: the row refusing the old name
+// names the fix, and the loop rules add no row that points elsewhere.
+describe("lint of a plan half rewritten from the old names", () => {
+  it("reports only the old header lines when the test line is already in the acceptance loop", async () => {
+    expect(errors(await lint(halfRewrittenOldHeaderPlan()))).toEqual([
+      OLD_PHASE_ROW,
+      OLD_FILES_ROW,
+    ]);
+  });
+
+  it("reports only the old loop when the header lines are already the new ones", async () => {
+    expect(errors(await lint(halfRewrittenOldLoopPlan()))).toEqual([OLD_LOOP_ROW]);
   });
 });

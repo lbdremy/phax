@@ -263,7 +263,8 @@ describe("lint's test-line rules (acceptance)", () => {
       ]);
     });
 
-    it("departs a line still in the old oracle loop as a retired loop, so the acceptance phase has no acceptance line", async () => {
+    // The retired-loop row names the fix: the phase is not also told it has no acceptance line.
+    it("departs a line still in the old oracle loop as a retired loop, with no silent-acceptance row", async () => {
       const plan = planMd([
         {
           oracle: true,
@@ -277,7 +278,7 @@ describe("lint's test-line rules (acceptance)", () => {
       expect(messages).toContain(
         "test line 1 uses the loop 'oracle', which is no longer read: write 'acceptance'",
       );
-      expect(messages).toContain(silent("phase-01"));
+      expect(messages).not.toContain(silent("phase-01"));
     });
 
     it("flags an acceptance-loop line on an ordinary phase", async () => {

@@ -159,11 +159,21 @@ export function lintPlan(
     // The rules on the kept lines, numbered by their source items.
     const criteria = yield* readSourceSpecCriteria({ planMd, repoRoot: config.repoRoot });
     const itemsOf = new Map(extracted.right.lineItems.map((l) => [l.phase, l.items]));
+    const retiredHeaders = new Set(
+      headers.filter((h) => h.hasOraclePhaseLine || h.hasOracleFilesLine).map((h) => h.phase),
+    );
+    const retiredLoops = new Set(
+      extracted.right.departures
+        .filter(({ departure }) => departure.kind === "retired-loop")
+        .map(({ phase }) => phase),
+    );
     findings.push(
       ...testLineFindings({
         phases: plan.phases.map((phase) => ({
           id: phase.id,
           acceptance: phase.acceptance,
+          retiredHeader: retiredHeaders.has(phase.id),
+          retiredLoop: retiredLoops.has(phase.id),
           lines: phase.testLines.map((line, i) => ({
             item: itemsOf.get(phase.id)?.[i] ?? i + 1,
             loop: line.loop,

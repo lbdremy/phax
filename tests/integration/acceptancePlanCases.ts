@@ -150,6 +150,20 @@ export const acLoopRulesPlan = (): string =>
 export const acLoopOldPlan = (): string =>
   acceptancePlanMd({ tests: { "phase-03": OLD_LOOP_LINE } });
 
+/** Half rewritten: the test line in the acceptance loop, the Oracle header lines not yet. */
+export const halfRewrittenOldHeaderPlan = (): string =>
+  acceptancePlanMd({
+    headers: { "phase-03": OLD_HEADER },
+    tests: { "phase-03": ACCEPTANCE_LINE },
+  });
+
+/** Half rewritten: the new header lines, the test line still in the oracle loop. */
+export const halfRewrittenOldLoopPlan = (): string =>
+  acceptancePlanMd({
+    headers: { "phase-03": NEW_HEADER },
+    tests: { "phase-03": OLD_LOOP_LINE },
+  });
+
 // ── The expected findings ─────────────────────────────────────────────────
 
 const acceptanceRow = (phase: string, message: string): ExpectedRow => ({
