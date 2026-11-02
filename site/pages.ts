@@ -227,7 +227,7 @@ export default definePageMap({
       title: "Reading a plan's overview",
       source: "docs/plan-overview.md",
       description:
-        "See a plan phase by phase before you approve or run it: planned files by architecture part, oracle pairs, test lines and the coverage of its spec's criteria.",
+        "See a plan phase by phase before you approve or run it: planned files by architecture part, acceptance pairs, test lines and its spec's criteria coverage.",
     },
     {
       route: "/guide/architecture-provider",
@@ -237,11 +237,11 @@ export default definePageMap({
         "Declare a command that answers phax architecture with your repository's architecture, and the limits it runs under when a planner calls it.",
     },
     {
-      route: "/guide/oracle-phases",
-      title: "Oracle phases",
-      source: "docs/oracle-phases.md",
+      route: "/guide/acceptance-phases",
+      title: "Acceptance phases",
+      source: "docs/acceptance-phases.md",
       description:
-        "Declare an oracles provider, and write a plan whose tests are authored in one phase and discharged in the next.",
+        "Declare an acceptance provider, and write a plan whose acceptance tests are written in one phase and passed in the next.",
     },
     {
       route: "/guide/assignment-bounds",

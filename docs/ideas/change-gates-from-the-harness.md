@@ -18,10 +18,10 @@ are about the change and belong in phax, not in steme's rules:
 2. **An oracle-separation lint.** "An agent never edits what judges its work." A `plans lint`
    rule refusing a phase that plans both a file and its oracle (its test, the disposition
    matrix it must satisfy, a fixture it is judged against). The pairing needs a convention —
-   `x.ts` / `x.test.ts` is the cheap first one; a declared `oracles` concept in the target's
+   `x.ts` / `x.test.ts` is the cheap first one; a declared acceptance provider in the target's
    manifest is the honest one and is what steme's item-10 candidate rule would provide.
-   The complement at run time: oracle files are read-only to the phase session unless the
-   plan declares the phase as *oracle-authoring*, in which case a different session (or a
+   The complement at run time: acceptance test files are read-only to the phase session unless the
+   plan declares the phase as an acceptance phase, in which case a different session (or a
    human) reviews them as a spec before the implementing phase runs.
 
 Neither changes the CLI contract; both are new gate steps or lint rules behind config.

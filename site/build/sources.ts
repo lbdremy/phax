@@ -19,7 +19,7 @@ const SOURCE_FILES = [
   "docs/plan-estimate.md",
   "docs/plan-overview.md",
   "docs/architecture-provider.md",
-  "docs/oracle-phases.md",
+  "docs/acceptance-phases.md",
   "docs/assignment-bounds.md",
   "docs/upgrading.md",
   "docs/agent-session-failures.md",

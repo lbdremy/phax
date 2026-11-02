@@ -20,7 +20,7 @@ April 2026). In those terms:
 | | Computational | Inferential |
 |---|---|---|
 | **Guides** (before) | assignment bounds, `plans lint`, the architecture and brief providers' answers | the spec and the plan, the phase prompt, the skills |
-| **Sensors** (after) | the gates, the oracle step, planned-vs-done reconciliation | the compliance review, the code review |
+| **Sensors** (after) | the gates, the acceptance step, planned-vs-done reconciliation | the compliance review, the code review |
 
 ## The loop and the harness
 
@@ -37,8 +37,8 @@ April 2026). In those terms:
 | Practice | What phax does | Status |
 |---|---|---|
 | **A check that comes back pass or fail**: "Claude can close that loop itself" (best practices) | Every phase runs your gate profile's every-phase steps; the final phase also runs its terminal steps. A failure goes back to the same agent session to fix, within a fix budget; past it, the phase pauses as `gates_exhausted` for `phax resume`. | covered |
-| **The task verifier, or oracle**: "it's important that the task verifier is nearly perfect, otherwise Claude will solve the wrong problem" ([Building a C compiler with a team of parallel Claudes](https://www.anthropic.com/engineering/building-c-compiler)) | [Oracle phases](../oracle-phases.md): one phase writes the tests a later phase must satisfy, and a provider you configure judges them twice — authored as expected failures, then discharged. | covered |
-| **Saying what was not verified** | Each gate step records its surface (`local`, `structural`, `product`) and the run reports the surfaces it verified. An oracle step skipped with `--skip-oracle` is recorded as skipped, and the oracle surface leaves the verified ones. What a single check did not look at is up to that check's own report. | partial |
+| **The task verifier, or oracle**: "it's important that the task verifier is nearly perfect, otherwise Claude will solve the wrong problem" ([Building a C compiler with a team of parallel Claudes](https://www.anthropic.com/engineering/building-c-compiler)) | [Acceptance phases](../acceptance-phases.md): one phase writes the tests a later phase must satisfy, and a provider you configure judges them twice — authored as expected failures, then passed. | covered |
+| **Saying what was not verified** | Each gate step records its surface (`local`, `structural`, `product`) and the run reports the surfaces it verified. An acceptance step skipped with `--skip-acceptance` is recorded as skipped, and the acceptance surface leaves the verified ones. What a single check did not look at is up to that check's own report. | partial |
 | **Graders by code, by model, by a person** ([Demystifying evals for AI agents](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents)) | The gates grade by code; the compliance review and the code review by model; the approval of a spec or plan, and every interactive stop, by a person, named with `--by`. | covered |
 | **Reliability over trials**: pass^k, the chance that all k trials succeed (same source) | A phase runs once. Nothing reruns the same phase k times to measure how reliably a plan and a model deliver it. | not yet |
 
@@ -48,7 +48,7 @@ April 2026). In those terms:
 |---|---|---|
 | **Agree on "done" before any code**: a planner, a generator and an evaluator agree on what done looks like for a chunk of work first ([Harness design for long-running application development](https://www.anthropic.com/engineering/harness-design-long-running-apps)) | The spec and the plan are approved before the run, and the approval records what they were approved against; `phax plans status` marks a plan Stale when that ground changes. | covered |
 | **A reviewer with fresh context**: "less biased and not influenced by the main agent's reasoning" (Getting started with loops) | The compliance review reads the work against the plan and changes nothing. `phax review-code --headless` runs in a read-only session; a session that changed the worktree has its changes put back and its answer refused. | covered |
-| **The agent never edits what judges its work** | Oracle phases keep the tests apart from the phase that satisfies them. A `plans lint` rule refusing a phase that plans both a file and its own test is an idea, not shipped. | partial |
+| **The agent never edits what judges its work** | Acceptance phases keep the tests apart from the phase that satisfies them. A `plans lint` rule refusing a phase that plans both a file and its own test is an idea, not shipped. | partial |
 | **A finding's lifecycle**: open, resolved, dismissed, by an agent or a person | The code review writes its findings to `code-review.json`. Nothing tracks a finding from open to resolved or dismissed. | not yet |
 | **Loop until the review passes**: findings turned into the next round of work | The `phax-decide-review` skill ships the doctrine for turning findings into a plan; the command that would run it, `review-plan`, is an idea. Today a person resumes the review session to fix the findings. | partial |
 
@@ -103,7 +103,7 @@ and a rule that cannot bend becomes a hook or a deny rule.
 
 phax draws the same line:
 
-- **The computational sensors stay.** Your gates and the oracle step do not encode an assumption about the model;
+- **The computational sensors stay.** Your gates and the acceptance step do not encode an assumption about the model;
   they encode what the change must pass. A better model passes them more often, so they cost fewer fix attempts.
   A model that is better at its work is also better at gaming a weak check, which is why the judge stays apart
   from the maker.
