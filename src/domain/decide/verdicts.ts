@@ -39,7 +39,7 @@ import {
 // The pure contract of `phax artifact decide <artifact> --verdicts`: reading a
 // verdicts file, binding it to the artifact's questions, and checking the
 // writer session's transcription of it. The use case reads the file, spawns
-// the session and writes; this module only decides. The oracles in
+// the session and writes; this module only decides. The tests in
 // tests/unit/decide/verdicts.test.ts and tests/unit/decide/transcription.test.ts
 // pin the types and signatures below.
 

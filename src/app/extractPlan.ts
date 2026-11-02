@@ -114,7 +114,7 @@ export function extractPlanLlm(
       );
     }
 
-    // mode and oracle are phax's own reading of the header lines, never the model's.
+    // mode and acceptance are phax's own reading of the header lines, never the model's.
     const kinded = withPhaseKinds(answer.right.plan, planMd);
     if (Either.isLeft(kinded)) return yield* Effect.fail(kinded.left);
 
