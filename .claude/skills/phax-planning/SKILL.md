@@ -49,7 +49,7 @@ file no earlier phase creates, or a create of a file that already exists, is an
 error), **commands** (the plan's required commands against `security.agentCommands`
 and the gate profile), **models** (each phase's model/effort against the routing
 catalog, each declared assignment bound against the catalog, each phase against the bound that governs it or the policy default, and a line still using the old reason label, which is now `**Assignment reason:**`), **interactive**
-and **oracles** (a malformed `**Mode:**` or oracle line; the interactive-phase rules below: placement, and no planned file to create or edit; and the oracle-phase rules below, including an oracle phase with no `oracles` provider configured and an interactive phase in an oracle role; one inside a pair is allowed), **tests** (a test line off the format, an oracle-loop line on a phase that is not an oracle phase, an oracle phase with no oracle-loop line and a criterion id the source spec does not have are errors; a criterion no phase covers, and a source spec with no readable criterion ids, are warnings; a phase with no line is not flagged), and **advisory** (when `phax.json` registers a `planAuditor`, every
+and **acceptance** (a malformed `**Mode:**` or acceptance line; the interactive-phase rules below: placement, and no planned file to create or edit; and the acceptance-phase rules below, including an acceptance phase with no `acceptance` provider configured and an interactive phase in an acceptance role; one inside a pair is allowed), **tests** (a test line off the format, an acceptance-loop line on a phase that is not an acceptance phase, an acceptance phase with no acceptance-loop line and a criterion id the source spec does not have are errors; a criterion no phase covers, and a source spec with no readable criterion ids, are warnings; a phase with no line is not flagged), and **advisory** (when `phax.json` registers a `planAuditor`, every
 finding it returns about the plan's shape — one warning per phase it names). It
 exits 1 when any finding is an error; advisory findings are always warnings, so
 they never fail the lint — treat them as planning advice. With no auditor
@@ -58,7 +58,7 @@ advisory findings. A `Draft` plan lints like any other — run it while drafting
 not only before approval. The run preflight (`phax run`, `phax resume`) also
 refuses, with exit 11, a phase whose section it cannot locate in plan.md; a phase
 is located by its `## phase-NN` id heading or by its `{#anchor}`. It refuses the same
-`models`, `interactive` and `oracles` errors with exit 11: a departure from a bound
+`models`, `interactive` and `acceptance` errors with exit 11: a departure from a bound
 without a reason, an invalid bound, or a part bound the architecture provider does not
 resolve (provider missing or failing, or the part gone) stops `phax run` before the run is
 named and `phax resume` before its next phase starts ("Assignment preflight failed"), and
@@ -141,7 +141,7 @@ informational for the executing agent.
 | `effort`                 | `**Recommended effort:** low\|medium\|high` line        | yes        |
 | Assignment reason        | `**Assignment reason:** <reason>` line under the effort line, only on a phase that departs from its governing bound or the default | no         |
 | `mode`                   | `**Mode:** interactive` line in the header paragraph, after the model, effort and Assignment reason lines; absent means `headless` | yes        |
-| `oracle`                 | `**Oracle phase:**` and `**Oracle files:**` lines in the header paragraph, after the model, effort and Assignment reason lines; absent means `null` | yes        |
+| `acceptance`             | `**Acceptance phase:**` and `**Acceptance test files:**` lines in the header paragraph, after the model, effort and Assignment reason lines; absent means `null` | yes        |
 | `planMarkdownAnchor`     | `{#phase-NN-<slug>}` in the heading line                | yes        |
 | `plannedFilesToCreate`   | `### Planned files to create` list                      | yes        |
 | `plannedFilesToEdit`     | `### Planned files to edit` list                        | yes        |
@@ -161,9 +161,9 @@ The run-level field `requiredCommands` (extracted from `## Required commands` in
 the plan preamble) is **not** per-phase — it applies to the whole run. See
 [Required commands declaration](#required-commands-declaration).
 
-`mode` and `oracle` are read by phax from the header lines, never by the extraction model.
-An oracle phase runs when an `oracles` provider is configured (see
-[Oracle phases](#oracle-phases)). An interactive phase stops the run for a person's review
+`mode` and `acceptance` are read by phax from the header lines, never by the extraction model.
+An acceptance phase runs when an `acceptance` provider is configured (see
+[Acceptance phases](#acceptance-phases)). An interactive phase stops the run for a person's review
 (see [Interactive phases](#interactive-phases)); a plan writes a `**Mode:** interactive`
 line only on such a phase, and no `**Mode:**` line on any other.
 
@@ -206,7 +206,7 @@ phase adds.>
 
 ### Test strategy
 
-- <guarantee> — <size> · <technique> · <oracle> · <oracle | in-phase>[ · <acceptance criterion id>]
+- <guarantee> — <size> · <technique> · <oracle> · <acceptance | in-phase>[ · <acceptance criterion id>]
 
 ### Implementation order
 
@@ -287,53 +287,53 @@ siblings, glob paths, and other `.claude/` paths stay denied. A plan that declar
 files must be run with `phax run --allow-skill-edits`, or the preflight refuses it (see
 `docs/security.md`).
 
-## Oracle phases
+## Acceptance phases
 
-An oracle phase writes the tests that a later phase discharges; a configured `oracles`
+An acceptance phase writes the tests that a later phase passes; a configured `acceptance`
 provider judges both gates.
 
-- **Declare one only when an `oracles` provider is configured.** The headless authoring
-  prompt says so; otherwise check `oracles` in phax.json and its overlays by hand. Without a
-  provider, keep tests and code in one phase: `phax plans lint` reports an `oracles` error
+- **Declare one only when an `acceptance` provider is configured.** The headless authoring
+  prompt says so; otherwise check `acceptance` in phax.json and its overlays by hand. Without a
+  provider, keep tests and code in one phase: `phax plans lint` reports an `acceptance` error
   and exits 1, and `phax run` and `phax resume` refuse the plan with exit 11.
-- **Two header lines** sit after the model, effort and Assignment reason lines of the oracle
-  phase: `**Oracle phase:** yes` (the next phase discharges it) or
-  `**Oracle phase:** discharged by phase-NN`, then `**Oracle files:** <paths>`.
-- **The oracle files are a subset of the oracle phase's planned files** to create or edit.
-  The phase may plan stubs that are not oracles.
-- **The oracle phase marks its tests.** Every test it adds or modifies carries the test
+- **Two header lines** sit after the model, effort and Assignment reason lines of the acceptance
+  phase: `**Acceptance phase:** yes` (the next phase passes it) or
+  `**Acceptance phase:** passed by phase-NN`, then `**Acceptance test files:** <paths>`.
+- **The acceptance test files are a subset of the acceptance phase's planned files** to create or edit.
+  The phase may plan stubs that are not acceptance tests.
+- **The acceptance phase marks its tests.** Every test it adds or modifies carries the test
   runner's expected-failure marker, so the test command stays green; it may delete tests.
-- **The discharging phase** (the next phase, or the one named) removes the markers and writes
-  the code. Removing the markers is its only change to the oracle files.
-- **No phase in between** plans an oracle file, an interactive phase may sit in between and
-  never takes an oracle role, and one phase discharges one oracle phase.
+- **The passing phase** (the next phase, or the one named) removes the markers and writes
+  the code. Removing the markers is its only change to the acceptance test files.
+- **No phase in between** plans an acceptance test file, an interactive phase may sit in between and
+  never takes an acceptance role, and one phase passes one acceptance phase.
 
-### What makes a good oracle
+### What makes a good acceptance test
 
-An oracle pair is the acceptance loop, not test-driven development: every oracle is written
-before the code, in another phase, and frozen once committed. The discharging phase cannot
-adjust one it disagrees with; the run pauses instead. So hold each oracle to these rules:
+An acceptance pair is the acceptance loop, not test-driven development: every acceptance test is written
+before the code, in another phase, and frozen once committed. The passing phase cannot
+adjust one it disagrees with; the run pauses instead. So hold each acceptance test to these rules:
 
 - **It tests the surface the spec shows, through a stable entry**: a use case, a port, a
   decoder, a command, a state transition. Never the code's internal design (helpers, private
   modules, call order): the code does not exist yet, and a frozen test of its internals pauses
   the run on a disagreement that is not one.
 - **It traces to an acceptance criterion** of the source spec. Name the criterion id on its
-  Test strategy line; a criterion with no oracle and no in-phase test is a gap in the plan.
+  Test strategy line; a criterion with no acceptance test and no in-phase test is a gap in the plan.
 - **What it judges with is frozen with it.** Property generators, model or transition
-  tables, fixtures and expected files the oracle reads go on the `**Oracle files:**` line
-  too; otherwise the discharging phase can narrow a generator or edit a table until the
-  oracle passes. A generator derived from a type or schema the discharging phase may change
+  tables, fixtures and expected files the acceptance test reads go on the `**Acceptance test files:**` line
+  too; otherwise the passing phase can narrow a generator or edit a table until the
+  acceptance test passes. A generator derived from a type or schema the passing phase may change
   is not frozen: freeze the schema in an earlier phase, or write the generator by hand.
-- **It fails for the reason it states.** Against the oracle phase's stubs, each oracle must
+- **It fails for the reason it states.** Against the acceptance phase's stubs, each acceptance test must
   fail on its assertion, not because a module, export or type is missing. Plan the stubs the
   tests compile and load against, and make them fail recognizably (a stub that throws a
-  not-implemented error). An oracle red for the wrong reason passes its marker, then cannot
-  be repaired by the discharging phase.
-- **It is deterministic.** A randomized oracle (property, fuzz) runs on a fixed seed in the
+  not-implemented error). An acceptance test red for the wrong reason passes its marker, then cannot
+  be repaired by the passing phase.
+- **It is deterministic.** A randomized acceptance test (property, fuzz) runs on a fixed seed in the
   gate, so a fix loop never chases a counterexample that moved.
-- **Not every test is an oracle.** The unit tests that drive the code's design are the
-  inner loop: the discharging phase and ordinary phases write them freely, test-first where
+- **Not every test is an acceptance test.** The unit tests that drive the code's design are the
+  inner loop: the passing phase and ordinary phases write them freely, test-first where
   the logic warrants it, and the gate judges them like any test.
 
 ## Interactive phases
@@ -356,8 +356,8 @@ with the gate and a commit of the person's correction.
   last (the final phase is already kept open for review), and never directly follows another
   interactive phase.
 - **Bounds.** It is held to the assignment bounds through its optional files, like any phase.
-- **Oracles.** It may sit inside an oracle pair, where a person reviews the oracles before
-  their discharge and phax judges them again, and it never takes an oracle role.
+- **Acceptance tests.** It may sit inside an acceptance pair, where a person reviews the acceptance tests before
+  they are passed and phax judges them again, and it never takes an acceptance role.
 
 ## Boundary contracts (informational)
 
@@ -376,13 +376,13 @@ phase by phase with the coverage of the source spec's criteria. One line per gua
 adds or changes, each placed on four coordinates.
 
 ```markdown
-- <guarantee> — <size> · <technique> · <oracle> · <oracle | in-phase>[ · <acceptance criterion id>]
+- <guarantee> — <size> · <technique> · <oracle> · <acceptance | in-phase>[ · <acceptance criterion id>]
 ```
 
 For example:
 
 ```markdown
-- every (state, transition) pair is accepted or refused as the table says — small · table · transition table · oracle · AC-3
+- every (state, transition) pair is accepted or refused as the table says — small · table · transition table · acceptance · AC-3
 - a gate-report decodes or is refused with a typed error, never a crash — small · fuzz · the decoder's refusal · in-phase
 - the git adapter's fake and the real adapter agree on branch creation — medium · contract · shared suite · in-phase
 ```
@@ -393,7 +393,7 @@ For example:
   machine (disk, subprocesses, a local repository, localhost). `large`: anything beyond (the
   network, a real provider or service). Size, not "unit" or "integration", decides speed
   and flakiness: pick the smallest size that still exercises the guarantee.
-- **Technique — how inputs are chosen.** `example` (hand-picked cases), `table` (every case
+- **Technique — how inputs are chosen.** `example` (hand-picked cases), `boundary` (equivalence partitions and boundary values: the empty case, each limit, just outside it; not the code review's `boundary` lens), `table` (every case
   of a finite domain, such as every state × transition), `property` (generated inputs
   against an invariant: round-trip, idempotence, an invariant that must always hold),
   `metamorphic` (two runs whose outputs must relate: the same result with an irrelevant
@@ -403,16 +403,18 @@ For example:
 - **Oracle — what judges the result.** An expected value, an invariant, a reference table or
   model, a relation between two runs, a typed refusal. Name it: a test whose oracle you
   cannot name guarantees nothing.
-- **Where — which loop owns the test.** `oracle`: written in an oracle phase and frozen until
-  its discharge (the acceptance loop, see [Oracle phases](#oracle-phases)). `in-phase`:
+- **Where — which loop owns the test.** `acceptance`: written in an acceptance phase and frozen until
+  its passing phase (the acceptance loop, see [Acceptance phases](#acceptance-phases)). `in-phase`:
   written with the code in the same phase, free to change while the phase runs (the inner,
-  test-driven loop). An oracle phase lists its oracle lines; its discharging phase lists only
-  its own in-phase lines. Without an `oracles` provider every line is `in-phase`.
+  test-driven loop). An acceptance phase lists its acceptance lines; its passing phase lists only
+  its own in-phase lines. Without an `acceptance` provider every line is `in-phase`.
+  `acceptance` names a test's purpose, checking a specified acceptance criterion, not its
+  size: an acceptance test may be `small`.
 
 **Defaults by kind of code.** Read the kind from the repository's architecture, then start
 from its default and depart only for a reason:
 
-| Kind of code                                        | Size         | Technique                                         | Oracle candidate                        |
+| Kind of code                                        | Size         | Technique                                         | Acceptance candidate                    |
 | --------------------------------------------------- | ------------ | ------------------------------------------------- | --------------------------------------- |
 | Pure decision logic (rules, routing, computation)   | small        | example, then property or metamorphic             | yes, when the spec states its I/O       |
 | State machine or lifecycle                          | small        | table over every (state, transition), stateful    | yes: the table is the spec              |
@@ -442,7 +444,7 @@ from its default and depart only for a reason:
 - **Randomized tests run on a fixed seed in the gate**, and a counterexample a property
   finds becomes an example test that stays.
 - **Every acceptance criterion the phase serves appears on at least one line**, as an
-  oracle or in-phase.
+  acceptance or in-phase.
 - **A new technique is a planned dependency.** A technique the project has no library for
   (a property-based testing library, a mutation tool) is not planned silently: adding the
   dependency is a phase of its own, or an arbitration.
@@ -456,8 +458,8 @@ from its default and depart only for a reason:
   the surface, so the surface never claims a behavior the core does not yet
   provide.
 - **Verify outside-in.** End by checking the consumer-visible behavior end to
-  end, then let the gates confirm it. With an `oracles` provider, the acceptance
-  side of that check is written first, as oracles, and the code is implemented
+  end, then let the gates confirm it. With an `acceptance` provider, the acceptance
+  side of that check is written first, as acceptance tests, and the code is implemented
   inside-out against them.
 
 ### The repository's architecture
@@ -753,8 +755,8 @@ is a token-prefix of the required command (`deno` covers `deno fmt`).
 - Putting "maybe" files in the create/edit lists instead of the optional list.
 - A Test strategy in prose ("add unit tests") instead of one line per guarantee with its
   size, technique, oracle and loop.
-- An oracle that pins the code's internal design, or that judges with a generator or table
-  left outside its oracle files.
+- An acceptance test that pins the code's internal design, or that judges with a generator or table
+  left outside its acceptance test files.
 - Silently arbitrated trade-offs — picking between viable approaches without
   asking the human, or recording the decision without the loss accepted (see
   Technical arbitrations). Symmetric pros/cons lists are the same smell in
@@ -805,7 +807,7 @@ Top-level keys:
 
 A phase's keys, in the document's order: `id`, `title`, `objective`,
 `detailedInstructions`, `planMarkdownAnchor`, `plannedFilesToCreate`, `plannedFilesToEdit`,
-`optionalFilesToEdit`, `mode`, `oracle`, `boundaryContracts`, `testStrategy`,
+`optionalFilesToEdit`, `mode`, `acceptance`, `boundaryContracts`, `testStrategy`,
 `implementationOrder`, `excludedScope`, `verification`, `expectedHandoff`, `commit`, then
 `assignmentReason`, `model`,
 `effort` last. Write them in that order: the phase's content first, its assignment last,
@@ -817,10 +819,10 @@ the cache seed:
 - `id` (`phase-NN`), `planMarkdownAnchor` (`#phase-NN-<slug>`, rendered as the heading's
   `{#phase-NN-<slug>}`).
 - `plannedFilesToCreate`, `plannedFilesToEdit`, `optionalFilesToEdit`: string arrays.
-- `mode`, `oracle`: write `mode: "interactive"` only on a phase meant for review (see
-  [Interactive phases](#interactive-phases)), and `mode: "headless"` everywhere else. Write `oracle: null`,
-  or `oracle: { dischargedBy: "phase-NN", files: [...] }` on an oracle phase when the authoring
-  prompt says an `oracles` provider is configured (see [Oracle phases](#oracle-phases)).
+- `mode`, `acceptance`: write `mode: "interactive"` only on a phase meant for review (see
+  [Interactive phases](#interactive-phases)), and `mode: "headless"` everywhere else. Write `acceptance: null`,
+  or `acceptance: { passedBy: "phase-NN", files: [...] }` on an acceptance phase when the authoring
+  prompt says an `acceptance` provider is configured (see [Acceptance phases](#acceptance-phases)).
 - `commit`: `{ subject, body }`.
 - `model`, `effort` (see the model catalog).
 

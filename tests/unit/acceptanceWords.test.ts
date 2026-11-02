@@ -1,8 +1,9 @@
-// The source half of the spec acceptance-tests' ac-oracle-kept scan: the words
-// oracle and discharge may appear in the sources, the usage contract, the CLI
-// reference and the current JSON Schemas only where spec §5.21 keeps them. Plan 4 (the docs and the example) widens SCANNED_ROOTS and
-// SCANNED_FILES below to the README, docs, site, example and skills and
-// claims the criterion; every entry here stays.
+// The spec acceptance-tests' ac-oracle-kept scan: the words oracle and
+// discharge may appear in the sources, the usage contract, the CLI reference,
+// the current JSON Schemas and the skills only where spec §5.21 keeps them.
+// Plan 4 widens SCANNED_ROOTS and SCANNED_FILES below in three phases: the
+// skills (phase-01), then the live docs and the site sources (phase-02), then
+// the README, the docs page and the examples (phase-03); every entry here stays.
 //
 // Reads files only: no phax process, no network, no HOME.
 import { readdirSync, readFileSync, statSync } from "node:fs";
@@ -12,8 +13,21 @@ import { describe, expect, it } from "vitest";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
-/** Directories scanned recursively, as TypeScript sources. Plan 4 adds more. */
-export const SCANNED_ROOTS: readonly string[] = ["src", "packages/schemas/src"];
+/** A directory scanned recursively: files with one of `extensions`, minus the excluded prefixes. */
+export interface ScannedRoot {
+  readonly dir: string;
+  /** File suffixes read, with their dot: `.ts`, `.md`. */
+  readonly extensions: readonly string[];
+  /** Repo-relative path prefixes (`docs/specs`) whose files and folders are skipped. */
+  readonly exclude: readonly string[];
+}
+
+/** Directories scanned recursively. Phase-02 and phase-03 add more. */
+export const SCANNED_ROOTS: readonly ScannedRoot[] = [
+  { dir: "src", extensions: [".ts"], exclude: [] },
+  { dir: "packages/schemas/src", extensions: [".ts"], exclude: [] },
+  { dir: ".claude/skills", extensions: [".md"], exclude: [] },
+];
 /** Single files scanned beside the roots. Plan 4 adds more. */
 export const SCANNED_FILES: readonly string[] = [
   "phax.usage.kdl",
@@ -335,6 +349,26 @@ export const ALLOWLIST: readonly AllowEntry[] = [
   },
 
   {
+    id: "field-planning-skill",
+    reason: "test line fourth field",
+    file: ".claude/skills/phax-planning/SKILL.md",
+    lines: [
+      /<oracle>/,
+      /technique, oracle and loop/,
+      /technique, oracle, loop, criterion/,
+      /\*\*Oracle — what judges the result\.\*\*/,
+      /whose oracle you/,
+      /An oracle may hold/,
+    ],
+  },
+  {
+    id: "field-review-skill",
+    reason: "test line fourth field",
+    file: ".claude/skills/phax-review/SKILL.md",
+    lines: [/technique, oracle,/, /<oracle>/],
+  },
+
+  {
     id: "field-json-schemas",
     reason: "test line fourth field",
     file: "packages/schemas/snapshots/*/*.schema.json",
@@ -361,7 +395,20 @@ export const ALLOWLIST: readonly AllowEntry[] = [
     lines: [/"wrong-oracle"/],
   },
 
+  {
+    id: "wrong-oracle-escape-review-skill",
+    reason: "wrong-oracle escape",
+    file: ".claude/skills/phax-review/SKILL.md",
+    lines: [/wrong-oracle/],
+  },
+
   // ── Prose about what judges a test.
+  {
+    id: "prose-review-skill",
+    reason: "prose about what judges a test",
+    file: ".claude/skills/phax-review/SKILL.md",
+    lines: [/whose oracle is wrong/],
+  },
   {
     id: "render-plan-round-trip",
     reason: "prose about what judges a test",
@@ -393,13 +440,14 @@ function escapeRegExp(text: string): string {
   return text.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function listFiles(dir: string): string[] {
+function listFiles(root: ScannedRoot, dir: string = root.dir): string[] {
   const out: string[] = [];
   for (const name of readdirSync(path.join(REPO_ROOT, dir)).toSorted()) {
     const rel = `${dir}/${name}`;
+    if (root.exclude.some((prefix) => rel === prefix || rel.startsWith(`${prefix}/`))) continue;
     const stat = statSync(path.join(REPO_ROOT, rel));
-    if (stat.isDirectory()) out.push(...listFiles(rel));
-    else if (rel.endsWith(".ts")) out.push(rel);
+    if (stat.isDirectory()) out.push(...listFiles(root, rel));
+    else if (root.extensions.some((extension) => rel.endsWith(extension))) out.push(rel);
   }
   return out;
 }
@@ -428,7 +476,11 @@ function currentSchemaSnapshots(): string[] {
 }
 
 export function scannedFiles(): string[] {
-  return [...SCANNED_ROOTS.flatMap(listFiles), ...SCANNED_FILES, ...currentSchemaSnapshots()];
+  return [
+    ...SCANNED_ROOTS.flatMap((root) => listFiles(root)),
+    ...SCANNED_FILES,
+    ...currentSchemaSnapshots(),
+  ];
 }
 
 export function findOccurrences(files: readonly string[]): Occurrence[] {
@@ -470,7 +522,7 @@ describe("acceptance words in the sources (ac-oracle-kept, source half)", () => 
   const files = scannedFiles();
   const occurrences = findOccurrences(files);
 
-  it("scans the sources, the usage contract, the CLI reference and the JSON Schemas", () => {
+  it("scans the sources, the usage contract, the CLI reference, the JSON Schemas and the skills", () => {
     expect(files).toContain("src/cli/cliDocs.ts");
     expect(files).toContain("phax.schema.json");
     expect(files).toContain("packages/schemas/snapshots/plan-document/next.schema.json");
@@ -478,6 +530,8 @@ describe("acceptance words in the sources (ac-oracle-kept, source half)", () => 
     expect(files).toContain("packages/schemas/src/index.ts");
     expect(files).toContain("phax.usage.kdl");
     expect(files).toContain("docs/cli/reference.md");
+    expect(files).toContain(".claude/skills/phax-planning/SKILL.md");
+    expect(files).toContain(".claude/skills/phax-review/SKILL.md");
   });
 
   it("finds no oracle or discharge outside an allowlist entry", () => {
