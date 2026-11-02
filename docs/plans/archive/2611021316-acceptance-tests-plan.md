@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2610271119-acceptance-tests.md
 completes-spec: true
 approved:
