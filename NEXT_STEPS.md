@@ -21,6 +21,13 @@ these specs landed and were completed: `planning-skill-defaults` (two plans), `a
       copies outside this repository (`~/.claude/skills/phax-planning` still teaches oracle
       phases). Optional follow-up: no skill teaches that the criterion ids `acceptance`,
       `in-phase` and `oracle` are reserved; only lint reports it.
+- [ ] **`command-contracts`** — `docs/specs/2611031738-command-contracts.md` (Approved 2026-11-03).
+      The operator's command library, ported to Effect 3, puts every command under contracts and
+      forces a machine answer (`--json`, message lines on stderr, `--json-schema`, `$schema`, a
+      document behind a flag, written files with their digest); `refused` 64, `defect` 70.
+      `artifact status`, `plans overview`, `plans lint` and `ls` first. The library's source is
+      copied under `vendor/command-library/` for the run (branch `chore/vendor-command-library`).
+      Prerequisite of `claude-code-mod` and `knowledge-index`.
 
 ### Briefs written, spec not yet authored
 
@@ -32,11 +39,12 @@ these specs landed and were completed: `planning-skill-defaults` (two plans), `a
       Claude Code mod: a pane and a band showing the current repository's inbox, specs, plans and
       runs, read from phax's versioned JSON, writing nothing. Milestone 1, reading; it needs
       `command-contracts` first, and a coverage level (§9 Q1).
-- [ ] **`command-contracts`** — `docs/briefs/command-contracts.md` (2026-10-30). A small command
-      library, ported to Effect 3, puts every command under contracts and forces a machine answer
-      (`--json` the runner's, errors as JSON, `$schema`, documents in by `-` or a path, files written
-      named with their digest); Commander stays under the runner. Every command moves, `artifact
-      status`, `plans overview`, `plans lint` and `runs list` first. Prerequisite of `claude-code-mod`.
+- [ ] **`knowledge-index`** — `docs/briefs/knowledge-index.md` (2026-11-03). A local, rebuildable
+      index (SQLite, FTS5) of what the repository and its runs hold — specs, plans, questions and
+      arbitrations, runs, gates, costs, reviews, records — queried through the command line in
+      versioned JSON instead of grep; Git stays the source of truth. Milestone 2, out of its scope: a
+      shared service mirroring a team's repositories and records, exposed as a remote MCP server.
+      Needs `command-contracts` first.
 
 ### Drafts
 
