@@ -27,6 +27,10 @@ Format for --usage output: kdl (default, no external dependency) or json (requir
 
 **Default:** `kdl`
 
+### `--json-schema`
+
+Print the program's contracts as JSON Schema, or a command's after its name, and run nothing
+
 ## `phax validate`
 
 - **Usage**: `phax validate [--plan <path>]`

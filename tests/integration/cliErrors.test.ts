@@ -21,9 +21,9 @@ function runCli(args: string[], cwd?: string): SpawnSyncReturns<string> {
 }
 
 describe("CLI error messages", { timeout: 30_000 }, () => {
-  it("unknown command: non-zero exit, suggestion, help pointer, no stack trace", () => {
+  it("unknown command: exit 64, suggestion, help pointer, no stack trace", () => {
     const result = runCli(["resum"]);
-    expect(result.status).not.toBe(0);
+    expect(result.status).toBe(64);
     const combined = (result.stderr ?? "") + (result.stdout ?? "");
     expect(combined).toMatch(/unknown command/i);
     expect(combined).toMatch(/Did you mean/i);
@@ -33,12 +33,18 @@ describe("CLI error messages", { timeout: 30_000 }, () => {
     expect(combined).not.toMatch(/at\s+\S+:\d+:\d+/);
   });
 
-  it("unknown flag on a subcommand: non-zero exit, readable message, no stack trace", () => {
+  it("unknown flag on a subcommand: exit 64, readable message, no stack trace", () => {
     const result = runCli(["ls", "--notaflag"]);
-    expect(result.status).not.toBe(0);
+    expect(result.status).toBe(64);
     const combined = (result.stderr ?? "") + (result.stdout ?? "");
     expect(combined).toMatch(/unknown option/i);
     expect(combined).not.toMatch(/at\s+\S+:\d+:\d+/);
+  });
+
+  it("a missing argument: exit 64 with Commander's text", () => {
+    const result = runCli(["unlock"]);
+    expect(result.status).toBe(64);
+    expect(result.stderr).toContain("error: missing required argument 'short-name'");
   });
 
   it("invalid choice for completions <shell>: lists valid choices, no stack trace", () => {

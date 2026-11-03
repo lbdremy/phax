@@ -1,0 +1,868 @@
+// Generated from the Commander.js program tree — do not edit by hand.
+// Regenerate with: pnpm gen:usage-spec
+//
+// Commander (src/cli/) is the source of truth for commands, flags, and
+// arguments. phax.usage.kdl is a derived shareable CLI contract.
+
+name "phax"
+bin "phax"
+version "0.34.0"
+license "Apache-2.0"
+min_usage_version "1.0.0"
+about "Drive AI coding agents through isolated, gated phases"
+
+flag "--verbose" {
+    global #true
+    help "Print human-readable progress and system events"
+}
+flag "--trace" {
+    global #true
+    help "Write structured JSONL trace events to the run folder"
+}
+flag "--usage" {
+    global #true
+    help "Print the phax.usage.kdl CLI spec and exit"
+}
+flag "--usage-format" {
+    global #true
+    arg "<format>"
+    default "kdl"
+    help "Format for --usage output: kdl (default, no external dependency) or json (requires the usage CLI)"
+}
+
+complete "short-name" run="phax ls --complete" descriptions=#true
+
+cmd "validate" {
+    help "Validate phax.json and its user overlays without any side effects; pass --plan to also validate a phax-plan.json"
+    long_help "Checks that the configuration decodes and, with --plan, that the given phax-plan.json decodes. The config layers (phax.json, phax.local.json, ~/.phax/config.json) are merged and decoded; a user overlay that carries assignments is refused, because assignments is accepted only in phax.json.\n\nThe protected paths are listed: the globs of phax.json's \"protectedPaths\" in order, then the phax.json phax loaded, which is protected too, by its repo-relative path. A malformed glob exits 2 naming protectedPaths[N], and protectedPaths in phax.local.json or ~/.phax/config.json is refused, because it is accepted only in phax.json.\n\nThe assignment bounds of phax.json are checked against the routing catalog: each bound's model must be in the catalog, its min and max efforts must be efforts that model offers, and min may not come after max. A bad bound exits 2 naming assignments[N] and the field. The shape of a bound is checked at decode time by every command; the catalog check is this command's, lint's and the run preflight's.\n\nExits 0 when everything is valid, 2 otherwise.\n\nSide effects: none."
+    example "phax validate"
+    example "phax validate --plan phax-plan.json"
+    flag "--plan" {
+        arg "<path>"
+        help "Also validate a phax-plan.json at this path"
+    }
+}
+
+cmd "unlock" {
+    help "Remove a stale run lock; use --force to remove any lock"
+    arg "<short-name>" {
+        help "Run short name, e.g. usage-cli"
+    }
+    flag "--force" {
+        help "Remove the lock regardless of staleness"
+    }
+}
+
+cmd "enter" {
+    help "Resume the final phase's agent session interactively"
+    long_help "Attaches to the kept-open agent session in the final worktree, so you can review the agent's work, ask follow-up questions, or apply manual fixes interactively."
+    example "phax enter usage-cli"
+    arg "<short-name>" {
+        help "Run short name, e.g. usage-cli"
+    }
+}
+
+cmd "enter-phase" {
+    help "Resume a specific phase's agent session interactively"
+    long_help "Continues a phase's agent session interactively in the phase's worktree: claude-code with `claude --resume` and codex with `codex resume`; mistral-vibe has no verified interactive resume. The session carries the phase's own filesystem, network and MCP posture, rebuilt from its security.json; a phase whose security.json cannot be read is refused rather than opened unconfined. Useful for inspecting intermediate state or debugging a phase that has not yet been committed to main.\n\nAt the stopped phase of a run in awaiting_review, it continues the stop's current session, or starts a fresh session with the stop's fresh-start command when no session is current or the provider's resume is unverified. --new-session first runs a new read-only first turn there under the run lock, makes its session current (keeping the earlier ones in interactive-session.json) and refreshes review-stop.json; a held lock refuses it with exit 7. A turn that fails or is refused leaves the previous session current. Once the run's close has started, enter-phase refuses the stopped phase until the close ends. At a held stop the current session is the builder's own, continued by default; --new-session starts a read-only look in a fresh session and refreshes only the session and the continue command of review-stop.json. --new-session on a phase that is not stopped is refused with exit 1."
+    example "phax enter-phase usage-cli phase-02"
+    example "phax enter-phase usage-cli phase-03 --new-session"
+    arg "<short-name>" {
+        help "Run short name, e.g. usage-cli"
+    }
+    arg "<phase-id>" {
+        help "Phase identifier, e.g. phase-02"
+    }
+    flag "--new-session" {
+        help "At a stopped phase, run a new read-only first turn and continue its session"
+    }
+}
+
+cmd "session-info" {
+    help "Print session diagnostics for a run (state, phase, worktree, session id)"
+    long_help "Prints diagnostic information about a run: its current state, active phase, worktree path, and agent session id. For a run in awaiting_review it prints the stop's cause, the stopped phase, its worktree, the seed and the current session with the phax enter-phase command that continues it. A held stop reads `headless, committed <short sha>`, and its session is the builder's. Read-only — no side effects."
+    example "phax session-info usage-cli"
+    example "phax session-info usage-cli --debug"
+    arg "<short-name>" {
+        help "Run short name, e.g. usage-cli"
+    }
+    flag "--debug" {
+        help "Dump raw binding and model-resolution metadata"
+    }
+}
+
+cmd "shell" {
+    help "Open a shell in the final worktree"
+    long_help "Opens an interactive shell in the final worktree. Useful for manually inspecting files, running tests, or executing commands outside the agent session. For a run in awaiting_review it opens the stopped phase's worktree."
+    example "phax shell usage-cli"
+    arg "<short-name>" {
+        help "Run short name, e.g. usage-cli"
+    }
+}
+
+cmd "path" {
+    help "Print the final worktree path (script-friendly, one line)"
+    long_help "Prints the absolute path to the final worktree on a single line. Useful in scripts: cd $(phax path my-run) or for piping to other tools. For a run in awaiting_review it prints the stopped phase's worktree."
+    example "phax path usage-cli"
+    example "cd $(phax path usage-cli)"
+    arg "<short-name>" {
+        help "Run short name, e.g. usage-cli"
+    }
+}
+
+cmd "open" {
+    help "Open the final worktree in the configured editor"
+    long_help "Opens the final worktree in the editor configured in phax.json (or the EDITOR environment variable). Equivalent to running your editor with the worktree path as an argument. For a run in awaiting_review it opens the stopped phase's worktree."
+    example "phax open usage-cli"
+    arg "<short-name>" {
+        help "Run short name, e.g. usage-cli"
+    }
+}
+
+cmd "ls" {
+    help "List runs from the registry"
+    long_help "Lists runs from the local registry (~/.phax/runs/). With no filter flags, shows all runs. Use status filters to narrow output: --active (created or running), --failed, --review-open (finished, open for human review), --awaiting-review (stopped at an interactive phase), or --archived. A run waiting at a stop reads awaiting_review (declared) or awaiting_review (held), and its PHASE column names the stopped phase. Use --json for the versioned run list: one run-list document (a $schema and a runs array) whose runs carry qualifiedName, namespace, shortName, state, branch, currentPhase, gateProfile, updatedAt, lockState, recordsPending, archivePath and stop. A value that is unknown is null, and stop is the run's review-stop document, or null when the run is not waiting at a stop."
+    example "phax ls"
+    example "phax ls --review-open"
+    example "phax ls --awaiting-review"
+    example "phax ls --failed --json"
+    flag "--active" {
+        help "Show only active runs (created or running)"
+    }
+    flag "--failed" {
+        help "Show only failed runs"
+    }
+    flag "--review-open" {
+        help "Show only review_open runs"
+    }
+    flag "--awaiting-review" {
+        help "Show only runs awaiting_review at an interactive phase"
+    }
+    flag "--archived" {
+        help "Show only archived runs"
+    }
+    flag "--json" {
+        help "Output as JSON"
+    }
+    flag "--complete" {
+        help "Print run short-names for shell completion"
+    }
+}
+
+cmd "archive" {
+    help "Archive a run that is not running; --force is required for an unfinished run"
+    long_help "Archives a run by moving its worktrees under ~/.phax/archive/<namespace>.<short-name>/ and marking it archived in the registry. Nothing is destructively deleted — every phase's working state is preserved.\n\nFinished runs (review_open, completed) archive by default. Unfinished runs (created, failed, interrupted, rate_limited, stopped, awaiting_review) are refused unless --force is set; the refusal message names the run's current state and the flag. Archiving a run in awaiting_review with --force removes its review-stop.json and moves its worktrees, uncommitted corrections included, to the archive. Running, locked, and already-archived runs are never archivable regardless of --force.\n\nThe run's stoppedReason and lastError survive archival intact.\n\nWithout --force on a finished run, the final worktree must be clean. With --force, no cleanliness check runs.\n\nSide effects: moves worktrees on the filesystem, updates ~/.phax/runs/."
+    example "phax archive usage-cli"
+    example "phax archive usage-cli --force"
+    example "phax archive plan-27 --force  # give up an interrupted run"
+    arg "<short-name>" {
+        help "Run short name, e.g. usage-cli"
+    }
+    flag "--force" {
+        help "Archive even if the run is unfinished or a worktree has uncommitted changes"
+    }
+}
+
+cmd "prune" {
+    help "Delete archived runs of the current namespace for real, freeing their names and disk space"
+    long_help "Deletes each selected archived run of the current namespace for real: its archive folder under ~/.phax/archive/<namespace>.<short-name>/, its worktree metadata in the current repository, its local branches (<branch> and <branch>--phase-NN) and, last, its registry entry — so its name and disk space come back. Before deleting the archive folder, it keeps the run's cost ledger: runs/cost-ledger.json is copied byte for byte to ~/.phax/cost-ledgers/<namespace>.<short-name>.<run-id>.json, and a failed copy keeps the run. Select runs by name (short or <namespace>.<short-name>) or with --all; only archived runs of the current namespace can be pruned, and an unknown, non-archived or other-namespace name refuses the whole command. Never touches records on phax/records/v1, remote branches, remote-tracking refs or pull requests, and never contacts a remote.\n\nA run whose local branches hold commits that no other branch, tag or remote-tracking ref keeps is kept whole unless --force is set, which discards those commits. A branch checked out in a worktree keeps the run even with --force. A locked run refuses the whole command (exit 7).\n\nAlways prints a preview first, then asks for confirmation on a TTY; --yes proceeds without asking, --dry-run deletes nothing, and without a TTY the command refuses unless --yes or --dry-run is set. --json prints one JSON document and never prompts. Exits 0 when every selected run was pruned, 1 when nothing was deleted, 3 when at least one run was kept.\n\nSide effects: writes under ~/.phax/cost-ledgers/, deletes under ~/.phax/archive/, deletes local branches and stale worktree metadata, updates ~/.phax/registry.json."
+    example "phax prune old-idea"
+    example "phax prune --all --dry-run"
+    example "phax prune --all --yes"
+    arg "[short-name]..." {
+        help "Archived run short name, e.g. old-idea"
+    }
+    flag "--all" {
+        help "Prune every archived run of the current namespace"
+    }
+    flag "--force" {
+        help "Also prune runs whose branches hold unpreserved commits (discards those commits)"
+    }
+    flag "--dry-run" {
+        help "Print the preview and delete nothing"
+    }
+    flag "--yes -y" {
+        help "Proceed without confirmation (required without a TTY)"
+    }
+    flag "--json" {
+        help "Output as JSON; never prompts"
+    }
+}
+
+cmd "cost" {
+    help "Manage the runs' cost ledgers"
+    long_help "Parent command for the runs' cost ledgers. Every run keeps cost-ledger.json in its run folder: one entry per Claude invocation (phase turn, fix attempt, handoff generation, compliance review, code review) with its own API-list cost, tokens per model, agent duration, end time and subscription-window samples. phax archive moves it with the run, and phax prune keeps a copy under ~/.phax/cost-ledgers/."
+    example "phax cost backfill"
+
+    cmd "backfill" {
+        help "Write a cost ledger for every kept run that has none, from its kept streams"
+        long_help "Writes cost-ledger.json for every run in the registry, across namespaces, that has none, derived from the Claude streams its run folder kept: each phase's output.jsonl, fix-attempt-NN.jsonl and handoff-generation.jsonl (reset phase folders first), then compliance-review.session.jsonl, compliance-review-retry.session.jsonl, code-review.session.jsonl and code-review-retry.session.jsonl. It reads the active run folder (~/.phax/runs/<namespace>.<short-name>/) or the archived one (~/.phax/archive/<namespace>.<short-name>/runs/). Each entry is the invocation's own cost, corrected when Claude Code reports a resumed session cumulatively; its end time is the stream's modification time, and an interrupted invocation carries no duration. A run with no Claude stream gets an empty ledger.\n\nNever touches a run that already has a ledger, never rewrites a ledger and never reads a pruned run or phax/records/v1. A locked run is skipped and named, and so is a run whose folder is missing. A second pass reports nothing to backfill.\n\nPrints `wrote <N> cost ledgers (<M> invocations, $<X> API-list)` or `nothing to backfill`. Exits 0 on success, 1 on error.\n\nSide effects: creates cost-ledger.json in run folders under ~/.phax/runs/ and ~/.phax/archive/."
+        example "phax cost backfill"
+    }
+}
+
+cmd "run" {
+    help "Extract a plan from plan.md and run all phases, or preview with --dry-run"
+    long_help "Extracts a plan from the plan.md given by --plan, creates a run entry in the registry, and executes each phase sequentially in its own Git worktree using the configured AI agent. Each phase runs its gate profile's every-phase steps after execution; the final phase also runs the profile's terminal steps. Each step's surface (local, structural, or product) is recorded per phase and the run's verified surfaces are reported at run end.\n\nA gate step with \"output\": \"gate-report\" is judged from the gate report it prints on stdout, saved as checks-attempt-NN.report-SS.json beside the attempt's log: a checked report with any finding fails the step whatever the exit code, and one with no finding passes it on exit 0; the fix prompt lists each finding with its rule, location, message, related locations and guide. A refused report stops the phase without a fix attempt and exits 4, naming the step, the reason and the remedy; the phase pauses as on gates_exhausted and phax resume runs the gate again with the full fix budget. Anything else is a broken step that gets the raw-log fix prompt. Review notes in a checked report fail nothing and go to the review handoff's Review notes section, never to the agent.\n\nAcceptance step: at the gate of an acceptance phase and of the phase that passes it, after every configured step passed, phax runs the acceptance provider (phax.json \"acceptance\": { \"command\" }). The command is split on whitespace and run without a shell, in the phase worktree before the commit, under a 120 s limit. It reads one acceptance-request on stdin, {$schema, verdict, phase, acceptancePhase, base, files}, where verdict is \"authored\" for the acceptance phase and \"passed\" for the passing phase, which also carries acceptanceCommit; phax saves it as checks-attempt-NN.acceptance-request.json beside the attempt's log. The provider prints a gate report on stdout, judged as a report step and saved as report-SS: findings go to the fix loop, a refused report stops the phase and exits 4, and a provider that cannot be spawned, times out or prints nothing usable fails the step. The step is recorded under the acceptance surface. A passing phase whose acceptance phase was skipped (it produced no changes, so it noted no commit) is refused before its agent runs, with exit 11, and the run fails. A committed acceptance phase is not reset. An acceptance step that exhausts the fix loop or refuses pauses the run with exit 4, and the next steps name both phax resume <run> and the --skip-acceptance correction for a wrong acceptance test.\n\nExtraction results are cached by content hash under ~/.phax/cache/plans/; a repeated run of the same plan.md reuses the cached extraction without calling the LLM again. Use --refresh to force a fresh extraction.\n\nThe start preflight also holds every phase to the owner's assignment bounds (phax.json \"assignments\"): a bound that names an unknown model or effort, or a phase that departs from its governing bound without an **Assignment reason:** line, refuses before the run is named, with exit 11 and \"Assignment preflight failed\". A part bound makes the preflight run the architecture provider.\n\nThe preflight also checks the plan's acceptance phases: a malformed declaration, a broken pair, or an acceptance phase with no \"acceptance\" provider configured refuses before the run is named, with exit 11 and \"Acceptance preflight failed\". The provider is never spawned by the preflight.\n\nA phase the plan declares interactive (`**Mode:** interactive`) stops the run. phax sets the phase up like any phase, writes the seed into .phax-context/ and runs one read-only first turn, then leaves the run in awaiting_review, writes review-stop.json in the run folder and exits 13 without waiting for input. The output names the worktree, the command that continues the agent session (or starts a fresh one) and phax resume. The person works in the worktree with any editor or agent; phax resume closes the stop.\n\n--hold [selection] stops the run for review at headless phases too: no value holds every headless phase but the final one, `--hold acceptance` the plan's acceptance phases, and `--hold phase-02,phase-04` the phases listed (exactly `phase-NN`, no repeats). A malformed value exits 1 before the run is named, and a selection the plan cannot honour (an unknown, interactive or final phase) exits 11 with \"Hold preflight failed\". A held phase does its work, passes its gate, commits and validates its handoff, then stops in awaiting_review before its record and its cleanup, with no agent turn, and exits 13. The hold is recorded with the run: phax resume takes no --hold and holds exactly those phases. A bare --hold takes the next word as its value, so put the run name before it or write --hold=<selection>. With --dry-run, the hold is resolved and printed as one line, `Hold: none` or `Hold: listed — phase-02, phase-04`, with any hold preflight errors under it; the dry run still exits 0 and names no run. A hold may stop inside an acceptance pair: see phax resume. Transcripts are not part of this release.\n\nA gate attempt fails when the phase changed a path listed in phax.json \"protectedPaths\", or the phax.json phax loaded: the fix loop is told which paths to put back, and a phase that does not pauses as on gates_exhausted. The same check runs before a commit-only resume commits, after the handoff turn, and when a held phase is re-entered; a stop's close is not checked. A skill edit grant (--allow-skill-edits) on a protected path is refused before the run is named, with exit 11.\n\nSide effects: creates worktrees, commits files, writes to ~/.phax/runs/."
+    example "phax run --plan plan.md"
+    example "phax run my-feature --plan plan.md"
+    example "phax run --plan plan.md --dry-run"
+    example "phax run --plan plan.md --refresh"
+    arg "[short-name]" {
+        help "Run short name, e.g. usage-cli"
+    }
+    flag "--plan" {
+        arg "<path>"
+        required #true
+        help "Path to the plan.md file to extract from"
+    }
+    flag "--allow-dirty" {
+        help "Allow starting when the working tree is dirty"
+    }
+    flag "--provider-priority" {
+        arg "<list>"
+        help "Comma-separated provider priority override (e.g. mistral-vibe,claude-code)"
+    }
+    flag "--dry-run" {
+        help "Preview only — extracts the plan but performs no run actions"
+    }
+    flag "--security" {
+        arg "<mode>"
+        help "Security mode override (secure|unsafe|isolated, overrides config default)"
+    }
+    flag "--refresh" {
+        help "Re-extract the plan even if a cached extraction exists"
+    }
+    flag "--allow-skill-edits" {
+        help "Allow phases to edit the .claude/skills files the plan declares"
+    }
+    flag "--hold" {
+        arg "[selection]"
+        help "Stop for review once these headless phases commit: no value for every phase but the final one, acceptance, or phase ids such as phase-02,phase-04"
+    }
+}
+
+cmd "review-handoff" {
+    help "Regenerate review-handoff.md and global file reconciliation for a review_open run"
+    arg "<short-name>" {
+        help "Run short name, e.g. usage-cli"
+    }
+    flag "--allow-partial" {
+        help "Generate a partial document when some phase artifacts are missing"
+    }
+}
+
+cmd "publish-pr" {
+    help "Push the final branch and create (or reuse) a GitHub PR for a review_open run"
+    long_help "Pushes the final worktree branch to the GitHub remote and creates a pull request, or reuses an existing PR for the same branch. Requires a GitHub remote and gh CLI authentication.\n\nSide effects: git push to remote, GitHub API call to create or update a pull request."
+    example "phax publish-pr usage-cli"
+    arg "<short-name>" {
+        help "Run short name, e.g. usage-cli"
+    }
+}
+
+cmd "review-compliance" {
+    help "Run a plan-compliance review for a review_open run and record its result"
+    long_help "Runs a plan-compliance review by invoking the AI agent with the run's handoff artifacts and the original plan. The agent session is read-only and writes no file. On Claude Code its shell is limited to the read-only git prefixes (log, diff, show, status, ls-files, blame), which run with your user's rights, without an OS sandbox; on Mistral Vibe, bash is prefix-allowlisted to the same commands, without an OS sandbox; on Codex, the read-only OS sandbox blocks writes and the network but lets any reading command run. It answers a structured verdict with its final message, per phase, with two ledgers (unplanned changes and unmet promises). phax writes compliance-review.json (the answer as given) and compliance-review.md (rendered from it) in the run folder; when records are enabled, it also commits the review entry to the records of the run's own project, even when the run belongs to another project.\n\nA refused answer, one that does not match the schema or does not name every phase of the run exactly once, is asked once more in the same session (its transcript is compliance-review-retry.session.jsonl). A review refused twice, or whose session fails, writes neither file nor a records entry, leaves an earlier review as it was, and exits 1 (14 when the provider was unreachable: a network failure), naming the retry command.\n\nSide effects: spawns a short-lived, read-only AI agent session (network I/O); writes compliance-review.json and compliance-review.md in the run folder; when records are enabled, commits the review entry to phax/records/v1, and pushes it when records.autoPush is on."
+    example "phax review-compliance usage-cli"
+    arg "<short-name>" {
+        help "Run short name, e.g. usage-cli"
+    }
+}
+
+cmd "review-code" {
+    help "Open an interactive, pre-prompted code-review session for a review_open run, or run the review headless with --headless"
+    long_help "Opens an interactive, pre-prompted code-review session for a review_open run by launching the AI agent in the run's worktree with the code-review prompt. The prompt carries the phax-review skill: the project's copy at .claude/skills/phax-review/SKILL.md in the run's worktree when it has one, else the bundled skill. The session is resumable: re-running resumes the existing session, while --new-session starts fresh. The developer takes over the session to investigate, discuss, and apply fixes.\n\n--headless runs the review without a person, whether or not review.code.enabled is set, in a read-only session: its reading tools and read-only git (log, diff, show, status, ls-files, blame). The session answers with its final message; a session that changed the worktree has its changes put back and its answer refused. A refused answer, an empty one included, is asked once more in the same session (its transcript is code-review-retry.session.jsonl) before the review fails naming both refusals; a session that changed the worktree is never resumed. An accepted answer writes code-review.json and code-review-session.json in the run folder; when records are on, it commits the code-review entry, and pushes it when records.autoPush is on. It prints the finding count and how to resume the session to fix them (phax review-code <run> on Claude Code, the provider's own resume otherwise), and exits 1 naming the reason and the retry command when the review fails (14 when the provider was unreachable: a network failure), leaving code-review.json and code-review-session.json as they were. It never touches a pull request. A later `phax review-code <run>` resumes that session on the provider that ran it. --new-session after a headless review starts a new interactive session that becomes the recorded review session and detaches it from code-review.json, which is left as it is.\n\nSide effects: writes a code-review prompt file under the worktree's .phax-context/ and a session record under the run directory; spawns a long-lived interactive AI agent session (network I/O). With --headless: spawns a short-lived AI agent session (network I/O), writes code-review.json and code-review-session.json in the run folder, and may commit a code-review entry to phax/records/v1."
+    example "phax review-code usage-cli"
+    example "phax review-code usage-cli --headless"
+    arg "<short-name>" {
+        help "Run short name, e.g. usage-cli"
+    }
+    flag "--new-session" {
+        help "Start a fresh review session instead of resuming the existing one"
+    }
+    flag "--model" {
+        arg "<model>"
+        help "Override the model, including on resume (default: review.code.model, else claude-opus-5-5)"
+    }
+    flag "--effort" {
+        arg "<effort>"
+        help "Override the effort (low | medium | high), including on resume (default: review.code.effort, else high)"
+    }
+    flag "--headless" {
+        help "Run the code review without a person: write code-review.json and record the session for review-code to resume; runs whether or not review.code.enabled is set"
+    }
+}
+
+cmd "adjust-plan" {
+    help "Open an interactive session to adjust a plan after a landed run"
+    long_help "Opens an interactive, pre-prompted session to help you adjust a plan.md after a landed run has introduced drift. The session establishes which of the plan's declared files, line references, and decisions are invalidated by the landed run's actual changes, asks clarifying questions where needed, proposes concrete edits and waits for your explicit approval, and only then edits and commits the plan — all interactively within the session. The command itself mutates nothing.\n\nInput: the path to the plan.md to adjust and --landed <run> (the run whose actual changes drive the adjustment). The landed run must have a global-file-reconciliation.json (i.e. it must have reached review); a run in awaiting_review is refused until it lands. Re-invocation without --new-session resumes the same session; --new-session starts a fresh one.\n\nSide effects: spawns a long-lived interactive provider session (network I/O); the session may, after developer approval, edit and commit the plan.md."
+    example "phax adjust-plan docs/plans/2609101030-plan-prune-plan.md --landed my-feature"
+    arg "<plan>" {
+        help "Path to the plan.md to adjust"
+    }
+    flag "--landed" {
+        arg "<run>"
+        required #true
+        help "The landed run whose actual changes drive the adjustment"
+    }
+    flag "--new-session" {
+        help "Start a fresh adjustment session instead of resuming"
+    }
+    flag "--model" {
+        arg "<model>"
+        help "Override the model (default: claude-opus-5-5)"
+    }
+    flag "--effort" {
+        arg "<effort>"
+        help "Override the effort (low | medium | high)"
+    }
+}
+
+cmd "brief" {
+    help "Ask the configured brief provider for the rules over the given paths and the findings there; with no path, inside a phase, the phase's brief"
+    long_help "Asks the brief provider configured as \"brief\": { \"command\": …, \"push\": … } in phax.json, phax.local.json or ~/.phax/config.json which rules cover the given paths, what fails there and how to fix it. Paths resolve against the current directory, may not exist yet, and must lie inside the working tree; they are sent relative to its root, deduplicated, in the order given. Config is read from the repository's main checkout; the provider runs from the working tree's root, with no shell, one brief request on stdin, and a fixed 60-second limit.\n\nInside a phase worktree, the request is `$schema`, the phase facts copied from .phax-context/brief-request.json (phase, base, terminal, phases), then files: the paths, or null with no path, which asks for the phase's brief (its planned files). Outside a phase, the request is `$schema` and files only, and at least one path is required.\n\nThe provider prints a brief report on stdout: {\"$schema\": \".../brief-report/<release>.json\", \"rules\": [{ rule, files, guide }], \"findings\": [{ id, rule, location, message, related, guide, due }]}. The report must carry its own `$schema` naming brief-report at a release this phax reads. A location is { file, lines }, with lines [start, end] or null; a guide is { summary, read } or null; due is this-phase, later or null. The provider's order is its rank, a key the format does not name is refused, and empty rules and findings lists mean nothing to report. phax checks nothing in the report beyond its shape: a brief informs and never blocks.\n\nPrints the whole report, every rule with its files and guide, then every finding with its location, due, rule, message, related locations and guide, in the provider's order, and exits 0 on any readable report. Exits 1 otherwise: the provider fails, exits non-zero, prints invalid JSON or outruns the limit; the report is refused at $schema or by shape; no brief provider is configured; .phax-context/brief-request.json is not a phase's brief request; no path outside a phase; a path outside the working tree; or no git working tree at all. An invalid config exits 2.\n\nSide effects: runs the brief provider. Inside a phase whose briefs are not yet collected, each pull is recorded as .phax-context/briefs/brief-NN.json, numbered from 01 in call order; outside a phase nothing is written."
+    example "phax brief src/core/billing/invoice.ts src/core/billing/tax.ts"
+    example "phax brief"
+    arg "[path]..." {
+        help "Paths to brief, existing or not, relative to the current directory"
+    }
+}
+
+cmd "architecture" {
+    help "Ask the configured architecture provider for the repository's architecture; with paths, for the parts that hold them"
+    long_help "Asks the architecture provider configured as \"architecture\": { \"command\": … } in phax.json, phax.local.json or ~/.phax/config.json for the repository's architecture, and prints its report: the Markdown body, then the report's parts rendered to Markdown, then the owner's assignment bounds (phax.json \"assignments\") as a \"## Bounds\" list, each as assignments[N] with its model and effort range; a part bound shows its part's name and globs, and a path-scoped report that does not carry the part says to run the command with no path for its globs. With no path, it asks about the whole repository; with paths, about the parts that hold them. Paths resolve against the current directory, may not exist yet, and must lie inside the working tree. Config is read from the repository's main checkout; the provider runs from the working tree's root, with no shell, one architecture request on stdin, and a fixed 60-second limit.\n\nThe request is {\"$schema\": \".../architecture-request/<release>.json\", \"files\"}: files is null with no path (the whole repository), otherwise the paths relative to the working tree's root, deduplicated, in the order given, never checked for existence.\n\nThe provider prints an architecture report on stdout: {\"$schema\": \".../architecture-report/<release>.json\", \"body\", \"parts\"}. The report must carry its own `$schema` naming architecture-report at a release this phax reads, and body is non-empty Markdown for the agent to read. parts is a list, possibly empty, of {\"id\", \"name\", \"description\", \"globs\"}: id is a kebab-case slug unique within the report, name and description are non-empty text, and globs is a non-empty list of working-tree-root-relative POSIX globs matched case-sensitively, where only ** (a whole segment), * and ? are special; a leading slash, a backslash, braces, an empty, . or .. segment and ** inside a segment are refused. A key the format does not name is refused, and no model or effort appears anywhere. phax prints the body as is, never parsing it, then a \"## Parts\" section with each part's name, id, description and globs in the report's order. A provider that declines exits non-zero.\n\nExits 0 on a readable report. Exits 1 with one line on stdout, telling the agent to read the architecture from the code and its documentation, when no architecture provider is configured; when bounds are declared, that line is followed by the bounds, part bounds marked unresolved, and the exit is still 1. Exits 1 with one line on stderr when the provider fails, exits non-zero, prints invalid JSON or outruns the limit; the report is refused at $schema or by shape (a missing parts, a repeated part id, an unknown key, an empty or refused glob); a path lies outside the working tree; or there is no git working tree at all. An invalid config exits 2.\n\nSide effects: runs the architecture provider. Writes no file, inside a phase worktree or outside one."
+    example "phax architecture"
+    example "phax architecture src/core/billing/totals.ts"
+    arg "[path]..." {
+        help "Paths to ask about, existing or not, relative to the current directory"
+    }
+}
+
+cmd "init" {
+    help "Create phax.json and phax.schema.json in the current directory"
+    long_help "Creates phax.json and phax.schema.json in the current directory. Use --force to overwrite an existing phax.json. Does not connect to any network or external service."
+    example "phax init"
+    example "phax init --force"
+    flag "--force" {
+        help "Overwrite and reconfigure an existing phax.json"
+    }
+    flag "--yes" {
+        help "Accept detected defaults without prompting"
+    }
+}
+
+cmd "report" {
+    help "Open a GitHub issue from local telemetry (run semantic.jsonl or latest daily journal)"
+    long_help "Creates a GitHub issue from local run telemetry. By default, uploads the full log as a secret GitHub gist and links it in the issue body. Use --no-gist to inline the log directly.\n\nSide effects: GitHub API calls — creates a GitHub issue and, unless --no-gist is set, a secret gist."
+    example "phax report"
+    example "phax report usage-cli"
+    example "phax report usage-cli --no-gist"
+    arg "[short-name]" {
+        help "Run short name, e.g. usage-cli"
+    }
+    flag "--no-gist" {
+        help "Inline the full log in the issue body instead of creating a secret gist"
+    }
+}
+
+cmd "completions" {
+    help "Generate a shell completion script (zsh, bash, fish, nu, powershell). Requires the usage CLI."
+    arg "<shell>" {
+        help "Shell to generate completions for (zsh, bash, fish, nu, powershell)"
+    }
+}
+
+cmd "resume" {
+    help "Resume a run from its next pending phase"
+    long_help "Picks up a run from its next pending phase, re-entering the same execution loop as phax run. Prompts for confirmation before proceeding unless --yes is set.\n\nA committed phase whose handoff turn was cut short (a rate or usage limit) gets its handoff written first: resume runs that phase's handoff turn again, in its session and its worktree, then goes on. When that worktree is gone, or its session id, resume refuses with exit 1 and nothing changes; the message names the remedy: restore the worktree with git worktree prune then git worktree add <recorded worktree path> <phase branch> (git keeps a deleted worktree registered until it is pruned), or write <run folder>/<phase>/phase-handoff.md with its four sections by hand, then resume again. After a handoff written by hand, resume finishes that phase with no agent turn: it collects its pulled briefs, writes its record and runs its cleanup, then goes on; when its worktree is gone too, the cleanup commands do not run (a warning names them: run them yourself if they free resources outside the worktree) and the phase is still cleaned up. The final message counts every phase of the run that committed, across resumes.\n\nA run whose phax-plan.json was written by an older phax, in an older shape, is refused with exit 2: finish it with the phax release that started it, or archive it with phax archive <run> --force and run its plan again.\n\nThe same preflight as phax run applies: a phase that departs from the owner's assignment bounds without an **Assignment reason:** line, or an invalid bound, refuses with exit 11 (\"Assignment preflight failed\"), and so does every error of the plan's acceptance phases: a malformed declaration, a broken pair, or an acceptance phase with no \"acceptance\" provider configured (\"Acceptance preflight failed\"). The preflight re-checks the current configuration, so a run whose \"acceptance\" block was removed since it started is refused too.\n\nA passing phase whose acceptance phase was skipped (it produced no changes, so it noted no commit) is refused before its agent runs, with exit 11: there are no acceptance tests to pass, and the run fails.\n\n--skip-acceptance applies only to the phase this resume restarts at, and only in this invocation. That phase's configured gate steps run and must pass, with the usual fix loop; its acceptance step does not run, and is recorded as skipped in its gate-attribution, so acceptance is then not among that phase's verified surfaces, nor the run's. At a phase that is neither an acceptance phase nor a passing phase, it is refused with exit 1 and nothing changes. On a run in awaiting_review it is refused with exit 1 too: at a stop in an acceptance pair because a close's authored step is never skipped (undo the acceptance-test-file correction or phax reset-phase the stop), and at a stop in no pair because that phase has no acceptance step. A committed acceptance phase is never reset, so a wrong acceptance test is corrected in the stopped phase (phax enter-phase <run> <phase>) and closed this way.\n\nA run in awaiting_review (stopped at a declared interactive phase or a held one, exit 13) is closed by resume, which re-checks the preflight and then runs the gate first: a red gate returns the phase to the person (exit 4) and the run stays in awaiting_review. The handoff is the person's .phax-context/correction-handoff.md when it exists (four sections, checked before anything runs), otherwise the handoff a read-only closing turn writes from the diff of the corrections; a closing turn that edits the worktree exits 5, its edits set aside in the phase's refused-turn-NN/ folder and the worktree put back to the gated tree, and so does an answer still invalid after one corrective resume; a closing turn that could not reach the provider (a network failure) exits 14, its message recorded in review-stop.json, and the run stays in awaiting_review. At a declared stop phax then commits exactly the gated tree with an Interactive-Phase: trailer (an empty commit when nothing changed). At a held stop it leaves one review commit with a Held-Phase: trailer on top of the unchanged phase commit, or no commit when nothing changed, then writes the phase's record once, naming the phase commit. Either way it runs the cleanup and continues with the next phase in the same invocation, whose prompt carries the correction under ## Review corrections. A hold or a close interrupted before its cleanup is finished by the next resume: a held phase that committed but did not stop stops then, with no agent turn, and a close that landed its state but not its cleanup runs the cleanup (and writes the held phase's record, once). A close that changes an acceptance test file of the pair it sits in runs the acceptance provider's authored verdict as the last step of its gate, naming the stopped phase and judging the acceptance test files in the worktree's gated tree, before the close commits (the passing phase later judges the pair's latest commit that passed authored); a held passing phase is closed on its configured steps only and warns about each acceptance test file its corrections changed. A close reads the closer's identity from the main checkout's git configuration first (user.name and user.email); an unset identity refuses the close with exit 1 and the run stays in awaiting_review. It then copies the transcript of each recorded session (the builder, the first turns that answered and every --new-session session) into <run>/<phase>/interactive-transcripts/<session id>.jsonl, mode 0600, or records it as missing with a reason; a transcript never enters a commit or a record. It records the closer in the stop and writes the phase's record once, for a declared phase as well as a held one, naming the mode, cause, outcome, closer and sessions with their transcript digests; a record destination that refuses it pauses the run for a resume. A close also sets the stop section of the phase's security.json.\n\nA refused close puts the run back in awaiting_review with the reason in review-stop.json; an interrupt during a close does the same.\n\nSide effects: creates worktrees, commits files, writes to ~/.phax/runs/."
+    example "phax resume usage-cli"
+    example "phax resume usage-cli --yes"
+    example "phax resume refunds --yes --skip-acceptance"
+    arg "<short-name>" {
+        help "Run short name, e.g. usage-cli"
+    }
+    flag "--yes -y" {
+        help "Proceed without confirmation"
+    }
+    flag "--verbose" {
+        help "Print human-readable progress and system events"
+    }
+    flag "--trace" {
+        help "Write structured JSONL trace events to the run folder"
+    }
+    flag "--provider-priority" {
+        arg "<list>"
+        help "Comma-separated provider priority override (e.g. mistral-vibe,claude-code)"
+    }
+    flag "--skip-acceptance" {
+        help "Skip the acceptance step of the phase this resume restarts at; its configured gate still runs"
+    }
+}
+
+cmd "reset-phase" {
+    help "Reset a stuck or failed phase so phax resume re-runs it from scratch"
+    long_help "Resets a stuck or failed phase: its folder is archived, its worktree and branch are removed, and the run becomes resumable so phax resume starts the phase over. Without --yes it first previews what the reset would discard.\n\nA run in awaiting_review (stopped at a declared interactive phase or a held one) can reset only the stopped phase: the preview lists the uncommitted corrections in its worktree and the person's .phax-context/correction-handoff.md when it exists, the reset discards review-stop.json, and phax resume then runs the phase again from the start, first turn included. At a held stop the preview names the phase commit it discards, and the phase is held again when it commits. A phase of an acceptance pair whose closed stop ran the authored step is not reset once the pair's passing phase has started, like the acceptance phase itself: the passing phase judges the pair's latest authored commit. An earlier phase is committed work the stop sits on, and a later one has not started, so both are refused.\n\nThe reset takes the run lock: while a run, a resume or an enter-phase --new-session turn holds it, the reset is refused with exit 7 and nothing changes."
+    example "phax reset-phase usage-cli"
+    example "phax reset-phase usage-cli phase-02 --yes"
+    arg "<short-name>" {
+        help "Run short name, e.g. usage-cli"
+    }
+    arg "[phase-id]" {
+        help "Phase identifier to reset, e.g. phase-02; defaults to the stuck phase"
+    }
+    flag "--yes -y" {
+        help "Proceed without confirmation (removes the worktree and branch)"
+    }
+    flag "--verbose" {
+        help "Print human-readable progress and system events"
+    }
+    flag "--trace" {
+        help "Write structured JSONL trace events to the run folder"
+    }
+}
+
+cmd "agent" {
+    help "Inspect and manage model routing and provider configuration"
+
+    cmd "models" {
+        help "Print the routing table and provider priority"
+    }
+
+    cmd "resolve" {
+        help "Show how a model+effort request resolves to a provider and concrete model"
+        flag "--model" {
+            arg "<id>"
+            required #true
+            help "Requested model id (e.g. claude-sonnet-4-6)"
+        }
+        flag "--effort" {
+            arg "<level>"
+            required #true
+            help "Effort/thinking level (none|off|low|medium|high|xhigh|max|ultracode|ultra)"
+        }
+        flag "--json" {
+            help "Output the resolution as JSON"
+        }
+    }
+
+    cmd "probe" {
+        help "Check which provider executables are available on PATH; never throws on an unavailable provider"
+    }
+
+    cmd "setup" {
+        help "Set up provider integrations"
+
+        cmd "mistral-vibe" {
+            help "Append PHAX-owned Mistral Vibe model aliases to ~/.vibe/config.toml (append-only, atomic)"
+            flag "--dry-run" {
+                help "Preview what would be appended without writing anything"
+            }
+            flag "--install-model-aliases" {
+                help "Actually append the missing aliases and write the backup"
+            }
+        }
+
+        cmd "providers" {
+            help "Reconcile ~/.phax/providers.json enabled flags from live executable probes (dry-run by default)"
+            flag "--write" {
+                help "Persist the reconciled config (writes a timestamped backup first)"
+            }
+            flag "--prune" {
+                help "Also disable providers whose executable is unavailable"
+            }
+            flag "--with-routing" {
+                help "Scaffold ~/.phax/model-routing.json from defaults when absent (never overwrites)"
+            }
+        }
+    }
+}
+
+cmd "security" {
+    help "Security-related commands"
+    flag "--verbose" {
+        help "Print human-readable progress and system events"
+    }
+    flag "--trace" {
+        help "Write structured JSONL trace events to the run folder"
+    }
+
+    cmd "status" {
+        help "Show provider security capabilities and availability"
+        flag "--verbose" {
+            help "Print human-readable progress and system events"
+        }
+        flag "--trace" {
+            help "Write structured JSONL trace events to the run folder"
+        }
+    }
+}
+
+cmd "skills" {
+    help "Manage PHAX skills"
+
+    cmd "install" {
+        help "Install bundled PHAX skills into an agent's native skill directory"
+        arg "[skill]" {
+            help "Skill to install (phax-planning|phax-cli|phax-spec|phax-review|phax-decide-spec|phax-decide-plan|phax-decide-review); installs all skills when omitted"
+        }
+        flag "--target" {
+            arg "<target>"
+            required #true
+            help "Agent target (claude|codex|agent)"
+        }
+        flag "--scope" {
+            arg "<scope>"
+            default "project"
+            help "Installation scope (project|user)"
+        }
+    }
+}
+
+cmd "schema" {
+    help "Manage the local phax.schema.json"
+
+    cmd "upgrade" {
+        help "Regenerate phax.schema.json from the installed binary's config contract; never modifies phax.json"
+    }
+}
+
+cmd "artifact" {
+    help "Inspect and transition the lifecycle status of a spec or plan"
+    long_help "Parent command for inspecting and transitioning the lifecycle status of a spec (docs/specs/) or plan (docs/plans/). Specs carry Draft, Approved, Abandoned, or Completed; plans additionally carry Stale. Transitioning to a terminal status (Abandoned, Completed) moves the file into the artifact's archive/ subdirectory as part of the transition. A headless-authored artifact's JSON document sidecar (<name>.json beside the .md) travels with it: every transition's write-set includes it, and a terminal transition moves it into archive/ alongside the .md. Illegal transitions and validation failures (missing frontmatter block, unknown status, status/location disagreement) refuse with exit code 12."
+    example "phax artifact status docs/plans/2607101056-typescript-7-migration-plan.md"
+
+    cmd "status" {
+        help "Report an artifact's kind, current status, and legal transitions"
+        long_help "Reports an artifact's kind (spec or plan), current status, and the legal transitions from that status (an Approved spec or plan lists Draft, reached with phax artifact reopen). For an approved spec or plan, also reports the approval date and baseline, its approver (by machine (<grant>), by operator (<name>), or unattributed for an approval recorded before phax named the approver), and whether the artifact has been edited since that approval (recorded) or has no approval record (unrecorded). Also reports how the artifact was authored: interactive (no sidecar), or headless with its JSON document sidecar and whether the body is still the sidecar's rendering (in sync), differs from it (diverged — the body was edited by hand), or the sidecar is not a valid document (invalid). Frontmatter changes never count as divergence. A sidecar stamped below its document format's current shape, or written before $schema, is not compared: status names its stamped shape and `phax artifact migrate-documents` instead.\n\nAn artifact with question sections also prints a Questions line: the number of questions, the open ones with their ids, and the arbitrated ones with how many are lifted (`Questions: 4 — open 2 (Q3, Q4) · arbitrated 2 (1 lifted)`). A headless artifact's questions come from its sidecar, lifted when it is older; a valid spec sidecar always prints the line, a plan's only when it has questions. A hand-authored artifact's come from its `## 9. Open questions` and `## 9b. Arbitrated questions` sections (a plan's `## Open questions` and `## Arbitrated questions`); one that departs from the §9 format prints the first departing line instead, and status still exits 0. Read-only — no side effects."
+        example "phax artifact status docs/plans/2607101056-typescript-7-migration-plan.md"
+        example "phax artifact status docs/specs/2609030749-spec-approval-ground.md"
+        arg "<path>" {
+            help "Path to a spec or plan file under docs/specs/ or docs/plans/"
+        }
+    }
+
+    cmd "approve" {
+        help "Transition an artifact to Approved"
+        long_help "Transitions an artifact to Approved. Legal from Draft (both kinds) and from Stale (plans only); re-approving an already-Approved artifact re-records the approval, refreshing its timestamp and baseline — this is the correct way to record an in-place revision of a spec, not editing the date by hand. Rewrites the frontmatter status key in place. An Approved artifact goes back to Draft only through `phax artifact reopen`, which voids the approval.\n\nEvery approval names its approver, and the approval record file records it as approvedBy. `--by machine:<grant>` declares a machine — a loop or a script — by its grant, a kebab-case slug matching ^[a-z0-9]+(-[a-z0-9]+)*$. `--by operator`, or no --by from a terminal, names the operator as git commits: GIT_COMMITTER_NAME, else the repository's git user.name, never a guessed name. Without a terminal there is no default: approve refuses with exit 12 unless --by is given, naming `--by operator` and `--by machine:<grant>`. An operator approval refuses with exit 12 when neither is set, naming `git config user.name`. A malformed --by or grant refuses with exit 12. Every refusal comes before anything is written. Approval records written before phax named the approver read as unattributed.\n\nFor specs: stamps `approved: { date, baseline }` in the frontmatter and writes the spec's approval record file, docs/specs/approvals/<spec file name>.json.\nFor plans: stamps `approved: { date, baseline }` in the frontmatter and writes the plan's approval record file, docs/plans/approvals/<plan file name>.json. Plan approval refuses with exit 12 if the declared Source-Spec is Approved but its approval is unrecorded or edited since approval — re-approve the spec first.\nFor headless-authored artifacts (either kind): approval refuses with exit 12 when the JSON document sidecar is diverged (the body differs from the sidecar's rendering) or invalid, naming the two remedies — re-author the artifact with --headless, or delete the sidecar to demote the artifact to hand-authored.\nWhile any live spec or plan sidecar is stamped below its document format's current shape, approval refuses with exit 12 before anything is written, naming each such sidecar and `phax artifact migrate-documents`.\n\nSide effects: writes the artifact file and commits the transition's write-set (the artifact file, its JSON document sidecar when headless-authored, plus its own approval record file under docs/plans/approvals/ or docs/specs/approvals/) in a single commit; no transition touches another artifact's record file. Refuses with exit code 12 if any write-set path already has uncommitted changes."
+        example "phax artifact approve docs/plans/2607101056-typescript-7-migration-plan.md"
+        example "phax artifact approve docs/specs/2609030749-spec-approval-ground.md --by operator"
+        example "phax artifact approve docs/specs/2609030749-spec-approval-ground.md --by machine:roadmap-loop"
+        arg "<path>" {
+            help "Path to a spec or plan file under docs/specs/ or docs/plans/"
+        }
+        flag "--by" {
+            arg "<arbiter>"
+            help "operator or machine:<grant>; required without a terminal"
+        }
+    }
+
+    cmd "stale" {
+        help "Manually mark a plan Stale"
+        long_help "Manually marks a plan Stale. Legal from Approved only — Stale has no automatic trigger (that belongs to a future lineage spec). Rewrites the frontmatter status key in place.\n\nSide effects: writes the plan file and commits the write-set in a single commit; refuses with exit code 12 if the plan file already has uncommitted changes."
+        example "phax artifact stale docs/plans/2607101056-typescript-7-migration-plan.md"
+        arg "<path>" {
+            help "Path to a spec or plan file under docs/specs/ or docs/plans/"
+        }
+    }
+
+    cmd "abandon" {
+        help "Abandon an artifact — terminal; moves the file to its archive/ directory"
+        long_help "Abandons an artifact — a terminal status distinct from Completed, for work dropped without execution. Legal from Draft or Approved (specs) or Draft, Approved, or Stale (plans).\n\nSide effects: moves the file into the artifact's archive/ subdirectory with its frontmatter status key rewritten to Abandoned, deletes its approval record file under docs/plans/approvals/ or docs/specs/approvals/ if it has one, and commits the move and the deletion in a single commit; refuses with exit code 12 if any write-set path already has uncommitted changes."
+        example "phax artifact abandon docs/plans/2607101056-typescript-7-migration-plan.md"
+        arg "<path>" {
+            help "Path to a spec or plan file under docs/specs/ or docs/plans/"
+        }
+    }
+
+    cmd "complete" {
+        help "Complete an artifact — terminal; moves the file to its archive/ directory"
+        long_help "Completes an artifact — a terminal status for work that ran to completion. Legal from Approved (specs) or Approved or Stale (plans).\n\nSide effects: moves the file into the artifact's archive/ subdirectory with its frontmatter status key rewritten to Completed, deletes its approval record file under docs/plans/approvals/ or docs/specs/approvals/ if it has one, and commits the move and the deletion in a single commit; refuses with exit code 12 if any write-set path already has uncommitted changes."
+        example "phax artifact complete docs/specs/2608091526-artifact-lifecycle-status.md"
+        arg "<path>" {
+            help "Path to a spec or plan file under docs/specs/ or docs/plans/"
+        }
+    }
+
+    cmd "reopen" {
+        help "Reopen an Approved spec or plan, or a Stale plan, back to Draft"
+        long_help "Reopens an artifact back to Draft, voiding its approval, for when it must be revised before re-approval. Legal from Approved (specs and plans) and from Stale (plans only); a Draft, Completed or Abandoned artifact is refused with exit 12 and nothing is written. Rewrites the frontmatter status key in place and clears the `approved` stamp.\n\nEvery reopen names its arbiter, as approve does. `--by machine:<grant>` declares a machine by its grant, a kebab-case slug matching ^[a-z0-9]+(-[a-z0-9]+)*$. `--by operator`, or no --by from a terminal, names the operator as git commits: GIT_COMMITTER_NAME, else the repository's git user.name, never a guessed name. Without a terminal there is no default: reopen refuses with exit 12 unless --by is given, naming `--by operator` and `--by machine:<grant>`. An operator reopen refuses with exit 12 when neither is set. While any live spec or plan sidecar is stamped below its document format's current shape, reopen refuses with exit 12, naming each such sidecar and `phax artifact migrate-documents`. Every refusal comes before anything is written. The reopen commit ends with a `Reopened-By: machine (<grant>)` or `Reopened-By: operator (<name>)` trailer.\n\nReopening a spec leaves every live plan that names it in source-spec unchanged — its file, frontmatter and approval record file — and names each one with its status. Reopen changes only status and approved, which the fingerprint ignores, so a bound plan still reads fresh.\n\nSide effects: writes the artifact file, deletes its approval record file (docs/specs/approvals/<spec file name>.json or docs/plans/approvals/<plan file name>.json) if it has one, and commits them with its JSON document sidecar when headless-authored in a single commit; refuses with exit code 12 if any write-set path already has uncommitted changes."
+        example "phax artifact reopen docs/plans/2607101056-typescript-7-migration-plan.md --by operator"
+        example "phax artifact reopen docs/specs/2609030749-spec-approval-ground.md --by machine:roadmap-loop"
+        arg "<path>" {
+            help "Path to a spec or plan file under docs/specs/ or docs/plans/"
+        }
+        flag "--by" {
+            arg "<arbiter>"
+            help "operator or machine:<grant>; required without a terminal"
+        }
+    }
+
+    cmd "decide" {
+        help "Decide a Draft spec's or plan's open questions, in an interactive Claude Code session or from a verdicts file"
+        long_help "Decides a Draft spec's or plan's open questions in one of two modes: with the operator in an interactive Claude Code session (the default), or from a verdicts file with --verdicts (below).\n\nIn interactive mode the session first raises the framing questions F1–F5, then presents the open questions in document order; --question <id> presents that question alone, an open one or an arbitrated one to re-arbitrate (its previous verdict is kept in its history). The session follows the doctrine skill for the artifact's kind (phax-decide-spec or phax-decide-plan; a project copy under .claude/skills/ replaces the bundled one), with --doctrine <file> appended after it; a verdict may cite only the backticked ids that open list items in that doctrine. It resumes the artifact's headless authoring session when phax kept its id, and starts a new one otherwise, and says which.\n\nInteractive decide runs on Claude Code only: the model is --model and --effort, else claude-opus-5-5 at high; a model outside the Claude Code catalog, or an effort it does not list, is refused. When the operator exits the session, phax resumes it headless for the revised document — the whole sidecar document of a headless artifact, `$schema` first at its current shape, or its kind's hand decision answer (spec-hand-decision-answer or plan-hand-decision-answer) for a hand-authored one — and asks once more when the answer is refused. phax stamps each verdict with the committing git identity and the time, checks the answer (only presented questions move, others stay as they were, chosen and abandoned name the question's options or the reserved `other`, cited principles are loaded ids, a departing verdict names what it revised), shows the body diff and the verdicts, and writes nothing unless the operator accepts the diff.\n\nBefore any session it refuses, writing nothing: a live sidecar not yet migrated (`phax artifact migrate-documents`), an artifact that is not Draft (an Approved or Stale one names `phax artifact reopen <path>`), a diverged or invalid sidecar, a hand-authored §9 that does not parse (naming its first departing line), uncommitted changes on the artifact or its sidecar, an unknown --question (naming the artifact's question ids), no terminal (interactive mode needs one), a model outside Claude Code (interactive mode), a doctrine file that is unreadable, defines no principle id or redefines a skill id, and no committing git identity. With no open question and no --question it says there is nothing to decide and exits 0. Inside a phase worktree the phase guard refuses it.\n\nExit codes: 0 decided and committed, a declined diff, or nothing to decide; 1 inside a phase worktree; 5 no document, not JSON, an answer not stamped with its current shape, or one refused by the schema or its checks (after the one corrective resume), or a failed agent session, with nothing written; 8 a provider rate or usage limit, with nothing written; 14 the provider unreachable (a network failure), with nothing written; 12 an artifact refusal, the artifact changed during the session (its change left in place), or a failed commit (the files left written but uncommitted).\n\nVerdicts mode: --verdicts <file|-> reads decisions a person has already made, from a file or from a pipe on stdin (-; a terminal on stdin is refused), and writes them into the artifact without a prompt. The file is JSON with a `$schema` naming the decide-verdicts format of this release (`phax artifact schema verdicts` prints it), an `artifact` key naming the artifact's repo-relative path, and a non-empty `verdicts` list of { question, chosen, note }: `chosen` is one of the question's option ids or the reserved id `other`, and `note` is the person's reason, a non-empty string or null. A note is required when the verdict departs from the recommendation, `other` included; a null note on a question with an empty rationale is refused, since nothing would stand as its why. Every key is required and unknown keys are refused. Questions the file does not name stay open; an arbitrated question it names is re-arbitrated. No terminal is needed with --by operator, which names the operator as git commits; any other --by, machine:<grant> included, is refused (a verdict always comes from the operator), and without --by a terminal is required. One headless writer session, running under the same doctrine, writes the verdicts into the revised document and revises the body where a departing verdict implies it. It runs on the model --model and --effort name, else claude-sonnet-5-5 at medium, routed to a provider like headless authoring (a model with no equivalent on the selected provider runs as the concrete model routing chose, and the report names it beside the requested one); a model routed to Mistral Vibe is refused before any session, since Vibe ignores read-only: pass --model with a Claude Code or Codex model. It resumes the kept authoring session when that session ran on the same provider in this checkout, and starts a new one otherwise, and says which. phax refuses a bad file before any session, checks the writer's answer against the file (each question's options first, then the question set, each chosen and abandoned option, the history, the revised sections, the body outside them; a following verdict revises nothing, except one restoring the recommendation after a departing verdict: it names the sections it restores when that verdict named revised sections, none when it named none, and either when it records none) and asks once more when the check fails, then sets each verdict's why (the note, else the question's rationale), by and at itself. It writes and commits without asking, leaves the artifact Draft, and prints the report to read before approving: each verdict (chosen, followed or departed with the sections revised, and why), the questions left open, the body diff, the commit and the Draft status. With --json it prints that report as one JSON object on stdout (artifact, status, session, provider, model, requestedModel, effort, verdicts, open, diff, commit, decisionId) and sends progress, warnings and record lines to stderr. The commit subject is as in interactive mode, and its body is followed by the trailers Artifact, Decided-By, Decided-Via: verdicts and Decision-Id; the decision record has mode verdicts. --question is refused with --verdicts, and --json and --by are refused without it, exit 12. The exit codes are 0 decided and committed, 1 inside a phase worktree, 5 a refused answer after the one corrective resume or a failed agent session, 8 a provider limit, 12 a refusal, 14 the provider unreachable (a network failure).\n\nSide effects: in interactive mode, spawns an interactive and then a headless Claude Code session, both read-only whatever the security profile (only the Read, Grep and Glob tools, no MCP server), so the session never writes to the repository; keeps the session's prompts, transcripts, answer and diff under the state root's decide/<stamp>-<slug>/<NN>/; on an accepted diff, re-seeds a plan's extraction cache, writes the artifact and its sidecar (or the hand-authored artifact alone) and commits exactly those paths in one commit, with a `Decision-Id: <stamp>-<slug>/<NN>` trailer. Verdicts mode spawns one headless writer session, read-only like the others (which is why a writer model routed to Mistral Vibe, whose adapter ignores read-only, is refused), keeps verdicts.json (the file as given) with the prompts, answer and diff in the same folder, and writes and commits the same paths without a prompt."
+        example "phax artifact decide docs/specs/2609251400-plan-prune.md"
+        example "phax artifact decide docs/specs/2609251400-plan-prune.md --question Q1"
+        example "phax artifact decide docs/plans/2609261000-plan-prune-store-plan.md --doctrine docs/doctrine/plan.md --model claude-sonnet-5-5 --effort medium"
+        example "phax artifact decide docs/specs/2609251400-plan-prune.md --verdicts verdicts.json --by operator"
+        example "phax artifact decide docs/specs/2609251400-plan-prune.md --verdicts - --by operator --json"
+        arg "<path>" {
+            help "Path to a spec or plan file under docs/specs/ or docs/plans/"
+        }
+        flag "--question" {
+            arg "<id>"
+            help "Present this question alone: an open one, or re-arbitrate one"
+        }
+        flag "--verdicts" {
+            arg "<file|->"
+            help "Decide from a verdicts file, or - for stdin, without an interactive session"
+        }
+        flag "--by" {
+            arg "<arbiter>"
+            help "operator: who gave the verdicts; required without a terminal (with --verdicts)"
+        }
+        flag "--json" {
+            help "Print the report as one JSON object (with --verdicts)"
+        }
+        flag "--doctrine" {
+            arg "<file>"
+            help "Append this doctrine file after the decide skill"
+        }
+        flag "--model" {
+            arg "<model>"
+            help "Override the decide model (interactive: a Claude Code model)"
+        }
+        flag "--effort" {
+            arg "<effort>"
+            help "Override the decide effort"
+        }
+    }
+
+    cmd "new" {
+        help "Create a Draft spec or plan named from the current UTC minute"
+        long_help "Parent command for creating a Draft spec or plan named from the current UTC minute: <YYMMDDHHMM>-<slug>.md for a spec, <YYMMDDHHMM>-<slug>-plan.md for a plan. The instant is captured when the command runs, never chosen or backdated. A bad slug, an existing target name, or (for a plan) a --spec that is missing or not a spec, a --spec without exactly one of --last/--not-last, or either flag without --spec all refuse with exit code 12 before anything is written."
+        example "phax artifact new spec plan-prune"
+
+        cmd "spec" {
+            help "Create a Draft spec at docs/specs/<YYMMDDHHMM>-<slug>.md"
+            long_help "Creates a Draft spec at docs/specs/<YYMMDDHHMM>-<slug>.md, with a frontmatter-only skeleton (status, date, audience, scope). The slug must match `[a-z0-9]+(-[a-z0-9]+)*`.\n\nSide effects: writes the new spec file. Does not commit — transition commands (phax artifact approve) commit, creation does not.\n\nPass --headless --brief <file|-> (experimental) to author the spec itself instead of writing a blank skeleton: phax spawns a recorded agent session with the phax-spec skill and the spec document JSON Schema, accepts a schema-valid document as the session's only output, renders it to the canonical Markdown, and writes the rendered spec plus its JSON sidecar. --model and --effort override the resolved authoring model/effort (flag, then phax.json's authoring.spec, then the catalog default). Side effects: spawns a provider session; on success, writes and commits the spec and its sidecar in one commit; nothing lands on a refusal or an invalid session result. When records are configured, every session that ran — committed or failed — writes one authoring record (key authoring/<YYMMDDHHMM>-<slug>) on phax/records/v1, and `phax records explain <commit>` resolves it through the artifact commit's Authoring-Id trailer."
+            example "phax artifact new spec plan-prune"
+            example "phax artifact new spec plan-prune --headless --brief brief.md"
+            arg "<slug>" {
+                help "Slug matching `[a-z0-9]+(-[a-z0-9]+)*`"
+            }
+            flag "--headless" {
+                help "Author via a recorded agent session from a brief instead of a blank skeleton (experimental)"
+            }
+            flag "--brief" {
+                arg "<file|->"
+                help "Path to a brief file, or - to read the brief from stdin"
+            }
+            flag "--model" {
+                arg "<model>"
+                help "Override the authoring model (default: flag → config → catalog)"
+            }
+            flag "--effort" {
+                arg "<effort>"
+                help "Override the authoring effort (low|medium|high)"
+            }
+        }
+
+        cmd "plan" {
+            help "Create a Draft plan at docs/plans/<YYMMDDHHMM>-<slug>-plan.md"
+            long_help "Creates a Draft plan at docs/plans/<YYMMDDHHMM>-<slug>-plan.md, with a frontmatter-only skeleton (status, source-spec, and completes-spec when a spec is bound). Pass --spec <path> to bind an existing spec as the plan's source-spec; the path must classify as a spec (live or archived), exist, and pass artifact validation. With --spec, pass exactly one of --last or --not-last: --last writes completes-spec: true (this plan is the spec's last, and its run completes the spec), --not-last writes completes-spec: false (more plans of the spec follow, and its run leaves the spec live). Every plan of a spec except the last says --not-last; no default is ever inferred. Without --spec, source-spec is written as null with no completes-spec, and both flags are refused. The slug must match `[a-z0-9]+(-[a-z0-9]+)*`.\n\nSide effects: writes the new plan file. Does not commit — transition commands (phax artifact approve) commit, creation does not.\n\nPass --headless --brief <file|-> (experimental) to author the plan itself instead of writing a blank skeleton: phax spawns a recorded agent session with the phax-planning skill and the plan document JSON Schema (the extracted-plan shape plus informational content), accepts a schema-valid document as the session's only output, renders it to the phax-planning Markdown shape, writes the rendered plan plus its JSON sidecar, and seeds the extraction cache so phax run never re-extracts it. --model and --effort override the resolved authoring model/effort (flag, then phax.json's authoring.plan, then the catalog default). Side effects: spawns a provider session; on success, writes and commits the plan and its sidecar in one commit and seeds the extraction cache; nothing lands on a refusal or an invalid session result. When records are configured, every session that ran — committed or failed — writes one authoring record (key authoring/<YYMMDDHHMM>-<slug>) on phax/records/v1, and `phax records explain <commit>` resolves it through the artifact commit's Authoring-Id trailer."
+            example "phax artifact new plan plan-prune-store --spec docs/specs/2609091412-plan-prune.md --not-last"
+            example "phax artifact new plan plan-prune-cli --spec docs/specs/2609091412-plan-prune.md --last"
+            example "phax artifact new plan catalog-refresh"
+            example "phax artifact new plan plan-prune --headless --brief brief.md --spec docs/specs/2609091412-plan-prune.md --last"
+            arg "<slug>" {
+                help "Slug matching `[a-z0-9]+(-[a-z0-9]+)*`"
+            }
+            flag "--spec" {
+                arg "<path>"
+                help "Path to the source spec to bind as source-spec"
+            }
+            flag "--last" {
+                help "This plan is its spec's last: its run completes the spec"
+            }
+            flag "--not-last" {
+                help "More plans of the spec follow: its run leaves the spec live"
+            }
+            flag "--headless" {
+                help "Author via a recorded agent session from a brief instead of a blank skeleton (experimental)"
+            }
+            flag "--brief" {
+                arg "<file|->"
+                help "Path to a brief file, or - to read the brief from stdin"
+            }
+            flag "--model" {
+                arg "<model>"
+                help "Override the authoring model (default: flag → config → catalog)"
+            }
+            flag "--effort" {
+                arg "<effort>"
+                help "Override the authoring effort (low|medium|high)"
+            }
+        }
+    }
+
+    cmd "schema" {
+        help "Print the JSON Schema of the spec or plan document, or of a decide verdicts file (experimental)"
+        long_help "Prints the JSON Schema of the experimental spec document (kind spec) or plan document (kind plan), or of a decide verdicts file (kind verdicts, the input of `phax artifact decide --verdicts`), pretty-printed to stdout, so a consumer can read the contract a headless authoring session must satisfy, or the file to write, without a model call.\n\nThe spec and plan document formats are experimental: outside the version 1 stability promise, they may change between releases. The printed spec or plan schema is the published answer schema a headless authoring session answers, its `$schema` a const naming the current stamp; the plan document's extracted fields are the extracted-plan shape phax run reads. phax checks, when it decodes a document, what the schema does not express: traceability (every acceptance criterion references existing requirements, every requirement is covered), the question checks (unique question ids, a recommendation among a question's options), the plan's sourceSpec/completesSpec pairing, and an authoring answer's empty arbitratedQuestions.\n\nSide effects: none — read-only."
+        example "phax artifact schema spec"
+        example "phax artifact schema plan"
+        example "phax artifact schema verdicts"
+        arg "<kind>" {
+            help "Document kind: spec, plan or verdicts"
+        }
+    }
+
+    cmd "migrate-approvals" {
+        help "Split the old approval ledgers into one record file per artifact (one-time)"
+        long_help "Reads docs/plans/approvals.json and docs/specs/approvals.json in any released shape, writes one record file per entry under docs/plans/approvals/ and docs/specs/approvals/, deletes the ledgers, and commits exactly those paths in one commit. Exits 0 when migrated or when there is nothing to migrate; exits 12, writing nothing, on an unreadable ledger, an entry that is not a live artifact path, an uncommitted change to any path it would write, or an existing record file holding a different record.\n\nAn entry whose artifact no longer exists still migrates, and is reported on stderr as an orphan record file to delete. An existing record file that already holds the entry's record is kept as is.\n\nSide effects: writes the record files, deletes the ledgers and commits those paths in one commit."
+        example "phax artifact migrate-approvals"
+    }
+
+    cmd "migrate-documents" {
+        help "Rewrite every live spec and plan sidecar below its current shape, re-rendering its body (one-time)"
+        long_help "Rewrites every live spec and plan sidecar (a <name>.json directly under docs/specs/ or docs/plans/ beside its <name>.md) stamped below its document format's current shape, or written before $schema, at that shape, and re-renders its body in the current layout, keeping its frontmatter byte for byte. A spec's questions are lifted by the author's rationale marker: a question whose rationale opens with `Decided by the author on <YYYY-MM-DD>` becomes arbitrated with a lifted, unattributed verdict; every other question stays open. A plan document stamped 0.20.0 lifts with empty preamble questions and keeps its body, lineage and frontmatter as they were. A plan sidecar stamped 0.26.0 or below has each phase's testStrategy string read as test lines: one whose every line follows the line format (`- <guarantee> — <size> · <technique> · <oracle> · <loop>[ · <criterion>]`) is lifted to those lines, and one holding prose is refused, naming the phase, its first departing line and the remedy: rewrite each phase's test strategy in the line format, in the sidecar and plan.md alike, or re-author the plan, then rerun. Archived artifacts, hand-authored artifacts and approval record files are never touched.\n\nBefore writing anything it decides everything, and exits 12, writing nothing, on an invalid sidecar (including a plan document stamped 0.17.0–0.19.x, which stays refused), on a plan sidecar whose test strategy is not in the line format, on a body that is not its sidecar's own-shape rendering (a hand edit would be overwritten), or on an uncommitted change to any path it would write; each refused artifact is named with its remedy: re-author it headless, or delete its sidecar to demote it to hand-authored.\n\nThe report names each migrated artifact with its status and question counts (open, with their ids, and arbitrated, with how many are lifted), or `body unchanged`. It names every Approved artifact the re-rendering leaves edited since approval — with its open question ids and `phax artifact reopen <path>` when it has any, else `phax artifact approve <path>` — and every live plan it leaves stale with spec-changed evidence. With nothing to migrate it says so, writes nothing and exits 0.\n\nUntil it has run, phax artifact approve and phax artifact reopen refuse with exit 12, naming each unmigrated sidecar; complete, abandon and run completion carry an older sidecar as before.\n\nSide effects: writes the sidecars and re-rendered bodies, re-seeds each rewritten plan's extraction cache so phax run never re-extracts it, and commits exactly the rewritten paths in one commit. A failed commit exits 12, leaving the files written but uncommitted."
+        example "phax artifact migrate-documents"
+    }
+}
+
+cmd "plans" {
+    help "Lint, estimate and lay out a plan, and report plan staleness and cross-plan overlap"
+    long_help "Parent command for reporting on plans: the mechanical defects of a single plan (lint), a plan laid out phase by phase with its planned files by architecture part, its test lines and the coverage of its source spec's criteria (overview), a plan's API-list cost and its fit in the subscription windows (estimate), staleness of Approved plans against their recorded approval, and cross-plan file overlap."
+    example "phax plans lint docs/plans/2609101200-foo-plan.md"
+    example "phax plans overview docs/plans/2609101200-foo-plan.md"
+    example "phax plans status"
+    example "phax plans overlap docs/plans/2609101031-a-plan.md docs/plans/2609101032-b-plan.md"
+
+    cmd "status" {
+        help "Report every Approved plan's staleness against its recorded approval"
+        long_help "Reports every live, Approved plan's staleness against the ground it was approved against: the declared source spec's content, the plan's own content, and the files changed since the recorded baseline intersected with the plan's footprint. Each stale entry names its reasons (spec-changed, ground-changed, self-changed) with evidence; a plan with no approval record — or one whose baseline commit no longer exists — reports missing-record, which renders as stale. This is a report, not a gate: it exits 0 whether or not stale plans exist. Use --apply to flip stale-computed plans Approved -> Stale as an explicit gesture (the flip is never automatic). Use --json for machine-readable output.\n\nSide effects: read-only unless --apply is set, in which case it writes the flipped plans' frontmatter status key."
+        example "phax plans status"
+        example "phax plans status --apply"
+        example "phax plans status --json"
+        flag "--apply" {
+            help "Flip stale-computed plans Approved -> Stale"
+        }
+        flag "--json" {
+            help "Emit the report as JSON instead of a rendered table"
+        }
+    }
+
+    cmd "overlap" {
+        help "Report which plans can run in parallel without merge conflict"
+        long_help "Reports which of two or more plans can run in parallel without a merge conflict — predicted from each plan's declared file-sets, or confirmed against a landed run's actual diff.\n\n(Predicted) Without --landed: reads each plan.md's structured form through the content-addressed extraction cache (a cold cache miss extracts once via LLM and caches the result; use --no-extract to fail on a miss instead). Unions each plan's declared phase file-sets into a per-plan footprint, intersects footprints pairwise, and reports the severity-graded conflict matrix, clean pairs, the largest fully-disjoint parallel-safe set, and a greedy wave schedule.\n\n(Confirmed) With --landed <run>: takes a run that has already produced changes and reports which of the given plans need re-adjustment because they touch a file the run actually changed. The landed run's footprint is read from its persisted global-file-reconciliation.json (the real git diff across its phases), giving actual-vs-declared impact with no false negatives.\n\nCaveats: the predicted mode reflects declared file intentions, not what agents will actually touch. Conflicts are file-level, not hunk-level — two plans editing different regions of the same file are flagged even if git would auto-merge them. Regenerated artifacts (phax.usage.kdl, docs/cli/reference.md) are a hard-conflict class.\n\nSide effects: read-only with respect to your plans; may run one LLM extraction per uncached plan.md."
+        example "phax plans overlap docs/plans/2609101031-a-plan.md docs/plans/2609101032-b-plan.md"
+        example "phax plans overlap --landed my-feature docs/plans/2609101033-other-plan.md"
+        arg "<plan>..." {
+            help "Paths to two or more plan.md files"
+        }
+        flag "--json" {
+            help "Emit the overlap result as JSON instead of a report"
+        }
+        flag "--no-extract" {
+            help "Fail on a cache miss instead of extracting the plan.md"
+        }
+        flag "--landed" {
+            arg "<run>"
+            help "Report which of the given plans need re-adjustment after this run's actual changes"
+        }
+    }
+
+    cmd "lint" {
+        help "Report a plan's mechanical defects without running it"
+        long_help "Reports every mechanical defect of a plan.md that phax can establish before a run, as findings with a severity (error or warning), a check, and the phase they concern.\n\nEight checks run: structure — every field the deterministic extraction requires, reported in full rather than stopping at the first; files — the planned create/edit lists walked in phase order against the working tree, so an edit of a file no earlier phase creates, a create of a file that already exists or was already created, and a phase that both creates and edits a path are errors (a path listed both to create and as optional is the one warning; optional files are never checked); commands — the plan's required commands against security.agentCommands and the gate profile; models — each phase's model and effort against the routing catalog, with alternatives when one is refused, each assignment bound of phax.json against the catalog, and each phase against the first bound that matches a file it plans to touch (or the policy default when none does): a departure without an **Assignment reason:** line is an error against a bound and a warning against the default, and a **Model reason:** line is an error (the label is now **Assignment reason:**); when a bound names an architecture part, the architecture provider runs once to resolve it; interactive and acceptance — a malformed **Mode:** or **Acceptance phase:** line is an error; so are the interactive-phase rules: an interactive phase that is the first or the last phase, one that directly follows another interactive phase, and one that plans a file to create or edit (its optional files name what the person may touch); and so are the acceptance-phase rules: an **Acceptance phase:** line without **Acceptance test files:** (or the reverse), a passing phase that is not later in the plan or does not exist, a phase that is both an acceptance phase and a passing phase or passes more than one acceptance phase, an acceptance test file listed more than once on the **Acceptance test files:** line, an acceptance test file that is not a planned file of the acceptance phase or that a phase in between plans, an interactive phase in a role (one between the pair is allowed), and an acceptance phase when no acceptance provider is configured (the provider is never spawned by lint); tests — a test line off the format is an error, one per phase naming its first departing line, and the other checks run on the plan without the departing lines; so are an acceptance-loop line on a phase that is not an acceptance phase, an acceptance phase with no acceptance-loop line (a phase with no test line at all included), and a criterion id the source spec's sidecar lacks; a criterion no line names is a warning, and so is a source spec whose criterion ids cannot be read (no sidecar, not found, a sidecar that does not read, or a source-spec that is not a spec path under docs/specs/, which is never read), in which case no criterion id is checked. The source spec's JSON sidecar is read in any shape, from docs/specs/archive/ when the spec has moved there; a plan with no source spec checks no criterion, and a loose plan.md whose frontmatter does not decode gets one warning naming the problem and checks no criterion. A phase with nothing to test is not flagged; advisory — when phax.json registers a planAuditor, phax writes the plan projection (the ordered phases, each with its planned create/edit files, and nothing else) to that command's stdin and reports every finding it returns as a warning naming the phases it concerns; a failing auditor is a single warning, and so is one that outruns the 30s cap phax spawns it under; with no auditor, or a plan the parser cannot read, there are no advisory findings. Advisory findings never affect the exit code.\n\nA plan under docs/plans/ is first validated like any artifact (a name off <YYMMDDHHMM>-<slug>-plan.md, an invalid frontmatter block or a status/location disagreement refuses with exit code 12), and a slug that differs from its source spec's slug is a structure error; a loose plan.md outside docs/plans/ is exempt from both.\n\nThe file-plan ground is the working tree as it is now, not any commit. Read-only and model-free: it never writes, never reads the extraction cache and never falls back to the extraction model, so a plan the deterministic parser cannot read reports its structural errors and stops. Exits 1 when at least one finding is an error, 0 otherwise (warnings alone do not fail). An invalid config, a malformed bound or a user overlay that carries assignments included, exits 2.\n\nSide effects: none of phax's own; a registered plan auditor is spawned once with the projection on stdin, capped at 30s."
+        example "phax plans lint docs/plans/2609101200-foo-plan.md"
+        example "phax plans lint docs/plans/2609101200-foo-plan.md --json"
+        arg "<plan>" {
+            help "Path to the plan.md"
+        }
+        flag "--json" {
+            help "Emit the findings as JSON"
+        }
+    }
+
+    cmd "overview" {
+        help "Lay a plan out phase by phase, with its planned files by part and its test lines"
+        long_help "Lays a plan out before it runs. For each phase in plan order it shows the model, effort and mode, the acceptance role (an acceptance phase and the phase that passes it, or none), the planned files to create and edit grouped by architecture part, and the test lines. It ends with the coverage of the source spec's acceptance criteria: each criterion with the phases and loops whose test lines name it (`phase-02 in-phase ×2` when two lines of a phase and loop name it), then the criteria no line names. Cost is not shown; `phax plans estimate` keeps that.\n\nThe plan is read by the deterministic parser `phax plans lint` uses; no model reads it and no model session starts. It runs in any plan status, reads the plan and the source spec's JSON sidecar (from docs/specs/archive/ when the spec has moved there), and writes nothing. A plan under docs/plans/ is first validated like any artifact.\n\nParts: when phax.json registers an architecture provider, it runs once with the plan's planned files to create and edit (the whole repository when there are none). Each file is shown under every part whose globs match it, in the report's order, and the files no part holds are shown under (no part). Without a provider the planned files are shown as they are, and the header says so. A provider that fails or is refused is not an error: the overview degrades to the planned files, prints one line on stderr, `Warning: architecture provider failed: <message>`, and exits 0.\n\nCoverage: a plan without a source spec prints no criterion coverage. A source spec with no JSON sidecar, one that is not found, a sidecar that does not read, or a source-spec that is not a spec path under docs/specs/ (never read) prints the one line `phax plans lint` reports for it, and no coverage. A loose plan.md whose frontmatter does not decode says so in its header and in that one line, and reads no source spec.\n\nA plan the deterministic parser cannot read, including one with a test line off the format, prints one line on stderr naming the plan and `phax plans lint <plan>`, and exits 1: lint says what is wrong. A plan that fails artifact validation prints the plan and that validation error on one line and exits 1; a plan file that cannot be read prints the read failure and exits 1.\n\n--json prints the overview as one JSON document on stdout, nothing else (warnings go to stderr). It carries the same content as the text: frontmatter.kind is decoded (with status), none or undecodable (with problem); architecture.kind is parts, none or failed; each phase has its acceptanceRole (acceptance with passedBy, passing with acceptancePhase, or none), its placement (a list of { part, files } ending with the { part: null } entry of the unplaced files) and its testLines; coverage.kind is criteria (one entry per naming line), no-source-spec, frontmatter-undecodable or no-criterion-ids (with a reason). The document is unversioned, like `plans lint`'s.\n\nExit codes: 0 for an overview, a degraded architecture included; 1 for a plan that cannot be read, does not parse or fails artifact validation; 2 for an invalid phax.json.\n\nSide effects: none of its own; the architecture provider is spawned once when one is configured."
+        example "phax plans overview docs/plans/2609101200-foo-plan.md"
+        example "phax plans overview docs/plans/2609101200-foo-plan.md --json"
+        arg "<plan>" {
+            help "Path to the plan.md"
+        }
+        flag "--json" {
+            help "Emit the overview as JSON"
+        }
+    }
+
+    cmd "estimate" {
+        help "Estimate a plan's API-list cost and whether it fits the subscription windows now"
+        long_help "Estimate a plan's API-list cost and whether it fits the subscription windows now. Reports P10/P50/P90 in API-list dollars for each phase and for the run, then a verdict on the Claude subscription windows left right now.\n\nHistory: the estimate is calibrated from this machine's cost ledgers. Only this repository's kept runs are sized (each phase by its planned-file bytes), and recent runs weigh more, with a half-life of 30 days. An estimate needs at least 60 sized phases; below that the verdict is thin-history and no estimate is printed. Every kept run with no ledger first gets one, as `phax cost backfill` writes it, and a line on stderr says how many were written; the report counts the kept runs still without one (a locked run is skipped).\n\nWindows: by default, one minimal Claude Code probe on the cheapest Claude model reads the five-hour and seven-day windows from its rate-limit event. The probe gets a fixed prompt and never sees the plan; it spends one small request. --no-probe uses the last rate-limit sample in the cost ledgers instead, with no request; usage since that sample is not counted. phax never reads Claude Code's credentials or its OAuth usage endpoint. Each window's dollar capacity is recalibrated from the ledgers of the last 28 days.\n\nVerdict: fits (no pause even at P90), risky (fits at P50, a pause is possible at P90), wait (a pause is expected at P50), thin-history (fewer than 60 sized phases), no-subscription (Claude Code authenticates with an API key), windows-unavailable (the windows could not be read; the reason is given) or uncalibrated (a window or the burn rate had no recent samples). An interactive phase is sized from its first and closing turns alone, from at least 3 past interactive phases with turn entries, repriced at its model and weighted by recency; it has its own row at its place in the plan, and mode: interactive in --json. A phase on a hold is part of a run, never sized. Never estimated: plan extraction, the plan auditor and the interactive code review; a phase routed to Codex or Mistral Vibe, or to a Claude model with no list price, is named and left out of the run total; the compliance review is named when it cannot be estimated.\n\nThe plan is read by the deterministic parser `phax plans lint` uses; no model reads it. A plan under docs/plans/ is first validated like any artifact. --json prints the report as one JSON document on stdout; warnings go to stderr.\n\nExit codes: 0 for any verdict; 1 for a plan the deterministic parser cannot read; 2 for an invalid phax.json, model-routing.json or providers.json; 10 for a corrupt run registry; 12 when the plan fails artifact validation.\n\nSide effects: writes cost-ledger.json in each kept run folder that has none, as `phax cost backfill` does; without --no-probe, one Claude Code request."
+        example "phax plans estimate docs/plans/2609101200-foo-plan.md"
+        example "phax plans estimate docs/plans/2609101200-foo-plan.md --no-probe --json"
+        arg "<plan>" {
+            help "Path to the plan.md"
+        }
+        flag "--json" {
+            help "Emit the estimate as JSON"
+        }
+        flag "--no-probe" {
+            help "Use the last rate-limit sample in the cost ledgers instead of a one-message Claude Code probe"
+        }
+    }
+}
+
+cmd "records" {
+    help "Manage phax run records"
+
+    cmd "init" {
+        help "Configure records for this project (transcript, destination, auto-push)"
+        flag "--force" {
+            help "Reconfigure records even if already configured"
+        }
+    }
+
+    cmd "sync" {
+        help "Bring the local records clone in line with its configured remote"
+    }
+
+    cmd "status" {
+        help "Show pending (unpushed) records, by run and phase"
+    }
+
+    cmd "list" {
+        help "List records present: phase records by run, phase, and verified surfaces; review entries by run and review; authoring and decision records by id and artifact"
+        flag "--run" {
+            arg "<id>"
+            help "Only show records for this run id"
+        }
+    }
+
+    cmd "explain" {
+        help "Explain a commit from its record: prompt, diff, gates and verified surfaces, handoff, transcript, usage — or, for a headless artifact commit, its authoring record"
+        long_help "Explains a commit from its record. The commit is a phase commit, a declared interactive phase's commit (Phase-Id with Interactive-Phase), or a held phase's review commit, which carries Run-Id and Held-Phase and resolves to the held phase's record. The output adds the stop's lines: its mode, cause, outcome, the person who closed it, the review commit, and each recorded session with its provider, model, origin and its transcript's sha256, or the reason it is missing. A stop's record never carries the transcript itself: interactive transcripts stay in the run folder whatever records.transcript says.\n\nA run-level review entry's own commit on phax/records/v1 (Run-Id and Review trailers) is a record, not a source commit: explain names the run and the review and prints the git show that reads the review's file, and exits 0."
+        example "phax records explain 3f9c2a1"
+        example "phax records explain 3f9c2a1 --gates"
+        arg "<sha>" {
+            help "Commit sha in the source repository (a phase commit or an artifact commit)"
+        }
+        flag "--prompt" {
+            help "Print the full prompt"
+        }
+        flag "--diff" {
+            help "Print the full diff"
+        }
+        flag "--transcript" {
+            help "Print the full transcript"
+        }
+        flag "--gates" {
+            help "Print the gate check logs, each followed by its gate request"
+        }
+        flag "--briefs" {
+            help "Print the phase's brief records (brief-NN.json) in number order"
+        }
+    }
+}

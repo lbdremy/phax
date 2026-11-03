@@ -10,6 +10,7 @@ version "0.34.0"
 license "Apache-2.0"
 min_usage_version "1.0.0"
 about "Drive AI coding agents through isolated, gated phases"
+after_long_help "Exit codes:\n  64  refused: an unknown command, an undeclared argument or option, an input that does not decode\n  70  defect: what no command declared, a bug"
 
 flag "--verbose" {
     global #true
@@ -29,6 +30,7 @@ flag "--usage-format" {
     default "kdl"
     help "Format for --usage output: kdl (default, no external dependency) or json (requires the usage CLI)"
 }
+flag --json-schema global=#true help="Print the program's contracts as JSON Schema, or a command's after its name, and run nothing"
 
 complete "short-name" run="phax ls --complete" descriptions=#true
 

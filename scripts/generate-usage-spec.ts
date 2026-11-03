@@ -9,6 +9,8 @@ import { buildProgram } from "../src/cli/program.js";
 import { cliDocs } from "../src/cli/cliDocs.js";
 import { cliCompleters } from "../src/cli/cliCompleters.js";
 import { isHiddenCommand, isRetiredOption } from "../src/cli/introspect.js";
+import { isRunnerStub, runnerUsage, type RunnerUsage } from "../src/cli/bridge.js";
+import { phaxProgram } from "../src/cli/definitions/program.js";
 
 const repoRoot = join(fileURLToPath(import.meta.url), "../..");
 const pkg = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8")) as {
@@ -67,8 +69,19 @@ export function emitArg(arg: Argument, indent: string): string {
   return `${indent}arg "${name}"`;
 }
 
-function emitCommand(cmd: Command, indent: string, parentPath = ""): string[] {
+// A runner command's help-only stub: its block is the runner's own, cut from
+// the port's usageSpec(phaxProgram) and indented to the stub's depth.
+function spliceRunnerCommand(cmdPath: string, indent: string, runner: RunnerUsage): string[] {
+  const block = runner.commands.get(cmdPath);
+  if (block === undefined) {
+    throw new Error(`phax ${cmdPath} is mounted as a runner stub but the runner has no block`);
+  }
+  return block.map((line) => `${indent}${line}`);
+}
+
+function emitCommand(cmd: Command, indent: string, runner: RunnerUsage, parentPath = ""): string[] {
   const cmdPath = parentPath ? `${parentPath} ${cmd.name()}` : cmd.name();
+  if (isRunnerStub(cmd)) return spliceRunnerCommand(cmdPath, indent, runner);
   const lines: string[] = [`${indent}cmd "${cmd.name()}" {`];
   const inner = `${indent}    `;
 
@@ -97,7 +110,7 @@ function emitCommand(cmd: Command, indent: string, parentPath = ""): string[] {
   for (const sub of cmd.commands) {
     if (isHiddenCommand(sub)) continue;
     lines.push("");
-    lines.push(...emitCommand(sub, inner, cmdPath));
+    lines.push(...emitCommand(sub, inner, runner, cmdPath));
   }
 
   lines.push(`${indent}}`);
@@ -106,6 +119,7 @@ function emitCommand(cmd: Command, indent: string, parentPath = ""): string[] {
 
 export function generateUsageSpec(): string {
   const program = buildProgram();
+  const runner = runnerUsage(phaxProgram);
 
   const lines: string[] = [
     `// Generated from the Commander.js program tree — do not edit by hand.`,
@@ -124,13 +138,19 @@ export function generateUsageSpec(): string {
   // for binary-level text in usage KDL 3.x). `help` is not a valid top-level key.
   const rootHelp = program.description();
   if (rootHelp) lines.push(`about "${esc(rootHelp)}"`);
+  // The runner program's root documentation of its refused and defect codes,
+  // from Program.exits.
+  lines.push(...runner.root.filter((line) => !line.startsWith("flag ")));
   lines.push(``);
 
-  // Root-level options become global flags in the spec.
+  // Root-level options become global flags in the spec. The root's
+  // --json-schema is the runner's: its line is cut from the runner's spec.
   for (const opt of program.options) {
     if (isAutoAdded(opt)) continue;
+    if (opt.long === "--json-schema") continue;
     lines.push(emitFlag(opt, "", true));
   }
+  lines.push(...runner.root.filter((line) => line.startsWith("flag ")));
   lines.push(``);
 
   // Dynamic argument completers — one top-level `complete` node per entry.
@@ -145,7 +165,7 @@ export function generateUsageSpec(): string {
   // All top-level commands.
   for (const cmd of program.commands) {
     if (isHiddenCommand(cmd)) continue;
-    lines.push(...emitCommand(cmd, ""));
+    lines.push(...emitCommand(cmd, "", runner));
     lines.push(``);
   }
 
