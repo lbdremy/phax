@@ -369,6 +369,36 @@ describe("architectural guard: no direct Node I/O outside ports/infra", () => {
   });
 });
 
+// ── The command library's contract stays pure ─────────────────────────────────
+// src/cli/commandLibrary/contract/ is the library's contract package, ported: it
+// imports neither the argument parser nor any Node module, so that a runner over
+// another parser, or another host, takes it as it is. Commander and the process
+// edge belong to src/cli/commandLibrary/commander/.
+
+const CONTRACT_FORBIDDEN_IMPORT = /(?:\bfrom\s+|\bimport\s*\(?\s*)["'](commander|node:[^"']+)["']/;
+
+describe("architectural guard: the command library's contract is pure", () => {
+  it("no file under src/cli/commandLibrary/contract/ imports commander or a node: module", () => {
+    const contractRoot = join(srcRoot, "cli", "commandLibrary", "contract");
+    const files = listTsFiles(contractRoot);
+    expect(files.length).toBeGreaterThan(0);
+    const violations: string[] = [];
+    for (const absPath of files) {
+      const rel = relative(repoRoot, absPath).split("\\").join("/");
+      const match = CONTRACT_FORBIDDEN_IMPORT.exec(readFileSync(absPath, "utf8"));
+      if (match !== null) violations.push(`${rel}: imports ${match[1]}`);
+    }
+    expect(violations).toEqual([]);
+  });
+
+  it("the detector flags commander and node: imports, and not effect", () => {
+    expect(CONTRACT_FORBIDDEN_IMPORT.test(`import { Command } from "commander";`)).toBe(true);
+    expect(CONTRACT_FORBIDDEN_IMPORT.test(`import { readFileSync } from "node:fs";`)).toBe(true);
+    expect(CONTRACT_FORBIDDEN_IMPORT.test(`const m = await import("node:crypto");`)).toBe(true);
+    expect(CONTRACT_FORBIDDEN_IMPORT.test(`import * as Schema from "effect/Schema";`)).toBe(false);
+  });
+});
+
 // ── Repo-rooted FileSystem layer ──────────────────────────────────────────────
 // The FileSystem port is rooted at config.repoRoot so phax keeps git's
 // work-from-anywhere contract. A command under src/cli/commands/ must build its
