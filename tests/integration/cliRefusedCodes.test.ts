@@ -59,7 +59,7 @@ describe("a refused call exits 64 with Commander's text", { timeout: 60_000 }, (
     ],
     [
       "an unknown option",
-      ["ls", "--colour"],
+      ["validate", "--colour"],
       "error: unknown option '--colour'\nRun `phax --help` for usage.\n",
     ],
     [

@@ -150,7 +150,7 @@ describe("--json", () => {
       why: "an unknown option",
       argv: [...rename, "--force"],
       source: "flags",
-      path: ["--force"],
+      path: ["force"],
     },
     {
       why: "too many arguments",

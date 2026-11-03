@@ -232,6 +232,26 @@ function stdinOf(source: Source<Schema.Schema.Any> | undefined): StdinContract |
   };
 }
 
+/** Port change for phax's published formats: an output contract whose `jsonSchema` annotation
+ *  is a reference alone to an absolute URL (`{ $ref: "https://…/run-list/0.34.0.json" }`) is
+ *  that reference in the catalogue, the format's published schema standing for the generated
+ *  one. */
+function publishedReference(contract: Schema.Schema.Any): JsonSchema | undefined {
+  const annotation = Option.getOrUndefined(SchemaAST.getJSONSchemaAnnotation(contract.ast));
+  if (!isDictionary(annotation)) return undefined;
+  const reference = annotation["$ref"];
+  return Object.keys(annotation).length === 1 &&
+    typeof reference === "string" &&
+    !reference.startsWith("#")
+    ? { $ref: reference }
+    : undefined;
+}
+
+function outputOf(output: Source<Schema.Schema.Any> | undefined): JsonSchema | null {
+  if (output === undefined) return null;
+  return publishedReference(output.contract) ?? schemaOf(output.contract, output.undeclared);
+}
+
 /** One command's contracts. */
 function commandEntry(command: Command<unknown>): CommandContract {
   const inputs: Inputs = command.input;
@@ -245,7 +265,7 @@ function commandEntry(command: Command<unknown>): CommandContract {
     name: fullName(command),
     input: inputOf(inputs),
     stdin: stdinOf(inputs.stdin),
-    output: output === undefined ? null : schemaOf(output.contract, output.undeclared),
+    output: outputOf(output),
     errors: Object.entries(exits).map(([tag, exit]) => {
       const fields = declared[tag];
       return {

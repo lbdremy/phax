@@ -52,14 +52,29 @@ describe("buildProgram", () => {
     expect(names.length).toBe(TOP_LEVEL_COMMANDS.length);
   });
 
-  it("exposes plans lint with a <plan> argument and --json", () => {
+  it("exposes plans lint's stub with a <plan> argument, --json and --json-schema", () => {
     const program = buildProgram();
     const plansCmd = program.commands.find((c) => c.name() === "plans");
     expect(plansCmd).toBeDefined();
     const lintCmd = plansCmd!.commands.find((c) => c.name() === "lint");
     expect(lintCmd).toBeDefined();
     expect(lintCmd!.registeredArguments.map((a) => a.name())).toEqual(["plan"]);
-    expect(lintCmd!.options.map((o) => o.long)).toContain("--json");
+    expect(lintCmd!.options.map((o) => o.long)).toEqual(["--json", "--json-schema"]);
+  });
+
+  it("exposes ls's stub with its filters, --complete, --json and --json-schema", () => {
+    const program = buildProgram();
+    const lsCmd = program.commands.find((c) => c.name() === "ls");
+    expect(lsCmd?.options.map((o) => o.long)).toEqual([
+      "--active",
+      "--failed",
+      "--review-open",
+      "--awaiting-review",
+      "--archived",
+      "--complete",
+      "--json",
+      "--json-schema",
+    ]);
   });
 
   it("exposes agent subcommands: models, resolve, probe, setup", () => {

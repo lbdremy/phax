@@ -20,9 +20,18 @@ const frozen = readFileSync(
   "utf8",
 );
 
-/** The commands on the runner: phase-05 adds `artifact status`, `plans overview`, `plans lint`
- *  and `ls`, each allowed the `--json` flag it gains. */
-const MIGRATED_COMMANDS: ReadonlyArray<string> = [];
+/** The commands on the runner, in the program's order: `artifact status`, `plans overview`,
+ *  `plans lint` and `ls`, each allowed the `--json` flag it gains with the library's help. */
+const MIGRATED_COMMANDS: ReadonlyArray<string> = [
+  "ls",
+  "artifact status",
+  "plans lint",
+  "plans overview",
+];
+
+/** The migrated commands that declared a `--json` of their own: the frozen file's `--json` is
+ *  reworded, its help now the library's. */
+const REWORDED_JSON: ReadonlyArray<string> = ["ls", "plans lint", "plans overview"];
 
 /** What the committed file may declare beyond the frozen one: a path and a declaration's head
  *  (its kind and key). */
@@ -31,6 +40,12 @@ const ALLOWED_ADDITIONS: ReadonlyArray<readonly [string, string]> = [
   ["", "flag --json-schema "],
   ...MIGRATED_COMMANDS.map((path) => [path, "flag --json "] as const),
 ];
+
+/** What the committed file may no longer declare as the frozen one did: each reworded
+ *  `--json`. */
+const ALLOWED_REWORDINGS: ReadonlyArray<readonly [string, string]> = REWORDED_JSON.map(
+  (path) => [path, "flag --json "] as const,
+);
 
 function difference(
   from: ReadonlyMap<string, ReadonlyArray<string>>,
@@ -58,7 +73,21 @@ describe("phax.usage.kdl's declarations against the frozen file", () => {
     // Every command of the frozen file is read, nested ones included.
     expect(before.size).toBeGreaterThan(50);
     expect(before.get("artifact new spec")?.length).toBeGreaterThan(0);
-    expect(difference(before, now)).toEqual([]);
+    const dropped = difference(before, now).filter(
+      ([path, declaration]) =>
+        !ALLOWED_REWORDINGS.some(([where, head]) => where === path && declaration.startsWith(head)),
+    );
+    expect(dropped).toEqual([]);
+  });
+
+  it("rewords each allowlisted --json, which the file still declares", () => {
+    for (const path of REWORDED_JSON) {
+      const declared = (now.get(path) ?? []).filter((each) => each.startsWith("flag --json "));
+      const frozenJson = (before.get(path) ?? []).filter((each) => each.startsWith("flag --json "));
+      expect(declared, path).toHaveLength(1);
+      expect(frozenJson, path).toHaveLength(1);
+      expect(declared, path).not.toEqual(frozenJson);
+    }
   });
 
   it("adds only the allowlisted declarations", () => {

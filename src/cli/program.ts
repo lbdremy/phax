@@ -12,7 +12,6 @@ import { runSessionInfo } from "./commands/sessionInfo.js";
 import { runShell } from "./commands/shell.js";
 import { runPath } from "./commands/path.js";
 import { runOpen } from "./commands/open.js";
-import { runLs } from "./commands/ls.js";
 import { runArchive } from "./commands/archive.js";
 import { runPrune } from "./commands/prune.js";
 import { registerPruneCommand } from "./commands/pruneRegister.js";
@@ -39,7 +38,7 @@ import { runBrief } from "./commands/brief.js";
 import { registerSchemaCommand } from "./commands/schema.js";
 import { runCompletions } from "./commands/completions.js";
 import { runReport } from "./commands/report.js";
-import { mountRunnerStubs } from "./bridge.js";
+import { mountRunnerStub, mountRunnerStubs } from "./bridge.js";
 import { OPTION_HELP } from "./commandLibrary/contract/index.js";
 import { phaxProgram } from "./definitions/program.js";
 
@@ -175,30 +174,8 @@ export function buildProgram(): Command {
       process.exit(exitCode);
     });
 
-  program
-    .command("ls")
-    .description("List runs from the registry")
-    .option("--active", "Show only active runs (created or running)")
-    .option("--failed", "Show only failed runs")
-    .option("--review-open", "Show only review_open runs")
-    .option("--awaiting-review", "Show only runs awaiting_review at an interactive phase")
-    .option("--archived", "Show only archived runs")
-    .option("--json", "Output as JSON")
-    .option("--complete", "Print run short-names for shell completion")
-    .action(
-      async (opts: {
-        active?: boolean;
-        failed?: boolean;
-        reviewOpen?: boolean;
-        awaitingReview?: boolean;
-        archived?: boolean;
-        json?: boolean;
-        complete?: boolean;
-      }) => {
-        const exitCode = await runLs(opts, consoleOutput);
-        process.exit(exitCode);
-      },
-    );
+  // `ls` answers through the runner: its help-only stub, at its place in the help.
+  mountRunnerStub(program, phaxProgram, ["ls"]);
 
   program
     .command("archive")
@@ -412,7 +389,8 @@ export function buildProgram(): Command {
   registerRecordsCommand(program, consoleOutput);
 
   // The runner's commands, mounted for help only: the bridge sends every call
-  // naming one to the runner before Commander parses.
+  // naming one to the runner before Commander parses. Those a registration
+  // mounted at their place are kept; any other goes at the end of its group.
   mountRunnerStubs(program, phaxProgram);
 
   // Wire long help and examples into the runtime --help output after all

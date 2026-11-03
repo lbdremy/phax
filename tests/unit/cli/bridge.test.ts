@@ -10,6 +10,7 @@ import {
   commanderExit,
   dispatch,
   isRunnerStub,
+  mountRunnerStub,
   mountRunnerStubs,
   route,
   runnerGuard,
@@ -162,9 +163,18 @@ describe("route", () => {
     expect(route(program, argv)).toEqual({ to: "commander" });
   });
 
-  it("sends every call to Commander while phaxProgram holds no command", () => {
-    expect(route(phaxProgram, ["ls"])).toEqual({ to: "commander" });
-    expect(route(phaxProgram, ["plans", "lint", "x"])).toEqual({ to: "commander" });
+  it("sends phaxProgram's four commands to the runner and the others to Commander", () => {
+    expect(route(phaxProgram, ["ls"])).toEqual({ to: "runner", command: ["ls"] });
+    expect(route(phaxProgram, ["plans", "lint", "x"])).toEqual({
+      to: "runner",
+      command: ["plans", "lint"],
+    });
+    expect(route(phaxProgram, ["artifact", "status", "x"])).toEqual({
+      to: "runner",
+      command: ["artifact", "status"],
+    });
+    expect(route(phaxProgram, ["plans", "status"])).toEqual({ to: "commander" });
+    expect(route(phaxProgram, ["artifact", "approve", "x"])).toEqual({ to: "commander" });
   });
 });
 
@@ -317,10 +327,20 @@ describe("the help-only stubs", () => {
     );
   });
 
-  it("mounts nothing for phaxProgram while it holds no command", () => {
+  it("mounts phaxProgram's commands in their groups, keeping a stub already mounted", () => {
     const root = new Command("phax");
+    const plans = root.command("plans");
+    mountRunnerStub(plans, phaxProgram, ["plans", "overview"]);
     mountRunnerStubs(root, phaxProgram);
-    expect(root.commands).toEqual([]);
+    expect(root.commands.map((each) => each.name())).toEqual(["plans", "ls", "artifact"]);
+    expect(plans.commands.map((each) => each.name())).toEqual(["overview", "lint"]);
+    const [, ls, artifact] = root.commands;
+    expect(ls && isRunnerStub(ls)).toBe(true);
+    expect(artifact && isRunnerStub(artifact)).toBe(false);
+    expect(artifact?.commands.map((each) => [each.name(), isRunnerStub(each)])).toEqual([
+      ["status", true],
+    ]);
+    expect(plans.commands.every(isRunnerStub)).toBe(true);
   });
 });
 
@@ -338,9 +358,14 @@ describe("runnerUsage", () => {
     expect(show.some((line) => line.includes("flag --json "))).toBe(true);
   });
 
-  it("cuts the root lines alone from phaxProgram", () => {
+  it("cuts the root lines and the four commands' blocks from phaxProgram", () => {
     const usage = runnerUsage(phaxProgram);
     expect(usage.root).toHaveLength(2);
-    expect(usage.commands.size).toBe(0);
+    expect([...usage.commands.keys()]).toEqual([
+      "ls",
+      "artifact status",
+      "plans lint",
+      "plans overview",
+    ]);
   });
 });

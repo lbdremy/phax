@@ -8,11 +8,14 @@
 // The bridge is internal and goes with the last plan of command-contracts, when the runner owns
 // the program.
 import { Command, CommanderError } from "commander";
-import { Effect } from "effect";
+import { Cause, Effect, Exit, Option } from "effect";
+import * as Schema from "effect/Schema";
 import { isInPhaseWorktree } from "../app/loadConfig.js";
 import { phaseGuardRefusal } from "../domain/security/phaseGuard.js";
+import type { OutputPort } from "../ports/output.js";
 import {
   argShapes,
+  encodedText,
   flagShapes,
   fullName,
   messages,
@@ -22,6 +25,7 @@ import {
   type Inputs,
   type Io,
   type Program,
+  type Source,
 } from "./commandLibrary/contract/index.js";
 import { processIo, runner } from "./commandLibrary/commander/index.js";
 import { phaxProgram } from "./definitions/program.js";
@@ -172,8 +176,8 @@ export async function dispatch(
   }
 }
 
-/** phax's runner program run over this process. phase-05 provides the layers its commands
- *  need. */
+/** phax's runner program run over this process. Each command provides its own layers inside
+ *  its run, so the program needs no service. */
 function runPhaxProgram(io: Io): Promise<number> {
   return Effect.runPromise(runner.run(phaxProgram, io));
 }
@@ -233,43 +237,142 @@ function groupOf(root: Command, command: RunnerCommand<unknown>): Command {
   return parent;
 }
 
-/** Mounts each runner command as a help-only Commander stub at its group: its summary, the
- *  arguments and options its shapes declare, `--json` and `--json-schema`, unknown options
- *  allowed. The bridge sends every call naming it to the runner, so its action never runs. */
+/** A runner command's help-only stub under `parent`: its summary, the arguments and options its
+ *  shapes declare, `--json` and `--json-schema`, unknown options allowed. The bridge sends every
+ *  call naming it to the runner, so its action never runs. */
+function mountStub(parent: Command, command: RunnerCommand<unknown>): void {
+  const stub = parent
+    .command(command.name)
+    .description(command.summary)
+    .allowUnknownOption()
+    .allowExcessArguments();
+  const inputs: Inputs = command.input;
+  for (const arg of inputs.args === undefined ? [] : argShapes(inputs.args.contract)) {
+    stub.argument(arg.optional ? `[${arg.name}]` : `<${arg.name}>`, arg.help ?? "");
+  }
+  for (const flag of inputs.flags === undefined ? [] : flagShapes(inputs.flags.contract)) {
+    stub.option(
+      flag.switch ? `--${flag.option}` : `--${flag.option} <${flag.field}>`,
+      flag.help ?? "",
+    );
+  }
+  if (inputs.stdin?.flag !== undefined) {
+    stub.option(`--${inputs.stdin.flag} [path]`, OPTION_HELP.stdin(inputs.stdin.flag));
+  }
+  stub.option(JSON_OPTION, OPTION_HELP.json).option(JSON_SCHEMA_OPTION, OPTION_HELP.jsonSchema);
+  stub.action(() => {
+    throw new Error(
+      `phax ${fullName(command).join(" ")} answers through the runner; the bridge sends it there`,
+    );
+  });
+  stubs.add(stub);
+}
+
+/** Mounts the runner command named `words` as a stub under `parent`, where it is called: a
+ *  command file mounts its migrated commands at the place they held, so that the help and the
+ *  usage spec keep their order. */
+export function mountRunnerStub(
+  parent: Command,
+  program: Program<unknown>,
+  words: ReadonlyArray<string>,
+): void {
+  const command = program.commands.find((each) => fullName(each).join(" ") === words.join(" "));
+  if (command === undefined) {
+    throw new Error(`phax ${words.join(" ")} is not a runner command`);
+  }
+  mountStub(parent, command);
+}
+
+/** Mounts each runner command no command file mounted as a stub at the end of its group, and
+ *  refuses a runner command that is also a Commander command. */
 export function mountRunnerStubs(root: Command, program: Program<unknown>): void {
   for (const command of program.commands) {
     const parent = groupOf(root, command);
-    if (parent.commands.some((each) => each.name() === command.name)) {
+    const existing = parent.commands.find((each) => each.name() === command.name);
+    if (existing !== undefined && isRunnerStub(existing)) continue;
+    if (existing !== undefined) {
       throw new Error(
         `phax ${fullName(command).join(" ")} is both a Commander command and a runner command`,
       );
     }
-    const stub = parent
-      .command(command.name)
-      .description(command.summary)
-      .allowUnknownOption()
-      .allowExcessArguments();
-    const inputs: Inputs = command.input;
-    for (const arg of inputs.args === undefined ? [] : argShapes(inputs.args.contract)) {
-      stub.argument(arg.optional ? `[${arg.name}]` : `<${arg.name}>`, arg.help ?? "");
-    }
-    for (const flag of inputs.flags === undefined ? [] : flagShapes(inputs.flags.contract)) {
-      stub.option(
-        flag.switch ? `--${flag.option}` : `--${flag.option} <${flag.field}>`,
-        flag.help ?? "",
-      );
-    }
-    if (inputs.stdin?.flag !== undefined) {
-      stub.option(`--${inputs.stdin.flag} [path]`, OPTION_HELP.stdin(inputs.stdin.flag));
-    }
-    stub.option(JSON_OPTION, OPTION_HELP.json).option(JSON_SCHEMA_OPTION, OPTION_HELP.jsonSchema);
-    stub.action(() => {
-      throw new Error(
-        `phax ${fullName(command).join(" ")} answers through the runner; the bridge sends it there`,
-      );
-    });
-    stubs.add(stub);
+    mountStub(parent, command);
   }
+}
+
+// ── The kept run functions ──────────────────────────────────────────────────────
+
+/** What a kept run function prints to when it is not run by the runner. */
+const OUTPUT_TERMINAL = { columns: 80, color: false } as const;
+
+/** A runner command's run composed with its render, notes and sentences over the OutputPort:
+ *  the run functions kept for the tests of the commands moved onto the runner (`runLs`,
+ *  `runArtifactStatus`, `runPlansLint`, `runPlansOverview`). A progress note and the notes are
+ *  warnings, a declared error's sentence an error; `json` logs the encoded output in place of
+ *  the render. Answers the exit code the runner would: the error's, or the verdict's, or 0. */
+export async function runThroughOutput(
+  command: RunnerCommand<never>,
+  input: Readonly<Record<string, unknown>>,
+  out: OutputPort,
+  options: {
+    readonly json?: boolean;
+    /** Log the render one line at a time, as the kept function did before its move. */
+    readonly lineByLine?: boolean;
+  } = {},
+): Promise<number> {
+  const exit = await Effect.runPromiseExit(
+    Effect.suspend(() =>
+      command.run({
+        input,
+        program: {},
+        progress: (text: string) =>
+          Effect.sync(() => {
+            if (text !== "") out.warn(text);
+          }),
+      }),
+    ),
+  );
+  if (Exit.isFailure(exit)) {
+    const failure = Cause.failureOption(exit.cause);
+    const error: unknown = Option.getOrUndefined(failure);
+    const tag =
+      typeof error === "object" && error !== null ? Reflect.get(error, "_tag") : undefined;
+    const exits: Readonly<Record<string, number>> = command.exits;
+    const code = typeof tag === "string" ? exits[tag] : undefined;
+    if (typeof tag !== "string" || code === undefined) throw Cause.squash(exit.cause);
+    const texts: Readonly<Record<string, ((error: never) => string) | undefined>> =
+      command.texts ?? {};
+    const say = texts[tag];
+    out.error(
+      say === undefined ? String(Reflect.get(error as object, "message")) : say(error as never),
+    );
+    return code;
+  }
+  const value: unknown = exit.value;
+  const document = command.document?.(value);
+  if (document !== undefined) {
+    const text =
+      typeof document.bytes === "string"
+        ? document.bytes
+        : new TextDecoder().decode(document.bytes);
+    for (const line of text.split("\n").slice(0, -1)) out.log(line);
+  } else if (options.json === true && command.output !== undefined) {
+    const output: Source<Schema.Schema.Any> = command.output;
+    const encoded = Schema.encodeUnknownSync(output.contract as Schema.Schema<unknown, unknown>)(
+      value,
+    );
+    out.log(encodedText(encoded).slice(0, -1));
+  } else if (command.render !== undefined) {
+    const text = command.render(value, OUTPUT_TERMINAL);
+    for (const line of options.lineByLine === true ? text.split("\n") : [text]) out.log(line);
+  }
+  const notes = command.notes?.(value, OUTPUT_TERMINAL) ?? "";
+  for (const line of notes === "" ? [] : notes.split("\n")) out.warn(line);
+  const verdicts: Readonly<Record<number, (value: unknown) => boolean>> = command.verdicts ?? {};
+  const verdict = Object.keys(verdicts)
+    .map(Number)
+    .toSorted((a, b) => a - b)
+    .find((code) => verdicts[code]?.(value) === true);
+  return verdict ?? 0;
 }
 
 // ── The usage spec's runner blocks ──────────────────────────────────────────────

@@ -294,8 +294,18 @@ describe("phax plans overview", () => {
     const result = runCli(["plans", "overview", PLAN_REL, "--json"]);
 
     expect(result.status).toBe(0);
-    expect(JSON.parse(result.stdout)).toMatchObject({ architecture: { kind: "failed" } });
-    expect(result.stderr).toMatch(/^Warning: architecture provider failed: /);
+    const document = JSON.parse(result.stdout) as Record<string, unknown>;
+    expect(Object.keys(document)[0]).toBe("$schema");
+    expect(document).toMatchObject({
+      $schema: schemaUrl("plan-overview", "0.34.0"),
+      architecture: { kind: "failed" },
+    });
+    // Under --json the warning is one note line.
+    const lines = result.stderr.split("\n").filter((line) => line !== "");
+    expect(lines).toHaveLength(1);
+    const note = JSON.parse(lines[0] ?? "") as { kind: string; text: string };
+    expect(note.kind).toBe("note");
+    expect(note.text).toMatch(/^Warning: architecture provider failed: /);
   });
 
   it("exits 1 with one line naming phax plans lint for a heading missing its anchor", () => {

@@ -174,7 +174,9 @@ export interface CommandDef<
   readonly notes?: (value: Shown<O, A>, terminal: Terminal) => string;
   /** Marks an answer that is a document: when it gives one, the runner writes its bytes and calls
    *  no `render`. A command answering documents writes this hook; the runner never recognises a
-   *  document by itself. */
+   *  document by itself. Port change: the hook is asked first, with the value `run` succeeded
+   *  with, and a document is never encoded with the output contract; `notes` and the verdicts
+   *  then read that value as it is. */
   readonly document?: (value: Shown<O, A>) => Document | undefined;
   /** The command writes a document, so the runner owns its `--out <path>`: the document is written
    *  to the path and the written-file record is the answer. `--out -`, or no `--out`, answers the

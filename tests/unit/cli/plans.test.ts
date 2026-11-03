@@ -9,6 +9,7 @@ import {
 } from "../../../src/cli/commands/plans.js";
 import { runPlansOverview } from "../../../src/cli/commands/plansOverview.js";
 import type { PlanOverview } from "../../../src/domain/plan/overview.js";
+import { currentSchemaUrl } from "../../../src/schemas/persisted.js";
 import {
   resolveAuthoringConfig,
   resolveCodeReviewConfig,
@@ -330,7 +331,7 @@ describe("runPlansLint", () => {
     expect(lines.join("\n")).toContain("no findings");
   });
 
-  it("--json emits the report verbatim and nothing else", async () => {
+  it("--json emits the plan-lint document, $schema first, and nothing else", async () => {
     await setupConfig();
     const report: LintReport = {
       plan: "/fake-repo/plan.md",
@@ -345,7 +346,9 @@ describe("runPlansLint", () => {
 
     expect(code).toBe(1);
     expect(lines).toHaveLength(1);
-    expect(JSON.parse(lines[0]!)).toEqual(report);
+    const document = JSON.parse(lines[0]!) as Record<string, unknown>;
+    expect(Object.keys(document)[0]).toBe("$schema");
+    expect(document).toEqual({ $schema: currentSchemaUrl("plan-lint"), ...report });
   });
 
   it("passes the plan's path relative to the repo root as repoRelPath", async () => {
@@ -448,7 +451,7 @@ describe("runPlansOverview", () => {
     expect(lines.join("\n")).toContain("widget — Made-up widget  (Draft · no source spec)");
   });
 
-  it("--json prints the overview as the only thing on stdout", async () => {
+  it("--json prints the plan-overview document as the only thing on stdout", async () => {
     await setupConfig();
     await mockOverview(Effect.succeed(OVERVIEW));
 
@@ -457,7 +460,9 @@ describe("runPlansOverview", () => {
 
     expect(code).toBe(0);
     expect(lines).toHaveLength(1);
-    expect(JSON.parse(lines[0]!)).toEqual(OVERVIEW);
+    const document = JSON.parse(lines[0]!) as Record<string, unknown>;
+    expect(Object.keys(document)[0]).toBe("$schema");
+    expect(document).toEqual({ $schema: currentSchemaUrl("plan-overview"), ...OVERVIEW });
     expect(warnings).toEqual([]);
   });
 
@@ -487,7 +492,7 @@ describe("runPlansOverview", () => {
     expect(lines).toEqual([]);
   });
 
-  it("is registered under plans as overview, with --json", () => {
+  it("is registered under plans as overview's stub, with --json and --json-schema", () => {
     const program = new Command();
     registerPlansCommand(program, makeOutput().out);
     const plansCmd = program.commands.find((c) => c.name() === "plans");
@@ -495,6 +500,6 @@ describe("runPlansOverview", () => {
 
     expect(overviewCmd).toBeDefined();
     expect(overviewCmd?.registeredArguments.map((a) => a.name())).toEqual(["plan"]);
-    expect(overviewCmd?.options.map((o) => o.long)).toEqual(["--json"]);
+    expect(overviewCmd?.options.map((o) => o.long)).toEqual(["--json", "--json-schema"]);
   });
 });

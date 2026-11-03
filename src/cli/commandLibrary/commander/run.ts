@@ -249,9 +249,11 @@ function commanderDetails(text: string): Details {
   }
   const unknownOption = /unknown option '([^']+)'/.exec(text);
   if (unknownOption !== null) {
+    // Port change for phax's spec (command-contracts §5.8): an option no contract declares is
+    // named without its dashes, `colour` for `--colour`, as a declared field is.
     return {
       source: "flags",
-      path: [unknownOption[1] ?? ""],
+      path: [(unknownOption[1] ?? "").replace(/^-+/, "")],
       expected: "a declared option",
     };
   }
@@ -422,9 +424,10 @@ function precheck<R>(
     for (const option of read.undeclared) {
       problems.push({
         text: `error: unknown option '${option}'`,
+        // Port change (command-contracts §5.8): the option named without its dashes.
         details: {
           source: "flags",
-          path: [option],
+          path: [option.replace(/^-+/, "")],
           expected: "a declared option",
         },
       });
@@ -594,8 +597,8 @@ function encode(output: Source<Schema.Schema.Any>, value: unknown): Effect.Effec
     : Effect.succeed(encoded.right);
 }
 
-/** Decodes an encoded output back: the reduced value `render`, `notes`, `document` and the
- *  verdicts receive. A failure is a defect. */
+/** Decodes an encoded output back: the reduced value `render`, `notes` and the verdicts
+ *  receive. A failure is a defect. */
 function reduced(
   output: Source<Schema.Schema.Any>,
   encoded: unknown,
@@ -653,16 +656,18 @@ function compose<R>(
     const verdicts: Readonly<Record<number, (value: unknown) => boolean>> | undefined =
       command.verdicts;
     const documentOf = command.document;
-    const encoded = output === undefined ? undefined : yield* encode(output, value);
+    // A document is asked for first, of the value `run` succeeded with: an answer that is a
+    // document is never encoded with the output contract, nor rendered. A port change for phax's
+    // `ls --complete`, whose completion lines are a text document beside the run list.
+    const document =
+      documentOf === undefined ? undefined : yield* Effect.sync(() => documentOf(value));
+    const encoded =
+      output === undefined || document !== undefined ? undefined : yield* encode(output, value);
     const needsView =
-      documentOf !== undefined ||
-      notes !== undefined ||
-      verdicts !== undefined ||
-      (!json && render !== undefined);
+      document === undefined &&
+      (notes !== undefined || verdicts !== undefined || (!json && render !== undefined));
     const view: unknown =
       output === undefined || !needsView ? value : yield* reduced(output, encoded);
-    const document =
-      documentOf === undefined ? undefined : yield* Effect.sync(() => documentOf(view));
     const toPath = command.writesDocument === true && out.tag === "Path" ? out.path : undefined;
     let stdout = "";
     if (document !== undefined) {

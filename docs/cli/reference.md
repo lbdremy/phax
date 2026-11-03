@@ -245,13 +245,13 @@ Show only runs awaiting_review at an interactive phase
 
 Show only archived runs
 
-#### `--json`
-
-Output as JSON
-
 #### `--complete`
 
 Print run short-names for shell completion
+
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 ### Examples
 
@@ -1029,7 +1029,7 @@ phax artifact status docs/plans/2607101056-typescript-7-migration-plan.md
 
 ## `phax artifact status`
 
-- **Usage**: `phax artifact status <path>`
+- **Usage**: `phax artifact status [--json] <path>`
 
 Reports an artifact's kind (spec or plan), current status, and the legal transitions from that status (an Approved spec or plan lists Draft, reached with phax artifact reopen). For an approved spec or plan, also reports the approval date and baseline, its approver (by machine (<grant>), by operator (<name>), or unattributed for an approval recorded before phax named the approver), and whether the artifact has been edited since that approval (recorded) or has no approval record (unrecorded). Also reports how the artifact was authored: interactive (no sidecar), or headless with its JSON document sidecar and whether the body is still the sidecar's rendering (in sync), differs from it (diverged — the body was edited by hand), or the sidecar is not a valid document (invalid). Frontmatter changes never count as divergence. A sidecar stamped below its document format's current shape, or written before $schema, is not compared: status names its stamped shape and `phax artifact migrate-documents` instead.
 
@@ -1040,6 +1040,12 @@ An artifact with question sections also prints a Questions line: the number of q
 #### `<path>`
 
 Path to a spec or plan file under docs/specs/ or docs/plans/
+
+### Flags
+
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 ### Examples
 
@@ -1572,7 +1578,7 @@ Path to the plan.md
 
 #### `--json`
 
-Emit the findings as JSON
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 ### Examples
 
@@ -1614,7 +1620,7 @@ Path to the plan.md
 
 #### `--json`
 
-Emit the overview as JSON
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 ### Examples
 

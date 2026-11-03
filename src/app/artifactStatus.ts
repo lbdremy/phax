@@ -109,7 +109,13 @@ export type ArtifactAuthoring =
  */
 export type ArtifactQuestions =
   | { readonly kind: "none" }
-  | { readonly kind: "summary"; readonly summary: QuestionSummary }
+  | {
+      readonly kind: "summary";
+      readonly summary: QuestionSummary;
+      /** The ids of the arbitrated questions, and of those whose verdict was lifted. */
+      readonly arbitrated: readonly string[];
+      readonly lifted: readonly string[];
+    }
   | { readonly kind: "departs"; readonly line: number; readonly text: string };
 
 export interface ArtifactReport {
@@ -179,7 +185,12 @@ function questionsOf(kind: ArtifactKind, md: string, sidecar: Sidecar | null): A
   if (sidecar === null) {
     const parsed = parseHandAuthoredQuestions(kind, md);
     return parsed.kind === "parsed"
-      ? { kind: "summary", summary: summarizeParsedQuestions(parsed) }
+      ? {
+          kind: "summary",
+          summary: summarizeParsedQuestions(parsed),
+          arbitrated: parsed.arbitrated.map((q) => q.id),
+          lifted: parsed.arbitrated.filter((q) => q.lifted).map((q) => q.id),
+        }
       : parsed;
   }
   if (sidecar.read === null) return { kind: "none" };
@@ -191,7 +202,12 @@ function questionsOf(kind: ArtifactKind, md: string, sidecar: Sidecar | null): A
   ) {
     return { kind: "none" };
   }
-  return { kind: "summary", summary: summarizeDocumentQuestions(arrays) };
+  return {
+    kind: "summary",
+    summary: summarizeDocumentQuestions(arrays),
+    arbitrated: arrays.arbitratedQuestions.map((q) => q.id),
+    lifted: arrays.arbitratedQuestions.filter((q) => q.verdict.kind === "lifted").map((q) => q.id),
+  };
 }
 
 function describeDisagreement(agreement: Exclude<SidecarAgreement, "in-sync">): string {
