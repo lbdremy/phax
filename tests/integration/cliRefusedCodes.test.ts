@@ -67,6 +67,22 @@ describe("a refused call exits 64 with Commander's text", { timeout: 60_000 }, (
       ["unlock"],
       "error: missing required argument 'short-name'\nRun `phax --help` for usage.\n",
     ],
+    // The runner's commands word their refusals as Commander does.
+    [
+      "an unknown option of a runner command, with its suggestion",
+      ["ls", "--activ"],
+      "error: unknown option '--activ'\n(Did you mean --active?)\nRun `phax --help` for usage.\n",
+    ],
+    [
+      "an unknown option of a runner command",
+      ["ls", "--colour"],
+      "error: unknown option '--colour'\nRun `phax --help` for usage.\n",
+    ],
+    [
+      "a missing argument of a runner command",
+      ["plans", "lint"],
+      "error: missing required argument 'plan'\nRun `phax --help` for usage.\n",
+    ],
   ])("%s", (_label, args, stderr) => {
     const result = runCli(args);
     expect(result.status).toBe(64);

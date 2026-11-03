@@ -60,6 +60,14 @@ export function readPullRequestUrl(runPath: string): string | undefined {
   return Either.isRight(decoded) ? decoded.right.pullRequestUrl : undefined;
 }
 
+/**
+ * The URL of the pull request phax opened for an archived run: `phax archive`
+ * moves the run folder to `<archivePath>/runs`, its publication record with it.
+ */
+export function readArchivedPullRequestUrl(archivePath: string): string | undefined {
+  return readPullRequestUrl(join(archivePath, "runs"));
+}
+
 function loadRunReviewInfo(
   runPath: string,
   stateRoot: string,
