@@ -345,7 +345,7 @@
       "surface": "cli: phax ls --json",
       "summary": "Each run in `phax ls --json` now carries the URL of the pull request phax opened for it.",
       "binding": "indicative",
-      "before": "{\n  \"$schema\": \"https://docs.phax.run/schemas/run-list/0.33.0.json\",\n  \"runs\": [\n    { \"qualifiedName\": \"garden.garden-sync\", \"state\": \"review_open\", \"branch\": \"phax/garden-sync\", …, \"stop\": null }\n  ]\n}",
+      "before": "{\n  \"$schema\": \"https://docs.phax.run/schemas/run-list/0.30.0.json\",\n  \"runs\": [\n    { \"qualifiedName\": \"garden.garden-sync\", \"state\": \"review_open\", \"branch\": \"phax/garden-sync\", …, \"stop\": null }\n  ]\n}",
       "after": "{\n  \"$schema\": \"https://docs.phax.run/schemas/run-list/0.34.0.json\",\n  \"runs\": [\n    { \"qualifiedName\": \"garden.garden-sync\", \"state\": \"review_open\", \"branch\": \"phax/garden-sync\", …, \"stop\": null,\n      \"pullRequest\": \"https://github.com/acme/garden/pull/42\" }\n  ]\n}"
     },
     {
@@ -373,7 +373,7 @@
       "surface": "package: @lbdremy/phax-schemas",
       "summary": "The schemas package publishes the `artifact-status`, `plan-overview` and `plan-lint` formats and a new `run-list` with the pull request.",
       "binding": "normative",
-      "before": "https://docs.phax.run/schemas/run-list/0.33.0.json",
+      "before": "https://docs.phax.run/schemas/run-list/0.30.0.json",
       "after": "https://docs.phax.run/schemas/artifact-status/0.34.0.json\nhttps://docs.phax.run/schemas/plan-overview/0.34.0.json\nhttps://docs.phax.run/schemas/plan-lint/0.34.0.json\nhttps://docs.phax.run/schemas/run-list/0.34.0.json"
     },
     {
@@ -381,7 +381,7 @@
       "summary": "phax's commands are each one definition — sources, output, errors, render, help and examples — written against the ported library and never against the parser.",
       "binding": "indicative",
       "before": "plansCmd\n  .command(\"lint\")\n  .description(\"Report a plan's mechanical defects without running it\")\n  .argument(\"<plan>\", \"Path to the plan.md\")\n  .option(\"--json\", \"Emit the findings as JSON\")\n  .action(async (plan, opts) => process.exit(await runPlansLint(plan, opts, out)));",
-      "after": "export const lint = defineCommand({\n  name: \"lint\",\n  summary: \"Report a plan's mechanical defects without running it\",\n  args: reject(Schema.Tuple(PlanPath)),\n  output: PlanLintDocument,\n  verdicts: { 1: (report) => hasLintErrors(report.findings) },\n  errors: { ConfigValidationError: 2, PlanReadError: 1 },\n  run: ({ args: [plan] }) => lintPlan(plan),\n  render: (report) => renderLintReport(report),\n});"
+      "after": "export const lint = defineCommand({\n  name: \"lint\",\n  summary: \"Report a plan's mechanical defects without running it\",\n  input: { args: reject(Schema.Tuple(PlanPath)) },\n  output: PlanLintDocument,\n  verdicts: { 1: (report) => hasLintErrors(report.findings) },\n  exits: { ConfigValidationError: 2, PlanReadError: 1 },\n  run: ({ input: { args: [plan] } }) => lintPlan(plan),\n  render: (report) => renderLintReport(report),\n});"
     }
   ],
   "nonGoals": [
@@ -656,7 +656,7 @@
       "name": "Versioned documents unchanged",
       "given": "the commands that print a versioned document today (the run list aside)",
       "when": "each runs with `--json` on the same fixture before and after this change",
-      "then": "the bytes are equal except for the release in `$schema`.",
+      "then": "the bytes are equal.",
       "refs": [
         "r-versioned-stable"
       ]

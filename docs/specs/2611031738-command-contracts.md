@@ -328,7 +328,7 @@ Summary: Each run in `phax ls --json` now carries the URL of the pull request ph
 before:
 
     {
-      "$schema": "https://docs.phax.run/schemas/run-list/0.33.0.json",
+      "$schema": "https://docs.phax.run/schemas/run-list/0.30.0.json",
       "runs": [
         { "qualifiedName": "garden.garden-sync", "state": "review_open", "branch": "phax/garden-sync", …, "stop": null }
       ]
@@ -414,7 +414,7 @@ Summary: The schemas package publishes the `artifact-status`, `plan-overview` an
 
 before:
 
-    https://docs.phax.run/schemas/run-list/0.33.0.json
+    https://docs.phax.run/schemas/run-list/0.30.0.json
 
 after:
 
@@ -441,11 +441,11 @@ after:
     export const lint = defineCommand({
       name: "lint",
       summary: "Report a plan's mechanical defects without running it",
-      args: reject(Schema.Tuple(PlanPath)),
+      input: { args: reject(Schema.Tuple(PlanPath)) },
       output: PlanLintDocument,
       verdicts: { 1: (report) => hasLintErrors(report.findings) },
-      errors: { ConfigValidationError: 2, PlanReadError: 1 },
-      run: ({ args: [plan] }) => lintPlan(plan),
+      exits: { ConfigValidationError: 2, PlanReadError: 1 },
+      run: ({ input: { args: [plan] } }) => lintPlan(plan),
       render: (report) => renderLintReport(report),
     });
 
@@ -564,7 +564,7 @@ Given one run phax published as a pull request and one it did not, when `phax ls
 
 ### Versioned documents unchanged
 
-Given the commands that print a versioned document today (the run list aside), when each runs with `--json` on the same fixture before and after this change, then the bytes are equal except for the release in `$schema`. (refs §5.28)
+Given the commands that print a versioned document today (the run list aside), when each runs with `--json` on the same fixture before and after this change, then the bytes are equal. (refs §5.28)
 
 ## 9. Open questions
 
