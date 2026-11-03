@@ -589,7 +589,7 @@ still refuses first, with exit 1.
 **Recommended model:** claude-sonnet-5-5
 **Recommended effort:** medium
 **Acceptance phase:** passed by phase-05
-**Acceptance test files:** `tests/integration/artifactStatusJson.test.ts`, `tests/integration/plansAnswersJson.test.ts`, `tests/integration/lsJsonContracts.test.ts`, `tests/fixtures/commandAnswers/before.ts`, `src/schemas/artifactStatus.ts`, `src/schemas/planOverview.ts`, `src/schemas/planLint.ts`, `src/schemas/runList.ts`
+**Acceptance test files:** `tests/integration/artifactStatusJson.test.ts`, `tests/integration/plansAnswersJson.test.ts`, `tests/integration/lsJsonContracts.test.ts`, `tests/fixtures/commandAnswers/before.ts`, `src/schemas/artifactStatusDocument.ts`, `src/schemas/planOverview.ts`, `src/schemas/planLint.ts`, `src/schemas/runList.ts`
 
 The schemas package publishes `artifact-status`, `plan-overview` and `plan-lint`, born at 0.34.0, and a `run-list` whose rows carry `pullRequest`, with its 0.30.0 shape frozen. `phax ls --json` already fills `pullRequest`. The four commands' runner answers are written as frozen acceptance tests.
 
@@ -598,7 +598,7 @@ The schemas package publishes `artifact-status`, `plan-overview` and `plan-lint`
 - Read src/schemas/schemaUrl.ts, src/schemas/release.ts, src/schemas/runList.ts, src/schemas/publication.ts, src/domain/runList.ts, src/cli/commands/ls.ts, src/app/artifactStatus.ts (ArtifactAuthoring, ArtifactQuestions, the inspectArtifact result), src/domain/plan/overview.ts (PlanOverview), src/app/lintPlan.ts (LintReport) and packages/schemas/. For the steps of a format's birth and of a frozen shape with a `next` snapshot, read the archived plan docs/plans/archive/2610311031-acceptance-tests-plan.md, phase-05 (acceptance-request), and phase-01 (frozen modules).
 - Before changing anything, capture today's `phax ls --json` and `phax plans overview --json` outputs for the fixtures the new tests use, as tests/fixtures/commandAnswers/before.ts, a module exporting them as values with fixed timestamps.
 - Create the schemas:
-  - src/schemas/artifactStatus.ts: ArtifactStatusFileSchema, strict keys, with `$schema: schemaUrlField("artifact-status")`, then `path`, `kind`, `status` and `legalTransitions` (the status names).
+  - src/schemas/artifactStatusDocument.ts: ArtifactStatusFileSchema, strict keys, with `$schema: schemaUrlField("artifact-status")`, then `path`, `kind`, `status` and `legalTransitions` (the status names).
     - `approval`: `{ kind: "none" }`, `{ kind: "unrecorded" }`, or `{ kind: "recorded", date, baseline, approver, editedSinceApproval }`, where `approver` is the arbiter as the approval record stores it.
     - `authoring`: `{ kind: "interactive" }`, or `{ kind: "headless", sidecar, agreement }`, where `agreement` is "in-sync", "diverged", `{ kind: "invalid", message }` or `{ kind: "stamped", format, shape }`.
     - `questions`: `{ kind: "none" }`, `{ kind: "departs", line, text }`, or `{ kind: "parsed", open, arbitrated, lifted }`, each a list of question ids.
@@ -650,7 +650,7 @@ The schemas package publishes `artifact-status`, `plan-overview` and `plan-lint`
 
 ### Planned files to create
 
-- `src/schemas/artifactStatus.ts`
+- `src/schemas/artifactStatusDocument.ts`
 - `src/schemas/planOverview.ts`
 - `src/schemas/planLint.ts`
 - `src/schemas/history/run-list/0.30.0.ts`
@@ -710,7 +710,7 @@ The schemas package publishes `artifact-status`, `plan-overview` and `plan-lint`
 
 ### Boundary contracts
 
-Producer: src/schemas/artifactStatus.ts, planOverview.ts, planLint.ts and runList.ts. Consumers: phase-05's definitions (their output contracts), the schemas package and readers such as the Claude Code mod. Contract: one closed document per format, `$schema` first, stamped 0.34.0 while its next snapshot exists, every key required. Producer: `phax ls --json`. Consumer: the mod. Contract: each row's `pullRequest` is the URL of the pull request phax opened, or null.
+Producer: src/schemas/artifactStatusDocument.ts, planOverview.ts, planLint.ts and runList.ts. Consumers: phase-05's definitions (their output contracts), the schemas package and readers such as the Claude Code mod. Contract: one closed document per format, `$schema` first, stamped 0.34.0 while its next snapshot exists, every key required. Producer: `phax ls --json`. Consumer: the mod. Contract: each row's `pullRequest` is the URL of the pull request phax opened, or null.
 
 ### Test strategy
 
@@ -791,7 +791,7 @@ phase that moves the commands.
 - Add the four to `phaxProgram`: `ls` at the root, `status` in group `artifact` and `lint` and `overview` in group `plans`, in today's order, so help and the usage spec keep their positions. In src/cli/commands/artifact.ts and plans.ts, remove the Commander registrations of the four. The bridge mounts their stubs.
 
   Keep `runLs` (src/cli/commands/ls.ts), `runArtifactStatus` (src/cli/commands/artifact.ts), `runPlansLint` (plans.ts) and `runPlansOverview` (plansOverview.ts) only as compositions of the definition's run, render and notes, writing through the OutputPort and returning the code. Their existing text tests then exercise the migrated command unchanged. The last plan removes them with those tests' move to the runner.
-- Remove the `.fails` markers from the three acceptance test files. That is their only change, and src/schemas/artifactStatus.ts, planOverview.ts, planLint.ts and runList.ts and tests/fixtures/commandAnswers/before.ts stay as committed. When an acceptance test cannot pass, fix the definition, never the test.
+- Remove the `.fails` markers from the three acceptance test files. That is their only change, and src/schemas/artifactStatusDocument.ts, planOverview.ts, planLint.ts and runList.ts and tests/fixtures/commandAnswers/before.ts stay as committed. When an acceptance test cannot pass, fix the definition, never the test.
 - Update the tests that pinned the unversioned objects, and nothing else in them:
   - the `--json` cases of tests/unit/cli/plans.test.ts and tests/integration/plansOverviewCommand.test.ts now expect the documents;
   - the registration checks in tests/unit/cli/plans.test.ts and tests/integration/cliProgram.test.ts now expect the stubs' declared options.
