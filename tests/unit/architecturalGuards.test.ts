@@ -313,7 +313,6 @@ const DIRECT_NODE_IO = /\bfrom\s+["'](node:fs|node:fs\/promises|node:child_proce
 // FileSystem port.
 const CLI_DIRECT_IO_ALLOWLIST: ReadonlySet<string> = new Set([
   "src/cli/commands/adjustPlan.ts",
-  "src/cli/commands/artifact.ts",
   "src/cli/commands/completions.ts",
   "src/cli/commands/resume.ts",
   "src/cli/commands/run.ts",
@@ -322,6 +321,8 @@ const CLI_DIRECT_IO_ALLOWLIST: ReadonlySet<string> = new Set([
   "src/cli/commands/skills.ts",
   "src/cli/commands/usage.ts",
   "src/cli/commands/usageSpec.ts",
+  // The working tree's root, read with git for the commands' path arguments.
+  "src/cli/definitions/shared.ts",
   "src/cli/interruptHandler.ts",
   // The command library port's one process edge: the process as the runner reads it (its
   // stdin, its files, stdout and stderr). No other file of the port touches the process.

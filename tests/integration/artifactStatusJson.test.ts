@@ -193,7 +193,7 @@ function answer(path: string): Record<string, unknown> {
 }
 
 describe("phax artifact status --json", () => {
-  it.fails("answers a Draft headless spec's open question and its sidecar in sync", () => {
+  it("answers a Draft headless spec's open question and its sidecar in sync", () => {
     const document = answer(DRAFT_SPEC);
 
     expect(Object.keys(document)[0]).toBe("$schema");
@@ -209,7 +209,7 @@ describe("phax artifact status --json", () => {
     });
   });
 
-  it.fails("answers an Approved spec edited since its approval with the approval's facts", () => {
+  it("answers an Approved spec edited since its approval with the approval's facts", () => {
     const document = answer(APPROVED_SPEC);
 
     expect(document).toMatchObject({
@@ -227,7 +227,7 @@ describe("phax artifact status --json", () => {
     });
   });
 
-  it.fails("prints its own contract with --json-schema, naming artifact status", () => {
+  it("prints its own contract with --json-schema, naming artifact status", () => {
     const result = runCli(["artifact", "status", "--json-schema"]);
 
     expect(result.status, result.stderr).toBe(0);

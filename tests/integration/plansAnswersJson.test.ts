@@ -98,7 +98,7 @@ afterAll(() => {
 
 describe("phax plans overview --json", () => {
   // ac-overview
-  it.fails("starts with the plan-overview 0.34.0 $schema and is today's output after it", () => {
+  it("starts with the plan-overview 0.34.0 $schema and is today's output after it", () => {
     const result = runCli(["plans", "overview", WIDGET_PLAN_REL, "--json"]);
 
     expect(result.status, result.stderr).toBe(0);
@@ -111,7 +111,7 @@ describe("phax plans overview --json", () => {
 
 describe("phax plans lint", () => {
   // ac-lint-verdict
-  it.fails("answers a plan-lint document with --json and today's text without, exiting 1", () => {
+  it("answers a plan-lint document with --json and today's text without, exiting 1", () => {
     const json = runCli(["plans", "lint", BAD_PLAN_REL, "--json"]);
     const text = runCli(["plans", "lint", BAD_PLAN_REL]);
 
@@ -127,7 +127,7 @@ describe("phax plans lint", () => {
   });
 
   // ac-lint-verdict
-  it.fails("exits 0 on a clean plan, with today's text and a stamped document", () => {
+  it("exits 0 on a clean plan, with today's text and a stamped document", () => {
     const json = runCli(["plans", "lint", WIDGET_PLAN_REL, "--json"]);
     const text = runCli(["plans", "lint", WIDGET_PLAN_REL]);
 
@@ -139,7 +139,7 @@ describe("phax plans lint", () => {
   });
 
   // ac-json-schema-command
-  it.fails("prints its entry with --json-schema, runs no lint and equals the catalogue's", () => {
+  it("prints its entry with --json-schema, runs no lint and equals the catalogue's", () => {
     // A plan the lint would refuse is not read: the entry is printed alone.
     const result = runCli(["plans", "lint", "--json-schema"]);
 
@@ -158,7 +158,7 @@ describe("phax plans lint", () => {
 
 describe("the contracts catalogue", () => {
   // ac-catalogue
-  it.fails("holds an entry for artifact status, plans overview, plans lint and ls", () => {
+  it("holds an entry for artifact status, plans overview, plans lint and ls", () => {
     const names = catalogue().commands.map(({ name }) => name.join(" "));
 
     for (const expected of ["artifact status", "plans overview", "plans lint", "ls"]) {
@@ -177,7 +177,7 @@ describe("the four commands under --json", () => {
   ];
 
   // ac-json-every-command
-  it.fails("writes one indented value on stdout, $schema first, and only message lines on stderr", () => {
+  it("writes one indented value on stdout, $schema first, and only message lines on stderr", () => {
     for (const args of CALLS) {
       const result = runCli(args);
       const call = args.join(" ");

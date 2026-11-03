@@ -291,6 +291,8 @@ describe("runArtifactStatus — questions rendering", () => {
     const lines = await questionLines({
       kind: "summary",
       summary: { open: ["Q3", "Q4"], arbitrated: 2, lifted: 1 },
+      arbitrated: ["Q1", "Q2"],
+      lifted: ["Q2"],
     });
     const at = lines.findIndex((l) => l.startsWith("Authored:"));
     expect(lines[at + 1]).toBe("Questions:         4 — open 2 (Q3, Q4) · arbitrated 2 (1 lifted)");
@@ -300,6 +302,8 @@ describe("runArtifactStatus — questions rendering", () => {
     const lines = await questionLines({
       kind: "summary",
       summary: { open: ["Q3", "Q4"], arbitrated: 2, lifted: 1 },
+      arbitrated: ["Q1", "Q2"],
+      lifted: ["Q2"],
     });
     const at = lines.findIndex((l) => l.startsWith("Questions:"));
     expect(lines[at + 1]).toBe(
@@ -312,6 +316,8 @@ describe("runArtifactStatus — questions rendering", () => {
     const lines = await questionLines({
       kind: "summary",
       summary: { open: [], arbitrated: 3, lifted: 3 },
+      arbitrated: ["Q1", "Q2", "Q3"],
+      lifted: ["Q1", "Q2", "Q3"],
     });
     expect(lines).toContain("Questions:         3 — open 0 · arbitrated 3 (3 lifted)");
     expect(lines.join("\n")).not.toContain("decide");

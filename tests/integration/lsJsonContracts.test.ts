@@ -55,7 +55,7 @@ afterAll(() => {
 
 describe("phax ls and the command runner", () => {
   // ac-unknown-option
-  it.fails("refuses an undeclared option with one refused line from flags, exit 64", () => {
+  it("refuses an undeclared option with one refused line from flags, exit 64", () => {
     const result = runCli(["ls", "--colour", "--json"]);
 
     expect(result.status).toBe(64);
@@ -69,7 +69,7 @@ describe("phax ls and the command runner", () => {
   });
 
   // ac-help
-  it.fails("answers --help in text, listing --json and --json-schema", () => {
+  it("answers --help in text, listing --json and --json-schema", () => {
     const result = runCli(["ls", "--help"]);
 
     expect(result.status, result.stderr).toBe(0);
@@ -80,7 +80,7 @@ describe("phax ls and the command runner", () => {
   });
 
   // ac-json-schema-command
-  it.fails("prints its contract with --json-schema, its output the run-list format", () => {
+  it("prints its contract with --json-schema, its output the run-list format", () => {
     const result = runCli(["ls", "--json-schema"]);
 
     expect(result.status, result.stderr).toBe(0);

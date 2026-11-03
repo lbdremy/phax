@@ -1,5 +1,4 @@
-import { execSync } from "node:child_process";
-import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import { join } from "node:path";
 import { Effect, Either, Layer } from "effect";
 import { Argument, type Command } from "commander";
 import type { OutputPort } from "../../ports/output.js";
@@ -10,14 +9,8 @@ import { Backend } from "../../ports/backend.js";
 import { FileSystem } from "../../ports/fs.js";
 import { Git } from "../../ports/git.js";
 import type { GitHub } from "../../ports/github.js";
-import {
-  type ArtifactAuthoring,
-  type ArtifactQuestions,
-  inspectArtifact,
-  transitionArtifactBy,
-} from "../../app/artifactStatus.js";
-import { type Arbiter, describeArbiter } from "../../domain/artifact/arbiter.js";
-import { describeStampedShape } from "../../domain/artifact/sidecar.js";
+import { transitionArtifactBy } from "../../app/artifactStatus.js";
+import { describeArbiter } from "../../domain/artifact/arbiter.js";
 import { NodeTerminalLayer } from "../../infra/terminal.js";
 import type { Terminal } from "../../ports/terminal.js";
 import { createArtifact, type CompletionFlags } from "../../app/createArtifact.js";
@@ -33,12 +26,15 @@ import {
   renderDocumentMigrationReport,
   renderMigrationReport,
   renderOrphanRecordWarning,
-  renderQuestionCounts,
 } from "../../domain/artifact/render.js";
 import type { ArtifactKind, ArtifactStatus } from "../../domain/artifact/status.js";
 import { answerJsonSchema } from "../../schemas/answerSchemas.js";
 import { getDecideVerdictsFileJsonSchema } from "../../schemas/decideVerdicts.js";
 import { resolveAuthoringSelection, type Effort } from "../../schemas/phaxConfig.js";
+import { mountRunnerStub, runThroughOutput } from "../bridge.js";
+import { artifactStatusCommand } from "../definitions/artifactStatus.js";
+import { phaxProgram } from "../definitions/program.js";
+import { findGitRoot, repoPaths } from "../definitions/shared.js";
 import { defaultBundleRoot } from "./skills.js";
 import { type DecideCommandOptions, runArtifactDecide } from "./artifactDecide.js";
 import {
@@ -64,26 +60,11 @@ const SKILL_SOURCE_DIR_FOR_KIND: Readonly<Record<ArtifactKind, string>> = {
   plan: "phax-planning",
 };
 
-function findGitRoot(startDir: string): string {
-  try {
-    const root = execSync("git rev-parse --show-toplevel", {
-      cwd: startDir,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-    }).trim();
-    return root.length > 0 ? root : startDir;
-  } catch {
-    return startDir;
-  }
-}
-
 // classifyArtifactPath matches on repo-relative POSIX paths, so a path typed
-// as absolute or cwd-relative on the command line is normalized here against
-// the repo root the FileSystem layer is rooted at.
+// as absolute or cwd-relative on the command line is normalized against the
+// repo root the FileSystem layer is rooted at.
 function toRepoRelativePath(pathArg: string, repoRoot: string): string {
-  const absolute = isAbsolute(pathArg) ? pathArg : resolve(process.cwd(), pathArg);
-  const rel = relative(repoRoot, absolute);
-  return rel.split(sep).join("/");
+  return repoPaths(pathArg, repoRoot).repoRelPath;
 }
 
 function buildLayer(repoRoot: string): Layer.Layer<FileSystem | Git | Terminal> {
@@ -94,76 +75,12 @@ function buildLayer(repoRoot: string): Layer.Layer<FileSystem | Git | Terminal> 
   );
 }
 
-function authoringText(authoring: ArtifactAuthoring): string {
-  if (authoring.kind === "interactive") return "interactive (no sidecar)";
-  const { agreement, sidecarPath } = authoring;
-  const state =
-    agreement === "in-sync"
-      ? "in sync"
-      : agreement === "diverged"
-        ? "diverged — body differs from the sidecar's rendering"
-        : agreement.kind === "invalid"
-          ? `invalid sidecar — ${agreement.message}`
-          : `${describeStampedShape(agreement.format, agreement.shape)} — migrate with \`phax artifact migrate-documents\``;
-  return `headless — sidecar ${sidecarPath} (${state})`;
-}
-
-// `<n> — open <k> (<ids>) · arbitrated <m> (<l> lifted)`, or the departing line.
-function questionsText(questions: ArtifactQuestions): string | null {
-  if (questions.kind === "none") return null;
-  if (questions.kind === "departs") {
-    return `does not parse — line ${String(questions.line)} departs from the §9 format: ${questions.text}`;
-  }
-  const { summary } = questions;
-  return `${String(summary.open.length + summary.arbitrated)} — ${renderQuestionCounts(summary)}`;
-}
-
-// `by machine (<grant>)`, `by operator (<name>)`, or `unattributed`.
-function approverText(approvedBy: Arbiter): string {
-  const described = describeArbiter(approvedBy);
-  return approvedBy.kind === "unattributed" ? described : `by ${described}`;
-}
-
-export async function runArtifactStatus(pathArg: string, out: OutputPort): Promise<number> {
-  const repoRoot = findGitRoot(process.cwd());
-  const repoRelPath = toRepoRelativePath(pathArg, repoRoot);
-  const effect = inspectArtifact(repoRelPath).pipe(Effect.provide(buildLayer(repoRoot)));
-  const result = await Effect.runPromise(Effect.either(effect));
-  if (Either.isLeft(result)) {
-    out.error(result.left.message);
-    return exitCodeForError(result.left);
-  }
-
-  const { kind, status, legalTargets, approval, authoring, questions, orphanRecords } =
-    result.right;
-  out.log(`Path:              ${repoRelPath}`);
-  out.log(`Kind:              ${kind}`);
-  out.log(`Status:            ${status}`);
-  out.log(`Authored:          ${authoringText(authoring)}`);
-  const questionsLine = questionsText(questions);
-  if (questionsLine !== null) out.log(`Questions:         ${questionsLine}`);
-  const anyOpen = questions.kind === "summary" && questions.summary.open.length > 0;
-  if (anyOpen) out.log(`  decide with \`phax artifact decide ${repoRelPath}\``);
-  if (approval.kind === "recorded") {
-    out.log(
-      `Approved:          ${approval.date} @ ${approval.baseline} ${approverText(approval.approvedBy)}`,
-    );
-    out.log(`Edited since:      ${approval.editedSinceApproval ? "yes" : "no"}`);
-  } else if (approval.kind === "unrecorded") {
-    out.log(`Approved:          (unrecorded — run phax artifact approve to record)`);
-  }
-  // Approval waits for a §9 that parses with no open question: the lock in
-  // transitionArtifact.
-  const approvalCondition =
-    questions.kind === "departs"
-      ? " (once §9 parses and no question is open)"
-      : anyOpen
-        ? " (once no question is open)"
-        : "";
-  const targets = legalTargets.map((t) => (t === "Approved" ? `${t}${approvalCondition}` : t));
-  out.log(`Legal transitions: ${targets.length > 0 ? targets.join(", ") : "(none — terminal)"}`);
-  for (const orphan of orphanRecords) out.warn(renderOrphanRecordWarning(orphan));
-  return 0;
+/** `phax artifact status` answers through the command runner
+ *  (src/cli/definitions/artifactStatus.ts); this is kept, until the last plan of
+ *  command-contracts, as the definition's run and render over the OutputPort, for the tests
+ *  that call it. */
+export function runArtifactStatus(pathArg: string, out: OutputPort): Promise<number> {
+  return runThroughOutput(artifactStatusCommand, { args: [pathArg] }, out, { lineByLine: true });
 }
 
 export interface TransitionFlags {
@@ -578,14 +495,8 @@ export function registerArtifactCommand(program: Command, out: OutputPort): void
     .command("artifact")
     .description("Inspect and transition the lifecycle status of a spec or plan");
 
-  artifactCmd
-    .command("status")
-    .description("Report an artifact's kind, current status, and legal transitions")
-    .argument("<path>", "Path to a spec or plan file under docs/specs/ or docs/plans/")
-    .action(async (path: string) => {
-      const exitCode = await runArtifactStatus(path, out);
-      process.exit(exitCode);
-    });
+  // `status` answers through the runner: its help-only stub, in place.
+  mountRunnerStub(artifactCmd, phaxProgram, ["artifact", "status"]);
 
   for (const t of TRANSITIONS) {
     const transitionCmd = artifactCmd

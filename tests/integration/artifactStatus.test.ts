@@ -1653,6 +1653,8 @@ ${bodyEdit(renderSpecBody(decoded.right))}`;
       expect(Either.isRight(result) && result.right.questions).toEqual({
         kind: "summary",
         summary: { open: [], arbitrated: 0, lifted: 0 },
+        arbitrated: [],
+        lifted: [],
       });
     });
 

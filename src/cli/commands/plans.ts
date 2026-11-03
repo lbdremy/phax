@@ -1,11 +1,7 @@
-import { relative, resolve, sep } from "node:path";
 import { Effect, Either, Layer } from "effect";
 import type { Command } from "commander";
 import type { OutputPort } from "../../ports/output.js";
 import { loadConfig } from "../../app/loadConfig.js";
-import { lintPlan } from "../../app/lintPlan.js";
-import { hasLintErrors } from "../../domain/plan/lint.js";
-import { renderLintReport } from "../../domain/plan/lintRender.js";
 import { plansStalenessReport, applyStalenessReport } from "../../app/planStaleness.js";
 import {
   renderOrphanRecordWarning,
@@ -14,7 +10,6 @@ import {
   type StalenessFlip,
 } from "../../domain/artifact/render.js";
 import { makeNodeGitLayer } from "../../infra/git.js";
-import { NodeShellLayer } from "../../infra/shell.js";
 import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
 import { DEFAULT_PROVIDER_CONFIG } from "../../domain/routing/defaults.js";
 import {
@@ -25,7 +20,9 @@ import {
 import type { ResolvedConfig } from "../../schemas/phaxConfig.js";
 import { runPlansOverlap, type PlansOverlapCommandOptions } from "./plansOverlap.js";
 import { runPlansEstimate, type PlansEstimateCommandOptions } from "./plansEstimate.js";
-import { runPlansOverview } from "./plansOverview.js";
+import { mountRunnerStub, runThroughOutput } from "../bridge.js";
+import { phaxProgram } from "../definitions/program.js";
+import { plansLintCommand } from "../definitions/plansLint.js";
 
 export interface PlansStatusCommandOptions {
   readonly apply?: true;
@@ -110,47 +107,15 @@ export interface PlansLintCommandOptions {
   readonly json?: true;
 }
 
-export async function runPlansLint(
+/** `phax plans lint` answers through the command runner (src/cli/definitions/plansLint.ts);
+ *  this is kept, until the last plan of command-contracts, as the definition's run, render and
+ *  verdict over the OutputPort, for the tests that call it. */
+export function runPlansLint(
   plan: string,
   opts: PlansLintCommandOptions,
   out: OutputPort,
 ): Promise<number> {
-  const configResult = loadConfig(process.cwd());
-  if (Either.isLeft(configResult)) {
-    // 2, as for every invalid config: exit 1 means the plan has an error.
-    out.error(`Config error: ${configResult.left.message}`);
-    return 2;
-  }
-  const config = configResult.right;
-
-  // Absolutize against the invocation directory: the FileSystem layer is rooted
-  // at repoRoot, so a bare relative arg would otherwise be reinterpreted as
-  // repo-relative (same reasoning as `plans overlap`).
-  const planMdPath = resolve(process.cwd(), plan);
-  // classifyArtifactPath matches on repo-relative POSIX paths; a plan outside
-  // the repo yields `../…`, which never classifies as an artifact.
-  const repoRelPath = relative(config.repoRoot, planMdPath).split(sep).join("/");
-
-  // Filesystem and shell only, no Backend, so the lint cannot reach a model.
-  const reportResult = await Effect.runPromise(
-    lintPlan({ planMdPath, reportPath: plan, repoRelPath, config }).pipe(
-      Effect.either,
-      Effect.provide(Layer.mergeAll(makeRepoRootedFileSystemLayer(config), NodeShellLayer)),
-    ),
-  );
-  if (Either.isLeft(reportResult)) {
-    out.error(reportResult.left.message);
-    return exitCodeForError(reportResult.left);
-  }
-  const report = reportResult.right;
-
-  if (opts.json === true) {
-    out.log(JSON.stringify(report, null, 2));
-  } else {
-    out.log(renderLintReport(report));
-  }
-
-  return hasLintErrors(report.findings) ? 1 : 0;
+  return runThroughOutput(plansLintCommand, { args: [plan] }, out, { json: opts.json === true });
 }
 
 // `plans` is the parent command; `status` and `overlap` are real nested
@@ -199,33 +164,9 @@ export function registerPlansCommand(program: Command, out: OutputPort): void {
       process.exit(exitCode);
     });
 
-  plansCmd
-    .command("lint")
-    .description("Report a plan's mechanical defects without running it")
-    .argument("<plan>", "Path to the plan.md")
-    .option("--json", "Emit the findings as JSON")
-    .action(async (plan: string, opts: { json?: boolean }) => {
-      const exitCode = await runPlansLint(
-        plan,
-        opts.json === true ? { json: true as const } : {},
-        out,
-      );
-      process.exit(exitCode);
-    });
-
-  plansCmd
-    .command("overview")
-    .description("Lay a plan out phase by phase, with its planned files by part and its test lines")
-    .argument("<plan>", "Path to the plan.md")
-    .option("--json", "Emit the overview as JSON")
-    .action(async (plan: string, opts: { json?: boolean }) => {
-      const exitCode = await runPlansOverview(
-        plan,
-        opts.json === true ? { json: true as const } : {},
-        out,
-      );
-      process.exit(exitCode);
-    });
+  // `lint` and `overview` answer through the runner: their help-only stubs, in place.
+  mountRunnerStub(plansCmd, phaxProgram, ["plans", "lint"]);
+  mountRunnerStub(plansCmd, phaxProgram, ["plans", "overview"]);
 
   plansCmd
     .command("estimate")
