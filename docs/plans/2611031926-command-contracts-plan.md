@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2611031738-command-contracts.md
 completes-spec: false
+approved:
+  date: 2026-11-03
+  baseline: 3c1b5b4
 ---
 # Command runner and mod answers
 
