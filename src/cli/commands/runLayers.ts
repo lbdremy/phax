@@ -176,7 +176,7 @@ export const EXIT_CODE_MEANINGS: ReadonlyArray<{
   readonly meaning: string;
 }> = [
   { code: 0, meaning: "Success" },
-  { code: 1, meaning: "Generic failure (refusal, bad arguments, no project config)" },
+  { code: 1, meaning: "Generic failure (refusal, no project config)" },
   { code: 2, meaning: "Plan or config validation" },
   { code: 3, meaning: "Unsafe git state" },
   { code: 4, meaning: "Gate failure (fix attempts exhausted, or a step refused)" },
@@ -190,6 +190,11 @@ export const EXIT_CODE_MEANINGS: ReadonlyArray<{
   { code: 12, meaning: "Artifact lifecycle refusal" },
   { code: 13, meaning: "Awaiting review at an interactive or held phase (resumable)" },
   { code: 14, meaning: "Provider unreachable: network failure (resumable)" },
+  {
+    code: 64,
+    meaning: "Refused call: unknown command or option, or an argument that does not decode",
+  },
+  { code: 70, meaning: "Defect: an unexpected failure, a bug in phax" },
 ];
 
 export function exitCodeForError(err: unknown): number {

@@ -21,6 +21,14 @@ phax schema upgrade                   # phax.schema.json, the editor schema of p
 
 Only the releases that ask for something are listed. phax never asks for a step silently: a command that needs one refuses with exit 12 and names it.
 
+### 0.34.0
+
+- **Command line: a refused call exits 64.** An unknown command, an unknown option or a bad argument (a missing argument or option value) now exits 64 instead of 1, with the same text. A group called alone, such as `phax artifact`, writes its help on stderr and exits 64. A script that checks for exit 1 on a mistyped call checks for 64.
+- **Command line: an unexpected crash exits 70.** It writes `defect: …` on stderr, where it wrote `Unexpected error: …` and exited 1. A command's own refusals keep their codes, and the phase guard still refuses with exit 1.
+- **Command line: `phax --json-schema` prints the contracts of the commands answering through the runner**, with the program's exit codes and the shapes of its message lines. `--json-schema` after a command that does not answer through the runner is refused with exit 64.
+
+Later entries of this release follow.
+
 ### 0.33.0
 
 - **Plan documents, run plans and extraction answers: `plan-document`, `phax-plan` and `phax-plan-extraction` are stamped 0.33.0.** A phase's `oracle: { dischargedBy, files }` key is `acceptance: { passedBy, files }`, a test line's loop `oracle` is `acceptance`, the technique `boundary` is accepted, and the criterion words `acceptance`, `in-phase` and `oracle` are reserved: no criterion id may be one of them.

@@ -998,23 +998,25 @@ Each commit on `phax/records/v1` holds only its own record, so `git show phax/re
 
 ## Exit codes
 
-| Code | Meaning                                                     |
-| ---- | ----------------------------------------------------------- |
-| 0    | Success                                                     |
-| 1    | Generic failure (refusal, bad arguments, no project config) |
-| 2    | Plan or config validation                                   |
-| 3    | Unsafe git state                                            |
-| 4    | Gate failure (fix attempts exhausted, or a step refused)    |
-| 5    | Agent invocation error (Claude, Vibe, or Codex)             |
-| 6    | Archive blocked by a dirty worktree                         |
-| 7    | Lock conflict                                               |
-| 8    | Rate or usage limit hit (resumable)                         |
-| 9    | Phase produced no changes (resumable)                       |
-| 10   | Registry corruption                                         |
-| 11   | Security or preflight refusal                               |
-| 12   | Artifact lifecycle refusal                                  |
-| 13   | Awaiting review at an interactive or held phase (resumable) |
-| 14   | Provider unreachable: network failure (resumable)           |
+| Code | Meaning                                                                      |
+| ---- | ---------------------------------------------------------------------------- |
+| 0    | Success                                                                      |
+| 1    | Generic failure (refusal, no project config)                                 |
+| 2    | Plan or config validation                                                    |
+| 3    | Unsafe git state                                                             |
+| 4    | Gate failure (fix attempts exhausted, or a step refused)                     |
+| 5    | Agent invocation error (Claude, Vibe, or Codex)                              |
+| 6    | Archive blocked by a dirty worktree                                          |
+| 7    | Lock conflict                                                                |
+| 8    | Rate or usage limit hit (resumable)                                          |
+| 9    | Phase produced no changes (resumable)                                        |
+| 10   | Registry corruption                                                          |
+| 11   | Security or preflight refusal                                                |
+| 12   | Artifact lifecycle refusal                                                   |
+| 13   | Awaiting review at an interactive or held phase (resumable)                  |
+| 14   | Provider unreachable: network failure (resumable)                            |
+| 64   | Refused call: unknown command or option, or an argument that does not decode |
+| 70   | Defect: an unexpected failure, a bug in phax                                 |
 
 `phax prune` uses a subset of these codes: 0 when every selected run was pruned, for a `--dry-run` preview, or when there is nothing to prune; 1 when nothing was deleted (a bad selection, no project config, or a declined or missing confirmation); 3 when at least one selected run was kept; 7 when a selected run is locked.
 

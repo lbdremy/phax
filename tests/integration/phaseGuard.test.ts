@@ -1,4 +1,16 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { Command } from "commander";
+import { Effect } from "effect";
+import * as Schema from "effect/Schema";
+import { isInPhaseWorktree } from "../../src/app/loadConfig.js";
+import { dispatch } from "../../src/cli/bridge.js";
+import {
+  defineCommand,
+  defineProgram,
+  reject,
+  strip,
+} from "../../src/cli/commandLibrary/contract/index.js";
+import { phaxProgram } from "../../src/cli/definitions/program.js";
 import { execSync, spawnSync, type SpawnSyncReturns } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -108,6 +120,60 @@ describe("phase guard — inside a phase worktree", () => {
     const result = runCli(phaseWorktree, ["--version"]);
     expect(result.status).toBe(0);
     expect(result.stderr).not.toContain("not available inside a phase worktree");
+  });
+
+  it("lets phax --json-schema print the runner's catalogue", () => {
+    const result = runCli(phaseWorktree, ["--json-schema"]);
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe("");
+  });
+
+  it("refuses on the runner's path too, before the runner runs, with exit 1", async () => {
+    const archive = defineCommand({
+      name: "archive",
+      summary: "Archive a run",
+      input: { args: reject(Schema.Tuple(Schema.String)) },
+      output: strip(Schema.String),
+      exits: {},
+      run: () => Effect.succeed("archived"),
+    });
+    const program = defineProgram({
+      name: "phax",
+      version: phaxProgram.version,
+      exits: phaxProgram.exits,
+      commands: [archive],
+    });
+    for (const [argv, expected] of [
+      [["archive", "x"], `${guardMessage("archive")}\n`],
+      [
+        ["archive", "x", "--json"],
+        `${JSON.stringify({
+          kind: "refused",
+          source: "command",
+          path: ["archive"],
+          expected: "a command allowed inside a phase worktree",
+          text: guardMessage("archive"),
+          exit: 1,
+        })}\n`,
+      ],
+    ] as const) {
+      let err = "";
+      const runRunner = vi.fn(async () => 0);
+      const buildCommander = vi.fn(() => new Command());
+      const code = await dispatch(program, {
+        argv,
+        inPhaseWorktree: () => isInPhaseWorktree(phaseWorktree),
+        runRunner,
+        buildCommander,
+        err: (text) => {
+          err += text;
+        },
+      });
+      expect(code).toBe(1);
+      expect(err).toBe(expected);
+      expect(runRunner).not.toHaveBeenCalled();
+      expect(buildCommander).not.toHaveBeenCalled();
+    }
   });
 
   it("lets phax schema upgrade reach its own code", () => {

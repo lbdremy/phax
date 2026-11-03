@@ -39,6 +39,9 @@ import { runBrief } from "./commands/brief.js";
 import { registerSchemaCommand } from "./commands/schema.js";
 import { runCompletions } from "./commands/completions.js";
 import { runReport } from "./commands/report.js";
+import { mountRunnerStubs } from "./bridge.js";
+import { OPTION_HELP } from "./commandLibrary/contract/index.js";
+import { phaxProgram } from "./definitions/program.js";
 
 export function buildProgram(): Command {
   const program = new Command();
@@ -61,7 +64,9 @@ export function buildProgram(): Command {
       "--usage-format <format>",
       "Format for --usage output: kdl (default, no external dependency) or json (requires the usage CLI)",
       "kdl",
-    );
+    )
+    // Help only: the bridge sends `phax --json-schema` to the runner before Commander parses.
+    .option("--json-schema", OPTION_HELP.anyJsonSchema);
 
   program.hook("preAction", async (_root, actionCommand) => {
     const opts = program.opts<{ usage?: boolean; usageFormat?: string }>();
@@ -405,6 +410,10 @@ export function buildProgram(): Command {
   registerArtifactCommand(program, consoleOutput);
   registerPlansCommand(program, consoleOutput);
   registerRecordsCommand(program, consoleOutput);
+
+  // The runner's commands, mounted for help only: the bridge sends every call
+  // naming one to the runner before Commander parses.
+  mountRunnerStubs(program, phaxProgram);
 
   // Wire long help and examples into the runtime --help output after all
   // registrations so commands from *Register.ts files are covered without

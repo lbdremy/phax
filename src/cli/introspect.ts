@@ -1,4 +1,5 @@
 import type { Command } from "commander";
+import { isRunnerStub } from "./bridge.js";
 
 export interface CommandNode {
   name: string;
@@ -31,8 +32,12 @@ export function isRetiredOption(option: { readonly long?: string | undefined }):
 }
 
 function walkCommand(cmd: Command): CommandNode {
+  // A runner command's help-only stub declares --json-schema for its help;
+  // phax.usage.kdl lists it once, at the root.
+  const stub = isRunnerStub(cmd);
   const flags = cmd.options
     .filter((opt) => !isRetiredOption(opt))
+    .filter((opt) => !(stub && opt.long === "--json-schema"))
     .map((opt) => opt.long)
     .filter((long): long is string => long !== undefined)
     .map((long) => long.replace(/^--/, ""))

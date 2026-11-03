@@ -15,6 +15,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runRun } from "../../src/cli/commands/run.js";
 import { registerResumeCommand } from "../../src/cli/commands/resumeRegister.js";
 import { buildProgram } from "../../src/cli/program.js";
+import { commanderExit } from "../../src/cli/bridge.js";
+import { phaxProgram } from "../../src/cli/definitions/program.js";
 import {
   createPreflightRepo,
   type Fixture,
@@ -316,7 +318,7 @@ describe("the hold is fixed for the run and comes only from the flag", () => {
     expect(resume.options.map((o) => o.long)).not.toContain("--hold");
   });
 
-  it("refuses `phax resume <run> --hold` as an unknown option with exit 1", async () => {
+  it("refuses `phax resume <run> --hold` as an unknown option, which the bridge exits 64", async () => {
     const program = new Command();
     program.exitOverride();
     program.configureOutput({ writeErr: () => undefined, writeOut: () => undefined });
@@ -335,7 +337,8 @@ describe("the hold is fixed for the run and comes only from the flag", () => {
         (e: unknown) => e as { code: string; exitCode: number },
       );
 
-    expect(failure).toMatchObject({ code: "commander.unknownOption", exitCode: 1 });
+    expect(failure).toMatchObject({ code: "commander.unknownOption" });
+    expect(commanderExit(phaxProgram, failure, () => undefined)).toBe(64);
     expect(runResume).not.toHaveBeenCalled();
   });
 });

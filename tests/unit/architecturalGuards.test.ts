@@ -426,6 +426,23 @@ describe("architectural guard: only the runner's adapter imports commander", () 
   });
 });
 
+// ── phax's command definitions are free of the parser ────────────────────────
+// src/cli/definitions/ holds phax's commands as the runner reads them: data and
+// Effects over the contract alone, so that the runner, not the definitions,
+// owns the parser.
+
+describe("architectural guard: phax's command definitions never import commander", () => {
+  it("no file under src/cli/definitions/ imports commander", () => {
+    const definitionsRoot = join(srcRoot, "cli", "definitions");
+    const files = listTsFiles(definitionsRoot);
+    expect(files.length).toBeGreaterThan(0);
+    const importers = files
+      .map((absPath) => relative(repoRoot, absPath).split("\\").join("/"))
+      .filter((rel) => COMMANDER_IMPORT.test(readFileSync(join(repoRoot, rel), "utf8")));
+    expect(importers).toEqual([]);
+  });
+});
+
 // ── Repo-rooted FileSystem layer ──────────────────────────────────────────────
 // The FileSystem port is rooted at config.repoRoot so phax keeps git's
 // work-from-anywhere contract. A command under src/cli/commands/ must build its
