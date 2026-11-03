@@ -54,7 +54,7 @@ Every command above is already in `security.agentCommands` in phax.json: `pnpm e
 - The gains the port makes, each written as the library would carry it and documented as a gain in its module. Groups hold groups. An argument's schema annotation declares its completer, written as top-level `complete` nodes. A command declares `verdicts`, codes its successful output answers with. A text stdin document is handed to run as read. `run` receives `progress`, written as note lines as they happen. A command declares `texts`, a declared error's sentence for a person. The program names its usage flag (`--usage`, `--usage-format`) instead of the hidden `--usage-spec`, and says where its usage spec lists `--json-schema` (on every command, the library's default, or once at the root). The usage spec writes the program's `refused` and `defect` codes at the root. The program declares options for every command (`--verbose`, `--trace`). A stdin flag may require its value, spaced or attached (`--verdicts <file|->`), per q-stdin-flag-value. phax lists `--json-schema` once at the root, so §5.21's "only `--json` added" holds.
 - Under `--json` inside a phase worktree, the phase guard still refuses before any command runs, with exit 1. It writes one `refused` line: `source` "command", `path` the command's words, `expected` "a command allowed inside a phase worktree", `text` today's sentence and `exit` 1. Without `--json` it writes today's sentence. Loss accepted: a refused line whose exit is not the program's `refused` code. The guard's code is documented as 1 and the spec keeps it.
 
-## Open questions
+## Arbitrated questions
 
 ### q-ls-records-column — Today `phax ls` shows its RECORDS column whenever this project's records are configured, even when no listed run belongs to this project, so every cell is `-`. The run-list document cannot say this: a row's `recordsPending` is null both when records are off and when the row belongs to another project. A render reads only the output. How does the migrated `ls` keep today's table?
 
@@ -62,6 +62,13 @@ Every command above is already in `security.agentCommands` in phax.json: `pnpm e
 - view-gain — A further gain: `run` may hand `render` a view-only value beside the output, which `--json` never writes, so `ls` passes whether records are configured — abandons: the library's rule that a render reads only the output: one more gain outside §10's settled list for the published package to take upstream, for a single column
 
 Recommendation: derive — The column it drops in that one case holds only `-` cells and carries no fact. A render that reads only the document is the pattern every later command follows, and the gain would widen the contract for one cosmetic column.
+
+Decision: derive — by operator (Rémy Loubradou), 2026-11-03
+Why: The column of `-` cells carries no fact; the render reads only the run-list document, as every later command will. Advocate: The strongest case for view-gain: it keeps today's table byte for byte in every case, including records configured with no run of this project, so the text a person reads from `ls` never changes, as §5.4 and §7 require. Principles: C1, C5. Reversibility: cheap. Revised: none. Phase: phase-05.
+
+## Decision log
+
+- 2026-11-03 q-ls-records-column decided derive — operator (Rémy Loubradou)
 
 ---
 
