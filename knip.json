@@ -8,6 +8,7 @@
     "src/app/*.ts",
     "tests/**/*.test.ts",
     "tests/type/*.ts",
+    "tests/unit/commandLibrary/support/*.ts",
     "packages/schemas/src/index.ts",
     "packages/schemas/build/*.ts",
     "site/rspress.config.ts",
