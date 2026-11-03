@@ -50,6 +50,36 @@ function programSwitches(program: Program<unknown>): ReadonlySet<string> {
   );
 }
 
+/** The call's words once the program's own options are set aside: its switches, its usage
+ *  format option with its value (spaced or attached), and a `--` written before the command
+ *  word, which Commander reads past to the command. */
+function leadingWords(
+  program: Program<unknown>,
+  argv: ReadonlyArray<string>,
+): ReadonlyArray<string> {
+  const switches = programSwitches(program);
+  const format = program.usage === undefined ? undefined : `--${program.usage.format}`;
+  const words: string[] = [];
+  let index = 0;
+  for (; index < argv.length; index += 1) {
+    const word = argv[index] ?? "";
+    if (switches.has(word)) continue;
+    if (format !== undefined && word === format) {
+      index += 1;
+      continue;
+    }
+    if (format !== undefined && word.startsWith(`${format}=`)) continue;
+    break;
+  }
+  if (argv[index] === END_OF_OPTIONS) index += 1;
+  for (; index < argv.length; index += 1) {
+    const word = argv[index] ?? "";
+    if (word === END_OF_OPTIONS) break;
+    if (!switches.has(word)) words.push(word);
+  }
+  return words;
+}
+
 /** Where the bridge sends a call. */
 export type Route =
   | { readonly to: "runner"; readonly command: ReadonlyArray<string> }
@@ -60,8 +90,7 @@ export type Route =
  *  one of the program's commands (the longest name that matches), or when it is the root's
  *  `--json-schema`; to Commander otherwise. */
 export function route(program: Program<unknown>, argv: ReadonlyArray<string>): Route {
-  const switches = programSwitches(program);
-  const leading = optionWords(argv).filter((word) => !switches.has(word));
+  const leading = leadingWords(program, argv);
   if (leading[0] === JSON_SCHEMA_OPTION) return { to: "runner", command: undefined };
   let named: ReadonlyArray<string> | undefined;
   for (const command of program.commands) {
@@ -134,8 +163,8 @@ export interface BridgeEdge {
   /** The arguments after the executable and the script. */
   readonly argv: ReadonlyArray<string>;
   readonly inPhaseWorktree: () => boolean;
-  /** The runner, run over the process: the exit code it answers. */
-  readonly runRunner: () => Promise<number>;
+  /** The runner, run over the process with these words: the exit code it answers. */
+  readonly runRunner: (argv: ReadonlyArray<string>) => Promise<number>;
   /** Today's Commander program. */
   readonly buildCommander: () => Command;
   readonly err: (text: string) => void;
@@ -147,6 +176,15 @@ export async function dispatch(
   program: Program<unknown>,
   edge: BridgeEdge,
 ): Promise<number | undefined> {
+  // Commander's `help <command>` names a runner command: the runner's own help answers it, as
+  // `<command> --help` does, rather than the help-only stub's.
+  const leading = leadingWords(program, edge.argv);
+  if (leading[0] === "help") {
+    const asked = route(program, leading.slice(1));
+    if (asked.to === "runner" && asked.command !== undefined) {
+      return edge.runRunner([...asked.command, "--help"]);
+    }
+  }
   const routed = route(program, edge.argv);
   if (routed.to === "runner") {
     if (routed.command !== undefined && edge.inPhaseWorktree()) {
@@ -156,7 +194,7 @@ export async function dispatch(
         return refused.exit;
       }
     }
-    return edge.runRunner();
+    return edge.runRunner(edge.argv);
   }
   // An unmigrated command answers no contract: `--json-schema` is refused before Commander,
   // which would otherwise read the root's help-only option after the command.
@@ -197,7 +235,7 @@ export function runBridge(process: NodeJS.Process, buildCommander: () => Command
   void dispatch(phaxProgram, {
     argv: process.argv.slice(2),
     inPhaseWorktree: () => isInPhaseWorktree(process.cwd()),
-    runRunner: () => runPhaxProgram(processIo(process)),
+    runRunner: (argv) => runPhaxProgram({ ...processIo(process), argv }),
     buildCommander,
     err: (text) => {
       process.stderr.write(text);

@@ -35,6 +35,8 @@ export const phaxProgram = defineProgram({
   exits: { refused: 64, defect: 70 },
   usage: { flag: "usage", format: "usage-format", jsonSchema: "program" },
   options: phaxProgramOptions,
+  // As the Commander program writes after each of its refusals.
+  refusalHint: "Run `phax --help` for usage.",
   // In the order the Commander program lists them, so that help and the usage spec keep their
   // positions. A group holds only its migrated commands: Commander keeps the group itself, with
   // its other commands, until the last of them moves.

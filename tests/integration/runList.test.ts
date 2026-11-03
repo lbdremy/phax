@@ -1,5 +1,12 @@
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, realpathSync, renameSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  renameSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -112,7 +119,7 @@ function makeOutput() {
   };
 }
 
-async function lsJson(options: { awaitingReview?: boolean } = {}) {
+async function lsJson(options: { awaitingReview?: boolean; archived?: boolean } = {}) {
   const { runLs } = await import("../../src/cli/commands/ls.js");
   const { out, logs } = makeOutput();
   const code = await runLs({ json: true, ...options }, out);
@@ -211,6 +218,7 @@ describe("phax ls on a waiting run whose review-stop document is defective", () 
 });
 
 const PULL_REQUEST = "https://github.com/example/invoices/pull/12";
+const ARCHIVED_PULL_REQUEST = "https://github.com/example/invoices/pull/9";
 
 function publication(extra: Record<string, unknown>): string {
   return JSON.stringify({
@@ -253,6 +261,30 @@ describe("phax ls --json carries the pull request phax opened", () => {
 
     expect(row(document.runs, SHORT)["pullRequest"]).toBeNull();
     expect(row(document.runs, "credit-notes")["pullRequest"]).toBeNull();
+  });
+
+  it("reads an archived run's pull request from its archive folder", async () => {
+    // As `phax archive` leaves it: the run folder moved under <archivePath>/runs, and the
+    // registry entry archived with its archivePath.
+    writeFileSync(
+      join(failed.runPath, "publication.json"),
+      publication({ pullRequestUrl: ARCHIVED_PULL_REQUEST }),
+    );
+    const archivePath = join(world.stateRoot, "archive", `${NAMESPACE}.payments-fix`);
+    mkdirSync(archivePath, { recursive: true });
+    renameSync(failed.runPath, join(archivePath, "runs"));
+    const registryPath = join(world.stateRoot, "registry.json");
+    const registry = JSON.parse(readFileSync(registryPath, "utf8")) as {
+      runs: Record<string, unknown>[];
+    };
+    registry.runs = registry.runs.map((entry) =>
+      entry["shortName"] === "payments-fix" ? { ...entry, state: "archived", archivePath } : entry,
+    );
+    writeFileSync(registryPath, JSON.stringify(registry));
+
+    const document = await lsJson({ archived: true });
+
+    expect(row(document.runs, "payments-fix")["pullRequest"]).toBe(ARCHIVED_PULL_REQUEST);
   });
 });
 

@@ -176,6 +176,16 @@ describe("route", () => {
     expect(route(phaxProgram, ["plans", "status"])).toEqual({ to: "commander" });
     expect(route(phaxProgram, ["artifact", "approve", "x"])).toEqual({ to: "commander" });
   });
+
+  // Commander reads past these to the command word, and would call the help-only stub's action.
+  it.each([
+    [["--usage-format", "kdl", "ls"]],
+    [["--usage-format=kdl", "ls"]],
+    [["--", "ls"]],
+    [["--verbose", "--usage-format", "json", "--", "ls"]],
+  ] as const)("sends %j to the runner, the program's options set aside", (argv) => {
+    expect(route(phaxProgram, argv)).toEqual({ to: "runner", command: ["ls"] });
+  });
 });
 
 describe("the phase guard on the runner's path", () => {
@@ -222,6 +232,20 @@ describe("the phase guard on the runner's path", () => {
     const call = edge(["archive", "x"], { inPhaseWorktree });
     expect(await dispatch(program, call.edge)).toBe(0);
     expect(call.runRunner).toHaveBeenCalledOnce();
+  });
+});
+
+describe("help on a runner command", () => {
+  it("answers `help <command>` with the runner's own `<command> --help`", async () => {
+    const call = edge(["--verbose", "help", "plans", "lint"]);
+    await dispatch(phaxProgram, call.edge);
+    expect(call.runRunner).toHaveBeenCalledWith(["plans", "lint", "--help"]);
+  });
+
+  it("leaves `help` on an unmigrated command to Commander", async () => {
+    const call = edge(["help", "validate"]);
+    await dispatch(phaxProgram, call.edge);
+    expect(call.runRunner).not.toHaveBeenCalled();
   });
 });
 

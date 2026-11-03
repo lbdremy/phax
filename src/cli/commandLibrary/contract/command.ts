@@ -233,6 +233,9 @@ export interface Program<R> {
    *  its words stand, decoded once and handed to every `run` as `program`; the usage spec writes
    *  them as global flags. */
   readonly options?: Source<StructContract>;
+  /** Gain carried for upstream (a refusal's hint): a line written after a refusal's text without
+   *  `--json`, as `Run \`phax --help\` for usage.`; never part of a `refused` line. */
+  readonly refusalHint?: string;
 }
 
 /** The process, as data: what the edge hands a runner, so that a runner is proved without one. */

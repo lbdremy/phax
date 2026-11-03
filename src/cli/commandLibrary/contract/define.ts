@@ -133,6 +133,7 @@ export function defineProgram<const C extends ReadonlyArray<Command<any> | Group
   readonly commands: C;
   readonly usage?: ProgramUsage;
   readonly options?: Source<StructContract>;
+  readonly refusalHint?: string;
 }): Program<Services<C[number]>> {
   // A program of commands alone is answered as it is given.
   if (!program.commands.some(isGroup)) {

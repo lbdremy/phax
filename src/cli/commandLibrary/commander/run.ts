@@ -48,6 +48,7 @@ import {
 import { declaredOf, defectText, outcomeOf } from "./outcome.js";
 import { argShapes, flagShapes } from "./shape.js";
 import { readDocument, takeFlag, type Document } from "./stdin.js";
+import { suggestSimilar } from "./suggest.js";
 import {
   HELP,
   isOption,
@@ -389,11 +390,14 @@ function precheck<R>(
     );
   }
   if (located.tag === "Unknown") {
-    return refusal(`error: unknown command '${located.word}'`, {
-      source: "command",
-      path: [located.word],
-      expected: `one of ${located.known.join(", ")}`,
-    });
+    return refusal(
+      `error: unknown command '${located.word}'${suggestSimilar(located.word, located.known)}`,
+      {
+        source: "command",
+        path: [located.word],
+        expected: `one of ${located.known.join(", ")}`,
+      },
+    );
   }
   // A group alone is Commander's: its help on stderr, refused. Its own help is Commander's too.
   if (located.tag === "Group") return { words: [...located.path, ...kept] };
@@ -421,9 +425,14 @@ function precheck<R>(
     });
   }
   if (inputs.flags?.undeclared !== "strip") {
+    const known = [
+      ...(inputs.flags === undefined ? [] : flagShapes(inputs.flags.contract)),
+      ...(program.options === undefined ? [] : flagShapes(program.options.contract)),
+    ].map((flag) => `--${flag.option}`);
+    known.push("--json", "--json-schema", "--help");
     for (const option of read.undeclared) {
       problems.push({
-        text: `error: unknown option '${option}'`,
+        text: `error: unknown option '${option}'${suggestSimilar(option, known)}`,
         // Port change (command-contracts §5.8): the option named without its dashes.
         details: {
           source: "flags",
@@ -743,7 +752,9 @@ const refusedOut = (
             refused.text,
             program.exits.refused,
           )
-        : refused.text,
+        : program.refusalHint === undefined
+          ? refused.text
+          : `${refused.text}${line(program.refusalHint)}`,
     )
     .pipe(Effect.as(program.exits.refused));
 

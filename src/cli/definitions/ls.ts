@@ -8,6 +8,7 @@ import { recordsClonePath } from "../../app/recordsSync.js";
 import { readRegistry } from "../../app/registry.js";
 import {
   findCurrentPhase,
+  readArchivedPullRequestUrl,
   readPullRequestUrl,
   resolveRun,
   type RunReviewInfo,
@@ -219,9 +220,14 @@ function listRuns(flags: LsFlags) {
         qualifiedName: runKey(entry.namespace, entry.shortName),
         archivePath: entry.archivePath,
         stop: stop === null ? null : withSchemaUrl("review-stop", stop.reviewStop),
-        // The run's pull request: its publication record's URL, or none for a run
-        // that has none or whose folder is gone (an archived run).
-        pullRequest: info === undefined ? undefined : readPullRequestUrl(info.runPath),
+        // The run's pull request: its publication record's URL, read from the run
+        // folder, or from the archive once `phax archive` moved it there.
+        pullRequest:
+          info !== undefined
+            ? readPullRequestUrl(info.runPath)
+            : entry.archivePath !== undefined
+              ? readArchivedPullRequestUrl(entry.archivePath)
+              : undefined,
       });
     }
     return withSchemaUrl("run-list", buildRunList(rows));
@@ -297,7 +303,7 @@ function completionLines(list: RunListFile): string {
 export const lsCommand = defineCommand({
   name: "ls",
   summary: "List runs from the registry",
-  help: "Lists runs from the local registry (~/.phax/runs/). With no filter flags, shows all runs. Use status filters to narrow output: --active (created or running), --failed, --review-open (finished, open for human review), --awaiting-review (stopped at an interactive phase), or --archived. A run waiting at a stop reads awaiting_review (declared) or awaiting_review (held), and its PHASE column names the stopped phase. Use --json for the versioned run list: one run-list document (a $schema and a runs array) whose runs carry qualifiedName, namespace, shortName, state, branch, currentPhase, gateProfile, updatedAt, lockState, recordsPending, archivePath and stop. A value that is unknown is null, and stop is the run's review-stop document, or null when the run is not waiting at a stop.",
+  help: "Lists runs from the local registry (~/.phax/runs/). With no filter flags, shows all runs. Use status filters to narrow output: --active (created or running), --failed, --review-open (finished, open for human review), --awaiting-review (stopped at an interactive phase), or --archived. A run waiting at a stop reads awaiting_review (declared) or awaiting_review (held), and its PHASE column names the stopped phase. Use --json for the versioned run list: one run-list document (a $schema and a runs array) whose runs carry qualifiedName, namespace, shortName, state, branch, currentPhase, gateProfile, updatedAt, lockState, recordsPending, archivePath, stop and pullRequest. A value that is unknown is null, stop is the run's review-stop document, or null when the run is not waiting at a stop, and pullRequest is the URL of the pull request phax opened for the run, or null when it opened none.",
   examples: [
     "phax ls",
     "phax ls --review-open",

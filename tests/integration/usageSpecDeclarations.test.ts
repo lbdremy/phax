@@ -33,19 +33,25 @@ const MIGRATED_COMMANDS: ReadonlyArray<string> = [
  *  reworded, its help now the library's. */
 const REWORDED_JSON: ReadonlyArray<string> = ["ls", "plans lint", "plans overview"];
 
+/** The migrated commands whose long help now describes their versioned answer: `plans
+ *  overview`'s document is a plan-overview with its $schema, and `ls`'s rows carry pullRequest. */
+const REWORDED_LONG_HELP: ReadonlyArray<string> = ["ls", "plans overview"];
+
 /** What the committed file may declare beyond the frozen one: a path and a declaration's head
  *  (its kind and key). */
 const ALLOWED_ADDITIONS: ReadonlyArray<readonly [string, string]> = [
   ["", "after_long_help "],
   ["", "flag --json-schema "],
   ...MIGRATED_COMMANDS.map((path) => [path, "flag --json "] as const),
+  ...REWORDED_LONG_HELP.map((path) => [path, "long_help "] as const),
 ];
 
 /** What the committed file may no longer declare as the frozen one did: each reworded
- *  `--json`. */
-const ALLOWED_REWORDINGS: ReadonlyArray<readonly [string, string]> = REWORDED_JSON.map(
-  (path) => [path, "flag --json "] as const,
-);
+ *  `--json` and long help. */
+const ALLOWED_REWORDINGS: ReadonlyArray<readonly [string, string]> = [
+  ...REWORDED_JSON.map((path) => [path, "flag --json "] as const),
+  ...REWORDED_LONG_HELP.map((path) => [path, "long_help "] as const),
+];
 
 function difference(
   from: ReadonlyMap<string, ReadonlyArray<string>>,
