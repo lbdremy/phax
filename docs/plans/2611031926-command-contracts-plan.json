@@ -1,0 +1,1037 @@
+{
+  "$schema": "https://docs.phax.run/schemas/plan-document/0.33.0.json",
+  "kind": "plan",
+  "sourceSpec": "docs/specs/2611031738-command-contracts.md",
+  "completesSpec": false,
+  "run": {
+    "shortName": "command-runner-and-mod-answers",
+    "title": "Command runner and mod answers",
+    "requiredCommands": [
+      "pnpm exec tsx",
+      "pnpm gen:usage-spec",
+      "pnpm docs:cli"
+    ]
+  },
+  "preamble": {
+    "summary": "The first plan of the spec `command-contracts`. It ports the operator's command library (vendor/command-library/, Effect 4) to Effect 3 inside phax's own source: the contract under src/cli/commandLibrary/contract/ and its Commander runner under src/cli/commandLibrary/commander/, with the conformance suite as phax tests and every gain §10 settles. It then puts a bridge between today's Commander program and the runner, and moves the four commands the Claude Code mod reads onto the runner: `artifact status`, `plans overview`, `plans lint` and `ls`. The formats `artifact-status`, `plan-overview` and `plan-lint` are born at 0.34.0, and `run-list` gains `pullRequest`.\n\nPhases: phase-01 ports the contract and writes the conformance cases as acceptance tests against a stub runner. phase-02 ports the runner, passes them and deletes vendor/command-library/. phase-03 adds the bridge, the `refused` (64) and `defect` (70) codes and the hybrid usage-spec generator. phase-04 adds the four formats and writes the four commands' acceptance tests. phase-05 moves the four commands onto the runner and passes those tests.\n\nCriteria this plan covers in full: ac-misdeclared, ac-json-schema-command, ac-lint-verdict, ac-artifact-status, ac-overview, ac-run-pr, ac-defect, ac-written-on-failure and ac-usage-flag.\n\nCriteria this plan covers on the port and the four commands, finished by later plans:\n- ac-catalogue: one entry per command.\n- ac-unknown-option: a `refused` line on every command.\n- ac-groups: the runner owns every group.\n- ac-json-every-command.\n- ac-text-unchanged.\n- ac-help.\n- ac-usage-parity: the file is the generator's output alone.\n- ac-no-parser: every definition is free of Commander.\n- ac-versioned-stable.\n- ac-error-sentence: `resume`.\n- ac-stdin-file-or-dash, ac-stdin-terminal and ac-stdin-bad: `artifact decide --verdicts`.\n- ac-brief-text: `artifact new --brief`.\n- ac-written: `artifact approve`.\n- ac-progress: `run --dry-run`.\n\nac-no-person waits entirely for later plans, because `enter` and `artifact decide` move then. The spec's every-command criteria hold only once the last plan ships.\n\nExpected split of the later plans (the operator writes each brief from it):\n- Plan 2, inspection commands: validate, session-info, path, cost, brief, architecture, completions, report, the `schema`, `security`, `skills` and `records` groups, and the rest of `plans` (status, overlap, estimate).\n- Plan 3, lifecycle and authoring: the rest of the `artifact` group, including `new spec|plan` with its text `--brief` document, approve, reopen, complete, abandon, stale, `decide` with `--verdicts`, and the migrate commands; the `agent` group; init, unlock, archive and prune.\n- Plan 4, runs and sessions, with the bridge removed: run, resume, reset-phase, enter, enter-phase, shell, open, review-handoff, publish-pr, review-compliance, review-code and adjust-plan. The runner then owns the program, Commander is imported by the port alone, and `phax.usage.kdl` is the generator's output from the definitions alone. That plan also adds the docs page reference/json-output and completes the spec.\n\nExecution caveat: this repository is driven by the installed phax 0.33.0 during the run, and nothing this plan changes is read by it. Every test proves the runner through its `Io` data or through `tsx src/cli/main.ts` spawned in a temporary repository. No test reads ~/.phax, a real ~/.claude, ~/.codex or ~/.vibe, the global git config, or the real `gh`.",
+    "requiredCommandsNote": "Every command above is already in `security.agentCommands` in phax.json: `pnpm exec tsx` runs scripts/schemas-check.ts, `pnpm gen:usage-spec` rewrites phax.usage.kdl and `pnpm docs:cli` rewrites the README's generated CLI block. No security configuration change is needed. The plan declares no skill file, so the run needs no `--allow-skill-edits`.",
+    "technicalArbitrations": [
+      "A migrated command and an unmigrated one share one program through a bridge. Today's Commander program stays the host until the last plan. src/cli/bridge.ts dispatches before Commander parses: a call whose words name a runner command, or the root `--json-schema`, goes to the runner; any other call goes to Commander. Each runner command is also mounted in the Commander tree as a stub, for help only. Loss accepted: until the last plan the runner does not own the program. Root help, `--version`, a group called alone and every refusal of an unmigrated command are bridge glue. On an unmigrated command meanwhile: `--json` keeps its own meaning where the command declares one, and is otherwise refused with 64 in text; `--json-schema` is refused with 64; the catalogue lists migrated commands only; a refusal exits 64 with today's sentence but no `refused` line; a crash exits 70 with `defect: …`. The alternative, the runner owning the program and mounting Commander commands through a hook, abandons the port's fidelity: a phax-only hook in the runner's parse path that upstream would never take. The bridge is internal, not a persisted shape, and the last plan removes it.",
+      "This plan moves single commands inside a bridged group, not whole groups. `artifact` and `plans` stay Commander groups that list both their migrated and their unmigrated commands. The runner's program declares the same group holding only the migrated commands, so each one's name words, catalogue entry and help are the runner's. Loss accepted: a group's own behaviour (its help, and its refusal when called alone) stays Commander's until its last command moves. Moving whole groups would abandon this plan's scope: `artifact` alone holds more than a dozen commands, with authoring and decide sessions.",
+      "`phax.usage.kdl` during the transition: scripts/generate-usage-spec.ts keeps today's walk for the root, the `complete` nodes and every unmigrated command. At each migrated command's position it splices that command's `cmd` block, cut from the port's `usageSpec(phaxProgram)`. The root gains the program-level `--json-schema` flag and documents the `refused` and `defect` codes. The parity gate (the file equals the generator's output) holds on every commit. A new test compares the file's declarations, node by node, with a frozen copy of today's file. Loss accepted: two KDL styles in one file until the last plan, child nodes for unmigrated commands and properties for migrated ones; `usage` reads both. The last plan makes the file the port's output alone.",
+      "The port lives in the cli layer, as the library's two packages: src/cli/commandLibrary/contract/ (pure: imports neither `commander` nor a `node:` module) and src/cli/commandLibrary/commander/. In commander/, commanderAdapter.ts is the only importer of `commander`, and processIo.ts is the one process edge, listed in the CLI_DIRECT_IO_ALLOWLIST of tests/unit/architecturalGuards.test.ts. phax's migrated definitions live in src/cli/definitions/, which never imports `commander`. The conformance cases stay library source under contract/conformance/, as the library ships them. Their runner is tests/unit/commandLibrary/conformance.test.ts, and the other tests live under tests/unit/commandLibrary/{contract,commander}/. Loss accepted: the audit names the port by path, not by a layer of its own. A top-level src/commandLibrary/ would abandon the audit's four-layer model, adding a fifth folder its rules do not know.",
+      "What Effect 3 changes from the Effect 4 source, per module; everything else keeps the library's export names and file split. Every module: `.ts` import suffixes become `.js` (NodeNext), and `@steme-lab/cli-command` imports become relative imports of src/cli/commandLibrary/contract/index.ts. command.ts: `Schema.Top` becomes `Schema.Schema.Any`, and the tuple and struct element types become their Effect 3 forms. define.ts: `reject`/`strip` and `DocumentOutput` are rebuilt on Effect 3 Schema. shapes.ts: the AST reads move to Effect 3 SchemaAST (identifier and description annotations, literal unions for choices), and a default comes from `Schema.optionalWith(…, { default })` instead of `withDecodingDefault`. catalogue.ts: the JSON Schemas come from Effect 3's `JSONSchema.make`, emitted in draft 2020-12 as the installed `effect` allows (target option or a dialect rewrite). runner run.ts and json.ts: `Schema.decodeUnknownExit` with `onExcessProperty` becomes `Schema.decodeUnknownEither` with the same option, and the refused line's path and expected value are read from `ParseResult.ArrayFormatter`. outcome.ts: the Cause reads use Effect 3's `Cause.failureOption` and `Cause.dieOption` (`Cause.squash` stays). Each API is checked against the installed `effect` in node_modules, not against memory.",
+      "The gains the port makes, each written as the library would carry it and documented as a gain in its module. Groups hold groups. An argument's schema annotation declares its completer, written as top-level `complete` nodes. A command declares `verdicts`, codes its successful output answers with. A text stdin document is handed to run as read. `run` receives `progress`, written as note lines as they happen. A command declares `texts`, a declared error's sentence for a person. The program names its usage flag (`--usage`, `--usage-format`) instead of the hidden `--usage-spec`, and says where its usage spec lists `--json-schema` (on every command, the library's default, or once at the root). The usage spec writes the program's `refused` and `defect` codes at the root. The program declares options for every command (`--verbose`, `--trace`). A stdin flag may require its value, spaced or attached (`--verdicts <file|->`), per q-stdin-flag-value. phax lists `--json-schema` once at the root, so §5.21's \"only `--json` added\" holds.",
+      "Under `--json` inside a phase worktree, the phase guard still refuses before any command runs, with exit 1. It writes one `refused` line: `source` \"command\", `path` the command's words, `expected` \"a command allowed inside a phase worktree\", `text` today's sentence and `exit` 1. Without `--json` it writes today's sentence. Loss accepted: a refused line whose exit is not the program's `refused` code. The guard's code is documented as 1 and the spec keeps it."
+    ],
+    "openQuestions": [
+      {
+        "id": "q-ls-records-column",
+        "question": "Today `phax ls` shows its RECORDS column whenever this project's records are configured, even when no listed run belongs to this project, so every cell is `-`. The run-list document cannot say this: a row's `recordsPending` is null both when records are off and when the row belongs to another project. A render reads only the output. How does the migrated `ls` keep today's table?",
+        "options": [
+          {
+            "id": "derive",
+            "label": "Render the RECORDS column when at least one row's `recordsPending` is a number, and read nothing beyond the run-list document",
+            "abandons": "today's table in one case: records configured and no listed run of this project, where a column of `-` cells disappears"
+          },
+          {
+            "id": "view-gain",
+            "label": "A further gain: `run` may hand `render` a view-only value beside the output, which `--json` never writes, so `ls` passes whether records are configured",
+            "abandons": "the library's rule that a render reads only the output: one more gain outside §10's settled list for the published package to take upstream, for a single column"
+          }
+        ],
+        "recommendation": "derive",
+        "rationale": "The column it drops in that one case holds only `-` cells and carries no fact. A render that reads only the document is the pattern every later command follows, and the gain would widen the contract for one cosmetic column."
+      }
+    ],
+    "arbitratedQuestions": []
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "title": "The contract ported to Effect 3, with the conformance cases as acceptance tests",
+      "objective": "The command library's contract (what a command, a group and a program are, the policies, written-file records, the catalogue, the usage spec, the message lines) exists in phax's source on Effect 3, with every gain. The library's conformance cases, and one per gain, are written and frozen as acceptance tests against a stub runner that phase-02 replaces.",
+      "detailedInstructions": [
+        "Read vendor/command-library/README.md, vendor/command-library/cli-command/ in full (src/, the samples program.ts and rename-todo.command.ts, refused.ts, tests/), the spec's §5, §6, §8, §9b and §10, and this plan's Technical arbitrations. Port from the vendor folder; never import it and never edit it (phase-02 deletes it).",
+        "Create the contract under src/cli/commandLibrary/contract/, one file per library module, keeping each module's export names. command.ts is contracts/command.ts. conformanceReport.ts is contracts/conformance.ts. define.ts, written.ts, catalogue.ts, shapes.ts, usage.ts and messages.ts keep their names. index.ts re-exports exactly the library's src/index.ts names plus the gains' new names. conformance/index.ts is the library's `/conformance` entry and exports `conformance`. conformance/suite.ts, conformance/cases.ts and conformance/memoryIo.ts are internal/conformance/*.",
+        "Apply the Effect 3 changes named in Technical arbitrations to command.ts, define.ts, shapes.ts and catalogue.ts. Check every API against the installed `effect` in node_modules. tsconfig is strict, with exactOptionalPropertyTypes, noUncheckedIndexedAccess and noPropertyAccessFromIndexSignature: fix the port to pass them without loosening any type the library declares.",
+        "Add the gains to the contract, each with a doc comment saying it is a gain carried for upstream.\n- Groups holding groups: `defineGroup` takes commands and groups. A command's grouping becomes its chain of group names. The catalogue's name words, the usage spec's nested `cmd` nodes and `fullName` follow the chain.\n- Completers: an argument element's annotation declares `{ run, descriptions }` under its identifier. `usageSpec` writes one top-level `complete \"<identifier>\" run=… descriptions=#true` node per distinct identifier, in declaration order.\n- Verdict codes: `CommandDef.verdicts`, from code to a predicate over the output. The catalogue entry lists them. A program where a verdict code equals `refused`, `defect` or 0 is misdeclared.\n- A text stdin document: a stdin source declares that its contract reads text. The runner then hands `run` the string as read, under the same reading and refusal rules as JSON.\n- Progress: the run context gains `progress: (text) => Effect<void>`.\n- A declared error's text form: `CommandDef.texts`, from tag to a function of the error returning the sentence for a person.\n- The program's usage flag: `Program.usage`, with the flag's name, an optional format option, and where `--json-schema` is listed (\"every-command\", the default, or \"program\"). It replaces the hidden `--usage-spec` in `usageSpec`.\n- The program's exits documented: `usageSpec` writes the `refused` and `defect` codes at the root.\n- Options for every command: `Program.options`, a flags source decoded from the call's words wherever they stand and handed to every run as `context.program`. `usageSpec` writes them as `global=#true` flags.\n- A required stdin-flag value: a stdin source may declare its flag's value required, `<file|->`, spaced or attached (q-stdin-flag-value keep-value). The usage spec and the catalogue show `<file|->` for it.",
+        "Port every library conformance case into conformance/cases.ts with its id and its meaning unchanged. Add one case per gain, each stating its expectation and naming the gain in a comment, with these ids:\n- `groups.nested-alone-refused`\n- `groups.nested-run`\n- `usage.complete-nodes`\n- `exits.verdict-code`\n- `exits.verdict-collides`\n- `stdin.text-document`\n- `stdin.flag-value-required`\n- `notes.progress-streamed`: a progress note reaches `err` before `out` gets the output\n- `error.text-form`: the sentence without `--json`, only the line with it\n- `usage.program-flag`\n- `usage.json-schema-listing`\n- `usage.program-exits`\n- `options.program-wide`\nconformance/memoryIo.ts records `out` and `err` writes in order, so `notes.progress-streamed` can see the order.",
+        "Create the stub runner at src/cli/commandLibrary/commander/index.ts. It exports `runner: Runner`, whose `run` dies with `new Error(\"command runner not implemented (phase-02)\")`. It exports nothing else.",
+        "Write the acceptance test tests/unit/commandLibrary/conformance.test.ts, as the library's runner conformance test does. It computes `conformance(runner)` against the stub once, at module scope, then registers `it.fails(entry.id, …)` for every case not in a named constant CONTRACT_ONLY, each expecting `entry.held` to be true. CONTRACT_ONLY lists the ids that hold without a runner, such as a case that checks `written()` alone. Fix that list by running the suite against the stub. Those ids are checked as plain `it` in tests/unit/commandLibrary/contract/conformanceContractOnly.test.ts, which is not an acceptance test file.",
+        "Port the contract's own tests to tests/unit/commandLibrary/contract/: define.test.ts, written.test.ts with its fixture fixtures/written-record.json, exports.test.ts (the index's names, the library's plus the gains', exactly) and caseIds.test.ts (case ids unique and well formed). Do not port package.test.ts: it checks npm packaging, which the port does not have.",
+        "Port the samples as type tests: tests/type/commandLibrarySamples.ts holds program.ts and rename-todo.command.ts, and tests/type/commandLibraryRefused.ts holds refused.ts, each refused declaration under `@ts-expect-error`. Copy rename-todo.command.ts also to tests/unit/commandLibrary/support/renameTodo.ts, which phase-02's runner tests import at run time.",
+        "Add to tests/unit/architecturalGuards.test.ts a guard that no file under src/cli/commandLibrary/contract/ imports `commander` or a `node:` module.",
+        "No phax command uses the port yet. Keep knip green: every export is reached by a test, and the stub's only export is `runner`."
+      ],
+      "planMarkdownAnchor": "#phase-01-contract-port",
+      "plannedFilesToCreate": [
+        "src/cli/commandLibrary/contract/index.ts",
+        "src/cli/commandLibrary/contract/command.ts",
+        "src/cli/commandLibrary/contract/conformanceReport.ts",
+        "src/cli/commandLibrary/contract/define.ts",
+        "src/cli/commandLibrary/contract/written.ts",
+        "src/cli/commandLibrary/contract/catalogue.ts",
+        "src/cli/commandLibrary/contract/shapes.ts",
+        "src/cli/commandLibrary/contract/usage.ts",
+        "src/cli/commandLibrary/contract/messages.ts",
+        "src/cli/commandLibrary/contract/conformance/index.ts",
+        "src/cli/commandLibrary/contract/conformance/suite.ts",
+        "src/cli/commandLibrary/contract/conformance/cases.ts",
+        "src/cli/commandLibrary/contract/conformance/memoryIo.ts",
+        "src/cli/commandLibrary/commander/index.ts",
+        "tests/unit/commandLibrary/conformance.test.ts",
+        "tests/unit/commandLibrary/contract/conformanceContractOnly.test.ts",
+        "tests/unit/commandLibrary/contract/define.test.ts",
+        "tests/unit/commandLibrary/contract/written.test.ts",
+        "tests/unit/commandLibrary/contract/exports.test.ts",
+        "tests/unit/commandLibrary/contract/caseIds.test.ts",
+        "tests/unit/commandLibrary/contract/fixtures/written-record.json",
+        "tests/unit/commandLibrary/support/renameTodo.ts",
+        "tests/type/commandLibrarySamples.ts",
+        "tests/type/commandLibraryRefused.ts"
+      ],
+      "plannedFilesToEdit": [
+        "tests/unit/architecturalGuards.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "knip.json",
+        "tsconfig.test.json"
+      ],
+      "mode": "headless",
+      "acceptance": {
+        "passedBy": "phase-02",
+        "files": [
+          "tests/unit/commandLibrary/conformance.test.ts",
+          "src/cli/commandLibrary/contract/conformance/cases.ts",
+          "src/cli/commandLibrary/contract/conformance/memoryIo.ts",
+          "src/cli/commandLibrary/contract/conformance/suite.ts"
+        ]
+      },
+      "boundaryContracts": "Producer: src/cli/commandLibrary/contract/index.ts. Consumers: the runner (phase-02), the bridge (phase-03) and phax's definitions (phase-05). Contract: the library's export names, unchanged, plus the gains' additions. Producer: contract/conformance/index.ts (`conformance(runner)`). Consumer: tests/unit/commandLibrary/conformance.test.ts. Contract: one report entry per case id, held or not with a reason. The cases are frozen from this phase on.",
+      "testStrategy": [
+        {
+          "guarantee": "an unknown command, an undeclared argument or option, or a source that does not decode runs nothing, exits with the program's refused code and writes one refused line under --json",
+          "size": "small",
+          "technique": "table",
+          "oracle": "the refused.*, flags.* and undeclared conformance cases",
+          "loop": "acceptance",
+          "criterion": "ac-unknown-option"
+        },
+        {
+          "guarantee": "a death or an output that does not encode exits with the defect code, with a defect line under --json and defect text without it",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the defect.* conformance cases",
+          "loop": "acceptance",
+          "criterion": "ac-defect"
+        },
+        {
+          "guarantee": "a program whose codes collide, a command declaring the defect code or a verdict code that collides, or an option json, json-schema or out beside writing a document, runs nothing and names the command",
+          "size": "small",
+          "technique": "table",
+          "oracle": "the defect.code, defect.command-maps-defect-code, exits.verdict-collides, json.reserved and out.reserved cases",
+          "loop": "acceptance",
+          "criterion": "ac-misdeclared"
+        },
+        {
+          "guarantee": "a command's --json-schema prints its catalogue entry, runs nothing, and equals that command's entry in the program's catalogue",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the catalogue.command and groups.own-contracts cases",
+          "loop": "acceptance",
+          "criterion": "ac-json-schema-command"
+        },
+        {
+          "guarantee": "the program's --json-schema prints program, version, exits, one entry per command and the five message shapes",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the catalogue.program case",
+          "loop": "acceptance",
+          "criterion": "ac-catalogue"
+        },
+        {
+          "guarantee": "a document read through its flag from a file or from stdin on `-` reaches run the same, an absent flag never reads stdin, and a required flag value may be spaced or attached",
+          "size": "small",
+          "technique": "table",
+          "oracle": "the stdin.flag-sources, stdin.flag-absent-unread, stdin.piped and stdin.flag-value-required cases",
+          "loop": "acceptance",
+          "criterion": "ac-stdin-file-or-dash"
+        },
+        {
+          "guarantee": "a call that would read stdin while it is a terminal is refused at once, naming the flag, without reading",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the stdin.terminal-refused case and the memory Io's untouched stdin",
+          "loop": "acceptance",
+          "criterion": "ac-stdin-terminal"
+        },
+        {
+          "guarantee": "an unreadable file or a document that does not decode is refused before run, naming the path or stdin and the failing field",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the stdin.unreadable-refused and refused.line cases",
+          "loop": "acceptance",
+          "criterion": "ac-stdin-bad"
+        },
+        {
+          "guarantee": "a text stdin document reaches run as read, under the same reading and refusal rules as a JSON one",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the stdin.text-document case",
+          "loop": "acceptance",
+          "criterion": "ac-brief-text"
+        },
+        {
+          "guarantee": "a command's written files are its written-file records, path from the root, format or null, sha256 digest of 64 lowercase hex digits, and one written line each under --json",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the written.record case and the written-record fixture",
+          "loop": "acceptance",
+          "criterion": "ac-written"
+        },
+        {
+          "guarantee": "a declared error raised after a write carries that file's record in its error line's written",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the error.written case",
+          "loop": "acceptance",
+          "criterion": "ac-written-on-failure"
+        },
+        {
+          "guarantee": "a progress note reaches stderr as a note line before the output reaches stdout",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the order of writes the memory Io records in the notes.progress-streamed case",
+          "loop": "acceptance",
+          "criterion": "ac-progress"
+        },
+        {
+          "guarantee": "a group called alone at any depth writes its help on stderr and is refused, while its nested commands run",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the groups.nested-alone-refused and groups.nested-run cases",
+          "loop": "acceptance",
+          "criterion": "ac-groups"
+        },
+        {
+          "guarantee": "an output answering a declared verdict code is written in both modes and the call exits with that code",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the exits.verdict-code case",
+          "loop": "acceptance",
+          "criterion": "ac-lint-verdict"
+        },
+        {
+          "guarantee": "a declared error writes its sentence and code without --json, and only its error line with --json",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the error.text-form and error.line cases",
+          "loop": "acceptance",
+          "criterion": "ac-error-sentence"
+        },
+        {
+          "guarantee": "--json writes the output's encoded form two-space indented with one newline and $schema first, and stderr carries only message lines",
+          "size": "small",
+          "technique": "table",
+          "oracle": "the json.* and notes.lines cases",
+          "loop": "acceptance",
+          "criterion": "ac-json-every-command"
+        },
+        {
+          "guarantee": "--help and --version answer in text and a command's help lists --json",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the help.program, help.command and version cases",
+          "loop": "acceptance",
+          "criterion": "ac-help"
+        },
+        {
+          "guarantee": "the usage spec is written from the definitions with complete nodes, the program's usage flag, --json-schema listed where the program says and the program's exits",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the usage.* cases and their expected KDL",
+          "loop": "acceptance",
+          "criterion": "ac-usage-parity"
+        },
+        {
+          "guarantee": "program-wide options are decoded once from anywhere in the call and handed to every run",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the options.program-wide case",
+          "loop": "acceptance",
+          "criterion": null
+        },
+        {
+          "guarantee": "the conformance cases that need no runner hold against the contract alone",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the CONTRACT_ONLY cases of the suite",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "definitions, written-file records, the index's export names and the case ids behave as the library's own tests say",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the library's contract tests, ported",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "the library's samples compile and every refused declaration fails to compile",
+          "size": "small",
+          "technique": "example",
+          "oracle": "tsc under pnpm test:type with @ts-expect-error",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "the contract imports neither commander nor a node: module",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the architecture guard's import scan",
+          "loop": "in-phase",
+          "criterion": null
+        }
+      ],
+      "implementationOrder": [
+        "command.ts, conformanceReport.ts and messages.ts",
+        "written.ts, define.ts and shapes.ts",
+        "catalogue.ts and usage.ts, with the gains",
+        "index.ts and the stub runner",
+        "conformance/memoryIo.ts, cases.ts, suite.ts and index.ts",
+        "contract tests and type samples",
+        "conformance.test.ts with its markers, and the contract-only test",
+        "architecture guard"
+      ],
+      "excludedScope": [
+        "The runner: the Commander adapter, processIo, the decode and encode loop and the runner's own tests (phase-02).",
+        "Deleting vendor/command-library/ (phase-02).",
+        "Any phax command, src/cli/program.ts, main.ts or the usage generator (phase-03 onward)."
+      ],
+      "verification": "The `standard` gate profile in phax.json, with the configured acceptance provider judging the acceptance test files (authored).",
+      "expectedHandoff": "List the module paths under src/cli/commandLibrary/contract/ and the export names index.ts adds for the gains, with their shapes: Group with nested groups, the completer annotation key, `verdicts`, the text stdin declaration, `progress`, `texts`, `Program.usage`, `Program.options` and the required stdin-flag value. Give the Effect 3 API each module uses in place of the Effect 4 one. Give the full list of case ids, marking the new gain cases and the CONTRACT_ONLY ids with why each holds without a runner. Describe the stub runner's exact form. Explain any deviation from the planned file lists.",
+      "commit": {
+        "subject": "feat(cli): port the command library's contract to Effect 3 with its conformance cases",
+        "body": "Port the operator's command library contract into src/cli/commandLibrary/contract/ on\nEffect 3, keeping the library's export names: commands, groups, programs, the reject\nand strip policies, written-file records, the contracts catalogue, the usage spec\nand the message lines. Add the gains the spec settles: nested groups, argument\ncompleters, verdict codes, a text stdin document, progress notes, an error's text\nform, the program's usage flag and exits, program-wide options and a required\nstdin-flag value.\n\nThe library's conformance cases, and one per gain, are frozen as acceptance tests\nagainst a stub runner that the next phase replaces."
+      },
+      "assignmentReason": "The phase ports a library that no code in the repository holds yet and designs the contract shapes of ten gains across define, catalogue, usage and the conformance cases.",
+      "model": "claude-opus-5-5",
+      "effort": "medium"
+    },
+    {
+      "id": "phase-02",
+      "title": "The Commander runner ported to Effect 3, the cases passed and the vendor copy removed",
+      "objective": "The runner (`runner` and `processIo`) runs any program of the contract over Commander on Effect 3 and holds every conformance case, including each gain's. The vendored library is gone from the repository.",
+      "detailedInstructions": [
+        "Read vendor/command-library/cli-command-commander/ in full (src/, edge.ts, refused.ts, tests/ and tests/support/), the contract phase-01 wrote under src/cli/commandLibrary/contract/, and the handoff.",
+        "Port the runner to src/cli/commandLibrary/commander/, keeping the library's export names:\n- commanderAdapter.ts is adapters/commander.ts, the only file of the port that imports `commander`.\n- processIo.ts is adapters/process-io.ts.\n- json.ts, outcome.ts, run.ts, shape.ts, stdin.ts and undeclared.ts keep their names.\nReplace the stub in index.ts with the library's exports, `runner` and `processIo`.",
+        "Apply the Effect 3 changes named in Technical arbitrations to run.ts, json.ts and outcome.ts. Check each API against the installed `effect`.",
+        "Carry the gains in the runner:\n- Nested groups: one Commander node per group, at any depth. A group called alone writes its help on stderr and is refused with the program's `refused`. The matched key is every word of the full name.\n- Verdict codes: the first matching code wins, after encoding the output and writing it in either mode.\n- A text stdin document: no JSON parse.\n- `progress`: each note is written as a note line (under `--json`) or a plain stderr line (without) at the moment `run` calls it.\n- `texts`: a declared error's sentence is written on stderr without `--json`; under `--json` only the error line, with the library's fields.\n- `Program.usage`: the runner answers the named flag with `usageSpec`, which no longer carries a hidden `--usage-spec`.\n- `Program.options`: read from the call's words wherever they stand and handed to every run.\n- The required stdin-flag value: `--verdicts <file|->`, spaced or attached.\n- The misdeclared-program check gains verdict collisions.",
+        "Remove the `.fails` marker from tests/unit/commandLibrary/conformance.test.ts. That is the only change to the acceptance test files: cases.ts, memoryIo.ts and suite.ts stay as committed. When a case cannot hold, fix the runner, never the case. When the case itself is wrong, stop and say so in the handoff.",
+        "Port the runner's own tests to tests/unit/commandLibrary/commander/, with support/memoryIo.ts and support/todos.ts from tests/support/: catalogue, exports, faultyRunners, groups, help, json, neverExits, outcomes, policies, processIo, reading, samples, stdinFlag, undeclared and usage. Each file is named after its library test in camelCase. Import the rename-todo sample from tests/unit/commandLibrary/support/renameTodo.ts. Skip package.test.ts (npm packaging). processIo.test.ts uses temporary files and a fake process object, never the real stdin. Add tests for the gains where the library's tests group them (groups, usage, stdinFlag, outcomes, json).",
+        "Port edge.ts and refused.ts of the runner package as the type test tests/type/commandLibraryRunnerRefused.ts, each refused declaration under `@ts-expect-error`.",
+        "tests/unit/architecturalGuards.test.ts:\n- add src/cli/commandLibrary/commander/processIo.ts to CLI_DIRECT_IO_ALLOWLIST, commented as the port's one process edge;\n- add a guard that, under src/cli/commandLibrary/, only commander/commanderAdapter.ts imports `commander`.",
+        "Delete vendor/command-library/ entirely, every file listed in this phase's planned edits. Remove `vendor` from the ignore lists of knip.json, .oxlintrc.json and .oxfmtrc.json, unless another vendored path still needs it (none does today).",
+        "No phax command uses the runner yet."
+      ],
+      "planMarkdownAnchor": "#phase-02-commander-runner",
+      "plannedFilesToCreate": [
+        "src/cli/commandLibrary/commander/commanderAdapter.ts",
+        "src/cli/commandLibrary/commander/processIo.ts",
+        "src/cli/commandLibrary/commander/json.ts",
+        "src/cli/commandLibrary/commander/outcome.ts",
+        "src/cli/commandLibrary/commander/run.ts",
+        "src/cli/commandLibrary/commander/shape.ts",
+        "src/cli/commandLibrary/commander/stdin.ts",
+        "src/cli/commandLibrary/commander/undeclared.ts",
+        "tests/unit/commandLibrary/commander/support/memoryIo.ts",
+        "tests/unit/commandLibrary/commander/support/todos.ts",
+        "tests/unit/commandLibrary/commander/catalogue.test.ts",
+        "tests/unit/commandLibrary/commander/exports.test.ts",
+        "tests/unit/commandLibrary/commander/faultyRunners.test.ts",
+        "tests/unit/commandLibrary/commander/groups.test.ts",
+        "tests/unit/commandLibrary/commander/help.test.ts",
+        "tests/unit/commandLibrary/commander/json.test.ts",
+        "tests/unit/commandLibrary/commander/neverExits.test.ts",
+        "tests/unit/commandLibrary/commander/outcomes.test.ts",
+        "tests/unit/commandLibrary/commander/policies.test.ts",
+        "tests/unit/commandLibrary/commander/processIo.test.ts",
+        "tests/unit/commandLibrary/commander/reading.test.ts",
+        "tests/unit/commandLibrary/commander/samples.test.ts",
+        "tests/unit/commandLibrary/commander/stdinFlag.test.ts",
+        "tests/unit/commandLibrary/commander/undeclared.test.ts",
+        "tests/unit/commandLibrary/commander/usage.test.ts",
+        "tests/type/commandLibraryRunnerRefused.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/cli/commandLibrary/commander/index.ts",
+        "tests/unit/commandLibrary/conformance.test.ts",
+        "tests/unit/architecturalGuards.test.ts",
+        "knip.json",
+        ".oxlintrc.json",
+        ".oxfmtrc.json",
+        "vendor/command-library/README.md",
+        "vendor/command-library/cli-command-commander/README.md",
+        "vendor/command-library/cli-command-commander/edge.ts",
+        "vendor/command-library/cli-command-commander/package.json",
+        "vendor/command-library/cli-command-commander/refused.ts",
+        "vendor/command-library/cli-command-commander/src/adapters/commander.ts",
+        "vendor/command-library/cli-command-commander/src/adapters/process-io.ts",
+        "vendor/command-library/cli-command-commander/src/index.ts",
+        "vendor/command-library/cli-command-commander/src/internal/json.ts",
+        "vendor/command-library/cli-command-commander/src/internal/outcome.ts",
+        "vendor/command-library/cli-command-commander/src/internal/run.ts",
+        "vendor/command-library/cli-command-commander/src/internal/shape.ts",
+        "vendor/command-library/cli-command-commander/src/internal/stdin.ts",
+        "vendor/command-library/cli-command-commander/src/internal/undeclared.ts",
+        "vendor/command-library/cli-command-commander/tests/catalogue.test.ts",
+        "vendor/command-library/cli-command-commander/tests/conformance.test.ts",
+        "vendor/command-library/cli-command-commander/tests/exports.test.ts",
+        "vendor/command-library/cli-command-commander/tests/faulty-runners.test.ts",
+        "vendor/command-library/cli-command-commander/tests/groups.test.ts",
+        "vendor/command-library/cli-command-commander/tests/help.test.ts",
+        "vendor/command-library/cli-command-commander/tests/json.test.ts",
+        "vendor/command-library/cli-command-commander/tests/never-exits.test.ts",
+        "vendor/command-library/cli-command-commander/tests/outcomes.test.ts",
+        "vendor/command-library/cli-command-commander/tests/package.test.ts",
+        "vendor/command-library/cli-command-commander/tests/policies.test.ts",
+        "vendor/command-library/cli-command-commander/tests/process-io.test.ts",
+        "vendor/command-library/cli-command-commander/tests/reading.test.ts",
+        "vendor/command-library/cli-command-commander/tests/samples.test.ts",
+        "vendor/command-library/cli-command-commander/tests/stdin-flag.test.ts",
+        "vendor/command-library/cli-command-commander/tests/support/memory-io.ts",
+        "vendor/command-library/cli-command-commander/tests/support/todos.ts",
+        "vendor/command-library/cli-command-commander/tests/undeclared.test.ts",
+        "vendor/command-library/cli-command-commander/tests/usage.test.ts",
+        "vendor/command-library/cli-command-commander/tsconfig.build.json",
+        "vendor/command-library/cli-command-commander/tsconfig.json",
+        "vendor/command-library/cli-command-commander/vitest.config.ts",
+        "vendor/command-library/cli-command/README.md",
+        "vendor/command-library/cli-command/package.json",
+        "vendor/command-library/cli-command/program.ts",
+        "vendor/command-library/cli-command/refused.ts",
+        "vendor/command-library/cli-command/rename-todo.command.ts",
+        "vendor/command-library/cli-command/src/conformance.ts",
+        "vendor/command-library/cli-command/src/contracts/command.ts",
+        "vendor/command-library/cli-command/src/contracts/conformance.ts",
+        "vendor/command-library/cli-command/src/index.ts",
+        "vendor/command-library/cli-command/src/internal/catalogue.ts",
+        "vendor/command-library/cli-command/src/internal/conformance/cases.ts",
+        "vendor/command-library/cli-command/src/internal/conformance/memory-io.ts",
+        "vendor/command-library/cli-command/src/internal/conformance/suite.ts",
+        "vendor/command-library/cli-command/src/internal/define.ts",
+        "vendor/command-library/cli-command/src/internal/messages.ts",
+        "vendor/command-library/cli-command/src/internal/shapes.ts",
+        "vendor/command-library/cli-command/src/internal/usage.ts",
+        "vendor/command-library/cli-command/src/internal/written.ts",
+        "vendor/command-library/cli-command/tests/case-ids.test.ts",
+        "vendor/command-library/cli-command/tests/conformance.test.ts",
+        "vendor/command-library/cli-command/tests/define.test.ts",
+        "vendor/command-library/cli-command/tests/exports.test.ts",
+        "vendor/command-library/cli-command/tests/fixtures/written-record.json",
+        "vendor/command-library/cli-command/tests/package.test.ts",
+        "vendor/command-library/cli-command/tests/written.test.ts",
+        "vendor/command-library/cli-command/tsconfig.build.json",
+        "vendor/command-library/cli-command/tsconfig.json",
+        "vendor/command-library/cli-command/vitest.config.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/cli/commandLibrary/contract/index.ts",
+        "src/cli/commandLibrary/contract/command.ts",
+        "src/cli/commandLibrary/contract/define.ts",
+        "src/cli/commandLibrary/contract/catalogue.ts",
+        "src/cli/commandLibrary/contract/usage.ts",
+        "src/cli/commandLibrary/contract/messages.ts",
+        "src/cli/commandLibrary/contract/shapes.ts",
+        "tests/unit/commandLibrary/contract/exports.test.ts",
+        "NEXT_STEPS.md"
+      ],
+      "mode": "headless",
+      "acceptance": null,
+      "boundaryContracts": "Producer: src/cli/commandLibrary/commander/index.ts (`runner.run(program, io)` gives `Effect<ExitCode, never, R>`, and `processIo(process)` gives an `Io`). Consumers: the bridge (phase-03) and the conformance suite. Contract: the library's Runner interface. The runner never exits, never reads the process except through `Io`, and maps every outcome to the program's codes or a command's declared ones.",
+      "testStrategy": [
+        {
+          "guarantee": "the runner's own behaviour (json layout, groups at any depth, policies, catalogue, help, usage spec, stdin flag, undeclared input, outcomes, never exiting, faulty runners, reading) holds on Effect 3 with the gains",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the library's runner tests, ported, and the gain tests added beside them",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "processIo reads stdin once, reports an unreadable or unwritable file as a short phrase, and creates a written file's directory",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "temporary files and a fake process object",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "only the adapter imports commander inside the port, and processIo is the port's one process edge",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the architecture guard's import scans",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "the runner's refused declarations fail to compile",
+          "size": "small",
+          "technique": "example",
+          "oracle": "tsc under pnpm test:type with @ts-expect-error",
+          "loop": "in-phase",
+          "criterion": null
+        }
+      ],
+      "implementationOrder": [
+        "shape.ts, undeclared.ts and stdin.ts",
+        "commanderAdapter.ts with nested groups",
+        "json.ts and outcome.ts",
+        "run.ts with the gains",
+        "processIo.ts and index.ts",
+        "conformance markers removed, runner tests ported",
+        "guards, vendor removal and ignore lists"
+      ],
+      "excludedScope": [
+        "Any phax command, the bridge, main.ts, program.ts and the usage generator (phase-03).",
+        "Editing a conformance case or the memory Io the cases use."
+      ],
+      "verification": "The `standard` gate profile in phax.json, with the configured acceptance provider judging phase-01's acceptance test files (passed).",
+      "expectedHandoff": "Give the runner's module paths and the exports of src/cli/commandLibrary/commander/index.ts. Say how each gain surfaces in the runner, and the exact form of the misdeclared-program check, including verdict collisions. Give the Effect 3 APIs used in run.ts, json.ts and outcome.ts. Confirm that every conformance case holds and that the acceptance test files are unchanged apart from the removed markers. Confirm that vendor/command-library/ is deleted and its ignore entries removed. Explain any deviation from the planned file lists.",
+      "commit": {
+        "subject": "feat(cli): port the command library's Commander runner and drop the vendored copy",
+        "body": "Port the runner of the command library into src/cli/commandLibrary/commander/ on\nEffect 3: the Commander adapter, the process Io and the decode, run, encode and\nrender loop, with the gains it carries (nested groups, verdict codes, a text stdin\ndocument, progress notes as they happen, an error's text form, the program's usage\nflag, program-wide options and a required stdin-flag value).\n\nThe runner holds every conformance case. The library's runner tests are ported as\nphax tests, and vendor/command-library/ is deleted now that the port is complete."
+      },
+      "assignmentReason": "The runner's 760-line parse, decode, encode and render loop moves from Effect 4 to Effect 3 while the gains reshape it. Its acceptance cases are frozen, so the phase cannot adjust one it disagrees with: higher effort.",
+      "model": "claude-opus-5-5",
+      "effort": "high"
+    },
+    {
+      "id": "phase-03",
+      "title": "The bridge between Commander and the runner, with the refused and defect codes",
+      "objective": "phax's command line runs through a bridge that can hand a call to the runner. An unknown command or option and a bad argument now exit 64, and a crash exits 70 with `defect: …`. `phax --json-schema` prints the runner program's catalogue. The usage spec is written by a generator that can splice the runner's commands in, and the phase guard refuses before any command, on either path.",
+      "detailedInstructions": [
+        "Read src/cli/main.ts, src/cli/program.ts, src/cli/introspect.ts, src/cli/cliDocs.ts, src/cli/cliCompleters.ts, src/cli/commands/usage.ts, src/cli/commands/runLayers.ts (EXIT_CODE_MEANINGS, exitCodeForError), scripts/generate-usage-spec.ts, phax.usage.kdl, src/domain/security/phaseGuard.ts and their tests. Also read the port's index files and this plan's Technical arbitrations on the bridge, groups, usage and the guard.",
+        "Create src/cli/definitions/program.ts with `phaxProgram`, built with the port's defineProgram:\n- name \"phax\" and version PHAX_RELEASE (src/schemas/release.ts);\n- exits `{ refused: 64, defect: 70 }`;\n- `usage` naming `--usage` with its `--usage-format` option and listing `--json-schema` once at the root (\"program\");\n- `options` declaring `--verbose` and `--trace` with today's help;\n- no commands yet: phase-05 adds the four.\nA file under src/cli/definitions/ never imports `commander`.",
+        "Create src/cli/bridge.ts, the transition's dispatcher, with the process at the edge and its decisions testable as functions. In order:\n1. `--usage` stays where main.ts handles it today.\n2. Inside a phase worktree, the phase guard runs first for every call, with today's phaseGuardRefusal and exit 1. For a runner command under `--json`, it writes the refused line the Technical arbitrations give.\n3. A call whose leading words, after program-wide options, name a runner command of `phaxProgram`, or a root call `phax --json-schema`, runs `runner.run(phaxProgram, processIo(process))` with any layers provided, then exits with the code.\n4. Any other call goes to today's Commander program from buildProgram(). Commander's errors are mapped:\n   - every refusal (unknown command, unknown option, missing argument or option value, excess arguments, and a group called alone after its help is written on stderr) exits 64 and keeps Commander's text;\n   - `--help` and `--version` exit 0;\n   - a rejection or throw escaping an action exits 70, writing `defect: <message>` on stderr in place of `Unexpected error: …`.\nExport the help-only stub mounting and a function that cuts each runner command's `cmd` block out of the port's `usageSpec(phaxProgram)`, for the generator.",
+        "src/cli/main.ts: keep the `--usage` early path, then call the bridge instead of `buildProgram().parseAsync`.\nsrc/cli/program.ts:\n- mount each runner command of `phaxProgram` as a help-only Commander stub at its group, with its summary, the arguments and options its shapes declare, plus `--json` and `--json-schema`, allowing unknown options;\n- mark the stubs through the bridge's registry, so the generator and introspection recognise them;\n- declare `--json-schema` on the root for help.\nThe preAction guard stays for Commander's path.",
+        "src/cli/commands/runLayers.ts: add 64 and 70 to EXIT_CODE_MEANINGS: 64 \"Refused call: unknown command or option, or an argument that does not decode\" and 70 \"Defect: an unexpected failure, a bug in phax\". Narrow 1's meaning to drop \"bad arguments\". Make README.md's Exit codes table match byte for byte, as tests/unit/readmeExitCodes.test.ts requires. The reference page /reference/exit-codes is built from that README section.",
+        "scripts/generate-usage-spec.ts: keep today's walk for the root, the `complete` nodes and every unmigrated command. At a stub's position, splice the runner command's `cmd` block from the bridge at the same depth. Add the root `--json-schema` flag and the port's root documentation of the `refused` and `defect` codes, from `Program.exits`. Run `pnpm gen:usage-spec`. With no command migrated yet, the diff of phax.usage.kdl is only those root additions.",
+        "Before regenerating, copy today's phax.usage.kdl to tests/fixtures/usage/phax.usage.before-command-contracts.kdl, frozen. Write tests/helpers/usageKdl.ts, a reader of the KDL subset both styles use: `cmd`, `arg`, `flag`, `help`, `long_help`, `example`, `complete`, `default`, `required`, `global`, `choices`, child nodes and properties. It returns each command's declarations by path. Write tests/integration/usageSpecDeclarations.test.ts:\n- the committed file declares exactly what the frozen one declares, except an allowlist of the root's added `--json-schema` and exit-code documentation, and, per migrated command, an added `--json` flag;\n- it starts empty of migrated commands.",
+        "Tests:\n- tests/unit/cli/bridge.test.ts proves the dispatch decisions, the Commander error mapping and the defect text, with doubles for the legacy program and the runner, and no real process exit.\n- tests/unit/cli/phaxProgram.test.ts proves that `phaxProgram` passes the runner's misdeclared-program check and that a variant declaring an option `json` does not.\n- tests/integration/cliRefusedCodes.test.ts spawns `tsx src/cli/main.ts` in a temporary repository (isolateGit, phaxHomeEnv), as tests/integration/plansOverviewCommand.test.ts does. It proves:\n  - `phax plans lnit x` and `phax ls --colour` exit 64 with today's text;\n  - `phax artifact`, `phax artifact new` and `phax agent setup` alone write help on stderr and exit 64;\n  - `phax --json-schema` prints a catalogue with program \"phax\", version 0.34.0, exits 64 and 70, and the five message shapes;\n  - `phax --usage` and `phax --usage --usage-format kdl` print the committed file and exit 0.\n- Update tests/integration/cliErrors.test.ts, tests/integration/holdCli.test.ts (the `--hold` unknown option now exits 64) and any other test pinning exit 1 on a Commander refusal.\n- Extend tests/integration/phaseGuard.test.ts: the guard refuses before the runner path too.\n- Add a guard to tests/unit/architecturalGuards.test.ts: no file under src/cli/definitions/ imports `commander`.",
+        "docs/upgrading.md: add a `### 0.34.0` entry above 0.33.0, in 0.33.0's style, for command-line callers:\n- an unknown command, an unknown option or a bad argument now exits 64 instead of 1;\n- an unexpected crash exits 70 with `defect: …` instead of 1 with `Unexpected error: …`;\n- `phax --json-schema` prints the contracts of the commands answering through the runner.\nEnd with one sentence saying later entries of this release follow. Do not edit earlier entries. Run `pnpm docs:cli` if the README's generated CLI block changes."
+      ],
+      "planMarkdownAnchor": "#phase-03-bridge",
+      "plannedFilesToCreate": [
+        "src/cli/bridge.ts",
+        "src/cli/definitions/program.ts",
+        "tests/unit/cli/bridge.test.ts",
+        "tests/unit/cli/phaxProgram.test.ts",
+        "tests/integration/cliRefusedCodes.test.ts",
+        "tests/integration/usageSpecDeclarations.test.ts",
+        "tests/helpers/usageKdl.ts",
+        "tests/fixtures/usage/phax.usage.before-command-contracts.kdl"
+      ],
+      "plannedFilesToEdit": [
+        "src/cli/main.ts",
+        "src/cli/program.ts",
+        "src/cli/commands/runLayers.ts",
+        "scripts/generate-usage-spec.ts",
+        "phax.usage.kdl",
+        "README.md",
+        "docs/upgrading.md",
+        "tests/integration/cliErrors.test.ts",
+        "tests/integration/holdCli.test.ts",
+        "tests/integration/phaseGuard.test.ts",
+        "tests/unit/architecturalGuards.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/cli/introspect.ts",
+        "src/cli/cliDocs.ts",
+        "src/cli/commands/usage.ts",
+        "src/domain/security/phaseGuard.ts",
+        "src/cli/commandLibrary/contract/usage.ts",
+        "src/cli/commandLibrary/commander/run.ts",
+        "tests/unit/readmeExitCodes.test.ts",
+        "tests/unit/generateUsageSpec.test.ts",
+        "tests/unit/security/phaseGuard.test.ts",
+        "tests/integration/cliProgram.test.ts",
+        "tests/integration/usageParity.test.ts",
+        "tests/integration/usageOutput.test.ts",
+        "tests/integration/usageSpecDrift.test.ts",
+        "tests/integration/usageSpecLint.test.ts",
+        "tests/integration/usageSpecCompleters.test.ts",
+        "tests/integration/usageSpecExamples.test.ts",
+        "tests/integration/docsCliDrift.test.ts",
+        "knip.json"
+      ],
+      "mode": "headless",
+      "acceptance": null,
+      "boundaryContracts": "Producer: src/cli/bridge.ts. Consumer: src/cli/main.ts. Contract: one call in, one process exit out. Runner commands go to `runner.run(phaxProgram, processIo(process))`. Everything else goes to the Commander program, with its refusals mapped to 64 and its crashes to 70. Producer: src/cli/definitions/program.ts (`phaxProgram`). Consumers: the bridge, program.ts's stubs and the usage generator. Contract: the runner's Program, which phase-05 fills with commands. Producer: the bridge's usage-block cutter. Consumer: scripts/generate-usage-spec.ts. Contract: each runner command's `cmd` block, keyed by its full name.",
+      "testStrategy": [
+        {
+          "guarantee": "an unknown command or option, a missing argument and an excess one on an unmigrated command exit 64 with Commander's text",
+          "size": "medium",
+          "technique": "table",
+          "oracle": "the spawned CLI's exit code and stderr",
+          "loop": "in-phase",
+          "criterion": "ac-unknown-option"
+        },
+        {
+          "guarantee": "a throw escaping a command's action exits 70 and writes defect text on stderr",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the bridge's exit code and err text with a throwing double",
+          "loop": "in-phase",
+          "criterion": "ac-defect"
+        },
+        {
+          "guarantee": "artifact, artifact new and agent setup called alone write their help on stderr and exit 64",
+          "size": "medium",
+          "technique": "table",
+          "oracle": "the spawned CLI's exit code and stderr",
+          "loop": "in-phase",
+          "criterion": "ac-groups"
+        },
+        {
+          "guarantee": "phax's program passes the runner's misdeclared-program check, and a variant declaring an option json is refused",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the runner's exit code and named command",
+          "loop": "in-phase",
+          "criterion": "ac-misdeclared"
+        },
+        {
+          "guarantee": "phax --json-schema prints program phax, version 0.34.0, exits refused 64 and defect 70, and the five message shapes",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the decoded catalogue",
+          "loop": "in-phase",
+          "criterion": "ac-catalogue"
+        },
+        {
+          "guarantee": "phax --usage and phax --usage --usage-format kdl print the committed phax.usage.kdl and exit 0",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the committed file's bytes",
+          "loop": "in-phase",
+          "criterion": "ac-usage-flag"
+        },
+        {
+          "guarantee": "the committed usage spec is the generator's output and declares what the frozen pre-change file declares, apart from the allowlisted root additions",
+          "size": "small",
+          "technique": "metamorphic",
+          "oracle": "the frozen phax.usage.kdl compared node by node",
+          "loop": "in-phase",
+          "criterion": "ac-usage-parity"
+        },
+        {
+          "guarantee": "inside a phase worktree the guard refuses before any command, on the runner path and on Commander's, with exit 1",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the guard's sentence and exit code",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "no file under src/cli/definitions/ imports commander",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the architecture guard's import scan",
+          "loop": "in-phase",
+          "criterion": "ac-no-parser"
+        },
+        {
+          "guarantee": "the README exit-code table lists 64 and 70 exactly as EXIT_CODE_MEANINGS does",
+          "size": "small",
+          "technique": "table",
+          "oracle": "the readme exit-code test",
+          "loop": "in-phase",
+          "criterion": null
+        }
+      ],
+      "implementationOrder": [
+        "src/cli/definitions/program.ts",
+        "src/cli/bridge.ts and its unit test",
+        "main.ts and program.ts wiring",
+        "runLayers.ts codes and README table",
+        "frozen usage fixture, KDL reader, generator splice and regeneration",
+        "integration tests and updated refusals",
+        "architecture guard and upgrading entry"
+      ],
+      "excludedScope": [
+        "Moving any command onto the runner (phase-05).",
+        "The formats artifact-status, plan-overview, plan-lint and the run-list pullRequest (phase-04).",
+        "A refused line for an unmigrated command under --json: it waits for the command's move."
+      ],
+      "verification": "The `standard` gate profile in phax.json.",
+      "expectedHandoff": "Give the exact dispatch order of src/cli/bridge.ts and its exported names: the stub mounting, the stub registry and the usage-block cutter. Give `phaxProgram`'s declaration. Describe how program.ts mounts a runner command as a help-only stub. Name the KDL subset tests/helpers/usageKdl.ts reads, and the allowlist in usageSpecDeclarations.test.ts that phase-05 extends with `--json` on each migrated command. List the tests whose exit codes changed from 1 to 64. Show the 0.34.0 upgrading entry as written. Explain any deviation from the planned file lists.",
+      "commit": {
+        "subject": "feat(cli): bridge Commander and the command runner, with refused 64 and defect 70",
+        "body": "Route every call through a bridge that hands a runner command to the ported runner\nand everything else to today's Commander program. phax's runner program declares the\nrefused (64) and defect (70) codes, its usage flag and its program-wide options.\nCommander's refusals now exit 64 and an unexpected crash exits 70 with `defect: …`.\n\nThe usage spec generator can splice a runner command's node into today's walk, and\nthe declarations of phax.usage.kdl are checked against a frozen copy of the file.\n`phax --json-schema` prints the runner program's catalogue, and the phase guard\nstill refuses first, with exit 1."
+      },
+      "assignmentReason": "The bridge is a shape no code holds yet, and it crosses main.ts, program.ts, the usage generator and the phase guard.",
+      "model": "claude-opus-5-5",
+      "effort": "medium"
+    },
+    {
+      "id": "phase-04",
+      "title": "The four answers' formats, the run list's pull request, and their acceptance tests",
+      "objective": "The schemas package publishes `artifact-status`, `plan-overview` and `plan-lint`, born at 0.34.0, and a `run-list` whose rows carry `pullRequest`, with its 0.30.0 shape frozen. `phax ls --json` already fills `pullRequest`. The four commands' runner answers are written as frozen acceptance tests.",
+      "detailedInstructions": [
+        "Read src/schemas/schemaUrl.ts, src/schemas/release.ts, src/schemas/runList.ts, src/schemas/publication.ts, src/domain/runList.ts, src/cli/commands/ls.ts, src/app/artifactStatus.ts (ArtifactAuthoring, ArtifactQuestions, the inspectArtifact result), src/domain/plan/overview.ts (PlanOverview), src/app/lintPlan.ts (LintReport) and packages/schemas/. For the steps of a format's birth and of a frozen shape with a `next` snapshot, read the archived plan docs/plans/archive/2610311031-acceptance-tests-plan.md, phase-05 (acceptance-request), and phase-01 (frozen modules).",
+        "Before changing anything, capture today's `phax ls --json` and `phax plans overview --json` outputs for the fixtures the new tests use, as tests/fixtures/commandAnswers/before.ts, a module exporting them as values with fixed timestamps.",
+        "Create the schemas:\n- src/schemas/artifactStatus.ts: ArtifactStatusFileSchema, strict keys, with `$schema: schemaUrlField(\"artifact-status\")`, then `path`, `kind`, `status` and `legalTransitions` (the status names).\n  - `approval`: `{ kind: \"none\" }`, `{ kind: \"unrecorded\" }`, or `{ kind: \"recorded\", date, baseline, approver, editedSinceApproval }`, where `approver` is the arbiter as the approval record stores it.\n  - `authoring`: `{ kind: \"interactive\" }`, or `{ kind: \"headless\", sidecar, agreement }`, where `agreement` is \"in-sync\", \"diverged\", `{ kind: \"invalid\", message }` or `{ kind: \"stamped\", format, shape }`.\n  - `questions`: `{ kind: \"none\" }`, `{ kind: \"departs\", line, text }`, or `{ kind: \"parsed\", open, arbitrated, lifted }`, each a list of question ids.\n  - Spellings follow §6, and every key is required.\n- src/schemas/planOverview.ts: PlanOverviewFileSchema, `$schema: schemaUrlField(\"plan-overview\")` then exactly today's PlanOverview fields in today's key order, with a compile-time check that the schema's type and PlanOverview agree, as src/schemas/publication.ts does.\n- src/schemas/planLint.ts: PlanLintFileSchema, `$schema: schemaUrlField(\"plan-lint\")` then today's LintReport fields, with the same check.\n- Each module exports its file decoder and encoder, named as every format's are.",
+        "Freeze `run-list` and extend it. Create src/schemas/history/run-list/0.30.0.ts, a self-contained copy of today's run-list schema that inlines review-stop 0.30.0's shapes and imports only `effect`, as src/schemas/history/run-list/0.26.0.ts does. Then add `pullRequest: Schema.NullOr(Schema.NonEmptyString)` to RunListRowSchema after `stop`: required, with a description saying it is the URL of the pull request phax opened for the run, or null. There is no optional field and no shim.",
+        "Fill `pullRequest` in `phax ls --json` (src/domain/runList.ts and src/cli/commands/ls.ts, still a Commander command). It is the run's publication record's `pullRequestUrl` (src/schemas/publication.ts, read where src/app/finalReport.ts reads it), or null when there is none or it cannot be read. `ls --complete` and the text table are unchanged.",
+        "Register the formats:\n- src/schemas/schemaUrl.ts: append `artifact-status`, `plan-overview` and `plan-lint` to FORMAT_IDS and SCHEMA_BORN_FORMAT_IDS, and update the doc comments.\n- packages/schemas/build/jsonSchemas.ts: their definitions, and run-list's frozen 0.30.0 release.\n- packages/schemas/src/formats/commandAnswers.ts: the three formats with parse and toLatest functions, as packages/schemas/src/formats/acceptanceRequest.ts does for one.\n- packages/schemas/src/formats/interactive.ts: run-list lists 0.30.0 as a release.\n- packages/schemas/src/index.ts: exports and parseDocument.\n- tests/type/schemasPackage.ts.\nRun `pnpm exec tsx scripts/schemas-check.ts --write` twice, then the check. This writes the four next.schema.json snapshots and updates src/schemas/release.ts, packages/schemas/src/generated/index.ts and packages/schemas/history.lock.json.",
+        "Update the registries:\n- README.md's persisted-formats table gains three rows, in the shape tests/unit/readmePersistedFormats.test.ts requires: Artifact status (`artifact-status`, the output of `phax artifact status --json`, never saved, `parseArtifactStatus`), Plan overview (`plan-overview`, …) and Plan lint (`plan-lint`, …).\n- NEVER_WRITTEN in tests/integration/persistedProducer.test.ts gains the three ids.\n- The closure allowlist and file-decoder map in tests/unit/architecturalGuards.test.ts take the new modules and src/schemas/history/run-list/0.30.0.ts.\n- tests/unit/schemaUrl.test.ts.\n- The package's documents, exports, jsonSchemas, currentShapes, parity and documents tests.\n- tests/unit/runList.test.ts and tests/integration/runList.test.ts for `pullRequest`.",
+        "Write the acceptance tests. Every test carries vitest's `.fails` marker: the four commands are still Commander commands, so each fails on its assertion. Each spawns `tsx src/cli/main.ts` in a temporary repository (isolateGit, phaxHomeEnv, makeFakeGitHub where a publication is needed), as tests/integration/plansOverviewCommand.test.ts does.\n- tests/integration/artifactStatusJson.test.ts (ac-artifact-status):\n  - a Draft headless spec with one open question `q-cadence`: `--json` decodes against ArtifactStatusFileSchema, `$schema` comes first and is stamped 0.34.0, `q-cadence` is open, and the sidecar is in sync;\n  - an Approved spec edited since approval: the approval has its date, baseline and approver, and `editedSinceApproval` is true;\n  - `artifact status --json-schema` names `[\"artifact\",\"status\"]`.\n- tests/integration/plansAnswersJson.test.ts:\n  - ac-overview: `plans overview --json` starts with `\"$schema\": \"https://docs.phax.run/schemas/plan-overview/0.34.0.json\"`, and the rest equals before.ts's overview;\n  - ac-lint-verdict: `plans lint --json` on a plan with one error finding writes a `plan-lint` document with `$schema` first and exits 1, without `--json` it writes today's text and exits 1, and a clean plan exits 0;\n  - ac-json-schema-command: `plans lint --json-schema` names `[\"plans\",\"lint\"]`, has `stdin` null, `output` and `errors`, runs no lint, and equals the `plans lint` entry of `phax --json-schema`;\n  - ac-catalogue: `phax --json-schema` holds entries for `artifact status`, `plans overview`, `plans lint` and `ls`;\n  - ac-json-every-command: for the four, stdout parses as one value indented by two spaces with one trailing newline, and every stderr line is a message line.\n- tests/integration/lsJsonContracts.test.ts:\n  - ac-unknown-option: `ls --colour --json` writes nothing on stdout and one `refused` line with `\"source\":\"flags\"` on stderr, and exits 64;\n  - ac-help: `ls --help` lists `--json`;\n  - `ls --json-schema` names `[\"ls\"]` and points `output` at the run-list format.",
+        "In-phase tests (no marker):\n- tests/unit/schemas/commandAnswers.test.ts: each new schema decodes a full document and refuses an extra key and a missing one; the 0.30.0 run-list decodes a document without `pullRequest`, and the current one refuses it.\n- tests/unit/schemasPackage/commandAnswersFormat.test.ts: parse and toLatest for the three formats, and parseDocument identifies each.\n- tests/integration/runList.test.ts: a run phax published carries its URL, and one it did not carries null (ac-run-pr).\n- The same file: today's `ls --json` bytes, from before.ts, equal the new output once `pullRequest` and the `$schema` stamp are set aside (ac-versioned-stable).",
+        "docs/upgrading.md: in the 0.34.0 entry, add one bullet each for:\n- `phax ls --json` rows gaining the required `pullRequest` (run-list 0.34.0, 0.30.0 still parsed);\n- the three new formats in @lbdremy/phax-schemas.\nDo not edit earlier entries."
+      ],
+      "planMarkdownAnchor": "#phase-04-answer-formats",
+      "plannedFilesToCreate": [
+        "src/schemas/artifactStatus.ts",
+        "src/schemas/planOverview.ts",
+        "src/schemas/planLint.ts",
+        "src/schemas/history/run-list/0.30.0.ts",
+        "packages/schemas/src/formats/commandAnswers.ts",
+        "packages/schemas/snapshots/artifact-status/next.schema.json",
+        "packages/schemas/snapshots/plan-overview/next.schema.json",
+        "packages/schemas/snapshots/plan-lint/next.schema.json",
+        "packages/schemas/snapshots/run-list/next.schema.json",
+        "tests/fixtures/commandAnswers/before.ts",
+        "tests/unit/schemas/commandAnswers.test.ts",
+        "tests/unit/schemasPackage/commandAnswersFormat.test.ts",
+        "tests/integration/artifactStatusJson.test.ts",
+        "tests/integration/plansAnswersJson.test.ts",
+        "tests/integration/lsJsonContracts.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/schemas/schemaUrl.ts",
+        "src/schemas/release.ts",
+        "src/schemas/runList.ts",
+        "src/domain/runList.ts",
+        "src/cli/commands/ls.ts",
+        "packages/schemas/build/jsonSchemas.ts",
+        "packages/schemas/src/index.ts",
+        "packages/schemas/src/formats/interactive.ts",
+        "packages/schemas/src/generated/index.ts",
+        "packages/schemas/history.lock.json",
+        "README.md",
+        "docs/upgrading.md",
+        "tests/type/schemasPackage.ts",
+        "tests/unit/schemaUrl.test.ts",
+        "tests/unit/architecturalGuards.test.ts",
+        "tests/unit/runList.test.ts",
+        "tests/integration/runList.test.ts",
+        "tests/integration/persistedProducer.test.ts",
+        "tests/unit/schemasPackage/documents.ts",
+        "tests/unit/schemasPackage/exports.test.ts",
+        "tests/unit/schemasPackage/jsonSchemas.test.ts",
+        "tests/unit/schemasPackage/currentShapes.test.ts",
+        "tests/unit/schemasPackage/parity.test.ts",
+        "tests/unit/schemasPackage/documents.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/schemas/persisted.ts",
+        "src/app/resolveRunInfo.ts",
+        "src/app/artifactStatus.ts",
+        "src/app/lintPlan.ts",
+        "src/domain/plan/overview.ts",
+        "packages/schemas/build/snapshots.ts",
+        "site/build/sources.ts",
+        "tests/unit/cli/ls.test.ts",
+        "tests/unit/readmePersistedFormats.test.ts",
+        "tests/unit/schemasPackage/parseDocument.test.ts",
+        "tests/unit/schemasPackage/snapshots.test.ts",
+        "tests/integration/closeStopNetwork.test.ts"
+      ],
+      "mode": "headless",
+      "acceptance": {
+        "passedBy": "phase-05",
+        "files": [
+          "tests/integration/artifactStatusJson.test.ts",
+          "tests/integration/plansAnswersJson.test.ts",
+          "tests/integration/lsJsonContracts.test.ts",
+          "tests/fixtures/commandAnswers/before.ts",
+          "src/schemas/artifactStatus.ts",
+          "src/schemas/planOverview.ts",
+          "src/schemas/planLint.ts",
+          "src/schemas/runList.ts"
+        ]
+      },
+      "boundaryContracts": "Producer: src/schemas/artifactStatus.ts, planOverview.ts, planLint.ts and runList.ts. Consumers: phase-05's definitions (their output contracts), the schemas package and readers such as the Claude Code mod. Contract: one closed document per format, `$schema` first, stamped 0.34.0 while its next snapshot exists, every key required. Producer: `phax ls --json`. Consumer: the mod. Contract: each row's `pullRequest` is the URL of the pull request phax opened, or null.",
+      "testStrategy": [
+        {
+          "guarantee": "artifact status --json answers an artifact-status document listing a Draft spec's open question and sidecar agreement, and an edited Approved spec's approval with editedSinceApproval true",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "ArtifactStatusFileSchema and the fixture's known questions and approval",
+          "loop": "acceptance",
+          "criterion": "ac-artifact-status"
+        },
+        {
+          "guarantee": "plans overview --json starts with the plan-overview 0.34.0 $schema and the rest equals today's overview",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the overview captured before the change",
+          "loop": "acceptance",
+          "criterion": "ac-overview"
+        },
+        {
+          "guarantee": "plans lint answers a plan-lint document with --json and today's text without it, exiting 1 on an error finding and 0 on a clean plan",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "PlanLintFileSchema, today's rendered report and the exit codes",
+          "loop": "acceptance",
+          "criterion": "ac-lint-verdict"
+        },
+        {
+          "guarantee": "plans lint --json-schema prints its entry without linting, equal to its entry in phax --json-schema",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the two decoded entries compared",
+          "loop": "acceptance",
+          "criterion": "ac-json-schema-command"
+        },
+        {
+          "guarantee": "the catalogue holds an entry for each of the four migrated commands",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the decoded catalogue's name words",
+          "loop": "acceptance",
+          "criterion": "ac-catalogue"
+        },
+        {
+          "guarantee": "each of the four commands answers --json with one indented JSON value and only message lines on stderr",
+          "size": "medium",
+          "technique": "table",
+          "oracle": "JSON.parse of stdout and each stderr line against the message shapes",
+          "loop": "acceptance",
+          "criterion": "ac-json-every-command"
+        },
+        {
+          "guarantee": "ls with an undeclared option under --json writes one refused line from flags and exits 64",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the refused line's fields and the exit code",
+          "loop": "acceptance",
+          "criterion": "ac-unknown-option"
+        },
+        {
+          "guarantee": "ls --help lists --json",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the help text",
+          "loop": "acceptance",
+          "criterion": "ac-help"
+        },
+        {
+          "guarantee": "a run phax published carries its pull request URL in ls --json and an unpublished one carries null",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the fixture's publication record",
+          "loop": "in-phase",
+          "criterion": "ac-run-pr"
+        },
+        {
+          "guarantee": "ls --json is byte for byte today's output apart from pullRequest and the $schema stamp",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the output captured before the change",
+          "loop": "in-phase",
+          "criterion": "ac-versioned-stable"
+        },
+        {
+          "guarantee": "each new format decodes a full document and refuses an extra or a missing key, and run-list 0.30.0 still parses",
+          "size": "small",
+          "technique": "boundary",
+          "oracle": "the schemas' typed refusals",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "every format registry, snapshot, the README table and the closure allowlist name the three new formats and run-list's frozen 0.30.0",
+          "size": "small",
+          "technique": "table",
+          "oracle": "the registry, package and README tests",
+          "loop": "in-phase",
+          "criterion": null
+        }
+      ],
+      "implementationOrder": [
+        "capture before.ts",
+        "run-list freeze and pullRequest, then ls",
+        "the three schemas",
+        "format registration, schemas-check and registries",
+        "in-phase tests",
+        "acceptance tests with their markers",
+        "upgrading bullets"
+      ],
+      "excludedScope": [
+        "Moving artifact status, plans overview, plans lint or ls onto the runner (phase-05).",
+        "Changing the text any command prints."
+      ],
+      "verification": "The `standard` gate profile in phax.json, with the configured acceptance provider judging the acceptance test files (authored).",
+      "expectedHandoff": "Give the module paths and exported names of the three schemas and of the frozen run-list 0.30.0. Give the field spellings of artifact-status, every variant included. Say where `ls` reads `pullRequest` from. Give the package exports added. Say which fixtures before.ts holds and how the acceptance tests build their repositories. For each acceptance test, say the assertion it fails on today. Explain any deviation from the planned file lists.",
+      "commit": {
+        "subject": "feat(schemas): artifact-status, plan-overview and plan-lint born, run-list gains pullRequest",
+        "body": "Add the artifact-status, plan-overview and plan-lint formats at 0.34.0 and publish\nthem through @lbdremy/phax-schemas. Freeze run-list at 0.30.0, and give each current\nrow a required pullRequest: the URL of the pull request phax opened for the run, or\nnull. `phax ls --json` fills it now.\n\nThe four commands' runner answers are written as acceptance tests, frozen until the\nphase that moves the commands."
+      },
+      "assignmentReason": null,
+      "model": "claude-sonnet-5-5",
+      "effort": "medium"
+    },
+    {
+      "id": "phase-05",
+      "title": "artifact status, plans overview, plans lint and ls on the runner",
+      "objective": "`phax artifact status`, `phax plans overview`, `phax plans lint` and `phax ls` are command definitions on the runner. `--json` gives their versioned documents with message lines on stderr. `--json-schema` gives their contracts. Without `--json`, a person reads today's text with today's codes.",
+      "detailedInstructions": [
+        "Read the acceptance test files phase-04 committed, src/cli/bridge.ts, src/cli/definitions/program.ts, the port's index files, src/cli/commands/artifact.ts (runArtifactStatus and its text helpers), plans.ts (runPlansLint, registration), plansOverview.ts, ls.ts, src/cli/cliDocs.ts and the commands' tests (tests/unit/cli/plans.test.ts, tests/unit/cli/ls.test.ts, tests/unit/cli/artifactStatusRender.test.ts, tests/integration/plansOverviewCommand.test.ts, tests/integration/artifactStatus.test.ts, tests/integration/runList.test.ts).",
+        "Create one definition per command under src/cli/definitions/, written against the port's contract index and never against `commander`.\n- `input` declares the same arguments and options as today, with today's help as `description` annotations and the identifiers `plan` and `path`, so the usage spec declares the same things.\n- `output` is the phase-04 schema, encoded with `$schema` first.\n- `render` reproduces today's text exactly, from the output alone.\n- `notes` carries today's stderr warnings: artifact status's orphan-record warnings and plans overview's architecture-provider failure. Each is a note line under `--json` and today's line without it.\n- `exits` and `errors` declare each failure today's command maps through exitCodeForError or by hand, such as `Config error: …` (2 for lint and overview, 1 for ls). `texts` gives today's sentence for each.\n- `help` and `examples` move from src/cli/cliDocs.ts, and their cliDocs entries are removed.\n- artifactStatus.ts builds the artifact-status document from inspectArtifact's result. plansOverview.ts and plansLint.ts build theirs from planOverview's and lintPlan's results.\n- plansLint.ts declares `verdicts: { 1: (report) => hasLintErrors(report.findings) }`.\n- ls.ts answers the run-list document. Its `--complete` keeps printing `short-name:state` lines through the `document` hook, as a text document with format null, so completion never reaches render or the run-list encoding. The RECORDS column follows the decision on q-ls-records-column: with derive, render shows the column when a row's `recordsPending` is a number; with view-gain, add the gain to the port's contract and runner with a conformance case, and pass whether records are configured.\n- Provide each run's services inside it, from the layers src/cli/commands/runLayers.ts builds today, so each command's R is never.",
+        "Add the four to `phaxProgram`: `ls` at the root, `status` in group `artifact` and `lint` and `overview` in group `plans`, in today's order, so help and the usage spec keep their positions. In src/cli/commands/artifact.ts and plans.ts, remove the Commander registrations of the four. The bridge mounts their stubs.\n\nKeep `runLs` (src/cli/commands/ls.ts), `runArtifactStatus` (src/cli/commands/artifact.ts), `runPlansLint` (plans.ts) and `runPlansOverview` (plansOverview.ts) only as compositions of the definition's run, render and notes, writing through the OutputPort and returning the code. Their existing text tests then exercise the migrated command unchanged. The last plan removes them with those tests' move to the runner.",
+        "Remove the `.fails` markers from the three acceptance test files. That is their only change, and src/schemas/artifactStatus.ts, planOverview.ts, planLint.ts and runList.ts and tests/fixtures/commandAnswers/before.ts stay as committed. When an acceptance test cannot pass, fix the definition, never the test.",
+        "Update the tests that pinned the unversioned objects, and nothing else in them:\n- the `--json` cases of tests/unit/cli/plans.test.ts and tests/integration/plansOverviewCommand.test.ts now expect the documents;\n- the registration checks in tests/unit/cli/plans.test.ts and tests/integration/cliProgram.test.ts now expect the stubs' declared options.",
+        "Run `pnpm gen:usage-spec`. The four commands' nodes now come from the port, each adding `--json` with the library's help text. Extend the allowlist of tests/integration/usageSpecDeclarations.test.ts with exactly those four `--json` additions or rewordings. Run `pnpm docs:cli` for the README's generated CLI block.",
+        "docs/upgrading.md, in the 0.34.0 entry, add one bullet each for:\n- `plans overview --json` and `plans lint --json` now answer versioned `plan-overview` and `plan-lint` documents with `$schema` first, replacing the unversioned objects;\n- `artifact status --json` is new;\n- on these four commands, `--json` writes message lines on stderr and `--json-schema` prints their contracts.\nDo not edit earlier entries."
+      ],
+      "planMarkdownAnchor": "#phase-05-four-commands",
+      "plannedFilesToCreate": [
+        "src/cli/definitions/artifactStatus.ts",
+        "src/cli/definitions/plansOverview.ts",
+        "src/cli/definitions/plansLint.ts",
+        "src/cli/definitions/ls.ts",
+        "tests/unit/cli/definitionsRender.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/cli/definitions/program.ts",
+        "src/cli/commands/artifact.ts",
+        "src/cli/commands/plans.ts",
+        "src/cli/commands/plansOverview.ts",
+        "src/cli/commands/ls.ts",
+        "src/cli/cliDocs.ts",
+        "phax.usage.kdl",
+        "README.md",
+        "docs/upgrading.md",
+        "tests/integration/artifactStatusJson.test.ts",
+        "tests/integration/plansAnswersJson.test.ts",
+        "tests/integration/lsJsonContracts.test.ts",
+        "tests/integration/usageSpecDeclarations.test.ts",
+        "tests/integration/plansOverviewCommand.test.ts",
+        "tests/unit/cli/plans.test.ts",
+        "tests/integration/cliProgram.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/cli/bridge.ts",
+        "src/cli/program.ts",
+        "src/cli/introspect.ts",
+        "src/cli/commands/runLayers.ts",
+        "scripts/generate-usage-spec.ts",
+        "src/cli/commandLibrary/contract/command.ts",
+        "src/cli/commandLibrary/contract/index.ts",
+        "src/cli/commandLibrary/contract/conformance/cases.ts",
+        "src/cli/commandLibrary/commander/run.ts",
+        "src/domain/runList.ts",
+        "src/app/artifactStatus.ts",
+        "tests/unit/cli/ls.test.ts",
+        "tests/unit/cli/artifactStatusRender.test.ts",
+        "tests/unit/architecturalGuards.test.ts",
+        "tests/unit/generateUsageSpec.test.ts",
+        "tests/unit/commandLibrary/contract/exports.test.ts",
+        "tests/integration/runList.test.ts",
+        "tests/integration/artifactStatus.test.ts",
+        "tests/integration/lintPlan.test.ts",
+        "tests/integration/usageParity.test.ts",
+        "tests/integration/usageSpecExamples.test.ts",
+        "tests/integration/docsCliDrift.test.ts"
+      ],
+      "mode": "headless",
+      "acceptance": null,
+      "boundaryContracts": "Producer: src/cli/definitions/*.ts. Consumers: the runner, through `phaxProgram`, and the bridge. Contract: one CommandDef each, with today's arguments and options, output a phase-04 document, render today's text, declared errors with today's codes and sentences, and plans lint's verdict 1. Producer: `phax artifact status|plans overview|plans lint|ls --json`. Consumer: the Claude Code mod. Contract: the versioned document on stdout, and message lines alone on stderr.",
+      "testStrategy": [
+        {
+          "guarantee": "the four commands' existing text tests pass with their text assertions unchanged",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the existing tests' expected text",
+          "loop": "in-phase",
+          "criterion": "ac-text-unchanged"
+        },
+        {
+          "guarantee": "each render gives today's text from its document, including stop labels, the records column and approval conditions",
+          "size": "small",
+          "technique": "table",
+          "oracle": "today's rendered strings for fixed documents",
+          "loop": "in-phase",
+          "criterion": "ac-text-unchanged"
+        },
+        {
+          "guarantee": "a declared failure writes today's sentence and exits with today's code without --json, and one error line with --json",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "today's sentences and codes from the existing tests",
+          "loop": "in-phase",
+          "criterion": "ac-error-sentence"
+        },
+        {
+          "guarantee": "ls --complete still prints short-name:state lines and nothing else",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the completer's expected lines",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "artifact status orphan warnings and the overview's architecture warning reach stderr as note lines under --json and as today's lines without it",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "stderr lines parsed as message lines",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "phax.usage.kdl is the generator's output and differs from the frozen file only by the root additions and --json on the four commands",
+          "size": "small",
+          "technique": "metamorphic",
+          "oracle": "the frozen phax.usage.kdl compared node by node",
+          "loop": "in-phase",
+          "criterion": "ac-usage-parity"
+        },
+        {
+          "guarantee": "the four definitions import no commander",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the architecture guard's import scan",
+          "loop": "in-phase",
+          "criterion": "ac-no-parser"
+        }
+      ],
+      "implementationOrder": [
+        "plansLint and plansOverview definitions",
+        "artifactStatus definition",
+        "ls definition with its completion document",
+        "phaxProgram, removal of the Commander registrations, kept run functions",
+        "markers removed and pinned JSON tests updated",
+        "usage spec, docs:cli and upgrading bullets"
+      ],
+      "excludedScope": [
+        "Any other command, including plans status, overlap and estimate, and every other artifact command (later plans).",
+        "Removing the bridge, the Commander root or the run functions kept for tests (the last plan).",
+        "The docs page reference/json-output (the last plan)."
+      ],
+      "verification": "The `standard` gate profile in phax.json, with the configured acceptance provider judging phase-04's acceptance test files (passed).",
+      "expectedHandoff": "Give the four definitions' paths and their input, output, errors, texts, verdicts, notes and document hooks. Give `phaxProgram`'s command list and the groups it declares. State which run functions remain as compositions over the definitions, and the tests that call them. Say how q-ls-records-column was applied. List the tests whose `--json` expectations changed. Give the usage allowlist entries added, and confirm the acceptance test files changed only by their markers. Name what the next plan inherits: the definition pattern, the bridge's stub mounting and the kept run functions. Explain any deviation from the planned file lists.",
+      "commit": {
+        "subject": "feat(cli): artifact status, plans overview, plans lint and ls answer through the command runner",
+        "body": "Write the four commands the Claude Code mod reads as command definitions on the\nported runner. `--json` now answers the versioned artifact-status, plan-overview,\nplan-lint and run-list documents, with message lines on stderr. `--json-schema`\nprints each command's contracts. plans lint answers with verdict code 1 when a\nfinding is an error.\n\nWithout `--json` each command prints today's text, notes and error sentences with\ntoday's codes. The usage spec gains `--json` on the four, written from their\ndefinitions."
+      },
+      "assignmentReason": "The first phax commands written as definitions set the pattern every later plan repeats: renders that reproduce today's text from documents, and declared errors that keep today's sentences and codes through the bridge.",
+      "model": "claude-opus-5-5",
+      "effort": "medium"
+    }
+  ]
+}
