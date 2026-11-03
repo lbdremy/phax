@@ -116,6 +116,9 @@ import { OracleRequestV0_26_0Schema } from "../../../src/schemas/history/oracle-
 import { PlanExtractionAnswerSchema } from "../../../src/schemas/planExtraction.js";
 import { ReviewStopFileSchema } from "../../../src/schemas/reviewStop.js";
 import { RunListFileSchema } from "../../../src/schemas/runList.js";
+import { ArtifactStatusFileSchema } from "../../../src/schemas/artifactStatusDocument.js";
+import { PlanLintFileSchema } from "../../../src/schemas/planLint.js";
+import { PlanOverviewFileSchema } from "../../../src/schemas/planOverview.js";
 import { PhaxPlanFileSchema } from "../../../src/schemas/phaxPlan.js";
 import { PlanDocumentFileSchema } from "../../../src/schemas/planDocument.js";
 import type { TestLine } from "../../../src/schemas/testLine.js";
@@ -1173,6 +1176,69 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
       files: ["tests/prune.test.ts"],
     }),
   ),
+  "artifact-status": encoded(
+    ArtifactStatusFileSchema,
+    withSchemaUrl("artifact-status", {
+      path: "docs/specs/2611011200-garden-sync.md",
+      kind: "spec",
+      status: "Draft",
+      legalTransitions: ["Approved", "Abandoned"],
+      approval: { kind: "none" },
+      authoring: {
+        kind: "headless",
+        sidecar: "docs/specs/2611011200-garden-sync.json",
+        agreement: "in-sync",
+      },
+      questions: { kind: "parsed", open: ["q-cadence"], arbitrated: ["q-store"], lifted: [] },
+    }),
+  ),
+  "plan-overview": encoded(
+    PlanOverviewFileSchema,
+    withSchemaUrl("plan-overview", {
+      plan: "docs/plans/2611011300-garden-sync-plan.md",
+      name: "garden-sync",
+      title: "Garden sync",
+      frontmatter: { kind: "decoded", status: "Draft" },
+      sourceSpec: null,
+      architecture: { kind: "none" },
+      phases: [
+        {
+          id: "phase-01",
+          title: "Sync the garden",
+          model: "claude-sonnet-5-5",
+          effort: "medium",
+          mode: "headless",
+          acceptanceRole: { kind: "none" },
+          placement: [{ part: null, files: ["src/garden.ts"] }],
+          testLines: [
+            {
+              guarantee: "the garden is synced",
+              size: "small",
+              technique: "example",
+              oracle: "the synced rows",
+              loop: "in-phase",
+              criterion: null,
+            },
+          ],
+        },
+      ],
+      coverage: { kind: "no-source-spec" },
+    }),
+  ),
+  "plan-lint": encoded(
+    PlanLintFileSchema,
+    withSchemaUrl("plan-lint", {
+      plan: "docs/plans/2611011300-garden-sync-plan.md",
+      findings: [
+        {
+          severity: "error",
+          check: "structure",
+          phase: "phase-02",
+          message: "phase-02 has no gate",
+        },
+      ],
+    }),
+  ),
   "first-reading": encoded(
     FirstReadingFileSchema,
     withSchemaUrl("first-reading", {
@@ -1424,6 +1490,7 @@ function runListDocument(): Doc {
           recordsPending: 1,
           archivePath: null,
           stop,
+          pullRequest: "https://github.com/example/invoices/pull/12",
         },
         {
           qualifiedName: "example.payments-fix",
@@ -1438,6 +1505,7 @@ function runListDocument(): Doc {
           recordsPending: null,
           archivePath: null,
           stop: null,
+          pullRequest: null,
         },
       ],
     }),

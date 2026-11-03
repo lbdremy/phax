@@ -1,0 +1,504 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "phax plan overview",
+  "type": "object",
+  "required": [
+    "$schema",
+    "plan",
+    "name",
+    "title",
+    "frontmatter",
+    "sourceSpec",
+    "architecture",
+    "phases",
+    "coverage"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "The plan-overview format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): https://docs.phax.run/schemas/plan-overview/<X.Y.Z>.json",
+      "pattern": "^https:\\/\\/docs\\.phax\\.run\\/schemas\\/plan-overview\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$"
+    },
+    "plan": {
+      "type": "string",
+      "description": "The plan path as the caller typed it."
+    },
+    "name": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "frontmatter": {
+      "anyOf": [
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "status"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "decoded"
+              ]
+            },
+            "status": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "none"
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "problem"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "undecodable"
+              ]
+            },
+            "problem": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      ],
+      "description": "The plan's frontmatter: decoded with its status, absent, or a block that does not decode."
+    },
+    "sourceSpec": {
+      "anyOf": [
+        {
+          "type": "object",
+          "required": [
+            "path",
+            "slug"
+          ],
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "slug": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "architecture": {
+      "anyOf": [
+        {
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "parts"
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "none"
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "message"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "failed"
+              ]
+            },
+            "message": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      ],
+      "description": "What the architecture provider came to; the parts themselves are in each placement."
+    },
+    "phases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "model",
+          "effort",
+          "mode",
+          "acceptanceRole",
+          "placement",
+          "testLines"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "effort": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "headless",
+              "interactive"
+            ]
+          },
+          "acceptanceRole": {
+            "anyOf": [
+              {
+                "type": "object",
+                "required": [
+                  "kind",
+                  "passedBy"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "acceptance"
+                    ]
+                  },
+                  "passedBy": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "required": [
+                  "kind",
+                  "acceptancePhase"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "passing"
+                    ]
+                  },
+                  "acceptancePhase": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "required": [
+                  "kind"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "none"
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            ]
+          },
+          "placement": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "part",
+                "files"
+              ],
+              "properties": {
+                "part": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "The architecture part holding these files, or null for the files no part holds."
+                },
+                "files": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "testLines": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "guarantee",
+                "size",
+                "technique",
+                "oracle",
+                "loop",
+                "criterion"
+              ],
+              "properties": {
+                "guarantee": {
+                  "type": "string",
+                  "description": "What the test guarantees: one non-empty, trimmed line.",
+                  "pattern": "^[^\\s\\x00-\\x1F\\x7F-\\x9F\\u2028\\u2029](?:[^\\x00-\\x1F\\x7F-\\x9F\\u2028\\u2029]*[^\\s\\x00-\\x1F\\x7F-\\x9F\\u2028\\u2029])?$"
+                },
+                "size": {
+                  "type": "string",
+                  "enum": [
+                    "small",
+                    "medium",
+                    "large"
+                  ]
+                },
+                "technique": {
+                  "type": "string",
+                  "enum": [
+                    "example",
+                    "boundary",
+                    "table",
+                    "property",
+                    "metamorphic",
+                    "stateful",
+                    "fuzz",
+                    "contract",
+                    "smoke"
+                  ]
+                },
+                "oracle": {
+                  "type": "string",
+                  "description": "What the test compares against: one non-empty, trimmed line, never holding ' — ', never starting with '— ' and never ending with ' ·' (these three checked by phax, not by this JSON Schema).",
+                  "pattern": "^[^\\s\\x00-\\x1F\\x7F-\\x9F\\u2028\\u2029](?:[^\\x00-\\x1F\\x7F-\\x9F\\u2028\\u2029]*[^\\s\\x00-\\x1F\\x7F-\\x9F\\u2028\\u2029])?$"
+                },
+                "loop": {
+                  "type": "string",
+                  "enum": [
+                    "acceptance",
+                    "in-phase"
+                  ]
+                },
+                "criterion": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "description": "An acceptance criterion id from the source spec's JSON sidecar: a run of non-whitespace characters, no backtick, neither 'acceptance', 'in-phase' nor 'oracle' (that last checked by phax, not by this JSON Schema).",
+                      "pattern": "^[^\\s`\\x00-\\x1F\\x7F-\\x9F]+$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false,
+              "description": "One test line of a phase's test strategy, rendered as `- <guarantee> — <size> · <technique> · <oracle> · <loop>[ · <criterion>]`, one per line under the phase's `### Test strategy` heading. `criterion` is an acceptance criterion id from the source spec's JSON sidecar, or null."
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "coverage": {
+      "anyOf": [
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "spec",
+            "slug",
+            "criteria",
+            "uncovered"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "criteria"
+              ]
+            },
+            "spec": {
+              "type": "string"
+            },
+            "slug": {
+              "type": "string"
+            },
+            "criteria": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "lines"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "lines": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "phase",
+                        "loop"
+                      ],
+                      "properties": {
+                        "phase": {
+                          "type": "string"
+                        },
+                        "loop": {
+                          "type": "string",
+                          "enum": [
+                            "acceptance",
+                            "in-phase"
+                          ]
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "uncovered": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "no-source-spec"
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "message"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "frontmatter-undecodable"
+              ]
+            },
+            "message": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "spec",
+            "reason",
+            "message"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "no-criterion-ids"
+              ]
+            },
+            "spec": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string",
+              "enum": [
+                "not-a-spec-path",
+                "no-sidecar",
+                "not-found",
+                "unreadable"
+              ]
+            },
+            "message": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  },
+  "additionalProperties": false
+}

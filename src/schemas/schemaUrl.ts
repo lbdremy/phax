@@ -23,7 +23,9 @@ export const SCHEMA_URL_BASE = "https://docs.phax.run/schemas";
  * then the plan extraction answer and the spec and plan hand decision answers
  * of spec structured-output, then the acceptance request of spec
  * acceptance-tests, which replaces the oracle request (kept in this list,
- * frozen at 0.26.0), appended so existing order stays stable.
+ * frozen at 0.26.0), then the three answers of the commands behind the Claude
+ * Code mod (artifact status, plans overview and plans lint) of spec
+ * command-contracts, appended so existing order stays stable.
  */
 export const FORMAT_IDS = [
   "registry",
@@ -64,6 +66,9 @@ export const FORMAT_IDS = [
   "spec-hand-decision-answer",
   "plan-hand-decision-answer",
   "acceptance-request",
+  "artifact-status",
+  "plan-overview",
+  "plan-lint",
 ] as const;
 
 export type FormatId = (typeof FORMAT_IDS)[number];
@@ -97,7 +102,10 @@ export function isFormatId(value: string): value is FormatId {
  * the hand decision answer's root union, of the same spec. So is the
  * acceptance request phax writes on the acceptance provider's stdin, of spec
  * acceptance-tests, born at 0.33.0 beside the oracle request it replaces
- * (frozen at 0.26.0, still listed here).
+ * (frozen at 0.26.0, still listed here). So are the artifact status, the plan
+ * overview and the plan lint that `phax artifact status --json`,
+ * `phax plans overview --json` and `phax plans lint --json` print, which phax
+ * never saves, of spec command-contracts, born at 0.34.0.
  */
 export const SCHEMA_BORN_FORMAT_IDS = [
   "plan-approval-record",
@@ -125,6 +133,9 @@ export const SCHEMA_BORN_FORMAT_IDS = [
   "spec-hand-decision-answer",
   "plan-hand-decision-answer",
   "acceptance-request",
+  "artifact-status",
+  "plan-overview",
+  "plan-lint",
 ] as const satisfies ReadonlyArray<FormatId>;
 
 export type SchemaBornFormatId = (typeof SCHEMA_BORN_FORMAT_IDS)[number];

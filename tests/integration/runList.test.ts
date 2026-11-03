@@ -1,7 +1,10 @@
-import { renameSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, realpathSync, renameSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { Either } from "effect";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { parseRunList } from "../../packages/schemas/src/index.js";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import { decodeRunListFile } from "../../src/schemas/runList.js";
@@ -14,7 +17,11 @@ import {
   type HeldRun,
   type HeldWorld,
 } from "../helpers/heldRunFixture.js";
+import { isolateGit } from "../helpers/isolateGit.js";
+import { phaxHomeEnv } from "../helpers/isolatePhaxHome.js";
 import { patchJson, stopRun, type StoppedRun } from "../helpers/stoppedRunFixture.js";
+import { removeTempDir } from "../helpers/tempGit.js";
+import { LS_JSON_BEFORE, LS_REGISTRY } from "../fixtures/commandAnswers/before.js";
 
 // `phax ls --json` on the made-up world: invoice-export held at phase-02,
 // credit-notes stopped at its declared phase-03 and payments-fix failed, in one
@@ -158,6 +165,7 @@ describe("phax ls --json is a versioned run list", () => {
           "gateProfile",
           "lockState",
           "namespace",
+          "pullRequest",
           "qualifiedName",
           "recordsPending",
           "shortName",
@@ -199,5 +207,102 @@ describe("phax ls on a waiting run whose review-stop document is defective", () 
     const json = await lsJson();
 
     expect(row(json.runs, "credit-notes")["stop"]).toEqual(expected);
+  });
+});
+
+const PULL_REQUEST = "https://github.com/example/invoices/pull/12";
+
+function publication(extra: Record<string, unknown>): string {
+  return JSON.stringify({
+    version: 1,
+    enabled: true,
+    provider: "github",
+    remote: "origin",
+    branch: "phax/invoice-export",
+    pushStatus: "pushed",
+    prStatus: "created",
+    createdAt: "2026-10-22T09:30:00.000Z",
+    ...extra,
+  });
+}
+
+// ac-run-pr: a row's pullRequest is the URL in the run's publication record.
+describe("phax ls --json carries the pull request phax opened", () => {
+  it("gives the URL of a run phax published, and null for one it did not", async () => {
+    writeFileSync(
+      join(held.runPath, "publication.json"),
+      publication({ pullRequestUrl: PULL_REQUEST }),
+    );
+
+    const document = await lsJson();
+
+    expect(row(document.runs, SHORT)["pullRequest"]).toBe(PULL_REQUEST);
+    expect(row(document.runs, "credit-notes")["pullRequest"]).toBeNull();
+    expect(row(document.runs, "payments-fix")["pullRequest"]).toBeNull();
+    expect(Either.isRight(decodeRunListFile(document))).toBe(true);
+  });
+
+  it("gives null for a publication that opened no pull request or cannot be read", async () => {
+    writeFileSync(
+      join(held.runPath, "publication.json"),
+      publication({ prStatus: "failed", failureReason: "gh is not installed" }),
+    );
+    writeFileSync(join(declared.runPath, "publication.json"), "{ not json");
+
+    const document = await lsJson();
+
+    expect(row(document.runs, SHORT)["pullRequest"]).toBeNull();
+    expect(row(document.runs, "credit-notes")["pullRequest"]).toBeNull();
+  });
+});
+
+// ac-versioned-stable: the 0.33.0 bytes of `ls --json`, from before.ts, are the
+// new output once pullRequest and the $schema stamp are set aside.
+describe("phax ls --json is today's output apart from pullRequest and the stamp", () => {
+  const mainTs = join(fileURLToPath(import.meta.url), "../../../src/cli/main.ts");
+  let restoreGit: () => void;
+  let base: string;
+
+  beforeAll(() => {
+    restoreGit = isolateGit();
+    base = realpathSync(mkdtempSync(join(tmpdir(), "phax-ls-bytes-")));
+    const repo = join(base, "repo");
+    const state = join(base, "state");
+    mkdirSync(repo);
+    mkdirSync(state);
+    spawnSync("git", ["init", "-q", "-b", "main"], { cwd: repo });
+    writeFileSync(
+      join(repo, "phax.json"),
+      JSON.stringify({
+        version: 1,
+        name: "made-up",
+        state: { root: state },
+        gateProfiles: { fast: [{ command: "true", surface: "local", firing: "every-phase" }] },
+      }),
+    );
+    writeFileSync(join(state, "registry.json"), JSON.stringify(LS_REGISTRY));
+  });
+
+  afterAll(() => {
+    restoreGit();
+    removeTempDir(base);
+  });
+
+  it("matches the output captured before the change", () => {
+    const result = spawnSync("tsx", [mainTs, "ls", "--json"], {
+      cwd: join(base, "repo"),
+      encoding: "utf8",
+      env: phaxHomeEnv(),
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe("");
+    const after = JSON.parse(result.stdout) as { $schema: string };
+    expect(after.$schema).toBe(currentSchemaUrl("run-list"));
+    // The same bytes once the stamp line and the new key are removed from the text.
+    const stamp = /^ {2}"\$schema": .*\n/m;
+    const stripped = result.stdout.replace(stamp, "").replace(/,\n {6}"pullRequest": null/g, "");
+    expect(stripped).toBe(LS_JSON_BEFORE.replace(stamp, ""));
+    expect(result.stdout.match(/"pullRequest": null/g)).toHaveLength(2);
   });
 });

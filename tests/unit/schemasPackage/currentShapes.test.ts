@@ -21,6 +21,9 @@ import {
   parseArchitectureReport,
   parseArchitectureRequest,
   parseAcceptanceRequest,
+  parseArtifactStatus,
+  parsePlanLint,
+  parsePlanOverview,
   parseFirstReading,
   parseInteractiveHandoff,
   parseInteractiveSession,
@@ -58,6 +61,9 @@ import {
   toLatestArchitectureReport,
   toLatestArchitectureRequest,
   toLatestAcceptanceRequest,
+  toLatestArtifactStatus,
+  toLatestPlanLint,
+  toLatestPlanOverview,
   toLatestFirstReading,
   toLatestInteractiveHandoff,
   toLatestInteractiveSession,
@@ -282,6 +288,9 @@ const PACKAGE_LATEST: { readonly [F in FormatId]: PackageLatest } = {
   // parseAcceptanceRequest reads both requests: an oracle request is lifted to the acceptance names.
   "oracle-request": latest(parseAcceptanceRequest, toLatestAcceptanceRequest),
   "acceptance-request": latest(parseAcceptanceRequest, toLatestAcceptanceRequest),
+  "artifact-status": latest(parseArtifactStatus, toLatestArtifactStatus),
+  "plan-overview": latest(parsePlanOverview, toLatestPlanOverview),
+  "plan-lint": latest(parsePlanLint, toLatestPlanLint),
   "first-reading": latest(parseFirstReading, toLatestFirstReading),
   "interactive-handoff": latest(parseInteractiveHandoff, toLatestInteractiveHandoff),
   "interactive-session": latest(parseInteractiveSession, toLatestInteractiveSession),
@@ -339,6 +348,11 @@ const BRIDGE_READERS: { readonly [F in FormatId]: BridgeReader | undefined } = {
   // request since 0.33.0 (frozen at 0.26.0).
   "oracle-request": undefined,
   "acceptance-request": readAcceptanceRequestFile,
+  // phax prints the artifact status, the plan overview and the plan lint on
+  // stdout and never reads one back.
+  "artifact-status": undefined,
+  "plan-overview": undefined,
+  "plan-lint": undefined,
   // phax reads the first reading and the interactive handoff only as a turn's
   // answer, through readFirstReadingAnswer and readInteractiveHandoffAnswer,
   // which name no file.

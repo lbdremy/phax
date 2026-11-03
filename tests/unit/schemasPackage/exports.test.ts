@@ -17,6 +17,7 @@ import * as phaxPlanV0_17_0 from "../../../src/schemas/history/phax-plan/0.17.0.
 import * as costLedgerV0_26_0 from "../../../src/schemas/history/cost-ledger/0.26.0.js";
 import * as reviewStopV0_26_0 from "../../../src/schemas/history/review-stop/0.26.0.js";
 import * as runListV0_26_0 from "../../../src/schemas/history/run-list/0.26.0.js";
+import * as runListV0_30_0 from "../../../src/schemas/history/run-list/0.30.0.js";
 import * as phaxPlanV0_26_0 from "../../../src/schemas/history/phax-plan/0.26.0.js";
 import * as planApprovalRecordV0_19_0 from "../../../src/schemas/history/plan-approval-record/0.19.0.js";
 import * as specApprovalRecordV0_19_0 from "../../../src/schemas/history/spec-approval-record/0.19.0.js";
@@ -79,6 +80,7 @@ describe("schemas package entry", () => {
       "AcceptanceRequestSchema",
       "ArchitectureReportSchema",
       "ArchitectureRequestSchema",
+      "ArtifactStatusSchema",
       "AuthoringRecordManifestPreSchemaSchema",
       "AuthoringRecordManifestSchema",
       "AuthoringRecordManifestV0_17_0Schema",
@@ -151,6 +153,8 @@ describe("schemas package entry", () => {
       "PlanDocumentV0_28_0Schema",
       "PlanDocumentV0_32_0Schema",
       "PlanHandDecisionAnswerSchema",
+      "PlanLintSchema",
+      "PlanOverviewSchema",
       "RecordManifestSchema",
       "RegistryPreSchemaSchema",
       "RegistrySchema",
@@ -160,6 +164,7 @@ describe("schemas package entry", () => {
       "ReviewStopV0_26_0Schema",
       "RunListSchema",
       "RunListV0_26_0Schema",
+      "RunListV0_30_0Schema",
       "RunStatusPreSchemaSchema",
       "RunStatusSchema",
       "RunStatusV0_17_0Schema",
@@ -179,6 +184,7 @@ describe("schemas package entry", () => {
       "parseAcceptanceRequest",
       "parseArchitectureReport",
       "parseArchitectureRequest",
+      "parseArtifactStatus",
       "parseAuthoringRecordManifest",
       "parseBriefRecord",
       "parseBriefReport",
@@ -205,6 +211,8 @@ describe("schemas package entry", () => {
       "parsePlanApprovals",
       "parsePlanDocument",
       "parsePlanHandDecisionAnswer",
+      "parsePlanLint",
+      "parsePlanOverview",
       "parseRecordManifest",
       "parseRegistry",
       "parseReviewRecordManifest",
@@ -218,6 +226,7 @@ describe("schemas package entry", () => {
       "toLatestAcceptanceRequest",
       "toLatestArchitectureReport",
       "toLatestArchitectureRequest",
+      "toLatestArtifactStatus",
       "toLatestAuthoringRecordManifest",
       "toLatestBriefRecord",
       "toLatestBriefReport",
@@ -243,6 +252,8 @@ describe("schemas package entry", () => {
       "toLatestPlanApprovals",
       "toLatestPlanDocument",
       "toLatestPlanHandDecisionAnswer",
+      "toLatestPlanLint",
+      "toLatestPlanOverview",
       "toLatestRegistry",
       "toLatestReviewRecordManifest",
       "toLatestReviewStop",
@@ -400,6 +411,12 @@ describe("schemas package entry", () => {
     expect(entry.CostLedgerV0_26_0Schema).toBe(costLedgerV0_26_0.CostLedgerV0_26_0Schema);
     expect(costLedgerV0_26_0.decodeCostLedgerV0_26_0).toBeDefined();
     expect(Object.keys(entry)).not.toContain("decodeCostLedgerV0_26_0");
+  });
+
+  it("re-exports the run-list 0.30.0 frozen module's schema, never a copy, and never its decoder", () => {
+    expect(entry.RunListV0_30_0Schema).toBe(runListV0_30_0.RunListV0_30_0Schema);
+    expect(runListV0_30_0.decodeRunListV0_30_0).toBeDefined();
+    expect(Object.keys(entry)).not.toContain("decodeRunListV0_30_0");
   });
 
   it("re-exports the review-stop and run-list 0.26.0 frozen modules' schemas, never a copy, and never their decoders", () => {

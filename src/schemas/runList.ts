@@ -1,6 +1,7 @@
 // The `run-list` document: what `phax ls --json` prints. Born with `$schema`;
 // every key of a row is required (null when unknown), and any other key is
-// refused. A row's `stop` is the run's review-stop document while the run
+// refused. The 0.30.0 shape, without `pullRequest`, is frozen in
+// history/run-list/0.30.0.ts. A row's `stop` is the run's review-stop document while the run
 // awaits review, so a review UI needs no second read.
 import { Schema } from "effect";
 import { ReviewStopFileSchema } from "./reviewStop.js";
@@ -36,6 +37,10 @@ export const RunListRowSchema = Schema.Struct({
   stop: Schema.NullOr(ReviewStopFileSchema).annotations({
     description:
       "The run's review-stop document while it awaits review; null when the run is not awaiting review, or when its review-stop document cannot be read.",
+  }),
+  pullRequest: Schema.NullOr(Schema.NonEmptyString).annotations({
+    description:
+      "The URL of the pull request phax opened for the run, or null when it opened none or its publication record cannot be read.",
   }),
 }).annotations(strictKeys);
 

@@ -36,7 +36,7 @@ export const CURRENT_STAMPS = {
   "interactive-handoff": "0.32.0",
   "interactive-session": "0.30.0",
   "review-stop": "0.30.0",
-  "run-list": "0.30.0",
+  "run-list": "0.34.0",
   "decide-verdicts": "0.28.0",
   "review-record-manifest": "0.29.0",
   "code-review": "0.32.0",
@@ -44,4 +44,7 @@ export const CURRENT_STAMPS = {
   "spec-hand-decision-answer": "0.32.0",
   "plan-hand-decision-answer": "0.32.0",
   "acceptance-request": "0.33.0",
+  "artifact-status": "0.34.0",
+  "plan-overview": "0.34.0",
+  "plan-lint": "0.34.0",
 } as const;

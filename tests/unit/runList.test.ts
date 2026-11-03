@@ -17,6 +17,7 @@ const KNOWN: LsRunRow = {
   recordsPending: 3,
   archivePath: "/archive/invoice-export",
   stop: null,
+  pullRequest: "https://github.com/example/invoices/pull/12",
 };
 
 const UNKNOWN: LsRunRow = {
@@ -28,6 +29,7 @@ const UNKNOWN: LsRunRow = {
   gateProfile: "-",
   recordsPending: undefined,
   archivePath: undefined,
+  pullRequest: undefined,
 };
 
 describe("buildRunList", () => {
@@ -35,13 +37,14 @@ describe("buildRunList", () => {
     expect(buildRunList([KNOWN]).runs).toEqual([KNOWN]);
   });
 
-  it("writes null for an unknown phase, profile, pending count and archive path", () => {
+  it("writes null for an unknown phase, profile, pending count, archive path and pull request", () => {
     expect(buildRunList([UNKNOWN]).runs[0]).toMatchObject({
       currentPhase: null,
       gateProfile: null,
       recordsPending: null,
       archivePath: null,
       stop: null,
+      pullRequest: null,
     });
   });
 
@@ -69,6 +72,12 @@ describe("the run-list schema", () => {
     const doc = document();
     const { stop: _stop, ...withoutStop } = doc.runs[0]!;
     expect(Either.isLeft(decodeRunListFile({ ...doc, runs: [withoutStop] }))).toBe(true);
+  });
+
+  it("refuses a row without pullRequest", () => {
+    const doc = document();
+    const { pullRequest: _pullRequest, ...withoutPullRequest } = doc.runs[0]!;
+    expect(Either.isLeft(decodeRunListFile({ ...doc, runs: [withoutPullRequest] }))).toBe(true);
   });
 
   it("refuses a document without $schema", () => {
