@@ -662,7 +662,8 @@
       ]
     }
   ],
-  "openQuestions": [
+  "openQuestions": [],
+  "arbitratedQuestions": [
     {
       "id": "q-program-codes",
       "question": "Which codes do the program's `refused` and `defect` take? Today both an unknown option and a crash exit 1, which phax documents nowhere; `defect` cannot be 1 because commands answer with 1.",
@@ -679,7 +680,28 @@
         }
       ],
       "recommendation": "sysexits",
-      "rationale": "The code exists for an agent to act on, and the first thing it must know is whether to fix its call or the world; with `refused` at 1 it cannot. The lost exit 1 was never documented, and 64 and 70 are used by no phax command."
+      "rationale": "The code exists for an agent to act on, and the first thing it must know is whether to fix its call or the world; with `refused` at 1 it cannot. The lost exit 1 was never documented, and 64 and 70 are used by no phax command.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "sysexits",
+        "abandoned": [
+          "keep-one"
+        ],
+        "why": "The code exists for an agent to act on, and the first thing it must know is whether to fix its call or the world; with `refused` at 1 it cannot. The lost exit 1 was never documented, and 64 and 70 are used by no phax command.",
+        "advocate": "The strongest case for keep-one: exit 1 is what every script already sees on a mistyped call, so keeping it breaks no caller, and only the new `defect` code has to be learned.",
+        "principles": [
+          "S1",
+          "S5"
+        ],
+        "reversibility": "costly",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-03T17:51:48.367Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-stdin-flag-value",
@@ -697,10 +719,30 @@
         }
       ],
       "recommendation": "keep-value",
-      "rationale": "Point 4 makes the command line's declarations the contract, and the brief `claude-code-mod` and the decide skill already invoke `--verdicts -`; a small upstreamable gain costs less than breaking every spaced invocation."
+      "rationale": "Point 4 makes the command line's declarations the contract, and the brief `claude-code-mod` and the decide skill already invoke `--verdicts -`; a small upstreamable gain costs less than breaking every spaced invocation.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "keep-value",
+        "abandoned": [
+          "library-form"
+        ],
+        "why": "Point 4 makes the command line's declarations the contract, and the brief `claude-code-mod` and the decide skill already invoke `--verdicts -`; a small upstreamable gain costs less than breaking every spaced invocation.",
+        "advocate": "The strongest case for library-form: one stdin-flag form across the library and phax means the published package replaces the port with no variant to carry upstream, and the cost falls once on two flags.",
+        "principles": [
+          "S1",
+          "S4"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-03T17:51:48.367Z",
+        "revised": []
+      },
+      "history": []
     }
   ],
-  "arbitratedQuestions": [],
   "planningNote": {
     "settled": [
       "Ported, not depended on: the contract and its Commander runner are ported to Effect 3 into phax's own source with the conformance suite, keeping the library's export names and its split into a contract and a runner, so that swapping in the published package is an import change. phax's commands import the port, never Commander.",

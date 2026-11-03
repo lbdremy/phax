@@ -568,12 +568,19 @@ Given the commands that print a versioned document today (the run list aside), w
 
 ## 9. Open questions
 
+None.
+
+## 9b. Arbitrated questions
+
 ### q-program-codes — Which codes do the program's `refused` and `defect` take? Today both an unknown option and a crash exit 1, which phax documents nowhere; `defect` cannot be 1 because commands answer with 1.
 
 - sysexits — `refused` 64 (EX_USAGE) and `defect` 70 (EX_SOFTWARE), both documented in `phax --usage` and the exit-codes reference — abandons: the exit 1 a script sees today on a mistyped call, undocumented but observable
 - keep-one — `refused` stays 1 and `defect` takes 70 — abandons: telling a refused call from a command's own failure by its code: 1 is already the failure code of a dozen commands and of `plans lint`'s error verdict
 
 Recommendation: sysexits — The code exists for an agent to act on, and the first thing it must know is whether to fix its call or the world; with `refused` at 1 it cannot. The lost exit 1 was never documented, and 64 and 70 are used by no phax command.
+
+Decision: sysexits — by operator (Rémy Loubradou), 2026-11-03
+Why: The code exists for an agent to act on, and the first thing it must know is whether to fix its call or the world; with `refused` at 1 it cannot. The lost exit 1 was never documented, and 64 and 70 are used by no phax command. Advocate: The strongest case for keep-one: exit 1 is what every script already sees on a mistyped call, so keeping it breaks no caller, and only the new `defect` code has to be learned. Principles: S1, S5. Reversibility: costly. Revised: none.
 
 ### q-stdin-flag-value — The library's stdin flag takes an optional value attached (`--verdicts`, `--verdicts=-`, `--verdicts=<path>`); phax's `--verdicts <file|->` and `--brief <file|->` take a required value, often spaced (`--verdicts verdicts.json`). Which form does the port carry?
 
@@ -582,9 +589,8 @@ Recommendation: sysexits — The code exists for an agent to act on, and the fir
 
 Recommendation: keep-value — Point 4 makes the command line's declarations the contract, and the brief `claude-code-mod` and the decide skill already invoke `--verdicts -`; a small upstreamable gain costs less than breaking every spaced invocation.
 
-## 9b. Arbitrated questions
-
-None.
+Decision: keep-value — by operator (Rémy Loubradou), 2026-11-03
+Why: Point 4 makes the command line's declarations the contract, and the brief `claude-code-mod` and the decide skill already invoke `--verdicts -`; a small upstreamable gain costs less than breaking every spaced invocation. Advocate: The strongest case for library-form: one stdin-flag form across the library and phax means the published package replaces the port with no variant to carry upstream, and the cost falls once on two flags. Principles: S1, S4. Reversibility: cheap. Revised: none.
 
 ## 10. Implementation-planning note
 
@@ -623,3 +629,8 @@ Reader: An agent author or script writer who drives phax and needs to read its a
 Example: phax artifact status docs/specs/2611011200-garden-sync.md --json | jq '.questions.open'
 phax resume garden-sync --json 2> >(jq -c 'select(.kind == "error")')
 phax plans lint --json-schema
+
+## 12. Decision log
+
+- 2026-11-03 q-program-codes decided sysexits — operator (Rémy Loubradou)
+- 2026-11-03 q-stdin-flag-value decided keep-value — operator (Rémy Loubradou)
