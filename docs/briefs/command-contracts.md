@@ -42,6 +42,6 @@ Write the phax spec "Command contracts". phax's commands are written against a s
 - the Claude Code mod itself;
 - a flag that only validates the input and stops — an idea, wanted by agents before a command that writes.
 
-**Surfaces.** A surface's `summary`, `before` and `after` are read by users in the release notes: a capitalized sentence and short real examples, with no implementation notes. Name `$schema` URLs at 0.32.0.
+**Surfaces.** A surface's `summary`, `before` and `after` are read by users in the release notes: a capitalized sentence and short real examples, with no implementation notes. Name `$schema` URLs at 0.33.0.
 
 **Output:** your final message is the spec document JSON and nothing else: no sentence before or after it, and no code fence.

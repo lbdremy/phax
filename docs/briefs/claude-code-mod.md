@@ -50,6 +50,6 @@ Write the phax spec "Claude Code mod", its first milestone: reading. A Claude Co
 - blocking a run's writes to protected files: a run's agents are processes phax starts, which a mod in the operator's session does not see; the brief `protected-paths` covers it;
 - editing a spec or a plan in the mod.
 
-**Surfaces.** A surface's `summary`, `before` and `after` are read by users in the release notes: a capitalized sentence and short real examples, with no implementation notes. Name `$schema` URLs at 0.32.0.
+**Surfaces.** A surface's `summary`, `before` and `after` are read by users in the release notes: a capitalized sentence and short real examples, with no implementation notes. Name `$schema` URLs at 0.33.0.
 
 **Output:** your final message is the spec document JSON and nothing else: no sentence before or after it, and no code fence.

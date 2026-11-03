@@ -12,19 +12,15 @@ these specs landed and were completed: `planning-skill-defaults` (two plans), `a
 0.27.0. `phase-model-assignment`, `upgrade-hints`, `auto-migrate` and the first drafts of
 `oracle-phases` and `interactive-phases` were abandoned.
 
-## The queue, as of 2026-11-02
+## The queue, as of 2026-11-03
 
 ### Approved, not yet planned
 
-- [ ] **Release 0.33.0, then finish `acceptance-tests` (#177, #178, #180, #181).** The spec is
-      complete. The installed 0.32.0 refuses this repository's `phax.json` (`acceptance` key), so
-      no `phax run` here until 0.33.0 is released and installed. Then:
-      - `phax archive acceptance-docs-and-skills` (its run is not archived yet, and its local
-        branches and worktrees stay until then);
-      - `phax artifact migrate-documents` on the live spec and plan sidecars;
-      - `phax skills install` for the copies outside this repository.
-      Optional follow-up: no skill teaches that the criterion ids `acceptance`, `in-phase` and
-      `oracle` are reserved; only lint reports it.
+- [ ] **Finish `acceptance-tests` (#177, #178, #180, #181), released in 0.33.0.** Its runs are
+      archived and the live sidecars needed no migration. Left: `phax skills install` for the
+      copies outside this repository (`~/.claude/skills/phax-planning` still teaches oracle
+      phases). Optional follow-up: no skill teaches that the criterion ids `acceptance`,
+      `in-phase` and `oracle` are reserved; only lint reports it.
 
 ### Briefs written, spec not yet authored
 
