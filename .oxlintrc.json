@@ -15,6 +15,7 @@
     "examples/**/dist",
     "tests/**/__fixtures__/",
     "site/generated/",
-    "site/doc_build/"
+    "site/doc_build/",
+    "vendor/"
   ]
 }
