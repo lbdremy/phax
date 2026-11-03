@@ -19,7 +19,7 @@ describe("Commander's runner holds every conformance case", () => {
   for (const entry of report.cases) {
     if (CONTRACT_ONLY.has(entry.id)) continue;
     // Acceptance test: the stub runner dies on every call until phase-02 ports the runner.
-    it.fails(entry.id, () => {
+    it(entry.id, () => {
       expect(entry.held, entry.why).toBe(true);
     });
   }

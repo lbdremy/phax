@@ -1,9 +1,8 @@
-// The command library's runner over Commander, ported to Effect 3 — a stub until phase-02 of
-// the plan command-contracts ports it: every program it is given dies, so that the conformance
-// suite's acceptance tests stand against it.
-import { Effect } from "effect";
-import type { Runner } from "../contract/index.js";
-
-export const runner: Runner = {
-  run: () => Effect.die(new Error("command runner not implemented (phase-02)")),
-};
+// The command library's runner over Commander (`@steme-lab/cli-command-commander` 0.x), ported
+// to Effect 3: the first runner of the contract under ../contract/. It decodes each source a
+// command declares with the policy declared beside it, encodes the output, renders it, and maps
+// each failure to its exit code — the program's `refused` for a call that does not decode, its
+// `defect` for what no command declared. Proved by the contract's conformance suite. The names
+// are the library's, so that swapping in the published package is an import change.
+export { processIo } from "./processIo.js";
+export { runner } from "./run.js";
