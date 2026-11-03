@@ -5,6 +5,14 @@ import {
   type ArchitectureRequestShapes,
 } from "./formats/architecture.js";
 import {
+  artifactStatusFormat,
+  planLintFormat,
+  planOverviewFormat,
+  type ArtifactStatusShapes,
+  type PlanLintShapes,
+  type PlanOverviewShapes,
+} from "./formats/commandAnswers.js";
+import {
   firstReadingFormat,
   interactiveHandoffFormat,
   interactiveSessionFormat,
@@ -361,6 +369,38 @@ export {
   type LatestAcceptanceRequest,
 } from "./formats/acceptanceRequest.js";
 
+// The answers of the commands behind the Claude Code mod, born at 0.34.0: the
+// artifact status, the plan overview and the plan lint that
+// `phax artifact status --json`, `phax plans overview --json` and
+// `phax plans lint --json` print. phax never saves one. Each schema and type
+// is phax's own file schema and type.
+export {
+  ArtifactStatusFileSchema as ArtifactStatusSchema,
+  type ArtifactStatusFile as ArtifactStatus,
+} from "../../../src/schemas/artifactStatusDocument.js";
+export {
+  PlanOverviewFileSchema as PlanOverviewSchema,
+  type PlanOverviewFile as PlanOverview,
+} from "../../../src/schemas/planOverview.js";
+export {
+  PlanLintFileSchema as PlanLintSchema,
+  type PlanLintFile as PlanLint,
+} from "../../../src/schemas/planLint.js";
+export {
+  parseArtifactStatus,
+  parsePlanLint,
+  parsePlanOverview,
+  toLatestArtifactStatus,
+  toLatestPlanLint,
+  toLatestPlanOverview,
+  type ArtifactStatusShape,
+  type LatestArtifactStatus,
+  type LatestPlanLint,
+  type LatestPlanOverview,
+  type PlanLintShape,
+  type PlanOverviewShape,
+} from "./formats/commandAnswers.js";
+
 // The documents of a declared interactive stop: the first reading and the
 // interactive handoff a phase's turns answer, and the interactive session and
 // review stop phax writes. Each schema and type is phax's own file schema and
@@ -615,6 +655,10 @@ export {
   type RunListV0_26_0,
 } from "../../../src/schemas/history/run-list/0.26.0.js";
 export {
+  RunListV0_30_0Schema,
+  type RunListV0_30_0,
+} from "../../../src/schemas/history/run-list/0.30.0.js";
+export {
   PhaseStatusV0_17_0Schema,
   type PhaseStatusV0_17_0,
 } from "../../../src/schemas/history/phase-status/0.17.0.js";
@@ -757,6 +801,9 @@ type DocumentShapes = EveryFormat<{
   "spec-hand-decision-answer": SpecHandDecisionAnswerShapes;
   "plan-hand-decision-answer": PlanHandDecisionAnswerShapes;
   "acceptance-request": AcceptanceRequestShapes;
+  "artifact-status": ArtifactStatusShapes;
+  "plan-overview": PlanOverviewShapes;
+  "plan-lint": PlanLintShapes;
 }>;
 
 /** The id of every format `parseDocument` reads: every `FormatId`. */
@@ -810,4 +857,7 @@ export const parseDocument: (input: unknown) => ParsedDocument<DocumentShapes> =
     "spec-hand-decision-answer": specHandDecisionAnswerFormat,
     "plan-hand-decision-answer": planHandDecisionAnswerFormat,
     "acceptance-request": acceptanceRequestFormat,
+    "artifact-status": artifactStatusFormat,
+    "plan-overview": planOverviewFormat,
+    "plan-lint": planLintFormat,
   });

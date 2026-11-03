@@ -58,6 +58,11 @@ import {
   type RunListV0_26_0,
 } from "../../../../src/schemas/history/run-list/0.26.0.js";
 import {
+  RunListV0_30_0Schema,
+  decodeRunListV0_30_0,
+  type RunListV0_30_0,
+} from "../../../../src/schemas/history/run-list/0.30.0.js";
+import {
   RunListFileSchema,
   decodeRunListFile,
   type RunList,
@@ -244,6 +249,7 @@ export function toLatestReviewStop(value: ReviewStopFile | ReviewStopV0_26_0): L
 
 export type RunListShapes = {
   "0.26.0": RunListV0_26_0;
+  "0.30.0": RunListV0_30_0;
 } & {
   [K in CurrentShapeName<"run-list">]: RunListFile;
 };
@@ -255,7 +261,10 @@ export const runListFormat = defineFormat<RunListShapes>({
   id: "run-list",
   label: "run list",
   preSchema: null,
-  releases: [["0.26.0", { schema: RunListV0_26_0Schema, decode: decodeRunListV0_26_0 }]],
+  releases: [
+    ["0.26.0", { schema: RunListV0_26_0Schema, decode: decodeRunListV0_26_0 }],
+    ["0.30.0", { schema: RunListV0_30_0Schema, decode: decodeRunListV0_30_0 }],
+  ],
   current: {
     name: CURRENT_SHAPES["run-list"],
     shape: { schema: RunListFileSchema, decode: decodeRunListFile },
@@ -270,9 +279,17 @@ export type LatestRunList = RunList;
 
 /**
  * Upgrades a parsed run list in memory: drops `$schema`, keeps every other
- * fact. A 0.26.0 list is valid in the current shape as it is.
+ * fact. A 0.26.0 or 0.30.0 list has no `pullRequest`, so each row gets
+ * `pullRequest: null`: phax recorded none for it.
  */
-export function toLatestRunList(value: RunListFile | RunListV0_26_0): LatestRunList {
-  const { $schema: _schema, ...recorded } = value;
-  return recorded;
+export function toLatestRunList(
+  value: RunListFile | RunListV0_30_0 | RunListV0_26_0,
+): LatestRunList {
+  const { $schema: _schema, runs } = value;
+  return {
+    runs: runs.map((row) => ({
+      ...row,
+      pullRequest: "pullRequest" in row ? row.pullRequest : null,
+    })),
+  };
 }

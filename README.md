@@ -470,7 +470,7 @@ The phase's `security.json` has a `stop` section, `null` for a phase that never 
 
 `review-handoff.md` gains a `## Reviewed phases` table (`Phase | Stop | Outcome | Closed by | Corrections | Guards`), and each corrected stop a `### <phase> (<held|interactive>)` section with what was corrected and its guards. The compliance reviewer reads the same section. The PR body's line for a stopped phase ends with ` · held, corrected by Ada Example (2 guards)`, ` · interactive, corrected by Ada Example (1 guard)` or ` · held, reviewed without change by Ada Example`. A run with no stop reads exactly as before.
 
-`phax ls --json` prints one versioned `run-list` document, and each run embeds its `review-stop` document as `stop` (`null` for a run not waiting at a stop). Together with `review-stop.json`, it is what a review UI reads:
+`phax ls --json` prints one versioned `run-list` document, and each run embeds its `review-stop` document as `stop` (`null` for a run not waiting at a stop) and the URL of the pull request phax opened for it as `pullRequest` (`null` when it opened none). Together with `review-stop.json`, it is what a review UI reads:
 
 ```json
 {
@@ -488,7 +488,8 @@ The phase's `security.json` has a `stop` section, `null` for a phase that never 
       "lockState": "none",
       "recordsPending": null,
       "archivePath": null,
-      "stop": { "$schema": "https://…/review-stop/…", "…": "…" }
+      "stop": { "$schema": "https://…/review-stop/…", "…": "…" },
+      "pullRequest": "https://github.com/example/invoices/pull/12"
     }
   ]
 }
@@ -934,6 +935,9 @@ Every file phax writes starts with `$schema`, naming its format and that format'
 | Interactive session                          | `interactive-session`       | `<run folder>/<phase-id>/interactive-session.json`                                                                                           | `parseInteractiveSession`      | `json/interactive-session.schema.json`       |
 | Review stop                                  | `review-stop`               | `<run folder>/review-stop.json`, while the run is `awaiting_review`                                                                          | `parseReviewStop`              | `json/review-stop.schema.json`               |
 | Run list                                     | `run-list`                  | the output of `phax ls --json`, never saved                                                                                                  | `parseRunList`                 | `json/run-list.schema.json`                  |
+| Artifact status                              | `artifact-status`           | the output of `phax artifact status --json`, never saved                                                                                     | `parseArtifactStatus`          | `json/artifact-status.schema.json`           |
+| Plan overview                                | `plan-overview`             | the output of `phax plans overview --json`, never saved                                                                                      | `parsePlanOverview`            | `json/plan-overview.schema.json`             |
+| Plan lint                                    | `plan-lint`                 | the output of `phax plans lint --json`, never saved                                                                                          | `parsePlanLint`                | `json/plan-lint.schema.json`                 |
 | Spec document                                | `spec-document`             | `.json` sidecar beside a headless-authored spec                                                                                              | `parseSpecDocument`            | `json/spec-document.schema.json`             |
 | Plan document                                | `plan-document`             | `.json` sidecar beside a headless-authored plan                                                                                              | `parsePlanDocument`            | `json/plan-document.schema.json`             |
 | Hand decision answer                         | `hand-decision-answer`      | kept at its 0.25.0 shape and retired at 0.32.0: still read, never written; replaced by the two formats below                                 | `parseHandDecisionAnswer`      | `json/hand-decision-answer.schema.json`      |

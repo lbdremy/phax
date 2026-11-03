@@ -21,6 +21,7 @@ import { resumeRetryCommand } from "../../src/cli/commands/sessionFailureOutput.
 import { renderStopCloseRefusal } from "../../src/cli/commands/stopOutput.js";
 import { decodeReviewStopV0_26_0 } from "../../src/schemas/history/review-stop/0.26.0.js";
 import { decodeRunListV0_26_0 } from "../../src/schemas/history/run-list/0.26.0.js";
+import { decodeRunListV0_30_0 } from "../../src/schemas/history/run-list/0.30.0.js";
 import { currentSchemaUrl, readReviewStopFile } from "../../src/schemas/persisted.js";
 import { decodeReviewStopFile } from "../../src/schemas/reviewStop.js";
 import { decodeRunListFile } from "../../src/schemas/runList.js";
@@ -321,7 +322,15 @@ describe("review-stop and run-list documents at 0.26.0 and 0.30.0", () => {
       },
       "0.30.0",
     );
-    expect(Either.isRight(decodeRunListFile(current))).toBe(true);
+    // Frozen at 0.30.0, it has no pullRequest: the current shape adds one to each row.
+    expect(Either.isRight(decodeRunListV0_30_0(current))).toBe(true);
     expect(Either.isLeft(decodeRunListV0_26_0(current))).toBe(true);
+    expect(Either.isLeft(decodeRunListFile(current))).toBe(true);
+    const latest = {
+      ...current,
+      $schema: currentSchemaUrl("run-list"),
+      runs: current.runs.map((each) => ({ ...each, pullRequest: null })),
+    };
+    expect(Either.isRight(decodeRunListFile(latest))).toBe(true);
   });
 });

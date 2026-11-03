@@ -853,6 +853,11 @@ const NEVER_WRITTEN: ReadonlyArray<FormatId> = [
   "review-stop",
   // `phax ls --json` prints the run list on stdout and never saves it.
   "run-list",
+  // `phax artifact status --json`, `phax plans overview --json` and
+  // `phax plans lint --json` print their documents on stdout and never save them.
+  "artifact-status",
+  "plan-overview",
+  "plan-lint",
   // phax never writes a decide verdicts file: a person writes it, and phax
   // reads it for `phax artifact decide --verdicts`.
   "decide-verdicts",

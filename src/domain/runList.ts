@@ -20,6 +20,8 @@ export interface LsRunRow {
   readonly archivePath: string | undefined;
   /** The run's review-stop document, with its `$schema`; null when it has none or it cannot be read. */
   readonly stop: RunListRow["stop"];
+  /** The URL of the pull request phax opened for the run; undefined when it opened none or its record cannot be read. */
+  readonly pullRequest: string | undefined;
 }
 
 const UNKNOWN = "-";
@@ -43,6 +45,7 @@ export function buildRunList(rows: ReadonlyArray<LsRunRow>): RunList {
       recordsPending: r.recordsPending ?? null,
       archivePath: r.archivePath ?? null,
       stop: r.stop,
+      pullRequest: r.pullRequest ?? null,
     })),
   };
 }

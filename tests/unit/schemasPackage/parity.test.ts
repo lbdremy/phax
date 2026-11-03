@@ -5,6 +5,9 @@ import {
   parseArchitectureReport,
   parseArchitectureRequest,
   parseAcceptanceRequest,
+  parseArtifactStatus,
+  parsePlanLint,
+  parsePlanOverview,
   parseFirstReading,
   parseInteractiveHandoff,
   parseInteractiveSession,
@@ -62,6 +65,9 @@ import { decodeOracleRequestV0_26_0 } from "../../../src/schemas/history/oracle-
 import { decodePlanExtractionAnswer } from "../../../src/schemas/planExtraction.js";
 import { decodeReviewStopFile } from "../../../src/schemas/reviewStop.js";
 import { decodeRunListFile } from "../../../src/schemas/runList.js";
+import { decodeArtifactStatusFile } from "../../../src/schemas/artifactStatusDocument.js";
+import { decodePlanLintFile } from "../../../src/schemas/planLint.js";
+import { decodePlanOverviewFile } from "../../../src/schemas/planOverview.js";
 import { decodeBriefRecordFile, decodeBriefRequestFile } from "../../../src/schemas/brief.js";
 import { decodeBriefReportFile } from "../../../src/schemas/briefReport.js";
 import { decodeComplianceReviewFile } from "../../../src/schemas/complianceReview.js";
@@ -384,6 +390,30 @@ const FORMATS: { readonly [F in FormatId]: FormatParity } = {
     phax: decodeAcceptanceRequestFile,
     wrongType: ["files", {}],
     required: "files",
+    excess: "error",
+  },
+  "artifact-status": {
+    id: "artifact-status",
+    parse: parseArtifactStatus,
+    phax: decodeArtifactStatusFile,
+    wrongType: ["legalTransitions", {}],
+    required: "path",
+    excess: "error",
+  },
+  "plan-overview": {
+    id: "plan-overview",
+    parse: parsePlanOverview,
+    phax: decodePlanOverviewFile,
+    wrongType: ["phases", {}],
+    required: "plan",
+    excess: "error",
+  },
+  "plan-lint": {
+    id: "plan-lint",
+    parse: parsePlanLint,
+    phax: decodePlanLintFile,
+    wrongType: ["findings", {}],
+    required: "plan",
     excess: "error",
   },
   "first-reading": {

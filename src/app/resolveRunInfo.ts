@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { Either } from "effect";
+import { decodePublication } from "../schemas/publication.js";
 import type { ShortName } from "../domain/branded.js";
 import { decodeBranchName } from "../domain/branded.js";
 import type { RunReviewInfo } from "../domain/runReviewInfo.js";
@@ -47,6 +48,16 @@ function tryReadJson(path: string): unknown {
   } catch {
     return undefined;
   }
+}
+
+/**
+ * The URL of the pull request phax opened for a run, from the `pullRequestUrl`
+ * of its publication record; undefined when the run has no record, the record
+ * cannot be read, or it holds no URL.
+ */
+export function readPullRequestUrl(runPath: string): string | undefined {
+  const decoded = decodePublication(tryReadJson(join(runPath, "publication.json")));
+  return Either.isRight(decoded) ? decoded.right.pullRequestUrl : undefined;
 }
 
 function loadRunReviewInfo(

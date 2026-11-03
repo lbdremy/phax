@@ -2,7 +2,12 @@ import { Effect, Either, Layer, Schema } from "effect";
 import type { OutputPort } from "../../ports/output.js";
 import { loadConfig } from "../../app/loadConfig.js";
 import { readRegistry } from "../../app/registry.js";
-import { resolveRun, findCurrentPhase, type RunReviewInfo } from "../../app/resolveRunInfo.js";
+import {
+  resolveRun,
+  findCurrentPhase,
+  readPullRequestUrl,
+  type RunReviewInfo,
+} from "../../app/resolveRunInfo.js";
 import { readStopInfo, type StopInfo } from "../../app/stopInfo.js";
 import { computeRecordsPending, pendingCountsByRunId } from "../../app/recordsStatus.js";
 import { recordsClonePath } from "../../app/recordsSync.js";
@@ -176,6 +181,12 @@ function formatTable(rows: LsRow[], showRecords: boolean, stops: StopLabels): st
   return [header, separator, ...rowLines].join("\n");
 }
 
+// The run's pull request: its publication record's URL, or undefined for a run
+// that has none or whose folder is gone (an archived run).
+function pullRequestOf(info: RunReviewInfo | undefined): string | undefined {
+  return info === undefined ? undefined : readPullRequestUrl(info.runPath);
+}
+
 export async function runLs(opts: LsOptions, out: OutputPort): Promise<number> {
   const configResult = loadConfig(process.cwd());
   if (Either.isLeft(configResult)) {
@@ -292,6 +303,7 @@ export async function runLs(opts: LsOptions, out: OutputPort): Promise<number> {
           qualifiedName: key,
           archivePath: reconciled[i]?.entry.archivePath,
           stop: stop === undefined ? null : withSchemaUrl("review-stop", stop.reviewStop),
+          pullRequest: pullRequestOf(reconciled[i]?.info),
         };
       }),
     );

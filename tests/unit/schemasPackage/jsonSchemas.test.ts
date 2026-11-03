@@ -60,6 +60,11 @@ import {
   oracleRequestFormat,
 } from "../../../packages/schemas/src/formats/acceptanceRequest.js";
 import {
+  artifactStatusFormat,
+  planLintFormat,
+  planOverviewFormat,
+} from "../../../packages/schemas/src/formats/commandAnswers.js";
+import {
   codeReviewFormat,
   complianceReviewFormat,
   costLedgerFormat,
@@ -139,6 +144,9 @@ const DECODERS: { readonly [F in JsonSchemaFormatId]: Decode } = {
   "architecture-report": architectureReportFormat.current.shape.decode,
   "oracle-request": oracleRequestFormat.current.shape.decode,
   "acceptance-request": acceptanceRequestFormat.current.shape.decode,
+  "artifact-status": artifactStatusFormat.current.shape.decode,
+  "plan-overview": planOverviewFormat.current.shape.decode,
+  "plan-lint": planLintFormat.current.shape.decode,
   "first-reading": firstReadingFormat.current.shape.decode,
   "interactive-handoff": interactiveHandoffFormat.current.shape.decode,
   "interactive-session": interactiveSessionFormat.current.shape.decode,
@@ -216,6 +224,9 @@ describe("the JSON Schema table", () => {
       architectureReportFormat,
       oracleRequestFormat,
       acceptanceRequestFormat,
+      artifactStatusFormat,
+      planOverviewFormat,
+      planLintFormat,
       firstReadingFormat,
       interactiveHandoffFormat,
       interactiveSessionFormat,
@@ -244,10 +255,10 @@ describe("the JSON Schema table", () => {
 });
 
 describe("renderJsonSchemas over the real table", () => {
-  it("renders 38 files and no failure", () => {
+  it("renders 41 files and no failure", () => {
     expect(rendered.failures).toEqual([]);
     expect([...rendered.files.keys()]).toEqual(JSON_SCHEMA_FORMATS.map(({ fileName }) => fileName));
-    expect(rendered.files.size).toBe(39);
+    expect(rendered.files.size).toBe(42);
   });
 
   it.each(JSON_SCHEMA_FORMATS)(

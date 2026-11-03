@@ -1,5 +1,21 @@
 import type {
   AnyDocument,
+  ArtifactStatus,
+  ArtifactStatusShape,
+  LatestArtifactStatus,
+  LatestPlanLint,
+  LatestPlanOverview,
+  PlanLint,
+  PlanLintShape,
+  PlanOverview,
+  PlanOverviewShape,
+  RunListV0_30_0,
+  parseArtifactStatus,
+  parsePlanLint,
+  parsePlanOverview,
+  toLatestArtifactStatus,
+  toLatestPlanLint,
+  toLatestPlanOverview,
   ArchitectureReport,
   ArchitectureReportShape,
   ArchitectureRequest,
@@ -291,6 +307,21 @@ import type {
   ReviewStop as PhaxReviewStop,
   ReviewStopFile as PhaxReviewStopFile,
 } from "../../src/schemas/reviewStop.js";
+import type {
+  ArtifactStatusDocument as PhaxArtifactStatusDocument,
+  ArtifactStatusFile as PhaxArtifactStatusFile,
+} from "../../src/schemas/artifactStatusDocument.js";
+import type {
+  PlanOverviewDocument as PhaxPlanOverviewDocument,
+  PlanOverviewFile as PhaxPlanOverviewFile,
+} from "../../src/schemas/planOverview.js";
+import type {
+  PlanLintDocument as PhaxPlanLintDocument,
+  PlanLintFile as PhaxPlanLintFile,
+} from "../../src/schemas/planLint.js";
+import type { PlanOverview as PhaxPlanOverview } from "../../src/domain/plan/overview.js";
+import type { LintReport as PhaxLintReport } from "../../src/app/lintPlan.js";
+import type { RunListV0_30_0 as FrozenRunListV0_30_0 } from "../../src/schemas/history/run-list/0.30.0.js";
 import type {
   RunList as PhaxRunList,
   RunListFile as PhaxRunListFile,
@@ -631,6 +662,9 @@ const formats: Equals<
   | "architecture-report"
   | "oracle-request"
   | "acceptance-request"
+  | "artifact-status"
+  | "plan-overview"
+  | "plan-lint"
   | "first-reading"
   | "interactive-handoff"
   | "interactive-session"
@@ -732,6 +766,9 @@ const shapeIds: Equals<
   | ArchitectureRequestShape
   | ArchitectureReportShape
   | AcceptanceRequestShape
+  | ArtifactStatusShape
+  | PlanOverviewShape
+  | PlanLintShape
   | FirstReadingShape
   | InteractiveHandoffShape
   | InteractiveSessionShape
@@ -1447,12 +1484,17 @@ const interactiveTypes: [
   >,
   Equals<ReviewStopV0_26_0, FrozenReviewStopV0_26_0>,
   Equals<RunList, PhaxRunListFile>,
-  Equals<RunListShape, "0.26.0" | Current<"run-list">>,
-  Equals<Value<typeof parseRunList>, FrozenRunListV0_26_0 | PhaxRunListFile>,
+  Equals<RunListShape, "0.26.0" | "0.30.0" | Current<"run-list">>,
+  Equals<Value<typeof parseRunList>, FrozenRunListV0_26_0 | FrozenRunListV0_30_0 | PhaxRunListFile>,
   Equals<LatestRunList, PhaxRunList>,
-  Equals<Parameters<typeof toLatestRunList>, [value: PhaxRunListFile | FrozenRunListV0_26_0]>,
+  Equals<
+    Parameters<typeof toLatestRunList>,
+    [value: PhaxRunListFile | FrozenRunListV0_30_0 | FrozenRunListV0_26_0]
+  >,
   Equals<RunListV0_26_0, FrozenRunListV0_26_0>,
+  Equals<RunListV0_30_0, FrozenRunListV0_30_0>,
 ] = [
+  true,
   true,
   true,
   true,
@@ -1485,6 +1527,52 @@ const interactiveTypes: [
   true,
 ];
 void interactiveTypes;
+// The artifact status, plan overview and plan lint are born with $schema at
+// 0.34.0: phax's own file types, one current shape each, and an in-memory
+// value without $schema. The overview and the lint report are the types the
+// use cases build, held equal to the published documents.
+const commandAnswerTypes: [
+  Equals<ArtifactStatus, PhaxArtifactStatusFile>,
+  Equals<ArtifactStatusShape, Current<"artifact-status">>,
+  Equals<Value<typeof parseArtifactStatus>, PhaxArtifactStatusFile>,
+  Equals<LatestArtifactStatus, PhaxArtifactStatusDocument>,
+  Equals<Parameters<typeof toLatestArtifactStatus>, [value: PhaxArtifactStatusFile]>,
+  Equals<PlanOverview, PhaxPlanOverviewFile>,
+  Equals<PlanOverviewShape, Current<"plan-overview">>,
+  Equals<Value<typeof parsePlanOverview>, PhaxPlanOverviewFile>,
+  Equals<LatestPlanOverview, PhaxPlanOverviewDocument>,
+  Equals<Parameters<typeof toLatestPlanOverview>, [value: PhaxPlanOverviewFile]>,
+  Equals<PhaxPlanOverviewDocument, PhaxPlanOverview>,
+  Equals<PlanLint, PhaxPlanLintFile>,
+  Equals<PlanLintShape, Current<"plan-lint">>,
+  Equals<Value<typeof parsePlanLint>, PhaxPlanLintFile>,
+  Equals<LatestPlanLint, PhaxPlanLintDocument>,
+  Equals<Parameters<typeof toLatestPlanLint>, [value: PhaxPlanLintFile]>,
+  Equals<PhaxPlanLintDocument, PhaxLintReport>,
+] = [
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+];
+void commandAnswerTypes;
+declare const latestPlanLint: LatestPlanLint;
+// @ts-expect-error: the in-memory plan lint carries no $schema
+void latestPlanLint.$schema;
+
 declare const latestReviewStop: LatestReviewStop;
 // @ts-expect-error: the in-memory review stop carries no $schema
 void latestReviewStop.$schema;

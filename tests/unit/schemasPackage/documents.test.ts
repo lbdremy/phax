@@ -19,6 +19,9 @@ import { decodeOracleRequestV0_26_0 } from "../../../src/schemas/history/oracle-
 import { decodePlanExtractionAnswer } from "../../../src/schemas/planExtraction.js";
 import { decodeReviewStopFile } from "../../../src/schemas/reviewStop.js";
 import { decodeRunListFile } from "../../../src/schemas/runList.js";
+import { decodeArtifactStatusFile } from "../../../src/schemas/artifactStatusDocument.js";
+import { decodePlanLintFile } from "../../../src/schemas/planLint.js";
+import { decodePlanOverviewFile } from "../../../src/schemas/planOverview.js";
 import { decodeAuthoringRecordManifestFile } from "../../../src/schemas/authoringRecord.js";
 import { decodeBriefRecordFile, decodeBriefRequestFile } from "../../../src/schemas/brief.js";
 import { decodeBriefReportFile } from "../../../src/schemas/briefReport.js";
@@ -115,6 +118,9 @@ const PHAX_DECODERS: { readonly [F in FormatId]: Decode } = {
   "architecture-report": decodeArchitectureReportFile,
   "oracle-request": decodeOracleRequestV0_26_0,
   "acceptance-request": decodeAcceptanceRequestFile,
+  "artifact-status": decodeArtifactStatusFile,
+  "plan-overview": decodePlanOverviewFile,
+  "plan-lint": decodePlanLintFile,
   "first-reading": decodeFirstReadingFile,
   "interactive-handoff": decodeInteractiveHandoffFile,
   "interactive-session": decodeInteractiveSessionFile,

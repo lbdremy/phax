@@ -1,0 +1,391 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "phax artifact status",
+  "$defs": {
+    "NonEmptyString": {
+      "type": "string",
+      "description": "a non empty string",
+      "title": "nonEmptyString",
+      "minLength": 1
+    },
+    "Int": {
+      "type": "integer",
+      "description": "an integer",
+      "title": "int"
+    }
+  },
+  "type": "object",
+  "required": [
+    "$schema",
+    "path",
+    "kind",
+    "status",
+    "legalTransitions",
+    "approval",
+    "authoring",
+    "questions"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "The artifact-status format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): https://docs.phax.run/schemas/artifact-status/<X.Y.Z>.json",
+      "pattern": "^https:\\/\\/docs\\.phax\\.run\\/schemas\\/artifact-status\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$"
+    },
+    "path": {
+      "type": "string",
+      "description": "The artifact's repo-relative path.",
+      "title": "nonEmptyString",
+      "minLength": 1
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "spec",
+        "plan"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "Draft",
+        "Approved",
+        "Stale",
+        "Abandoned",
+        "Completed"
+      ]
+    },
+    "legalTransitions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "Draft",
+          "Approved",
+          "Stale",
+          "Abandoned",
+          "Completed"
+        ]
+      },
+      "description": "The statuses the artifact may move to, in the order phax lists them."
+    },
+    "approval": {
+      "anyOf": [
+        {
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "none"
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "unrecorded"
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "description": "The artifact is approved but no approval record backs it: run `phax artifact approve` to record one."
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "date",
+            "baseline",
+            "approver",
+            "editedSinceApproval"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "recorded"
+              ]
+            },
+            "date": {
+              "type": "string",
+              "description": "The approval's date.",
+              "title": "nonEmptyString",
+              "minLength": 1
+            },
+            "baseline": {
+              "type": "string",
+              "description": "The baseline the approval stamped.",
+              "title": "nonEmptyString",
+              "minLength": 1
+            },
+            "approver": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "required": [
+                    "kind",
+                    "grant"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "machine"
+                      ]
+                    },
+                    "grant": {
+                      "type": "string",
+                      "description": "The grant the machine declared with `--by machine:<grant>`.",
+                      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "kind",
+                    "name"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "operator"
+                      ]
+                    },
+                    "name": {
+                      "type": "string",
+                      "description": "The operator's git user.name when they approved.",
+                      "title": "nonEmptyString",
+                      "minLength": 1
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "kind"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "unattributed"
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              ],
+              "description": "The arbiter as the approval record stores it."
+            },
+            "editedSinceApproval": {
+              "type": "boolean",
+              "description": "Whether the artifact's text differs from the one the approval recorded."
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "authoring": {
+      "anyOf": [
+        {
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "interactive"
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "sidecar",
+            "agreement"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "headless"
+              ]
+            },
+            "sidecar": {
+              "type": "string",
+              "description": "The sidecar's repo-relative path.",
+              "title": "nonEmptyString",
+              "minLength": 1
+            },
+            "agreement": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "in-sync",
+                    "diverged"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "kind",
+                    "message"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "invalid"
+                      ]
+                    },
+                    "message": {
+                      "$ref": "#/$defs/NonEmptyString"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "kind",
+                    "format",
+                    "shape"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "stamped"
+                      ]
+                    },
+                    "format": {
+                      "type": "string",
+                      "enum": [
+                        "spec-document",
+                        "plan-document"
+                      ]
+                    },
+                    "shape": {
+                      "type": "string",
+                      "description": "The shape the sidecar is stamped at: a release, or `pre-schema`. It is below the format's current shape, so it is not compared.",
+                      "title": "nonEmptyString",
+                      "minLength": 1
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              ],
+              "description": "Whether the artifact's body is still the rendering of its sidecar."
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "questions": {
+      "anyOf": [
+        {
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "none"
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "line",
+            "text"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "departs"
+              ]
+            },
+            "line": {
+              "$ref": "#/$defs/Int",
+              "description": "The 1-based line of the hand-authored §9 that departs from the format.",
+              "title": "greaterThanOrEqualTo(1)",
+              "minimum": 1
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "open",
+            "arbitrated",
+            "lifted"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "parsed"
+              ]
+            },
+            "open": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/NonEmptyString"
+              }
+            },
+            "arbitrated": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/NonEmptyString"
+              }
+            },
+            "lifted": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "description": "The arbitrated questions whose verdict was lifted."
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  },
+  "additionalProperties": false
+}

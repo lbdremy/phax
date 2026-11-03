@@ -41,6 +41,11 @@ import {
   runListFormat,
 } from "../src/formats/interactive.js";
 import { acceptanceRequestFormat, oracleRequestFormat } from "../src/formats/acceptanceRequest.js";
+import {
+  artifactStatusFormat,
+  planLintFormat,
+  planOverviewFormat,
+} from "../src/formats/commandAnswers.js";
 import { briefReportFormat, gateReportFormat } from "../src/formats/reports.js";
 import {
   decideVerdictsFormat,
@@ -130,6 +135,9 @@ export const FORMAT_DEFINITIONS: { readonly [F in FormatId]: CurrentShape } = {
   "spec-hand-decision-answer": specHandDecisionAnswerFormat,
   "plan-hand-decision-answer": planHandDecisionAnswerFormat,
   "acceptance-request": acceptanceRequestFormat,
+  "artifact-status": artifactStatusFormat,
+  "plan-overview": planOverviewFormat,
+  "plan-lint": planLintFormat,
 };
 
 // phax's decoders for the run directory's status files, the registry and the
@@ -174,6 +182,9 @@ const EXCESS: { readonly [F in JsonSchemaFormatId]: Excess } = {
   "spec-hand-decision-answer": "error",
   "plan-hand-decision-answer": "error",
   "acceptance-request": "error",
+  "artifact-status": "error",
+  "plan-overview": "error",
+  "plan-lint": "error",
   "record-manifest": "error",
 };
 
