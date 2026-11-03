@@ -24,7 +24,7 @@
     "site/**/*.{ts,tsx}",
     "examples/vitest-acceptance/**/*.mjs"
   ],
-  "ignore": ["site/generated/**", "site/doc_build/**"],
+  "ignore": ["site/generated/**", "site/doc_build/**", "vendor/**"],
   "ignoreDependencies": [
     "@effect/platform",
     "@effect/platform-node",
