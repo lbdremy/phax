@@ -3,7 +3,6 @@
   "ignorePatterns": [
     "node_modules",
     "dist",
-    "vendor",
     "docs",
     ".conductor",
     ".claude",

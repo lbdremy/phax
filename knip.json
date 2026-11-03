@@ -8,7 +8,6 @@
     "src/app/*.ts",
     "tests/**/*.test.ts",
     "tests/type/*.ts",
-    "tests/unit/commandLibrary/support/*.ts",
     "packages/schemas/src/index.ts",
     "packages/schemas/build/*.ts",
     "site/rspress.config.ts",
@@ -25,7 +24,7 @@
     "site/**/*.{ts,tsx}",
     "examples/vitest-acceptance/**/*.mjs"
   ],
-  "ignore": ["site/generated/**", "site/doc_build/**", "vendor/**"],
+  "ignore": ["site/generated/**", "site/doc_build/**"],
   "ignoreDependencies": [
     "@effect/platform",
     "@effect/platform-node",

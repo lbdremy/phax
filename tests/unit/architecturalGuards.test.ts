@@ -323,6 +323,9 @@ const CLI_DIRECT_IO_ALLOWLIST: ReadonlySet<string> = new Set([
   "src/cli/commands/usage.ts",
   "src/cli/commands/usageSpec.ts",
   "src/cli/interruptHandler.ts",
+  // The command library port's one process edge: the process as the runner reads it (its
+  // stdin, its files, stdout and stderr). No other file of the port touches the process.
+  "src/cli/commandLibrary/commander/processIo.ts",
 ]);
 
 describe("architectural guard: no direct Node I/O outside ports/infra", () => {
@@ -396,6 +399,30 @@ describe("architectural guard: the command library's contract is pure", () => {
     expect(CONTRACT_FORBIDDEN_IMPORT.test(`import { readFileSync } from "node:fs";`)).toBe(true);
     expect(CONTRACT_FORBIDDEN_IMPORT.test(`const m = await import("node:crypto");`)).toBe(true);
     expect(CONTRACT_FORBIDDEN_IMPORT.test(`import * as Schema from "effect/Schema";`)).toBe(false);
+  });
+});
+
+// ── Commander stays behind the runner's adapter ───────────────────────────────
+// Inside the command library port, commander/commanderAdapter.ts is the only file
+// that imports `commander`: the rest of the runner reads a call's words itself and
+// hands the adapter plain specs, so that swapping the parser touches one file.
+
+const COMMANDER_IMPORT = /(?:\bfrom\s+|\bimport\s*\(?\s*)["']commander["']/;
+const COMMANDER_ADAPTER = "src/cli/commandLibrary/commander/commanderAdapter.ts";
+
+describe("architectural guard: only the runner's adapter imports commander", () => {
+  it("under src/cli/commandLibrary/, only commander/commanderAdapter.ts imports commander", () => {
+    const portRoot = join(srcRoot, "cli", "commandLibrary");
+    const importers = listTsFiles(portRoot)
+      .map((absPath) => relative(repoRoot, absPath).split("\\").join("/"))
+      .filter((rel) => COMMANDER_IMPORT.test(readFileSync(join(repoRoot, rel), "utf8")));
+    expect(importers).toEqual([COMMANDER_ADAPTER]);
+  });
+
+  it("the detector flags a static and a dynamic commander import, and not a name that holds it", () => {
+    expect(COMMANDER_IMPORT.test(`import { Command } from "commander";`)).toBe(true);
+    expect(COMMANDER_IMPORT.test(`const m = await import("commander");`)).toBe(true);
+    expect(COMMANDER_IMPORT.test(`import { parseCall } from "./commanderAdapter.js";`)).toBe(false);
   });
 });
 

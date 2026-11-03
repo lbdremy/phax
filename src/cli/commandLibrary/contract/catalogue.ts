@@ -1,5 +1,7 @@
+import { Option } from "effect";
 import * as JSONSchema from "effect/JSONSchema";
-import * as Schema from "effect/Schema";
+import type * as Schema from "effect/Schema";
+import * as SchemaAST from "effect/SchemaAST";
 import type { Command, ExitCode, Inputs, Program, Source } from "./command.js";
 import { DIALECT, messageSchemas, type JsonSchema } from "./messages.js";
 import { argShapes, fullName, kebabCase } from "./shapes.js";
@@ -54,6 +56,83 @@ const isDictionary = (value: unknown): value is Dictionary =>
 
 const dictionaryOf = (value: unknown): Dictionary => (isDictionary(value) ? value : {});
 
+/** The annotations an object, a tuple or a union keeps on its encoded side: its name and what
+ *  its author wrote of it. */
+const NAMING: ReadonlyArray<symbol> = [
+  SchemaAST.IdentifierAnnotationId,
+  SchemaAST.TitleAnnotationId,
+  SchemaAST.DescriptionAnnotationId,
+];
+
+function naming(annotations: SchemaAST.Annotations): SchemaAST.Annotations {
+  const kept: Record<symbol, unknown> = {};
+  for (const key of NAMING) if (key in annotations) kept[key] = annotations[key];
+  return kept;
+}
+
+const isComposite = (ast: SchemaAST.AST): boolean =>
+  SchemaAST.isTypeLiteral(ast) || SchemaAST.isTupleType(ast) || SchemaAST.isUnion(ast);
+
+const named = (ast: SchemaAST.AST): boolean =>
+  Option.isSome(SchemaAST.getIdentifierAnnotation(ast));
+
+/** A contract's encoded side, its objects, tuples and unions keeping their names. Effect 3's
+ *  `SchemaAST.encodedAST` drops a node's annotations once one of its members encodes to another
+ *  type (a `NumberFromString` field), so a named contract would lose its `$defs` entry; Effect 4's
+ *  encoded side keeps it. A transformation's name moves to its encoded side only when that side
+ *  is an object, a tuple or a union, so that `NumberFromString` stays a plain string. */
+function encodedNamed(ast: SchemaAST.AST): SchemaAST.AST {
+  if (SchemaAST.isTransformation(ast)) {
+    const from = encodedNamed(ast.from);
+    return isComposite(from) && named(ast) && !named(from)
+      ? SchemaAST.annotations(from, naming(ast.annotations))
+      : from;
+  }
+  if (SchemaAST.isRefinement(ast)) return encodedNamed(ast.from);
+  if (SchemaAST.isTypeLiteral(ast)) {
+    return new SchemaAST.TypeLiteral(
+      ast.propertySignatures.map(
+        (property) =>
+          new SchemaAST.PropertySignature(
+            property.name,
+            encodedNamed(property.type),
+            property.isOptional,
+            property.isReadonly,
+            property.annotations,
+          ),
+      ),
+      ast.indexSignatures.map(
+        (signature) =>
+          new SchemaAST.IndexSignature(
+            SchemaAST.encodedAST(signature.parameter),
+            encodedNamed(signature.type),
+            signature.isReadonly,
+          ),
+      ),
+      naming(ast.annotations),
+    );
+  }
+  if (SchemaAST.isTupleType(ast)) {
+    return new SchemaAST.TupleType(
+      ast.elements.map(
+        (element) =>
+          new SchemaAST.OptionalType(
+            encodedNamed(element.type),
+            element.isOptional,
+            element.annotations,
+          ),
+      ),
+      ast.rest.map((rest) => new SchemaAST.Type(encodedNamed(rest.type), rest.annotations)),
+      ast.isReadonly,
+      naming(ast.annotations),
+    );
+  }
+  if (SchemaAST.isUnion(ast)) {
+    return SchemaAST.Union.make(ast.types.map(encodedNamed), naming(ast.annotations));
+  }
+  return SchemaAST.encodedAST(ast);
+}
+
 /** Effect's JSON Schema 2020-12 of a contract's encoded side, with the shared definitions beside
  *  it: `schema` is the root, `definitions` what its `$ref`s name. A `reject` contract closes its
  *  objects (`additionalProperties: false`), a `strip` one leaves them open. */
@@ -62,7 +141,7 @@ function generated(
   undeclared: "reject" | "strip",
 ): { readonly schema: Dictionary; readonly definitions: Dictionary } {
   const definitions: Record<string, JSONSchema.JsonSchema7> = {};
-  const schema = JSONSchema.fromAST(Schema.encodedSchema(contract).ast, {
+  const schema = JSONSchema.fromAST(encodedNamed(contract.ast), {
     definitions,
     target: "jsonSchema2020-12",
     additionalPropertiesStrategy: undeclared === "reject" ? "strict" : "allow",

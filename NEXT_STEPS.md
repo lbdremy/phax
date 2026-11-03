@@ -25,8 +25,8 @@ these specs landed and were completed: `planning-skill-defaults` (two plans), `a
       The operator's command library, ported to Effect 3, puts every command under contracts and
       forces a machine answer (`--json`, message lines on stderr, `--json-schema`, `$schema`, a
       document behind a flag, written files with their digest); `refused` 64, `defect` 70.
-      `artifact status`, `plans overview`, `plans lint` and `ls` first. The library's source is
-      copied under `vendor/command-library/` for the run (branch `chore/vendor-command-library`).
+      `artifact status`, `plans overview`, `plans lint` and `ls` first. The library is ported
+      under `src/cli/commandLibrary/` (contract and Commander runner); the vendored copy is gone.
       Prerequisite of `claude-code-mod` and `knowledge-index`.
 
 ### Briefs written, spec not yet authored
