@@ -109,6 +109,15 @@ So, by expected return:
    real git per test); sharing a world per file, or moving assertions down to unit level,
    is ordinary test work — but only a sensor keeps it from coming back.
 
+Follow-ups since (2026-11-04): the phase prompt turned out to _instruct_ the agent to rerun
+every gate command ("Run the gate commands again after your changes…"), terminal steps
+included — spec `2611041203-phase-prompt-names-the-gate` replaces it with a gate section
+and its contract. Partial commands related to a gate step (`partial.files`,
+`partial.diff`, shown and allowed, never run by phax) are a brief,
+`docs/briefs/gate-step-scoped-checks.md`. Independently, splitting a whole gate step into
+tiers (`pnpm test` → `test:unit` + `test:integration`) would show the agent which tiers
+exist, once the gate section lists them.
+
 The symmetry still holds — **the files a phase touches can select both its feed-forward
 (which briefs) and its feedback (which tests, which lint scope)** — but for phax the
 cheap scope is the test *tier*, not the import graph.
