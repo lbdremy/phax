@@ -219,12 +219,19 @@ Given a phase whose gate step fails, when phax resumes the session for a fix att
 
 ## 9. Open questions
 
+None.
+
+## 9b. Arbitrated questions
+
 ### q-need-not — Should the gate section forbid whole gate-step runs in-loop ("do not") or only say they are not needed ("need not")?
 
 - need-not — "You need not run a whole gate step before finishing" — abandons: Some of the saving: an agent may still choose to run the whole suite out of caution.
 - do-not — "Do not run a whole gate step" — abandons: The agent's judgement on a cross-cutting failure that really does need the whole suite, and the prompt's honesty, since phax cannot enforce the rule.
 
 Recommendation: need-not — A prompt cannot enforce a ban, and an agent chasing a failure that cuts across modules may need the whole suite. Most of the measured waste comes from the end-of-phase habit that the old rerun instruction asked for, and removing that instruction and stating the contract targets it directly. Losing some of the saving to caution is the acceptable loss; a ban that phax cannot enforce, and that is sometimes wrong, is not.
+
+Decision: need-not — by operator (Rémy Loubradou), 2026-11-04
+Why: A prompt cannot enforce a ban, and an agent chasing a failure that cuts across modules may need the whole suite. Most of the measured waste comes from the end-of-phase habit that the old rerun instruction asked for, and removing that instruction and stating the contract targets it directly. Losing some of the saving to caution is the acceptable loss; a ban that phax cannot enforce, and that is sometimes wrong, is not. Advocate: The strongest case for "do not": the measured waste is 6.7 h of whole-suite runs, and "need not" leaves each agent free to keep its caution habit, so a firm ban would capture the whole saving. Principles: S1. Reversibility: cheap. Revised: none.
 
 ### q-which-steps — Should the section list every step of the phase gate list, or only the ones the agent can act on in-loop (local surface)?
 
@@ -233,12 +240,18 @@ Recommendation: need-not — A prompt cannot enforce a ban, and an agent chasing
 
 Recommendation: all-tagged — The goal is that the agent knows what will judge it. Hiding structural steps turns a cheap check the agent could anticipate into a fix attempt. Tagging each line with its surface, rather than grouping by surface, keeps the list in the gate's run order even when a profile interleaves surfaces. A few extra lines is the smaller loss.
 
+Decision: all-tagged — by operator (Rémy Loubradou), 2026-11-04
+Why: The goal is that the agent knows what will judge it. Hiding structural steps turns a cheap check the agent could anticipate into a fix attempt. Tagging each line with its surface, rather than grouping by surface, keeps the list in the gate's run order even when a profile interleaves surfaces. A few extra lines is the smaller loss. Advocate: The strongest case for local-only: the agent can only act on local steps in-loop, so listing structural ones adds prompt lines on every phase for checks it rarely runs itself. Principles: S1, S5. Reversibility: cheap. Revised: none.
+
 ### q-size — How much should each step line carry, given that a long profile adds lines to every phase prompt?
 
 - commands-only — One line per step: surface and command, no description — abandons: Context on what an opaquely named step checks (for example `pnpm gen:model-catalog --check`).
 - with-descriptions — A line per step plus a description, which needs a new description field per step in phax.json — abandons: A small prompt, and a config shape that stays unchanged; every profile would have to be edited.
 
 Recommendation: commands-only — The agent can read the project's scripts to learn what a command does. A new per-step description field is a config change outside this spec's scope, and every profile would have to carry it. One line per step keeps the prompt cost bounded by the profile length.
+
+Decision: commands-only — by operator (Rémy Loubradou), 2026-11-04
+Why: The agent can read the project's scripts to learn what a command does. A new per-step description field is a config change outside this spec's scope, and every profile would have to carry it. One line per step keeps the prompt cost bounded by the profile length. Advocate: The strongest case for descriptions: an opaquely named step such as `pnpm gen:model-catalog --check` tells the agent nothing about what will judge it, and a one-line description would let it anticipate the failure. Principles: S1, S5. Reversibility: cheap. Revised: none.
 
 ### q-acceptance-step — On a phase of an acceptance pair, the gate also runs the acceptance check, which is not a profile step. Should the gate section list it?
 
@@ -247,9 +260,8 @@ Recommendation: commands-only — The agent can read the project's scripts to le
 
 Recommendation: leave-to-role — The settled scope is the resolved gate profile, and the acceptance check is already explained, with its rule, in the Acceptance role section on exactly the phases where it runs. Mentioning it in two places is the drift risk this spec's single-resolution rule exists to avoid.
 
-## 9b. Arbitrated questions
-
-None.
+Decision: leave-to-role — by operator (Rémy Loubradou), 2026-11-04
+Why: The settled scope is the resolved gate profile, and the acceptance check is already explained, with its rule, in the Acceptance role section on exactly the phases where it runs. Mentioning it in two places is the drift risk this spec's single-resolution rule exists to avoid. Advocate: The strongest case for listing it: the agent should see one complete list of everything the gate runs, instead of assembling it from two sections of the prompt. Principles: S1, S4. Reversibility: cheap. Revised: none.
 
 ## 10. Implementation-planning note
 
@@ -277,3 +289,10 @@ Constraints:
 ## 11. Docs page
 
 None — Only the prompt phax writes to the phase agent changes. No command, flag or config key changes for operators, and each phase's prompt.md already shows the result.
+
+## 12. Decision log
+
+- 2026-11-04 q-need-not decided need-not — operator (Rémy Loubradou)
+- 2026-11-04 q-which-steps decided all-tagged — operator (Rémy Loubradou)
+- 2026-11-04 q-size decided commands-only — operator (Rémy Loubradou)
+- 2026-11-04 q-acceptance-step decided leave-to-role — operator (Rémy Loubradou)
