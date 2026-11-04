@@ -1,0 +1,871 @@
+{
+  "$schema": "https://docs.phax.run/schemas/plan-document/0.33.0.json",
+  "kind": "plan",
+  "sourceSpec": "docs/specs/2611031738-command-contracts.md",
+  "completesSpec": false,
+  "run": {
+    "shortName": "inspection-commands-on-the-runner",
+    "title": "Inspection commands on the runner",
+    "requiredCommands": [
+      "pnpm gen:usage-spec",
+      "pnpm docs:cli"
+    ]
+  },
+  "preamble": {
+    "summary": "The second plan of the spec `command-contracts`. Plan 1 (`command-runner-and-mod-answers`, PR #184) ported the command library to Effect 3, put the bridge between Commander and the runner, and moved `ls`, `artifact status`, `plans lint` and `plans overview`. This plan moves the inspection commands onto the runner through that bridge, each with its output contract, its render (today's text), its declared errors with today's sentences and codes, and its help, examples and completer moved into its definition: `validate`, `session-info`, `path`, `brief`, `architecture`, `completions` and `report`; the groups `cost`, `schema`, `security`, `skills` and `records`, each moved whole; and the rest of `plans` (`status`, `overlap`, `estimate`), after which `plans` too is a group the runner holds whole. `artifact` stays bridged until plan 3.\n\nPhases: phase-01 gives the port and the bridge what these commands need (a group's long help and examples, variadic arguments, negated switches, a command that prompts refusing `--json`, groups held whole by the runner) and one contract test over every runner command. phase-02 moves the rest of `plans`. phase-03 moves the seven root inspection commands. phase-04 moves `cost`, `schema`, `security` and `skills`. phase-05 writes the acceptance tests of `records`, and phase-06 moves `records` and passes them.\n\nCriteria this plan advances on the commands it moves, still finished by plans 3 and 4 (they hold for the whole program only once the last command moves):\n- ac-json-every-command, ac-text-unchanged, ac-error-sentence, ac-unknown-option, ac-help and ac-no-parser: every moved command.\n- ac-catalogue: one entry per moved command.\n- ac-groups: `plans`, `cost`, `schema`, `security`, `skills` and `records` alone; `artifact`, `artifact new` and `agent setup` wait for plan 3.\n- ac-written: `skills install`, `schema upgrade`, `cost backfill`, `records init` and `plans status --apply`; `artifact approve` waits for plan 3.\n- ac-no-person: `records init`; `enter` and `artifact decide` wait for plans 3 and 4.\n- ac-usage-parity: the moved commands' blocks come from their definitions; the file is the generator's output from the definitions alone only after plan 4.\n\nCriteria this plan does not touch: ac-stdin-file-or-dash, ac-stdin-terminal, ac-stdin-bad, ac-brief-text and ac-written-on-failure's command case (plan 3, `artifact decide` and `artifact new`), ac-progress and ac-error-sentence's `resume` case (plan 4), and ac-versioned-stable (no versioned document changes here). No criterion is finished in full by this plan.\n\nExecution caveat: this repository is driven by the installed phax during the run, and nothing this plan changes is read by it. Every test proves the runner through its `Io` data, through a kept run function, or through `tsx src/cli/main.ts` spawned in a temporary repository (tests/helpers/isolateGit.ts, a temporary PHAX home). No test reads ~/.phax, a real ~/.claude, ~/.codex or ~/.vibe, the global git config or the real `gh`, runs a real provider or a real Claude Code probe, or holds a fact the release cut changes (a snapshot named `next`, the version in package.json).",
+    "requiredCommandsNote": "Both commands are already in `security.agentCommands` in phax.json: `pnpm gen:usage-spec` rewrites phax.usage.kdl and `pnpm docs:cli` rewrites the README's generated CLI block. No security configuration change is needed. The plan declares no skill file, so the run needs no `--allow-skill-edits`.",
+    "technicalArbitrations": [
+      "Output contracts. The spec creates no format beyond plan 1's four (§6 `package`), so every output in this plan carries no `$schema`, as §6's `unlock --json` shows. `plans status`, `plans overlap` and `plans estimate` keep today's unversioned `--json` object as their output contract byte for byte: same keys, same order, same values, two-space indent and one trailing newline, the output schema written so that encoding today's value gives exactly `JSON.stringify(value, null, 2)`. The one change is `plans status --apply`, whose object (it already differs from the plain one by `applied`) gains `written` after `applied`: the flipped plans' written-file records (§5.18). Loss accepted: a reader gets no `$schema` to validate these objects by URL, only the contract `--json-schema` prints, and a later change of their shape is announced by no stamp. Changing them (a `$schema`, renamed keys) would abandon §6's package surface and every script reading today's object.",
+      "Commands whose text is a script's input answer an object under `--json`, never a document through the `document` hook, because a document's bytes under `--json` would not parse as JSON (ac-json-every-command). `path` answers `{ qualifiedName, crossProject, worktreePath }`; its render prints `Target: <qualified name>` then the path when the run is another project's, else the path alone, so `cd \"$(phax path …)\"` reads today's bytes. `completions <shell>` answers `{ shell, script }`; its render is the script with one trailing newline removed (the runner adds one back). `records explain` answers the explained record with the text of each artifact a flag asks for (`--prompt`, `--diff`, `--transcript`, `--gates`, `--briefs`), decoded as the text print decodes it today. Without `--json` each prints today's bytes. Loss accepted: a completion script `usage` printed without a final newline gains one.",
+      "Written files. A command reports as written-file records (the port's `Written`, src/cli/commandLibrary/contract/written.ts) the files that are its deliverable: `skills install` each file it installs (none for a skill already present), `schema upgrade` phax.schema.json and the user schema when it updates them, `cost backfill` each cost-ledger.json it writes, `records init` the phax.json it configures, `plans status --apply` each flipped plan. Each digest is computed from the bytes read back after the write. A file inside the repository has its path from the repository root; a file outside it (~/.phax, ~/.claude) has its absolute path, since there is no repository root for it. None of them answers a document, so none takes `--out`: `--out` is for an answer that is one document, and each of these answers a report with several records or none. `records sync` writes into a Git clone, not a file the caller reads by path: it answers today's sync result (what it pulled, pushed or found pending) with no written-file record. Phax's own side state is not reported: `plans estimate`'s backfilled ledgers stay the stderr line they are today, `plans overlap`'s extraction cache, the registry, locks, `brief`'s brief-NN.json records and `report`'s temporary files. Loss accepted: §5.18 is read as a command's deliverables, so a reader of `plans estimate --json` learns of the ledgers it wrote only from a note line.",
+      "Providers, network and persons. No moved command gains a progress line a person does not read today (§5.4): `brief` and `architecture` ask their provider and print nothing before the answer; `plans estimate`'s Claude Code probe and `plans overlap`'s extraction on a cache miss print nothing while they run; `report` prints only `Issue created: <url>` after its `gh` calls. What they print on stderr today becomes `progress` when it is printed as it happens (`plans estimate`'s `Wrote N cost ledgers …` line, printed after the backfill and before the report) and `notes` when it is derived from the output (`plans estimate`'s `Warning: …` lines, `plans status`'s orphan-record warnings, `brief`'s record warning). Under `--json` both are note lines. None of these commands waits on a person, so none refuses `--json`, except `records init`, which prompts through its Prompt port on every call: it declares that it prompts, and `--json` is refused before anything starts (§5.20). Under `--json`, `--json` alone never makes a command prompt.",
+      "Where the definitions live: one file per command or per group under src/cli/definitions/, as plan 1's are: plansStatus.ts, plansOverlap.ts, plansEstimate.ts, validate.ts, sessionInfo.ts, path.ts, brief.ts, architecture.ts, completions.ts, report.ts, and cost.ts, schema.ts, security.ts, skills.ts and records.ts (with recordsExplain.ts for explain's renders) each holding a group and its commands. A moved command's Commander registration is deleted from src/cli/program.ts or its register function, and its entry in src/cli/cliDocs.ts is deleted, not kept beside its definition. Its file under src/cli/commands/ is deleted, or kept only as the run function an existing test imports (runValidate, runBrief, runArchitecture, runCostBackfill, runSchemaUpgrade, runSkillsInstall, runPlansStatus, runPlansOverlap, runPlansEstimate), each a composition of its definition through `runThroughOutput` (src/cli/bridge.ts), as plan 1 kept runLs. src/cli/cliCompleters.ts keeps its `short-name` entry, which unmigrated commands (resume, enter, run, …) still declare until plan 4; a moved command declares the same completer on its argument's annotation, and the generator writes one `complete \"short-name\"` node, never two.",
+      "The bridge after this plan. Its routing holds one constant, the groups the runner holds in part: `artifact` alone (phase-01 starts it as `artifact` and `plans`, phase-02 removes `plans`). Every other runner group is held whole: a call naming it, alone, with `--help`, through `help <group>`, or with a word that names none of its commands, goes to the runner, which writes its help and refuses with 64. A call naming a runner command goes to the runner as today. Everything else goes to Commander: root help, `--version`, the `artifact` group and every unmigrated command stay Commander's until plan 4. A whole group is mounted in the Commander tree as a help-only group stub, registered like a command stub, so root help lists it at its place and the generator splices the runner's whole group block there. Loss accepted: until plan 4 a whole group's block in phax.usage.kdl gains `subcommand_required=#true`, which the frozen-file test allows per whole group.",
+      "Gains and one fix the port takes in phase-01, beyond §10's list, each written as the library would carry it with a doc comment and a conformance case, because without them these commands cannot keep their declarations (§5.21, §7): a group carries `help` and `examples`, shown in its help and written as its `long_help` and `example` nodes (`cost` and `plans` have long help today); a tuple's rest element is a variadic argument (`brief [path...]`, `architecture [path...]`, `plans overlap <plan...>`), written `[path]...` or `<plan>...` as today; a command declares `prompts`, a predicate over its decoded input, and the runner refuses `--json` before `run` when it holds (`records init` here, `artifact decide` without `--verdicts` and `enter` in later plans). The fix: a field such as `noProbe` is the switch `--no-probe`, and the Commander adapter reads Commander's negated attribute for it, which it misses today (`--no-probe`, `--no-extract`, `--no-gist`). Loss accepted: four more items for the published package to take upstream.",
+      "Inputs a command refuses itself stay strings. Where today's command answers a bad value with its own code and sentence (`completions` an unknown shell with exit 1, `skills install` an invalid `--target`, `--scope` or skill name with exit 2), the input contract declares a string, not a literal union, and `run` refuses with a declared error carrying today's sentence and code. Loss accepted: these values show no `choices` in help, the catalogue or phax.usage.kdl, as today, and a refused value is an `error` line rather than a `refused` line under `--json`.",
+      "Archived runs. A command reading a run does on an archived one what it does today. `session-info` and `path` resolve through resolveRunRef, which reads the run folder under runs/: an archived run is refused with today's `is in the registry but its files could not be read` sentence and exit 1. `report <run>` reads runs/<short-name>/semantic.jsonl and fails with today's `phax report failed: …` sentence and exit 1 when the run is archived. `cost backfill` reads the archived run folder (<archivePath>/runs) as it does today. `records` reads records on phax/records/v1 and the registry, not run folders, and is unchanged for an archived run. `plans overlap --landed` reads the landed run's global-file-reconciliation.json where it does today.",
+      "Tests. phase-01 writes one in-phase contract test over every command and whole group of `phaxProgram`, through the runner's memory Io: `--json-schema` equals the catalogue entry and runs nothing, `--help` lists `--json`, an undeclared option is refused with 64 (a `refused` line from `flags` under `--json`), and a whole group alone writes its help and is refused. It never runs a command, so each later phase's commands are covered by it as they join the program. Each family adds its own `--json`, error-sentence and written-file tests in the phase that moves it; only `records`, the largest family and the one with a prompting command, gets an acceptance pair. Every acceptance test carries its own `.fails` marker on its own `it`, fails on its own assertion, and is changed by the passing phase only by removing that marker. Loss accepted: the other families' tests are written with the code, not frozen before it.",
+      "Existing tests. They keep passing with their assertions unchanged. A test whose harness builds a Commander registration this plan deletes (tests/unit/skillsArgv.test.ts, tests/integration/recordsExplain.test.ts, tests/integration/recordsExplainStop.test.ts) has its harness replaced by the runner's, over a memory Io or `runThroughOutput`, and its assertions kept; an assertion that Commander's parse throws becomes the runner's refusal with 64. Registration checks of the moved commands in tests/integration/cliProgram.test.ts follow the stubs, as plan 1 did. Every such change is named in the phase's handoff.",
+      "Long help. Every moved command and group keeps its long help, examples, help and argument and option help word for word; this plan rewords none, so the frozen-file test's `REWORDED_LONG_HELP` list does not grow. Its allowlist grows only by `--json` on each moved command (reworded where the command declared its own: `plans status`, `plans overlap`, `plans estimate`), `subcommand_required` on each whole group, and what q-security-bare decides for `security`."
+    ],
+    "openQuestions": [
+      {
+        "id": "q-security-bare",
+        "question": "Today a bare `phax security` runs the status report and exits 0, and `security` and `security status` each declare their own `--verbose` and `--trace` in phax.usage.kdl. When the `security` group moves onto the runner whole (phase-04), what do they become?",
+        "options": [
+          {
+            "id": "refuse-bare",
+            "label": "Bare `phax security` writes its help on stderr and exits 64 like every group (§5.11); `--verbose` and `--trace` there are the program's options, and the frozen-file test allows dropping the group's and `security status`'s own declarations of them",
+            "abandons": "the bare `phax security` shortcut (exit 0 with the report) and four flag declarations in phax.usage.kdl, a change §5.21 and §7 otherwise forbid"
+          },
+          {
+            "id": "default-command",
+            "label": "A further gain: a group may name a command it runs when called alone, and `security` runs `status`; the local `--verbose` and `--trace` declarations still go, read as program options",
+            "abandons": "§5.11's rule that a group called alone is refused, for one group, and one more gain outside §10's list for the published package to take upstream"
+          },
+          {
+            "id": "keep-bridged",
+            "label": "`security status` moves; the `security` group stays Commander's, with its bare action and its flags, until plan 4",
+            "abandons": "ac-groups for `security` in this plan, and plan 4 inherits the same choice with the group's refusal still bridge glue"
+          }
+        ],
+        "recommendation": "refuse-bare",
+        "rationale": "Every document and test names `phax security status`; the bare form appears only as `<SUBCOMMAND>` in the generated usage line, which already says a subcommand is expected. §5.11 is the spec's rule, the flags keep working anywhere in the call as program options, and the other two options either widen the contract for one shortcut or postpone the same decision."
+      }
+    ],
+    "arbitratedQuestions": []
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "title": "Runner groundwork: group help, variadic arguments, negated switches, prompting commands and whole groups",
+      "objective": "The port and the bridge can carry every inspection command without changing what it declares: a group has long help and examples, an argument can be variadic, a `--no-x` switch reaches its command, a command that prompts refuses `--json`, and a group the runner holds whole is routed, helped and refused by the runner. One contract test checks every runner command and whole group, so each command joins it as it moves.",
+      "detailedInstructions": [
+        "Read this plan's Technical arbitrations (gains, the bridge, tests), src/cli/commandLibrary/contract/{command,define,shapes,usage,catalogue,index}.ts, src/cli/commandLibrary/commander/{commanderAdapter,run}.ts, contract/conformance/cases.ts and its suite, tests/unit/commandLibrary/conformance.test.ts (its CONTRACT_ONLY list), src/cli/bridge.ts and tests/unit/cli/bridge.test.ts, src/cli/program.ts, scripts/generate-usage-spec.ts, tests/integration/usageSpecDeclarations.test.ts and tests/helpers/usageKdl.ts. Check every Effect API against the installed `effect` in node_modules.",
+        "Gain, group help: `defineGroup` and `Grouping` take optional `help` and `examples`. The runner writes a group's help like a command's: its summary, then the long help, then `Examples:` with each example indented two spaces, then its commands. `usageSpec` writes them as the group's `long_help` and `example` nodes, in that order before its commands. Add the conformance case `groups.long-help`.",
+        "Gain, variadic arguments: a tuple contract's rest element is a variadic argument. `ArgShape` gains `variadic: boolean`; a rest element after required elements is required (`<plan...>`), a rest alone optional (`[path...]`). The Commander adapter declares `<name...>` or `[name...]` and hands every operand to the tuple. `usageSpec` writes it as today's generator does, `arg \"<plan>...\"` or `arg \"[path]...\"` with its help. Add the conformance case `args.variadic`.",
+        "Fix, negated switches: a Boolean field whose option starts with `no-` (field `noProbe`, option `--no-probe`) is declared to Commander as `--no-probe`, and the adapter reads Commander's attribute for it (`probe === false`), handing `noProbe: true` to `run` when it is given and leaving it absent otherwise. Help, catalogue and usage spec show `--no-probe` as today. Add the conformance case `flags.negated-switch`, and a runner test beside tests/unit/commandLibrary/commander/policies.test.ts.",
+        "Gain, prompting commands: `CommandDef.prompts?: (input) => boolean`, over the decoded input. When it holds and `--json` is given, the runner refuses the call after decoding and before `run`, with the program's `refused` code: one `refused` line with `source` \"flags\", `path` [\"json\"], `expected` \"a call that does not prompt\" and today's style of text (`error: --json: <command> prompts; run it without --json`). Without `--json` nothing changes. Add the conformance case `json.prompting-refused`. Each new case lists in CONTRACT_ONLY of tests/unit/commandLibrary/conformance.test.ts only if it holds without a runner.",
+        "Whole groups in src/cli/bridge.ts: add the constant of groups the runner holds in part, `PARTIAL_GROUPS = [\"artifact\", \"plans\"]`, with a comment that phase-02 removes `plans` and plan 3 empties it. `route` sends to the runner a call whose leading words, after program options, name a runner group not in that constant, whatever follows (alone, `--help`, an unknown word); `dispatch`'s `help <words>` path does the same. Add `mountRunnerGroupStub(parent, program, words)`: a help-only Commander group with the group's summary, holding a help-only stub of each of its commands, all registered in the stub registry; `mountRunnerStubs` skips the commands of a mounted group. `runnerUsage` also keys each whole group's full block (header with `subcommand_required=#true` and its commands) by its full name.",
+        "scripts/generate-usage-spec.ts: at a group stub, splice the runner's whole group block, indented to its depth. Keep writing one `complete` node per identifier: the union of src/cli/cliCompleters.ts and the completers the runner's arguments declare, cliCompleters first, never one identifier twice.",
+        "tests/integration/usageSpecDeclarations.test.ts: derive from `phaxProgram` and the bridge's PARTIAL_GROUPS the groups held whole, and allow each one's `subcommand_required` declaration (no group is held whole yet, so nothing is allowed yet). Keep `MIGRATED_COMMANDS` and the other lists as they are. Run `pnpm gen:usage-spec`: phax.usage.kdl must not change in this phase.",
+        "Write tests/unit/cli/runnerCommandContracts.test.ts, which never runs a command. For every command of `phaxProgram`, through `runner.run(phaxProgram, io)` with the memory Io of tests/unit/commandLibrary/commander/support/memoryIo.ts: `<words> --json-schema` prints one JSON value equal to that command's entry in `phax --json-schema` and exits 0; `<words> --help` exits 0 and its text lists `--json`; `<words> --colour --json` writes nothing on stdout, one `refused` line with `\"source\":\"flags\"` on stderr and exits 64; `<words> --colour` exits 64 with stderr starting `error: unknown option '--colour'`. For every group of `phaxProgram` not in PARTIAL_GROUPS, the group alone writes its help on stderr and exits 64. The catalogue holds exactly one entry per command of `phaxProgram`. A command whose argument is required gets placeholder values for the `--colour` cases, so the refusal is the option's.",
+        "tests/unit/cli/bridge.test.ts: `route` sends a whole group's calls (alone, `--help`, `help <group>`, an unknown word) to the runner and a partial group's to Commander; the group stub is registered. Extend tests/unit/commandLibrary/commander/groups.test.ts and usage.test.ts for the group help and the variadic argument where the runner's own tests group them."
+      ],
+      "planMarkdownAnchor": "#phase-01-runner-groundwork",
+      "plannedFilesToCreate": [
+        "tests/unit/cli/runnerCommandContracts.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/cli/commandLibrary/contract/command.ts",
+        "src/cli/commandLibrary/contract/define.ts",
+        "src/cli/commandLibrary/contract/shapes.ts",
+        "src/cli/commandLibrary/contract/usage.ts",
+        "src/cli/commandLibrary/contract/conformance/cases.ts",
+        "src/cli/commandLibrary/commander/commanderAdapter.ts",
+        "src/cli/commandLibrary/commander/run.ts",
+        "src/cli/bridge.ts",
+        "scripts/generate-usage-spec.ts",
+        "tests/unit/cli/bridge.test.ts",
+        "tests/unit/commandLibrary/commander/groups.test.ts",
+        "tests/unit/commandLibrary/commander/usage.test.ts",
+        "tests/unit/commandLibrary/commander/policies.test.ts",
+        "tests/integration/usageSpecDeclarations.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/cli/commandLibrary/contract/index.ts",
+        "src/cli/commandLibrary/contract/catalogue.ts",
+        "src/cli/commandLibrary/contract/messages.ts",
+        "src/cli/commandLibrary/contract/conformance/suite.ts",
+        "src/cli/commandLibrary/commander/shape.ts",
+        "src/cli/program.ts",
+        "tests/unit/commandLibrary/conformance.test.ts",
+        "tests/unit/commandLibrary/contract/exports.test.ts",
+        "tests/unit/commandLibrary/commander/exports.test.ts",
+        "tests/helpers/usageKdl.ts",
+        "tests/unit/generateUsageSpec.test.ts",
+        "phax.usage.kdl",
+        "knip.json"
+      ],
+      "mode": "headless",
+      "acceptance": null,
+      "boundaryContracts": "Producer: the port's contract (src/cli/commandLibrary/contract/index.ts). Consumers: phases 02 to 06's definitions. Contract: `defineGroup({ name, summary, help?, examples?, commands })`, a tuple rest element as a variadic argument, a `noX` Boolean field as the `--no-x` switch, and `prompts(input)` refusing `--json`. Producer: src/cli/bridge.ts (`PARTIAL_GROUPS`, `route`, `mountRunnerGroupStub`, `runnerUsage`). Consumers: src/cli/program.ts and scripts/generate-usage-spec.ts. Contract: a group outside PARTIAL_GROUPS is the runner's whole, mounted as a help-only group stub whose usage block is the runner's.",
+      "testStrategy": [
+        {
+          "guarantee": "every runner command's --json-schema prints its catalogue entry and runs nothing",
+          "size": "small",
+          "technique": "table",
+          "oracle": "the command's entry in the program's catalogue",
+          "loop": "in-phase",
+          "criterion": "ac-json-schema-command"
+        },
+        {
+          "guarantee": "the catalogue holds exactly one entry per runner command",
+          "size": "small",
+          "technique": "example",
+          "oracle": "phaxProgram's command list",
+          "loop": "in-phase",
+          "criterion": "ac-catalogue"
+        },
+        {
+          "guarantee": "every runner command's --help exits 0 and lists --json",
+          "size": "small",
+          "technique": "table",
+          "oracle": "the help text on the memory Io",
+          "loop": "in-phase",
+          "criterion": "ac-help"
+        },
+        {
+          "guarantee": "an undeclared option on every runner command exits 64, with one refused line from flags under --json and the unknown-option text without",
+          "size": "small",
+          "technique": "table",
+          "oracle": "the memory Io's stdout, stderr and exit code",
+          "loop": "in-phase",
+          "criterion": "ac-unknown-option"
+        },
+        {
+          "guarantee": "every group the runner holds whole, called alone, writes its help on stderr and exits 64",
+          "size": "small",
+          "technique": "table",
+          "oracle": "the memory Io's stderr and exit code",
+          "loop": "in-phase",
+          "criterion": "ac-groups"
+        },
+        {
+          "guarantee": "a group's long help and examples appear in its help and as its long_help and example nodes",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the groups.long-help conformance case's expected help and KDL",
+          "loop": "in-phase",
+          "criterion": "ac-usage-parity"
+        },
+        {
+          "guarantee": "a tuple's rest element decodes every operand and shows as a variadic argument in help, catalogue and usage spec",
+          "size": "small",
+          "technique": "boundary",
+          "oracle": "the args.variadic case with zero, one and several operands",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "a --no-x switch reaches run as true when given and stays absent otherwise",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the flags.negated-switch case's recorded input",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "a command whose prompts predicate holds refuses --json before run, and runs without --json",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the json.prompting-refused case's refused line and untouched run",
+          "loop": "in-phase",
+          "criterion": "ac-no-person"
+        },
+        {
+          "guarantee": "the bridge sends a whole group's calls to the runner and a partial group's to Commander",
+          "size": "small",
+          "technique": "table",
+          "oracle": "route's answer per call",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "phax.usage.kdl stays the generator's output and is unchanged by this phase",
+          "size": "small",
+          "technique": "metamorphic",
+          "oracle": "the frozen pre-change file compared node by node",
+          "loop": "in-phase",
+          "criterion": "ac-usage-parity"
+        }
+      ],
+      "implementationOrder": [
+        "command.ts and define.ts: group help, prompts",
+        "shapes.ts and usage.ts: variadic arguments, group nodes",
+        "commanderAdapter.ts and run.ts: variadic, negated switch, group help, prompting refusal",
+        "conformance cases and runner tests",
+        "bridge.ts whole groups, generator splice",
+        "runnerCommandContracts.test.ts, bridge and usage declaration tests"
+      ],
+      "excludedScope": [
+        "Moving any command (phases 02 to 06).",
+        "Any change to phax.usage.kdl's content.",
+        "The stdin and text-document behaviour of later plans."
+      ],
+      "verification": "The `standard` gate profile in phax.json.",
+      "expectedHandoff": "Give the new contract fields and their exact shapes (`Grouping.help`, `Grouping.examples`, `ArgShape.variadic`, `CommandDef.prompts`), the conformance case ids added and whether each is in CONTRACT_ONLY, and the refused line `prompts` writes. Describe how the adapter reads a negated switch. Give `PARTIAL_GROUPS`, `route`'s rule for whole groups, `mountRunnerGroupStub`'s signature, how `runnerUsage` keys a group block, and how the generator writes complete nodes from the union. Say how runnerCommandContracts.test.ts picks placeholder arguments, so later phases know their commands are covered. Explain any deviation from the planned file lists.",
+      "commit": {
+        "subject": "feat(cli): group help, variadic arguments, negated switches and whole groups on the runner",
+        "body": "Give the ported command library what the inspection commands need to keep their\ndeclarations: a group's long help and examples, variadic arguments, `--no-x`\nswitches read from Commander's negated attribute, and a command that prompts\nrefusing `--json` before it runs. Each is a conformance case.\n\nThe bridge can hand a whole group to the runner, which then owns its help and its\nrefusal when called alone, and the usage spec generator splices the group's block.\nOne contract test checks every runner command's `--json-schema`, `--help` and\nunknown-option refusal, and every whole group called alone."
+      },
+      "assignmentReason": "The phase designs four contract shapes the port does not hold and changes the bridge's routing for whole groups, across the contract, the Commander adapter, the bridge and the usage generator.",
+      "model": "claude-opus-5-5",
+      "effort": "medium"
+    },
+    {
+      "id": "phase-02",
+      "title": "plans status, overlap and estimate on the runner, plans held whole",
+      "objective": "`phax plans status`, `phax plans overlap` and `phax plans estimate` are command definitions on the runner, and the runner holds the `plans` group whole. Their `--json` objects are today's bytes, their text, warnings, sentences and codes are today's, and `phax plans` alone is the runner's help and refusal.",
+      "detailedInstructions": [
+        "Read this plan's Technical arbitrations (output contracts, written files, providers, definitions, the bridge, tests, existing tests), src/cli/definitions/{program,plansLint,plansOverview,shared}.ts, src/cli/bridge.ts (`runThroughOutput`, PARTIAL_GROUPS, `mountRunnerGroupStub`), src/cli/commands/{plans,plansOverlap,plansEstimate}.ts, src/cli/cliDocs.ts (`plans`, `plans status`, `plans overlap`, `plans estimate`), src/app/planStaleness.ts, src/app/analyzePlanOverlap.ts, src/app/estimatePlan.ts and the tests of the three commands.",
+        "Before changing a command, write the oracle of byte-for-byte JSON: tests/unit/cli/plansInspectionContracts.test.ts encodes, through each new output contract, fixed values of today's shapes (a staleness report with orphan records, with and without `applied`; an overlap result and a readjustment impact; an estimate report for each verdict kind) and expects exactly `JSON.stringify(value, null, 2)` plus one newline, the bytes today's command prints. Values come from the domain types, written by hand in the test.",
+        "src/cli/definitions/plansStatus.ts: flags `apply` (\"Flip stale-computed plans Approved -> Stale\"); output today's object, `{ report, orphanRecords }`, or with `--apply` `{ report, orphanRecords, applied, written }`, `written` the flipped plans' written-file records (repo-relative, digest of the bytes read back). Render today's report, then a blank line and the apply text under `--apply`. Notes: one orphan-record warning per orphan, as renderOrphanRecordWarning words it. Errors: a config error exits 1 with `Config error: …`, others with exitCodeForError's code and their message.",
+        "src/cli/definitions/plansOverlap.ts: args `<plan...>` (variadic, \"Paths to two or more plan.md files\"); flags `noExtract` (`--no-extract`) and `landed`. Output today's `resultToJson` object, or `impactToJson`'s with `--landed`. Render today's text. Errors exit 1 with today's sentences (`Config error: …` for the config). The extraction on a cache miss writes no progress line.",
+        "src/cli/definitions/plansEstimate.ts: args `<plan>`, flag `noProbe` (`--no-probe`). Output today's report as is. The `Wrote N cost ledger(s) for kept runs that had none.` line is a `progress` call made after the backfill, worded as today; each `report.warnings` entry is a note `Warning: <warning>`. Render as today, with the local time zone and the clock. Errors keep exitCodeForError's codes (1, 2, 10, 12) and `Config error: …` with 1. Tests use `--no-probe` or the fake provider backend, never a real probe.",
+        "Each definition moves its help and examples word for word from cliDocs, and its argument and option help from today's registration, and declares `--json`'s meaning through the runner only. Provide each run's layers inside it, from src/cli/commands/runLayers.ts, as plan 1's definitions do.",
+        "src/cli/definitions/program.ts: the `plans` group gains `help` and `examples` from cliDocs `plans`, and its commands in today's order: `status`, `overlap`, `lint`, `overview`, `estimate`. src/cli/bridge.ts: remove `plans` from PARTIAL_GROUPS. src/cli/program.ts: replace `registerPlansCommand(program, consoleOutput)` with `mountRunnerGroupStub(program, phaxProgram, [\"plans\"])` at the same place. src/cli/commands/plans.ts loses registerPlansCommand; keep runPlansStatus and runPlansLint, and in plansOverlap.ts and plansEstimate.ts runPlansOverlap and runPlansEstimate, only as `runThroughOutput` compositions, because existing tests call them. Delete the four cliDocs entries.",
+        "Write tests/integration/plansInspectionJson.test.ts, spawning `tsx src/cli/main.ts` in temporary repositories (isolateGit, a temporary PHAX home), as tests/integration/plansAnswersJson.test.ts does: `plans status --json`, `plans overlap <a> <b> --no-extract --json` on cached or deterministic plans, and `plans estimate <plan> --no-probe --json` each print one JSON value with two-space indent and one trailing newline, and every stderr line is a message line; `plans status --apply --json` lists each flipped plan in `written` with a `sha256:` digest of 64 lowercase hex digits; a broken phax.json makes each exit 1 with `Config error: …` on stderr without `--json` and one `error` line with `\"exit\":1` with it.",
+        "Run `pnpm gen:usage-spec`. Extend tests/integration/usageSpecDeclarations.test.ts: `MIGRATED_COMMANDS` gains `plans status`, `plans overlap` and `plans estimate` in the program's order, and `REWORDED_JSON` the same three; the `plans` group's `subcommand_required` is allowed by phase-01's rule. No long help is reworded. Run `pnpm docs:cli`.",
+        "docs/upgrading.md, in the 0.34.0 entry, one bullet: `plans status`, `plans overlap` and `plans estimate` answer through the runner; their `--json` objects are unchanged except `plans status --apply`, which gains `written`, the flipped plans' records; under `--json` their warnings are note lines; `phax plans` alone and `--json-schema` follow the runner. Do not edit earlier entries."
+      ],
+      "planMarkdownAnchor": "#phase-02-plans-family",
+      "plannedFilesToCreate": [
+        "src/cli/definitions/plansStatus.ts",
+        "src/cli/definitions/plansOverlap.ts",
+        "src/cli/definitions/plansEstimate.ts",
+        "tests/unit/cli/plansInspectionContracts.test.ts",
+        "tests/integration/plansInspectionJson.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/cli/definitions/program.ts",
+        "src/cli/bridge.ts",
+        "src/cli/program.ts",
+        "src/cli/commands/plans.ts",
+        "src/cli/commands/plansOverlap.ts",
+        "src/cli/commands/plansEstimate.ts",
+        "src/cli/cliDocs.ts",
+        "phax.usage.kdl",
+        "README.md",
+        "docs/upgrading.md",
+        "tests/integration/usageSpecDeclarations.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/cli/definitions/shared.ts",
+        "scripts/generate-usage-spec.ts",
+        "src/app/planStaleness.ts",
+        "src/domain/planOverlap/types.ts",
+        "tests/unit/cli/plans.test.ts",
+        "tests/unit/cli/bridge.test.ts",
+        "tests/unit/cli/definitionsRender.test.ts",
+        "tests/integration/cliProgram.test.ts",
+        "tests/integration/plansOverlapCommand.test.ts",
+        "tests/integration/plansOverlapLanded.test.ts",
+        "tests/integration/plansEstimateCommand.test.ts",
+        "tests/integration/docsCliDrift.test.ts",
+        "docs/cli/reference.md"
+      ],
+      "mode": "headless",
+      "acceptance": null,
+      "boundaryContracts": "Producer: `phax plans status|overlap|estimate --json`. Consumers: scripts and agents reading today's objects. Contract: the same bytes as today, plus `written` after `applied` under `plans status --apply`, and message lines alone on stderr. Producer: src/cli/definitions/plansStatus.ts, plansOverlap.ts and plansEstimate.ts. Consumer: the runner through `phaxProgram`'s `plans` group, held whole.",
+      "testStrategy": [
+        {
+          "guarantee": "each of the three output contracts encodes today's value to exactly today's JSON bytes",
+          "size": "small",
+          "technique": "table",
+          "oracle": "JSON.stringify of the same value with two-space indent and a newline",
+          "loop": "in-phase",
+          "criterion": "ac-json-every-command"
+        },
+        {
+          "guarantee": "plans status, overlap and estimate answer one indented JSON value under --json with only message lines on stderr",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "JSON.parse of stdout and of each stderr line against the message shapes",
+          "loop": "in-phase",
+          "criterion": "ac-json-every-command"
+        },
+        {
+          "guarantee": "the existing text tests of the three commands pass with their assertions unchanged",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the existing tests' expected text",
+          "loop": "in-phase",
+          "criterion": "ac-text-unchanged"
+        },
+        {
+          "guarantee": "a config error exits 1 with today's sentence without --json and one error line with --json",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "today's Config error sentence and exit code",
+          "loop": "in-phase",
+          "criterion": "ac-error-sentence"
+        },
+        {
+          "guarantee": "plans status --apply lists each flipped plan as a written-file record",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the flipped plan's path and the sha256 of its bytes",
+          "loop": "in-phase",
+          "criterion": "ac-written"
+        },
+        {
+          "guarantee": "plans alone writes its help with today's long help on stderr and exits 64",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the runner contract test's whole-group rows and the cliDocs text moved",
+          "loop": "in-phase",
+          "criterion": "ac-groups"
+        },
+        {
+          "guarantee": "phax.usage.kdl differs from the frozen file only by the allowlisted --json and subcommand_required declarations",
+          "size": "small",
+          "technique": "metamorphic",
+          "oracle": "the frozen pre-change file compared node by node",
+          "loop": "in-phase",
+          "criterion": "ac-usage-parity"
+        }
+      ],
+      "implementationOrder": [
+        "plansInspectionContracts.test.ts with today's values",
+        "the three definitions",
+        "program.ts group, PARTIAL_GROUPS, program.ts stub, kept run functions",
+        "plansInspectionJson.test.ts",
+        "usage spec, docs:cli, upgrading bullet"
+      ],
+      "excludedScope": [
+        "Any other command or group.",
+        "Changing the overlap, estimate or staleness logic.",
+        "A versioned format for these answers."
+      ],
+      "verification": "The `standard` gate profile in phax.json.",
+      "expectedHandoff": "Give the three definitions' paths, inputs, outputs, errors with codes, notes and progress lines. Confirm the encoded bytes equal today's for every fixed value, and name any key whose Schema needed care to keep its order. Give PARTIAL_GROUPS after the phase, the run functions kept and the tests that call them. List the usage allowlist entries added. Explain any deviation from the planned file lists.",
+      "commit": {
+        "subject": "feat(cli): plans status, overlap and estimate answer through the command runner",
+        "body": "Write the rest of `plans` as command definitions, so the runner holds the whole\ngroup: its help with today's long help, and its refusal when called alone.\n`--json` keeps today's objects byte for byte; `plans status --apply` adds the\nflipped plans' written-file records. Warnings are note lines under `--json`.\n\nWithout `--json` each command prints today's text, warnings and error sentences\nwith today's codes."
+      },
+      "assignmentReason": null,
+      "model": "claude-sonnet-5-5",
+      "effort": "medium"
+    },
+    {
+      "id": "phase-03",
+      "title": "validate, session-info, path, brief, architecture, completions and report on the runner",
+      "objective": "The seven root inspection commands are command definitions on the runner. Under `--json` each answers one object; without it each prints today's text, notes and sentences with today's codes, `phax path` and `phax completions` byte for byte.",
+      "detailedInstructions": [
+        "Read this plan's Technical arbitrations (output contracts, script input, providers, definitions, completers, inputs, archived runs, tests, existing tests), src/cli/definitions/{program,shared,plansStatus}.ts, src/cli/bridge.ts, src/cli/program.ts, src/cli/commands/{validate,sessionInfo,path,brief,architecture,completions,report,reportConfigError,usageSpec}.ts, src/cli/cliDocs.ts, src/cli/cliCompleters.ts and the commands' tests.",
+        "src/cli/definitions/shared.ts: add `ShortNameArg`, a string annotated with identifier `short-name`, description \"Run short name, e.g. usage-cli\" and the completer `{ run: \"phax ls --complete\", descriptions: true }` under CompleterAnnotationId, for every definition that takes a run.",
+        "validate.ts: flag `plan` (\"Also validate a phax-plan.json at this path\"). Output: the namespace, the config sources (project, local and global, each a path or null), the protected path globs, the assignment bounds' counts or null, and the validated plan (path as typed, short name, phase count) or null. Render today's lines. Errors exit 2 with today's lines: `Config validation failed: …` with its `  at: …` line, one per bound problem, and `Plan validation failed: …` with the typed path.",
+        "session-info.ts: `<short-name>`, flag `debug`. Output the facts today's text prints, the stop's facts for awaiting_review and the raw metadata under `--debug`; render today's text. Errors: today's run-reference refusals with exit 1, an archived run included.",
+        "path.ts: `<short-name>`. Output `{ qualifiedName, crossProject, worktreePath }`; render `Target: <qualifiedName>` then the path when crossProject, else the path. Errors exit 1: the run-reference refusal and `No worktree path found for run \"<qualified>\".`",
+        "brief.ts: `[path...]` (variadic, today's help). Output `{ files, report, recordWarning }`, the report the provider's brief-report as decoded (with its own `$schema` inside); render renderNoBrief or renderWholeBrief as today; notes `[phax] Warning: <recordWarning>.` when there is one. Errors keep today's `✗ …` sentences and codes: not a working tree (1), config (2, through reportConfigError's lines), no provider (1), refused (1), failed (1).",
+        "architecture.ts: `[path...]`. Output either the report with the bounds, or `{ kind: \"no-provider\", bounds }`, which answers verdict code 1 and renders today's stdout line and bounds. Errors keep today's stderr lines and codes (1, 2).",
+        "completions.ts: `<shell>` as a string. Output `{ shell, script }`; render the script less one trailing newline. Errors exit 1 with today's multi-line sentences: invalid shell (with its `Run \\`phax completions --help\\` for usage.` line), phax.usage.kdl not found, the `usage` CLI missing, and `usage generate completion` failing. A spawn error that is not ENOENT is a defect, as its throw is today.",
+        "report.ts: `[short-name]` (ShortNameArg, optional), flag `noGist` (`--no-gist`). Output `{ issueUrl }`; render `Issue created: <url>`. Errors exit 1: `Config error: …` and `phax report failed: …`.",
+        "Move each command's help and examples word for word from cliDocs and its argument and option help from today's registration; delete the cliDocs entries `validate`, `session-info`, `path`, `brief`, `architecture` and `report`. Add the seven to `phaxProgram` at the root in today's order (validate, session-info, path, then ls, then brief, architecture, report, completions), and replace each Commander registration in src/cli/program.ts by `mountRunnerStub` at its place. Keep runValidate, runBrief and runArchitecture as `runThroughOutput` compositions for the tests that import them; delete src/cli/commands/path.ts, sessionInfo.ts, completions.ts and report.ts when nothing else imports them, otherwise keep only what another module imports.",
+        "Write tests/integration/inspectionCommandsJson.test.ts, spawning `tsx src/cli/main.ts` in temporary repositories with a temporary PHAX home: each of the seven answers one indented JSON value with only message lines on stderr (validate on a valid phax.json; path and session-info on a fixture run; brief and architecture with a fixture provider script, and architecture with none, exiting 1 with its JSON; completions with a fake `usage` on PATH as tests/integration/completions.test.ts does; report with `gh` isolated as tests/integration/report.test.ts does). `path <unknown>` exits 1 with today's sentence without `--json` and one `error` line with it. `path <run>` without `--json` prints exactly the worktree path and a newline, and `completions zsh` exactly the fake `usage`'s output.",
+        "Run `pnpm gen:usage-spec`: the seven blocks come from the runner, the `complete \"short-name\"` node stays one. Extend MIGRATED_COMMANDS with the seven. Run `pnpm docs:cli`.",
+        "docs/upgrading.md, 0.34.0 entry, one bullet: `validate`, `session-info`, `path`, `brief`, `architecture`, `completions` and `report` answer `--json` with one JSON object and message lines on stderr, and print `--json-schema`; their text and codes are unchanged."
+      ],
+      "planMarkdownAnchor": "#phase-03-root-inspection-commands",
+      "plannedFilesToCreate": [
+        "src/cli/definitions/validate.ts",
+        "src/cli/definitions/sessionInfo.ts",
+        "src/cli/definitions/path.ts",
+        "src/cli/definitions/brief.ts",
+        "src/cli/definitions/architecture.ts",
+        "src/cli/definitions/completions.ts",
+        "src/cli/definitions/report.ts",
+        "tests/integration/inspectionCommandsJson.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/cli/definitions/program.ts",
+        "src/cli/definitions/shared.ts",
+        "src/cli/program.ts",
+        "src/cli/commands/validate.ts",
+        "src/cli/commands/sessionInfo.ts",
+        "src/cli/commands/path.ts",
+        "src/cli/commands/brief.ts",
+        "src/cli/commands/architecture.ts",
+        "src/cli/commands/completions.ts",
+        "src/cli/commands/report.ts",
+        "src/cli/cliDocs.ts",
+        "phax.usage.kdl",
+        "README.md",
+        "docs/upgrading.md",
+        "tests/integration/usageSpecDeclarations.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/cli/cliCompleters.ts",
+        "src/cli/commands/usageSpec.ts",
+        "src/cli/commands/reportConfigError.ts",
+        "src/cli/bridge.ts",
+        "scripts/generate-usage-spec.ts",
+        "tests/integration/briefCommand.test.ts",
+        "tests/integration/architectureCommand.test.ts",
+        "tests/integration/holdConfigRefused.test.ts",
+        "tests/integration/sessionInfo.test.ts",
+        "tests/integration/completions.test.ts",
+        "tests/integration/report.test.ts",
+        "tests/integration/cliProgram.test.ts",
+        "tests/unit/cli/validate.test.ts",
+        "tests/unit/cli/definitionsRender.test.ts",
+        "tests/integration/docsCliDrift.test.ts",
+        "docs/cli/reference.md",
+        "knip.json"
+      ],
+      "mode": "headless",
+      "acceptance": null,
+      "boundaryContracts": "Producer: `phax path <run>` and `phax completions <shell>` without `--json`. Consumers: shell scripts (`cd \"$(phax path …)\"`) and shell completion setups. Contract: today's bytes on stdout. Producer: each of the seven `--json` answers. Consumer: agents and scripts. Contract: one object without `$schema` on stdout, message lines alone on stderr, the contract printed by `--json-schema`.",
+      "testStrategy": [
+        {
+          "guarantee": "each of the seven commands answers one indented JSON value under --json with only message lines on stderr",
+          "size": "medium",
+          "technique": "table",
+          "oracle": "JSON.parse of stdout and of each stderr line against the message shapes",
+          "loop": "in-phase",
+          "criterion": "ac-json-every-command"
+        },
+        {
+          "guarantee": "path and completions print today's bytes without --json",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the worktree path with one newline, and the fake usage CLI's output",
+          "loop": "in-phase",
+          "criterion": "ac-text-unchanged"
+        },
+        {
+          "guarantee": "the existing tests of the seven commands pass with their assertions unchanged",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the existing tests' expected text and codes",
+          "loop": "in-phase",
+          "criterion": "ac-text-unchanged"
+        },
+        {
+          "guarantee": "path on an unknown run exits 1 with today's sentence without --json and one error line with it",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "today's not-found sentence and exit code",
+          "loop": "in-phase",
+          "criterion": "ac-error-sentence"
+        },
+        {
+          "guarantee": "architecture with no provider answers its JSON and exits 1, the verdict code",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "today's exit code and the decoded no-provider answer",
+          "loop": "in-phase",
+          "criterion": "ac-lint-verdict"
+        },
+        {
+          "guarantee": "report --no-gist reaches run as noGist and inlines the log",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the isolated gh calls the existing report test records",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "phax.usage.kdl keeps one complete node for short-name and differs from the frozen file only by --json on the seven",
+          "size": "small",
+          "technique": "metamorphic",
+          "oracle": "the frozen pre-change file compared node by node",
+          "loop": "in-phase",
+          "criterion": "ac-usage-parity"
+        }
+      ],
+      "implementationOrder": [
+        "ShortNameArg",
+        "validate, path and session-info",
+        "brief and architecture",
+        "completions and report",
+        "program.ts, stubs, kept run functions, deleted command files",
+        "inspectionCommandsJson.test.ts, usage spec, docs:cli, upgrading bullet"
+      ],
+      "excludedScope": [
+        "Groups (phases 04 and 06) and every lifecycle or run command (plans 3 and 4).",
+        "New progress lines for the provider or network calls.",
+        "Removing src/cli/cliCompleters.ts (plan 4)."
+      ],
+      "verification": "The `standard` gate profile in phax.json.",
+      "expectedHandoff": "Give the seven definitions' paths, inputs, outputs, errors with codes, notes and verdicts, and ShortNameArg's declaration. Say which command files were deleted, which run functions were kept and why. Say how the report and completions tests isolate `gh` and `usage`. Confirm the short-name complete node is written once. Explain any deviation from the planned file lists.",
+      "commit": {
+        "subject": "feat(cli): the root inspection commands answer through the command runner",
+        "body": "Write validate, session-info, path, brief, architecture, completions and report as\ncommand definitions. Each answers `--json` with one object and message lines on\nstderr, and prints its contracts with `--json-schema`. Their run arguments\ndeclare the short-name completer.\n\nWithout `--json` each prints today's text, notes and error sentences with today's\ncodes; `phax path` and `phax completions` keep their bytes for scripts."
+      },
+      "assignmentReason": null,
+      "model": "claude-sonnet-5-5",
+      "effort": "medium"
+    },
+    {
+      "id": "phase-04",
+      "title": "The cost, schema, security and skills groups on the runner",
+      "objective": "`cost backfill`, `schema upgrade`, `security status` and `skills install` are command definitions, and the runner holds their four groups whole. The commands that write files answer with written-file records; text, sentences and codes are today's.",
+      "detailedInstructions": [
+        "Read this plan's Technical arbitrations (written files, definitions, inputs, archived runs, existing tests, long help), the decision on q-security-bare in the plan's Arbitrated questions, src/cli/definitions/{program,shared,plansStatus}.ts, src/cli/bridge.ts, src/cli/program.ts, src/cli/commands/{cost,schema,security,skills}.ts, src/app/costBackfill.ts, src/app/initProject.ts (upgradeConfigSchema), src/app/skills/installSkill.ts, src/app/securityStatus.ts, src/cli/cliDocs.ts (`cost`, `cost backfill`) and the commands' tests.",
+        "cost.ts: the group `cost` with `help` and `examples` from cliDocs `cost`, holding `backfill`. Output today's result (written, locked and missing runs, invocation and cost totals) and `written`, one record per cost-ledger.json written, its absolute path. Render today's lines. Error: `phax cost backfill failed: …` and `Config error: …`, exit 1. It reads archived run folders as today.",
+        "schema.ts: the group `schema` holding `upgrade`. Output `{ kind: \"updated\" | \"current\", schemaPath, userSchemaPath, written }`, `written` the two files' records when updated, [] when current; render today's two lines. Error: `No phax.json found. Run \\`phax init\\` first.`, exit 1.",
+        "security.ts: the group `security` holding `status`. Output today's security status report; render formatSecurityStatusReport. Error: `Failed to load provider config: …`, exit 2. Apply q-security-bare's decision: with refuse-bare, the group alone is the runner's help and refusal and the command declares no `--verbose` or `--trace` of its own (the program's options cover them); allow in tests/integration/usageSpecDeclarations.test.ts exactly the four dropped flag declarations (`--verbose` and `--trace` under `security` and `security status`). With default-command, add the gain to the port with a conformance case first. With keep-bridged, move `security status` only, add `security` to PARTIAL_GROUPS and keep its Commander group and bare action.",
+        "skills.ts: the group `skills` holding `install`: `[skill]`, `--target <target>` required, `--scope <scope>` defaulting to \"project\", each a string with today's help (the help lists the values as today). `run` refuses an invalid target, scope or skill with exit 2 and today's sentences. Output `{ target, scope, skills: [{ name, status, destination }], written }`, `written` one record per file installed (repo-relative under project scope, absolute under user scope). Render today's `Target:`, `Scope:`, blank line and per-skill lines. A failure part way is a declared error, exit 2, whose text is the lines already reached then today's sentence, and whose `written` lists the files already installed. The install roots come from a factory (`makeSkillsInstallCommand(roots)`), the program using the default roots and the kept runSkillsInstall the test's.",
+        "Move each command's help, examples and option help word for word; delete the cliDocs entries `cost` and `cost backfill`. Add the four groups to `phaxProgram` in today's order. In src/cli/program.ts replace registerCostCommand, registerSecurityCommand, registerSkillsCommand and registerSchemaCommand by `mountRunnerGroupStub` at their places. Delete the register functions; keep runCostBackfill, runSchemaUpgrade and runSkillsInstall as `runThroughOutput` compositions for the tests that import them. tests/unit/skillsArgv.test.ts builds the deleted registration: replace its harness by the runner's over a memory Io, keep its assertions, and turn its parse-throws assertion into the runner's refusal with 64.",
+        "Write tests/integration/groupCommandsJson.test.ts, spawning `tsx src/cli/main.ts` in temporary repositories with a temporary PHAX home and HOME: each of the four answers one indented JSON value with only message lines on stderr; `schema upgrade --json` lists both schema files as written-file records with their paths and a `sha256:` digest of 64 lowercase hex digits, and a second call lists none; `skills install --target claude --json` lists the installed files; `cost backfill --json` on a fixture run lists its ledger; `schema upgrade` without phax.json exits 1 with today's sentence, and with `--json` one `error` line with `\"exit\":1`; `skills install --target nope` exits 2 with today's sentence.",
+        "Run `pnpm gen:usage-spec`; extend MIGRATED_COMMANDS with the four commands. Run `pnpm docs:cli`.",
+        "docs/upgrading.md, 0.34.0 entry, one bullet: `cost backfill`, `schema upgrade`, `security status` and `skills install` answer `--json`, the writing ones with the written files' records; the four groups alone are refused with 64 and their help; what q-security-bare decided for bare `phax security`."
+      ],
+      "planMarkdownAnchor": "#phase-04-small-groups",
+      "plannedFilesToCreate": [
+        "src/cli/definitions/cost.ts",
+        "src/cli/definitions/schema.ts",
+        "src/cli/definitions/security.ts",
+        "src/cli/definitions/skills.ts",
+        "tests/integration/groupCommandsJson.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/cli/definitions/program.ts",
+        "src/cli/program.ts",
+        "src/cli/commands/cost.ts",
+        "src/cli/commands/schema.ts",
+        "src/cli/commands/security.ts",
+        "src/cli/commands/skills.ts",
+        "src/cli/cliDocs.ts",
+        "phax.usage.kdl",
+        "README.md",
+        "docs/upgrading.md",
+        "tests/integration/usageSpecDeclarations.test.ts",
+        "tests/unit/skillsArgv.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/cli/bridge.ts",
+        "src/cli/definitions/shared.ts",
+        "src/app/costBackfill.ts",
+        "src/app/initProject.ts",
+        "src/app/skills/installSkill.ts",
+        "src/cli/commandLibrary/contract/define.ts",
+        "src/cli/commandLibrary/contract/conformance/cases.ts",
+        "src/cli/commandLibrary/commander/run.ts",
+        "tests/integration/costBackfill.test.ts",
+        "tests/unit/cli/schemaUpgrade.test.ts",
+        "tests/unit/skills.test.ts",
+        "tests/unit/cli/runnerCommandContracts.test.ts",
+        "tests/integration/cliProgram.test.ts",
+        "tests/integration/docsCliDrift.test.ts",
+        "docs/cli/reference.md",
+        "knip.json"
+      ],
+      "mode": "headless",
+      "acceptance": null,
+      "boundaryContracts": "Producer: `cost backfill`, `schema upgrade` and `skills install` under `--json`. Consumers: agents acting on what was written. Contract: each written file as `{ path, format, digest }`, path repo-relative inside the repository and absolute outside it. Producer: src/cli/definitions/{cost,schema,security,skills}.ts. Consumer: the runner, which holds each group whole.",
+      "testStrategy": [
+        {
+          "guarantee": "each of the four commands answers one indented JSON value under --json with only message lines on stderr",
+          "size": "medium",
+          "technique": "table",
+          "oracle": "JSON.parse of stdout and of each stderr line against the message shapes",
+          "loop": "in-phase",
+          "criterion": "ac-json-every-command"
+        },
+        {
+          "guarantee": "schema upgrade, skills install and cost backfill list each file they wrote as a written-file record, and none on a second pass",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the files on disk and the sha256 of their bytes",
+          "loop": "in-phase",
+          "criterion": "ac-written"
+        },
+        {
+          "guarantee": "the existing tests of the four commands pass with their assertions unchanged",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the existing tests' expected text and codes",
+          "loop": "in-phase",
+          "criterion": "ac-text-unchanged"
+        },
+        {
+          "guarantee": "schema upgrade with no phax.json and skills install with an invalid target keep today's sentences and codes, and give one error line under --json",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "today's sentences, exit 1 and exit 2",
+          "loop": "in-phase",
+          "criterion": "ac-error-sentence"
+        },
+        {
+          "guarantee": "a skills install failing part way reports the files already installed in its error line",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the files written before the injected failure",
+          "loop": "in-phase",
+          "criterion": "ac-written-on-failure"
+        },
+        {
+          "guarantee": "cost, schema, security and skills alone write their help on stderr and exit 64",
+          "size": "small",
+          "technique": "table",
+          "oracle": "the runner contract test's whole-group rows",
+          "loop": "in-phase",
+          "criterion": "ac-groups"
+        },
+        {
+          "guarantee": "phax.usage.kdl differs from the frozen file only by the allowlisted declarations of the four groups",
+          "size": "small",
+          "technique": "metamorphic",
+          "oracle": "the frozen pre-change file compared node by node",
+          "loop": "in-phase",
+          "criterion": "ac-usage-parity"
+        }
+      ],
+      "implementationOrder": [
+        "schema and security",
+        "cost",
+        "skills with its roots factory",
+        "program.ts groups and stubs, kept run functions, skillsArgv harness",
+        "groupCommandsJson.test.ts, usage spec, docs:cli, upgrading bullet"
+      ],
+      "excludedScope": [
+        "The records group (phases 05 and 06).",
+        "Changing what the backfill, schema upgrade or install writes."
+      ],
+      "verification": "The `standard` gate profile in phax.json.",
+      "expectedHandoff": "Give the four definitions' paths, inputs, outputs, errors with codes, and how each builds its written-file records. Say how q-security-bare was applied and which allowlist entries it added. Give the skills roots factory and the kept run functions with the tests that call them, and the harness change in skillsArgv.test.ts. Explain any deviation from the planned file lists.",
+      "commit": {
+        "subject": "feat(cli): the cost, schema, security and skills groups answer through the command runner",
+        "body": "Write cost backfill, schema upgrade, security status and skills install as command\ndefinitions, and let the runner hold their groups whole. The commands that write\nfiles answer with each file's written-file record, and a skills install failing\npart way names the files it already wrote.\n\nWithout `--json` each prints today's text and error sentences with today's codes."
+      },
+      "assignmentReason": null,
+      "model": "claude-sonnet-5-5",
+      "effort": "medium"
+    },
+    {
+      "id": "phase-05",
+      "title": "The records group's acceptance tests",
+      "objective": "The answers of `phax records` on the runner are written as frozen acceptance tests: one JSON value per command under `--json`, today's sentences and codes, a refused `records init --json`, and `--json-schema` for `records explain`. Each fails today on its own assertion and is passed by phase-06.",
+      "detailedInstructions": [
+        "Read this plan's Technical arbitrations (script input, written files, providers, tests), src/cli/commands/records.ts in full, src/app/{configureRecords,recordsSync,recordsStatus,recordsList,recordsExplain}.ts, tests/integration/recordsExplain.test.ts and recordsExplainStop.test.ts (how they write a phase record and an authoring record), tests/integration/recordsInit.test.ts, recordsSync.test.ts and tests/integration/plansAnswersJson.test.ts (spawning the CLI).",
+        "Write tests/fixtures/records/jsonContractsRepo.ts: a function that builds, in a temporary directory, a git repository (isolateGit) with a phax.json whose records are enabled in-repo, a temporary PHAX home, one phase commit with a record on phax/records/v1 carrying prompt.md and diff.patch, and one commit no phax phase produced; it returns the paths and shas. It reuses the app's record writers as the existing records tests do, and reads nothing outside its temporary directories.",
+        "Write tests/integration/recordsJsonContracts.test.ts. Every test is its own `it.fails(...)`, spawns `tsx src/cli/main.ts` in the fixture repository and fails today on its own assertion (today `--json` and `--json-schema` are refused by Commander and the bridge with exit 64 and no JSON):",
+        "`records status --json`, `records list --json` and `records sync --json` each write one JSON value with two-space indent and one trailing newline, and every stderr line parses as a message line; `records sync --json` writes no `written` line.",
+        "`records explain <phase sha> --json --prompt` answers the record with the prompt's text, equal to the text `records explain <phase sha> --prompt` prints for the prompt without `--json`.",
+        "`records explain <unknown sha>` without `--json` writes `Commit \"<sha>\" was not found in this repository.` on stderr and exits 1; with `--json` it writes nothing on stdout, one `error` line with `\"exit\":1` and exits 1.",
+        "`records explain <non-phax sha> --json` writes one `error` line with `\"exit\":1`.",
+        "`records init --json` writes nothing on stdout, one `refused` line on stderr, exits 64, never prompts (stdin closed) and leaves phax.json byte for byte as it was.",
+        "`records explain --json-schema` prints one entry with `\"name\":[\"records\",\"explain\"]` that equals the `records explain` entry of `phax --json-schema`, and `records explain <sha> --colour --json` writes one `refused` line with `\"source\":\"flags\"` and exits 64.",
+        "Write no stub and change no source file: the tests spawn the CLI, so they compile today and fail on their assertions. Do not test `records` alone: it already exits 64 with its help today, so a marked test of it would pass and fail the gate; phase-06 covers it in-phase."
+      ],
+      "planMarkdownAnchor": "#phase-05-records-acceptance",
+      "plannedFilesToCreate": [
+        "tests/integration/recordsJsonContracts.test.ts",
+        "tests/fixtures/records/jsonContractsRepo.ts"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [],
+      "mode": "headless",
+      "acceptance": {
+        "passedBy": "phase-06",
+        "files": [
+          "tests/integration/recordsJsonContracts.test.ts",
+          "tests/fixtures/records/jsonContractsRepo.ts"
+        ]
+      },
+      "boundaryContracts": "Producer: phase-06's records definitions. Consumer: these acceptance tests, through the spawned CLI. Contract: `phax records status|list|sync|explain --json` answer one JSON value with message lines alone on stderr; explain's failures are error lines with exit 1; `records init --json` is refused with 64 before any prompt.",
+      "testStrategy": [
+        {
+          "guarantee": "records status, list and sync answer one indented JSON value under --json with only message lines on stderr",
+          "size": "medium",
+          "technique": "table",
+          "oracle": "JSON.parse of stdout and of each stderr line against the message shapes",
+          "loop": "acceptance",
+          "criterion": "ac-json-every-command"
+        },
+        {
+          "guarantee": "records explain --json --prompt carries the same prompt text the text answer prints",
+          "size": "medium",
+          "technique": "metamorphic",
+          "oracle": "the prompt printed by the same call without --json",
+          "loop": "acceptance",
+          "criterion": "ac-text-unchanged"
+        },
+        {
+          "guarantee": "records explain of an unknown sha keeps today's sentence and exit 1, and gives one error line under --json",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "today's not-found sentence and exit code",
+          "loop": "acceptance",
+          "criterion": "ac-error-sentence"
+        },
+        {
+          "guarantee": "records init --json is refused with 64 before any prompt and leaves phax.json untouched",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the refused line, the exit code and phax.json's bytes before the call",
+          "loop": "acceptance",
+          "criterion": "ac-no-person"
+        },
+        {
+          "guarantee": "records explain --json-schema equals its entry in phax --json-schema",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the two decoded entries compared",
+          "loop": "acceptance",
+          "criterion": "ac-json-schema-command"
+        },
+        {
+          "guarantee": "records explain with an undeclared option under --json writes one refused line from flags and exits 64",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the refused line's fields and the exit code",
+          "loop": "acceptance",
+          "criterion": "ac-unknown-option"
+        }
+      ],
+      "implementationOrder": [
+        "jsonContractsRepo.ts",
+        "recordsJsonContracts.test.ts with a marker on each test",
+        "run the gate to see each marked test fail on its assertion"
+      ],
+      "excludedScope": [
+        "Moving any records command (phase-06).",
+        "records alone, which passes today.",
+        "records init's written-file records, which need a scripted prompt (phase-06, in-phase)."
+      ],
+      "verification": "The `standard` gate profile in phax.json, with the configured acceptance provider judging the acceptance test files (authored).",
+      "expectedHandoff": "Give what jsonContractsRepo.ts builds and returns. For each acceptance test, say the assertion it fails on today. Confirm every test carries its own `.fails` marker and that no source file changed. Explain any deviation from the planned file lists.",
+      "commit": {
+        "subject": "test(cli): acceptance tests for the records group on the command runner",
+        "body": "Freeze what the records commands answer once they move onto the runner: one JSON\nvalue per command under `--json`, today's explain sentences and codes as error\nlines, `records init --json` refused before any prompt, and explain's contracts\nunder `--json-schema`.\n\nEach test is marked as an expected failure until the phase that moves the group."
+      },
+      "assignmentReason": null,
+      "model": "claude-sonnet-5-5",
+      "effort": "medium"
+    },
+    {
+      "id": "phase-06",
+      "title": "The records group on the runner",
+      "objective": "`records init`, `sync`, `status`, `list` and `explain` are command definitions, and the runner holds the `records` group whole. phase-05's acceptance tests pass with only their markers removed; without `--json`, every records command prints today's text with today's codes.",
+      "detailedInstructions": [
+        "Read phase-05's acceptance test files and handoff, this plan's Technical arbitrations (script input, written files, providers, definitions, existing tests), src/cli/commands/records.ts in full, src/app/{configureRecords,recordsSync,recordsStatus,recordsList,recordsExplain}.ts, src/cli/definitions/{program,shared}.ts, src/cli/bridge.ts and the records tests.",
+        "src/cli/definitions/records.ts: the group `records` holding `init`, `sync`, `status`, `list` and `explain` in today's order. src/cli/definitions/recordsExplain.ts holds explain's definition and its renders, moved from records.ts unchanged in wording.",
+        "init: flag `force`; `prompts: () => true`. Output: configured (`configPath`, today's sync result and `written`, phax.json's record) or aborted (render `phax records init aborted — no changes written.`, exit 0). Already configured is a declared error, exit 1, whose text is today's two lines. A config error exits 2 with its message; `Could not find phax.json. Run \\`phax init\\` first.` exits 2. The Prompt layer comes from a factory (`makeRecordsInitCommand(promptLayer)`), the program using the clack layer.",
+        "sync: output today's sync result, or `{ kind: \"disabled\" }` rendering `Records are not configured for this project. Run \\`phax records init\\` first.` with exit 0; no written-file record. Errors exit 1 (2 for the config) with today's messages; the exit reportSyncResult answers today is kept, as a verdict code when it is not 0.",
+        "status: output the destination, the pending count and the pending runs with their phase ids, or disabled; render today's lines. list: flag `run`; output and render as today. Errors as today.",
+        "explain: `<sha>` (today's help), flags `prompt`, `diff`, `transcript`, `gates`, `briefs`. Output the explain outcome by kind: records disabled, review entry, and each found kind (phase, authoring, decision) with the record's facts and the text of each artifact a flag asks for (`null` when the record does not carry it). Render today's text byte for byte, including the `(… not present in this record)` and `(an authoring record carries no …)` lines. Commit not found, not a phax commit and not found are declared errors, exit 1, with today's sentences, the remote-consulted variants included.",
+        "Move help, examples and option help word for word; delete cliDocs `records explain`. Add the group to `phaxProgram` after `plans`, replace registerRecordsCommand in src/cli/program.ts with `mountRunnerGroupStub` at its place, and delete registerRecordsCommand and the records.ts code moved into the definitions; delete records.ts when nothing else imports it. tests/integration/recordsExplain.test.ts and recordsExplainStop.test.ts build the deleted registration: replace their harness by the runner's (`runThroughOutput` or a memory Io), keep their assertions.",
+        "Remove the `.fails` marker from each test of tests/integration/recordsJsonContracts.test.ts. That is the only change to the acceptance test files; tests/fixtures/records/jsonContractsRepo.ts stays as committed. When a test cannot pass, fix the definitions, never the test; when the test itself is wrong, stop and say so in the handoff.",
+        "Write tests/unit/cli/recordsInitWritten.test.ts: `records init` through `makeRecordsInitCommand` with a scripted Prompt layer in a temporary repository answers phax.json's written-file record, repo-relative with a `sha256:` digest of 64 lowercase hex digits, and a cancelled prompt answers aborted with exit 0.",
+        "Run `pnpm gen:usage-spec`; extend MIGRATED_COMMANDS with the five records commands; the `records` group's `subcommand_required` is allowed by phase-01's rule. Run `pnpm docs:cli`.",
+        "docs/upgrading.md, 0.34.0 entry, one bullet: the `records` commands answer `--json`, `records init --json` is refused with 64 because it prompts, `records explain --json` carries the requested artifacts' text, and `phax records` alone is refused with 64 and its help."
+      ],
+      "planMarkdownAnchor": "#phase-06-records-group",
+      "plannedFilesToCreate": [
+        "src/cli/definitions/records.ts",
+        "src/cli/definitions/recordsExplain.ts",
+        "tests/unit/cli/recordsInitWritten.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/cli/definitions/program.ts",
+        "src/cli/program.ts",
+        "src/cli/commands/records.ts",
+        "src/cli/cliDocs.ts",
+        "phax.usage.kdl",
+        "README.md",
+        "docs/upgrading.md",
+        "tests/integration/usageSpecDeclarations.test.ts",
+        "tests/integration/recordsJsonContracts.test.ts",
+        "tests/integration/recordsExplain.test.ts",
+        "tests/integration/recordsExplainStop.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/cli/bridge.ts",
+        "src/cli/definitions/shared.ts",
+        "src/app/configureRecords.ts",
+        "src/app/recordsExplain.ts",
+        "src/app/recordsSync.ts",
+        "tests/integration/recordsInit.test.ts",
+        "tests/integration/recordsSync.test.ts",
+        "tests/integration/recordsPush.test.ts",
+        "tests/integration/stopRecords.test.ts",
+        "tests/integration/cliProgram.test.ts",
+        "tests/unit/cli/runnerCommandContracts.test.ts",
+        "tests/integration/docsCliDrift.test.ts",
+        "docs/cli/reference.md",
+        "knip.json"
+      ],
+      "mode": "headless",
+      "acceptance": null,
+      "boundaryContracts": "Producer: src/cli/definitions/records.ts and recordsExplain.ts. Consumers: the runner, holding the `records` group whole, and phase-05's acceptance tests. Contract: today's text and codes without `--json`; one JSON value per command under `--json`, explain's failures as error lines with exit 1, and `records init` declaring that it prompts.",
+      "testStrategy": [
+        {
+          "guarantee": "the existing records tests pass with their assertions unchanged under the runner's harness",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the existing tests' expected text and codes",
+          "loop": "in-phase",
+          "criterion": "ac-text-unchanged"
+        },
+        {
+          "guarantee": "records init answers phax.json's written-file record, and a cancelled prompt answers aborted with exit 0",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "phax.json's bytes and their sha256, with a scripted Prompt layer",
+          "loop": "in-phase",
+          "criterion": "ac-written"
+        },
+        {
+          "guarantee": "records alone writes its help on stderr and exits 64",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the runner contract test's whole-group rows",
+          "loop": "in-phase",
+          "criterion": "ac-groups"
+        },
+        {
+          "guarantee": "phax.usage.kdl differs from the frozen file only by --json on the five records commands and the group's subcommand_required",
+          "size": "small",
+          "technique": "metamorphic",
+          "oracle": "the frozen pre-change file compared node by node",
+          "loop": "in-phase",
+          "criterion": "ac-usage-parity"
+        },
+        {
+          "guarantee": "no records definition imports commander",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the architecture guard's import scan",
+          "loop": "in-phase",
+          "criterion": "ac-no-parser"
+        }
+      ],
+      "implementationOrder": [
+        "status, list and sync",
+        "explain and its renders",
+        "init with its prompt factory",
+        "program.ts group and stub, deleted registration, records tests' harness",
+        "markers removed, recordsInitWritten.test.ts",
+        "usage spec, docs:cli, upgrading bullet"
+      ],
+      "excludedScope": [
+        "The artifact group and every lifecycle or run command (plans 3 and 4).",
+        "Removing the bridge or the kept run functions (plan 4).",
+        "The docs page reference/json-output (plan 4)."
+      ],
+      "verification": "The `standard` gate profile in phax.json, with the configured acceptance provider judging phase-05's acceptance test files (passed).",
+      "expectedHandoff": "Give the records definitions' paths, inputs, outputs by kind, errors with codes, verdicts and the prompt factory. Confirm the acceptance test files changed only by their markers. List the tests whose harness changed and how. Give `phaxProgram`'s command list and PARTIAL_GROUPS after this plan, and name what plan 3 inherits: the definition pattern, whole groups, the four gains of phase-01, the kept run functions and the frozen-file allowlist. Explain any deviation from the planned file lists.",
+      "commit": {
+        "subject": "feat(cli): the records group answers through the command runner",
+        "body": "Write records init, sync, status, list and explain as command definitions, and let\nthe runner hold the records group whole. `--json` answers one value per command,\nexplain carrying the text of the artifacts its flags ask for; `records init`\nprompts, so `--json` is refused before it starts, and it answers phax.json's\nwritten-file record.\n\nWithout `--json` every records command prints today's text and error sentences with\ntoday's codes. The group's acceptance tests pass with their markers removed."
+      },
+      "assignmentReason": "A passing phase whose acceptance tests are frozen, over explain's eight outcome kinds whose text must stay byte for byte: higher effort, so the phase does not stop on a disagreement it could have avoided.",
+      "model": "claude-sonnet-5-5",
+      "effort": "high"
+    }
+  ]
+}
