@@ -4,14 +4,10 @@ import { isInPhaseWorktree } from "../app/loadConfig.js";
 import { phaseGuardRefusal } from "../domain/security/phaseGuard.js";
 import { cliDocs } from "./cliDocs.js";
 import { readPackageVersion, runUsageFlagAndExit } from "./commands/usage.js";
-import { runUnlock } from "./commands/unlock.js";
 import { runEnter } from "./commands/enter.js";
 import { runEnterPhase } from "./commands/enterPhase.js";
 import { runShell } from "./commands/shell.js";
 import { runOpen } from "./commands/open.js";
-import { runArchive } from "./commands/archive.js";
-import { runPrune } from "./commands/prune.js";
-import { registerPruneCommand } from "./commands/pruneRegister.js";
 import { runReviewHandoff } from "./commands/reviewHandoff.js";
 import { runPublishPr } from "./commands/publishPr.js";
 import { runReviewCompliance } from "./commands/reviewCompliance.js";
@@ -22,7 +18,6 @@ import { runResume } from "./commands/resume.js";
 import { registerResumeCommand } from "./commands/resumeRegister.js";
 import { runResetPhase } from "./commands/resetPhase.js";
 import { registerResetPhaseCommand } from "./commands/resetPhaseRegister.js";
-import { runInit } from "./commands/init.js";
 import { mountRunnerGroupStub, mountRunnerStub, mountRunnerStubs } from "./bridge.js";
 import { OPTION_HELP } from "./commandLibrary/contract/index.js";
 import { phaxProgram } from "./definitions/program.js";
@@ -80,15 +75,8 @@ export function buildProgram(): Command {
 
   mountRunnerStub(program, phaxProgram, ["validate"]);
 
-  program
-    .command("unlock")
-    .description("Remove a stale run lock; use --force to remove any lock")
-    .argument("<short-name>", "Run short name, e.g. usage-cli")
-    .option("--force", "Remove the lock regardless of staleness")
-    .action(async (shortName: string, opts: { force?: boolean }) => {
-      const exitCode = await runUnlock(shortName, opts, consoleOutput);
-      process.exit(exitCode);
-    });
+  // `unlock` answers through the runner: its help-only stub, in place.
+  mountRunnerStub(program, phaxProgram, ["unlock"]);
 
   program
     .command("enter")
@@ -138,20 +126,8 @@ export function buildProgram(): Command {
   // `ls` answers through the runner: its help-only stub, at its place in the help.
   mountRunnerStub(program, phaxProgram, ["ls"]);
 
-  program
-    .command("archive")
-    .description("Archive a run that is not running; --force is required for an unfinished run")
-    .argument("<short-name>", "Run short name, e.g. usage-cli")
-    .option(
-      "--force",
-      "Archive even if the run is unfinished or a worktree has uncommitted changes",
-    )
-    .action(async (shortName: string, opts: { force?: boolean }) => {
-      const exitCode = await runArchive(shortName, opts, consoleOutput);
-      process.exit(exitCode);
-    });
-
-  registerPruneCommand(program, runPrune, consoleOutput);
+  mountRunnerStub(program, phaxProgram, ["archive"]);
+  mountRunnerStub(program, phaxProgram, ["prune"]);
   // `cost` answers through the runner, which holds the whole group: a help-only stub, in place.
   mountRunnerGroupStub(program, phaxProgram, ["cost"]);
 
@@ -289,15 +265,7 @@ export function buildProgram(): Command {
   mountRunnerStub(program, phaxProgram, ["brief"]);
   mountRunnerStub(program, phaxProgram, ["architecture"]);
 
-  program
-    .command("init")
-    .description("Create phax.json and phax.schema.json in the current directory")
-    .option("--force", "Overwrite and reconfigure an existing phax.json")
-    .option("--yes", "Accept detected defaults without prompting")
-    .action(async (opts: { force?: boolean; yes?: boolean }) => {
-      const exitCode = await runInit(opts, consoleOutput);
-      process.exit(exitCode);
-    });
+  mountRunnerStub(program, phaxProgram, ["init"]);
 
   mountRunnerStub(program, phaxProgram, ["report"]);
   mountRunnerStub(program, phaxProgram, ["completions"]);

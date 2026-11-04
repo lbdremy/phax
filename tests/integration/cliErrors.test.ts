@@ -42,7 +42,8 @@ describe("CLI error messages", { timeout: 30_000 }, () => {
   });
 
   it("a missing argument: exit 64 with Commander's text", () => {
-    const result = runCli(["unlock"]);
+    // `unlock` is guarded in a phase worktree, and the runner checks the guard before it parses.
+    const result = runCli(["unlock"], realpathSync(tmpdir()));
     expect(result.status).toBe(64);
     expect(result.stderr).toContain("error: missing required argument 'short-name'");
   });

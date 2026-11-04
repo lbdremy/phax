@@ -106,11 +106,11 @@ describe("phax.usage.kdl archive command content", () => {
     const kdlContent = readFileSync(specPath, "utf8");
 
     // Locate the archive command block
-    const archiveIdx = kdlContent.indexOf('\ncmd "archive"');
+    const archiveIdx = kdlContent.indexOf("\ncmd archive ");
     expect(archiveIdx, "archive command not found in KDL").toBeGreaterThan(-1);
 
     // Find the next top-level cmd boundary so we only inspect the archive block
-    const nextCmdIdx = kdlContent.indexOf('\ncmd "', archiveIdx + 1);
+    const nextCmdIdx = kdlContent.indexOf("\ncmd ", archiveIdx + 1);
     const archiveBlock =
       nextCmdIdx === -1 ? kdlContent.slice(archiveIdx) : kdlContent.slice(archiveIdx, nextCmdIdx);
 

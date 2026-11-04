@@ -31,12 +31,6 @@ export const cliDocs: Readonly<Record<string, CliDocEntry>> = {
     ],
   },
 
-  init: {
-    longHelp:
-      "Creates phax.json and phax.schema.json in the current directory. Use --force to overwrite an existing phax.json. Does not connect to any network or external service.",
-    examples: ["phax init", "phax init --force"],
-  },
-
   enter: {
     longHelp:
       "Attaches to the kept-open agent session in the final worktree, so you can review the agent's work, ask follow-up questions, or apply manual fixes interactively.",
@@ -68,22 +62,6 @@ export const cliDocs: Readonly<Record<string, CliDocEntry>> = {
     longHelp:
       "Resets a stuck or failed phase: its folder is archived, its worktree and branch are removed, and the run becomes resumable so phax resume starts the phase over. Without --yes it first previews what the reset would discard.\n\nA run in awaiting_review (stopped at a declared interactive phase or a held one) can reset only the stopped phase: the preview lists the uncommitted corrections in its worktree and the person's .phax-context/correction-handoff.md when it exists, the reset discards review-stop.json, and phax resume then runs the phase again from the start, first turn included. At a held stop the preview names the phase commit it discards, and the phase is held again when it commits. A phase of an acceptance pair whose closed stop ran the authored step is not reset once the pair's passing phase has started, like the acceptance phase itself: the passing phase judges the pair's latest authored commit. An earlier phase is committed work the stop sits on, and a later one has not started, so both are refused.\n\nThe reset takes the run lock: while a run, a resume or an enter-phase --new-session turn holds it, the reset is refused with exit 7 and nothing changes.",
     examples: ["phax reset-phase usage-cli", "phax reset-phase usage-cli phase-02 --yes"],
-  },
-
-  archive: {
-    longHelp:
-      "Archives a run by moving its worktrees under ~/.phax/archive/<namespace>.<short-name>/ and marking it archived in the registry. Nothing is destructively deleted — every phase's working state is preserved.\n\nFinished runs (review_open, completed) archive by default. Unfinished runs (created, failed, interrupted, rate_limited, stopped, awaiting_review) are refused unless --force is set; the refusal message names the run's current state and the flag. Archiving a run in awaiting_review with --force removes its review-stop.json and moves its worktrees, uncommitted corrections included, to the archive. Running, locked, and already-archived runs are never archivable regardless of --force.\n\nThe run's stoppedReason and lastError survive archival intact.\n\nWithout --force on a finished run, the final worktree must be clean. With --force, no cleanliness check runs.\n\nSide effects: moves worktrees on the filesystem, updates ~/.phax/runs/.",
-    examples: [
-      "phax archive usage-cli",
-      "phax archive usage-cli --force",
-      "phax archive plan-27 --force  # give up an interrupted run",
-    ],
-  },
-
-  prune: {
-    longHelp:
-      "Deletes each selected archived run of the current namespace for real: its archive folder under ~/.phax/archive/<namespace>.<short-name>/, its worktree metadata in the current repository, its local branches (<branch> and <branch>--phase-NN) and, last, its registry entry — so its name and disk space come back. Before deleting the archive folder, it keeps the run's cost ledger: runs/cost-ledger.json is copied byte for byte to ~/.phax/cost-ledgers/<namespace>.<short-name>.<run-id>.json, and a failed copy keeps the run. Select runs by name (short or <namespace>.<short-name>) or with --all; only archived runs of the current namespace can be pruned, and an unknown, non-archived or other-namespace name refuses the whole command. Never touches records on phax/records/v1, remote branches, remote-tracking refs or pull requests, and never contacts a remote.\n\nA run whose local branches hold commits that no other branch, tag or remote-tracking ref keeps is kept whole unless --force is set, which discards those commits. A branch checked out in a worktree keeps the run even with --force. A locked run refuses the whole command (exit 7).\n\nAlways prints a preview first, then asks for confirmation on a TTY; --yes proceeds without asking, --dry-run deletes nothing, and without a TTY the command refuses unless --yes or --dry-run is set. --json prints one JSON document and never prompts. Exits 0 when every selected run was pruned, 1 when nothing was deleted, 3 when at least one run was kept.\n\nSide effects: writes under ~/.phax/cost-ledgers/, deletes under ~/.phax/archive/, deletes local branches and stale worktree metadata, updates ~/.phax/registry.json.",
-    examples: ["phax prune old-idea", "phax prune --all --dry-run", "phax prune --all --yes"],
   },
 
   "publish-pr": {

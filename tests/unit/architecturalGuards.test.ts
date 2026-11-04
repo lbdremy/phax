@@ -459,11 +459,7 @@ describe("architectural guard: phax's command definitions never import commander
 //   - runLayers.ts: houses the rooted helper and the global-telemetry-journal
 //     wiring (journal + trace paths are absolute, so the identity layer is
 //     correct there).
-//   - init: runs before/without a phax project (init creates phax.json).
-const IDENTITY_FS_LAYER_ALLOWLIST: ReadonlySet<string> = new Set([
-  "src/cli/commands/runLayers.ts",
-  "src/cli/commands/init.ts",
-]);
+const IDENTITY_FS_LAYER_ALLOWLIST: ReadonlySet<string> = new Set(["src/cli/commands/runLayers.ts"]);
 
 // Matches an import statement pulling bindings from an infra/fs module.
 // Group 1: the brace-enclosed binding list.

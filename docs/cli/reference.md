@@ -67,7 +67,7 @@ phax validate --plan phax-plan.json
 
 ## `phax unlock`
 
-- **Usage**: `phax unlock [--force] <short-name>`
+- **Usage**: `phax unlock [--force] [--json] <short-name>`
 
 Remove a stale run lock; use --force to remove any lock
 
@@ -82,6 +82,10 @@ Run short name, e.g. usage-cli
 #### `--force`
 
 Remove the lock regardless of staleness
+
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 ## `phax enter`
 
@@ -287,7 +291,7 @@ phax ls --failed --json
 
 ## `phax archive`
 
-- **Usage**: `phax archive [--force] <short-name>`
+- **Usage**: `phax archive [--force] [--json] <short-name>`
 
 Archives a run by moving its worktrees under ~/.phax/archive/<namespace>.<short-name>/ and marking it archived in the registry. Nothing is destructively deleted — every phase's working state is preserved.
 
@@ -310,6 +314,10 @@ Run short name, e.g. usage-cli
 #### `--force`
 
 Archive even if the run is unfinished or a worktree has uncommitted changes
+
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 ### Examples
 
@@ -363,7 +371,7 @@ Proceed without confirmation (required without a TTY)
 
 #### `--json`
 
-Output as JSON; never prompts
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 ### Examples
 
@@ -715,7 +723,7 @@ phax architecture src/core/billing/totals.ts
 
 ## `phax init`
 
-- **Usage**: `phax init [--force] [--yes]`
+- **Usage**: `phax init [FLAGS]`
 
 Creates phax.json and phax.schema.json in the current directory. Use --force to overwrite an existing phax.json. Does not connect to any network or external service.
 
@@ -728,6 +736,10 @@ Overwrite and reconfigure an existing phax.json
 #### `--yes`
 
 Accept detected defaults without prompting
+
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 ### Examples
 
