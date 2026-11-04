@@ -62,7 +62,7 @@ export type VerdictsRefusal = { readonly path: string; readonly message: string 
 const VERDICTS_FORMAT = "decide-verdicts";
 
 // Why a verdicts file's `$schema` is not the current shape, or undefined.
-function verdictsStampViolation(json: Record<string, unknown>): string | undefined {
+export function verdictsStampViolation(json: Record<string, unknown>): string | undefined {
   const reads = schemaUrl(VERDICTS_FORMAT, CURRENT_STAMPS[VERDICTS_FORMAT]);
   if (!Object.hasOwn(json, "$schema")) return `the file carries no $schema — phax reads ${reads}`;
   const read = json["$schema"];

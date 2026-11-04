@@ -24,6 +24,7 @@ import {
   questionFactsOfDocument,
   questionFactsOfHand,
   verdictsFieldPath,
+  verdictsStampViolation,
 } from "../../domain/decide/verdicts.js";
 import { AgentInvocationError } from "../../domain/errors.js";
 import { makeRootedNodeFileSystemLayer } from "../../infra/fs.js";
@@ -488,6 +489,20 @@ function checkVerdicts(call: {
   return Effect.gen(function* () {
     const { file, document } = call;
     if (file === undefined || document === undefined || call.question !== undefined) return;
+    // The file's schema accepts every decide-verdicts release: one stamped with an older release
+    // is not a verdicts file of this one, refused before anything runs like any file that does
+    // not decode.
+    const stamp = verdictsStampViolation(file as unknown as Record<string, unknown>);
+    if (stamp !== undefined) {
+      return yield* Effect.fail(
+        new Refused({
+          source: "stdin",
+          path: ["$schema"],
+          expected: "the decide-verdicts schema URL of this release",
+          text: `error: ${labelOf(document)}: ${stamp}`,
+        }),
+      );
+    }
     const config = loadConfig(process.cwd());
     if (Either.isLeft(config)) return;
     const repoRoot = config.right.repoRoot;
@@ -540,6 +555,7 @@ export function makeArtifactDecideCommand(deps: ArtifactDecideDeps = {}) {
     output: reject(DecideOutput),
     // An interactive session waits on the operator; without --by a terminal stands for them.
     prompts: (input) => input.stdin === undefined || input.flags.by === undefined,
+    unprompted: "pass --verdicts and --by",
     check: ({ input, document }) =>
       checkVerdicts({
         pathArg: input.args[0],

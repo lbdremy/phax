@@ -184,6 +184,36 @@ describe("artifact decide --verdicts <file|->", { timeout: TIMEOUT }, () => {
   });
 
   // ac-stdin-bad
+  it("refuses a verdicts file stamped with an older release as not decoding, touching nothing", async () => {
+    const repo = fresh();
+    const fakes = fakesOf(repo);
+    const before = snapshot(repo);
+    const older = JSON.parse(repo.verdictsText) as { $schema: string };
+    older.$schema = older.$schema.replace(/\/[^/]+\.json$/, "/0.1.0.json");
+    const called = await call(
+      repo,
+      fakes,
+      decideArgv(repo, "--verdicts", "verdicts.json", "--by", "operator", "--json"),
+      { files: { "verdicts.json": JSON.stringify(older) } },
+    );
+    expect(called.code).toBe(64);
+    expect(called.out).toBe("");
+    const written = lines(called.err);
+    expect(written).toHaveLength(1);
+    expect(written[0]).toMatchObject({
+      kind: "refused",
+      source: "stdin",
+      path: ["$schema"],
+      exit: 64,
+    });
+    expect(String(written[0]?.["text"])).toMatch(
+      /^error: verdicts\.json: \$schema \S+\/0\.1\.0\.json names decide-verdicts 0\.1\.0, not its current shape/,
+    );
+    expect(snapshot(repo)).toEqual(before);
+    expect(fakes.backend.runCalls).toEqual([]);
+  });
+
+  // ac-stdin-bad
   it("refuses a verdicts path that does not exist, naming it, touching nothing", async () => {
     const repo = fresh();
     const fakes = fakesOf(repo);

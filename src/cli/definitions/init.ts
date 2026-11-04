@@ -1,4 +1,4 @@
-// `phax init` as the runner reads it: create phax.json and phax.schema.json in the invocation
+// `phax init` as the runner reads it: create phax.json, phax.schema.json and phax.user.schema.json in the invocation
 // directory, through the init wizard on a terminal or with detected defaults with `--yes`. Under
 // `--json` it answers the files it created as written-file records, or that the wizard was
 // cancelled. Without `--yes` the wizard may ask a person something, whether or not stdin is a
@@ -78,6 +78,7 @@ export function makeInitCommand(layers: InitLayers) {
     output: reject(InitOutput),
     // Without --yes the wizard may ask a person, a terminal or not.
     prompts: (input) => input.flags.yes !== true,
+    unprompted: "pass --yes",
     run: ({ input }) =>
       Effect.gen(function* () {
         const cwd = process.cwd();
@@ -116,6 +117,7 @@ export function makeInitCommand(layers: InitLayers) {
             [
               recordedPath(join(cwd, "phax.json"), root),
               recordedPath(join(cwd, "phax.schema.json"), root),
+              recordedPath(result.userSchemaPath, root),
             ],
             root,
           ),

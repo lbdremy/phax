@@ -1139,7 +1139,7 @@ function promptRefusal<R>(ready: Ready<R>): Refusal | undefined {
   const prompts: ((input: never) => boolean) | undefined = ready.command.prompts;
   if (prompts === undefined || !prompts(ready.input as never)) return undefined;
   return refusal(
-    `error: --json: ${fullName(ready.command).join(" ")} prompts; run it without --json`,
+    `error: --json: ${fullName(ready.command).join(" ")} prompts; ${ready.command.unprompted ?? "run it without --json"}`,
     { source: "flags", path: ["json"], expected: "a call that does not prompt" },
   );
 }

@@ -137,7 +137,7 @@ beforeEach(() => {
 });
 
 describe("phax init --json", { timeout: 120_000 }, () => {
-  it("--yes answers phax.json and phax.schema.json as written-file records", () => {
+  it("--yes answers phax.json, phax.schema.json and phax.user.schema.json as written-file records", () => {
     const result = runCli(["init", "--yes", "--json"], scratch);
 
     expect(result.status, result.stderr).toBe(0);
@@ -153,7 +153,11 @@ describe("phax init --json", { timeout: 120_000 }, () => {
     expect(value.kind).toBe("created");
     expect(value.interactive).toBe(false);
     expect(value.schemaReference).toBe("./phax.schema.json");
-    expect(value.written.map((each) => each.path)).toEqual(["phax.json", "phax.schema.json"]);
+    expect(value.written.map((each) => each.path)).toEqual([
+      "phax.json",
+      "phax.schema.json",
+      "phax.user.schema.json",
+    ]);
     for (const each of value.written) {
       expect(each.digest).toMatch(DIGEST);
       expect(each.digest).toBe(sha256(readFileSync(join(scratch, each.path))));
@@ -168,6 +172,8 @@ describe("phax init --json", { timeout: 120_000 }, () => {
     const lines = messageLines(result.stderr);
     expect(lines).toHaveLength(1);
     expect(lines[0]?.kind).toBe("refused");
+    // The remedy is the flag that lifts the wizard, not dropping --json.
+    expect(lines[0]?.text).toBe("error: --json: init prompts; pass --yes");
     expect(readdirSync(scratch)).toEqual([]);
   });
 
@@ -428,6 +434,9 @@ describe("phax prune --json", { timeout: 120_000 }, () => {
     const lines = messageLines(result.stderr);
     expect(lines).toHaveLength(1);
     expect(lines[0]?.kind).toBe("refused");
+    expect(lines[0]?.text).toBe(
+      "error: --json: prune prompts; pass --yes to proceed or --dry-run to preview only",
+    );
     expect(existsSync(run.archivePath)).toBe(true);
   });
 
