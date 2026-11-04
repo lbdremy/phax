@@ -4,7 +4,7 @@
 // runner refuses it, with the program's `refused` code, before anything runs.
 import type { OutputPort } from "../../ports/output.js";
 import { runThroughOutput } from "../bridge.js";
-import { makePruneCommand, REAL_PRUNE_LAYERS } from "../definitions/prune.js";
+import { makePruneCommand, PRUNE_UNPROMPTED, REAL_PRUNE_LAYERS } from "../definitions/prune.js";
 import { phaxProgram } from "../definitions/program.js";
 
 export interface PruneCommandOptions {
@@ -22,7 +22,7 @@ export function runPrune(
 ): Promise<number> {
   const json = opts.json === true;
   if (json && opts.yes !== true && opts.dryRun !== true) {
-    out.error("error: --json: prune prompts; run it without --json");
+    out.error(`error: --json: prune prompts; ${PRUNE_UNPROMPTED}`);
     return Promise.resolve(phaxProgram.exits.refused);
   }
   return runThroughOutput(

@@ -109,7 +109,8 @@ function transition(pathArg: string, target: ArtifactStatus, by: string | undefi
 /** Today's lines of a transition, from the answer alone. */
 export function transitionLines(value: TransitionOutput): string[] {
   const lines = [
-    value.deletedRecord === null
+    // Only a reopen names the record it deleted on its status line, as today.
+    value.reopenedBy === null || value.deletedRecord === null
       ? `Status: ${value.status}`
       : `Status: ${value.status} (was ${value.previousStatus}; ${value.deletedRecord} deleted)`,
   ];
@@ -213,6 +214,7 @@ export const artifactApproveCommand = defineCommand({
   output: reject(TransitionOutput),
   // Without `--by` a terminal stands for the operator: a person's gesture, not a program's.
   prompts: (input) => input.flags.by === undefined,
+  unprompted: "pass --by",
   run: ({ input }) => transition(input.args[0], "Approved", input.flags.by),
   exits,
   errors,
@@ -273,6 +275,7 @@ export const artifactReopenCommand = defineCommand({
   input: { args: PathArg, flags: ByFlag },
   output: reject(TransitionOutput),
   prompts: (input) => input.flags.by === undefined,
+  unprompted: "pass --by",
   run: ({ input }) => transition(input.args[0], "Draft", input.flags.by),
   exits,
   errors,

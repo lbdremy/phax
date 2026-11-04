@@ -158,7 +158,8 @@ export function readDocument(
     case "Unvalued":
       return Effect.fail(
         failure(
-          `error: --${flag} is given no value: give --${flag} <file|->`,
+          // Commander's own sentence for an option given no value, as every other option says it.
+          `error: option '--${flag} <file|->' argument missing`,
           where,
           `a path, or - for stdin, after --${flag}`,
         ),

@@ -315,7 +315,8 @@ export interface ArtifactTransitionResult {
   readonly approvedBy?: ResolvedArbiter;
   /** Who reopened: set on every transition to Draft. */
   readonly reopenedBy?: ResolvedArbiter;
-  /** The artifact's own record file, when a reopen deleted it. */
+  /** The artifact's own record file, when the transition deleted it: a reopen, a complete or an
+   *  abandon. */
   readonly deletedRecord?: string;
   /** A reopened spec's live bound plans, left as they are. */
   readonly boundPlans?: readonly BoundPlan[];
@@ -735,6 +736,7 @@ export function transitionArtifact(
       }
     }
 
+    const recordPath = approvalRecordPathFor(kind, repoRelPath);
     if (isTerminalStatus(target)) {
       const destination = archivePathFor(repoRelPath);
       // Never clobber an existing archived artifact (e.g. a reused plan number):
@@ -768,13 +770,13 @@ export function transitionArtifact(
         status: target,
         previousStatus: status,
         path: destination,
+        ...(hasRecordFile && recordPath !== null ? { deletedRecord: recordPath } : {}),
         written: yield* existingPaths(writeSet),
       };
       return yield* finalizeTransition(git, kind, target, repoRelPath, writeSet, opts, result);
     }
 
     yield* fs.writeAtomic(repoRelPath, updatedMd);
-    const recordPath = approvalRecordPathFor(kind, repoRelPath);
     const result: ArtifactTransitionResult = {
       status: target,
       previousStatus: status,
@@ -786,7 +788,9 @@ export function transitionArtifact(
         ? { deletedRecord: recordPath }
         : {}),
       ...(boundPlans !== null ? { boundPlans } : {}),
-      written: yield* existingPaths(writeSet),
+      // A transition that does not move the artifact leaves its sidecar as it was: the sidecar is
+      // in the write set for the dirty check and the commit, never written.
+      written: yield* existingPaths(writeSet.filter((path) => path !== sidecar?.path)),
     };
     return yield* finalizeTransition(git, kind, target, repoRelPath, writeSet, opts, result);
   });

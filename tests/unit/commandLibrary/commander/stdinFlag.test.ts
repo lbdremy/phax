@@ -299,7 +299,7 @@ describe("a stdin flag whose value is required", () => {
       kind: "refused",
       source: "stdin",
       path: ["--verdicts"],
-      text: "error: --verdicts is given no value: give --verdicts <file|->",
+      text: "error: option '--verdicts <file|->' argument missing",
     });
     expect(seen).toEqual([]);
   });

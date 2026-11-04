@@ -1939,7 +1939,7 @@ const files = () => recording("files", { args: reject(Schema.Array(FilePath)) })
 const overlap = () => recording("overlap", { args: reject(Schema.NonEmptyArray(PlanFile)) });
 
 /** Gain (a command that prompts): `init` asks a person unless `--yes` is given. */
-function prompting() {
+function prompting(unprompted?: string) {
   const seen: unknown[] = [];
   const command = defineCommand({
     name: "init",
@@ -1948,6 +1948,7 @@ function prompting() {
     output: strip(Str),
     exits: {},
     prompts: (input) => input.flags.yes !== true,
+    ...(unprompted === undefined ? {} : { unprompted }),
     run: (context) =>
       Effect.sync(() => {
         seen.push(context.input);
@@ -2166,6 +2167,34 @@ const inspectionGainCases: ReadonlyArray<Case> = [
           is("runs without --json", 1, plain.seen.length),
           ended(yes, 0),
           is("runs when it does not prompt", [{ flags: { yes: true } }], answered.seen),
+        );
+      }),
+  },
+  {
+    // Gain: what lifts a prompt. A command that names the flags under which it does not prompt
+    // has the `--json` refusal name them, in place of running it without `--json`.
+    id: "json.prompting-remedy",
+    check: (runner) =>
+      Effect.gen(function* () {
+        const named = prompting("pass --yes");
+        const json = yield* call(runner, [named.command], ["init", "--json"]);
+        return verdict(
+          ended(json, REFUSED),
+          is(
+            "the refused line",
+            [
+              {
+                kind: "refused",
+                source: "flags",
+                path: ["json"],
+                expected: "a call that does not prompt",
+                text: "error: --json: init prompts; pass --yes",
+                exit: REFUSED,
+              },
+            ],
+            parsedLines(json.err),
+          ),
+          is("runs after a refused --json", [], named.seen),
         );
       }),
   },

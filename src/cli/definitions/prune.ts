@@ -41,6 +41,9 @@ export interface PruneLayers {
 }
 
 /** The real adapters, built when the command runs (a test mocks the prompt module). */
+/** What lifts prune's confirmation, as the `--json` refusal names it: today's remedy. */
+export const PRUNE_UNPROMPTED = "pass --yes to proceed or --dry-run to preview only";
+
 export const REAL_PRUNE_LAYERS: PruneLayers = {
   build: (config) =>
     Layer.mergeAll(
@@ -289,6 +292,7 @@ export function makePruneCommand(layers: PruneLayers) {
     output: reject(PruneOutput),
     // Without --yes or --dry-run a person may be asked to confirm: --json never waits on one.
     prompts: (input) => input.flags.yes !== true && input.flags.dryRun !== true,
+    unprompted: PRUNE_UNPROMPTED,
     verdicts: {
       // An applied prune that kept a run.
       3: (value) => !value.dryRun && value.runs.some((run) => run.outcome === "kept"),

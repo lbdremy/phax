@@ -961,13 +961,15 @@ describe("transitionArtifact", () => {
       );
       expect(recordOf(fsImpl, "plan", "docs/plans/2609101240-thing-plan.md")).toBeDefined();
 
-      await run(
+      const abandoned = await run(
         transitionArtifact("docs/plans/2609101240-thing-plan.md", "Abandoned", DEFAULT_OPTS).pipe(
           Effect.provide(layer),
         ),
       );
 
       expect(fsImpl.getFile(THING_RECORD)).toBeUndefined();
+      // The answer names the record it deleted, as a reopen's does.
+      expect(Either.isRight(abandoned) && abandoned.right.deletedRecord).toBe(THING_RECORD);
       expect(
         fsImpl.getFile("docs/plans/archive/approvals/2609101240-thing-plan.json"),
       ).toBeUndefined();
@@ -1720,6 +1722,8 @@ ${bodyEdit(renderSpecBody(decoded.right))}`;
       if (commitCalls[0]?.method === "commitPaths") {
         expect(commitCalls[0].paths).toEqual([SPEC, SIDECAR, SPEC_RECORD]);
       }
+      // The sidecar rides in the commit's paths but is not rewritten, so it is not written.
+      expect(Either.isRight(result) && result.right.written).toEqual([SPEC, SPEC_RECORD]);
       // The frontmatter stamp does not diverge the pair.
       expect(fsImpl.getFile(SIDECAR)).toBe(SIDECAR_JSON);
       const after = await run(inspectArtifact(SPEC).pipe(Effect.provide(layer)));
@@ -1750,6 +1754,10 @@ ${bodyEdit(renderSpecBody(decoded.right))}`;
         // No record file exists, so none joins the write-set.
         expect(commitCalls[0].paths).toEqual([SPEC, SIDECAR, ARCHIVED_SPEC, ARCHIVED_SIDECAR]);
       }
+      expect(Either.isRight(result) && result.right.written).toEqual([
+        ARCHIVED_SPEC,
+        ARCHIVED_SIDECAR,
+      ]);
     });
 
     it("approve of a diverged artifact fails with exit 12 naming both remedies, writing nothing", async () => {

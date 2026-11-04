@@ -218,6 +218,10 @@ export interface CommandDef<
    *  call after decoding and before `run`, with the program's `refused` code: `--json` never
    *  waits on a person. Without `--json` it is never asked. */
   readonly prompts?: (input: Parsed<I>) => boolean;
+  /** Gain carried for upstream (what lifts a prompt): the remedy the `--json` refusal names, the
+   *  flags under which the call does not prompt (`pass --yes`). Without it the refusal says to run
+   *  the call without `--json`, the only remedy of a command that always prompts. */
+  readonly unprompted?: string;
   /** Gain carried for upstream (a document's check): an effect over the decoded input and the
    *  document as read that refuses the call against the world before `run` — an unknown id, a
    *  path that names another thing. The runner runs it after decoding and after the `prompts`

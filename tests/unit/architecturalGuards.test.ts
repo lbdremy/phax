@@ -449,7 +449,8 @@ describe("architectural guard: phax's command definitions never import commander
 
 // ── Repo-rooted FileSystem layer ──────────────────────────────────────────────
 // The FileSystem port is rooted at config.repoRoot so phax keeps git's
-// work-from-anywhere contract. A command under src/cli/commands/ must build its
+// work-from-anywhere contract. A command under src/cli/commands/ or
+// src/cli/definitions/ must build its
 // FileSystem layer through makeRepoRootedFileSystemLayer(config) (from
 // runLayers.ts) or makeRootedNodeFileSystemLayer(root) (from infra/fs) — never
 // the identity NodeFileSystemLayer, which resolves relative paths against the
@@ -459,7 +460,21 @@ describe("architectural guard: phax's command definitions never import commander
 //   - runLayers.ts: houses the rooted helper and the global-telemetry-journal
 //     wiring (journal + trace paths are absolute, so the identity layer is
 //     correct there).
-const IDENTITY_FS_LAYER_ALLOWLIST: ReadonlySet<string> = new Set(["src/cli/commands/runLayers.ts"]);
+//   - agent: no resolved config; only absolute ~/.phax and ~/.vibe paths.
+//   - init: runs before/without a phax project (init creates phax.json).
+//   - report: no resolved config; reads the run folders under ~/.phax.
+//   - schema: writes the absolute paths it resolved from the git root.
+//   - security: reads the global provider config under ~/.phax.
+//   - skills: installs to absolute targets under the git root or the home.
+const IDENTITY_FS_LAYER_ALLOWLIST: ReadonlySet<string> = new Set([
+  "src/cli/commands/runLayers.ts",
+  "src/cli/definitions/agent.ts",
+  "src/cli/definitions/init.ts",
+  "src/cli/definitions/report.ts",
+  "src/cli/definitions/schema.ts",
+  "src/cli/definitions/security.ts",
+  "src/cli/definitions/skills.ts",
+]);
 
 // Matches an import statement pulling bindings from an infra/fs module.
 // Group 1: the brace-enclosed binding list.
@@ -489,12 +504,12 @@ function importsIdentityFsLayer(content: string): boolean {
 }
 
 describe("architectural guard: cli commands root the FileSystem layer", () => {
-  const commandsRoot = join(srcRoot, "cli", "commands");
+  const commandRoots = [join(srcRoot, "cli", "commands"), join(srcRoot, "cli", "definitions")];
 
-  it("no file under src/cli/commands/ imports the identity NodeFileSystemLayer (except allowlist)", () => {
+  it("no file under src/cli/commands/ or src/cli/definitions/ imports the identity NodeFileSystemLayer (except allowlist)", () => {
     const violations: string[] = [];
 
-    for (const absPath of listTsFiles(commandsRoot)) {
+    for (const absPath of commandRoots.flatMap(listTsFiles)) {
       const rel = relative(repoRoot, absPath).split("\\").join("/");
       if (IDENTITY_FS_LAYER_ALLOWLIST.has(rel)) continue;
 
