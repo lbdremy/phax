@@ -506,11 +506,13 @@ describe("phax prune", { timeout: 30_000 }, () => {
     setStdinTTY(true);
     const onTty = await prune(["a", "b"], { json: true });
 
-    expect(onTty.code).toBe(1);
+    // q-prune-json (refuse-unconfirmed): a call that would prompt is refused under --json with
+    // the program's refused code, before anything runs, instead of today's preview document and
+    // exit 1.
+    expect(onTty.code).toBe(64);
     expect(asks).toEqual([]);
-    expect(onTty.logs).toHaveLength(1);
-    expect((JSON.parse(onTty.logs[0]!) as { dryRun: boolean }).dryRun).toBe(false);
-    expect(onTty.errors.join("\n")).toContain("--yes");
+    expect(onTty.logs).toEqual([]);
+    expect(onTty.errors.join("\n")).toContain("prune prompts");
     expectRunWhole(a);
     expectRunWhole(b);
   });

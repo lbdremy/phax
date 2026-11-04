@@ -242,7 +242,7 @@ describe("route", () => {
       to: "runner",
       command: ["artifact", "new", "spec"],
     });
-    expect(route(phaxProgram, ["unlock", "x"])).toEqual({ to: "commander" });
+    expect(route(phaxProgram, ["enter", "x"])).toEqual({ to: "commander" });
   });
 
   // Commander reads past these to the command word, and would call the help-only stub's action.
@@ -382,7 +382,7 @@ describe("help on a runner command", () => {
   });
 
   it("leaves `help` on an unmigrated command to Commander", async () => {
-    const call = edge(["help", "unlock"]);
+    const call = edge(["help", "enter"]);
     await dispatch(phaxProgram, call.edge);
     expect(call.runRunner).not.toHaveBeenCalled();
   });
@@ -545,11 +545,15 @@ describe("the help-only stubs", () => {
     expect(root.commands.map((each) => each.name())).toEqual([
       "artifact",
       "validate",
+      "unlock",
       "session-info",
       "path",
       "ls",
+      "archive",
+      "prune",
       "brief",
       "architecture",
+      "init",
       "report",
       "completions",
       "cost",
@@ -765,11 +769,15 @@ describe("runnerUsage", () => {
     expect(usage.root).toHaveLength(2);
     expect([...usage.commands.keys()]).toEqual([
       "validate",
+      "unlock",
       "session-info",
       "path",
       "ls",
+      "archive",
+      "prune",
       "brief",
       "architecture",
+      "init",
       "report",
       "completions",
       "cost backfill",

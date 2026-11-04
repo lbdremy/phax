@@ -26,11 +26,15 @@ const frozen = readFileSync(
  *  library's help. */
 const MIGRATED_COMMANDS: ReadonlyArray<string> = [
   "validate",
+  "unlock",
   "session-info",
   "path",
   "ls",
+  "archive",
+  "prune",
   "brief",
   "architecture",
+  "init",
   "report",
   "completions",
   "cost backfill",
@@ -75,6 +79,7 @@ const CHOICES_DECLARED: ReadonlyArray<string> = ["artifact schema"];
  *  reworded, its help now the library's. */
 const REWORDED_JSON: ReadonlyArray<string> = [
   "ls",
+  "prune",
   "agent resolve",
   "artifact decide",
   "plans status",

@@ -1,55 +1,23 @@
-import { Effect, Either, Layer } from "effect";
+// `init` answers through the command runner (src/cli/definitions/init.ts). This run function is
+// kept, until the last plan of command-contracts, as the definition's run and render over the
+// OutputPort, for the tests that call it.
 import type { OutputPort } from "../../ports/output.js";
-import { PromptCancelled } from "../../ports/prompt.js";
-import { runInitWizard } from "../../app/initWizard.js";
-import { makeClackPromptLayer } from "../../infra/prompt.js";
-import { NodeFileSystemLayer } from "../../infra/fs.js";
-import { NodeGitLayer } from "../../infra/git.js";
-import { NodeGitHubLayer } from "../../infra/github.js";
+import { runThroughOutput } from "../bridge.js";
+import { makeInitCommand, REAL_INIT_LAYERS } from "../definitions/init.js";
 
-export async function runInit(
+export function runInit(
   opts: { force?: boolean; yes?: boolean },
   out: OutputPort,
 ): Promise<number> {
-  const interactive = Boolean(process.stdin.isTTY) && !opts.yes;
-
-  const wizardInput: { cwd: string; force?: boolean; interactive: boolean } = {
-    cwd: process.cwd(),
-    interactive,
-  };
-  if (opts.force) wizardInput.force = opts.force;
-
-  const effect = runInitWizard(wizardInput).pipe(
-    Effect.provide(
-      Layer.mergeAll(makeClackPromptLayer(), NodeFileSystemLayer, NodeGitLayer, NodeGitHubLayer),
-    ),
+  return runThroughOutput(
+    makeInitCommand(REAL_INIT_LAYERS),
+    {
+      flags: {
+        ...(opts.force !== undefined ? { force: opts.force } : {}),
+        ...(opts.yes !== undefined ? { yes: opts.yes } : {}),
+      },
+    },
+    out,
+    { lineByLine: true },
   );
-
-  const result = await Effect.runPromise(Effect.either(effect));
-
-  if (Either.isLeft(result)) {
-    const err = result.left;
-    if (err instanceof PromptCancelled) {
-      out.log("phax init aborted — no changes written.");
-      return 0;
-    }
-    out.error(err.message);
-    return 1;
-  }
-
-  const outcome = result.right;
-
-  if (outcome.kind === "already_initialized") {
-    out.error(`PHAX is already initialized: ${outcome.configPath}`);
-    out.error("Use --force to reconfigure.");
-    return 1;
-  }
-
-  out.log(`Created PHAX config: ${outcome.configPath}`);
-  out.log(`Created JSON Schema: ${outcome.schemaPath}`);
-  out.log(`Schema: local generated schema (${outcome.schemaReference})`);
-  if (!interactive) {
-    out.log("Next: review phax.json, then run `phax validate` or `phax run`.");
-  }
-  return 0;
 }

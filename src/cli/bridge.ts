@@ -510,9 +510,12 @@ export async function runThroughOutput(
           Effect.sync(() => {
             if (text !== "") out.warn(text);
           }),
+        // A note line under `--json`, as the runner writes it: stdout holds the answer alone.
         say: (text: string) =>
           Effect.sync(() => {
-            if (text !== "") out.log(text);
+            if (text === "") return;
+            if (options.json === true) out.warn(text);
+            else out.log(text);
           }),
         document: options.document,
       }),

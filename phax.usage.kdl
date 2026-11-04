@@ -41,14 +41,10 @@ cmd validate help="Validate phax.json and its user overlays without any side eff
     flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
 }
 
-cmd "unlock" {
-    help "Remove a stale run lock; use --force to remove any lock"
-    arg "<short-name>" {
-        help "Run short name, e.g. usage-cli"
-    }
-    flag "--force" {
-        help "Remove the lock regardless of staleness"
-    }
+cmd unlock help="Remove a stale run lock; use --force to remove any lock" {
+    flag --force help="Remove the lock regardless of staleness"
+    flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
+    arg <short-name> help="Run short name, e.g. usage-cli"
 }
 
 cmd "enter" {
@@ -123,44 +119,25 @@ cmd ls help="List runs from the registry" long_help="Lists runs from the local r
     flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
 }
 
-cmd "archive" {
-    help "Archive a run that is not running; --force is required for an unfinished run"
-    long_help "Archives a run by moving its worktrees under ~/.phax/archive/<namespace>.<short-name>/ and marking it archived in the registry. Nothing is destructively deleted — every phase's working state is preserved.\n\nFinished runs (review_open, completed) archive by default. Unfinished runs (created, failed, interrupted, rate_limited, stopped, awaiting_review) are refused unless --force is set; the refusal message names the run's current state and the flag. Archiving a run in awaiting_review with --force removes its review-stop.json and moves its worktrees, uncommitted corrections included, to the archive. Running, locked, and already-archived runs are never archivable regardless of --force.\n\nThe run's stoppedReason and lastError survive archival intact.\n\nWithout --force on a finished run, the final worktree must be clean. With --force, no cleanliness check runs.\n\nSide effects: moves worktrees on the filesystem, updates ~/.phax/runs/."
+cmd archive help="Archive a run that is not running; --force is required for an unfinished run" long_help="Archives a run by moving its worktrees under ~/.phax/archive/<namespace>.<short-name>/ and marking it archived in the registry. Nothing is destructively deleted — every phase's working state is preserved.\n\nFinished runs (review_open, completed) archive by default. Unfinished runs (created, failed, interrupted, rate_limited, stopped, awaiting_review) are refused unless --force is set; the refusal message names the run's current state and the flag. Archiving a run in awaiting_review with --force removes its review-stop.json and moves its worktrees, uncommitted corrections included, to the archive. Running, locked, and already-archived runs are never archivable regardless of --force.\n\nThe run's stoppedReason and lastError survive archival intact.\n\nWithout --force on a finished run, the final worktree must be clean. With --force, no cleanliness check runs.\n\nSide effects: moves worktrees on the filesystem, updates ~/.phax/runs/." {
     example "phax archive usage-cli"
     example "phax archive usage-cli --force"
     example "phax archive plan-27 --force  # give up an interrupted run"
-    arg "<short-name>" {
-        help "Run short name, e.g. usage-cli"
-    }
-    flag "--force" {
-        help "Archive even if the run is unfinished or a worktree has uncommitted changes"
-    }
+    flag --force help="Archive even if the run is unfinished or a worktree has uncommitted changes"
+    flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
+    arg <short-name> help="Run short name, e.g. usage-cli"
 }
 
-cmd "prune" {
-    help "Delete archived runs of the current namespace for real, freeing their names and disk space"
-    long_help "Deletes each selected archived run of the current namespace for real: its archive folder under ~/.phax/archive/<namespace>.<short-name>/, its worktree metadata in the current repository, its local branches (<branch> and <branch>--phase-NN) and, last, its registry entry — so its name and disk space come back. Before deleting the archive folder, it keeps the run's cost ledger: runs/cost-ledger.json is copied byte for byte to ~/.phax/cost-ledgers/<namespace>.<short-name>.<run-id>.json, and a failed copy keeps the run. Select runs by name (short or <namespace>.<short-name>) or with --all; only archived runs of the current namespace can be pruned, and an unknown, non-archived or other-namespace name refuses the whole command. Never touches records on phax/records/v1, remote branches, remote-tracking refs or pull requests, and never contacts a remote.\n\nA run whose local branches hold commits that no other branch, tag or remote-tracking ref keeps is kept whole unless --force is set, which discards those commits. A branch checked out in a worktree keeps the run even with --force. A locked run refuses the whole command (exit 7).\n\nAlways prints a preview first, then asks for confirmation on a TTY; --yes proceeds without asking, --dry-run deletes nothing, and without a TTY the command refuses unless --yes or --dry-run is set. --json prints one JSON document and never prompts. Exits 0 when every selected run was pruned, 1 when nothing was deleted, 3 when at least one run was kept.\n\nSide effects: writes under ~/.phax/cost-ledgers/, deletes under ~/.phax/archive/, deletes local branches and stale worktree metadata, updates ~/.phax/registry.json."
+cmd prune help="Delete archived runs of the current namespace for real, freeing their names and disk space" long_help="Deletes each selected archived run of the current namespace for real: its archive folder under ~/.phax/archive/<namespace>.<short-name>/, its worktree metadata in the current repository, its local branches (<branch> and <branch>--phase-NN) and, last, its registry entry — so its name and disk space come back. Before deleting the archive folder, it keeps the run's cost ledger: runs/cost-ledger.json is copied byte for byte to ~/.phax/cost-ledgers/<namespace>.<short-name>.<run-id>.json, and a failed copy keeps the run. Select runs by name (short or <namespace>.<short-name>) or with --all; only archived runs of the current namespace can be pruned, and an unknown, non-archived or other-namespace name refuses the whole command. Never touches records on phax/records/v1, remote branches, remote-tracking refs or pull requests, and never contacts a remote.\n\nA run whose local branches hold commits that no other branch, tag or remote-tracking ref keeps is kept whole unless --force is set, which discards those commits. A branch checked out in a worktree keeps the run even with --force. A locked run refuses the whole command (exit 7).\n\nAlways prints a preview first, then asks for confirmation on a TTY; --yes proceeds without asking, --dry-run deletes nothing, and without a TTY the command refuses unless --yes or --dry-run is set. --json prints one JSON document and never prompts. Exits 0 when every selected run was pruned, 1 when nothing was deleted, 3 when at least one run was kept.\n\nSide effects: writes under ~/.phax/cost-ledgers/, deletes under ~/.phax/archive/, deletes local branches and stale worktree metadata, updates ~/.phax/registry.json." {
     example "phax prune old-idea"
     example "phax prune --all --dry-run"
     example "phax prune --all --yes"
-    arg "[short-name]..." {
-        help "Archived run short name, e.g. old-idea"
-    }
-    flag "--all" {
-        help "Prune every archived run of the current namespace"
-    }
-    flag "--force" {
-        help "Also prune runs whose branches hold unpreserved commits (discards those commits)"
-    }
-    flag "--dry-run" {
-        help "Print the preview and delete nothing"
-    }
-    flag "--yes -y" {
-        help "Proceed without confirmation (required without a TTY)"
-    }
-    flag "--json" {
-        help "Output as JSON; never prompts"
-    }
+    flag --all help="Prune every archived run of the current namespace"
+    flag --force help="Also prune runs whose branches hold unpreserved commits (discards those commits)"
+    flag --dry-run help="Print the preview and delete nothing"
+    flag "--yes -y" help="Proceed without confirmation (required without a TTY)"
+    flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
+    arg "[short-name]..." help="Archived run short name, e.g. old-idea"
 }
 
 cmd cost help="Manage the runs' cost ledgers" long_help="Parent command for the runs' cost ledgers. Every run keeps cost-ledger.json in its run folder: one entry per Claude invocation (phase turn, fix attempt, handoff generation, compliance review, code review) with its own API-list cost, tokens per model, agent duration, end time and subscription-window samples. phax archive moves it with the run, and phax prune keeps a copy under ~/.phax/cost-ledgers/." subcommand_required=#true {
@@ -303,17 +280,12 @@ cmd architecture help="Ask the configured architecture provider for the reposito
     arg "[path]..." help="Paths to ask about, existing or not, relative to the current directory"
 }
 
-cmd "init" {
-    help "Create phax.json and phax.schema.json in the current directory"
-    long_help "Creates phax.json and phax.schema.json in the current directory. Use --force to overwrite an existing phax.json. Does not connect to any network or external service."
+cmd init help="Create phax.json and phax.schema.json in the current directory" long_help="Creates phax.json and phax.schema.json in the current directory. Use --force to overwrite an existing phax.json. Does not connect to any network or external service." {
     example "phax init"
     example "phax init --force"
-    flag "--force" {
-        help "Overwrite and reconfigure an existing phax.json"
-    }
-    flag "--yes" {
-        help "Accept detected defaults without prompting"
-    }
+    flag --force help="Overwrite and reconfigure an existing phax.json"
+    flag --yes help="Accept detected defaults without prompting"
+    flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
 }
 
 cmd report help="Open a GitHub issue from local telemetry (run semantic.jsonl or latest daily journal)" long_help="Creates a GitHub issue from local run telemetry. By default, uploads the full log as a secret GitHub gist and links it in the issue body. Use --no-gist to inline the log directly.\n\nSide effects: GitHub API calls — creates a GitHub issue and, unless --no-gist is set, a secret gist." {

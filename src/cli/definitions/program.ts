@@ -26,6 +26,10 @@ import { securityGroup } from "./security.js";
 import { sessionInfoCommand } from "./sessionInfo.js";
 import { skillsGroup } from "./skills.js";
 import { validateCommand } from "./validate.js";
+import { archiveCommand } from "./archive.js";
+import { initCommand } from "./init.js";
+import { pruneCommand } from "./prune.js";
+import { unlockCommand } from "./unlock.js";
 
 /** The options every phax command takes, wherever they stand in the call, with today's help. */
 const phaxProgramOptions = reject(
@@ -57,11 +61,15 @@ export const phaxProgram = defineProgram({
   // positions. Every group is held whole by the runner.
   commands: [
     validateCommand,
+    unlockCommand,
     sessionInfoCommand,
     pathCommand,
     lsCommand,
+    archiveCommand,
+    pruneCommand,
     briefCommand,
     architectureCommand,
+    initCommand,
     reportCommand,
     completionsCommand,
     costGroup,
