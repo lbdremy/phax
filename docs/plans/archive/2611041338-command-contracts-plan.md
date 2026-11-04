@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2611031738-command-contracts.md
 completes-spec: false
 approved:
