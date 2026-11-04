@@ -255,12 +255,19 @@ Given a run with one claude-code phase and one codex-cli phase that both complet
 
 ## 9. Open questions
 
+None.
+
+## 9b. Arbitrated questions
+
 ### q-sources — Which setting sources does a headless session keep: `project` alone, or `project,local`?
 
 - project — `--setting-sources project`: committed configuration only — abandons: the operator's gitignored `.claude/settings.local.json` in the main checkout, where authoring, decide's handback and review run: a personal permission or env set there stops applying to those sessions
 - project-local — `--setting-sources project,local`: committed plus the checkout's local settings — abandons: portability where it matters least visibly: authoring and review sessions in the main checkout would again depend on a personal, unrecorded file, while phase worktrees (which have no local file) would not, so the two kinds of session would differ per operator
 
 Recommendation: project — Only committed configuration is portable and recoverable from `sourceSha`. The local file is already absent from every phase worktree, so dropping it changes nothing for phases and makes authoring and review behave like them. An operator who needs a setting in those sessions can commit it.
+
+Decision: project — by operator (Rémy Loubradou), 2026-11-04
+Why: Only committed configuration is portable and recoverable from `sourceSha`. The local file is already absent from every phase worktree, so dropping it changes nothing for phases and makes authoring and review behave like them. An operator who needs a setting in those sessions can commit it. Advocate: The strongest case for project-local: an operator who keeps a personal permission or env in `.claude/settings.local.json` loses it in authoring, decide and review sessions run in the main checkout, with no way to restore it short of committing it. Principles: S1, S2. Reversibility: cheap. Revised: none.
 
 ### q-auth — What happens to an operator whose Claude Code authentication lives in user settings (`apiKeyHelper`, an `env` block for a key, Bedrock or Vertex)?
 
@@ -270,6 +277,9 @@ Recommendation: project — Only committed configuration is portable and recover
 
 Recommendation: refuse-named — OAuth (the subscription case, probed) and `ANTHROPIC_API_KEY` in the environment both keep working, so the loss falls on a setup that can move its authentication in one step. A named failure at the first session costs nothing extra and is never silent; it can grow into an opt-out if real users hit it, which `q-opt-out` keeps out of this slice.
 
+Decision: refuse-named — by operator (Rémy Loubradou), 2026-11-04
+Why: OAuth (the subscription case, probed) and `ANTHROPIC_API_KEY` in the environment both keep working, so the loss falls on a setup that can move its authentication in one step. A named failure at the first session costs nothing extra and is never silent; it can grow into an opt-out if real users hit it, which `q-opt-out` keeps out of this slice. Advocate: The strongest case for opt-out: an operator on Bedrock, Vertex or an apiKeyHelper cannot run phax headless at all after upgrading, and an opt-out would keep them working at the price of a recorded `loaded`. Principles: S1, S3. Reversibility: cheap. Revised: none.
+
 ### q-opt-out — Should an operator be able to keep the user layer for headless sessions?
 
 - no-opt-out — No opt-out in this slice — abandons: an operator who relied on a user-scope MCP server under `mcp.mode: provider-default`, a user hook or a user skill inside phases has no way back except an older phax
@@ -277,6 +287,9 @@ Recommendation: refuse-named — OAuth (the subscription case, probed) and `ANTH
 - project-opt-out — A key in `phax.json` (committed) restoring the user layer for everyone — abandons: the point of the change: a committed key that makes the project's harness depend on each operator's home
 
 Recommendation: no-opt-out — The user layer phax would restore is exactly the unreviewed, unrecorded part the problem names. What an operator wants in phases belongs in the repository, where it is reviewed and recovered by `sourceSha`. Adding a `phax.user.json` key later is cheap if a real need appears; taking one away is not.
+
+Decision: no-opt-out — by operator (Rémy Loubradou), 2026-11-04
+Why: The user layer phax would restore is exactly the unreviewed, unrecorded part the problem names. What an operator wants in phases belongs in the repository, where it is reviewed and recovered by `sourceSha`. Adding a `phax.user.json` key later is cheap if a real need appears; taking one away is not. Advocate: The strongest case for user-opt-out: an operator who relies on a user-scope MCP server, hook or skill inside phases has no way back except an older phax, while an uncommitted key would restore it for them alone. Principles: S1, S4. Reversibility: cheap. Revised: none.
 
 ### q-record — Where, if anywhere, does a record say which provider configuration layer was in play?
 
@@ -286,9 +299,8 @@ Recommendation: no-opt-out — The user layer phax would restore is exactly the 
 
 Recommendation: record-manifest — The records are where the harness is meant to be read from, and the manifest is what every analysis already opens. One required, per-provider value is the smallest honest statement; the harness manifest spec can later replace it with the full list.
 
-## 9b. Arbitrated questions
-
-None.
+Decision: record-manifest — by operator (Rémy Loubradou), 2026-11-04
+Why: The records are where the harness is meant to be read from, and the manifest is what every analysis already opens. One required, per-provider value is the smallest honest statement; the harness manifest spec can later replace it with the full list. Advocate: The strongest case for not-recorded: a manifest version for a single two-valued field is a persisted-schema cost, and the harness manifest spec will replace it with the full list anyway. Principles: S1, S5. Reversibility: costly. Revised: none.
 
 ## 10. Implementation-planning note
 
@@ -322,3 +334,10 @@ Page: docs/security.md — a new 'What a Claude Code session loads' section unde
 Reader: An operator who runs phax with their own Claude Code setup (skills, plugins, hooks, rules, memory) and wants to know which of it a phase agent sees, and a maintainer comparing records across people.
 
 Example: A table with two rows, headless and interactive, and columns for repository harness, user skills and plugins, user hooks, user rules and CLAUDE.md, auto-memory, bundled skills: headless loads the repository's and the bundled ones only, interactive loads everything. Then the argv of a secure phase session showing `--setting-sources project` and `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1`, the `"userConfig": "excluded"` line of its `record.json`, and the authentication failure an `apiKeyHelper` user sees, with the two remedies.
+
+## 12. Decision log
+
+- 2026-11-04 q-sources decided project — operator (Rémy Loubradou)
+- 2026-11-04 q-auth decided refuse-named — operator (Rémy Loubradou)
+- 2026-11-04 q-opt-out decided no-opt-out — operator (Rémy Loubradou)
+- 2026-11-04 q-record decided record-manifest — operator (Rémy Loubradou)
