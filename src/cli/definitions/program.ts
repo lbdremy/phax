@@ -18,6 +18,7 @@ import { plansLintCommand } from "./plansLint.js";
 import { plansOverlapCommand } from "./plansOverlap.js";
 import { plansOverviewCommand } from "./plansOverview.js";
 import { plansStatusCommand } from "./plansStatus.js";
+import { recordsGroup } from "./records.js";
 import { reportCommand } from "./report.js";
 import { schemaGroup } from "./schema.js";
 import { securityGroup } from "./security.js";
@@ -91,5 +92,6 @@ export const phaxProgram = defineProgram({
         plansEstimateCommand,
       ],
     }),
+    recordsGroup,
   ],
 });

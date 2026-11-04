@@ -184,7 +184,14 @@ describe("route", () => {
   it("holds artifact in part, and plans whole in phaxProgram", () => {
     expect(PARTIAL_GROUPS).toEqual(["artifact"]);
     expect(wholeGroups(program)).toEqual(["records"]);
-    expect(wholeGroups(phaxProgram)).toEqual(["cost", "security", "skills", "schema", "plans"]);
+    expect(wholeGroups(phaxProgram)).toEqual([
+      "cost",
+      "security",
+      "skills",
+      "schema",
+      "plans",
+      "records",
+    ]);
     expect(route(phaxProgram, ["plans"])).toEqual({
       to: "runner",
       command: undefined,
@@ -470,6 +477,7 @@ describe("the help-only stubs", () => {
       "skills",
       "schema",
       "plans",
+      "records",
     ]);
     expect(plans.commands.map((each) => each.name())).toEqual(["status"]);
     const ls = root.commands.find((each) => each.name() === "ls");
@@ -570,6 +578,11 @@ describe("runnerUsage", () => {
       "plans lint",
       "plans overview",
       "plans estimate",
+      "records init",
+      "records sync",
+      "records status",
+      "records list",
+      "records explain",
     ]);
   });
 });

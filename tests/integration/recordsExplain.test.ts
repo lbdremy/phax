@@ -2,10 +2,12 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
-import { Command } from "commander";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Effect, Either, Layer } from "effect";
-import { registerRecordsCommand } from "../../src/cli/commands/records.js";
+import { runner } from "../../src/cli/commandLibrary/commander/index.js";
+import type { ExitCode } from "../../src/cli/commandLibrary/contract/index.js";
+import { phaxProgram } from "../../src/cli/definitions/program.js";
+import { memoryIo } from "../unit/commandLibrary/commander/support/memoryIo.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NodeGitLayer } from "../../src/infra/git.js";
 import { NodeShellLayer } from "../../src/infra/shell.js";
@@ -131,20 +133,19 @@ function writeFullRecordCommit(
   );
 }
 
-/** Runs `phax records <args>` in-process; returns its exit code and output lines. */
+/** Runs `phax records <args>` through the command runner over a memory Io, in-process; returns
+ *  its exit code and the lines it wrote on each stream. */
 async function records(args: readonly string[]) {
-  const logs: string[] = [];
-  const errors: string[] = [];
-  const exit = vi.spyOn(process, "exit").mockImplementation((() => undefined) as never);
-  const program = new Command().exitOverride();
-  registerRecordsCommand(program, {
-    log: (m) => logs.push(m),
-    warn: (m) => errors.push(m),
-    error: (m) => errors.push(m),
-  });
-  await program.parseAsync(["records", ...args], { from: "user" });
-  const code = exit.mock.calls.at(-1)?.[0];
-  exit.mockRestore();
+  const memory = memoryIo({ argv: ["records", ...args] });
+  const code = await Effect.runPromise(
+    runner.run(phaxProgram, memory.io) as Effect.Effect<ExitCode>,
+  );
+  const stdout = memory.out.join("");
+  const logs = stdout === "" ? [] : stdout.replace(/\n$/, "").split("\n");
+  const errors = memory.err
+    .join("")
+    .split("\n")
+    .filter((line) => line !== "");
   return { code, logs, errors, text: logs.join("\n") };
 }
 
@@ -819,21 +820,25 @@ describe("records explain and list (real git)", () => {
 
       const withGates = await records(["explain", sha, "--gates"]);
       expect(withGates.code).toBe(0);
-      const gateLines = withGates.logs.slice(
-        withGates.logs.indexOf("--- checks-attempt-01.log ---"),
+      // The runner writes one stream: the gate artifacts are read from its text, each artifact
+      // ending where the next header begins.
+      const gateText = withGates.text.slice(
+        withGates.text.indexOf("--- checks-attempt-01.log ---"),
       );
-      expect(gateLines).toEqual([
-        "--- checks-attempt-01.log ---",
-        "gate log one",
-        "--- checks-attempt-01.request.json ---",
-        '{"attempt":1}',
-        "--- checks-attempt-01.report-01.json ---",
-        refused,
-        "--- checks-attempt-02.log ---",
-        "gate log two",
-        "--- checks-attempt-02.report-01.json ---",
-        checked,
-      ]);
+      expect(gateText).toBe(
+        [
+          "--- checks-attempt-01.log ---",
+          "gate log one",
+          "--- checks-attempt-01.request.json ---",
+          '{"attempt":1}',
+          "--- checks-attempt-01.report-01.json ---",
+          refused,
+          "--- checks-attempt-02.log ---",
+          "gate log two",
+          "--- checks-attempt-02.report-01.json ---",
+          checked,
+        ].join("\n"),
+      );
     });
 
     it("lists and explains the record, prints its prompt, diff and gates, and leaves the extra file intact", async () => {
@@ -880,11 +885,12 @@ describe("records explain and list (real git)", () => {
 
       const withPrompt = await records(["explain", sha, "--prompt"]);
       expect(withPrompt.code).toBe(0);
-      expect(withPrompt.logs).toContain(prompt);
+      // The runner writes one stream, so a multi-line artifact is read from its text.
+      expect(withPrompt.text).toContain(prompt);
 
       const withDiff = await records(["explain", sha, "--diff"]);
       expect(withDiff.code).toBe(0);
-      expect(withDiff.logs).toContain(diff);
+      expect(withDiff.text).toContain(diff);
 
       const withGates = await records(["explain", sha, "--gates"]);
       expect(withGates.code).toBe(0);
