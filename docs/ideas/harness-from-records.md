@@ -136,6 +136,16 @@ which harness ran. The line that matters is what `sourceSha` already recovers:
   auto-memory, provider and phax versions, provider config): listed in the record — and
   the goal is to shrink this list to versions only.
 
+## The records as the harness's memory
+
+The knowledge index (`docs/briefs/knowledge-index.md`) is where the records become
+dynamic feed-forward: its main consumers are phax's own agents, at decision points —
+prior arbitrations before writing open questions, escapes and their fixes before writing
+a test strategy, the history when a plan lacks detail — and its uses are experiments,
+measured by whether answers get cited and outcomes move. Literature:
+[`spikes/harness-data/records-questions-literature.md`](../../spikes/harness-data/records-questions-literature.md).
+First gap: review findings have no id and no recorded fate.
+
 ## Evaluating a harness change (later)
 
 When two harnesses need comparing, the records allow a replay suite: each phase has a

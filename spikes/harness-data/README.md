@@ -74,3 +74,7 @@ and `jq 'select(.subtype=="init")'`.
 - `literature.md` — the literature review (≈30 sources, 2024–2026; entries seen only
   through secondary coverage are marked), with questions to ask of the records and a
   protocol for judging a harness change.
+- `records-questions-literature.md` — which questions a records index is worth
+  answering, who asks them and which data they lack (≈45 sources; each marked [P]
+  primary page read, [A] abstract or snippet only, [S] secondary coverage), with a
+  ranking and the traps. Feeds `docs/briefs/knowledge-index.md`.

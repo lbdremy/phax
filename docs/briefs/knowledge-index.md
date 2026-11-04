@@ -31,6 +31,21 @@ Write the phax spec "Knowledge index", its first milestone: a local index. phax 
 - embeddings and vector search;
 - writing anything back to Git or to `~/.phax`.
 
+**What it is for: the questions, who asks them, and when** (operator, 2026-11-04; literature review: `spikes/harness-data/records-questions-literature.md`). The literature finds no evidence that stored transcripts or metrics dashboards get consulted; what pays is a question asked at a decision point. In solo use the main consumer is not the operator at a screen but phax and its agents: the index is dynamic feed-forward for the harness (`docs/ideas/harness-from-records.md`). Each use below is an **experiment**, expected to pay cumulatively, not on day one:
+1. **Prior arbitrations, for spec and plan authoring.** Before writing its open questions, the authoring agent asks which questions like this one were already settled, what was chosen, what each option abandoned, and why (the operator's own verdicts and the decide sessions'). Nothing else found in the literature records the abandoned option; LLMs recover expert design rationale with ~0.27 precision, so it has to be written, not reconstructed.
+2. **History for a phase agent when the plan lacks detail.** Read-only, cited by id, never overriding the plan; runs stay autonomous.
+3. **Escapes, to learn the doctrine and stop repeating errors.** Join review findings (lens, escape — why the tests missed it), the tests that missed, and the finding's fate (fixed by which commit, or dismissed and why). The authoring and planning agents ask "last time a test like this missed, what did the better test look like?". With steme, each recurring escape is a candidate for a test pattern or a new steme guarantee; recurrence is the signal to promote it.
+4. **Cost of an accepted change** across the lifecycle, failed and abandoned attempts included, and `plans estimate` calibrated against actuals. On phax's records (≈$2,345 API-list): phases 63%, plan authoring 15%, handoff generation 8%, spec authoring 5%, fix attempts 3%, compliance 3%, decide 3%.
+5. **Gate failures by step, model and effort**, to tune routing defaults and gate profiles — a sanity check, not a leaderboard (the plan picks the model for the task, so comparisons are confounded).
+6. **Planned vs touched files.** 44% of phases deviate from their plan's file list, mostly unplanned edits (108 of 317): the planner could ask which files similar phases actually touched.
+7. **The audit chain per commit** (approved spec and plan → gate evidence → approval → security posture): the obvious query, most valuable for teams and regulated users.
+
+**Data gap to close first.** A review finding has no stable id and no recorded fate: review fixes land as `Short-Name` commits with no link to the finding they address. Use 3 needs a finding id and a disposition (fixed by commit, dismissed with a reason).
+
+**Measuring the experiments.** For each named query: is it called, is its answer cited in what the agent writes (a prior decision id in a §9, an escape id in a test strategy), and does the outcome move over time (fewer departed verdicts, fewer findings of an already-seen escape class, estimates closer to actuals). Record which index version and query answered, so the effect can be attributed.
+
+**Traps (non-goals):** "how much faster am I" (no counterfactual in the records); "% of code written by AI" as a measure; cross-model leaderboards from one's own runs; per-person scores; LLM-judged severity or lens taken as ground truth; standing dashboards; indexing raw transcript content (secrets in tool output become searchable — index derived fields only).
+
 **Surfaces.** A surface's `summary`, `before` and `after` are read by users in the release notes: a capitalized sentence and short real examples, with no implementation notes. Name `$schema` URLs at the release this ships in. Fixtures and names in examples are made up.
 
 **Output:** your final message is the spec document JSON and nothing else: no sentence before or after it, and no code fence.
