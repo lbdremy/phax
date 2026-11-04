@@ -52,7 +52,14 @@ export interface CommandSpec {
   readonly stdin: "json" | "text" | undefined;
   /** The flag the stdin read is bound to, shown in help only: the runner reads it before Commander
    *  sees the words. `valueRequired` (gain) shows it as `--flag <file|->`. */
-  readonly stdinFlag?: { readonly name: string; readonly valueRequired: boolean } | undefined;
+  readonly stdinFlag?:
+    | {
+        readonly name: string;
+        readonly valueRequired: boolean;
+        /** Gain (a stdin flag's help): the contract's description, else the library's. */
+        readonly help?: string | undefined;
+      }
+    | undefined;
   /** The command writes a document: its `--out <path>` is declared, for help only. */
   readonly writesDocument?: boolean | undefined;
   /** The variable names of the env contract, when the command declares env. */
@@ -154,9 +161,15 @@ function declare(
   const stdinFlag = spec.stdinFlag;
   if (stdinFlag !== undefined) {
     if (stdinFlag.valueRequired) {
-      command.option(`--${stdinFlag.name} <file|->`, OPTION_HELP.stdinValue(stdinFlag.name));
+      command.option(
+        `--${stdinFlag.name} <file|->`,
+        stdinFlag.help ?? OPTION_HELP.stdinValue(stdinFlag.name),
+      );
     } else {
-      command.option(`--${stdinFlag.name} [path]`, OPTION_HELP.stdin(stdinFlag.name));
+      command.option(
+        `--${stdinFlag.name} [path]`,
+        stdinFlag.help ?? OPTION_HELP.stdin(stdinFlag.name),
+      );
     }
   }
   // The runner owns these and reads them from the words before Commander sees any: they are

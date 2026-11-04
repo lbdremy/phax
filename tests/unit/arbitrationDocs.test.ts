@@ -1,19 +1,17 @@
 // docs/arbitration.md shows a verdicts file and names `phax artifact decide`
 // flags. The example must decode at the format's current stamp, and every flag
-// the page names must be registered on the command (spec
+// the page names must be declared by the command, as its help on the runner lists them (spec
 // artifact-decide-verdicts §11).
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { Command } from "commander";
 import { Either } from "effect";
 import { describe, expect, it } from "vitest";
-import { registerArtifactCommand } from "../../src/cli/commands/artifact.js";
+import { makeArtifactDecideCommand } from "../../src/cli/definitions/artifactDecide.js";
 import { decodeDecideVerdictsFile } from "../../src/schemas/decideVerdicts.js";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
+import { inArtifact, runnerCall } from "../helpers/runnerCall.js";
 
 const page = readFileSync(join(import.meta.dirname, "../../docs/arbitration.md"), "utf8");
-
-const output = { log: () => {}, warn: () => {}, error: () => {} };
 
 describe("docs/arbitration.md", () => {
   it("shows a verdicts file that decodes at the current decide-verdicts stamp", () => {
@@ -28,13 +26,15 @@ describe("docs/arbitration.md", () => {
     }
   });
 
-  it("names only decide flags that are registered", () => {
-    const program = new Command();
-    registerArtifactCommand(program, output);
-    const decide = program.commands
-      .find((c) => c.name() === "artifact")
-      ?.commands.find((c) => c.name() === "decide");
-    const registered = new Set(decide?.options.map((o) => o.long));
+  it("names only decide flags that are registered", async () => {
+    const help = await runnerCall(
+      [inArtifact(makeArtifactDecideCommand())],
+      ["artifact", "decide", "--help"],
+    );
+    expect(help.code).toBe(0);
+    const registered = new Set(
+      [...help.out.matchAll(/^\s+(?:-\w, )?(--[a-z][a-z-]*)/gm)].map((m) => m[1]),
+    );
 
     const named = new Set<string>();
     for (const line of page.split("\n")) {

@@ -250,6 +250,115 @@ function optionsText(optionIds: readonly string[]): string {
 }
 
 /**
+ * Why a verdicts file cannot be bound, at the field that refuses it: the path
+ * into the file (`["verdicts", 0, "chosen"]`; `["artifact"]`), what was
+ * expected there (`an option id of q-cadence`), what is wrong with the value
+ * found, as a phrase after the field (`is not an option of q-cadence`), and
+ * bindVerdicts' whole sentence (`message`).
+ */
+export type VerdictsBindingRefusal = {
+  readonly path: ReadonlyArray<string | number>;
+  readonly expected: string;
+  readonly problem: string;
+  readonly message: string;
+};
+
+/**
+ * A verdicts file bound to the artifact's questions, or why it cannot be at
+ * the field that refuses it. The checks and their order are bindVerdicts';
+ * `message` is its sentence, and `path`, `expected` and `problem` name the
+ * field: the `artifact` key, or a verdict's `question`, `chosen` or `note` by
+ * its index in the file.
+ */
+export function bindVerdictsAt(input: {
+  readonly file: VerdictsFile;
+  readonly artifactPath: string;
+  readonly questions: readonly QuestionFacts[];
+  readonly label: string;
+}): Either.Either<BoundVerdicts, VerdictsBindingRefusal> {
+  const { file, artifactPath, questions, label } = input;
+  if (namesAnotherArtifact(file.artifact, artifactPath)) {
+    return Either.left({
+      path: ["artifact"],
+      expected: `the artifact's path, ${artifactPath}`,
+      problem: `names ${file.artifact}, not ${artifactPath}`,
+      message: `${label} is for the artifact ${file.artifact}, not ${artifactPath} — a verdicts file names the artifact it is decided for`,
+    });
+  }
+  const ids = questions.map((q) => q.id);
+  const byId = new Map(questions.map((q) => [q.id, q]));
+  for (const [index, { question }] of file.verdicts.entries()) {
+    if (!byId.has(question)) {
+      return Either.left({
+        path: ["verdicts", index, "question"],
+        expected: `a question id of the artifact: ${ids.join(", ") || "none"}`,
+        problem: `names ${question}, which is no question of the artifact`,
+        message: `${label} names ${question}, which is no question of the artifact — its questions are ${ids.join(", ") || "none"}`,
+      });
+    }
+  }
+  const seen = new Set<string>();
+  for (const [index, { question }] of file.verdicts.entries()) {
+    if (seen.has(question)) {
+      return Either.left({
+        path: ["verdicts", index, "question"],
+        expected: "a question no other verdict names",
+        problem: `names ${question} a second time`,
+        message: `${label} names ${question} twice`,
+      });
+    }
+    seen.add(question);
+  }
+  const given = new Map(file.verdicts.map((v) => [v.question, v]));
+  for (const [index, { question, chosen }] of file.verdicts.entries()) {
+    const facts = byId.get(question);
+    if (facts !== undefined && chosen !== OTHER_OPTION_ID && !facts.optionIds.includes(chosen)) {
+      return Either.left({
+        path: ["verdicts", index, "chosen"],
+        expected: `an option id of ${question}`,
+        problem: `is not an option of ${question}`,
+        message: `${label} chooses ${chosen} for ${question} — its options: ${optionsText(facts.optionIds)}`,
+      });
+    }
+  }
+  const verdicts: BoundVerdict[] = [];
+  for (const facts of questions) {
+    const verdict = given.get(facts.id);
+    if (verdict === undefined) continue;
+    const index = file.verdicts.indexOf(verdict);
+    const departs = verdict.chosen !== facts.recommendation;
+    if (departs && verdict.note === null) {
+      return Either.left({
+        path: ["verdicts", index, "note"],
+        expected: `a note: ${verdict.chosen} departs from the recommendation ${facts.recommendation}`,
+        problem: `is null, and ${verdict.chosen} departs from ${facts.id}'s recommendation ${facts.recommendation}`,
+        message: `${label} chooses ${verdict.chosen} for ${facts.id}, which departs from its recommendation ${facts.recommendation}, with no note — a departing verdict needs a note`,
+      });
+    }
+    if (verdict.note === null && facts.rationale.trim().length === 0) {
+      return Either.left({
+        path: ["verdicts", index, "note"],
+        expected: `a note: ${facts.id} has no rationale to stand as its why`,
+        problem: `is null, and ${facts.id} has no rationale to stand as its why`,
+        message: `${label} gives ${facts.id} no note, and ${facts.id} has no rationale to stand as its why — give the verdict a note, or write the question's rationale`,
+      });
+    }
+    verdicts.push({
+      question: facts.id,
+      state: facts.state,
+      chosen: verdict.chosen,
+      note: verdict.note,
+      recommendation: facts.recommendation,
+      departs,
+      why: verdict.note ?? facts.rationale,
+      restores: departs ? null : facts.departed,
+    });
+  }
+  const open = questions.filter((q) => q.state === "open" && !given.has(q.id)).map((q) => q.id);
+  return Either.right({ verdicts, open });
+}
+
+/**
  * A verdicts file bound to the artifact's questions, or why it cannot be. The
  * message carries no `Decide refused:` prefix. Checked in this order, and each
  * names:
@@ -267,63 +376,16 @@ export function bindVerdicts(input: {
   readonly questions: readonly QuestionFacts[];
   readonly label: string;
 }): Either.Either<BoundVerdicts, string> {
-  const { file, artifactPath, questions, label } = input;
-  if (namesAnotherArtifact(file.artifact, artifactPath)) {
-    return Either.left(
-      `${label} is for the artifact ${file.artifact}, not ${artifactPath} — a verdicts file names the artifact it is decided for`,
-    );
-  }
-  const byId = new Map(questions.map((q) => [q.id, q]));
-  for (const { question } of file.verdicts) {
-    if (!byId.has(question)) {
-      const ids = questions.map((q) => q.id);
-      return Either.left(
-        `${label} names ${question}, which is no question of the artifact — its questions are ${ids.join(", ") || "none"}`,
-      );
-    }
-  }
-  const seen = new Set<string>();
-  for (const { question } of file.verdicts) {
-    if (seen.has(question)) return Either.left(`${label} names ${question} twice`);
-    seen.add(question);
-  }
-  const given = new Map(file.verdicts.map((v) => [v.question, v]));
-  for (const { question, chosen } of file.verdicts) {
-    const facts = byId.get(question);
-    if (facts !== undefined && chosen !== OTHER_OPTION_ID && !facts.optionIds.includes(chosen)) {
-      return Either.left(
-        `${label} chooses ${chosen} for ${question} — its options: ${optionsText(facts.optionIds)}`,
-      );
-    }
-  }
-  const verdicts: BoundVerdict[] = [];
-  for (const facts of questions) {
-    const verdict = given.get(facts.id);
-    if (verdict === undefined) continue;
-    const departs = verdict.chosen !== facts.recommendation;
-    if (departs && verdict.note === null) {
-      return Either.left(
-        `${label} chooses ${verdict.chosen} for ${facts.id}, which departs from its recommendation ${facts.recommendation}, with no note — a departing verdict needs a note`,
-      );
-    }
-    if (verdict.note === null && facts.rationale.trim().length === 0) {
-      return Either.left(
-        `${label} gives ${facts.id} no note, and ${facts.id} has no rationale to stand as its why — give the verdict a note, or write the question's rationale`,
-      );
-    }
-    verdicts.push({
-      question: facts.id,
-      state: facts.state,
-      chosen: verdict.chosen,
-      note: verdict.note,
-      recommendation: facts.recommendation,
-      departs,
-      why: verdict.note ?? facts.rationale,
-      restores: departs ? null : facts.departed,
-    });
-  }
-  const open = questions.filter((q) => q.state === "open" && !given.has(q.id)).map((q) => q.id);
-  return Either.right({ verdicts, open });
+  return Either.mapLeft(bindVerdictsAt(input), (refused) => refused.message);
+}
+
+/** A field path into a verdicts file as a person reads it: `verdicts[0].chosen`. */
+export function verdictsFieldPath(path: ReadonlyArray<string | number>): string {
+  return path
+    .map((part, index) =>
+      typeof part === "number" ? `[${part}]` : index === 0 ? part : `.${part}`,
+    )
+    .join("");
 }
 
 /** A verdict as it landed in the document, with who set it. */

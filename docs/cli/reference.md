@@ -1270,7 +1270,7 @@ Before any session it refuses, writing nothing: a live sidecar not yet migrated 
 
 Exit codes: 0 decided and committed, a declined diff, or nothing to decide; 1 inside a phase worktree; 5 no document, not JSON, an answer not stamped with its current shape, or one refused by the schema or its checks (after the one corrective resume), or a failed agent session, with nothing written; 8 a provider rate or usage limit, with nothing written; 14 the provider unreachable (a network failure), with nothing written; 12 an artifact refusal, the artifact changed during the session (its change left in place), or a failed commit (the files left written but uncommitted).
 
-Verdicts mode: --verdicts <file|-> reads decisions a person has already made, from a file or from a pipe on stdin (-; a terminal on stdin is refused), and writes them into the artifact without a prompt. The file is JSON with a `$schema` naming the decide-verdicts format of this release (`phax artifact schema verdicts` prints it), an `artifact` key naming the artifact's repo-relative path, and a non-empty `verdicts` list of { question, chosen, note }: `chosen` is one of the question's option ids or the reserved id `other`, and `note` is the person's reason, a non-empty string or null. A note is required when the verdict departs from the recommendation, `other` included; a null note on a question with an empty rationale is refused, since nothing would stand as its why. Every key is required and unknown keys are refused. Questions the file does not name stay open; an arbitrated question it names is re-arbitrated. No terminal is needed with --by operator, which names the operator as git commits; any other --by, machine:<grant> included, is refused (a verdict always comes from the operator), and without --by a terminal is required. One headless writer session, running under the same doctrine, writes the verdicts into the revised document and revises the body where a departing verdict implies it. It runs on the model --model and --effort name, else claude-sonnet-5-5 at medium, routed to a provider like headless authoring (a model with no equivalent on the selected provider runs as the concrete model routing chose, and the report names it beside the requested one); a model routed to Mistral Vibe is refused before any session, since Vibe ignores read-only: pass --model with a Claude Code or Codex model. It resumes the kept authoring session when that session ran on the same provider in this checkout, and starts a new one otherwise, and says which. phax refuses a bad file before any session, checks the writer's answer against the file (each question's options first, then the question set, each chosen and abandoned option, the history, the revised sections, the body outside them; a following verdict revises nothing, except one restoring the recommendation after a departing verdict: it names the sections it restores when that verdict named revised sections, none when it named none, and either when it records none) and asks once more when the check fails, then sets each verdict's why (the note, else the question's rationale), by and at itself. It writes and commits without asking, leaves the artifact Draft, and prints the report to read before approving: each verdict (chosen, followed or departed with the sections revised, and why), the questions left open, the body diff, the commit and the Draft status. With --json it prints that report as one JSON object on stdout (artifact, status, session, provider, model, requestedModel, effort, verdicts, open, diff, commit, decisionId) and sends progress, warnings and record lines to stderr. The commit subject is as in interactive mode, and its body is followed by the trailers Artifact, Decided-By, Decided-Via: verdicts and Decision-Id; the decision record has mode verdicts. --question is refused with --verdicts, and --json and --by are refused without it, exit 12. The exit codes are 0 decided and committed, 1 inside a phase worktree, 5 a refused answer after the one corrective resume or a failed agent session, 8 a provider limit, 12 a refusal, 14 the provider unreachable (a network failure).
+Verdicts mode: --verdicts <file|-> reads decisions a person has already made, from a file or from a pipe on stdin (-; a terminal on stdin is refused with exit 64), and writes them into the artifact without a prompt. The file is JSON with a `$schema` naming the decide-verdicts format of this release (`phax artifact schema verdicts` prints it), an `artifact` key naming the artifact's repo-relative path, and a non-empty `verdicts` list of { question, chosen, note }: `chosen` is one of the question's option ids or the reserved id `other`, and `note` is the person's reason, a non-empty string or null. A note is required when the verdict departs from the recommendation, `other` included; a null note on a question with an empty rationale is refused, since nothing would stand as its why. Every key is required and unknown keys are refused. Questions the file does not name stay open; an arbitrated question it names is re-arbitrated. No terminal is needed with --by operator, which names the operator as git commits; any other --by, machine:<grant> included, is refused (a verdict always comes from the operator), and without --by a terminal is required. One headless writer session, running under the same doctrine, writes the verdicts into the revised document and revises the body where a departing verdict implies it. It runs on the model --model and --effort name, else claude-sonnet-5-5 at medium, routed to a provider like headless authoring (a model with no equivalent on the selected provider runs as the concrete model routing chose, and the report names it beside the requested one); a model routed to Mistral Vibe is refused before any session, since Vibe ignores read-only: pass --model with a Claude Code or Codex model. It resumes the kept authoring session when that session ran on the same provider in this checkout, and starts a new one otherwise, and says which. phax refuses a bad file before anything runs, with exit 64 and a refused line naming the file and the field: a file that cannot be read, is not a verdicts file of this release, or does not fit the artifact (another artifact's path, an unknown question or option, a question named twice, a missing note). It checks the writer's answer against the file (each question's options first, then the question set, each chosen and abandoned option, the history, the revised sections, the body outside them; a following verdict revises nothing, except one restoring the recommendation after a departing verdict: it names the sections it restores when that verdict named revised sections, none when it named none, and either when it records none) and asks once more when the check fails, then sets each verdict's why (the note, else the question's rationale), by and at itself. It writes and commits without asking, leaves the artifact Draft, and prints the report to read before approving: each verdict (chosen, followed or departed with the sections revised, and why), the questions left open, the body diff, the commit and the Draft status. With --json it prints that report as one indented JSON object on stdout (artifact, status, session, provider, model, requestedModel, effort, verdicts, open, diff, commit, decisionId, then written, the files its commit holds, and record, the decision record's outcome); progress and warnings are note lines on stderr. The commit subject is as in interactive mode, and its body is followed by the trailers Artifact, Decided-By, Decided-Via: verdicts and Decision-Id; the decision record has mode verdicts. --question is refused with --verdicts, and --by without it, exit 12; --json without --verdicts or without --by is refused with exit 64 before anything starts, since the call would wait on a person. The exit codes are 0 decided and committed, 1 inside a phase worktree, 5 a refused answer after the one corrective resume or a failed agent session, 8 a provider limit, 12 a refusal, 14 the provider unreachable (a network failure), 64 a verdicts file refused before anything runs.
 
 Side effects: in interactive mode, spawns an interactive and then a headless Claude Code session, both read-only whatever the security profile (only the Read, Grep and Glob tools, no MCP server), so the session never writes to the repository; keeps the session's prompts, transcripts, answer and diff under the state root's decide/<stamp>-<slug>/<NN>/; on an accepted diff, re-seeds a plan's extraction cache, writes the artifact and its sidecar (or the hand-authored artifact alone) and commits exactly those paths in one commit, with a `Decision-Id: <stamp>-<slug>/<NN>` trailer. Verdicts mode spawns one headless writer session, read-only like the others (which is why a writer model routed to Mistral Vibe, whose adapter ignores read-only, is refused), keeps verdicts.json (the file as given) with the prompts, answer and diff in the same folder, and writes and commits the same paths without a prompt.
 
@@ -1286,17 +1286,9 @@ Path to a spec or plan file under docs/specs/ or docs/plans/
 
 Present this question alone: an open one, or re-arbitrate one
 
-#### `--verdicts <file|->`
-
-Decide from a verdicts file, or - for stdin, without an interactive session
-
 #### `--by <arbiter>`
 
 operator: who gave the verdicts; required without a terminal (with --verdicts)
-
-#### `--json`
-
-Print the report as one JSON object (with --verdicts)
 
 #### `--doctrine <file>`
 
@@ -1309,6 +1301,14 @@ Override the decide model (interactive: a Claude Code model)
 #### `--effort <effort>`
 
 Override the decide effort
+
+#### `--verdicts <file|->`
+
+Decide from a verdicts file, or - for stdin, without an interactive session
+
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 ### Examples
 
@@ -1366,10 +1366,6 @@ Slug matching `[a-z0-9]+(-[a-z0-9]+)*`
 
 Author via a recorded agent session from a brief instead of a blank skeleton (experimental)
 
-#### `--brief <file|->`
-
-Path to a brief file, or - to read the brief from stdin
-
 #### `--model <model>`
 
 Override the authoring model (default: flag → config → catalog)
@@ -1377,6 +1373,14 @@ Override the authoring model (default: flag → config → catalog)
 #### `--effort <effort>`
 
 Override the authoring effort (low|medium|high)
+
+#### `--brief <file|->`
+
+Path to a brief file, or - to read the brief from stdin
+
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 ### Examples
 
@@ -1422,10 +1426,6 @@ More plans of the spec follow: its run leaves the spec live
 
 Author via a recorded agent session from a brief instead of a blank skeleton (experimental)
 
-#### `--brief <file|->`
-
-Path to a brief file, or - to read the brief from stdin
-
 #### `--model <model>`
 
 Override the authoring model (default: flag → config → catalog)
@@ -1433,6 +1433,14 @@ Override the authoring model (default: flag → config → catalog)
 #### `--effort <effort>`
 
 Override the authoring effort (low|medium|high)
+
+#### `--brief <file|->`
+
+Path to a brief file, or - to read the brief from stdin
+
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 ### Examples
 

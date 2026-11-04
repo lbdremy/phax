@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { runArtifactDecide } from "../../src/cli/commands/artifactDecide.js";
+import { makeArtifactDecideCommand } from "../../src/cli/definitions/artifactDecide.js";
 import { serializeSidecar } from "../../src/domain/artifact/sidecar.js";
 import { renderSpecBody } from "../../src/domain/authoring/renderSpec.js";
 import { readClaudeOutcome } from "../../src/domain/session/outcome.js";
@@ -9,6 +9,7 @@ import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
 import { makeFakeTerminal } from "../../src/infra/fakes/terminal.js";
 import type { SpecDocument } from "../../src/schemas/specDocument.js";
 import { SPEC_FRONTMATTER, useDecideRepo } from "../helpers/decideVerdictsHarness.js";
+import { inArtifact, runnerCall } from "../helpers/runnerCall.js";
 import { FILE_VALID, SPEC, SPEC_PATH } from "../unit/decide/verdictsFixtures.js";
 
 vi.mock("node:os", async (importOriginal) =>
@@ -16,7 +17,7 @@ vi.mock("node:os", async (importOriginal) =>
 );
 
 // The terminal report of a failed agent session, end to end through
-// `runArtifactDecide --verdicts`: a fake backend failing the writer with the
+// `phax artifact decide --verdicts` on the command runner: a fake backend failing the writer with the
 // failure the Claude reader gives for the DNS outage transcript (ten
 // api_retry events, then the synthetic API Error), in a temporary repository.
 
@@ -69,20 +70,6 @@ function dnsOutage(withSession: boolean): SessionFailure {
   return outcome.failure;
 }
 
-function makeOutput() {
-  const errors: string[] = [];
-  const warnings: string[] = [];
-  const logs: string[] = [];
-  return {
-    out: {
-      log: (m: string) => logs.push(m),
-      warn: (m: string) => warnings.push(m),
-      error: (m: string) => errors.push(m),
-    },
-    errors,
-  };
-}
-
 function seed(): void {
   world.writeRepoFile(
     "phax.json",
@@ -101,18 +88,23 @@ function seed(): void {
 async function decideWith(
   failure: SessionFailure,
   files: { agentErrorLog: string | null; transcript: string | null },
+  extra: ReadonlyArray<string> = [],
 ) {
   seed();
   vi.spyOn(process, "cwd").mockReturnValue(world.repoDir);
   const backend = makeFakeBackend();
   backend.impl.failRunWith(0, failure, files);
-  const o = makeOutput();
-  const code = await runArtifactDecide(SPEC_PATH, { verdicts: "verdicts.json" }, o.out, {
+  const command = makeArtifactDecideCommand({
     backendLayer: backend.layer,
     terminalLayer: makeFakeTerminal(true).layer,
     githubLayer: makeFakeGitHub().layer,
   });
-  return { code, errors: o.errors };
+  const called = await runnerCall(
+    [inArtifact(command)],
+    ["artifact", "decide", SPEC_PATH, "--verdicts", "verdicts.json", ...extra],
+    { files: { "verdicts.json": FILE_VALID } },
+  );
+  return { code: called.code, errors: called.errLines, out: called.out };
 }
 
 afterEach(() => {
@@ -161,5 +153,32 @@ describe("a failed session's terminal report", { timeout: 30_000 }, () => {
       `✗ claude-code session failed (provider-error): ${API_ERROR}`,
       `  session: ${SESSION}`,
     ]);
+  });
+
+  it("under --json, the failure is one error line with today's sentence and an empty written", async () => {
+    const failure = dnsOutage(true);
+
+    const { code, errors, out } = await decideWith(
+      failure,
+      {
+        agentErrorLog: "/runs/r/decide/01/agent-error.log",
+        transcript: "/runs/r/decide/01/output.jsonl",
+      },
+      ["--by", "operator", "--json"],
+    );
+
+    expect(code).toBe(14);
+    expect(out).toBe("");
+    const lines = errors.map((line) => JSON.parse(line) as Record<string, unknown>);
+    const errorLines = lines.filter((line) => line["kind"] === "error");
+    expect(errorLines).toHaveLength(1);
+    expect(errorLines[0]).toMatchObject({
+      kind: "error",
+      error: "ProviderUnreachableError",
+      exit: 14,
+      fields: { message: `✗ claude-code session failed (network): ${API_ERROR}` },
+      written: [],
+    });
+    expect(lines.every((line) => line["kind"] === "error" || line["kind"] === "note")).toBe(true);
   });
 });

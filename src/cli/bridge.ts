@@ -21,6 +21,7 @@ import {
   messages,
   OPTION_HELP,
   Refused,
+  stdinFlagHelp,
   usageSpec,
   type Command as RunnerCommand,
   type ErrorText,
@@ -87,8 +88,9 @@ function leadingWords(
 /** The runner's groups that Commander still holds in part: the group itself, its help, its
  *  refusal when called alone and its unmigrated commands stay Commander's, and only the runner
  *  commands named under it go to the runner. Every other runner group is held whole by the
- *  runner. Plan 3 of command-contracts empties the list. */
-export const PARTIAL_GROUPS: ReadonlyArray<string> = ["artifact"];
+ *  runner. Plan 3 of command-contracts emptied the list; it stays, empty, until plan 4 removes
+ *  the bridge. */
+export const PARTIAL_GROUPS: ReadonlyArray<string> = [];
 
 /** The program's top-level groups the runner holds whole: each outermost group of its commands
  *  that PARTIAL_GROUPS does not name, in the order first declared. */
@@ -345,12 +347,15 @@ function mountStub(parent: Command, command: RunnerCommand<unknown>): void {
       flag.alias === undefined ? `--${flag.option}` : `-${flag.alias}, --${flag.option}`;
     stub.option(flag.switch ? names : `${names} <${flag.valueName}>`, flag.help ?? "");
   }
-  const stdinFlag = inputs.stdin?.flag;
-  if (stdinFlag !== undefined) {
-    if (inputs.stdin?.valueRequired === true) {
-      stub.option(`--${stdinFlag} <file|->`, OPTION_HELP.stdinValue(stdinFlag));
+  const stdin = inputs.stdin;
+  const stdinFlag = stdin?.flag;
+  if (stdin !== undefined && stdinFlag !== undefined) {
+    // The flag's help is the contract's description when it carries one.
+    const help = stdinFlagHelp(stdin.contract);
+    if (stdin.valueRequired === true) {
+      stub.option(`--${stdinFlag} <file|->`, help ?? OPTION_HELP.stdinValue(stdinFlag));
     } else {
-      stub.option(`--${stdinFlag} [path]`, OPTION_HELP.stdin(stdinFlag));
+      stub.option(`--${stdinFlag} [path]`, help ?? OPTION_HELP.stdin(stdinFlag));
     }
   }
   stub.option(JSON_OPTION, OPTION_HELP.json).option(JSON_SCHEMA_OPTION, OPTION_HELP.jsonSchema);

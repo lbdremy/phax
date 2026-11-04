@@ -89,10 +89,12 @@ import {
 } from "./writeDecisionRecord.js";
 import { decisionFailureOf } from "./decideFailure.js";
 
-/** Where the verdicts file is read from: a repo-relative or absolute path, or stdin. */
+/** Where the verdicts file is read from: a repo-relative or absolute path, stdin, or the text the
+ *  caller already read (the command runner reads `--verdicts` itself), kept as read. */
 export type VerdictsSource =
   | { readonly kind: "file"; readonly path: string }
-  | { readonly kind: "stdin" };
+  | { readonly kind: "stdin" }
+  | { readonly kind: "read"; readonly text: string };
 
 export interface DecideVerdictsInput {
   /** Repo-relative POSIX path of the spec or plan. */
@@ -461,22 +463,24 @@ export function decideVerdicts(
       );
     }
     const text =
-      source.kind === "stdin"
-        ? yield* terminal.readStdin.pipe(
-            Effect.mapError((e) =>
-              refused(
-                "verdicts-file",
-                `cannot read the verdicts from stdin: ${e.message} — pipe the file again or pass its path`,
-              ),
-            ),
-          )
-        : yield* fs
-            .readText(source.path)
-            .pipe(
+      source.kind === "read"
+        ? source.text
+        : source.kind === "stdin"
+          ? yield* terminal.readStdin.pipe(
               Effect.mapError((e) =>
-                refused("verdicts-file", `cannot read ${source.path}: ${e.message}`),
+                refused(
+                  "verdicts-file",
+                  `cannot read the verdicts from stdin: ${e.message} — pipe the file again or pass its path`,
+                ),
               ),
-            );
+            )
+          : yield* fs
+              .readText(source.path)
+              .pipe(
+                Effect.mapError((e) =>
+                  refused("verdicts-file", `cannot read ${source.path}: ${e.message}`),
+                ),
+              );
     const file = parseVerdictsFile(text);
     if (Either.isLeft(file)) {
       const { path: at, message } = file.left;

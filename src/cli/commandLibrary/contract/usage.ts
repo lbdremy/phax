@@ -1,7 +1,7 @@
 import type * as Schema from "effect/Schema";
 import { stdinFlagUsage } from "./catalogue.js";
 import type { Command, Grouping, Inputs, Program, Source } from "./command.js";
-import { argShapes, flagShapes, type FlagShape } from "./shapes.js";
+import { argShapes, flagShapes, stdinFlagHelp, type FlagShape } from "./shapes.js";
 
 /** What the runner says of the options it owns, once: Commander's help and the usage spec both
  *  read it, so the two never differ. */
@@ -95,7 +95,8 @@ function stdinNode(stdin: Source<Schema.Schema.Any>, depth: number): ReadonlyArr
   const usage =
     stdin.valueRequired === true ? (stdinFlagUsage(stdin) ?? `--${flag}`) : `--${flag} [path]`;
   const help =
-    stdin.valueRequired === true ? OPTION_HELP.stdinValue(flag) : OPTION_HELP.stdin(flag);
+    stdinFlagHelp(stdin.contract) ??
+    (stdin.valueRequired === true ? OPTION_HELP.stdinValue(flag) : OPTION_HELP.stdin(flag));
   return node(
     depth,
     `flag ${usageOf(usage)}${property("help", help)}${stdin.required === true ? " required=#true" : ""}`,

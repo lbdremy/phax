@@ -3,9 +3,11 @@ import { describe, expect, it } from "vitest";
 import { parseHandAuthoredQuestions } from "../../../src/domain/artifact/questions.js";
 import {
   bindVerdicts,
+  bindVerdictsAt,
   parseVerdictsFile,
   questionFactsOfDocument,
   questionFactsOfHand,
+  verdictsFieldPath,
   type GivenVerdict,
   type VerdictsFile,
 } from "../../../src/domain/decide/verdicts.js";
@@ -434,5 +436,101 @@ describe("bindVerdicts: a null note needs a rationale to stand as its why", () =
       label: "verdicts.json",
     });
     expect(rightOf(bound).verdicts.map((v) => v.why)).toEqual(["A week of runs is enough."]);
+  });
+});
+
+describe("bindVerdictsAt: each refusal at its field, with bindVerdicts' message", () => {
+  const emptyRationale = (() => {
+    const parsed = parseHandAuthoredQuestions("spec", HAND_EMPTY_RATIONALE_MD);
+    if (parsed.kind !== "parsed") throw new Error("the fixture does not parse");
+    return questionFactsOfHand(parsed);
+  })();
+
+  const cases: ReadonlyArray<
+    readonly [
+      string,
+      VerdictsFile,
+      Parameters<typeof bindVerdicts>[0]["questions"],
+      ReadonlyArray<string | number>,
+      string,
+    ]
+  > = [
+    [
+      "another artifact's path",
+      {
+        artifact: OTHER_SPEC_PATH,
+        verdicts: [{ question: "q-keep", chosen: "keep-10", note: null }],
+      },
+      SPEC_FACTS,
+      ["artifact"],
+      `the artifact's path, ${SPEC_PATH}`,
+    ],
+    [
+      "an unknown question",
+      file(
+        { question: "q-keep", chosen: "keep-10", note: null },
+        { question: "q-nine", chosen: "keep-10", note: null },
+      ),
+      SPEC_FACTS,
+      ["verdicts", 1, "question"],
+      "a question id of the artifact: q-keep, q-scope, q-names",
+    ],
+    [
+      "a question named twice",
+      file(
+        { question: "q-keep", chosen: "keep-10", note: null },
+        { question: "q-keep", chosen: "keep-20", note: "A fortnight." },
+      ),
+      SPEC_FACTS,
+      ["verdicts", 1, "question"],
+      "a question no other verdict names",
+    ],
+    [
+      "a chosen id the question does not list",
+      file({ question: "q-keep", chosen: "keep-30", note: null }),
+      SPEC_FACTS,
+      ["verdicts", 0, "chosen"],
+      "an option id of q-keep",
+    ],
+    [
+      "a departing verdict with a null note",
+      file(
+        { question: "q-scope", chosen: "per-run", note: null },
+        { question: "q-keep", chosen: "keep-20", note: null },
+      ),
+      SPEC_FACTS,
+      ["verdicts", 1, "note"],
+      "a note: keep-20 departs from the recommendation keep-10",
+    ],
+    [
+      "a null note on a question with no rationale",
+      { artifact: SPEC_PATH, verdicts: [{ question: "Q1", chosen: "keep-10", note: null }] },
+      emptyRationale,
+      ["verdicts", 0, "note"],
+      "a note: Q1 has no rationale to stand as its why",
+    ],
+  ];
+
+  it.each(cases)("names %s", (_name, given, questions, path, expected) => {
+    const input = { file: given, artifactPath: SPEC_PATH, questions, label: "verdicts.json" };
+    const refusal = leftOf(bindVerdictsAt(input));
+    expect(refusal.path).toEqual(path);
+    expect(refusal.expected).toBe(expected);
+    expect(refusal.message).toBe(leftOf(bindVerdicts(input)));
+  });
+
+  it("binds what bindVerdicts binds", () => {
+    const input = {
+      file: fileOf(FILE_VALID),
+      artifactPath: SPEC_PATH,
+      questions: SPEC_FACTS,
+      label: "verdicts.json",
+    };
+    expect(rightOf(bindVerdictsAt(input))).toEqual(rightOf(bindVerdicts(input)));
+  });
+
+  it("writes a field's path as a person reads it", () => {
+    expect(verdictsFieldPath(["verdicts", 0, "chosen"])).toBe("verdicts[0].chosen");
+    expect(verdictsFieldPath(["artifact"])).toBe("artifact");
   });
 });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildProgram } from "../../src/cli/program.js";
 import { isHiddenCommand } from "../../src/cli/introspect.js";
+import { ARCHIVE_RETIRED, artifactGroup } from "../../src/cli/definitions/artifact.js";
 
 const TOP_LEVEL_COMMANDS = [
   "validate",
@@ -176,7 +177,7 @@ describe("buildProgram", () => {
     expect(subs).toContain("overlap");
   });
 
-  it("artifact's visible subcommands are exactly status, approve, stale, abandon, complete, reopen, decide, new, schema, migrate-approvals, migrate-documents; archive is registered but hidden", () => {
+  it("artifact's visible subcommands are exactly status, approve, stale, abandon, complete, reopen, decide, new, schema, migrate-approvals, migrate-documents; archive is a retired word of the runner's group", () => {
     const program = buildProgram();
     const artifactCmd = program.commands.find((c) => c.name() === "artifact");
     expect(artifactCmd).toBeDefined();
@@ -197,9 +198,10 @@ describe("buildProgram", () => {
       "migrate-documents",
     ]);
 
-    const archiveCmd = subs.find((c) => c.name() === "archive");
-    expect(archiveCmd).toBeDefined();
-    expect(isHiddenCommand(archiveCmd!)).toBe(true);
+    // The runner holds `artifact` whole: `archive` is no Commander command, hidden or not, but a
+    // retired word of the runner's group, refused with the sentence naming `complete`.
+    expect(subs.find((c) => c.name() === "archive")).toBeUndefined();
+    expect(artifactGroup.retired?.["archive"]).toBe(ARCHIVE_RETIRED);
 
     const newCmd = subs.find((c) => c.name() === "new");
     const newSubNames = newCmd!.commands.map((c) => c.name());

@@ -1,42 +1,55 @@
 import { describe, expect, it } from "vitest";
 import type { DecideVerdictsResult } from "../../../src/app/decideVerdicts.js";
 import {
+  makeArtifactDecideCommand,
   renderVerdictsReport,
-  runArtifactDecide,
   verdictsReportJson,
-} from "../../../src/cli/commands/artifactDecide.js";
+} from "../../../src/cli/definitions/artifactDecide.js";
+import { inArtifact, runnerCall } from "../../helpers/runnerCall.js";
+import { FILE_VALID } from "../decide/verdictsFixtures.js";
 
-// Flag rules and report rendering of `phax artifact decide --verdicts`. The
-// use case has its own suites; every artifact, id and hash here is made up.
+// Flag rules and report rendering of `phax artifact decide --verdicts`, the flag rules through
+// the command runner over a memory Io. The use case has its own suites; every artifact, id and
+// hash here is made up.
 
-function makeOutput() {
-  const lines: string[] = [];
-  const errors: string[] = [];
-  const out = {
-    log: (m: string) => lines.push(m),
-    warn: (m: string) => lines.push(`WARN: ${m}`),
-    error: (m: string) => errors.push(m),
-  };
-  return { out, lines, errors };
-}
+const SPEC = "docs/specs/2610250900-log-rotation.md";
 
-describe("runArtifactDecide — flag rules", () => {
+const decide = (argv: ReadonlyArray<string>) =>
+  runnerCall([inArtifact(makeArtifactDecideCommand())], ["artifact", "decide", SPEC, ...argv], {
+    files: { "v.json": FILE_VALID },
+  });
+
+describe("phax artifact decide — flag rules", () => {
   it.each([
     [
       "--verdicts with --question",
-      { verdicts: "v.json", question: "q-keep" },
+      ["--verdicts", "v.json", "--question", "q-keep"],
       "--question and --verdicts are exclusive — the verdicts file names the questions",
     ],
-    ["--json without --verdicts", { json: true }, "--json needs --verdicts"],
-    ["--by without --verdicts", { by: "operator" }, "--by needs --verdicts"],
-  ])("%s exits 12 naming the flags, before anything is loaded", async (_name, opts, message) => {
-    const { out, lines, errors } = makeOutput();
+    ["--by without --verdicts", ["--by", "operator"], "--by needs --verdicts"],
+  ])("%s exits 12 naming the flags, before anything is loaded", async (_name, argv, message) => {
+    const called = await decide(argv);
 
-    const code = await runArtifactDecide("docs/specs/2610250900-log-rotation.md", opts, out);
+    expect(called.code).toBe(12);
+    expect(called.errLines).toEqual([`✗ ${message}`]);
+    expect(called.outLines).toEqual([]);
+  });
 
-    expect(code).toBe(12);
-    expect(errors).toEqual([`✗ ${message}`]);
-    expect(lines).toEqual([]);
+  // Changed by §5.20: --json without --verdicts would open an interactive session, so the runner
+  // refuses it as a prompting call with 64 and one refused line, where decide answered 12 with
+  // `✗ --json needs --verdicts`.
+  it("--json without --verdicts is refused with 64 before anything runs, naming --json", async () => {
+    const called = await decide(["--json"]);
+
+    expect(called.code).toBe(64);
+    expect(called.outLines).toEqual([]);
+    expect(called.errLines).toHaveLength(1);
+    expect(JSON.parse(called.errLines[0]!)).toMatchObject({
+      kind: "refused",
+      source: "flags",
+      path: ["json"],
+      exit: 64,
+    });
   });
 });
 
@@ -117,7 +130,7 @@ describe("renderVerdictsReport", () => {
 
 describe("verdictsReportJson", () => {
   it("holds exactly the report keys, with no $schema", () => {
-    const report = verdictsReportJson(RESULT) as Record<string, unknown>;
+    const report = verdictsReportJson(RESULT) as unknown as Record<string, unknown>;
 
     expect(Object.keys(report)).toEqual([
       "artifact",

@@ -59,7 +59,7 @@ const libraryTypes = [
 ];
 
 /** The names the port's gains add. */
-const gainValues = ["AliasAnnotationId", "CompleterAnnotationId", "Refused"];
+const gainValues = ["AliasAnnotationId", "CompleterAnnotationId", "Refused", "stdinFlagHelp"];
 const gainTypes = ["Completer", "ErrorText", "ProgramUsage", "RunContext", "StdinDocument"];
 
 const withoutComments = (source: string): string =>

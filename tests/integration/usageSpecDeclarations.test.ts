@@ -43,6 +43,9 @@ const MIGRATED_COMMANDS: ReadonlyArray<string> = [
   "artifact abandon",
   "artifact complete",
   "artifact reopen",
+  "artifact decide",
+  "artifact new spec",
+  "artifact new plan",
   "artifact schema",
   "artifact migrate-approvals",
   "artifact migrate-documents",
@@ -67,6 +70,7 @@ const CHOICES_DECLARED: ReadonlyArray<string> = ["artifact schema"];
  *  reworded, its help now the library's. */
 const REWORDED_JSON: ReadonlyArray<string> = [
   "ls",
+  "artifact decide",
   "plans status",
   "plans overlap",
   "plans lint",
@@ -75,8 +79,10 @@ const REWORDED_JSON: ReadonlyArray<string> = [
 ];
 
 /** The migrated commands whose long help now describes their versioned answer: `plans
- *  overview`'s document is a plan-overview with its $schema, and `ls`'s rows carry pullRequest. */
-const REWORDED_LONG_HELP: ReadonlyArray<string> = ["ls", "plans overview"];
+ *  overview`'s document is a plan-overview with its $schema, and `ls`'s rows carry pullRequest;
+ *  `artifact decide`'s verdicts paragraph says a bad verdicts file is refused with 64 and its
+ *  `--json` object is indented and carries `written` and `record`. */
+const REWORDED_LONG_HELP: ReadonlyArray<string> = ["ls", "artifact decide", "plans overview"];
 
 /** The groups the runner holds whole, nested ones by their full path: every group of phaxProgram
  *  whose outermost group the bridge does not hold in part. Each block is the runner's, whose

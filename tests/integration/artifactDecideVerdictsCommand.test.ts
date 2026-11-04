@@ -1,5 +1,7 @@
+import { readdirSync, readFileSync } from "node:fs";
+import { basename, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { runArtifactDecide } from "../../src/cli/commands/artifactDecide.js";
+import { makeArtifactDecideCommand } from "../../src/cli/definitions/artifactDecide.js";
 import { serializeSidecar } from "../../src/domain/artifact/sidecar.js";
 import { renderSpecBody } from "../../src/domain/authoring/renderSpec.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
@@ -13,34 +15,20 @@ import {
   WRITER_SESSION,
   useDecideRepo,
 } from "../helpers/decideVerdictsHarness.js";
+import { inArtifact, runnerCall, type RunnerCallOptions } from "../helpers/runnerCall.js";
 import { ANSWER_FOLLOW, FILE_VALID, SPEC, SPEC_PATH } from "../unit/decide/verdictsFixtures.js";
 
 vi.mock("node:os", async (importOriginal) =>
   (await import("../helpers/isolatePhaxHome.js")).isolatedOs(await importOriginal()),
 );
 
-// `runArtifactDecide --verdicts` end to end in a temp repo: real git and
-// filesystem, a fake writer backend, a fake terminal that holds stdin. Every
-// spec, verdicts file and operator is made up.
+// `phax artifact decide --verdicts` end to end in a temp repo, through the command runner over a
+// memory Io: real git and filesystem, a fake writer backend, a fake terminal. The runner reads
+// the verdicts document (the memory Io holds the file and the pipe). Every spec, verdicts file
+// and operator is made up.
 
 const SPEC_JSON = SPEC_PATH.replace(/\.md$/, ".json");
 const world = useDecideRepo();
-
-function makeOutput() {
-  const logs: string[] = [];
-  const warnings: string[] = [];
-  const errors: string[] = [];
-  return {
-    out: {
-      log: (m: string) => logs.push(m),
-      warn: (m: string) => warnings.push(m),
-      error: (m: string) => errors.push(m),
-    },
-    logs,
-    warnings,
-    errors,
-  };
-}
 
 /** Seeds phax.json, the spec (with sidecar) and a verdicts file, then commits them. */
 function seed(verdictsText: string): void {
@@ -58,7 +46,7 @@ function seed(verdictsText: string): void {
   world.commitAll();
 }
 
-function deps(opts: { stdin?: string; answers?: readonly string[]; terminal?: boolean }) {
+function deps(opts: { answers?: readonly string[]; terminal?: boolean }) {
   const backend = makeFakeBackend();
   for (const finalText of opts.answers ?? []) {
     backend.impl.addRunResponse({
@@ -71,40 +59,54 @@ function deps(opts: { stdin?: string; answers?: readonly string[]; terminal?: bo
     backend: backend.impl,
     deps: {
       backendLayer: backend.layer,
-      terminalLayer: makeFakeTerminal(opts.terminal ?? true, opts.stdin).layer,
+      terminalLayer: makeFakeTerminal(opts.terminal ?? true).layer,
       githubLayer: makeFakeGitHub().layer,
     },
   };
+}
+
+/** `phax artifact decide <SPEC_PATH> …rest`, the verdicts file as the repo holds it. */
+function decide(
+  d: ReturnType<typeof deps>["deps"],
+  rest: ReadonlyArray<string>,
+  verdictsText: string,
+  options: RunnerCallOptions = {},
+) {
+  return runnerCall(
+    [inArtifact(makeArtifactDecideCommand(d))],
+    ["artifact", "decide", SPEC_PATH, ...rest],
+    { files: { "verdicts.json": verdictsText }, ...options },
+  );
 }
 
 afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("runArtifactDecide --verdicts", { timeout: 30_000 }, () => {
-  it("--verdicts - --by operator --json: stdout is one JSON object with every report key, progress on stderr", async () => {
+describe("phax artifact decide --verdicts", { timeout: 30_000 }, () => {
+  // Changed by §5.2: the report is one indented value (it was one compact line) and gains
+  // `written` and `record` after its twelve keys; progress lines are note lines on stderr.
+  it("--verdicts - --by operator --json: stdout is one indented JSON value with every report key, progress on stderr", async () => {
     seed("not read");
     vi.spyOn(process, "cwd").mockReturnValue(world.repoDir);
     const { backend, deps: d } = deps({
-      stdin: FILE_VALID,
       answers: [JSON.stringify(ANSWER_FOLLOW)],
       terminal: false,
     });
-    const o = makeOutput();
 
-    const code = await runArtifactDecide(
-      SPEC_PATH,
-      { verdicts: "-", by: "operator", json: true },
-      o.out,
-      d,
-    );
+    const called = await decide(d, ["--verdicts", "-", "--by", "operator", "--json"], "not read", {
+      stdin: FILE_VALID,
+    });
 
-    expect(o.errors).toEqual([]);
-    expect(code).toBe(0);
+    const notNotes = called.errLines
+      .map((line) => JSON.parse(line) as { kind: string })
+      .filter((line) => line.kind !== "note");
+    expect(notNotes).toEqual([]);
+    expect(called.code).toBe(0);
     expect(backend.runCalls).toHaveLength(1);
-    // stdout: exactly one line, one JSON object.
-    expect(o.logs).toHaveLength(1);
-    const report = JSON.parse(o.logs[0]!) as Record<string, unknown>;
+    // stdout: one JSON value, written two-space indented with one trailing newline.
+    const report = JSON.parse(called.out) as Record<string, unknown>;
+    expect(called.out).toBe(`${JSON.stringify(report, null, 2)}\n`);
     expect(Object.keys(report)).toEqual([
       "artifact",
       "status",
@@ -118,6 +120,8 @@ describe("runArtifactDecide --verdicts", { timeout: 30_000 }, () => {
       "diff",
       "commit",
       "decisionId",
+      "written",
+      "record",
     ]);
     expect(report).toMatchObject({
       artifact: SPEC_PATH,
@@ -132,7 +136,7 @@ describe("runArtifactDecide --verdicts", { timeout: 30_000 }, () => {
     expect(verdicts.map((v) => v.question)).toEqual(["q-keep", "q-scope"]);
     expect(verdicts[0]!.by).toEqual({ kind: "operator", name: OPERATOR });
     // stderr: the use case's progress, labelled `stdin`.
-    expect(o.warnings.join("\n")).toContain("verdicts from stdin: q-keep, q-scope");
+    expect(called.err).toContain("verdicts from stdin: q-keep, q-scope");
     expect(world.headFiles()).toEqual([SPEC_PATH, SPEC_JSON].toSorted());
   });
 
@@ -140,18 +144,12 @@ describe("runArtifactDecide --verdicts", { timeout: 30_000 }, () => {
     seed(FILE_VALID);
     vi.spyOn(process, "cwd").mockReturnValue(world.repoDir);
     const { deps: d } = deps({ answers: [JSON.stringify(ANSWER_FOLLOW)] });
-    const o = makeOutput();
 
-    const code = await runArtifactDecide(
-      SPEC_PATH,
-      { verdicts: "verdicts.json", by: "operator" },
-      o.out,
-      d,
-    );
+    const called = await decide(d, ["--verdicts", "verdicts.json", "--by", "operator"], FILE_VALID);
 
-    expect(o.errors).toEqual([]);
-    expect(code).toBe(0);
-    const text = o.logs.join("\n");
+    expect(called.err).toBe("");
+    expect(called.code).toBe(0);
+    const text = called.out;
     expect(text).toContain("verdicts from verdicts.json: q-keep, q-scope");
     expect(text).toContain("q-keep");
     expect(text).toContain("(recommended)");
@@ -163,42 +161,72 @@ describe("runArtifactDecide --verdicts", { timeout: 30_000 }, () => {
     );
   });
 
-  it("a refused file exits 12 with an empty stdout and no session, even with --json", async () => {
+  // Changed by §5.16: a verdicts file that does not decode is refused by the runner before run,
+  // with 64 and one refused line naming the file, where decide answered 12 with its sentence.
+  it("a refused file exits 64 with an empty stdout and no session, one refused line under --json", async () => {
     seed("{ not json");
     vi.spyOn(process, "cwd").mockReturnValue(world.repoDir);
     const { backend, deps: d } = deps({});
-    const o = makeOutput();
 
-    const code = await runArtifactDecide(
-      SPEC_PATH,
-      { verdicts: "verdicts.json", by: "operator", json: true },
-      o.out,
+    const called = await decide(
       d,
+      ["--verdicts", "verdicts.json", "--by", "operator", "--json"],
+      "{ not json",
     );
 
-    expect(code).toBe(12);
-    expect(o.logs).toEqual([]);
-    expect(o.errors).toHaveLength(1);
-    expect(o.errors[0]).toContain("verdicts.json");
+    expect(called.code).toBe(64);
+    expect(called.out).toBe("");
+    expect(called.errLines).toHaveLength(1);
+    const refused = JSON.parse(called.errLines[0]!) as { kind: string; text: string };
+    expect(refused.kind).toBe("refused");
+    expect(refused.text).toContain("verdicts.json");
     expect(backend.runCalls).toEqual([]);
     expect(world.porcelain()).toBe("");
+  });
+
+  it("keeps verdicts.json in the decision folder as the runner read it, byte for byte", async () => {
+    seed("not read");
+    // The state root beside the repository, so that the decision folder can be read back.
+    world.writeRepoFile(
+      "phax.json",
+      JSON.stringify({
+        version: 1,
+        name: "made-up",
+        gateProfiles: { fast: [{ command: "true", surface: "local", firing: "every-phase" }] },
+        state: { root: world.stateRoot },
+      }),
+    );
+    world.commitAll("state root");
+    vi.spyOn(process, "cwd").mockReturnValue(world.repoDir);
+    const { deps: d } = deps({ answers: [JSON.stringify(ANSWER_FOLLOW)], terminal: false });
+    // The piped bytes, laid out unlike any serializer would: kept as they came.
+    const piped = `\n  ${FILE_VALID.trim().replaceAll("\n", "\n\t")}  \n\n`;
+
+    const called = await decide(d, ["--verdicts", "-", "--by", "operator"], "not read", {
+      stdin: piped,
+    });
+
+    expect(called.code).toBe(0);
+    const kept = readdirSync(world.stateRoot, { recursive: true, encoding: "utf8" }).filter(
+      (path) => basename(path) === "verdicts.json",
+    );
+    expect(kept).toHaveLength(1);
+    expect(readFileSync(join(world.stateRoot, kept[0]!), "utf8")).toBe(piped);
   });
 
   it("--by machine:<grant> is refused before any session", async () => {
     seed(FILE_VALID);
     vi.spyOn(process, "cwd").mockReturnValue(world.repoDir);
     const { backend, deps: d } = deps({});
-    const o = makeOutput();
 
-    const code = await runArtifactDecide(
-      SPEC_PATH,
-      { verdicts: "verdicts.json", by: "machine:roadmap-loop" },
-      o.out,
+    const called = await decide(
       d,
+      ["--verdicts", "verdicts.json", "--by", "machine:roadmap-loop"],
+      FILE_VALID,
     );
 
-    expect(code).toBe(12);
-    expect(o.logs).toEqual([]);
+    expect(called.code).toBe(12);
+    expect(called.out).toBe("");
     expect(backend.runCalls).toEqual([]);
   });
 });

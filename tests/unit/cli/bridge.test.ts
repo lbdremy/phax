@@ -158,18 +158,24 @@ describe("route", () => {
     });
   });
 
+  it.each([[[]], [["unlock", "ls"]], [["--version"]], [["--help"]]] as const)(
+    "sends %j to Commander",
+    (argv) => {
+      expect(route(program, argv)).toEqual({ to: "commander" });
+    },
+  );
+
+  // PARTIAL_GROUPS is empty: `artifact`, once held in part, is a whole group like `records`, its
+  // help and its refusal of a word it does not hold included. (Before plan 3 of
+  // command-contracts each of these went to Commander.)
   it.each([
-    [[]],
     [["artifact"]],
     [["artifact", "status"]],
     [["artifact", "--", "lint"]],
-    [["unlock", "ls"]],
-    [["--version"]],
-    [["--help"]],
     [["artifact", "--help"]],
     [["artifact", "nope"]],
-  ] as const)("sends %j to Commander", (argv) => {
-    expect(route(program, argv)).toEqual({ to: "commander" });
+  ] as const)("sends %j, a call of the once partial artifact group, to the runner", (argv) => {
+    expect(route(program, argv)).toEqual({ to: "runner", command: undefined, group: "artifact" });
   });
 
   // `records` is no group of PARTIAL_GROUPS: the runner holds it whole, its help and its
@@ -185,14 +191,15 @@ describe("route", () => {
     expect(route(program, argv)).toEqual({ to: "runner", command: undefined, group: "records" });
   });
 
-  it("holds artifact in part, and plans whole in phaxProgram", () => {
-    expect(PARTIAL_GROUPS).toEqual(["artifact"]);
-    expect(wholeGroups(program)).toEqual(["records"]);
+  it("holds no group in part: artifact and plans are whole in phaxProgram", () => {
+    expect(PARTIAL_GROUPS).toEqual([]);
+    expect(wholeGroups(program)).toEqual(["artifact", "records"]);
     expect(wholeGroups(phaxProgram)).toEqual([
       "cost",
       "security",
       "skills",
       "schema",
+      "artifact",
       "plans",
       "records",
     ]);
@@ -201,7 +208,11 @@ describe("route", () => {
       command: undefined,
       group: "plans",
     });
-    expect(route(phaxProgram, ["artifact", "--help"])).toEqual({ to: "commander" });
+    expect(route(phaxProgram, ["artifact", "--help"])).toEqual({
+      to: "runner",
+      command: undefined,
+      group: "artifact",
+    });
   });
 
   it("sends phaxProgram's four commands to the runner and the others to Commander", () => {
@@ -222,7 +233,15 @@ describe("route", () => {
       to: "runner",
       command: ["artifact", "approve"],
     });
-    expect(route(phaxProgram, ["artifact", "decide", "x"])).toEqual({ to: "commander" });
+    expect(route(phaxProgram, ["artifact", "decide", "x"])).toEqual({
+      to: "runner",
+      command: ["artifact", "decide"],
+    });
+    expect(route(phaxProgram, ["artifact", "new", "spec", "x"])).toEqual({
+      to: "runner",
+      command: ["artifact", "new", "spec"],
+    });
+    expect(route(phaxProgram, ["unlock", "x"])).toEqual({ to: "commander" });
   });
 
   // Commander reads past these to the command word, and would call the help-only stub's action.
@@ -355,10 +374,10 @@ describe("help on a runner command", () => {
     expect(call.runRunner).toHaveBeenCalledWith(["records", "sub", "show", "help"]);
   });
 
-  it("leaves `help` on a partial group to Commander", async () => {
+  it("answers `help artifact`, a group no longer held in part, with the runner's --help", async () => {
     const call = edge(["help", "artifact"]);
     await dispatch(program, call.edge);
-    expect(call.runRunner).not.toHaveBeenCalled();
+    expect(call.runRunner).toHaveBeenCalledWith(["artifact", "--help"]);
   });
 
   it("leaves `help` on an unmigrated command to Commander", async () => {
@@ -439,7 +458,6 @@ describe("Commander's path", () => {
 describe("the help-only stubs", () => {
   it("mounts each runner command at its group, with its shapes, --json and --json-schema", () => {
     const root = new Command("phax");
-    root.command("artifact").description("Artifact").command("status");
     mountRunnerStubs(root, program);
     const ls = root.commands.find((each) => each.name() === "ls");
     expect(ls && isRunnerStub(ls)).toBe(true);
@@ -452,9 +470,11 @@ describe("the help-only stubs", () => {
       "--json",
       "--json-schema",
     ]);
-    const plans = root.commands.find((each) => each.name() === "artifact");
-    expect(plans?.commands.map((each) => [each.name(), isRunnerStub(each)])).toEqual([
-      ["status", false],
+    // `artifact`, no longer held in part, is a help-only group stub (before plan 3 of
+    // command-contracts, a Commander group the runner's commands were mounted into).
+    const artifact = root.commands.find((each) => each.name() === "artifact");
+    expect(artifact && isRunnerStub(artifact)).toBe(true);
+    expect(artifact?.commands.map((each) => [each.name(), isRunnerStub(each)])).toEqual([
       ["lint", true],
     ]);
     // `records`, held whole, is a help-only group stub (before whole groups, a plain group).
@@ -516,10 +536,11 @@ describe("the help-only stubs", () => {
 
   it("mounts phaxProgram's commands in their groups, keeping a stub already mounted", () => {
     const root = new Command("phax");
-    const plans = root.command("artifact");
-    mountRunnerStub(plans, phaxProgram, ["artifact", "status"]);
+    mountRunnerGroupStub(root, phaxProgram, ["artifact"]);
+    const plans = root.commands[0] as Command;
     mountRunnerStubs(root, phaxProgram);
-    // `plans`, held whole, is mounted once as a group stub after the stubs of the others.
+    // `plans`, held whole, is mounted once as a group stub after the stubs of the others;
+    // `artifact`, mounted first, is kept.
     expect(root.commands.map((each) => each.name())).toEqual([
       "artifact",
       "validate",
@@ -544,6 +565,8 @@ describe("the help-only stubs", () => {
       "abandon",
       "complete",
       "reopen",
+      "decide",
+      "new",
       "schema",
       "migrate-approvals",
       "migrate-documents",
@@ -757,6 +780,9 @@ describe("runnerUsage", () => {
       "artifact abandon",
       "artifact complete",
       "artifact reopen",
+      "artifact decide",
+      "artifact new spec",
+      "artifact new plan",
       "artifact schema",
       "artifact migrate-approvals",
       "artifact migrate-documents",

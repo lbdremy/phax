@@ -67,7 +67,6 @@ export const PHASE_GUARD_CLASSIFICATION: Readonly<Record<string, PhaseGuardClass
   "artifact new plan": "refused",
   "artifact migrate-approvals": "refused",
   "artifact migrate-documents": "refused",
-  "artifact archive": "refused",
   "plans overlap": "refused",
   "plans estimate": "refused",
   "records init": "refused",

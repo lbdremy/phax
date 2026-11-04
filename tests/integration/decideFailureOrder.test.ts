@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { runArtifactDecide } from "../../src/cli/commands/artifactDecide.js";
+import { makeArtifactDecideCommand } from "../../src/cli/definitions/artifactDecide.js";
 import { serializeSidecar } from "../../src/domain/artifact/sidecar.js";
 import { renderSpecBody } from "../../src/domain/authoring/renderSpec.js";
 import { readClaudeOutcome } from "../../src/domain/session/outcome.js";
@@ -9,6 +9,7 @@ import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
 import { makeFakeTerminal } from "../../src/infra/fakes/terminal.js";
 import type { SpecDocument } from "../../src/schemas/specDocument.js";
 import { SPEC_FRONTMATTER, useDecideRepo } from "../helpers/decideVerdictsHarness.js";
+import { inArtifact, runnerCall } from "../helpers/runnerCall.js";
 import { FILE_VALID, SPEC, SPEC_PATH } from "../unit/decide/verdictsFixtures.js";
 
 vi.mock("node:os", async (importOriginal) =>
@@ -17,8 +18,9 @@ vi.mock("node:os", async (importOriginal) =>
 
 // A failed decide whose record is refused: the cause prints first, the
 // refusal after it says it follows the failed session and quotes gh, and the
-// exit code is the cause's. Through `runArtifactDecide --verdicts`, with a
-// fake backend failing the writer and a fake GitHub whose visibility fails.
+// exit code is the cause's. Through `phax artifact decide --verdicts` on the command
+// runner, with a fake backend failing the writer and a fake GitHub whose visibility fails. Both
+// the failure and the refusal are on stderr, in the order written.
 
 const SPEC_JSON = SPEC_PATH.replace(/\.md$/, ".json");
 const API_ERROR = "API Error: Can't reach the API server — check your internet or DNS (ENOTFOUND)";
@@ -68,25 +70,32 @@ describe("a failed decide's cause and its refused record", { timeout: 30_000 }, 
     });
     const github = makeFakeGitHub();
     github.impl.failVisibility(GH_LINE);
-    const printed: string[] = [];
-    const out = {
-      log: (m: string) => printed.push(m),
-      warn: (m: string) => printed.push(`warn: ${m}`),
-      error: (m: string) => printed.push(`error: ${m}`),
-    };
-
-    const code = await runArtifactDecide(SPEC_PATH, { verdicts: "verdicts.json" }, out, {
+    const command = makeArtifactDecideCommand({
       backendLayer: backend.layer,
       terminalLayer: makeFakeTerminal(true).layer,
       githubLayer: github.layer,
     });
 
+    const called = await runnerCall(
+      [inArtifact(command)],
+      ["artifact", "decide", SPEC_PATH, "--verdicts", "verdicts.json"],
+      { files: { "verdicts.json": FILE_VALID } },
+    );
+    const code = called.code;
+    // Every line written, in order, by its stream.
+    const printed = called.writes.flatMap(({ stream, text }) =>
+      text
+        .replace(/\n$/, "")
+        .split("\n")
+        .map((line) => `${stream}: ${line}`),
+    );
+
     expect(code).toBe(14);
     const failureAt = printed.findIndex((line) =>
-      line.startsWith("error: ✗ claude-code session failed (network)"),
+      line.startsWith("err: ✗ claude-code session failed (network)"),
     );
     const refusalAt = printed.findIndex((line) =>
-      line.startsWith("warn: decision record refused, following the failed session: "),
+      line.startsWith("err: decision record refused, following the failed session: "),
     );
     expect(failureAt).toBeGreaterThanOrEqual(0);
     expect(refusalAt).toBeGreaterThan(failureAt);

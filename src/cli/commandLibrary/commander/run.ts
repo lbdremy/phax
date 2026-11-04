@@ -10,6 +10,7 @@ import {
   messages,
   OPTION_HELP,
   Refused,
+  stdinFlagHelp,
   usageSpec,
   written,
   type Command,
@@ -129,7 +130,11 @@ function specOf(command: Command<unknown>): CommandSpec {
     stdinFlag:
       stdin?.flag === undefined
         ? undefined
-        : { name: stdin.flag, valueRequired: stdin.valueRequired === true },
+        : {
+            name: stdin.flag,
+            valueRequired: stdin.valueRequired === true,
+            help: stdinFlagHelp(stdin.contract),
+          },
     writesDocument: command.writesDocument === true,
     env: inputs.env === undefined ? undefined : Object.keys(inputs.env.contract.fields),
   };

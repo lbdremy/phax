@@ -1,21 +1,23 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Effect, Either } from "effect";
-import { Command } from "commander";
 import { phaxProgram } from "../../../src/cli/definitions/program.js";
 import { call } from "../commandLibrary/commander/support/memoryIo.js";
 import { answerJsonSchema } from "../../../src/schemas/answerSchemas.js";
 import { getDecideVerdictsFileJsonSchema } from "../../../src/schemas/decideVerdicts.js";
 import { currentSchemaUrl } from "../../../src/schemas/persisted.js";
 import {
-  registerArtifactCommand,
   runArtifactStatus,
   runArtifactTransition,
-  runArtifactArchiveRefusal,
   runArtifactMigrateApprovals,
   runArtifactSchema,
   runCreateArtifact,
-  runCreateArtifactHeadless,
 } from "../../../src/cli/commands/artifact.js";
+import {
+  makeArtifactNewPlanCommand,
+  makeArtifactNewSpecCommand,
+} from "../../../src/cli/definitions/artifactNew.js";
+import { fullName } from "../../../src/cli/commandLibrary/contract/index.js";
+import { inArtifactNew, runnerCall } from "../../helpers/runnerCall.js";
 import {
   ApprovalMigrationRefusedError,
   ArtifactArbiterRefusedError,
@@ -494,15 +496,16 @@ describe("runArtifactTransition", () => {
     ).toBe(true);
   });
 
-  it("archive refusal: writes the refusal naming complete and returns exit code 1", () => {
-    const { out, errors, lines } = makeOutput();
-    const code = runArtifactArchiveRefusal(out);
+  // Changed by the plan's retired-archive arbitration: the runner holds `artifact` whole and
+  // refuses its retired word with the same sentence and the program's refused code, 64 (it was 1).
+  it("archive refusal: writes the refusal naming complete and returns exit code 64", async () => {
+    const called = await call(phaxProgram, { argv: ["artifact", "archive", "x"] });
 
-    expect(code).toBe(1);
-    expect(errors.join("\n")).toContain(
+    expect(called.code).toBe(64);
+    expect(called.err.join("")).toContain(
       'unknown transition "archive" — the completion transition is: phax artifact complete <path>',
     );
-    expect(lines).toHaveLength(0);
+    expect(called.out.join("")).toBe("");
   });
 
   it("omits the Commit: line when no commit was created", async () => {
@@ -762,10 +765,8 @@ describe("runArtifactMigrateApprovals", () => {
   });
 
   it("is registered under artifact as migrate-approvals", () => {
-    const program = new Command();
-    registerArtifactCommand(program, makeOutput().out);
-    const artifactCmd = program.commands.find((c) => c.name() === "artifact");
-    expect(artifactCmd?.commands.map((c) => c.name())).toContain("migrate-approvals");
+    const names = phaxProgram.commands.map((command) => fullName(command).join(" "));
+    expect(names).toContain("artifact migrate-approvals");
   });
 });
 
@@ -894,7 +895,27 @@ const FAKE_RESOLUTION = {
   reason: "exact match",
 } as const;
 
-describe("runCreateArtifactHeadless", () => {
+// `phax artifact new spec|plan --headless` through the command runner over a memory Io, the
+// use case mocked: stdout's lines, and stderr's as `WARN: ` lines, in the order written.
+async function headless(
+  kind: "spec" | "plan",
+  argv: ReadonlyArray<string>,
+  stdin = "brief",
+): Promise<{ code: number; lines: string[]; errors: ReadonlyArray<string> }> {
+  const command = kind === "spec" ? makeArtifactNewSpecCommand() : makeArtifactNewPlanCommand();
+  const called = await runnerCall([inArtifactNew(command)], ["artifact", "new", kind, ...argv], {
+    stdin,
+  });
+  const lines = called.writes.flatMap(({ stream, text }) =>
+    text
+      .replace(/\n$/, "")
+      .split("\n")
+      .map((line) => (stream === "err" ? `WARN: ${line}` : line)),
+  );
+  return { code: called.code, lines, errors: called.errLines };
+}
+
+describe("artifact new --headless", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -916,15 +937,7 @@ describe("runCreateArtifactHeadless", () => {
   it("exits 12 without calling authorArtifact when --brief is missing", async () => {
     const { authorArtifact } = vi.mocked(await import("../../../src/app/authorArtifact.js"));
 
-    const { out, errors } = makeOutput();
-    const code = await runCreateArtifactHeadless(
-      "spec",
-      "plan-prune",
-      undefined,
-      NO_FLAGS,
-      {},
-      out,
-    );
+    const { code, errors } = await headless("spec", ["plan-prune", "--headless"]);
 
     expect(code).toBe(12);
     expect(errors.join("\n")).toContain("--brief");
@@ -936,15 +949,10 @@ describe("runCreateArtifactHeadless", () => {
     const { authorArtifact } = vi.mocked(await import("../../../src/app/authorArtifact.js"));
     authorArtifact.mockReturnValue(Effect.succeed(authoredResult(WRITTEN_RECORD)));
 
-    const { out, lines } = makeOutput();
-    const code = await runCreateArtifactHeadless(
+    const { code, lines } = await headless(
       "spec",
-      "plan-prune",
-      undefined,
-      NO_FLAGS,
-      { headless: true, brief: "-" },
-      out,
-      { readStdin: async () => "write a spec about plan pruning" },
+      ["plan-prune", "--headless", "--brief", "-"],
+      "write a spec about plan pruning",
     );
 
     expect(code).toBe(0);
@@ -962,16 +970,7 @@ describe("runCreateArtifactHeadless", () => {
     const { authorArtifact } = vi.mocked(await import("../../../src/app/authorArtifact.js"));
     authorArtifact.mockReturnValue(Effect.succeed(authoredResult({ kind: "records-off" })));
 
-    const { out, lines } = makeOutput();
-    const code = await runCreateArtifactHeadless(
-      "spec",
-      "plan-prune",
-      undefined,
-      NO_FLAGS,
-      { headless: true, brief: "-" },
-      out,
-      { readStdin: async () => "brief" },
-    );
+    const { code, lines } = await headless("spec", ["plan-prune", "--headless", "--brief", "-"]);
 
     expect(code).toBe(0);
     expect(lines.at(-1)).toBe("record off");
@@ -992,16 +991,7 @@ describe("runCreateArtifactHeadless", () => {
       ),
     );
 
-    const { out, lines } = makeOutput();
-    const code = await runCreateArtifactHeadless(
-      "spec",
-      "plan-prune",
-      undefined,
-      NO_FLAGS,
-      { headless: true, brief: "-" },
-      out,
-      { readStdin: async () => "brief" },
-    );
+    const { code, lines } = await headless("spec", ["plan-prune", "--headless", "--brief", "-"]);
 
     expect(code).toBe(0);
     expect(lines.at(-1)).toBe(
@@ -1023,16 +1013,7 @@ describe("runCreateArtifactHeadless", () => {
       ),
     );
 
-    const { out, lines } = makeOutput();
-    const code = await runCreateArtifactHeadless(
-      "spec",
-      "plan-prune",
-      undefined,
-      NO_FLAGS,
-      { headless: true, brief: "-" },
-      out,
-      { readStdin: async () => "brief" },
-    );
+    const { code, lines } = await headless("spec", ["plan-prune", "--headless", "--brief", "-"]);
 
     expect(code).toBe(0);
     expect(authorArtifact).toHaveBeenCalledWith(
@@ -1058,16 +1039,7 @@ describe("runCreateArtifactHeadless", () => {
       ),
     );
 
-    const { out, errors } = makeOutput();
-    const code = await runCreateArtifactHeadless(
-      "spec",
-      "plan-prune",
-      undefined,
-      NO_FLAGS,
-      { headless: true, brief: "-" },
-      out,
-      { readStdin: async () => "brief" },
-    );
+    const { code, errors } = await headless("spec", ["plan-prune", "--headless", "--brief", "-"]);
 
     expect(code).toBe(5);
     expect(errors.join("\n")).toContain("names no requirement");
@@ -1081,16 +1053,7 @@ describe("runCreateArtifactHeadless", () => {
       Effect.fail(new ArtifactCreationError({ message: "docs/specs/foo.md already exists" })),
     );
 
-    const { out, errors } = makeOutput();
-    const code = await runCreateArtifactHeadless(
-      "spec",
-      "plan-prune",
-      undefined,
-      NO_FLAGS,
-      { headless: true, brief: "-" },
-      out,
-      { readStdin: async () => "brief" },
-    );
+    const { code, errors } = await headless("spec", ["plan-prune", "--headless", "--brief", "-"]);
 
     expect(code).toBe(12);
     expect(errors.join("\n")).toContain("already exists");
@@ -1103,16 +1066,7 @@ describe("runCreateArtifactHeadless", () => {
       Effect.fail(new RateLimitError({ message: "rate limited", rawMessage: "rate limited" })),
     );
 
-    const { out, errors } = makeOutput();
-    const code = await runCreateArtifactHeadless(
-      "spec",
-      "plan-prune",
-      undefined,
-      NO_FLAGS,
-      { headless: true, brief: "-" },
-      out,
-      { readStdin: async () => "brief" },
-    );
+    const { code, errors } = await headless("spec", ["plan-prune", "--headless", "--brief", "-"]);
 
     expect(code).toBe(8);
     expect(errors.join("\n")).toContain("rate limited");
@@ -1123,16 +1077,16 @@ describe("runCreateArtifactHeadless", () => {
     const { authorArtifact } = vi.mocked(await import("../../../src/app/authorArtifact.js"));
     authorArtifact.mockReturnValue(Effect.succeed(authoredResult(WRITTEN_RECORD)));
 
-    const { out } = makeOutput();
-    await runCreateArtifactHeadless(
-      "spec",
+    await headless("spec", [
       "plan-prune",
-      undefined,
-      NO_FLAGS,
-      { headless: true, brief: "-", model: "flag-model", effort: "high" },
-      out,
-      { readStdin: async () => "brief" },
-    );
+      "--headless",
+      "--brief",
+      "-",
+      "--model",
+      "flag-model",
+      "--effort",
+      "high",
+    ]);
 
     expect(authorArtifact).toHaveBeenCalledWith(
       expect.objectContaining({ model: "flag-model", effort: "high" }),
@@ -1144,16 +1098,7 @@ describe("runCreateArtifactHeadless", () => {
     const { authorArtifact } = vi.mocked(await import("../../../src/app/authorArtifact.js"));
     authorArtifact.mockReturnValue(Effect.succeed(authoredResult(WRITTEN_RECORD)));
 
-    const { out } = makeOutput();
-    await runCreateArtifactHeadless(
-      "spec",
-      "plan-prune",
-      undefined,
-      NO_FLAGS,
-      { headless: true, brief: "-" },
-      out,
-      { readStdin: async () => "brief" },
-    );
+    await headless("spec", ["plan-prune", "--headless", "--brief", "-"]);
 
     expect(authorArtifact).toHaveBeenCalledWith(
       expect.objectContaining({ model: "config-spec-model", effort: "medium" }),
@@ -1165,16 +1110,15 @@ describe("runCreateArtifactHeadless", () => {
     const { authorArtifact } = vi.mocked(await import("../../../src/app/authorArtifact.js"));
     authorArtifact.mockReturnValue(Effect.succeed(authoredResult(WRITTEN_RECORD)));
 
-    const { out } = makeOutput();
-    await runCreateArtifactHeadless(
-      "plan",
+    await headless("plan", [
       "plan-prune",
+      "--spec",
       "docs/specs/2609091412-plan-prune.md",
-      NOT_LAST,
-      { headless: true, brief: "-" },
-      out,
-      { readStdin: async () => "brief" },
-    );
+      "--not-last",
+      "--headless",
+      "--brief",
+      "-",
+    ]);
 
     expect(authorArtifact).toHaveBeenCalledWith(expect.objectContaining({ completion: NOT_LAST }));
   });
@@ -1191,16 +1135,14 @@ describe("runCreateArtifactHeadless", () => {
       ),
     );
 
-    const { out, errors } = makeOutput();
-    const code = await runCreateArtifactHeadless(
-      "plan",
+    const { code, errors } = await headless("plan", [
       "plan-prune",
+      "--spec",
       "docs/specs/2609091412-plan-prune.md",
-      NO_FLAGS,
-      { headless: true, brief: "-" },
-      out,
-      { readStdin: async () => "brief" },
-    );
+      "--headless",
+      "--brief",
+      "-",
+    ]);
 
     expect(code).toBe(12);
     expect(errors.join("\n")).toContain("--spec needs --last");
@@ -1209,15 +1151,14 @@ describe("runCreateArtifactHeadless", () => {
   it("invalid --effort refuses before calling authorArtifact", async () => {
     const { authorArtifact } = vi.mocked(await import("../../../src/app/authorArtifact.js"));
 
-    const { out, errors } = makeOutput();
-    const code = await runCreateArtifactHeadless(
-      "spec",
+    const { code, errors } = await headless("spec", [
       "plan-prune",
-      undefined,
-      NO_FLAGS,
-      { headless: true, brief: "-", effort: "extreme" },
-      out,
-    );
+      "--headless",
+      "--brief",
+      "-",
+      "--effort",
+      "extreme",
+    ]);
 
     expect(code).toBe(1);
     expect(errors.join("\n")).toContain("Invalid --effort value");
