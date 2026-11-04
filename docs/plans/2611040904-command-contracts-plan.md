@@ -43,7 +43,7 @@ Both commands are already in `security.agentCommands` in phax.json: `pnpm gen:us
 - Existing tests. They keep passing with their assertions unchanged. A test whose harness builds a Commander registration this plan deletes (tests/unit/skillsArgv.test.ts, tests/integration/recordsExplain.test.ts, tests/integration/recordsExplainStop.test.ts) has its harness replaced by the runner's, over a memory Io or `runThroughOutput`, and its assertions kept; an assertion that Commander's parse throws becomes the runner's refusal with 64. Registration checks of the moved commands in tests/integration/cliProgram.test.ts follow the stubs, as plan 1 did. Every such change is named in the phase's handoff.
 - Long help. Every moved command and group keeps its long help, examples, help and argument and option help word for word; this plan rewords none, so the frozen-file test's `REWORDED_LONG_HELP` list does not grow. Its allowlist grows only by `--json` on each moved command (reworded where the command declared its own: `plans status`, `plans overlap`, `plans estimate`), `subcommand_required` on each whole group, and what q-security-bare decides for `security`.
 
-## Open questions
+## Arbitrated questions
 
 ### q-security-bare — Today a bare `phax security` runs the status report and exits 0, and `security` and `security status` each declare their own `--verbose` and `--trace` in phax.usage.kdl. When the `security` group moves onto the runner whole (phase-04), what do they become?
 
@@ -52,6 +52,13 @@ Both commands are already in `security.agentCommands` in phax.json: `pnpm gen:us
 - keep-bridged — `security status` moves; the `security` group stays Commander's, with its bare action and its flags, until plan 4 — abandons: ac-groups for `security` in this plan, and plan 4 inherits the same choice with the group's refusal still bridge glue
 
 Recommendation: refuse-bare — Every document and test names `phax security status`; the bare form appears only as `<SUBCOMMAND>` in the generated usage line, which already says a subcommand is expected. §5.11 is the spec's rule, the flags keep working anywhere in the call as program options, and the other two options either widen the contract for one shortcut or postpone the same decision.
+
+Decision: refuse-bare — by operator (Rémy Loubradou), 2026-11-04
+Why: Every document already names `phax security status`; a group called alone is refused as §5.11 says, as `phax cost` already is. The operator also confirmed the Written files arbitration: §5.18 covers a command's deliverables, and phax's own side state (estimate's backfilled ledgers, brief records, overlap's cache) stays a note line or nothing. Advocate: The strongest case for default-command: bare `phax security` runs the status report and exits 0 today, so keeping it as the group's default breaks no script or habit, and only one group needs the extra gain. Principles: C1, C3, E0. Reversibility: cheap. Revised: none. Phase: phase-04.
+
+## Decision log
+
+- 2026-11-04 q-security-bare decided refuse-bare — operator (Rémy Loubradou)
 
 ---
 
