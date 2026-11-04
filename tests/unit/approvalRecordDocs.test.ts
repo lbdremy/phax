@@ -14,11 +14,17 @@ const readme = read("README.md");
 const phaxCliSkill = read(".claude/skills/phax-cli/SKILL.md");
 const phaxSpecSkill = read(".claude/skills/phax-spec/SKILL.md");
 
-// The kdl block of one subcommand, from its `cmd "<name>" {` line to the
-// closing brace at the same indent.
+// The kdl block of one subcommand, from its `cmd "<name>" {` line (a command the runner holds
+// writes `cmd <name> help=… {` instead) to the closing brace at the same indent.
 function kdlBlock(name: string): string {
   const lines = usage.split("\n");
-  const start = lines.findIndex((line) => line.trim() === `cmd "${name}" {`);
+  const start = lines.findIndex((line) => {
+    const trimmed = line.trim();
+    return (
+      trimmed === `cmd "${name}" {` ||
+      (trimmed.startsWith(`cmd ${name} `) && trimmed.endsWith(" {"))
+    );
+  });
   if (start === -1) throw new Error(`phax.usage.kdl has no cmd "${name}"`);
   const startLine = lines[start] ?? "";
   const indent = startLine.slice(0, startLine.indexOf("cmd"));
@@ -57,7 +63,7 @@ describe("approval record docs", () => {
   });
 
   it("lists migrate-approvals under artifact", () => {
-    expect(kdlBlock("artifact")).toContain('cmd "migrate-approvals"');
+    expect(kdlBlock("artifact")).toMatch(/cmd "?migrate-approvals"? /);
   });
 
   it("names approvals.json only as migration input or in the upgrade note", () => {

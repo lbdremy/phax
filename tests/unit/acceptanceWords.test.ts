@@ -386,7 +386,7 @@ export const ALLOWLIST: readonly AllowEntry[] = [
   {
     id: "field-help-text",
     reason: "test line fourth field",
-    file: "src/cli/cliDocs.ts",
+    file: "src/cli/definitions/artifactMigrations.ts",
     lines: [/<oracle>/],
   },
   {

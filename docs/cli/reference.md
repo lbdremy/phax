@@ -1097,7 +1097,7 @@ phax artifact status docs/specs/2609030749-spec-approval-ground.md
 
 ## `phax artifact approve`
 
-- **Usage**: `phax artifact approve [--by <arbiter>] <path>`
+- **Usage**: `phax artifact approve [--by <arbiter>] [--json] <path>`
 
 Transitions an artifact to Approved. Legal from Draft (both kinds) and from Stale (plans only); re-approving an already-Approved artifact re-records the approval, refreshing its timestamp and baseline — this is the correct way to record an in-place revision of a spec, not editing the date by hand. Rewrites the frontmatter status key in place. An Approved artifact goes back to Draft only through `phax artifact reopen`, which voids the approval.
 
@@ -1122,6 +1122,10 @@ Path to a spec or plan file under docs/specs/ or docs/plans/
 
 operator or machine:<grant>; required without a terminal
 
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
+
 ### Examples
 
 ```
@@ -1138,7 +1142,7 @@ phax artifact approve docs/specs/2609030749-spec-approval-ground.md --by machine
 
 ## `phax artifact stale`
 
-- **Usage**: `phax artifact stale <path>`
+- **Usage**: `phax artifact stale [--json] <path>`
 
 Manually marks a plan Stale. Legal from Approved only — Stale has no automatic trigger (that belongs to a future lineage spec). Rewrites the frontmatter status key in place.
 
@@ -1150,6 +1154,12 @@ Side effects: writes the plan file and commits the write-set in a single commit;
 
 Path to a spec or plan file under docs/specs/ or docs/plans/
 
+### Flags
+
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
+
 ### Examples
 
 ```
@@ -1158,7 +1168,7 @@ phax artifact stale docs/plans/2607101056-typescript-7-migration-plan.md
 
 ## `phax artifact abandon`
 
-- **Usage**: `phax artifact abandon <path>`
+- **Usage**: `phax artifact abandon [--json] <path>`
 
 Abandons an artifact — a terminal status distinct from Completed, for work dropped without execution. Legal from Draft or Approved (specs) or Draft, Approved, or Stale (plans).
 
@@ -1170,6 +1180,12 @@ Side effects: moves the file into the artifact's archive/ subdirectory with its 
 
 Path to a spec or plan file under docs/specs/ or docs/plans/
 
+### Flags
+
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
+
 ### Examples
 
 ```
@@ -1178,7 +1194,7 @@ phax artifact abandon docs/plans/2607101056-typescript-7-migration-plan.md
 
 ## `phax artifact complete`
 
-- **Usage**: `phax artifact complete <path>`
+- **Usage**: `phax artifact complete [--json] <path>`
 
 Completes an artifact — a terminal status for work that ran to completion. Legal from Approved (specs) or Approved or Stale (plans).
 
@@ -1190,6 +1206,12 @@ Side effects: moves the file into the artifact's archive/ subdirectory with its 
 
 Path to a spec or plan file under docs/specs/ or docs/plans/
 
+### Flags
+
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
+
 ### Examples
 
 ```
@@ -1198,7 +1220,7 @@ phax artifact complete docs/specs/2608091526-artifact-lifecycle-status.md
 
 ## `phax artifact reopen`
 
-- **Usage**: `phax artifact reopen [--by <arbiter>] <path>`
+- **Usage**: `phax artifact reopen [--by <arbiter>] [--json] <path>`
 
 Reopens an artifact back to Draft, voiding its approval, for when it must be revised before re-approval. Legal from Approved (specs and plans) and from Stale (plans only); a Draft, Completed or Abandoned artifact is refused with exit 12 and nothing is written. Rewrites the frontmatter status key in place and clears the `approved` stamp.
 
@@ -1219,6 +1241,10 @@ Path to a spec or plan file under docs/specs/ or docs/plans/
 #### `--by <arbiter>`
 
 operator or machine:<grant>; required without a terminal
+
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 ### Examples
 
@@ -1428,7 +1454,7 @@ phax artifact new plan plan-prune --headless --brief brief.md --spec docs/specs/
 
 ## `phax artifact schema`
 
-- **Usage**: `phax artifact schema <kind>`
+- **Usage**: `phax artifact schema [--json] <kind>`
 
 Prints the JSON Schema of the experimental spec document (kind spec) or plan document (kind plan), or of a decide verdicts file (kind verdicts, the input of `phax artifact decide --verdicts`), pretty-printed to stdout, so a consumer can read the contract a headless authoring session must satisfy, or the file to write, without a model call.
 
@@ -1441,6 +1467,18 @@ Side effects: none — read-only.
 #### `<kind>`
 
 Document kind: spec, plan or verdicts
+
+**Choices:**
+
+- `spec`
+- `plan`
+- `verdicts`
+
+### Flags
+
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 ### Examples
 
@@ -1458,13 +1496,19 @@ phax artifact schema verdicts
 
 ## `phax artifact migrate-approvals`
 
-- **Usage**: `phax artifact migrate-approvals`
+- **Usage**: `phax artifact migrate-approvals [--json]`
 
 Reads docs/plans/approvals.json and docs/specs/approvals.json in any released shape, writes one record file per entry under docs/plans/approvals/ and docs/specs/approvals/, deletes the ledgers, and commits exactly those paths in one commit. Exits 0 when migrated or when there is nothing to migrate; exits 12, writing nothing, on an unreadable ledger, an entry that is not a live artifact path, an uncommitted change to any path it would write, or an existing record file holding a different record.
 
 An entry whose artifact no longer exists still migrates, and is reported on stderr as an orphan record file to delete. An existing record file that already holds the entry's record is kept as is.
 
 Side effects: writes the record files, deletes the ledgers and commits those paths in one commit.
+
+### Flags
+
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 ### Examples
 
@@ -1474,7 +1518,7 @@ phax artifact migrate-approvals
 
 ## `phax artifact migrate-documents`
 
-- **Usage**: `phax artifact migrate-documents`
+- **Usage**: `phax artifact migrate-documents [--json]`
 
 Rewrites every live spec and plan sidecar (a <name>.json directly under docs/specs/ or docs/plans/ beside its <name>.md) stamped below its document format's current shape, or written before $schema, at that shape, and re-renders its body in the current layout, keeping its frontmatter byte for byte. A spec's questions are lifted by the author's rationale marker: a question whose rationale opens with `Decided by the author on <YYYY-MM-DD>` becomes arbitrated with a lifted, unattributed verdict; every other question stays open. A plan document stamped 0.20.0 lifts with empty preamble questions and keeps its body, lineage and frontmatter as they were. A plan sidecar stamped 0.26.0 or below has each phase's testStrategy string read as test lines: one whose every line follows the line format (`- <guarantee> — <size> · <technique> · <oracle> · <loop>[ · <criterion>]`) is lifted to those lines, and one holding prose is refused, naming the phase, its first departing line and the remedy: rewrite each phase's test strategy in the line format, in the sidecar and plan.md alike, or re-author the plan, then rerun. Archived artifacts, hand-authored artifacts and approval record files are never touched.
 
@@ -1485,6 +1529,12 @@ The report names each migrated artifact with its status and question counts (ope
 Until it has run, phax artifact approve and phax artifact reopen refuse with exit 12, naming each unmigrated sidecar; complete, abandon and run completion carry an older sidecar as before.
 
 Side effects: writes the sidecars and re-rendered bodies, re-seeds each rewritten plan's extraction cache so phax run never re-extracts it, and commits exactly the rewritten paths in one commit. A failed commit exits 12, leaving the files written but uncommitted.
+
+### Flags
+
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 ### Examples
 

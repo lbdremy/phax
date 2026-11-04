@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { Effect, Either, Layer } from "effect";
-import { Argument, type Command } from "commander";
+import type { Command } from "commander";
 import type { OutputPort } from "../../ports/output.js";
 import { makeRootedNodeFileSystemLayer } from "../../infra/fs.js";
 import { makeNodeGitLayer } from "../../infra/git.js";
@@ -9,8 +9,6 @@ import { Backend } from "../../ports/backend.js";
 import { FileSystem } from "../../ports/fs.js";
 import { Git } from "../../ports/git.js";
 import type { GitHub } from "../../ports/github.js";
-import { transitionArtifactBy } from "../../app/artifactStatus.js";
-import { describeArbiter } from "../../domain/artifact/arbiter.js";
 import { NodeTerminalLayer } from "../../infra/terminal.js";
 import type { Terminal } from "../../ports/terminal.js";
 import { createArtifact, type CompletionFlags } from "../../app/createArtifact.js";
@@ -20,19 +18,28 @@ import { recordsClonePath } from "../../app/recordsSync.js";
 import { loadModelRouting, loadProviderConfig } from "../../app/loadRouting.js";
 import { effectiveStateRoot } from "../../app/projectContext.js";
 import { resolveModel } from "../../domain/routing/resolve.js";
-import { migrateApprovals } from "../../app/migrateApprovals.js";
-import { migrateDocuments } from "../../app/migrateDocuments.js";
+import type { ArtifactKind, ArtifactStatus } from "../../domain/artifact/status.js";
+import { resolveAuthoringSelection, type Effort } from "../../schemas/phaxConfig.js";
+import { mountRunnerStub, runThroughOutput } from "../bridge.js";
+import type { Command as RunnerCommand } from "../commandLibrary/contract/index.js";
+import {
+  artifactMigrateApprovalsCommand,
+  artifactMigrateDocumentsCommand,
+} from "../definitions/artifactMigrations.js";
+import { artifactSchemaCommand } from "../definitions/artifactSchema.js";
+import { artifactStatusCommand } from "../definitions/artifactStatus.js";
+import {
+  artifactAbandonCommand,
+  artifactApproveCommand,
+  artifactCompleteCommand,
+  artifactReopenCommand,
+  artifactStaleCommand,
+  transitionLines,
+} from "../definitions/artifactTransitions.js";
 import {
   renderDocumentMigrationReport,
   renderMigrationReport,
-  renderOrphanRecordWarning,
 } from "../../domain/artifact/render.js";
-import type { ArtifactKind, ArtifactStatus } from "../../domain/artifact/status.js";
-import { answerJsonSchema } from "../../schemas/answerSchemas.js";
-import { getDecideVerdictsFileJsonSchema } from "../../schemas/decideVerdicts.js";
-import { resolveAuthoringSelection, type Effort } from "../../schemas/phaxConfig.js";
-import { mountRunnerStub, runThroughOutput } from "../bridge.js";
-import { artifactStatusCommand } from "../definitions/artifactStatus.js";
 import { phaxProgram } from "../definitions/program.js";
 import { findGitRoot, repoPaths } from "../definitions/shared.js";
 import { defaultBundleRoot } from "./skills.js";
@@ -88,99 +95,43 @@ export interface TransitionFlags {
   readonly by?: string;
 }
 
-export async function runArtifactTransition(
+const TRANSITION_COMMANDS: Readonly<Record<ArtifactStatus, RunnerCommand<never>>> = {
+  Approved: artifactApproveCommand,
+  Stale: artifactStaleCommand,
+  Abandoned: artifactAbandonCommand,
+  Completed: artifactCompleteCommand,
+  Draft: artifactReopenCommand,
+};
+
+/** The transitions answer through the command runner (src/cli/definitions/artifactTransitions.ts);
+ *  this is kept, until the last plan of command-contracts, as the definition's run and render
+ *  over the OutputPort, for the tests that call it. */
+export function runArtifactTransition(
   pathArg: string,
   target: ArtifactStatus,
   out: OutputPort,
   flags: TransitionFlags = {},
 ): Promise<number> {
-  const repoRoot = findGitRoot(process.cwd());
-  const repoRelPath = toRepoRelativePath(pathArg, repoRoot);
-  const opts = { repoRoot, nowIso: new Date().toISOString(), commit: true, by: flags.by };
-  const effect = transitionArtifactBy(repoRelPath, target, opts).pipe(
-    Effect.provide(buildLayer(repoRoot)),
+  return runThroughOutput(
+    TRANSITION_COMMANDS[target],
+    { args: [pathArg], flags: flags.by === undefined ? {} : { by: flags.by } },
+    out,
+    { sections: transitionLines },
   );
-  const result = await Effect.runPromise(Effect.either(effect));
-  if (Either.isLeft(result)) {
-    out.error(result.left.message);
-    return exitCodeForError(result.left);
-  }
-
-  const {
-    status,
-    previousStatus,
-    path,
-    approvedBaseline,
-    approvedBy,
-    reopenedBy,
-    deletedRecord,
-    boundPlans = [],
-    commit: madeCommit,
-  } = result.right;
-  out.log(
-    deletedRecord === undefined
-      ? `Status: ${status}`
-      : `Status: ${status} (was ${previousStatus}; ${deletedRecord} deleted)`,
-  );
-  if (approvedBy !== undefined) {
-    out.log(`Approver: ${describeArbiter(approvedBy)}`);
-  }
-  if (reopenedBy !== undefined) {
-    out.log(`Reopened-By: ${describeArbiter(reopenedBy)}`);
-  }
-  for (const plan of boundPlans) {
-    out.log(`Bound:  ${plan.path} (${plan.status}) — left as is`);
-  }
-  if (target === "Abandoned" || target === "Completed") {
-    out.log(`Path:   ${path}`);
-  }
-  if (approvedBaseline !== undefined) {
-    out.log(`Baseline: ${approvedBaseline.slice(0, 7)}`);
-  }
-  if (madeCommit !== undefined) {
-    out.log(`Commit: ${madeCommit.hash.slice(0, 7)} — ${madeCommit.subject}`);
-  }
-  return 0;
 }
 
-export async function runArtifactMigrateApprovals(out: OutputPort): Promise<number> {
-  const repoRoot = findGitRoot(process.cwd());
-  const effect = migrateApprovals({ repoRoot }).pipe(Effect.provide(buildLayer(repoRoot)));
-  const result = await Effect.runPromise(Effect.either(effect));
-  if (Either.isLeft(result)) {
-    out.error(result.left.message);
-    return exitCodeForError(result.left);
-  }
-
-  for (const line of renderMigrationReport(result.right)) out.log(line);
-  if (result.right.kind === "migrated") {
-    for (const orphan of result.right.orphans) out.warn(renderOrphanRecordWarning(orphan));
-  }
-  return 0;
+/** `phax artifact migrate-approvals`, kept as `runArtifactTransition` is. */
+export function runArtifactMigrateApprovals(out: OutputPort): Promise<number> {
+  return runThroughOutput(artifactMigrateApprovalsCommand, {}, out, {
+    sections: renderMigrationReport,
+  });
 }
 
-export async function runArtifactMigrateDocuments(out: OutputPort): Promise<number> {
-  const configResult = loadConfig(process.cwd());
-  if (Either.isLeft(configResult)) {
-    out.error(`Config error: ${configResult.left.message}`);
-    return 1;
-  }
-  const config = configResult.right;
-  const effect = migrateDocuments({
-    repoRoot: config.repoRoot,
-    stateRoot: effectiveStateRoot(config),
-    extractPlanModel: config.extractPlanModel,
-    extractPlanEffort: config.extractPlanEffort,
-    nowIso: new Date().toISOString(),
-  }).pipe(Effect.provide(buildLayer(config.repoRoot)));
-  const result = await Effect.runPromise(Effect.either(effect));
-  if (Either.isLeft(result)) {
-    out.error(result.left.message);
-    return exitCodeForAuthoringError(result.left);
-  }
-
-  for (const line of renderDocumentMigrationReport(result.right)) out.log(line);
-  return 0;
+/** `phax artifact migrate-documents`, kept as `runArtifactTransition` is. */
+export function runArtifactMigrateDocuments(out: OutputPort): Promise<number> {
+  return runThroughOutput(artifactMigrateDocumentsCommand, {}, out, {
+    sections: renderDocumentMigrationReport as (value: never) => readonly string[],
+  });
 }
 
 export async function runCreateArtifact(
@@ -432,52 +383,10 @@ export async function runCreateArtifactHeadless(
 
 type SchemaKind = ArtifactKind | "verdicts";
 
-const DOCUMENT_JSON_SCHEMAS: Readonly<Record<SchemaKind, () => object>> = {
-  spec: () => answerJsonSchema("spec-document"),
-  plan: () => answerJsonSchema("plan-document"),
-  verdicts: getDecideVerdictsFileJsonSchema,
-};
-
-export function runArtifactSchema(kind: SchemaKind, out: OutputPort): number {
-  out.log(JSON.stringify(DOCUMENT_JSON_SCHEMAS[kind](), null, 2));
-  return 0;
+/** `phax artifact schema`, kept as `runArtifactTransition` is. */
+export function runArtifactSchema(kind: SchemaKind, out: OutputPort): Promise<number> {
+  return runThroughOutput(artifactSchemaCommand, { args: [kind] }, out, { wholeDocument: true });
 }
-
-interface TransitionSpec {
-  readonly name: string;
-  readonly description: string;
-  readonly target: ArtifactStatus;
-  /** Whether the gesture names its arbiter with `--by`. */
-  readonly takesBy: boolean;
-}
-
-const TRANSITIONS: readonly TransitionSpec[] = [
-  {
-    name: "approve",
-    description: "Transition an artifact to Approved",
-    target: "Approved",
-    takesBy: true,
-  },
-  { name: "stale", description: "Manually mark a plan Stale", target: "Stale", takesBy: false },
-  {
-    name: "abandon",
-    description: "Abandon an artifact — terminal; moves the file to its archive/ directory",
-    target: "Abandoned",
-    takesBy: false,
-  },
-  {
-    name: "complete",
-    description: "Complete an artifact — terminal; moves the file to its archive/ directory",
-    target: "Completed",
-    takesBy: false,
-  },
-  {
-    name: "reopen",
-    description: "Reopen an Approved spec or plan, or a Stale plan, back to Draft",
-    target: "Draft",
-    takesBy: true,
-  },
-];
 
 const ARCHIVE_REFUSAL_MESSAGE =
   'unknown transition "archive" — the completion transition is: phax artifact complete <path>';
@@ -498,21 +407,9 @@ export function registerArtifactCommand(program: Command, out: OutputPort): void
   // `status` answers through the runner: its help-only stub, in place.
   mountRunnerStub(artifactCmd, phaxProgram, ["artifact", "status"]);
 
-  for (const t of TRANSITIONS) {
-    const transitionCmd = artifactCmd
-      .command(t.name)
-      .description(t.description)
-      .argument("<path>", "Path to a spec or plan file under docs/specs/ or docs/plans/");
-    if (t.takesBy) {
-      transitionCmd.option(
-        "--by <arbiter>",
-        "operator or machine:<grant>; required without a terminal",
-      );
-    }
-    transitionCmd.action(async (path: string, cmdOpts: TransitionFlags) => {
-      const exitCode = await runArtifactTransition(path, t.target, out, cmdOpts);
-      process.exit(exitCode);
-    });
+  // The transitions answer through the runner: their help-only stubs, in place.
+  for (const name of ["approve", "stale", "abandon", "complete", "reopen"]) {
+    mountRunnerStub(artifactCmd, phaxProgram, ["artifact", name]);
   }
 
   artifactCmd
@@ -593,38 +490,9 @@ export function registerArtifactCommand(program: Command, out: OutputPort): void
       process.exit(exitCode);
     });
 
-  artifactCmd
-    .command("schema")
-    .description(
-      "Print the JSON Schema of the spec or plan document, or of a decide verdicts file (experimental)",
-    )
-    .addArgument(
-      new Argument("<kind>", "Document kind: spec, plan or verdicts").choices(
-        Object.keys(DOCUMENT_JSON_SCHEMAS),
-      ),
-    )
-    .action((kind: SchemaKind) => {
-      const exitCode = runArtifactSchema(kind, out);
-      process.exit(exitCode);
-    });
-
-  artifactCmd
-    .command("migrate-approvals")
-    .description("Split the old approval ledgers into one record file per artifact (one-time)")
-    .action(async () => {
-      const exitCode = await runArtifactMigrateApprovals(out);
-      process.exit(exitCode);
-    });
-
-  artifactCmd
-    .command("migrate-documents")
-    .description(
-      "Rewrite every live spec and plan sidecar below its current shape, re-rendering its body (one-time)",
-    )
-    .action(async () => {
-      const exitCode = await runArtifactMigrateDocuments(out);
-      process.exit(exitCode);
-    });
+  for (const name of ["schema", "migrate-approvals", "migrate-documents"]) {
+    mountRunnerStub(artifactCmd, phaxProgram, ["artifact", name]);
+  }
 
   // Retired verb: kept as a hidden subcommand so the invocation fails with a
   // useful message naming its replacement, instead of Commander's generic

@@ -320,6 +320,10 @@ export interface ArtifactTransitionResult {
   /** A reopened spec's live bound plans, left as they are. */
   readonly boundPlans?: readonly BoundPlan[];
   readonly commit?: { readonly hash: string; readonly subject: string };
+  /** The repo-relative paths the transition wrote, which its commit holds: the artifact at its
+   *  path after the transition, its sidecar when rewritten or moved, its approval record when
+   *  written. A path the transition deleted is never listed. */
+  readonly written: readonly string[];
 }
 
 export interface TransitionArtifactOptions {
@@ -419,6 +423,16 @@ export type ArbitratedTransitionError =
   | DocumentMigrationRequiredError
   | ArtifactOpenQuestionsError
   | ArtifactQuestionsUnparsedError;
+
+// The paths of a write set the transition left on disk: a record or source it deleted is not one.
+function existingPaths(paths: readonly string[]): Effect.Effect<string[], FsError, FileSystem> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const kept: string[] = [];
+    for (const path of paths) if (yield* fs.exists(path)) kept.push(path);
+    return kept;
+  });
+}
 
 /** The artifact as read, once its move to `target` is known legal. Writes nothing. */
 function readLegalTransition(
@@ -754,6 +768,7 @@ export function transitionArtifact(
         status: target,
         previousStatus: status,
         path: destination,
+        written: yield* existingPaths(writeSet),
       };
       return yield* finalizeTransition(git, kind, target, repoRelPath, writeSet, opts, result);
     }
@@ -771,6 +786,7 @@ export function transitionArtifact(
         ? { deletedRecord: recordPath }
         : {}),
       ...(boundPlans !== null ? { boundPlans } : {}),
+      written: yield* existingPaths(writeSet),
     };
     return yield* finalizeTransition(git, kind, target, repoRelPath, writeSet, opts, result);
   });
