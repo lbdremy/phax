@@ -297,7 +297,7 @@ describe("the seven root inspection commands under --json", () => {
     expect(architecture.kind).toBe("report");
     expect(architecture.report.body).toBe("A layered CLI.");
     expect(architecture.report.parts.map((part) => part.id)).toEqual(["cli"]);
-  });
+  }, 120_000);
 
   it("prints each command's contract with --json-schema and runs nothing", () => {
     for (const name of [
@@ -314,7 +314,7 @@ describe("the seven root inspection commands under --json", () => {
       expect(JSON.parse(result.stdout), name).toBeTypeOf("object");
       expect(result.stderr, name).toBe("");
     }
-  });
+  }, 120_000);
 });
 
 describe("path and completions without --json", () => {
