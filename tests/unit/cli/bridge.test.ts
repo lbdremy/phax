@@ -196,6 +196,7 @@ describe("route", () => {
     expect(wholeGroups(program)).toEqual(["artifact", "records"]);
     expect(wholeGroups(phaxProgram)).toEqual([
       "cost",
+      "agent",
       "security",
       "skills",
       "schema",
@@ -552,6 +553,7 @@ describe("the help-only stubs", () => {
       "report",
       "completions",
       "cost",
+      "agent",
       "security",
       "skills",
       "schema",
@@ -771,6 +773,11 @@ describe("runnerUsage", () => {
       "report",
       "completions",
       "cost backfill",
+      "agent models",
+      "agent resolve",
+      "agent probe",
+      "agent setup mistral-vibe",
+      "agent setup providers",
       "security status",
       "skills install",
       "schema upgrade",

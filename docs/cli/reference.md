@@ -911,9 +911,15 @@ Inspect and manage model routing and provider configuration
 
 ## `phax agent models`
 
-- **Usage**: `phax agent models`
+- **Usage**: `phax agent models [--json]`
 
 Print the routing table and provider priority
+
+### Flags
+
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 ## `phax agent resolve`
 
@@ -933,13 +939,19 @@ Effort/thinking level (none|off|low|medium|high|xhigh|max|ultracode|ultra)
 
 #### `--json`
 
-Output the resolution as JSON
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 ## `phax agent probe`
 
-- **Usage**: `phax agent probe`
+- **Usage**: `phax agent probe [--json]`
 
 Check which provider executables are available on PATH; never throws on an unavailable provider
+
+### Flags
+
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 ## `phax agent setup`
 
@@ -949,7 +961,7 @@ Set up provider integrations
 
 ## `phax agent setup mistral-vibe`
 
-- **Usage**: `phax agent setup mistral-vibe [--dry-run] [--install-model-aliases]`
+- **Usage**: `phax agent setup mistral-vibe [FLAGS]`
 
 Append PHAX-owned Mistral Vibe model aliases to ~/.vibe/config.toml (append-only, atomic)
 
@@ -962,6 +974,10 @@ Preview what would be appended without writing anything
 #### `--install-model-aliases`
 
 Actually append the missing aliases and write the backup
+
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 ## `phax agent setup providers`
 
@@ -982,6 +998,10 @@ Also disable providers whose executable is unavailable
 #### `--with-routing`
 
 Scaffold ~/.phax/model-routing.json from defaults when absent (never overwrites)
+
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 ## `phax security`
 

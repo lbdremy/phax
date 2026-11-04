@@ -379,58 +379,29 @@ cmd "reset-phase" {
     }
 }
 
-cmd "agent" {
-    help "Inspect and manage model routing and provider configuration"
-
-    cmd "models" {
-        help "Print the routing table and provider priority"
+cmd agent help="Inspect and manage model routing and provider configuration" subcommand_required=#true {
+    cmd models help="Print the routing table and provider priority" {
+        flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
     }
-
-    cmd "resolve" {
-        help "Show how a model+effort request resolves to a provider and concrete model"
-        flag "--model" {
-            arg "<id>"
-            required #true
-            help "Requested model id (e.g. claude-sonnet-4-6)"
-        }
-        flag "--effort" {
-            arg "<level>"
-            required #true
-            help "Effort/thinking level (none|off|low|medium|high|xhigh|max|ultracode|ultra)"
-        }
-        flag "--json" {
-            help "Output the resolution as JSON"
-        }
+    cmd resolve help="Show how a model+effort request resolves to a provider and concrete model" {
+        flag "--model <id>" help="Requested model id (e.g. claude-sonnet-4-6)" required=#true
+        flag "--effort <level>" help="Effort/thinking level (none|off|low|medium|high|xhigh|max|ultracode|ultra)" required=#true
+        flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
     }
-
-    cmd "probe" {
-        help "Check which provider executables are available on PATH; never throws on an unavailable provider"
+    cmd probe help="Check which provider executables are available on PATH; never throws on an unavailable provider" {
+        flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
     }
-
-    cmd "setup" {
-        help "Set up provider integrations"
-
-        cmd "mistral-vibe" {
-            help "Append PHAX-owned Mistral Vibe model aliases to ~/.vibe/config.toml (append-only, atomic)"
-            flag "--dry-run" {
-                help "Preview what would be appended without writing anything"
-            }
-            flag "--install-model-aliases" {
-                help "Actually append the missing aliases and write the backup"
-            }
+    cmd setup help="Set up provider integrations" subcommand_required=#true {
+        cmd mistral-vibe help="Append PHAX-owned Mistral Vibe model aliases to ~/.vibe/config.toml (append-only, atomic)" {
+            flag --dry-run help="Preview what would be appended without writing anything"
+            flag --install-model-aliases help="Actually append the missing aliases and write the backup"
+            flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
         }
-
-        cmd "providers" {
-            help "Reconcile ~/.phax/providers.json enabled flags from live executable probes (dry-run by default)"
-            flag "--write" {
-                help "Persist the reconciled config (writes a timestamped backup first)"
-            }
-            flag "--prune" {
-                help "Also disable providers whose executable is unavailable"
-            }
-            flag "--with-routing" {
-                help "Scaffold ~/.phax/model-routing.json from defaults when absent (never overwrites)"
-            }
+        cmd providers help="Reconcile ~/.phax/providers.json enabled flags from live executable probes (dry-run by default)" {
+            flag --write help="Persist the reconciled config (writes a timestamped backup first)"
+            flag --prune help="Also disable providers whose executable is unavailable"
+            flag --with-routing help="Scaffold ~/.phax/model-routing.json from defaults when absent (never overwrites)"
+            flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
         }
     }
 }
