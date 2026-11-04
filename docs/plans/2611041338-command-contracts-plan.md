@@ -37,7 +37,7 @@ Both commands are already in `security.agentCommands` in phax.json: `pnpm gen:us
 - Tests. Each family adds its `--json`, error-sentence and written-file tests in the phase that moves it, and plan 2's runnerCommandContracts.test.ts covers every moved command's `--json-schema`, `--help` and undeclared option as it joins `phaxProgram`. The two stdin documents and their sessions, the family whose behaviour changes most and whose refusals the spec states, get an acceptance pair (phase-03, passed by phase-04), run through the runner's memory Io over the definition factories with fake layers, because a session cannot run for real and a terminal stdin cannot be simulated in a spawned process. Every acceptance test carries its own `.fails` marker on its own `it`, fails on its own assertion against phase-03's stubs, and is changed by the passing phase only by removing that marker. Existing tests keep passing with their assertions unchanged; a test whose harness is a deleted registration or run function gets the runner's harness, and an assertion the spec changes (decide's read refusals from 12 to 64, decide's `--json` layout) is the only kind rewritten, each named in the handoff and in docs/upgrading.md. Loss accepted: the other families' tests are written with the code, not frozen before it.
 - docs/upgrading.md's 0.34.0 entry gains one bullet per family, naming each change a person or a script can observe (new `--json` answers, refusals moved to 64, decide's `--json` layout and keys, the retired `artifact archive` exit, `--json` refusals of prompting calls, note lines under `--json`). It never says a moved command is unchanged. The docs page reference/json-output (§11) waits for plan 4.
 
-## Open questions
+## Arbitrated questions
 
 ### q-prune-json — `prune --json` never prompts, as today (§10). Today, without `--yes` or `--dry-run`, it prints the preview document on stdout, `✗ prune refused: --json never prompts; pass --yes to proceed or --dry-run to preview only` on stderr, and exits 1. A command's run cannot tell whether `--json` was given. What does `prune --json` answer without `--yes` or `--dry-run`?
 
@@ -46,12 +46,23 @@ Both commands are already in `security.agentCommands` in phax.json: `pnpm gen:us
 
 Recommendation: refuse-unconfirmed — §5.20 already says a call that would prompt is refused under --json, and an agent that wants the preview has --dry-run, whose answer stays byte for byte. The other option keeps one exit code by teaching every run to branch on the mode, the one thing the output contract exists to prevent, and still changes prune's object.
 
+Decision: refuse-unconfirmed — by operator (Rémy Loubradou), 2026-11-04
+Why: §5.20 refuses a call that would prompt under --json; an agent wanting the preview passes --dry-run, whose answer stays byte for byte. Teaching run the mode would break the output contract's rule for one command. Advocate: The strongest case for mode-in-run: it keeps today's observable behaviour of prune --json without --yes or --dry-run (preview document on stdout, exit 1), so no script checking for exit 1 breaks, at the price of one more upstream gain. Principles: C2, C4. Reversibility: cheap. Revised: none. Phase: phase-06.
+
 ### q-unlock-answer — §6's normative surface shows `phax unlock garden-sync --json` answering `{ "shortName": "garden-sync", "removed": "stale" }`. Today's text names the qualified run (`Stale lock for "garden.garden-sync" removed (process no longer running).`), and a render reads only the encoded answer. What does unlock answer?
 
 - three-keys — `{ shortName, removed, qualifiedName }`, `removed` one of stale, expired, forced or none; the render writes today's sentences from the answer — abandons: §6's answer key for key: a third key a reader of the spec's example does not expect, after the two it shows
 - two-keys — `{ shortName, removed }` exactly as §6; run writes today's sentence as a say line as it removes the lock, and the render writes nothing, which takes one more fix in the port (an empty render writes no line) — abandons: the rule every other command keeps, that its text is its render of its answer: unlock's text is no longer derivable from its JSON, and under --json the sentence becomes a note line
 
 Recommendation: three-keys — A key added after the two §6 shows breaks no reader of those two, and keeps unlock's text a pure view of its answer like every other command's; the other option bends the port and the text rule for one command to keep the example's exact key set.
+
+Decision: three-keys — by operator (Rémy Loubradou), 2026-11-04
+Why: A third key after the two §6 shows breaks no reader of them, and keeps unlock's text a pure view of its answer like every other command's. Advocate: The strongest case for two-keys: it matches §6's normative example key for key, so a reader built from the spec sees exactly the answer it documents, and no extra key has to be explained. Principles: C1, E0. Reversibility: cheap. Revised: none. Phase: phase-06.
+
+## Decision log
+
+- 2026-11-04 q-prune-json decided refuse-unconfirmed — operator (Rémy Loubradou)
+- 2026-11-04 q-unlock-answer decided three-keys — operator (Rémy Loubradou)
 
 ---
 
