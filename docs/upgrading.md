@@ -32,6 +32,7 @@ Only the releases that ask for something are listed. phax never asks for a step 
 - **Artifacts: `phax artifact status --json` is new.** It prints an `artifact-status` document: the path, kind, status, legal transitions, approval, authoring and questions the text reports. Without `--json` the text is unchanged.
 - **Command line: `artifact status`, `plans overview`, `plans lint` and `ls` answer through the runner.** Under `--json`, stderr carries only message lines, one JSON object each: a warning (an orphan approval record, a failed architecture provider) is a `note` line, a failure an `error` line, a refused call a `refused` line. `--json-schema` after each prints its contracts. Without `--json`, their text, warnings, error sentences and exit codes are unchanged.
 - **Plans: `plans status`, `plans overlap` and `plans estimate` answer through the runner.** Their `--json` objects are unchanged except `plans status --apply`, which gains `written` after `applied`, the flipped plans' records. Under `--json` their warnings are note lines. `phax plans` alone and `--json-schema` follow the runner.
+- **Command line: `validate`, `session-info`, `path`, `brief`, `architecture`, `completions` and `report` answer through the runner.** Under `--json` each answers one JSON object and message lines on stderr, and `--json-schema` after each prints its contracts. Their text and codes are unchanged; `phax path` and `phax completions` print the same bytes.
 
 Later entries of this release follow.
 

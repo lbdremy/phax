@@ -450,6 +450,9 @@ export async function runThroughOutput(
     readonly json?: boolean;
     /** Log the render one line at a time, as the kept function did before its move. */
     readonly lineByLine?: boolean;
+    /** Log these, one `out.log` each, in place of the render, as the kept function logged its
+     *  sections before its move. */
+    readonly sections?: (value: never) => ReadonlyArray<string>;
   } = {},
 ): Promise<number> {
   const exit = await Effect.runPromiseExit(
@@ -475,9 +478,11 @@ export async function runThroughOutput(
     const texts: Readonly<Record<string, ((error: never) => string) | undefined>> =
       command.texts ?? {};
     const say = texts[tag];
-    out.error(
-      say === undefined ? String(Reflect.get(error as object, "message")) : say(error as never),
-    );
+    const sentence =
+      say === undefined ? String(Reflect.get(error as object, "message")) : say(error as never);
+    for (const line of options.lineByLine === true ? sentence.split("\n") : [sentence]) {
+      out.error(line);
+    }
     return code;
   }
   const value: unknown = exit.value;
@@ -494,6 +499,8 @@ export async function runThroughOutput(
       value,
     );
     out.log(encodedText(encoded).slice(0, -1));
+  } else if (options.sections !== undefined) {
+    for (const section of options.sections(value as never)) out.log(section);
   } else if (command.render !== undefined) {
     const text = command.render(value, OUTPUT_TERMINAL);
     for (const line of options.lineByLine === true ? text.split("\n") : [text]) out.log(line);

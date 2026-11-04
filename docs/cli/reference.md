@@ -33,7 +33,7 @@ Print the program's contracts as JSON Schema, or a command's after its name, and
 
 ## `phax validate`
 
-- **Usage**: `phax validate [--plan <path>]`
+- **Usage**: `phax validate [--plan <plan>] [--json]`
 
 Checks that the configuration decodes and, with --plan, that the given phax-plan.json decodes. The config layers (phax.json, phax.local.json, ~/.phax/config.json) are merged and decoded; a user overlay that carries assignments is refused, because assignments is accepted only in phax.json.
 
@@ -47,9 +47,13 @@ Side effects: none.
 
 ### Flags
 
-#### `--plan <path>`
+#### `--plan <plan>`
 
 Also validate a phax-plan.json at this path
+
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 ### Examples
 
@@ -133,7 +137,7 @@ phax enter-phase usage-cli phase-03 --new-session
 
 ## `phax session-info`
 
-- **Usage**: `phax session-info [--debug] <short-name>`
+- **Usage**: `phax session-info [--debug] [--json] <short-name>`
 
 Prints diagnostic information about a run: its current state, active phase, worktree path, and agent session id. For a run in awaiting_review it prints the stop's cause, the stopped phase, its worktree, the seed and the current session with the phax enter-phase command that continues it. A held stop reads `headless, committed <short sha>`, and its session is the builder's. Read-only — no side effects.
 
@@ -148,6 +152,10 @@ Run short name, e.g. usage-cli
 #### `--debug`
 
 Dump raw binding and model-resolution metadata
+
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 ### Examples
 
@@ -179,7 +187,7 @@ phax shell usage-cli
 
 ## `phax path`
 
-- **Usage**: `phax path <short-name>`
+- **Usage**: `phax path [--json] <short-name>`
 
 Prints the absolute path to the final worktree on a single line. Useful in scripts: cd $(phax path my-run) or for piping to other tools. For a run in awaiting_review it prints the stopped phase's worktree.
 
@@ -188,6 +196,12 @@ Prints the absolute path to the final worktree on a single line. Useful in scrip
 #### `<short-name>`
 
 Run short name, e.g. usage-cli
+
+### Flags
+
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 ### Examples
 
@@ -623,7 +637,7 @@ phax adjust-plan docs/plans/2609101030-plan-prune-plan.md --landed my-feature
 
 ## `phax brief`
 
-- **Usage**: `phax brief [path]…`
+- **Usage**: `phax brief [--json] [path]…`
 
 Asks the brief provider configured as "brief": { "command": …, "push": … } in phax.json, phax.local.json or ~/.phax/config.json which rules cover the given paths, what fails there and how to fix it. Paths resolve against the current directory, may not exist yet, and must lie inside the working tree; they are sent relative to its root, deduplicated, in the order given. Config is read from the repository's main checkout; the provider runs from the working tree's root, with no shell, one brief request on stdin, and a fixed 60-second limit.
 
@@ -641,6 +655,12 @@ Side effects: runs the brief provider. Inside a phase whose briefs are not yet c
 
 Paths to brief, existing or not, relative to the current directory
 
+### Flags
+
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
+
 ### Examples
 
 ```
@@ -653,7 +673,7 @@ phax brief
 
 ## `phax architecture`
 
-- **Usage**: `phax architecture [path]…`
+- **Usage**: `phax architecture [--json] [path]…`
 
 Asks the architecture provider configured as "architecture": { "command": … } in phax.json, phax.local.json or ~/.phax/config.json for the repository's architecture, and prints its report: the Markdown body, then the report's parts rendered to Markdown, then the owner's assignment bounds (phax.json "assignments") as a "## Bounds" list, each as assignments[N] with its model and effort range; a part bound shows its part's name and globs, and a path-scoped report that does not carry the part says to run the command with no path for its globs. With no path, it asks about the whole repository; with paths, about the parts that hold them. Paths resolve against the current directory, may not exist yet, and must lie inside the working tree. Config is read from the repository's main checkout; the provider runs from the working tree's root, with no shell, one architecture request on stdin, and a fixed 60-second limit.
 
@@ -670,6 +690,12 @@ Side effects: runs the architecture provider. Writes no file, inside a phase wor
 #### `[path]…`
 
 Paths to ask about, existing or not, relative to the current directory
+
+### Flags
+
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 ### Examples
 
@@ -709,7 +735,7 @@ phax init --force
 
 ## `phax report`
 
-- **Usage**: `phax report [--no-gist] [short-name]`
+- **Usage**: `phax report [--no-gist] [--json] [short-name]`
 
 Creates a GitHub issue from local run telemetry. By default, uploads the full log as a secret GitHub gist and links it in the issue body. Use --no-gist to inline the log directly.
 
@@ -727,6 +753,10 @@ Run short name, e.g. usage-cli
 
 Inline the full log in the issue body instead of creating a secret gist
 
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
+
 ### Examples
 
 ```
@@ -743,7 +773,7 @@ phax report usage-cli --no-gist
 
 ## `phax completions`
 
-- **Usage**: `phax completions <shell>`
+- **Usage**: `phax completions [--json] <shell>`
 
 Generate a shell completion script (zsh, bash, fish, nu, powershell). Requires the usage CLI.
 
@@ -752,6 +782,12 @@ Generate a shell completion script (zsh, bash, fish, nu, powershell). Requires t
 #### `<shell>`
 
 Shell to generate completions for (zsh, bash, fish, nu, powershell)
+
+### Flags
+
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 ## `phax resume`
 

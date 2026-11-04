@@ -21,10 +21,18 @@ const frozen = readFileSync(
   "utf8",
 );
 
-/** The commands on the runner, in the program's order: `artifact status`, the `plans` commands
- *  and `ls`, each allowed the `--json` flag it gains with the library's help. */
+/** The commands on the runner, in the program's order: the root inspection commands, `ls`,
+ *  `artifact status` and the `plans` commands, each allowed the `--json` flag it gains with the
+ *  library's help. */
 const MIGRATED_COMMANDS: ReadonlyArray<string> = [
+  "validate",
+  "session-info",
+  "path",
   "ls",
+  "brief",
+  "architecture",
+  "report",
+  "completions",
   "artifact status",
   "plans status",
   "plans overlap",
@@ -65,6 +73,7 @@ const WHOLE_GROUPS: ReadonlyArray<string> = [
  *  it otherwise: `plans overlap --landed <run>` is `--landed <landed>`. */
 const REWORDED_VALUE_NAMES: ReadonlyArray<readonly [string, string]> = [
   ["plans overlap", "flag --landed "],
+  ["validate", "flag --plan "],
 ];
 
 /** What the committed file may declare beyond the frozen one: a path and a declaration's head
