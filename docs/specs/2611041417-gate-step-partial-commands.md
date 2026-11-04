@@ -296,6 +296,10 @@ Given the generated phax.schema.json and phax.user.schema.json, when they are re
 
 ## 9. Open questions
 
+None.
+
+## 9b. Arbitrated questions
+
 ### q-placeholder — How does a files command mark where the agent's files go, given that phax never fills it in but must find each segment's runnable prefix to allow it?
 
 - named-placeholder — A documented `<name>` placeholder (lowercase word in angle brackets). A segment's allowed prefix is its words before the first placeholder. A files command without one, or a diff command with one, is refused at load. — abandons: Free spelling: a project that writes `FILES` or `{files}` is refused and has to learn the convention.
@@ -303,6 +307,9 @@ Given the generated phax.schema.json and phax.user.schema.json, when they are re
 - fixed-files — Exactly `<files>`, one spelling for every project — abandons: Naming what the step wants (`<test-files>`, `<packages>`), which tells the agent what to put there.
 
 Recommendation: named-placeholder — phax must compute an allow prefix for each segment, and only a token phax recognises makes that prefix deterministic. A named placeholder keeps that while still letting a project say what goes there. Learning one documented convention is a small cost next to an allowlist built on a guess.
+
+Decision: named-placeholder — by operator (Rémy Loubradou), 2026-11-04
+Why: phax must compute an allow prefix for each segment, and only a token phax recognises makes that prefix deterministic. A named placeholder keeps that while still letting a project say what goes there. Learning one documented convention is a small cost next to an allowlist built on a guess. Advocate: The strongest case for fixed-files: one spelling for every project is the simplest convention to document and check, and the agent always sees the same token. Principles: S1, S3, S5. Reversibility: cheap. Revised: none.
 
 ### q-compound — Which ways of joining commands may a partial command use, given that each part must be allowed in secure mode?
 
@@ -312,6 +319,9 @@ Recommendation: named-placeholder — phax must compute an allow prefix for each
 
 Recommendation: pipes-only — The probe shows Claude Code denies `$(…)` even when the exact string is allowed, so allowing nested forms buys nothing. A pipe is enough to feed a file list to a tool. Refusing everything else at load means a project learns at `phax validate` time, not from a denied call in a phase. Rewriting the rare sequenced command as a script is the acceptable loss.
 
+Decision: pipes-only — by operator (Rémy Loubradou), 2026-11-04
+Why: The probe shows Claude Code denies `$(…)` even when the exact string is allowed, so allowing nested forms buys nothing. A pipe is enough to feed a file list to a tool. Refusing everything else at load means a project learns at `phax validate` time, not from a denied call in a phase. Rewriting the rare sequenced command as a script is the acceptable loss. Advocate: The strongest case for pipes-and-and: `cd pkg && tool` is a common monorepo form, and allowing each side as its own prefix would let such projects write their partial command directly instead of wrapping it in a script. Principles: S1, S3, S5. Reversibility: cheap. Revised: none.
+
 ### q-vibe — Mistral Vibe's prefix allowlist has not been checked on a pipe whose every segment is allowed. How does this spec handle Vibe?
 
 - check-and-record — Show and allow on Vibe the same way. The acceptance includes a real-CLI Vibe check, and docs/security.md records the result. A refused pipe becomes a documented limit, with no Vibe-specific workaround. — abandons: Certainty before shipping: until the check runs, a Vibe phase may be shown a diff command its provider refuses.
@@ -319,6 +329,9 @@ Recommendation: pipes-only — The probe shows Claude Code denies `$(…)` even 
 - block-on-check — Do not ship until the Vibe check passes — abandons: The feature on Claude Code and Codex, held back for an unknown on one provider.
 
 Recommendation: check-and-record — The gate section stays the same on every provider, as the prerequisite requires. The files variant usually needs no pipe and works on any prefix allowlist. The real-CLI check turns the unknown into a recorded fact. In the worst case a Vibe agent is denied one piped call and falls back to a narrower command or leaves the check to the gate. That costs one turn and puts no run at risk.
+
+Decision: check-and-record — by operator (Rémy Loubradou), 2026-11-04
+Why: The gate section stays the same on every provider, as the prerequisite requires. The files variant usually needs no pipe and works on any prefix allowlist. The real-CLI check turns the unknown into a recorded fact. In the worst case a Vibe agent is denied one piped call and falls back to a narrower command or leaves the check to the gate. That costs one turn and puts no run at risk. Advocate: The strongest case for block-on-check: shipping before the check means a Vibe phase can be shown a command its provider refuses, whereas waiting guarantees that what the prompt shows actually runs. Principles: S1, S5. Reversibility: cheap. Revised: none.
 
 ### q-empty-diff — With an empty diff, `xargs` may run the tool with no path, which means on the whole repository. Does phax act on that?
 
@@ -328,6 +341,9 @@ Recommendation: check-and-record — The gate section stays the same on every pr
 
 Recommendation: docs-only — The trap belongs to the tool the project chose, and phax knows no tool. A whole-repository run on an empty diff costs one slow check, no worse than what the agent does today. Documenting the safe form where projects copy it from is the cheapest fix that keeps phax tool-agnostic.
 
+Decision: docs-only — by operator (Rémy Loubradou), 2026-11-04
+Why: The trap belongs to the tool the project chose, and phax knows no tool. A whole-repository run on an empty diff costs one slow check, no worse than what the agent does today. Documenting the safe form where projects copy it from is the cheapest fix that keeps phax tool-agnostic. Advocate: The strongest case for refuse-at-load: refusing at load is the only option that makes the trap structurally impossible, instead of leaving a project to discover a whole-repository run on its first empty diff. Principles: S1, S10. Reversibility: cheap. Revised: none.
+
 ### q-own-profile — When does this repository's own phax.json gain `partial`, given that runs use the released phax, whose config decoder refuses unknown keys?
 
 - follow-up — In a follow-up commit, after the release that accepts `partial` is installed — abandons: Dogfooding in the run itself: the feature ships without phax's own profile using it, and the first real use comes a release later.
@@ -335,9 +351,8 @@ Recommendation: docs-only — The trap belongs to the tool the project chose, an
 
 Recommendation: follow-up — Breaking the repository's own config for the released binary is not acceptable. Waiting one release to use the feature here costs only time.
 
-## 9b. Arbitrated questions
-
-None.
+Decision: follow-up — by operator (Rémy Loubradou), 2026-11-04
+Why: Breaking the repository's own config for the released binary is not acceptable. Waiting one release to use the feature here costs only time. Advocate: The strongest case for in-run: the run that ships the feature would exercise it on phax's own profile, so a defect shows up before the release instead of a release later. Principles: S1, S4. Reversibility: cheap. Revised: none.
 
 ## 10. Implementation-planning note
 
@@ -375,3 +390,11 @@ Page: README.md — the gate profiles section (beside "Gate report steps" and "G
 Reader: A project maintainer writing phax.json who wants phase agents to check their changes cheaply, with the project's own targeted commands, instead of rerunning whole gate steps.
 
 Example: Add `"partial": { "files": "pnpm exec vitest run <files>", "diff": "pnpm exec vitest run --changed" }` to the `pnpm test` step. Each phase prompt then shows these two commands under the step, and a secure phase may run them without listing them in `security.agentCommands`. phax never runs them, and the gate still runs `pnpm test`. The page names the traps of a diff command written as a pipe: with an empty diff, `xargs` may run the tool on the whole repository unless it skips empty input (`xargs -r`), and `git diff` does not list new untracked files, which a phase worktree holds until phax commits.
+
+## 12. Decision log
+
+- 2026-11-04 q-placeholder decided named-placeholder — operator (Rémy Loubradou)
+- 2026-11-04 q-compound decided pipes-only — operator (Rémy Loubradou)
+- 2026-11-04 q-vibe decided check-and-record — operator (Rémy Loubradou)
+- 2026-11-04 q-empty-diff decided docs-only — operator (Rémy Loubradou)
+- 2026-11-04 q-own-profile decided follow-up — operator (Rémy Loubradou)
