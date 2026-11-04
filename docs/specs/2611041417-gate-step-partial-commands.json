@@ -392,7 +392,8 @@
       ]
     }
   ],
-  "openQuestions": [
+  "openQuestions": [],
+  "arbitratedQuestions": [
     {
       "id": "q-placeholder",
       "question": "How does a files command mark where the agent's files go, given that phax never fills it in but must find each segment's runnable prefix to allow it?",
@@ -414,7 +415,30 @@
         }
       ],
       "recommendation": "named-placeholder",
-      "rationale": "phax must compute an allow prefix for each segment, and only a token phax recognises makes that prefix deterministic. A named placeholder keeps that while still letting a project say what goes there. Learning one documented convention is a small cost next to an allowlist built on a guess."
+      "rationale": "phax must compute an allow prefix for each segment, and only a token phax recognises makes that prefix deterministic. A named placeholder keeps that while still letting a project say what goes there. Learning one documented convention is a small cost next to an allowlist built on a guess.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "named-placeholder",
+        "abandoned": [
+          "free-text",
+          "fixed-files"
+        ],
+        "why": "phax must compute an allow prefix for each segment, and only a token phax recognises makes that prefix deterministic. A named placeholder keeps that while still letting a project say what goes there. Learning one documented convention is a small cost next to an allowlist built on a guess.",
+        "advocate": "The strongest case for fixed-files: one spelling for every project is the simplest convention to document and check, and the agent always sees the same token.",
+        "principles": [
+          "S1",
+          "S3",
+          "S5"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-04T14:25:30.636Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-compound",
@@ -437,7 +461,30 @@
         }
       ],
       "recommendation": "pipes-only",
-      "rationale": "The probe shows Claude Code denies `$(…)` even when the exact string is allowed, so allowing nested forms buys nothing. A pipe is enough to feed a file list to a tool. Refusing everything else at load means a project learns at `phax validate` time, not from a denied call in a phase. Rewriting the rare sequenced command as a script is the acceptable loss."
+      "rationale": "The probe shows Claude Code denies `$(…)` even when the exact string is allowed, so allowing nested forms buys nothing. A pipe is enough to feed a file list to a tool. Refusing everything else at load means a project learns at `phax validate` time, not from a denied call in a phase. Rewriting the rare sequenced command as a script is the acceptable loss.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "pipes-only",
+        "abandoned": [
+          "pipes-and-and",
+          "unchecked"
+        ],
+        "why": "The probe shows Claude Code denies `$(…)` even when the exact string is allowed, so allowing nested forms buys nothing. A pipe is enough to feed a file list to a tool. Refusing everything else at load means a project learns at `phax validate` time, not from a denied call in a phase. Rewriting the rare sequenced command as a script is the acceptable loss.",
+        "advocate": "The strongest case for pipes-and-and: `cd pkg && tool` is a common monorepo form, and allowing each side as its own prefix would let such projects write their partial command directly instead of wrapping it in a script.",
+        "principles": [
+          "S1",
+          "S3",
+          "S5"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-04T14:25:30.636Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-vibe",
@@ -460,7 +507,29 @@
         }
       ],
       "recommendation": "check-and-record",
-      "rationale": "The gate section stays the same on every provider, as the prerequisite requires. The files variant usually needs no pipe and works on any prefix allowlist. The real-CLI check turns the unknown into a recorded fact. In the worst case a Vibe agent is denied one piped call and falls back to a narrower command or leaves the check to the gate. That costs one turn and puts no run at risk."
+      "rationale": "The gate section stays the same on every provider, as the prerequisite requires. The files variant usually needs no pipe and works on any prefix allowlist. The real-CLI check turns the unknown into a recorded fact. In the worst case a Vibe agent is denied one piped call and falls back to a narrower command or leaves the check to the gate. That costs one turn and puts no run at risk.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "check-and-record",
+        "abandoned": [
+          "hide-on-vibe",
+          "block-on-check"
+        ],
+        "why": "The gate section stays the same on every provider, as the prerequisite requires. The files variant usually needs no pipe and works on any prefix allowlist. The real-CLI check turns the unknown into a recorded fact. In the worst case a Vibe agent is denied one piped call and falls back to a narrower command or leaves the check to the gate. That costs one turn and puts no run at risk.",
+        "advocate": "The strongest case for block-on-check: shipping before the check means a Vibe phase can be shown a command its provider refuses, whereas waiting guarantees that what the prompt shows actually runs.",
+        "principles": [
+          "S1",
+          "S5"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-04T14:25:30.636Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-empty-diff",
@@ -483,7 +552,29 @@
         }
       ],
       "recommendation": "docs-only",
-      "rationale": "The trap belongs to the tool the project chose, and phax knows no tool. A whole-repository run on an empty diff costs one slow check, no worse than what the agent does today. Documenting the safe form where projects copy it from is the cheapest fix that keeps phax tool-agnostic."
+      "rationale": "The trap belongs to the tool the project chose, and phax knows no tool. A whole-repository run on an empty diff costs one slow check, no worse than what the agent does today. Documenting the safe form where projects copy it from is the cheapest fix that keeps phax tool-agnostic.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "docs-only",
+        "abandoned": [
+          "prompt-warns",
+          "refuse-at-load"
+        ],
+        "why": "The trap belongs to the tool the project chose, and phax knows no tool. A whole-repository run on an empty diff costs one slow check, no worse than what the agent does today. Documenting the safe form where projects copy it from is the cheapest fix that keeps phax tool-agnostic.",
+        "advocate": "The strongest case for refuse-at-load: refusing at load is the only option that makes the trap structurally impossible, instead of leaving a project to discover a whole-repository run on its first empty diff.",
+        "principles": [
+          "S1",
+          "S10"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-04T14:25:30.636Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-own-profile",
@@ -501,10 +592,30 @@
         }
       ],
       "recommendation": "follow-up",
-      "rationale": "Breaking the repository's own config for the released binary is not acceptable. Waiting one release to use the feature here costs only time."
+      "rationale": "Breaking the repository's own config for the released binary is not acceptable. Waiting one release to use the feature here costs only time.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "follow-up",
+        "abandoned": [
+          "in-run"
+        ],
+        "why": "Breaking the repository's own config for the released binary is not acceptable. Waiting one release to use the feature here costs only time.",
+        "advocate": "The strongest case for in-run: the run that ships the feature would exercise it on phax's own profile, so a defect shows up before the release instead of a release later.",
+        "principles": [
+          "S1",
+          "S4"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-04T14:25:30.636Z",
+        "revised": []
+      },
+      "history": []
     }
   ],
-  "arbitratedQuestions": [],
   "planningNote": {
     "settled": [
       "`partial` is optional on a gate step, with exactly two named variants, `files` and `diff`. When present it holds at least one of them. The same shape applies in phax.json, workspace profiles and the user overlay.",
