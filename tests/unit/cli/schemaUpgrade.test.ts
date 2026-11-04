@@ -33,26 +33,26 @@ describe("runSchemaUpgrade", () => {
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it("returns 1 and prints an error when no phax.json exists", () => {
+  it("returns 1 and prints an error when no phax.json exists", async () => {
     const { out, errors } = makeFakeOut();
-    const code = runSchemaUpgrade(out);
+    const code = await runSchemaUpgrade(out);
     expect(code).toBe(1);
     expect(errors.some((e) => e.includes("phax init"))).toBe(true);
   });
 
-  it("returns 0 and prints Updated when schema is written for the first time", () => {
+  it("returns 0 and prints Updated when schema is written for the first time", async () => {
     writeFileSync(join(tmpDir, "phax.json"), JSON.stringify({ version: 1 }));
     const { out, lines } = makeFakeOut();
-    const code = runSchemaUpgrade(out);
+    const code = await runSchemaUpgrade(out);
     expect(code).toBe(0);
     expect(lines.some((l) => l.startsWith("Updated "))).toBe(true);
   });
 
-  it("returns 0 and prints already up to date on second call", () => {
+  it("returns 0 and prints already up to date on second call", async () => {
     writeFileSync(join(tmpDir, "phax.json"), JSON.stringify({ version: 1 }));
-    runSchemaUpgrade(makeFakeOut().out);
+    await runSchemaUpgrade(makeFakeOut().out);
     const { out, lines } = makeFakeOut();
-    const code = runSchemaUpgrade(out);
+    const code = await runSchemaUpgrade(out);
     expect(code).toBe(0);
     expect(lines.some((l) => l.includes("already up to date"))).toBe(true);
   });

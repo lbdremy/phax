@@ -176,7 +176,8 @@ describe("pickGateProfileId — no fast/full depth preference", () => {
     // 'custom' is first; the old code would have preferred 'full'.
     const config = { raw: { gateProfiles: { custom: [], full: [] } } } as never;
     expect(pickGateProfileId(config)).toBe("custom");
-  });
+    // The first import of the module is a cold transform of its whole graph.
+  }, 30_000);
 
   it("returns null when no profiles are configured", async () => {
     const { pickGateProfileId } = await import("../../../src/cli/commands/run.js");

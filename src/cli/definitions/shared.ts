@@ -1,7 +1,7 @@
 // What phax's command definitions share: the configuration read as a run's first step, the
 // repository and a path argument made repo-relative, and the fields an error line carries.
 import { execSync } from "node:child_process";
-import { relative, resolve, sep } from "node:path";
+import { isAbsolute, relative, resolve, sep } from "node:path";
 import { Effect, Either } from "effect";
 import * as Schema from "effect/Schema";
 import { loadConfig } from "../../app/loadConfig.js";
@@ -64,6 +64,15 @@ export const ShortNameArg = Schema.String.annotations({
   description: "Run short name, e.g. usage-cli",
   [CompleterAnnotationId]: { run: "phax ls --complete", descriptions: true },
 });
+
+/** A written file's path as its record names it: from the repository root when the file is inside
+ *  the repository holding `root`, else absolute (~/.phax and ~/.claude have no repository root). */
+export function recordedPath(path: string, root: string): string {
+  const relation = relative(root, path);
+  return relation === "" || relation.startsWith("..") || isAbsolute(relation)
+    ? path
+    : relation.split(sep).join("/");
+}
 
 /** The annotation that names a published format as an output's JSON Schema: a reference to the
  *  format's current shape, which the catalogue writes in place of the generated schema. */

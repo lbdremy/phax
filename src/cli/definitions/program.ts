@@ -10,6 +10,7 @@ import { architectureCommand } from "./architecture.js";
 import { artifactStatusCommand } from "./artifactStatus.js";
 import { briefCommand } from "./brief.js";
 import { completionsCommand } from "./completions.js";
+import { costGroup } from "./cost.js";
 import { lsCommand } from "./ls.js";
 import { pathCommand } from "./path.js";
 import { plansEstimateCommand } from "./plansEstimate.js";
@@ -18,7 +19,10 @@ import { plansOverlapCommand } from "./plansOverlap.js";
 import { plansOverviewCommand } from "./plansOverview.js";
 import { plansStatusCommand } from "./plansStatus.js";
 import { reportCommand } from "./report.js";
+import { schemaGroup } from "./schema.js";
+import { securityGroup } from "./security.js";
 import { sessionInfoCommand } from "./sessionInfo.js";
+import { skillsGroup } from "./skills.js";
 import { validateCommand } from "./validate.js";
 
 /** The options every phax command takes, wherever they stand in the call, with today's help. */
@@ -59,6 +63,10 @@ export const phaxProgram = defineProgram({
     architectureCommand,
     reportCommand,
     completionsCommand,
+    costGroup,
+    securityGroup,
+    skillsGroup,
+    schemaGroup,
     defineGroup({
       name: "artifact",
       summary: "Inspect and transition the lifecycle status of a spec or plan",

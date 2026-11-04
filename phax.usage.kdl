@@ -163,15 +163,11 @@ cmd "prune" {
     }
 }
 
-cmd "cost" {
-    help "Manage the runs' cost ledgers"
-    long_help "Parent command for the runs' cost ledgers. Every run keeps cost-ledger.json in its run folder: one entry per Claude invocation (phase turn, fix attempt, handoff generation, compliance review, code review) with its own API-list cost, tokens per model, agent duration, end time and subscription-window samples. phax archive moves it with the run, and phax prune keeps a copy under ~/.phax/cost-ledgers/."
+cmd cost help="Manage the runs' cost ledgers" long_help="Parent command for the runs' cost ledgers. Every run keeps cost-ledger.json in its run folder: one entry per Claude invocation (phase turn, fix attempt, handoff generation, compliance review, code review) with its own API-list cost, tokens per model, agent duration, end time and subscription-window samples. phax archive moves it with the run, and phax prune keeps a copy under ~/.phax/cost-ledgers/." subcommand_required=#true {
     example "phax cost backfill"
-
-    cmd "backfill" {
-        help "Write a cost ledger for every kept run that has none, from its kept streams"
-        long_help "Writes cost-ledger.json for every run in the registry, across namespaces, that has none, derived from the Claude streams its run folder kept: each phase's output.jsonl, fix-attempt-NN.jsonl and handoff-generation.jsonl (reset phase folders first), then compliance-review.session.jsonl, compliance-review-retry.session.jsonl, code-review.session.jsonl and code-review-retry.session.jsonl. It reads the active run folder (~/.phax/runs/<namespace>.<short-name>/) or the archived one (~/.phax/archive/<namespace>.<short-name>/runs/). Each entry is the invocation's own cost, corrected when Claude Code reports a resumed session cumulatively; its end time is the stream's modification time, and an interrupted invocation carries no duration. A run with no Claude stream gets an empty ledger.\n\nNever touches a run that already has a ledger, never rewrites a ledger and never reads a pruned run or phax/records/v1. A locked run is skipped and named, and so is a run whose folder is missing. A second pass reports nothing to backfill.\n\nPrints `wrote <N> cost ledgers (<M> invocations, $<X> API-list)` or `nothing to backfill`. Exits 0 on success, 1 on error.\n\nSide effects: creates cost-ledger.json in run folders under ~/.phax/runs/ and ~/.phax/archive/."
+    cmd backfill help="Write a cost ledger for every kept run that has none, from its kept streams" long_help="Writes cost-ledger.json for every run in the registry, across namespaces, that has none, derived from the Claude streams its run folder kept: each phase's output.jsonl, fix-attempt-NN.jsonl and handoff-generation.jsonl (reset phase folders first), then compliance-review.session.jsonl, compliance-review-retry.session.jsonl, code-review.session.jsonl and code-review-retry.session.jsonl. It reads the active run folder (~/.phax/runs/<namespace>.<short-name>/) or the archived one (~/.phax/archive/<namespace>.<short-name>/runs/). Each entry is the invocation's own cost, corrected when Claude Code reports a resumed session cumulatively; its end time is the stream's modification time, and an interrupted invocation carries no duration. A run with no Claude stream gets an empty ledger.\n\nNever touches a run that already has a ledger, never rewrites a ledger and never reads a pruned run or phax/records/v1. A locked run is skipped and named, and so is a run whose folder is missing. A second pass reports nothing to backfill.\n\nPrints `wrote <N> cost ledgers (<M> invocations, $<X> API-list)` or `nothing to backfill`. Exits 0 on success, 1 on error.\n\nSide effects: creates cost-ledger.json in run folders under ~/.phax/runs/ and ~/.phax/archive/." {
         example "phax cost backfill"
+        flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
     }
 }
 
@@ -439,52 +435,24 @@ cmd "agent" {
     }
 }
 
-cmd "security" {
-    help "Security-related commands"
-    flag "--verbose" {
-        help "Print human-readable progress and system events"
-    }
-    flag "--trace" {
-        help "Write structured JSONL trace events to the run folder"
-    }
-
-    cmd "status" {
-        help "Show provider security capabilities and availability"
-        flag "--verbose" {
-            help "Print human-readable progress and system events"
-        }
-        flag "--trace" {
-            help "Write structured JSONL trace events to the run folder"
-        }
+cmd security help="Security-related commands" subcommand_required=#true {
+    cmd status help="Show provider security capabilities and availability" {
+        flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
     }
 }
 
-cmd "skills" {
-    help "Manage PHAX skills"
-
-    cmd "install" {
-        help "Install bundled PHAX skills into an agent's native skill directory"
-        arg "[skill]" {
-            help "Skill to install (phax-planning|phax-cli|phax-spec|phax-review|phax-decide-spec|phax-decide-plan|phax-decide-review); installs all skills when omitted"
-        }
-        flag "--target" {
-            arg "<target>"
-            required #true
-            help "Agent target (claude|codex|agent)"
-        }
-        flag "--scope" {
-            arg "<scope>"
-            default "project"
-            help "Installation scope (project|user)"
-        }
+cmd skills help="Manage PHAX skills" subcommand_required=#true {
+    cmd install help="Install bundled PHAX skills into an agent's native skill directory" {
+        flag "--target <target>" help="Agent target (claude|codex|agent)" required=#true
+        flag "--scope <scope>" help="Installation scope (project|user)" default="project"
+        flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
+        arg "[skill]" help="Skill to install (phax-planning|phax-cli|phax-spec|phax-review|phax-decide-spec|phax-decide-plan|phax-decide-review); installs all skills when omitted"
     }
 }
 
-cmd "schema" {
-    help "Manage the local phax.schema.json"
-
-    cmd "upgrade" {
-        help "Regenerate phax.schema.json from the installed binary's config contract; never modifies phax.json"
+cmd schema help="Manage the local phax.schema.json" subcommand_required=#true {
+    cmd upgrade help="Regenerate phax.schema.json from the installed binary's config contract; never modifies phax.json" {
+        flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
     }
 }
 

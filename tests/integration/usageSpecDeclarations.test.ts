@@ -33,6 +33,10 @@ const MIGRATED_COMMANDS: ReadonlyArray<string> = [
   "architecture",
   "report",
   "completions",
+  "cost backfill",
+  "security status",
+  "skills install",
+  "schema upgrade",
   "artifact status",
   "plans status",
   "plans overlap",
@@ -87,9 +91,20 @@ const ALLOWED_ADDITIONS: ReadonlyArray<readonly [string, string]> = [
   ...REWORDED_VALUE_NAMES,
 ];
 
+/** q-security-bare (refuse-bare): `security` and `security status` no longer declare their own
+ *  `--verbose` and `--trace`; the program's options cover them anywhere in the call. Exactly
+ *  these four declarations go. */
+const DROPPED_SECURITY_FLAGS: ReadonlyArray<readonly [string, string]> = [
+  ["security", "flag --verbose "],
+  ["security", "flag --trace "],
+  ["security status", "flag --verbose "],
+  ["security status", "flag --trace "],
+];
+
 /** What the committed file may no longer declare as the frozen one did: each reworded
- *  `--json` and long help. */
+ *  `--json` and long help, and the four security flags q-security-bare drops. */
 const ALLOWED_REWORDINGS: ReadonlyArray<readonly [string, string]> = [
+  ...DROPPED_SECURITY_FLAGS,
   ...REWORDED_JSON.map((path) => [path, "flag --json "] as const),
   ...REWORDED_LONG_HELP.map((path) => [path, "long_help "] as const),
   ...REWORDED_VALUE_NAMES,
