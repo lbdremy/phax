@@ -289,3 +289,11 @@ export function flagShapes(contract: StructContract): ReadonlyArray<FlagShape> {
     };
   });
 }
+
+/** Gain carried for upstream (a stdin flag's help): the description written on the contract of a
+ *  stdin read bound to a flag, which help and the usage spec give the flag in place of the
+ *  library's own sentence; undefined when the contract carries none (Effect's own descriptions of
+ *  its keywords are not one). */
+export function stdinFlagHelp(contract: Schema.Schema.Any): string | undefined {
+  return helpOf(contract.ast);
+}

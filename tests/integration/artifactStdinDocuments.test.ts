@@ -90,7 +90,7 @@ const decideArgv = (repo: StdinDocumentsRepo, ...rest: string[]) => [
 
 describe("artifact decide --verdicts <file|->", { timeout: TIMEOUT }, () => {
   // ac-stdin-file-or-dash
-  it.fails("decides the same verdicts from a file and from a pipe, never reading stdin for the file", async () => {
+  it("decides the same verdicts from a file and from a pipe, never reading stdin for the file", async () => {
     const fromFile = fresh();
     const file = await call(
       fromFile,
@@ -120,7 +120,7 @@ describe("artifact decide --verdicts <file|->", { timeout: TIMEOUT }, () => {
   });
 
   // ac-stdin-terminal
-  it.fails("refuses --verdicts - on a terminal at once, naming --verdicts, without reading stdin", async () => {
+  it("refuses --verdicts - on a terminal at once, naming --verdicts, without reading stdin", async () => {
     const repo = fresh();
     const fakes = fakesOf(repo);
     const called = await call(
@@ -138,7 +138,7 @@ describe("artifact decide --verdicts <file|->", { timeout: TIMEOUT }, () => {
   });
 
   // ac-stdin-terminal, under --json
-  it.fails("writes one refused line naming --verdicts for a terminal stdin under --json", async () => {
+  it("writes one refused line naming --verdicts for a terminal stdin under --json", async () => {
     const repo = fresh();
     const fakes = fakesOf(repo);
     const called = await call(
@@ -158,7 +158,7 @@ describe("artifact decide --verdicts <file|->", { timeout: TIMEOUT }, () => {
   });
 
   // ac-stdin-bad
-  it.fails("refuses a verdicts file choosing an unknown option, naming the field, touching nothing", async () => {
+  it("refuses a verdicts file choosing an unknown option, naming the field, touching nothing", async () => {
     const repo = fresh();
     const fakes = fakesOf(repo);
     const before = snapshot(repo);
@@ -184,7 +184,7 @@ describe("artifact decide --verdicts <file|->", { timeout: TIMEOUT }, () => {
   });
 
   // ac-stdin-bad
-  it.fails("refuses a verdicts path that does not exist, naming it, touching nothing", async () => {
+  it("refuses a verdicts path that does not exist, naming it, touching nothing", async () => {
     const repo = fresh();
     const fakes = fakesOf(repo);
     const before = snapshot(repo);
@@ -207,7 +207,7 @@ describe("artifact decide --verdicts <file|->", { timeout: TIMEOUT }, () => {
   });
 
   // ac-no-person
-  it.fails("refuses --json without --verdicts before any session or backend call starts", async () => {
+  it("refuses --json without --verdicts before any session or backend call starts", async () => {
     const repo = fresh();
     const fakes = fakesOf(repo);
     const called = await call(repo, fakes, decideArgv(repo, "--json"), { stdinIsTerminal: true });
@@ -227,7 +227,7 @@ describe("artifact decide --verdicts <file|->", { timeout: TIMEOUT }, () => {
   });
 
   // ac-json-every-command
-  it.fails("answers --json with one indented value: today's twelve keys, then written and record", async () => {
+  it("answers --json with one indented value: today's twelve keys, then written and record", async () => {
     const repo = fresh();
     const fakes = fakesOf(repo);
     const called = await call(
@@ -262,7 +262,7 @@ describe("artifact decide --verdicts <file|->", { timeout: TIMEOUT }, () => {
   });
 
   // ac-written-on-failure
-  it.fails("lists the spec and its sidecar in the error line's written when the commit fails", async () => {
+  it("lists the spec and its sidecar in the error line's written when the commit fails", async () => {
     const repo = fresh();
     const hook = join(repo.repoDir, ".git", "hooks", "pre-commit");
     writeFileSync(hook, "#!/bin/sh\nexit 1\n");
@@ -288,7 +288,7 @@ describe("artifact decide --verdicts <file|->", { timeout: TIMEOUT }, () => {
 
 describe("artifact new spec --headless --brief <file|->", { timeout: TIMEOUT }, () => {
   // ac-brief-text
-  it.fails("hands the session the same brief text from a file and from a pipe", async () => {
+  it("hands the session the same brief text from a file and from a pipe", async () => {
     const argv = ["artifact", "new", "spec", "plan-prune", "--headless"];
     const fromFile = fresh();
     const fileFakes = fromFile.fakes("new-spec");
@@ -317,7 +317,7 @@ describe("artifact new spec --headless --brief <file|->", { timeout: TIMEOUT }, 
   });
 
   // ac-brief-text
-  it.fails("refuses --brief - on a terminal at once, naming --brief, with no backend call", async () => {
+  it("refuses --brief - on a terminal at once, naming --brief, with no backend call", async () => {
     const repo = fresh();
     const fakes = repo.fakes("new-spec");
     const called = await call(

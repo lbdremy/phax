@@ -3,18 +3,24 @@
 // moves (command-contracts plan 2): `--json-schema` prints its catalogue entry, `--help` lists
 // `--json`, an undeclared option is refused with 64 (a `refused` line from the flags under
 // `--json`), and a group the runner holds whole, called alone, writes its help and is refused.
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, readFileSync, realpathSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { Effect } from "effect";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { PARTIAL_GROUPS } from "../../../src/cli/bridge.js";
 import { runner } from "../../../src/cli/commandLibrary/commander/index.js";
 import {
   argShapes,
   fullName,
+  usageSpec,
   type Command,
   type ExitCode,
   type Inputs,
 } from "../../../src/cli/commandLibrary/contract/index.js";
 import { phaxProgram } from "../../../src/cli/definitions/program.js";
+import { disableGitAutoMaintenance, removeTempDir } from "../../helpers/tempGit.js";
 import { memoryIo } from "../commandLibrary/commander/support/memoryIo.js";
 
 interface Called {
@@ -120,6 +126,65 @@ describe("the groups the runner holds whole", () => {
       expect(called.code, words.join(" ")).toBe(64);
       expect(called.out, words.join(" ")).toBe("");
       expect(called.err, words.join(" ")).toContain("Usage:");
+    }
+  });
+
+  // ac-groups: `artifact` and `artifact new` were the last partial groups of the runner's.
+  it("holds artifact and artifact new whole, PARTIAL_GROUPS empty", () => {
+    expect(PARTIAL_GROUPS).toEqual([]);
+    const labels = wholeGroups.map((words) => words.join(" "));
+    expect(labels).toContain("artifact");
+    expect(labels).toContain("artifact new");
+  });
+});
+
+describe("the retired phax artifact archive", () => {
+  const SENTENCE =
+    'unknown transition "archive" — the completion transition is: phax artifact complete <path>';
+
+  it("is refused with today's sentence and 64, running nothing", async () => {
+    const called = await call(["artifact", "archive", "docs/specs/2609091412-plan-prune.md"]);
+    expect(called.code).toBe(64);
+    expect(called.out).toBe("");
+    expect(called.err).toContain(SENTENCE);
+  });
+
+  it("is one refused line from the command under --json", async () => {
+    const called = await call(["artifact", "archive", "x", "--json"]);
+    expect(called.code).toBe(64);
+    const lines = called.err.split("\n").filter((each) => each !== "");
+    expect(lines).toHaveLength(1);
+    expect(JSON.parse(lines[0] ?? "")).toMatchObject({
+      kind: "refused",
+      source: "command",
+      text: SENTENCE,
+      exit: 64,
+    });
+  });
+
+  it("is absent from the group's help and from the runner's usage spec", async () => {
+    const help = await call(["artifact", "--help"]);
+    expect(help.out).not.toMatch(/^\s+archive\b/m);
+    expect(usageSpec(phaxProgram)).not.toMatch(/^\s+cmd "?archive"?/m);
+  });
+});
+
+describe("phax artifact new spec, in the whole group", () => {
+  it("still creates a blank Draft spec", async () => {
+    const repo = realpathSync(mkdtempSync(join(tmpdir(), "phax-new-spec-")));
+    const cwd = vi.spyOn(process, "cwd").mockReturnValue(repo);
+    try {
+      execFileSync("git", ["init", "-q"], { cwd: repo });
+      disableGitAutoMaintenance(repo);
+      const called = await call(["artifact", "new", "spec", "plan-prune"]);
+      expect(called.err).toBe("");
+      expect(called.code).toBe(0);
+      expect(called.out).toMatch(/^created docs\/specs\/\d{10}-plan-prune\.md \(Draft\)\n$/);
+      const path = called.out.slice("created ".length, -" (Draft)\n".length);
+      expect(readFileSync(join(repo, path), "utf8")).toContain("status: Draft");
+    } finally {
+      cwd.mockRestore();
+      removeTempDir(repo);
     }
   });
 });

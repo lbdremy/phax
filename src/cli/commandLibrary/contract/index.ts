@@ -50,6 +50,7 @@ export {
   flagShapes,
   fullName,
   kebabCase,
+  stdinFlagHelp,
 } from "./shapes.js";
 export { OPTION_HELP, usageSpec } from "./usage.js";
 export type { JsonSchema, RefusalSource } from "./messages.js";

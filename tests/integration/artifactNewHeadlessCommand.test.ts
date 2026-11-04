@@ -13,10 +13,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ClaudeSessionId } from "../../src/domain/branded.js";
-import { runCreateArtifactHeadless } from "../../src/cli/commands/artifact.js";
+import {
+  makeArtifactNewPlanCommand,
+  makeArtifactNewSpecCommand,
+} from "../../src/cli/definitions/artifactNew.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import { isolatePhaxHome } from "../helpers/isolatePhaxHome.js";
+import { inArtifactNew, runnerCall, type RunnerCallOptions } from "../helpers/runnerCall.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 
 // The helper moves homedir() for the modules that compute ~/.phax paths at
@@ -25,21 +29,33 @@ vi.mock("node:os", async (importOriginal) =>
   (await import("../helpers/isolatePhaxHome.js")).isolatedOs(await importOriginal()),
 );
 
-// End-to-end through the command function: real temp git and filesystem, a
-// fake backend swapped in through runCreateArtifactHeadless's deps seam — the
-// only layer left unreal is the provider session itself.
+// End-to-end through the command runner over a memory Io: real temp git and filesystem, a fake
+// backend swapped in through the definition factory's deps — the only layer left unreal is the
+// provider session itself. The runner reads --brief: the memory Io holds the brief file and the
+// pipe.
 
-const NO_FLAGS = { last: false, notLast: false } as const;
+const BRIEF = "Prune archived runs.\nFree their slugs.\n";
 
-function makeOutput() {
-  const lines: string[] = [];
-  const errors: string[] = [];
-  const out = {
-    log: (m: string) => lines.push(m),
-    warn: (m: string) => lines.push(`WARN: ${m}`),
-    error: (m: string) => errors.push(m),
+/** `phax artifact new <kind> …argv`, the brief file as the repo holds it. */
+async function artifactNew(
+  kind: "spec" | "plan",
+  argv: ReadonlyArray<string>,
+  backendLayer: ReturnType<typeof makeFakeBackend>["layer"],
+  options: RunnerCallOptions = {},
+) {
+  const command =
+    kind === "spec"
+      ? makeArtifactNewSpecCommand({ backendLayer })
+      : makeArtifactNewPlanCommand({ backendLayer });
+  const called = await runnerCall([inArtifactNew(command)], ["artifact", "new", kind, ...argv], {
+    files: { "brief.md": BRIEF },
+    ...options,
+  });
+  return {
+    code: called.code,
+    lines: called.outLines,
+    errors: called.errLines,
   };
-  return { out, lines, errors };
 }
 
 const SPEC_DOCUMENT = {
@@ -119,7 +135,7 @@ beforeEach(() => {
       gateProfiles: { fast: [{ command: "true", surface: "local", firing: "every-phase" }] },
     }),
   );
-  writeFileSync(join(repoDir, "brief.md"), "Prune archived runs.\nFree their slugs.\n");
+  writeFileSync(join(repoDir, "brief.md"), BRIEF);
 
   home = isolatePhaxHome();
 
@@ -150,15 +166,10 @@ describe("artifact new spec --headless (command)", () => {
       finalText: JSON.stringify(SPEC_DOCUMENT),
     });
 
-    const { out, lines, errors } = makeOutput();
-    const code = await runCreateArtifactHeadless(
+    const { code, lines, errors } = await artifactNew(
       "spec",
-      "plan-prune",
-      undefined,
-      NO_FLAGS,
-      { headless: true, brief: "brief.md" },
-      out,
-      { backendLayer: backend.layer },
+      ["plan-prune", "--headless", "--brief", "brief.md"],
+      backend.layer,
     );
 
     expect(errors).toEqual([]);
@@ -190,7 +201,7 @@ describe("artifact new spec --headless (command)", () => {
     expect(backend.impl.runCalls).toHaveLength(1);
   });
 
-  it("--brief -: reads the brief from the injected stdin reader, same result", async () => {
+  it("--brief -: reads the brief from the piped stdin, same result", async () => {
     const backend = makeFakeBackend();
     backend.impl.addRunResponse({
       sessionId: "sess-authoring" as ClaudeSessionId,
@@ -198,18 +209,11 @@ describe("artifact new spec --headless (command)", () => {
       finalText: JSON.stringify(SPEC_DOCUMENT),
     });
 
-    const { out, errors } = makeOutput();
-    const code = await runCreateArtifactHeadless(
+    const { code, errors } = await artifactNew(
       "spec",
-      "plan-prune-stdin",
-      undefined,
-      NO_FLAGS,
-      { headless: true, brief: "-" },
-      out,
-      {
-        backendLayer: backend.layer,
-        readStdin: async () => "Prune archived runs.\nFree their slugs.\n",
-      },
+      ["plan-prune-stdin", "--headless", "--brief", "-"],
+      backend.layer,
+      { stdin: BRIEF },
     );
 
     expect(errors).toEqual([]);
@@ -238,15 +242,10 @@ describe("artifact new spec --headless (command)", () => {
       finalText: JSON.stringify(SPEC_DOCUMENT),
     });
 
-    const { out, lines, errors } = makeOutput();
-    const code = await runCreateArtifactHeadless(
+    const { code, lines, errors } = await artifactNew(
       "spec",
-      "plan-prune",
-      undefined,
-      NO_FLAGS,
-      { headless: true, brief: "brief.md" },
-      out,
-      { backendLayer: backend.layer },
+      ["plan-prune", "--headless", "--brief", "brief.md"],
+      backend.layer,
     );
 
     expect(errors).toEqual([]);
@@ -285,16 +284,7 @@ describe("artifact new spec --headless (command)", () => {
   it("--headless without --brief: refuses before spawning, exits 12", async () => {
     const backend = makeFakeBackend();
 
-    const { out, errors } = makeOutput();
-    const code = await runCreateArtifactHeadless(
-      "spec",
-      "plan-prune",
-      undefined,
-      NO_FLAGS,
-      { headless: true },
-      out,
-      { backendLayer: backend.layer },
-    );
+    const { code, errors } = await artifactNew("spec", ["plan-prune", "--headless"], backend.layer);
 
     expect(code).toBe(12);
     expect(errors.join("\n")).toContain("--brief");
@@ -321,15 +311,18 @@ describe("artifact new plan --headless (command)", () => {
   ])("$label: refuses before the session, exits 12, writes nothing", async (c) => {
     const backend = makeFakeBackend();
 
-    const { out, errors } = makeOutput();
-    const code = await runCreateArtifactHeadless(
+    const { code, errors } = await artifactNew(
       "plan",
-      "plan-prune",
-      c.spec,
-      { last: c.last, notLast: c.notLast },
-      { headless: true, brief: "brief.md" },
-      out,
-      { backendLayer: backend.layer },
+      [
+        "plan-prune",
+        ...(c.spec === undefined ? [] : ["--spec", c.spec]),
+        ...(c.last ? ["--last"] : []),
+        ...(c.notLast ? ["--not-last"] : []),
+        "--headless",
+        "--brief",
+        "brief.md",
+      ],
+      backend.layer,
     );
 
     expect(code).toBe(12);

@@ -9,8 +9,10 @@ import {
   defineCommand,
   defineGroup,
   defineProgram,
+  OPTION_HELP,
   Refused,
   reject,
+  stdinFlagHelp,
   strip,
   usageSpec,
   type Command,
@@ -82,6 +84,40 @@ describe("a short alias", () => {
     expect(usageSpec(programOf(prune().command))).toContain(
       'flag "--yes -y" help="Proceed without confirmation"',
     );
+  });
+});
+
+const read = (contract: Schema.Schema.Any) =>
+  defineCommand({
+    name: "decide",
+    summary: "Decide",
+    input: { stdin: reject(contract, { flag: "verdicts", valueRequired: true }) },
+    output: strip(Schema.String),
+    exits: {},
+    run: () => Effect.succeed("decided"),
+    render: (text) => text,
+  });
+
+describe("a stdin flag's help", () => {
+  it("is the contract's description in help and the usage spec", async () => {
+    const command = read(
+      Schema.Struct({ verdicts: Schema.Array(Schema.String) }).annotations({
+        description: "Decide from a verdicts file, or - for stdin",
+      }),
+    );
+    const help = await call(programOf(command), { argv: ["decide", "--help"] });
+    expect(help.out.join("")).toMatch(
+      /--verdicts <file\|->\s+Decide from a verdicts file, or - for stdin/,
+    );
+    expect(usageSpec(programOf(command))).toContain(
+      'help="Decide from a verdicts file, or - for stdin"',
+    );
+  });
+
+  it("is the library's sentence when the contract carries no description", () => {
+    const command = read(Schema.Struct({ verdicts: Schema.Array(Schema.String) }));
+    expect(stdinFlagHelp(Schema.Struct({}))).toBeUndefined();
+    expect(usageSpec(programOf(command))).toContain(`help="${OPTION_HELP.stdinValue("verdicts")}"`);
   });
 });
 

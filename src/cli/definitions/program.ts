@@ -7,19 +7,7 @@ import * as Schema from "effect/Schema";
 import { PHAX_RELEASE } from "../../schemas/release.js";
 import { defineGroup, defineProgram, reject } from "../commandLibrary/contract/index.js";
 import { architectureCommand } from "./architecture.js";
-import {
-  artifactMigrateApprovalsCommand,
-  artifactMigrateDocumentsCommand,
-} from "./artifactMigrations.js";
-import { artifactSchemaCommand } from "./artifactSchema.js";
-import { artifactStatusCommand } from "./artifactStatus.js";
-import {
-  artifactAbandonCommand,
-  artifactApproveCommand,
-  artifactCompleteCommand,
-  artifactReopenCommand,
-  artifactStaleCommand,
-} from "./artifactTransitions.js";
+import { artifactGroup } from "./artifact.js";
 import { briefCommand } from "./brief.js";
 import { completionsCommand } from "./completions.js";
 import { costGroup } from "./cost.js";
@@ -65,8 +53,7 @@ export const phaxProgram = defineProgram({
   // As the Commander program writes after each of its refusals.
   refusalHint: "Run `phax --help` for usage.",
   // In the order the Commander program lists them, so that help and the usage spec keep their
-  // positions. A group the bridge holds in part (`artifact`) lists only its migrated commands:
-  // Commander keeps the group itself, with its other commands, until the last of them moves.
+  // positions. Every group is held whole by the runner.
   commands: [
     validateCommand,
     sessionInfoCommand,
@@ -80,21 +67,7 @@ export const phaxProgram = defineProgram({
     securityGroup,
     skillsGroup,
     schemaGroup,
-    defineGroup({
-      name: "artifact",
-      summary: "Inspect and transition the lifecycle status of a spec or plan",
-      commands: [
-        artifactStatusCommand,
-        artifactApproveCommand,
-        artifactStaleCommand,
-        artifactAbandonCommand,
-        artifactCompleteCommand,
-        artifactReopenCommand,
-        artifactSchemaCommand,
-        artifactMigrateApprovalsCommand,
-        artifactMigrateDocumentsCommand,
-      ],
-    }),
+    artifactGroup,
     defineGroup({
       name: "plans",
       summary:
