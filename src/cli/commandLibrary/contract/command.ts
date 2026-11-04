@@ -164,7 +164,7 @@ export interface CommandDef<
    *  `--json` the `error` line alone is written. The errors are inferred from `run`, in the
    *  order a definition's keys are written: write `texts` after a `run` that reads its context. */
   readonly texts?: {
-    readonly [K in E["_tag"]]?: (error: Extract<E, { readonly _tag: K }>) => string;
+    readonly [K in E["_tag"]]?: (error: Extract<E, { readonly _tag: K }>) => ErrorText;
   };
   /** Gain carried for upstream (verdict codes, from the Rust twin): codes a successful output
    *  answers with, each with the predicate that picks it, tried in ascending code order. The
@@ -251,6 +251,11 @@ export interface Program<R> {
 }
 
 /** The process, as data: what the edge hands a runner, so that a runner is proved without one. */
+/** A declared error's text form: its sentence, written on stderr, or (gain carried for upstream,
+ *  the text a command had reached) the lines a person read on stdout before the command failed,
+ *  joined by newlines and written there with one more, then its sentence on stderr. */
+export type ErrorText = string | { readonly out: string; readonly err: string };
+
 export interface Io {
   /** The arguments after the executable and the script. */
   readonly argv: ReadonlyArray<string>;

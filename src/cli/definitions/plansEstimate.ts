@@ -100,7 +100,7 @@ const common = {
 
 /** The output contract of `phax plans estimate`: the estimate report of today, one variant per
  *  verdict. */
-const PlansEstimateOutput = Schema.Union(
+export const PlansEstimateOutput = Schema.Union(
   Schema.Struct({
     ...common,
     verdict: Schema.Literal("thin-history"),

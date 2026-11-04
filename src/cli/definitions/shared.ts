@@ -32,18 +32,23 @@ export function configured(): Effect.Effect<ResolvedConfig, ConfigValidationErro
   });
 }
 
-/** The root of the working tree holding `startDir`, or `startDir` outside any. */
-export function findGitRoot(startDir: string): string {
+/** The root of the working tree holding `startDir`, or undefined outside any. */
+export function gitRoot(startDir: string): string | undefined {
   try {
     const root = execSync("git rev-parse --show-toplevel", {
       cwd: startDir,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
     }).trim();
-    return root.length > 0 ? root : startDir;
+    return root.length > 0 ? root : undefined;
   } catch {
-    return startDir;
+    return undefined;
   }
+}
+
+/** The root of the working tree holding `startDir`, or `startDir` outside any. */
+export function findGitRoot(startDir: string): string {
+  return gitRoot(startDir) ?? startDir;
 }
 
 /** `path` absolutized against the invocation directory, and made repo-relative and POSIX:
@@ -66,8 +71,10 @@ export const ShortNameArg = Schema.String.annotations({
 });
 
 /** A written file's path as its record names it: from the repository root when the file is inside
- *  the repository holding `root`, else absolute (~/.phax and ~/.claude have no repository root). */
-export function recordedPath(path: string, root: string): string {
+ *  the repository holding `root`, else absolute (~/.phax and ~/.claude have no repository root,
+ *  nor has a file written outside any repository, whose `root` is undefined). */
+export function recordedPath(path: string, root: string | undefined): string {
+  if (root === undefined) return path;
   const relation = relative(root, path);
   return relation === "" || relation.startsWith("..") || isAbsolute(relation)
     ? path

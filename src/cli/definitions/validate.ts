@@ -24,10 +24,12 @@ class BoundsInvalidError extends Data.TaggedError("BoundsInvalidError")<{
   readonly at?: string | undefined;
 }> {}
 
-/** The plan did not decode: `Plan validation failed: …`, with the path as typed. */
+/** The plan did not decode: `Plan validation failed: …`, with the path as typed, after the
+ *  config it validated. */
 class PlanInvalidError extends Data.TaggedError("PlanInvalidError")<{
   readonly message: string;
   readonly path?: string | undefined;
+  readonly config: typeof ValidateOutput.Type;
 }> {}
 
 const Sources = Schema.Struct({
@@ -108,6 +110,21 @@ export const validateCommand = defineCommand({
               globs: config.assignments.length - parts,
             };
 
+      const validated = {
+        namespace: config.namespace,
+        sources:
+          sources === undefined
+            ? null
+            : {
+                project: sources.project,
+                local: sources.localOverlay ?? null,
+                global: sources.globalOverlay ?? null,
+              },
+        protectedPaths: config.protectedPaths?.map((entry) => entry.glob) ?? null,
+        assignments,
+        plan: null,
+      };
+
       let plan: { path: string; shortName: string; phases: number } | null = null;
       if (input.flags.plan !== undefined) {
         const typed = input.flags.plan;
@@ -122,6 +139,7 @@ export const validateCommand = defineCommand({
             new PlanInvalidError({
               message: planResult.left.message.split(resolvedPlanPath).join(typed),
               path: planResult.left.path ? typed : undefined,
+              config: validated,
             }),
           );
         }
@@ -132,20 +150,7 @@ export const validateCommand = defineCommand({
         };
       }
 
-      return {
-        namespace: config.namespace,
-        sources:
-          sources === undefined
-            ? null
-            : {
-                project: sources.project,
-                local: sources.localOverlay ?? null,
-                global: sources.globalOverlay ?? null,
-              },
-        protectedPaths: config.protectedPaths?.map((entry) => entry.glob) ?? null,
-        assignments,
-        plan,
-      };
+      return { ...validated, plan };
     }).pipe(Effect.mapError(exposeMessage)),
   exits: { ConfigInvalidError: 2, BoundsInvalidError: 2, PlanInvalidError: 2 },
   errors: {
@@ -155,7 +160,11 @@ export const validateCommand = defineCommand({
       problems: Schema.Array(Schema.String),
       at: Schema.optional(Schema.String),
     }),
-    PlanInvalidError: OptionalPath,
+    PlanInvalidError: Schema.Struct({
+      message: Schema.String,
+      path: Schema.optional(Schema.String),
+      config: ValidateOutput,
+    }),
   },
   texts: {
     ConfigInvalidError: (error) =>
@@ -165,28 +174,34 @@ export const validateCommand = defineCommand({
         ...error.problems.map((problem) => `Config validation failed: ${problem}`),
         ...(error.at === undefined ? [] : [`  at: ${error.at}`]),
       ].join("\n"),
-    PlanInvalidError: (error) =>
-      `Plan validation failed: ${error.message}${error.path ? `\n  at: ${error.path}` : ""}`,
+    // The config's lines on stdout, as they were printed before the plan was read.
+    PlanInvalidError: (error) => ({
+      out: renderValidated(error.config),
+      err: `Plan validation failed: ${error.message}${error.path ? `\n  at: ${error.path}` : ""}`,
+    }),
   },
-  render: (value) => {
-    const lines = [`✓ config is valid (project: ${value.namespace})`];
-    if (value.sources !== null) {
-      lines.push(`  project: ${value.sources.project}`);
-      lines.push(`  local:   ${value.sources.local ?? "(none)"}`);
-      lines.push(`  global:  ${value.sources.global ?? "(none)"}`);
-    }
-    if (value.protectedPaths !== null) {
-      lines.push(`  protected paths: ${value.protectedPaths.join(", ")}`);
-    }
-    if (value.assignments !== null) {
-      const { total, part, globs } = value.assignments;
-      lines.push(`  ${total} assignment bounds (${part} part, ${globs} globs)`);
-    }
-    if (value.plan !== null) {
-      lines.push(
-        `✓ ${value.plan.path} is valid (run: ${value.plan.shortName}, ${value.plan.phases} phase(s))`,
-      );
-    }
-    return lines.join("\n");
-  },
+  render: (value) => renderValidated(value),
 });
+
+/** The config's lines, then the plan's when it was validated. */
+function renderValidated(value: typeof ValidateOutput.Type): string {
+  const lines = [`✓ config is valid (project: ${value.namespace})`];
+  if (value.sources !== null) {
+    lines.push(`  project: ${value.sources.project}`);
+    lines.push(`  local:   ${value.sources.local ?? "(none)"}`);
+    lines.push(`  global:  ${value.sources.global ?? "(none)"}`);
+  }
+  if (value.protectedPaths !== null) {
+    lines.push(`  protected paths: ${value.protectedPaths.join(", ")}`);
+  }
+  if (value.assignments !== null) {
+    const { total, part, globs } = value.assignments;
+    lines.push(`  ${total} assignment bounds (${part} part, ${globs} globs)`);
+  }
+  if (value.plan !== null) {
+    lines.push(
+      `✓ ${value.plan.path} is valid (run: ${value.plan.shortName}, ${value.plan.phases} phase(s))`,
+    );
+  }
+  return lines.join("\n");
+}

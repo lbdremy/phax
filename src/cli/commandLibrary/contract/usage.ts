@@ -77,7 +77,7 @@ const choicesNode = (
 
 /** One option's node; `global` for a program-wide option. */
 function optionNode(flag: FlagShape, depth: number, global: boolean): ReadonlyArray<string> {
-  const usage = flag.switch ? `--${flag.option}` : `--${flag.option} <${flag.field}>`;
+  const usage = flag.switch ? `--${flag.option}` : `--${flag.option} <${flag.valueName}>`;
   return node(
     depth,
     `flag ${usageOf(usage)}${global ? " global=#true" : ""}${property("help", flag.help)}${property("default", flag.default)}${

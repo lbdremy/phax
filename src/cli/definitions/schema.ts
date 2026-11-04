@@ -13,7 +13,7 @@ import {
   Written,
   written,
 } from "../commandLibrary/contract/index.js";
-import { exposeMessage, findGitRoot, MessageFields, recordedPath } from "./shared.js";
+import { exposeMessage, gitRoot, MessageFields, recordedPath } from "./shared.js";
 
 /** No phax.json holds the invocation directory. */
 class NoPhaxConfigError extends Data.TaggedError("NoPhaxConfigError")<{
@@ -45,7 +45,7 @@ export const schemaUpgradeCommand = defineCommand({
       if (kind === "current") {
         return { kind, schemaPath, userSchemaPath, written: [] };
       }
-      const root = findGitRoot(process.cwd());
+      const root = gitRoot(process.cwd());
       // Each file as the disk holds it now.
       const files = yield* Effect.forEach([schemaPath, userSchemaPath], (path) =>
         Effect.gen(function* () {

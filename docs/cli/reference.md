@@ -33,7 +33,7 @@ Print the program's contracts as JSON Schema, or a command's after its name, and
 
 ## `phax validate`
 
-- **Usage**: `phax validate [--plan <plan>] [--json]`
+- **Usage**: `phax validate [--plan <path>] [--json]`
 
 Checks that the configuration decodes and, with --plan, that the given phax-plan.json decodes. The config layers (phax.json, phax.local.json, ~/.phax/config.json) are merged and decoded; a user overlay that carries assignments is refused, because assignments is accepted only in phax.json.
 
@@ -47,7 +47,7 @@ Side effects: none.
 
 ### Flags
 
-#### `--plan <plan>`
+#### `--plan <path>`
 
 Also validate a phax-plan.json at this path
 
@@ -1574,7 +1574,7 @@ Paths to two or more plan.md files
 
 Fail on a cache miss instead of extracting the plan.md
 
-#### `--landed <landed>`
+#### `--landed <run>`
 
 Report which of the given plans need re-adjustment after this run's actual changes
 
@@ -1762,13 +1762,13 @@ Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 ## `phax records list`
 
-- **Usage**: `phax records list [--run <run>] [--json]`
+- **Usage**: `phax records list [--run <id>] [--json]`
 
 List records present: phase records by run, phase, and verified surfaces; review entries by run and review; authoring and decision records by id and artifact
 
 ### Flags
 
-#### `--run <run>`
+#### `--run <id>`
 
 Only show records for this run id
 

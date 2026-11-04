@@ -22,6 +22,7 @@ import {
   OPTION_HELP,
   usageSpec,
   type Command as RunnerCommand,
+  type ErrorText,
   type Grouping,
   type Inputs,
   type Io,
@@ -142,10 +143,16 @@ function givenOptions(argv: ReadonlyArray<string>): Readonly<Record<string, true
 /** The phase guard on the runner's path: the text to write and the exit, or undefined when the
  *  command may run. Under `--json` it is one `refused` line; its exit is the guard's 1, not the
  *  program's `refused` code. */
+/** The options whose answer runs no command: help and the command's contracts. */
+const NOTHING_RUN_OPTIONS: ReadonlySet<string> = new Set(["--help", "-h", JSON_SCHEMA_OPTION]);
+
 export function runnerGuard(
   command: ReadonlyArray<string>,
   argv: ReadonlyArray<string>,
 ): { readonly text: string; readonly exit: 1 } | undefined {
+  // Help and the contracts run nothing: the runner answers them inside a phase worktree too, as
+  // Commander answered help before its guard ran.
+  if (optionWords(argv).some((word) => NOTHING_RUN_OPTIONS.has(word))) return undefined;
   const refusal = phaseGuardRefusal(command.join(" "), givenOptions(argv));
   if (refusal === undefined) return undefined;
   const text = optionWords(argv).includes(JSON_OPTION)
@@ -211,6 +218,15 @@ export async function dispatch(
     }
     if (asked.to === "runner" && asked.group !== undefined) {
       return edge.runRunner([...leading.slice(1), "--help"]);
+    }
+  }
+  // Commander's `<group> help [command]`, inside a group the runner holds whole, is that
+  // command's help, or the group's.
+  const at = leading.indexOf("help");
+  if (at > 0) {
+    const group = route(program, leading.slice(0, at));
+    if (group.to === "runner" && group.command === undefined && group.group !== undefined) {
+      return edge.runRunner([...leading.slice(0, at), ...leading.slice(at + 1), "--help"]);
     }
   }
   const routed = route(program, edge.argv);
@@ -324,7 +340,7 @@ function mountStub(parent: Command, command: RunnerCommand<unknown>): void {
   }
   for (const flag of inputs.flags === undefined ? [] : flagShapes(inputs.flags.contract)) {
     stub.option(
-      flag.switch ? `--${flag.option}` : `--${flag.option} <${flag.field}>`,
+      flag.switch ? `--${flag.option}` : `--${flag.option} <${flag.valueName}>`,
       flag.help ?? "",
     );
   }
@@ -475,11 +491,15 @@ export async function runThroughOutput(
     const exits: Readonly<Record<string, number>> = command.exits;
     const code = typeof tag === "string" ? exits[tag] : undefined;
     if (typeof tag !== "string" || code === undefined) throw Cause.squash(exit.cause);
-    const texts: Readonly<Record<string, ((error: never) => string) | undefined>> =
+    const texts: Readonly<Record<string, ((error: never) => ErrorText) | undefined>> =
       command.texts ?? {};
     const say = texts[tag];
-    const sentence =
+    const said: ErrorText =
       say === undefined ? String(Reflect.get(error as object, "message")) : say(error as never);
+    const sentence = typeof said === "string" ? said : said.err;
+    if (typeof said !== "string" && said.out !== "") {
+      for (const line of said.out.split("\n")) out.log(line);
+    }
     for (const line of options.lineByLine === true ? sentence.split("\n") : [sentence]) {
       out.error(line);
     }

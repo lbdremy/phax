@@ -16,6 +16,8 @@ class RunRefError extends Data.TaggedError("RunRefError")<{ readonly message: st
 /** The run has no worktree path recorded. */
 class NoWorktreeError extends Data.TaggedError("NoWorktreeError")<{
   readonly message: string;
+  readonly qualifiedName: string;
+  readonly crossProject: boolean;
 }> {}
 
 const PathOutput = Schema.Struct({
@@ -43,16 +45,31 @@ export const pathCommand = defineCommand({
       const qualifiedName = runKey(namespace, shortName);
       if (!info.worktreePath) {
         return yield* Effect.fail(
-          new NoWorktreeError({ message: `No worktree path found for run "${qualifiedName}".` }),
+          new NoWorktreeError({
+            message: `No worktree path found for run "${qualifiedName}".`,
+            qualifiedName,
+            crossProject,
+          }),
         );
       }
       return { qualifiedName, crossProject, worktreePath: info.worktreePath };
     }).pipe(Effect.mapError(exposeMessage)),
   exits: { RunRefError: 1, NoWorktreeError: 1 },
-  errors: { RunRefError: MessageFields, NoWorktreeError: MessageFields },
+  errors: {
+    RunRefError: MessageFields,
+    NoWorktreeError: Schema.Struct({
+      message: Schema.String,
+      qualifiedName: Schema.String,
+      crossProject: Schema.Boolean,
+    }),
+  },
   texts: {
     RunRefError: (error) => error.message,
-    NoWorktreeError: (error) => error.message,
+    // Another project's run is named on stdout before the refusal, as the render names it.
+    NoWorktreeError: (error) =>
+      error.crossProject
+        ? { out: `Target: ${error.qualifiedName}`, err: error.message }
+        : error.message,
   },
   render: (value) =>
     value.crossProject

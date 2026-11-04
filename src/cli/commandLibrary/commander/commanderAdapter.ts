@@ -36,11 +36,12 @@ export interface CommandSpec {
   readonly args: ReadonlyArray<
     Described & { readonly name: string; readonly optional: boolean; readonly variadic: boolean }
   >;
-  /** One option per field: `--kebab <field>`, or a bare switch. */
+  /** One option per field: `--kebab <value name>`, or a bare switch. */
   readonly flags: ReadonlyArray<
     Described & {
       readonly field: string;
       readonly option: string;
+      readonly valueName: string;
       readonly optional: boolean;
       readonly switch: boolean;
     }
@@ -142,7 +143,7 @@ function declare(
     command.argument(arg.optional ? `[${name}]` : `<${name}>`, describing(arg));
   }
   for (const flag of spec.flags) {
-    const flags = flag.switch ? `--${flag.option}` : `--${flag.option} <${flag.field}>`;
+    const flags = flag.switch ? `--${flag.option}` : `--${flag.option} <${flag.valueName}>`;
     if (flag.optional) command.option(flags, describing(flag));
     else command.requiredOption(flags, describing(flag));
   }

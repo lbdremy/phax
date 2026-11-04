@@ -1728,6 +1728,39 @@ const gainCases: ReadonlyArray<Case> = [
       }),
   },
   {
+    // Gain: the text a command had reached. A declared error's text form may give the lines a
+    // person read on stdout before the failure: without `--json` they are written on stdout, then
+    // the sentence on stderr; with `--json`, only the `error` line.
+    id: "error.text-reached",
+    check: (runner) =>
+      Effect.gen(function* () {
+        const reached = defineCommand({
+          name: "find",
+          summary: "fails with NotFound after a line for a person",
+          input: {},
+          exits: { NotFound: MAPPED },
+          texts: {
+            NotFound: (error) => ({ out: "looking", err: `no todo named ${error.id}` }),
+          },
+          run: () => Effect.fail(new NotFound({ id: "x" })),
+        });
+        const text = yield* call(runner, [reached], ["find"]);
+        const json = yield* call(runner, [reached], ["find", "--json"]);
+        return verdict(
+          ended(text, MAPPED),
+          is("out without --json", "looking\n", text.out),
+          is("err without --json", "no todo named x\n", text.err),
+          ended(json, MAPPED),
+          outEmpty(json),
+          is(
+            "err with --json",
+            `{"kind":"error","error":"NotFound","exit":${MAPPED},"fields":{"id":"x"},"written":[]}\n`,
+            json.err,
+          ),
+        );
+      }),
+  },
+  {
     // Gain: the program's usage flag. The runner answers the flag the program names (and its
     // format option, `kdl`) with the usage spec, which lists that flag in place of the hidden
     // `--usage-spec`; `--usage-spec` is then no flag of the program.

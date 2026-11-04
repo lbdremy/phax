@@ -261,6 +261,25 @@ describe("the phase guard on the runner's path", () => {
     }
   });
 
+  it("lets a refused command's --help, -h and --json-schema through to the runner", async () => {
+    for (const argv of [
+      ["archive", "--help"],
+      ["archive", "x", "-h"],
+      ["archive", "--json-schema"],
+    ]) {
+      const call = edge(argv, { inPhaseWorktree: () => true });
+      expect(await dispatch(program, call.edge), argv.join(" ")).toBe(0);
+      expect(call.runRunner, argv.join(" ")).toHaveBeenCalledWith(argv);
+      expect(call.written.err).toBe("");
+    }
+  });
+
+  it("still refuses a --help given after `--`, as an operand", async () => {
+    const call = edge(["archive", "--", "--help"], { inPhaseWorktree: () => true });
+    expect(await dispatch(program, call.edge)).toBe(1);
+    expect(call.runRunner).not.toHaveBeenCalled();
+  });
+
   it("reads the guard's refused options from the call's words", () => {
     expect(runnerGuard(["plans", "status"], ["plans", "status", "--apply"])?.exit).toBe(1);
     expect(runnerGuard(["plans", "status"], ["plans", "status"])).toBeUndefined();
@@ -295,6 +314,37 @@ describe("help on a runner command", () => {
       expect(call.runRunner, argv.join(" ")).toHaveBeenCalledWith(argv);
       expect(call.written.err).toBe("");
     }
+  });
+
+  it("answers `<group> help [command]` on a whole group with the runner's --help", async () => {
+    for (const [argv, asked] of [
+      [
+        ["records", "help"],
+        ["records", "--help"],
+      ],
+      [
+        ["records", "help", "sub"],
+        ["records", "sub", "--help"],
+      ],
+      [
+        ["records", "sub", "help", "show"],
+        ["records", "sub", "show", "--help"],
+      ],
+      [
+        ["--verbose", "records", "help", "sub"],
+        ["records", "sub", "--help"],
+      ],
+    ] as const) {
+      const call = edge(argv);
+      await dispatch(program, call.edge);
+      expect(call.runRunner, argv.join(" ")).toHaveBeenCalledWith(asked);
+    }
+  });
+
+  it("leaves a `help` operand of a runner command to that command", async () => {
+    const call = edge(["records", "sub", "show", "help"]);
+    await dispatch(program, call.edge);
+    expect(call.runRunner).toHaveBeenCalledWith(["records", "sub", "show", "help"]);
   });
 
   it("leaves `help` on a partial group to Commander", async () => {
