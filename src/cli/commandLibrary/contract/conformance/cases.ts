@@ -1880,6 +1880,263 @@ const gainCases: ReadonlyArray<Case> = [
   },
 ];
 
+// ---------------------------------------------------------------- the gains of phax's inspection commands
+
+/** Gain (a group's long help and examples): the `debt` group, documented. */
+function documentedDebt() {
+  const { group, runs } = debt();
+  return {
+    group: defineGroup({
+      name: group.name,
+      summary: group.summary,
+      help: "A debt is a failing condition accepted for now.\nIt is withdrawn once fixed.",
+      examples: ["suite debt accept 1 --why flaky", "suite debt withdraw 1"],
+      commands: group.commands,
+    }),
+    runs,
+  };
+}
+
+/** Gain (variadic arguments): a rest alone, optional, and a rest after an element of its own
+ *  schema, required. */
+const FilePath = Schema.String.annotations({ identifier: "path", description: "A file to read" });
+const PlanFile = Schema.String.annotations({ identifier: "plan", description: "A plan" });
+const files = () => recording("files", { args: reject(Schema.Array(FilePath)) });
+const overlap = () => recording("overlap", { args: reject(Schema.NonEmptyArray(PlanFile)) });
+
+/** Gain (a command that prompts): `init` asks a person unless `--yes` is given. */
+function prompting() {
+  const seen: unknown[] = [];
+  const command = defineCommand({
+    name: "init",
+    summary: "configures, asking a person",
+    input: { flags: reject(Schema.Struct({ yes: Switch })) },
+    output: strip(Str),
+    exits: {},
+    prompts: (input) => input.flags.yes !== true,
+    run: (context) =>
+      Effect.sync(() => {
+        seen.push(context.input);
+        return "init";
+      }),
+    render: (text) => text,
+  });
+  return { command, seen };
+}
+
+/** The entry of the command `name` in the catalogue `parsed`, and its input's properties. */
+function inputOfEntry(parsed: unknown): {
+  readonly properties: Readonly<Record<string, unknown>>;
+  readonly required: unknown;
+} {
+  const input: unknown = Reflect.get(Object(parsed), "input");
+  return {
+    properties: Object(Reflect.get(Object(input), "properties")) as Readonly<
+      Record<string, unknown>
+    >,
+    required: Reflect.get(Object(input), "required"),
+  };
+}
+
+// Gains carried for upstream that phax's inspection commands need (command-contracts plan 2).
+// They stand before the library's own gains, whose ids end the table.
+const inspectionGainCases: ReadonlyArray<Case> = [
+  {
+    // Gain: a group's long help and examples. The group's help, on `--help` and when it is
+    // called alone, says its summary, its long help, then its examples, before its commands;
+    // the usage spec writes them as its `long_help` and its `example` nodes, before its commands.
+    id: "groups.long-help",
+    check: (runner) =>
+      Effect.gen(function* () {
+        const shown = documentedDebt();
+        const help = yield* call(runner, [shown.group], ["debt", "--help"]);
+        const lone = documentedDebt();
+        const alone = yield* call(runner, [lone.group], ["debt"]);
+        const spec = yield* call(runner, [documentedDebt().group], ["--usage-spec"]);
+        const root = yield* call(runner, [documentedDebt().group], ["--help"]);
+        const lines = linesOf(spec.out);
+        const header = lines.findIndex((each) => each.startsWith("cmd debt "));
+        const order = (text: string): Check => {
+          const at = [
+            "Accept or withdraw a debt",
+            "A debt is a failing condition accepted for now.",
+            "It is withdrawn once fixed.",
+            "Examples:",
+            "  suite debt accept 1 --why flaky",
+            "  suite debt withdraw 1",
+            "Accept a debt",
+          ].map((part) => text.indexOf(part));
+          return at.every(
+            (index, place) => index !== -1 && (place === 0 || index > (at[place - 1] ?? 0)),
+          )
+            ? undefined
+            : `the group's help should say its summary, long help, examples then commands, got ${show(text)}`;
+        };
+        return verdict(
+          ended(help, 0),
+          is("err of debt --help", "", help.err),
+          order(help.out),
+          ...refusal(alone),
+          order(alone.err),
+          is("runs after the group alone", [], lone.runs),
+          ended(root, 0),
+          lacks(root.out, "A debt is a failing condition"),
+          ended(spec, 0),
+          is(
+            "the group's header",
+            `cmd debt help="Accept or withdraw a debt" long_help="A debt is a failing condition accepted for now.\\nIt is withdrawn once fixed." subcommand_required=#true {`,
+            lines[header],
+          ),
+          is(
+            "the group's examples, first in its block",
+            [
+              `    example "suite debt accept 1 --why flaky"`,
+              `    example "suite debt withdraw 1"`,
+            ],
+            lines.slice(header + 1, header + 3),
+          ),
+          is(
+            "its first command, after its examples",
+            true,
+            (lines[header + 3] ?? "").startsWith("    cmd accept "),
+          ),
+        );
+      }),
+  },
+  {
+    // Gain: variadic arguments. A tuple's rest takes every operand left: alone it is optional,
+    // `[path...]`; after a required element of its own schema it is required, `<plan...>`. Help,
+    // the catalogue and the usage spec show it so.
+    id: "args.variadic",
+    check: (runner) =>
+      Effect.gen(function* () {
+        const checks: Check[] = [];
+        for (const operands of [[], ["a"], ["a", "b", "c"]]) {
+          const reading = files();
+          const called = yield* call(runner, [reading.command], ["files", ...operands]);
+          checks.push(
+            ended(called, 0),
+            is(`input of files ${operands.join(" ")}`, [{ args: operands }], reading.seen),
+          );
+        }
+        for (const operands of [["a"], ["a", "b"]]) {
+          const comparing = overlap();
+          const called = yield* call(runner, [comparing.command], ["overlap", ...operands]);
+          checks.push(
+            ended(called, 0),
+            is(`input of overlap ${operands.join(" ")}`, [{ args: operands }], comparing.seen),
+          );
+        }
+        const empty = overlap();
+        const none = yield* call(runner, [empty.command], ["overlap"]);
+        const both = () => [files().command, overlap().command];
+        const filesHelp = yield* call(runner, both(), ["files", "--help"]);
+        const overlapHelp = yield* call(runner, both(), ["overlap", "--help"]);
+        const filesEntry = yield* printed(runner, both(), ["files", "--json-schema"]);
+        const overlapEntry = yield* printed(runner, both(), ["overlap", "--json-schema"]);
+        const spec = yield* call(runner, both(), ["--usage-spec"]);
+        const optional = inputOfEntry(filesEntry.parsed);
+        const needed = inputOfEntry(overlapEntry.parsed);
+        return verdict(
+          ...checks,
+          ...refusal(none),
+          naming(none, "plan"),
+          ran([empty]),
+          ended(filesHelp, 0),
+          has(filesHelp.out, "[path...]"),
+          has(filesHelp.out, "A file to read"),
+          ended(overlapHelp, 0),
+          has(overlapHelp.out, "<plan...>"),
+          is(
+            "files' path property type",
+            "array",
+            Reflect.get(Object(optional.properties["path"]), "type"),
+          ),
+          is("files' required", [], optional.required),
+          is(
+            "overlap's plan property type",
+            "array",
+            Reflect.get(Object(needed.properties["plan"]), "type"),
+          ),
+          is(
+            "overlap's plan minItems",
+            1,
+            Reflect.get(Object(needed.properties["plan"]), "minItems"),
+          ),
+          is("overlap's required", ["plan"], needed.required),
+          has(spec.out, `arg "[path]..." help="A file to read"`),
+          has(spec.out, `arg "<plan>..." help="A plan"`),
+        );
+      }),
+  },
+  {
+    // Fix: a negated switch. A Boolean field whose option starts with `no-` (`noProbe`,
+    // `--no-probe`) reaches run as true when given and stays absent otherwise; help, the catalogue
+    // and the usage spec show `--no-probe`.
+    id: "flags.negated-switch",
+    check: (runner) =>
+      Effect.gen(function* () {
+        const negated = () =>
+          recording("probe", { flags: reject(Schema.Struct({ noProbe: Switch })) });
+        const given = negated();
+        const withSwitch = yield* call(runner, [given.command], ["probe", "--no-probe"]);
+        const absent = negated();
+        const without = yield* call(runner, [absent.command], ["probe"]);
+        const help = yield* call(runner, [negated().command], ["probe", "--help"]);
+        const entry = yield* printed(runner, [negated().command], ["probe", "--json-schema"]);
+        const spec = yield* call(runner, [negated().command], ["--usage-spec"]);
+        return verdict(
+          ended(withSwitch, 0),
+          is("input with --no-probe", [{ flags: { noProbe: true } }], given.seen),
+          ended(without, 0),
+          is("input without --no-probe", [{ flags: {} }], absent.seen),
+          ended(help, 0),
+          has(help.out, "--no-probe"),
+          is("the entry's options", ["no-probe"], keysOf(inputOfEntry(entry.parsed).properties)),
+          has(spec.out, "flag --no-probe"),
+        );
+      }),
+  },
+  {
+    // Gain: a command that prompts. Under `--json`, a call whose decoded input would make the
+    // command ask a person is refused before run, with one `refused` line from the flags; the
+    // same call without `--json`, or one that would not prompt, runs.
+    id: "json.prompting-refused",
+    check: (runner) =>
+      Effect.gen(function* () {
+        const refused = prompting();
+        const json = yield* call(runner, [refused.command], ["init", "--json"]);
+        const plain = prompting();
+        const text = yield* call(runner, [plain.command], ["init"]);
+        const answered = prompting();
+        const yes = yield* call(runner, [answered.command], ["init", "--yes", "--json"]);
+        return verdict(
+          ended(json, REFUSED),
+          outEmpty(json),
+          is(
+            "the refused line",
+            [
+              {
+                kind: "refused",
+                source: "flags",
+                path: ["json"],
+                expected: "a call that does not prompt",
+                text: "error: --json: init prompts; run it without --json",
+                exit: REFUSED,
+              },
+            ],
+            parsedLines(json.err),
+          ),
+          is("runs after a refused --json", [], refused.seen),
+          ended(text, 0),
+          is("runs without --json", 1, plain.seen.length),
+          ended(yes, 0),
+          is("runs when it does not prompt", [{ flags: { yes: true } }], answered.seen),
+        );
+      }),
+  },
+];
+
 // ---------------------------------------------------------------- the table
 
 export const cases: ReadonlyArray<Case> = [
@@ -2407,5 +2664,6 @@ export const cases: ReadonlyArray<Case> = [
   },
   ...jsonCases,
   ...groupCases,
+  ...inspectionGainCases,
   ...gainCases,
 ];

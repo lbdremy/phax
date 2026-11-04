@@ -110,7 +110,12 @@ function specOf(command: Command<unknown>): CommandSpec {
     help: command.help,
     examples: command.examples,
     groups: chainOf(command).map(
-      (group): GroupSpec => ({ name: group.name, summary: group.summary }),
+      (group): GroupSpec => ({
+        name: group.name,
+        summary: group.summary,
+        help: group.help,
+        examples: group.examples,
+      }),
     ),
     args: inputs.args === undefined ? [] : argShapes(inputs.args.contract),
     flags: inputs.flags === undefined ? [] : flagShapes(inputs.flags.contract),
@@ -452,8 +457,10 @@ function precheck<R>(
       },
     });
   }
-  const given = inputs.args === undefined ? 0 : argShapes(inputs.args.contract).length;
-  const surplus = read.operands.slice(given);
+  const shapes = inputs.args === undefined ? [] : argShapes(inputs.args.contract);
+  const given = shapes.length;
+  // Gain (variadic arguments): a variadic argument takes every operand left, so none is surplus.
+  const surplus = shapes.some((shape) => shape.variadic) ? [] : read.operands.slice(given);
   if (surplus.length > 0 && inputs.args?.undeclared !== "strip") {
     problems.push({
       text: `error: too many arguments: ${surplus.join(" ")}`,
@@ -534,13 +541,13 @@ function prepare<R>(
 
     const shapes = declared.args === undefined ? [] : argShapes(declared.args.contract);
     if (declared.args !== undefined) {
-      input["args"] = yield* decode(
-        "args",
-        "args",
-        declared.args,
-        parsed.operands.slice(0, shapes.length),
-        shapes.map((shape) => shape.name),
-      );
+      // Gain (variadic arguments): the rest takes every operand left, each named by it.
+      const variadic = shapes.some((shape) => shape.variadic);
+      const operands = variadic ? parsed.operands : parsed.operands.slice(0, shapes.length);
+      const names = variadic
+        ? operands.map((_, index) => shapes[Math.min(index, shapes.length - 1)]?.name ?? "")
+        : shapes.map((shape) => shape.name);
+      input["args"] = yield* decode("args", "args", declared.args, operands, names);
     }
     if (declared.flags !== undefined) {
       input["flags"] = yield* decode("flags", "flags", declared.flags, parsed.options);
@@ -998,6 +1005,18 @@ function usageCall(usage: ProgramUsage, argv: Words): true | Refusal | undefined
   return true;
 }
 
+/** Gain carried for upstream (a command that prompts): the refusal of a `--json` call whose
+ *  decoded input would make the command ask a person; `undefined` when it would not. Asked after
+ *  the decode and before `run`, so nothing has started. */
+function promptRefusal<R>(ready: Ready<R>): Refusal | undefined {
+  const prompts: ((input: never) => boolean) | undefined = ready.command.prompts;
+  if (prompts === undefined || !prompts(ready.input as never)) return undefined;
+  return refusal(
+    `error: --json: ${fullName(ready.command).join(" ")} prompts; run it without --json`,
+    { source: "flags", path: ["json"], expected: "a call that does not prompt" },
+  );
+}
+
 function runProgram<R>(program: Program<R>, io: Io): Effect.Effect<ExitCode, never, R> {
   // Gain (options for every command): the program's options are taken out of the words first,
   // wherever they stand, so that what is left reads as a call without them.
@@ -1037,10 +1056,17 @@ function runProgram<R>(program: Program<R>, io: Io): Effect.Effect<ExitCode, nev
   return prepare(program, io, located, given).pipe(
     Effect.matchEffect({
       onFailure: (refused) => refusedOut(io, program, json, refused),
-      onSuccess: (ready) =>
-        ready.tag === "Displayed"
-          ? io.out(ready.text).pipe(Effect.as(0))
-          : execute(program, io, ready, json),
+      onSuccess: (ready) => {
+        if (ready.tag === "Displayed") return io.out(ready.text).pipe(Effect.as(0));
+        if (!json) return execute(program, io, ready, json);
+        return Effect.sync(() => promptRefusal(ready)).pipe(
+          Effect.flatMap((refused) =>
+            refused === undefined
+              ? execute(program, io, ready, json)
+              : refusedOut(io, program, json, refused),
+          ),
+        );
+      },
     }),
     Effect.catchAllCause((cause) => defectOut(io, program, json, describe(cause))),
   );

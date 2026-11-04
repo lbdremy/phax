@@ -332,3 +332,88 @@ describe("the usage spec of a program that names its usage flag", () => {
     expect(parsed.cmd.subcommands["resume"]?.args.map((each) => each.name)).toEqual(["short-name"]);
   });
 });
+
+// Gains carried for upstream: a group's long help and examples, and variadic arguments.
+describe("the usage spec of a documented group and of variadic arguments", () => {
+  const Plan = Str.annotations({ identifier: "plan", description: "A plan to compare" });
+  const FilePath = Str.annotations({ identifier: "path", description: "A file to read" });
+  const overlap = defineCommand({
+    name: "overlap",
+    summary: "Compare plans",
+    input: { args: reject(Schema.NonEmptyArray(Plan)) },
+    output: strip(Schema.Array(Str)),
+    exits: {},
+    run: ({ input }) => Effect.succeed(input.args),
+  });
+  const brief = defineCommand({
+    name: "brief",
+    summary: "Brief from files",
+    input: { args: reject(Schema.Array(FilePath)) },
+    output: strip(Schema.Array(Str)),
+    exits: {},
+    run: ({ input }) => Effect.succeed(input.args),
+  });
+  const documented = defineProgram({
+    name: "todos",
+    version: "1.0.0",
+    exits: { refused: 2, defect: 70 },
+    commands: [
+      defineGroup({
+        name: "plans",
+        summary: "Work with plans",
+        help: "Plans are read from the repository.\nNothing is written.",
+        examples: ["todos plans overlap a.md b.md"],
+        commands: [overlap],
+      }),
+      brief,
+    ],
+  });
+  const spec = usageSpec(documented);
+  const lines = spec.split("\n");
+
+  it("writes a group's long help as a property and its examples first in its block", () => {
+    const header = lines.findIndex((each) => each.startsWith("cmd plans "));
+    expect(lines[header]).toBe(
+      'cmd plans help="Work with plans" long_help="Plans are read from the repository.\\nNothing is written." subcommand_required=#true {',
+    );
+    expect(lines[header + 1]).toBe('    example "todos plans overlap a.md b.md"');
+    expect(lines[header + 2]).toMatch(/^ {4}cmd overlap /);
+  });
+
+  it("writes a required rest as <plan>... and a rest alone as [path]...", () => {
+    expect(spec).toContain('arg "<plan>..." help="A plan to compare"');
+    expect(spec).toContain('arg "[path]..." help="A file to read"');
+  });
+
+  it("hands every operand to the tuple, and refuses a required rest given none", async () => {
+    const many = await call(documented, { argv: ["plans", "overlap", "a.md", "b.md", "c.md"] });
+    expect(many.code).toBe(0);
+    expect(JSON.parse(many.out.join(""))).toEqual(["a.md", "b.md", "c.md"]);
+    const none = await call(documented, { argv: ["brief"] });
+    expect(none.code).toBe(0);
+    expect(JSON.parse(none.out.join(""))).toEqual([]);
+    const missing = await call(documented, { argv: ["plans", "overlap"] });
+    expect(missing.code).toBe(2);
+    expect(missing.err.join("")).toContain("plan");
+  });
+
+  it("shows the variadic argument in help as Commander writes one", async () => {
+    const help = await call(documented, { argv: ["plans", "overlap", "--help"] });
+    expect(help.out.join("")).toContain("<plan...>");
+    const other = await call(documented, { argv: ["brief", "--help"] });
+    expect(other.out.join("")).toContain("[path...]");
+  });
+
+  it("is read by the usage CLI, the group's long help and examples, and both rests", () => {
+    const parsed = parsedByUsage(spec);
+    const plans = parsed.cmd.subcommands["plans"];
+    expect(plans?.help_long).toBe("Plans are read from the repository.\nNothing is written.");
+    expect(plans?.examples.map((each) => each.code)).toEqual(["todos plans overlap a.md b.md"]);
+    expect(plans?.subcommands["overlap"]?.args.map((each) => [each.name, each.required])).toEqual([
+      ["plan", true],
+    ]);
+    expect(parsed.cmd.subcommands["brief"]?.args.map((each) => [each.name, each.required])).toEqual(
+      [["path", false]],
+    );
+  });
+});

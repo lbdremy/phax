@@ -370,3 +370,65 @@ describe("a group nested in a group", () => {
     ]);
   });
 });
+
+/** Each part, found in `text` after the one before it. */
+function inOrder(text: string, parts: ReadonlyArray<string>): boolean {
+  let from = 0;
+  for (const part of parts) {
+    const at = text.indexOf(part, from);
+    if (at === -1) return false;
+    from = at + part.length;
+  }
+  return true;
+}
+
+// Gain carried for upstream (a group's long help and examples).
+describe("a group with a long help and examples", () => {
+  const documented = () => {
+    const { group } = debtGroup();
+    return defineGroup({
+      name: group.name,
+      summary: group.summary,
+      help: "Debt is a failing condition accepted for now.",
+      examples: ["steme debt accept 1 --why flaky", "steme debt list"],
+      commands: group.commands,
+    });
+  };
+
+  const ORDER = [
+    "Accept debt, or list it",
+    "Debt is a failing condition accepted for now.",
+    "Examples:\n  steme debt accept 1 --why flaky\n  steme debt list",
+    "Commands:",
+    "Accept a failing condition as debt",
+  ];
+
+  it("says its summary, long help, examples, then its commands on --help", async () => {
+    const help = await call(programOf(documented()), { argv: ["debt", "--help"] });
+    expect(help.code).toBe(0);
+    expect(help.err).toEqual([]);
+    expect(inOrder(help.out.join(""), ORDER)).toBe(true);
+  });
+
+  it("writes the same help on stderr when called alone, and is refused", async () => {
+    const alone = await call(programOf(documented()), { argv: ["debt"] });
+    expect(alone.code).toBe(3);
+    expect(alone.out).toEqual([]);
+    expect(inOrder(alone.err.join(""), ORDER)).toBe(true);
+  });
+
+  it("is listed in the program's help by its summary alone", async () => {
+    const help = await call(programOf(documented()), { argv: ["--help"] });
+    expect(help.out.join("")).toContain("Accept debt, or list it");
+    expect(help.out.join("")).not.toContain("Debt is a failing condition");
+  });
+
+  it("hands its long help and examples to each command's grouping", () => {
+    const program = programOf(documented());
+    expect(program.commands.map((command) => command.group?.examples)).toEqual([
+      ["steme debt accept 1 --why flaky", "steme debt list"],
+      ["steme debt accept 1 --why flaky", "steme debt list"],
+    ]);
+    expect(program.commands[0]?.group?.help).toBe("Debt is a failing condition accepted for now.");
+  });
+});

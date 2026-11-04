@@ -181,18 +181,28 @@ function inputOf(inputs: Inputs): JsonSchema {
   if (inputs.args !== undefined) {
     const { schema, definitions: defs } = generated(inputs.args.contract, inputs.args.undeclared);
     Object.assign(definitions, defs);
-    const items = resolved(schema, defs)["prefixItems"];
-    const minimum = resolved(schema, defs)["minItems"];
-    const names = argShapes(inputs.args.contract).map((arg) => arg.name);
-    if (Array.isArray(items)) {
-      items.forEach((item: unknown, index: number) => {
-        const name = names[index] ?? `arg${index}`;
-        properties[name] = item;
-        if (typeof minimum === "number" && index < minimum) {
-          required.push(name);
-        }
-      });
-    }
+    const root = resolved(schema, defs);
+    const prefix = root["prefixItems"];
+    const items: ReadonlyArray<unknown> = Array.isArray(prefix) ? prefix : [];
+    const minimum = typeof root["minItems"] === "number" ? root["minItems"] : 0;
+    argShapes(inputs.args.contract).forEach((shape, index) => {
+      // Gain (variadic arguments): the rest is one property, an array of its operands, which a
+      // required variadic argument holds at least one of.
+      if (shape.variadic) {
+        const each = root["items"];
+        properties[shape.name] = {
+          type: "array",
+          ...(each === undefined ? {} : { items: each }),
+          ...(shape.optional ? {} : { minItems: 1 }),
+        };
+        if (!shape.optional) required.push(shape.name);
+        return;
+      }
+      const item = items[index];
+      if (item === undefined) return;
+      properties[shape.name] = item;
+      if (index < minimum) required.push(shape.name);
+    });
   }
   if (inputs.flags !== undefined) {
     const { schema, definitions: defs } = generated(inputs.flags.contract, inputs.flags.undeclared);
