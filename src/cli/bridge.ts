@@ -84,8 +84,8 @@ function leadingWords(
 /** The runner's groups that Commander still holds in part: the group itself, its help, its
  *  refusal when called alone and its unmigrated commands stay Commander's, and only the runner
  *  commands named under it go to the runner. Every other runner group is held whole by the
- *  runner. Phase-02 of command-contracts plan 2 removes `plans`; plan 3 empties the list. */
-export const PARTIAL_GROUPS: ReadonlyArray<string> = ["artifact", "plans"];
+ *  runner. Plan 3 of command-contracts empties the list. */
+export const PARTIAL_GROUPS: ReadonlyArray<string> = ["artifact"];
 
 /** The program's top-level groups the runner holds whole: each outermost group of its commands
  *  that PARTIAL_GROUPS does not name, in the order first declared. */

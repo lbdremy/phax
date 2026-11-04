@@ -19,7 +19,6 @@ import { runReviewHandoff } from "./commands/reviewHandoff.js";
 import { runPublishPr } from "./commands/publishPr.js";
 import { runReviewCompliance } from "./commands/reviewCompliance.js";
 import { runReviewCode } from "./commands/reviewCode.js";
-import { registerPlansCommand } from "./commands/plans.js";
 import { runAdjustPlan } from "./commands/adjustPlan.js";
 import { runRun } from "./commands/run.js";
 import { runResume } from "./commands/resume.js";
@@ -38,7 +37,7 @@ import { runBrief } from "./commands/brief.js";
 import { registerSchemaCommand } from "./commands/schema.js";
 import { runCompletions } from "./commands/completions.js";
 import { runReport } from "./commands/report.js";
-import { mountRunnerStub, mountRunnerStubs } from "./bridge.js";
+import { mountRunnerGroupStub, mountRunnerStub, mountRunnerStubs } from "./bridge.js";
 import { OPTION_HELP } from "./commandLibrary/contract/index.js";
 import { phaxProgram } from "./definitions/program.js";
 
@@ -385,7 +384,8 @@ export function buildProgram(): Command {
   registerSkillsCommand(program, consoleOutput);
   registerSchemaCommand(program, consoleOutput);
   registerArtifactCommand(program, consoleOutput);
-  registerPlansCommand(program, consoleOutput);
+  // `plans` answers through the runner, which holds the whole group: a help-only stub, in place.
+  mountRunnerGroupStub(program, phaxProgram, ["plans"]);
   registerRecordsCommand(program, consoleOutput);
 
   // The runner's commands, mounted for help only: the bridge sends every call

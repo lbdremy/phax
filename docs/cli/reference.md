@@ -1494,7 +1494,7 @@ Flip stale-computed plans Approved -> Stale
 
 #### `--json`
 
-Emit the report as JSON instead of a rendered table
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 ### Examples
 
@@ -1532,17 +1532,17 @@ Paths to two or more plan.md files
 
 ### Flags
 
-#### `--json`
-
-Emit the overlap result as JSON instead of a report
-
 #### `--no-extract`
 
 Fail on a cache miss instead of extracting the plan.md
 
-#### `--landed <run>`
+#### `--landed <landed>`
 
 Report which of the given plans need re-adjustment after this run's actual changes
+
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 ### Examples
 
@@ -1634,7 +1634,7 @@ phax plans overview docs/plans/2609101200-foo-plan.md --json
 
 ## `phax plans estimate`
 
-- **Usage**: `phax plans estimate [--json] [--no-probe] <plan>`
+- **Usage**: `phax plans estimate [--no-probe] [--json] <plan>`
 
 Estimate a plan's API-list cost and whether it fits the subscription windows now. Reports P10/P50/P90 in API-list dollars for each phase and for the run, then a verdict on the Claude subscription windows left right now.
 
@@ -1658,13 +1658,13 @@ Path to the plan.md
 
 ### Flags
 
-#### `--json`
-
-Emit the estimate as JSON
-
 #### `--no-probe`
 
 Use the last rate-limit sample in the cost ledgers instead of a one-message Claude Code probe
+
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 ### Examples
 

@@ -21,18 +21,28 @@ const frozen = readFileSync(
   "utf8",
 );
 
-/** The commands on the runner, in the program's order: `artifact status`, `plans overview`,
- *  `plans lint` and `ls`, each allowed the `--json` flag it gains with the library's help. */
+/** The commands on the runner, in the program's order: `artifact status`, the `plans` commands
+ *  and `ls`, each allowed the `--json` flag it gains with the library's help. */
 const MIGRATED_COMMANDS: ReadonlyArray<string> = [
   "ls",
   "artifact status",
+  "plans status",
+  "plans overlap",
   "plans lint",
   "plans overview",
+  "plans estimate",
 ];
 
 /** The migrated commands that declared a `--json` of their own: the frozen file's `--json` is
  *  reworded, its help now the library's. */
-const REWORDED_JSON: ReadonlyArray<string> = ["ls", "plans lint", "plans overview"];
+const REWORDED_JSON: ReadonlyArray<string> = [
+  "ls",
+  "plans status",
+  "plans overlap",
+  "plans lint",
+  "plans overview",
+  "plans estimate",
+];
 
 /** The migrated commands whose long help now describes their versioned answer: `plans
  *  overview`'s document is a plan-overview with its $schema, and `ls`'s rows carry pullRequest. */
@@ -40,7 +50,7 @@ const REWORDED_LONG_HELP: ReadonlyArray<string> = ["ls", "plans overview"];
 
 /** The groups the runner holds whole, nested ones by their full path: every group of phaxProgram
  *  whose outermost group the bridge does not hold in part. Each block is the runner's, whose
- *  header declares `subcommand_required` (none is held whole yet). */
+ *  header declares `subcommand_required` (`plans`). */
 const WHOLE_GROUPS: ReadonlyArray<string> = [
   ...new Set(
     phaxProgram.commands.flatMap((command) => {
@@ -51,6 +61,12 @@ const WHOLE_GROUPS: ReadonlyArray<string> = [
   ),
 ];
 
+/** The value name the port gives a valued option (its option name), where the frozen file named
+ *  it otherwise: `plans overlap --landed <run>` is `--landed <landed>`. */
+const REWORDED_VALUE_NAMES: ReadonlyArray<readonly [string, string]> = [
+  ["plans overlap", "flag --landed "],
+];
+
 /** What the committed file may declare beyond the frozen one: a path and a declaration's head
  *  (its kind and key). */
 const ALLOWED_ADDITIONS: ReadonlyArray<readonly [string, string]> = [
@@ -59,6 +75,7 @@ const ALLOWED_ADDITIONS: ReadonlyArray<readonly [string, string]> = [
   ...MIGRATED_COMMANDS.map((path) => [path, "flag --json "] as const),
   ...REWORDED_LONG_HELP.map((path) => [path, "long_help "] as const),
   ...WHOLE_GROUPS.map((path) => [path, "subcommand_required "] as const),
+  ...REWORDED_VALUE_NAMES,
 ];
 
 /** What the committed file may no longer declare as the frozen one did: each reworded
@@ -66,6 +83,7 @@ const ALLOWED_ADDITIONS: ReadonlyArray<readonly [string, string]> = [
 const ALLOWED_REWORDINGS: ReadonlyArray<readonly [string, string]> = [
   ...REWORDED_JSON.map((path) => [path, "flag --json "] as const),
   ...REWORDED_LONG_HELP.map((path) => [path, "long_help "] as const),
+  ...REWORDED_VALUE_NAMES,
 ];
 
 function difference(

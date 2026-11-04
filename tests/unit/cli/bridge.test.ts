@@ -64,7 +64,7 @@ const leaf = (name: string, flags = false) =>
   });
 
 /** A runner program shaped like phax's once commands move: `ls`, `archive` (which the guard
- *  refuses), `plans lint` and `records sub show`, nested. */
+ *  refuses), `artifact lint` and `records sub show`, nested. */
 const program = defineProgram({
   name: "phax",
   version: phaxProgram.version,
@@ -74,7 +74,7 @@ const program = defineProgram({
   commands: [
     leaf("ls", true),
     leaf("archive"),
-    defineGroup({ name: "plans", summary: "Plans", commands: [leaf("lint")] }),
+    defineGroup({ name: "artifact", summary: "Artifact", commands: [leaf("lint")] }),
     defineGroup({
       name: "records",
       summary: "Records",
@@ -135,8 +135,8 @@ describe("route", () => {
     [["ls", "--active", "--json"], ["ls"]],
     [["--verbose", "ls"], ["ls"]],
     [
-      ["--verbose", "--trace", "plans", "lint", "x"],
-      ["plans", "lint"],
+      ["--verbose", "--trace", "artifact", "lint", "x"],
+      ["artifact", "lint"],
     ],
     [
       ["records", "sub", "show"],
@@ -156,14 +156,14 @@ describe("route", () => {
 
   it.each([
     [[]],
-    [["plans"]],
-    [["plans", "status"]],
-    [["plans", "--", "lint"]],
+    [["artifact"]],
+    [["artifact", "status"]],
+    [["artifact", "--", "lint"]],
     [["unlock", "ls"]],
     [["--version"]],
     [["--help"]],
-    [["plans", "--help"]],
-    [["plans", "nope"]],
+    [["artifact", "--help"]],
+    [["artifact", "nope"]],
   ] as const)("sends %j to Commander", (argv) => {
     expect(route(program, argv)).toEqual({ to: "commander" });
   });
@@ -181,11 +181,15 @@ describe("route", () => {
     expect(route(program, argv)).toEqual({ to: "runner", command: undefined, group: "records" });
   });
 
-  it("holds artifact and plans in part, and no group of phaxProgram whole yet", () => {
-    expect(PARTIAL_GROUPS).toEqual(["artifact", "plans"]);
+  it("holds artifact in part, and plans whole in phaxProgram", () => {
+    expect(PARTIAL_GROUPS).toEqual(["artifact"]);
     expect(wholeGroups(program)).toEqual(["records"]);
-    expect(wholeGroups(phaxProgram)).toEqual([]);
-    expect(route(phaxProgram, ["plans"])).toEqual({ to: "commander" });
+    expect(wholeGroups(phaxProgram)).toEqual(["plans"]);
+    expect(route(phaxProgram, ["plans"])).toEqual({
+      to: "runner",
+      command: undefined,
+      group: "plans",
+    });
     expect(route(phaxProgram, ["artifact", "--help"])).toEqual({ to: "commander" });
   });
 
@@ -199,7 +203,10 @@ describe("route", () => {
       to: "runner",
       command: ["artifact", "status"],
     });
-    expect(route(phaxProgram, ["plans", "status"])).toEqual({ to: "commander" });
+    expect(route(phaxProgram, ["plans", "status"])).toEqual({
+      to: "runner",
+      command: ["plans", "status"],
+    });
     expect(route(phaxProgram, ["artifact", "approve", "x"])).toEqual({ to: "commander" });
   });
 
@@ -239,7 +246,7 @@ describe("the phase guard on the runner's path", () => {
   });
 
   it("lets an allowed command and the root's --json-schema through to the runner", async () => {
-    for (const argv of [["ls", "--json"], ["plans", "lint", "x"], ["--json-schema"]]) {
+    for (const argv of [["ls", "--json"], ["--json-schema"]]) {
       const call = edge(argv, { inPhaseWorktree: () => true });
       expect(await dispatch(program, call.edge), argv.join(" ")).toBe(0);
       expect(call.runRunner).toHaveBeenCalledOnce();
@@ -284,7 +291,7 @@ describe("help on a runner command", () => {
   });
 
   it("leaves `help` on a partial group to Commander", async () => {
-    const call = edge(["help", "plans"]);
+    const call = edge(["help", "artifact"]);
     await dispatch(program, call.edge);
     expect(call.runRunner).not.toHaveBeenCalled();
   });
@@ -367,7 +374,7 @@ describe("Commander's path", () => {
 describe("the help-only stubs", () => {
   it("mounts each runner command at its group, with its shapes, --json and --json-schema", () => {
     const root = new Command("phax");
-    root.command("plans").description("Plans").command("status");
+    root.command("artifact").description("Artifact").command("status");
     mountRunnerStubs(root, program);
     const ls = root.commands.find((each) => each.name() === "ls");
     expect(ls && isRunnerStub(ls)).toBe(true);
@@ -380,7 +387,7 @@ describe("the help-only stubs", () => {
       "--json",
       "--json-schema",
     ]);
-    const plans = root.commands.find((each) => each.name() === "plans");
+    const plans = root.commands.find((each) => each.name() === "artifact");
     expect(plans?.commands.map((each) => [each.name(), isRunnerStub(each)])).toEqual([
       ["status", false],
       ["lint", true],
@@ -418,7 +425,7 @@ describe("the help-only stubs", () => {
       "unlock",
       "ls",
       "archive",
-      "plans",
+      "artifact",
     ]);
     expect(root.commands[0]?.commands[0]?.commands.map((each) => each.name())).toEqual(["show"]);
   });
@@ -444,16 +451,21 @@ describe("the help-only stubs", () => {
 
   it("mounts phaxProgram's commands in their groups, keeping a stub already mounted", () => {
     const root = new Command("phax");
-    const plans = root.command("plans");
-    mountRunnerStub(plans, phaxProgram, ["plans", "overview"]);
+    const plans = root.command("artifact");
+    mountRunnerStub(plans, phaxProgram, ["artifact", "status"]);
     mountRunnerStubs(root, phaxProgram);
-    expect(root.commands.map((each) => each.name())).toEqual(["plans", "ls", "artifact"]);
-    expect(plans.commands.map((each) => each.name())).toEqual(["overview", "lint"]);
-    const [, ls, artifact] = root.commands;
+    // `plans`, held whole, is mounted once as a group stub after the stubs of the others.
+    expect(root.commands.map((each) => each.name())).toEqual(["artifact", "ls", "plans"]);
+    expect(plans.commands.map((each) => each.name())).toEqual(["status"]);
+    const [, ls, wholePlans] = root.commands;
     expect(ls && isRunnerStub(ls)).toBe(true);
-    expect(artifact && isRunnerStub(artifact)).toBe(false);
-    expect(artifact?.commands.map((each) => [each.name(), isRunnerStub(each)])).toEqual([
+    expect(wholePlans && isRunnerStub(wholePlans)).toBe(true);
+    expect(wholePlans?.commands.map((each) => [each.name(), isRunnerStub(each)])).toEqual([
       ["status", true],
+      ["overlap", true],
+      ["lint", true],
+      ["overview", true],
+      ["estimate", true],
     ]);
     expect(plans.commands.every(isRunnerStub)).toBe(true);
   });
@@ -465,7 +477,12 @@ describe("runnerUsage", () => {
     expect(usage.root).toHaveLength(2);
     expect(usage.root[0]).toMatch(/^after_long_help "Exit codes:\\n {2}64 {2}refused/);
     expect(usage.root[1]).toMatch(/^flag --json-schema global=#true /);
-    expect([...usage.commands.keys()]).toEqual(["ls", "archive", "plans lint", "records sub show"]);
+    expect([...usage.commands.keys()]).toEqual([
+      "ls",
+      "archive",
+      "artifact lint",
+      "records sub show",
+    ]);
     const show = usage.commands.get("records sub show") ?? [];
     expect(show[0]).toMatch(/^cmd show help="The show command" \{$/);
     expect(show.at(-1)).toBe("}");
@@ -475,7 +492,7 @@ describe("runnerUsage", () => {
 
   it("cuts each group's whole block by full name, its commands included", () => {
     const usage = runnerUsage(program);
-    expect([...usage.groups.keys()]).toEqual(["plans", "records", "records sub"]);
+    expect([...usage.groups.keys()]).toEqual(["artifact", "records", "records sub"]);
     const records = usage.groups.get("records") ?? [];
     expect(records[0]).toBe('cmd records help="Records" subcommand_required=#true {');
     expect(records.at(-1)).toBe("}");
@@ -521,8 +538,11 @@ describe("runnerUsage", () => {
     expect([...usage.commands.keys()]).toEqual([
       "ls",
       "artifact status",
+      "plans status",
+      "plans overlap",
       "plans lint",
       "plans overview",
+      "plans estimate",
     ]);
   });
 });
