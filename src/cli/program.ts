@@ -23,13 +23,9 @@ import { registerResumeCommand } from "./commands/resumeRegister.js";
 import { runResetPhase } from "./commands/resetPhase.js";
 import { registerResetPhaseCommand } from "./commands/resetPhaseRegister.js";
 import { registerAgentCommand } from "./commands/agent.js";
-import { registerSecurityCommand } from "./commands/security.js";
-import { registerSkillsCommand } from "./commands/skills.js";
 import { registerArtifactCommand } from "./commands/artifact.js";
 import { registerRecordsCommand } from "./commands/records.js";
-import { registerCostCommand } from "./commands/cost.js";
 import { runInit } from "./commands/init.js";
-import { registerSchemaCommand } from "./commands/schema.js";
 import { mountRunnerGroupStub, mountRunnerStub, mountRunnerStubs } from "./bridge.js";
 import { OPTION_HELP } from "./commandLibrary/contract/index.js";
 import { phaxProgram } from "./definitions/program.js";
@@ -159,7 +155,8 @@ export function buildProgram(): Command {
     });
 
   registerPruneCommand(program, runPrune, consoleOutput);
-  registerCostCommand(program, consoleOutput);
+  // `cost` answers through the runner, which holds the whole group: a help-only stub, in place.
+  mountRunnerGroupStub(program, phaxProgram, ["cost"]);
 
   program
     .command("run")
@@ -311,9 +308,9 @@ export function buildProgram(): Command {
   registerResumeCommand(program, runResume, consoleOutput, globalTraceOpts);
   registerResetPhaseCommand(program, runResetPhase, consoleOutput, globalTraceOpts);
   registerAgentCommand(program, consoleOutput);
-  registerSecurityCommand(program, consoleOutput, globalTraceOpts);
-  registerSkillsCommand(program, consoleOutput);
-  registerSchemaCommand(program, consoleOutput);
+  mountRunnerGroupStub(program, phaxProgram, ["security"]);
+  mountRunnerGroupStub(program, phaxProgram, ["skills"]);
+  mountRunnerGroupStub(program, phaxProgram, ["schema"]);
   registerArtifactCommand(program, consoleOutput);
   // `plans` answers through the runner, which holds the whole group: a help-only stub, in place.
   mountRunnerGroupStub(program, phaxProgram, ["plans"]);

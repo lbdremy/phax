@@ -316,9 +316,10 @@ const CLI_DIRECT_IO_ALLOWLIST: ReadonlySet<string> = new Set([
   "src/cli/commands/resume.ts",
   "src/cli/commands/run.ts",
   "src/cli/commands/shell.ts",
-  "src/cli/commands/skills.ts",
   "src/cli/commands/usage.ts",
   "src/cli/commands/usageSpec.ts",
+  // `skills install` resolves the user's home directory for its install roots.
+  "src/cli/definitions/skills.ts",
   // `completions` runs the `usage` CLI over phax.usage.kdl; `session-info` reads a phase's raw
   // model-resolution.json for --debug.
   "src/cli/definitions/completions.ts",
@@ -458,16 +459,12 @@ describe("architectural guard: phax's command definitions never import commander
 //   - runLayers.ts: houses the rooted helper and the global-telemetry-journal
 //     wiring (journal + trace paths are absolute, so the identity layer is
 //     correct there).
-//   - agent, security: no resolved config; only absolute ~/.phax and ~/.vibe
-//     paths.
-//   - init, skills: run before/without a phax project (init creates phax.json;
-//     skills resolves against explicit absolute install roots).
+//   - agent: no resolved config; only absolute ~/.phax and ~/.vibe paths.
+//   - init: runs before/without a phax project (init creates phax.json).
 const IDENTITY_FS_LAYER_ALLOWLIST: ReadonlySet<string> = new Set([
   "src/cli/commands/runLayers.ts",
   "src/cli/commands/agent.ts",
-  "src/cli/commands/security.ts",
   "src/cli/commands/init.ts",
-  "src/cli/commands/skills.ts",
 ]);
 
 // Matches an import statement pulling bindings from an infra/fs module.

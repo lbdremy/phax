@@ -1,17 +1,19 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { Command } from "commander";
-import { registerSkillsCommand, runSkillsInstall } from "../../src/cli/commands/skills.js";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { Effect } from "effect";
+import { runner } from "../../src/cli/commandLibrary/commander/index.js";
+import {
+  defineGroup,
+  defineProgram,
+  type ExitCode,
+} from "../../src/cli/commandLibrary/contract/index.js";
+import { runSkillsInstall } from "../../src/cli/commands/skills.js";
 import type { SkillsInstallRoots } from "../../src/cli/commands/skills.js";
+import { makeSkillsInstallCommand } from "../../src/cli/definitions/skills.js";
 import type { OutputPort } from "../../src/ports/output.js";
-
-function makeProgram() {
-  const p = new Command();
-  p.exitOverride();
-  return p;
-}
+import { memoryIo } from "./commandLibrary/commander/support/memoryIo.js";
 
 function captureOutput(): { out: OutputPort; lines: string[]; errors: string[] } {
   const lines: string[] = [];
@@ -24,84 +26,65 @@ function captureOutput(): { out: OutputPort; lines: string[]; errors: string[] }
   return { out, lines, errors };
 }
 
-describe("skills install subcommand registration", () => {
-  let exitSpy: ReturnType<typeof vi.spyOn>;
+// The bundle stays the real shipped .claude/skills so the exposed skills are actually found.
+const bundleRoot = join(import.meta.dirname, "../..", ".claude", "skills");
+
+describe("skills install subcommand through the runner", () => {
+  let tmpRoot: string;
+  let roots: SkillsInstallRoots;
 
   beforeEach(() => {
-    exitSpy = vi.spyOn(process, "exit").mockImplementation(() => undefined as never);
+    tmpRoot = mkdtempSync(join(tmpdir(), "phax-skillsargv-runner-"));
+    roots = { projectRoot: tmpRoot, homeDir: tmpRoot, bundleRoot };
   });
 
   afterEach(() => {
-    exitSpy.mockRestore();
+    rmSync(tmpRoot, { recursive: true, force: true });
   });
 
-  it("registers the skills install command", () => {
-    const p = makeProgram();
-    const { out } = captureOutput();
-    registerSkillsCommand(p, out);
+  /** The skills group over the temporary roots, called as `phax skills install …argv`. */
+  async function call(argv: ReadonlyArray<string>) {
+    const program = defineProgram({
+      name: "phax",
+      version: "0.0.0",
+      exits: { refused: 64, defect: 70 },
+      commands: [
+        defineGroup({
+          name: "skills",
+          summary: "Manage PHAX skills",
+          commands: [makeSkillsInstallCommand(() => roots)],
+        }),
+      ],
+    });
+    const memory = memoryIo({ argv: ["skills", "install", ...argv] });
+    const code = await Effect.runPromise(runner.run(program, memory.io) as Effect.Effect<ExitCode>);
+    return { code, out: memory.out.join(""), err: memory.err.join("") };
+  }
 
-    const skillsCmd = p.commands.find((c) => c.name() === "skills");
-    expect(skillsCmd).toBeDefined();
-
-    const installCmd = skillsCmd?.commands.find((c) => c.name() === "install");
-    expect(installCmd).toBeDefined();
+  it("registers the skills install command", async () => {
+    const called = await call(["--help"]);
+    expect(called.code).toBe(0);
+    expect(called.out + called.err).toContain("--target");
   });
 
-  it("--target is required; missing it throws via exitOverride", async () => {
-    const p = makeProgram();
-    const { out } = captureOutput();
-    registerSkillsCommand(p, out);
-
-    await expect(p.parseAsync(["node", "phax", "skills", "install"])).rejects.toThrow();
+  it("--target is required; missing it is refused with 64", async () => {
+    const called = await call([]);
+    expect(called.code).toBe(64);
+    expect(called.err).toContain("--target");
   });
 
   it("--scope defaults to project when omitted", async () => {
-    const installFn = vi.fn().mockResolvedValue(0);
-
-    const p = makeProgram();
-    const skillsCmd = p.command("skills");
-    skillsCmd
-      .command("install")
-      .requiredOption("--target <target>", "target")
-      .option("--scope <scope>", "scope", "project")
-      .action(async (opts: { target: string; scope?: string }) => {
-        const exitCode = await installFn(opts);
-        process.exit(exitCode);
-      });
-
-    await p.parseAsync(["node", "phax", "skills", "install", "--target", "claude"]);
-
-    expect(installFn).toHaveBeenCalledOnce();
-    expect(installFn.mock.calls[0]?.[0]).toMatchObject({ target: "claude", scope: "project" });
+    const called = await call(["--target", "claude", "phax-cli"]);
+    expect(called.code).toBe(0);
+    expect(called.out).toContain("Target: claude");
+    expect(called.out).toContain("Scope: project");
   });
 
   it("--scope can be set to user", async () => {
-    const installFn = vi.fn().mockResolvedValue(0);
-
-    const p = makeProgram();
-    const skillsCmd = p.command("skills");
-    skillsCmd
-      .command("install")
-      .requiredOption("--target <target>", "target")
-      .option("--scope <scope>", "scope", "project")
-      .action(async (opts: { target: string; scope?: string }) => {
-        const exitCode = await installFn(opts);
-        process.exit(exitCode);
-      });
-
-    await p.parseAsync([
-      "node",
-      "phax",
-      "skills",
-      "install",
-      "--target",
-      "codex",
-      "--scope",
-      "user",
-    ]);
-
-    expect(installFn).toHaveBeenCalledOnce();
-    expect(installFn.mock.calls[0]?.[0]).toMatchObject({ target: "codex", scope: "user" });
+    const called = await call(["--target", "codex", "--scope", "user", "phax-cli"]);
+    expect(called.code).toBe(0);
+    expect(called.out).toContain("Target: codex");
+    expect(called.out).toContain("Scope: user");
   });
 });
 
@@ -109,7 +92,6 @@ describe("runSkillsInstall validation", () => {
   // Install into a throwaway project/home so a unit run never mutates the repo
   // working tree; the bundle stays the real shipped .claude/skills so the
   // exposed skills are actually found.
-  const bundleRoot = join(import.meta.dirname, "../..", ".claude", "skills");
   let tmpRoot: string;
   let roots: SkillsInstallRoots;
 
