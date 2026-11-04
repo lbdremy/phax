@@ -1,0 +1,11 @@
+{
+  "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
+  "artifact": "docs/specs/2611041509-finding-ids-and-fates.md",
+  "specFingerprint": "ddef903b85abab7df36b3ea7252a7c33606fedad9b593039a4f1a7ca7b316b06",
+  "approvedAt": "2026-11-04T18:56:33.134Z",
+  "baseline": "19a04f592c0c19813aec7a63cf05aba226235f52",
+  "approvedBy": {
+    "kind": "operator",
+    "name": "Rémy Loubradou"
+  }
+}
