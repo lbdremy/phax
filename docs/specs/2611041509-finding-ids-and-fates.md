@@ -45,7 +45,7 @@ Recording a fate by hand would not survive. A trailer the operator must type is 
 
 ## 3. Product goal
 
-Every finding phax records gets a stable, run-unique id that phax assigns, and always has a fate from a closed set. phax writes each fate as a record on the records branch. The operator's fix becomes one phax command: the operator names the finding ids and the changed paths, and phax composes the commit (trailers, default subject) and the fate record, so the history builds itself while the operator works. The fates of a run's findings can be read through the CLI, in text for the operator and as a versioned `--json` answer for the knowledge index. The run's PR description lists the findings as they stood when the PR was created, and each finding settled afterwards gets a PR comment naming its new fate and what settles it. Git stays the source of truth: every fate can be rebuilt from the run branch, `main` and `phax/records/v1`.
+Every finding phax records gets a stable, run-unique id that phax assigns, and always has a fate from a closed set. phax writes each fate as a record on the records branch. The operator's fix becomes one phax command: the operator names the finding ids and the changed paths, and phax composes the commit (trailers, default subject) and the fate record, so the history builds itself while the operator works. The fates of a run's findings can be read through the CLI, in text for the operator and as a versioned `--json` answer for the knowledge index. The run's PR description lists the findings as they stood when the PR was created, and when a finding is settled after the PR exists, the command that settles it posts a PR comment naming its new fate and what settles it. Git stays the source of truth: every fate can be rebuilt from the run branch, `main` and `phax/records/v1`.
 
 > No finding is dropped: phax names it, the operator or a machine settles it through a phax command, and Git remembers how.
 
@@ -60,7 +60,7 @@ Every finding phax records gets a stable, run-unique id that phax assigns, and a
 - **deferred** — The finding's latest fate record is a deferral: the operator handed it to later work and named the brief, spec or `NEXT_STEPS.md` that takes it over. Only an operator defers.
 - **unrecorded** — The fate of a finding whose review was persisted before finding ids existed and that has no fate record yet. Such a finding gets its id lifted by position (`F1`… or `C1`… in document order). phax never guesses its fate. The same commands can set one later.
 - **Fate record** — One entry on `phax/records/v1` that sets a finding's fate (fix, dismissal or deferral), stamped with by and at. Fate records are append-only, and the latest one decides the fate. All of a finding's fate records, oldest first, are its history.
-- **Fate comment** — A comment on a run's pull request, posted by `phax publish-pr`, that names one finding settled after the PR was opened, its new fate, and what settles it: the fixing commit or commits, the dismissal's reason, or the deferral's pointer.
+- **Fate comment** — A comment on a run's pull request, posted by `phax finding fix`, `dismiss` or `defer` at the moment it sets a fate, that names one finding, its new fate, and what settles it: the fixing commit, the dismissal's reason, or the deferral's pointer.
 - **Path class** — The kind of each path a fixing commit changes, from the closed set `tests`, `gate-config`, `docs`, `code`. phax derives it deterministically from the path alone, never with a model. A fix records the set of classes its commit touched, which is "how it was fixed".
 - **Run's final worktree** — The worktree of the run's last phase, the one `phax enter` opens and `phax path` prints, where the operator works while the run is `review_open`.
 
@@ -150,19 +150,27 @@ IF a fate record cannot be committed to `phax/records/v1` THEN the system SHALL 
 
 WHEN the system creates a run's pull request THE system SHALL write into its description a findings section that names each `open` and `deferred` finding (id, severity, location, message, and the pointer for a deferred one) and counts the `fixed` and `dismissed` ones as they stand at creation, and SHALL never rewrite that description afterwards.
 
-### 5.22 A finding settled after the PR opened gets a PR comment
+### 5.22 A fix pushes the run branch before it comments
 
-WHEN `phax publish-pr <run>` pushes the run branch of a run whose pull request already exists THE system SHALL post on that pull request one fate comment for each fate record set since the PR was opened that has no comment yet, naming the finding, its new fate and what settles it: the fixing commit or commits, the dismissal's reason, or the deferral's pointer.
+WHEN `phax finding fix` settles findings of a run whose pull request already exists and `publish.auto` is on THE system SHALL push the run branch before it posts the fate comments, so the fixing commit is visible on the pull request when a comment names it.
 
-### 5.23 A fate is commented once
+### 5.23 A fate set after the PR opened gets a PR comment
 
-IF a fate record already has its fate comment on the run's pull request THEN a later `phax publish-pr <run>` SHALL post no further comment for it.
+WHEN `phax finding fix`, `dismiss` or `defer` settles findings of a run whose pull request already exists and `publish.auto` is on THE system SHALL post on that pull request one fate comment per finding settled, naming the finding, its new fate and what settles it: the fixing commit, the dismissal's reason, or the deferral's pointer.
 
-### 5.24 Fate commands stay local
+### 5.24 No pull request, nothing posted
 
-The system shall make no GitHub call from `phax finding list`, `fix`, `dismiss` or `defer`, so each works offline.
+IF the run has no pull request yet THEN `phax finding fix`, `dismiss` and `defer` SHALL push nothing and post nothing, leaving the findings to the section of the description written when the pull request is created.
 
-### 5.25 Findings never block
+### 5.25 With publish.auto off, fate commands stay local
+
+WHILE `publish.auto` is off THE system SHALL make no GitHub call and no push from `phax finding fix`, `dismiss` or `defer`, so each works offline.
+
+### 5.26 The list stays local
+
+The system shall make no GitHub call from `phax finding list`.
+
+### 5.27 Findings never block
 
 The system shall not refuse or delay a run's completion, publication or merge because of a finding's fate.
 
@@ -362,7 +370,7 @@ Summary: A run's pull request description names the findings open or deferred wh
 
 ### api: run pull request comment — one per finding settled after the PR opened — indicative
 
-Summary: A finding settled after the pull request was opened shows up as a comment on it, naming its new fate and what settles it, posted when you publish.
+Summary: A finding you fix, dismiss or defer after the pull request was opened shows up as a comment on it, naming its new fate and what settles it, as you settle it.
 
     F2 fixed — tests/gate.test.ts:88 — asserts the message, not the exit code
     Fixed by 9f8e7d6 (tests)
@@ -385,6 +393,8 @@ Summary: A finding settled after the pull request was opened shows up as a comme
 - Fixing a finding after the run is merged, on `main` (follow-up; see the open question on where the commands run).
 - A `Run-Id` trailer on fixing commits: they keep `Short-Name` only, so release notes fold them into their run as today.
 - Rewriting a pull request's description after it was created: later fates reach the PR as comments only.
+- A dedicated setting for posting fate comments: posting follows `publish.auto`, and a separate setting can come later if the two need to differ.
+- Posting fate comments from `phax publish-pr`, or catching up on fates set while no PR existed: those findings are carried by the description written at creation.
 
 ## 8. Acceptance criteria
 
@@ -476,25 +486,33 @@ Given a finding F3 first dismissed, then fixed by a commit, when `phax finding l
 
 Given a run with findings open F4 and C1, deferred F5, fixed F1 and F2, dismissed F3, and no pull request yet, when the run's pull request is created, then its description has a findings section naming F4, C1 under Open and F5 with its pointer under Deferred, and reading `Fixed: 2 · Dismissed: 1`. (refs §5.21)
 
-### A later publish leaves the description alone
+### A later fate leaves the description alone
 
-Given a run whose pull request was created with F4 open, and F4 was then fixed by a commit, when `phax publish-pr <run>` runs again, then the pull request's description is unchanged and still lists F4 under Open. (refs §5.21)
+Given a run whose pull request was created with F4 open, `publish.auto` on, and a change to fix F4, when `phax finding fix <run> F4 -- src/app/gate.ts` runs, then the pull request's description is unchanged and still lists F4 under Open, and F4's new fate reaches the PR as a comment. (refs §5.21, §5.23)
 
-### A finding settled later gets a comment at publish
+### A fix pushes the branch and comments
 
-Given a run whose pull request exists, where F2 was fixed by commit 9f8e7d6 and F3 dismissed with a reason after it was opened, when `phax publish-pr <run>` runs, then the branch is pushed and the pull request gains one comment for F2 naming its new fate `fixed` and commit 9f8e7d6, and one for F3 naming `dismissed` and the reason, the commit being visible on the PR. (refs §5.22)
+Given a `review_open` run whose pull request exists, `publish.auto` on, and a change in `tests/gate.test.ts`, when `phax finding fix <run> F2 -- tests/gate.test.ts` runs, then the run branch is pushed, and the pull request then gains one comment for F2 naming its new fate `fixed` and the fixing commit, which is already visible on the PR. (refs §5.22, §5.23)
 
-### A fate is commented only once
+### Dismissal and deferral comment too
 
-Given the publish above has posted the comments for F2 and F3, and F5 was then deferred, when `phax publish-pr <run>` runs again, then exactly one new comment appears, for F5 naming `deferred` and its pointer, and none for F2 or F3. (refs §5.23)
+Given a run whose pull request exists, `publish.auto` on, open findings F3 and F5, and a tracked `docs/briefs/gate-retry-docs.md`, when `phax finding dismiss <run> F3 --why "the second check guards --resume"` and `phax finding defer <run> F5 --to docs/briefs/gate-retry-docs.md --why "docs pass after the gate rework"` run, then the pull request gains one comment for F3 naming `dismissed` and the reason, and one for F5 naming `deferred` and the pointer. (refs §5.23)
 
-### Fate commands work offline
+### No pull request, nothing posted
 
-Given a machine with no network and no usable `gh`, when `phax finding list`, `fix`, `dismiss` and `defer` run, then each completes as without a pull request, and none calls GitHub. (refs §5.24)
+Given a `review_open` run with no pull request yet and `publish.auto` on, when `phax finding fix`, `dismiss` or `defer` runs, then nothing is pushed and nothing is posted, the fate is recorded as usual, and the description written when the pull request is later created carries the findings by their fate then. (refs §5.24)
+
+### With publish.auto off, fate commands stay offline
+
+Given a machine with no network and no usable `gh`, `publish.auto` off, and a run whose pull request exists, when `phax finding fix`, `dismiss` and `defer` run, then each completes with its commit and record, and none pushes or calls GitHub. (refs §5.25)
+
+### The list never calls GitHub
+
+Given a run whose pull request exists and `publish.auto` on, when `phax finding list <run>` runs, then it prints the findings and makes no GitHub call. (refs §5.26)
 
 ### Open findings do not block
 
-Given a run with open findings of severity `bug`, when the run is completed and published, then completion and publication proceed as with no findings. (refs §5.25)
+Given a run with open findings of severity `bug`, when the run is completed and published, then completion and publication proceed as with no findings. (refs §5.27)
 
 ## 9. Open questions
 
@@ -573,7 +591,8 @@ Why: The brief requires `unrecorded` findings to be settable later with the same
 Recommendation: publish-refresh — Fixes are pushed at publish time anyway. Keeping fate commands local keeps them fast, makes them work offline, and spares an agent calling them a network dependency.
 
 Decision: other — by operator (Rémy Loubradou), 2026-11-04
-Why: A PR's description is written once, when the PR is created, and findings are settled after that. phax never rewrites the description: it keeps listing the findings as they stood at creation. Instead, each finding settled after the PR was opened gets one PR comment naming the finding, its new fate and what settles it (the fixing commit or commits, the dismissal's reason, or the deferral's pointer). The comments are posted when `phax publish-pr <run>` pushes the branch, so a fixing commit is already visible on the PR when its comment names it. Each settled finding is commented once: a later publish posts only fates not yet commented. Fate commands stay local and offline. Advocate: Rewriting the findings section at each publish keeps one always-readable summary in the description, instead of scattering the story across comments a reviewer must read in order. Principles: S2, E0. Reversibility: cheap. Revised: Product goal, Terminology, Functional requirements, Surface, Non-goals, Acceptance criteria, Implementation-planning note, Docs page.
+Why: Operator, revised the same day: the comment goes out when the fate is set, not at publish. `phax finding fix` is when the commit exists, so when the run already has a pull request it pushes the run branch and posts one comment per finding it settles, naming the finding, its new fate and the commit; `dismiss` and `defer` post their comment the same way (reason or pointer). When the run has no pull request yet (auto-publish off, the PR opened later), nothing is posted: the description written at PR creation carries the findings section, by fate as they stand then. The description is never rewritten after creation. Posting follows the existing `publish.auto` setting (the one that publishes the PR); with it off, fate commands stay local and offline. A dedicated setting can come later if the two need to differ. Advocate: Keeping every fate command local and posting at publish time means one network moment, fate commands that always work offline and fast, and no GitHub dependency for an agent that calls them. Principles: S4, E0. Reversibility: cheap. Revised: Product goal, Terminology, Functional requirements, Acceptance criteria, Surface, Non-goals, Implementation-planning note, Docs page.
+Earlier decision: other — by operator (Rémy Loubradou), 2026-11-04
 
 ### q-plans — How is the spec split into plans?
 
@@ -596,7 +615,7 @@ Settled:
 - A dismissal carries a decided verdict (chosen `dismiss`, abandoned `fix` and `defer`, `revised` empty).
 - The fix command composes the commit: `Short-Name` plus one `Finding:` trailer per id, the named paths only, one commit per call.
 - Path classes are `tests`, `gate-config`, `docs`, `code`, derived deterministically from the path.
-- The PR description names open and deferred findings and counts fixed and dismissed ones as they stand at creation, and is never rewritten. A finding settled afterwards gets one PR comment, posted by `phax publish-pr` after it pushes the branch, once per fate. Fate commands never call GitHub. Nothing blocks.
+- The PR description names open and deferred findings and counts fixed and dismissed ones as they stand at creation, and is never rewritten. When the run already has a pull request and `publish.auto` is on, `phax finding fix` pushes the run branch and posts one comment per finding it settles, and `dismiss` and `defer` post theirs the same way. With no pull request yet, nothing is posted. With `publish.auto` off, the fate commands stay local and offline. `phax finding list` never calls GitHub. Nothing blocks.
 - The headless-review spec, when revived, reuses this spec's Finding id, fate set and fate records as its outcomes and history, adding only `awaiting`; its per-finding `outcome`/`history` fields in `code-review.json` are replaced by fate records.
 - The spec splits into three plans: (1) ids, the older-review lift to `unrecorded` and `finding list`; (2) the fate commands and their records; (3) the PR description and the fate comments.
 
@@ -607,16 +626,17 @@ Left open:
 - For a dismissal's decided verdict: `advocate` (indicative: the finding's `suggestion`, its message for a compliance finding, as the strongest case for `fix`), `principles` (indicative: empty) and `reversibility` (indicative: `cheap`, since a later fate record can supersede it).
 - Exit codes of the refusals, within the existing families and declared per command-contracts.
 - How `phax finding fix` resolves paths: relative to the run's final worktree root, or to the current directory when it is inside that worktree.
-- How `phax publish-pr` knows which fate records already have a comment (for example a marker in the comment that it reads back through `gh`), so that a re-run posts only what is missing.
+- What a fate command does when its push or its comment fails after the commit and the record landed (indicative: keep both, report that the pull request was not updated, and name the retry), and how a fate command finds the run's pull request.
+- Whether a dedicated setting for posting fate comments is needed beside `publish.auto`; deferred until the two need to differ.
 
 Constraints:
 
 - No back-compat shims: the review files' new shape requires `id`. Older files stay readable through the schema history readers and get their ids at read time, with no migration step and no rewrite of stored files.
 - Every new document (`finding-list` answer, fate record manifest, new review file stamps) is born with `$schema`.
-- All I/O through ports; the fix commit follows the artifact-transition pattern (path-scoped, `-o <paths>` semantics, never sweeping other staged changes).
+- All I/O through ports, GitHub and push included; the fix commit follows the artifact-transition pattern (path-scoped, `-o <paths>` semantics, never sweeping other staged changes).
 - Fate commands honor command-contracts: `--json` on each, message lines on stderr, refusal before any write.
 - Release notes keep folding fixing commits into their run by `Short-Name`; fixing commits carry no `Run-Id`.
-- A fate comment is posted only after the branch push, so a fixing commit it names is already visible on the PR.
+- A fix pushes the run branch before it posts, so the fixing commit a comment names is already visible on the PR; posting follows the existing `publish.auto` setting.
 
 ## 11. Docs page
 
@@ -624,7 +644,7 @@ Page: docs/findings.md — Review findings: ids and fates
 
 Reader: An operator who has run a code or compliance review on a `review_open` run and now wants to address its findings: fix some, dismiss or defer others, and see what is left before publishing.
 
-Example: Run `phax finding list gate-retry`. Fix the test, then run `phax finding fix gate-retry F2 -- tests/gate.test.ts`. Dismiss the duplicate-check finding with `phax finding dismiss gate-retry F3 --why "the second check guards --resume"`, defer the docs gap to a brief with `phax finding defer gate-retry F5 --to docs/briefs/gate-retry-docs.md --why …`, then `phax publish-pr gate-retry` and see one comment per settled finding on the PR, beside the description that listed the findings at creation.
+Example: Run `phax finding list gate-retry`. Fix the test, then run `phax finding fix gate-retry F2 -- tests/gate.test.ts`. Dismiss the duplicate-check finding with `phax finding dismiss gate-retry F3 --why "the second check guards --resume"`, defer the docs gap to a brief with `phax finding defer gate-retry F5 --to docs/briefs/gate-retry-docs.md --why …`. When the run already has a pull request and `publish.auto` is on, each command pushes or posts as it goes and the PR shows one comment per settled finding, beside the description that listed the findings when it was created.
 
 ## 12. Decision log
 
@@ -634,5 +654,6 @@ Example: Run `phax finding list gate-retry`. Fix the test, then run `phax findin
 - 2026-11-04 q-subject decided default-override — operator (Rémy Loubradou)
 - 2026-11-04 q-rereview decided records-history — operator (Rémy Loubradou)
 - 2026-11-04 q-backfill decided commit-flag — operator (Rémy Loubradou)
+- 2026-11-04 q-pr-refresh decided other — operator (Rémy Loubradou) — revised 8 sections
 - 2026-11-04 q-pr-refresh decided other — operator (Rémy Loubradou) — revised 8 sections
 - 2026-11-04 q-plans decided three-plans — operator (Rémy Loubradou)
