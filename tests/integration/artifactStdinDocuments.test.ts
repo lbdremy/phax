@@ -175,7 +175,7 @@ describe("artifact decide --verdicts <file|->", { timeout: TIMEOUT }, () => {
     expect(written[0]).toMatchObject({
       kind: "refused",
       source: "stdin",
-      path: ["verdicts", "0", "chosen"],
+      path: ["verdicts", 0, "chosen"],
       text: "error: verdicts.json: verdicts[0].chosen is not an option of q-keep",
       exit: 64,
     });
