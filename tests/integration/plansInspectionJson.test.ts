@@ -54,6 +54,9 @@ beforeAll(() => {
   mkdirSync(state);
   git("-C", repo, "init", "-q", "-b", "main");
   disableGitAutoMaintenance(repo);
+  // isolateGit leaves no identity: the fixture's commit names its own.
+  git("-C", repo, "config", "--local", "user.name", "Ada Example");
+  git("-C", repo, "config", "--local", "user.email", "ada@example.test");
   write(
     "phax.json",
     JSON.stringify({
