@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2611041203-phase-prompt-names-the-gate.md
 completes-spec: true
+approved:
+  date: 2026-11-04
+  baseline: cc05ab9
 ---
 # The phase prompt names the gate
 
