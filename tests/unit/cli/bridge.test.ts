@@ -297,7 +297,7 @@ describe("help on a runner command", () => {
   });
 
   it("leaves `help` on an unmigrated command to Commander", async () => {
-    const call = edge(["help", "validate"]);
+    const call = edge(["help", "unlock"]);
     await dispatch(phaxProgram, call.edge);
     expect(call.runRunner).not.toHaveBeenCalled();
   });
@@ -455,9 +455,21 @@ describe("the help-only stubs", () => {
     mountRunnerStub(plans, phaxProgram, ["artifact", "status"]);
     mountRunnerStubs(root, phaxProgram);
     // `plans`, held whole, is mounted once as a group stub after the stubs of the others.
-    expect(root.commands.map((each) => each.name())).toEqual(["artifact", "ls", "plans"]);
+    expect(root.commands.map((each) => each.name())).toEqual([
+      "artifact",
+      "validate",
+      "session-info",
+      "path",
+      "ls",
+      "brief",
+      "architecture",
+      "report",
+      "completions",
+      "plans",
+    ]);
     expect(plans.commands.map((each) => each.name())).toEqual(["status"]);
-    const [, ls, wholePlans] = root.commands;
+    const ls = root.commands.find((each) => each.name() === "ls");
+    const wholePlans = root.commands.find((each) => each.name() === "plans");
     expect(ls && isRunnerStub(ls)).toBe(true);
     expect(wholePlans && isRunnerStub(wholePlans)).toBe(true);
     expect(wholePlans?.commands.map((each) => [each.name(), isRunnerStub(each)])).toEqual([
@@ -536,7 +548,14 @@ describe("runnerUsage", () => {
     const usage = runnerUsage(phaxProgram);
     expect(usage.root).toHaveLength(2);
     expect([...usage.commands.keys()]).toEqual([
+      "validate",
+      "session-info",
+      "path",
       "ls",
+      "brief",
+      "architecture",
+      "report",
+      "completions",
       "artifact status",
       "plans status",
       "plans overlap",

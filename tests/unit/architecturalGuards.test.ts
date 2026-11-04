@@ -313,14 +313,16 @@ const DIRECT_NODE_IO = /\bfrom\s+["'](node:fs|node:fs\/promises|node:child_proce
 // FileSystem port.
 const CLI_DIRECT_IO_ALLOWLIST: ReadonlySet<string> = new Set([
   "src/cli/commands/adjustPlan.ts",
-  "src/cli/commands/completions.ts",
   "src/cli/commands/resume.ts",
   "src/cli/commands/run.ts",
-  "src/cli/commands/sessionInfo.ts",
   "src/cli/commands/shell.ts",
   "src/cli/commands/skills.ts",
   "src/cli/commands/usage.ts",
   "src/cli/commands/usageSpec.ts",
+  // `completions` runs the `usage` CLI over phax.usage.kdl; `session-info` reads a phase's raw
+  // model-resolution.json for --debug.
+  "src/cli/definitions/completions.ts",
+  "src/cli/definitions/sessionInfo.ts",
   // The working tree's root, read with git for the commands' path arguments.
   "src/cli/definitions/shared.ts",
   "src/cli/interruptHandler.ts",
@@ -458,14 +460,11 @@ describe("architectural guard: phax's command definitions never import commander
 //     correct there).
 //   - agent, security: no resolved config; only absolute ~/.phax and ~/.vibe
 //     paths.
-//   - report: FS paths are absolute (stateRoot, PHAX_HOME_DIR, tmpdir) and the
-//     command may run without a resolved config.
 //   - init, skills: run before/without a phax project (init creates phax.json;
 //     skills resolves against explicit absolute install roots).
 const IDENTITY_FS_LAYER_ALLOWLIST: ReadonlySet<string> = new Set([
   "src/cli/commands/runLayers.ts",
   "src/cli/commands/agent.ts",
-  "src/cli/commands/report.ts",
   "src/cli/commands/security.ts",
   "src/cli/commands/init.ts",
   "src/cli/commands/skills.ts",

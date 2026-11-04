@@ -4,13 +4,10 @@ import { isInPhaseWorktree } from "../app/loadConfig.js";
 import { phaseGuardRefusal } from "../domain/security/phaseGuard.js";
 import { cliDocs } from "./cliDocs.js";
 import { readPackageVersion, runUsageFlagAndExit } from "./commands/usage.js";
-import { runValidate } from "./commands/validate.js";
 import { runUnlock } from "./commands/unlock.js";
 import { runEnter } from "./commands/enter.js";
 import { runEnterPhase } from "./commands/enterPhase.js";
-import { runSessionInfo } from "./commands/sessionInfo.js";
 import { runShell } from "./commands/shell.js";
-import { runPath } from "./commands/path.js";
 import { runOpen } from "./commands/open.js";
 import { runArchive } from "./commands/archive.js";
 import { runPrune } from "./commands/prune.js";
@@ -32,11 +29,7 @@ import { registerArtifactCommand } from "./commands/artifact.js";
 import { registerRecordsCommand } from "./commands/records.js";
 import { registerCostCommand } from "./commands/cost.js";
 import { runInit } from "./commands/init.js";
-import { runArchitecture } from "./commands/architecture.js";
-import { runBrief } from "./commands/brief.js";
 import { registerSchemaCommand } from "./commands/schema.js";
-import { runCompletions } from "./commands/completions.js";
-import { runReport } from "./commands/report.js";
 import { mountRunnerGroupStub, mountRunnerStub, mountRunnerStubs } from "./bridge.js";
 import { OPTION_HELP } from "./commandLibrary/contract/index.js";
 import { phaxProgram } from "./definitions/program.js";
@@ -92,16 +85,7 @@ export function buildProgram(): Command {
     return result;
   }
 
-  program
-    .command("validate")
-    .description(
-      "Validate phax.json and its user overlays without any side effects; pass --plan to also validate a phax-plan.json",
-    )
-    .option("--plan <path>", "Also validate a phax-plan.json at this path")
-    .action(async (opts: { plan?: string }) => {
-      const exitCode = await runValidate(opts, consoleOutput);
-      process.exit(exitCode);
-    });
+  mountRunnerStub(program, phaxProgram, ["validate"]);
 
   program
     .command("unlock")
@@ -136,15 +120,7 @@ export function buildProgram(): Command {
       process.exit(exitCode);
     });
 
-  program
-    .command("session-info")
-    .description("Print session diagnostics for a run (state, phase, worktree, session id)")
-    .argument("<short-name>", "Run short name, e.g. usage-cli")
-    .option("--debug", "Dump raw binding and model-resolution metadata")
-    .action(async (shortName: string, opts: { debug?: boolean }) => {
-      const exitCode = await runSessionInfo(shortName, consoleOutput, opts);
-      process.exit(exitCode);
-    });
+  mountRunnerStub(program, phaxProgram, ["session-info"]);
 
   program
     .command("shell")
@@ -155,14 +131,7 @@ export function buildProgram(): Command {
       process.exit(exitCode);
     });
 
-  program
-    .command("path")
-    .description("Print the final worktree path (script-friendly, one line)")
-    .argument("<short-name>", "Run short name, e.g. usage-cli")
-    .action((shortName: string) => {
-      const exitCode = runPath(shortName, consoleOutput);
-      process.exit(exitCode);
-    });
+  mountRunnerStub(program, phaxProgram, ["path"]);
 
   program
     .command("open")
@@ -323,27 +292,8 @@ export function buildProgram(): Command {
       },
     );
 
-  program
-    .command("brief")
-    .description(
-      "Ask the configured brief provider for the rules over the given paths and the findings there; with no path, inside a phase, the phase's brief",
-    )
-    .argument("[path...]", "Paths to brief, existing or not, relative to the current directory")
-    .action(async (paths: string[]) => {
-      const exitCode = await runBrief(paths, consoleOutput);
-      process.exit(exitCode);
-    });
-
-  program
-    .command("architecture")
-    .description(
-      "Ask the configured architecture provider for the repository's architecture; with paths, for the parts that hold them",
-    )
-    .argument("[path...]", "Paths to ask about, existing or not, relative to the current directory")
-    .action(async (paths: string[]) => {
-      const exitCode = await runArchitecture(paths, consoleOutput);
-      process.exit(exitCode);
-    });
+  mountRunnerStub(program, phaxProgram, ["brief"]);
+  mountRunnerStub(program, phaxProgram, ["architecture"]);
 
   program
     .command("init")
@@ -355,27 +305,8 @@ export function buildProgram(): Command {
       process.exit(exitCode);
     });
 
-  program
-    .command("report")
-    .description(
-      "Open a GitHub issue from local telemetry (run semantic.jsonl or latest daily journal)",
-    )
-    .argument("[short-name]", "Run short name, e.g. usage-cli")
-    .option("--no-gist", "Inline the full log in the issue body instead of creating a secret gist")
-    .action(async (shortName: string | undefined, opts: { noGist?: boolean }) => {
-      const exitCode = await runReport(shortName, opts, consoleOutput);
-      process.exit(exitCode);
-    });
-
-  program
-    .command("completions")
-    .description(
-      "Generate a shell completion script (zsh, bash, fish, nu, powershell). Requires the usage CLI.",
-    )
-    .argument("<shell>", "Shell to generate completions for (zsh, bash, fish, nu, powershell)")
-    .action((shell: string) => {
-      runCompletions(shell);
-    });
+  mountRunnerStub(program, phaxProgram, ["report"]);
+  mountRunnerStub(program, phaxProgram, ["completions"]);
 
   registerResumeCommand(program, runResume, consoleOutput, globalTraceOpts);
   registerResetPhaseCommand(program, runResetPhase, consoleOutput, globalTraceOpts);

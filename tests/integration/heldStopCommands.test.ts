@@ -256,7 +256,7 @@ describe("phax path, shell and open on a held run", () => {
     const { runOpen } = await import("../../src/cli/commands/open.js");
 
     const pathOut = makeOutput();
-    expect(runPath(SHORT, pathOut.out)).toBe(0);
+    expect(await runPath(SHORT, pathOut.out)).toBe(0);
     expect(pathOut.logs).toEqual([tree()]);
 
     expect(await runShell(SHORT, makeOutput().out)).toBe(0);

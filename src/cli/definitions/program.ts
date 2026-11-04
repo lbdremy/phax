@@ -6,13 +6,20 @@
 import * as Schema from "effect/Schema";
 import { PHAX_RELEASE } from "../../schemas/release.js";
 import { defineGroup, defineProgram, reject } from "../commandLibrary/contract/index.js";
+import { architectureCommand } from "./architecture.js";
 import { artifactStatusCommand } from "./artifactStatus.js";
+import { briefCommand } from "./brief.js";
+import { completionsCommand } from "./completions.js";
 import { lsCommand } from "./ls.js";
+import { pathCommand } from "./path.js";
 import { plansEstimateCommand } from "./plansEstimate.js";
 import { plansLintCommand } from "./plansLint.js";
 import { plansOverlapCommand } from "./plansOverlap.js";
 import { plansOverviewCommand } from "./plansOverview.js";
 import { plansStatusCommand } from "./plansStatus.js";
+import { reportCommand } from "./report.js";
+import { sessionInfoCommand } from "./sessionInfo.js";
+import { validateCommand } from "./validate.js";
 
 /** The options every phax command takes, wherever they stand in the call, with today's help. */
 const phaxProgramOptions = reject(
@@ -44,7 +51,14 @@ export const phaxProgram = defineProgram({
   // positions. A group the bridge holds in part (`artifact`) lists only its migrated commands:
   // Commander keeps the group itself, with its other commands, until the last of them moves.
   commands: [
+    validateCommand,
+    sessionInfoCommand,
+    pathCommand,
     lsCommand,
+    briefCommand,
+    architectureCommand,
+    reportCommand,
+    completionsCommand,
     defineGroup({
       name: "artifact",
       summary: "Inspect and transition the lifecycle status of a spec or plan",
