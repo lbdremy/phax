@@ -29,7 +29,8 @@ import type { Written } from "./written.js";
  *  it as a `refused` line under `--json` and as its text without, and exits the `refused` code. */
 export class Refused extends Data.TaggedError("Refused")<{
   readonly source: RefusalSource;
-  readonly path: ReadonlyArray<string>;
+  /** Keys as strings, an array's positions as numbers: `["verdicts", 0, "chosen"]`. */
+  readonly path: ReadonlyArray<string | number>;
   readonly expected: string;
   readonly text: string;
 }> {}

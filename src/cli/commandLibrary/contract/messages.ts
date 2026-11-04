@@ -60,7 +60,7 @@ export const messages = {
   /** A call the runner would not run. `text` is what the text form writes, without its newline. */
   refused: (line: {
     readonly source: RefusalSource;
-    readonly path: ReadonlyArray<string>;
+    readonly path: ReadonlyArray<string | number>;
     readonly expected: string;
     readonly text: string;
     readonly exit: number;
@@ -122,7 +122,7 @@ export const messageSchemas: Readonly<Record<string, JsonSchema>> = {
   refused: object({
     kind: kind("refused"),
     source: { enum: ["args", "flags", "env", "stdin", "command"] },
-    path: { type: "array", items: string },
+    path: { type: "array", items: { type: ["string", "integer"] } },
     expected: string,
     text: string,
     exit: integer,

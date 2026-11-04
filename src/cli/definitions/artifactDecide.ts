@@ -527,7 +527,7 @@ function checkVerdicts(call: {
     return yield* Effect.fail(
       new Refused({
         source: "stdin",
-        path: refusal.path.map(String),
+        path: refusal.path,
         expected: refusal.expected,
         text: `error: ${label}: ${verdictsFieldPath(refusal.path)} ${refusal.problem}`,
       }),

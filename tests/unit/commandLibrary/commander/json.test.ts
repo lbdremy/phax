@@ -201,7 +201,7 @@ describe("--json", () => {
     ]);
   });
 
-  it("names a nested stdin key by its path", async () => {
+  it("names a nested stdin key by its path, an array position as a number", async () => {
     const Doc = Schema.Struct({
       todos: Schema.Array(Schema.Struct({ id: Schema.String })),
     });
@@ -219,7 +219,7 @@ describe("--json", () => {
     });
     expect(result.code).toBe(2);
     expect(lines(result.err)).toMatchObject([
-      { kind: "refused", source: "stdin", path: ["todos", "0", "id"] },
+      { kind: "refused", source: "stdin", path: ["todos", 0, "id"] },
     ]);
   });
 

@@ -91,7 +91,8 @@ const unterminated = (text: string): string => (text.endsWith("\n") ? text.slice
 /** What a `refused` line says of the call, besides its text and code. */
 export interface Details {
   readonly source: RefusalSource;
-  readonly path: ReadonlyArray<string>;
+  /** Keys as strings, an array's positions as numbers: `["verdicts", 0, "chosen"]`. */
+  readonly path: ReadonlyArray<string | number>;
   readonly expected: string;
 }
 
@@ -105,14 +106,13 @@ export function pathOf(
   source: RefusalSource,
   segments: ReadonlyArray<PropertyKey | { readonly key: PropertyKey }>,
   names: ReadonlyArray<string> = [],
-): ReadonlyArray<string> {
-  const [first, ...rest] = segments.map((segment) =>
-    String(typeof segment === "object" ? segment.key : segment),
-  );
+): ReadonlyArray<string | number> {
+  const keys = segments.map((segment) => (typeof segment === "object" ? segment.key : segment));
+  const [first, ...rest] = keys.map((key) => (typeof key === "number" ? key : String(key)));
   if (first === undefined) return [];
   const head =
     source === "flags"
-      ? optionAs(first)
+      ? optionAs(String(first))
       : source === "args"
         ? (names[Number(first)] ?? `arg${first}`)
         : first;
