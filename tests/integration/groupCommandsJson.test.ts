@@ -74,6 +74,9 @@ function initRepo(root: string, config: Record<string, unknown>): void {
   mkdirSync(root);
   execFileSync("git", ["init", "-q", "-b", "main"], { cwd: root, stdio: "ignore" });
   disableGitAutoMaintenance(root);
+  // isolateGit leaves no identity: the fixture's commit names its own.
+  execFileSync("git", ["config", "--local", "user.name", "Ada Example"], { cwd: root });
+  execFileSync("git", ["config", "--local", "user.email", "ada@example.test"], { cwd: root });
   writeFileSync(join(root, "phax.json"), JSON.stringify(config));
   execFileSync("git", ["add", "-A"], { cwd: root, stdio: "ignore" });
   execFileSync("git", ["commit", "-q", "-m", "initial"], { cwd: root, stdio: "ignore" });

@@ -95,6 +95,9 @@ function initRepo(root: string, config: Record<string, unknown>): void {
   mkdirSync(root);
   git(root, "init", "-q", "-b", "main");
   disableGitAutoMaintenance(root);
+  // isolateGit leaves no identity: the fixture's commit names its own.
+  git(root, "config", "--local", "user.name", "Ada Example");
+  git(root, "config", "--local", "user.email", "ada@example.test");
   write(root, "phax.json", JSON.stringify(config));
   git(root, "add", "-A");
   git(root, "commit", "-q", "-m", "initial");
