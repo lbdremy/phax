@@ -22,7 +22,6 @@ import { runResume } from "./commands/resume.js";
 import { registerResumeCommand } from "./commands/resumeRegister.js";
 import { runResetPhase } from "./commands/resetPhase.js";
 import { registerResetPhaseCommand } from "./commands/resetPhaseRegister.js";
-import { registerAgentCommand } from "./commands/agent.js";
 import { runInit } from "./commands/init.js";
 import { mountRunnerGroupStub, mountRunnerStub, mountRunnerStubs } from "./bridge.js";
 import { OPTION_HELP } from "./commandLibrary/contract/index.js";
@@ -305,7 +304,8 @@ export function buildProgram(): Command {
 
   registerResumeCommand(program, runResume, consoleOutput, globalTraceOpts);
   registerResetPhaseCommand(program, runResetPhase, consoleOutput, globalTraceOpts);
-  registerAgentCommand(program, consoleOutput);
+  // `agent` answers through the runner, which holds the whole group: a help-only stub, in place.
+  mountRunnerGroupStub(program, phaxProgram, ["agent"]);
   mountRunnerGroupStub(program, phaxProgram, ["security"]);
   mountRunnerGroupStub(program, phaxProgram, ["skills"]);
   mountRunnerGroupStub(program, phaxProgram, ["schema"]);

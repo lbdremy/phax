@@ -1100,11 +1100,11 @@ Full CLI reference: [`docs/cli/reference.md`](docs/cli/reference.md).
 - `phax resume [FLAGS] <short-name>` — Picks up a run from its next pending phase, re-entering the same execution loop as phax run. Prompts for confirmation before proceeding unless --yes is set.
 - `phax reset-phase [FLAGS] <short-name> [phase-id]` — Resets a stuck or failed phase: its folder is archived, its worktree and branch are removed, and the run becomes resumable so phax resume starts the phase over. Without --yes it first previews what the reset would discard.
 - `phax agent <SUBCOMMAND>` — Inspect and manage model routing and provider configuration
-- `phax agent models` — Print the routing table and provider priority
+- `phax agent models [--json]` — Print the routing table and provider priority
 - `phax agent resolve <FLAGS>` — Show how a model+effort request resolves to a provider and concrete model
-- `phax agent probe` — Check which provider executables are available on PATH; never throws on an unavailable provider
+- `phax agent probe [--json]` — Check which provider executables are available on PATH; never throws on an unavailable provider
 - `phax agent setup <SUBCOMMAND>` — Set up provider integrations
-- `phax agent setup mistral-vibe [--dry-run] [--install-model-aliases]` — Append PHAX-owned Mistral Vibe model aliases to ~/.vibe/config.toml (append-only, atomic)
+- `phax agent setup mistral-vibe [FLAGS]` — Append PHAX-owned Mistral Vibe model aliases to ~/.vibe/config.toml (append-only, atomic)
 - `phax agent setup providers [FLAGS]` — Reconcile ~/.phax/providers.json enabled flags from live executable probes (dry-run by default)
 - `phax security <SUBCOMMAND>` — Security-related commands
 - `phax security status [--json]` — Show provider security capabilities and availability

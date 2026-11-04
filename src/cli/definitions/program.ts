@@ -6,6 +6,7 @@
 import * as Schema from "effect/Schema";
 import { PHAX_RELEASE } from "../../schemas/release.js";
 import { defineGroup, defineProgram, reject } from "../commandLibrary/contract/index.js";
+import { agentGroup } from "./agent.js";
 import { architectureCommand } from "./architecture.js";
 import { artifactGroup } from "./artifact.js";
 import { briefCommand } from "./brief.js";
@@ -64,6 +65,7 @@ export const phaxProgram = defineProgram({
     reportCommand,
     completionsCommand,
     costGroup,
+    agentGroup,
     securityGroup,
     skillsGroup,
     schemaGroup,

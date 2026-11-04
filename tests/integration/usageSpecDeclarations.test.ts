@@ -34,6 +34,11 @@ const MIGRATED_COMMANDS: ReadonlyArray<string> = [
   "report",
   "completions",
   "cost backfill",
+  "agent models",
+  "agent resolve",
+  "agent probe",
+  "agent setup mistral-vibe",
+  "agent setup providers",
   "security status",
   "skills install",
   "schema upgrade",
@@ -70,6 +75,7 @@ const CHOICES_DECLARED: ReadonlyArray<string> = ["artifact schema"];
  *  reworded, its help now the library's. */
 const REWORDED_JSON: ReadonlyArray<string> = [
   "ls",
+  "agent resolve",
   "artifact decide",
   "plans status",
   "plans overlap",
