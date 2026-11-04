@@ -26,11 +26,10 @@ const FORMATS = [
 describe.each(FORMATS)("%s", (id, parse, toLatest) => {
   const document = validDocuments[id];
 
-  it("parses its current shape, named next while its snapshot is unreleased", () => {
+  it("parses its current shape", () => {
     const parsed = parse(document);
     expect(parsed.ok).toBe(true);
     if (parsed.ok) expect(parsed.shape).toBe(CURRENT_SHAPES[id]);
-    expect(CURRENT_SHAPES[id]).toBe("next");
   });
 
   it("lifts to a value without $schema and keeps every other fact", () => {
