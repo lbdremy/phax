@@ -31,6 +31,12 @@ export interface ArgShape {
   /** Gain carried for upstream: the completer the element's annotation declares, read only for
    *  an element named by its `identifier`. */
   readonly completer: Completer | undefined;
+  /** Gain carried for upstream (variadic arguments): the tuple's rest element, which takes every
+   *  operand left, always the last argument. It is optional (`[path...]`) unless the element just
+   *  before it is required and of the rest's own schema, as `Schema.NonEmptyArray(x)` and
+   *  `Schema.Tuple([x], x)` write it: that element is then folded into it, required
+   *  (`<plan...>`). */
+  readonly variadic: boolean;
 }
 
 /** An option of a command, read from one field of its `flags` contract. */
@@ -157,7 +163,13 @@ function literalOf(ast: SchemaAST.AST): SchemaAST.TypeLiteral | undefined {
   return undefined;
 }
 
-function completerOf(element: SchemaAST.OptionalType): Completer | undefined {
+/** A tuple's element or its rest: a type, with the annotations written on its place. */
+interface Placed {
+  readonly type: SchemaAST.AST;
+  readonly annotations: SchemaAST.Annotations;
+}
+
+function completerOf(element: Placed): Completer | undefined {
   const declared: unknown =
     element.annotations[CompleterAnnotationId] ?? element.type.annotations[CompleterAnnotationId];
   if (typeof declared !== "object" || declared === null) return undefined;
@@ -166,22 +178,38 @@ function completerOf(element: SchemaAST.OptionalType): Completer | undefined {
   return typeof run === "string" ? { run, descriptions: descriptions === true } : undefined;
 }
 
+/** The `identifier` written on a place, else on its type. */
+const identifierOf = (element: Placed): string | undefined =>
+  Option.getOrUndefined(
+    Option.orElse(SchemaAST.getIdentifierAnnotation(element), () =>
+      SchemaAST.getIdentifierAnnotation(element.type),
+    ),
+  );
+
 export function argShapes(contract: TupleContract): ReadonlyArray<ArgShape> {
-  const declared = tupleOf(contract.ast)?.elements ?? [];
-  const encoded = tupleOf(SchemaAST.encodedAST(contract.ast))?.elements ?? [];
+  const tuple = tupleOf(contract.ast);
+  const encodedTuple = tupleOf(SchemaAST.encodedAST(contract.ast));
+  const elements = tuple?.elements ?? [];
+  const encoded = encodedTuple?.elements ?? [];
+  const rest = tuple?.rest[0];
+  // Gain (variadic arguments): a required last element of the rest's own schema is folded into
+  // the rest, which is then required.
+  const last = elements.at(-1);
+  const folded =
+    rest !== undefined && last !== undefined && !last.isOptional && last.type === rest.type;
+  const declared = folded ? elements.slice(0, -1) : elements;
   const taken = new Set<string>();
-  return declared.map((element, index) => {
-    const named = Option.getOrUndefined(
-      Option.orElse(SchemaAST.getIdentifierAnnotation(element), () =>
-        SchemaAST.getIdentifierAnnotation(element.type),
-      ),
-    );
+  const nameOf = (named: string | undefined, index: number): string => {
     const name = named === undefined || taken.has(named) ? `arg${index}` : named;
     taken.add(name);
+    return name;
+  };
+  const shapes: ArgShape[] = declared.map((element, index) => {
+    const named = identifierOf(element);
     const encodedType = encoded[index]?.type ?? element.type;
     const optional = encoded[index]?.isOptional ?? element.isOptional;
     return {
-      name,
+      name: nameOf(named, index),
       optional,
       help: descriptionOf(element) ?? helpOf(element.type),
       choices: choicesOf(encodedType),
@@ -191,8 +219,21 @@ export function argShapes(contract: TupleContract): ReadonlyArray<ArgShape> {
           )
         : undefined,
       completer: named === undefined ? undefined : completerOf(element),
+      variadic: false,
     };
   });
+  if (rest === undefined) return shapes;
+  const named = identifierOf(rest);
+  shapes.push({
+    name: nameOf(named, declared.length),
+    optional: !folded,
+    help: descriptionOf(rest) ?? helpOf(rest.type),
+    choices: choicesOf(encodedTuple?.rest[0]?.type ?? rest.type),
+    default: undefined,
+    completer: named === undefined ? undefined : completerOf(rest),
+    variadic: true,
+  });
+  return shapes;
 }
 
 export function flagShapes(contract: StructContract): ReadonlyArray<FlagShape> {

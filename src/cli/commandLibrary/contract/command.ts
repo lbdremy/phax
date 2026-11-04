@@ -110,6 +110,13 @@ export interface Document {
 export interface Grouping {
   readonly name: string;
   readonly summary: string;
+  /** Gain carried for upstream (a group's long help): a longer help, shown after the group's
+   *  summary in its help and written as its `long_help` in the usage spec. */
+  readonly help?: string;
+  /** Gain carried for upstream (a group's examples): command lines that show how the group's
+   *  commands are called, one per entry: an `Examples:` block in the group's help, before its
+   *  commands, and one `example` node each in the usage spec. */
+  readonly examples?: ReadonlyArray<string>;
   /** Gain carried for upstream (groups holding groups): the group this group stands in, when it
    *  is nested. A command's grouping is so a chain, outermost last; its full name walks it. */
   readonly parent?: Grouping;
@@ -182,6 +189,11 @@ export interface CommandDef<
    *  to the path and the written-file record is the answer. `--out -`, or no `--out`, answers the
    *  document itself. A command declaring an option `out` beside this stops the program. */
   readonly writesDocument?: true;
+  /** Gain carried for upstream (a command that prompts): whether the call, its input decoded,
+   *  would ask a person something. When it holds and `--json` is given, the runner refuses the
+   *  call after decoding and before `run`, with the program's `refused` code: `--json` never
+   *  waits on a person. Without `--json` it is never asked. */
+  readonly prompts?: (input: Parsed<I>) => boolean;
 }
 
 /** A command as a runner reads it; `R`, the services its run needs. */

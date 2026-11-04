@@ -22,6 +22,7 @@ import {
   OPTION_HELP,
   usageSpec,
   type Command as RunnerCommand,
+  type Grouping,
   type Inputs,
   type Io,
   type Program,
@@ -80,15 +81,35 @@ function leadingWords(
   return words;
 }
 
-/** Where the bridge sends a call. */
+/** The runner's groups that Commander still holds in part: the group itself, its help, its
+ *  refusal when called alone and its unmigrated commands stay Commander's, and only the runner
+ *  commands named under it go to the runner. Every other runner group is held whole by the
+ *  runner. Phase-02 of command-contracts plan 2 removes `plans`; plan 3 empties the list. */
+export const PARTIAL_GROUPS: ReadonlyArray<string> = ["artifact", "plans"];
+
+/** The program's top-level groups the runner holds whole: each outermost group of its commands
+ *  that PARTIAL_GROUPS does not name, in the order first declared. */
+export function wholeGroups(program: Program<unknown>): ReadonlyArray<string> {
+  const names: string[] = [];
+  for (const command of program.commands) {
+    const outermost = fullName(command).length > 1 ? fullName(command)[0] : undefined;
+    if (outermost === undefined || PARTIAL_GROUPS.includes(outermost)) continue;
+    if (!names.includes(outermost)) names.push(outermost);
+  }
+  return names;
+}
+
+/** Where the bridge sends a call. A call naming a whole group and none of its commands goes to
+ *  the runner with the group's name, so that its help and its refusal are the runner's. */
 export type Route =
   | { readonly to: "runner"; readonly command: ReadonlyArray<string> }
-  | { readonly to: "runner"; readonly command: undefined }
+  | { readonly to: "runner"; readonly command: undefined; readonly group?: string }
   | { readonly to: "commander" };
 
 /** Where a call goes: to the runner when its leading words, after the program's options, name
- *  one of the program's commands (the longest name that matches), or when it is the root's
- *  `--json-schema`; to Commander otherwise. */
+ *  one of the program's commands (the longest name that matches), or a group the runner holds
+ *  whole whatever follows it (nothing, `--help`, a word that names none of its commands), or when
+ *  it is the root's `--json-schema`; to Commander otherwise. */
 export function route(program: Program<unknown>, argv: ReadonlyArray<string>): Route {
   const leading = leadingWords(program, argv);
   if (leading[0] === JSON_SCHEMA_OPTION) return { to: "runner", command: undefined };
@@ -98,7 +119,11 @@ export function route(program: Program<unknown>, argv: ReadonlyArray<string>): R
     const matches = name.every((part, index) => leading[index] === part);
     if (matches && (named === undefined || name.length > named.length)) named = name;
   }
-  return named === undefined ? { to: "commander" } : { to: "runner", command: named };
+  if (named !== undefined) return { to: "runner", command: named };
+  const group = leading[0];
+  return group !== undefined && wholeGroups(program).includes(group)
+    ? { to: "runner", command: undefined, group }
+    : { to: "commander" };
 }
 
 /** The options a call gives, by their camelCase names, as the phase guard reads them. */
@@ -176,13 +201,16 @@ export async function dispatch(
   program: Program<unknown>,
   edge: BridgeEdge,
 ): Promise<number | undefined> {
-  // Commander's `help <command>` names a runner command: the runner's own help answers it, as
-  // `<command> --help` does, rather than the help-only stub's.
+  // Commander's `help <command>` names a runner command, or a group the runner holds whole: the
+  // runner's own help answers it, as `<words> --help` does, rather than the help-only stub's.
   const leading = leadingWords(program, edge.argv);
   if (leading[0] === "help") {
     const asked = route(program, leading.slice(1));
     if (asked.to === "runner" && asked.command !== undefined) {
       return edge.runRunner([...asked.command, "--help"]);
+    }
+    if (asked.to === "runner" && asked.group !== undefined) {
+      return edge.runRunner([...leading.slice(1), "--help"]);
     }
   }
   const routed = route(program, edge.argv);
@@ -262,12 +290,17 @@ export function isRunnerStub(command: Command): boolean {
   return stubs.has(command);
 }
 
+/** A runner command's chain of groups, outermost first. */
+function chainOf(command: RunnerCommand<unknown>): ReadonlyArray<Grouping> {
+  const chain: Grouping[] = [];
+  for (let group = command.group; group !== undefined; group = group.parent) chain.unshift(group);
+  return chain;
+}
+
 /** The Commander group a runner command belongs to, made when the tree has none. */
 function groupOf(root: Command, command: RunnerCommand<unknown>): Command {
-  const chain: { readonly name: string; readonly summary: string }[] = [];
-  for (let group = command.group; group !== undefined; group = group.parent) chain.unshift(group);
   let parent = root;
-  for (const group of chain) {
+  for (const group of chainOf(command)) {
     parent =
       parent.commands.find((each) => each.name() === group.name) ??
       parent.command(group.name).description(group.summary);
@@ -286,7 +319,8 @@ function mountStub(parent: Command, command: RunnerCommand<unknown>): void {
     .allowExcessArguments();
   const inputs: Inputs = command.input;
   for (const arg of inputs.args === undefined ? [] : argShapes(inputs.args.contract)) {
-    stub.argument(arg.optional ? `[${arg.name}]` : `<${arg.name}>`, arg.help ?? "");
+    const name = arg.variadic ? `${arg.name}...` : arg.name;
+    stub.argument(arg.optional ? `[${name}]` : `<${name}>`, arg.help ?? "");
   }
   for (const flag of inputs.flags === undefined ? [] : flagShapes(inputs.flags.contract)) {
     stub.option(
@@ -321,10 +355,71 @@ export function mountRunnerStub(
   mountStub(parent, command);
 }
 
+/** The runner's commands under the group named `words`, each with its words after the group's. */
+function commandsUnder(
+  program: Program<unknown>,
+  words: ReadonlyArray<string>,
+): ReadonlyArray<{
+  readonly command: RunnerCommand<unknown>;
+  readonly rest: ReadonlyArray<string>;
+}> {
+  return program.commands.flatMap((command) => {
+    const name = fullName(command);
+    const under = name.length > words.length && words.every((word, index) => name[index] === word);
+    return under ? [{ command, rest: name.slice(words.length) }] : [];
+  });
+}
+
+/** Mounts the runner group named `words` under `parent`, where it is called, as a help-only
+ *  group stub: the group's summary, and a help-only stub of each of its commands (its nested
+ *  groups as help-only groups too), each registered as a stub. The bridge sends every call
+ *  naming the group to the runner, which writes its help and its refusal; the usage spec
+ *  generator splices the runner's whole block for the group at the stub's place. */
+export function mountRunnerGroupStub(
+  parent: Command,
+  program: Program<unknown>,
+  words: ReadonlyArray<string>,
+): void {
+  const held = commandsUnder(program, words);
+  const first = held[0]?.command;
+  const grouping = first === undefined ? undefined : chainOf(first)[words.length - 1];
+  if (grouping === undefined) {
+    throw new Error(`phax ${words.join(" ")} is not a runner group`);
+  }
+  const group = parent.command(grouping.name).description(grouping.summary);
+  stubs.add(group);
+  for (const { command, rest } of held) {
+    const chain = chainOf(command);
+    let level = group;
+    rest.slice(0, -1).forEach((name, index) => {
+      let nested = level.commands.find((each) => each.name() === name);
+      if (nested === undefined) {
+        nested = level.command(name).description(chain[words.length + index]?.summary ?? "");
+        stubs.add(nested);
+      }
+      level = nested;
+    });
+    mountStub(level, command);
+  }
+}
+
 /** Mounts each runner command no command file mounted as a stub at the end of its group, and
- *  refuses a runner command that is also a Commander command. */
+ *  refuses a runner command that is also a Commander command. A group the runner holds whole is
+ *  mounted once as a group stub (at the end of the root when no command file mounted it), and its
+ *  commands are not mounted again. */
 export function mountRunnerStubs(root: Command, program: Program<unknown>): void {
+  const whole = wholeGroups(program);
   for (const command of program.commands) {
+    const outermost = fullName(command)[0] ?? "";
+    if (fullName(command).length > 1 && whole.includes(outermost)) {
+      const existing = root.commands.find((each) => each.name() === outermost);
+      if (existing !== undefined && isRunnerStub(existing)) continue;
+      if (existing !== undefined) {
+        throw new Error(`phax ${outermost} is both a Commander group and a runner group`);
+      }
+      mountRunnerGroupStub(root, program, [outermost]);
+      continue;
+    }
     const parent = groupOf(root, command);
     const existing = parent.commands.find((each) => each.name() === command.name);
     if (existing !== undefined && isRunnerStub(existing)) continue;
@@ -421,6 +516,12 @@ export interface RunnerUsage {
   readonly root: ReadonlyArray<string>;
   /** Each runner command's `cmd` block, unindented, keyed by its full name (`plans lint`). */
   readonly commands: ReadonlyMap<string, ReadonlyArray<string>>;
+  /** Each runner group's whole `cmd` block (its header with `subcommand_required=#true`, and
+   *  every command it holds), unindented, keyed by its full name (`cost`): the block the
+   *  generator splices at a whole group's stub. */
+  readonly groups: ReadonlyMap<string, ReadonlyArray<string>>;
+  /** Each `complete` node the runner writes, keyed by its identifier, in its order. */
+  readonly completes: ReadonlyMap<string, string>;
 }
 
 const INDENT = "    ";
@@ -432,13 +533,36 @@ const unquoted = (word: string): string =>
     ? (JSON.parse(word.replace(/\\u\{([0-9a-f]+)\}/g, "\\u$1")) as string)
     : word;
 
-/** Cuts the runner program's usage spec into the root's added lines and each command's block. */
+/** The node starting at `start`, its children and its closing brace included, unindented. */
+function blockAt(lines: ReadonlyArray<string>, start: number, indent: string): string[] {
+  const line = lines[start] as string;
+  const block = [line];
+  if (line.endsWith(" {")) {
+    for (let index = start + 1; index < lines.length; index += 1) {
+      const inner = lines[index] as string;
+      block.push(inner);
+      if (inner === `${indent}}`) break;
+    }
+  }
+  return block.map((each) => each.slice(indent.length));
+}
+
+const COMPLETE_LINE = /^complete ("(?:[^"\\]|\\.)*")/;
+
+/** Cuts the runner program's usage spec into the root's added lines, its `complete` nodes, each
+ *  command's block and each group's whole block. */
 export function runnerUsage(program: Program<unknown>): RunnerUsage {
   const lines = usageSpec(program).split("\n");
   const root = lines.filter(
     (line) => line.startsWith("after_long_help ") || line.startsWith(`flag ${JSON_SCHEMA_OPTION} `),
   );
+  const completes = new Map<string, string>();
+  for (const line of lines) {
+    const match = COMPLETE_LINE.exec(line);
+    if (match !== null) completes.set(unquoted(match[1] ?? ""), line);
+  }
   const commands = new Map<string, ReadonlyArray<string>>();
+  const groupBlocks = new Map<string, ReadonlyArray<string>>();
   const groups: string[] = [];
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index] as string;
@@ -448,22 +572,14 @@ export function runnerUsage(program: Program<unknown>): RunnerUsage {
     const depth = indent.length / INDENT.length;
     const name = unquoted(match[2] ?? "");
     groups.length = depth;
+    const block = blockAt(lines, index, indent);
     if (line.includes(" subcommand_required=#true")) {
       groups.push(name);
+      groupBlocks.set(groups.join(" "), block);
       continue;
     }
-    const block = [line];
-    if (line.endsWith(" {")) {
-      for (index += 1; index < lines.length; index += 1) {
-        const inner = lines[index] as string;
-        block.push(inner);
-        if (inner === `${indent}}`) break;
-      }
-    }
-    commands.set(
-      [...groups, name].join(" "),
-      block.map((each) => each.slice(indent.length)),
-    );
+    index += block.length - 1;
+    commands.set([...groups, name].join(" "), block);
   }
-  return { root, commands };
+  return { root, commands, groups: groupBlocks, completes };
 }

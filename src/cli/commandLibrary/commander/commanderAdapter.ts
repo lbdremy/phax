@@ -12,10 +12,13 @@ interface Described {
   readonly default: string | undefined;
 }
 
-/** A group as the adapter declares it: its word and its summary. */
+/** A group as the adapter declares it: its word and its summary, and (gain) its long help and
+ *  examples, shown in its help after the summary and before its commands. */
 export interface GroupSpec {
   readonly name: string;
   readonly summary: string;
+  readonly help?: string | undefined;
+  readonly examples?: ReadonlyArray<string> | undefined;
 }
 
 /** What the adapter declares to Commander for one command. */
@@ -29,8 +32,10 @@ export interface CommandSpec {
   /** The groups the command is declared under, outermost first; none for a command alone.
    *  Gain carried for upstream (groups holding groups): a chain of any depth. */
   readonly groups: ReadonlyArray<GroupSpec>;
-  /** One positional argument per tuple element, under its name. */
-  readonly args: ReadonlyArray<Described & { readonly name: string; readonly optional: boolean }>;
+  /** One positional argument per tuple element, under its name; the rest (gain) is variadic. */
+  readonly args: ReadonlyArray<
+    Described & { readonly name: string; readonly optional: boolean; readonly variadic: boolean }
+  >;
   /** One option per field: `--kebab <field>`, or a bare switch. */
   readonly flags: ReadonlyArray<
     Described & {
@@ -99,6 +104,9 @@ export type ParseResult = Shown | Refused | Matched;
 const camelCase = (kebab: string): string =>
   kebab.replace(/-([a-z0-9])/g, (_, letter: string) => letter.toUpperCase());
 
+/** A switch Commander reads as negated: `no-probe`, whose attribute is `probe`. */
+const NEGATED = /^no-(.+)$/;
+
 /** The help line of an argument or an option: its help, then its choices and its default the way
  *  Commander writes them. Nothing when there is none. */
 function describing(shown: Described): string {
@@ -130,7 +138,8 @@ function declare(
     command.summary(spec.summary).description(`${spec.summary}\n\n${spec.help}`);
   }
   for (const arg of spec.args) {
-    command.argument(arg.optional ? `[${arg.name}]` : `<${arg.name}>`, describing(arg));
+    const name = arg.variadic ? `${arg.name}...` : arg.name;
+    command.argument(arg.optional ? `[${name}]` : `<${name}>`, describing(arg));
   }
   for (const flag of spec.flags) {
     const flags = flag.switch ? `--${flag.option}` : `--${flag.option} <${flag.field}>`;
@@ -168,6 +177,14 @@ function declare(
     const given = command.opts<Record<string, string | boolean | undefined>>();
     const options: Record<string, string | boolean> = {};
     for (const flag of spec.flags) {
+      // Fix: Commander keeps a negated switch, `--no-probe`, under its positive attribute
+      // (`probe`), true by default and false when given. The field (`noProbe`) is true when the
+      // switch is given and absent otherwise.
+      const negated = flag.switch ? NEGATED.exec(flag.option)?.[1] : undefined;
+      if (negated !== undefined) {
+        if (given[camelCase(negated)] === false) options[flag.field] = true;
+        continue;
+      }
       const value = given[camelCase(flag.option)];
       if (value !== undefined) options[flag.field] = value;
     }
@@ -178,6 +195,19 @@ function declare(
       options,
     };
   });
+}
+
+/** A group's description: its summary alone, or (gain) its summary, then its long help, then its
+ *  examples indented two spaces, which its help shows before its commands. The parent's list says
+ *  the summary. */
+function describeGroup(node: Command, group: GroupSpec): void {
+  const parts = [group.summary];
+  if (group.help !== undefined) parts.push(group.help);
+  if (group.examples !== undefined && group.examples.length > 0) {
+    parts.push(`Examples:\n${group.examples.map((each) => `  ${each}`).join("\n")}`);
+  }
+  if (parts.length === 1) node.description(group.summary);
+  else node.summary(group.summary).description(parts.join("\n\n"));
 }
 
 /** Builds a fresh Commander tree for one call and parses the words, which are the call's arguments
@@ -223,7 +253,8 @@ export function parseCall(
       const key = path.join(" ");
       let node = groups.get(key);
       if (node === undefined) {
-        node = parent.command(group.name).description(group.summary).helpCommand(false);
+        node = parent.command(group.name).helpCommand(false);
+        describeGroup(node, group);
         groups.set(key, node);
       }
       parent = node;

@@ -8,6 +8,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { PARTIAL_GROUPS } from "../../src/cli/bridge.js";
 import { fullName } from "../../src/cli/commandLibrary/contract/index.js";
 import { phaxProgram } from "../../src/cli/definitions/program.js";
 import { generateUsageSpec } from "../../scripts/generate-usage-spec.js";
@@ -37,6 +38,19 @@ const REWORDED_JSON: ReadonlyArray<string> = ["ls", "plans lint", "plans overvie
  *  overview`'s document is a plan-overview with its $schema, and `ls`'s rows carry pullRequest. */
 const REWORDED_LONG_HELP: ReadonlyArray<string> = ["ls", "plans overview"];
 
+/** The groups the runner holds whole, nested ones by their full path: every group of phaxProgram
+ *  whose outermost group the bridge does not hold in part. Each block is the runner's, whose
+ *  header declares `subcommand_required` (none is held whole yet). */
+const WHOLE_GROUPS: ReadonlyArray<string> = [
+  ...new Set(
+    phaxProgram.commands.flatMap((command) => {
+      const name = fullName(command);
+      if (PARTIAL_GROUPS.includes(name[0] ?? "")) return [];
+      return name.slice(0, -1).map((_, index) => name.slice(0, index + 1).join(" "));
+    }),
+  ),
+];
+
 /** What the committed file may declare beyond the frozen one: a path and a declaration's head
  *  (its kind and key). */
 const ALLOWED_ADDITIONS: ReadonlyArray<readonly [string, string]> = [
@@ -44,6 +58,7 @@ const ALLOWED_ADDITIONS: ReadonlyArray<readonly [string, string]> = [
   ["", "flag --json-schema "],
   ...MIGRATED_COMMANDS.map((path) => [path, "flag --json "] as const),
   ...REWORDED_LONG_HELP.map((path) => [path, "long_help "] as const),
+  ...WHOLE_GROUPS.map((path) => [path, "subcommand_required "] as const),
 ];
 
 /** What the committed file may no longer declare as the frozen one did: each reworded
@@ -113,6 +128,22 @@ describe("phax.usage.kdl's declarations against the frozen file", () => {
   it("allows --json on exactly the commands on the runner", () => {
     expect(phaxProgram.commands.map((command) => fullName(command).join(" "))).toEqual(
       MIGRATED_COMMANDS,
+    );
+  });
+
+  it("declares subcommand_required on exactly the groups the runner holds whole", () => {
+    const required = [...now]
+      .filter(([, declarations]) =>
+        declarations.some((each) => each.startsWith("subcommand_required ")),
+      )
+      .map(([path]) => path);
+    const frozenRequired = [...before]
+      .filter(([, declarations]) =>
+        declarations.some((each) => each.startsWith("subcommand_required ")),
+      )
+      .map(([path]) => path);
+    expect(required.filter((path) => !frozenRequired.includes(path)).toSorted()).toEqual(
+      [...WHOLE_GROUPS].toSorted(),
     );
   });
 

@@ -460,3 +460,64 @@ describe("the program's options", () => {
     expect(help.out.join("")).toContain("--trace <trace>");
   });
 });
+
+// Fix: a negated switch, `--no-probe`, which Commander keeps under its positive attribute.
+describe("a negated switch", () => {
+  const probing = () => {
+    const run = spy();
+    const command = defineCommand({
+      name: "estimate",
+      summary: "estimate",
+      input: {
+        flags: reject(
+          Schema.Struct({
+            noProbe: Schema.optionalWith(
+              Schema.Boolean.annotations({ description: "Skip the probe" }),
+              { exact: true },
+            ),
+            dryRun: Schema.optionalWith(Schema.Boolean, { exact: true }),
+          }),
+        ),
+      },
+      output: strip(Schema.String),
+      exits: {},
+      run: ({ input }) => run(input),
+    });
+    return { program: programOf([command]), run };
+  };
+
+  it("reaches run as true when given", async () => {
+    const { program, run } = probing();
+    const result = await call(program, { argv: ["estimate", "--no-probe"] });
+    expect(result.code).toBe(0);
+    expect(run).toHaveBeenCalledWith({ flags: { noProbe: true } });
+  });
+
+  it("stays absent when not given", async () => {
+    const { program, run } = probing();
+    const result = await call(program, { argv: ["estimate", "--dry-run"] });
+    expect(result.code).toBe(0);
+    expect(run).toHaveBeenCalledWith({ flags: { dryRun: true } });
+  });
+
+  it("is refused with a value, as any switch is", async () => {
+    const { program, run } = probing();
+    const result = await call(program, { argv: ["estimate", "--no-probe=yes"] });
+    expect(result.code).toBe(2);
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it("shows as --no-probe in help, the catalogue and the usage spec", async () => {
+    const { program } = probing();
+    const help = await call(program, { argv: ["estimate", "--help"] });
+    expect(help.out.join("")).toContain("--no-probe");
+    expect(help.out.join("")).toContain("Skip the probe");
+    const entry = await call(program, { argv: ["estimate", "--json-schema"] });
+    const parsed = JSON.parse(entry.out.join("")) as {
+      input: { properties: Record<string, unknown> };
+    };
+    expect(Object.keys(parsed.input.properties)).toContain("no-probe");
+    const spec = await call(program, { argv: ["--usage-spec"] });
+    expect(spec.out.join("")).toContain(`flag --no-probe help="Skip the probe"`);
+  });
+});

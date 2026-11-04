@@ -121,10 +121,11 @@ function flagNodes(command: Command<unknown>, depth: number, listsJsonSchema: bo
 function argNodes(command: Command<unknown>, depth: number): string[] {
   const inputs: Inputs = command.input;
   const args = inputs.args === undefined ? [] : argShapes(inputs.args.contract);
+  // Gain (variadic arguments): `<plan>...` or `[path]...`, as usage writes one.
   return args.flatMap((arg) =>
     node(
       depth,
-      `arg ${usageOf(arg.optional ? `[${arg.name}]` : `<${arg.name}>`)}${property("help", arg.help)}${property(
+      `arg ${usageOf(`${arg.optional ? `[${arg.name}]` : `<${arg.name}>`}${arg.variadic ? "..." : ""}`)}${property("help", arg.help)}${property(
         "default",
         arg.default,
       )}`,
@@ -133,11 +134,16 @@ function argNodes(command: Command<unknown>, depth: number): string[] {
   );
 }
 
+/** The `example` child nodes of a command or a group. */
+const exampleNodes = (
+  depth: number,
+  examples: ReadonlyArray<string> | undefined,
+): ReadonlyArray<string> =>
+  (examples ?? []).flatMap((each) => node(depth, `example ${quoted(each)}`));
+
 /** A command's block: its examples first, then its options, then its positionals. */
 function commandNode(command: Command<unknown>, depth: number, listsJsonSchema: boolean): string[] {
-  const examples = (command.examples ?? []).flatMap((each) =>
-    node(depth + 1, `example ${quoted(each)}`),
-  );
+  const examples = exampleNodes(depth + 1, command.examples);
   return [
     ...node(
       depth,
@@ -188,12 +194,17 @@ function treeOf(commands: ReadonlyArray<Command<unknown>>): ReadonlyArray<Entry>
   return root;
 }
 
+/** A group's block: its summary and long help (gain), its examples (gain), then its commands. */
 function entryNode(entry: Entry, depth: number, listsJsonSchema: boolean): ReadonlyArray<string> {
   if (entry.kind === "command") return commandNode(entry.command, depth, listsJsonSchema);
+  const { group } = entry;
   return node(
     depth,
-    `cmd ${word(entry.group.name)}${property("help", entry.group.summary)} subcommand_required=#true`,
-    entry.entries.flatMap((each) => entryNode(each, depth + 1, listsJsonSchema)),
+    `cmd ${word(group.name)}${property("help", group.summary)}${property("long_help", group.help)} subcommand_required=#true`,
+    [
+      ...exampleNodes(depth + 1, group.examples),
+      ...entry.entries.flatMap((each) => entryNode(each, depth + 1, listsJsonSchema)),
+    ],
   );
 }
 

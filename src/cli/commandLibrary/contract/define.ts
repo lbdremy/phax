@@ -95,10 +95,15 @@ export function defineCommand<
  *  program's help says of the word.
  *
  *  Gain carried for upstream (groups holding groups): a group holds groups beside its commands,
- *  in the order declared. */
+ *  in the order declared.
+ *
+ *  Gain carried for upstream (a group's long help and examples): `help` and `examples`, shown in
+ *  the group's help before its commands and written as its `long_help` and `example` nodes. */
 export function defineGroup<const C extends ReadonlyArray<Command<any> | Group<any>>>(group: {
   readonly name: string;
   readonly summary: string;
+  readonly help?: string;
+  readonly examples?: ReadonlyArray<string>;
   readonly commands: C;
 }): Group<Services<C[number]>> {
   return group;
@@ -116,10 +121,14 @@ function flatten(
     if (!isGroup(entry)) {
       return parent === undefined ? [entry] : [{ ...entry, group: parent }];
     }
-    const grouping: Grouping =
-      parent === undefined
-        ? { name: entry.name, summary: entry.summary }
-        : { name: entry.name, summary: entry.summary, parent };
+    // The gains' keys are present only when declared, so a library grouping stays as it was.
+    const grouping: Grouping = {
+      name: entry.name,
+      summary: entry.summary,
+      ...(entry.help === undefined ? {} : { help: entry.help }),
+      ...(entry.examples === undefined ? {} : { examples: entry.examples }),
+      ...(parent === undefined ? {} : { parent }),
+    };
     return flatten(entry.commands, grouping);
   });
 }

@@ -10,14 +10,18 @@ import {
   commanderExit,
   dispatch,
   isRunnerStub,
+  mountRunnerGroupStub,
   mountRunnerStub,
   mountRunnerStubs,
+  PARTIAL_GROUPS,
   route,
   runnerGuard,
   runnerUsage,
+  wholeGroups,
   type BridgeEdge,
 } from "../../../src/cli/bridge.js";
 import {
+  CompleterAnnotationId,
   defineCommand,
   defineGroup,
   defineProgram,
@@ -158,9 +162,31 @@ describe("route", () => {
     [["unlock", "ls"]],
     [["--version"]],
     [["--help"]],
-    [["records", "sub"]],
+    [["plans", "--help"]],
+    [["plans", "nope"]],
   ] as const)("sends %j to Commander", (argv) => {
     expect(route(program, argv)).toEqual({ to: "commander" });
+  });
+
+  // `records` is no group of PARTIAL_GROUPS: the runner holds it whole, its help and its
+  // refusal included. (Before whole groups, `records sub` went to Commander.)
+  it.each([
+    [["records"]],
+    [["records", "--help"]],
+    [["records", "nope"]],
+    [["records", "sub"]],
+    [["records", "sub", "--help"]],
+    [["--verbose", "records"]],
+  ] as const)("sends %j, a whole group's call, to the runner", (argv) => {
+    expect(route(program, argv)).toEqual({ to: "runner", command: undefined, group: "records" });
+  });
+
+  it("holds artifact and plans in part, and no group of phaxProgram whole yet", () => {
+    expect(PARTIAL_GROUPS).toEqual(["artifact", "plans"]);
+    expect(wholeGroups(program)).toEqual(["records"]);
+    expect(wholeGroups(phaxProgram)).toEqual([]);
+    expect(route(phaxProgram, ["plans"])).toEqual({ to: "commander" });
+    expect(route(phaxProgram, ["artifact", "--help"])).toEqual({ to: "commander" });
   });
 
   it("sends phaxProgram's four commands to the runner and the others to Commander", () => {
@@ -240,6 +266,27 @@ describe("help on a runner command", () => {
     const call = edge(["--verbose", "help", "plans", "lint"]);
     await dispatch(phaxProgram, call.edge);
     expect(call.runRunner).toHaveBeenCalledWith(["plans", "lint", "--help"]);
+  });
+
+  it("answers `help <group>` on a whole group with the runner's `<group> --help`", async () => {
+    const call = edge(["help", "records"]);
+    await dispatch(program, call.edge);
+    expect(call.runRunner).toHaveBeenCalledWith(["records", "--help"]);
+  });
+
+  it("hands a whole group called alone, or with a word it does not hold, to the runner", async () => {
+    for (const argv of [["records"], ["records", "nope"]]) {
+      const call = edge(argv, { inPhaseWorktree: () => true });
+      await dispatch(program, call.edge);
+      expect(call.runRunner, argv.join(" ")).toHaveBeenCalledWith(argv);
+      expect(call.written.err).toBe("");
+    }
+  });
+
+  it("leaves `help` on a partial group to Commander", async () => {
+    const call = edge(["help", "plans"]);
+    await dispatch(program, call.edge);
+    expect(call.runRunner).not.toHaveBeenCalled();
   });
 
   it("leaves `help` on an unmigrated command to Commander", async () => {
@@ -338,9 +385,53 @@ describe("the help-only stubs", () => {
       ["status", false],
       ["lint", true],
     ]);
+    // `records`, held whole, is a help-only group stub (before whole groups, a plain group).
     const records = root.commands.find((each) => each.name() === "records");
-    expect(records && isRunnerStub(records)).toBe(false);
+    expect(records && isRunnerStub(records)).toBe(true);
     expect(records?.commands[0]?.commands[0]?.name()).toBe("show");
+  });
+
+  it("mounts a whole group as a group stub holding a stub of each command, all registered", () => {
+    const root = new Command("phax");
+    mountRunnerGroupStub(root, program, ["records"]);
+    const records = root.commands[0];
+    expect(records?.name()).toBe("records");
+    expect(records?.description()).toBe("Records");
+    const sub = records?.commands[0];
+    expect(sub?.name()).toBe("sub");
+    expect(sub?.description()).toBe("Sub");
+    const show = sub?.commands[0];
+    expect(show?.name()).toBe("show");
+    expect([records, sub, show].every((each) => each !== undefined && isRunnerStub(each))).toBe(
+      true,
+    );
+    expect(show?.options.map((option) => option.long)).toEqual(["--json", "--json-schema"]);
+  });
+
+  it("keeps a group stub a command file mounted, and mounts its commands once", () => {
+    const root = new Command("phax");
+    mountRunnerGroupStub(root, program, ["records"]);
+    root.command("unlock");
+    mountRunnerStubs(root, program);
+    expect(root.commands.map((each) => each.name())).toEqual([
+      "records",
+      "unlock",
+      "ls",
+      "archive",
+      "plans",
+    ]);
+    expect(root.commands[0]?.commands[0]?.commands.map((each) => each.name())).toEqual(["show"]);
+  });
+
+  it("refuses a whole group Commander also declares, and a group the runner has not", () => {
+    const root = new Command("phax");
+    root.command("records");
+    expect(() => mountRunnerStubs(root, program)).toThrow(
+      "phax records is both a Commander group and a runner group",
+    );
+    expect(() => mountRunnerGroupStub(new Command("phax"), program, ["nope"])).toThrow(
+      "phax nope is not a runner group",
+    );
   });
 
   it("refuses a runner command Commander also declares", () => {
@@ -380,6 +471,48 @@ describe("runnerUsage", () => {
     expect(show.at(-1)).toBe("}");
     expect(show.slice(1, -1).every((line) => line.startsWith("    "))).toBe(true);
     expect(show.some((line) => line.includes("flag --json "))).toBe(true);
+  });
+
+  it("cuts each group's whole block by full name, its commands included", () => {
+    const usage = runnerUsage(program);
+    expect([...usage.groups.keys()]).toEqual(["plans", "records", "records sub"]);
+    const records = usage.groups.get("records") ?? [];
+    expect(records[0]).toBe('cmd records help="Records" subcommand_required=#true {');
+    expect(records.at(-1)).toBe("}");
+    expect(records[1]).toBe('    cmd sub help="Sub" subcommand_required=#true {');
+    expect(records.some((line) => line.startsWith("        cmd show "))).toBe(true);
+    expect(usage.groups.get("records sub")?.[0]).toMatch(/^cmd sub /);
+  });
+
+  it("keys each complete node by its identifier", () => {
+    const completed = defineProgram({
+      name: "phax",
+      version: "1.0.0",
+      exits: { refused: 64, defect: 70 },
+      commands: [
+        defineCommand({
+          name: "resume",
+          summary: "Resume",
+          input: {
+            args: reject(
+              Schema.Tuple(
+                Schema.String.annotations({
+                  identifier: "short-name",
+                  [CompleterAnnotationId]: { run: "phax ls --complete", descriptions: true },
+                }),
+              ),
+            ),
+          },
+          output: strip(Schema.String),
+          exits: {},
+          run: () => Effect.succeed("x"),
+        }),
+      ],
+    });
+    expect([...runnerUsage(completed).completes]).toEqual([
+      ["short-name", 'complete "short-name" run="phax ls --complete" descriptions=#true'],
+    ]);
+    expect(runnerUsage(program).completes.size).toBe(0);
   });
 
   it("cuts the root lines and the four commands' blocks from phaxProgram", () => {

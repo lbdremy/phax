@@ -69,10 +69,11 @@ export function emitArg(arg: Argument, indent: string): string {
   return `${indent}arg "${name}"`;
 }
 
-// A runner command's help-only stub: its block is the runner's own, cut from
-// the port's usageSpec(phaxProgram) and indented to the stub's depth.
+// A runner command's help-only stub, or a whole group's: its block is the
+// runner's own (a group's with every command it holds), cut from the port's
+// usageSpec(phaxProgram) and indented to the stub's depth.
 function spliceRunnerCommand(cmdPath: string, indent: string, runner: RunnerUsage): string[] {
-  const block = runner.commands.get(cmdPath);
+  const block = runner.commands.get(cmdPath) ?? runner.groups.get(cmdPath);
   if (block === undefined) {
     throw new Error(`phax ${cmdPath} is mounted as a runner stub but the runner has no block`);
   }
@@ -156,9 +157,15 @@ export function generateUsageSpec(): string {
   // Dynamic argument completers — one top-level `complete` node per entry.
   // The `usage` CLI invokes the `run` command at Tab-time to produce candidates.
   // `descriptions=#true` tells it to split each line on `:` for name:description.
+  // The union of cliCompleters (for the commands Commander still holds) and
+  // the completers the runner's arguments declare, cliCompleters first: one
+  // node per identifier, never two.
   for (const [argName, completer] of Object.entries(cliCompleters)) {
     const descPart = completer.descriptions ? ` descriptions=#true` : "";
     lines.push(`complete "${esc(argName)}" run="${esc(completer.run)}"${descPart}`);
+  }
+  for (const [argName, line] of runner.completes) {
+    if (!Object.hasOwn(cliCompleters, argName)) lines.push(line);
   }
   lines.push(``);
 
