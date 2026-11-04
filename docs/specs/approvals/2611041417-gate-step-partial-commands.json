@@ -1,0 +1,11 @@
+{
+  "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
+  "artifact": "docs/specs/2611041417-gate-step-partial-commands.md",
+  "specFingerprint": "ff7bb2544c0fa928744f28cdc311a001a8a60314b1ab268eec87b65eb1aced4d",
+  "approvedAt": "2026-11-04T14:26:57.861Z",
+  "baseline": "5ad3d15b462b7706ee28940f98dce9d4d4561767",
+  "approvedBy": {
+    "kind": "operator",
+    "name": "Rémy Loubradou"
+  }
+}
