@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2611031738-command-contracts.md
 completes-spec: false
+approved:
+  date: 2026-11-04
+  baseline: 04f25fc
 ---
 # Lifecycle and authoring commands on the runner
 
