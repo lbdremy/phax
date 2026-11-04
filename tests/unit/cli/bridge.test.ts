@@ -17,18 +17,22 @@ import {
   route,
   runnerGuard,
   runnerUsage,
+  runThroughOutput,
   wholeGroups,
   type BridgeEdge,
 } from "../../../src/cli/bridge.js";
 import {
+  AliasAnnotationId,
   CompleterAnnotationId,
   defineCommand,
   defineGroup,
   defineProgram,
+  Refused,
   reject,
   strip,
 } from "../../../src/cli/commandLibrary/contract/index.js";
 import { phaxProgram } from "../../../src/cli/definitions/program.js";
+import type { OutputPort } from "../../../src/ports/output.js";
 
 const GUARD = (command: string): string =>
   `✗ phax ${command} is not available inside a phase worktree; run it from the main checkout (inside, only phax brief, phax architecture and read-only commands run)`;
@@ -542,6 +546,117 @@ describe("the help-only stubs", () => {
       ["estimate", true],
     ]);
     expect(plans.commands.every(isRunnerStub)).toBe(true);
+  });
+});
+
+/** A command shaped like the authoring commands: an aliased switch, a required-value stdin flag,
+ *  a check refusing a document that says `refuse`, and a run that says, reports progress, and
+ *  answers the document's origin. */
+const authoring = defineCommand({
+  name: "author",
+  summary: "Author a thing",
+  input: {
+    flags: reject(
+      Schema.Struct({
+        yes: Schema.optionalWith(Schema.Boolean, { exact: true }).annotations({
+          description: "Proceed",
+          [AliasAnnotationId]: "y",
+        }),
+      }),
+    ),
+    stdin: reject(Schema.String, { flag: "brief", text: true, valueRequired: true }),
+  },
+  output: strip(Schema.String),
+  exits: {},
+  check: ({ document }) =>
+    document?.text === "refuse"
+      ? Effect.fail(
+          new Refused({ source: "stdin", path: [], expected: "a brief", text: "error: no brief" }),
+        )
+      : Effect.void,
+  run: ({ say, progress, document }) =>
+    Effect.gen(function* () {
+      yield* say("authoring thing");
+      yield* progress("retrying");
+      return document?.origin.kind ?? "none";
+    }),
+  render: (origin) => `read from ${origin}`,
+});
+
+function recorded() {
+  const lines: Array<readonly [string, string]> = [];
+  const out: OutputPort = {
+    log: (text) => lines.push(["log", text]),
+    warn: (text) => lines.push(["warn", text]),
+    error: (text) => lines.push(["error", text]),
+  };
+  return { out, lines };
+}
+
+describe("the stubs of the lifecycle gains", () => {
+  const programOfAuthoring = defineProgram({
+    name: "phax",
+    version: "1.0.0",
+    exits: { refused: 64, defect: 70 },
+    commands: [authoring],
+  });
+
+  it("declares a required-value stdin flag as <file|-> and an aliased option with its letter", () => {
+    const root = new Command("phax");
+    mountRunnerStub(root, programOfAuthoring, ["author"]);
+    const stub = root.commands[0];
+    expect(stub?.options.map((option) => option.flags)).toEqual([
+      "-y, --yes",
+      "--brief <file|->",
+      "--json",
+      "--json-schema",
+    ]);
+    expect(stub?.options[0]?.short).toBe("-y");
+  });
+
+  it("keeps the optional [path] form of a stdin flag whose value is not required", () => {
+    const optional = defineProgram({
+      name: "phax",
+      version: "1.0.0",
+      exits: { refused: 64, defect: 70 },
+      commands: [
+        defineCommand({
+          name: "take",
+          summary: "Take a request",
+          input: { stdin: reject(Schema.String, { flag: "request", text: true }) },
+          output: strip(Schema.String),
+          exits: {},
+          run: () => Effect.succeed("taken"),
+        }),
+      ],
+    });
+    const root = new Command("phax");
+    mountRunnerStub(root, optional, ["take"]);
+    expect(root.commands[0]?.options[0]?.flags).toBe("--request [path]");
+  });
+});
+
+describe("runThroughOutput's gains", () => {
+  it("hands say to out.log, progress to out.warn and the document to run", async () => {
+    const { out, lines } = recorded();
+    const code = await runThroughOutput(authoring, { flags: {}, stdin: "a brief" }, out, {
+      document: { origin: { kind: "file", path: "brief.md" }, text: "a brief" },
+    });
+    expect(code).toBe(0);
+    expect(lines).toEqual([
+      ["log", "authoring thing"],
+      ["warn", "retrying"],
+      ["log", "read from file"],
+    ]);
+  });
+
+  it("runs the check first, answering 64 with its text through out.error", async () => {
+    const { out, lines } = recorded();
+    const code = await runThroughOutput(authoring, { flags: {}, stdin: "refuse" }, out, {
+      document: { origin: { kind: "stdin" }, text: "refuse" },
+    });
+    expect(code).toBe(64);
+    expect(lines).toEqual([["error", "error: no brief"]]);
   });
 });
 

@@ -19,10 +19,11 @@ import {
   defineProgram,
   document,
   DocumentOutput,
+  Refused,
   reject,
   strip,
 } from "../define.js";
-import { CompleterAnnotationId } from "../shapes.js";
+import { AliasAnnotationId, CompleterAnnotationId } from "../shapes.js";
 import { usageSpec } from "../usage.js";
 import { utf8Bytes, Written, written } from "../written.js";
 import { memoryIo } from "./memoryIo.js";
@@ -2170,6 +2171,415 @@ const inspectionGainCases: ReadonlyArray<Case> = [
   },
 ];
 
+// ---------------------------------------------------------------- the gains of phax's lifecycle commands
+
+/** Gain (a short alias): `prune`, whose `--yes` is also `-y`. */
+const Yes = Schema.optionalWith(Schema.Boolean, { exact: true }).annotations({
+  description: "Proceed without asking",
+  [AliasAnnotationId]: "y",
+});
+const pruning = () => recording("prune", { flags: reject(Schema.Struct({ yes: Yes })) });
+
+/** Gain (the document as read): what run received beside its input. */
+function asRead(name: string, input: Inputs) {
+  const seen: unknown[] = [];
+  const command = defineCommand({
+    name,
+    summary: `the ${name} command`,
+    input,
+    output: strip(Str),
+    exits: {},
+    run: (context) =>
+      Effect.sync(() => {
+        seen.push(context.document);
+        return name;
+      }),
+    render: (text) => text,
+  });
+  return { command, seen };
+}
+
+/** Gain (a document's check): `decide`, whose check refuses a todo named `bad`, and dies on one
+ *  named `boom`. What each check and each run received is kept. */
+function checking() {
+  const checked: unknown[] = [];
+  const seen: unknown[] = [];
+  const command = defineCommand({
+    name: "decide",
+    summary: "decides the todos of a document",
+    input: { stdin: reject(Doc, { flag: "verdicts", valueRequired: true }) },
+    output: strip(Str),
+    exits: {},
+    check: (context) =>
+      Effect.suspend(() => {
+        checked.push({ input: context.input, document: context.document });
+        const todos = context.input.stdin?.todos ?? [];
+        if (todos.includes("boom")) return Effect.die(new Error("the check broke"));
+        const at = todos.indexOf("bad");
+        return at === -1
+          ? Effect.void
+          : Effect.fail(
+              new Refused({
+                source: "stdin",
+                path: ["todos", String(at)],
+                expected: "a known todo",
+                text: `error: todos[${at}] is not a known todo`,
+              }),
+            );
+      }),
+    run: (context) =>
+      Effect.sync(() => {
+        seen.push(context.input);
+        return "decided";
+      }),
+    render: (text) => text,
+  });
+  return { command, checked, seen };
+}
+
+/** Gain (a group's retired words): `artifact`, holding `status` and retiring `archive`, and a
+ *  group `outer` holding a group `inner` that retires `obsolete`. */
+const ARCHIVE_SENTENCE = `unknown transition "archive" — the completion transition is: suite artifact complete <path>`;
+const OLD_SENTENCE = "suite outer inner obsolete is retired: use suite outer inner leaf";
+function retiring() {
+  const status = recording("status", {});
+  const leaf = recording("leaf", {});
+  const artifact = defineGroup({
+    name: "artifact",
+    summary: "Artifacts",
+    retired: { archive: ARCHIVE_SENTENCE },
+    commands: [status.command],
+  });
+  const outer = defineGroup({
+    name: "outer",
+    summary: "The outer group",
+    commands: [
+      defineGroup({
+        name: "inner",
+        summary: "The inner group",
+        retired: { obsolete: OLD_SENTENCE },
+        commands: [leaf.command],
+      }),
+    ],
+  });
+  return { groups: [artifact, outer], status, leaf };
+}
+
+// Gains carried for upstream that phax's lifecycle and authoring commands need (command-contracts
+// plan 3). They stand before the inspection commands' gains.
+const lifecycleGainCases: ReadonlyArray<Case> = [
+  {
+    // Gain: a short alias. An option's field declares one letter; the option decodes alike from
+    // `-y` and `--yes`, help shows `-y, --yes`, the catalogue's property says `x-alias: "-y"`,
+    // the usage spec writes `flag "--yes -y"`. An alias two options share, or `-h`, stops the
+    // program.
+    id: "flags.short-alias",
+    check: (runner) =>
+      Effect.gen(function* () {
+        const short = pruning();
+        const byShort = yield* call(runner, [short.command], ["prune", "-y"]);
+        const long = pruning();
+        const byLong = yield* call(runner, [long.command], ["prune", "--yes"]);
+        const unknown = pruning();
+        const other = yield* call(runner, [unknown.command], ["prune", "-z"]);
+        const help = yield* call(runner, [pruning().command], ["prune", "--help"]);
+        const entry = yield* printed(runner, [pruning().command], ["prune", "--json-schema"]);
+        const spec = yield* call(runner, [pruning().command], ["--usage-spec"]);
+        const ok = recording("ok", {});
+        const twice = recording("twice", {
+          flags: reject(Schema.Struct({ yes: Yes, yolo: Yes })),
+        });
+        const shared = yield* call(runner, [ok.command, twice.command], ["ok"]);
+        const helpless = recording("helpless", {
+          flags: reject(
+            Schema.Struct({
+              hard: Schema.optionalWith(Schema.Boolean, { exact: true }).annotations({
+                [AliasAnnotationId]: "h",
+              }),
+            }),
+          ),
+        });
+        const help2 = recording("ok", {});
+        const onHelp = yield* call(runner, [help2.command, helpless.command], ["ok"]);
+        return verdict(
+          ended(byShort, 0),
+          is("input of -y", [{ flags: { yes: true } }], short.seen),
+          ended(byLong, 0),
+          is("input of --yes", [{ flags: { yes: true } }], long.seen),
+          ...refusal(other),
+          naming(other, "-z"),
+          ran([unknown]),
+          ended(help, 0),
+          has(help.out, "-y, --yes"),
+          is(
+            "the entry's alias",
+            "-y",
+            Reflect.get(Object(inputOfEntry(entry.parsed).properties["yes"]), "x-alias"),
+          ),
+          has(spec.out, `flag "--yes -y" help="Proceed without asking"`),
+          ...defect(shared),
+          naming(shared, "twice"),
+          ran([ok, twice]),
+          ...defect(onHelp),
+          naming(onHelp, "helpless"),
+          ran([help2, helpless]),
+        );
+      }),
+  },
+  {
+    // Gain: stdout progress. A `say` line reaches `out` at once while run runs, before the
+    // render; under `--json` it is a `note` line on `err`, and `out` holds the output alone.
+    id: "progress.say-on-stdout",
+    check: (runner) =>
+      Effect.gen(function* () {
+        const saying = (seenAtStep: string[], out: () => string) =>
+          defineCommand({
+            name: "author",
+            summary: "says what it does, then answers",
+            input: {},
+            output: strip(Item),
+            exits: {},
+            run: ({ say }) =>
+              Effect.gen(function* () {
+                yield* say("authoring spec garden");
+                seenAtStep.push(out());
+                yield* say("");
+                return { id: "t1", name: "one", $schema: ITEM_FORMAT };
+              }),
+            render: (item) => `wrote ${item.name}`,
+          });
+        const run = (argv: ReadonlyArray<string>) =>
+          Effect.gen(function* () {
+            const memory = memoryIo({ argv });
+            const seenAtStep: string[] = [];
+            const code = yield* runner.run(program(saying(seenAtStep, memory.out)), memory.io);
+            return { code, seenAtStep, writes: memory.writes() };
+          });
+        const text = yield* run(["author"]);
+        const json = yield* run(["author", "--json"]);
+        const encoded = `${JSON.stringify({ $schema: ITEM_FORMAT, id: "t1", name: "one" }, null, 2)}\n`;
+        return verdict(
+          is("exit code without --json", 0, text.code),
+          is(
+            "out written by the say, without --json",
+            ["authoring spec garden\n"],
+            text.seenAtStep,
+          ),
+          is(
+            "the writes without --json, in order",
+            [
+              { stream: "out", text: "authoring spec garden\n" },
+              { stream: "out", text: "wrote one\n" },
+            ],
+            text.writes,
+          ),
+          is("exit code with --json", 0, json.code),
+          is("out written by the say, with --json", [""], json.seenAtStep),
+          is(
+            "the writes with --json, in order",
+            [
+              { stream: "err", text: `{"kind":"note","text":"authoring spec garden"}\n` },
+              { stream: "out", text: encoded },
+            ],
+            json.writes,
+          ),
+        );
+      }),
+  },
+  {
+    // Gain: the document as read. Run is handed the stdin document as the runner read it: its
+    // origin, stdin or the path as the call wrote it, and its text before decoding, JSON or text;
+    // nothing when no document was read.
+    id: "stdin.document-as-read",
+    check: (runner) =>
+      Effect.gen(function* () {
+        const verdicts = () =>
+          asRead("decide", {
+            stdin: reject(Doc, { flag: "verdicts", valueRequired: true }),
+          });
+        const spaced = `{ "todos": ["a"] }\n`;
+        const byFile = verdicts();
+        const file = yield* call(runner, [byFile.command], ["decide", "--verdicts", "./in.json"], {
+          files: { "./in.json": spaced },
+        });
+        const byDash = verdicts();
+        const dash = yield* call(runner, [byDash.command], ["decide", "--verdicts", "-"], {
+          stdin: spaced,
+        });
+        const absent = verdicts();
+        const none = yield* call(runner, [absent.command], ["decide"]);
+        const briefed = asRead("brief", {
+          stdin: reject(Schema.String, { flag: "brief", text: true }),
+        });
+        const brief = yield* call(runner, [briefed.command], ["brief", "--brief=brief.md"], {
+          files: { "brief.md": BRIEF },
+        });
+        const piped = asRead("piped", { stdin: strip(Schema.String, { text: true }) });
+        const pipedCall = yield* call(runner, [piped.command], ["piped"], { stdin: BRIEF });
+        return verdict(
+          ended(file, 0),
+          is(
+            "the document of --verdicts <path>",
+            [{ origin: { kind: "file", path: "./in.json" }, text: spaced }],
+            byFile.seen,
+          ),
+          ended(dash, 0),
+          is(
+            "the document of --verdicts -",
+            [{ origin: { kind: "stdin" }, text: spaced }],
+            byDash.seen,
+          ),
+          ended(none, 0),
+          is("the document of a call without --verdicts", [undefined], absent.seen),
+          ended(brief, 0),
+          is(
+            "the document of --brief=<path>",
+            [{ origin: { kind: "file", path: "brief.md" }, text: BRIEF }],
+            briefed.seen,
+          ),
+          ended(pipedCall, 0),
+          is("the document piped in", [{ origin: { kind: "stdin" }, text: BRIEF }], piped.seen),
+        );
+      }),
+  },
+  {
+    // Gain: a document's check. The check runs after the decode and before run, handed the
+    // decoded input and the document as read. Its `Refused` is one `refused` line under `--json`
+    // and its text without, the call ending with the `refused` code and running nothing; a check
+    // that holds runs run; a check that dies is a defect.
+    id: "stdin.check-refused",
+    check: (runner) =>
+      Effect.gen(function* () {
+        const bad = JSON.stringify({ todos: ["a", "bad"] });
+        const refusedJson = checking();
+        const json = yield* call(
+          runner,
+          [refusedJson.command],
+          ["decide", "--verdicts", "in.json", "--json"],
+          { files: { "in.json": bad } },
+        );
+        const refusedText = checking();
+        const text = yield* call(runner, [refusedText.command], ["decide", "--verdicts", "-"], {
+          stdin: bad,
+        });
+        const passing = checking();
+        const passed = yield* call(runner, [passing.command], ["decide", "--verdicts", "-"], {
+          stdin: DOC_JSON,
+        });
+        const dying = checking();
+        const died = yield* call(runner, [dying.command], ["decide", "--verdicts", "-"], {
+          stdin: JSON.stringify({ todos: ["boom"] }),
+        });
+        return verdict(
+          ended(json, REFUSED),
+          outEmpty(json),
+          is(
+            "the refused line",
+            [
+              {
+                kind: "refused",
+                source: "stdin",
+                path: ["todos", "1"],
+                expected: "a known todo",
+                text: "error: todos[1] is not a known todo",
+                exit: REFUSED,
+              },
+            ],
+            parsedLines(json.err),
+          ),
+          is(
+            "what the check received",
+            [
+              {
+                input: { stdin: { todos: ["a", "bad"] } },
+                document: { origin: { kind: "file", path: "in.json" }, text: bad },
+              },
+            ],
+            refusedJson.checked,
+          ),
+          is("runs after a refused --json", [], refusedJson.seen),
+          ...refusal(text),
+          is("err without --json", "error: todos[1] is not a known todo\n", text.err),
+          is("runs after a refusal", [], refusedText.seen),
+          ended(passed, 0),
+          is("runs after a check that holds", [{ stdin: DOC_VALUE }], passing.seen),
+          has(passed.out, "decided"),
+          ...defect(died),
+          is("runs after a check that dies", [], dying.seen),
+        );
+      }),
+  },
+  {
+    // Gain: a group's retired words. A call naming a group then a word it retired, at any depth,
+    // is refused with the word's sentence; under `--json`, one `refused` line from the command.
+    // A retired word is never in help, the catalogue, a suggestion or the usage spec; a group
+    // retiring a word it holds stops the program.
+    id: "groups.retired-word",
+    check: (runner) =>
+      Effect.gen(function* () {
+        const first = retiring();
+        const text = yield* call(runner, first.groups, ["artifact", "archive", "plan.md"]);
+        const second = retiring();
+        const json = yield* call(runner, second.groups, ["artifact", "archive", "--json"]);
+        const third = retiring();
+        const deep = yield* call(runner, third.groups, ["outer", "inner", "obsolete"]);
+        const help = yield* call(runner, retiring().groups, ["artifact", "--help"]);
+        const alone = yield* call(runner, retiring().groups, ["artifact"]);
+        const near = yield* call(runner, retiring().groups, ["artifact", "archiv"]);
+        const catalogued = yield* call(runner, retiring().groups, ["--json-schema"]);
+        const spec = yield* call(runner, retiring().groups, ["--usage-spec"]);
+        const ok = recording("ok", {});
+        const status = recording("status", {});
+        const clashing = defineGroup({
+          name: "artifact",
+          summary: "Artifacts",
+          retired: { status: "status is retired" },
+          commands: [status.command],
+        });
+        const clash = yield* call(runner, [ok.command, clashing], ["ok"]);
+        return verdict(
+          ...refusal(text),
+          is("err of a retired word", `${ARCHIVE_SENTENCE}\n`, text.err),
+          ran([first.status, first.leaf]),
+          ended(json, REFUSED),
+          outEmpty(json),
+          is(
+            "the refused line",
+            [
+              {
+                kind: "refused",
+                source: "command",
+                path: ["artifact", "archive"],
+                expected: "a command of artifact",
+                text: ARCHIVE_SENTENCE,
+                exit: REFUSED,
+              },
+            ],
+            parsedLines(json.err),
+          ),
+          ...refusal(deep),
+          is("err of a retired word at depth two", `${OLD_SENTENCE}\n`, deep.err),
+          ran([third.status, third.leaf]),
+          ended(help, 0),
+          lacks(help.out, "archive"),
+          lacks(alone.err, "archive"),
+          ...refusal(near),
+          lacks(near.err, "archive"),
+          ended(catalogued, 0),
+          lacks(catalogued.out, "archive"),
+          lacks(catalogued.out, "obsolete"),
+          ended(spec, 0),
+          lacks(spec.out, "archive"),
+          lacks(spec.out, "obsolete"),
+          ...defect(clash),
+          naming(clash, "artifact"),
+          naming(clash, "status"),
+          ran([ok, status]),
+        );
+      }),
+  },
+];
+
 // ---------------------------------------------------------------- the table
 
 export const cases: ReadonlyArray<Case> = [
@@ -2697,6 +3107,7 @@ export const cases: ReadonlyArray<Case> = [
   },
   ...jsonCases,
   ...groupCases,
+  ...lifecycleGainCases,
   ...inspectionGainCases,
   ...gainCases,
 ];

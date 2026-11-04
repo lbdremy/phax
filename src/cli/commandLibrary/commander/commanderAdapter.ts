@@ -44,6 +44,8 @@ export interface CommandSpec {
       readonly valueName: string;
       readonly optional: boolean;
       readonly switch: boolean;
+      /** Gain (a short alias): the option's letter, declared as `-y, --yes`. */
+      readonly alias?: string | undefined;
     }
   >;
   /** What the command reads on stdin, when it declares a read: JSON, or text (gain). */
@@ -143,7 +145,9 @@ function declare(
     command.argument(arg.optional ? `[${name}]` : `<${name}>`, describing(arg));
   }
   for (const flag of spec.flags) {
-    const flags = flag.switch ? `--${flag.option}` : `--${flag.option} <${flag.valueName}>`;
+    const names =
+      flag.alias === undefined ? `--${flag.option}` : `-${flag.alias}, --${flag.option}`;
+    const flags = flag.switch ? names : `${names} <${flag.valueName}>`;
     if (flag.optional) command.option(flags, describing(flag));
     else command.requiredOption(flags, describing(flag));
   }

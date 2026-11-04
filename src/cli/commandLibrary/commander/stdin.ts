@@ -1,7 +1,7 @@
 import { Effect, Option } from "effect";
 import type * as Schema from "effect/Schema";
 import * as SchemaAST from "effect/SchemaAST";
-import type { Io, Source } from "../contract/index.js";
+import type { Io, Source, StdinDocument } from "../contract/index.js";
 import { END_OF_OPTIONS, isOption } from "./undeclared.js";
 
 /** How a call asks for the document of a stdin read bound to a flag. */
@@ -14,10 +14,12 @@ export type Reading =
   /** Gain (a required stdin-flag value): the flag alone, its value neither spaced nor attached. */
   | { readonly tag: "Unvalued" };
 
-/** The document as read: the text, and what to call it in a refusal (`stdin`, or the path). */
+/** The document as read: the text, what to call it in a refusal (`stdin`, or the path), and
+ *  (gain, the document as read) where it came from, as `run` is handed it. */
 export interface Document {
   readonly label: string;
   readonly text: string;
+  readonly origin: StdinDocument["origin"];
 }
 
 const readingOf = (value: string): Reading =>
@@ -134,7 +136,9 @@ export function readDocument(
         ),
       );
     }
-    return io.stdin.pipe(Effect.map((read) => ({ label: "stdin", text: read })));
+    return io.stdin.pipe(
+      Effect.map((read) => ({ label: "stdin", text: read, origin: { kind: "stdin" } as const })),
+    );
   }
   switch (reading.tag) {
     case "Absent":
@@ -178,7 +182,11 @@ export function readDocument(
               failure(`error: ${path} is not ${text ? "UTF-8 text" : "JSON"}`, where, "UTF-8 text"),
           }),
         ),
-        Effect.map((read) => ({ label: path, text: read })),
+        Effect.map((read) => ({
+          label: path,
+          text: read,
+          origin: { kind: "file", path } as const,
+        })),
       );
     }
   }

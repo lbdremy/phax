@@ -59,8 +59,8 @@ const libraryTypes = [
 ];
 
 /** The names the port's gains add. */
-const gainValues = ["CompleterAnnotationId"];
-const gainTypes = ["Completer", "ErrorText", "ProgramUsage", "RunContext"];
+const gainValues = ["AliasAnnotationId", "CompleterAnnotationId", "Refused"];
+const gainTypes = ["Completer", "ErrorText", "ProgramUsage", "RunContext", "StdinDocument"];
 
 const withoutComments = (source: string): string =>
   source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");

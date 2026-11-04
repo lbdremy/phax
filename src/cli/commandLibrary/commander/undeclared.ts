@@ -2,6 +2,8 @@
 export interface DeclaredOption {
   readonly option: string;
   readonly takesValue: boolean;
+  /** Gain (a short alias): its letter, given as `-y` alone, never with `=`. */
+  readonly alias?: string | undefined;
 }
 
 /** The words after a command's name, read once, before Commander sees any of them. */
@@ -75,7 +77,11 @@ export function readWords(
     }
     const equals = word.indexOf("=");
     const name = equals === -1 ? word : word.slice(0, equals);
-    const option = declared.find((candidate) => name === `--${candidate.option}`);
+    const option = declared.find(
+      (candidate) =>
+        name === `--${candidate.option}` ||
+        (candidate.alias !== undefined && word === `-${candidate.alias}`),
+    );
     if (option === undefined) {
       undeclared.push(word);
       continue;

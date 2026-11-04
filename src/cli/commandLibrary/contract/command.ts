@@ -3,6 +3,7 @@
 /* oxlint-disable typescript/no-explicit-any */
 import type { Effect } from "effect";
 import type * as Schema from "effect/Schema";
+import type { Refused } from "./define.js";
 import type { Written } from "./written.js";
 
 /** What becomes of what a contract does not declare: `reject` fails the decode (the call is
@@ -120,6 +121,20 @@ export interface Grouping {
   /** Gain carried for upstream (groups holding groups): the group this group stands in, when it
    *  is nested. A command's grouping is so a chain, outermost last; its full name walks it. */
   readonly parent?: Grouping;
+  /** Gain carried for upstream (a group's retired words): words the group once held, each with
+   *  the sentence that names its replacement. A call naming the group then a retired word is
+   *  refused with that sentence and the program's `refused` code; a retired word is never in
+   *  help, the catalogue, a suggestion or the usage spec. A retired word equal to a name the
+   *  group holds stops the program. */
+  readonly retired?: Readonly<Record<string, string>>;
+}
+
+/** Gain carried for upstream (the document as read): a command's stdin document as the runner
+ *  read it, before decoding: where it came from — stdin, or the file at the path as the call
+ *  wrote it — and its text. */
+export interface StdinDocument {
+  readonly origin: { readonly kind: "stdin" } | { readonly kind: "file"; readonly path: string };
+  readonly text: string;
 }
 
 /** What `run` is handed beside its input. */
@@ -128,6 +143,15 @@ export interface RunContext<I extends Inputs> {
   /** Gain carried for upstream (progress notes): a line for the person reading, written on
    *  stderr at once — a `note` line under `--json` — while `run` runs, never the output itself. */
   readonly progress: (text: string) => Effect.Effect<void>;
+  /** Gain carried for upstream (stdout progress): a line for the person reading, written on
+   *  stdout at once while `run` runs — before a prompt, before a session — and a `note` line on
+   *  stderr under `--json`. Never the command's answer, which its render writes; an empty text
+   *  writes nothing. */
+  readonly say: (text: string) => Effect.Effect<void>;
+  /** Gain carried for upstream (the document as read): the stdin document as read, beside its
+   *  decoded form in `input.stdin`, when the command declares `stdin` and a document was read;
+   *  absent otherwise. */
+  readonly document?: StdinDocument | undefined;
   /** Gain carried for upstream (options for every command): the program's options
    *  (`Program.options`), decoded from the call's words wherever they stand; `{}` when the
    *  program declares none. */
@@ -194,6 +218,16 @@ export interface CommandDef<
    *  call after decoding and before `run`, with the program's `refused` code: `--json` never
    *  waits on a person. Without `--json` it is never asked. */
   readonly prompts?: (input: Parsed<I>) => boolean;
+  /** Gain carried for upstream (a document's check): an effect over the decoded input and the
+   *  document as read that refuses the call against the world before `run` — an unknown id, a
+   *  path that names another thing. The runner runs it after decoding and after the `prompts`
+   *  refusal, before `run`. Its `Refused` is written as one `refused` line under `--json` and as
+   *  its text then the program's refusal hint without, ending with the program's `refused` code;
+   *  any other failure, or a death, is a defect. */
+  readonly check?: (context: {
+    readonly input: Parsed<I>;
+    readonly document: StdinDocument | undefined;
+  }) => Effect.Effect<void, Refused, R>;
 }
 
 /** A command as a runner reads it; `R`, the services its run needs. */
