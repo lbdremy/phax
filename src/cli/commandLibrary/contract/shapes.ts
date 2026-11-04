@@ -9,6 +9,13 @@ import type { Command, StructContract, TupleContract } from "./command.js";
  *  The usage spec writes one `complete "<identifier>"` node per identifier. */
 export const CompleterAnnotationId: unique symbol = Symbol.for("cli-command/annotation/Completer");
 
+/** Gain carried for upstream (a short alias): the key of the annotation an option's field declares
+ *  its one-letter alias under, on the field or on its type:
+ *  `Schema.optionalWith(Schema.Boolean, { exact: true }).annotations({ [AliasAnnotationId]: "y" })`.
+ *  The option is then given as `-y` or `--yes` alike; help shows `-y, --yes`, the catalogue's
+ *  property `x-alias: "-y"`, and the usage spec `flag "--yes -y"`. */
+export const AliasAnnotationId: unique symbol = Symbol.for("cli-command/annotation/Alias");
+
 /** What an argument's completer says: the command line whose output lists the candidates, and
  *  whether each of its lines carries a description after a `:`. */
 export interface Completer {
@@ -54,6 +61,9 @@ export interface FlagShape {
   readonly help: string | undefined;
   readonly choices: ReadonlyArray<string> | undefined;
   readonly default: string | undefined;
+  /** Gain carried for upstream (a short alias): the letter its field's alias annotation declares,
+   *  without its dash; `undefined` when it declares none. */
+  readonly alias: string | undefined;
 }
 
 /** `dryRun` as `dry-run`: a hyphen before each uppercase letter, lowercased. */
@@ -239,6 +249,19 @@ export function argShapes(contract: TupleContract): ReadonlyArray<ArgShape> {
   return shapes;
 }
 
+/** The alias declared on a field: on its place, else on its type, else on the one member of its
+ *  union with `undefined`. */
+function aliasOf(written: SchemaAST.PropertySignature | undefined): string | undefined {
+  if (written === undefined) return undefined;
+  const members = defined(written.type);
+  const only = members.length === 1 ? members[0] : undefined;
+  const declared: unknown =
+    written.annotations[AliasAnnotationId] ??
+    written.type.annotations[AliasAnnotationId] ??
+    only?.annotations[AliasAnnotationId];
+  return typeof declared === "string" ? declared : undefined;
+}
+
 export function flagShapes(contract: StructContract): ReadonlyArray<FlagShape> {
   const declared = literalOf(contract.ast)?.propertySignatures ?? [];
   const encoded = literalOf(SchemaAST.encodedAST(contract.ast))?.propertySignatures ?? [];
@@ -262,6 +285,7 @@ export function flagShapes(contract: StructContract): ReadonlyArray<FlagShape> {
               ? Reflect.get(decoded, field)
               : undefined,
           ),
+      alias: aliasOf(written),
     };
   });
 }

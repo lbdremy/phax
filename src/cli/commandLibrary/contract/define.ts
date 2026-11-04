@@ -1,6 +1,7 @@
 // The library's own `any`s, kept: commands and groups of any services are taken together, and
 // their services inferred (`Services`), which no `unknown` admits under their variance.
 /* oxlint-disable typescript/no-explicit-any */
+import { Data } from "effect";
 import * as Schema from "effect/Schema";
 import type {
   Command,
@@ -19,7 +20,19 @@ import type {
   Tagged,
   Undeclared,
 } from "./command.js";
+import type { RefusalSource } from "./messages.js";
 import type { Written } from "./written.js";
+
+/** Gain carried for upstream (a document's check): why a command's `check` refuses the call —
+ *  where the refusal was found (`source`), the path in it (`path`), what was expected there
+ *  (`expected`), and the sentence a person reads (`text`, without its newline). The runner writes
+ *  it as a `refused` line under `--json` and as its text without, and exits the `refused` code. */
+export class Refused extends Data.TaggedError("Refused")<{
+  readonly source: RefusalSource;
+  readonly path: ReadonlyArray<string>;
+  readonly expected: string;
+  readonly text: string;
+}> {}
 
 /** What a `stdin` source binds to a flag: its name without dashes, and whether the document is
  *  required (it is not, unless said so). */
@@ -98,12 +111,16 @@ export function defineCommand<
  *  in the order declared.
  *
  *  Gain carried for upstream (a group's long help and examples): `help` and `examples`, shown in
- *  the group's help before its commands and written as its `long_help` and `example` nodes. */
+ *  the group's help before its commands and written as its `long_help` and `example` nodes.
+ *
+ *  Gain carried for upstream (a group's retired words): `retired`, each word with the sentence
+ *  that names its replacement, which the runner refuses the word with. */
 export function defineGroup<const C extends ReadonlyArray<Command<any> | Group<any>>>(group: {
   readonly name: string;
   readonly summary: string;
   readonly help?: string;
   readonly examples?: ReadonlyArray<string>;
+  readonly retired?: Readonly<Record<string, string>>;
   readonly commands: C;
 }): Group<Services<C[number]>> {
   return group;
@@ -127,6 +144,7 @@ function flatten(
       summary: entry.summary,
       ...(entry.help === undefined ? {} : { help: entry.help }),
       ...(entry.examples === undefined ? {} : { examples: entry.examples }),
+      ...(entry.retired === undefined ? {} : { retired: entry.retired }),
       ...(parent === undefined ? {} : { parent }),
     };
     return flatten(entry.commands, grouping);

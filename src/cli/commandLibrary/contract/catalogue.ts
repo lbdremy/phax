@@ -4,7 +4,7 @@ import type * as Schema from "effect/Schema";
 import * as SchemaAST from "effect/SchemaAST";
 import type { Command, ExitCode, Inputs, Program, Source } from "./command.js";
 import { DIALECT, messageSchemas, type JsonSchema } from "./messages.js";
-import { argShapes, fullName, kebabCase } from "./shapes.js";
+import { argShapes, flagShapes, fullName, kebabCase } from "./shapes.js";
 
 /** What a command's stdin read is, for an agent: the flag that binds it (as written), whether the
  *  document is required, and its schema. */
@@ -210,8 +210,16 @@ function inputOf(inputs: Inputs): JsonSchema {
     const root = resolved(schema, defs);
     const fields = dictionaryOf(root["properties"]);
     const needed: ReadonlyArray<unknown> = Array.isArray(root["required"]) ? root["required"] : [];
+    const aliases = new Map(
+      flagShapes(inputs.flags.contract).map((shape) => [shape.field, shape.alias] as const),
+    );
     for (const [field, fieldSchema] of Object.entries(fields)) {
-      properties[kebabCase(field)] = fieldSchema;
+      // Gain (a short alias): the option's entry says its letter as the call writes it.
+      const alias = aliases.get(field);
+      properties[kebabCase(field)] =
+        alias === undefined
+          ? fieldSchema
+          : { ...dictionaryOf(fieldSchema), "x-alias": `-${alias}` };
       if (needed.includes(field)) required.push(kebabCase(field));
     }
   }

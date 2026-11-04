@@ -20,6 +20,7 @@ import {
   fullName,
   messages,
   OPTION_HELP,
+  Refused,
   usageSpec,
   type Command as RunnerCommand,
   type ErrorText,
@@ -28,6 +29,7 @@ import {
   type Io,
   type Program,
   type Source,
+  type StdinDocument,
 } from "./commandLibrary/contract/index.js";
 import { processIo, runner } from "./commandLibrary/commander/index.js";
 import { phaxProgram } from "./definitions/program.js";
@@ -339,13 +341,17 @@ function mountStub(parent: Command, command: RunnerCommand<unknown>): void {
     stub.argument(arg.optional ? `[${name}]` : `<${name}>`, arg.help ?? "");
   }
   for (const flag of inputs.flags === undefined ? [] : flagShapes(inputs.flags.contract)) {
-    stub.option(
-      flag.switch ? `--${flag.option}` : `--${flag.option} <${flag.valueName}>`,
-      flag.help ?? "",
-    );
+    const names =
+      flag.alias === undefined ? `--${flag.option}` : `-${flag.alias}, --${flag.option}`;
+    stub.option(flag.switch ? names : `${names} <${flag.valueName}>`, flag.help ?? "");
   }
-  if (inputs.stdin?.flag !== undefined) {
-    stub.option(`--${inputs.stdin.flag} [path]`, OPTION_HELP.stdin(inputs.stdin.flag));
+  const stdinFlag = inputs.stdin?.flag;
+  if (stdinFlag !== undefined) {
+    if (inputs.stdin?.valueRequired === true) {
+      stub.option(`--${stdinFlag} <file|->`, OPTION_HELP.stdinValue(stdinFlag));
+    } else {
+      stub.option(`--${stdinFlag} [path]`, OPTION_HELP.stdin(stdinFlag));
+    }
   }
   stub.option(JSON_OPTION, OPTION_HELP.json).option(JSON_SCHEMA_OPTION, OPTION_HELP.jsonSchema);
   stub.action(() => {
@@ -456,8 +462,10 @@ const OUTPUT_TERMINAL = { columns: 80, color: false } as const;
 /** A runner command's run composed with its render, notes and sentences over the OutputPort:
  *  the run functions kept for the tests of the commands moved onto the runner (`runLs`,
  *  `runArtifactStatus`, `runPlansLint`, `runPlansOverview`). A progress note and the notes are
- *  warnings, a declared error's sentence an error; `json` logs the encoded output in place of
- *  the render. Answers the exit code the runner would: the error's, or the verdict's, or 0. */
+ *  warnings, a `say` line a log, a declared error's sentence an error; `json` logs the encoded
+ *  output in place of the render. The command's check runs first: its refusal is an error, its
+ *  text, answering the program's `refused` code. Answers the exit code the runner would: the
+ *  refusal's, the error's, or the verdict's, or 0. */
 export async function runThroughOutput(
   command: RunnerCommand<never>,
   input: Readonly<Record<string, unknown>>,
@@ -469,8 +477,22 @@ export async function runThroughOutput(
     /** Log these, one `out.log` each, in place of the render, as the kept function logged its
      *  sections before its move. */
     readonly sections?: (value: never) => ReadonlyArray<string>;
+    /** The stdin document as read, handed to the check and to run as the runner hands it. */
+    readonly document?: StdinDocument;
   } = {},
 ): Promise<number> {
+  const check = command.check;
+  if (check !== undefined) {
+    const checked = await Effect.runPromiseExit(
+      Effect.suspend(() => check({ input, document: options.document })),
+    );
+    if (Exit.isFailure(checked)) {
+      const failure: unknown = Option.getOrUndefined(Cause.failureOption(checked.cause));
+      if (!(failure instanceof Refused)) throw Cause.squash(checked.cause);
+      out.error(failure.text);
+      return phaxProgram.exits.refused;
+    }
+  }
   const exit = await Effect.runPromiseExit(
     Effect.suspend(() =>
       command.run({
@@ -480,6 +502,11 @@ export async function runThroughOutput(
           Effect.sync(() => {
             if (text !== "") out.warn(text);
           }),
+        say: (text: string) =>
+          Effect.sync(() => {
+            if (text !== "") out.log(text);
+          }),
+        document: options.document,
       }),
     ),
   );

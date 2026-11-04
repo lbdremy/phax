@@ -73,7 +73,12 @@ describe("phax records init answers the file it configured", () => {
     const command = makeRecordsInitCommand(prompt.layer, privateGitHub().layer);
 
     const answer = await Effect.runPromise(
-      command.run({ input: { flags: {} }, program: {}, progress: () => Effect.void }),
+      command.run({
+        input: { flags: {} },
+        program: {},
+        progress: () => Effect.void,
+        say: () => Effect.void,
+      }),
     );
 
     expect(answer.kind).toBe("configured");

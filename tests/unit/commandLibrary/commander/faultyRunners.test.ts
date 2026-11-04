@@ -84,9 +84,14 @@ function runOnRefusedCall<R>(program: Program<R>, io: Io): Effect.Effect<ExitCod
   // Effect 3's run context carries `progress` and `program` beside the input (the gains): the
   // faulty run is handed inert ones.
   return refused
-    ? Effect.exit(command.run({ input: {}, progress: () => Effect.void, program: {} })).pipe(
-        Effect.flatMap(() => commander.run(program, io)),
-      )
+    ? Effect.exit(
+        command.run({
+          input: {},
+          progress: () => Effect.void,
+          say: () => Effect.void,
+          program: {},
+        }),
+      ).pipe(Effect.flatMap(() => commander.run(program, io)))
     : commander.run(program, io);
 }
 

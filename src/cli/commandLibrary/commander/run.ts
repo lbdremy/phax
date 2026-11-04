@@ -1,4 +1,4 @@
-import { Cause, Data, Effect, Either } from "effect";
+import { Cause, Data, Effect, Either, Option } from "effect";
 import * as ParseResult from "effect/ParseResult";
 import * as Schema from "effect/Schema";
 import * as SchemaAST from "effect/SchemaAST";
@@ -9,6 +9,7 @@ import {
   fullName,
   messages,
   OPTION_HELP,
+  Refused,
   usageSpec,
   written,
   type Command,
@@ -23,6 +24,7 @@ import {
   type RunContext,
   type Runner,
   type Source,
+  type StdinDocument,
 } from "../contract/index.js";
 import {
   parseCall,
@@ -83,6 +85,8 @@ interface Ready<R> {
   readonly program: Readonly<Record<string, unknown>>;
   /** `--out`, for a command that writes a document. */
   readonly out: Out;
+  /** The stdin document as read (gain), when one was read. */
+  readonly document: StdinDocument | undefined;
 }
 
 /** Commander's help or version: the call ends here, with 0. */
@@ -287,7 +291,13 @@ type Words = ReadonlyArray<string>;
 /** A command, or a group with what it holds, in the order first declared. */
 type Entry<R> =
   | { readonly kind: "command"; readonly command: Command<R> }
-  | { readonly kind: "group"; readonly name: string; readonly entries: Entry<R>[] };
+  | {
+      readonly kind: "group";
+      readonly name: string;
+      /** What the group says of itself: its retired words (gain) among it. */
+      readonly grouping: Grouping;
+      readonly entries: Entry<R>[];
+    };
 
 /** The program's commands as the tree of groups they were declared in. */
 function treeOf<R>(program: Program<R>): ReadonlyArray<Entry<R>> {
@@ -300,7 +310,7 @@ function treeOf<R>(program: Program<R>): ReadonlyArray<Entry<R>> {
           entry.kind === "group" && entry.name === group.name,
       );
       if (found === undefined) {
-        found = { kind: "group", name: group.name, entries: [] };
+        found = { kind: "group", name: group.name, grouping: group, entries: [] };
         level.push(found);
       }
       level = found.entries;
@@ -323,6 +333,12 @@ type Located<R> =
       readonly rest: Words;
     }
   | { readonly tag: "Group"; readonly path: ReadonlyArray<string>; readonly rest: Words }
+  /** Gain (a group's retired words): a group's words, then a word it retired. */
+  | {
+      readonly tag: "Retired";
+      readonly path: ReadonlyArray<string>;
+      readonly sentence: string;
+    }
   | {
       readonly tag: "Unknown";
       readonly word: string;
@@ -338,6 +354,7 @@ function locate<R>(program: Program<R>, argv: Words): Located<R> {
   let level = treeOf(program);
   const path: string[] = [];
   let words = argv;
+  let within: Grouping | undefined;
   for (;;) {
     const [head, ...rest] = words;
     if (head === undefined) {
@@ -360,10 +377,16 @@ function locate<R>(program: Program<R>, argv: Words): Located<R> {
         entry.kind === "group" && entry.name === head,
     );
     if (group === undefined) {
+      // Gain (a group's retired words): a word the group retired is refused with its sentence.
+      const retired = within?.retired;
+      if (retired !== undefined && Object.hasOwn(retired, head)) {
+        return { tag: "Retired", path: [...path, head], sentence: retired[head] ?? "" };
+      }
       return { tag: "Unknown", word: head, known: [...new Set(level.map(entryName))] };
     }
     path.push(head);
     level = group.entries;
+    within = group.grouping;
     words = rest;
   }
 }
@@ -406,6 +429,14 @@ function precheck<R>(
       },
     );
   }
+  // Gain (a group's retired words): the sentence that names the word's replacement.
+  if (located.tag === "Retired") {
+    return refusal(located.sentence, {
+      source: "command",
+      path: located.path,
+      expected: `a command of ${located.path.slice(0, -1).join(" ")}`,
+    });
+  }
   // A group alone is Commander's: its help on stderr, refused. Its own help is Commander's too.
   if (located.tag === "Group") return { words: [...located.path, ...kept] };
   const { command, path } = located;
@@ -417,6 +448,7 @@ function precheck<R>(
       : flagShapes(inputs.flags.contract).map((flag) => ({
           option: flag.option,
           takesValue: !flag.switch,
+          alias: flag.alias,
         })),
   );
   if (read.help) return { words: [...path, "--help"] };
@@ -435,7 +467,9 @@ function precheck<R>(
     const known = [
       ...(inputs.flags === undefined ? [] : flagShapes(inputs.flags.contract)),
       ...(program.options === undefined ? [] : flagShapes(program.options.contract)),
-    ].map((flag) => `--${flag.option}`);
+    ].flatMap((flag) =>
+      flag.alias === undefined ? [`--${flag.option}`] : [`--${flag.option}`, `-${flag.alias}`],
+    );
     known.push("--json", "--json-schema", "--help");
     for (const option of read.undeclared) {
       problems.push({
@@ -545,6 +579,7 @@ function prepare<R>(
     }
     const declared: Inputs = command.input;
     const input: Record<string, unknown> = {};
+    let read: StdinDocument | undefined;
 
     const shapes = declared.args === undefined ? [] : argShapes(declared.args.contract);
     if (declared.args !== undefined) {
@@ -575,6 +610,8 @@ function prepare<R>(
           }),
         ),
       );
+      // Gain (the document as read): run is handed it beside its decoded form.
+      read = document === undefined ? undefined : { origin: document.origin, text: document.text };
       // Gain (a text stdin document): a text document is handed to its contract as read.
       input["stdin"] =
         document === undefined
@@ -603,6 +640,7 @@ function prepare<R>(
       input,
       program: isRecord(options) ? options : {},
       out,
+      document: read,
     } as const;
   });
 }
@@ -820,7 +858,10 @@ function sentenceOf<R>(
 
 /** An option missing its value as its usage writes it, `--plan <path>`, as Commander named it. */
 function withValueName(word: string, shapes: ReadonlyArray<FlagShape>): string {
-  const flag = shapes.find((shape) => `--${shape.option}` === word);
+  const flag = shapes.find(
+    (shape) =>
+      `--${shape.option}` === word || (shape.alias !== undefined && `-${shape.alias}` === word),
+  );
   return flag === undefined || flag.switch ? word : `${word} <${flag.valueName}>`;
 }
 
@@ -831,12 +872,18 @@ function execute<R>(
   json: boolean,
 ): Effect.Effect<ExitCode, never, R> {
   // Gain carried for upstream (progress notes): each note is written at once, while `run` runs.
+  // Gain carried for upstream (stdout progress): a person's line on stdout, a note under `--json`.
   const context: RunContext<Inputs> = {
     input: ready.input,
     progress: (text) => {
       const note = json ? noteLines(text) : text === "" ? "" : line(text);
       return note === "" ? Effect.void : io.err(note);
     },
+    say: (text) => {
+      if (text === "") return Effect.void;
+      return json ? io.err(noteLines(text)) : io.out(line(text));
+    },
+    document: ready.document,
     program: ready.program,
   };
   return Effect.suspend(() => ready.command.run(context)).pipe(
@@ -946,10 +993,65 @@ function reserved<R>(program: Program<R>): string | undefined {
   return undefined;
 }
 
+/** Gain carried for upstream (a short alias): the first command, in program order, whose alias is
+ *  not one letter, is `h` (the help's own), or is shared by two of its options. */
+function aliasCollision<R>(program: Program<R>): string | undefined {
+  for (const command of program.commands) {
+    const inputs: Inputs = command.input;
+    const flags = inputs.flags === undefined ? [] : flagShapes(inputs.flags.contract);
+    const seen = new Map<string, string>();
+    for (const flag of flags) {
+      const alias = flag.alias;
+      if (alias === undefined) continue;
+      const name = fullName(command).join(" ");
+      if (!/^[A-Za-z]$/.test(alias) || alias === "h") {
+        return line(
+          `error: ${name} declares -${alias} for --${flag.option}, which is ${alias === "h" ? "the help's own" : "no one letter"}`,
+        );
+      }
+      const other = seen.get(alias);
+      if (other !== undefined) {
+        return line(`error: ${name} declares -${alias} for both --${other} and --${flag.option}`);
+      }
+      seen.set(alias, flag.option);
+    }
+  }
+  return undefined;
+}
+
+/** Gain carried for upstream (a group's retired words): the first group, in program order, that
+ *  retires a word it also holds, a command or a group. */
+function retiredCollision<R>(program: Program<R>): string | undefined {
+  const walk = (
+    entries: ReadonlyArray<Entry<R>>,
+    path: ReadonlyArray<string>,
+  ): string | undefined => {
+    for (const entry of entries) {
+      if (entry.kind !== "group") continue;
+      const held = entry.entries.map(entryName);
+      const words = Object.keys(entry.grouping.retired ?? {});
+      const taken = words.find((word) => held.includes(word));
+      const name = [...path, entry.name].join(" ");
+      if (taken !== undefined) {
+        return line(`error: ${name} retires ${taken}, a name it holds`);
+      }
+      const nested = walk(entry.entries, [...path, entry.name]);
+      if (nested !== undefined) return nested;
+    }
+    return undefined;
+  };
+  return walk(treeOf(program), []);
+}
+
 /** A program the runner will not run: a command mapping a tag to the defect code, a verdict code
- *  that collides (gain), or an option the runner owns. */
+ *  that collides (gain), an option the runner owns, an alias that collides (gain), or a retired
+ *  word a group holds (gain). */
 const misdeclared = <R>(program: Program<R>): string | undefined =>
-  collision(program) ?? verdictCollision(program) ?? reserved(program);
+  collision(program) ??
+  verdictCollision(program) ??
+  reserved(program) ??
+  aliasCollision(program) ??
+  retiredCollision(program);
 
 /** The contracts, printed, and nothing else run or read. */
 function printContracts<R>(
@@ -1037,6 +1139,47 @@ function promptRefusal<R>(ready: Ready<R>): Refusal | undefined {
   );
 }
 
+/** Gain carried for upstream (a document's check): the command's check, over its decoded input and
+ *  its document as read, then its run. A `Refused` is the call refused, its fields the `refused`
+ *  line's; any other failure or a death is a defect. Nothing runs after a refusal. */
+function checkThenExecute<R>(
+  program: Program<R>,
+  io: Io,
+  ready: Ready<R>,
+  json: boolean,
+): Effect.Effect<ExitCode, never, R> {
+  const check:
+    | ((context: {
+        readonly input: never;
+        readonly document: StdinDocument | undefined;
+      }) => Effect.Effect<void, unknown, R>)
+    | undefined = ready.command.check;
+  if (check === undefined) return execute(program, io, ready, json);
+  return Effect.suspend(() =>
+    check({ input: ready.input as never, document: ready.document }),
+  ).pipe(
+    Effect.matchCauseEffect({
+      onSuccess: () => execute(program, io, ready, json),
+      onFailure: (cause) => {
+        const failure = Option.getOrUndefined(Cause.failureOption(cause));
+        if (failure instanceof Refused) {
+          return refusedOut(
+            io,
+            program,
+            json,
+            refusal(failure.text, {
+              source: failure.source,
+              path: failure.path,
+              expected: failure.expected,
+            }),
+          );
+        }
+        return defectOut(io, program, json, describe(cause));
+      },
+    }),
+  );
+}
+
 function runProgram<R>(program: Program<R>, io: Io): Effect.Effect<ExitCode, never, R> {
   // Gain (options for every command): the program's options are taken out of the words first,
   // wherever they stand, so that what is left reads as a call without them.
@@ -1078,11 +1221,12 @@ function runProgram<R>(program: Program<R>, io: Io): Effect.Effect<ExitCode, nev
       onFailure: (refused) => refusedOut(io, program, json, refused),
       onSuccess: (ready) => {
         if (ready.tag === "Displayed") return io.out(ready.text).pipe(Effect.as(0));
-        if (!json) return execute(program, io, ready, json);
+        // The order: decoded, then the `prompts` refusal under `--json`, then the check, then run.
+        if (!json) return checkThenExecute(program, io, ready, json);
         return Effect.sync(() => promptRefusal(ready)).pipe(
           Effect.flatMap((refused) =>
             refused === undefined
-              ? execute(program, io, ready, json)
+              ? checkThenExecute(program, io, ready, json)
               : refusedOut(io, program, json, refused),
           ),
         );

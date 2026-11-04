@@ -4,8 +4,8 @@
 // runner is src/cli/commandLibrary/commander/, proved by the conformance suite under
 // ./conformance/ to apply what each source declares. The names are the library's, so that
 // swapping in the published package is an import change; the gains the port carries for
-// upstream are the names after the library's (`Completer`, `CompleterAnnotationId`,
-// `ProgramUsage`, `RunContext`).
+// upstream are the names after the library's (`AliasAnnotationId`, `Completer`,
+// `CompleterAnnotationId`, `ProgramUsage`, `Refused`, `RunContext`, `StdinDocument`).
 export type {
   Command,
   CommandDef,
@@ -23,6 +23,7 @@ export type {
   RunContext,
   Runner,
   Source,
+  StdinDocument,
   Tagged,
   Terminal,
   Undeclared,
@@ -34,6 +35,7 @@ export {
   defineProgram,
   document,
   DocumentOutput,
+  Refused,
   reject,
   strip,
 } from "./define.js";
@@ -41,7 +43,14 @@ export { Written, written } from "./written.js";
 export type { Catalogue, CommandContract, ErrorContract, StdinContract } from "./catalogue.js";
 export { catalogue, commandContract } from "./catalogue.js";
 export type { ArgShape, Completer, FlagShape } from "./shapes.js";
-export { argShapes, CompleterAnnotationId, flagShapes, fullName, kebabCase } from "./shapes.js";
+export {
+  AliasAnnotationId,
+  argShapes,
+  CompleterAnnotationId,
+  flagShapes,
+  fullName,
+  kebabCase,
+} from "./shapes.js";
 export { OPTION_HELP, usageSpec } from "./usage.js";
 export type { JsonSchema, RefusalSource } from "./messages.js";
 export { encodedText, messages } from "./messages.js";
