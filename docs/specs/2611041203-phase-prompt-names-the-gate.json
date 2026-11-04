@@ -1,0 +1,360 @@
+{
+  "$schema": "https://docs.phax.run/schemas/spec-document/0.32.0.json",
+  "kind": "spec",
+  "title": "The phase prompt names the gate",
+  "ground": [
+    {
+      "path": "src/app/promptGeneration.ts",
+      "note": "buildPhasePrompt: the line \"Do not run `git commit` yourself — phax commits your changes after gates pass.\" and, under Execution rules, \"Run the gate commands again after your changes to verify the gates are satisfied.\" followed by the gate commands, one per line, with no surface and no firing."
+    },
+    {
+      "path": "src/app/executePlan.ts",
+      "note": "The phase prompt gets every step of the resolved profile (gateSteps.map(s => s.command)). Terminal steps are included on every phase, while the gate itself runs selectGateSteps(gateSteps, isFinal). A failing step resumes the same session through runGatesWithFixLoop."
+    },
+    {
+      "path": "src/domain/gate/selectSteps.ts",
+      "note": "selectGateSteps: every-phase steps always run; terminal steps run only on the terminal phase."
+    },
+    {
+      "path": "src/app/gates.ts",
+      "note": "resolveGateProfile(config, profileId, workspaceId): the one resolution the gate uses, including the workspace override."
+    },
+    {
+      "path": "phax.json",
+      "note": "The `standard` profile: six local steps including `pnpm test` (whole suite), three structural steps (knip, architecture audit, model-catalog check) and four product steps fired on the terminal phase."
+    },
+    {
+      "path": "docs/ideas/harness-from-records.md",
+      "note": "Measurements from 318 phase sessions: 27% of phase wall time spent on self-run feedback commands, 6.7 h of it in 403 whole-suite runs, which are mostly an end-of-phase check the gate repeats."
+    }
+  ],
+  "context": "A phax phase runs one agent session in its own worktree. When the session ends, phax runs the gate: the steps of the resolved gate profile, in order. Every-phase steps run on every phase. Terminal steps run only on the terminal phase. Each step carries a `command`, a `surface` (local, structural, product) and a `firing`. When a step fails, phax resumes the same session with the failing step's output (the fix loop), and runs the gate again after the fix. On phax's own records, 59 of 318 phases needed a fix attempt. Each attempt cost about $0.20 and 30 s of agent time plus a gate rerun, and the loop works.\n\nToday the phase prompt tells the agent two things about the gate. Near the top it says \"Do not run `git commit` yourself — phax commits your changes after gates pass.\" Under \"Execution rules\" it says \"Run the gate commands again after your changes to verify the gates are satisfied.\" and then lists every command of the resolved profile, one per line. That list includes the terminal steps on every phase, even though the gate runs them only on the terminal phase. It gives no surface for any step, and it does not say that a failure comes back into this same session.\n\nMeasured on phax's records (2026-11-04, 318 phase sessions, tool-call timestamps), phases spend 27% of their wall time (14.0 h of 52.4 h) waiting on feedback commands they run themselves. The largest share is whole-suite test runs: 6.7 h over 403 calls, against 1.3 h over 1,193 targeted calls. On this repository the whole suite now takes 270 s wall, and `test:unit` 33 s. The median whole-suite run inside phases went from 20 s (Aug) to 34 s (Oct) to 151 s (Nov). The `standard` profile runs `pnpm test` (the whole suite) after every phase anyway.",
+  "problem": "The phase prompt tells the agent to rerun the gate itself, then gives it the wrong list to rerun. The agent dutifully runs whole gate steps (most expensively, the whole test suite) as an end-of-phase check, and the gate then runs exactly the same steps again a moment later. That duplicated wait is the largest single block of feedback time in phax's records, and it grows with the suite: a whole-suite run in Nov costs about seven times what it did in Aug. The list is also wrong: a non-terminal phase is shown product steps (build, site build, smoke tests) the gate will not run for it, which invites even more redundant work. And the prompt never states the contract that would make skipping those reruns safe: a failing step comes back into this same session with its output. Without that contract, an agent cannot tell that the gate is its safety net, so it builds its own.",
+  "productGoal": {
+    "statement": "A phase session knows exactly which gate steps phax will run after it ends, in order, and knows that a failing step comes back to it with its output. While it works, it checks each change with the narrowest command that covers it and leaves whole-step runs to the gate. Fast feedback stays in-loop, and the gate does the full check once.",
+    "guidingRule": "The agent is told what the gate will run and trusts it; it does not run the gate a second time."
+  },
+  "terminology": [
+    {
+      "term": "gate step",
+      "definition": "One entry of a gate profile: a command, a surface (local, structural or product) and a firing (every-phase or terminal)."
+    },
+    {
+      "term": "phase gate list",
+      "definition": "The gate steps that phax will run for one given phase: the resolved profile's every-phase steps, plus its terminal steps when the phase is the terminal phase, in the order the gate runs them. It is the same list the gate runs, resolved once."
+    },
+    {
+      "term": "gate section",
+      "definition": "The part of the phase prompt that shows the phase gate list and states the gate contract."
+    },
+    {
+      "term": "gate contract",
+      "definition": "Three facts stated to the agent: phax runs the listed steps after the session ends, a failing step resumes this same session with its output, and so the agent need not run a whole gate step before finishing."
+    },
+    {
+      "term": "narrowest check",
+      "definition": "The smallest command the agent can run that still checks what it just changed, for example one test file rather than the whole suite. The agent chooses it; phax does not compute it."
+    },
+    {
+      "term": "fix attempt prompt",
+      "definition": "The message phax sends when it resumes the session after a failing gate step, carrying that step's output."
+    }
+  ],
+  "requirements": [
+    {
+      "id": "r-list",
+      "title": "The prompt lists the phase gate list",
+      "pattern": "ubiquitous",
+      "statement": "The system shall include in every phase prompt a gate section that lists each step of the phase gate list, one per line, with the step's command verbatim, in the order the gate will run them."
+    },
+    {
+      "id": "r-terminal",
+      "title": "Terminal steps appear on the terminal phase only",
+      "pattern": "unwanted",
+      "statement": "IF the phase is not the terminal phase THEN the system SHALL omit the profile's terminal steps from the gate section."
+    },
+    {
+      "id": "r-same-resolution",
+      "title": "One resolution for prompt and gate",
+      "pattern": "ubiquitous",
+      "statement": "The system shall produce the gate section's list from the same resolved steps the gate runs for that phase (profile, workspace and firing applied), so that the listed commands equal the commands the gate executes, in the same order."
+    },
+    {
+      "id": "r-surface",
+      "title": "Each step shows its surface",
+      "pattern": "ubiquitous",
+      "statement": "The system shall show each listed step's declared surface (local, structural or product) on that step's line."
+    },
+    {
+      "id": "r-contract",
+      "title": "The prompt states the gate contract",
+      "pattern": "ubiquitous",
+      "statement": "The system shall state in the gate section that phax runs the listed steps after the session ends and that a failing step resumes this same session with the step's output."
+    },
+    {
+      "id": "r-narrow",
+      "title": "The prompt directs the narrowest check",
+      "pattern": "ubiquitous",
+      "statement": "The system shall state in the gate section that, while working, the agent checks each change with the narrowest command that covers it, and that it need not run a whole gate step before finishing."
+    },
+    {
+      "id": "r-no-rerun",
+      "title": "The rerun instruction is gone",
+      "pattern": "ubiquitous",
+      "statement": "The system shall not instruct the agent, anywhere in the phase prompt, to run the gate commands again after its changes."
+    },
+    {
+      "id": "r-agnostic",
+      "title": "Provider- and project-agnostic wording",
+      "pattern": "ubiquitous",
+      "statement": "The system shall render the same gate section for the same phase regardless of the provider running it, and the section's fixed wording shall name no tool or package manager. Only the quoted step commands may name one."
+    },
+    {
+      "id": "r-resume",
+      "title": "A resumed phase gets the same section",
+      "pattern": "event",
+      "statement": "WHEN a phase prompt is regenerated on `phax resume` THE system SHALL render the same gate section that the phase's first prompt carried."
+    },
+    {
+      "id": "r-gate-unchanged",
+      "title": "The gate does not change",
+      "pattern": "ubiquitous",
+      "statement": "The system shall run, for every phase, the same gate steps in the same order as before this change."
+    },
+    {
+      "id": "r-fix-unchanged",
+      "title": "Fix attempt prompts do not change",
+      "pattern": "ubiquitous",
+      "statement": "The system shall send fix attempt prompts whose content is unchanged by this spec."
+    }
+  ],
+  "surface": [
+    {
+      "surface": "internal: phase prompt gate section",
+      "summary": "A phase agent sees which gate steps will run after it ends, with their surfaces, and is told that a failing step comes back to it, so it no longer reruns the whole suite before finishing.",
+      "binding": "indicative",
+      "before": "## Execution rules\n\n- Respect the current phase scope.\n...\n- Run the gate commands again after your changes to verify the gates are satisfied.\npnpm format\npnpm typecheck\npnpm test:type\npnpm lint\npnpm format:check\npnpm test\npnpm knip\npnpm audit:architecture\npnpm gen:model-catalog --check\npnpm build\npnpm site:build\npnpm deno:smoke\npnpm deno:smoke-binary",
+      "after": "## Gate\n\nAfter this session ends, phax runs these gate steps, in order:\n\n- local: pnpm format\n- local: pnpm typecheck\n- local: pnpm test:type\n- local: pnpm lint\n- local: pnpm format:check\n- local: pnpm test\n- structural: pnpm knip\n- structural: pnpm audit:architecture\n- structural: pnpm gen:model-catalog --check\n\nIf a step fails, phax resumes this same session with its output and you fix it here.\nWhile you work, check each change with the narrowest command that covers it.\nYou need not run a whole gate step before finishing: the gate runs it."
+    },
+    {
+      "surface": "internal: phase prompt gate section on the terminal phase",
+      "summary": "On the last phase, the agent also sees the product steps that the gate runs only there.",
+      "binding": "indicative",
+      "before": null,
+      "after": "After this session ends, phax runs these gate steps, in order:\n\n- local: pnpm format\n...\n- structural: pnpm gen:model-catalog --check\n- product: pnpm build\n- product: pnpm site:build\n- product: pnpm deno:smoke\n- product: pnpm deno:smoke-binary"
+    },
+    {
+      "surface": "file: <phase folder>/prompt.md",
+      "summary": "An operator who reads a phase's prompt.md sees the same gate list the gate ran for that phase.",
+      "binding": "normative",
+      "before": "- Run the gate commands again after your changes to verify the gates are satisfied.\n<every profile command, terminal steps included>",
+      "after": "## Gate\n\nAfter this session ends, phax runs these gate steps, in order:\n\n<the phase gate list, one `- <surface>: <command>` line per step>\n\n<the gate contract>"
+    }
+  ],
+  "nonGoals": [
+    "phax computing which tests a change needs (a scoped check derived from the diff, `vitest related`, `--changed`): measured not to help on this repository, where `vitest related src/app/gates.ts` selects 99 of 613 files and takes 203 s.",
+    "Timing gate steps or showing a phase how much slower it made the suite (a feedback-speed sensor): a separate spec.",
+    "Making the integration tests faster.",
+    "Changing the gate: its steps, order, firing, whole-suite runs, fix budget or the protected-paths check.",
+    "Changing fix attempt prompts.",
+    "Authoring, decide, review, brief and plan-extraction prompts, and the guide printed for an interactive stop.",
+    "Enforcing the guidance: phax does not watch for or refuse whole-step runs inside a session.",
+    "Adding descriptions, timings or per-step advice to gate steps in `phax.json`."
+  ],
+  "acceptanceCriteria": [
+    {
+      "id": "ac-nonterminal-list",
+      "name": "A non-terminal phase lists its every-phase steps only",
+      "given": "a plan of two phases run with the `standard` profile from phax.json",
+      "when": "phax writes the first phase's prompt.md",
+      "then": "its `## Gate` section lists exactly the nine every-phase steps, one `- <surface>: <command>` line each, in profile order, and no product step appears anywhere in the prompt",
+      "refs": [
+        "r-list",
+        "r-terminal",
+        "r-surface"
+      ]
+    },
+    {
+      "id": "ac-terminal-list",
+      "name": "The terminal phase lists terminal steps too",
+      "given": "the same two-phase plan and profile",
+      "when": "phax writes the second (terminal) phase's prompt.md",
+      "then": "its `## Gate` section lists the nine every-phase steps followed by the four product steps, in profile order",
+      "refs": [
+        "r-list",
+        "r-surface"
+      ]
+    },
+    {
+      "id": "ac-prompt-equals-gate",
+      "name": "The listed commands are the commands the gate runs",
+      "given": "a run whose profile mixes every-phase and terminal steps, with a workspace override that changes the step list",
+      "when": "each phase's gate runs",
+      "then": "the commands it executes, in order, equal the commands in that phase's `## Gate` section, in order",
+      "refs": [
+        "r-same-resolution",
+        "r-terminal"
+      ]
+    },
+    {
+      "id": "ac-contract",
+      "name": "The contract is stated",
+      "given": "any phase prompt",
+      "when": "it is generated",
+      "then": "its `## Gate` section says that phax runs the listed steps after the session ends, that a failing step resumes this same session with its output, that the agent checks each change with the narrowest command that covers it, and that it need not run a whole gate step before finishing",
+      "refs": [
+        "r-contract",
+        "r-narrow"
+      ]
+    },
+    {
+      "id": "ac-no-rerun",
+      "name": "No rerun instruction remains",
+      "given": "any phase prompt",
+      "when": "it is generated",
+      "then": "it does not contain \"Run the gate commands again\" or any other instruction to rerun the gate commands, and the `git commit` line is still present",
+      "refs": [
+        "r-no-rerun"
+      ]
+    },
+    {
+      "id": "ac-agnostic",
+      "name": "Same section for every provider",
+      "given": "the same phase routed once to Claude Code, once to Codex and once to Vibe",
+      "when": "each prompt is generated",
+      "then": "the three `## Gate` sections are byte-identical, and with the step commands removed the section contains none of `pnpm`, `npm`, `vitest`, `jest` or `cargo`",
+      "refs": [
+        "r-agnostic"
+      ]
+    },
+    {
+      "id": "ac-resume",
+      "name": "Resume keeps the section",
+      "given": "a run interrupted during a non-terminal phase",
+      "when": "`phax resume` regenerates that phase's prompt",
+      "then": "its `## Gate` section is identical to the one in the phase's first prompt",
+      "refs": [
+        "r-resume"
+      ]
+    },
+    {
+      "id": "ac-gate-unchanged",
+      "name": "The gate runs as before",
+      "given": "the existing gate and fix-loop integration tests",
+      "when": "they run after this change",
+      "then": "they pass unchanged: the same steps in the same order, and the same fix-loop behaviour on failure",
+      "refs": [
+        "r-gate-unchanged"
+      ]
+    },
+    {
+      "id": "ac-fix-unchanged",
+      "name": "Fix prompts unchanged",
+      "given": "a phase whose gate step fails",
+      "when": "phax resumes the session for a fix attempt",
+      "then": "the fix attempt prompt is identical to the one phax sent before this change for the same failure",
+      "refs": [
+        "r-fix-unchanged"
+      ]
+    }
+  ],
+  "openQuestions": [
+    {
+      "id": "q-need-not",
+      "question": "Should the gate section forbid whole gate-step runs in-loop (\"do not\") or only say they are not needed (\"need not\")?",
+      "options": [
+        {
+          "id": "need-not",
+          "label": "\"You need not run a whole gate step before finishing\"",
+          "abandons": "Some of the saving: an agent may still choose to run the whole suite out of caution."
+        },
+        {
+          "id": "do-not",
+          "label": "\"Do not run a whole gate step\"",
+          "abandons": "The agent's judgement on a cross-cutting failure that really does need the whole suite, and the prompt's honesty, since phax cannot enforce the rule."
+        }
+      ],
+      "recommendation": "need-not",
+      "rationale": "A prompt cannot enforce a ban, and an agent chasing a failure that cuts across modules may need the whole suite. Most of the measured waste comes from the end-of-phase habit that the old rerun instruction asked for, and removing that instruction and stating the contract targets it directly. Losing some of the saving to caution is the acceptable loss; a ban that phax cannot enforce, and that is sometimes wrong, is not."
+    },
+    {
+      "id": "q-which-steps",
+      "question": "Should the section list every step of the phase gate list, or only the ones the agent can act on in-loop (local surface)?",
+      "options": [
+        {
+          "id": "all-tagged",
+          "label": "Every step, in run order, each line tagged with its surface",
+          "abandons": "A few prompt lines on every phase for structural steps that the agent rarely runs itself."
+        },
+        {
+          "id": "local-only",
+          "label": "Local steps only",
+          "abandons": "The agent's knowledge that a structural check (knip, architecture audit) will judge its change, which it learns only after a failed gate and a fix attempt."
+        }
+      ],
+      "recommendation": "all-tagged",
+      "rationale": "The goal is that the agent knows what will judge it. Hiding structural steps turns a cheap check the agent could anticipate into a fix attempt. Tagging each line with its surface, rather than grouping by surface, keeps the list in the gate's run order even when a profile interleaves surfaces. A few extra lines is the smaller loss."
+    },
+    {
+      "id": "q-size",
+      "question": "How much should each step line carry, given that a long profile adds lines to every phase prompt?",
+      "options": [
+        {
+          "id": "commands-only",
+          "label": "One line per step: surface and command, no description",
+          "abandons": "Context on what an opaquely named step checks (for example `pnpm gen:model-catalog --check`)."
+        },
+        {
+          "id": "with-descriptions",
+          "label": "A line per step plus a description, which needs a new description field per step in phax.json",
+          "abandons": "A small prompt, and a config shape that stays unchanged; every profile would have to be edited."
+        }
+      ],
+      "recommendation": "commands-only",
+      "rationale": "The agent can read the project's scripts to learn what a command does. A new per-step description field is a config change outside this spec's scope, and every profile would have to carry it. One line per step keeps the prompt cost bounded by the profile length."
+    },
+    {
+      "id": "q-acceptance-step",
+      "question": "On a phase of an acceptance pair, the gate also runs the acceptance check, which is not a profile step. Should the gate section list it?",
+      "options": [
+        {
+          "id": "leave-to-role",
+          "label": "No: the existing Acceptance role section already says the acceptance provider checks the phase at the gate",
+          "abandons": "One complete list of everything the gate runs: the acceptance check lives in a different section of the prompt."
+        },
+        {
+          "id": "list-it",
+          "label": "Yes: add it to the gate section as its own line after the profile steps",
+          "abandons": "The rule that the list comes only from the resolved profile, plus a second mention of the acceptance check in the prompt that could drift from the Acceptance role section."
+        }
+      ],
+      "recommendation": "leave-to-role",
+      "rationale": "The settled scope is the resolved gate profile, and the acceptance check is already explained, with its rule, in the Acceptance role section on exactly the phases where it runs. Mentioning it in two places is the drift risk this spec's single-resolution rule exists to avoid."
+    }
+  ],
+  "arbitratedQuestions": [],
+  "planningNote": {
+    "settled": [
+      "The gate section lists the phase gate list (every-phase steps, plus terminal steps on the terminal phase), in run order, with each command verbatim.",
+      "It is built from the same resolved steps the gate runs (profile, workspace, firing), never from a second copy.",
+      "It states the gate contract: phax runs the steps after the session ends, a failing step resumes this same session with its output, the agent uses the narrowest check, and it need not run a whole gate step before finishing.",
+      "The existing \"Run the gate commands again after your changes to verify the gates are satisfied.\" instruction and its unfiltered command list are removed.",
+      "The wording is provider- and project-agnostic, and all three providers get the same section.",
+      "The gate itself and fix attempt prompts are unchanged."
+    ],
+    "open": [
+      "The exact wording, the heading, and where the section sits in the prompt (the §6 sketches are indicative).",
+      "The answers to the §9 questions: need not vs do not, which steps to list, line size, and the acceptance check."
+    ],
+    "constraints": [
+      "Today the phase prompt is given every profile command, while the gate filters by firing at gate time. The prompt must receive the per-phase selection, which means terminal-phase knowledge is needed when the prompt is built, including on resume.",
+      "Prompt snapshots under tests/unit and tests/integration will change and must be updated deliberately, not regenerated blindly.",
+      "The guide printed for an interactive stop also carries gate commands. It is out of scope and must not change as a side effect.",
+      "Release with the installed phax: the prompt change ships in a release before runs rely on it."
+    ]
+  },
+  "docsPage": {
+    "kind": "none",
+    "why": "Only the prompt phax writes to the phase agent changes. No command, flag or config key changes for operators, and each phase's prompt.md already shows the result."
+  }
+}
