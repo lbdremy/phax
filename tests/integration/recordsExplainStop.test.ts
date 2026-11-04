@@ -3,12 +3,14 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Command } from "commander";
 import { Effect, Either, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { explainRecord } from "../../src/app/recordsExplain.js";
 import { loadConfig } from "../../src/app/loadConfig.js";
-import { registerRecordsCommand } from "../../src/cli/commands/records.js";
+import { runner } from "../../src/cli/commandLibrary/commander/index.js";
+import type { ExitCode } from "../../src/cli/commandLibrary/contract/index.js";
+import { phaxProgram } from "../../src/cli/definitions/program.js";
+import { memoryIo } from "../unit/commandLibrary/commander/support/memoryIo.js";
 import { decodeBranchName, type BranchName } from "../../src/domain/branded.js";
 import { AwaitingReviewStopError } from "../../src/domain/errors.js";
 import {
@@ -87,21 +89,20 @@ function stoppedAtReview(result: Either.Either<unknown, unknown>): void {
   expect(result.left).toBeInstanceOf(AwaitingReviewStopError);
 }
 
-/** Runs `phax records explain <sha>` in-process on `run`'s repository. */
+/** Runs `phax records explain <sha>` through the command runner over a memory Io, in-process, on
+ *  `run`'s repository. */
 async function explain(run: HeldRun, sha: string, ...flags: string[]) {
   vi.mocked(loadConfig).mockReturnValue(Either.right(run.config));
-  const logs: string[] = [];
-  const errors: string[] = [];
-  const exit = vi.spyOn(process, "exit").mockImplementation((() => undefined) as never);
-  const program = new Command().exitOverride();
-  registerRecordsCommand(program, {
-    log: (m) => logs.push(m),
-    warn: (m) => errors.push(m),
-    error: (m) => errors.push(m),
-  });
-  await program.parseAsync(["records", "explain", sha, ...flags], { from: "user" });
-  const code = exit.mock.calls.at(-1)?.[0];
-  exit.mockRestore();
+  const memory = memoryIo({ argv: ["records", "explain", sha, ...flags] });
+  const code = await Effect.runPromise(
+    runner.run(phaxProgram, memory.io) as Effect.Effect<ExitCode>,
+  );
+  const stdout = memory.out.join("");
+  const logs = stdout === "" ? [] : stdout.replace(/\n$/, "").split("\n");
+  const errors = memory.err
+    .join("")
+    .split("\n")
+    .filter((line) => line !== "");
   return { code, logs, errors, text: logs.join("\n") };
 }
 

@@ -24,7 +24,6 @@ import { runResetPhase } from "./commands/resetPhase.js";
 import { registerResetPhaseCommand } from "./commands/resetPhaseRegister.js";
 import { registerAgentCommand } from "./commands/agent.js";
 import { registerArtifactCommand } from "./commands/artifact.js";
-import { registerRecordsCommand } from "./commands/records.js";
 import { runInit } from "./commands/init.js";
 import { mountRunnerGroupStub, mountRunnerStub, mountRunnerStubs } from "./bridge.js";
 import { OPTION_HELP } from "./commandLibrary/contract/index.js";
@@ -314,7 +313,8 @@ export function buildProgram(): Command {
   registerArtifactCommand(program, consoleOutput);
   // `plans` answers through the runner, which holds the whole group: a help-only stub, in place.
   mountRunnerGroupStub(program, phaxProgram, ["plans"]);
-  registerRecordsCommand(program, consoleOutput);
+  // `records` answers through the runner, which holds the whole group: a help-only stub, in place.
+  mountRunnerGroupStub(program, phaxProgram, ["records"]);
 
   // The runner's commands, mounted for help only: the bridge sends every call
   // naming one to the runner before Commander parses. Those a registration

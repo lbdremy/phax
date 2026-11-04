@@ -1133,10 +1133,10 @@ Full CLI reference: [`docs/cli/reference.md`](docs/cli/reference.md).
 - `phax plans overview [--json] <plan>` — Lays a plan out before it runs. For each phase in plan order it shows the model, effort and mode, the acceptance role (an acceptance phase and the phase that passes it, or none), the planned files to create and edit grouped by architecture part, and the test lines. It ends with the coverage of the source spec's acceptance criteria: each criterion with the phases and loops whose test lines name it (`phase-02 in-phase ×2` when two lines of a phase and loop name it), then the criteria no line names. Cost is not shown; `phax plans estimate` keeps that.
 - `phax plans estimate [--no-probe] [--json] <plan>` — Estimate a plan's API-list cost and whether it fits the subscription windows now. Reports P10/P50/P90 in API-list dollars for each phase and for the run, then a verdict on the Claude subscription windows left right now.
 - `phax records <SUBCOMMAND>` — Manage phax run records
-- `phax records init [--force]` — Configure records for this project (transcript, destination, auto-push)
-- `phax records sync` — Bring the local records clone in line with its configured remote
-- `phax records status` — Show pending (unpushed) records, by run and phase
-- `phax records list [--run <id>]` — List records present: phase records by run, phase, and verified surfaces; review entries by run and review; authoring and decision records by id and artifact
+- `phax records init [--force] [--json]` — Configure records for this project (transcript, destination, auto-push)
+- `phax records sync [--json]` — Bring the local records clone in line with its configured remote
+- `phax records status [--json]` — Show pending (unpushed) records, by run and phase
+- `phax records list [--run <run>] [--json]` — List records present: phase records by run, phase, and verified surfaces; review entries by run and review; authoring and decision records by id and artifact
 - `phax records explain [FLAGS] <sha>` — Explains a commit from its record. The commit is a phase commit, a declared interactive phase's commit (Phase-Id with Interactive-Phase), or a held phase's review commit, which carries Run-Id and Held-Phase and resolves to the held phase's record. The output adds the stop's lines: its mode, cause, outcome, the person who closed it, the review commit, and each recorded session with its provider, model, origin and its transcript's sha256, or the reason it is missing. A stop's record never carries the transcript itself: interactive transcripts stay in the run folder whatever records.transcript says.
 
 <!-- END GENERATED CLI REFERENCE -->

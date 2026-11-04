@@ -70,12 +70,6 @@ export const cliDocs: Readonly<Record<string, CliDocEntry>> = {
     examples: ["phax reset-phase usage-cli", "phax reset-phase usage-cli phase-02 --yes"],
   },
 
-  "records explain": {
-    longHelp:
-      "Explains a commit from its record. The commit is a phase commit, a declared interactive phase's commit (Phase-Id with Interactive-Phase), or a held phase's review commit, which carries Run-Id and Held-Phase and resolves to the held phase's record. The output adds the stop's lines: its mode, cause, outcome, the person who closed it, the review commit, and each recorded session with its provider, model, origin and its transcript's sha256, or the reason it is missing. A stop's record never carries the transcript itself: interactive transcripts stay in the run folder whatever records.transcript says.\n\nA run-level review entry's own commit on phax/records/v1 (Run-Id and Review trailers) is a record, not a source commit: explain names the run and the review and prints the git show that reads the review's file, and exits 0.",
-    examples: ["phax records explain 3f9c2a1", "phax records explain 3f9c2a1 --gates"],
-  },
-
   archive: {
     longHelp:
       "Archives a run by moving its worktrees under ~/.phax/archive/<namespace>.<short-name>/ and marking it archived in the registry. Nothing is destructively deleted — every phase's working state is preserved.\n\nFinished runs (review_open, completed) archive by default. Unfinished runs (created, failed, interrupted, rate_limited, stopped, awaiting_review) are refused unless --force is set; the refusal message names the run's current state and the flag. Archiving a run in awaiting_review with --force removes its review-stop.json and moves its worktrees, uncommitted corrections included, to the archive. Running, locked, and already-archived runs are never archivable regardless of --force.\n\nThe run's stoppedReason and lastError survive archival intact.\n\nWithout --force on a finished run, the final worktree must be clean. With --force, no cleanliness check runs.\n\nSide effects: moves worktrees on the filesystem, updates ~/.phax/runs/.",

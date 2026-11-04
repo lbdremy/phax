@@ -70,7 +70,7 @@ afterAll(() => {
 describe("phax records status, list and sync under --json", () => {
   for (const command of ["status", "list", "sync"] as const) {
     // ac-json-every-command
-    it.fails(`records ${command} --json writes one indented value, message lines on stderr`, () => {
+    it(`records ${command} --json writes one indented value, message lines on stderr`, () => {
       const result = runCli(["records", command, "--json"]);
 
       expect(result.status, result.stderr).toBe(0);
@@ -87,7 +87,7 @@ describe("phax records status, list and sync under --json", () => {
 
 describe("phax records explain", () => {
   // ac-text-unchanged
-  it.fails("--json --prompt answers the prompt text the text answer prints", () => {
+  it("--json --prompt answers the prompt text the text answer prints", () => {
     const text = runCli(["records", "explain", fixture.phaseSha, "--prompt"]);
     const json = runCli(["records", "explain", fixture.phaseSha, "--json", "--prompt"]);
 
@@ -100,7 +100,7 @@ describe("phax records explain", () => {
   });
 
   // ac-error-sentence
-  it.fails("an unknown sha keeps today's sentence and exit 1, and is one error line under --json", () => {
+  it("an unknown sha keeps today's sentence and exit 1, and is one error line under --json", () => {
     const unknown = "no-such-commit";
     const text = runCli(["records", "explain", unknown]);
     const json = runCli(["records", "explain", unknown, "--json"]);
@@ -117,7 +117,7 @@ describe("phax records explain", () => {
   });
 
   // ac-error-sentence
-  it.fails("a commit no phax phase produced is one error line with exit 1 under --json", () => {
+  it("a commit no phax phase produced is one error line with exit 1 under --json", () => {
     const json = runCli(["records", "explain", fixture.plainSha, "--json"]);
 
     expect(json.status).toBe(1);
@@ -129,7 +129,7 @@ describe("phax records explain", () => {
   });
 
   // ac-json-schema-command
-  it.fails("--json-schema prints its entry, equal to the one in phax --json-schema", () => {
+  it("--json-schema prints its entry, equal to the one in phax --json-schema", () => {
     const alone = runCli(["records", "explain", "--json-schema"]);
     const all = runCli(["--json-schema"]);
 
@@ -145,7 +145,7 @@ describe("phax records explain", () => {
   });
 
   // ac-unknown-option
-  it.fails("an undeclared option under --json is one refused line from flags, exit 64", () => {
+  it("an undeclared option under --json is one refused line from flags, exit 64", () => {
     const result = runCli(["records", "explain", fixture.phaseSha, "--colour", "--json"]);
 
     expect(result.status).toBe(64);
@@ -159,7 +159,7 @@ describe("phax records explain", () => {
 
 describe("phax records init --json", () => {
   // ac-no-person
-  it.fails("is refused with 64 before any prompt and leaves phax.json untouched", () => {
+  it("is refused with 64 before any prompt and leaves phax.json untouched", () => {
     const before = readFileSync(fixture.configPath);
     const result = runCli(["records", "init", "--json"]);
 

@@ -1722,7 +1722,7 @@ Manage phax run records
 
 ## `phax records init`
 
-- **Usage**: `phax records init [--force]`
+- **Usage**: `phax records init [--force] [--json]`
 
 Configure records for this project (transcript, destination, auto-push)
 
@@ -1732,29 +1732,49 @@ Configure records for this project (transcript, destination, auto-push)
 
 Reconfigure records even if already configured
 
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
+
 ## `phax records sync`
 
-- **Usage**: `phax records sync`
+- **Usage**: `phax records sync [--json]`
 
 Bring the local records clone in line with its configured remote
 
+### Flags
+
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
+
 ## `phax records status`
 
-- **Usage**: `phax records status`
+- **Usage**: `phax records status [--json]`
 
 Show pending (unpushed) records, by run and phase
 
+### Flags
+
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
+
 ## `phax records list`
 
-- **Usage**: `phax records list [--run <id>]`
+- **Usage**: `phax records list [--run <run>] [--json]`
 
 List records present: phase records by run, phase, and verified surfaces; review entries by run and review; authoring and decision records by id and artifact
 
 ### Flags
 
-#### `--run <id>`
+#### `--run <run>`
 
 Only show records for this run id
+
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 ## `phax records explain`
 
@@ -1791,6 +1811,10 @@ Print the gate check logs, each followed by its gate request
 #### `--briefs`
 
 Print the phase's brief records (brief-NN.json) in number order
+
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 ### Examples
 

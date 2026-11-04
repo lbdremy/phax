@@ -697,54 +697,30 @@ cmd plans help="Lint, estimate and lay out a plan, and report plan staleness and
     }
 }
 
-cmd "records" {
-    help "Manage phax run records"
-
-    cmd "init" {
-        help "Configure records for this project (transcript, destination, auto-push)"
-        flag "--force" {
-            help "Reconfigure records even if already configured"
-        }
+cmd records help="Manage phax run records" subcommand_required=#true {
+    cmd init help="Configure records for this project (transcript, destination, auto-push)" {
+        flag --force help="Reconfigure records even if already configured"
+        flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
     }
-
-    cmd "sync" {
-        help "Bring the local records clone in line with its configured remote"
+    cmd sync help="Bring the local records clone in line with its configured remote" {
+        flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
     }
-
-    cmd "status" {
-        help "Show pending (unpushed) records, by run and phase"
+    cmd status help="Show pending (unpushed) records, by run and phase" {
+        flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
     }
-
-    cmd "list" {
-        help "List records present: phase records by run, phase, and verified surfaces; review entries by run and review; authoring and decision records by id and artifact"
-        flag "--run" {
-            arg "<id>"
-            help "Only show records for this run id"
-        }
+    cmd list help="List records present: phase records by run, phase, and verified surfaces; review entries by run and review; authoring and decision records by id and artifact" {
+        flag "--run <run>" help="Only show records for this run id"
+        flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
     }
-
-    cmd "explain" {
-        help "Explain a commit from its record: prompt, diff, gates and verified surfaces, handoff, transcript, usage — or, for a headless artifact commit, its authoring record"
-        long_help "Explains a commit from its record. The commit is a phase commit, a declared interactive phase's commit (Phase-Id with Interactive-Phase), or a held phase's review commit, which carries Run-Id and Held-Phase and resolves to the held phase's record. The output adds the stop's lines: its mode, cause, outcome, the person who closed it, the review commit, and each recorded session with its provider, model, origin and its transcript's sha256, or the reason it is missing. A stop's record never carries the transcript itself: interactive transcripts stay in the run folder whatever records.transcript says.\n\nA run-level review entry's own commit on phax/records/v1 (Run-Id and Review trailers) is a record, not a source commit: explain names the run and the review and prints the git show that reads the review's file, and exits 0."
+    cmd explain help="Explain a commit from its record: prompt, diff, gates and verified surfaces, handoff, transcript, usage — or, for a headless artifact commit, its authoring record" long_help="Explains a commit from its record. The commit is a phase commit, a declared interactive phase's commit (Phase-Id with Interactive-Phase), or a held phase's review commit, which carries Run-Id and Held-Phase and resolves to the held phase's record. The output adds the stop's lines: its mode, cause, outcome, the person who closed it, the review commit, and each recorded session with its provider, model, origin and its transcript's sha256, or the reason it is missing. A stop's record never carries the transcript itself: interactive transcripts stay in the run folder whatever records.transcript says.\n\nA run-level review entry's own commit on phax/records/v1 (Run-Id and Review trailers) is a record, not a source commit: explain names the run and the review and prints the git show that reads the review's file, and exits 0." {
         example "phax records explain 3f9c2a1"
         example "phax records explain 3f9c2a1 --gates"
-        arg "<sha>" {
-            help "Commit sha in the source repository (a phase commit or an artifact commit)"
-        }
-        flag "--prompt" {
-            help "Print the full prompt"
-        }
-        flag "--diff" {
-            help "Print the full diff"
-        }
-        flag "--transcript" {
-            help "Print the full transcript"
-        }
-        flag "--gates" {
-            help "Print the gate check logs, each followed by its gate request"
-        }
-        flag "--briefs" {
-            help "Print the phase's brief records (brief-NN.json) in number order"
-        }
+        flag --prompt help="Print the full prompt"
+        flag --diff help="Print the full diff"
+        flag --transcript help="Print the full transcript"
+        flag --gates help="Print the gate check logs, each followed by its gate request"
+        flag --briefs help="Print the phase's brief records (brief-NN.json) in number order"
+        flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
+        arg <sha> help="Commit sha in the source repository (a phase commit or an artifact commit)"
     }
 }

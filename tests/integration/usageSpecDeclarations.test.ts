@@ -43,6 +43,11 @@ const MIGRATED_COMMANDS: ReadonlyArray<string> = [
   "plans lint",
   "plans overview",
   "plans estimate",
+  "records init",
+  "records sync",
+  "records status",
+  "records list",
+  "records explain",
 ];
 
 /** The migrated commands that declared a `--json` of their own: the frozen file's `--json` is
@@ -74,10 +79,12 @@ const WHOLE_GROUPS: ReadonlyArray<string> = [
 ];
 
 /** The value name the port gives a valued option (its option name), where the frozen file named
- *  it otherwise: `plans overlap --landed <run>` is `--landed <landed>`. */
+ *  it otherwise: `plans overlap --landed <run>` is `--landed <landed>`, and `records list
+ *  --run <id>` is `--run <run>`. */
 const REWORDED_VALUE_NAMES: ReadonlyArray<readonly [string, string]> = [
   ["plans overlap", "flag --landed "],
   ["validate", "flag --plan "],
+  ["records list", "flag --run "],
 ];
 
 /** What the committed file may declare beyond the frozen one: a path and a declaration's head
