@@ -317,7 +317,8 @@
       ]
     }
   ],
-  "openQuestions": [
+  "openQuestions": [],
+  "arbitratedQuestions": [
     {
       "id": "q-sources",
       "question": "Which setting sources does a headless session keep: `project` alone, or `project,local`?",
@@ -334,7 +335,28 @@
         }
       ],
       "recommendation": "project",
-      "rationale": "Only committed configuration is portable and recoverable from `sourceSha`. The local file is already absent from every phase worktree, so dropping it changes nothing for phases and makes authoring and review behave like them. An operator who needs a setting in those sessions can commit it."
+      "rationale": "Only committed configuration is portable and recoverable from `sourceSha`. The local file is already absent from every phase worktree, so dropping it changes nothing for phases and makes authoring and review behave like them. An operator who needs a setting in those sessions can commit it.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "project",
+        "abandoned": [
+          "project-local"
+        ],
+        "why": "Only committed configuration is portable and recoverable from `sourceSha`. The local file is already absent from every phase worktree, so dropping it changes nothing for phases and makes authoring and review behave like them. An operator who needs a setting in those sessions can commit it.",
+        "advocate": "The strongest case for project-local: an operator who keeps a personal permission or env in `.claude/settings.local.json` loses it in authoring, decide and review sessions run in the main checkout, with no way to restore it short of committing it.",
+        "principles": [
+          "S1",
+          "S2"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-04T13:47:34.681Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-auth",
@@ -357,7 +379,29 @@
         }
       ],
       "recommendation": "refuse-named",
-      "rationale": "OAuth (the subscription case, probed) and `ANTHROPIC_API_KEY` in the environment both keep working, so the loss falls on a setup that can move its authentication in one step. A named failure at the first session costs nothing extra and is never silent; it can grow into an opt-out if real users hit it, which `q-opt-out` keeps out of this slice."
+      "rationale": "OAuth (the subscription case, probed) and `ANTHROPIC_API_KEY` in the environment both keep working, so the loss falls on a setup that can move its authentication in one step. A named failure at the first session costs nothing extra and is never silent; it can grow into an opt-out if real users hit it, which `q-opt-out` keeps out of this slice.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "refuse-named",
+        "abandoned": [
+          "opt-out",
+          "preflight"
+        ],
+        "why": "OAuth (the subscription case, probed) and `ANTHROPIC_API_KEY` in the environment both keep working, so the loss falls on a setup that can move its authentication in one step. A named failure at the first session costs nothing extra and is never silent; it can grow into an opt-out if real users hit it, which `q-opt-out` keeps out of this slice.",
+        "advocate": "The strongest case for opt-out: an operator on Bedrock, Vertex or an apiKeyHelper cannot run phax headless at all after upgrading, and an opt-out would keep them working at the price of a recorded `loaded`.",
+        "principles": [
+          "S1",
+          "S3"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-04T13:47:34.681Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-opt-out",
@@ -380,7 +424,29 @@
         }
       ],
       "recommendation": "no-opt-out",
-      "rationale": "The user layer phax would restore is exactly the unreviewed, unrecorded part the problem names. What an operator wants in phases belongs in the repository, where it is reviewed and recovered by `sourceSha`. Adding a `phax.user.json` key later is cheap if a real need appears; taking one away is not."
+      "rationale": "The user layer phax would restore is exactly the unreviewed, unrecorded part the problem names. What an operator wants in phases belongs in the repository, where it is reviewed and recovered by `sourceSha`. Adding a `phax.user.json` key later is cheap if a real need appears; taking one away is not.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "no-opt-out",
+        "abandoned": [
+          "user-opt-out",
+          "project-opt-out"
+        ],
+        "why": "The user layer phax would restore is exactly the unreviewed, unrecorded part the problem names. What an operator wants in phases belongs in the repository, where it is reviewed and recovered by `sourceSha`. Adding a `phax.user.json` key later is cheap if a real need appears; taking one away is not.",
+        "advocate": "The strongest case for user-opt-out: an operator who relies on a user-scope MCP server, hook or skill inside phases has no way back except an older phax, while an uncommitted key would restore it for them alone.",
+        "principles": [
+          "S1",
+          "S4"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-04T13:47:34.681Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-record",
@@ -403,10 +469,31 @@
         }
       ],
       "recommendation": "record-manifest",
-      "rationale": "The records are where the harness is meant to be read from, and the manifest is what every analysis already opens. One required, per-provider value is the smallest honest statement; the harness manifest spec can later replace it with the full list."
+      "rationale": "The records are where the harness is meant to be read from, and the manifest is what every analysis already opens. One required, per-provider value is the smallest honest statement; the harness manifest spec can later replace it with the full list.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "record-manifest",
+        "abandoned": [
+          "security-json",
+          "not-recorded"
+        ],
+        "why": "The records are where the harness is meant to be read from, and the manifest is what every analysis already opens. One required, per-provider value is the smallest honest statement; the harness manifest spec can later replace it with the full list.",
+        "advocate": "The strongest case for not-recorded: a manifest version for a single two-valued field is a persisted-schema cost, and the harness manifest spec will replace it with the full list anyway.",
+        "principles": [
+          "S1",
+          "S5"
+        ],
+        "reversibility": "costly",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-04T13:47:34.681Z",
+        "revised": []
+      },
+      "history": []
     }
   ],
-  "arbitratedQuestions": [],
   "planningNote": {
     "settled": [
       "Scope is headless Claude Code sessions only, as listed under 'headless session'. Interactive sessions, including the interactive part of decide, keep the person's setup; decide's headless handback and its corrective retry are in scope.",
