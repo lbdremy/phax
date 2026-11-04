@@ -38,6 +38,14 @@ const MIGRATED_COMMANDS: ReadonlyArray<string> = [
   "skills install",
   "schema upgrade",
   "artifact status",
+  "artifact approve",
+  "artifact stale",
+  "artifact abandon",
+  "artifact complete",
+  "artifact reopen",
+  "artifact schema",
+  "artifact migrate-approvals",
+  "artifact migrate-documents",
   "plans status",
   "plans overlap",
   "plans lint",
@@ -49,6 +57,11 @@ const MIGRATED_COMMANDS: ReadonlyArray<string> = [
   "records list",
   "records explain",
 ];
+
+/** The migrated commands whose argument is a literal union: the runner writes its `choices` in
+ *  the usage spec, where the Commander command (which refused an unknown value all the same)
+ *  left them out. */
+const CHOICES_DECLARED: ReadonlyArray<string> = ["artifact schema"];
 
 /** The migrated commands that declared a `--json` of their own: the frozen file's `--json` is
  *  reworded, its help now the library's. */
@@ -84,6 +97,7 @@ const ALLOWED_ADDITIONS: ReadonlyArray<readonly [string, string]> = [
   ["", "after_long_help "],
   ["", "flag --json-schema "],
   ...MIGRATED_COMMANDS.map((path) => [path, "flag --json "] as const),
+  ...CHOICES_DECLARED.map((path) => [path, "arg <kind> "] as const),
   ...REWORDED_LONG_HELP.map((path) => [path, "long_help "] as const),
   ...WHOLE_GROUPS.map((path) => [path, "subcommand_required "] as const),
 ];
@@ -103,6 +117,7 @@ const DROPPED_SECURITY_FLAGS: ReadonlyArray<readonly [string, string]> = [
 const ALLOWED_REWORDINGS: ReadonlyArray<readonly [string, string]> = [
   ...DROPPED_SECURITY_FLAGS,
   ...REWORDED_JSON.map((path) => [path, "flag --json "] as const),
+  ...CHOICES_DECLARED.map((path) => [path, "arg <kind> "] as const),
   ...REWORDED_LONG_HELP.map((path) => [path, "long_help "] as const),
 ];
 

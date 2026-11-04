@@ -7,7 +7,19 @@ import * as Schema from "effect/Schema";
 import { PHAX_RELEASE } from "../../schemas/release.js";
 import { defineGroup, defineProgram, reject } from "../commandLibrary/contract/index.js";
 import { architectureCommand } from "./architecture.js";
+import {
+  artifactMigrateApprovalsCommand,
+  artifactMigrateDocumentsCommand,
+} from "./artifactMigrations.js";
+import { artifactSchemaCommand } from "./artifactSchema.js";
 import { artifactStatusCommand } from "./artifactStatus.js";
+import {
+  artifactAbandonCommand,
+  artifactApproveCommand,
+  artifactCompleteCommand,
+  artifactReopenCommand,
+  artifactStaleCommand,
+} from "./artifactTransitions.js";
 import { briefCommand } from "./brief.js";
 import { completionsCommand } from "./completions.js";
 import { costGroup } from "./cost.js";
@@ -71,7 +83,17 @@ export const phaxProgram = defineProgram({
     defineGroup({
       name: "artifact",
       summary: "Inspect and transition the lifecycle status of a spec or plan",
-      commands: [artifactStatusCommand],
+      commands: [
+        artifactStatusCommand,
+        artifactApproveCommand,
+        artifactStaleCommand,
+        artifactAbandonCommand,
+        artifactCompleteCommand,
+        artifactReopenCommand,
+        artifactSchemaCommand,
+        artifactMigrateApprovalsCommand,
+        artifactMigrateDocumentsCommand,
+      ],
     }),
     defineGroup({
       name: "plans",

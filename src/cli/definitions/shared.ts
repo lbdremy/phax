@@ -2,14 +2,16 @@
 // repository and a path argument made repo-relative, and the fields an error line carries.
 import { execSync } from "node:child_process";
 import { isAbsolute, relative, resolve, sep } from "node:path";
-import { Effect, Either } from "effect";
+import { Data, Effect, Either } from "effect";
 import * as Schema from "effect/Schema";
 import { loadConfig } from "../../app/loadConfig.js";
 import type { ConfigValidationError } from "../../domain/errors.js";
+import { makeRootedNodeFileSystemLayer } from "../../infra/fs.js";
+import { FileSystem } from "../../ports/fs.js";
 import type { ResolvedConfig } from "../../schemas/phaxConfig.js";
 import type { FormatId } from "../../schemas/schemaUrl.js";
 import { currentSchemaUrl } from "../../schemas/persisted.js";
-import { CompleterAnnotationId } from "../commandLibrary/contract/index.js";
+import { CompleterAnnotationId, Written, written } from "../commandLibrary/contract/index.js";
 
 /** The fields of an error these commands declare, as the catalogue lists them: its message. */
 export const MessageFields = Schema.Struct({ message: Schema.String });
@@ -88,3 +90,34 @@ export function publishedFormat(formatId: FormatId): {
 } {
   return { jsonSchema: { $ref: currentSchemaUrl(formatId) } };
 }
+
+/** The records of the repo-relative files that exist now, each read back from the disk: a path
+ *  deleted or never written is left out. A file unreadable after it was found is a defect. */
+export function writtenRecords(
+  paths: ReadonlyArray<string>,
+  repoRoot: string,
+): Effect.Effect<ReadonlyArray<Written>> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const records: Written[] = [];
+    for (const path of paths) {
+      if (!(yield* fs.exists(path))) continue;
+      records.push(yield* written(path, yield* fs.readBytes(path)));
+    }
+    return records;
+  }).pipe(Effect.provide(makeRootedNodeFileSystemLayer(repoRoot)), Effect.orDie);
+}
+
+/** A failed commit after the files were written: the sentence of the use case's error, and the
+ *  files the failed command left in the working tree, which the runner lifts into the `error`
+ *  line's `written`. */
+export class CommitFailedError extends Data.TaggedError("ArtifactCommitFailedError")<{
+  readonly message: string;
+  readonly written: ReadonlyArray<Written>;
+}> {}
+
+/** The fields of a failed commit's error, as the catalogue lists them. */
+export const CommitFailedFields = Schema.Struct({
+  message: Schema.String,
+  written: Schema.Array(Written),
+});

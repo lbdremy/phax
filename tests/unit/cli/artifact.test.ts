@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Effect, Either } from "effect";
 import { Command } from "commander";
+import { phaxProgram } from "../../../src/cli/definitions/program.js";
+import { call } from "../commandLibrary/commander/support/memoryIo.js";
 import { answerJsonSchema } from "../../../src/schemas/answerSchemas.js";
 import { getDecideVerdictsFileJsonSchema } from "../../../src/schemas/decideVerdicts.js";
 import { currentSchemaUrl } from "../../../src/schemas/persisted.js";
@@ -185,6 +187,7 @@ describe("runArtifactTransition", () => {
       Effect.succeed({
         status: "Approved",
         previousStatus: "Draft",
+        written: [],
         path: "docs/plans/2607101056-typescript-7-migration-plan.md",
       }),
     );
@@ -207,6 +210,7 @@ describe("runArtifactTransition", () => {
       Effect.succeed({
         status: "Completed",
         previousStatus: "Approved",
+        written: [],
         path: "docs/specs/archive/2608091526-artifact-lifecycle-status.md",
       }),
     );
@@ -255,6 +259,7 @@ describe("runArtifactTransition", () => {
       Effect.succeed({
         status: "Approved",
         previousStatus: "Draft",
+        written: [],
         path: "docs/plans/2607101056-typescript-7-migration-plan.md",
         approvedBaseline: "abcdef1234567890abcdef1234567890abcdef12",
       }),
@@ -347,6 +352,7 @@ describe("runArtifactTransition", () => {
       Effect.succeed({
         status: "Approved",
         previousStatus: "Draft",
+        written: [],
         path: "docs/plans/2607101056-typescript-7-migration-plan.md",
       }),
     );
@@ -371,6 +377,7 @@ describe("runArtifactTransition", () => {
       Effect.succeed({
         status: "Approved",
         previousStatus: "Draft",
+        written: [],
         path: "docs/specs/2609251400-plan-prune.md",
         approvedBaseline: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
         approvedBy: { kind: "machine", grant: "roadmap-loop" },
@@ -404,6 +411,7 @@ describe("runArtifactTransition", () => {
       Effect.succeed({
         status: "Draft",
         previousStatus: "Approved",
+        written: [],
         path: "docs/specs/2609251400-plan-prune.md",
         reopenedBy: { kind: "machine", grant: "roadmap-loop" },
         deletedRecord: "docs/specs/approvals/2609251400-plan-prune.json",
@@ -464,6 +472,7 @@ describe("runArtifactTransition", () => {
       Effect.succeed({
         status: "Approved",
         previousStatus: "Draft",
+        written: [],
         path: "docs/plans/2607101056-typescript-7-migration-plan.md",
         commit: {
           hash: "3f2a1c9abcdef1234567890abcdef1234567890",
@@ -502,6 +511,7 @@ describe("runArtifactTransition", () => {
       Effect.succeed({
         status: "Approved",
         previousStatus: "Draft",
+        written: [],
         path: "docs/plans/2607101056-typescript-7-migration-plan.md",
       }),
     );
@@ -765,9 +775,9 @@ describe("runArtifactSchema", () => {
     ["plan", "phax plan document"],
   ] as const)(
     "%s: prints the published answer schema, its $schema a const, no allOf or oneOf, exits 0",
-    (kind, title) => {
+    async (kind, title) => {
       const { out, lines, errors } = makeOutput();
-      const code = runArtifactSchema(kind, out);
+      const code = await runArtifactSchema(kind, out);
 
       expect(code).toBe(0);
       expect(errors).toEqual([]);
@@ -786,25 +796,22 @@ describe("runArtifactSchema", () => {
     },
   );
 
-  it("verdicts: prints the decide-verdicts JSON Schema the decoder renders, exits 0", () => {
+  it("verdicts: prints the decide-verdicts JSON Schema the decoder renders, exits 0", async () => {
     const { out, lines, errors } = makeOutput();
 
-    const code = runArtifactSchema("verdicts", out);
+    const code = await runArtifactSchema("verdicts", out);
 
     expect(code).toBe(0);
     expect(errors).toEqual([]);
     expect(lines).toEqual([JSON.stringify(getDecideVerdictsFileJsonSchema(), null, 2)]);
   });
 
-  it("an unknown kind is a Commander usage error", async () => {
-    const program = new Command().exitOverride().configureOutput({ writeErr: () => {} });
-    const { out, lines } = makeOutput();
-    registerArtifactCommand(program, out);
+  it("an unknown kind is refused by the runner, before anything is printed", async () => {
+    const called = await call(phaxProgram, { argv: ["artifact", "schema", "idea"] });
 
-    await expect(
-      program.parseAsync(["node", "phax", "artifact", "schema", "idea"]),
-    ).rejects.toMatchObject({ code: "commander.invalidArgument" });
-    expect(lines).toEqual([]);
+    expect(called.code).toBe(phaxProgram.exits.refused);
+    expect(called.out).toEqual([]);
+    expect(called.err.join("")).toContain("idea");
   });
 });
 

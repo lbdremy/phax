@@ -218,7 +218,11 @@ describe("route", () => {
       to: "runner",
       command: ["plans", "status"],
     });
-    expect(route(phaxProgram, ["artifact", "approve", "x"])).toEqual({ to: "commander" });
+    expect(route(phaxProgram, ["artifact", "approve", "x"])).toEqual({
+      to: "runner",
+      command: ["artifact", "approve"],
+    });
+    expect(route(phaxProgram, ["artifact", "decide", "x"])).toEqual({ to: "commander" });
   });
 
   // Commander reads past these to the command word, and would call the help-only stub's action.
@@ -533,7 +537,17 @@ describe("the help-only stubs", () => {
       "plans",
       "records",
     ]);
-    expect(plans.commands.map((each) => each.name())).toEqual(["status"]);
+    expect(plans.commands.map((each) => each.name())).toEqual([
+      "status",
+      "approve",
+      "stale",
+      "abandon",
+      "complete",
+      "reopen",
+      "schema",
+      "migrate-approvals",
+      "migrate-documents",
+    ]);
     const ls = root.commands.find((each) => each.name() === "ls");
     const wholePlans = root.commands.find((each) => each.name() === "plans");
     expect(ls && isRunnerStub(ls)).toBe(true);
@@ -738,6 +752,14 @@ describe("runnerUsage", () => {
       "skills install",
       "schema upgrade",
       "artifact status",
+      "artifact approve",
+      "artifact stale",
+      "artifact abandon",
+      "artifact complete",
+      "artifact reopen",
+      "artifact schema",
+      "artifact migrate-approvals",
+      "artifact migrate-documents",
       "plans status",
       "plans overlap",
       "plans lint",

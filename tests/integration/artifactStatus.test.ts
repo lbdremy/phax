@@ -331,6 +331,7 @@ describe("transitionArtifact", () => {
         path: "docs/specs/2609101221-foo.md",
         approvedBaseline: expect.any(String),
         approvedBy: { kind: "machine", grant: "roadmap-loop" },
+        written: ["docs/specs/2609101221-foo.md", "docs/specs/approvals/2609101221-foo.json"],
       });
     }
     expect(fsImpl.getFile("docs/specs/2609101221-foo.md")).toContain("status: Approved");
@@ -352,6 +353,7 @@ describe("transitionArtifact", () => {
         status: "Completed",
         previousStatus: "Approved",
         path: "docs/specs/archive/2609101221-foo.md",
+        written: ["docs/specs/archive/2609101221-foo.md"],
       });
     }
     expect(fsImpl.getFile("docs/specs/archive/2609101221-foo.md")).toContain("status: Completed");
@@ -374,6 +376,7 @@ describe("transitionArtifact", () => {
         status: "Abandoned",
         previousStatus: "Approved",
         path: "docs/plans/archive/2609101221-foo-plan.md",
+        written: ["docs/plans/archive/2609101221-foo-plan.md"],
       });
     }
     expect(fsImpl.getFile("docs/plans/2609101221-foo-plan.md")).toBeUndefined();

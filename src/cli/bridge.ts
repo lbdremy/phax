@@ -477,6 +477,9 @@ export async function runThroughOutput(
     /** Log these, one `out.log` each, in place of the render, as the kept function logged its
      *  sections before its move. */
     readonly sections?: (value: never) => ReadonlyArray<string>;
+    /** Log a document the command answers in one `out.log`, as the kept function did before its
+     *  move, rather than a line at a time. */
+    readonly wholeDocument?: boolean;
     /** The stdin document as read, handed to the check and to run as the runner hands it. */
     readonly document?: StdinDocument;
   } = {},
@@ -539,7 +542,8 @@ export async function runThroughOutput(
       typeof document.bytes === "string"
         ? document.bytes
         : new TextDecoder().decode(document.bytes);
-    for (const line of text.split("\n").slice(0, -1)) out.log(line);
+    const lines = text.split("\n").slice(0, -1);
+    for (const line of options.wholeDocument === true ? [lines.join("\n")] : lines) out.log(line);
   } else if (options.json === true && command.output !== undefined) {
     const output: Source<Schema.Schema.Any> = command.output;
     const encoded = Schema.encodeUnknownSync(output.contract as Schema.Schema<unknown, unknown>)(
