@@ -1,0 +1,15 @@
+{
+  "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+  "artifact": "docs/plans/2611040904-command-contracts-plan.md",
+  "planFingerprint": "0fbe1ae09300c71e4fe93514a63b8f87a8f85c3b040925665756cf4c868694f5",
+  "approvedAt": "2026-11-04T09:32:14.724Z",
+  "baseline": "8b868ca3bbf0170a594647a57995370eda0ffedb",
+  "sourceSpec": {
+    "path": "docs/specs/2611031738-command-contracts.md",
+    "fingerprint": "6589499fb7c010344d74ebdf8e5b5dad53687a30bdb70319db62885b6e954a61"
+  },
+  "approvedBy": {
+    "kind": "operator",
+    "name": "Rémy Loubradou"
+  }
+}
