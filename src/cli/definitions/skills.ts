@@ -25,7 +25,7 @@ import {
   Written,
   written,
 } from "../commandLibrary/contract/index.js";
-import { exposeMessage, findGitRoot, MessageFields, recordedPath } from "./shared.js";
+import { exposeMessage, gitRoot, MessageFields, recordedPath } from "./shared.js";
 
 /** Filesystem roots the install resolves against. The program uses the real environment (the
  *  current working directory, the user's home, and the bundled .claude/skills tree shipped with
@@ -150,7 +150,7 @@ export function makeSkillsInstallCommand(roots: () => SkillsInstallRoots) {
         }
 
         const { projectRoot, homeDir, bundleRoot } = roots();
-        const recordRoot = findGitRoot(projectRoot);
+        const recordRoot = gitRoot(projectRoot);
         const reached: string[] = [`Target: ${target}`, `Scope: ${scope}`, ""];
         const skills: Array<{
           name: string;
@@ -220,8 +220,8 @@ export function makeSkillsInstallCommand(roots: () => SkillsInstallRoots) {
       InvalidSkillTargetError: (error) => error.message,
       InvalidSkillScopeError: (error) => error.message,
       UnknownSkillError: (error) => error.message,
-      // The lines the command had printed, then the failure, as before.
-      SkillsInstallFailedError: (error) => [...error.reached, error.message].join("\n"),
+      // The lines the command had printed on stdout, then the failure on stderr, as before.
+      SkillsInstallFailedError: (error) => ({ out: error.reached.join("\n"), err: error.message }),
     },
     render: (value) =>
       [

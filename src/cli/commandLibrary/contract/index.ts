@@ -10,6 +10,7 @@ export type {
   Command,
   CommandDef,
   Document,
+  ErrorText,
   ExitCode,
   Group,
   Grouping,

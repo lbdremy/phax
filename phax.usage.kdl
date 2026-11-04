@@ -37,7 +37,7 @@ complete "short-name" run="phax ls --complete" descriptions=#true
 cmd validate help="Validate phax.json and its user overlays without any side effects; pass --plan to also validate a phax-plan.json" long_help="Checks that the configuration decodes and, with --plan, that the given phax-plan.json decodes. The config layers (phax.json, phax.local.json, ~/.phax/config.json) are merged and decoded; a user overlay that carries assignments is refused, because assignments is accepted only in phax.json.\n\nThe protected paths are listed: the globs of phax.json's \"protectedPaths\" in order, then the phax.json phax loaded, which is protected too, by its repo-relative path. A malformed glob exits 2 naming protectedPaths[N], and protectedPaths in phax.local.json or ~/.phax/config.json is refused, because it is accepted only in phax.json.\n\nThe assignment bounds of phax.json are checked against the routing catalog: each bound's model must be in the catalog, its min and max efforts must be efforts that model offers, and min may not come after max. A bad bound exits 2 naming assignments[N] and the field. The shape of a bound is checked at decode time by every command; the catalog check is this command's, lint's and the run preflight's.\n\nExits 0 when everything is valid, 2 otherwise.\n\nSide effects: none." {
     example "phax validate"
     example "phax validate --plan phax-plan.json"
-    flag "--plan <plan>" help="Also validate a phax-plan.json at this path"
+    flag "--plan <path>" help="Also validate a phax-plan.json at this path"
     flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
 }
 
@@ -672,7 +672,7 @@ cmd plans help="Lint, estimate and lay out a plan, and report plan staleness and
         example "phax plans overlap docs/plans/2609101031-a-plan.md docs/plans/2609101032-b-plan.md"
         example "phax plans overlap --landed my-feature docs/plans/2609101033-other-plan.md"
         flag --no-extract help="Fail on a cache miss instead of extracting the plan.md"
-        flag "--landed <landed>" help="Report which of the given plans need re-adjustment after this run's actual changes"
+        flag "--landed <run>" help="Report which of the given plans need re-adjustment after this run's actual changes"
         flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
         arg "<plan>..." help="Paths to two or more plan.md files"
     }
@@ -709,7 +709,7 @@ cmd records help="Manage phax run records" subcommand_required=#true {
         flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
     }
     cmd list help="List records present: phase records by run, phase, and verified surfaces; review entries by run and review; authoring and decision records by id and artifact" {
-        flag "--run <run>" help="Only show records for this run id"
+        flag "--run <id>" help="Only show records for this run id"
         flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
     }
     cmd explain help="Explain a commit from its record: prompt, diff, gates and verified surfaces, handoff, transcript, usage — or, for a headless artifact commit, its authoring record" long_help="Explains a commit from its record. The commit is a phase commit, a declared interactive phase's commit (Phase-Id with Interactive-Phase), or a held phase's review commit, which carries Run-Id and Held-Phase and resolves to the held phase's record. The output adds the stop's lines: its mode, cause, outcome, the person who closed it, the review commit, and each recorded session with its provider, model, origin and its transcript's sha256, or the reason it is missing. A stop's record never carries the transcript itself: interactive transcripts stay in the run folder whatever records.transcript says.\n\nA run-level review entry's own commit on phax/records/v1 (Run-Id and Review trailers) is a record, not a source commit: explain names the run and the review and prints the git show that reads the review's file, and exits 0." {

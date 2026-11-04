@@ -322,8 +322,10 @@ describe("skills install failing part way", () => {
     if (first === undefined) throw new Error("no exposed skill");
     const partial = join(base, "partial-bundle");
     cpSync(join(bundleRoot, first.sourceDir), join(partial, first.sourceDir), { recursive: true });
+    // A repository, so the files installed are named from its root.
     const project = join(base, "partial-project");
     mkdirSync(project);
+    execFileSync("git", ["init", "-q", "-b", "main"], { cwd: project, stdio: "ignore" });
 
     const program = defineProgram({
       name: "phax",
@@ -376,9 +378,44 @@ describe("skills install failing part way", () => {
       runner.run(program, text.io) as Effect.Effect<ExitCode>,
     );
     expect(textCode).toBe(2);
+    // Without --json the lines already reached stay on stdout, and the failure alone on stderr.
+    const reached = text.out.join("");
+    expect(reached.startsWith("Target: claude\nScope: project\n\n")).toBe(true);
+    expect(reached).toContain(`${first.name}: already present`);
+    expect(reached).not.toContain("Bundled skill file missing");
     const sentence = text.err.join("");
-    expect(sentence).toContain("Target: claude\nScope: project\n\n");
-    expect(sentence).toContain(`${first.name}: already present`);
     expect(sentence).toContain("Bundled skill file missing");
+    expect(sentence).not.toContain("Target:");
+  });
+
+  it("names a file installed outside any repository by its absolute path", async () => {
+    const project = join(base, "outside-project");
+    mkdirSync(project);
+    const program = defineProgram({
+      name: "phax",
+      version: "0.0.0",
+      exits: { refused: 64, defect: 70 },
+      commands: [
+        defineGroup({
+          name: "skills",
+          summary: "Manage PHAX skills",
+          commands: [
+            makeSkillsInstallCommand(() => ({
+              projectRoot: project,
+              homeDir: project,
+              bundleRoot,
+            })),
+          ],
+        }),
+      ],
+    });
+    const memory = memoryIo({ argv: ["skills", "install", "--target", "claude", "--json"] });
+    const code = await Effect.runPromise(runner.run(program, memory.io) as Effect.Effect<ExitCode>);
+    expect(code).toBe(0);
+    const answer = JSON.parse(memory.out.join("")) as { written: WrittenFile[] };
+    expect(answer.written.length).toBeGreaterThan(0);
+    for (const file of answer.written) {
+      expect(file.path.startsWith(`${project}/.claude/skills/`), file.path).toBe(true);
+    }
   });
 });

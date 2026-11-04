@@ -78,15 +78,6 @@ const WHOLE_GROUPS: ReadonlyArray<string> = [
   ),
 ];
 
-/** The value name the port gives a valued option (its option name), where the frozen file named
- *  it otherwise: `plans overlap --landed <run>` is `--landed <landed>`, and `records list
- *  --run <id>` is `--run <run>`. */
-const REWORDED_VALUE_NAMES: ReadonlyArray<readonly [string, string]> = [
-  ["plans overlap", "flag --landed "],
-  ["validate", "flag --plan "],
-  ["records list", "flag --run "],
-];
-
 /** What the committed file may declare beyond the frozen one: a path and a declaration's head
  *  (its kind and key). */
 const ALLOWED_ADDITIONS: ReadonlyArray<readonly [string, string]> = [
@@ -95,7 +86,6 @@ const ALLOWED_ADDITIONS: ReadonlyArray<readonly [string, string]> = [
   ...MIGRATED_COMMANDS.map((path) => [path, "flag --json "] as const),
   ...REWORDED_LONG_HELP.map((path) => [path, "long_help "] as const),
   ...WHOLE_GROUPS.map((path) => [path, "subcommand_required "] as const),
-  ...REWORDED_VALUE_NAMES,
 ];
 
 /** q-security-bare (refuse-bare): `security` and `security status` no longer declare their own
@@ -114,7 +104,6 @@ const ALLOWED_REWORDINGS: ReadonlyArray<readonly [string, string]> = [
   ...DROPPED_SECURITY_FLAGS,
   ...REWORDED_JSON.map((path) => [path, "flag --json "] as const),
   ...REWORDED_LONG_HELP.map((path) => [path, "long_help "] as const),
-  ...REWORDED_VALUE_NAMES,
 ];
 
 function difference(

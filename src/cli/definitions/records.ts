@@ -151,10 +151,8 @@ export function makeRecordsInitCommand(
     output: reject(RecordsInitOutput),
     // It asks three questions on every call, so `--json` never reaches it.
     prompts: () => true,
-    // A sync the records clone refuses configures records all the same, and exits 1.
-    verdicts: {
-      1: (value) => value.kind === "configured" && value.sync.kind === "refused",
-    },
+    // A sync the records clone refuses configures records all the same, and exits 0 as today:
+    // the refusal is reported, and `phax records sync` is the command that exits 1 on it.
     run: ({ input }) =>
       Effect.gen(function* () {
         const config = yield* configured();
@@ -479,7 +477,10 @@ const recordsListCommand = defineCommand({
     flags: reject(
       Schema.Struct({
         run: Schema.optionalWith(
-          Schema.String.annotations({ description: "Only show records for this run id" }),
+          Schema.String.annotations({
+            identifier: "id",
+            description: "Only show records for this run id",
+          }),
           { exact: true },
         ),
       }),

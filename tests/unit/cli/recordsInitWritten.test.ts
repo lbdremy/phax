@@ -91,6 +91,11 @@ describe("phax records init answers the file it configured", () => {
     });
   });
 
+  it("declares no verdict: a sync the clone refuses still exits 0, as before the runner", () => {
+    const command = makeRecordsInitCommand(makeFakePrompt([]).layer, privateGitHub().layer);
+    expect(command.verdicts).toBeUndefined();
+  });
+
   it("answers aborted with exit 0 when the prompt is cancelled, and writes nothing", async () => {
     const before = readFileSync(join(repo, "phax.json"));
     const prompt = makeFakePrompt([FAKE_PROMPT_CANCEL]);

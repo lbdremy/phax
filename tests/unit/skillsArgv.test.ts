@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { cpSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
@@ -12,6 +12,7 @@ import {
 import { runSkillsInstall } from "../../src/cli/commands/skills.js";
 import type { SkillsInstallRoots } from "../../src/cli/commands/skills.js";
 import { makeSkillsInstallCommand } from "../../src/cli/definitions/skills.js";
+import { EXPOSED_SKILL_NAMES } from "../../src/domain/skills/catalog.js";
 import type { OutputPort } from "../../src/ports/output.js";
 import { memoryIo } from "./commandLibrary/commander/support/memoryIo.js";
 
@@ -118,6 +119,24 @@ describe("runSkillsInstall validation", () => {
     expect(exitCode).toBe(2);
     expect(errors[0]).toContain("Invalid --scope");
     expect(errors[0]).toContain("project");
+  });
+
+  it("keeps the lines printed before a failure part way on stdout, the failure on stderr", async () => {
+    // A bundle holding only the first exposed skill: the first installs, the second fails.
+    const [first] = EXPOSED_SKILL_NAMES;
+    const partial = join(tmpRoot, "bundle");
+    cpSync(join(bundleRoot, first ?? ""), join(partial, first ?? ""), { recursive: true });
+    const { out, lines, errors } = captureOutput();
+    const exitCode = await runSkillsInstall({ target: "claude" }, out, {
+      ...roots,
+      bundleRoot: partial,
+    });
+    expect(exitCode).toBe(2);
+    expect(lines.slice(0, 3)).toEqual(["Target: claude", "Scope: project", ""]);
+    expect(lines[3]).toMatch(new RegExp(`^${first}: created \\(`));
+    expect(lines).toHaveLength(4);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).not.toContain("Target:");
   });
 
   it("accepts all valid targets without validation error", async () => {

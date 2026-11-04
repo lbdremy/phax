@@ -12,7 +12,9 @@ import {
   usageSpec,
   written,
   type Command,
+  type ErrorText,
   type ExitCode,
+  type FlagShape,
   type Grouping,
   type Inputs,
   type Io,
@@ -151,7 +153,7 @@ function rootOptionsOf(program: Program<unknown>): ReadonlyArray<RootOption> {
   if (program.options !== undefined) {
     for (const flag of flagShapes(program.options.contract)) {
       options.push({
-        flags: flag.switch ? `--${flag.option}` : `--${flag.option} <${flag.field}>`,
+        flags: flag.switch ? `--${flag.option}` : `--${flag.option} <${flag.valueName}>`,
         help: flag.help ?? "",
       });
     }
@@ -448,8 +450,9 @@ function precheck<R>(
     }
   }
   if (read.valueMissing !== undefined) {
+    const shapes = inputs.flags === undefined ? [] : flagShapes(inputs.flags.contract);
     problems.push({
-      text: `error: option '${read.valueMissing}' argument missing`,
+      text: `error: option '${withValueName(read.valueMissing, shapes)}' argument missing`,
       details: {
         source: "flags",
         path: [read.valueMissing],
@@ -488,11 +491,15 @@ function prepare<R>(
 ): Effect.Effect<Ready<R> | Displayed, Refusal> {
   return Effect.gen(function* () {
     if (given.valueMissing !== undefined) {
-      return yield* refusal(`error: option '${given.valueMissing}' argument missing`, {
-        source: "flags",
-        path: [given.valueMissing],
-        expected: "a value",
-      });
+      const shapes = program.options === undefined ? [] : flagShapes(program.options.contract);
+      return yield* refusal(
+        `error: option '${withValueName(given.valueMissing, shapes)}' argument missing`,
+        {
+          source: "flags",
+          path: [given.valueMissing],
+          expected: "a value",
+        },
+      );
     }
     const known = located.tag === "Command" ? located.command : undefined;
     const words = located.tag === "Command" || located.tag === "Group" ? located.rest : [];
@@ -802,13 +809,19 @@ function present<R>(
 function sentenceOf<R>(
   command: Command<R>,
   cause: Cause.Cause<unknown>,
-): (() => string) | undefined {
+): (() => ErrorText) | undefined {
   const declared = declaredOf(command, cause);
   if (declared === undefined) return undefined;
-  const texts: Readonly<Record<string, ((error: never) => string) | undefined>> | undefined =
+  const texts: Readonly<Record<string, ((error: never) => ErrorText) | undefined>> | undefined =
     command.texts;
   const say = texts?.[declared.tag];
   return say === undefined ? undefined : () => say(declared.error as never);
+}
+
+/** An option missing its value as its usage writes it, `--plan <path>`, as Commander named it. */
+function withValueName(word: string, shapes: ReadonlyArray<FlagShape>): string {
+  const flag = shapes.find((shape) => `--${shape.option}` === word);
+  return flag === undefined || flag.switch ? word : `${word} <${flag.valueName}>`;
 }
 
 function execute<R>(
@@ -833,8 +846,15 @@ function execute<R>(
         if (!json) {
           const sentence = sentenceOf(ready.command, cause);
           if (sentence === undefined) return io.err(outcome.text).pipe(Effect.as(outcome.code));
-          return Effect.sync(() => line(sentence())).pipe(
-            Effect.flatMap((text) => io.err(text)),
+          return Effect.sync(sentence).pipe(
+            Effect.flatMap((text) =>
+              typeof text === "string"
+                ? io.err(line(text))
+                : Effect.zipRight(
+                    text.out === "" ? Effect.void : io.out(`${text.out}\n`),
+                    io.err(line(text.err)),
+                  ),
+            ),
             Effect.as(outcome.code),
           );
         }

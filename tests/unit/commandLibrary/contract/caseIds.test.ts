@@ -44,6 +44,7 @@ const GAIN_IDS: ReadonlyArray<string> = [
   "stdin.flag-value-required",
   "notes.progress-streamed",
   "error.text-form",
+  "error.text-reached",
   "usage.program-flag",
   "usage.json-schema-listing",
   "usage.program-exits",

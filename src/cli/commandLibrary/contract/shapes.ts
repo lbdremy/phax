@@ -45,6 +45,9 @@ export interface FlagShape {
   readonly field: string;
   /** The long option's name without its dashes: `dryRun` is `dry-run`. */
   readonly option: string;
+  /** Gain carried for upstream: the name of the option's value in its usage, `--plan <path>`:
+   *  the field's `identifier` annotation, else the field's name. */
+  readonly valueName: string;
   readonly optional: boolean;
   /** A Boolean on the encoded side is a switch, which takes no value. */
   readonly switch: boolean;
@@ -247,6 +250,7 @@ export function flagShapes(contract: StructContract): ReadonlyArray<FlagShape> {
     return {
       field,
       option: kebabCase(field),
+      valueName: (written === undefined ? undefined : identifierOf(written)) ?? field,
       optional: side?.isOptional ?? written?.isOptional ?? false,
       switch: isSwitch,
       help: written === undefined ? undefined : (descriptionOf(written) ?? helpOf(written.type)),

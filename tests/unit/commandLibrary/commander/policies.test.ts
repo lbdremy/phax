@@ -368,7 +368,7 @@ describe("-- ends the options, and an attached value may start with -", () => {
     [["num", "--", "t1", "--"], "too many arguments: --"],
     [["opts", "t1", "--to", "one", "--", "x"], "too many arguments: x"],
     [["opts", "--", "t1", "--to", "one"], "too many arguments: --to one"],
-    [["opts", "t1", "--to", "-5"], "'--to' argument missing"],
+    [["opts", "t1", "--to", "-5"], "'--to <to>' argument missing"],
   ];
   for (const [argv, named] of refused) {
     it(`refuses \`${argv.join(" ")}\`, saying ${named}`, async () => {

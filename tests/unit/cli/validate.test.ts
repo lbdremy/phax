@@ -243,10 +243,12 @@ describe("runValidate", () => {
       ),
     );
 
-    const { out, errors } = makeOutput();
+    const { out, lines, errors } = makeOutput();
     const code = await runValidate({ plan: "phax-plan.json" }, out);
 
     expect(code).toBe(2);
+    // The config's success line stays on stdout before the plan's error, as before the runner.
+    expect(lines).toEqual(["✓ config is valid (project: myproject)"]);
     expect(errors.some((e) => e.includes("Plan validation failed"))).toBe(true);
     expect(errors.some((e) => e.includes("phax-plan.json"))).toBe(true);
   });
