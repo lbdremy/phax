@@ -8,8 +8,11 @@ import { PHAX_RELEASE } from "../../schemas/release.js";
 import { defineGroup, defineProgram, reject } from "../commandLibrary/contract/index.js";
 import { artifactStatusCommand } from "./artifactStatus.js";
 import { lsCommand } from "./ls.js";
+import { plansEstimateCommand } from "./plansEstimate.js";
 import { plansLintCommand } from "./plansLint.js";
+import { plansOverlapCommand } from "./plansOverlap.js";
 import { plansOverviewCommand } from "./plansOverview.js";
+import { plansStatusCommand } from "./plansStatus.js";
 
 /** The options every phax command takes, wherever they stand in the call, with today's help. */
 const phaxProgramOptions = reject(
@@ -38,8 +41,8 @@ export const phaxProgram = defineProgram({
   // As the Commander program writes after each of its refusals.
   refusalHint: "Run `phax --help` for usage.",
   // In the order the Commander program lists them, so that help and the usage spec keep their
-  // positions. A group holds only its migrated commands: Commander keeps the group itself, with
-  // its other commands, until the last of them moves.
+  // positions. A group the bridge holds in part (`artifact`) lists only its migrated commands:
+  // Commander keeps the group itself, with its other commands, until the last of them moves.
   commands: [
     lsCommand,
     defineGroup({
@@ -51,7 +54,20 @@ export const phaxProgram = defineProgram({
       name: "plans",
       summary:
         "Lint, estimate and lay out a plan, and report plan staleness and cross-plan overlap",
-      commands: [plansLintCommand, plansOverviewCommand],
+      help: "Parent command for reporting on plans: the mechanical defects of a single plan (lint), a plan laid out phase by phase with its planned files by architecture part, its test lines and the coverage of its source spec's criteria (overview), a plan's API-list cost and its fit in the subscription windows (estimate), staleness of Approved plans against their recorded approval, and cross-plan file overlap.",
+      examples: [
+        "phax plans lint docs/plans/2609101200-foo-plan.md",
+        "phax plans overview docs/plans/2609101200-foo-plan.md",
+        "phax plans status",
+        "phax plans overlap docs/plans/2609101031-a-plan.md docs/plans/2609101032-b-plan.md",
+      ],
+      commands: [
+        plansStatusCommand,
+        plansOverlapCommand,
+        plansLintCommand,
+        plansOverviewCommand,
+        plansEstimateCommand,
+      ],
     }),
   ],
 });

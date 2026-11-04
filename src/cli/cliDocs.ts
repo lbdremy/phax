@@ -164,41 +164,6 @@ export const cliDocs: Readonly<Record<string, CliDocEntry>> = {
     examples: ["phax adjust-plan docs/plans/2609101030-plan-prune-plan.md --landed my-feature"],
   },
 
-  plans: {
-    longHelp:
-      "Parent command for reporting on plans: the mechanical defects of a single plan (lint), a plan laid out phase by phase with its planned files by architecture part, its test lines and the coverage of its source spec's criteria (overview), a plan's API-list cost and its fit in the subscription windows (estimate), staleness of Approved plans against their recorded approval, and cross-plan file overlap.",
-    examples: [
-      "phax plans lint docs/plans/2609101200-foo-plan.md",
-      "phax plans overview docs/plans/2609101200-foo-plan.md",
-      "phax plans status",
-      "phax plans overlap docs/plans/2609101031-a-plan.md docs/plans/2609101032-b-plan.md",
-    ],
-  },
-
-  "plans estimate": {
-    longHelp:
-      "Estimate a plan's API-list cost and whether it fits the subscription windows now. Reports P10/P50/P90 in API-list dollars for each phase and for the run, then a verdict on the Claude subscription windows left right now.\n\nHistory: the estimate is calibrated from this machine's cost ledgers. Only this repository's kept runs are sized (each phase by its planned-file bytes), and recent runs weigh more, with a half-life of 30 days. An estimate needs at least 60 sized phases; below that the verdict is thin-history and no estimate is printed. Every kept run with no ledger first gets one, as `phax cost backfill` writes it, and a line on stderr says how many were written; the report counts the kept runs still without one (a locked run is skipped).\n\nWindows: by default, one minimal Claude Code probe on the cheapest Claude model reads the five-hour and seven-day windows from its rate-limit event. The probe gets a fixed prompt and never sees the plan; it spends one small request. --no-probe uses the last rate-limit sample in the cost ledgers instead, with no request; usage since that sample is not counted. phax never reads Claude Code's credentials or its OAuth usage endpoint. Each window's dollar capacity is recalibrated from the ledgers of the last 28 days.\n\nVerdict: fits (no pause even at P90), risky (fits at P50, a pause is possible at P90), wait (a pause is expected at P50), thin-history (fewer than 60 sized phases), no-subscription (Claude Code authenticates with an API key), windows-unavailable (the windows could not be read; the reason is given) or uncalibrated (a window or the burn rate had no recent samples). An interactive phase is sized from its first and closing turns alone, from at least 3 past interactive phases with turn entries, repriced at its model and weighted by recency; it has its own row at its place in the plan, and mode: interactive in --json. A phase on a hold is part of a run, never sized. Never estimated: plan extraction, the plan auditor and the interactive code review; a phase routed to Codex or Mistral Vibe, or to a Claude model with no list price, is named and left out of the run total; the compliance review is named when it cannot be estimated.\n\nThe plan is read by the deterministic parser `phax plans lint` uses; no model reads it. A plan under docs/plans/ is first validated like any artifact. --json prints the report as one JSON document on stdout; warnings go to stderr.\n\nExit codes: 0 for any verdict; 1 for a plan the deterministic parser cannot read; 2 for an invalid phax.json, model-routing.json or providers.json; 10 for a corrupt run registry; 12 when the plan fails artifact validation.\n\nSide effects: writes cost-ledger.json in each kept run folder that has none, as `phax cost backfill` does; without --no-probe, one Claude Code request.",
-    examples: [
-      "phax plans estimate docs/plans/2609101200-foo-plan.md",
-      "phax plans estimate docs/plans/2609101200-foo-plan.md --no-probe --json",
-    ],
-  },
-
-  "plans status": {
-    longHelp:
-      "Reports every live, Approved plan's staleness against the ground it was approved against: the declared source spec's content, the plan's own content, and the files changed since the recorded baseline intersected with the plan's footprint. Each stale entry names its reasons (spec-changed, ground-changed, self-changed) with evidence; a plan with no approval record — or one whose baseline commit no longer exists — reports missing-record, which renders as stale. This is a report, not a gate: it exits 0 whether or not stale plans exist. Use --apply to flip stale-computed plans Approved -> Stale as an explicit gesture (the flip is never automatic). Use --json for machine-readable output.\n\nSide effects: read-only unless --apply is set, in which case it writes the flipped plans' frontmatter status key.",
-    examples: ["phax plans status", "phax plans status --apply", "phax plans status --json"],
-  },
-
-  "plans overlap": {
-    longHelp:
-      "Reports which of two or more plans can run in parallel without a merge conflict — predicted from each plan's declared file-sets, or confirmed against a landed run's actual diff.\n\n(Predicted) Without --landed: reads each plan.md's structured form through the content-addressed extraction cache (a cold cache miss extracts once via LLM and caches the result; use --no-extract to fail on a miss instead). Unions each plan's declared phase file-sets into a per-plan footprint, intersects footprints pairwise, and reports the severity-graded conflict matrix, clean pairs, the largest fully-disjoint parallel-safe set, and a greedy wave schedule.\n\n(Confirmed) With --landed <run>: takes a run that has already produced changes and reports which of the given plans need re-adjustment because they touch a file the run actually changed. The landed run's footprint is read from its persisted global-file-reconciliation.json (the real git diff across its phases), giving actual-vs-declared impact with no false negatives.\n\nCaveats: the predicted mode reflects declared file intentions, not what agents will actually touch. Conflicts are file-level, not hunk-level — two plans editing different regions of the same file are flagged even if git would auto-merge them. Regenerated artifacts (phax.usage.kdl, docs/cli/reference.md) are a hard-conflict class.\n\nSide effects: read-only with respect to your plans; may run one LLM extraction per uncached plan.md.",
-    examples: [
-      "phax plans overlap docs/plans/2609101031-a-plan.md docs/plans/2609101032-b-plan.md",
-      "phax plans overlap --landed my-feature docs/plans/2609101033-other-plan.md",
-    ],
-  },
-
   artifact: {
     longHelp:
       "Parent command for inspecting and transitioning the lifecycle status of a spec (docs/specs/) or plan (docs/plans/). Specs carry Draft, Approved, Abandoned, or Completed; plans additionally carry Stale. Transitioning to a terminal status (Abandoned, Completed) moves the file into the artifact's archive/ subdirectory as part of the transition. A headless-authored artifact's JSON document sidecar (<name>.json beside the .md) travels with it: every transition's write-set includes it, and a terminal transition moves it into archive/ alongside the .md. Illegal transitions and validation failures (missing frontmatter block, unknown status, status/location disagreement) refuse with exit code 12.",

@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { resolve } from "node:path";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { Effect, Either } from "effect";
 import { Command } from "commander";
-import {
-  registerPlansCommand,
-  runPlansStatus,
-  runPlansLint,
-} from "../../../src/cli/commands/plans.js";
+import { runPlansStatus, runPlansLint } from "../../../src/cli/commands/plans.js";
+import { mountRunnerGroupStub } from "../../../src/cli/bridge.js";
+import { phaxProgram } from "../../../src/cli/definitions/program.js";
 import { runPlansOverview } from "../../../src/cli/commands/plansOverview.js";
 import type { PlanOverview } from "../../../src/domain/plan/overview.js";
 import { currentSchemaUrl } from "../../../src/schemas/persisted.js";
@@ -96,9 +96,11 @@ const GONE_PLAN_ORPHAN = {
 const GONE_PLAN_WARNING =
   "warning: orphan approval record docs/plans/approvals/2609300900-gone-plan.json — docs/plans/2609300900-gone-plan.md does not exist; delete the record file";
 
-async function setupConfig() {
+async function setupConfig(repoRoot?: string) {
   const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
-  loadConfig.mockReturnValue(Either.right(makeConfig()));
+  loadConfig.mockReturnValue(
+    Either.right(repoRoot === undefined ? makeConfig() : { ...makeConfig(), repoRoot }),
+  );
 }
 
 async function mockLint(report: LintReport) {
@@ -131,7 +133,11 @@ describe("runPlansStatus", () => {
   });
 
   it("--apply calls the apply use case and reports the flipped plans", async () => {
-    await setupConfig();
+    // The flipped plan is read back from the repository for its written-file record.
+    const repoRoot = mkdtempSync(join(tmpdir(), "phax-plans-status-"));
+    mkdirSync(join(repoRoot, "docs/plans"), { recursive: true });
+    writeFileSync(join(repoRoot, "docs/plans/2609101220-stale-plan.md"), "stale plan\n");
+    await setupConfig(repoRoot);
     const { plansStalenessReport, applyStalenessReport } = vi.mocked(
       await import("../../../src/app/planStaleness.js"),
     );
@@ -152,6 +158,7 @@ describe("runPlansStatus", () => {
     expect(applyStalenessReport).toHaveBeenCalledTimes(1);
     const text = lines.join("\n");
     expect(text).toContain("docs/plans/2609101220-stale-plan.md: Approved -> Stale");
+    rmSync(repoRoot, { recursive: true, force: true });
   });
 
   it("without --apply, the apply use case is not called", async () => {
@@ -494,7 +501,7 @@ describe("runPlansOverview", () => {
 
   it("is registered under plans as overview's stub, with --json and --json-schema", () => {
     const program = new Command();
-    registerPlansCommand(program, makeOutput().out);
+    mountRunnerGroupStub(program, phaxProgram, ["plans"]);
     const plansCmd = program.commands.find((c) => c.name() === "plans");
     const overviewCmd = plansCmd?.commands.find((c) => c.name() === "overview");
 
