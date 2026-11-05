@@ -58,6 +58,7 @@ import { Backend, type AgentRunOptions } from "../ports/backend.js";
 import { FileSystem, FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import { GitHub } from "../ports/github.js";
+import type { OutputPort } from "../ports/output.js";
 import { Shell, type ShellError } from "../ports/shell.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
 import {
@@ -309,6 +310,7 @@ export interface ClosedStop {
 // The phase request file `phax brief` reads its phase from (spec §5.13). A
 // write failure is a warning: a brief never blocks the phase.
 function writeBriefRequestOrWarn(
+  output: OutputPort,
   worktreePath: string,
   phaseId: string,
   request: BriefRequestFile,
@@ -316,8 +318,8 @@ function writeBriefRequestOrWarn(
   return writePhaseBriefRequest(worktreePath, request).pipe(
     Effect.catchAll((e) =>
       Effect.sync(() => {
-        process.stderr.write(
-          `[phax] Warning: phase "${phaseId}" — failed to write ${PHASE_BRIEF_REQUEST_FILE} (${e.message}).\n`,
+        output.warn(
+          `[phax] Warning: phase "${phaseId}" — failed to write ${PHASE_BRIEF_REQUEST_FILE} (${e.message}).`,
         );
       }),
     ),
@@ -366,6 +368,10 @@ export interface ExecutePlanOptions {
   // review is skipped. A caller that tried to read it and warned passes the key
   // as an explicit `undefined`; a caller that omits the key gets the warning here.
   readonly bundledReviewSkill?: string | undefined;
+  // Where the run's warnings go (`warn`, stderr) and auto-publish's `--verbose`
+  // lines (`log`, stdout): the CLI hands its own port, so under `--json` they
+  // become note lines instead of text around the answer.
+  readonly output: OutputPort;
 }
 
 export interface ExecutePlanResult {
@@ -443,7 +449,14 @@ export function executePlan(
     securityMode: passedSecurityMode,
     allowSkillEdits = false,
     skipAcceptance = false,
+    output,
   } = opts;
+  // The run-end reviews' lines keep their `[phax] ` prefix, on stderr like every warning here.
+  const reviewOutput: OutputPort = {
+    log: (message) => output.warn(`[phax] ${message}`),
+    warn: (message) => output.warn(`[phax] Warning: ${message}`),
+    error: (message) => output.warn(`[phax] Error: ${message}`),
+  };
 
   // Use the passed securityMode if provided, otherwise fall back to config
   const securityMode = passedSecurityMode ?? config.security.profile;
@@ -524,8 +537,8 @@ export function executePlan(
         // A record-write I/O failure never fails the run — it degrades to a warning.
         Effect.catchAll((e) =>
           Effect.sync(() => {
-            process.stderr.write(
-              `[phax] Warning: phase "${args.phaseId}" — failed to write record (${e instanceof Error ? e.message : String(e)}).\n`,
+            output.warn(
+              `[phax] Warning: phase "${args.phaseId}" — failed to write record (${e instanceof Error ? e.message : String(e)}).`,
             );
             return { kind: "records-off" } as const;
           }),
@@ -544,7 +557,7 @@ export function executePlan(
               `phase record refused, following the failed session: ${message}`,
             );
           } else {
-            process.stderr.write(`[phax] Warning: ${message}\n`);
+            output.warn(`[phax] Warning: ${message}`);
           }
           return;
         }
@@ -846,8 +859,8 @@ export function executePlan(
       ];
       if (frozenResult.degraded) {
         postureMarks.push("command-precision");
-        process.stderr.write(
-          `[phax] Warning: phase "${phase.id}" — command-precision enforcement is degraded for provider "${resolution.selected.provider}". Narrow allowances are not enforceable at command level (enforcement: none). See security.json for details.\n`,
+        output.warn(
+          `[phax] Warning: phase "${phase.id}" — command-precision enforcement is degraded for provider "${resolution.selected.provider}". Narrow allowances are not enforceable at command level (enforcement: none). See security.json for details.`,
         );
       }
       const securityPosture: SecurityPosture = {
@@ -1816,6 +1829,7 @@ export function executePlan(
         // first entry already closed them.
         if (config.brief !== undefined) {
           yield* closePulledBriefs({
+            output,
             worktreePath: holdPointReentry.worktree as string,
             phaseFolderPath: heldFolder,
             phaseId: phase.id,
@@ -1931,6 +1945,7 @@ export function executePlan(
         // would only recreate its directory.
         if (config.brief !== undefined && worktree !== null) {
           yield* closePulledBriefs({
+            output,
             worktreePath: worktree as string,
             phaseFolderPath: folder,
             phaseId: phase.id,
@@ -1965,8 +1980,8 @@ export function executePlan(
           // commands not run are named, since one may free resources outside
           // the worktree.
           if (cleanupCommands.length > 0) {
-            process.stderr.write(
-              `[phax] Warning: phase "${phase.id}" — its worktree is gone, so its cleanup commands did not run: ${cleanupCommands.join("; ")}. Run them yourself if they free resources outside the worktree.\n`,
+            output.warn(
+              `[phax] Warning: phase "${phase.id}" — its worktree is gone, so its cleanup commands did not run: ${cleanupCommands.join("; ")}. Run them yourself if they free resources outside the worktree.`,
             );
           }
           yield* dispatch(
@@ -2059,6 +2074,7 @@ export function executePlan(
         if (config.brief !== undefined) {
           phaseFacts = phaseFactsAt(phaseBase, phase.id, isFinal);
           yield* writeBriefRequestOrWarn(
+            output,
             worktreePath as string,
             phase.id,
             stampBriefRequest(phaseBriefRequest(phaseFacts, null)),
@@ -2186,8 +2202,9 @@ export function executePlan(
         if (config.brief !== undefined) {
           phaseFacts = phaseFactsAt(phaseBase, phase.id, isFinal);
           const briefRequest = stampBriefRequest(phaseBriefRequest(phaseFacts, null));
-          yield* writeBriefRequestOrWarn(worktreePath as string, phase.id, briefRequest);
+          yield* writeBriefRequestOrWarn(output, worktreePath as string, phase.id, briefRequest);
           briefSection = yield* pushBrief({
+            output,
             command: config.brief.command,
             push: config.brief.push,
             request: briefRequest,
@@ -2673,6 +2690,7 @@ export function executePlan(
       // whether or not records are on, and the folder closes to later pulls.
       if (config.brief !== undefined) {
         yield* closePulledBriefs({
+          output,
           worktreePath: worktreePath as string,
           phaseFolderPath,
           phaseId: phase.id,
@@ -2816,18 +2834,14 @@ export function executePlan(
             runEndReviewRecordTarget(config, namespace),
             {
               ...(opts.verbose !== undefined ? { verbose: opts.verbose } : {}),
-              output: {
-                log: (message) => process.stderr.write(`[phax] ${message}\n`),
-                warn: (message) => process.stderr.write(`[phax] Warning: ${message}\n`),
-                error: (message) => process.stderr.write(`[phax] Error: ${message}\n`),
-              },
+              output: reviewOutput,
             },
           ).pipe(
             Effect.tap((outcome) =>
               Effect.sync(() => {
                 if (outcome.review.kind === "failed") {
-                  process.stderr.write(
-                    `[phax] Warning: compliance review failed: ${complianceFailureReason(outcome.review.failureReason, outcome.review.earlierReviewKept)} — rerun it with \`phax review-compliance ${shortName}\`\n`,
+                  output.warn(
+                    `[phax] Warning: compliance review failed: ${complianceFailureReason(outcome.review.failureReason, outcome.review.earlierReviewKept)} — rerun it with \`phax review-compliance ${shortName}\``,
                   );
                 }
                 for (const warning of reviewEntryWarnings(
@@ -2835,7 +2849,7 @@ export function executePlan(
                   "compliance-review",
                   `phax review-compliance ${shortName}`,
                 )) {
-                  process.stderr.write(`[phax] Warning: ${warning}\n`);
+                  output.warn(`[phax] Warning: ${warning}`);
                 }
               }),
             ),
@@ -2849,8 +2863,8 @@ export function executePlan(
         if (config.codeReview.enabled) {
           if (opts.bundledReviewSkill === undefined) {
             if (!("bundledReviewSkill" in opts)) {
-              process.stderr.write(
-                "[phax] Warning: code review not run: the bundled phax-review skill was not given\n",
+              output.warn(
+                "[phax] Warning: code review not run: the bundled phax-review skill was not given",
               );
             }
           } else {
@@ -2875,18 +2889,14 @@ export function executePlan(
               {
                 bundledReviewSkill: opts.bundledReviewSkill,
                 nowIso: new Date().toISOString(),
-                output: {
-                  log: (message) => process.stderr.write(`[phax] ${message}\n`),
-                  warn: (message) => process.stderr.write(`[phax] Warning: ${message}\n`),
-                  error: (message) => process.stderr.write(`[phax] Error: ${message}\n`),
-                },
+                output: reviewOutput,
               },
             ).pipe(
               Effect.tap((outcome) =>
                 Effect.sync(() => {
                   if (outcome.review.kind === "failed") {
-                    process.stderr.write(
-                      `[phax] Warning: code review failed: ${outcome.review.reason} — rerun it with \`${retryCommand}\`\n`,
+                    output.warn(
+                      `[phax] Warning: code review failed: ${outcome.review.reason} — rerun it with \`${retryCommand}\``,
                     );
                   } else {
                     const findings = outcome.review.review.findings;
@@ -2895,12 +2905,12 @@ export function executePlan(
                       outcome.review.session,
                       shortName,
                     );
-                    process.stderr.write(
-                      `[phax] Code review: ${describeFindingCounts(findings)}${fixHint !== undefined ? ` — ${fixHint}` : ""}\n`,
+                    output.warn(
+                      `[phax] Code review: ${describeFindingCounts(findings)}${fixHint !== undefined ? ` — ${fixHint}` : ""}`,
                     );
                   }
                   for (const warning of reviewEntryWarnings(outcome, "code-review", retryCommand)) {
-                    process.stderr.write(`[phax] Warning: ${warning}\n`);
+                    output.warn(`[phax] Warning: ${warning}`);
                   }
                 }),
               ),
@@ -2921,6 +2931,7 @@ export function executePlan(
               ? { recordsClonePath: recordsClonePath(config.stateRoot, namespace) }
               : {}),
             ...(opts.verbose !== undefined ? { verbose: opts.verbose } : {}),
+            output,
           }).pipe(Effect.catchAll(() => Effect.succeed(undefined)));
           if (publicationResult?.kind === "published" && publicationResult.prUrl !== undefined) {
             publishedPrUrl = publicationResult.prUrl;
@@ -2994,6 +3005,7 @@ export function executePlan(
           currentPhaseFolderPath !== undefined
         ) {
           yield* closePulledBriefs({
+            output,
             worktreePath: currentWorktreePath,
             phaseFolderPath: currentPhaseFolderPath,
             phaseId: currentPhaseId,

@@ -47,6 +47,7 @@ import {
 import type { ProviderConfig } from "../../src/schemas/providerConfig.js";
 import { planMdFor } from "../helpers/planMarkdown.js";
 import { liftFixturePhaxPlanToCurrent } from "../helpers/liftFixturePhaxPlan.js";
+import { processOutput } from "../helpers/processOutput.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -370,6 +371,7 @@ describe("cost ledger at run time", () => {
       Effect.either(
         executePlan({
           phaxVersion: "0.0.0-test",
+          output: processOutput,
           shortName,
           namespace: NAMESPACE,
           plan,

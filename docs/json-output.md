@@ -10,7 +10,7 @@ phax plans lint --json-schema
 
 ## Answers on stdout
 
-A successful command writes its answer on stdout: one JSON value, indented by two spaces, with one trailing newline. It never carries the text a person reads.
+A successful command writes its answer on stdout: one JSON value, indented by two spaces, with one trailing newline. It carries the facts, not the text a person reads, with two exceptions where the text is the fact: a `paused` outcome's `lines` (the lines phax prints on stderr at that pause) and an `already-in-review` outcome's `message`.
 
 - When the answer is a published document (`artifact-status`, `plan-overview`, `plan-lint`, `run-list`), `$schema` is its first key and names the format and the release that shapes it. `@lbdremy/phax-schemas` reads these. See [Read phax files from code](../README.md#read-phax-files-from-code).
 - Any other answer is an object described by the command's contract (see [Contracts](#contracts)). It has no `$schema`, every key is required, and an absent value is `null`.
@@ -25,19 +25,19 @@ Under `--json`, stderr carries only message lines. Each is one compact JSON obje
 | --------- | ------------------------------------------- | ------------------------------------------------------------------ |
 | `note`    | `text`                                      | The command has something to tell a person: progress, a warning.   |
 | `written` | `path`, `format`, `digest`                  | The command wrote a file; one line per file of a document answer.  |
-| `error`   | `error`, `exit`, `fields`, `written`        | A declared failure. The sentence a person reads is not written.    |
+| `error`   | `error`, `exit`, `fields`, `written`        | A declared failure, named by its tag.                              |
 | `refused` | `source`, `path`, `expected`, `text`, `exit` | The call was refused before any command ran.                       |
 | `defect`  | `text`, `exit`                              | Something no command declared failed: a bug in phax.               |
 
-The examples are the contract's own:
+For example, the first note of a resume, a held lock and an unknown option:
 
 ```
-{"kind":"note","text":"Resuming garden-sync at phase-03"}
+{"kind":"note","text":"Run \"example.garden-sync\" (state: interrupted) — would resume from phase 3: phase-03"}
 {"kind":"error","error":"LockConflictError","exit":7,"fields":{"run":"garden-sync","pid":41207},"written":[]}
 {"kind":"refused","source":"flags","path":["colour"],"expected":"no such option","text":"error: unknown option '--colour'","exit":64}
 ```
 
-- `error` names a failure by its tag. `fields` holds the data the failure carries, and `written` lists the files the command left behind before failing.
+- `error` names a failure by its tag. `fields` holds the data the failure carries, and `written` lists the files the command left behind before failing. Most failures carry the sentence a person reads as `fields.message`; `LockConflictError` carries only the run and the holder's pid. The command's `--json-schema` entry lists each failure's fields.
 - `refused` names the `source` of the field that failed (`args`, `flags`, `env`, `stdin` or `command`) and its `path`.
 - A refused call is `refused`, never `error`: it ran nothing.
 
@@ -52,6 +52,7 @@ A command's documented codes stay, in both modes. See [Exit codes](../README.md#
 - **64** is `refused`: an unknown command, an undeclared argument or option, a source or document that does not decode, or a terminal read as stdin. It exits before any command runs.
 - **70** is `defect`: a command died with something it did not declare, or its output did not encode.
 - The phase guard is the exception: a call made inside a phase worktree is refused with exit 1, as one `refused` line under `--json`.
+- **130**: `phax run` or `phax resume` was interrupted (SIGINT or SIGTERM). The run's state is saved, and under `--json` its `note` lines (a blank one, then the sentence) name the `phax resume` command that continues it; nothing is written on stdout.
 
 ## Contracts
 

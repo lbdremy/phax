@@ -1021,6 +1021,7 @@ Each commit on `phax/records/v1` holds only its own record, so `git show phax/re
 | 14   | Provider unreachable: network failure (resumable)                            |
 | 64   | Refused call: unknown command or option, or an argument that does not decode |
 | 70   | Defect: an unexpected failure, a bug in phax                                 |
+| 130  | Interrupted (SIGINT or SIGTERM): `phax run` or `phax resume` saved the run   |
 
 `phax prune` uses a subset of these codes: 0 when every selected run was pruned, for a `--dry-run` preview, or when there is nothing to prune; 1 when nothing was deleted (a bad selection, no project config, or a declined or missing confirmation); 3 when at least one selected run was kept; 7 when a selected run is locked.
 
@@ -1097,7 +1098,7 @@ Full CLI reference: [`docs/cli/reference.md`](docs/cli/reference.md).
 - `phax init [FLAGS]` — Creates phax.json and phax.schema.json in the current directory. Use --force to overwrite an existing phax.json. Does not connect to any network or external service.
 - `phax report [--no-gist] [--json] [short-name]` — Creates a GitHub issue from local run telemetry. By default, uploads the full log as a secret GitHub gist and links it in the issue body. Use --no-gist to inline the log directly.
 - `phax completions [--json] <shell>` — Generate a shell completion script (zsh, bash, fish, nu, powershell). Requires the usage CLI.
-- `phax resume [FLAGS] <short-name>` — Picks up a run from its next pending phase, re-entering the same execution loop as phax run. Prompts for confirmation before proceeding unless --yes is set.
+- `phax resume [FLAGS] <short-name>` — Picks up a run from its next pending phase, re-entering the same execution loop as phax run. Without --yes it prints where it would resume and exits 0, asking nothing; --yes proceeds.
 - `phax reset-phase [-y --yes] [--json] <short-name> [phase-id]` — Resets a stuck or failed phase: its folder is archived, its worktree and branch are removed, and the run becomes resumable so phax resume starts the phase over. Without --yes it first previews what the reset would discard.
 - `phax agent <SUBCOMMAND>` — Inspect and manage model routing and provider configuration
 - `phax agent models [--json]` — Print the routing table and provider priority

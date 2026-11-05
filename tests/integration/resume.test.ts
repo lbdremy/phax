@@ -32,6 +32,7 @@ import {
 import { isolatePhaxHome } from "../helpers/isolatePhaxHome.js";
 import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
 import { liftFixturePhaxPlanToCurrent } from "../helpers/liftFixturePhaxPlan.js";
+import { processOutput } from "../helpers/processOutput.js";
 
 // A temporary home for the modules that compute their ~/.phax paths at import.
 /** `phax resume <ref>` through the runner: stdout lines to `port.log`, stderr (notes and a
@@ -292,6 +293,7 @@ describe("executePlan — resume from startIndex: 1", () => {
       Effect.either(
         executePlan({
           phaxVersion: "0.0.0-test",
+          output: processOutput,
           shortName,
           namespace: "test-project",
           plan,
@@ -493,6 +495,7 @@ describe("executePlan — resume from startIndex: 1", () => {
       Effect.either(
         executePlan({
           phaxVersion: "0.0.0-test",
+          output: processOutput,
           shortName,
           namespace: "test-project",
           plan,

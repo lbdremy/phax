@@ -22,6 +22,7 @@ import {
 } from "../../src/schemas/phaxConfig.js";
 import { planMdFor } from "../helpers/planMarkdown.js";
 import { liftFixturePhaxPlanToCurrent } from "../helpers/liftFixturePhaxPlan.js";
+import { processOutput } from "../helpers/processOutput.js";
 
 const shortName = Either.getOrThrow(decodeShortName("my-run"));
 
@@ -122,6 +123,7 @@ describe("executePlan — setup command failure", () => {
       Effect.either(
         executePlan({
           phaxVersion: "0.0.0-test",
+          output: processOutput,
           shortName,
           namespace: "test-project",
           plan,
@@ -205,6 +207,7 @@ describe("executePlan — setup command failure", () => {
       Effect.ignore(
         executePlan({
           phaxVersion: "0.0.0-test",
+          output: processOutput,
           shortName,
           namespace: "test-project",
           plan,
@@ -288,6 +291,7 @@ describe("executePlan — setup command failure", () => {
       Effect.ignore(
         executePlan({
           phaxVersion: "0.0.0-test",
+          output: processOutput,
           shortName,
           namespace: "test-project",
           plan,

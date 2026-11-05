@@ -58,6 +58,7 @@ import type { PhaxPlan, PhaxPlanPhase } from "../../src/schemas/phaxPlan.js";
 import { inspectResumeOnDisk } from "../helpers/inspectResume.js";
 import { makeFakeProviderCli, type FakeProviderCli } from "../helpers/fakeProviderCli.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
+import { processOutput } from "../helpers/processOutput.js";
 
 // A made-up two-phase run, end to end through executePlan: real git on a
 // temporary repository, the real file system, a backend playing every provider
@@ -337,6 +338,7 @@ function execute(harness: Harness, startIndex: number) {
     Effect.either(
       executePlan({
         phaxVersion: "0.0.0-test",
+        output: processOutput,
         shortName: harness.shortName,
         namespace: NAMESPACE,
         plan: harness.plan,

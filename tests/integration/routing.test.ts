@@ -22,6 +22,7 @@ import type { TelemetryAttributes } from "../../src/ports/systemTelemetry.js";
 import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
 import { planMdFor } from "../helpers/planMarkdown.js";
 import { liftFixturePhaxPlanToCurrent } from "../helpers/liftFixturePhaxPlan.js";
+import { processOutput } from "../helpers/processOutput.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -215,6 +216,7 @@ describe("executePlan routing — mistral-vibe priority", () => {
       Effect.either(
         executePlan({
           phaxVersion: "0.0.0-test",
+          output: processOutput,
           shortName,
           namespace: "routing-test",
           plan,

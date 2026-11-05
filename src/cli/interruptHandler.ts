@@ -23,6 +23,8 @@ interface RunInterruptContext {
   readonly namespace: string;
   readonly shortName: string;
   readonly stateRoot: string;
+  /** Writes the interrupt's sentence: the command's progress, so it is note lines under `--json`. */
+  readonly write: (text: string) => void;
 }
 
 let activeRunContext: RunInterruptContext | undefined;
@@ -31,8 +33,9 @@ export function setRunInterruptContext(
   shortName: string,
   namespace: string,
   stateRoot: string,
+  write: (text: string) => void,
 ): void {
-  activeRunContext = { namespace, shortName, stateRoot };
+  activeRunContext = { namespace, shortName, stateRoot, write };
 }
 
 export function clearRunInterruptContext(): void {
@@ -95,7 +98,9 @@ function syncRestoreReviewStop(
 // awaiting_review with review-stop.json restored, lastClose `interrupted`.
 // A run awaits review only with its review-stop.json, so when no review stop
 // can be restored the run is saved as any other interrupted run.
-export function syncSaveInterruptedRun(ctx: RunInterruptContext): SavedInterrupt | null {
+export function syncSaveInterruptedRun(
+  ctx: Omit<RunInterruptContext, "write">,
+): SavedInterrupt | null {
   const runPath = join(ctx.stateRoot, "runs", runKey(ctx.namespace, ctx.shortName));
   const statusPath = join(runPath, "run-status.json");
   if (!existsSync(statusPath)) return null;
@@ -180,10 +185,11 @@ export function setupInterruptHandlers(): void {
     if (ctx !== undefined) {
       const saved = syncSaveInterruptedRun(ctx);
       const name = runKey(ctx.namespace, ctx.shortName);
-      process.stderr.write(
+      // The leading blank line ends the line a terminal's ^C left open.
+      ctx.write(
         saved?.stopPhaseId !== null && saved?.stopPhaseId !== undefined
-          ? `\nRun "${name}": the close of ${saved.stopPhaseId} was interrupted — the stop is still waiting. Close it with: phax resume ${ctx.shortName} --yes\n`
-          : `\nRun "${name}" interrupted — state saved. Resume with: phax resume ${ctx.shortName} --yes\n`,
+          ? `\nRun "${name}": the close of ${saved.stopPhaseId} was interrupted — the stop is still waiting. Close it with: phax resume ${ctx.shortName} --yes`
+          : `\nRun "${name}" interrupted — state saved. Resume with: phax resume ${ctx.shortName} --yes`,
       );
     }
     process.exit(130);

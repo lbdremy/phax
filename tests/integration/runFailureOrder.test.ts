@@ -29,6 +29,7 @@ import {
 } from "../../src/schemas/phaxConfig.js";
 import { liftFixturePhaxPlanToCurrent } from "../helpers/liftFixturePhaxPlan.js";
 import { planMdFor } from "../helpers/planMarkdown.js";
+import { processOutput } from "../helpers/processOutput.js";
 
 // A run whose phase's fix turn fails with a provider error, records on with
 // transcripts and an in-repo destination, and a GitHub whose visibility
@@ -174,6 +175,7 @@ describe("a failed phase session and its refused record", { timeout: 30_000 }, (
       Effect.either(
         executePlan({
           phaxVersion: "0.0.0-test",
+          output: processOutput,
           shortName,
           namespace: "test-project",
           plan,

@@ -29,6 +29,8 @@ import { CURRENT_STAMPS } from "../../src/schemas/release.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 import { liftFixturePhaxPlanToCurrent } from "../helpers/liftFixturePhaxPlan.js";
 import { planMdFor } from "../helpers/planMarkdown.js";
+import { processOutput } from "../helpers/processOutput.js";
+import type { OutputPort } from "../../src/ports/output.js";
 
 const COMPLIANCE_JSON = JSON.stringify({
   $schema: schemaUrl("compliance-review", CURRENT_STAMPS["compliance-review"]),
@@ -156,6 +158,9 @@ describe("headless code review at run end", () => {
       /** Call executePlan without `bundledReviewSkill`. */
       readonly withoutSkill?: boolean;
       readonly onCodeReview?: (git: ReturnType<typeof makeFakeGit>) => void;
+      /** The port executePlan writes through, in place of the process's own streams. */
+      readonly output?: OutputPort;
+      readonly verbose?: boolean;
     } = {},
   ) {
     const plan = Either.getOrThrow(
@@ -263,10 +268,17 @@ describe("headless code review at run end", () => {
       stderr.push(String(chunk));
       return true;
     });
+    const stdout: string[] = [];
+    vi.spyOn(process.stdout, "write").mockImplementation((chunk) => {
+      stdout.push(String(chunk));
+      return true;
+    });
     const outcome = await Effect.runPromise(
       Effect.either(
         executePlan({
           phaxVersion: "0.0.0-test",
+          output: opts.output ?? processOutput,
+          ...(opts.verbose !== undefined ? { verbose: opts.verbose } : {}),
           shortName,
           namespace: NAMESPACE,
           plan,
@@ -292,6 +304,7 @@ describe("headless code review at run end", () => {
       atCodeReviewStart,
       codeCalls,
       stderr: stderr.join(""),
+      stdout: stdout.join(""),
       prBody: existsSync(prBodyPath) ? readFileSync(prBodyPath, "utf8") : undefined,
       pullRequests: github.impl.calls.filter((c) => c.method === "createPullRequest").length,
     };
@@ -312,6 +325,30 @@ describe("headless code review at run end", () => {
     expect(r.prBody).toContain(HEADING);
     expect(r.prBody).toContain("`src/a.ts:12` — The flag is ignored.");
     expect(await runState(r.runPath)).toBe("review_open");
+  });
+
+  it("writes the run-end reviews' lines and publish's --verbose lines through its port, never to the process", async () => {
+    const lines: Array<{ readonly stream: "log" | "warn" | "error"; readonly text: string }> = [];
+    const output: OutputPort = {
+      log: (text) => lines.push({ stream: "log", text }),
+      warn: (text) => lines.push({ stream: "warn", text }),
+      error: (text) => lines.push({ stream: "error", text }),
+    };
+    const r = await runOnce({ answer: answerOf(finding()), output, verbose: true });
+
+    expect(Either.isRight(r.outcome)).toBe(true);
+    expect(r.pullRequests).toBe(1);
+    // `phax run --json` hands the runner's port: nothing may reach the process's streams around it.
+    expect(r.stdout).toBe("");
+    expect(r.stderr).not.toContain("[phax]");
+    expect(lines).toContainEqual({
+      stream: "warn",
+      text: expect.stringMatching(/^\[phax\] Code review: 1 finding/),
+    });
+    expect(lines).toContainEqual({ stream: "log", text: "Publishing branch to origin…" });
+    expect(
+      lines.some((l) => l.stream === "log" && l.text.startsWith("Pull request created: ")),
+    ).toBe(true);
   });
 
   it("runs no session, writes no file and leaves the heading out when review.code holds only model and effort", async () => {

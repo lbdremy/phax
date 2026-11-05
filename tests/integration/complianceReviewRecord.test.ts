@@ -50,6 +50,7 @@ import { liftFixturePhaxPlanToCurrent } from "../helpers/liftFixturePhaxPlan.js"
 import { isolateGit } from "../helpers/isolateGit.js";
 import { planMdFor } from "../helpers/planMarkdown.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
+import { processOutput } from "../helpers/processOutput.js";
 
 const COMPLIANCE_AGENT_JSON = JSON.stringify({
   $schema: schemaUrl("compliance-review", CURRENT_STAMPS["compliance-review"]),
@@ -240,6 +241,7 @@ describe("compliance review entry at run end", () => {
       Effect.either(
         executePlan({
           phaxVersion: "0.0.0-test",
+          output: processOutput,
           shortName,
           namespace: NAMESPACE,
           plan,

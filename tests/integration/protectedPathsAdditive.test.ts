@@ -46,6 +46,7 @@ import {
   writeFakeVibe,
   vibe3ExportText,
 } from "../helpers/vibe3Fixtures.js";
+import { processOutput } from "../helpers/processOutput.js";
 
 // The no-change guarantee of the protected-paths work (spec §5.5): a project
 // that declares no `protectedPaths` sees exactly what it saw before. One phase
@@ -332,6 +333,7 @@ async function runPhase(
     Effect.either(
       executePlan({
         phaxVersion: "0.0.0-test",
+        output: processOutput,
         shortName,
         namespace: NAMESPACE,
         plan,

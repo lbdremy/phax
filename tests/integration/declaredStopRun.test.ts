@@ -57,6 +57,7 @@ import {
 import type { PhaxPlan, PhaxPlanPhase } from "../../src/schemas/phaxPlan.js";
 import { makeFakeProviderCli, type FakeProviderCli } from "../helpers/fakeProviderCli.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
+import { processOutput } from "../helpers/processOutput.js";
 
 // The made-up invoice-export plan of six phases, phase-03 declared
 // interactive, run end to end through executePlan: real git on a temporary
@@ -422,6 +423,7 @@ async function execute(harness: Harness, startIndex: number) {
     `${NAMESPACE}.${SHORT}`,
     executePlan({
       phaxVersion: "0.0.0-test",
+      output: processOutput,
       shortName: harness.shortName,
       namespace: NAMESPACE,
       plan: harness.plan,

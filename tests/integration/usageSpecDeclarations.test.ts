@@ -103,8 +103,14 @@ const REWORDED_JSON: ReadonlyArray<string> = [
 /** The migrated commands whose long help now describes their versioned answer: `plans
  *  overview`'s document is a plan-overview with its $schema, and `ls`'s rows carry pullRequest;
  *  `artifact decide`'s verdicts paragraph says a bad verdicts file is refused with 64 and its
- *  `--json` object is indented and carries `written` and `record`. */
-const REWORDED_LONG_HELP: ReadonlyArray<string> = ["ls", "artifact decide", "plans overview"];
+ *  `--json` object is indented and carries `written` and `record`; `resume`'s first sentence no
+ *  longer says it prompts (without --yes it prints its preview and exits 0). */
+const REWORDED_LONG_HELP: ReadonlyArray<string> = [
+  "ls",
+  "artifact decide",
+  "plans overview",
+  "resume",
+];
 
 /** What the committed file may declare beyond the frozen one: a path and a declaration's head
  *  (its kind and key). */

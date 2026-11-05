@@ -2,6 +2,7 @@ import { Effect, Either } from "effect";
 import { join } from "node:path";
 import { renderBriefSection } from "../domain/brief/render.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
+import type { OutputPort } from "../ports/output.js";
 import type { Shell } from "../ports/shell.js";
 import type { BriefRequestFile } from "../schemas/brief.js";
 import { readBriefRecordFile } from "../schemas/persisted.js";
@@ -35,14 +36,15 @@ export function writePhaseBriefRequest(
   });
 }
 
-function warnUnavailable(phaseId: string, reason: string): void {
-  process.stderr.write(
-    `[phax] Warning: phase "${phaseId}" — brief unavailable (${reason}). The phase runs without it.\n`,
+function unavailable(
+  output: Pick<OutputPort, "warn">,
+  phaseId: string,
+  reason: string,
+  push: BriefPush,
+): string {
+  output.warn(
+    `[phax] Warning: phase "${phaseId}" — brief unavailable (${reason}). The phase runs without it.`,
   );
-}
-
-function unavailable(phaseId: string, reason: string, push: BriefPush): string {
-  warnUnavailable(phaseId, reason);
   return renderBriefSection({ kind: "failed", reason }, push);
 }
 
@@ -51,6 +53,7 @@ function unavailable(phaseId: string, reason: string, push: BriefPush): string {
  * the phase's brief is asked once per phase folder (spec §5.6).
  */
 function replayRecordedBrief(
+  output: Pick<OutputPort, "warn">,
   recordPath: string,
   phaseId: string,
   push: BriefPush,
@@ -60,6 +63,7 @@ function replayRecordedBrief(
     const raw = yield* Effect.either(fs.readText(recordPath));
     if (Either.isLeft(raw)) {
       return unavailable(
+        output,
         phaseId,
         `${PUSHED_BRIEF_RECORD} is unreadable: ${raw.left.message}`,
         push,
@@ -69,11 +73,17 @@ function replayRecordedBrief(
     try {
       parsed = JSON.parse(raw.right) as unknown;
     } catch {
-      return unavailable(phaseId, `${PUSHED_BRIEF_RECORD} is unreadable: not valid JSON`, push);
+      return unavailable(
+        output,
+        phaseId,
+        `${PUSHED_BRIEF_RECORD} is unreadable: not valid JSON`,
+        push,
+      );
     }
     const record = readBriefRecordFile(recordPath, parsed);
     if (Either.isLeft(record)) {
       return unavailable(
+        output,
         phaseId,
         `${PUSHED_BRIEF_RECORD} is unreadable: ${record.left.message}`,
         push,
@@ -84,7 +94,7 @@ function replayRecordedBrief(
       return renderBriefSection({ kind: "failed", reason: outcome.reason }, push);
     }
     const report = readPrintedBriefReport(outcome.answer);
-    if (Either.isLeft(report)) return unavailable(phaseId, report.left, push);
+    if (Either.isLeft(report)) return unavailable(output, phaseId, report.left, push);
     return renderBriefSection({ kind: "answered", report: report.right }, push);
   });
 }
@@ -103,12 +113,15 @@ export function pushBrief(input: {
   readonly worktreePath: string;
   readonly phaseFolderPath: string;
   readonly phaseId: string;
+  /** Where a warning goes: the run's own port, so it is a note line under `--json`. */
+  readonly output: Pick<OutputPort, "warn">;
 }): Effect.Effect<string, never, FileSystem | Shell> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const recordPath = join(input.phaseFolderPath, PUSHED_BRIEF_RECORD);
     const recorded = yield* fs.exists(recordPath).pipe(Effect.orElseSucceed(() => false));
-    if (recorded) return yield* replayRecordedBrief(recordPath, input.phaseId, input.push);
+    if (recorded)
+      return yield* replayRecordedBrief(input.output, recordPath, input.phaseId, input.push);
 
     const outcome = yield* queryBrief({
       command: input.command,
@@ -118,13 +131,14 @@ export function pushBrief(input: {
     yield* fs.writeAtomic(recordPath, serializeBriefRecord("pushed", input.request, outcome)).pipe(
       Effect.catchAll((e) =>
         Effect.sync(() => {
-          process.stderr.write(
-            `[phax] Warning: phase "${input.phaseId}" — failed to write ${PUSHED_BRIEF_RECORD} (${e.message}).\n`,
+          input.output.warn(
+            `[phax] Warning: phase "${input.phaseId}" — failed to write ${PUSHED_BRIEF_RECORD} (${e.message}).`,
           );
         }),
       ),
     );
-    if (outcome.kind === "failed") return unavailable(input.phaseId, outcome.reason, input.push);
+    if (outcome.kind === "failed")
+      return unavailable(input.output, input.phaseId, outcome.reason, input.push);
     return renderBriefSection({ kind: "answered", report: outcome.decoded }, input.push);
   });
 }

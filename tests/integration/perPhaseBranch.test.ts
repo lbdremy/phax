@@ -45,6 +45,7 @@ import { readPhaseStatusFile } from "../../src/schemas/persisted.js";
 import { planMdFor } from "../helpers/planMarkdown.js";
 import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
 import { liftFixturePhaxPlanToCurrent } from "../helpers/liftFixturePhaxPlan.js";
+import { processOutput } from "../helpers/processOutput.js";
 
 // Made-up full commit shas for the fake git's branch tips.
 const RUN_TIP = "1111111111111111111111111111111111111111";
@@ -433,6 +434,7 @@ describe("executePlan — per-phase branch regression", () => {
       Effect.either(
         executePlan({
           phaxVersion: "0.0.0-test",
+          output: processOutput,
           shortName,
           namespace: "test-project",
           plan,
@@ -642,6 +644,7 @@ describe("executePlan — per-phase branch regression", () => {
       Effect.either(
         executePlan({
           phaxVersion: "0.0.0-test",
+          output: processOutput,
           shortName,
           namespace: "test-project",
           plan,

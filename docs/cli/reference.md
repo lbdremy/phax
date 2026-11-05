@@ -861,7 +861,7 @@ Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 - **Usage**: `phax resume [FLAGS] <short-name>`
 
-Picks up a run from its next pending phase, re-entering the same execution loop as phax run. Prompts for confirmation before proceeding unless --yes is set.
+Picks up a run from its next pending phase, re-entering the same execution loop as phax run. Without --yes it prints where it would resume and exits 0, asking nothing; --yes proceeds.
 
 A committed phase whose handoff turn was cut short (a rate or usage limit) gets its handoff written first: resume runs that phase's handoff turn again, in its session and its worktree, then goes on. When that worktree is gone, or its session id, resume refuses with exit 1 and nothing changes; the message names the remedy: restore the worktree with git worktree prune then git worktree add <recorded worktree path> <phase branch> (git keeps a deleted worktree registered until it is pruned), or write <run folder>/<phase>/phase-handoff.md with its four sections by hand, then resume again. After a handoff written by hand, resume finishes that phase with no agent turn: it collects its pulled briefs, writes its record and runs its cleanup, then goes on; when its worktree is gone too, the cleanup commands do not run (a warning names them: run them yourself if they free resources outside the worktree) and the phase is still cleaned up. The final message counts every phase of the run that committed, across resumes.
 

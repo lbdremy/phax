@@ -26,6 +26,7 @@ import {
   reviewConfigured,
   reviewResolved,
 } from "./review.js";
+import { outputPortOf } from "./runOutcome.js";
 import { exposeMessage, ShortNameArg } from "./shared.js";
 
 /** Layers a test swaps for fakes; each defaults to the real adapter. */
@@ -51,7 +52,7 @@ export function makePublishPrCommand(deps: PublishPrDeps = {}) {
     examples: ["phax publish-pr usage-cli"],
     input: { args: reject(Schema.Tuple(ShortNameArg)) },
     output: reject(PublishPrOutput),
-    run: ({ input, program }) =>
+    run: ({ input, program, say, progress }) =>
       Effect.gen(function* () {
         const config = yield* reviewConfigured();
         const { namespace, shortName, info, crossProject } = yield* reviewResolved(
@@ -74,6 +75,7 @@ export function makePublishPrCommand(deps: PublishPrDeps = {}) {
           publishRun(info, config.publish, {
             repoRoot: config.repoRoot,
             phaxVersion: readPackageVersion(),
+            output: outputPortOf({ say, progress }),
             records: config.records,
             ...(config.records.destination.kind === "repo"
               ? { recordsClonePath: recordsClonePath(config.stateRoot, namespace) }

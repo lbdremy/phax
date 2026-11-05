@@ -8,6 +8,7 @@ import {
 import { outsideBriefRequest, phaseBriefRequest } from "../domain/brief/request.js";
 import { resolveTreePaths } from "../domain/treePaths.js";
 import { FileSystem } from "../ports/fs.js";
+import type { OutputPort } from "../ports/output.js";
 import type { Shell } from "../ports/shell.js";
 import type { BriefRequestFile, PhaseBriefRequest } from "../schemas/brief.js";
 import type { BriefReport } from "../schemas/briefReport.js";
@@ -116,6 +117,8 @@ export function closePulledBriefs(input: {
   readonly worktreePath: string;
   readonly phaseFolderPath: string;
   readonly phaseId: string;
+  /** Where a warning goes: the run's own port, so it is a note line under `--json`. */
+  readonly output: Pick<OutputPort, "warn">;
 }): Effect.Effect<void, never, FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
@@ -136,8 +139,8 @@ export function closePulledBriefs(input: {
   }).pipe(
     Effect.catchAll((e) =>
       Effect.sync(() => {
-        process.stderr.write(
-          `[phax] Warning: phase "${input.phaseId}" — failed to collect pulled briefs (${e.message}).\n`,
+        input.output.warn(
+          `[phax] Warning: phase "${input.phaseId}" — failed to collect pulled briefs (${e.message}).`,
         );
       }),
     ),
