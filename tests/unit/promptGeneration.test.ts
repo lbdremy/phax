@@ -2,6 +2,7 @@ import { Either } from "effect";
 import { describe, expect, it } from "vitest";
 import { buildPhasePrompt } from "../../src/app/promptGeneration.js";
 import { locatePlanSections } from "../../src/domain/plan/sections.js";
+import type { GateStep } from "../../src/schemas/phaxConfig.js";
 import type { PhaxPlan, PhaxPlanPhase } from "../../src/schemas/phaxPlan.js";
 
 function phase(n: number, title: string, files: Partial<PhaxPlanPhase> = {}): PhaxPlanPhase {
@@ -95,17 +96,24 @@ function sectionOf(p: PhaxPlanPhase): string {
   return planSections.sections.get(p.id)!;
 }
 
-const sampleGateCommands: string[] = ["npm run typecheck", "npm run test"];
+const sampleGateSteps: readonly GateStep[] = [
+  { command: "pnpm typecheck", surface: "local", firing: "every-phase", output: "log" },
+  { command: "pnpm build", surface: "product", firing: "terminal", output: "log" },
+];
 
 const base = {
   planPreamble: planSections.preamble,
   phaseSection: sectionOf(phase03),
   plan: samplePlan,
   currentPhase: phase03,
-  gateCommands: sampleGateCommands,
+  gateSteps: sampleGateSteps,
   acceptanceRole: null,
   previousHandoff: { kind: "first-phase" } as const,
 };
+
+function gateSectionOf(prompt: string): string {
+  return prompt.slice(prompt.indexOf("## Gate"), prompt.indexOf("## Required output"));
+}
 
 // The body of the `## Previous phase handoff` section.
 function previousHandoffSection(prompt: string): string {
@@ -123,6 +131,24 @@ function pairPrompts(project: { acceptancePhase: string; passingPhase: string; f
 }
 
 describe("buildPhasePrompt", () => {
+  it("places the Gate section between Execution rules and Required output, with no rerun sentence", () => {
+    const prompt = buildPhasePrompt(base);
+    const rules = prompt.indexOf("## Execution rules");
+    const gate = prompt.indexOf("## Gate");
+    const output = prompt.indexOf("## Required output");
+    expect(rules).toBeGreaterThan(-1);
+    expect(gate).toBeGreaterThan(rules);
+    expect(output).toBeGreaterThan(gate);
+    expect(prompt).toContain("- local: pnpm typecheck\n- product: pnpm build");
+    expect(prompt).not.toContain("Run the gate commands again");
+  });
+
+  it("builds a byte-identical Gate section from one step list, with no provider input", () => {
+    expect(gateSectionOf(buildPhasePrompt(base))).toBe(
+      gateSectionOf(buildPhasePrompt({ ...base })),
+    );
+  });
+
   it("contains the execute-phase heading", () => {
     expect(buildPhasePrompt(base)).toContain("# Execute one implementation phase");
   });
@@ -417,7 +443,9 @@ describe("buildPhasePrompt", () => {
       files: ["tests/prune.test.ts"],
     });
     for (const prompt of [a.acceptance, a.passing, b.acceptance, b.passing]) {
-      expect(prompt).not.toMatch(/\bfails\b|xfail|vitest|pytest|jest/i);
+      // The Gate section's fixed contract wording ("If a step fails") is not the acceptance role's.
+      const withoutGate = prompt.replace(/## Gate[\s\S]*?(?=## Required output)/, "");
+      expect(withoutGate).not.toMatch(/\bfails\b|xfail|vitest|pytest|jest/i);
     }
     expect(a.acceptance.replace("refunds", "prune")).toBe(b.acceptance);
     expect(a.passing.replace("refunds", "prune")).toBe(b.passing);

@@ -2,6 +2,8 @@ import { Effect } from "effect";
 import { join } from "node:path";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import type { PhaxPlan, PhaxPlanPhase } from "../schemas/phaxPlan.js";
+import type { GateStep } from "../schemas/phaxConfig.js";
+import { renderGateSection } from "../domain/gate/gateSection.js";
 import { renderPlanOutline } from "../domain/plan/outline.js";
 import type { AcceptanceRole } from "../domain/plan/acceptancePairs.js";
 import {
@@ -25,7 +27,8 @@ export interface BuildPhasePromptOptions {
   readonly previousReconciliation?: string | undefined;
   /** The run's closed stops before this phase, in plan order; none leaves no section. */
   readonly reviewCorrections?: readonly ReviewCorrectionStop[] | undefined;
-  readonly gateCommands: string[];
+  /** The phase gate list: the steps the gate runs for this phase, already selected. */
+  readonly gateSteps: readonly GateStep[];
   /** The `## Brief for this phase` section, present exactly when a brief provider is configured. */
   readonly briefSection?: string | undefined;
   /** The phase's role in an acceptance pair, or null for an ordinary phase. */
@@ -93,7 +96,7 @@ export function buildPhasePrompt(opts: BuildPhasePromptOptions): string {
     previousHandoff,
     previousReconciliation,
     reviewCorrections,
-    gateCommands,
+    gateSteps,
     briefSection,
     acceptanceRole,
     protectedPaths,
@@ -171,9 +174,8 @@ export function buildPhasePrompt(opts: BuildPhasePromptOptions): string {
     "- Do not implement excluded scope.",
     "- Do not move work from future phases into this phase unless required to keep the current phase coherent.",
     '- If any planned file was not touched or any unplanned (non-optional) file was changed, explain why under "## What the next phase needs to know" in `phase-handoff.md`.',
-    "- Run the gate commands again after your changes to verify the gates are satisfied.",
-    gateCommands.join("\n"),
     "",
+    ...renderGateSection(gateSteps),
     "## Required output",
     "",
     "At the end, produce two Markdown artifacts inside `.phax-context/`:",
@@ -224,7 +226,8 @@ export interface GeneratePhasePromptOptions {
   readonly previousHandoff: PreviousHandoff;
   readonly previousReconciliation?: string | undefined;
   readonly reviewCorrections?: readonly ReviewCorrectionStop[] | undefined;
-  readonly gateCommands: string[];
+  /** The phase gate list: the steps the gate runs for this phase, already selected. */
+  readonly gateSteps: readonly GateStep[];
   readonly briefSection?: string | undefined;
   readonly acceptanceRole: AcceptanceRole | null;
 }
