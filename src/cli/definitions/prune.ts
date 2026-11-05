@@ -42,9 +42,9 @@ export interface PruneLayers {
 
 /** The real adapters, built when the command runs (a test mocks the prompt module). */
 /** What lifts prune's confirmation, as the `--json` refusal names it: today's remedy. */
-export const PRUNE_UNPROMPTED = "pass --yes to proceed or --dry-run to preview only";
+const PRUNE_UNPROMPTED = "pass --yes to proceed or --dry-run to preview only";
 
-export const REAL_PRUNE_LAYERS: PruneLayers = {
+const REAL_PRUNE_LAYERS: PruneLayers = {
   build: (config) =>
     Layer.mergeAll(
       makeRepoRootedFileSystemLayer(config),
@@ -247,7 +247,7 @@ function renderPrune(value: PruneOutput): string {
   return appliedLines(value).join("\n");
 }
 
-export function makePruneCommand(layers: PruneLayers) {
+function makePruneCommand(layers: PruneLayers) {
   return defineCommand({
     name: "prune",
     summary:

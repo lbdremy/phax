@@ -1,8 +1,8 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { Either } from "effect";
-import { runEnterPhase } from "../../../src/cli/commands/enterPhase.js";
 import type { ResolvedConfig } from "../../../src/schemas/phaxConfig.js";
 import { phaseStatus } from "../../helpers/phaseStatusFixture.js";
+import { phaxCall } from "../../helpers/runnerCall.js";
 
 vi.mock("../../../src/app/loadConfig.js", () => ({
   loadConfig: vi.fn(),
@@ -28,18 +28,10 @@ vi.mock("../../../src/app/loadRouting.js", async (importOriginal) => {
   return { ...original, loadProviderConfig: () => Effect.succeed(DEFAULT_PROVIDER_CONFIG) };
 });
 
-function makeOutput() {
-  const lines: string[] = [];
-  const errors: string[] = [];
-  return {
-    out: {
-      log: (m: string) => lines.push(m),
-      warn: (m: string) => lines.push(`WARN: ${m}`),
-      error: (m: string) => errors.push(m),
-    },
-    lines,
-    errors,
-  };
+/** `phax enter-phase <run> <phase>` through the runner: stdout lines and stderr lines. */
+async function runEnterPhase(shortName: string, phaseId: string) {
+  const result = await phaxCall(["enter-phase", shortName, phaseId]);
+  return { code: result.code, lines: result.outLines, errors: result.errLines };
 }
 
 function makeConfig(namespace = "acme"): ResolvedConfig {
@@ -146,8 +138,7 @@ describe("runEnterPhase — namespace-scoped resolution", () => {
     readAgentBinding.mockResolvedValue(Either.left("no binding"));
     makeNodeSessionLayer.mockReturnValue(undefined as never);
 
-    const { out, lines, errors } = makeOutput();
-    const code = await runEnterPhase("other.fixbug", "phase-01", out);
+    const { code, lines, errors } = await runEnterPhase("other.fixbug", "phase-01");
 
     // resolveRunRef was called with the raw arg
     expect(resolveRunRef).toHaveBeenCalledWith(
@@ -175,8 +166,7 @@ describe("runEnterPhase — namespace-scoped resolution", () => {
     const { readAgentBinding } = vi.mocked(await import("../../../src/app/agentBinding.js"));
     readAgentBinding.mockResolvedValue(Either.left("no binding"));
 
-    const { out, errors } = makeOutput();
-    const code = await runEnterPhase("fixbug", "phase-02", out);
+    const { code, errors } = await runEnterPhase("fixbug", "phase-02");
 
     // Phase found in phaseStatuses → proceeds to binding, which fails → exit 1
     expect(code).toBe(1);
@@ -193,8 +183,7 @@ describe("runEnterPhase — namespace-scoped resolution", () => {
       Either.right({ namespace: "acme", shortName: "fixbug", info, crossProject: false }),
     );
 
-    const { out, errors } = makeOutput();
-    const code = await runEnterPhase("fixbug", "phase-99", out);
+    const { code, errors } = await runEnterPhase("fixbug", "phase-99");
 
     expect(code).toBe(1);
     expect(errors.join("\n")).toContain("phase-99");
@@ -209,8 +198,7 @@ describe("runEnterPhase — namespace-scoped resolution", () => {
       Either.left({ variant: "not-found" as const, message: 'Run "acme.unknown" not found.' }),
     );
 
-    const { out, errors } = makeOutput();
-    const code = await runEnterPhase("unknown", "phase-01", out);
+    const { code, errors } = await runEnterPhase("unknown", "phase-01");
 
     expect(code).toBe(1);
     expect(errors.join("\n")).toContain("not found");
@@ -233,8 +221,7 @@ describe("runEnterPhase — namespace-scoped resolution", () => {
         crossProject: false,
       }),
     );
-    const { out: outA, errors: errA } = makeOutput();
-    const codeA = await runEnterPhase("fixbug", "phase-01", outA);
+    const { code: codeA, errors: errA } = await runEnterPhase("fixbug", "phase-01");
 
     // Second call: inside namespace "beta"
     loadConfig.mockReturnValue(Either.right(makeConfig("beta")));
@@ -242,8 +229,7 @@ describe("runEnterPhase — namespace-scoped resolution", () => {
     resolveRunRef.mockReturnValue(
       Either.right({ namespace: "beta", shortName: "fixbug", info: infoBeta, crossProject: false }),
     );
-    const { out: outB, errors: errB } = makeOutput();
-    const codeB = await runEnterPhase("fixbug", "phase-01", outB);
+    const { code: codeB, errors: errB } = await runEnterPhase("fixbug", "phase-01");
 
     // Both fail at binding but with their respective qualified names
     expect(codeA).toBe(1);

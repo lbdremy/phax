@@ -13,10 +13,9 @@ import { join } from "node:path";
 import { Effect } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { defineProgram, usageSpec } from "../../src/cli/commandLibrary/contract/index.js";
-import { runRun } from "../../src/cli/commands/run.js";
 import { makeResumeCommand } from "../../src/cli/definitions/resume.js";
 import { makeRunCommand } from "../../src/cli/definitions/run.js";
-import { runnerCall } from "../helpers/runnerCall.js";
+import { phaxCall, runnerCall } from "../helpers/runnerCall.js";
 import {
   createPreflightRepo,
   type Fixture,
@@ -62,6 +61,34 @@ const SIX_PHASES: Fixture = {
     phases: [{}, {}, { headerLines: [INTERACTIVE_LINE], plannedFilesToCreate: [] }, {}, {}, {}],
   },
 };
+
+/** `phax run [short-name] --plan <plan> [--dry-run] [--hold[=<selection>]]` through phax's
+ *  program; stdout lands in `port.log` and stderr in `port.error` (the runner no longer tells a
+ *  warning from an error). The selection is written `--hold=<selection>`, which a run name after
+ *  it cannot be swallowed by. */
+async function runRun(
+  opts: {
+    shortName?: string;
+    plan: string;
+    dryRun?: boolean;
+    hold?: true | string;
+  },
+  port: ReturnType<typeof recordingOutput>["port"],
+): Promise<number> {
+  const result = await phaxCall([
+    "run",
+    ...(opts.shortName === undefined ? [] : [opts.shortName]),
+    "--plan",
+    opts.plan,
+    ...(opts.dryRun === true ? ["--dry-run"] : []),
+    ...(opts.hold === undefined ? [] : opts.hold === true ? ["--hold"] : [`--hold=${opts.hold}`]),
+  ]);
+  // One message per write: a multi-line sentence is one write.
+  for (const write of result.writes) {
+    (write.stream === "out" ? port.log : port.error)(write.text.replace(/\n$/, ""));
+  }
+  return result.code;
+}
 
 const HOLD_USAGE = "give no value, acceptance, or phase ids such as phase-02,phase-04";
 const HINT = "(put the run's name before --hold, or write --hold=<selection>)";

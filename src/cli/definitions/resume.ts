@@ -84,7 +84,7 @@ export interface ResumeDeps {
   readonly shellLayer?: Layer.Layer<Shell>;
 }
 
-export const SKIP_ORACLE_RETIRED = "--skip-oracle is no longer read: write --skip-acceptance";
+const SKIP_ORACLE_RETIRED = "--skip-oracle is no longer read: write --skip-acceptance";
 
 const ResumeFlags = reject(
   Schema.Struct({

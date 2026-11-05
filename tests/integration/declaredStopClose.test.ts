@@ -30,6 +30,7 @@ import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import type { GateStep } from "../../src/schemas/phaxConfig.js";
 import type { PhaxPlanPhase } from "../../src/schemas/phaxPlan.js";
 import type { InteractiveHandoff } from "../../src/schemas/interactiveHandoff.js";
+import { phaxCall } from "../helpers/runnerCall.js";
 import {
   createWorld,
   readJson,
@@ -993,9 +994,7 @@ describe("two identical stops, corrected directly and through enter-phase", () =
           return 0;
         }),
     });
-    const { runEnterPhase } = await import("../../src/cli/commands/enterPhase.js");
-    const quiet = { log: () => undefined, warn: () => undefined, error: () => undefined };
-    expect(await runEnterPhase(entered.shortName, "phase-03", quiet, {})).toBe(0);
+    expect((await phaxCall(["enter-phase", entered.shortName, "phase-03"])).code).toBe(0);
     expect(read(entered, "src/invoiceRow.ts")).toBe(CORRECTED_HEADER);
 
     for (const run of [direct, entered]) writePersonHandoff(run);

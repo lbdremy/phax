@@ -11,6 +11,7 @@ import type { ResolvedConfig } from "../../../src/schemas/phaxConfig.js";
 import type { PhaseStatus } from "../../../src/schemas/status.js";
 import type { OwedStep, ResumeDecision, ResumeRefusal } from "../../../src/app/resume.js";
 import { phaseStatus } from "../../helpers/phaseStatusFixture.js";
+import { phaxCall } from "../../helpers/runnerCall.js";
 
 vi.mock("../../../src/app/loadConfig.js", () => ({ loadConfig: vi.fn() }));
 vi.mock("../../../src/app/loadTelemetryConfig.js", () => ({ loadTelemetryConfig: vi.fn() }));
@@ -47,18 +48,39 @@ vi.mock("../../../src/ports/systemTelemetry.js", () => ({
   SystemTelemetry: {},
 }));
 
+interface Sink {
+  log: (m: string) => unknown;
+  error: (m: string) => unknown;
+}
+
+interface ResumeFlagsUnderTest {
+  yes?: boolean;
+  skipAcceptance?: boolean;
+  skipOracle?: boolean;
+}
+
+/** `phax resume <ref>` as a person types it, through the runner: stdout lines go to `out.log`, every
+ *  stderr line (notes and declared errors alike) to `out.error`. */
+async function runResume(ref: string, opts: ResumeFlagsUnderTest, out: Sink): Promise<number> {
+  const argv = ["resume", ref];
+  if (opts.yes === true) argv.push("--yes");
+  if (opts.skipAcceptance === true) argv.push("--skip-acceptance");
+  if (opts.skipOracle === true) argv.push("--skip-oracle");
+  const result = await phaxCall(argv);
+  for (const line of result.outLines) out.log(line);
+  for (const line of result.errLines) out.error(line);
+  return result.code;
+}
+
 function makeOutput() {
   const lines: string[] = [];
-  const warnings: string[] = [];
   const errors: string[] = [];
   return {
     out: {
       log: (m: string) => lines.push(m),
-      warn: (m: string) => warnings.push(m),
       error: (m: string) => errors.push(m),
     },
     lines,
-    warnings,
     errors,
   };
 }
@@ -234,7 +256,6 @@ describe("runResume --skip-acceptance", () => {
 
   it("refuses a restart phase with no oracle role, with exit 1 and nothing run", async () => {
     const executePlan = await setupMocks("phase-01", false);
-    const { runResume } = await import("../../../src/cli/commands/resume.js");
 
     for (const yes of [true, false]) {
       const { out, errors, lines } = makeOutput();
@@ -250,7 +271,6 @@ describe("runResume --skip-acceptance", () => {
 
   it("logs the skipping line and passes skipAcceptance: true at a discharging phase", async () => {
     const executePlan = await setupMocks("phase-02", true);
-    const { runResume } = await import("../../../src/cli/commands/resume.js");
     const { out, lines } = makeOutput();
 
     const code = await runResume("my-run", { yes: true, skipAcceptance: true }, out);
@@ -268,7 +288,6 @@ describe("runResume --skip-acceptance", () => {
   it("refuses a run awaiting review, even at an oracle phase, with exit 1 and nothing run", async () => {
     writeRunStatus(runPath, "awaiting_review");
     const executePlan = await setupMocks("phase-01", true);
-    const { runResume } = await import("../../../src/cli/commands/resume.js");
 
     for (const yes of [true, false]) {
       const { out, errors, lines } = makeOutput();
@@ -285,7 +304,6 @@ describe("runResume --skip-acceptance", () => {
   it("gives a run awaiting review at a phase in no pair the no-oracle-step refusal", async () => {
     writeRunStatus(runPath, "awaiting_review");
     const executePlan = await setupMocks("phase-01", false);
-    const { runResume } = await import("../../../src/cli/commands/resume.js");
     const { out, errors } = makeOutput();
 
     const code = await runResume("my-run", { yes: true, skipAcceptance: true }, out);
@@ -299,7 +317,6 @@ describe("runResume --skip-acceptance", () => {
 
   it("passes skipAcceptance: false without the flag", async () => {
     const executePlan = await setupMocks("phase-02", true);
-    const { runResume } = await import("../../../src/cli/commands/resume.js");
     const { out, lines } = makeOutput();
 
     await runResume("my-run", { yes: true }, out);
@@ -313,19 +330,21 @@ describe("runResume --skip-acceptance", () => {
     const executePlan = await setupMocks("phase-02", true);
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
     const { resolveRunRef } = vi.mocked(await import("../../../src/app/resolveRunRef.js"));
-    const { runResume } = await import("../../../src/cli/commands/resume.js");
     const statusPath = join(runPath, "run-status.json");
     const before = readFileSync(statusPath, "utf8");
     loadConfig.mockClear();
 
     for (const yes of [true, false]) {
-      const { out, errors, lines, warnings } = makeOutput();
+      const { out, errors, lines } = makeOutput();
       const code = await runResume("my-run", { yes, skipOracle: true }, out);
       // The runner refuses a retired option with the program's `refused` code.
       expect(code).toBe(64);
-      expect(errors).toEqual(["--skip-oracle is no longer read: write --skip-acceptance"]);
+      // The runner closes a refusal with the program's hint line.
+      expect(errors).toEqual([
+        "--skip-oracle is no longer read: write --skip-acceptance",
+        "Run `phax --help` for usage.",
+      ]);
       expect(lines).toEqual([]);
-      expect(warnings).toEqual([]);
     }
     expect(loadConfig).not.toHaveBeenCalled();
     expect(resolveRunRef).not.toHaveBeenCalled();
@@ -335,11 +354,10 @@ describe("runResume --skip-acceptance", () => {
 
   it("the final message counts every committed phase, from executePlan's completedPhaseCount", async () => {
     await setupMocks("phase-02", false);
-    const { runResume } = await import("../../../src/cli/commands/resume.js");
-    const { out, warnings } = makeOutput();
+    const { out, errors } = makeOutput();
 
     expect(await runResume("my-run", { yes: true }, out)).toBe(0);
-    expect(warnings.join("\n")).toContain("The run reached review — 2 phase(s) complete.");
+    expect(errors.join("\n")).toContain("The run reached review — 2 phase(s) complete.");
   });
 });
 
@@ -386,7 +404,6 @@ describe("runResume — a committed phase owing its handoff", () => {
 
   it("previews the handoff line when the decision's phase owes its handoff", async () => {
     await setupMocks("handoff");
-    const { runResume } = await import("../../../src/cli/commands/resume.js");
     const { out, lines } = makeOutput();
 
     expect(await runResume("my-run", {}, out)).toBe(0);
@@ -399,7 +416,6 @@ describe("runResume — a committed phase owing its handoff", () => {
 
   it("previews the finishing line when only what follows the handoff is owed", async () => {
     await setupMocks("post-handoff");
-    const { runResume } = await import("../../../src/cli/commands/resume.js");
     const { out, lines } = makeOutput();
 
     expect(await runResume("my-run", {}, out)).toBe(0);
@@ -412,7 +428,6 @@ describe("runResume — a committed phase owing its handoff", () => {
 
   it("prints no handoff line when the phase owes none", async () => {
     await setupMocks("none");
-    const { runResume } = await import("../../../src/cli/commands/resume.js");
     const { out, lines } = makeOutput();
 
     await runResume("my-run", {}, out);
@@ -462,7 +477,6 @@ describe("runResume — the recorded hold", () => {
   it("reads the hold from run-status.json and passes it to the decision", async () => {
     writeRunStatus(runPath, "interrupted", { selection: "listed", phases: ["phase-01"] });
     const inspect = await setupMocks();
-    const { runResume } = await import("../../../src/cli/commands/resume.js");
 
     await runResume("my-run", {}, makeOutput().out);
 
@@ -472,7 +486,6 @@ describe("runResume — the recorded hold", () => {
 
   it("refuses with exit 2, before any decision, when run-status.json cannot be read", async () => {
     const inspect = await setupMocks();
-    const { runResume } = await import("../../../src/cli/commands/resume.js");
     const { out, errors } = makeOutput();
 
     expect(await runResume("my-run", {}, out)).toBe(2);
@@ -541,12 +554,11 @@ describe("runResume — review_open early branch recap", () => {
   it("shows the inspection's committed-phase count in the recap headline", async () => {
     await setupMocks(2);
 
-    const { runResume } = await import("../../../src/cli/commands/resume.js");
-    const { out, warnings } = makeOutput();
+    const { out, errors } = makeOutput();
     const code = await runResume("my-run", {}, out);
 
     expect(code).toBe(0);
-    const recap = warnings.join("\n");
+    const recap = errors.join("\n");
     expect(recap).toContain("2 phase(s) complete");
   });
 
@@ -568,11 +580,10 @@ describe("runResume — review_open early branch recap", () => {
       }),
     );
 
-    const { runResume } = await import("../../../src/cli/commands/resume.js");
-    const { out, warnings } = makeOutput();
+    const { out, errors } = makeOutput();
     await runResume("my-run", {}, out);
 
-    const recap = warnings.join("\n");
+    const recap = errors.join("\n");
     expect(recap).toContain("https://github.com/acme/repo/pull/42");
     expect(recap).not.toContain("phax publish-pr");
   });
@@ -580,11 +591,10 @@ describe("runResume — review_open early branch recap", () => {
   it("shows publish-pr when no publication.json exists", async () => {
     await setupMocks(1);
 
-    const { runResume } = await import("../../../src/cli/commands/resume.js");
-    const { out, warnings } = makeOutput();
+    const { out, errors } = makeOutput();
     await runResume("my-run", {}, out);
 
-    const recap = warnings.join("\n");
+    const recap = errors.join("\n");
     expect(recap).toContain("phax publish-pr");
   });
 
@@ -605,11 +615,10 @@ describe("runResume — review_open early branch recap", () => {
       }),
     );
 
-    const { runResume } = await import("../../../src/cli/commands/resume.js");
-    const { out, warnings } = makeOutput();
+    const { out, errors } = makeOutput();
     await runResume("my-run", {}, out);
 
-    const recap = warnings.join("\n");
+    const recap = errors.join("\n");
     expect(recap).toContain("phax publish-pr");
   });
 });

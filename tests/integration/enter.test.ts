@@ -11,6 +11,7 @@ import {
 } from "../../src/schemas/phaxConfig.js";
 import { resolveRecordsConfig } from "../../src/schemas/recordsConfig.js";
 import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
+import { phaxCall } from "../helpers/runnerCall.js";
 import type { PhaseStatus } from "../../src/schemas/status.js";
 
 vi.mock("node:child_process", () => ({
@@ -172,15 +173,7 @@ describe("runEnter", () => {
       phaseId: "phase-01",
     });
 
-    const { runEnter } = await import("../../src/cli/commands/enter.js");
-    const logs: string[] = [];
-    const out = {
-      log: (m: string) => logs.push(m),
-      warn: (m: string) => logs.push(`WARN: ${m}`),
-      error: (m: string) => logs.push(`ERR: ${m}`),
-    };
-
-    const exitCode = await runEnter("my-run", out);
+    const { code: exitCode } = await phaxCall(["enter", "my-run"]);
 
     expect(exitCode).toBe(0);
     expect(spawnSync).toHaveBeenCalledWith("claude", ["--resume", "sess-enter"], {
@@ -204,11 +197,7 @@ describe("runEnter", () => {
       phaseId: "phase-01",
     });
 
-    const { runEnter } = await import("../../src/cli/commands/enter.js");
-    const errors: string[] = [];
-    const out = { log: vi.fn(), warn: vi.fn(), error: (m: string) => errors.push(m) };
-
-    const exitCode = await runEnter("my-run", out);
+    const { code: exitCode, errLines: errors } = await phaxCall(["enter", "my-run"]);
 
     expect(exitCode).toBe(1);
     expect(errors.some((e) => e.toLowerCase().includes("codex"))).toBe(true);
@@ -222,22 +211,14 @@ describe("runEnter", () => {
     ]);
     // No agent-binding.json — binding is required, no legacy inference.
 
-    const { runEnter } = await import("../../src/cli/commands/enter.js");
-    const errors: string[] = [];
-    const out = { log: vi.fn(), warn: vi.fn(), error: (m: string) => errors.push(m) };
-
-    const exitCode = await runEnter("my-run", out);
+    const { code: exitCode, errLines: errors } = await phaxCall(["enter", "my-run"]);
 
     expect(exitCode).toBe(1);
     expect(errors.some((e) => e.includes("No agent binding found"))).toBe(true);
   });
 
   it("returns 1 when run not found", async () => {
-    const { runEnter } = await import("../../src/cli/commands/enter.js");
-    const errors: string[] = [];
-    const out = { log: vi.fn(), warn: vi.fn(), error: (m: string) => errors.push(m) };
-
-    const exitCode = await runEnter("no-such-run", out);
+    const { code: exitCode, errLines: errors } = await phaxCall(["enter", "no-such-run"]);
 
     expect(exitCode).toBe(1);
     expect(errors.some((e) => e.includes("no-such-run"))).toBe(true);

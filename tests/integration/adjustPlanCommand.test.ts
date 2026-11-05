@@ -6,6 +6,22 @@ import { Either } from "effect";
 import { EXTRACTOR_VERSION, planCacheKey } from "../../src/domain/planCache/key.js";
 import { planMdSha256, cacheEntryPath } from "../../src/app/planCacheStore.js";
 import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
+import { phaxCall } from "../helpers/runnerCall.js";
+
+/** `phax adjust-plan <plan> --landed <run> …` through the runner. */
+function runAdjustPlan(
+  planPath: string,
+  opts: { landed: string; newSession?: boolean; effort?: string },
+) {
+  return phaxCall([
+    "adjust-plan",
+    planPath,
+    "--landed",
+    opts.landed,
+    ...(opts.newSession === true ? ["--new-session"] : []),
+    ...(opts.effort === undefined ? [] : ["--effort", opts.effort]),
+  ]);
+}
 
 vi.mock("node:child_process", () => ({
   spawnSync: vi.fn(() => ({ status: 0, error: undefined })),
@@ -240,15 +256,9 @@ describe("runAdjustPlan", () => {
     const planMdContent = await writePlanMd(planPath);
     await seedPlanCache(stateRoot, planPath, planMdContent);
 
-    const { runAdjustPlan } = await import("../../src/cli/commands/adjustPlan.js");
-    const logs: string[] = [];
-    const out = {
-      log: (m: string) => logs.push(m),
-      error: (m: string) => logs.push(`ERR: ${m}`),
-      warn: (m: string) => logs.push(`WARN: ${m}`),
-    };
-
-    const exitCode = await runAdjustPlan(planPath, { landed: SHORT_NAME }, out);
+    const { code: exitCode, outLines: logs } = await runAdjustPlan(planPath, {
+      landed: SHORT_NAME,
+    });
 
     expect(exitCode).toBe(0);
     expect(spawnSync).toHaveBeenCalledWith(
@@ -293,15 +303,9 @@ describe("runAdjustPlan", () => {
       }),
     );
 
-    const { runAdjustPlan } = await import("../../src/cli/commands/adjustPlan.js");
-    const logs: string[] = [];
-    const out = {
-      log: (m: string) => logs.push(m),
-      error: (m: string) => logs.push(`ERR: ${m}`),
-      warn: (m: string) => logs.push(`WARN: ${m}`),
-    };
-
-    const exitCode = await runAdjustPlan(planPath, { landed: SHORT_NAME }, out);
+    const { code: exitCode, outLines: logs } = await runAdjustPlan(planPath, {
+      landed: SHORT_NAME,
+    });
 
     expect(exitCode).toBe(0);
     const call = vi.mocked(spawnSync).mock.calls[0]!;
@@ -320,15 +324,10 @@ describe("runAdjustPlan", () => {
     // No reconciliation written
     await writePlanMd(planPath);
 
-    const { runAdjustPlan } = await import("../../src/cli/commands/adjustPlan.js");
-    const errors: string[] = [];
-    const out = {
-      log: vi.fn(),
-      error: (m: string) => errors.push(m),
-      warn: vi.fn(),
-    };
-
-    const exitCode = await runAdjustPlan(planPath, { landed: SHORT_NAME, newSession: true }, out);
+    const { code: exitCode, errLines: errors } = await runAdjustPlan(planPath, {
+      landed: SHORT_NAME,
+      newSession: true,
+    });
 
     expect(exitCode).toBe(1);
     expect(spawnSync).not.toHaveBeenCalled();
@@ -338,15 +337,10 @@ describe("runAdjustPlan", () => {
   it("invalid --effort: exit 1 without spawning", async () => {
     const { spawnSync } = await import("node:child_process");
 
-    const { runAdjustPlan } = await import("../../src/cli/commands/adjustPlan.js");
-    const errors: string[] = [];
-    const out = {
-      log: vi.fn(),
-      error: (m: string) => errors.push(m),
-      warn: vi.fn(),
-    };
-
-    const exitCode = await runAdjustPlan("plan.md", { landed: SHORT_NAME, effort: "max" }, out);
+    const { code: exitCode, errLines: errors } = await runAdjustPlan("plan.md", {
+      landed: SHORT_NAME,
+      effort: "max",
+    });
 
     expect(exitCode).toBe(1);
     expect(spawnSync).not.toHaveBeenCalled();
@@ -367,15 +361,7 @@ describe("runAdjustPlan", () => {
     // the shell would resolve it against.
     const relativePlanPath = relative(process.cwd(), planPath);
 
-    const { runAdjustPlan } = await import("../../src/cli/commands/adjustPlan.js");
-    const logs: string[] = [];
-    const out = {
-      log: (m: string) => logs.push(m),
-      error: (m: string) => logs.push(`ERR: ${m}`),
-      warn: (m: string) => logs.push(`WARN: ${m}`),
-    };
-
-    const exitCode = await runAdjustPlan(relativePlanPath, { landed: SHORT_NAME }, out);
+    const { code: exitCode } = await runAdjustPlan(relativePlanPath, { landed: SHORT_NAME });
 
     expect(exitCode).toBe(0);
     expect(spawnSync).toHaveBeenCalled();
@@ -386,18 +372,9 @@ describe("runAdjustPlan", () => {
     const { phaseDir, runPath } = await buildFakeRun(stateRoot, SHORT_NAME);
     await writeClaudeBinding(phaseDir, runPath);
 
-    const { runAdjustPlan } = await import("../../src/cli/commands/adjustPlan.js");
-    const errors: string[] = [];
-    const out = {
-      log: vi.fn(),
-      error: (m: string) => errors.push(m),
-      warn: vi.fn(),
-    };
-
-    const exitCode = await runAdjustPlan(
+    const { code: exitCode, errLines: errors } = await runAdjustPlan(
       join(stateRoot, "nonexistent.md"),
       { landed: SHORT_NAME },
-      out,
     );
 
     expect(exitCode).toBe(1);

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { Effect, Either } from "effect";
-import { runPublishPr } from "../../../src/cli/commands/publishPr.js";
+import type { OutputPort } from "../../../src/ports/output.js";
+import { phaxCall } from "../../helpers/runnerCall.js";
 import type { RunReviewInfo } from "../../../src/domain/runReviewInfo.js";
 import type { BranchName } from "../../../src/domain/branded.js";
 import { ConfigValidationError } from "../../../src/domain/errors.js";
@@ -26,15 +27,28 @@ vi.mock("../../../src/app/publishRun.js", () => ({
   publishRun: vi.fn(),
 }));
 
+/** Collects what `phax publish-pr` wrote: stdout as `lines`, stderr as `errors`. */
 function makeOutput() {
   const lines: string[] = [];
   const errors: string[] = [];
   const out = {
     log: (m: string) => lines.push(m),
-    warn: (m: string) => lines.push(`WARN: ${m}`),
+    warn: (m: string) => errors.push(m),
     error: (m: string) => errors.push(m),
   };
   return { out, lines, errors };
+}
+
+/** `phax publish-pr <name>` through the real program; its two streams are copied to `out`. */
+async function runPublishPr(
+  shortName: string,
+  _opts: Record<string, never>,
+  out: Pick<OutputPort, "log" | "error">,
+): Promise<number> {
+  const result = await phaxCall(["publish-pr", shortName]);
+  for (const line of result.outLines) out.log(line);
+  for (const line of result.errLines) out.error(line);
+  return result.code;
 }
 
 function makeConfig(publishAuto: boolean): ResolvedConfig {

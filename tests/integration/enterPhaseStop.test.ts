@@ -17,6 +17,7 @@ import { NodeGitLayer } from "../../src/infra/git.js";
 import { Lock } from "../../src/ports/lock.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import { exitCodeForError } from "../../src/cli/commands/runLayers.js";
+import { phaxCall } from "../helpers/runnerCall.js";
 import {
   FIRST_READING,
   NAMESPACE,
@@ -68,31 +69,24 @@ afterEach(() => {
   world.cleanup();
 });
 
-function makeOutput() {
-  const logs: string[] = [];
-  const warns: string[] = [];
-  const errors: string[] = [];
-  return {
-    out: {
-      log: (m: string) => logs.push(m),
-      warn: (m: string) => warns.push(m),
-      error: (m: string) => errors.push(m),
-    },
-    logs,
-    warns,
-    errors,
-  };
-}
-
 async function enter(
   run: StoppedRun,
   phaseId: string,
   opts: { newSession?: boolean } = {},
 ): Promise<{ code: number; logs: string[]; warns: string[]; errors: string[] }> {
-  const { runEnterPhase } = await import("../../src/cli/commands/enterPhase.js");
-  const output = makeOutput();
-  const code = await runEnterPhase(run.shortName, phaseId, output.out, opts);
-  return { code, logs: output.logs, warns: output.warns, errors: output.errors };
+  const result = await phaxCall([
+    "enter-phase",
+    run.shortName,
+    phaseId,
+    ...(opts.newSession === true ? ["--new-session"] : []),
+  ]);
+  // Warnings and errors are both stderr on the runner.
+  return {
+    code: result.code,
+    logs: [...result.outLines],
+    warns: [...result.errLines],
+    errors: [...result.errLines],
+  };
 }
 
 const sessionOf = (run: StoppedRun) =>

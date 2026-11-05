@@ -24,7 +24,7 @@ export interface InitLayers {
 }
 
 /** The real adapters, built when the command runs (a test mocks the prompt module). */
-export const REAL_INIT_LAYERS: InitLayers = {
+const REAL_INIT_LAYERS: InitLayers = {
   all: Layer.suspend(() =>
     Layer.mergeAll(makeClackPromptLayer(), NodeFileSystemLayer, NodeGitLayer, NodeGitHubLayer),
   ),
@@ -51,7 +51,7 @@ const InitOutput = Schema.Union(
   Schema.Struct({ kind: Schema.Literal("aborted") }),
 );
 
-export function makeInitCommand(layers: InitLayers) {
+function makeInitCommand(layers: InitLayers) {
   return defineCommand({
     name: "init",
     summary: "Create phax.json and phax.schema.json in the current directory",

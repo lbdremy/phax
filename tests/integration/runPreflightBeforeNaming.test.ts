@@ -15,7 +15,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Effect, Either, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { runRun } from "../../src/cli/commands/run.js";
 import { loadConfig } from "../../src/app/loadConfig.js";
 import { resolveGateProfile } from "../../src/app/gates.js";
 import { loadModelRouting } from "../../src/app/loadRouting.js";
@@ -42,6 +41,26 @@ import {
   snapshotRepo,
   writeFixtureFile,
 } from "./helpers/preflightRepo.js";
+
+/** `phax run --plan <plan>` through phax's program; stdout lands in `port.log` and stderr in
+ *  `port.error` (the runner no longer tells a warning from an error). */
+async function runRun(
+  opts: { plan: string; trace?: boolean; allowSkillEdits?: boolean },
+  port: ReturnType<typeof recordingOutput>["port"],
+): Promise<number> {
+  const result = await phaxCall([
+    "run",
+    "--plan",
+    opts.plan,
+    ...(opts.allowSkillEdits === true ? ["--allow-skill-edits"] : []),
+    ...(opts.trace === true ? ["--trace"] : []),
+  ]);
+  // One message per write: a multi-line sentence is one write.
+  for (const write of result.writes) {
+    (write.stream === "out" ? port.log : port.error)(write.text.replace(/\n$/, ""));
+  }
+  return result.code;
+}
 
 // A temporary home for the modules that compute their ~/.phax paths at import.
 vi.mock("node:os", async (importOriginal) =>

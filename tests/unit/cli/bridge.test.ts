@@ -17,7 +17,6 @@ import {
   route,
   runnerGuard,
   runnerUsage,
-  runThroughOutput,
   wholeGroups,
   type BridgeEdge,
 } from "../../../src/cli/bridge.js";
@@ -33,7 +32,6 @@ import {
   strip,
 } from "../../../src/cli/commandLibrary/contract/index.js";
 import { phaxProgram } from "../../../src/cli/definitions/program.js";
-import type { OutputPort } from "../../../src/ports/output.js";
 
 const GUARD = (command: string): string =>
   `✗ phax ${command} is not available inside a phase worktree; run it from the main checkout (inside, only phax brief, phax architecture and read-only commands run)`;
@@ -647,16 +645,6 @@ const authoring = defineCommand({
   render: (origin) => `read from ${origin}`,
 });
 
-function recorded() {
-  const lines: Array<readonly [string, string]> = [];
-  const out: OutputPort = {
-    log: (text) => lines.push(["log", text]),
-    warn: (text) => lines.push(["warn", text]),
-    error: (text) => lines.push(["error", text]),
-  };
-  return { out, lines };
-}
-
 describe("the stubs of the lifecycle gains", () => {
   const programOfAuthoring = defineProgram({
     name: "phax",
@@ -697,30 +685,6 @@ describe("the stubs of the lifecycle gains", () => {
     const root = new Command("phax");
     mountRunnerStub(root, optional, ["take"]);
     expect(root.commands[0]?.options[0]?.flags).toBe("--request [path]");
-  });
-});
-
-describe("runThroughOutput's gains", () => {
-  it("hands say to out.log, progress to out.warn and the document to run", async () => {
-    const { out, lines } = recorded();
-    const code = await runThroughOutput(authoring, { flags: {}, stdin: "a brief" }, out, {
-      document: { origin: { kind: "file", path: "brief.md" }, text: "a brief" },
-    });
-    expect(code).toBe(0);
-    expect(lines).toEqual([
-      ["log", "authoring thing"],
-      ["warn", "retrying"],
-      ["log", "read from file"],
-    ]);
-  });
-
-  it("runs the check first, answering 64 with its text through out.error", async () => {
-    const { out, lines } = recorded();
-    const code = await runThroughOutput(authoring, { flags: {}, stdin: "refuse" }, out, {
-      document: { origin: { kind: "stdin" }, text: "refuse" },
-    });
-    expect(code).toBe(64);
-    expect(lines).toEqual([["error", "error: no brief"]]);
   });
 });
 
@@ -775,20 +739,6 @@ describe("the stubs of the run and session gains", () => {
     const retired = stub?.options.find((option) => option.long === "--skip-oracle");
     expect(retired?.hidden).toBe(true);
     expect(stub?.helpInformation()).not.toContain("skip-oracle");
-  });
-});
-
-describe("runThroughOutput's run and session gains", () => {
-  it("logs nothing for an empty render, warns its notes, and answers the handed-over exit", async () => {
-    const { out, lines } = recorded();
-    const code = await runThroughOutput(handing, { flags: {} }, out);
-    expect(code).toBe(70);
-    expect(lines).toEqual([["warn", "session ended"]]);
-  });
-
-  it("answers no handed-over exit under --json", async () => {
-    const { out } = recorded();
-    expect(await runThroughOutput(handing, { flags: {} }, out, { json: true })).toBe(0);
   });
 });
 

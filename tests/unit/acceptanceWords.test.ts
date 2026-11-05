@@ -291,12 +291,6 @@ export const ALLOWLIST: readonly AllowEntry[] = [
     lines: [/`resume --skip-oracle` keeps its sentence/],
   },
   {
-    id: "skip-oracle-resume",
-    reason: "old-name refusal",
-    file: "src/cli/commands/resume.ts",
-    lines: [/--skip-oracle/, /skipOracle/, /SKIP_ORACLE_RETIRED/],
-  },
-  {
     id: "lint-old-header-lines",
     reason: "old-name refusal",
     file: "src/app/lintPlan.ts",

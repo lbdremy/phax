@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { Effect, Either } from "effect";
-import { runReviewCode } from "../../../src/cli/commands/reviewCode.js";
+import type { OutputPort } from "../../../src/ports/output.js";
+import { phaxCall } from "../../helpers/runnerCall.js";
 import type { RunReviewInfo } from "../../../src/domain/runReviewInfo.js";
 import {
   DEFAULT_MODEL_ROUTING,
@@ -41,15 +42,29 @@ vi.mock("../../../src/domain/routing/resolve.js", () => ({
     .mockReturnValue({ kind: "resolved", provider: "claude", model: "claude-opus-5-5" }),
 }));
 
+/** Collects what `phax review-code` wrote: stdout as `lines`, stderr as `errors`. */
 function makeOutput() {
   const lines: string[] = [];
   const errors: string[] = [];
   const out = {
     log: (m: string) => lines.push(m),
-    warn: (m: string) => lines.push(`WARN: ${m}`),
+    warn: (m: string) => errors.push(m),
     error: (m: string) => errors.push(m),
   };
   return { out, lines, errors };
+}
+
+/** `phax review-code <name> --headless` through the real program; its two streams are copied
+ *  to `out`. */
+async function runReviewCode(
+  shortName: string,
+  _opts: { readonly headless: true },
+  out: Pick<OutputPort, "log" | "error">,
+): Promise<number> {
+  const result = await phaxCall(["review-code", shortName, "--headless"]);
+  for (const line of result.outLines) out.log(line);
+  for (const line of result.errLines) out.error(line);
+  return result.code;
 }
 
 function makeConfig(): ResolvedConfig {
@@ -215,8 +230,10 @@ describe("runReviewCode --headless", () => {
 
   it("exits 1 naming the refusal and the retry command when the review fails", async () => {
     const mocks = await setup(makeInfo());
-    mocks.reviewCodeAndRecord.mockReturnValue(
-      Effect.succeed({
+    // The command hands a port of its own output to the use case, for the retry warning.
+    mocks.reviewCodeAndRecord.mockImplementation(((...args: unknown[]) => {
+      (args[5] as { output?: OutputPort } | undefined)?.output?.warn("the retry warning");
+      return Effect.succeed({
         review: {
           kind: "failed",
           reason:
@@ -224,20 +241,17 @@ describe("runReviewCode --headless", () => {
         },
         record: { kind: "no-entry" },
         push: { kind: "no-record" },
-      } as never),
-    );
+      });
+    }) as never);
 
-    const { out, lines, errors } = makeOutput();
+    const { out, errors } = makeOutput();
     const code = await runReviewCode(SHORT_NAME, { headless: true }, out);
 
     expect(code).toBe(1);
     expect(errors).toEqual([
+      "the retry warning",
       `Code review failed: code-review answer rejected twice — first answer: findings[0].lens: not a lens; retry: the session's final message is not JSON. To retry, run: phax review-code ${SHORT_NAME} --headless`,
     ]);
-    // The command hands a port of its own output to the use case, for the retry warning.
-    const given = mocks.reviewCodeAndRecord.mock.calls[0]?.[5]?.output;
-    given?.warn("the retry warning");
-    expect(lines).toContain("WARN: the retry warning");
   });
 
   it("names the qualified run in the retry command for a run of another project", async () => {
@@ -266,12 +280,12 @@ describe("runReviewCode --headless", () => {
       }),
     );
 
-    const { out, lines } = makeOutput();
+    const { out, lines, errors } = makeOutput();
     const code = await runReviewCode(SHORT_NAME, { headless: true }, out);
 
     expect(code).toBe(0);
     expect(lines[0]).toBe("Code review: 1 finding (1 bug)");
-    const warning = lines.find((l) => l.startsWith("WARN: "));
+    const warning = errors[0];
     expect(warning).toContain("code-review");
     expect(warning).toContain("disk full");
     expect(warning).toContain(`phax review-code ${SHORT_NAME} --headless`);

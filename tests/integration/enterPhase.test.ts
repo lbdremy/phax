@@ -7,6 +7,7 @@ import { decodeShortName } from "../../src/domain/branded.js";
 import { resolvePhaseInfo } from "../../src/app/resolveRunInfo.js";
 import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
 import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
+import { phaxCall } from "../helpers/runnerCall.js";
 import type { PhaseStatus } from "../../src/schemas/status.js";
 
 vi.mock("node:child_process", () => ({
@@ -269,15 +270,7 @@ describe("runEnterPhase", () => {
     });
     await writeSecurityFixture(phaseDir, "claude-code", worktreePath);
 
-    const { runEnterPhase } = await import("../../src/cli/commands/enterPhase.js");
-    const logs: string[] = [];
-    const out = {
-      log: (m: string) => logs.push(m),
-      warn: (m: string) => logs.push(`WARN: ${m}`),
-      error: (m: string) => logs.push(`ERR: ${m}`),
-    };
-
-    const exitCode = await runEnterPhase("my-run", "phase-01", out);
+    const { code: exitCode } = await phaxCall(["enter-phase", "my-run", "phase-01"]);
 
     expect(exitCode).toBe(0);
     // The session is resumed under the phase's own posture (carry-posture).
@@ -313,13 +306,10 @@ describe("runEnterPhase", () => {
     });
     await writeSecurityFixture(phaseDir, "codex-cli", worktreePath);
 
-    const { runEnterPhase } = await import("../../src/cli/commands/enterPhase.js");
-    const output = { log: vi.fn(), warn: vi.fn(), error: vi.fn() };
-
-    const exitCode = await runEnterPhase("my-run", "phase-01", output);
+    const { code: exitCode, err } = await phaxCall(["enter-phase", "my-run", "phase-01"]);
 
     expect(exitCode).toBe(0);
-    expect(output.error).not.toHaveBeenCalled();
+    expect(err).toBe("");
     expect(spawnSync).toHaveBeenCalledWith(
       "codex",
       expect.arrayContaining(["resume", "sess-codex", 'approval_policy="on-request"']),
@@ -341,11 +331,11 @@ describe("runEnterPhase", () => {
       worktreePath,
     });
 
-    const { runEnterPhase } = await import("../../src/cli/commands/enterPhase.js");
-    const errors: string[] = [];
-    const out = { log: vi.fn(), warn: vi.fn(), error: (m: string) => errors.push(m) };
-
-    const exitCode = await runEnterPhase("my-run", "phase-01", out);
+    const { code: exitCode, errLines: errors } = await phaxCall([
+      "enter-phase",
+      "my-run",
+      "phase-01",
+    ]);
 
     expect(exitCode).toBe(1);
     expect(errors.join("\n")).toContain("security.json");
@@ -361,11 +351,11 @@ describe("runEnterPhase", () => {
     ]);
     // No agent-binding.json — binding is required, no legacy inference.
 
-    const { runEnterPhase } = await import("../../src/cli/commands/enterPhase.js");
-    const errors: string[] = [];
-    const out = { log: vi.fn(), warn: vi.fn(), error: (m: string) => errors.push(m) };
-
-    const exitCode = await runEnterPhase("my-run", "phase-01", out);
+    const { code: exitCode, errLines: errors } = await phaxCall([
+      "enter-phase",
+      "my-run",
+      "phase-01",
+    ]);
 
     expect(exitCode).toBe(1);
     expect(errors.some((e) => e.includes("No agent binding found"))).toBe(true);
@@ -374,11 +364,11 @@ describe("runEnterPhase", () => {
   it("returns 1 with an error when phase does not exist", async () => {
     await buildFakeRunFolder(stateRoot, [{ id: "phase-01", index: 0, state: "committed" }]);
 
-    const { runEnterPhase } = await import("../../src/cli/commands/enterPhase.js");
-    const errors: string[] = [];
-    const out = { log: vi.fn(), warn: vi.fn(), error: (m: string) => errors.push(m) };
-
-    const exitCode = await runEnterPhase("my-run", "phase-99", out);
+    const { code: exitCode, errLines: errors } = await phaxCall([
+      "enter-phase",
+      "my-run",
+      "phase-99",
+    ]);
 
     expect(exitCode).toBe(1);
     expect(errors.some((e) => e.includes("phase-99"))).toBe(true);

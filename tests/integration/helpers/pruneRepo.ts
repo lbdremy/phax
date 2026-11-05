@@ -20,7 +20,6 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import type { OutputPort } from "../../../src/ports/output.js";
 import { runKey } from "../../../src/domain/runRef.js";
 import { withSchemaUrl } from "../../../src/schemas/persisted.js";
 import { encodeRegistryFile, type RegistryEntry } from "../../../src/schemas/registry.js";
@@ -277,38 +276,4 @@ export function apparentSize(path: string): number {
   if (stat.isFile()) return stat.size;
   if (!stat.isDirectory()) return 0;
   return readdirSync(path).reduce((sum, name) => sum + apparentSize(join(path, name)), 0);
-}
-
-// ── Output ───────────────────────────────────────────────────────────────────
-
-export interface RecordingOutput {
-  readonly port: OutputPort;
-  readonly logs: string[];
-  readonly errors: string[];
-  /** Every log, warn, error and prompt, in order (`log: …`, `error: …`, `prompt: …`). */
-  readonly events: string[];
-}
-
-export function recordingOutput(events: string[] = []): RecordingOutput {
-  const logs: string[] = [];
-  const errors: string[] = [];
-  return {
-    port: {
-      log: (m) => {
-        logs.push(m);
-        events.push(`log: ${m}`);
-      },
-      warn: (m) => {
-        errors.push(m);
-        events.push(`warn: ${m}`);
-      },
-      error: (m) => {
-        errors.push(m);
-        events.push(`error: ${m}`);
-      },
-    },
-    logs,
-    errors,
-    events,
-  };
 }

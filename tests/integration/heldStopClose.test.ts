@@ -36,6 +36,7 @@ import type { GateStep } from "../../src/schemas/phaxConfig.js";
 import type { ProviderConfig } from "../../src/schemas/providerConfig.js";
 import { claudeSchemaArgs, codexSchemaArgs, codexSchemaFile } from "../helpers/answerSchemaArgv.js";
 import { makeFakeProviderCli } from "../helpers/fakeProviderCli.js";
+import { phaxCall } from "../helpers/runnerCall.js";
 import {
   SHORT,
   createHeldWorld,
@@ -770,9 +771,7 @@ describe(
         });
         const { loadConfig } = await import("../../src/app/loadConfig.js");
         vi.mocked(loadConfig).mockReturnValue(Either.right(entered.config));
-        const { runEnterPhase } = await import("../../src/cli/commands/enterPhase.js");
-        const quiet = { log: () => undefined, warn: () => undefined, error: () => undefined };
-        expect(await runEnterPhase(SHORT, "phase-02", quiet, {})).toBe(0);
+        expect((await phaxCall(["enter-phase", SHORT, "phase-02"])).code).toBe(0);
 
         for (const r of [run, entered]) write(PERSON_HANDOFF_PATH, PERSON_HANDOFF, r);
         const a = report((await close({ run })).result);

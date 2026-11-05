@@ -99,22 +99,6 @@ afterEach(() => {
   world.cleanup();
 });
 
-function makeOutput() {
-  const logs: string[] = [];
-  const warns: string[] = [];
-  const errors: string[] = [];
-  return {
-    out: {
-      log: (m: string) => logs.push(m),
-      warn: (m: string) => warns.push(m),
-      error: (m: string) => errors.push(m),
-    },
-    logs,
-    warns,
-    errors,
-  };
-}
-
 const statePath = () => join(run.runPath, "run-status.json");
 const stopPath = () => join(run.runPath, "review-stop.json");
 const phaseFolder = () => join(run.runPath, "phase-02");
@@ -239,31 +223,26 @@ describe("phax path, shell and open on a held run", () => {
     const script = join(world.root, "fake-shell.sh");
     vi.stubEnv("SHELL", script);
 
-    const { runShell } = await import("../../src/cli/commands/shell.js");
-    const { runOpen } = await import("../../src/cli/commands/open.js");
-
     const pathCall = await phaxCall(["path", SHORT]);
     expect(pathCall.code).toBe(0);
     expect(pathCall.outLines).toEqual([tree()]);
 
-    expect(await runShell(SHORT, makeOutput().out)).toBe(0);
+    expect((await phaxCall(["shell", SHORT])).code).toBe(0);
     expect(fakeSession.impl.invocations).toEqual([
       { executable: script, args: [], cwd: tree(), env: {} },
     ]);
 
-    expect(await runOpen(SHORT, makeOutput().out)).toBe(0);
+    expect((await phaxCall(["open", SHORT])).code).toBe(0);
     expect(fakeEditor.impl.openCalls).toEqual([tree()]);
   });
 });
 
 describe("phax enter-phase at a held stop", () => {
   it("spawns codex resume X0 in phase-02's worktree with the phase's model, effort and posture", async () => {
-    const { runEnterPhase } = await import("../../src/cli/commands/enterPhase.js");
-    const { out, logs, errors } = makeOutput();
+    const call = await phaxCall(["enter-phase", SHORT, "phase-02"]);
+    expect(call.code).toBe(0);
 
-    expect(await runEnterPhase(SHORT, "phase-02", out, {})).toBe(0);
-
-    expect(errors).toEqual([]);
+    expect(call.err).toBe("");
     const spawned = only(fakeSession.impl.invocations);
     expect(spawned).toMatchObject({ executable: "codex", cwd: tree(), env: {} });
     expect(spawned.args.slice(0, 2)).toEqual(["resume", "X0"]);
@@ -271,7 +250,7 @@ describe("phax enter-phase at a held stop", () => {
     expect(spawned.args).toContain('model_reasoning_effort="medium"');
     // The fixture's phase ran under the unsafe profile, so it keeps its unsafe flag.
     expect(spawned.args).toContain("--dangerously-bypass-approvals-and-sandbox");
-    expect(logs.join("\n")).toContain(
+    expect(call.out).toContain(
       `Continuing codex-cli session X0 (the session that built phase-02) in ${tree()}`,
     );
   });
@@ -279,16 +258,14 @@ describe("phax enter-phase at a held stop", () => {
   it("runs the fresh-start command when the stop has no current session", async () => {
     const files = join(phaseFolder(), "interactive-session.json");
     writeFileSync(files, JSON.stringify({ ...readJson(files), current: null }, null, 2));
-    const { runEnterPhase } = await import("../../src/cli/commands/enterPhase.js");
-    const { out, logs } = makeOutput();
-
-    expect(await runEnterPhase(SHORT, "phase-02", out, {})).toBe(0);
+    const call = await phaxCall(["enter-phase", SHORT, "phase-02"]);
+    expect(call.code).toBe(0);
 
     const spawned = only(fakeSession.impl.invocations);
     expect(spawned.executable).toBe("codex");
     expect(spawned.args[0]).not.toBe("resume");
     expect(spawned.cwd).toBe(tree());
-    expect(logs.join("\n")).toContain("No session is current");
+    expect(call.out).toContain("No session is current");
   });
 });
 
@@ -428,12 +405,10 @@ describe("phax reset-phase on a held run", () => {
   it("previews the phase commit and the two corrections, and changes nothing without --yes", async () => {
     const c2 = phaseCommit();
     makeCorrections();
-    const { runResetPhase } = await import("../../src/cli/commands/resetPhase.js");
-    const { out, logs, errors } = makeOutput();
+    const call = await phaxCall(["reset-phase", SHORT, "phase-02"]);
+    expect(call.code).toBe(0);
 
-    expect(await runResetPhase(SHORT, "phase-02", {}, out)).toBe(0);
-
-    const text = logs.join("\n");
+    const text = call.outLines.join("\n");
     expect(text).toContain(
       `This discards phase-02's commit ${c2.slice(0, 7)} and 2 uncommitted review corrections in ${tree()}:`,
     );
@@ -442,7 +417,7 @@ describe("phax reset-phase on a held run", () => {
     expect(text).toContain(
       "phax resume example.invoice-export will run phase-02 again from its start and hold it again.",
     );
-    expect(errors).toEqual([]);
+    expect(call.err).toBe("");
     expect(existsSync(stopPath())).toBe(true);
     expect(existsSync(tree())).toBe(true);
     expect(readJson(statePath())["state"]).toBe("awaiting_review");
@@ -450,12 +425,10 @@ describe("phax reset-phase on a held run", () => {
 
   it("with --yes removes the worktree, the branch with C2 and the session files", async () => {
     makeCorrections();
-    const { runResetPhase } = await import("../../src/cli/commands/resetPhase.js");
-    const { out, errors } = makeOutput();
+    const call = await phaxCall(["reset-phase", SHORT, "--yes"]);
+    expect(call.code).toBe(0);
 
-    expect(await runResetPhase(SHORT, undefined, { yes: true }, out)).toBe(0);
-
-    expect(errors).toEqual([]);
+    expect(call.err).toBe("");
     expect(existsSync(tree())).toBe(false);
     expect(gitIn(world.repoRoot, "branch", "--list", `phax/${SHORT}--phase-02`)).toBe("");
     expect(existsSync(stopPath())).toBe(false);
@@ -468,12 +441,10 @@ describe("phax reset-phase on a held run", () => {
   });
 
   it("refuses to reset phase-01 before the held phase-02, naming it, and changes nothing", async () => {
-    const { runResetPhase } = await import("../../src/cli/commands/resetPhase.js");
-
-    for (const opts of [{ yes: true }, {}]) {
-      const { out, errors } = makeOutput();
-      expect(await runResetPhase(SHORT, "phase-01", opts, out)).toBe(1);
-      expect(errors.join("\n")).toContain(
+    for (const opts of [["--yes"], []]) {
+      const call = await phaxCall(["reset-phase", SHORT, "phase-01", ...opts]);
+      expect(call.code).toBe(1);
+      expect(call.err).toContain(
         'Cannot reset "phase-01" of run "invoice-export": the run is awaiting review at "phase-02". Reset "phase-02" first (`phax reset-phase invoice-export phase-02`).',
       );
     }
@@ -523,18 +494,16 @@ describe("phax archive and adjust-plan on a held run", () => {
   });
 
   it("refuses adjust-plan --landed, naming awaiting_review, before any session starts", async () => {
-    const { runAdjustPlan } = await import("../../src/cli/commands/adjustPlan.js");
-    const { out, errors } = makeOutput();
-
-    const code = await runAdjustPlan(
+    const call = await phaxCall([
+      "adjust-plan",
       "docs/plans/2610221000-credit-notes-plan.md",
-      { landed: SHORT },
-      out,
-    );
+      "--landed",
+      SHORT,
+    ]);
 
-    expect(code).toBe(1);
-    expect(errors.join("\n")).toContain("awaiting_review");
-    expect(errors.join("\n")).toContain("has not landed");
+    expect(call.code).toBe(1);
+    expect(call.err).toContain("awaiting_review");
+    expect(call.err).toContain("has not landed");
     expect(fakeSession.impl.invocations).toHaveLength(0);
   });
 });
