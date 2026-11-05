@@ -65,7 +65,17 @@ names the narrow check of each step.
       acceptance tests, phases that needed fixes, the run's review notes) and gives it to the
       review session. `headless-review` was abandoned 2026-11-05 in favour of this line.
 
-### 6. What `command-contracts` unblocks
+### 6. The project doctrine
+
+- [ ] **`project-doctrine`** — `docs/briefs/project-doctrine.md` (2026-11-05), spec to author.
+      Split the arbitration doctrine: phax's bundled base of engineering practice (the same in
+      every project) and the project's own doctrine of taste, a versioned document in the
+      repository with a CLI to add, retire and supersede entries, loaded by headless authoring
+      and every decide mode so a recommendation names the rules it rests on. Today the doctrine
+      reaches only decide, after the choice, and the operator's rules live in `CLAUDE.md` and an
+      assistant's memory.
+
+### 7. What `command-contracts` unblocks
 
 - [ ] **`knowledge-index`** — `docs/briefs/knowledge-index.md` (2026-11-04), spec to author. A local,
       rebuildable index (SQLite, FTS5) of what the repository and its runs hold — specs, plans,
@@ -78,13 +88,13 @@ names the narrow check of each step.
       inbox, specs, plans and runs, read from phax's versioned JSON, writing nothing. It needs a
       coverage level (§9 Q1), and can read the knowledge index once it exists.
 
-### 7. Before 1.0
+### 8. Before 1.0
 
 - [ ] **Migrate to Effect 4**, then the **CLI contract freeze** and the **persisted-format
       stability promise** (see "Road to 1.0.0" below). Every command moved onto the runner adds
       to the migration, so do not leave it long after `command-contracts`.
 
-### 8. Later
+### 9. Later
 
 - [ ] **`code-repository`** — `docs/briefs/code-repository.md` (2026-11-02), spec to author: a
       project whose process lives in one repository and whose code in another, checked out
