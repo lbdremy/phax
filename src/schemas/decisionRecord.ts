@@ -43,6 +43,7 @@ export const DecisionFailureSchema = Schema.Literal(
   "network",
   "rate-limit",
   "usage-limit",
+  "not-authenticated",
   "provider-error",
   "max-turns",
   "killed",

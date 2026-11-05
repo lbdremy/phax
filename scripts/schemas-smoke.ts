@@ -57,6 +57,7 @@ export function smokeRecordManifest(phaseId: string = PHASE_ID): RunRecordManife
       model: "example-model",
       effort: "high",
       provider: "claude-code",
+      userConfig: "loaded",
       outcome: "committed",
       usage: {
         available: true,

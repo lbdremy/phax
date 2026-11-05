@@ -54,11 +54,15 @@ import { readVibeOutcome } from "./vibeOutcome.js";
  * `system`/`init` event, the Codex `thread.started` event or the Vibe export.
  */
 
-/** Why a session failed. */
+/**
+ * Why a session failed. `not-authenticated` is Claude Code reporting that the
+ * session is not authenticated; it is never transient.
+ */
 export type FailureKind =
   | "network"
   | "rate-limit"
   | "usage-limit"
+  | "not-authenticated"
   | "provider-error"
   | "max-turns"
   | "killed"
@@ -69,6 +73,7 @@ export const FAILURE_KINDS: readonly FailureKind[] = [
   "network",
   "rate-limit",
   "usage-limit",
+  "not-authenticated",
   "provider-error",
   "max-turns",
   "killed",

@@ -136,6 +136,35 @@ describe("the decision record manifest", () => {
     expect(latest.kind).toBe("decision");
   });
 
+  it("parses a 0.30.0 failed manifest as shape 0.30.0 and upgrades it by dropping $schema", () => {
+    const failed = {
+      ...withKey(writtenDecision, "$schema", schemaUrl("decision-record-manifest", "0.30.0")),
+      outcome: "failed",
+      commit: null,
+      failure: "usage-limit",
+    };
+    const result = parseDecisionRecordManifest(failed);
+    if (!result.ok) throw new Error("document rejected");
+    expect(result.shape).toBe("0.30.0");
+    expect(toLatestDecisionRecordManifest(result.value)).toEqual(withoutKey(failed, "$schema"));
+  });
+
+  it("refuses not-authenticated in a 0.30.0 manifest and reads it in a current one", () => {
+    const failed = { ...writtenDecision, outcome: "failed", commit: null };
+    const older = withKey(
+      withKey(failed, "failure", "not-authenticated"),
+      "$schema",
+      schemaUrl("decision-record-manifest", "0.30.0"),
+    );
+    expect(parseDecisionRecordManifest(older).ok).toBe(false);
+    const current = parseDecisionRecordManifest(withKey(failed, "failure", "not-authenticated"));
+    if (!current.ok) throw new Error("document rejected");
+    expect(current.shape).toBe(DECISION_CURRENT);
+    expect(toLatestDecisionRecordManifest(current.value)).toMatchObject({
+      failure: "not-authenticated",
+    });
+  });
+
   it("is born with $schema: a manifest without one is unreadable", () => {
     const result = parseDecisionRecordManifest(withoutKey(writtenDecision, "$schema"));
     expect(result.ok).toBe(false);

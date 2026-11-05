@@ -35,6 +35,11 @@ import {
   type DecisionRecordManifestV0_28_0,
 } from "../../../../src/schemas/history/decision-record-manifest/0.28.0.js";
 import {
+  DecisionRecordManifestV0_30_0Schema,
+  decodeDecisionRecordManifestV0_30_0,
+  type DecisionRecordManifestV0_30_0,
+} from "../../../../src/schemas/history/decision-record-manifest/0.30.0.js";
+import {
   AuthoringRecordManifestV0_17_0Schema,
   decodeAuthoringRecordManifestV0_17_0,
   type AuthoringRecordManifestV0_17_0,
@@ -64,6 +69,11 @@ import {
   decodePhaseRecordManifestV0_30_0,
   type PhaseRecordManifestV0_30_0,
 } from "../../../../src/schemas/history/phase-record-manifest/0.30.0.js";
+import {
+  PhaseRecordManifestV0_33_0Schema,
+  decodePhaseRecordManifestV0_33_0,
+  type PhaseRecordManifestV0_33_0,
+} from "../../../../src/schemas/history/phase-record-manifest/0.33.0.js";
 import { liftRecordRole, liftVerifiedSurfaces } from "../../../../src/schemas/acceptanceLift.js";
 import {
   PhaseRecordManifestPreSchemaSchema,
@@ -74,6 +84,7 @@ import {
   RunRecordManifestFileSchema,
   decodeRunRecordManifestFile,
   liftFrozenTokenUsage,
+  withLoadedUserConfig,
   type RunRecordManifest,
   type RunRecordManifestFile,
 } from "../../../../src/schemas/runRecord.js";
@@ -107,6 +118,7 @@ export type PhaseRecordManifestShapes = {
   "0.17.0": PhaseRecordManifestV0_17_0;
   "0.26.0": PhaseRecordManifestV0_26_0;
   "0.30.0": PhaseRecordManifestV0_30_0;
+  "0.33.0": PhaseRecordManifestV0_33_0;
 } & {
   [K in CurrentShapeName<"phase-record-manifest">]: PhaseRecordManifest;
 };
@@ -134,6 +146,10 @@ export const phaseRecordManifestFormat = defineFormat<PhaseRecordManifestShapes>
       "0.30.0",
       { schema: PhaseRecordManifestV0_30_0Schema, decode: decodePhaseRecordManifestV0_30_0 },
     ],
+    [
+      "0.33.0",
+      { schema: PhaseRecordManifestV0_33_0Schema, decode: decodePhaseRecordManifestV0_33_0 },
+    ],
   ],
   current: {
     name: CURRENT_SHAPES["phase-record-manifest"],
@@ -155,9 +171,11 @@ export type LatestPhaseRecordManifest = RunRecordManifest;
  * that wrote it could run an oracle phase or stop a phase. The 0.26.0 and
  * 0.30.0 shapes' `oracle` role is lifted to the `acceptance` role
  * (`liftRecordRole`) and their verified surfaces lifted and sorted again
- * (`liftVerifiedSurfaces`), as phax's reader does. A Vibe usage a shape older
- * than 0.30.0 recorded counted a whole session from the session's
- * `meta.json`: it becomes `{ available: false }`.
+ * (`liftVerifiedSurfaces`), as phax's reader does. A shape older than 0.34.0
+ * recorded no `userConfig`: it gets `userConfig: "loaded"` after `provider`,
+ * because every phax that wrote one loaded the user layer for every provider.
+ * A Vibe usage a shape older than 0.30.0 recorded counted a whole session from
+ * the session's `meta.json`: it becomes `{ available: false }`.
  */
 export function toLatestPhaseRecordManifest(
   value:
@@ -165,41 +183,46 @@ export function toLatestPhaseRecordManifest(
     | PhaseRecordManifestV0_17_0
     | PhaseRecordManifestV0_26_0
     | PhaseRecordManifestV0_30_0
+    | PhaseRecordManifestV0_33_0
     | PhaseRecordManifest,
 ): LatestPhaseRecordManifest {
-  if ("acceptance" in value) {
+  if ("userConfig" in value) {
     const { $schema: _schema, ...recorded } = value;
     return recorded;
   }
+  if ("acceptance" in value) {
+    const { $schema: _schema, ...recorded } = value;
+    return withLoadedUserConfig(recorded);
+  }
   if ("oracle" in value) {
     const { $schema: _schema, usage, verifiedSurfaces, oracle, mode, stop, ...recorded } = value;
-    return {
+    return withLoadedUserConfig({
       ...recorded,
       usage: liftFrozenTokenUsage(usage),
       verifiedSurfaces: liftVerifiedSurfaces(verifiedSurfaces),
       acceptance: liftRecordRole(oracle),
       mode,
       stop,
-    };
+    });
   }
   if ("$schema" in value) {
     const { $schema: _schema, usage, ...recorded } = value;
-    return {
+    return withLoadedUserConfig({
       ...recorded,
       usage: liftFrozenTokenUsage(usage),
       acceptance: null,
       mode: "headless",
       stop: null,
-    };
+    });
   }
   const { version: _version, usage, ...recorded } = value;
-  return {
+  return withLoadedUserConfig({
     ...recorded,
     usage: liftFrozenTokenUsage(usage),
     acceptance: null,
     mode: "headless",
     stop: null,
-  };
+  });
 }
 
 // ── authoring record manifest
@@ -290,11 +313,14 @@ export function toLatestAuthoringRecordManifest(
 // Born with `$schema`: no pre-schema shape, and a manifest without `$schema`
 // is unreadable. The 0.25.0 shape is frozen: every manifest it describes is an
 // interactive record, valid as it is in the current shape but for a Vibe usage.
-// The 0.28.0 shape is frozen too, for the Vibe usage alone.
+// The 0.28.0 shape is frozen too, for the Vibe usage alone, and the 0.30.0
+// shape for the failure kinds it admits (no `not-authenticated`): valid as it
+// is in the current shape.
 
 export type DecisionRecordManifestShapes = {
   "0.25.0": DecisionRecordManifestV0_25_0;
   "0.28.0": DecisionRecordManifestV0_28_0;
+  "0.30.0": DecisionRecordManifestV0_30_0;
 } & {
   [K in CurrentShapeName<"decision-record-manifest">]: DecisionRecordManifestFile;
 };
@@ -314,6 +340,10 @@ export const decisionRecordManifestFormat = defineFormat<DecisionRecordManifestS
     [
       "0.28.0",
       { schema: DecisionRecordManifestV0_28_0Schema, decode: decodeDecisionRecordManifestV0_28_0 },
+    ],
+    [
+      "0.30.0",
+      { schema: DecisionRecordManifestV0_30_0Schema, decode: decodeDecisionRecordManifestV0_30_0 },
     ],
   ],
   current: {
@@ -340,7 +370,11 @@ export type LatestDecisionRecordManifest = DecisionRecordManifest;
  * the session's `meta.json`: it becomes `{ available: false }`.
  */
 export function toLatestDecisionRecordManifest(
-  value: DecisionRecordManifestFile | DecisionRecordManifestV0_25_0 | DecisionRecordManifestV0_28_0,
+  value:
+    | DecisionRecordManifestFile
+    | DecisionRecordManifestV0_25_0
+    | DecisionRecordManifestV0_28_0
+    | DecisionRecordManifestV0_30_0,
 ): LatestDecisionRecordManifest {
   const { $schema: _schema, ...recorded } = value;
   // A current failed record already names its failure; a frozen one never does.

@@ -12,6 +12,7 @@ import {
   validDocuments,
   versionOnePhaseRecordManifest,
   withKey,
+  withOracleRole,
   withoutKey,
 } from "./documents.js";
 
@@ -66,9 +67,10 @@ describe("toLatestPhaseRecordManifest (ac-to-latest)", () => {
     const result = parsePhaseRecordManifest(preSchema);
     if (!result.ok) throw new Error("expected a pre-schema manifest");
     const latest = toLatestPhaseRecordManifest(result.value);
-    // Older than the role, `mode` and `stop`: lifted with the only values true of it.
+    // Older than the role, `mode`, `stop` and `userConfig`: lifted with the only values true of it.
     expect(latest).toEqual({
       ...withoutKey(preSchema, "version"),
+      userConfig: "loaded",
       acceptance: null,
       mode: "headless",
       stop: null,
@@ -76,9 +78,12 @@ describe("toLatestPhaseRecordManifest (ac-to-latest)", () => {
     expect(latest).not.toHaveProperty("version");
   });
 
-  it("lifts a manifest stamped 0.17.0 to acceptance null, mode headless and stop null, and keeps its surfaces", () => {
+  it("lifts a manifest stamped 0.17.0 to acceptance null, mode headless, stop null and userConfig loaded, and keeps its surfaces", () => {
     const stamped = withKey(
-      withoutKey(withoutKey(withoutKey(written, "acceptance"), "mode"), "stop"),
+      withoutKey(
+        withoutKey(withoutKey(withoutKey(written, "acceptance"), "mode"), "stop"),
+        "userConfig",
+      ),
       "$schema",
       schemaUrl("phase-record-manifest", "0.17.0"),
     );
@@ -88,14 +93,41 @@ describe("toLatestPhaseRecordManifest (ac-to-latest)", () => {
     const latest = toLatestPhaseRecordManifest(result.value);
     expect(latest).toEqual({
       ...withoutKey(stamped, "$schema"),
+      userConfig: "loaded",
       acceptance: null,
       mode: "headless",
       stop: null,
     });
   });
 
-  it("refuses a manifest stamped at the current release without mode or stop", () => {
-    for (const key of ["mode", "stop"]) {
+  it.each([
+    ["0.26.0", withOracleRole(withoutKey(written, "userConfig"))],
+    ["0.30.0", withOracleRole(withoutKey(written, "userConfig"))],
+    ["0.33.0", withoutKey(written, "userConfig")],
+  ])(
+    "lifts a manifest stamped %s to the latest, with userConfig loaded right after provider",
+    (release, document) => {
+      const stamped = withKey(document, "$schema", schemaUrl("phase-record-manifest", release));
+      const result = parsePhaseRecordManifest(stamped);
+      if (!result.ok) throw new Error(`expected a ${release} manifest`);
+      expect(result.shape).toBe(release);
+      const latest = toLatestPhaseRecordManifest(result.value);
+      expect(latest).toEqual({ ...withoutKey(written, "$schema"), userConfig: "loaded" });
+      const keys = Object.keys(latest);
+      expect(keys[keys.indexOf("provider") + 1]).toBe("userConfig");
+    },
+  );
+
+  it("keeps the userConfig a current manifest recorded", () => {
+    for (const userConfig of ["excluded", "loaded"]) {
+      const result = parsePhaseRecordManifest(withKey(written, "userConfig", userConfig));
+      if (!result.ok) throw new Error("expected a current manifest");
+      expect(toLatestPhaseRecordManifest(result.value)).toMatchObject({ userConfig });
+    }
+  });
+
+  it("refuses a manifest stamped at the current release without mode, stop or userConfig", () => {
+    for (const key of ["mode", "stop", "userConfig"]) {
       expect(parsePhaseRecordManifest(withoutKey(written, key)).ok).toBe(false);
     }
   });

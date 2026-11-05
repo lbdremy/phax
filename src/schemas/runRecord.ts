@@ -1,6 +1,6 @@
 import { Schema, type Types } from "effect";
 import { PhaseModeSchema } from "./phaxPlan.js";
-import { ProviderIdSchema } from "./providerId.js";
+import { ProviderIdSchema, type ProviderId } from "./providerId.js";
 import { schemaUrlField } from "./schemaUrl.js";
 import { SafeSessionIdSchema } from "./sessionId.js";
 import { FullCommitShaSchema } from "./status.js";
@@ -205,6 +205,37 @@ export const RecordStopSchema = Schema.NullOr(
 export type RecordStop = Schema.Schema.Type<typeof RecordStopSchema>;
 
 /**
+ * Whether the operator's user-level provider configuration (settings, user
+ * skills, plugins, memory) was loaded for the phase's headless sessions:
+ * `excluded` when they ran project-only, `loaded` otherwise.
+ */
+export const UserConfigSchema = Schema.Literal("excluded", "loaded").annotations({
+  description:
+    "Whether the operator's user-level provider configuration was loaded for the phase's headless sessions.",
+});
+
+export type UserConfig = Schema.Schema.Type<typeof UserConfigSchema>;
+
+/**
+ * A phase manifest of a frozen shape, which recorded no `userConfig`, with
+ * `userConfig: "loaded"` inserted right after `provider`: every phax before
+ * the field loaded the user layer for every provider.
+ */
+export function withLoadedUserConfig<const T extends { readonly provider: ProviderId }>(
+  manifest: T,
+): T & { readonly userConfig: "loaded" } {
+  const entries = Object.entries(manifest).flatMap(([key, value]): [string, unknown][] =>
+    key === "provider"
+      ? [
+          [key, value],
+          ["userConfig", "loaded"],
+        ]
+      : [[key, value]],
+  );
+  return Object.fromEntries(entries) as T & { readonly userConfig: "loaded" };
+}
+
+/**
  * The record manifest (`record.json`): everything about a phase's record
  * except the artifacts it carries. The source sha is a back-reference that
  * may go stale (rebase, squash merge) and is absent for a phase that never
@@ -218,6 +249,7 @@ const runRecordManifestFields = {
   model: Schema.NonEmptyString,
   effort: Schema.NonEmptyString,
   provider: ProviderIdSchema,
+  userConfig: UserConfigSchema,
   outcome: RecordPhaseOutcomeSchema,
   usage: TokenUsageSchema,
   verifiedSurfaces: Schema.Array(RecordedSurfaceSchema),

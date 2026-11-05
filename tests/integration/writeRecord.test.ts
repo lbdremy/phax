@@ -173,6 +173,25 @@ describe("writeRecord", () => {
     expect(manifest).toMatchObject({ runId: "run-1", phaseId: "phase-01" });
   });
 
+  it.each(["claude-code", "codex-cli"] as const)(
+    "stamps a %s phase record 0.34.0 and says userConfig loaded right after provider",
+    async (provider) => {
+      await seedPhaseFolder({ "prompt.md": "p\n" });
+
+      await run(writeRecord(baseInput({ provider })));
+
+      const manifest = readManifest("run-1/phase-01");
+      expect(manifest["$schema"]).toBe(
+        "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+      );
+      const keys = Object.keys(manifest);
+      expect(keys[keys.indexOf("provider") + 1]).toBe("userConfig");
+      expect(manifest).toMatchObject({ provider, userConfig: "loaded" });
+      const text = git(["show", `${RECORDS_BRANCH_NAME}:run-1/phase-01/record.json`], repoDir);
+      expect(text).toContain('"userConfig": "loaded"');
+    },
+  );
+
   it("records a source sha back-reference when the phase committed", async () => {
     await seedPhaseFolder({ "prompt.md": "p\n" });
     const sourceSha = git(["rev-parse", "HEAD"], repoDir).trim();

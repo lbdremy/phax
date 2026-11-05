@@ -108,6 +108,7 @@ import type {
   ReviewRecordManifestShape,
   DecisionRecordManifestV0_25_0,
   DecisionRecordManifestV0_28_0,
+  DecisionRecordManifestV0_30_0,
   DocumentFormatId,
   GateAttribution,
   GateAttributionShape,
@@ -177,6 +178,7 @@ import type {
   GateAttributionV0_26_0,
   PhaseRecordManifestV0_17_0,
   PhaseRecordManifestV0_26_0,
+  PhaseRecordManifestV0_33_0,
   RecordManifest,
   RecordManifestFormat,
   Registry,
@@ -361,6 +363,7 @@ import type {
 } from "../../src/schemas/decideVerdicts.js";
 import type { DecisionRecordManifestV0_25_0 as FrozenDecisionRecordManifestV0_25_0 } from "../../src/schemas/history/decision-record-manifest/0.25.0.js";
 import type { DecisionRecordManifestV0_28_0 as FrozenDecisionRecordManifestV0_28_0 } from "../../src/schemas/history/decision-record-manifest/0.28.0.js";
+import type { DecisionRecordManifestV0_30_0 as FrozenDecisionRecordManifestV0_30_0 } from "../../src/schemas/history/decision-record-manifest/0.30.0.js";
 import type { CodeReviewV0_29_0 as FrozenCodeReviewV0_29_0 } from "../../src/schemas/history/code-review/0.29.0.js";
 import type { FirstReadingV0_26_0 as FrozenFirstReadingV0_26_0 } from "../../src/schemas/history/first-reading/0.26.0.js";
 import type { InteractiveHandoffV0_26_0 as FrozenInteractiveHandoffV0_26_0 } from "../../src/schemas/history/interactive-handoff/0.26.0.js";
@@ -441,6 +444,7 @@ import type { GateAttributionV0_31_0 as FrozenGateAttributionV0_31_0 } from "../
 import type { PhaseRecordManifestV0_17_0 as FrozenPhaseRecordManifestV0_17_0 } from "../../src/schemas/history/phase-record-manifest/0.17.0.js";
 import type { PhaseRecordManifestV0_26_0 as FrozenPhaseRecordManifestV0_26_0 } from "../../src/schemas/history/phase-record-manifest/0.26.0.js";
 import type { PhaseRecordManifestV0_30_0 as FrozenPhaseRecordManifestV0_30_0 } from "../../src/schemas/history/phase-record-manifest/0.30.0.js";
+import type { PhaseRecordManifestV0_33_0 as FrozenPhaseRecordManifestV0_33_0 } from "../../src/schemas/history/phase-record-manifest/0.33.0.js";
 import type { PhaseRecordManifestPreSchema as FrozenPhaseRecordManifest } from "../../src/schemas/history/phase-record-manifest/pre-schema.js";
 import type { PhaseStatusV0_17_0 as FrozenPhaseStatusV0_17_0 } from "../../src/schemas/history/phase-status/0.17.0.js";
 import type { PhaseStatusV0_20_0 as FrozenPhaseStatusV0_20_0 } from "../../src/schemas/history/phase-status/0.20.0.js";
@@ -503,6 +507,7 @@ const asParsed: Parsed<
   | FrozenPhaseRecordManifestV0_17_0
   | FrozenPhaseRecordManifestV0_26_0
   | FrozenPhaseRecordManifestV0_30_0
+  | FrozenPhaseRecordManifestV0_33_0
   | PhaseRecordManifest
 > = parsed;
 void asParsed;
@@ -511,7 +516,7 @@ void asParsed;
 if (parsed.ok) {
   const shape: Equals<
     typeof parsed.shape,
-    "pre-schema" | "0.17.0" | "0.26.0" | "0.30.0" | Current<"phase-record-manifest">
+    "pre-schema" | "0.17.0" | "0.26.0" | "0.30.0" | "0.33.0" | Current<"phase-record-manifest">
   > = true;
   const exact: Equals<
     typeof parsed.value,
@@ -519,6 +524,7 @@ if (parsed.ok) {
     | FrozenPhaseRecordManifestV0_17_0
     | FrozenPhaseRecordManifestV0_26_0
     | FrozenPhaseRecordManifestV0_30_0
+    | FrozenPhaseRecordManifestV0_33_0
     | RunRecordManifestFile
   > = true;
   void shape;
@@ -807,7 +813,7 @@ const eachShapeId: [
   >,
   Equals<
     PhaseRecordManifestShape,
-    "pre-schema" | "0.17.0" | "0.26.0" | "0.30.0" | Current<"phase-record-manifest">
+    "pre-schema" | "0.17.0" | "0.26.0" | "0.30.0" | "0.33.0" | Current<"phase-record-manifest">
   >,
   Equals<
     AuthoringRecordManifestShape,
@@ -915,6 +921,7 @@ const parseValues: [
     | FrozenPhaseRecordManifestV0_17_0
     | FrozenPhaseRecordManifestV0_26_0
     | FrozenPhaseRecordManifestV0_30_0
+    | FrozenPhaseRecordManifestV0_33_0
     | RunRecordManifestFile
   >,
   Equals<
@@ -1255,11 +1262,15 @@ if (document.ok && document.format === "hand-decision-answer") {
 // one current shape, and an in-memory value without $schema
 const decisionManifestTypes: [
   Equals<DecisionRecordManifest, PhaxDecisionRecordManifestFile>,
-  Equals<DecisionRecordManifestShape, "0.25.0" | "0.28.0" | Current<"decision-record-manifest">>,
+  Equals<
+    DecisionRecordManifestShape,
+    "0.25.0" | "0.28.0" | "0.30.0" | Current<"decision-record-manifest">
+  >,
   Equals<
     Value<typeof parseDecisionRecordManifest>,
     | FrozenDecisionRecordManifestV0_25_0
     | FrozenDecisionRecordManifestV0_28_0
+    | FrozenDecisionRecordManifestV0_30_0
     | PhaxDecisionRecordManifestFile
   >,
   Equals<LatestDecisionRecordManifest, PhaxDecisionRecordManifest>,
@@ -1269,12 +1280,14 @@ const decisionManifestTypes: [
       value:
         | PhaxDecisionRecordManifestFile
         | FrozenDecisionRecordManifestV0_25_0
-        | FrozenDecisionRecordManifestV0_28_0,
+        | FrozenDecisionRecordManifestV0_28_0
+        | FrozenDecisionRecordManifestV0_30_0,
     ]
   >,
   Equals<DecisionRecordManifestV0_25_0, FrozenDecisionRecordManifestV0_25_0>,
   Equals<DecisionRecordManifestV0_28_0, FrozenDecisionRecordManifestV0_28_0>,
-] = [true, true, true, true, true, true, true];
+  Equals<DecisionRecordManifestV0_30_0, FrozenDecisionRecordManifestV0_30_0>,
+] = [true, true, true, true, true, true, true, true];
 void decisionManifestTypes;
 declare const latestDecisionManifest: LatestDecisionRecordManifest;
 // @ts-expect-error: the in-memory decision record manifest carries no $schema
@@ -1284,6 +1297,7 @@ if (document.ok && document.format === "decision-record-manifest") {
     typeof document.value,
     | FrozenDecisionRecordManifestV0_25_0
     | FrozenDecisionRecordManifestV0_28_0
+    | FrozenDecisionRecordManifestV0_30_0
     | PhaxDecisionRecordManifestFile
   > = true;
   void exact;
@@ -1753,6 +1767,7 @@ const toLatestParameters: [
         | FrozenPhaseRecordManifestV0_17_0
         | FrozenPhaseRecordManifestV0_26_0
         | FrozenPhaseRecordManifestV0_30_0
+        | FrozenPhaseRecordManifestV0_33_0
         | RunRecordManifestFile,
     ]
   >,
@@ -1923,6 +1938,7 @@ const anyManifestAsParsed: Parsed<
   | FrozenPhaseRecordManifestV0_17_0
   | FrozenPhaseRecordManifestV0_26_0
   | FrozenPhaseRecordManifestV0_30_0
+  | FrozenPhaseRecordManifestV0_33_0
   | PhaseRecordManifest
   | FrozenAuthoringRecordManifest
   | AuthoringRecordManifestV0_17_0
@@ -1944,6 +1960,8 @@ if (anyManifest.ok) {
     | "0.25.0"
     | "0.26.0"
     | "0.28.0"
+    | "0.30.0"
+    | "0.33.0"
     | Current<"phase-record-manifest">
     | Current<"authoring-record-manifest">
     | Current<"decision-record-manifest">
@@ -1959,6 +1977,7 @@ if (anyManifest.ok) {
       typeof anyManifest.value,
       | FrozenDecisionRecordManifestV0_25_0
       | FrozenDecisionRecordManifestV0_28_0
+      | FrozenDecisionRecordManifestV0_30_0
       | PhaxDecisionRecordManifestFile
     > = true;
     void exact;
@@ -1978,6 +1997,7 @@ if (anyManifest.ok) {
       | FrozenPhaseRecordManifestV0_17_0
       | FrozenPhaseRecordManifestV0_26_0
       | FrozenPhaseRecordManifestV0_30_0
+      | FrozenPhaseRecordManifestV0_33_0
       | RunRecordManifestFile
     > = true;
     void exact;
@@ -2020,6 +2040,11 @@ const phaseRecordManifestV0_26_0IsFrozen: Equals<
   FrozenPhaseRecordManifestV0_26_0
 > = true;
 void phaseRecordManifestV0_26_0IsFrozen;
+const phaseRecordManifestV0_33_0IsFrozen: Equals<
+  PhaseRecordManifestV0_33_0,
+  FrozenPhaseRecordManifestV0_33_0
+> = true;
+void phaseRecordManifestV0_33_0IsFrozen;
 // The current gate attribution upgrades to the latest value.
 declare const phaxGateAttribution: PhaxGateAttributionFile;
 const upgradedGateAttribution: LatestGateAttribution = toLatestGateAttribution(phaxGateAttribution);
