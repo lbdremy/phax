@@ -25,6 +25,7 @@ import {
   type StoppedRun,
   type World,
 } from "../helpers/stoppedRunFixture.js";
+import { phaxCall } from "../helpers/runnerCall.js";
 
 // The commands that act on a run waiting at a declared stop: the made-up
 // invoice-export run stopped at phase-03 by the real stop, beside credit-notes
@@ -108,10 +109,9 @@ describe("phax ls and phax session-info on a waiting run", () => {
 
   it("lists the waiting run as awaiting_review (declared) with its stopped phase", async () => {
     await threeRuns();
-    const { runLs } = await import("../../src/cli/commands/ls.js");
-    const { out, logs } = makeOutput();
+    const { code, outLines: logs } = await phaxCall(["ls"]);
 
-    expect(await runLs({}, out)).toBe(0);
+    expect(code).toBe(0);
 
     const table = logs.join("\n");
     const waitingRow = table.split("\n").find((l) => l.includes("example.invoice-export"))!;
@@ -128,10 +128,9 @@ describe("phax ls and phax session-info on a waiting run", () => {
 
   it("lists the waiting run alone with --awaiting-review", async () => {
     await threeRuns();
-    const { runLs } = await import("../../src/cli/commands/ls.js");
-    const { out, logs } = makeOutput();
+    const { code, outLines: logs } = await phaxCall(["ls", "--awaiting-review"]);
 
-    expect(await runLs({ awaitingReview: true }, out)).toBe(0);
+    expect(code).toBe(0);
 
     const rows = logs.join("\n").split("\n").slice(2);
     expect(rows).toHaveLength(1);
@@ -141,10 +140,9 @@ describe("phax ls and phax session-info on a waiting run", () => {
 
   it("prints the waiting run's stop in ls --json, the review-stop document as the file holds it", async () => {
     const { waiting } = await threeRuns();
-    const { runLs } = await import("../../src/cli/commands/ls.js");
-    const { out, logs } = makeOutput();
+    const { code, outLines: logs } = await phaxCall(["ls", "--json", "--awaiting-review"]);
 
-    expect(await runLs({ json: true, awaitingReview: true }, out)).toBe(0);
+    expect(code).toBe(0);
 
     const rows = (JSON.parse(logs.join("\n")) as { runs: Record<string, unknown>[] }).runs;
     expect(rows).toHaveLength(1);
@@ -154,10 +152,9 @@ describe("phax ls and phax session-info on a waiting run", () => {
 
   it("session-info prints the state, cause, stopped phase, worktree, seed and session", async () => {
     const run = await stopRun(world);
-    const { runSessionInfo } = await import("../../src/cli/commands/sessionInfo.js");
-    const { out, logs } = makeOutput();
+    const { code, outLines: logs } = await phaxCall(["session-info", run.shortName]);
 
-    expect(await runSessionInfo(run.shortName, out)).toBe(0);
+    expect(code).toBe(0);
 
     const text = logs.join("\n");
     expect(text).toContain("Status:           awaiting_review (declared)");
@@ -176,10 +173,9 @@ describe("phax ls and phax session-info on a waiting run", () => {
 
   it("session-info prints the session as none when the first turn failed", async () => {
     const run = await stopRun(world, { sessionId: undefined });
-    const { runSessionInfo } = await import("../../src/cli/commands/sessionInfo.js");
-    const { out, logs } = makeOutput();
+    const { code, outLines: logs } = await phaxCall(["session-info", run.shortName]);
 
-    expect(await runSessionInfo(run.shortName, out)).toBe(0);
+    expect(code).toBe(0);
 
     expect(logs.join("\n")).toContain("Session:          none");
   });
@@ -192,13 +188,12 @@ describe("phax path, shell and open on a waiting run", () => {
     const script = join(world.root, "fake-shell.sh");
     vi.stubEnv("SHELL", script);
 
-    const { runPath } = await import("../../src/cli/commands/path.js");
     const { runShell } = await import("../../src/cli/commands/shell.js");
     const { runOpen } = await import("../../src/cli/commands/open.js");
 
-    const pathOut = makeOutput();
-    expect(await runPath(run.shortName, pathOut.out)).toBe(0);
-    expect(pathOut.logs).toEqual([run.worktree]);
+    const pathCall = await phaxCall(["path", run.shortName]);
+    expect(pathCall.code).toBe(0);
+    expect(pathCall.outLines).toEqual([run.worktree]);
 
     expect(await runShell(run.shortName, makeOutput().out)).toBe(0);
     expect(fakeSession.impl.invocations).toEqual([

@@ -19,7 +19,6 @@ import {
   type RunId,
   type WorktreePath,
 } from "../../src/domain/branded.js";
-import { runLs } from "../../src/cli/commands/ls.js";
 import { PlanValidationError, RateLimitError } from "../../src/domain/errors.js";
 import type { PhaxEvent } from "../../src/domain/events.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
@@ -31,6 +30,7 @@ import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
 import { runStatusFile } from "../helpers/runStatusFixture.js";
+import { phaxCall } from "../helpers/runnerCall.js";
 
 vi.mock("../../src/app/loadConfig.js", () => ({ loadConfig: vi.fn() }));
 
@@ -294,24 +294,12 @@ describe("a run whose phax-plan.json an earlier release stamped", () => {
     writeFileSync(planPath, JSON.stringify(plan("0.32.0"), null, 2));
     const { loadConfig } = await import("../../src/app/loadConfig.js");
     vi.mocked(loadConfig).mockReturnValue(Either.right(lsConfig(stateRoot)));
-    const lines: string[] = [];
-    const errors: string[] = [];
 
-    const code = await runLs(
-      {},
-      {
-        log: (m: string) => lines.push(m),
-        warn: (m: string) => lines.push(`WARN: ${m}`),
-        error: (m: string) => errors.push(m),
-      },
-    );
+    const { code, errLines, outLines } = await phaxCall(["ls"]);
 
-    expect(errors).toEqual([]);
+    expect(errLines).toEqual([]);
     expect(code).toBe(0);
-    const row = lines
-      .join("\n")
-      .split("\n")
-      .find((l) => l.includes(SHORT_NAME));
+    const row = outLines.find((l) => l.includes(SHORT_NAME));
     expect(row).toBeDefined();
     // The current phase, `1/2` of the plan's two phases, is read from the old plan.
     expect(row).toContain("1/2");

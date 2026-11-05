@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { Effect, Either, Layer } from "effect";
-import { runLs } from "../../../src/cli/commands/ls.js";
+import { phaxCall } from "../../helpers/runnerCall.js";
 import { ConfigValidationError } from "../../../src/domain/errors.js";
 import { makeFakeLock } from "../../../src/infra/fakes/lock.js";
 import type { ResolvedConfig } from "../../../src/schemas/phaxConfig.js";
@@ -27,20 +27,6 @@ vi.mock("../../../src/infra/fs.js", () => ({
   NodeFileSystemLayer: Layer.empty,
   makeRootedNodeFileSystemLayer: () => Layer.empty,
 }));
-
-function makeOutput() {
-  const lines: string[] = [];
-  const errors: string[] = [];
-  return {
-    out: {
-      log: (m: string) => lines.push(m),
-      warn: (m: string) => lines.push(`WARN: ${m}`),
-      error: (m: string) => errors.push(m),
-    },
-    lines,
-    errors,
-  };
-}
 
 function makeConfig(namespace = "myproject"): ResolvedConfig {
   return {
@@ -117,8 +103,7 @@ describe("runLs — qualified names", () => {
       Effect.succeed({ version: 1 as const, runs: [makeRegistryEntry("myproject", "fixbug")] }),
     );
 
-    const { out, lines } = makeOutput();
-    const code = await runLs({}, out);
+    const { code, outLines: lines } = await phaxCall(["ls"]);
 
     expect(code).toBe(0);
     const text = lines.join("\n");
@@ -138,8 +123,7 @@ describe("runLs — qualified names", () => {
       }),
     );
 
-    const { out, lines } = makeOutput();
-    const code = await runLs({}, out);
+    const { code, outLines: lines } = await phaxCall(["ls"]);
 
     expect(code).toBe(0);
     const text = lines.join("\n");
@@ -159,8 +143,7 @@ describe("runLs — qualified names", () => {
       }),
     );
 
-    const { out, lines } = makeOutput();
-    const code = await runLs({ json: true }, out);
+    const { code, outLines: lines } = await phaxCall(["ls", "--json"]);
 
     expect(code).toBe(0);
     const parsed = (JSON.parse(lines.join("\n")) as { runs: unknown[] }).runs;
@@ -190,8 +173,7 @@ describe("runLs — qualified names", () => {
       }),
     );
 
-    const { out, lines } = makeOutput();
-    const code = await runLs({ json: true }, out);
+    const { code, outLines: lines } = await phaxCall(["ls", "--json"]);
 
     expect(code).toBe(0);
     const parsed = (JSON.parse(lines.join("\n")) as { runs: unknown[] }).runs;
@@ -205,8 +187,7 @@ describe("runLs — qualified names", () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
     loadConfig.mockReturnValue(Either.left(new ConfigValidationError({ message: "no phax.json" })));
 
-    const { out, errors } = makeOutput();
-    const code = await runLs({}, out);
+    const { code, errLines: errors } = await phaxCall(["ls"]);
     expect(code).toBe(1);
     expect(errors.join("")).toContain("Config error");
   });
@@ -227,8 +208,7 @@ describe("runLs — qualified names", () => {
       }),
     );
 
-    const { out, lines } = makeOutput();
-    const code = await runLs({ awaitingReview: true }, out);
+    const { code, outLines: lines } = await phaxCall(["ls", "--awaiting-review"]);
 
     expect(code).toBe(0);
     const text = lines.join("\n");
@@ -244,8 +224,7 @@ describe("runLs — qualified names", () => {
     const { readRegistry } = vi.mocked(await import("../../../src/app/registry.js"));
     readRegistry.mockReturnValue(Effect.succeed({ version: 1 as const, runs: [] }));
 
-    const { out, lines } = makeOutput();
-    const code = await runLs({}, out);
+    const { code, outLines: lines } = await phaxCall(["ls"]);
     expect(code).toBe(0);
     expect(lines.join("")).toContain("(no runs)");
   });

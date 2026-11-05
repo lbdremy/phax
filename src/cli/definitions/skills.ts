@@ -42,7 +42,7 @@ export function defaultBundleRoot(): string {
 }
 
 /** The real roots, read when the command runs. */
-export function defaultInstallRoots(): SkillsInstallRoots {
+function defaultInstallRoots(): SkillsInstallRoots {
   return {
     projectRoot: process.cwd(),
     homeDir: homedir(),

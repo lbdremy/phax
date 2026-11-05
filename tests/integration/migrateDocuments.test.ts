@@ -18,7 +18,8 @@ import { transitionArtifactBy } from "../../src/app/artifactStatus.js";
 import { migrateDocuments } from "../../src/app/migrateDocuments.js";
 import { readCacheEntry } from "../../src/app/planCacheStore.js";
 import { plansStalenessReport } from "../../src/app/planStaleness.js";
-import { runArtifactMigrateDocuments, runArtifactStatus } from "../../src/cli/commands/artifact.js";
+import { runArtifactMigrateDocuments } from "../../src/cli/commands/artifact.js";
+import { phaxCall } from "../helpers/runnerCall.js";
 import { exitCodeForAuthoringError, exitCodeForError } from "../../src/cli/commands/runLayers.js";
 import { approvalRecordPathFor } from "../../src/domain/artifact/approvalRecordFile.js";
 import { renderDocumentMigrationReport } from "../../src/domain/artifact/render.js";
@@ -449,19 +450,14 @@ function approve(path: string) {
 
 // `phax artifact status <path>` as printed, run from the repository.
 async function statusLines(path: string): Promise<string[]> {
-  const lines: string[] = [];
-  const out = {
-    log: (m: string) => lines.push(m),
-    warn: (m: string) => lines.push(`WARN: ${m}`),
-    error: (m: string) => lines.push(`ERROR: ${m}`),
-  };
   process.chdir(repoDir);
   try {
-    expect(await runArtifactStatus(path, out)).toBe(0);
+    const { code, outLines } = await phaxCall(["artifact", "status", path]);
+    expect(code).toBe(0);
+    return [...outLines];
   } finally {
     process.chdir(originalCwd);
   }
-  return lines;
 }
 
 function lineOf(lines: readonly string[], label: string): string | undefined {

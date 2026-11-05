@@ -20,7 +20,6 @@ import {
   makeArtifactNewSpecCommand,
 } from "../definitions/artifactNew.js";
 import { artifactSchemaCommand } from "../definitions/artifactSchema.js";
-import { artifactStatusCommand } from "../definitions/artifactStatus.js";
 import {
   artifactAbandonCommand,
   artifactApproveCommand,
@@ -29,14 +28,6 @@ import {
   artifactStaleCommand,
   transitionLines,
 } from "../definitions/artifactTransitions.js";
-
-/** `phax artifact status` answers through the command runner
- *  (src/cli/definitions/artifactStatus.ts); this is kept, until the last plan of
- *  command-contracts, as the definition's run and render over the OutputPort, for the tests
- *  that call it. */
-export function runArtifactStatus(pathArg: string, out: OutputPort): Promise<number> {
-  return runThroughOutput(artifactStatusCommand, { args: [pathArg] }, out, { lineByLine: true });
-}
 
 export interface TransitionFlags {
   /** `--by`, raw: the use case parses and resolves it. */

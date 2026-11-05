@@ -5,11 +5,11 @@ import { join, resolve } from "node:path";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { Either } from "effect";
 import { exitCodeForError } from "../../../src/cli/commands/runLayers.js";
-import { runValidate } from "../../../src/cli/commands/validate.js";
 import { ConfigValidationError, PlanValidationError } from "../../../src/domain/errors.js";
 import type { ResolvedConfig } from "../../../src/schemas/phaxConfig.js";
 import type { PhaxPlan, PhaxPlanPhase } from "../../../src/schemas/phaxPlan.js";
 import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
+import { phaxCall } from "../../helpers/runnerCall.js";
 
 vi.mock("../../../src/app/loadConfig.js", () => ({
   loadConfig: vi.fn(),
@@ -29,20 +29,6 @@ vi.mock("../../../src/app/loadRouting.js", async (importOriginal) => {
     loadProviderConfig: () => Effect.succeed(DEFAULT_PROVIDER_CONFIG),
   };
 });
-
-function makeOutput() {
-  const lines: string[] = [];
-  const errors: string[] = [];
-  return {
-    out: {
-      log: (m: string) => lines.push(m),
-      warn: (m: string) => lines.push(`WARN: ${m}`),
-      error: (m: string) => errors.push(m),
-    },
-    lines,
-    errors,
-  };
-}
 
 function makeConfig(namespace = "myproject"): ResolvedConfig {
   return {
@@ -134,8 +120,7 @@ describe("runValidate", () => {
       globalOverlay: undefined,
     });
 
-    const { out, lines } = makeOutput();
-    const code = await runValidate({}, out);
+    const { code, outLines: lines } = await phaxCall(["validate"]);
 
     expect(code).toBe(0);
     expect(lines.some((l) => l.includes("config is valid") && l.includes("myproject"))).toBe(true);
@@ -164,8 +149,7 @@ describe("runValidate", () => {
       globalOverlay: undefined,
     });
 
-    const { out, lines, errors } = makeOutput();
-    const code = await runValidate({}, out);
+    const { code, outLines: lines, errLines: errors } = await phaxCall(["validate"]);
 
     expect(errors).toEqual([]);
     expect(code).toBe(0);
@@ -182,8 +166,7 @@ describe("runValidate", () => {
     loadConfig.mockReturnValue(Either.right(makeConfig()));
     describeConfigSources.mockReturnValue(undefined);
 
-    const { out, lines } = makeOutput();
-    await runValidate({}, out);
+    const { outLines: lines } = await phaxCall(["validate"]);
 
     expect(lines.some((l) => l.includes("protected paths"))).toBe(false);
   });
@@ -197,8 +180,7 @@ describe("runValidate", () => {
       ),
     );
 
-    const { out, errors } = makeOutput();
-    const code = await runValidate({}, out);
+    const { code, errLines: errors } = await phaxCall(["validate"]);
 
     expect(code).toBe(2);
     expect(errors.some((e) => e.includes("Config validation failed"))).toBe(true);
@@ -219,8 +201,7 @@ describe("runValidate", () => {
     });
     loadPlan.mockReturnValue(Either.right(makePlan("myrun", 3)));
 
-    const { out, lines } = makeOutput();
-    const code = await runValidate({ plan: "phax-plan.json" }, out);
+    const { code, outLines: lines } = await phaxCall(["validate", "--plan", "phax-plan.json"]);
 
     expect(code).toBe(0);
     expect(
@@ -243,8 +224,11 @@ describe("runValidate", () => {
       ),
     );
 
-    const { out, lines, errors } = makeOutput();
-    const code = await runValidate({ plan: "phax-plan.json" }, out);
+    const {
+      code,
+      outLines: lines,
+      errLines: errors,
+    } = await phaxCall(["validate", "--plan", "phax-plan.json"]);
 
     expect(code).toBe(2);
     // The config's success line stays on stdout before the plan's error, as before the runner.
@@ -304,8 +288,7 @@ describe("runValidate", () => {
           }),
         );
 
-        const { out, errors } = makeOutput();
-        const code = await runValidate({ plan: planPath }, out);
+        const { code, errLines: errors } = await phaxCall(["validate", "--plan", planPath]);
 
         expect(code).toBe(2);
         const combined = errors.join("\n");
@@ -326,8 +309,7 @@ describe("runValidate", () => {
     loadConfig.mockReturnValue(Either.right(makeConfig()));
     describeConfigSources.mockReturnValue(undefined);
 
-    const { out, lines } = makeOutput();
-    const code = await runValidate({}, out);
+    const { code, outLines: lines } = await phaxCall(["validate"]);
 
     expect(code).toBe(0);
     expect(lines.some((l) => l.includes("config is valid"))).toBe(true);
@@ -350,8 +332,11 @@ describe("runValidate", () => {
       loadPlan.mockReturnValue(Either.right(makePlan("myrun", 1)));
       cwdSpy = vi.spyOn(process, "cwd").mockReturnValue("/some/other/dir");
 
-      const { out, lines } = makeOutput();
-      const code = await runValidate({ plan: "sub/phax-plan.json" }, out);
+      const { code, outLines: lines } = await phaxCall([
+        "validate",
+        "--plan",
+        "sub/phax-plan.json",
+      ]);
 
       expect(code).toBe(0);
       expect(loadPlan).toHaveBeenCalledWith(resolve("/some/other/dir", "sub/phax-plan.json"));
@@ -377,8 +362,7 @@ describe("runValidate", () => {
         ),
       );
 
-      const { out, errors } = makeOutput();
-      const code = await runValidate({ plan: "phax-plan.json" }, out);
+      const { code, errLines: errors } = await phaxCall(["validate", "--plan", "phax-plan.json"]);
 
       expect(code).toBe(2);
       expect(loadPlan).toHaveBeenCalledWith(resolvedPath);
@@ -440,8 +424,7 @@ describe("runValidate", () => {
         expect(exitCodeForError(refused.left)).toBe(2);
       }
 
-      const { out, errors } = makeOutput();
-      const code = await runValidate({}, out);
+      const { code, errLines: errors } = await phaxCall(["validate"]);
 
       expect(code).toBe(2);
       const combined = errors.join("\n");
@@ -468,8 +451,7 @@ describe("runValidate", () => {
         expect(exitCodeForError(refused.left)).toBe(2);
       }
 
-      const { out, errors } = makeOutput();
-      const code = await runValidate({}, out);
+      const { code, errLines: errors } = await phaxCall(["validate"]);
 
       expect(code).toBe(2);
       const combined = errors.join("\n");
@@ -497,8 +479,7 @@ describe("runValidate", () => {
         ],
       });
 
-      const { out, lines, errors } = makeOutput();
-      const code = await runValidate({}, out);
+      const { code, outLines: lines, errLines: errors } = await phaxCall(["validate"]);
 
       expect(errors).toEqual([]);
       expect(code).toBe(0);
@@ -569,8 +550,7 @@ describe("runValidate", () => {
 
     it("counts the example bounds and exits 0", async () => {
       writeConfig([PART, GLOBS, DOCS]);
-      const { out, lines, errors } = makeOutput();
-      const code = await runValidate({}, out);
+      const { code, outLines: lines, errLines: errors } = await phaxCall(["validate"]);
 
       expect(errors).toEqual([]);
       expect(code).toBe(0);
@@ -579,15 +559,14 @@ describe("runValidate", () => {
 
     it("prints no count line without bounds", async () => {
       writeConfig(undefined);
-      const { out, lines } = makeOutput();
-      expect(await runValidate({}, out)).toBe(0);
+      const { code, outLines: lines } = await phaxCall(["validate"]);
+      expect(code).toBe(0);
       expect(lines.some((l) => l.includes("assignment bounds"))).toBe(false);
     });
 
     it("exits 2 for a model the catalog lacks, naming the bound, the field and phax.json", async () => {
       writeConfig([GLOBS, { ...PART, model: "claude-opus-9" }]);
-      const { out, errors, lines } = makeOutput();
-      const code = await runValidate({}, out);
+      const { code, outLines: lines, errLines: errors } = await phaxCall(["validate"]);
 
       expect(code).toBe(2);
       // A bad bound never follows a success line.
@@ -600,8 +579,7 @@ describe("runValidate", () => {
 
     it("exits 2 for a min after max, naming the bound, the field and phax.json", async () => {
       writeConfig([{ ...PART, effort: { min: "high", max: "medium" } }]);
-      const { out, errors } = makeOutput();
-      const code = await runValidate({}, out);
+      const { code, errLines: errors } = await phaxCall(["validate"]);
 
       expect(code).toBe(2);
       expect(errors).toEqual([
@@ -612,8 +590,7 @@ describe("runValidate", () => {
 
     it("exits 2 for a malformed bound, naming phax.json, the bound and the field", async () => {
       writeConfig([PART, { ...PART, kind: "path" }]);
-      const { out, errors } = makeOutput();
-      const code = await runValidate({}, out);
+      const { code, errLines: errors } = await phaxCall(["validate"]);
 
       expect(code).toBe(2);
       const combined = errors.join("\n");
@@ -624,8 +601,7 @@ describe("runValidate", () => {
     it("exits 2 for bounds declared in phax.local.json, naming it", async () => {
       writeConfig([PART]);
       writeFileSync(join(repoDir, "phax.local.json"), JSON.stringify({ assignments: [GLOBS] }));
-      const { out, errors } = makeOutput();
-      const code = await runValidate({}, out);
+      const { code, errLines: errors } = await phaxCall(["validate"]);
 
       expect(code).toBe(2);
       expect(errors).toEqual([
@@ -676,8 +652,8 @@ describe("runValidate", () => {
 
     it("accepts an acceptance block with a command", async () => {
       writeConfig({ acceptance: { command: "./fake-oracles" } });
-      const { out, errors } = makeOutput();
-      expect(await runValidate({}, out)).toBe(0);
+      const { code, errLines: errors } = await phaxCall(["validate"]);
+      expect(code).toBe(0);
       expect(errors).toEqual([]);
     });
 
@@ -687,23 +663,23 @@ describe("runValidate", () => {
         join(repoDir, "phax.local.json"),
         JSON.stringify({ acceptance: { command: "./fake-oracles" } }),
       );
-      const { out, errors } = makeOutput();
-      expect(await runValidate({}, out)).toBe(0);
+      const { code, errLines: errors } = await phaxCall(["validate"]);
+      expect(code).toBe(0);
       expect(errors).toEqual([]);
     });
 
     it("exits 2 for a timeout key, naming it", async () => {
       writeConfig({ acceptance: { command: "./fake-oracles", timeout: 30 } });
-      const { out, errors } = makeOutput();
-      expect(await runValidate({}, out)).toBe(2);
+      const { code, errLines: errors } = await phaxCall(["validate"]);
+      expect(code).toBe(2);
       expect(errors.join("\n")).toContain("timeout");
       expect(errors.join("\n")).toContain("acceptance");
     });
 
     it("exits 2 for an empty command, naming it", async () => {
       writeConfig({ acceptance: { command: "" } });
-      const { out, errors } = makeOutput();
-      expect(await runValidate({}, out)).toBe(2);
+      const { code, errLines: errors } = await phaxCall(["validate"]);
+      expect(code).toBe(2);
       expect(errors.join("\n")).toContain("acceptance.command");
     });
 
@@ -714,8 +690,8 @@ describe("runValidate", () => {
         join(repoDir, "phax.local.json"),
         JSON.stringify({ oracles: { command: "node scripts/acceptance-verdicts.mjs" } }),
       );
-      const { out, errors } = makeOutput();
-      expect(await runValidate({}, out)).toBe(2);
+      const { code, errLines: errors } = await phaxCall(["validate"]);
+      expect(code).toBe(2);
       expect(errors.join("\n")).toContain(
         'phax.local.json: "oracles" is no longer read: write "acceptance"',
       );
@@ -723,8 +699,8 @@ describe("runValidate", () => {
 
     it("exits 2 for an oracles key in phax.json, naming the file and the new key", async () => {
       writeConfig({ oracles: { command: "node scripts/acceptance-verdicts.mjs" } });
-      const { out, errors } = makeOutput();
-      expect(await runValidate({}, out)).toBe(2);
+      const { code, errLines: errors } = await phaxCall(["validate"]);
+      expect(code).toBe(2);
       expect(errors.join("\n")).toContain(
         'phax.json: "oracles" is no longer read: write "acceptance"',
       );
@@ -732,8 +708,8 @@ describe("runValidate", () => {
 
     it("exits 2 for a configured step with surface oracle, naming the surface", async () => {
       writeConfig({}, { ...STEP, surface: "oracle" });
-      const { out, errors } = makeOutput();
-      expect(await runValidate({}, out)).toBe(2);
+      const { code, errLines: errors } = await phaxCall(["validate"]);
+      expect(code).toBe(2);
       expect(errors.join("\n")).toContain("surface");
     });
   });

@@ -9,7 +9,7 @@ import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { runValidate } from "../../src/cli/commands/validate.js";
+import { phaxCall } from "../helpers/runnerCall.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 
 const home = vi.hoisted(() => ({ dir: "" }));
@@ -31,9 +31,7 @@ let repo: string;
 let root: string;
 
 function validate() {
-  const errors: string[] = [];
-  const out = { log: () => undefined, warn: () => undefined, error: (m: string) => errors.push(m) };
-  return runValidate({}, out).then((code) => ({ code, errors }));
+  return phaxCall(["validate"]).then(({ code, errLines }) => ({ code, errors: errLines }));
 }
 
 beforeEach(() => {

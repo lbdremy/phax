@@ -3,21 +3,9 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execSync } from "node:child_process";
-import type { OutputPort } from "../../../src/ports/output.js";
-import { runSchemaUpgrade } from "../../../src/cli/commands/schema.js";
+import { phaxCall } from "../../helpers/runnerCall.js";
 
-function makeFakeOut() {
-  const lines: string[] = [];
-  const errors: string[] = [];
-  const out: OutputPort = {
-    log: (msg: string) => lines.push(msg),
-    warn: (msg: string) => lines.push(msg),
-    error: (msg: string) => errors.push(msg),
-  };
-  return { out, lines, errors };
-}
-
-describe("runSchemaUpgrade", () => {
+describe("schema upgrade", () => {
   let tmpDir: string;
   let originalCwd: string;
 
@@ -34,25 +22,22 @@ describe("runSchemaUpgrade", () => {
   });
 
   it("returns 1 and prints an error when no phax.json exists", async () => {
-    const { out, errors } = makeFakeOut();
-    const code = await runSchemaUpgrade(out);
+    const { code, errLines: errors } = await phaxCall(["schema", "upgrade"]);
     expect(code).toBe(1);
     expect(errors.some((e) => e.includes("phax init"))).toBe(true);
   });
 
   it("returns 0 and prints Updated when schema is written for the first time", async () => {
     writeFileSync(join(tmpDir, "phax.json"), JSON.stringify({ version: 1 }));
-    const { out, lines } = makeFakeOut();
-    const code = await runSchemaUpgrade(out);
+    const { code, outLines: lines } = await phaxCall(["schema", "upgrade"]);
     expect(code).toBe(0);
     expect(lines.some((l) => l.startsWith("Updated "))).toBe(true);
   });
 
   it("returns 0 and prints already up to date on second call", async () => {
     writeFileSync(join(tmpDir, "phax.json"), JSON.stringify({ version: 1 }));
-    await runSchemaUpgrade(makeFakeOut().out);
-    const { out, lines } = makeFakeOut();
-    const code = await runSchemaUpgrade(out);
+    await phaxCall(["schema", "upgrade"]);
+    const { code, outLines: lines } = await phaxCall(["schema", "upgrade"]);
     expect(code).toBe(0);
     expect(lines.some((l) => l.includes("already up to date"))).toBe(true);
   });

@@ -7,7 +7,7 @@ import { dirname, join } from "node:path";
 import { Effect, Either, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { transitionArtifactBy } from "../../src/app/artifactStatus.js";
-import { runArtifactStatus } from "../../src/cli/commands/artifact.js";
+import { phaxCall } from "../helpers/runnerCall.js";
 import { renderPlanBody } from "../../src/domain/authoring/renderPlan.js";
 import { renderSpecBody } from "../../src/domain/authoring/renderSpec.js";
 import { renderSpecBodyV0_17_0 } from "../../src/domain/authoring/renderSpecV0_17_0.js";
@@ -242,19 +242,14 @@ async function approveByMachine(path: string): Promise<void> {
 
 // `phax artifact status <path>` as printed, run from the repository; it always exits 0 here.
 async function statusLines(path: string): Promise<string[]> {
-  const lines: string[] = [];
-  const out = {
-    log: (m: string) => lines.push(m),
-    warn: (m: string) => lines.push(`WARN: ${m}`),
-    error: (m: string) => lines.push(`ERROR: ${m}`),
-  };
   process.chdir(repoDir);
   try {
-    expect(await runArtifactStatus(path, out)).toBe(0);
+    const { code, outLines } = await phaxCall(["artifact", "status", path]);
+    expect(code).toBe(0);
+    return [...outLines];
   } finally {
     process.chdir(originalCwd);
   }
-  return lines;
 }
 
 function lineOf(lines: readonly string[], label: string): string | undefined {

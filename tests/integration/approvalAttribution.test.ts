@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { artifactFingerprint } from "../../src/app/approvalRecordStore.js";
 import { transitionArtifactBy } from "../../src/app/artifactStatus.js";
 import { plansStalenessReport } from "../../src/app/planStaleness.js";
-import { runArtifactStatus } from "../../src/cli/commands/artifact.js";
+import { phaxCall } from "../helpers/runnerCall.js";
 import { exitCodeForError } from "../../src/cli/commands/runLayers.js";
 import { approvalRecordPathFor } from "../../src/domain/artifact/approvalRecordFile.js";
 import type { ArtifactKind } from "../../src/domain/artifact/status.js";
@@ -134,19 +134,14 @@ function approve(path: string, by: string | undefined, stdinIsTerminal: boolean)
 
 // `phax artifact status <path>` as printed, run from the repository.
 async function statusLines(path: string): Promise<string[]> {
-  const lines: string[] = [];
-  const out = {
-    log: (m: string) => lines.push(m),
-    warn: (m: string) => lines.push(`WARN: ${m}`),
-    error: (m: string) => lines.push(`ERROR: ${m}`),
-  };
   process.chdir(repoDir);
   try {
-    expect(await runArtifactStatus(path, out)).toBe(0);
+    const { code, outLines } = await phaxCall(["artifact", "status", path]);
+    expect(code).toBe(0);
+    return [...outLines];
   } finally {
     process.chdir(originalCwd);
   }
-  return lines;
 }
 
 function approvedLine(lines: readonly string[]): string | undefined {

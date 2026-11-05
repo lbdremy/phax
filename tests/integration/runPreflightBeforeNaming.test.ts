@@ -16,7 +16,6 @@ import { join } from "node:path";
 import { Effect, Either, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runRun } from "../../src/cli/commands/run.js";
-import { runLs } from "../../src/cli/commands/ls.js";
 import { loadConfig } from "../../src/app/loadConfig.js";
 import { resolveGateProfile } from "../../src/app/gates.js";
 import { loadModelRouting } from "../../src/app/loadRouting.js";
@@ -31,6 +30,7 @@ import { lintPlan } from "../../src/app/lintPlan.js";
 import { CURRENT_STAMPS } from "../../src/schemas/release.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 import { isolatePhaxHome } from "../helpers/isolatePhaxHome.js";
+import { phaxCall } from "../helpers/runnerCall.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 import {
   createPreflightRepo,
@@ -687,15 +687,14 @@ describe("phax run — a preflight refusal precedes naming", () => {
 
   it("a refused run leaves the runs list unchanged", async () => {
     enter({ plan: { requiredCommands: ["make deploy"] } });
-    const lsBefore = recordingOutput();
-    expect(await runLs({}, lsBefore.port)).toBe(0);
+    const lsBefore = await phaxCall(["ls"]);
+    expect(lsBefore.code).toBe(0);
 
     expect(await runRun({ plan: "plan.md" }, recordingOutput().port)).toBe(11);
 
-    const lsAfter = recordingOutput();
-    expect(await runLs({}, lsAfter.port)).toBe(0);
-    expect(lsAfter.logs).toEqual(lsBefore.logs);
-    expect(lsAfter.warnings).toEqual(lsBefore.warnings);
-    expect(lsAfter.errors).toEqual(lsBefore.errors);
+    const lsAfter = await phaxCall(["ls"]);
+    expect(lsAfter.code).toBe(0);
+    expect(lsAfter.out).toEqual(lsBefore.out);
+    expect(lsAfter.err).toEqual(lsBefore.err);
   });
 });

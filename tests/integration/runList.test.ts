@@ -26,6 +26,7 @@ import {
 } from "../helpers/heldRunFixture.js";
 import { isolateGit } from "../helpers/isolateGit.js";
 import { phaxHomeEnv } from "../helpers/isolatePhaxHome.js";
+import { phaxCall } from "../helpers/runnerCall.js";
 import { patchJson, stopRun, type StoppedRun } from "../helpers/stoppedRunFixture.js";
 import { removeTempDir } from "../helpers/tempGit.js";
 import { LS_JSON_BEFORE, LS_REGISTRY } from "../fixtures/commandAnswers/before.js";
@@ -105,26 +106,14 @@ afterEach(() => {
   world.cleanup();
 });
 
-function makeOutput() {
-  const logs: string[] = [];
-  const errors: string[] = [];
-  return {
-    out: {
-      log: (m: string) => logs.push(m),
-      warn: (m: string) => logs.push(`WARN: ${m}`),
-      error: (m: string) => errors.push(m),
-    },
-    logs,
-    errors,
-  };
-}
-
 async function lsJson(options: { awaitingReview?: boolean; archived?: boolean } = {}) {
-  const { runLs } = await import("../../src/cli/commands/ls.js");
-  const { out, logs } = makeOutput();
-  const code = await runLs({ json: true, ...options }, out);
+  const flags = [
+    ...(options.awaitingReview === true ? ["--awaiting-review"] : []),
+    ...(options.archived === true ? ["--archived"] : []),
+  ];
+  const { code, out } = await phaxCall(["ls", "--json", ...flags]);
   expect(code).toBe(0);
-  const document = JSON.parse(logs.join("\n")) as Record<string, unknown>;
+  const document = JSON.parse(out) as Record<string, unknown>;
   return document as { $schema: string; runs: Record<string, unknown>[] };
 }
 
@@ -188,19 +177,15 @@ describe("phax ls --json is a versioned run list", () => {
 describe("phax ls on a waiting run whose review-stop document is defective", () => {
   it("writes stop null in JSON and keeps the plain state in the table, exiting 0", async () => {
     writeFileSync(join(declared.runPath, "review-stop.json"), "{ not json");
-    const { runLs } = await import("../../src/cli/commands/ls.js");
 
     const json = await lsJson();
     expect(row(json.runs, "credit-notes")).toMatchObject({ state: "awaiting_review", stop: null });
     // The other waiting run is unaffected.
     expect(row(json.runs, SHORT)["stop"]).not.toBeNull();
 
-    const { out, logs } = makeOutput();
-    expect(await runLs({}, out)).toBe(0);
-    const line = logs
-      .join("\n")
-      .split("\n")
-      .find((l) => l.includes("credit-notes"))!;
+    const table = await phaxCall(["ls"]);
+    expect(table.code).toBe(0);
+    const line = table.outLines.find((l) => l.includes("credit-notes"))!;
     expect(line).toContain("awaiting_review");
     expect(line).not.toContain("awaiting_review (");
   });

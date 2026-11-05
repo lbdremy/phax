@@ -52,7 +52,7 @@ const PathArg = Schema.String.annotations({
 const warningLine = (warning: string): string => `[phax] Warning: ${warning}.`;
 
 /** `phax brief` over an invocation directory, which the kept run function (`runBrief`) names. */
-export function makeBriefCommand(cwdOf: () => string) {
+function makeBriefCommand(cwdOf: () => string) {
   return defineCommand({
     name: "brief",
     summary:
