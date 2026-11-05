@@ -26,6 +26,10 @@ import {
   claudePermissionFlags,
   claudeReadOnlyFlags,
 } from "../../domain/session/claudePermissionFlags.js";
+import {
+  CLAUDE_PROJECT_ONLY_FLAGS,
+  projectOnlyEnvironment,
+} from "../../domain/session/claudeProjectOnly.js";
 import { sessionFailureError } from "../../domain/session/failureError.js";
 import {
   CLAUDE_STAMP_PROMPT_LINE,
@@ -78,12 +82,14 @@ function spawnClaude(
   prompt: string,
   outputJsonlPath: string | undefined,
   cwd: string | undefined,
+  env: Readonly<Record<string, string>> | undefined,
 ): Promise<SpawnResult>;
 function spawnClaude(
   args: readonly string[],
   prompt: string,
   outputJsonlPath: string | undefined,
   cwd: string | undefined,
+  env: Readonly<Record<string, string>> | undefined,
   timeoutMs: number,
 ): Promise<SpawnResult | "timed-out">;
 function spawnClaude(
@@ -91,6 +97,7 @@ function spawnClaude(
   prompt: string,
   outputJsonlPath: string | undefined,
   cwd: string | undefined,
+  env: Readonly<Record<string, string>> | undefined,
   timeoutMs?: number,
 ): Promise<SpawnResult | "timed-out"> {
   return new Promise((resolve, reject) => {
@@ -106,6 +113,7 @@ function spawnClaude(
     const proc = spawn("claude", [...args], {
       stdio: ["pipe", "pipe", "pipe"],
       ...(cwd !== undefined ? { cwd } : {}),
+      ...(env !== undefined ? { env: { ...env } } : {}),
     });
 
     proc.stdin.write(prompt, "utf8");
@@ -212,7 +220,13 @@ export function buildArgs(
   const schemaArgs = schemaFlags(nativeSchemaOf(options.answerSchema, table));
   // `claude` requires `--verbose` whenever `--print` is paired with
   // `--output-format=stream-json`; without it the CLI exits with code 1.
-  const common = ["--print", "--output-format", "stream-json", "--verbose"];
+  const common = [
+    "--print",
+    "--output-format",
+    "stream-json",
+    "--verbose",
+    ...CLAUDE_PROJECT_ONLY_FLAGS,
+  ];
 
   // A read-only session writes nothing, so it needs no writable path and
   // takes no skill grant; its agent commands are its only shell.
@@ -291,6 +305,13 @@ export function buildCompletionArgs(
     "--output-format",
     "stream-json",
     "--verbose",
+    ...CLAUDE_PROJECT_ONLY_FLAGS,
+    ...sealedCompletionFlags(options, table),
+  ];
+}
+
+function sealedCompletionFlags(options: CompletionOptions, table: StructuredCallsTable): string[] {
+  return [
     "--permission-mode",
     "default",
     "--allowedTools",
@@ -318,7 +339,14 @@ export function runClaudeCompletion(
   const schema = nativeSchemaOf(options.answerSchema, table);
   return Effect.gen(function* () {
     const { lines, stderr, end } = yield* Effect.tryPromise({
-      try: () => spawnClaude(args, promptFor(prompt, schema), undefined, options.cwd),
+      try: () =>
+        spawnClaude(
+          args,
+          promptFor(prompt, schema),
+          undefined,
+          options.cwd,
+          projectOnlyEnvironment(process.env),
+        ),
       catch: (err): AgentInvocationError =>
         new AgentInvocationError({
           message: err instanceof Error ? err.message : String(err),
@@ -348,12 +376,14 @@ export function runClaudeCompletion(
  */
 export function buildProbeArgs(options: Pick<ProbeOptions, "model" | "effort">): string[] {
   return [
-    ...buildCompletionArgs({
-      provider: "claude-code",
-      model: options.model,
-      effort: options.effort,
-      cwd: tmpdir(),
-    }),
+    "--print",
+    "--output-format",
+    "stream-json",
+    "--verbose",
+    ...sealedCompletionFlags(
+      { provider: "claude-code", model: options.model, effort: options.effort, cwd: tmpdir() },
+      STRUCTURED_CALLS,
+    ),
     "--no-session-persistence",
     "--tools",
     "",
@@ -372,7 +402,7 @@ export function runClaudeProbe(
 ): Effect.Effect<ProbeResult, AgentInvocationError> {
   const args = buildProbeArgs(options);
   return Effect.tryPromise({
-    try: () => spawnClaude(args, prompt, undefined, tmpdir(), options.timeoutMs),
+    try: () => spawnClaude(args, prompt, undefined, tmpdir(), undefined, options.timeoutMs),
     catch: (err): AgentInvocationError =>
       new AgentInvocationError({
         message: err instanceof Error ? err.message : String(err),
@@ -450,7 +480,14 @@ export function runClaudeAgent(
   const schema = nativeSchemaOf(options.answerSchema, table);
   return Effect.gen(function* () {
     const { lines, stderr, end } = yield* Effect.tryPromise({
-      try: () => spawnClaude(args, promptFor(prompt, schema), options.outputJsonlPath, options.cwd),
+      try: () =>
+        spawnClaude(
+          args,
+          promptFor(prompt, schema),
+          options.outputJsonlPath,
+          options.cwd,
+          projectOnlyEnvironment(process.env),
+        ),
       catch: (err): AgentInvocationError => {
         writeAgentErrorLog(options.phaseFolderPath, {
           argv,

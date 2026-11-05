@@ -367,8 +367,8 @@ describe("buildDecideInvocation", () => {
       cwd: "/repo",
       security,
     });
-    // The headless argv: --print … --verbose, the permission flags, then --model.
-    expect(permissionFlags).toEqual(headless.slice(4, headless.indexOf("--model")));
+    // The headless argv: --print … --verbose, --setting-sources project, the permission flags, then --model.
+    expect(permissionFlags).toEqual(headless.slice(6, headless.indexOf("--model")));
     expect(permissionFlags).toEqual([
       "--permission-mode",
       "acceptEdits",

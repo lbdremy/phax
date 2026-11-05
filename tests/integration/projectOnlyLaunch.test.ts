@@ -413,7 +413,7 @@ async function driveHandDecide(): Promise<void> {
 // ── ac-phase-argv ──────────────────────────────────────────────────────────
 
 describe("ac-phase-argv", () => {
-  it.fails(
+  it(
     "a secure claude-code phase session carries --setting-sources project and CLAUDE_CODE_DISABLE_AUTO_MEMORY=1",
     { timeout: 60_000 },
     async () => {
@@ -497,7 +497,7 @@ const KINDS: readonly LaunchKind[] = [
 ];
 
 describe("ac-every-headless", () => {
-  it.fails.each(KINDS)(
+  it.each(KINDS)(
     "$name launches with --setting-sources project and CLAUDE_CODE_DISABLE_AUTO_MEMORY=1",
     { timeout: 60_000 },
     async ({ name, drive }) => {
@@ -519,7 +519,7 @@ describe("ac-every-headless", () => {
 // ── ac-memory-wins ─────────────────────────────────────────────────────────
 
 describe("ac-memory-wins", () => {
-  it.fails("a headless session still gets CLAUDE_CODE_DISABLE_AUTO_MEMORY=1 when phax is run with 0", async () => {
+  it("a headless session still gets CLAUDE_CODE_DISABLE_AUTO_MEMORY=1 when phax is run with 0", async () => {
     vi.stubEnv("CLAUDE_CODE_DISABLE_AUTO_MEMORY", "0");
     fake.cli.setScript(PROSE);
 
@@ -532,7 +532,7 @@ describe("ac-memory-wins", () => {
     expectAutoMemoryOff(launch?.env ?? {});
   });
 
-  it.fails("a sealed completion still gets CLAUDE_CODE_DISABLE_AUTO_MEMORY=1 when phax is run with false", async () => {
+  it("a sealed completion still gets CLAUDE_CODE_DISABLE_AUTO_MEMORY=1 when phax is run with false", async () => {
     vi.stubEnv("CLAUDE_CODE_DISABLE_AUTO_MEMORY", "false");
     fake.cli.setScript(PROSE);
 
@@ -556,7 +556,7 @@ describe("ac-memory-wins", () => {
 // ── ac-resume ──────────────────────────────────────────────────────────────
 
 describe("ac-resume", () => {
-  it.fails(
+  it(
     "a phase fix attempt resumes the first session and launches project-only",
     { timeout: 60_000 },
     async () => {
@@ -578,7 +578,7 @@ describe("ac-resume", () => {
     },
   );
 
-  it.fails(
+  it(
     "a decide handback and its corrective retry each resume a session and launch project-only",
     { timeout: 60_000 },
     async () => {

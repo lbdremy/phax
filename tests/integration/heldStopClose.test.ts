@@ -954,6 +954,8 @@ describe("a held closing turn through the provider CLIs", () => {
         "--output-format",
         "stream-json",
         "--verbose",
+        "--setting-sources",
+        "project",
         "--permission-mode",
         "default",
         "--tools",
