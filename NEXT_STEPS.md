@@ -67,7 +67,12 @@ names the narrow check of each step.
 
 ### 6. The project doctrine
 
-- [ ] **`project-doctrine`** — `docs/briefs/project-doctrine.md` (2026-11-05), spec to author.
+- [ ] **`project-doctrine`** — `docs/specs/2611051057-project-doctrine.md`, Draft (2026-11-05),
+      10 open questions, kept for the operator to think over (brief:
+      `docs/briefs/project-doctrine.md`). The questions, in order: the base set, S1/S2, the pairs
+      C1–C5, how a project's document starts, whether authoring applies the entries, a routine
+      mark, what a decision record carries, `--doctrine` and skill copies, where proposals live,
+      a Markdown rendering.
       Split the arbitration doctrine: phax's bundled base of engineering practice (the same in
       every project) and the project's own doctrine of taste, a versioned document in the
       repository with a CLI to add, retire and supersede entries, loaded by headless authoring
