@@ -16,8 +16,12 @@ describe("renderGateSection", () => {
     ]);
   });
 
-  it("renders (none) for an empty list", () => {
-    expect(renderGateSection([]).filter((l) => l.startsWith("- "))).toEqual(["- (none)"]);
+  it("says no step runs for an empty list, and promises no fix loop", () => {
+    const text = renderGateSection([]).join("\n");
+    expect(text.startsWith("## Gate\n\nNo gate step runs after this session")).toBe(true);
+    expect(renderGateSection([]).filter((l) => l.startsWith("- "))).toEqual([]);
+    expect(text).not.toContain("resumes this same session");
+    expect(text).toContain("the narrowest command that covers it");
   });
 
   it("states the gate contract", () => {
@@ -37,9 +41,15 @@ describe("renderGateSection", () => {
   });
 
   it("names no tool or package manager outside the step commands", () => {
-    const fixed = renderGateSection([]).join("\n");
-    for (const tool of ["pnpm", "npm", "vitest", "jest", "cargo"]) {
-      expect(fixed).not.toContain(tool);
+    for (const fixed of [
+      renderGateSection(steps)
+        .filter((l) => !l.startsWith("- "))
+        .join("\n"),
+      renderGateSection([]).join("\n"),
+    ]) {
+      for (const tool of ["pnpm", "npm", "vitest", "jest", "cargo"]) {
+        expect(fixed).not.toContain(tool);
+      }
     }
   });
 });

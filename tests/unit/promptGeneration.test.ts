@@ -111,10 +111,6 @@ const base = {
   previousHandoff: { kind: "first-phase" } as const,
 };
 
-function gateSectionOf(prompt: string): string {
-  return prompt.slice(prompt.indexOf("## Gate"), prompt.indexOf("## Required output"));
-}
-
 // The body of the `## Previous phase handoff` section.
 function previousHandoffSection(prompt: string): string {
   const start =
@@ -141,12 +137,6 @@ describe("buildPhasePrompt", () => {
     expect(output).toBeGreaterThan(gate);
     expect(prompt).toContain("- local: pnpm typecheck\n- product: pnpm build");
     expect(prompt).not.toContain("Run the gate commands again");
-  });
-
-  it("builds a byte-identical Gate section from one step list, with no provider input", () => {
-    expect(gateSectionOf(buildPhasePrompt(base))).toBe(
-      gateSectionOf(buildPhasePrompt({ ...base })),
-    );
   });
 
   it("contains the execute-phase heading", () => {
@@ -443,9 +433,12 @@ describe("buildPhasePrompt", () => {
       files: ["tests/prune.test.ts"],
     });
     for (const prompt of [a.acceptance, a.passing, b.acceptance, b.passing]) {
-      // The Gate section's fixed contract wording ("If a step fails") is not the acceptance role's.
-      const withoutGate = prompt.replace(/## Gate[\s\S]*?(?=## Required output)/, "");
-      expect(withoutGate).not.toMatch(/\bfails\b|xfail|vitest|pytest|jest/i);
+      // The gate contract's own sentence says "If a step fails"; only it is exempt.
+      const withoutContract = prompt.replace(
+        "If a step fails, phax resumes this same session with its output and you fix it here.",
+        "",
+      );
+      expect(withoutContract).not.toMatch(/\bfails\b|xfail|vitest|pytest|jest/i);
     }
     expect(a.acceptance.replace("refunds", "prune")).toBe(b.acceptance);
     expect(a.passing.replace("refunds", "prune")).toBe(b.passing);

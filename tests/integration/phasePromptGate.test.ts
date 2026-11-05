@@ -15,6 +15,11 @@ import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
 import { makeFakeLock } from "../../src/infra/fakes/lock.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
+import {
+  DEFAULT_MODEL_ROUTING,
+  DEFAULT_PROVIDER_CONFIG,
+} from "../../src/domain/routing/defaults.js";
+import type { ProviderConfig } from "../../src/schemas/providerConfig.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import {
   decodePhaxConfig,
@@ -49,13 +54,13 @@ const shortName = Either.getOrThrow(decodeShortName("my-run"));
 const GIT_COMMIT_LINE =
   "Do not run `git commit` yourself — phax commits your changes after gates pass.";
 
-const rawPlan = {
+const rawPlanFor = (model: string) => ({
   version: 1,
   run: { shortName: "my-run", title: "My Run", branch: "ai/my-run", requiredCommands: [] },
   phases: (["01", "02"] as const).map((n) => ({
     id: `phase-${n}`,
     title: `Phase ${n}`,
-    model: "claude-sonnet-4-6",
+    model,
     effort: "low" as const,
     planMarkdownAnchor: `#phase-${n}-work`,
     plannedFilesToCreate: [`src/new-${n}.ts`],
@@ -63,7 +68,19 @@ const rawPlan = {
     optionalFilesToEdit: [],
     commit: { subject: `ai(phase-${n}): step ${n}`, body: `Does step ${n}.` },
   })),
-};
+});
+
+const rawPlan = rawPlanFor("claude-sonnet-4-6");
+
+/** Only `only` enabled, so every phase runs on it. */
+const onlyProvider = (only: string): ProviderConfig => ({
+  providers: Object.fromEntries(
+    Object.entries(DEFAULT_PROVIDER_CONFIG.providers).map(([id, provider]) => [
+      id,
+      { ...provider, enabled: id === only },
+    ]),
+  ) as ProviderConfig["providers"],
+});
 
 const baseStep = (command: string, firing: "every-phase" | "terminal") => ({
   command,
@@ -148,10 +165,11 @@ function makeRun(
   root: string,
   config: ResolvedConfig,
   workspaceId?: string,
-  opts: { failCommand?: string } = {},
+  opts: { failCommand?: string; model?: string; provider?: string } = {},
 ) {
-  const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
-  const planMd = planMdFor(rawPlan);
+  const runPlan = opts.model === undefined ? rawPlan : rawPlanFor(opts.model);
+  const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", runPlan)).plan;
+  const planMd = planMdFor(runPlan);
   const worktreeOf = (phaseId: string) => join(root, "worktrees", "test-project.my-run", phaseId);
 
   const fakeGit = makeFakeGit();
@@ -225,6 +243,9 @@ function makeRun(
           runPath,
           runId,
           startIndex,
+          ...(opts.provider === undefined
+            ? {}
+            : { routing: DEFAULT_MODEL_ROUTING, providerConfig: onlyProvider(opts.provider) }),
         }).pipe(Effect.provide(layers)),
       ),
     );
@@ -422,8 +443,41 @@ describe("phase prompt names the gate (acceptance)", () => {
         finalText: "",
       });
     }
-    await s.execute(runPath, runId, 0);
+    const resumed = await s.execute(runPath, runId, 0);
+    expect(Either.isRight(resumed)).toBe(true);
 
     expect(gateSectionOf(await readFile(promptPath, "utf8"))).toBe(firstSection);
+  });
+
+  it("ac-agnostic: the gate section each provider receives is byte-identical and names no tool", async () => {
+    const profile = await standardProfile();
+    const received = new Map<string, string>();
+    for (const [provider, model] of [
+      ["claude-code", "claude-sonnet-4-6"],
+      ["codex-cli", "gpt-6-sol"],
+      // A plan names Claude-hub or catalog ids; Vibe serves a Claude id through its alias.
+      ["mistral-vibe", "claude-sonnet-4-6"],
+    ] as const) {
+      const at = join(root, provider);
+      await mkdir(at, { recursive: true });
+      const s = makeRun(at, makeConfig(at, { full: profile as never }), undefined, {
+        model,
+        provider,
+      });
+      const { result } = await s.startRun();
+      expect(Either.isRight(result)).toBe(true);
+      const first = s.fakeBackend.impl.runCalls[0];
+      expect(first?.options.provider).toBe(provider);
+      received.set(provider, gateSectionOf(first?.prompt ?? ""));
+    }
+    const sections = [...received.values()];
+    expect(new Set(sections).size).toBe(1);
+    const fixed = (sections[0] ?? "")
+      .split("\n")
+      .filter((l) => !l.startsWith("- "))
+      .join("\n");
+    for (const tool of ["pnpm", "npm", "vitest", "jest", "cargo"]) {
+      expect(fixed).not.toContain(tool);
+    }
   });
 });
