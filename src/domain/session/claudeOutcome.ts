@@ -4,7 +4,13 @@ import {
   type ClaudeResultOutcomeEvent,
 } from "../../schemas/claudeOutput.js";
 import type { EndedSession, FailureKind, SessionFailure, SessionOutcome } from "./outcome.js";
-import { classifyVerdictText, extractResetAt, failureWithoutVerdict } from "./signatures.js";
+import { isClaudeNotAuthenticatedText } from "./claudeAuthentication.js";
+import {
+  classifyVerdictText,
+  extractResetAt,
+  failureWithoutVerdict,
+  stderrMessage,
+} from "./signatures.js";
 
 const PROVIDER = "claude-code";
 const LABEL = "claude";
@@ -21,6 +27,11 @@ export function isStructuredRetriesExhausted(failure: SessionFailure): boolean {
 }
 
 /**
+ * An error result's order of reading: the structured-retries subtype first,
+ * then not-authenticated (a wording from claudeAuthentication.ts, the
+ * `authentication_failed` category or HTTP 401), then the shared signature
+ * table, then the structured fields below.
+ *
  * The kind an error result's structured fields give when its text matches no
  * signature: an HTTP 429, or a synthetic API-error message categorized
  * `rate_limit`, is a rate limit; `billing_error` is a usage limit; an API error
@@ -72,7 +83,12 @@ function errorResultFailure(
     : firstError === undefined
       ? result.subtype
       : `${result.subtype}: ${firstError}`;
-  const kind =
+  const notAuthenticated =
+    (text !== undefined && isClaudeNotAuthenticatedText(text)) ||
+    apiErrorCategory === "authentication_failed" ||
+    result.api_error_status === 401;
+  const kind: FailureKind =
+    (notAuthenticated ? "not-authenticated" : null) ??
     (text !== undefined ? classifyVerdictText(text) : null) ??
     structuredKind(result, apiErrorCategory) ??
     otherwise;
@@ -200,6 +216,21 @@ export function readClaudeOutcome(
       events.rejectedResetsAt,
     );
     if (fromRetry !== null) return { kind: "failure", failure: fromRetry };
+  }
+  if (ending === "exited") {
+    const fromStderr = stderrMessage(ended.stderr);
+    if (fromStderr.length > 0 && isClaudeNotAuthenticatedText(fromStderr)) {
+      return {
+        kind: "failure",
+        failure: {
+          provider: PROVIDER,
+          kind: "not-authenticated",
+          message: fromStderr,
+          sessionId,
+          resetAt: null,
+        },
+      };
+    }
   }
   return {
     kind: "failure",

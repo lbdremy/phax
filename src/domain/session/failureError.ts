@@ -1,4 +1,5 @@
 import { AgentSessionFailedError, RateLimitError, UsageLimitError } from "../errors.js";
+import { NOT_AUTHENTICATED_REMEDY_LINES } from "./claudeAuthentication.js";
 import type { SessionFailure } from "./outcome.js";
 
 /** The files a failed session left: its agent-error.log and its transcript, when it has them. */
@@ -22,7 +23,11 @@ export function sessionFailureError(
   failure: SessionFailure,
   files: SessionFailureFiles,
 ): AgentSessionFailedError | RateLimitError | UsageLimitError {
-  const message = sessionFailureLine(failure);
+  const failureLine = sessionFailureLine(failure);
+  const message =
+    failure.kind === "not-authenticated"
+      ? [failureLine, ...NOT_AUTHENTICATED_REMEDY_LINES.map((line) => `  ${line}`)].join("\n")
+      : failureLine;
   if (failure.kind === "usage-limit" || failure.kind === "rate-limit") {
     const fields = {
       message,

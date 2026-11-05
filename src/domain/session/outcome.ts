@@ -37,7 +37,10 @@ import { readVibeOutcome } from "./vibeOutcome.js";
  * output) and model text (assistant messages) are never read to classify or
  * to word a failure. The failure's message is the deciding source's own text.
  *
- * The kind is read from that text: usage-limit signatures before rate-limit,
+ * A Claude error result (or, with no result, stderr) in Claude Code's
+ * not-authenticated wording, with the `authentication_failed` category or with
+ * HTTP 401 is `not-authenticated`, checked before the signatures below. Else
+ * the kind is read from that text: usage-limit signatures before rate-limit,
  * then network signatures; otherwise `provider-error`, or `max-turns` for a
  * turn-limit verdict (Claude `error_max_turns`, Vibe `turn_limit`). Vibe's
  * `terminated` and `deadline` outcomes are `killed`, its `rate_limit` code is
