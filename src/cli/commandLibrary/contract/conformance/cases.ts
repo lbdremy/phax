@@ -2835,6 +2835,349 @@ const runSessionGainCases: ReadonlyArray<Case> = [
   },
 ];
 
+// ---------------------------------------------------------------- the gains of a whole program
+
+/** Gain (a whole program): the suite's program with what a program says of itself. */
+const programOf = (
+  extra: {
+    readonly summary?: string;
+    readonly license?: string;
+    readonly versionAlias?: string;
+    readonly helpCommand?: true;
+    readonly guard?: NonNullable<Program<never>["guard"]>;
+    readonly usage?: ProgramUsage;
+    readonly options?: NonNullable<Program<never>["options"]>;
+  },
+  ...commands: ReadonlyArray<Command<never> | Group<never>>
+) =>
+  defineProgram({
+    name: "suite",
+    version: "9.9.9",
+    exits: { refused: REFUSED, defect: DEFECT },
+    commands,
+    ...extra,
+  });
+
+/** Gain (the program's guard): the code it refuses with, not the program's `refused`. */
+const GUARDED = 1;
+const GUARD_SENTENCE = "suite run is not allowed here";
+
+/** Gain (the program's guard): a guard refusing `run`, and each call it was asked about. */
+function guarding() {
+  const asked: unknown[] = [];
+  const guard: NonNullable<Program<never>["guard"]> = (called) => {
+    asked.push(called);
+    return called.words.join(" ") === "run" ? { text: GUARD_SENTENCE, exit: GUARDED } : undefined;
+  };
+  return { guard, asked };
+}
+
+const guardedRun = () =>
+  recording("run", {
+    args: reject(Schema.Tuple(Str)),
+    flags: reject(Schema.Struct({ dryRun: Switch })),
+  });
+
+const Verbose = Schema.optionalWith(Schema.Boolean, { exact: true }).annotations({
+  description: "Say more",
+});
+
+/** Gain (root help): the usage flags with their own help and default. */
+const SUITE_USAGE: ProgramUsage = {
+  flag: "usage",
+  format: "usage-format",
+  jsonSchema: "program",
+  help: "Print the usage spec",
+  formatHelp: "The usage spec's format",
+  formatDefault: "kdl",
+};
+
+/** Gain (root help): the suite's whole program, as root help writes it. */
+const helped = () =>
+  programOf(
+    {
+      summary: "A suite of commands",
+      versionAlias: "V",
+      helpCommand: true,
+      usage: SUITE_USAGE,
+      options: reject(Schema.Struct({ verbose: Verbose })),
+    },
+    pair().command,
+    debt().group,
+    bare().command,
+  );
+
+/** A row of root help as Commander writes it at 80 columns: two spaces, the term padded to the
+ *  widest term (`pair [options] <arg0> <arg1>`, 28), two spaces, the text. */
+const row = (term: string, text: string): string => `  ${term.padEnd(28)}  ${text}`;
+
+/** Gain (root help): the suite's root help, written as Commander writes a program's; the
+ *  `--json-schema` text wraps at 80 columns under its own column. */
+const SUITE_ROOT_HELP = [
+  "Usage: suite [options] [command]",
+  "",
+  "A suite of commands",
+  "",
+  "Options:",
+  row("-V, --version", "output the version number"),
+  row("--verbose", "Say more"),
+  row("--usage", "Print the usage spec"),
+  row("--usage-format <format>", `The usage spec's format (default: "kdl")`),
+  row("--json-schema", "Print the program's contracts as JSON Schema,"),
+  row("", "or a command's after its name, and run nothing"),
+  row("-h, --help", "display help for command"),
+  "",
+  "Commands:",
+  row("pair [options] <arg0> <arg1>", "the pair command"),
+  row("debt", "Accept or withdraw a debt"),
+  row("bare [options]", "the bare command"),
+  row("help [command]", "display help for command"),
+  "",
+].join("\n");
+
+// Gains carried for upstream that a whole program needs to run without a host parser
+// (command-contracts plan 4, phase-08): a guard, root help, the version's short form, a help
+// command, the usage header and plain groups.
+const programGainCases: ReadonlyArray<Case> = [
+  {
+    // Gain: the program's guard. Asked on the located command before anything is decoded, with
+    // the command's words and the options the call gives; its refusal is its text and its own
+    // code without `--json`, one `refused` line with it. Never asked for `--help`, `-h` or
+    // `--json-schema`; a call it lets through runs.
+    id: "program.guard",
+    check: (runner) =>
+      Effect.gen(function* () {
+        const checks: Check[] = [];
+        const text = guarding();
+        const refusedRun = guardedRun();
+        const plain = yield* callProgram(
+          runner,
+          programOf({ guard: text.guard, options: ProgramOptions }, refusedRun.command),
+          ["--verbose", "run", "x", "--dry-run", "--loud"],
+        );
+        checks.push(
+          ended(plain, GUARDED),
+          outEmpty(plain),
+          is("err of the guard", `${GUARD_SENTENCE}\n`, plain.err),
+          is(
+            "what the guard was asked",
+            [{ words: ["run"], options: { verbose: true, dryRun: true, loud: true } }],
+            text.asked,
+          ),
+          ran([refusedRun]),
+        );
+        const json = guarding();
+        const jsonRun = guardedRun();
+        const lined = yield* callProgram(
+          runner,
+          programOf({ guard: json.guard }, jsonRun.command),
+          ["run", "x", "--json"],
+        );
+        checks.push(
+          ended(lined, GUARDED),
+          outEmpty(lined),
+          is(
+            "the refused line",
+            [
+              {
+                kind: "refused",
+                source: "command",
+                path: ["run"],
+                expected: "a command the program's guard allows",
+                text: GUARD_SENTENCE,
+                exit: GUARDED,
+              },
+            ],
+            parsedLines(lined.err),
+          ),
+          ran([jsonRun]),
+        );
+        for (const argv of [
+          ["run", "--help"],
+          ["run", "-h"],
+          ["run", "--json-schema"],
+        ]) {
+          const skipped = guarding();
+          const called = yield* callProgram(
+            runner,
+            programOf({ guard: skipped.guard }, guardedRun().command),
+            argv,
+          );
+          checks.push(
+            ended(called, 0),
+            is(`what the guard was asked for ${argv.join(" ")}`, [], skipped.asked),
+          );
+        }
+        const allowed = guarding();
+        const paired = pair();
+        const through = yield* callProgram(
+          runner,
+          programOf({ guard: allowed.guard }, paired.command, guardedRun().command),
+          ["pair", "a", "b"],
+        );
+        checks.push(
+          ended(through, 0),
+          is(
+            "what the guard was asked for pair",
+            [{ words: ["pair"], options: {} }],
+            allowed.asked,
+          ),
+          is("what pair ran with", [{ args: ["a", "b"] }], paired.seen),
+        );
+        return verdict(...checks);
+      }),
+  },
+  {
+    // Gain: root help. The program's summary under the usage line; the version as `-V,
+    // --version`; the program's options, then the usage flag and its format with their help and
+    // the format's default, then `--json-schema`; the commands in program order with Commander's
+    // terms, then `help [command]`. `-V` alone prints the version.
+    id: "program.root-help",
+    check: (runner) =>
+      Effect.gen(function* () {
+        const terminal: Terminal = { columns: 80, color: false };
+        const help = yield* callProgram(runner, helped(), ["--help"], { terminal });
+        const short = yield* callProgram(runner, helped(), ["-h"], { terminal });
+        const version = yield* callProgram(runner, helped(), ["-V"]);
+        const long = yield* callProgram(runner, helped(), ["--version"]);
+        const inside = yield* callProgram(runner, helped(), ["bare", "-V"]);
+        return verdict(
+          ended(help, 0),
+          is("root help", SUITE_ROOT_HELP, help.out),
+          is("err of root help", "", help.err),
+          ended(short, 0),
+          is("root help on -h", SUITE_ROOT_HELP, short.out),
+          ended(version, 0),
+          is("out of -V", "9.9.9\n", version.out),
+          ended(long, 0),
+          is("out of --version", "9.9.9\n", long.out),
+          ...refusal(inside),
+        );
+      }),
+  },
+  {
+    // Gain: the root's help command. `help <words>` answers that command's or group's help as
+    // `<words> --help` does, `help` alone the root's; a word that names none is refused as an
+    // unknown command. Without the gain, the word `help` is refused, as the library has it.
+    id: "program.help-command",
+    check: (runner) =>
+      Effect.gen(function* () {
+        const checks: Check[] = [];
+        const pairs: ReadonlyArray<readonly [ReadonlyArray<string>, ReadonlyArray<string>]> = [
+          [
+            ["help", "pair"],
+            ["pair", "--help"],
+          ],
+          [
+            ["help", "debt"],
+            ["debt", "--help"],
+          ],
+          [
+            ["help", "debt", "accept"],
+            ["debt", "accept", "--help"],
+          ],
+          [["help"], ["--help"]],
+        ];
+        for (const [asked, flagged] of pairs) {
+          const byWord = yield* callProgram(runner, helped(), asked);
+          const byFlag = yield* callProgram(runner, helped(), flagged);
+          checks.push(
+            ended(byWord, 0),
+            byWord.out === "" ? `${asked.join(" ")} should write help` : undefined,
+            is(`${asked.join(" ")} against ${flagged.join(" ")}`, byFlag.out, byWord.out),
+          );
+        }
+        const unknown = yield* callProgram(runner, helped(), ["help", "nope"]);
+        const library = yield* callProgram(runner, program(bare().command), ["help", "bare"]);
+        return verdict(
+          ...checks,
+          ...refusal(unknown),
+          naming(unknown, "nope"),
+          ...refusal(library),
+          naming(library, "help"),
+        );
+      }),
+  },
+  {
+    // Gain: the usage header. The program's licence, its minimum usage version and its summary
+    // are written after its version, in that order, before anything else; the usage flags with
+    // their own help and default. A program declaring none writes none of them.
+    id: "usage.root-header",
+    check: (runner) =>
+      Effect.gen(function* () {
+        const declared = yield* callProgram(
+          runner,
+          programOf(
+            {
+              summary: "A suite of commands",
+              license: "Apache-2.0",
+              usage: { ...SUITE_USAGE, minUsageVersion: "1.0.0" },
+            },
+            bare().command,
+          ),
+          ["--usage"],
+        );
+        const library = yield* callProgram(runner, program(bare().command), ["--usage-spec"]);
+        const head = linesOf(declared.out).slice(0, 7);
+        return verdict(
+          ended(declared, 0),
+          is(
+            "the root's header",
+            [
+              "name suite",
+              "bin suite",
+              'version "9.9.9"',
+              'license "Apache-2.0"',
+              'min_usage_version "1.0.0"',
+              'about "A suite of commands"',
+            ],
+            head.slice(0, 6),
+          ),
+          has(head[6] ?? "", "after_long_help "),
+          has(declared.out, 'flag --usage help="Print the usage spec"\n'),
+          has(
+            declared.out,
+            `flag "--usage-format <format>" help="The usage spec's format" default="kdl"\n`,
+          ),
+          ended(library, 0),
+          ...["license ", "min_usage_version ", "about "].map((node) =>
+            linesOf(library.out).some((each) => each.startsWith(node))
+              ? `a program declaring none should write no ${node.trim()}`
+              : undefined,
+          ),
+        );
+      }),
+  },
+  {
+    // Gain: plain groups. With `groups: "plain"` a group's `cmd` line carries no
+    // `subcommand_required`; without it, as the library writes it. Either way the runner refuses
+    // a group called alone.
+    id: "usage.plain-groups",
+    check: (runner) =>
+      Effect.gen(function* () {
+        const plain = () => programOf({ usage: { flag: "usage", groups: "plain" } }, debt().group);
+        const spec = yield* callProgram(runner, plain(), ["--usage"]);
+        const byDefault = yield* callProgram(
+          runner,
+          programOf({ usage: { flag: "usage" } }, debt().group),
+          ["--usage"],
+        );
+        const alone = yield* callProgram(runner, plain(), ["debt"]);
+        return verdict(
+          ended(spec, 0),
+          has(spec.out, 'cmd debt help="Accept or withdraw a debt" {\n'),
+          lacks(spec.out, "subcommand_required"),
+          ended(byDefault, 0),
+          has(
+            byDefault.out,
+            'cmd debt help="Accept or withdraw a debt" subcommand_required=#true {',
+          ),
+          ...refusal(alone),
+        );
+      }),
+  },
+];
+
 // ---------------------------------------------------------------- the table
 
 export const cases: ReadonlyArray<Case> = [
@@ -3362,6 +3705,7 @@ export const cases: ReadonlyArray<Case> = [
   },
   ...jsonCases,
   ...groupCases,
+  ...programGainCases,
   ...runSessionGainCases,
   ...lifecycleGainCases,
   ...inspectionGainCases,

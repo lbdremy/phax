@@ -203,17 +203,26 @@ function treeOf(commands: ReadonlyArray<Command<unknown>>): ReadonlyArray<Entry>
 }
 
 /** A group's block: its summary and long help (gain), its examples (gain), then its commands. */
-function entryNode(entry: Entry, depth: number, listsJsonSchema: boolean): ReadonlyArray<string> {
-  if (entry.kind === "command") return commandNode(entry.command, depth, listsJsonSchema);
+function entryNode(entry: Entry, depth: number, writing: Writing): ReadonlyArray<string> {
+  if (entry.kind === "command") return commandNode(entry.command, depth, writing.listsJsonSchema);
   const { group } = entry;
   return node(
     depth,
-    `cmd ${word(group.name)}${property("help", group.summary)}${property("long_help", group.help)} subcommand_required=#true`,
+    `cmd ${word(group.name)}${property("help", group.summary)}${property("long_help", group.help)}${
+      writing.plainGroups ? "" : " subcommand_required=#true"
+    }`,
     [
       ...exampleNodes(depth + 1, group.examples),
-      ...entry.entries.flatMap((each) => entryNode(each, depth + 1, listsJsonSchema)),
+      ...entry.entries.flatMap((each) => entryNode(each, depth + 1, writing)),
     ],
   );
+}
+
+/** How the spec writes commands and groups: where it lists `--json-schema`, and whether a group
+ *  says it needs a subcommand (gain, plain groups). */
+interface Writing {
+  readonly listsJsonSchema: boolean;
+  readonly plainGroups: boolean;
 }
 
 /** Gain carried for upstream (completers): one top-level `complete` node per distinct identifier
@@ -245,10 +254,13 @@ function programFlags(program: Program<unknown>, listsJsonSchema: boolean): Read
   if (usage === undefined) {
     lines.push("flag --usage-spec hide=#true");
   } else {
-    lines.push(`flag ${usageOf(`--${usage.flag}`)}${property("help", OPTION_HELP.usage)}`);
+    // Gain (the usage flags' help): the program's own sentences and default, else the library's.
+    lines.push(
+      `flag ${usageOf(`--${usage.flag}`)}${property("help", usage.help ?? OPTION_HELP.usage)}`,
+    );
     if (usage.format !== undefined) {
       lines.push(
-        `flag ${usageOf(`--${usage.format} <format>`)}${property("help", OPTION_HELP.usageFormat)}${property("default", "kdl")}`,
+        `flag ${usageOf(`--${usage.format} <format>`)}${property("help", usage.formatHelp ?? OPTION_HELP.usageFormat)}${property("default", usage.formatDefault ?? "kdl")}`,
       );
     }
   }
@@ -278,17 +290,25 @@ const exitsNode = (program: Program<unknown>): string =>
  *
  *  Gains carried for upstream: the program's exits after its help, its usage flag, `--json-schema`
  *  listed once at the root when the program says so, its options as global flags, the arguments'
- *  completers as `complete` nodes, and groups nested in groups. */
+ *  completers as `complete` nodes, groups nested in groups, the root's `license`,
+ *  `min_usage_version` and `about` after its version, the usage flags' own help and default, and
+ *  groups written plain, without `subcommand_required`. */
 export function usageSpec(program: Program<unknown>): string {
   const listsJsonSchema = (program.usage?.jsonSchema ?? "every-command") === "every-command";
+  const writing: Writing = { listsJsonSchema, plainGroups: program.usage?.groups === "plain" };
+  const minUsageVersion = program.usage?.minUsageVersion;
   const lines: string[] = [
     `name ${word(program.name)}`,
     `bin ${word(program.name)}`,
     `version ${quoted(program.version)}`,
+    // Gain (the usage header): in the order usage's own specs write them.
+    ...(program.license === undefined ? [] : [`license ${quoted(program.license)}`]),
+    ...(minUsageVersion === undefined ? [] : [`min_usage_version ${quoted(minUsageVersion)}`]),
+    ...(program.summary === undefined ? [] : [`about ${quoted(program.summary)}`]),
     exitsNode(program),
     ...programFlags(program, listsJsonSchema),
     ...completeNodes(program),
-    ...treeOf(program.commands).flatMap((entry) => entryNode(entry, 0, listsJsonSchema)),
+    ...treeOf(program.commands).flatMap((entry) => entryNode(entry, 0, writing)),
   ];
   return `${lines.join("\n")}\n`;
 }
