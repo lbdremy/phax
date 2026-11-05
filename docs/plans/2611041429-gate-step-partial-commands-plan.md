@@ -31,7 +31,7 @@ Execution-model caveat: a phase agent cannot run the real-CLI suite, which needs
 - requiredCommands coverage: `checkRequiredCommands` is unchanged, so segment prefixes do not cover a plan's required commands (the §10 default). Loss accepted: a plan that needs a command only a partial grants must still list it in `security.agentCommands` to pass the preflight.
 - Real-CLI checks: the Claude Code check (`tests/e2e/claudePartialCommands.test.ts`) and the Vibe case added to `tests/e2e/vibeSecure.test.ts` use a tool-free diff command with the same shape as the spec's: two segments, the second through `xargs` (`git diff --name-only --diff-filter=d | xargs wc -l`). Their allow rules are derived through `parsePartialCommand`, because `pnpm exec oxlint` does not exist in a temporary repository. Loss accepted: the real-CLI checks prove the pipe-of-prefixes shape rather than the literal oxlint command; ac-claude-rules pins the oxlint rules at the medium tier.
 
-## Open questions
+## Arbitrated questions
 
 ### q-glued-placeholder — A placeholder may sit inside a word, as in `pnpm exec vitest run --dir=<dir>`. Where does that segment's allowed prefix end, given that the allow rule decides which commands a secure session may start?
 
@@ -39,6 +39,13 @@ Execution-model caveat: a phase agent cannot run the real-CLI suite, which needs
 - whole-word — Refuse at load a placeholder glued to other characters; a placeholder must be a whole word — abandons: Glued forms such as `--dir=<dir>`: a project rewrites them as `--dir <dir>` or a script, and phax adds a refusal that §5 does not list.
 
 Recommendation: word-boundary — Every `Bash(<prefix>:*)` rule already accepts any trailing options (the known prefix residual docs/security.md states). So stopping one word earlier lets the session do nothing that the glued option's leading words would not already allow it to do with other arguments. It also adds no refusal beyond the spec. The loss is still a wider grant than the literal command, which is why the operator decides it.
+
+Decision: word-boundary — by operator (Rémy Loubradou), 2026-11-05
+Why: Every `Bash(<prefix>:*)` rule already accepts any trailing options (the known prefix residual docs/security.md states). So stopping one word earlier lets the session do nothing that the glued option's leading words would not already allow it to do with other arguments. It also adds no refusal beyond the spec. The loss is still a wider grant than the literal command, which is why the operator decides it. Advocate: The strongest case for whole-word: the allow rule decides what a secure session may start, so a grant should match the command as written. Refusing a glued placeholder at load keeps `pnpm exec vitest run` from being opened to any option, and the project loses little by writing `--dir <dir>` or wrapping the command in a script. Principles: C1, P1. Reversibility: cheap. Revised: none. Phase: phase-02.
+
+## Decision log
+
+- 2026-11-05 q-glued-placeholder decided word-boundary — operator (Rémy Loubradou)
 
 ---
 
