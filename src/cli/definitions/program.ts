@@ -30,6 +30,9 @@ import { archiveCommand } from "./archive.js";
 import { initCommand } from "./init.js";
 import { publishPrCommand } from "./publishPr.js";
 import { pruneCommand } from "./prune.js";
+import { resetPhaseCommand } from "./resetPhase.js";
+import { resumeCommand } from "./resume.js";
+import { runCommand } from "./run.js";
 import { reviewCodeCommand, reviewComplianceCommand, reviewHandoffCommand } from "./review.js";
 import { adjustPlanCommand } from "./adjustPlan.js";
 import { enterCommand, enterPhaseCommand, openCommand, shellCommand } from "./sessions.js";
@@ -80,7 +83,10 @@ export const phaxProgram = defineProgram({
     initCommand,
     reportCommand,
     completionsCommand,
+    resumeCommand,
+    resetPhaseCommand,
     costGroup,
+    runCommand,
     reviewHandoffCommand,
     publishPrCommand,
     reviewComplianceCommand,

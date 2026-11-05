@@ -12,6 +12,7 @@ import {
   defineProgram,
   type ExitCode,
   type Group,
+  type Program,
 } from "../../src/cli/commandLibrary/contract/index.js";
 
 export interface RunnerCallOptions {
@@ -21,6 +22,9 @@ export interface RunnerCallOptions {
   readonly stdinIsTerminal?: boolean;
   /** The files the runner may read (a stdin document named by path), by the path as typed. */
   readonly files?: Readonly<Record<string, string>>;
+  /** The program's options, decoded wherever they stand in the call (phaxProgram's `--verbose`
+   *  and `--trace`); none unless given. */
+  readonly programOptions?: Program<unknown>["options"];
 }
 
 export interface RunnerCallResult {
@@ -62,14 +66,16 @@ export async function runnerCall(
   argv: ReadonlyArray<string>,
   options: RunnerCallOptions = {},
 ): Promise<RunnerCallResult> {
+  const { programOptions, ...io } = options;
   const program = defineProgram({
     name: "phax",
     version: "1.0.0",
     exits: { refused: 64, defect: 70 },
     refusalHint: "Run `phax --help` for usage.",
     commands,
+    ...(programOptions === undefined ? {} : { options: programOptions }),
   });
-  const memory = memoryIo({ argv, ...options });
+  const memory = memoryIo({ argv, ...io });
   const code = await Effect.runPromise(runner.run(program, memory.io) as Effect.Effect<ExitCode>);
   const out = memory.out();
   const err = memory.err();

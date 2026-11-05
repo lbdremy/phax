@@ -10,13 +10,13 @@
 import { mkdtempSync, readFileSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Command } from "commander";
+import { Effect } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { defineProgram, usageSpec } from "../../src/cli/commandLibrary/contract/index.js";
 import { runRun } from "../../src/cli/commands/run.js";
-import { registerResumeCommand } from "../../src/cli/commands/resumeRegister.js";
-import { buildProgram } from "../../src/cli/program.js";
-import { commanderExit } from "../../src/cli/bridge.js";
-import { phaxProgram } from "../../src/cli/definitions/program.js";
+import { makeResumeCommand } from "../../src/cli/definitions/resume.js";
+import { makeRunCommand } from "../../src/cli/definitions/run.js";
+import { runnerCall } from "../helpers/runnerCall.js";
 import {
   createPreflightRepo,
   type Fixture,
@@ -293,6 +293,24 @@ describe("phax run --hold", { timeout: 60_000 }, () => {
       expectNothingNamed(r);
     });
 
+    it.each([
+      ["a bare --hold", ["--hold"], "Hold: all — phase-01, phase-02, phase-04, phase-05"],
+      ["--hold <selection>", ["--hold", "phase-04,phase-02"], "Hold: listed — phase-02, phase-04"],
+      ["--hold=<selection>", ["--hold=phase-02"], "Hold: listed — phase-02"],
+      ["no --hold", [], "Hold: none"],
+    ])("reads %s on the runner and prints its hold line", async (_label, hold, line) => {
+      const r = enter(SIX_PHASES);
+
+      const result = await runnerCall(
+        [makeRunCommand()],
+        ["run", "--plan", "plan.md", "--dry-run", ...hold],
+      );
+
+      expect(result.code).toBe(0);
+      expect(result.outLines).toContain(line);
+      expectNothingNamed(r);
+    });
+
     it("prints Hold: none without --hold", async () => {
       enter(SIX_PHASES);
       const out = recordingOutput();
@@ -305,40 +323,38 @@ describe("phax run --hold", { timeout: 60_000 }, () => {
 });
 
 describe("the hold is fixed for the run and comes only from the flag", () => {
-  it("registers --hold on run, with its option text, and not on resume", () => {
-    const program = buildProgram();
-    const run = program.commands.find((c) => c.name() === "run")!;
-    const resume = program.commands.find((c) => c.name() === "resume")!;
-
-    const hold = run.options.find((o) => o.long === "--hold");
-    expect(hold?.flags).toBe("--hold [selection]");
-    expect(hold?.description).toBe(
-      "Stop for review once these headless phases commit: no value for every phase but the final one, acceptance, or phase ids such as phase-02,phase-04",
+  it("declares --hold on run, with its option text, and not on resume", async () => {
+    const spec = usageSpec(
+      defineProgram({
+        name: "phax",
+        version: "1.0.0",
+        exits: { refused: 64, defect: 70 },
+        commands: [makeRunCommand(), makeResumeCommand()],
+      }),
     );
-    expect(resume.options.map((o) => o.long)).not.toContain("--hold");
+    expect(spec).toContain(
+      'flag "--hold [selection]" help="Stop for review once these headless phases commit: no value for every phase but the final one, acceptance, or phase ids such as phase-02,phase-04"',
+    );
+    const resumeHelp = await runnerCall([makeResumeCommand()], ["resume", "--help"]);
+    expect(resumeHelp.code).toBe(0);
+    expect(resumeHelp.out).not.toContain("--hold");
   });
 
-  it("refuses `phax resume <run> --hold` as an unknown option, which the bridge exits 64", async () => {
-    const program = new Command();
-    program.exitOverride();
-    program.configureOutput({ writeErr: () => undefined, writeOut: () => undefined });
-    const runResume = vi.fn().mockResolvedValue(0);
-    registerResumeCommand(
-      program,
-      runResume,
-      { log: () => {}, warn: () => {}, error: () => {} },
-      () => ({}),
-    );
+  it("refuses `phax resume <run> --hold` as an unknown option, with 64, before anything runs", async () => {
+    let ran = false;
+    const resume = {
+      ...makeResumeCommand(),
+      run: () =>
+        Effect.sync(() => {
+          ran = true;
+          throw new Error("resume ran");
+        }),
+    };
 
-    const failure = await program
-      .parseAsync(["node", "phax", "resume", "invoice-export", "--hold"])
-      .then(
-        () => undefined,
-        (e: unknown) => e as { code: string; exitCode: number },
-      );
+    const refused = await runnerCall([resume], ["resume", "invoice-export", "--hold"]);
 
-    expect(failure).toMatchObject({ code: "commander.unknownOption" });
-    expect(commanderExit(phaxProgram, failure, () => undefined)).toBe(64);
-    expect(runResume).not.toHaveBeenCalled();
+    expect(refused.code).toBe(64);
+    expect(refused.err).toContain("--hold");
+    expect(ran).toBe(false);
   });
 });

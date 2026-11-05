@@ -1,13 +1,11 @@
 import type { OutputPort } from "../../ports/output.js";
 import { runThroughOutput } from "../bridge.js";
 import {
-  defaultBundleRoot,
   defaultInstallRoots,
   makeSkillsInstallCommand,
   type SkillsInstallRoots,
 } from "../definitions/skills.js";
 
-export { defaultBundleRoot };
 export type { SkillsInstallRoots };
 
 /** `phax skills install` answers through the command runner (src/cli/definitions/skills.ts);

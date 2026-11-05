@@ -4,11 +4,6 @@ import { isInPhaseWorktree } from "../app/loadConfig.js";
 import { phaseGuardRefusal } from "../domain/security/phaseGuard.js";
 import { cliDocs } from "./cliDocs.js";
 import { readPackageVersion, runUsageFlagAndExit } from "./commands/usage.js";
-import { runRun } from "./commands/run.js";
-import { runResume } from "./commands/resume.js";
-import { registerResumeCommand } from "./commands/resumeRegister.js";
-import { runResetPhase } from "./commands/resetPhase.js";
-import { registerResetPhaseCommand } from "./commands/resetPhaseRegister.js";
 import { mountRunnerGroupStub, mountRunnerStub, mountRunnerStubs } from "./bridge.js";
 import { OPTION_HELP } from "./commandLibrary/contract/index.js";
 import { phaxProgram } from "./definitions/program.js";
@@ -56,14 +51,6 @@ export function buildProgram(): Command {
     }
   });
 
-  function globalTraceOpts(): { verbose?: boolean; trace?: boolean } {
-    const g = program.opts<{ verbose?: boolean; trace?: boolean }>();
-    const result: { verbose?: boolean; trace?: boolean } = {};
-    if (g.verbose !== undefined) result.verbose = g.verbose;
-    if (g.trace !== undefined) result.trace = g.trace;
-    return result;
-  }
-
   mountRunnerStub(program, phaxProgram, ["validate"]);
 
   // `unlock` answers through the runner: its help-only stub, in place.
@@ -88,51 +75,7 @@ export function buildProgram(): Command {
   // `cost` answers through the runner, which holds the whole group: a help-only stub, in place.
   mountRunnerGroupStub(program, phaxProgram, ["cost"]);
 
-  program
-    .command("run")
-    .description("Extract a plan from plan.md and run all phases, or preview with --dry-run")
-    .argument("[short-name]", "Run short name, e.g. usage-cli")
-    .requiredOption("--plan <path>", "Path to the plan.md file to extract from")
-    .option("--allow-dirty", "Allow starting when the working tree is dirty")
-    .option(
-      "--provider-priority <list>",
-      "Comma-separated provider priority override (e.g. mistral-vibe,claude-code)",
-    )
-    .option("--dry-run", "Preview only — extracts the plan but performs no run actions")
-    .option(
-      "--security <mode>",
-      "Security mode override (secure|unsafe|isolated, overrides config default)",
-    )
-    .option("--refresh", "Re-extract the plan even if a cached extraction exists")
-    .option(
-      "--allow-skill-edits",
-      "Allow phases to edit the .claude/skills files the plan declares",
-    )
-    .option(
-      "--hold [selection]",
-      "Stop for review once these headless phases commit: no value for every phase but the final one, acceptance, or phase ids such as phase-02,phase-04",
-    )
-    .action(
-      async (
-        shortName: string | undefined,
-        opts: {
-          plan: string;
-          allowDirty?: boolean;
-          providerPriority?: string;
-          dryRun?: boolean;
-          refresh?: boolean;
-          allowSkillEdits?: boolean;
-          hold?: true | string;
-        },
-      ) => {
-        const merged = { ...opts, ...globalTraceOpts() };
-        const exitCode = await runRun(
-          shortName !== undefined ? { shortName, ...merged } : merged,
-          consoleOutput,
-        );
-        process.exit(exitCode);
-      },
-    );
+  mountRunnerStub(program, phaxProgram, ["run"]);
 
   mountRunnerStub(program, phaxProgram, ["review-handoff"]);
 
@@ -152,8 +95,8 @@ export function buildProgram(): Command {
   mountRunnerStub(program, phaxProgram, ["report"]);
   mountRunnerStub(program, phaxProgram, ["completions"]);
 
-  registerResumeCommand(program, runResume, consoleOutput, globalTraceOpts);
-  registerResetPhaseCommand(program, runResetPhase, consoleOutput, globalTraceOpts);
+  mountRunnerStub(program, phaxProgram, ["resume"]);
+  mountRunnerStub(program, phaxProgram, ["reset-phase"]);
   // `agent` answers through the runner, which holds the whole group: a help-only stub, in place.
   mountRunnerGroupStub(program, phaxProgram, ["agent"]);
   mountRunnerGroupStub(program, phaxProgram, ["security"]);

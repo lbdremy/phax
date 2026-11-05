@@ -4,7 +4,9 @@ import { FileSystem } from "../../ports/fs.js";
 import type { OutputPort } from "../../ports/output.js";
 import { PHAX_REVIEW_SKILL } from "../../domain/skills/catalog.js";
 import type { ResolvedConfig } from "../../schemas/phaxConfig.js";
-import { defaultBundleRoot } from "./skills.js";
+// From the definition, not the kept run function's module: that one imports the bridge, which
+// imports phaxProgram, which holds the run and resume definitions that import this module.
+import { defaultBundleRoot } from "../definitions/skills.js";
 
 /**
  * The bundled phax-review SKILL.md `executePlan` needs for the run-end code

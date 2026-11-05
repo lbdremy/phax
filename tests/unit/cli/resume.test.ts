@@ -308,7 +308,7 @@ describe("runResume --skip-acceptance", () => {
     expect(executePlan.mock.calls[0]?.[0]).toMatchObject({ skipAcceptance: false });
   });
 
-  it("refuses the retired --skip-oracle first: exit 1, nothing read, nothing run, no status written", async () => {
+  it("refuses the retired --skip-oracle first: exit 64, nothing read, nothing run, no status written", async () => {
     writeRunStatus(runPath, "awaiting_review");
     const executePlan = await setupMocks("phase-02", true);
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
@@ -321,7 +321,8 @@ describe("runResume --skip-acceptance", () => {
     for (const yes of [true, false]) {
       const { out, errors, lines, warnings } = makeOutput();
       const code = await runResume("my-run", { yes, skipOracle: true }, out);
-      expect(code).toBe(1);
+      // The runner refuses a retired option with the program's `refused` code.
+      expect(code).toBe(64);
       expect(errors).toEqual(["--skip-oracle is no longer read: write --skip-acceptance"]);
       expect(lines).toEqual([]);
       expect(warnings).toEqual([]);

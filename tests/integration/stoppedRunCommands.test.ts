@@ -280,6 +280,63 @@ describe("phax reset-phase on a waiting run", () => {
     expect(readJson(statePath(run))["state"]).not.toBe("awaiting_review");
   });
 
+  it("answers its preview and its reset as one JSON value each on the runner, and -y resets as --yes does", async () => {
+    const yes = await stopRun(world, { shortName: "invoice-export" });
+    const short = await stopRun(world, { shortName: "credit-notes" });
+    makeCorrections(yes);
+    const { makeResetPhaseCommand } = await import("../../src/cli/definitions/resetPhase.js");
+    const { runnerCall } = await import("../helpers/runnerCall.js");
+    const call = (argv: string[]) => runnerCall([makeResetPhaseCommand()], argv);
+
+    const preview = await call(["reset-phase", yes.shortName, "phase-03", "--json"]);
+    expect(preview.code).toBe(0);
+    expect(preview.err).toBe("");
+    const previewed = JSON.parse(preview.out) as {
+      outcome: { corrections: Array<{ status: string; path: string }> };
+    };
+    expect(preview.out).toBe(`${JSON.stringify(previewed, null, 2)}\n`);
+    expect(previewed).toMatchObject({
+      qualifiedName: "example.invoice-export",
+      crossProject: false,
+      outcome: { kind: "preview", requestedPhaseId: "phase-03", phaseId: "phase-03", atStop: true },
+    });
+    expect(previewed.outcome.corrections.map((c) => `${c.status} ${c.path}`).toSorted()).toEqual([
+      "A src/creditNote.ts",
+      "D docs/notes.md",
+      "M src/invoiceRow.ts",
+    ]);
+    expect(existsSync(stopPath(yes))).toBe(true);
+
+    const answers = [];
+    for (const [run, flag] of [
+      [yes, "--yes"],
+      [short, "-y"],
+    ] as const) {
+      const reset = await call(["reset-phase", run.shortName, flag, "--json"]);
+      expect(reset.code).toBe(0);
+      expect(reset.err).toBe("");
+      const answer = JSON.parse(reset.out) as {
+        qualifiedName: string;
+        outcome: { archivedPath: string };
+      };
+      expect(answer.qualifiedName).toBe(`example.${run.shortName}`);
+      expect(answer.outcome.archivedPath.startsWith(join(run.runPath, "phase-03.reset-"))).toBe(
+        true,
+      );
+      expect(existsSync(run.worktree)).toBe(false);
+      answers.push({ ...answer.outcome, archivedPath: "<archived>" });
+    }
+    expect(answers[0]).toEqual({
+      kind: "reset",
+      phaseId: "phase-03",
+      archivedPath: "<archived>",
+      worktreeRemoved: true,
+      branchDeleted: true,
+      wasStopped: true,
+    });
+    expect(answers[1]).toEqual(answers[0]);
+  });
+
   it("refuses to reset phase-02 before the stopped phase-03, naming it, and changes nothing", async () => {
     const run = await stopRun(world);
     const { runResetPhase } = await import("../../src/cli/commands/resetPhase.js");

@@ -16,6 +16,10 @@ import type { PhaxPlan } from "../../../src/schemas/phaxPlan.js";
 import type { RunId, WorktreePath } from "../../../src/domain/branded.js";
 import type { ExecutePlanResult } from "../../../src/app/executePlan.js";
 import type { ResolvedConfig } from "../../../src/schemas/phaxConfig.js";
+import type { Command } from "../../../src/cli/commandLibrary/contract/index.js";
+import type { RunAnswer } from "../../../src/cli/definitions/runOutcome.js";
+import { heldReviewStop } from "../../helpers/phaseStatusFixture.js";
+import { runnerCall } from "../../helpers/runnerCall.js";
 
 vi.mock("../../../src/app/loadConfig.js", () => ({ loadConfig: vi.fn() }));
 vi.mock("../../../src/app/loadTelemetryConfig.js", () => ({ loadTelemetryConfig: vi.fn() }));
@@ -1119,4 +1123,152 @@ describe("runRun — staleness gate", () => {
     expect(executePlan).toHaveBeenCalled();
     expect(code).toBe(0);
   });
+});
+
+/** The command answering `answer`, its run swapped, everything else the definition's. */
+async function answering(which: "run" | "resume", answer: RunAnswer, json: boolean) {
+  const { makeRunCommand } = await import("../../../src/cli/definitions/run.js");
+  const { makeResumeCommand } = await import("../../../src/cli/definitions/resume.js");
+  const command: Command<never> = {
+    ...(which === "run" ? makeRunCommand() : makeResumeCommand()),
+    run: () => Effect.succeed(answer),
+  };
+  const argv = which === "run" ? ["run", "--plan", "plan.md"] : ["resume", "fixbug", "--yes"];
+  return runnerCall([command], json ? [...argv, "--json"] : argv);
+}
+
+describe("run and resume outcomes on the runner: today's lines on today's streams, today's codes", () => {
+  const FINAL_REPORT = "/fake-state/runs/acme.fixbug/final-report.md";
+  const reviewOpen: RunAnswer = {
+    qualifiedName: "acme.fixbug",
+    crossProject: false,
+    outcome: {
+      kind: "review_open",
+      phaseCount: 2,
+      pullRequest: null,
+      completions: {
+        transitions: [
+          {
+            kind: "plan",
+            path: "docs/plans/archive/2609101270-run-carry-plan.md",
+            commit: { hash: "9c2d4110123456789", subject: "chore: complete" },
+            alreadyComplete: false,
+          },
+        ],
+        keptSpec: null,
+      },
+      finalReport: FINAL_REPORT,
+    },
+  };
+  const stopped: RunAnswer = {
+    qualifiedName: "example.invoice-export",
+    crossProject: false,
+    outcome: {
+      kind: "stopped",
+      report: {
+        cause: "held",
+        reviewStop: heldReviewStop(),
+        reviewStopPath: "/example/runs/invoice-export/review-stop.json",
+        phaseCommit: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
+        phaseCommitSubject: "feat: credit-note rows",
+        handoffPath: "/example/runs/invoice-export/phase-02/phase-handoff.md",
+        unverifiedProvider: false,
+      },
+    },
+  };
+  const alreadyInReview: RunAnswer = {
+    qualifiedName: "acme.fixbug",
+    crossProject: false,
+    outcome: {
+      kind: "already-in-review",
+      message: "Run is already in review-open state.",
+      phaseCount: 2,
+      pullRequest: "https://github.com/acme/repo/pull/42",
+    },
+  };
+  const PAUSE_LINES = [
+    'Run "acme.fixbug" gates exhausted: boom',
+    "See /fake-state/runs/acme.fixbug/resume-instructions.md for details.",
+  ];
+  const pausedWith = (exit: number): RunAnswer => ({
+    qualifiedName: "acme.fixbug",
+    crossProject: false,
+    outcome: {
+      kind: "paused",
+      reason: "gates-exhausted",
+      phase: "phase-01",
+      resumeCommand: "phax resume fixbug --yes",
+      resumeInstructions: "/fake-state/runs/acme.fixbug/resume-instructions.md",
+      resetAt: null,
+      exit,
+      lines: PAUSE_LINES,
+    },
+  });
+
+  it("review_open: the headline (run only), the completions and the report on stdout, what's next on stderr, 0", async () => {
+    const run = await answering("run", reviewOpen, false);
+    expect(run.outLines).toEqual([
+      'Run "acme.fixbug" reached review — 2 phase(s) complete.',
+      "✓ completed docs/plans/archive/2609101270-run-carry-plan.md — 9c2d411 (on run branch)",
+      `See ${FINAL_REPORT} for details.`,
+    ]);
+    expect(run.err).toContain("phax publish-pr fixbug");
+    expect(run.code).toBe(0);
+
+    const resume = await answering("resume", reviewOpen, false);
+    expect(resume.outLines).toEqual(run.outLines.slice(1));
+    expect(resume.err).toBe(run.err);
+    expect(resume.code).toBe(0);
+  });
+
+  it("stopped: renderStop's lines on stdout, nothing on stderr, 13", async () => {
+    const result = await answering("run", stopped, false);
+    expect(result.outLines[0]).toBe(
+      "◐ phase-02  Write the credit-note rows — awaiting review (held: --hold)",
+    );
+    expect(result.out).toContain("  Phase commit: a1b2c3d feat: credit-note rows");
+    expect(result.err).toBe("");
+    expect(result.code).toBe(13);
+  });
+
+  it("already-in-review: nothing on stdout, the refusal and what's next on stderr, 0", async () => {
+    const result = await answering("resume", alreadyInReview, false);
+    expect(result.out).toBe("");
+    expect(result.errLines[0]).toBe("Run is already in review-open state.");
+    expect(result.err).toContain("https://github.com/acme/repo/pull/42");
+    expect(result.code).toBe(0);
+  });
+
+  it.each([1, 4, 5, 8, 9, 14])(
+    "a pause exiting %i: nothing on stdout, its lines on stderr, its code",
+    async (exit) => {
+      for (const which of ["run", "resume"] as const) {
+        const result = await answering(which, pausedWith(exit), false);
+        expect(result.out).toBe("");
+        expect(result.errLines).toEqual(PAUSE_LINES);
+        expect(result.code).toBe(exit);
+      }
+    },
+  );
+
+  it.each([
+    ["review_open", reviewOpen, 0],
+    ["stopped", stopped, 13],
+    ["already-in-review", alreadyInReview, 0],
+    ["a pause", pausedWith(8), 8],
+  ] as const)(
+    "under --json, %s answers one object on stdout, note lines on stderr, the same code",
+    async (_label, answer, code) => {
+      const which = answer.outcome.kind === "already-in-review" ? "resume" : "run";
+      const result = await answering(which, answer, true);
+      const parsed: unknown = JSON.parse(result.out);
+      expect(parsed).toEqual(answer);
+      // One indented value, its keys in the contract's order.
+      expect(result.out).toBe(`${JSON.stringify(parsed, null, 2)}\n`);
+      for (const line of result.errLines) {
+        expect((JSON.parse(line) as { kind: string }).kind).toBe("note");
+      }
+      expect(result.code).toBe(code);
+    },
+  );
 });

@@ -243,7 +243,9 @@ describe("route", () => {
       to: "runner",
       command: ["artifact", "new", "spec"],
     });
-    expect(route(phaxProgram, ["run", "x"])).toEqual({ to: "commander" });
+    expect(route(phaxProgram, ["run", "x"])).toEqual({ to: "runner", command: ["run"] });
+    // Every command answers through the runner: only a word naming none is left to Commander.
+    expect(route(phaxProgram, ["unlok", "x"])).toEqual({ to: "commander" });
   });
 
   // Commander reads past these to the command word, and would call the help-only stub's action.
@@ -382,8 +384,14 @@ describe("help on a runner command", () => {
     expect(call.runRunner).toHaveBeenCalledWith(["artifact", "--help"]);
   });
 
-  it("leaves `help` on an unmigrated command to Commander", async () => {
+  it("answers `help run`, a command on the runner, with the runner's --help", async () => {
     const call = edge(["help", "run"]);
+    await dispatch(phaxProgram, call.edge);
+    expect(call.runRunner).toHaveBeenCalledWith(["run", "--help"]);
+  });
+
+  it("leaves `help` on a word naming no command to Commander", async () => {
+    const call = edge(["help", "unlok"]);
     await dispatch(phaxProgram, call.edge);
     expect(call.runRunner).not.toHaveBeenCalled();
   });
@@ -561,7 +569,10 @@ describe("the help-only stubs", () => {
       "init",
       "report",
       "completions",
+      "resume",
+      "reset-phase",
       "cost",
+      "run",
       "review-handoff",
       "publish-pr",
       "review-compliance",
@@ -862,7 +873,10 @@ describe("runnerUsage", () => {
       "init",
       "report",
       "completions",
+      "resume",
+      "reset-phase",
       "cost backfill",
+      "run",
       "review-handoff",
       "publish-pr",
       "review-compliance",

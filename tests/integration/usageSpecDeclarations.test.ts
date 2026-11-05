@@ -41,7 +41,10 @@ const MIGRATED_COMMANDS: ReadonlyArray<string> = [
   "init",
   "report",
   "completions",
+  "resume",
+  "reset-phase",
   "cost backfill",
+  "run",
   "review-handoff",
   "publish-pr",
   "review-compliance",
@@ -138,10 +141,22 @@ const DROPPED_SECURITY_FLAGS: ReadonlyArray<readonly [string, string]> = [
   ["security status", "flag --trace "],
 ];
 
+/** q-local-trace-flags (drop-local): `resume` and `reset-phase` no longer declare their own
+ *  `--verbose` and `--trace`; the program's options cover them anywhere in the call. Exactly
+ *  these four declarations go. */
+const DROPPED_LOCAL_TRACE_FLAGS: ReadonlyArray<readonly [string, string]> = [
+  ["resume", "flag --verbose "],
+  ["resume", "flag --trace "],
+  ["reset-phase", "flag --verbose "],
+  ["reset-phase", "flag --trace "],
+];
+
 /** What the committed file may no longer declare as the frozen one did: each reworded
- *  `--json` and long help, and the four security flags q-security-bare drops. */
+ *  `--json` and long help, the four security flags q-security-bare drops and the four local
+ *  trace flags q-local-trace-flags drops. */
 const ALLOWED_REWORDINGS: ReadonlyArray<readonly [string, string]> = [
   ...DROPPED_SECURITY_FLAGS,
+  ...DROPPED_LOCAL_TRACE_FLAGS,
   ...REWORDED_JSON.map((path) => [path, "flag --json "] as const),
   ...CHOICES_DECLARED.map((path) => [path, "arg <kind> "] as const),
   ...REWORDED_LONG_HELP.map((path) => [path, "long_help "] as const),
