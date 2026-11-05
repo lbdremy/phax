@@ -9,14 +9,6 @@ Drive AI coding agents through isolated, gated phases
 
 ## Global Flags
 
-### `--verbose`
-
-Print human-readable progress and system events
-
-### `--trace`
-
-Write structured JSONL trace events to the run folder
-
 ### `--usage`
 
 Print the phax.usage.kdl CLI spec and exit
@@ -30,6 +22,14 @@ Format for --usage output: kdl (default, no external dependency) or json (requir
 ### `--json-schema`
 
 Print the program's contracts as JSON Schema, or a command's after its name, and run nothing
+
+### `--verbose`
+
+Print human-readable progress and system events
+
+### `--trace`
+
+Write structured JSONL trace events to the run folder
 
 ## `phax validate`
 

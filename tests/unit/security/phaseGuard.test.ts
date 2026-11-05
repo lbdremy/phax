@@ -1,24 +1,16 @@
-import type { Command } from "commander";
 import { describe, expect, it } from "vitest";
-import { buildProgram } from "../../../src/cli/program.js";
+import { fullName } from "../../../src/cli/commandLibrary/contract/index.js";
+import { phaxProgram } from "../../../src/cli/definitions/program.js";
 import {
   PHASE_GUARD_CLASSIFICATION,
   isPhaseWorktree,
   phaseGuardRefusal,
 } from "../../../src/domain/security/phaseGuard.js";
 
-// Every command with an action: the leaves of the command tree.
-function registeredCommandPaths(cmd: Command, parent = ""): string[] {
-  return cmd.commands.flatMap((sub) => {
-    const path = parent ? `${parent} ${sub.name()}` : sub.name();
-    return sub.commands.length > 0 ? registeredCommandPaths(sub, path) : [path];
-  });
-}
-
 describe("phase guard — classification", () => {
-  it("classifies every command registered in program.ts, and nothing else", () => {
-    const registered = registeredCommandPaths(buildProgram()).toSorted();
-    expect(Object.keys(PHASE_GUARD_CLASSIFICATION).toSorted()).toEqual(registered);
+  it("classifies every command of phaxProgram, and nothing else", () => {
+    const registered = phaxProgram.commands.map((command) => fullName(command).join(" "));
+    expect(Object.keys(PHASE_GUARD_CLASSIFICATION).toSorted()).toEqual(registered.toSorted());
   });
 
   it("allows phax brief, schema upgrade and the read-only commands", () => {

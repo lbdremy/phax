@@ -8,7 +8,11 @@ import { runner } from "../../../src/cli/commandLibrary/commander/index.js";
 import type { Io } from "../../../src/cli/commandLibrary/contract/index.js";
 import { renderArtifactStatus } from "../../../src/cli/definitions/artifactStatus.js";
 import { renderRunList } from "../../../src/cli/definitions/ls.js";
-import { phaxProgram } from "../../../src/cli/definitions/program.js";
+import { phaxProgram as guardedProgram } from "../../../src/cli/definitions/program.js";
+import { withoutGuard } from "../../helpers/runnerCall.js";
+
+// The phase guard reads the process's cwd, which may be a phase worktree: proved on its own.
+const phaxProgram = withoutGuard(guardedProgram);
 import { ConfigValidationError } from "../../../src/domain/errors.js";
 import type { PlanOverview } from "../../../src/domain/plan/overview.js";
 import type { ArtifactStatusFile } from "../../../src/schemas/artifactStatusDocument.js";

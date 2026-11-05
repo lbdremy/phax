@@ -3,21 +3,25 @@ import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { generateUsageSpec } from "../../scripts/generate-usage-spec.js";
-import { cliCompleters } from "../../src/cli/cliCompleters.js";
 import { phaxHomeEnv } from "../helpers/isolatePhaxHome.js";
 
 const repoRoot = join(fileURLToPath(import.meta.url), "../../..");
 
+/** The completers phax's arguments declare (the `short-name` argument's, in
+ *  src/cli/definitions/shared.ts), each a top-level `complete` node of the spec. */
+const COMPLETERS: Readonly<Record<string, { run: string; descriptions: boolean }>> = {
+  "short-name": { run: "phax ls --complete", descriptions: true },
+};
+
 // ── Spec completer gate ───────────────────────────────────────────────────────
 //
-// Asserts the generated spec contains a `complete` node for every entry in
-// cliCompleters, and that `phax ls --complete` prints `short-name:state`
-// lines with no table chrome. Run before wiring the generator to catch drift.
+// Asserts the generated spec contains a `complete` node for every completer, and
+// that `phax ls --complete` prints `short-name:state` lines with no table chrome.
 
 describe("usageSpec completers gate", () => {
   const spec = generateUsageSpec();
 
-  for (const [argName, completer] of Object.entries(cliCompleters)) {
+  for (const [argName, completer] of Object.entries(COMPLETERS)) {
     it(`spec contains complete "${argName}" run="${completer.run}"`, () => {
       expect(spec).toContain(`complete "${argName}" run="${completer.run}"`);
     });

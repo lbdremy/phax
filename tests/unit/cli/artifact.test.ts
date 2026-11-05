@@ -10,7 +10,7 @@ import {
   makeArtifactNewSpecCommand,
 } from "../../../src/cli/definitions/artifactNew.js";
 import { fullName } from "../../../src/cli/commandLibrary/contract/index.js";
-import { inArtifactNew, phaxCall, runnerCall } from "../../helpers/runnerCall.js";
+import { inArtifactNew, phaxCall, runnerCall, withoutGuard } from "../../helpers/runnerCall.js";
 import {
   ApprovalMigrationRefusedError,
   ArtifactArbiterRefusedError,
@@ -815,7 +815,9 @@ describe("phax artifact schema", () => {
   });
 
   it("an unknown kind is refused by the runner, before anything is printed", async () => {
-    const called = await call(phaxProgram, { argv: ["artifact", "schema", "idea"] });
+    const called = await call(withoutGuard(phaxProgram), {
+      argv: ["artifact", "schema", "idea"],
+    });
 
     expect(called.code).toBe(phaxProgram.exits.refused);
     expect(called.out).toEqual([]);

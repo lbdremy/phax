@@ -9,7 +9,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Effect } from "effect";
 import { describe, expect, it, vi } from "vitest";
-import { PARTIAL_GROUPS } from "../../../src/cli/bridge.js";
 import { runner } from "../../../src/cli/commandLibrary/commander/index.js";
 import {
   argShapes,
@@ -19,7 +18,11 @@ import {
   type ExitCode,
   type Inputs,
 } from "../../../src/cli/commandLibrary/contract/index.js";
-import { phaxProgram } from "../../../src/cli/definitions/program.js";
+import { phaxProgram as guardedProgram } from "../../../src/cli/definitions/program.js";
+import { withoutGuard } from "../../helpers/runnerCall.js";
+
+// The phase guard reads the process's cwd, which may be a phase worktree: proved on its own.
+const phaxProgram = withoutGuard(guardedProgram);
 import { disableGitAutoMaintenance, removeTempDir } from "../../helpers/tempGit.js";
 import { memoryIo } from "../commandLibrary/commander/support/memoryIo.js";
 
@@ -53,12 +56,11 @@ const commands = phaxProgram.commands.map((command) => ({
   label: fullName(command).join(" "),
 }));
 
-/** The groups the runner holds whole, nested ones by their full words. */
+/** Every group of the program, nested ones by their full words. */
 const wholeGroups: ReadonlyArray<ReadonlyArray<string>> = [
   ...new Map(
     phaxProgram.commands.flatMap((command) => {
       const name = fullName(command);
-      if (PARTIAL_GROUPS.includes(name[0] ?? "")) return [];
       return name
         .slice(0, -1)
         .map((_, index) => name.slice(0, index + 1))
@@ -118,8 +120,7 @@ describe.each(commands)("phax $label", ({ command, words, label }) => {
   });
 });
 
-describe("the groups the runner holds whole", () => {
-  // None is held whole until phase-02 removes `plans` from PARTIAL_GROUPS; each joins as it moves.
+describe("the program's groups", () => {
   it("each, called alone, writes its help on stderr and is refused with 64", async () => {
     for (const words of wholeGroups) {
       const called = await call(words);
@@ -130,8 +131,7 @@ describe("the groups the runner holds whole", () => {
   });
 
   // ac-groups: `artifact` and `artifact new` were the last partial groups of the runner's.
-  it("holds artifact and artifact new whole, PARTIAL_GROUPS empty", () => {
-    expect(PARTIAL_GROUPS).toEqual([]);
+  it("holds artifact and artifact new among its groups", () => {
     const labels = wholeGroups.map((words) => words.join(" "));
     expect(labels).toContain("artifact");
     expect(labels).toContain("artifact new");

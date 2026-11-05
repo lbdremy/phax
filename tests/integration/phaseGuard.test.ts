@@ -1,14 +1,15 @@
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { Command } from "commander";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { Effect } from "effect";
 import * as Schema from "effect/Schema";
-import { isInPhaseWorktree } from "../../src/app/loadConfig.js";
-import { dispatch } from "../../src/cli/bridge.js";
+import { runner } from "../../src/cli/commandLibrary/commander/index.js";
+import { memoryIo } from "../../src/cli/commandLibrary/contract/conformance/memoryIo.js";
 import {
   defineCommand,
+  defineGroup,
   defineProgram,
   reject,
   strip,
+  type ExitCode,
 } from "../../src/cli/commandLibrary/contract/index.js";
 import { phaxProgram } from "../../src/cli/definitions/program.js";
 import { execSync, spawnSync, type SpawnSyncReturns } from "node:child_process";
@@ -128,51 +129,11 @@ describe("phase guard — inside a phase worktree", () => {
     expect(result.stderr).toBe("");
   });
 
-  it("refuses on the runner's path too, before the runner runs, with exit 1", async () => {
-    const archive = defineCommand({
-      name: "archive",
-      summary: "Archive a run",
-      input: { args: reject(Schema.Tuple(Schema.String)) },
-      output: strip(Schema.String),
-      exits: {},
-      run: () => Effect.succeed("archived"),
-    });
-    const program = defineProgram({
-      name: "phax",
-      version: phaxProgram.version,
-      exits: phaxProgram.exits,
-      commands: [archive],
-    });
-    for (const [argv, expected] of [
-      [["archive", "x"], `${guardMessage("archive")}\n`],
-      [
-        ["archive", "x", "--json"],
-        `${JSON.stringify({
-          kind: "refused",
-          source: "command",
-          path: ["archive"],
-          expected: "a command allowed inside a phase worktree",
-          text: guardMessage("archive"),
-          exit: 1,
-        })}\n`,
-      ],
-    ] as const) {
-      let err = "";
-      const runRunner = vi.fn(async () => 0);
-      const buildCommander = vi.fn(() => new Command());
-      const code = await dispatch(program, {
-        argv,
-        inPhaseWorktree: () => isInPhaseWorktree(phaseWorktree),
-        runRunner,
-        buildCommander,
-        err: (text) => {
-          err += text;
-        },
-      });
-      expect(code).toBe(1);
-      expect(err).toBe(expected);
-      expect(runRunner).not.toHaveBeenCalled();
-      expect(buildCommander).not.toHaveBeenCalled();
+  it("lets phax --help, -V and help <command> answer", () => {
+    for (const argv of [["--help"], ["-V"], ["help", "archive"]]) {
+      const result = runCli(phaseWorktree, argv);
+      expect(result.status, argv.join(" ")).toBe(0);
+      expect(result.stderr, argv.join(" ")).toBe("");
     }
   });
 
@@ -186,6 +147,122 @@ describe("phase guard — inside a phase worktree", () => {
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("No brief provider is configured");
     expect(result.stderr).not.toContain("not available inside a phase worktree");
+  });
+});
+
+/** A double of a phax command: an optional operand, `flags` when given, and its name as output. */
+const leaf = (name: string, flags?: Schema.Struct.Fields) =>
+  defineCommand({
+    name,
+    summary: `The ${name} command`,
+    input: {
+      args: reject(Schema.Tuple(Schema.optionalElement(Schema.String))),
+      ...(flags === undefined ? {} : { flags: reject(Schema.Struct(flags)) }),
+    },
+    output: strip(Schema.String),
+    exits: {},
+    run: () => Effect.succeed(name),
+  });
+
+// The guard phaxProgram declares, run by the runner over the memory Io: a program of doubles
+// shaped like phax's (`ls`, which the guard allows, `archive`, which it refuses, and `plans
+// status`, refused with --apply), with the process's cwd set to a worktree of the made-up repo.
+describe("phase guard — phaxProgram's guard on the runner", () => {
+  const guarded = defineProgram({
+    name: "phax",
+    version: phaxProgram.version,
+    exits: phaxProgram.exits,
+    ...(phaxProgram.guard === undefined ? {} : { guard: phaxProgram.guard }),
+    ...(phaxProgram.usage === undefined ? {} : { usage: phaxProgram.usage }),
+    ...(phaxProgram.options === undefined ? {} : { options: phaxProgram.options }),
+    commands: [
+      leaf("ls"),
+      leaf("archive"),
+      defineGroup({
+        name: "plans",
+        summary: "Plans",
+        commands: [
+          leaf("status", {
+            apply: Schema.optionalWith(Schema.Boolean, { exact: true }),
+          }),
+        ],
+      }),
+    ],
+  });
+
+  async function call(cwd: string, argv: ReadonlyArray<string>) {
+    vi.spyOn(process, "cwd").mockReturnValue(cwd);
+    const memory = memoryIo({ argv });
+    const code = await Effect.runPromise(runner.run(guarded, memory.io) as Effect.Effect<ExitCode>);
+    return { code, out: memory.out(), err: memory.err() };
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("refuses a refused command with today's sentence and exit 1, before it runs", async () => {
+    const result = await call(phaseWorktree, ["archive", "x"]);
+    expect(result.code).toBe(1);
+    expect(result.err).toBe(`${guardMessage("archive")}\n`);
+    expect(result.out).toBe("");
+  });
+
+  it("writes one refused line under --json, its exit the guard's 1", async () => {
+    const result = await call(phaseWorktree, ["archive", "x", "--json"]);
+    expect(result.code).toBe(1);
+    expect(result.err.endsWith("\n")).toBe(true);
+    expect(result.err.split("\n")).toHaveLength(2);
+    expect(JSON.parse(result.err)).toEqual({
+      kind: "refused",
+      source: "command",
+      path: ["archive"],
+      expected: "a command allowed inside a phase worktree",
+      text: guardMessage("archive"),
+      exit: 1,
+    });
+    expect(result.out).toBe("");
+  });
+
+  it("lets an allowed command and the root's --json-schema through", async () => {
+    for (const argv of [["ls", "--json"], ["--json-schema"]]) {
+      const result = await call(phaseWorktree, argv);
+      expect(result.code, argv.join(" ")).toBe(0);
+      expect(result.err, argv.join(" ")).toBe("");
+    }
+  });
+
+  it("lets a refused command's --help, -h and --json-schema through", async () => {
+    for (const argv of [
+      ["archive", "--help"],
+      ["archive", "x", "-h"],
+      ["archive", "--json-schema"],
+    ]) {
+      const result = await call(phaseWorktree, argv);
+      expect(result.code, argv.join(" ")).toBe(0);
+      expect(result.err, argv.join(" ")).toBe("");
+      expect(result.out, argv.join(" ")).not.toBe("");
+    }
+  });
+
+  it("still refuses a --help given after `--`, as an operand", async () => {
+    const result = await call(phaseWorktree, ["archive", "--", "--help"]);
+    expect(result.code).toBe(1);
+    expect(result.err).toBe(`${guardMessage("archive")}\n`);
+  });
+
+  it("reads the guard's refused options from the call's words", async () => {
+    expect((await call(phaseWorktree, ["plans", "status", "--apply"])).code).toBe(1);
+    expect((await call(phaseWorktree, ["plans", "status"])).code).toBe(0);
+    expect((await call(phaseWorktree, ["plans", "status", "--", "--apply"])).code).not.toBe(1);
+  });
+
+  it("refuses nothing outside a phase worktree", async () => {
+    for (const cwd of [mainRoot, plainWorktree]) {
+      const result = await call(cwd, ["archive", "x"]);
+      expect(result.code, cwd).toBe(0);
+      expect(result.err, cwd).toBe("");
+    }
   });
 });
 

@@ -430,20 +430,19 @@ describe("architectural guard: only the runner's adapter imports commander", () 
   });
 });
 
-// ── phax's command definitions are free of the parser ────────────────────────
-// src/cli/definitions/ holds phax's commands as the runner reads them: data and
-// Effects over the contract alone, so that the runner, not the definitions,
-// owns the parser.
+// ── phax is free of the parser outside the runner's adapter ──────────────────
+// The runner owns phax's program (ac-no-parser): src/cli/definitions/ holds phax's
+// commands as data and Effects over the contract alone, main.ts hands every call to
+// the runner, and nothing else in src/ reads a call through Commander.
 
-describe("architectural guard: phax's command definitions never import commander", () => {
-  it("no file under src/cli/definitions/ imports commander", () => {
-    const definitionsRoot = join(srcRoot, "cli", "definitions");
-    const files = listTsFiles(definitionsRoot);
+describe("architectural guard: in src/, only the runner's adapter imports commander", () => {
+  it("no file under src/ but commander/commanderAdapter.ts imports commander", () => {
+    const files = listTsFiles(srcRoot);
     expect(files.length).toBeGreaterThan(0);
     const importers = files
       .map((absPath) => relative(repoRoot, absPath).split("\\").join("/"))
       .filter((rel) => COMMANDER_IMPORT.test(readFileSync(join(repoRoot, rel), "utf8")));
-    expect(importers).toEqual([]);
+    expect(importers).toEqual([COMMANDER_ADAPTER]);
   });
 });
 

@@ -1,11 +1,18 @@
-// phax's program for the command runner (src/cli/commandLibrary/): the commands that answer
-// through the runner, its two exit codes, its usage flag and the options every command takes.
-// During the transition the bridge (src/cli/bridge.ts) hands a call naming one of these commands
-// to the runner and every other call to the Commander program of src/cli/program.ts. A file
-// under src/cli/definitions/ never imports `commander`.
+// phax's program for the command runner (src/cli/commandLibrary/): every command, its two exit
+// codes, its usage flag and header, the options every command takes and the phase guard.
+// main.ts hands every call but `--usage` to the runner over this program. A file under
+// src/cli/definitions/ never imports `commander`.
 import * as Schema from "effect/Schema";
+import { isInPhaseWorktree } from "../../app/loadConfig.js";
+import { phaseGuardRefusal } from "../../domain/security/phaseGuard.js";
 import { PHAX_RELEASE } from "../../schemas/release.js";
-import { defineGroup, defineProgram, reject } from "../commandLibrary/contract/index.js";
+import {
+  defineGroup,
+  defineProgram,
+  reject,
+  type GuardedCall,
+  type GuardRefusal,
+} from "../commandLibrary/contract/index.js";
 import { agentGroup } from "./agent.js";
 import { architectureCommand } from "./architecture.js";
 import { artifactGroup } from "./artifact.js";
@@ -56,16 +63,45 @@ const phaxProgramOptions = reject(
   }),
 );
 
+/** The licence the usage spec declares: package.json's, which a test keeps it equal to. */
+export const PHAX_LICENSE = "Apache-2.0";
+
+/** The phase guard: inside a phase worktree, a command that acts on phax state or an artifact's
+ *  lifecycle is refused with exit 1 before anything is decoded. */
+function phaseGuard(call: GuardedCall): GuardRefusal | undefined {
+  if (!isInPhaseWorktree(process.cwd())) return undefined;
+  const refusal = phaseGuardRefusal(call.words.join(" "), call.options);
+  return refusal === undefined
+    ? undefined
+    : { text: refusal, exit: 1, expected: "a command allowed inside a phase worktree" };
+}
+
 export const phaxProgram = defineProgram({
   name: "phax",
   version: PHAX_RELEASE,
+  summary: "Drive AI coding agents through isolated, gated phases",
+  license: PHAX_LICENSE,
+  versionAlias: "V",
+  helpCommand: true,
+  guard: phaseGuard,
   exits: { refused: 64, defect: 70 },
-  usage: { flag: "usage", format: "usage-format", jsonSchema: "program" },
+  usage: {
+    flag: "usage",
+    format: "usage-format",
+    jsonSchema: "program",
+    help: "Print the phax.usage.kdl CLI spec and exit",
+    formatHelp:
+      "Format for --usage output: kdl (default, no external dependency) or json (requires the usage CLI)",
+    formatDefault: "kdl",
+    minUsageVersion: "1.0.0",
+    groups: "plain",
+    // main.ts answers `--usage` anywhere in the call, ahead of the runner.
+    global: true,
+  },
   options: phaxProgramOptions,
-  // As the Commander program writes after each of its refusals.
+  // Written after each refusal, as phax always has.
   refusalHint: "Run `phax --help` for usage.",
-  // In the order the Commander program lists them, so that help and the usage spec keep their
-  // positions. Every group is held whole by the runner.
+  // In today's root order, which root help and the usage spec keep.
   commands: [
     validateCommand,
     unlockCommand,
@@ -78,13 +114,6 @@ export const phaxProgram = defineProgram({
     lsCommand,
     archiveCommand,
     pruneCommand,
-    briefCommand,
-    architectureCommand,
-    initCommand,
-    reportCommand,
-    completionsCommand,
-    resumeCommand,
-    resetPhaseCommand,
     costGroup,
     runCommand,
     reviewHandoffCommand,
@@ -92,6 +121,13 @@ export const phaxProgram = defineProgram({
     reviewComplianceCommand,
     reviewCodeCommand,
     adjustPlanCommand,
+    briefCommand,
+    architectureCommand,
+    initCommand,
+    reportCommand,
+    completionsCommand,
+    resumeCommand,
+    resetPhaseCommand,
     agentGroup,
     securityGroup,
     skillsGroup,

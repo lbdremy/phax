@@ -3,8 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { Effect, Either } from "effect";
-import { Command } from "commander";
-import { mountRunnerGroupStub } from "../../../src/cli/bridge.js";
+import { argShapes, fullName } from "../../../src/cli/commandLibrary/contract/index.js";
 import { phaxProgram } from "../../../src/cli/definitions/program.js";
 import { phaxCall } from "../../helpers/runnerCall.js";
 import type { PlanOverview } from "../../../src/domain/plan/overview.js";
@@ -491,14 +490,14 @@ describe("runPlansOverview", () => {
     expect(lines).toEqual([]);
   });
 
-  it("is registered under plans as overview's stub, with --json and --json-schema", () => {
-    const program = new Command();
-    mountRunnerGroupStub(program, phaxProgram, ["plans"]);
-    const plansCmd = program.commands.find((c) => c.name() === "plans");
-    const overviewCmd = plansCmd?.commands.find((c) => c.name() === "overview");
+  it("is declared under plans as overview, with a <plan> argument and no option of its own", () => {
+    const overviewCmd = phaxProgram.commands.find(
+      (command) => fullName(command).join(" ") === "plans overview",
+    );
 
     expect(overviewCmd).toBeDefined();
-    expect(overviewCmd?.registeredArguments.map((a) => a.name())).toEqual(["plan"]);
-    expect(overviewCmd?.options.map((o) => o.long)).toEqual(["--json", "--json-schema"]);
+    const args = overviewCmd?.input.args;
+    expect(args === undefined ? [] : argShapes(args.contract).map((a) => a.name)).toEqual(["plan"]);
+    expect(overviewCmd?.input.flags).toBeUndefined();
   });
 });

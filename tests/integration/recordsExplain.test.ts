@@ -6,7 +6,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Effect, Either, Layer } from "effect";
 import { runner } from "../../src/cli/commandLibrary/commander/index.js";
 import type { ExitCode } from "../../src/cli/commandLibrary/contract/index.js";
-import { phaxProgram } from "../../src/cli/definitions/program.js";
+import { phaxProgram as guardedProgram } from "../../src/cli/definitions/program.js";
+import { withoutGuard } from "../helpers/runnerCall.js";
+
+// The phase guard reads the process's cwd, which may be a phase worktree: proved on its own.
+const phaxProgram = withoutGuard(guardedProgram);
 import { memoryIo } from "../unit/commandLibrary/commander/support/memoryIo.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NodeGitLayer } from "../../src/infra/git.js";
