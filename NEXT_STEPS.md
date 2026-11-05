@@ -12,57 +12,86 @@ these specs landed and were completed: `planning-skill-defaults` (two plans), `a
 0.27.0. `phase-model-assignment`, `upgrade-hints`, `auto-migrate` and the first drafts of
 `oracle-phases` and `interactive-phases` were abandoned.
 
-## The queue, as of 2026-11-03
+## The queue, as of 2026-11-05
 
-### Approved, not yet planned
+In order. Briefs of work done live in `docs/briefs/archive/`; `docs/briefs/` holds only the
+briefs of live or unspecced work.
 
-- [ ] **Finish `acceptance-tests` (#177, #178, #180, #181), released in 0.33.0.** Its runs are
-      archived and the live sidecars needed no migration. Left: `phax skills install` for the
-      copies outside this repository (`~/.claude/skills/phax-planning` still teaches oracle
-      phases). Optional follow-up: no skill teaches that the criterion ids `acceptance`,
-      `in-phase` and `oracle` are reserved; only lint reports it.
+### 1. In flight
+
 - [ ] **`command-contracts`** — `docs/specs/2611031738-command-contracts.md` (Approved 2026-11-03).
       The operator's command library, ported to Effect 3, puts every command under contracts and
       forces a machine answer (`--json`, message lines on stderr, `--json-schema`, `$schema`, a
       document behind a flag, written files with their digest); `refused` 64, `defect` 70.
-      Plan 1 merged (#184, 2026-11-03): the library is ported under `src/cli/commandLibrary/`
-      (contract and Commander runner), the vendored copy is gone, and `artifact status`,
-      `plans overview`, `plans lint` and `ls` answer on the runner through a bridge. Plan 2
-      merged (#185, 2026-11-04): the inspection commands and the `plans`, `cost`, `schema`,
-      `security`, `skills` and `records` groups, held whole. Plan 3 merged (#187, 2026-11-05):
-      the rest of `artifact` (with the `--verdicts` and `--brief` stdin documents), the `agent`
-      group, `init`, `unlock`, `archive` and `prune`; the bridge's partial groups are empty.
-      Left: plan 4 runs and sessions, which removes the bridge, makes
+      Plans 1 to 3 merged (#184, #185, #187). Plan 4 (`run-and-session-commands-on-the-runner`,
+      approved 2026-11-05, running) moves the run and session commands, removes the bridge, makes
       `phax.usage.kdl` the generator's output alone, adds `reference/json-output` and completes
-      the spec. Prerequisite of `claude-code-mod` and `knowledge-index`.
+      the spec. Prerequisite of `knowledge-index` and `claude-code-mod`.
+- [ ] **Finish `acceptance-tests`** (released in 0.33.0). Left: `phax skills install` for the
+      copies outside this repository (`~/.claude/skills/phax-planning` still teaches oracle
+      phases). Optional: no skill teaches that the criterion ids `acceptance`, `in-phase` and
+      `oracle` are reserved; only lint reports it.
 
-### Briefs written, spec not yet authored
+### 2. The harness, from the records (`docs/ideas/harness-from-records.md`)
 
-- [ ] **`review-map`** — `docs/briefs/review-map.md` (2026-10-23). phax computes, without a model,
-      where review attention belongs (criteria no test proves, skipped oracles, phases that needed
-      fixes, the run's review notes) and gives it to the review session. Its dependency is met:
-      test lines and criterion coverage are in `phax-plan.json` and `phax plans overview`.
-- [ ] **`claude-code-mod`** — `docs/briefs/claude-code-mod.md` (2026-10-30). The cockpit starts as a
-      Claude Code mod: a pane and a band showing the current repository's inbox, specs, plans and
-      runs, read from phax's versioned JSON, writing nothing. Milestone 1, reading; it needs
-      `command-contracts` first, and a coverage level (§9 Q1).
-- [ ] **`knowledge-index`** — `docs/briefs/knowledge-index.md` (2026-11-03). A local, rebuildable
-      index (SQLite, FTS5) of what the repository and its runs hold — specs, plans, questions and
-      arbitrations, runs, gates, costs, reviews, records — queried through the command line in
-      versioned JSON instead of grep; Git stays the source of truth. Milestone 2, out of its scope: a
-      shared service mirroring a team's repositories and records, exposed as a remote MCP server.
-      Needs `command-contracts` first.
+Cheap, and every run gains from it: the phase prompt says what the gate runs, and the project
+names the narrow check of each step.
 
-### Drafts
+- [ ] **`phase-prompt-names-the-gate`** — spec and plan Approved (2026-11-04, 2 phases). Run it.
+- [ ] **`gate-step-partial-commands`** — spec Approved, plan Draft (6 phases, 1 open question).
+      Decide, approve, run; after `phase-prompt-names-the-gate`, its prerequisite.
 
-- [ ] **`headless-review`** — `docs/specs/2609250823-headless-review.md`. Set aside 2026-10-27:
-      review plans, `phax run --append`, a review loop, finding outcomes and history, passes in the
-      PR body. The operator split the headless review off as `headless-code-review` and wants more
-      use of it before deciding the rest. The 2026-10-27 revision (lens/escape/criterion, Q14–Q17)
-      and an unresolved review (an appended oracle pair breaks on the run footprint, a missing test
-      whose code is right cannot be an oracle pair, stale project skill copies) are in its history
-      (f2854cbd and this session's review). Revisit, or abandon, once `headless-code-review` (#169,
-      merged 2026-10-28) has been used.
+### 3. Security: project-only Claude sessions
+
+- [ ] **`project-only-claude-sessions`** — spec Approved, plan Draft (6 phases, 1 open question).
+      A headless Claude Code session loads the operator's own settings, hooks and plugins today.
+      It also answers the 1.0 item "user-installed Claude Code mods in phase sessions".
+
+### 4. Small briefs to spec
+
+- [ ] **`commit-trailers-paths`** — `docs/briefs/commit-trailers-paths.md` (2026-11-04). The
+      `Worktree:` and `Gate-Log:` trailers put the operator's home path into every repository's
+      history.
+- [ ] **`records-branch-tip`** — `docs/briefs/records-branch-tip.md` (2026-11-04). A record
+      written into a fresh records clone has no common history with the remote, so the push of
+      `phax/records/v1` fails.
+
+### 5. The review line
+
+- [ ] **`finding-ids-and-fates`** — spec Approved (2026-11-04), no plan yet. Review findings get
+      stable ids and a recorded fate; the operator's interactive flow first.
+- [ ] **`review-map`** — `docs/briefs/review-map.md` (2026-10-23), spec to author. phax computes,
+      without a model, where review attention belongs (criteria no test proves, skipped
+      acceptance tests, phases that needed fixes, the run's review notes) and gives it to the
+      review session. `headless-review` was abandoned 2026-11-05 in favour of this line.
+
+### 6. What `command-contracts` unblocks
+
+- [ ] **`knowledge-index`** — `docs/briefs/knowledge-index.md` (2026-11-04), spec to author. A local,
+      rebuildable index (SQLite, FTS5) of what the repository and its runs hold — specs, plans,
+      questions and arbitrations, runs, gates, costs, reviews, records — queried through the
+      command line in versioned JSON instead of grep; Git stays the source of truth. Milestone 2,
+      out of its scope: a shared service mirroring a team's repositories and records, exposed as a
+      remote MCP server.
+- [ ] **`claude-code-mod`** — `docs/briefs/claude-code-mod.md` (2026-11-03), spec to author. The
+      cockpit starts as a Claude Code mod: a pane and a band showing the current repository's
+      inbox, specs, plans and runs, read from phax's versioned JSON, writing nothing. It needs a
+      coverage level (§9 Q1), and can read the knowledge index once it exists.
+
+### 7. Before 1.0
+
+- [ ] **Migrate to Effect 4**, then the **CLI contract freeze** and the **persisted-format
+      stability promise** (see "Road to 1.0.0" below). Every command moved onto the runner adds
+      to the migration, so do not leave it long after `command-contracts`.
+
+### 8. Later
+
+- [ ] **`code-repository`** — `docs/briefs/code-repository.md` (2026-11-02), spec to author: a
+      project whose process lives in one repository and whose code in another, checked out
+      inside it.
+- [ ] **`artifact-revise`** — `docs/specs/2610271505-artifact-revise.md`, Draft with 2 open
+      questions: revise an authored spec or plan through its kept session.
+- [ ] The small follow-ups below, in batches.
 
 ## Model policy tracking
 
@@ -146,7 +175,7 @@ except `isolated` mode, which the post itself disclaims. The feature surface is 
       allowlist. Find out what a phase session loads, then decide how secure mode keeps the
       operator's mods out (e.g. `--safe-mode` or `--bare`, checked against what those also turn
       off). Docs: `https://code.claude.com/docs/en/plugins/mods/overview`. A secure-mode
-      boundary, so before the freeze.
+      boundary, so before the freeze. Taken up by `project-only-claude-sessions` (queue §3).
 - [ ] **Distribution polish.** macOS binaries are neither signed nor notarized
       (`docs/release.md`); npm install works, the raw binary is Gatekeeper-blocked. Either
       sign, or make npm the only documented install path for 1.0.
@@ -372,19 +401,11 @@ same list into the schema (`x-phax-checks`) — for non-TypeScript readers only.
 
 ## Approved specs — parked
 
-Specs 23 and 24 have been parked since 2026-08-14. Either can be planned at any time: start one
-with `phax artifact new plan <slug> --spec <path>`, write it with the `phax-planning` skill and
-run `phax plans lint` on it. Plan staleness is a property of the **plan**, so a spec parked here
-does not rot; the plans written against it do.
-
-- [ ] `docs/specs/2608091526-phase-decision-requests.md` — blocking agent-raised decision
-      requests; answer-and-resume; decisions in the review handoff. Superseded in practice by
-      the 2026-10-10 decision that a run stays autonomous (no phase stops to wait for a person;
-      review notes are how a provider reaches one), so it stays parked rather than planned.
 - [ ] `docs/specs/2608091526-batch-execution-disjoint-plans.md` — parallel disjoint plans,
       incremental ordered merge, terminal gate on the integration result, published as GitHub
       stacked PRs (`gh stack`) with a single-integration-PR fallback. The largest piece of work
-      left; consumes 21 + 22.
+      left; consumes 21 + 22. Plan it with `phax artifact new plan <slug> --spec <path>`.
+      (`phase-decision-requests` was abandoned 2026-11-05: runs stay autonomous.)
 
 ### Approved plan with no active spec
 
