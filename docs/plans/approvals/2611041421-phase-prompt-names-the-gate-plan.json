@@ -2,8 +2,8 @@
   "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
   "artifact": "docs/plans/2611041421-phase-prompt-names-the-gate-plan.md",
   "planFingerprint": "f491fe16cca4a409843b1be143f425fcf81df59e3dbdc50275f9a51b93e8c8c3",
-  "approvedAt": "2026-11-04T14:26:56.473Z",
-  "baseline": "cc05ab9cd6c17929c58fdbea8ad9ac4c43bb82ae",
+  "approvedAt": "2026-11-05T15:05:31.103Z",
+  "baseline": "c016c7dfa3ea332798a3cd4ee31db7866a742153",
   "sourceSpec": {
     "path": "docs/specs/2611041203-phase-prompt-names-the-gate.md",
     "fingerprint": "b949e722c1267d5cb794b3a09f1b0ef44d2fe3d64a92b6a4531d4e20b27c02c6"
