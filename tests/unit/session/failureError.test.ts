@@ -8,6 +8,7 @@ import {
   sessionFailureError,
   sessionFailureLine,
 } from "../../../src/domain/session/failureError.js";
+import { NOT_AUTHENTICATED_REMEDY_LINES } from "../../../src/domain/session/claudeAuthentication.js";
 import { FAILURE_KINDS, type SessionFailure } from "../../../src/domain/session/outcome.js";
 
 const files = {
@@ -35,7 +36,11 @@ describe("sessionFailureLine", () => {
 });
 
 describe("sessionFailureError", () => {
-  it.each(FAILURE_KINDS.filter((kind) => kind !== "rate-limit" && kind !== "usage-limit"))(
+  it.each(
+    FAILURE_KINDS.filter(
+      (kind) => kind !== "rate-limit" && kind !== "usage-limit" && kind !== "not-authenticated",
+    ),
+  )(
     "raises AgentSessionFailedError for a %s failure, carrying the failure and both files",
     (kind) => {
       const failure = failureOf(kind);
@@ -52,6 +57,20 @@ describe("sessionFailureError", () => {
       });
     },
   );
+
+  it("raises AgentSessionFailedError for not-authenticated, its message the failure line and both remedy lines", () => {
+    const failure = failureOf("not-authenticated");
+
+    const error = sessionFailureError(failure, files);
+
+    expect(error).toBeInstanceOf(AgentSessionFailedError);
+    expect(error.message.split("\n")).toEqual([
+      "claude-code session failed (not-authenticated): API Error: something went wrong",
+      `  ${NOT_AUTHENTICATED_REMEDY_LINES[0]}`,
+      `  ${NOT_AUTHENTICATED_REMEDY_LINES[1]}`,
+    ]);
+    expect(error).toMatchObject({ failure });
+  });
 
   it("raises a RateLimitError for a rate-limit failure, its raw message the provider's", () => {
     const error = sessionFailureError(failureOf("rate-limit", "2026-10-28T17:00:00.000Z"), files);

@@ -6,6 +6,7 @@ import {
   RateLimitError,
   UsageLimitError,
 } from "../../domain/errors.js";
+import { NOT_AUTHENTICATED_REMEDY_LINES } from "../../domain/session/claudeAuthentication.js";
 import { sessionFailureLine } from "../../domain/session/failureError.js";
 import type { SessionFailure } from "../../domain/session/outcome.js";
 import { buildWhatsNext, renderWhatsNext } from "../../domain/whatsNext.js";
@@ -68,6 +69,9 @@ export function renderSessionFailure(
   const failure: SessionFailure | null =
     err instanceof AgentSessionFailedError ? err.failure : null;
   const lines = [`✗ ${failure === null ? err.message : sessionFailureLine(failure)}`];
+  if (failure?.kind === "not-authenticated") {
+    lines.push(...NOT_AUTHENTICATED_REMEDY_LINES.map((line) => `  ${line}`));
+  }
   if (failure?.sessionId != null) lines.push(`  session: ${failure.sessionId}`);
   const pointers = pointerLine(err.agentErrorLog ?? null, err.transcript ?? null);
   if (pointers !== null) lines.push(pointers);

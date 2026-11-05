@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { RateLimitError, UsageLimitError } from "../../../src/domain/errors.js";
+import { NOT_AUTHENTICATED_REMEDY_LINES } from "../../../src/domain/session/claudeAuthentication.js";
 import { sessionFailureError } from "../../../src/domain/session/failureError.js";
 import { FAILURE_KINDS, type SessionFailure } from "../../../src/domain/session/outcome.js";
 import {
@@ -39,6 +40,20 @@ describe("renderSessionFailure", () => {
       "  session: sess-1",
       "  See /runs/r/phase-02/agent-error.log and output.jsonl",
       "  Retry once the network is back: phax run plan.md",
+    ]);
+  });
+
+  it("prints a not-authenticated failure's two remedy lines right after the failure line", () => {
+    const err = sessionFailureError(
+      failureOf("not-authenticated", null),
+      files,
+    ) as SessionFailureError;
+
+    expect(renderSessionFailure(err, "phax run plan.md")).toEqual([
+      "✗ claude-code session failed (not-authenticated): API Error: boom",
+      `  ${NOT_AUTHENTICATED_REMEDY_LINES[0]}`,
+      `  ${NOT_AUTHENTICATED_REMEDY_LINES[1]}`,
+      "  See /runs/r/phase-02/agent-error.log and output.jsonl",
     ]);
   });
 
