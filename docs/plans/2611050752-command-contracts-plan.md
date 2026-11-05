@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2611031738-command-contracts.md
 completes-spec: true
+approved:
+  date: 2026-11-05
+  baseline: f6adcf3
 ---
 # Run and session commands on the runner
 
