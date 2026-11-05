@@ -279,16 +279,22 @@ export const ALLOWLIST: readonly AllowEntry[] = [
     lines: [/--skip-oracle/],
   },
   {
-    id: "skip-oracle-register",
+    id: "skip-oracle-definition",
     reason: "old-name refusal",
-    file: "src/cli/commands/resumeRegister.ts",
-    lines: [/--skip-oracle/, /skipOracle/],
+    file: "src/cli/definitions/resume.ts",
+    lines: [/--skip-oracle/, /"skip-oracle"/, /SKIP_ORACLE_RETIRED/],
+  },
+  {
+    id: "skip-oracle-upgrading-0-34-0",
+    reason: "old-name refusal",
+    file: "docs/upgrading.md",
+    lines: [/`resume --skip-oracle` keeps its sentence/],
   },
   {
     id: "skip-oracle-resume",
     reason: "old-name refusal",
     file: "src/cli/commands/resume.ts",
-    lines: [/--skip-oracle/, /skipOracle/],
+    lines: [/--skip-oracle/, /skipOracle/, /SKIP_ORACLE_RETIRED/],
   },
   {
     id: "lint-old-header-lines",

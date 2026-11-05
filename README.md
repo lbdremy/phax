@@ -1098,7 +1098,7 @@ Full CLI reference: [`docs/cli/reference.md`](docs/cli/reference.md).
 - `phax report [--no-gist] [--json] [short-name]` — Creates a GitHub issue from local run telemetry. By default, uploads the full log as a secret GitHub gist and links it in the issue body. Use --no-gist to inline the log directly.
 - `phax completions [--json] <shell>` — Generate a shell completion script (zsh, bash, fish, nu, powershell). Requires the usage CLI.
 - `phax resume [FLAGS] <short-name>` — Picks up a run from its next pending phase, re-entering the same execution loop as phax run. Prompts for confirmation before proceeding unless --yes is set.
-- `phax reset-phase [FLAGS] <short-name> [phase-id]` — Resets a stuck or failed phase: its folder is archived, its worktree and branch are removed, and the run becomes resumable so phax resume starts the phase over. Without --yes it first previews what the reset would discard.
+- `phax reset-phase [-y --yes] [--json] <short-name> [phase-id]` — Resets a stuck or failed phase: its folder is archived, its worktree and branch are removed, and the run becomes resumable so phax resume starts the phase over. Without --yes it first previews what the reset would discard.
 - `phax agent <SUBCOMMAND>` — Inspect and manage model routing and provider configuration
 - `phax agent models [--json]` — Print the routing table and provider priority
 - `phax agent resolve <FLAGS>` — Show how a model+effort request resolves to a provider and concrete model

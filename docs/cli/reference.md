@@ -509,6 +509,10 @@ Allow phases to edit the .claude/skills files the plan declares
 
 Stop for review once these headless phases commit: no value for every phase but the final one, acceptance, or phase ids such as phase-02,phase-04
 
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
+
 ### Examples
 
 ```
@@ -887,14 +891,6 @@ Run short name, e.g. usage-cli
 
 Proceed without confirmation
 
-#### `--verbose`
-
-Print human-readable progress and system events
-
-#### `--trace`
-
-Write structured JSONL trace events to the run folder
-
 #### `--provider-priority <list>`
 
 Comma-separated provider priority override (e.g. mistral-vibe,claude-code)
@@ -902,6 +898,10 @@ Comma-separated provider priority override (e.g. mistral-vibe,claude-code)
 #### `--skip-acceptance`
 
 Skip the acceptance step of the phase this resume restarts at; its configured gate still runs
+
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 ### Examples
 
@@ -919,7 +919,7 @@ phax resume refunds --yes --skip-acceptance
 
 ## `phax reset-phase`
 
-- **Usage**: `phax reset-phase [FLAGS] <short-name> [phase-id]`
+- **Usage**: `phax reset-phase [-y --yes] [--json] <short-name> [phase-id]`
 
 Resets a stuck or failed phase: its folder is archived, its worktree and branch are removed, and the run becomes resumable so phax resume starts the phase over. Without --yes it first previews what the reset would discard.
 
@@ -943,13 +943,9 @@ Phase identifier to reset, e.g. phase-02; defaults to the stuck phase
 
 Proceed without confirmation (removes the worktree and branch)
 
-#### `--verbose`
+#### `--json`
 
-Print human-readable progress and system events
-
-#### `--trace`
-
-Write structured JSONL trace events to the run folder
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 ### Examples
 

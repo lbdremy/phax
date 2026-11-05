@@ -50,7 +50,7 @@ const parsed = (errLines: ReadonlyArray<string>): Array<Record<string, unknown>>
 
 describe("phax run and phax resume on the runner", () => {
   // ac-error-sentence
-  it.fails("resume --yes on a run locked by a live process answers with today's sentence, exit 7", async () => {
+  it("resume --yes on a run locked by a live process answers with today's sentence, exit 7", async () => {
     const result = await call(["resume", repo.runShortName, "--yes"]);
     expect(result.err).toBe(
       `phax resume failed: Run "${repo.runQualifiedName}" is locked by pid ${repo.pid}\n`,
@@ -59,7 +59,7 @@ describe("phax run and phax resume on the runner", () => {
   });
 
   // ac-error-sentence
-  it.fails("resume --yes --json on a locked run writes the spec's error line, exit 7", async () => {
+  it("resume --yes --json on a locked run writes the spec's error line, exit 7", async () => {
     const result = await call(["resume", repo.runShortName, "--yes", "--json"]);
     expect(result.code).toBe(7);
     const lines = parsed(result.errLines);
@@ -79,7 +79,7 @@ describe("phax run and phax resume on the runner", () => {
   });
 
   // ac-progress
-  it.fails("run --dry-run --json writes its progress as notes on stderr before the one answer", async () => {
+  it("run --dry-run --json writes its progress as notes on stderr before the one answer", async () => {
     const fakes = repo.fakes();
     const first = await call(["run", "--plan", repo.planPath, "--dry-run"], fakes);
     expect(first.code).toBe(0);
@@ -101,7 +101,7 @@ describe("phax run and phax resume on the runner", () => {
   });
 
   // ac-json-every-command
-  it.fails("resume --json without --yes answers its preview and takes no lock", async () => {
+  it("resume --json without --yes answers its preview and takes no lock", async () => {
     const lockBefore = repo.readLock();
     const result = await call(["resume", repo.runShortName, "--json"]);
     expect(result.code).toBe(0);
@@ -117,7 +117,7 @@ describe("phax run and phax resume on the runner", () => {
   });
 
   // ac-text-unchanged
-  it.fails("run --dry-run without --json prints today's report on stdout", async () => {
+  it("run --dry-run without --json prints today's report on stdout", async () => {
     const fakes = repo.fakes();
     const first = await call(["run", "--plan", repo.planPath, "--dry-run"], fakes);
     expect(first.code).toBe(0);

@@ -1,119 +1,128 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { Command } from "commander";
-import { registerResumeCommand } from "../../src/cli/commands/resumeRegister.js";
-import type { OutputPort } from "../../src/ports/output.js";
+// How the runner reads `phax resume`'s words: the resume definition's input, with its run swapped
+// for a spy, through tests/helpers/runnerCall.ts over the memory Io. The program's `--verbose` and
+// `--trace` are phaxProgram's options, read wherever they stand in the call.
+import { Effect } from "effect";
+import { describe, expect, it } from "vitest";
+import type { Command } from "../../src/cli/commandLibrary/contract/index.js";
+import { phaxProgram } from "../../src/cli/definitions/program.js";
+import { makeResumeCommand } from "../../src/cli/definitions/resume.js";
+import type { RunAnswer } from "../../src/cli/definitions/runOutcome.js";
+import { runnerCall } from "../helpers/runnerCall.js";
 
-function makeProgram() {
-  const p = new Command();
-  p.exitOverride(); // prevent commander from calling process.exit on errors
-  p.option("--verbose", "Print human-readable progress and system events");
-  p.option("--trace", "Write structured JSONL trace events to the run folder");
-  return p;
+interface Seen {
+  readonly args: ReadonlyArray<string>;
+  readonly flags: Readonly<Record<string, unknown>>;
+  readonly program: Readonly<Record<string, unknown>>;
 }
 
-const noopOut: OutputPort = {
-  log: () => {},
-  warn: () => {},
-  error: () => {},
+const PREVIEW: RunAnswer = {
+  qualifiedName: "ns.foo",
+  crossProject: false,
+  outcome: {
+    kind: "preview",
+    fromState: "interrupted",
+    nextPhaseId: "phase-01",
+    nextPhaseIndex: 0,
+    skippedPhaseIds: [],
+    owedStep: "none",
+    skipAcceptance: false,
+  },
 };
 
+/** The resume definition, its run a spy that records what the runner decoded. */
+function spiedResume(): { readonly command: Command<never>; readonly seen: Seen[] } {
+  const seen: Seen[] = [];
+  const command: Command<never> = {
+    ...makeResumeCommand(),
+    run: ({ input, program }) =>
+      Effect.sync(() => {
+        seen.push({ args: input["args"], flags: input["flags"], program });
+        return PREVIEW;
+      }),
+  };
+  return { command, seen };
+}
+
+async function parseAndCapture(argv: string[]) {
+  const { command, seen } = spiedResume();
+  const result = await runnerCall([command], argv, { programOptions: phaxProgram.options });
+  return { result, seen };
+}
+
 describe("resume subcommand argv parsing", () => {
-  let exitSpy: ReturnType<typeof vi.spyOn>;
-
-  beforeEach(() => {
-    exitSpy = vi.spyOn(process, "exit").mockImplementation(() => undefined as never);
-  });
-
-  afterEach(() => {
-    exitSpy.mockRestore();
-  });
-
-  async function parseAndCapture(argv: string[]) {
-    const runResumeImpl = vi.fn().mockResolvedValue(0);
-    const p = makeProgram();
-    registerResumeCommand(p, runResumeImpl, noopOut, () => {
-      const g = p.opts<{ verbose?: boolean; trace?: boolean }>();
-      const result: { verbose?: boolean; trace?: boolean } = {};
-      if (g.verbose !== undefined) result.verbose = g.verbose;
-      if (g.trace !== undefined) result.trace = g.trace;
-      return result;
-    });
-    await p.parseAsync(["node", "phax", ...argv]);
-    return runResumeImpl;
-  }
-
   it("passes --yes", async () => {
-    const spy = await parseAndCapture(["resume", "foo", "--yes"]);
-    expect(spy).toHaveBeenCalledOnce();
-    expect(spy.mock.calls[0]?.[1]).toMatchObject({ yes: true });
+    const { seen } = await parseAndCapture(["resume", "foo", "--yes"]);
+    expect(seen).toHaveLength(1);
+    expect(seen[0]?.flags).toMatchObject({ yes: true });
   });
 
   it("passes -y short alias", async () => {
-    const spy = await parseAndCapture(["resume", "foo", "-y"]);
-    expect(spy).toHaveBeenCalledOnce();
-    expect(spy.mock.calls[0]?.[1]).toMatchObject({ yes: true });
+    const { seen } = await parseAndCapture(["resume", "foo", "-y"]);
+    expect(seen).toHaveLength(1);
+    expect(seen[0]?.flags).toMatchObject({ yes: true });
   });
 
   it("passes --yes --verbose --trace together", async () => {
-    const spy = await parseAndCapture(["resume", "foo", "--yes", "--verbose", "--trace"]);
-    expect(spy).toHaveBeenCalledOnce();
-    expect(spy.mock.calls[0]?.[1]).toMatchObject({ yes: true, verbose: true, trace: true });
+    const { seen } = await parseAndCapture(["resume", "foo", "--yes", "--verbose", "--trace"]);
+    expect(seen).toHaveLength(1);
+    expect(seen[0]?.flags).toMatchObject({ yes: true });
+    expect(seen[0]?.program).toMatchObject({ verbose: true, trace: true });
   });
 
   it("merges global --verbose with subcommand --yes", async () => {
-    const spy = await parseAndCapture(["--verbose", "resume", "foo", "--yes"]);
-    expect(spy).toHaveBeenCalledOnce();
-    expect(spy.mock.calls[0]?.[1]).toMatchObject({ yes: true, verbose: true });
+    const { seen } = await parseAndCapture(["--verbose", "resume", "foo", "--yes"]);
+    expect(seen).toHaveLength(1);
+    expect(seen[0]?.flags).toMatchObject({ yes: true });
+    expect(seen[0]?.program).toMatchObject({ verbose: true });
   });
 
   it("calls runResume without yes when no flags given", async () => {
-    const spy = await parseAndCapture(["resume", "foo"]);
-    expect(spy).toHaveBeenCalledOnce();
-    expect(spy.mock.calls[0]?.[1].yes).toBeUndefined();
+    const { seen } = await parseAndCapture(["resume", "foo"]);
+    expect(seen).toHaveLength(1);
+    expect(seen[0]?.flags["yes"]).toBeUndefined();
   });
 
   it("forwards --skip-acceptance to runResume", async () => {
-    const spy = await parseAndCapture(["resume", "foo", "--yes", "--skip-acceptance"]);
-    expect(spy).toHaveBeenCalledOnce();
-    expect(spy.mock.calls[0]?.[1]).toMatchObject({ yes: true, skipAcceptance: true });
-    expect(spy.mock.calls[0]?.[1].skipOracle).toBeUndefined();
+    const { seen } = await parseAndCapture(["resume", "foo", "--yes", "--skip-acceptance"]);
+    expect(seen).toHaveLength(1);
+    expect(seen[0]?.flags).toMatchObject({ yes: true, skipAcceptance: true });
+    expect(seen[0]?.flags["skipOracle"]).toBeUndefined();
   });
 
-  it("forwards the retired --skip-oracle to runResume, which refuses it", async () => {
-    const spy = await parseAndCapture(["resume", "foo", "--yes", "--skip-oracle"]);
-    expect(spy).toHaveBeenCalledOnce();
-    expect(spy.mock.calls[0]?.[1]).toMatchObject({ yes: true, skipOracle: true });
-    expect(spy.mock.calls[0]?.[1].skipAcceptance).toBeUndefined();
+  it("refuses the retired --skip-oracle with its sentence and 64, before anything runs", async () => {
+    const { result, seen } = await parseAndCapture(["resume", "foo", "--yes", "--skip-oracle"]);
+    expect(seen).toHaveLength(0);
+    expect(result.code).toBe(64);
+    expect(result.errLines[0]).toBe("--skip-oracle is no longer read: write --skip-acceptance");
   });
 
-  it("lists --skip-acceptance in help and never the retired --skip-oracle", () => {
-    const p = makeProgram();
-    registerResumeCommand(p, vi.fn().mockResolvedValue(0), noopOut, () => ({}));
-    const help = p.commands.find((c) => c.name() === "resume")!.helpInformation();
-    expect(help).toContain("--skip-acceptance");
-    expect(help).not.toContain("--skip-oracle");
+  it("lists --skip-acceptance in help and never the retired --skip-oracle", async () => {
+    const { result } = await parseAndCapture(["resume", "--help"]);
+    expect(result.code).toBe(0);
+    expect(result.out).toContain("--skip-acceptance");
+    expect(result.out).not.toContain("--skip-oracle");
   });
 
   it("forwards --provider-priority to runResume", async () => {
-    const spy = await parseAndCapture([
+    const { seen } = await parseAndCapture([
       "resume",
       "foo",
       "--provider-priority",
       "codex-cli,claude-code",
     ]);
-    expect(spy).toHaveBeenCalledOnce();
-    expect(spy.mock.calls[0]?.[1]).toMatchObject({ providerPriority: "codex-cli,claude-code" });
+    expect(seen).toHaveLength(1);
+    expect(seen[0]?.flags).toMatchObject({ providerPriority: "codex-cli,claude-code" });
   });
 
   it("passes a bare short name as-is", async () => {
-    const spy = await parseAndCapture(["resume", "my-run"]);
-    expect(spy).toHaveBeenCalledOnce();
-    expect(spy.mock.calls[0]?.[0]).toBe("my-run");
+    const { seen } = await parseAndCapture(["resume", "my-run"]);
+    expect(seen).toHaveLength(1);
+    expect(seen[0]?.args[0]).toBe("my-run");
   });
 
   it("passes a qualified name as-is", async () => {
-    const spy = await parseAndCapture(["resume", "mynamespace.my-run"]);
-    expect(spy).toHaveBeenCalledOnce();
-    expect(spy.mock.calls[0]?.[0]).toBe("mynamespace.my-run");
+    const { seen } = await parseAndCapture(["resume", "mynamespace.my-run"]);
+    expect(seen).toHaveLength(1);
+    expect(seen[0]?.args[0]).toBe("mynamespace.my-run");
   });
 });

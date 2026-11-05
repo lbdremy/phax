@@ -129,18 +129,29 @@ export function makeProviderBackendLayer(
   return makeNodeBackendLayer(providerConfig).pipe(Layer.provideMerge(ProviderStoreRootsLive));
 }
 
+/** The layers a test of `phax run` or `phax resume` swaps for fakes; each defaults to the real
+ *  adapter. */
+export interface RunLayerSwaps {
+  readonly backendLayer?: Layer.Layer<Backend> | undefined;
+  readonly githubLayer?: Layer.Layer<GitHub> | undefined;
+  readonly shellLayer?: Layer.Layer<Shell> | undefined;
+}
+
 export function provideRunLayers<A, E>(
   effect: Effect.Effect<A, E, Backend | FileSystem | Git | GitHub | Shell | Lock | SystemTelemetry>,
   config: ResolvedConfig,
   systemTelemetryLayer: Layer.Layer<SystemTelemetry>,
   providerConfig: ProviderConfig,
+  swaps: RunLayerSwaps = {},
 ): Effect.Effect<A, E, never> {
+  const backendLayer: Layer.Layer<Backend> =
+    swaps.backendLayer ?? makeProviderBackendLayer(providerConfig);
   return effect.pipe(
-    Effect.provide(makeProviderBackendLayer(providerConfig)),
+    Effect.provide(backendLayer),
     Effect.provide(makeRepoRootedFileSystemLayer(config)),
     Effect.provide(NodeGitLayer),
-    Effect.provide(NodeGitHubLayer),
-    Effect.provide(NodeShellLayer),
+    Effect.provide(swaps.githubLayer ?? NodeGitHubLayer),
+    Effect.provide(swaps.shellLayer ?? NodeShellLayer),
     Effect.provide(makeNodeLockLayer(config.stateRoot)),
     Effect.provide(systemTelemetryLayer),
   );
