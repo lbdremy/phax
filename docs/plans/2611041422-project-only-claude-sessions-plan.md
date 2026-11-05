@@ -28,7 +28,7 @@ The installed phax 0.33.0 drives this run. It reads none of what this plan chang
 - Real-session cases (ac-real-init, ac-skill-grant, ac-protected-path) live in tests/e2e/ and run only through `pnpm test:e2e:real` (vitest.e2e.config.ts) with `PHAX_E2E_RUN=1` and an installed `claude` (`probeProvider("claude")`). The gate's `pnpm test` never includes tests/e2e. Every argv and environment criterion runs against the recording stub (tests/helpers/fakeProviderCli.ts), which already captures each invocation's argv and whole environment. Loss accepted: the real-session criteria are proven only when the operator runs them, not on every gate.
 - Release. The new shapes are stamped 0.34.0, the open release, through `packages/schemas/snapshots/<format>/next.schema.json` and `pnpm exec tsx scripts/schemas-check.ts --write`. 0.33.0 (phase manifest) and 0.30.0 (decision manifest) are frozen the way the last cut froze phase-record-manifest 0.30.0: a self-contained history module, its release snapshot unchanged, its lock entry, a reader branch in src/schemas/persisted.ts, and a release entry with a lift in packages/schemas/src/formats/recordManifests.ts.
 
-## Open questions
+## Arbitrated questions
 
 ### q-e2e-user-layer — Where does the ac-real-init e2e case plant the user layer (a user skill, a non-builtin plugin, a rules file, a user CLAUDE.md, a SessionEnd hook, an auto-memory index) that it proves does not reach a project-only session?
 
@@ -37,6 +37,13 @@ The installed phax 0.33.0 drives this run. It reads none of what this plan chang
 - observe-only — Plant nothing; run against the operator's configuration as it is and assert the init event lists nothing beyond the repository's and the bundled skills — abandons: the proof itself on a machine whose user layer is empty or lacks a kind (no hook, no CLAUDE.md): the criterion then passes without anything to exclude
 
 Recommendation: dedicated-config-dir — Only a planted layer proves exclusion, and only a directory phax's tests own can be planted without touching the operator's real settings. The one-time login is a deliberate step, and the e2e tier is already deliberate. A control run without the switches shows each planted item loading, so a fixture that fails to plant shows up instead of passing vacuously.
+
+Decision: dedicated-config-dir — by operator (Rémy Loubradou), 2026-11-05
+Why: Only a planted layer proves exclusion, and only a directory phax's tests own can be planted without touching the operator's real settings. The one-time login is a deliberate step, and the e2e tier is already deliberate. A control run without the switches shows each planted item loading, so a fixture that fails to plant shows up instead of passing vacuously. Advocate: The strongest case is for plant-real-home: it needs no preparation, so the case runs on any machine where `claude` is installed and logged in, and the proof is real, because the planted layer sits in the very ~/.claude that operators use. A dedicated directory needs a one-time login that many operators will skip, so the case would be skipped almost everywhere and the criterion would go unproven in practice. Principles: E0, C2, C4. Reversibility: cheap. Revised: none. Phase: phase-05.
+
+## Decision log
+
+- 2026-11-05 q-e2e-user-layer decided dedicated-config-dir — operator (Rémy Loubradou)
 
 ---
 
