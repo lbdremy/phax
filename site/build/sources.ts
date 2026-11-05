@@ -24,6 +24,7 @@ const SOURCE_FILES = [
   "docs/upgrading.md",
   "docs/agent-session-failures.md",
   "docs/structured-answers.md",
+  "docs/json-output.md",
 ] as const;
 
 /** Directories whose `*.md` files (not recursive) the site renders. */
