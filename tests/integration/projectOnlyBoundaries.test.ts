@@ -74,30 +74,30 @@ describe("ac-env-kept", () => {
   });
 });
 
+// Each launch is handed to the Session port the way the commands hand it,
+// and the fake records what would be spawned.
+async function launched(invocation: {
+  executable: string;
+  args: readonly string[];
+  cwd: string;
+  env?: Record<string, string>;
+}) {
+  const session = makeFakeSession();
+  await Effect.runPromise(
+    Effect.gen(function* () {
+      const port = yield* Session;
+      yield* port.resume({ ...invocation, env: invocation.env ?? {} });
+    }).pipe(Effect.provide(session.layer)),
+  );
+  return session.impl.invocations[0]!;
+}
+
 describe("ac-interactive", () => {
   const sessionId = "3f2b9c1e-6a4d-4e8f-9b21-7c5d0e8a1f42";
   const posture = {
     policy: securePolicy,
     agentCommands: [],
   } as const;
-
-  // Each launch is handed to the Session port the way the commands hand it,
-  // and the fake records what would be spawned.
-  async function launched(invocation: {
-    executable: string;
-    args: readonly string[];
-    cwd: string;
-    env?: Record<string, string>;
-  }) {
-    const session = makeFakeSession();
-    await Effect.runPromise(
-      Effect.gen(function* () {
-        const port = yield* Session;
-        yield* port.resume({ ...invocation, env: invocation.env ?? {} });
-      }).pipe(Effect.provide(session.layer)),
-    );
-    return session.impl.invocations[0]!;
-  }
 
   const launches = [
     {

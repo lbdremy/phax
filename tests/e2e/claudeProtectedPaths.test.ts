@@ -4,11 +4,17 @@ import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSy
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { buildArgs } from "../../src/infra/providers/claudeCode.js";
+import {
+  CLAUDE_PROJECT_ONLY_FLAGS,
+  projectOnlyEnvironment,
+} from "../../src/domain/session/claudeProjectOnly.js";
 import { protectedList } from "../../src/domain/security/protectedPaths.js";
 import type { SecurityPolicy } from "../../src/domain/security/types.js";
 import { probeProvider } from "./helpers/providers.js";
 
-// Guards the Claude Code behavior the native protected-path rules rely on: an
+// ac-protected-path: guards, under the project-only launch phax uses
+// (`--setting-sources project` and auto-memory off), the Claude Code behavior
+// the native protected-path rules rely on: an
 // `Edit(//<worktree>/**/steme.baseline.json)` deny rule in the inline
 // `--settings` makes a headless acceptEdits session refuse both Write and Edit
 // of that file at any depth. Opt-in like realFlow (PHAX_E2E_RUN=1); the review
@@ -63,7 +69,7 @@ function toolCalls(stdout: string): ToolCall[] {
   return [...calls.values()];
 }
 
-describe.skipIf(!shouldRun)("claude-code protected path deny rule (real provider)", () => {
+describe.skipIf(!shouldRun)("ac-protected-path: claude-code protected path deny rule", () => {
   let repoDir: string;
 
   beforeAll(() => {
@@ -97,6 +103,9 @@ describe.skipIf(!shouldRun)("claude-code protected path deny rule (real provider
       protectedPaths: protectedList(["**/steme.baseline.json"], "phax.json") ?? undefined,
     });
 
+    // The launch under test is phax's: the flag in the argv, the switch in the environment.
+    expect(args.join(" ")).toContain(CLAUDE_PROJECT_ONLY_FLAGS.join(" "));
+
     const prompt = [
       "Do exactly these two file operations, one after another, and continue even if one is denied:",
       `1. Use the Write tool to overwrite ${PROTECTED} with the content {"limit": 99}.`,
@@ -109,6 +118,7 @@ describe.skipIf(!shouldRun)("claude-code protected path deny rule (real provider
       input: prompt,
       encoding: "utf8",
       timeout: 300_000,
+      env: projectOnlyEnvironment(process.env),
     });
     expect(result.status, result.stderr).toBe(0);
 
