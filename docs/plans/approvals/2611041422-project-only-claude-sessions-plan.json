@@ -1,0 +1,15 @@
+{
+  "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+  "artifact": "docs/plans/2611041422-project-only-claude-sessions-plan.md",
+  "planFingerprint": "bf20f65cae1584b6362b094a491f3141322da2f13797dedac6d1e5ce70541c0e",
+  "approvedAt": "2026-11-05T10:00:50.722Z",
+  "baseline": "8da1e8b2465000dc4b284b8869a81495c900d737",
+  "sourceSpec": {
+    "path": "docs/specs/2611041159-project-only-claude-sessions.md",
+    "fingerprint": "9cafc5c21a71141980b6b80d2dd196ea7a153551dbef84deeeb7a195a2dfe432"
+  },
+  "approvedBy": {
+    "kind": "operator",
+    "name": "Rémy Loubradou"
+  }
+}

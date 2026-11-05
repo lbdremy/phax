@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2611041159-project-only-claude-sessions.md
 completes-spec: true
+approved:
+  date: 2026-11-05
+  baseline: 8da1e8b
 ---
 # Project-only Claude sessions
 
