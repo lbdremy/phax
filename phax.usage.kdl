@@ -189,56 +189,33 @@ cmd "run" {
     }
 }
 
-cmd "review-handoff" {
-    help "Regenerate review-handoff.md and global file reconciliation for a review_open run"
-    arg "<short-name>" {
-        help "Run short name, e.g. usage-cli"
-    }
-    flag "--allow-partial" {
-        help "Generate a partial document when some phase artifacts are missing"
-    }
+cmd review-handoff help="Regenerate review-handoff.md and global file reconciliation for a review_open run" {
+    flag --allow-partial help="Generate a partial document when some phase artifacts are missing"
+    flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
+    arg <short-name> help="Run short name, e.g. usage-cli"
 }
 
-cmd "publish-pr" {
-    help "Push the final branch and create (or reuse) a GitHub PR for a review_open run"
-    long_help "Pushes the final worktree branch to the GitHub remote and creates a pull request, or reuses an existing PR for the same branch. Requires a GitHub remote and gh CLI authentication.\n\nSide effects: git push to remote, GitHub API call to create or update a pull request."
+cmd publish-pr help="Push the final branch and create (or reuse) a GitHub PR for a review_open run" long_help="Pushes the final worktree branch to the GitHub remote and creates a pull request, or reuses an existing PR for the same branch. Requires a GitHub remote and gh CLI authentication.\n\nSide effects: git push to remote, GitHub API call to create or update a pull request." {
     example "phax publish-pr usage-cli"
-    arg "<short-name>" {
-        help "Run short name, e.g. usage-cli"
-    }
+    flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
+    arg <short-name> help="Run short name, e.g. usage-cli"
 }
 
-cmd "review-compliance" {
-    help "Run a plan-compliance review for a review_open run and record its result"
-    long_help "Runs a plan-compliance review by invoking the AI agent with the run's handoff artifacts and the original plan. The agent session is read-only and writes no file. On Claude Code its shell is limited to the read-only git prefixes (log, diff, show, status, ls-files, blame), which run with your user's rights, without an OS sandbox; on Mistral Vibe, bash is prefix-allowlisted to the same commands, without an OS sandbox; on Codex, the read-only OS sandbox blocks writes and the network but lets any reading command run. It answers a structured verdict with its final message, per phase, with two ledgers (unplanned changes and unmet promises). phax writes compliance-review.json (the answer as given) and compliance-review.md (rendered from it) in the run folder; when records are enabled, it also commits the review entry to the records of the run's own project, even when the run belongs to another project.\n\nA refused answer, one that does not match the schema or does not name every phase of the run exactly once, is asked once more in the same session (its transcript is compliance-review-retry.session.jsonl). A review refused twice, or whose session fails, writes neither file nor a records entry, leaves an earlier review as it was, and exits 1 (14 when the provider was unreachable: a network failure), naming the retry command.\n\nSide effects: spawns a short-lived, read-only AI agent session (network I/O); writes compliance-review.json and compliance-review.md in the run folder; when records are enabled, commits the review entry to phax/records/v1, and pushes it when records.autoPush is on."
+cmd review-compliance help="Run a plan-compliance review for a review_open run and record its result" long_help="Runs a plan-compliance review by invoking the AI agent with the run's handoff artifacts and the original plan. The agent session is read-only and writes no file. On Claude Code its shell is limited to the read-only git prefixes (log, diff, show, status, ls-files, blame), which run with your user's rights, without an OS sandbox; on Mistral Vibe, bash is prefix-allowlisted to the same commands, without an OS sandbox; on Codex, the read-only OS sandbox blocks writes and the network but lets any reading command run. It answers a structured verdict with its final message, per phase, with two ledgers (unplanned changes and unmet promises). phax writes compliance-review.json (the answer as given) and compliance-review.md (rendered from it) in the run folder; when records are enabled, it also commits the review entry to the records of the run's own project, even when the run belongs to another project.\n\nA refused answer, one that does not match the schema or does not name every phase of the run exactly once, is asked once more in the same session (its transcript is compliance-review-retry.session.jsonl). A review refused twice, or whose session fails, writes neither file nor a records entry, leaves an earlier review as it was, and exits 1 (14 when the provider was unreachable: a network failure), naming the retry command.\n\nSide effects: spawns a short-lived, read-only AI agent session (network I/O); writes compliance-review.json and compliance-review.md in the run folder; when records are enabled, commits the review entry to phax/records/v1, and pushes it when records.autoPush is on." {
     example "phax review-compliance usage-cli"
-    arg "<short-name>" {
-        help "Run short name, e.g. usage-cli"
-    }
+    flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
+    arg <short-name> help="Run short name, e.g. usage-cli"
 }
 
-cmd "review-code" {
-    help "Open an interactive, pre-prompted code-review session for a review_open run, or run the review headless with --headless"
-    long_help "Opens an interactive, pre-prompted code-review session for a review_open run by launching the AI agent in the run's worktree with the code-review prompt. The prompt carries the phax-review skill: the project's copy at .claude/skills/phax-review/SKILL.md in the run's worktree when it has one, else the bundled skill. The session is resumable: re-running resumes the existing session, while --new-session starts fresh. The developer takes over the session to investigate, discuss, and apply fixes.\n\n--headless runs the review without a person, whether or not review.code.enabled is set, in a read-only session: its reading tools and read-only git (log, diff, show, status, ls-files, blame). The session answers with its final message; a session that changed the worktree has its changes put back and its answer refused. A refused answer, an empty one included, is asked once more in the same session (its transcript is code-review-retry.session.jsonl) before the review fails naming both refusals; a session that changed the worktree is never resumed. An accepted answer writes code-review.json and code-review-session.json in the run folder; when records are on, it commits the code-review entry, and pushes it when records.autoPush is on. It prints the finding count and how to resume the session to fix them (phax review-code <run> on Claude Code, the provider's own resume otherwise), and exits 1 naming the reason and the retry command when the review fails (14 when the provider was unreachable: a network failure), leaving code-review.json and code-review-session.json as they were. It never touches a pull request. A later `phax review-code <run>` resumes that session on the provider that ran it. --new-session after a headless review starts a new interactive session that becomes the recorded review session and detaches it from code-review.json, which is left as it is.\n\nSide effects: writes a code-review prompt file under the worktree's .phax-context/ and a session record under the run directory; spawns a long-lived interactive AI agent session (network I/O). With --headless: spawns a short-lived AI agent session (network I/O), writes code-review.json and code-review-session.json in the run folder, and may commit a code-review entry to phax/records/v1."
+cmd review-code help="Open an interactive, pre-prompted code-review session for a review_open run, or run the review headless with --headless" long_help="Opens an interactive, pre-prompted code-review session for a review_open run by launching the AI agent in the run's worktree with the code-review prompt. The prompt carries the phax-review skill: the project's copy at .claude/skills/phax-review/SKILL.md in the run's worktree when it has one, else the bundled skill. The session is resumable: re-running resumes the existing session, while --new-session starts fresh. The developer takes over the session to investigate, discuss, and apply fixes.\n\n--headless runs the review without a person, whether or not review.code.enabled is set, in a read-only session: its reading tools and read-only git (log, diff, show, status, ls-files, blame). The session answers with its final message; a session that changed the worktree has its changes put back and its answer refused. A refused answer, an empty one included, is asked once more in the same session (its transcript is code-review-retry.session.jsonl) before the review fails naming both refusals; a session that changed the worktree is never resumed. An accepted answer writes code-review.json and code-review-session.json in the run folder; when records are on, it commits the code-review entry, and pushes it when records.autoPush is on. It prints the finding count and how to resume the session to fix them (phax review-code <run> on Claude Code, the provider's own resume otherwise), and exits 1 naming the reason and the retry command when the review fails (14 when the provider was unreachable: a network failure), leaving code-review.json and code-review-session.json as they were. It never touches a pull request. A later `phax review-code <run>` resumes that session on the provider that ran it. --new-session after a headless review starts a new interactive session that becomes the recorded review session and detaches it from code-review.json, which is left as it is.\n\nSide effects: writes a code-review prompt file under the worktree's .phax-context/ and a session record under the run directory; spawns a long-lived interactive AI agent session (network I/O). With --headless: spawns a short-lived AI agent session (network I/O), writes code-review.json and code-review-session.json in the run folder, and may commit a code-review entry to phax/records/v1." {
     example "phax review-code usage-cli"
     example "phax review-code usage-cli --headless"
-    arg "<short-name>" {
-        help "Run short name, e.g. usage-cli"
-    }
-    flag "--new-session" {
-        help "Start a fresh review session instead of resuming the existing one"
-    }
-    flag "--model" {
-        arg "<model>"
-        help "Override the model, including on resume (default: review.code.model, else claude-opus-5-5)"
-    }
-    flag "--effort" {
-        arg "<effort>"
-        help "Override the effort (low | medium | high), including on resume (default: review.code.effort, else high)"
-    }
-    flag "--headless" {
-        help "Run the code review without a person: write code-review.json and record the session for review-code to resume; runs whether or not review.code.enabled is set"
-    }
+    flag --new-session help="Start a fresh review session instead of resuming the existing one"
+    flag "--model <model>" help="Override the model, including on resume (default: review.code.model, else claude-opus-5-5)"
+    flag "--effort <effort>" help="Override the effort (low | medium | high), including on resume (default: review.code.effort, else high)"
+    flag --headless help="Run the code review without a person: write code-review.json and record the session for review-code to resume; runs whether or not review.code.enabled is set"
+    flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
+    arg <short-name> help="Run short name, e.g. usage-cli"
 }
 
 cmd "adjust-plan" {

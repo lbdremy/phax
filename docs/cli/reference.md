@@ -507,7 +507,7 @@ phax run --plan plan.md --refresh
 
 ## `phax review-handoff`
 
-- **Usage**: `phax review-handoff [--allow-partial] <short-name>`
+- **Usage**: `phax review-handoff [--allow-partial] [--json] <short-name>`
 
 Regenerate review-handoff.md and global file reconciliation for a review_open run
 
@@ -523,9 +523,13 @@ Run short name, e.g. usage-cli
 
 Generate a partial document when some phase artifacts are missing
 
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
+
 ## `phax publish-pr`
 
-- **Usage**: `phax publish-pr <short-name>`
+- **Usage**: `phax publish-pr [--json] <short-name>`
 
 Pushes the final worktree branch to the GitHub remote and creates a pull request, or reuses an existing PR for the same branch. Requires a GitHub remote and gh CLI authentication.
 
@@ -537,6 +541,12 @@ Side effects: git push to remote, GitHub API call to create or update a pull req
 
 Run short name, e.g. usage-cli
 
+### Flags
+
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
+
 ### Examples
 
 ```
@@ -545,7 +555,7 @@ phax publish-pr usage-cli
 
 ## `phax review-compliance`
 
-- **Usage**: `phax review-compliance <short-name>`
+- **Usage**: `phax review-compliance [--json] <short-name>`
 
 Runs a plan-compliance review by invoking the AI agent with the run's handoff artifacts and the original plan. The agent session is read-only and writes no file. On Claude Code its shell is limited to the read-only git prefixes (log, diff, show, status, ls-files, blame), which run with your user's rights, without an OS sandbox; on Mistral Vibe, bash is prefix-allowlisted to the same commands, without an OS sandbox; on Codex, the read-only OS sandbox blocks writes and the network but lets any reading command run. It answers a structured verdict with its final message, per phase, with two ledgers (unplanned changes and unmet promises). phax writes compliance-review.json (the answer as given) and compliance-review.md (rendered from it) in the run folder; when records are enabled, it also commits the review entry to the records of the run's own project, even when the run belongs to another project.
 
@@ -558,6 +568,12 @@ Side effects: spawns a short-lived, read-only AI agent session (network I/O); wr
 #### `<short-name>`
 
 Run short name, e.g. usage-cli
+
+### Flags
+
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 ### Examples
 
@@ -598,6 +614,10 @@ Override the effort (low | medium | high), including on resume (default: review.
 #### `--headless`
 
 Run the code review without a person: write code-review.json and record the session for review-code to resume; runs whether or not review.code.enabled is set
+
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 ### Examples
 

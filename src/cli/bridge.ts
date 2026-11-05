@@ -496,6 +496,8 @@ export async function runThroughOutput(
     readonly wholeDocument?: boolean;
     /** The stdin document as read, handed to the check and to run as the runner hands it. */
     readonly document?: StdinDocument;
+    /** The program's options (`--verbose`), as the runner hands them to run. */
+    readonly program?: Readonly<Record<string, unknown>>;
   } = {},
 ): Promise<number> {
   const check = command.check;
@@ -514,7 +516,7 @@ export async function runThroughOutput(
     Effect.suspend(() =>
       command.run({
         input,
-        program: {},
+        program: options.program ?? {},
         progress: (text: string) =>
           Effect.sync(() => {
             if (text !== "") out.warn(text);

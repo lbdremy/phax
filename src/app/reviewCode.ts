@@ -429,6 +429,8 @@ export type HeadlessCodeReviewResult =
       readonly kind: "accepted";
       readonly review: CodeReview;
       readonly reviewPath: string;
+      /** The review session record written beside the review (code-review-session.json). */
+      readonly sessionPath: string;
       readonly session: CodeReviewSession;
     }
   | {
@@ -633,7 +635,13 @@ export function reviewCodeHeadless(
       }),
     );
 
-    return { kind: "accepted", review, reviewPath, session } satisfies HeadlessCodeReviewResult;
+    return {
+      kind: "accepted",
+      review,
+      reviewPath,
+      sessionPath,
+      session,
+    } satisfies HeadlessCodeReviewResult;
   }).pipe(
     Effect.tap((result) =>
       Effect.flatMap(SystemTelemetry, (telemetry) =>

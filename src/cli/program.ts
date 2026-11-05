@@ -8,10 +8,6 @@ import { runEnter } from "./commands/enter.js";
 import { runEnterPhase } from "./commands/enterPhase.js";
 import { runShell } from "./commands/shell.js";
 import { runOpen } from "./commands/open.js";
-import { runReviewHandoff } from "./commands/reviewHandoff.js";
-import { runPublishPr } from "./commands/publishPr.js";
-import { runReviewCompliance } from "./commands/reviewCompliance.js";
-import { runReviewCode } from "./commands/reviewCode.js";
 import { runAdjustPlan } from "./commands/adjustPlan.js";
 import { runRun } from "./commands/run.js";
 import { runResume } from "./commands/resume.js";
@@ -177,68 +173,13 @@ export function buildProgram(): Command {
       },
     );
 
-  program
-    .command("review-handoff")
-    .description(
-      "Regenerate review-handoff.md and global file reconciliation for a review_open run",
-    )
-    .argument("<short-name>", "Run short name, e.g. usage-cli")
-    .option("--allow-partial", "Generate a partial document when some phase artifacts are missing")
-    .action(async (shortName: string, opts: { allowPartial?: boolean }) => {
-      const exitCode = await runReviewHandoff(shortName, opts, consoleOutput);
-      process.exit(exitCode);
-    });
+  mountRunnerStub(program, phaxProgram, ["review-handoff"]);
 
-  program
-    .command("publish-pr")
-    .description("Push the final branch and create (or reuse) a GitHub PR for a review_open run")
-    .argument("<short-name>", "Run short name, e.g. usage-cli")
-    .action(async (shortName: string) => {
-      const exitCode = await runPublishPr(shortName, globalTraceOpts(), consoleOutput);
-      process.exit(exitCode);
-    });
+  mountRunnerStub(program, phaxProgram, ["publish-pr"]);
 
-  program
-    .command("review-compliance")
-    .description("Run a plan-compliance review for a review_open run and record its result")
-    .argument("<short-name>", "Run short name, e.g. usage-cli")
-    .action(async (shortName: string) => {
-      const exitCode = await runReviewCompliance(shortName, globalTraceOpts(), consoleOutput);
-      process.exit(exitCode);
-    });
+  mountRunnerStub(program, phaxProgram, ["review-compliance"]);
 
-  program
-    .command("review-code")
-    .description(
-      "Open an interactive, pre-prompted code-review session for a review_open run, or run the review headless with --headless",
-    )
-    .argument("<short-name>", "Run short name, e.g. usage-cli")
-    .option("--new-session", "Start a fresh review session instead of resuming the existing one")
-    .option(
-      "--model <model>",
-      "Override the model, including on resume (default: review.code.model, else claude-opus-5-5)",
-    )
-    .option(
-      "--effort <effort>",
-      "Override the effort (low | medium | high), including on resume (default: review.code.effort, else high)",
-    )
-    .option(
-      "--headless",
-      "Run the code review without a person: write code-review.json and record the session for review-code to resume; runs whether or not review.code.enabled is set",
-    )
-    .action(
-      async (
-        shortName: string,
-        opts: { newSession?: boolean; model?: string; effort?: string; headless?: boolean },
-      ) => {
-        const exitCode = await runReviewCode(
-          shortName,
-          { ...opts, ...globalTraceOpts() },
-          consoleOutput,
-        );
-        process.exit(exitCode);
-      },
-    );
+  mountRunnerStub(program, phaxProgram, ["review-code"]);
 
   program
     .command("adjust-plan")
