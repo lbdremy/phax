@@ -66,7 +66,15 @@ const gainValues = [
   "Refused",
   "stdinFlagHelp",
 ];
-const gainTypes = ["Completer", "ErrorText", "ProgramUsage", "RunContext", "StdinDocument"];
+const gainTypes = [
+  "Completer",
+  "ErrorText",
+  "GuardedCall",
+  "GuardRefusal",
+  "ProgramUsage",
+  "RunContext",
+  "StdinDocument",
+];
 
 const withoutComments = (source: string): string =>
   source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");

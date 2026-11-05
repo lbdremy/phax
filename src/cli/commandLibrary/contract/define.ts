@@ -8,6 +8,8 @@ import type {
   CommandDef,
   Document,
   Group,
+  GuardedCall,
+  GuardRefusal,
   Grouping,
   Inputs,
   OutputRequired,
@@ -163,6 +165,16 @@ function flatten(
 export function defineProgram<const C extends ReadonlyArray<Command<any> | Group<any>>>(program: {
   readonly name: string;
   readonly version: string;
+  /** Gain (root help): the program's summary, under root help's usage line and as `about`. */
+  readonly summary?: string;
+  /** Gain (the usage header): the program's licence. */
+  readonly license?: string;
+  /** Gain (the version's short form): `V` declares `-V, --version`. */
+  readonly versionAlias?: string;
+  /** Gain (the root's help command): `help [command]`. */
+  readonly helpCommand?: true;
+  /** Gain (the program's guard): asked on the located command before anything is decoded. */
+  readonly guard?: (call: GuardedCall) => GuardRefusal | undefined;
   readonly exits: ProgramExits;
   readonly commands: C;
   readonly usage?: ProgramUsage;

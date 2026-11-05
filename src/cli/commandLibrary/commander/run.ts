@@ -55,6 +55,7 @@ import { argShapes, flagShapes } from "./shape.js";
 import { readDocument, takeFlag, type Document } from "./stdin.js";
 import { suggestSimilar } from "./suggest.js";
 import {
+  END_OF_OPTIONS,
   HELP,
   isOption,
   readWords,
@@ -140,25 +141,12 @@ function specOf(command: Command<unknown>): CommandSpec {
   };
 }
 
-/** The root's own options, for its help: `--json-schema`, the usage flag (gain) and the
- *  program's options for every command (gain). The runner reads each before Commander does. */
+/** The root's own options, for its help, in the order root help lists them (gain, root help):
+ *  the program's options for every command (gain), the usage flag and its format option (gain),
+ *  with their help and the format's default, then `--json-schema`. The version comes before them
+ *  and the help after, as Commander writes them. The runner reads each before Commander does. */
 function rootOptionsOf(program: Program<unknown>): ReadonlyArray<RootOption> {
-  const options: RootOption[] = [
-    {
-      flags: JSON_SCHEMA_OPTION,
-      help:
-        program.usage?.jsonSchema === "program"
-          ? OPTION_HELP.anyJsonSchema
-          : OPTION_HELP.programJsonSchema,
-    },
-  ];
-  const usage = program.usage;
-  if (usage !== undefined) {
-    options.push({ flags: `--${usage.flag}`, help: OPTION_HELP.usage });
-    if (usage.format !== undefined) {
-      options.push({ flags: `--${usage.format} <format>`, help: OPTION_HELP.usageFormat });
-    }
-  }
+  const options: RootOption[] = [];
   if (program.options !== undefined) {
     for (const flag of flagShapes(program.options.contract)) {
       options.push({
@@ -171,13 +159,47 @@ function rootOptionsOf(program: Program<unknown>): ReadonlyArray<RootOption> {
       });
     }
   }
+  const usage = program.usage;
+  if (usage !== undefined) {
+    options.push({ flags: `--${usage.flag}`, help: usage.help ?? OPTION_HELP.usage });
+    if (usage.format !== undefined) {
+      options.push({
+        flags: `--${usage.format} <format>`,
+        help: usage.formatHelp ?? OPTION_HELP.usageFormat,
+        default: usage.formatDefault,
+      });
+    }
+  }
+  options.push({
+    flags: JSON_SCHEMA_OPTION,
+    help:
+      program.usage?.jsonSchema === "program"
+        ? OPTION_HELP.anyJsonSchema
+        : OPTION_HELP.programJsonSchema,
+  });
   return options;
 }
+
+/** Gain (the version's short form): the version's forms, `--version` and its letter when the
+ *  program declares one. */
+const versionsOf = (program: Program<unknown>): ReadonlyArray<string> =>
+  program.versionAlias === undefined ? [VERSION] : [VERSION, `-${program.versionAlias}`];
+
+/** Gain (the root's help command): the word `help` is the help command's when the program asks
+ *  for one and declares no command or group of that name. */
+const HELP_WORD = "help";
+const hasHelpCommand = (program: Program<unknown>): boolean =>
+  program.helpCommand === true &&
+  !program.commands.some((command) => fullName(command)[0] === HELP_WORD);
 
 function programSpecOf(program: Program<unknown>): ProgramSpec {
   return {
     name: program.name,
     version: program.version,
+    summary: program.summary,
+    versionFlags:
+      program.versionAlias === undefined ? undefined : `-${program.versionAlias}, ${VERSION}`,
+    helpCommand: hasHelpCommand(program),
     commands: program.commands.map(specOf),
     rootOptions: rootOptionsOf(program),
   };
@@ -413,10 +435,11 @@ function precheck<R>(
   if (located.tag === "Option") {
     const name = located.name;
     const rest = located.rest;
-    if (rest.length === 0 && (HELP.includes(name) || name === VERSION)) {
+    // Gain (the version's short form): `-V` alone is the version too, when the program says so.
+    const alone = HELP.includes(name) || versionsOf(program).includes(name);
+    if (rest.length === 0 && alone) {
       return { words: [name] };
     }
-    const alone = HELP.includes(name) || name === VERSION;
     return refusal(
       alone
         ? `error: ${name} is answered alone: ${program.name} ${name}`
@@ -1125,7 +1148,18 @@ const misdeclared = <R>(program: Program<R>): string | undefined =>
   aliasCollision(program) ??
   retiredCollision(program) ??
   retiredOptionCollision(program) ??
-  handsOverUnprompted(program);
+  handsOverUnprompted(program) ??
+  versionAliasMisdeclared(program);
+
+/** Gain carried for upstream (the version's short form): a version letter that is not one
+ *  letter, or is `h`, the help's own. */
+function versionAliasMisdeclared<R>(program: Program<R>): string | undefined {
+  const alias = program.versionAlias;
+  if (alias === undefined || (/^[A-Za-z]$/.test(alias) && alias !== "h")) return undefined;
+  return line(
+    `error: the program declares -${alias} for --version, which is ${alias === "h" ? "the help's own" : "no one letter"}`,
+  );
+}
 
 /** The contracts, printed, and nothing else run or read. */
 function printContracts<R>(
@@ -1254,10 +1288,82 @@ function checkThenExecute<R>(
   );
 }
 
+const camelCase = (kebab: string): string =>
+  kebab.replace(/-([a-z0-9])/g, (_, letter: string) => letter.toUpperCase());
+
+/** Gain (the program's guard): the options a call gives before `--`, by their camelCase names:
+ *  a long option by its name (`--dry-run=x` is `dryRun`), a short one by the name of the
+ *  command's option it is the alias of, else by its letter. */
+function givenOptions(words: Words, command: Command<unknown>): Readonly<Record<string, true>> {
+  const inputs: Inputs = command.input;
+  const shapes = inputs.flags === undefined ? [] : flagShapes(inputs.flags.contract);
+  const given: Record<string, true> = {};
+  for (const word of words) {
+    if (word === END_OF_OPTIONS) break;
+    if (word.startsWith("--")) {
+      const option = word.slice(2).split("=")[0] ?? "";
+      const shape = shapes.find((each) => each.option === option);
+      given[shape?.field ?? camelCase(option)] = true;
+    } else if (isOption(word) && word.length > 1) {
+      const letter = word.slice(1);
+      const shape = shapes.find((each) => each.alias === letter);
+      given[shape?.field ?? letter] = true;
+    }
+  }
+  return given;
+}
+
+/** Gain (the program's guard): the located command, run through the program's guard, then
+ *  `next`. A refusal is written and exited with; nothing after it runs. Help and the contracts
+ *  run nothing, so the guard is never asked for them, nor for anything but a command. A guard
+ *  that throws is a defect. */
+function guarded<R>(
+  program: Program<R>,
+  io: Io,
+  located: Located<R>,
+  json: boolean,
+  next: () => Effect.Effect<ExitCode, never, R>,
+): Effect.Effect<ExitCode, never, R> {
+  const guard = program.guard;
+  if (guard === undefined || located.tag !== "Command") return next();
+  const end = located.rest.indexOf(END_OF_OPTIONS);
+  const options = end === -1 ? located.rest : located.rest.slice(0, end);
+  if (options.some((word) => HELP.includes(word))) return next();
+  return Effect.try(() =>
+    guard({ words: located.path, options: givenOptions(io.argv, located.command) }),
+  ).pipe(
+    Effect.matchCauseEffect({
+      onFailure: (cause) => defectOut(io, program, json, describe(cause)),
+      onSuccess: (refused) => {
+        if (refused === undefined) return next();
+        const text = json
+          ? refusedLine(
+              {
+                source: "command",
+                path: located.path,
+                expected: refused.expected ?? "a command the program's guard allows",
+              },
+              refused.text,
+              refused.exit,
+            )
+          : line(refused.text);
+        return io.err(text).pipe(Effect.as(refused.exit));
+      },
+    }),
+  );
+}
+
+/** Gain (the root's help command): `help [words]` read as `[words] --help`; any other call as
+ *  it is. */
+function asHelp(program: Program<unknown>, words: Words): Words {
+  const [head, ...rest] = words;
+  return head === HELP_WORD && hasHelpCommand(program) ? [...rest, HELP[0] ?? "--help"] : words;
+}
+
 function runProgram<R>(program: Program<R>, io: Io): Effect.Effect<ExitCode, never, R> {
   // Gain (options for every command): the program's options are taken out of the words first,
   // wherever they stand, so that what is left reads as a call without them.
-  const given = takeProgramOptions(
+  const read = takeProgramOptions(
     io.argv,
     program.options === undefined
       ? []
@@ -1267,6 +1373,7 @@ function runProgram<R>(program: Program<R>, io: Io): Effect.Effect<ExitCode, nev
           takesValue: !flag.switch,
         })),
   );
+  const given: ProgramWords = { ...read, kept: asHelp(program, read.kept) };
   const argv = given.kept;
   const [called, ...after] = argv;
   const named = called !== undefined && !isOption(called);
@@ -1290,6 +1397,20 @@ function runProgram<R>(program: Program<R>, io: Io): Effect.Effect<ExitCode, nev
   if (taken.schema && located.tag === "Command") {
     return printContracts(program, io, json, located.path);
   }
+  // Gain (the program's guard): on the located command, before anything is decoded.
+  return guarded(program, io, located, json, () =>
+    prepareThenRun(program, io, located, given, json),
+  );
+}
+
+/** The call read, decoded and run: refused, displayed (help, the version), or run. */
+function prepareThenRun<R>(
+  program: Program<R>,
+  io: Io,
+  located: Located<R>,
+  given: ProgramWords,
+  json: boolean,
+): Effect.Effect<ExitCode, never, R> {
   return prepare(program, io, located, given).pipe(
     Effect.matchEffect({
       onFailure: (refused) => refusedOut(io, program, json, refused),

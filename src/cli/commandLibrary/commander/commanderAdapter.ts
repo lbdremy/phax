@@ -73,11 +73,21 @@ export interface CommandSpec {
 export interface RootOption {
   readonly flags: string;
   readonly help: string;
+  /** Gain (the usage flags' help): a default, shown as Commander shows one. */
+  readonly default?: string | undefined;
 }
 
 export interface ProgramSpec {
   readonly name: string;
   readonly version: string;
+  /** Gain (root help): the program's summary, under the usage line of its help. */
+  readonly summary?: string | undefined;
+  /** Gain (the version's short form): the version option as declared, `-V, --version`; only
+   *  `--version` without it. */
+  readonly versionFlags?: string | undefined;
+  /** Gain (the root's help command): `help [command]` is listed last among the root's commands.
+   *  The runner answers `help <words>` itself, before Commander reads the call. */
+  readonly helpCommand?: boolean | undefined;
   readonly commands: ReadonlyArray<CommandSpec>;
   /** The program's own options (`--json-schema`, its usage flag, its options for every command),
    *  shown in the root's help. */
@@ -251,8 +261,8 @@ export function parseCall(
   const matched: { current: Matched | undefined } = { current: undefined };
   const root = new Command()
     .name(program.name)
-    .version(program.version, "--version")
-    .helpCommand(false)
+    .version(program.version, program.versionFlags ?? "--version")
+    .helpCommand(program.helpCommand === true)
     .exitOverride()
     .configureOutput({
       writeOut: (text) => {
@@ -267,7 +277,11 @@ export function parseCall(
       getOutHelpWidth: () => terminal.columns,
       getErrHelpWidth: () => terminal.columns,
     });
-  for (const option of program.rootOptions) root.option(option.flags, option.help);
+  if (program.summary !== undefined) root.description(program.summary);
+  for (const option of program.rootOptions) {
+    if (option.default === undefined) root.option(option.flags, option.help);
+    else root.option(option.flags, option.help, option.default);
+  }
   // A group is a command of its own with what it holds under it, keyed by its full name.
   const groups = new Map<string, Command>();
   for (const spec of program.commands) {

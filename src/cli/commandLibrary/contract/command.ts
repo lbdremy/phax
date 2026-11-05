@@ -285,11 +285,70 @@ export interface ProgramUsage {
   /** Where the usage spec lists `--json-schema`: on every command (the library's way, the
    *  default), or once at the root as a global flag. */
   readonly jsonSchema?: "every-command" | "program";
+  /** Gain carried for upstream (the usage flags' help): what root help and the usage spec say of
+   *  the usage flag; the library's sentence without it. */
+  readonly help?: string;
+  /** Gain carried for upstream (the usage flags' help): what root help and the usage spec say of
+   *  the format option; the library's sentence without it. */
+  readonly formatHelp?: string;
+  /** Gain carried for upstream (the usage flags' help): the format option's default, shown in
+   *  root help as Commander shows one (`(default: "kdl")`) and written as its `default` in the
+   *  usage spec (`kdl` without it). */
+  readonly formatDefault?: string;
+  /** Gain carried for upstream (the usage header): the root's `min_usage_version`. */
+  readonly minUsageVersion?: string;
+  /** Gain carried for upstream (plain groups): how the usage spec writes a group — as a command
+   *  that needs a subcommand (`subcommand-required`, the library's way, the default), or `plain`,
+   *  without `subcommand_required`. The runner refuses a group called alone either way. */
+  readonly groups?: "subcommand-required" | "plain";
+}
+
+/** Gain carried for upstream (the program's guard): a call as the guard reads it, once the
+ *  command is located and before anything is decoded. */
+export interface GuardedCall {
+  /** The located command's full name, its words. */
+  readonly words: ReadonlyArray<string>;
+  /** The options the call gives before `--`, by their camelCase names (`--dry-run` is `dryRun`,
+   *  a command's `-y` is its option's name), each `true`: the program's options, `--json` and
+   *  the command's own, declared or not. */
+  readonly options: Readonly<Record<string, true>>;
+}
+
+/** Gain carried for upstream (the program's guard): why the guard refuses a call — the sentence a
+ *  person reads (without its newline), the code the call exits with, which may differ from the
+ *  program's `refused`, and what the `refused` line says was expected (the runner's own phrase
+ *  without it). */
+export interface GuardRefusal {
+  readonly text: string;
+  readonly exit: ExitCode;
+  readonly expected?: string;
 }
 
 export interface Program<R> {
   readonly name: string;
   readonly version: string;
+  /** Gain carried for upstream (root help): what the program is, written under the usage line of
+   *  root help and as the usage spec's `about`. */
+  readonly summary?: string;
+  /** Gain carried for upstream (the usage header): the program's licence, the usage spec's
+   *  `license`. */
+  readonly license?: string;
+  /** Gain carried for upstream (the version's short form): the letter that names the version
+   *  beside `--version`, declared as `-V, --version`; the call of it alone prints the version.
+   *  Only `--version` without it. */
+  readonly versionAlias?: string;
+  /** Gain carried for upstream (the root's help command): `<program> help [words]` answers the
+   *  help of the command or group the words name, as `<words> --help` does, and root help lists
+   *  `help [command]` after the commands. A word that names none is refused as an unknown
+   *  command. The library refuses the word `help` without it. */
+  readonly helpCommand?: true;
+  /** Gain carried for upstream (the program's guard): asked once the call's command is located
+   *  and before any source is decoded — before the reading of its words, the `prompts` refusal,
+   *  the check and run. A refusal is written as its text then a newline without `--json`, as one
+   *  `refused` line (`source` "command", `path` the command's words) with it, and the call exits
+   *  its code. Never asked for `--help`, `-h` or `--json-schema`, for a group, or for the root's
+   *  own options. */
+  readonly guard?: (call: GuardedCall) => GuardRefusal | undefined;
   readonly exits: ProgramExits;
   /** Every command, in the order declared; a command of a group carries its `group`. */
   readonly commands: ReadonlyArray<Command<R>>;
