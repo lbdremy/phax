@@ -143,7 +143,7 @@ const AgentModelsOutput = Schema.Struct({
   ),
 });
 
-export function makeAgentModelsCommand(layers: AgentLayers) {
+function makeAgentModelsCommand(layers: AgentLayers) {
   return defineCommand({
     name: "models",
     summary: "Print the routing table and provider priority",
@@ -306,7 +306,7 @@ const AgentProbeOutput = Schema.Struct({
 });
 
 /** `agent probe` over the shell that runs each provider's `--version`. */
-export function makeAgentProbeCommand(layers: AgentLayers) {
+function makeAgentProbeCommand(layers: AgentLayers) {
   return defineCommand({
     name: "probe",
     summary:
@@ -361,7 +361,7 @@ function aliasLines(added: ReadonlyArray<string>, configPath: string): string[] 
   ];
 }
 
-export function makeAgentSetupMistralVibeCommand(layers: AgentLayers) {
+function makeAgentSetupMistralVibeCommand(layers: AgentLayers) {
   return defineCommand({
     name: "mistral-vibe",
     summary:
@@ -468,7 +468,7 @@ const AgentSetupProvidersOutput = Schema.Struct({
   written: Schema.Array(Written),
 });
 
-export function makeAgentSetupProvidersCommand(layers: AgentLayers) {
+function makeAgentSetupProvidersCommand(layers: AgentLayers) {
   return defineCommand({
     name: "providers",
     summary:

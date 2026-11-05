@@ -16,6 +16,7 @@ import type { PhaxPlan } from "../../../src/schemas/phaxPlan.js";
 import type { RunId, WorktreePath } from "../../../src/domain/branded.js";
 import type { ExecutePlanResult } from "../../../src/app/executePlan.js";
 import type { ResolvedConfig } from "../../../src/schemas/phaxConfig.js";
+import { makeRunCommand } from "../../../src/cli/definitions/run.js";
 import type { Command } from "../../../src/cli/commandLibrary/contract/index.js";
 import type { RunAnswer } from "../../../src/cli/definitions/runOutcome.js";
 import { heldReviewStop } from "../../helpers/phaseStatusFixture.js";
@@ -79,20 +80,31 @@ vi.mock("node:fs", async () => {
   };
 });
 
+/** What `runRun` collects from the runner: stdout's lines, and stderr's lines under both names
+ *  (`warnings` and `errors` — the runner no longer tells a warning from an error). */
 function makeOutput() {
   const lines: string[] = [];
-  const warnings: string[] = [];
-  const errors: string[] = [];
-  return {
-    out: {
-      log: (m: string) => lines.push(m),
-      warn: (m: string) => warnings.push(m),
-      error: (m: string) => errors.push(m),
-    },
-    lines,
-    warnings,
-    errors,
-  };
+  const stderr: string[] = [];
+  return { out: { lines, stderr }, lines, warnings: stderr, errors: stderr };
+}
+
+interface RunFlags {
+  readonly plan: string;
+  readonly allowSkillEdits?: boolean;
+}
+
+/** `phax run --plan <plan>` through the runner's `run` command; its streams are collected in `out`. */
+async function runRun(flags: RunFlags, out: ReturnType<typeof makeOutput>["out"]): Promise<number> {
+  const argv = [
+    "run",
+    "--plan",
+    flags.plan,
+    ...(flags.allowSkillEdits === true ? ["--allow-skill-edits"] : []),
+  ];
+  const result = await runnerCall([makeRunCommand()], argv);
+  out.lines.push(...result.outLines);
+  out.stderr.push(...result.errLines);
+  return result.code;
 }
 
 function makeConfig(namespace = "acme"): ResolvedConfig {
@@ -176,7 +188,7 @@ function makePlan(shortName = "fixbug"): PhaxPlan {
 
 describe("pickGateProfileId — no fast/full depth preference", () => {
   it("selects the first configured profile key regardless of a 'full' key", async () => {
-    const { pickGateProfileId } = await import("../../../src/cli/commands/run.js");
+    const { pickGateProfileId } = await import("../../../src/cli/definitions/run.js");
     // 'custom' is first; the old code would have preferred 'full'.
     const config = { raw: { gateProfiles: { custom: [], full: [] } } } as never;
     expect(pickGateProfileId(config)).toBe("custom");
@@ -184,7 +196,7 @@ describe("pickGateProfileId — no fast/full depth preference", () => {
   }, 30_000);
 
   it("returns null when no profiles are configured", async () => {
-    const { pickGateProfileId } = await import("../../../src/cli/commands/run.js");
+    const { pickGateProfileId } = await import("../../../src/cli/definitions/run.js");
     const config = { raw: { gateProfiles: {} } } as never;
     expect(pickGateProfileId(config)).toBeNull();
   });
@@ -207,7 +219,6 @@ describe("runRun — AP2(a): config missing name fails before run folder creatio
     );
     const { createRunFolder } = vi.mocked(await import("../../../src/app/runFolder.js"));
 
-    const { runRun } = await import("../../../src/cli/commands/run.js");
     const { out, errors } = makeOutput();
     const code = await runRun({ plan: "plan.md" }, out);
 
@@ -227,7 +238,6 @@ describe("runRun — AP2(a): config missing name fails before run folder creatio
       ),
     );
 
-    const { runRun } = await import("../../../src/cli/commands/run.js");
     const { out, errors } = makeOutput();
     await runRun({ plan: "plan.md" }, out);
 
@@ -268,7 +278,6 @@ describe("runRun — AP2(c): output includes qualified run name", () => {
     const { executePlan } = vi.mocked(await import("../../../src/app/executePlan.js"));
     executePlan.mockReturnValue(Effect.succeed(makeExecutePlanResult()));
 
-    const { runRun } = await import("../../../src/cli/commands/run.js");
     const { out, lines } = makeOutput();
     const code = await runRun({ plan: "plan.md" }, out);
 
@@ -318,7 +327,6 @@ describe("runRun — AP2(c): output includes qualified run name", () => {
     // the base name is actually free. This test verifies the bump warning
     // format via the existing warn message.
 
-    const { runRun } = await import("../../../src/cli/commands/run.js");
     const { out, lines } = makeOutput();
     const code = await runRun({ plan: "plan.md" }, out);
 
@@ -370,7 +378,6 @@ describe("runRun — skill edit consent is refused before the run is created", (
     const { freshRunPreflight } = vi.mocked(await import("../../../src/app/runPreflight.js"));
     freshRunPreflight.mockReturnValueOnce(Effect.fail(refusal));
 
-    const { runRun } = await import("../../../src/cli/commands/run.js");
     const { out, lines, errors } = makeOutput();
     const code = await runRun({ plan: "plan.md" }, out);
 
@@ -389,7 +396,6 @@ describe("runRun — skill edit consent is refused before the run is created", (
   it("with --allow-skill-edits, creates the run and records the consent", async () => {
     const { createRunFolder } = await mockRunDependencies(makeSkillPlan());
 
-    const { runRun } = await import("../../../src/cli/commands/run.js");
     const { out } = makeOutput();
     const code = await runRun({ plan: "plan.md", allowSkillEdits: true }, out);
 
@@ -462,7 +468,6 @@ describe("runRun — a preflight refusal precedes naming", () => {
   it.each(refusals)("$name: nothing is named or allocated", async ({ name, err, prefix }) => {
     const { runFolder, lock, execute, layers, interrupt } = await setupRefusal(err);
 
-    const { runRun } = await import("../../../src/cli/commands/run.js");
     const { out, lines, warnings, errors } = makeOutput();
     const code = await runRun({ plan: "plan.md" }, out);
 
@@ -517,7 +522,6 @@ describe("runRun — --plan resolves against process.cwd()", () => {
     const { executePlan } = vi.mocked(await import("../../../src/app/executePlan.js"));
     executePlan.mockReturnValue(Effect.succeed(makeExecutePlanResult()));
 
-    const { runRun } = await import("../../../src/cli/commands/run.js");
     const { out } = makeOutput();
     const code = await runRun({ plan: "sub/plan.md" }, out);
 
@@ -588,7 +592,6 @@ describe("runRun — a refused gate report", () => {
     const layers = vi.mocked(await import("../../../src/cli/commands/runLayers.js"));
     layers.exitCodeForError.mockReturnValueOnce(4);
 
-    const { runRun } = await import("../../../src/cli/commands/run.js");
     const { out, warnings } = makeOutput();
     const code = await runRun({ plan: "plan.md" }, out);
 
@@ -623,7 +626,6 @@ describe("runRun — protected paths changed at the gate", () => {
     const layers = vi.mocked(await import("../../../src/cli/commands/runLayers.js"));
     layers.exitCodeForError.mockReturnValueOnce(4);
 
-    const { runRun } = await import("../../../src/cli/commands/run.js");
     const { out, warnings } = makeOutput();
     const code = await runRun({ plan: "plan.md" }, out);
 
@@ -685,7 +687,6 @@ describe("runRun — success recap output", () => {
   it("prints a summary line on stdout with phase count", async () => {
     await setupSuccessRun({ completedPhaseCount: 2, finalPhaseId: "phase-02" });
 
-    const { runRun } = await import("../../../src/cli/commands/run.js");
     const { out, lines } = makeOutput();
     const code = await runRun({ plan: "plan.md" }, out);
 
@@ -698,7 +699,6 @@ describe("runRun — success recap output", () => {
   it("includes final-report.md pointer on stdout", async () => {
     await setupSuccessRun({ completedPhaseCount: 1, finalPhaseId: "phase-01" });
 
-    const { runRun } = await import("../../../src/cli/commands/run.js");
     const { out, lines } = makeOutput();
     await runRun({ plan: "plan.md" }, out);
 
@@ -708,7 +708,6 @@ describe("runRun — success recap output", () => {
   it("recap includes phax open, shell, enter, archive steps", async () => {
     await setupSuccessRun({ completedPhaseCount: 1, finalPhaseId: "phase-01" });
 
-    const { runRun } = await import("../../../src/cli/commands/run.js");
     const { out, warnings } = makeOutput();
     await runRun({ plan: "plan.md" }, out);
 
@@ -722,7 +721,6 @@ describe("runRun — success recap output", () => {
   it("shows publish-pr command when prUrl is absent", async () => {
     await setupSuccessRun({ completedPhaseCount: 1, finalPhaseId: "phase-01" });
 
-    const { runRun } = await import("../../../src/cli/commands/run.js");
     const { out, warnings } = makeOutput();
     await runRun({ plan: "plan.md" }, out);
 
@@ -738,7 +736,6 @@ describe("runRun — success recap output", () => {
       prUrl: "https://github.com/acme/repo/pull/42",
     });
 
-    const { runRun } = await import("../../../src/cli/commands/run.js");
     const { out, warnings } = makeOutput();
     await runRun({ plan: "plan.md" }, out);
 
@@ -776,7 +773,6 @@ describe("runRun — artifact-completion recap output (spec 27 §6)", () => {
       },
     });
 
-    const { runRun } = await import("../../../src/cli/commands/run.js");
     const { out, lines } = makeOutput();
     const code = await runRun({ plan: "plan.md" }, out);
 
@@ -807,7 +803,6 @@ describe("runRun — artifact-completion recap output (spec 27 §6)", () => {
       },
     });
 
-    const { runRun } = await import("../../../src/cli/commands/run.js");
     const { out, lines } = makeOutput();
     await runRun({ plan: "plan.md" }, out);
 
@@ -836,7 +831,6 @@ describe("runRun — artifact-completion recap output (spec 27 §6)", () => {
       },
     });
 
-    const { runRun } = await import("../../../src/cli/commands/run.js");
     const { out, lines } = makeOutput();
     await runRun({ plan: "plan.md" }, out);
 
@@ -855,7 +849,6 @@ describe("runRun — artifact-completion recap output (spec 27 §6)", () => {
       artifactCompletions: { transitions: [] },
     });
 
-    const { runRun } = await import("../../../src/cli/commands/run.js");
     const { out, lines } = makeOutput();
     await runRun({ plan: "plan.md" }, out);
 
@@ -894,7 +887,6 @@ describe("runRun — plan lifecycle status gate", () => {
 
     const { loadOrExtractPlan } = vi.mocked(await import("../../../src/app/loadOrExtractPlan.js"));
 
-    const { runRun } = await import("../../../src/cli/commands/run.js");
     const { out, errors } = makeOutput();
     const code = await runRun({ plan: "plan.md" }, out);
 
@@ -909,7 +901,6 @@ describe("runRun — plan lifecycle status gate", () => {
 
     const { loadOrExtractPlan } = vi.mocked(await import("../../../src/app/loadOrExtractPlan.js"));
 
-    const { runRun } = await import("../../../src/cli/commands/run.js");
     const { out, errors } = makeOutput();
     const code = await runRun({ plan: "plan.md" }, out);
 
@@ -925,7 +916,6 @@ describe("runRun — plan lifecycle status gate", () => {
 
     const { loadOrExtractPlan } = vi.mocked(await import("../../../src/app/loadOrExtractPlan.js"));
 
-    const { runRun } = await import("../../../src/cli/commands/run.js");
     const { out, errors } = makeOutput();
     const code = await runRun({ plan: "plan.md" }, out);
 
@@ -945,7 +935,6 @@ describe("runRun — plan lifecycle status gate", () => {
 
     const { loadOrExtractPlan } = vi.mocked(await import("../../../src/app/loadOrExtractPlan.js"));
 
-    const { runRun } = await import("../../../src/cli/commands/run.js");
     const { out, errors } = makeOutput();
     const code = await runRun({ plan: "plan.md" }, out);
 
@@ -965,7 +954,6 @@ describe("runRun — plan lifecycle status gate", () => {
 
     const { loadOrExtractPlan } = vi.mocked(await import("../../../src/app/loadOrExtractPlan.js"));
 
-    const { runRun } = await import("../../../src/cli/commands/run.js");
     const { out, errors } = makeOutput();
     // Absolute path under the configured repoRoot: before normalization the
     // location check saw a non-"docs/plans/" prefix and silently skipped.
@@ -1000,7 +988,6 @@ describe("runRun — plan lifecycle status gate", () => {
     const { executePlan } = vi.mocked(await import("../../../src/app/executePlan.js"));
     executePlan.mockReturnValue(Effect.succeed(makeExecutePlanResult()));
 
-    const { runRun } = await import("../../../src/cli/commands/run.js");
     const { out } = makeOutput();
     const code = await runRun({ plan: "plan.md" }, out);
 
@@ -1051,7 +1038,6 @@ describe("runRun — staleness gate", () => {
     );
     computeStalenessForPlan.mockReturnValue(Effect.succeed({ kind: "fresh" }));
 
-    const { runRun } = await import("../../../src/cli/commands/run.js");
     const { out } = makeOutput();
     const code = await runRun({ plan: "docs/plans/staleness-test.md" }, out);
 
@@ -1076,7 +1062,6 @@ describe("runRun — staleness gate", () => {
       }),
     );
 
-    const { runRun } = await import("../../../src/cli/commands/run.js");
     const { out, errors } = makeOutput();
     const code = await runRun({ plan: "docs/plans/staleness-test.md" }, out);
 
@@ -1098,7 +1083,6 @@ describe("runRun — staleness gate", () => {
       Effect.succeed({ kind: "missing-record", detail: "no approval record found" }),
     );
 
-    const { runRun } = await import("../../../src/cli/commands/run.js");
     const { out, errors } = makeOutput();
     const code = await runRun({ plan: "docs/plans/staleness-test.md" }, out);
 
@@ -1115,7 +1099,6 @@ describe("runRun — staleness gate", () => {
       await import("../../../src/app/planStaleness.js"),
     );
 
-    const { runRun } = await import("../../../src/cli/commands/run.js");
     const { out } = makeOutput();
     const code = await runRun({ plan: "plan.md" }, out);
 
@@ -1127,7 +1110,6 @@ describe("runRun — staleness gate", () => {
 
 /** The command answering `answer`, its run swapped, everything else the definition's. */
 async function answering(which: "run" | "resume", answer: RunAnswer, json: boolean) {
-  const { makeRunCommand } = await import("../../../src/cli/definitions/run.js");
   const { makeResumeCommand } = await import("../../../src/cli/definitions/resume.js");
   const command: Command<never> = {
     ...(which === "run" ? makeRunCommand() : makeResumeCommand()),

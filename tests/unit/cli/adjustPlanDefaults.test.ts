@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_MODEL, DEFAULT_EFFORT } from "../../../src/cli/commands/adjustPlan.js";
+import { DEFAULT_MODEL, DEFAULT_EFFORT } from "../../../src/cli/definitions/adjustPlan.js";
 import { entryFor } from "../../../src/domain/routing/catalog.js";
 import { DEFAULT_PROVIDER_CONFIG } from "../../../src/domain/routing/defaults.js";
 

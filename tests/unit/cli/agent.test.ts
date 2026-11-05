@@ -1,13 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { Effect } from "effect";
-import {
-  runAgentModels,
-  runAgentResolve,
-  runAgentProbe,
-  runAgentSetupMistralVibe,
-  runAgentSetupProviders,
-  type AgentSetupProvidersOptions,
-} from "../../../src/cli/commands/agent.js";
+import { phaxCall } from "../../helpers/runnerCall.js";
 import {
   DEFAULT_MODEL_ROUTING,
   DEFAULT_PROVIDER_CONFIG,
@@ -47,21 +40,9 @@ vi.mock("../../../src/app/providerSetup.js", () => ({
   providerSetup: vi.fn(),
 }));
 
-function makeOutput() {
-  const lines: string[] = [];
-  const errors: string[] = [];
-  const out = {
-    log: (m: string) => lines.push(m),
-    warn: (m: string) => lines.push(`WARN: ${m}`),
-    error: (m: string) => errors.push(m),
-  };
-  return { out, lines, errors };
-}
-
-describe("runAgentModels", () => {
+describe("phax agent Models", () => {
   it("prints provider priority and the catalog, exits 0", async () => {
-    const { out, lines } = makeOutput();
-    const code = await runAgentModels(out);
+    const { code, outLines: lines } = await phaxCall(["agent", "models"]);
     expect(code).toBe(0);
     const text = lines.join("\n");
     expect(text).toContain("Provider priority:");
@@ -85,8 +66,7 @@ describe("runAgentModels", () => {
     };
     loadModelRouting.mockReturnValue(Effect.succeed(routing));
 
-    const { out, lines } = makeOutput();
-    await runAgentModels(out);
+    const { outLines: lines } = await phaxCall(["agent", "models"]);
     const text = lines.join("\n");
     expect(text).toContain("(disabled)");
 
@@ -95,7 +75,7 @@ describe("runAgentModels", () => {
   });
 });
 
-describe("runAgentResolve", () => {
+describe("phax agent Resolve", () => {
   beforeEach(async () => {
     const { loadModelRouting, loadProviderConfig } = vi.mocked(
       await import("../../../src/app/loadRouting.js"),
@@ -105,8 +85,14 @@ describe("runAgentResolve", () => {
   });
 
   it("resolves claude-sonnet-4-6/medium and prints human output, exits 0", async () => {
-    const { out, lines } = makeOutput();
-    const code = await runAgentResolve({ model: "claude-sonnet-4-6", effort: "medium" }, out);
+    const { code, outLines: lines } = await phaxCall([
+      "agent",
+      "resolve",
+      "--model",
+      "claude-sonnet-4-6",
+      "--effort",
+      "medium",
+    ]);
     expect(code).toBe(0);
     const text = lines.join("\n");
     expect(text).toContain("claude-sonnet-4-6");
@@ -117,13 +103,17 @@ describe("runAgentResolve", () => {
   });
 
   it("outputs valid JSON when --json is set", async () => {
-    const { out, lines } = makeOutput();
-    const code = await runAgentResolve(
-      { model: "claude-sonnet-4-6", effort: "medium", json: true },
-      out,
-    );
+    const { code, out: stdout } = await phaxCall([
+      "agent",
+      "resolve",
+      "--model",
+      "claude-sonnet-4-6",
+      "--effort",
+      "medium",
+      "--json",
+    ]);
     expect(code).toBe(0);
-    const parsed = JSON.parse(lines.join(""));
+    const parsed = JSON.parse(stdout);
     expect(parsed).toHaveProperty("requested");
     expect(parsed).toHaveProperty("selected");
     expect(parsed).toHaveProperty("relationship");
@@ -131,8 +121,14 @@ describe("runAgentResolve", () => {
   });
 
   it("returns exit code 2 for an invalid effort level", async () => {
-    const { out, errors } = makeOutput();
-    const code = await runAgentResolve({ model: "claude-sonnet-4-6", effort: "bogus" }, out);
+    const { code, errLines: errors } = await phaxCall([
+      "agent",
+      "resolve",
+      "--model",
+      "claude-sonnet-4-6",
+      "--effort",
+      "bogus",
+    ]);
     expect(code).toBe(2);
     expect(errors.join("")).toContain("Invalid effort level");
   });
@@ -155,14 +151,20 @@ describe("runAgentResolve", () => {
       }),
     );
 
-    const { out, lines } = makeOutput();
-    const code = await runAgentResolve({ model: "claude-sonnet-4-6", effort: "medium" }, out);
+    const { code, outLines: lines } = await phaxCall([
+      "agent",
+      "resolve",
+      "--model",
+      "claude-sonnet-4-6",
+      "--effort",
+      "medium",
+    ]);
     expect(code).toBe(0);
     expect(lines.join("\n")).toContain("mistral-vibe");
   });
 });
 
-describe("runAgentProbe", () => {
+describe("phax agent Probe", () => {
   beforeEach(async () => {
     const { loadModelRouting, loadProviderConfig } = vi.mocked(
       await import("../../../src/app/loadRouting.js"),
@@ -172,10 +174,9 @@ describe("runAgentProbe", () => {
   });
 
   it("reports a status for each provider and exits 0 even when none are available", async () => {
-    const { out, lines } = makeOutput();
     // The mocked NodeShellLayer finds none of claude/vibe/codex, so all will be
     // "unavailable". This validates the no-throw guarantee.
-    const code = await runAgentProbe(out);
+    const { code, outLines: lines } = await phaxCall(["agent", "probe"]);
     expect(code).toBe(0);
     const text = lines.join("\n");
     // All three providers must appear in output
@@ -185,7 +186,7 @@ describe("runAgentProbe", () => {
   });
 });
 
-describe("runAgentSetupMistralVibe", () => {
+describe("phax agent SetupMistralVibe", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
   });
@@ -201,8 +202,12 @@ describe("runAgentSetupMistralVibe", () => {
       }),
     );
 
-    const { out, lines } = makeOutput();
-    const code = await runAgentSetupMistralVibe({ dryRun: true }, out);
+    const { code, outLines: lines } = await phaxCall([
+      "agent",
+      "setup",
+      "mistral-vibe",
+      "--dry-run",
+    ]);
     expect(code).toBe(0);
     const text = lines.join("\n");
     expect(text).toContain("Dry run");
@@ -221,8 +226,12 @@ describe("runAgentSetupMistralVibe", () => {
       }),
     );
 
-    const { out, lines } = makeOutput();
-    const code = await runAgentSetupMistralVibe({ installModelAliases: true }, out);
+    const { code, outLines: lines } = await phaxCall([
+      "agent",
+      "setup",
+      "mistral-vibe",
+      "--install-model-aliases",
+    ]);
     expect(code).toBe(0);
     const text = lines.join("\n");
     expect(text).toContain("Appended 2 alias(es)");
@@ -242,8 +251,12 @@ describe("runAgentSetupMistralVibe", () => {
       }),
     );
 
-    const { out, lines } = makeOutput();
-    const code = await runAgentSetupMistralVibe({ installModelAliases: true }, out);
+    const { code, outLines: lines } = await phaxCall([
+      "agent",
+      "setup",
+      "mistral-vibe",
+      "--install-model-aliases",
+    ]);
     expect(code).toBe(0);
     expect(lines.join("\n")).toContain("already present");
   });
@@ -259,8 +272,12 @@ describe("runAgentSetupMistralVibe", () => {
       }),
     );
 
-    const { out, lines } = makeOutput();
-    const code = await runAgentSetupMistralVibe({ installModelAliases: true }, out);
+    const { code, outLines: lines } = await phaxCall([
+      "agent",
+      "setup",
+      "mistral-vibe",
+      "--install-model-aliases",
+    ]);
     expect(code).toBe(0);
     expect(lines.join("\n")).toContain(
       "No longer used, left in " +
@@ -270,7 +287,7 @@ describe("runAgentSetupMistralVibe", () => {
   });
 });
 
-describe("runAgentSetupProviders", () => {
+describe("phax agent SetupProviders", () => {
   const PROVIDER_CONFIG_PATH = "/home/user/.phax/providers.json";
   const MODEL_ROUTING_PATH = "/home/user/.phax/model-routing.json";
 
@@ -297,9 +314,7 @@ describe("runAgentSetupProviders", () => {
       }),
     );
 
-    const { out, lines } = makeOutput();
-    const opts: AgentSetupProvidersOptions = {};
-    const code = await runAgentSetupProviders(opts, out);
+    const { code, outLines: lines } = await phaxCall(["agent", "setup", "providers"]);
     expect(code).toBe(0);
     const text = lines.join("\n");
     expect(text).toContain("Dry run");
@@ -325,8 +340,7 @@ describe("runAgentSetupProviders", () => {
       }),
     );
 
-    const { out, lines } = makeOutput();
-    const code = await runAgentSetupProviders({ write: true }, out);
+    const { code, outLines: lines } = await phaxCall(["agent", "setup", "providers", "--write"]);
     expect(code).toBe(0);
     expect(lines.join("\n")).toContain(
       "Dropped models phax no longer routes to (2): phax-mistral-medium-3.5-low, phax-mistral-medium-3.5-max",
@@ -352,8 +366,7 @@ describe("runAgentSetupProviders", () => {
       }),
     );
 
-    const { out, lines } = makeOutput();
-    const code = await runAgentSetupProviders({ write: true }, out);
+    const { code, outLines: lines } = await phaxCall(["agent", "setup", "providers", "--write"]);
     expect(code).toBe(0);
     const text = lines.join("\n");
     expect(text).toContain("mistral-vibe");
@@ -380,8 +393,7 @@ describe("runAgentSetupProviders", () => {
       }),
     );
 
-    const { out, lines } = makeOutput();
-    const code = await runAgentSetupProviders({ write: true }, out);
+    const { code, outLines: lines } = await phaxCall(["agent", "setup", "providers", "--write"]);
     expect(code).toBe(0);
     expect(lines.join("\n")).toContain("phax-backup-123");
   });

@@ -107,7 +107,7 @@ function transition(pathArg: string, target: ArtifactStatus, by: string | undefi
 }
 
 /** Today's lines of a transition, from the answer alone. */
-export function transitionLines(value: TransitionOutput): string[] {
+function transitionLines(value: TransitionOutput): string[] {
   const lines = [
     // Only a reopen names the record it deleted on its status line, as today.
     value.reopenedBy === null || value.deletedRecord === null

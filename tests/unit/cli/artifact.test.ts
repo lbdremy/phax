@@ -6,12 +6,6 @@ import { answerJsonSchema } from "../../../src/schemas/answerSchemas.js";
 import { getDecideVerdictsFileJsonSchema } from "../../../src/schemas/decideVerdicts.js";
 import { currentSchemaUrl } from "../../../src/schemas/persisted.js";
 import {
-  runArtifactTransition,
-  runArtifactMigrateApprovals,
-  runArtifactSchema,
-  runCreateArtifact,
-} from "../../../src/cli/commands/artifact.js";
-import {
   makeArtifactNewPlanCommand,
   makeArtifactNewSpecCommand,
 } from "../../../src/cli/definitions/artifactNew.js";
@@ -75,15 +69,40 @@ const NO_FLAGS = { last: false, notLast: false } as const;
 const LAST = { last: true, notLast: false } as const;
 const NOT_LAST = { last: false, notLast: true } as const;
 
-function makeOutput() {
-  const lines: string[] = [];
-  const errors: string[] = [];
-  const out = {
-    log: (m: string) => lines.push(m),
-    warn: (m: string) => lines.push(`WARN: ${m}`),
-    error: (m: string) => errors.push(m),
-  };
-  return { out, lines, errors };
+const VERB = {
+  Approved: "approve",
+  Stale: "stale",
+  Abandoned: "abandon",
+  Completed: "complete",
+  Draft: "reopen",
+} as const;
+
+/** `phax artifact <verb> <path> [--by <by>]` through the runner. */
+function transition(path: string, target: keyof typeof VERB, flags: { readonly by?: string } = {}) {
+  return phaxCall([
+    "artifact",
+    VERB[target],
+    path,
+    ...(flags.by === undefined ? [] : ["--by", flags.by]),
+  ]);
+}
+
+/** `phax artifact new spec|plan <slug>` (not headless) through the runner. */
+function createArtifactCall(
+  kind: "spec" | "plan",
+  slug: string,
+  spec: string | undefined,
+  completion: { readonly last: boolean; readonly notLast: boolean },
+) {
+  return phaxCall([
+    "artifact",
+    "new",
+    kind,
+    slug,
+    ...(kind === "plan" && spec !== undefined ? ["--spec", spec] : []),
+    ...(kind === "plan" && completion.last ? ["--last"] : []),
+    ...(kind === "plan" && completion.notLast ? ["--not-last"] : []),
+  ]);
 }
 
 describe("runArtifactStatus", () => {
@@ -182,7 +201,7 @@ describe("runArtifactStatus", () => {
   });
 });
 
-describe("runArtifactTransition", () => {
+describe("phax artifact <transition>", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -198,11 +217,9 @@ describe("runArtifactTransition", () => {
       }),
     );
 
-    const { out, lines } = makeOutput();
-    const code = await runArtifactTransition(
+    const { code, outLines: lines } = await transition(
       "docs/plans/2607101056-typescript-7-migration-plan.md",
       "Approved",
-      out,
     );
 
     expect(code).toBe(0);
@@ -221,11 +238,9 @@ describe("runArtifactTransition", () => {
       }),
     );
 
-    const { out, lines } = makeOutput();
-    const code = await runArtifactTransition(
+    const { code, outLines: lines } = await transition(
       "docs/specs/2608091526-artifact-lifecycle-status.md",
       "Completed",
-      out,
     );
 
     expect(code).toBe(0);
@@ -247,11 +262,9 @@ describe("runArtifactTransition", () => {
       ),
     );
 
-    const { out, errors } = makeOutput();
-    const code = await runArtifactTransition(
+    const { code, errLines: errors } = await transition(
       "docs/plans/2607101056-typescript-7-migration-plan.md",
       "Stale",
-      out,
     );
 
     expect(code).toBe(12);
@@ -271,11 +284,9 @@ describe("runArtifactTransition", () => {
       }),
     );
 
-    const { out, lines } = makeOutput();
-    const code = await runArtifactTransition(
+    const { code, outLines: lines } = await transition(
       "docs/plans/2607101056-typescript-7-migration-plan.md",
       "Approved",
-      out,
     );
 
     expect(code).toBe(0);
@@ -294,11 +305,9 @@ describe("runArtifactTransition", () => {
       ),
     );
 
-    const { out, errors } = makeOutput();
-    const code = await runArtifactTransition(
+    const { code, errLines: errors } = await transition(
       "docs/plans/2607101056-typescript-7-migration-plan.md",
       "Approved",
-      out,
     );
 
     expect(code).toBe(12);
@@ -318,11 +327,9 @@ describe("runArtifactTransition", () => {
       ),
     );
 
-    const { out, errors } = makeOutput();
-    const code = await runArtifactTransition(
+    const { code, errLines: errors } = await transition(
       "docs/specs/2609230835-plan-prune.md",
       "Approved",
-      out,
     );
 
     expect(code).toBe(12);
@@ -345,8 +352,10 @@ describe("runArtifactTransition", () => {
       ),
     );
 
-    const { out, errors } = makeOutput();
-    const code = await runArtifactTransition("docs/specs/2609101222-foo.md", "Completed", out);
+    const { code, errLines: errors } = await transition(
+      "docs/specs/2609101222-foo.md",
+      "Completed",
+    );
 
     expect(code).toBe(12);
     expect(errors.join("\n")).toContain("abandon or complete them first");
@@ -363,12 +372,7 @@ describe("runArtifactTransition", () => {
       }),
     );
 
-    const { out } = makeOutput();
-    await runArtifactTransition(
-      "docs/plans/2607101056-typescript-7-migration-plan.md",
-      "Approved",
-      out,
-    );
+    await transition("docs/plans/2607101056-typescript-7-migration-plan.md", "Approved");
 
     expect(transitionArtifactBy).toHaveBeenCalledWith(
       "docs/plans/2607101056-typescript-7-migration-plan.md",
@@ -390,11 +394,9 @@ describe("runArtifactTransition", () => {
       }),
     );
 
-    const { out, lines } = makeOutput();
-    const code = await runArtifactTransition(
+    const { code, outLines: lines } = await transition(
       "docs/specs/2609251400-plan-prune.md",
       "Approved",
-      out,
       { by: "machine:roadmap-loop" },
     );
 
@@ -431,10 +433,13 @@ describe("runArtifactTransition", () => {
       }),
     );
 
-    const { out, lines } = makeOutput();
-    const code = await runArtifactTransition("docs/specs/2609251400-plan-prune.md", "Draft", out, {
-      by: "machine:roadmap-loop",
-    });
+    const { code, outLines: lines } = await transition(
+      "docs/specs/2609251400-plan-prune.md",
+      "Draft",
+      {
+        by: "machine:roadmap-loop",
+      },
+    );
 
     expect(code).toBe(0);
     expect(transitionArtifactBy).toHaveBeenCalledWith(
@@ -461,11 +466,9 @@ describe("runArtifactTransition", () => {
       ),
     );
 
-    const { out, errors } = makeOutput();
-    const code = await runArtifactTransition(
+    const { code, errLines: errors } = await transition(
       "docs/specs/2609251400-plan-prune.md",
       "Approved",
-      out,
     );
 
     expect(code).toBe(12);
@@ -487,11 +490,9 @@ describe("runArtifactTransition", () => {
       }),
     );
 
-    const { out, lines } = makeOutput();
-    const code = await runArtifactTransition(
+    const { code, outLines: lines } = await transition(
       "docs/plans/2607101056-typescript-7-migration-plan.md",
       "Approved",
-      out,
     );
 
     expect(code).toBe(0);
@@ -523,11 +524,9 @@ describe("runArtifactTransition", () => {
       }),
     );
 
-    const { out, lines } = makeOutput();
-    await runArtifactTransition(
+    const { outLines: lines } = await transition(
       "docs/plans/2607101056-typescript-7-migration-plan.md",
       "Approved",
-      out,
     );
 
     expect(lines.some((l) => l.startsWith("Commit:"))).toBe(false);
@@ -543,11 +542,9 @@ describe("runArtifactTransition", () => {
       ),
     );
 
-    const { out, errors } = makeOutput();
-    const code = await runArtifactTransition(
+    const { code, errLines: errors } = await transition(
       "docs/plans/2607101056-typescript-7-migration-plan.md",
       "Approved",
-      out,
     );
 
     expect(code).toBe(12);
@@ -569,11 +566,9 @@ describe("runArtifactTransition", () => {
       ),
     );
 
-    const { out, errors } = makeOutput();
-    const code = await runArtifactTransition(
+    const { code, errLines: errors } = await transition(
       "docs/plans/2607101056-typescript-7-migration-plan.md",
       "Approved",
-      out,
     );
 
     expect(code).not.toBe(0);
@@ -582,7 +577,7 @@ describe("runArtifactTransition", () => {
   });
 });
 
-describe("runCreateArtifact", () => {
+describe("phax artifact new (not headless)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -597,8 +592,12 @@ describe("runCreateArtifact", () => {
       }),
     );
 
-    const { out, lines } = makeOutput();
-    const code = await runCreateArtifact("spec", "plan-prune", undefined, NO_FLAGS, out);
+    const { code, outLines: lines } = await createArtifactCall(
+      "spec",
+      "plan-prune",
+      undefined,
+      NO_FLAGS,
+    );
 
     expect(code).toBe(0);
     expect(lines).toEqual(["created docs/specs/2609091412-plan-prune.md (Draft)"]);
@@ -619,13 +618,11 @@ describe("runCreateArtifact", () => {
         }),
       );
 
-      const { out, lines } = makeOutput();
-      const code = await runCreateArtifact(
+      const { code, outLines: lines } = await createArtifactCall(
         "plan",
         "plan-prune",
         "docs/specs/2609091412-plan-prune.md",
         completion,
-        out,
       );
 
       expect(code).toBe(0);
@@ -657,8 +654,11 @@ describe("runCreateArtifact", () => {
     const { createArtifact } = vi.mocked(await import("../../../src/app/createArtifact.js"));
     createArtifact.mockReturnValue(Effect.fail(new ArtifactCreationError({ message: c.message })));
 
-    const { out, lines, errors } = makeOutput();
-    const code = await runCreateArtifact("plan", "plan-prune", c.spec, c.completion, out);
+    const {
+      code,
+      outLines: lines,
+      errLines: errors,
+    } = await createArtifactCall("plan", "plan-prune", c.spec, c.completion);
 
     expect(code).toBe(12);
     expect(errors).toEqual([c.message]);
@@ -675,8 +675,12 @@ describe("runCreateArtifact", () => {
       }),
     );
 
-    const { out, lines } = makeOutput();
-    const code = await runCreateArtifact("plan", "catalog-refresh", undefined, NO_FLAGS, out);
+    const { code, outLines: lines } = await createArtifactCall(
+      "plan",
+      "catalog-refresh",
+      undefined,
+      NO_FLAGS,
+    );
 
     expect(code).toBe(0);
     expect(lines).toEqual([
@@ -694,15 +698,19 @@ describe("runCreateArtifact", () => {
       ),
     );
 
-    const { out, errors } = makeOutput();
-    const code = await runCreateArtifact("spec", "Plan_Prune", undefined, NO_FLAGS, out);
+    const { code, errLines: errors } = await createArtifactCall(
+      "spec",
+      "Plan_Prune",
+      undefined,
+      NO_FLAGS,
+    );
 
     expect(code).toBe(12);
     expect(errors.join("\n")).toContain("Plan_Prune");
   });
 });
 
-describe("runArtifactMigrateApprovals", () => {
+describe("phax artifact migrate-approvals", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -728,16 +736,11 @@ describe("runArtifactMigrateApprovals", () => {
       }),
     );
 
-    const { out, lines, errors } = makeOutput();
-    const code = await runArtifactMigrateApprovals(out);
+    const { code, errLines: errors } = await phaxCall(["artifact", "migrate-approvals"]);
 
     expect(code).toBe(0);
-    expect(errors).toEqual([]);
-    expect(lines).toEqual([
-      "docs/specs/approvals.json → 1 record file",
-      "  docs/specs/approvals/2609010000-gone.json",
-      "committed a1b2c3d chore(approvals): migrate",
-      "WARN: warning: orphan approval record docs/specs/approvals/2609010000-gone.json — docs/specs/2609010000-gone.md does not exist; delete the record file",
+    expect(errors).toEqual([
+      "warning: orphan approval record docs/specs/approvals/2609010000-gone.json — docs/specs/2609010000-gone.md does not exist; delete the record file",
     ]);
   });
 
@@ -745,8 +748,8 @@ describe("runArtifactMigrateApprovals", () => {
     const { migrateApprovals } = vi.mocked(await import("../../../src/app/migrateApprovals.js"));
     migrateApprovals.mockReturnValue(Effect.succeed({ kind: "nothing-to-migrate" }));
 
-    const { out, lines } = makeOutput();
-    expect(await runArtifactMigrateApprovals(out)).toBe(0);
+    const { code, outLines: lines } = await phaxCall(["artifact", "migrate-approvals"]);
+    expect(code).toBe(0);
     expect(lines).toEqual([
       "nothing to migrate: no docs/plans/approvals.json or docs/specs/approvals.json",
     ]);
@@ -762,8 +765,12 @@ describe("runArtifactMigrateApprovals", () => {
       ),
     );
 
-    const { out, lines, errors } = makeOutput();
-    expect(await runArtifactMigrateApprovals(out)).toBe(12);
+    const {
+      code,
+      outLines: lines,
+      errLines: errors,
+    } = await phaxCall(["artifact", "migrate-approvals"]);
+    expect(code).toBe(12);
     expect(errors).toEqual([message]);
     expect(lines).toEqual([]);
   });
@@ -774,41 +781,37 @@ describe("runArtifactMigrateApprovals", () => {
   });
 });
 
-describe("runArtifactSchema", () => {
+describe("phax artifact schema", () => {
   it.each([
     ["spec", "phax spec document"],
     ["plan", "phax plan document"],
   ] as const)(
     "%s: prints the published answer schema, its $schema a const, no allOf or oneOf, exits 0",
     async (kind, title) => {
-      const { out, lines, errors } = makeOutput();
-      const code = await runArtifactSchema(kind, out);
+      const { code, out: text, err } = await phaxCall(["artifact", "schema", kind]);
 
       expect(code).toBe(0);
-      expect(errors).toEqual([]);
-      expect(lines).toHaveLength(1);
-      const schema = JSON.parse(lines[0]!) as {
+      expect(err).toBe("");
+      const schema = JSON.parse(text) as {
         title: string;
         properties: { kind: unknown; $schema: { const: string } };
       };
       expect(schema).toEqual(answerJsonSchema(`${kind}-document`));
       expect(schema.title).toBe(title);
       expect(schema.properties.$schema.const).toBe(currentSchemaUrl(`${kind}-document`));
-      expect(lines[0]).not.toMatch(/"(allOf|oneOf)"/);
+      expect(text).not.toMatch(/"(allOf|oneOf)"/);
       expect(schema.properties.kind).toEqual({ type: "string", enum: [kind] });
       // Pretty-printed, not a single line.
-      expect(lines[0]).toContain('\n  "');
+      expect(text).toContain('\n  "');
     },
   );
 
   it("verdicts: prints the decide-verdicts JSON Schema the decoder renders, exits 0", async () => {
-    const { out, lines, errors } = makeOutput();
-
-    const code = await runArtifactSchema("verdicts", out);
+    const { code, out: text, err } = await phaxCall(["artifact", "schema", "verdicts"]);
 
     expect(code).toBe(0);
-    expect(errors).toEqual([]);
-    expect(lines).toEqual([JSON.stringify(getDecideVerdictsFileJsonSchema(), null, 2)]);
+    expect(err).toBe("");
+    expect(text).toBe(`${JSON.stringify(getDecideVerdictsFileJsonSchema(), null, 2)}\n`);
   });
 
   it("an unknown kind is refused by the runner, before anything is printed", async () => {

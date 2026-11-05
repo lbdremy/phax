@@ -14,7 +14,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Effect, Either, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { runResume } from "../../src/cli/commands/resume.js";
+import { phaxCall } from "../helpers/runnerCall.js";
 import { loadConfig } from "../../src/app/loadConfig.js";
 import { loadOrExtractPlan } from "../../src/app/loadOrExtractPlan.js";
 import { loadProviderConfig } from "../../src/app/loadRouting.js";
@@ -36,6 +36,19 @@ import {
   removePreflightRepo,
 } from "./helpers/preflightRepo.js";
 import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
+
+/** `phax resume <ref>` through the runner: stdout lines to `port.log`, stderr (notes and a
+ *  declared error's sentence alike) to `port.error` as one entry. */
+async function runResume(
+  ref: string,
+  opts: { yes?: boolean },
+  port: { log(m: string): void; error(m: string): void },
+): Promise<number> {
+  const result = await phaxCall(opts.yes === true ? ["resume", ref, "--yes"] : ["resume", ref]);
+  for (const line of result.outLines) port.log(line);
+  if (result.err !== "") port.error(result.err.replace(/\n$/, ""));
+  return result.code;
+}
 
 // A temporary home for the modules that compute their ~/.phax paths at import.
 vi.mock("node:os", async (importOriginal) =>

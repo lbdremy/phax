@@ -9,7 +9,7 @@ import { loadConfig } from "../../src/app/loadConfig.js";
 import { loadOrExtractPlan } from "../../src/app/loadOrExtractPlan.js";
 import { setRunStatus } from "../../src/app/registry.js";
 import { createRunFolder } from "../../src/app/runFolder.js";
-import { runResume } from "../../src/cli/commands/resume.js";
+import { phaxCall } from "../helpers/runnerCall.js";
 import { decodeShortName } from "../../src/domain/branded.js";
 import type { ClaudeSessionId } from "../../src/domain/branded.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
@@ -34,6 +34,19 @@ import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
 import { liftFixturePhaxPlanToCurrent } from "../helpers/liftFixturePhaxPlan.js";
 
 // A temporary home for the modules that compute their ~/.phax paths at import.
+/** `phax resume <ref>` through the runner: stdout lines to `port.log`, stderr (notes and a
+ *  declared error's sentence alike) to `port.error` as one entry. */
+async function runResume(
+  ref: string,
+  opts: { yes?: boolean },
+  port: { log(m: string): void; error(m: string): void },
+): Promise<number> {
+  const result = await phaxCall(opts.yes === true ? ["resume", ref, "--yes"] : ["resume", ref]);
+  for (const line of result.outLines) port.log(line);
+  if (result.err !== "") port.error(result.err.replace(/\n$/, ""));
+  return result.code;
+}
+
 vi.mock("node:os", async (importOriginal) =>
   (await import("../helpers/isolatePhaxHome.js")).isolatedOs(await importOriginal()),
 );

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { Effect, Either } from "effect";
-import { runReviewCompliance } from "../../../src/cli/commands/reviewCompliance.js";
+import type { OutputPort } from "../../../src/ports/output.js";
+import { phaxCall } from "../../helpers/runnerCall.js";
 import type { RunReviewInfo } from "../../../src/domain/runReviewInfo.js";
 import {
   DEFAULT_MODEL_ROUTING,
@@ -57,15 +58,28 @@ vi.mock("../../../src/domain/routing/resolve.js", () => ({
     .mockReturnValue({ kind: "resolved", provider: "claude", model: "claude-sonnet-4-6" }),
 }));
 
+/** Collects what `phax review-compliance` wrote: stdout as `lines`, stderr as `errors`. */
 function makeOutput() {
   const lines: string[] = [];
   const errors: string[] = [];
   const out = {
     log: (m: string) => lines.push(m),
-    warn: (m: string) => lines.push(`WARN: ${m}`),
+    warn: (m: string) => errors.push(m),
     error: (m: string) => errors.push(m),
   };
   return { out, lines, errors };
+}
+
+/** `phax review-compliance <name>` through the real program; its two streams are copied to `out`. */
+async function runReviewCompliance(
+  shortName: string,
+  _opts: Record<string, never>,
+  out: Pick<OutputPort, "log" | "error">,
+): Promise<number> {
+  const result = await phaxCall(["review-compliance", shortName]);
+  for (const line of result.outLines) out.log(line);
+  for (const line of result.errLines) out.error(line);
+  return result.code;
 }
 
 function makeConfig(enabled: boolean): ResolvedConfig {
@@ -270,13 +284,14 @@ describe("runReviewCompliance", () => {
     loadModelRouting.mockReturnValue(Effect.succeed(DEFAULT_MODEL_ROUTING));
     loadProviderConfig.mockReturnValue(Effect.succeed(DEFAULT_PROVIDER_CONFIG));
 
-    const { out, lines, errors } = makeOutput();
+    const { out, errors } = makeOutput();
     const code = await runReviewCompliance(FAKE_SHORT_NAME, {}, out);
     expect(code).toBe(0);
-    expect(errors).toEqual([]);
-    expect(lines.some((l) => l.startsWith("WARN:") && l.includes("disk full"))).toBe(true);
+    // The warning is on stderr, the only line there.
+    expect(errors).toHaveLength(1);
+    expect(errors.some((l) => l.includes("disk full"))).toBe(true);
     expect(
-      lines.some((l) => l.includes(`rerun \`phax review-compliance ${FAKE_SHORT_NAME}\``)),
+      errors.some((l) => l.includes(`rerun \`phax review-compliance ${FAKE_SHORT_NAME}\``)),
     ).toBe(true);
   });
 
@@ -327,7 +342,12 @@ describe("runReviewCompliance", () => {
 
   async function runWith(
     outcome: unknown,
-    options: { readonly crossProject?: boolean; readonly argument?: string } = {},
+    options: {
+      readonly crossProject?: boolean;
+      readonly argument?: string;
+      /** Lines the use case writes through the port it is handed, while it runs. */
+      readonly throughPort?: (output: OutputPort) => void;
+    } = {},
   ) {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
     loadConfig.mockReturnValue(Either.right(makeConfig(true)));
@@ -344,7 +364,11 @@ describe("runReviewCompliance", () => {
     const { reviewComplianceAndRecord } = vi.mocked(
       await import("../../../src/app/reviewCompliance.js"),
     );
-    reviewComplianceAndRecord.mockReturnValue(outcome as never);
+    reviewComplianceAndRecord.mockImplementation(((...args: unknown[]) => {
+      const output = (args[5] as { output?: OutputPort } | undefined)?.output;
+      if (output !== undefined) options.throughPort?.(output);
+      return outcome;
+    }) as never);
     const { loadModelRouting, loadProviderConfig } = vi.mocked(
       await import("../../../src/app/loadRouting.js"),
     );
@@ -408,7 +432,7 @@ describe("runReviewCompliance", () => {
   });
 
   it("names the same run key in the records warnings of a run of another project", async () => {
-    const { lines } = await runWith(
+    const { errors } = await runWith(
       Effect.succeed({
         review: GENERATED,
         record: { kind: "write-failed", message: "disk full" },
@@ -418,7 +442,9 @@ describe("runReviewCompliance", () => {
     );
 
     expect(
-      lines.some((l) => l.includes(`rerun \`phax review-compliance other-ns.${FAKE_SHORT_NAME}\``)),
+      errors.some((l) =>
+        l.includes(`rerun \`phax review-compliance other-ns.${FAKE_SHORT_NAME}\``),
+      ),
     ).toBe(true);
   });
 
@@ -458,13 +484,14 @@ describe("runReviewCompliance", () => {
   });
 
   it("hands the command's output port to the use case, for the refusal warning", async () => {
-    const { reviewComplianceAndRecord, lines } = await runWith(noEntry(GENERATED));
-
     // The runner builds the port from the call: its lines reach the command's output as they go.
-    const given = reviewComplianceAndRecord.mock.calls[0]?.[5]?.output;
-    given?.warn("the refusal warning");
-    given?.log("a said line");
-    expect(lines).toContain("WARN: the refusal warning");
+    const { lines, errors } = await runWith(noEntry(GENERATED), {
+      throughPort: (given) => {
+        given.warn("the refusal warning");
+        given.log("a said line");
+      },
+    });
+    expect(errors).toContain("the refusal warning");
     expect(lines).toContain("a said line");
   });
 });

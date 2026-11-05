@@ -11,7 +11,10 @@ import { Effect, Either, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { parseRegistry } from "../../packages/schemas/src/index.js";
 import { prepareRunBranch } from "../../src/app/worktree.js";
-import { runPrune, type PruneCommandOptions } from "../../src/cli/commands/prune.js";
+import { runner } from "../../src/cli/commandLibrary/commander/index.js";
+import { memoryIo } from "../../src/cli/commandLibrary/contract/conformance/memoryIo.js";
+import type { ExitCode } from "../../src/cli/commandLibrary/contract/index.js";
+import { phaxProgram } from "../../src/cli/definitions/program.js";
 import { decodeShortName } from "../../src/domain/branded.js";
 import { formatBytes } from "../../src/domain/prune.js";
 import { nextAvailableShortName, runKey } from "../../src/domain/runRef.js";
@@ -34,7 +37,6 @@ import {
   git,
   headOf,
   readRegistryEntries,
-  recordingOutput,
   refExists,
   registryPath,
   removePruneRepo,
@@ -57,6 +59,16 @@ vi.mock("../../src/infra/prompt.js", () => ({
 
 let roots: PruneRepo;
 let events: string[];
+/** The call in flight: its stdout so far, read when the prompt is asked. */
+let current: ReturnType<typeof memoryIo> | undefined;
+
+interface PruneCommandOptions {
+  all?: boolean;
+  force?: boolean;
+  dryRun?: boolean;
+  yes?: boolean;
+  json?: boolean;
+}
 let asks: string[];
 let originalCwd: string;
 let originalIsTTY: PropertyDescriptor | undefined;
@@ -68,6 +80,10 @@ function scriptPrompt(answers: (boolean | symbol)[]): void {
   const { impl } = makeFakePrompt(answers as never);
   const confirm = impl.confirm.bind(impl);
   impl.confirm = (opts) => {
+    // What the command had written on stdout by the time it asked, in order with the prompt.
+    for (const line of current?.out().replace(/\n$/, "").split("\n") ?? []) {
+      if (line !== "") events.push(`log: ${line}`);
+    }
     events.push(`prompt: ${opts.message}`);
     return confirm(opts);
   };
@@ -79,14 +95,31 @@ function setStdinTTY(value: boolean): void {
   Object.defineProperty(process.stdin, "isTTY", { value, configurable: true, writable: true });
 }
 
+const lines = (text: string) => (text === "" ? [] : text.replace(/\n$/, "").split("\n"));
+
 async function prune(names: string[], opts: PruneCommandOptions = {}) {
-  const out = recordingOutput(events);
-  const code = await runPrune(names, opts, out.port);
+  const argv = [
+    "prune",
+    ...names,
+    ...(opts.all === true ? ["--all"] : []),
+    ...(opts.force === true ? ["--force"] : []),
+    ...(opts.dryRun === true ? ["--dry-run"] : []),
+    ...(opts.yes === true ? ["--yes"] : []),
+    ...(opts.json === true ? ["--json"] : []),
+  ];
+  current = memoryIo({ argv });
+  const code: ExitCode = await Effect.runPromise(
+    runner.run(phaxProgram, current.io) as Effect.Effect<ExitCode>,
+  );
+  const out = current.out();
+  const err = current.err();
+  current = undefined;
   return {
     code,
-    logs: out.logs,
-    errors: out.errors,
-    text: [...out.logs, ...out.errors].join("\n"),
+    out,
+    logs: lines(out),
+    errors: lines(err),
+    text: [...lines(out), ...lines(err)].join("\n"),
   };
 }
 
@@ -479,8 +512,7 @@ describe("phax prune", { timeout: 30_000 }, () => {
     const preview = await prune(["a", "b"], { json: true, dryRun: true });
 
     expect(preview.code).toBe(0);
-    expect(preview.logs).toHaveLength(1);
-    const doc = JSON.parse(preview.logs[0]!) as {
+    const doc = JSON.parse(preview.out) as {
       namespace: string;
       dryRun: boolean;
       runs: {
@@ -524,8 +556,7 @@ describe("phax prune", { timeout: 30_000 }, () => {
     const result = await prune(["a"], { json: true, yes: true });
 
     expect(result.code).toBe(0);
-    expect(result.logs).toHaveLength(1);
-    const doc = JSON.parse(result.logs[0]!) as {
+    const doc = JSON.parse(result.out) as {
       runs: { outcome: string; archiveBytes: number; branchesDeleted: string[] }[];
       totals: { pruned: number; kept: number; bytesFreed: number };
     };

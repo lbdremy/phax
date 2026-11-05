@@ -29,6 +29,7 @@ import { Backend } from "../../src/ports/backend.js";
 import { Shell } from "../../src/ports/shell.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
+import { phaxCall } from "../helpers/runnerCall.js";
 import type { RunHold } from "../../src/schemas/status.js";
 import {
   NAMESPACE,
@@ -668,15 +669,9 @@ describe("reset at a held stop", { timeout: 60_000 }, () => {
     const { run } = await heldAtPhase02();
     const { loadConfig } = await import("../../src/app/loadConfig.js");
     vi.mocked(loadConfig).mockReturnValue(Either.right(run.config));
-    const { runResetPhase } = await import("../../src/cli/commands/resetPhase.js");
-    const out = {
-      log: () => {},
-      warn: () => {},
-      error: () => {},
-    } as unknown as Parameters<typeof runResetPhase>[3];
     const phase01Tip = gitIn(world.repoRoot, "rev-parse", `phax/${SHORT}--phase-01`);
 
-    expect(await runResetPhase(SHORT, "phase-02", { yes: true }, out)).toBe(0);
+    expect((await phaxCall(["reset-phase", SHORT, "phase-02", "--yes"])).code).toBe(0);
 
     const held = failedWith(await resumeHeldRun(run), AwaitingReviewStopError);
     expect(held.report.cause).toBe("held");

@@ -79,20 +79,6 @@ afterEach(() => {
   world.cleanup();
 });
 
-function makeOutput() {
-  const logs: string[] = [];
-  const errors: string[] = [];
-  return {
-    out: {
-      log: (m: string) => logs.push(m),
-      warn: (m: string) => logs.push(`WARN: ${m}`),
-      error: (m: string) => errors.push(m),
-    },
-    logs,
-    errors,
-  };
-}
-
 const statePath = (run: StoppedRun) => join(run.runPath, "run-status.json");
 const stopPath = (run: StoppedRun) => join(run.runPath, "review-stop.json");
 
@@ -188,19 +174,16 @@ describe("phax path, shell and open on a waiting run", () => {
     const script = join(world.root, "fake-shell.sh");
     vi.stubEnv("SHELL", script);
 
-    const { runShell } = await import("../../src/cli/commands/shell.js");
-    const { runOpen } = await import("../../src/cli/commands/open.js");
-
     const pathCall = await phaxCall(["path", run.shortName]);
     expect(pathCall.code).toBe(0);
     expect(pathCall.outLines).toEqual([run.worktree]);
 
-    expect(await runShell(run.shortName, makeOutput().out)).toBe(0);
+    expect((await phaxCall(["shell", run.shortName])).code).toBe(0);
     expect(fakeSession.impl.invocations).toEqual([
       { executable: script, args: [], cwd: run.worktree, env: {} },
     ]);
 
-    expect(await runOpen(run.shortName, makeOutput().out)).toBe(0);
+    expect((await phaxCall(["open", run.shortName])).code).toBe(0);
     expect(fakeEditor.impl.openCalls).toEqual([run.worktree]);
   });
 });
@@ -219,12 +202,11 @@ describe("phax reset-phase on a waiting run", () => {
   it("previews the three uncommitted corrections and changes nothing without --yes", async () => {
     const run = await stopRun(world);
     makeCorrections(run);
-    const { runResetPhase } = await import("../../src/cli/commands/resetPhase.js");
-    const { out, logs, errors } = makeOutput();
 
-    expect(await runResetPhase(run.shortName, "phase-03", {}, out)).toBe(0);
+    const call = await phaxCall(["reset-phase", run.shortName, "phase-03"]);
+    expect(call.code).toBe(0);
 
-    const text = logs.join("\n");
+    const text = call.outLines.join("\n");
     expect(text).toContain("3 uncommitted correction(s)");
     expect(text).toContain("  D docs/notes.md");
     expect(text).toContain("  A src/creditNote.ts");
@@ -232,7 +214,7 @@ describe("phax reset-phase on a waiting run", () => {
     expect(text).toContain(
       "phax resume example.invoice-export will set the phase up again and stop there.",
     );
-    expect(errors).toEqual([]);
+    expect(call.err).toBe("");
     expect(existsSync(stopPath(run))).toBe(true);
     expect(existsSync(run.worktree)).toBe(true);
     expect(readJson(statePath(run))["state"]).toBe("awaiting_review");
@@ -242,24 +224,22 @@ describe("phax reset-phase on a waiting run", () => {
     const run = await stopRun(world);
     const handoff = join(run.worktree, ".phax-context", "correction-handoff.md");
     writeFileSync(handoff, "## What was corrected\n- Nothing yet.\n");
-    const { runResetPhase } = await import("../../src/cli/commands/resetPhase.js");
-    const { out, logs } = makeOutput();
 
-    expect(await runResetPhase(run.shortName, "phase-03", {}, out)).toBe(0);
+    const call = await phaxCall(["reset-phase", run.shortName, "phase-03"]);
+    expect(call.code).toBe(0);
 
-    expect(logs).toContain(`The reset also discards your handoff file: ${handoff}`);
+    expect(call.outLines).toContain(`The reset also discards your handoff file: ${handoff}`);
     expect(existsSync(handoff)).toBe(true);
   });
 
   it("with --yes removes the worktree, the branch and the session files, and discards review-stop.json", async () => {
     const run = await stopRun(world);
     makeCorrections(run);
-    const { runResetPhase } = await import("../../src/cli/commands/resetPhase.js");
-    const { out, errors } = makeOutput();
 
-    expect(await runResetPhase(run.shortName, undefined, { yes: true }, out)).toBe(0);
+    const call = await phaxCall(["reset-phase", run.shortName, "--yes"]);
+    expect(call.code).toBe(0);
 
-    expect(errors).toEqual([]);
+    expect(call.err).toBe("");
     expect(existsSync(run.worktree)).toBe(false);
     const branches = execFileSync("git", ["branch", "--list"], {
       cwd: world.repoRoot,
@@ -334,12 +314,11 @@ describe("phax reset-phase on a waiting run", () => {
 
   it("refuses to reset phase-02 before the stopped phase-03, naming it, and changes nothing", async () => {
     const run = await stopRun(world);
-    const { runResetPhase } = await import("../../src/cli/commands/resetPhase.js");
 
-    for (const opts of [{ yes: true }, {}]) {
-      const { out, errors } = makeOutput();
-      expect(await runResetPhase(run.shortName, "phase-02", opts, out)).toBe(1);
-      expect(errors.join("\n")).toContain(
+    for (const opts of [["--yes"], []]) {
+      const call = await phaxCall(["reset-phase", run.shortName, "phase-02", ...opts]);
+      expect(call.code).toBe(1);
+      expect(call.err).toContain(
         'Cannot reset "phase-02" of run "invoice-export": the run is awaiting review at "phase-03". Reset "phase-03" first (`phax reset-phase invoice-export phase-03`).',
       );
     }
@@ -400,18 +379,17 @@ describe("phax archive on a waiting run", () => {
 describe("phax adjust-plan --landed on a waiting run", () => {
   it("is refused, naming awaiting_review, before any session starts", async () => {
     const run = await stopRun(world);
-    const { runAdjustPlan } = await import("../../src/cli/commands/adjustPlan.js");
-    const { out, errors } = makeOutput();
 
-    const code = await runAdjustPlan(
+    const call = await phaxCall([
+      "adjust-plan",
       "docs/plans/2610221000-credit-notes-plan.md",
-      { landed: run.shortName },
-      out,
-    );
+      "--landed",
+      run.shortName,
+    ]);
 
-    expect(code).toBe(1);
-    expect(errors.join("\n")).toContain("awaiting_review");
-    expect(errors.join("\n")).toContain("has not landed");
+    expect(call.code).toBe(1);
+    expect(call.err).toContain("awaiting_review");
+    expect(call.err).toContain("has not landed");
     expect(fakeSession.impl.invocations).toHaveLength(0);
   });
 });

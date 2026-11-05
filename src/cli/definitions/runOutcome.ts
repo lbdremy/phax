@@ -312,7 +312,7 @@ const shortNameOf = (qualifiedName: string): string =>
 
 /** Today's stdout lines of an outcome, each as the command logged it: the dry-run report whole,
  *  every other line one by one. `headline` writes run's `reached review` line. */
-export function outcomeSections(value: RunAnswer, headline: boolean): ReadonlyArray<string> {
+function outcomeSections(value: RunAnswer, headline: boolean): ReadonlyArray<string> {
   const { outcome } = value;
   switch (outcome.kind) {
     case "dry-run":

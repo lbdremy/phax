@@ -16,6 +16,30 @@ vi.mock("../../src/app/loadConfig.js", () => ({
 
 const FAKE_SESSION_EXIT_CODE = 0;
 
+interface ReviewCodeCall {
+  readonly model?: string;
+  readonly effort?: string;
+}
+
+/** `phax review-code <name> [--model m] [--effort e]` through the real program (its session is
+ *  the mocked spawnSync); stdout lines go to `out.log`, stderr lines to `out.error`. */
+async function runReviewCode(
+  shortName: string,
+  opts: ReviewCodeCall,
+  out: { log: (m: string) => unknown; error: (m: string) => unknown },
+): Promise<number> {
+  const { phaxCall } = await import("../helpers/runnerCall.js");
+  const result = await phaxCall([
+    "review-code",
+    shortName,
+    ...(opts.model !== undefined ? ["--model", opts.model] : []),
+    ...(opts.effort !== undefined ? ["--effort", opts.effort] : []),
+  ]);
+  for (const line of result.outLines) out.log(line);
+  for (const line of result.errLines) out.error(line);
+  return result.code;
+}
+
 function makeBaseConfig(stateRootOverride: string) {
   return {
     stateRoot: stateRootOverride,
@@ -186,7 +210,6 @@ describe("runReviewCode", () => {
     await writeClaudeBinding(join(runPath, "phase-01"), shortName, worktreePath);
     await writeReconciliationMd(runPath);
 
-    const { runReviewCode } = await import("../../src/cli/commands/reviewCode.js");
     const logs: string[] = [];
     const out = {
       log: (m: string) => logs.push(m),
@@ -217,7 +240,6 @@ describe("runReviewCode", () => {
     await writeClaudeBinding(join(runPath, "phase-01"), shortName, worktreePath);
     await writeReconciliationMd(runPath);
 
-    const { runReviewCode } = await import("../../src/cli/commands/reviewCode.js");
     const out = { log: vi.fn(), warn: vi.fn(), error: vi.fn() };
 
     await runReviewCode(shortName, { model: "claude-sonnet-4-6", effort: "medium" }, out);
@@ -232,7 +254,6 @@ describe("runReviewCode", () => {
   it("invalid --effort value: returns 1 without spawning", async () => {
     const { spawnSync } = await import("node:child_process");
 
-    const { runReviewCode } = await import("../../src/cli/commands/reviewCode.js");
     const errors: string[] = [];
     const out = { log: vi.fn(), warn: vi.fn(), error: (m: string) => errors.push(m) };
 
@@ -265,7 +286,6 @@ describe("runReviewCode", () => {
       }),
     );
 
-    const { runReviewCode } = await import("../../src/cli/commands/reviewCode.js");
     const logs: string[] = [];
     const out = {
       log: (m: string) => logs.push(m),
@@ -304,7 +324,6 @@ describe("runReviewCode", () => {
       }),
     );
 
-    const { runReviewCode } = await import("../../src/cli/commands/reviewCode.js");
     const out = { log: vi.fn(), warn: vi.fn(), error: vi.fn() };
 
     await runReviewCode(shortName, { model: "claude-sonnet-4-6" }, out);
@@ -326,7 +345,6 @@ describe("runReviewCode", () => {
     });
     await writeClaudeBinding(join(runPath, "phase-01"), shortName, worktreePath);
 
-    const { runReviewCode } = await import("../../src/cli/commands/reviewCode.js");
     const errors: string[] = [];
     const out = { log: vi.fn(), warn: vi.fn(), error: (m: string) => errors.push(m) };
 

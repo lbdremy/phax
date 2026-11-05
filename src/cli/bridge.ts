@@ -8,29 +8,22 @@
 // The bridge is internal and goes with the last plan of command-contracts, when the runner owns
 // the program.
 import { Command, CommanderError, Option as CommanderOption } from "commander";
-import { Cause, Effect, Exit, Option } from "effect";
-import * as Schema from "effect/Schema";
+import { Effect } from "effect";
 import { isInPhaseWorktree } from "../app/loadConfig.js";
 import { phaseGuardRefusal } from "../domain/security/phaseGuard.js";
-import type { OutputPort } from "../ports/output.js";
 import {
   argShapes,
-  encodedText,
   flagShapes,
   fullName,
   messages,
   OPTION_HELP,
-  Refused,
   stdinFlagHelp,
   usageSpec,
   type Command as RunnerCommand,
-  type ErrorText,
   type Grouping,
   type Inputs,
   type Io,
   type Program,
-  type Source,
-  type StdinDocument,
 } from "./commandLibrary/contract/index.js";
 import { processIo, runner } from "./commandLibrary/commander/index.js";
 import { phaxProgram } from "./definitions/program.js";
@@ -466,130 +459,6 @@ export function mountRunnerStubs(root: Command, program: Program<unknown>): void
     }
     mountStub(parent, command);
   }
-}
-
-// ── The kept run functions ──────────────────────────────────────────────────────
-
-/** What a kept run function prints to when it is not run by the runner. */
-const OUTPUT_TERMINAL = { columns: 80, color: false } as const;
-
-/** A runner command's run composed with its render, notes and sentences over the OutputPort:
- *  the run functions kept for the tests of the commands moved onto the runner (`runLs`,
- *  `runArtifactStatus`, `runPlansLint`, `runPlansOverview`). A progress note and the notes are
- *  warnings, a `say` line a log, a declared error's sentence an error; `json` logs the encoded
- *  output in place of the render. The command's check runs first: its refusal is an error, its
- *  text, answering the program's `refused` code. Answers the exit code the runner would: the
- *  refusal's, the error's, or the verdict's, or 0. */
-export async function runThroughOutput(
-  command: RunnerCommand<never>,
-  input: Readonly<Record<string, unknown>>,
-  out: OutputPort,
-  options: {
-    readonly json?: boolean;
-    /** Log the render one line at a time, as the kept function did before its move. */
-    readonly lineByLine?: boolean;
-    /** Log these, one `out.log` each, in place of the render, as the kept function logged its
-     *  sections before its move. */
-    readonly sections?: (value: never) => ReadonlyArray<string>;
-    /** Log a document the command answers in one `out.log`, as the kept function did before its
-     *  move, rather than a line at a time. */
-    readonly wholeDocument?: boolean;
-    /** The stdin document as read, handed to the check and to run as the runner hands it. */
-    readonly document?: StdinDocument;
-    /** The program's options (`--verbose`), as the runner hands them to run. */
-    readonly program?: Readonly<Record<string, unknown>>;
-  } = {},
-): Promise<number> {
-  const check = command.check;
-  if (check !== undefined) {
-    const checked = await Effect.runPromiseExit(
-      Effect.suspend(() => check({ input, document: options.document })),
-    );
-    if (Exit.isFailure(checked)) {
-      const failure: unknown = Option.getOrUndefined(Cause.failureOption(checked.cause));
-      if (!(failure instanceof Refused)) throw Cause.squash(checked.cause);
-      out.error(failure.text);
-      return phaxProgram.exits.refused;
-    }
-  }
-  const exit = await Effect.runPromiseExit(
-    Effect.suspend(() =>
-      command.run({
-        input,
-        program: options.program ?? {},
-        progress: (text: string) =>
-          Effect.sync(() => {
-            if (text !== "") out.warn(text);
-          }),
-        // A note line under `--json`, as the runner writes it: stdout holds the answer alone.
-        say: (text: string) =>
-          Effect.sync(() => {
-            if (text === "") return;
-            if (options.json === true) out.warn(text);
-            else out.log(text);
-          }),
-        document: options.document,
-      }),
-    ),
-  );
-  if (Exit.isFailure(exit)) {
-    const failure = Cause.failureOption(exit.cause);
-    const error: unknown = Option.getOrUndefined(failure);
-    const tag =
-      typeof error === "object" && error !== null ? Reflect.get(error, "_tag") : undefined;
-    const exits: Readonly<Record<string, number>> = command.exits;
-    const code = typeof tag === "string" ? exits[tag] : undefined;
-    if (typeof tag !== "string" || code === undefined) throw Cause.squash(exit.cause);
-    const texts: Readonly<Record<string, ((error: never) => ErrorText) | undefined>> =
-      command.texts ?? {};
-    const say = texts[tag];
-    const said: ErrorText =
-      say === undefined ? String(Reflect.get(error as object, "message")) : say(error as never);
-    const sentence = typeof said === "string" ? said : said.err;
-    if (typeof said !== "string" && said.out !== "") {
-      for (const line of said.out.split("\n")) out.log(line);
-    }
-    for (const line of options.lineByLine === true ? sentence.split("\n") : [sentence]) {
-      out.error(line);
-    }
-    return code;
-  }
-  const value: unknown = exit.value;
-  const document = command.document?.(value);
-  if (document !== undefined) {
-    const text =
-      typeof document.bytes === "string"
-        ? document.bytes
-        : new TextDecoder().decode(document.bytes);
-    const lines = text.split("\n").slice(0, -1);
-    for (const line of options.wholeDocument === true ? [lines.join("\n")] : lines) out.log(line);
-  } else if (options.json === true && command.output !== undefined) {
-    const output: Source<Schema.Schema.Any> = command.output;
-    const encoded = Schema.encodeUnknownSync(output.contract as Schema.Schema<unknown, unknown>)(
-      value,
-    );
-    out.log(encodedText(encoded).slice(0, -1));
-  } else if (options.sections !== undefined) {
-    for (const section of options.sections(value as never)) out.log(section);
-  } else if (command.render !== undefined) {
-    const text = command.render(value, OUTPUT_TERMINAL);
-    // An empty render logs nothing, as the runner writes nothing.
-    if (text !== "") {
-      for (const line of options.lineByLine === true ? text.split("\n") : [text]) out.log(line);
-    }
-  }
-  const notes = command.notes?.(value, OUTPUT_TERMINAL) ?? "";
-  for (const line of notes === "" ? [] : notes.split("\n")) out.warn(line);
-  // The exit of the process the command handed the terminal to, as the runner answers it
-  // without `--json`.
-  const handsOver: ((value: unknown) => number) | undefined = command.handsOver;
-  if (options.json !== true && handsOver !== undefined) return handsOver(value);
-  const verdicts: Readonly<Record<number, (value: unknown) => boolean>> = command.verdicts ?? {};
-  const verdict = Object.keys(verdicts)
-    .map(Number)
-    .toSorted((a, b) => a - b)
-    .find((code) => verdicts[code]?.(value) === true);
-  return verdict ?? 0;
 }
 
 // ── The usage spec's runner blocks ──────────────────────────────────────────────

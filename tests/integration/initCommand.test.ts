@@ -2,23 +2,7 @@ import { mkdtemp, rm, writeFile, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { runInit } from "../../src/cli/commands/init.js";
-
-const captureOutput = () => {
-  const logs: string[] = [];
-  const warnings: string[] = [];
-  const errors: string[] = [];
-  return {
-    out: {
-      log: (msg: string) => logs.push(msg),
-      warn: (msg: string) => warnings.push(msg),
-      error: (msg: string) => errors.push(msg),
-    },
-    logs,
-    warnings,
-    errors,
-  };
-};
+import { phaxCall } from "../helpers/runnerCall.js";
 
 const PKG_WITH_SCRIPTS = JSON.stringify({
   name: "@org/my-app",
@@ -40,15 +24,14 @@ afterEach(async () => {
   await rm(tmpDir, { recursive: true, force: true });
 });
 
-describe("runInit --yes (non-interactive)", () => {
+describe("phax init --yes (non-interactive)", () => {
   it("creates phax.json, phax.schema.json, and phax.user.schema.json from package.json", async () => {
     await writeFile(join(tmpDir, "package.json"), PKG_WITH_SCRIPTS, "utf8");
 
     const originalCwd = process.cwd();
     process.chdir(tmpDir);
     try {
-      const { out, logs, errors } = captureOutput();
-      const code = await runInit({ yes: true }, out);
+      const { code, outLines: logs, errLines: errors } = await phaxCall(["init", "--yes"]);
 
       expect(code).toBe(0);
       expect(errors).toHaveLength(0);
@@ -80,8 +63,7 @@ describe("runInit --yes (non-interactive)", () => {
     const originalCwd = process.cwd();
     process.chdir(tmpDir);
     try {
-      const { out } = captureOutput();
-      const code = await runInit({ yes: true }, out);
+      const { code } = await phaxCall(["init", "--yes"]);
 
       expect(code).toBe(0);
       const configText = await readFile(join(tmpDir, "phax.json"), "utf8");
@@ -107,8 +89,7 @@ describe("runInit --yes (non-interactive)", () => {
     const originalCwd = process.cwd();
     process.chdir(tmpDir);
     try {
-      const { out, errors } = captureOutput();
-      const code = await runInit({ yes: true }, out);
+      const { code, errLines: errors } = await phaxCall(["init", "--yes"]);
 
       expect(code).toBe(1);
       expect(errors.some((e) => e.includes("already initialized"))).toBe(true);
@@ -132,8 +113,7 @@ describe("runInit --yes (non-interactive)", () => {
     const originalCwd = process.cwd();
     process.chdir(tmpDir);
     try {
-      const { out, errors } = captureOutput();
-      const code = await runInit({ force: true, yes: true }, out);
+      const { code, errLines: errors } = await phaxCall(["init", "--force", "--yes"]);
 
       expect(code).toBe(0);
       expect(errors).toHaveLength(0);

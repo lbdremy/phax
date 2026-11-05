@@ -3,7 +3,8 @@ import { execSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { runReviewHandoff } from "../../src/cli/commands/reviewHandoff.js";
+import type { OutputPort } from "../../src/ports/output.js";
+import { phaxCall } from "../helpers/runnerCall.js";
 import { encodePhaseFileReconciliation } from "../../src/schemas/reconciliation.js";
 import { isolatePhaxHome } from "../helpers/isolatePhaxHome.js";
 import { reconciliationResult } from "../helpers/reconciliationFixture.js";
@@ -16,20 +17,35 @@ vi.mock("node:os", async (importOriginal) =>
 
 interface TestOutput {
   logs: string[];
-  warnings: string[];
   errors: string[];
 }
 
-function makeOutput(): TestOutput & { port: Parameters<typeof runReviewHandoff>[2] } {
-  const o: TestOutput = { logs: [], warnings: [], errors: [] };
+function makeOutput(): TestOutput & { port: Pick<OutputPort, "log" | "error"> } {
+  const o: TestOutput = { logs: [], errors: [] };
   return {
     ...o,
     port: {
       log: (m: string) => o.logs.push(m),
-      warn: (m: string) => o.warnings.push(m),
       error: (m: string) => o.errors.push(m),
     },
   };
+}
+
+/** `phax review-handoff <name> [--allow-partial]` through the real program; stdout lines go to
+ *  the port's `log`, stderr lines to its `error`. */
+async function runReviewHandoff(
+  shortName: string,
+  opts: { readonly allowPartial?: boolean },
+  port: Pick<OutputPort, "log" | "error">,
+): Promise<number> {
+  const result = await phaxCall([
+    "review-handoff",
+    shortName,
+    ...(opts.allowPartial === true ? ["--allow-partial"] : []),
+  ]);
+  for (const line of result.outLines) port.log(line);
+  for (const line of result.errLines) port.error(line);
+  return result.code;
 }
 
 const SHORT_NAME = "cmd-test-run";

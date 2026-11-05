@@ -5,13 +5,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Effect } from "effect";
-import { runThroughOutput } from "../../../src/cli/bridge.js";
+import { defineGroup } from "../../../src/cli/commandLibrary/contract/index.js";
 import { makeRecordsInitCommand } from "../../../src/cli/definitions/records.js";
 import { FAKE_PROMPT_CANCEL, makeFakePrompt } from "../../../src/infra/fakes/prompt.js";
 import { makeFakeGitHub } from "../../../src/infra/fakes/github.js";
-import type { OutputPort } from "../../../src/ports/output.js";
 import { isolateGit } from "../../helpers/isolateGit.js";
 import { isolatePhaxHome } from "../../helpers/isolatePhaxHome.js";
+import { runnerCall } from "../../helpers/runnerCall.js";
 import { removeTempDir } from "../../helpers/tempGit.js";
 
 // A temporary home for the modules that compute their ~/.phax paths at import.
@@ -105,19 +105,13 @@ describe("phax records init answers the file it configured", () => {
     const before = readFileSync(join(repo, "phax.json"));
     const prompt = makeFakePrompt([FAKE_PROMPT_CANCEL]);
     const command = makeRecordsInitCommand(prompt.layer, privateGitHub().layer);
-    const logs: string[] = [];
-    const errors: string[] = [];
-    const out: OutputPort = {
-      log: (message) => logs.push(message),
-      warn: (message) => errors.push(message),
-      error: (message) => errors.push(message),
-    };
+    const group = defineGroup({ name: "records", summary: "Records", commands: [command] });
 
-    const code = await runThroughOutput(command, { flags: {} }, out);
+    const { code, outLines, errLines } = await runnerCall([group], ["records", "init"]);
 
     expect(code).toBe(0);
-    expect(logs).toEqual(["phax records init aborted — no changes written."]);
-    expect(errors).toEqual([]);
+    expect(outLines).toEqual(["phax records init aborted — no changes written."]);
+    expect(errLines).toEqual([]);
     expect(readFileSync(join(repo, "phax.json")).equals(before)).toBe(true);
   });
 });

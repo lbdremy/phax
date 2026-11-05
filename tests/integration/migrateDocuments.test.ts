@@ -18,7 +18,6 @@ import { transitionArtifactBy } from "../../src/app/artifactStatus.js";
 import { migrateDocuments } from "../../src/app/migrateDocuments.js";
 import { readCacheEntry } from "../../src/app/planCacheStore.js";
 import { plansStalenessReport } from "../../src/app/planStaleness.js";
-import { runArtifactMigrateDocuments } from "../../src/cli/commands/artifact.js";
 import { phaxCall } from "../helpers/runnerCall.js";
 import { exitCodeForAuthoringError, exitCodeForError } from "../../src/cli/commands/runLayers.js";
 import { approvalRecordPathFor } from "../../src/domain/artifact/approvalRecordFile.js";
@@ -1252,15 +1251,16 @@ describe("migrate-documents — commit failure", { timeout: 30_000 }, () => {
 
 describe("phax artifact migrate-documents — the command", { timeout: 30_000 }, () => {
   async function runCommand(): Promise<{ code: number; lines: string[] }> {
-    const lines: string[] = [];
-    const out = {
-      log: (m: string) => lines.push(m),
-      warn: (m: string) => lines.push(`WARN: ${m}`),
-      error: (m: string) => lines.push(`ERROR: ${m}`),
-    };
     process.chdir(repoDir);
     try {
-      return { code: await runArtifactMigrateDocuments(out), lines };
+      const result = await phaxCall(["artifact", "migrate-documents"]);
+      // stdout's lines, then stderr as one error sentence when the command failed.
+      const lines = [...result.outLines];
+      if (result.err !== "") {
+        if (result.code === 0) lines.push(...result.errLines);
+        else lines.push(`ERROR: ${result.err.trimEnd()}`);
+      }
+      return { code: result.code, lines };
     } finally {
       process.chdir(originalCwd);
     }
