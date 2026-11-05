@@ -9,6 +9,7 @@ import {
   buildProbeArgs,
   runClaudeAgent,
   runClaudeCompletion,
+  runClaudeProbe,
 } from "../../../src/infra/providers/claudeCode.js";
 import {
   claudeAnswerSchema,
@@ -61,6 +62,8 @@ describe("buildArgs — unsafe mode", () => {
       "--output-format",
       "stream-json",
       "--verbose",
+      "--setting-sources",
+      "project",
       "--permission-mode",
       "bypassPermissions",
       "--model",
@@ -176,6 +179,8 @@ describe("buildArgs — read-only", () => {
     "--output-format",
     "stream-json",
     "--verbose",
+    "--setting-sources",
+    "project",
     "--permission-mode",
     "default",
     "--tools",
@@ -225,6 +230,8 @@ describe("buildArgs — read-only", () => {
       "--output-format",
       "stream-json",
       "--verbose",
+      "--setting-sources",
+      "project",
       "--permission-mode",
       "default",
       "--tools",
@@ -287,6 +294,8 @@ describe("buildArgs — skill edit grants", () => {
       "--output-format",
       "stream-json",
       "--verbose",
+      "--setting-sources",
+      "project",
       "--permission-mode",
       "acceptEdits",
       "--add-dir",
@@ -410,23 +419,39 @@ describe("buildCompletionArgs — sealed completion", () => {
     expect(args[args.indexOf("--output-format") + 1]).toBe("stream-json");
     expect(args).toContain("--verbose");
   });
+
+  it("carries --setting-sources project right after --verbose", () => {
+    const args = buildCompletionArgs(completionOptions);
+    expect(args.slice(0, 6)).toEqual([
+      "--print",
+      "--output-format",
+      "stream-json",
+      "--verbose",
+      "--setting-sources",
+      "project",
+    ]);
+  });
 });
 
 describe("buildProbeArgs — the windows probe", () => {
   const args = buildProbeArgs({ model: PROBE_MODEL, effort: PROBE_EFFORT });
 
   it("is the sealed completion flag set plus --no-session-persistence", () => {
+    const sealed = buildCompletionArgs({
+      provider: "claude-code",
+      model: "claude-haiku-5-5",
+      effort: "low",
+      cwd: tmpdir(),
+    });
     expect(args).toEqual([
-      ...buildCompletionArgs({
-        provider: "claude-code",
-        model: "claude-haiku-5-5",
-        effort: "low",
-        cwd: tmpdir(),
-      }),
+      ...sealed.slice(0, 4),
+      ...sealed.slice(6),
       "--no-session-persistence",
       "--tools",
       "",
     ]);
+    // The probe keeps the user's settings: the apiKeyHelper may live there.
+    expect(args).not.toContain("--setting-sources");
     expect(args[args.indexOf("--permission-mode") + 1]).toBe("default");
     expect(args[args.indexOf("--allowedTools") + 1]).toBe("");
     expect(args[args.indexOf("--disallowed-tools") + 1]).toBe("Bash,WebFetch,WebSearch");
@@ -617,6 +642,28 @@ describe("runClaudeAgent — the prompt and the structured value", () => {
       runClaudeAgent("ask", options({ answerSchema }), undefined, promptTable),
     );
     expect(onPrompt.structured).toEqual({ value: { title: "x" } });
+  });
+
+  it("spawns runClaudeAgent and runClaudeCompletion with the memory switch, and runClaudeProbe without", async () => {
+    vi.stubEnv("CLAUDE_CODE_DISABLE_AUTO_MEMORY", undefined);
+    cli.setScript({ sessionId: SESSION, finalText: "ok" });
+    await Effect.runPromise(runClaudeAgent("ask", options({})));
+    await Effect.runPromise(
+      runClaudeCompletion("ask", {
+        provider: "claude-code",
+        model: "claude-sonnet-4-6",
+        effort: "high",
+        cwd: root,
+      }),
+    );
+    await Effect.runPromise(
+      runClaudeProbe("ask", { model: PROBE_MODEL, effort: PROBE_EFFORT, timeoutMs: 30_000 }),
+    );
+
+    const envs = cli.traces().map((trace) => trace.env["CLAUDE_CODE_DISABLE_AUTO_MEMORY"]);
+    expect(envs).toEqual(["1", "1", undefined]);
+    const argvs = cli.invocations().map((invocation) => invocation.argv);
+    expect(argvs.map((argv) => argv.includes("--setting-sources"))).toEqual([true, true, false]);
   });
 
   it("appends the line to a completion's prompt and stamps its structured value", async () => {

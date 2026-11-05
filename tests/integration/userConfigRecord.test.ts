@@ -43,7 +43,7 @@ function manifestOf(run: PlanRun, phaseId: string): Record<string, unknown> {
 }
 
 describe("ac-record", () => {
-  it.fails(
+  it(
     "a claude-code phase record says userConfig excluded and a codex-cli one says loaded, both at 0.34.0",
     { timeout: 60_000 },
     async () => {

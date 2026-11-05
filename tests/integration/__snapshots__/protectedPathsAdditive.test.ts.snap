@@ -7,6 +7,8 @@ exports[`a phase on claude-code in a project that declares no protectedPaths > k
     "--output-format",
     "stream-json",
     "--verbose",
+    "--setting-sources",
+    "project",
     "--permission-mode",
     "acceptEdits",
     "--allowedTools",
@@ -22,6 +24,8 @@ exports[`a phase on claude-code in a project that declares no protectedPaths > k
     "--output-format",
     "stream-json",
     "--verbose",
+    "--setting-sources",
+    "project",
     "--permission-mode",
     "acceptEdits",
     "--allowedTools",
@@ -39,6 +43,8 @@ exports[`a phase on claude-code in a project that declares no protectedPaths > k
     "--output-format",
     "stream-json",
     "--verbose",
+    "--setting-sources",
+    "project",
     "--permission-mode",
     "acceptEdits",
     "--allowedTools",
@@ -56,9 +62,15 @@ exports[`a phase on claude-code in a project that declares no protectedPaths > k
 
 exports[`a phase on claude-code in a project that declares no protectedPaths > keeps its argv, environment, prompts, gate logs and output > environment phax adds 1`] = `
 [
-  {},
-  {},
-  {},
+  {
+    "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1",
+  },
+  {
+    "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1",
+  },
+  {
+    "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1",
+  },
 ]
 `;
 

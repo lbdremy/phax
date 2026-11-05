@@ -173,9 +173,12 @@ describe("writeRecord", () => {
     expect(manifest).toMatchObject({ runId: "run-1", phaseId: "phase-01" });
   });
 
-  it.each(["claude-code", "codex-cli"] as const)(
-    "stamps a %s phase record 0.34.0 and says userConfig loaded right after provider",
-    async (provider) => {
+  it.each([
+    { provider: "claude-code", userConfig: "excluded" },
+    { provider: "codex-cli", userConfig: "loaded" },
+  ] as const)(
+    "stamps a $provider phase record 0.34.0 and says userConfig $userConfig right after provider",
+    async ({ provider, userConfig }) => {
       await seedPhaseFolder({ "prompt.md": "p\n" });
 
       await run(writeRecord(baseInput({ provider })));
@@ -186,9 +189,9 @@ describe("writeRecord", () => {
       );
       const keys = Object.keys(manifest);
       expect(keys[keys.indexOf("provider") + 1]).toBe("userConfig");
-      expect(manifest).toMatchObject({ provider, userConfig: "loaded" });
+      expect(manifest).toMatchObject({ provider, userConfig });
       const text = git(["show", `${RECORDS_BRANCH_NAME}:run-1/phase-01/record.json`], repoDir);
-      expect(text).toContain('"userConfig": "loaded"');
+      expect(text).toContain(`"userConfig": "${userConfig}"`);
     },
   );
 
