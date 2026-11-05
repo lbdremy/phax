@@ -12,11 +12,16 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { buildArgs } from "../../src/infra/providers/claudeCode.js";
+import {
+  CLAUDE_PROJECT_ONLY_FLAGS,
+  projectOnlyEnvironment,
+} from "../../src/domain/session/claudeProjectOnly.js";
 import type { SecurityPolicy } from "../../src/domain/security/types.js";
 import { probeProvider } from "./helpers/providers.js";
 
-// Guards the Claude Code behavior the skill edit grant relies on: a
-// PermissionRequest hook scoped by an `if` rule lets a headless acceptEdits
+// ac-skill-grant: guards the Claude Code behavior the skill edit grant relies
+// on, under the project-only launch phax uses (`--setting-sources project`
+// and auto-memory off): a PermissionRequest hook scoped by an `if` rule lets a headless acceptEdits
 // session write exactly the granted `.claude/skills/**` files, while other
 // protected-path writes stay denied. Opt-in like realFlow (PHAX_E2E_RUN=1).
 const shouldRun = process.env["PHAX_E2E_RUN"] === "1" && probeProvider("claude");
@@ -61,7 +66,7 @@ function toolTrace(stdout: string): string {
   return lines.join("\n");
 }
 
-describe.skipIf(!shouldRun)("claude-code skill edit grant (real provider)", () => {
+describe.skipIf(!shouldRun)("ac-skill-grant: claude-code skill edit grant, project-only", () => {
   let repoDir: string;
 
   beforeAll(() => {
@@ -97,6 +102,9 @@ describe.skipIf(!shouldRun)("claude-code skill edit grant (real provider)", () =
       skillEditGrants: [FOO, NEW],
     });
 
+    // The launch under test is phax's: the flag in the argv, the switch in the environment.
+    expect(args.join(" ")).toContain(CLAUDE_PROJECT_ONLY_FLAGS.join(" "));
+
     const prompt = [
       "Do exactly these three file operations, one after another, and continue even if one is denied:",
       `1. Use the Edit tool on ${FOO}: replace the exact text "# original" with "# foo edited".`,
@@ -110,6 +118,7 @@ describe.skipIf(!shouldRun)("claude-code skill edit grant (real provider)", () =
       input: prompt,
       encoding: "utf8",
       timeout: 300_000,
+      env: projectOnlyEnvironment(process.env),
     });
     expect(result.status, result.stderr).toBe(0);
 
