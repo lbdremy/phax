@@ -1,49 +1,10 @@
-import { spawnSync } from "node:child_process";
-import { Either } from "effect";
+// `shell` answers through the command runner (src/cli/definitions/sessions.ts). This run function is
+// kept, until the last plan of command-contracts, as the definition's run and render over the
+// OutputPort, for the tests that call it.
 import type { OutputPort } from "../../ports/output.js";
-import { loadConfig } from "../../app/loadConfig.js";
-import { resolveRunRef } from "../../app/resolveRunRef.js";
-import type { RunReviewInfo } from "../../app/resolveRunInfo.js";
-import { runKey } from "../../domain/runRef.js";
-import { effectiveStateRoot } from "../../app/projectContext.js";
+import { runThroughOutput } from "../bridge.js";
+import { makeShellCommand } from "../definitions/sessions.js";
 
-function shellIntoRun(info: RunReviewInfo, qualifiedName: string, out: OutputPort): number {
-  if (!info.worktreePath) {
-    out.error(`No worktree path found for run "${qualifiedName}".`);
-    return 1;
-  }
-
-  const shellBin = process.env["SHELL"] ?? "bash";
-  out.log(`Opening shell in ${info.worktreePath}`);
-
-  const result = spawnSync(shellBin, [], {
-    cwd: info.worktreePath,
-    stdio: "inherit",
-  });
-
-  if (result.error) {
-    out.error(`Failed to launch shell: ${result.error.message}`);
-    return 1;
-  }
-
-  return result.status ?? 0;
-}
-
-export async function runShell(shortNameArg: string, out: OutputPort): Promise<number> {
-  const configResult = loadConfig(process.cwd());
-  const config = Either.isRight(configResult) ? configResult.right : undefined;
-  const stateRoot = effectiveStateRoot(config);
-
-  const resolveResult = resolveRunRef(shortNameArg, config, stateRoot);
-  if (Either.isLeft(resolveResult)) {
-    out.error(resolveResult.left.message);
-    return 1;
-  }
-  const { namespace, shortName, info, crossProject } = resolveResult.right;
-  const qualifiedName = runKey(namespace, shortName);
-  if (crossProject) {
-    out.log(`Target: ${qualifiedName}`);
-  }
-
-  return shellIntoRun(info, qualifiedName, out);
+export function runShell(shortNameArg: string, out: OutputPort): Promise<number> {
+  return runThroughOutput(makeShellCommand(), { args: [shortNameArg] }, out, { lineByLine: true });
 }

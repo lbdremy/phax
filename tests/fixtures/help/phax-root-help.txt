@@ -14,12 +14,12 @@ Options:
 Commands:
   validate [options]                             Validate phax.json and its user overlays without any side effects; pass --plan to also validate a phax-plan.json
   unlock [options] <short-name>                  Remove a stale run lock; use --force to remove any lock
-  enter <short-name>                             Resume the final phase's agent session interactively
+  enter [options] <short-name>                   Resume the final phase's agent session interactively
   enter-phase [options] <short-name> <phase-id>  Resume a specific phase's agent session interactively
   session-info [options] <short-name>            Print session diagnostics for a run (state, phase, worktree, session id)
-  shell <short-name>                             Open a shell in the final worktree
+  shell [options] <short-name>                   Open a shell in the final worktree
   path [options] <short-name>                    Print the final worktree path (script-friendly, one line)
-  open <short-name>                              Open the final worktree in the configured editor
+  open [options] <short-name>                    Open the final worktree in the configured editor
   ls [options]                                   List runs from the registry
   archive [options] <short-name>                 Archive a run that is not running; --force is required for an unfinished run
   prune [options] [short-name...]                Delete archived runs of the current namespace for real, freeing their names and disk space

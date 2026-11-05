@@ -31,42 +31,9 @@ export const cliDocs: Readonly<Record<string, CliDocEntry>> = {
     ],
   },
 
-  enter: {
-    longHelp:
-      "Attaches to the kept-open agent session in the final worktree, so you can review the agent's work, ask follow-up questions, or apply manual fixes interactively.",
-    examples: ["phax enter usage-cli"],
-  },
-
-  "enter-phase": {
-    longHelp:
-      "Continues a phase's agent session interactively in the phase's worktree: claude-code with `claude --resume` and codex with `codex resume`; mistral-vibe has no verified interactive resume. The session carries the phase's own filesystem, network and MCP posture, rebuilt from its security.json; a phase whose security.json cannot be read is refused rather than opened unconfined. Useful for inspecting intermediate state or debugging a phase that has not yet been committed to main.\n\nAt the stopped phase of a run in awaiting_review, it continues the stop's current session, or starts a fresh session with the stop's fresh-start command when no session is current or the provider's resume is unverified. --new-session first runs a new read-only first turn there under the run lock, makes its session current (keeping the earlier ones in interactive-session.json) and refreshes review-stop.json; a held lock refuses it with exit 7. A turn that fails or is refused leaves the previous session current. Once the run's close has started, enter-phase refuses the stopped phase until the close ends. At a held stop the current session is the builder's own, continued by default; --new-session starts a read-only look in a fresh session and refreshes only the session and the continue command of review-stop.json. --new-session on a phase that is not stopped is refused with exit 1.",
-    examples: [
-      "phax enter-phase usage-cli phase-02",
-      "phax enter-phase usage-cli phase-03 --new-session",
-    ],
-  },
-
-  shell: {
-    longHelp:
-      "Opens an interactive shell in the final worktree. Useful for manually inspecting files, running tests, or executing commands outside the agent session. For a run in awaiting_review it opens the stopped phase's worktree.",
-    examples: ["phax shell usage-cli"],
-  },
-
-  open: {
-    longHelp:
-      "Opens the final worktree in the editor configured in phax.json (or the EDITOR environment variable). Equivalent to running your editor with the worktree path as an argument. For a run in awaiting_review it opens the stopped phase's worktree.",
-    examples: ["phax open usage-cli"],
-  },
-
   "reset-phase": {
     longHelp:
       "Resets a stuck or failed phase: its folder is archived, its worktree and branch are removed, and the run becomes resumable so phax resume starts the phase over. Without --yes it first previews what the reset would discard.\n\nA run in awaiting_review (stopped at a declared interactive phase or a held one) can reset only the stopped phase: the preview lists the uncommitted corrections in its worktree and the person's .phax-context/correction-handoff.md when it exists, the reset discards review-stop.json, and phax resume then runs the phase again from the start, first turn included. At a held stop the preview names the phase commit it discards, and the phase is held again when it commits. A phase of an acceptance pair whose closed stop ran the authored step is not reset once the pair's passing phase has started, like the acceptance phase itself: the passing phase judges the pair's latest authored commit. An earlier phase is committed work the stop sits on, and a later one has not started, so both are refused.\n\nThe reset takes the run lock: while a run, a resume or an enter-phase --new-session turn holds it, the reset is refused with exit 7 and nothing changes.",
     examples: ["phax reset-phase usage-cli", "phax reset-phase usage-cli phase-02 --yes"],
-  },
-
-  "adjust-plan": {
-    longHelp:
-      "Opens an interactive, pre-prompted session to help you adjust a plan.md after a landed run has introduced drift. The session establishes which of the plan's declared files, line references, and decisions are invalidated by the landed run's actual changes, asks clarifying questions where needed, proposes concrete edits and waits for your explicit approval, and only then edits and commits the plan — all interactively within the session. The command itself mutates nothing.\n\nInput: the path to the plan.md to adjust and --landed <run> (the run whose actual changes drive the adjustment). The landed run must have a global-file-reconciliation.json (i.e. it must have reached review); a run in awaiting_review is refused until it lands. Re-invocation without --new-session resumes the same session; --new-session starts a fresh one.\n\nSide effects: spawns a long-lived interactive provider session (network I/O); the session may, after developer approval, edit and commit the plan.md.",
-    examples: ["phax adjust-plan docs/plans/2609101030-plan-prune-plan.md --landed my-feature"],
   },
 };

@@ -89,7 +89,7 @@ Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 ## `phax enter`
 
-- **Usage**: `phax enter <short-name>`
+- **Usage**: `phax enter [--json] <short-name>`
 
 Attaches to the kept-open agent session in the final worktree, so you can review the agent's work, ask follow-up questions, or apply manual fixes interactively.
 
@@ -99,6 +99,12 @@ Attaches to the kept-open agent session in the final worktree, so you can review
 
 Run short name, e.g. usage-cli
 
+### Flags
+
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
+
 ### Examples
 
 ```
@@ -107,7 +113,7 @@ phax enter usage-cli
 
 ## `phax enter-phase`
 
-- **Usage**: `phax enter-phase [--new-session] <short-name> <phase-id>`
+- **Usage**: `phax enter-phase [--new-session] [--json] <short-name> <phase-id>`
 
 Continues a phase's agent session interactively in the phase's worktree: claude-code with `claude --resume` and codex with `codex resume`; mistral-vibe has no verified interactive resume. The session carries the phase's own filesystem, network and MCP posture, rebuilt from its security.json; a phase whose security.json cannot be read is refused rather than opened unconfined. Useful for inspecting intermediate state or debugging a phase that has not yet been committed to main.
 
@@ -128,6 +134,10 @@ Phase identifier, e.g. phase-02
 #### `--new-session`
 
 At a stopped phase, run a new read-only first turn and continue its session
+
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 ### Examples
 
@@ -173,7 +183,7 @@ phax session-info usage-cli --debug
 
 ## `phax shell`
 
-- **Usage**: `phax shell <short-name>`
+- **Usage**: `phax shell [--json] <short-name>`
 
 Opens an interactive shell in the final worktree. Useful for manually inspecting files, running tests, or executing commands outside the agent session. For a run in awaiting_review it opens the stopped phase's worktree.
 
@@ -182,6 +192,12 @@ Opens an interactive shell in the final worktree. Useful for manually inspecting
 #### `<short-name>`
 
 Run short name, e.g. usage-cli
+
+### Flags
+
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 ### Examples
 
@@ -219,7 +235,7 @@ cd $(phax path usage-cli)
 
 ## `phax open`
 
-- **Usage**: `phax open <short-name>`
+- **Usage**: `phax open [--json] <short-name>`
 
 Opens the final worktree in the editor configured in phax.json (or the EDITOR environment variable). Equivalent to running your editor with the worktree path as an argument. For a run in awaiting_review it opens the stopped phase's worktree.
 
@@ -228,6 +244,12 @@ Opens the final worktree in the editor configured in phax.json (or the EDITOR en
 #### `<short-name>`
 
 Run short name, e.g. usage-cli
+
+### Flags
+
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 ### Examples
 
@@ -662,6 +684,10 @@ Override the model (default: claude-opus-5-5)
 #### `--effort <effort>`
 
 Override the effort (low | medium | high)
+
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 ### Examples
 

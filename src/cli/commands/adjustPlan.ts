@@ -1,29 +1,11 @@
-import { Effect, Either, Layer } from "effect";
-import { readFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+// `adjust-plan` answers through the command runner (src/cli/definitions/adjustPlan.ts). This run
+// function is kept, until the last plan of command-contracts, as the definition's run and render
+// over the OutputPort, for the tests that call it.
 import type { OutputPort } from "../../ports/output.js";
-import { loadConfig } from "../../app/loadConfig.js";
-import { resolveRunRef } from "../../app/resolveRunRef.js";
-import { runKey } from "../../domain/runRef.js";
-import { effectiveStateRoot } from "../../app/projectContext.js";
-import { readAgentBinding } from "../../app/agentBinding.js";
-import { landedRunRefusal, prepareAdjustPlanSession } from "../../app/adjustPlan.js";
-import { makeProviderBackendLayer, makeRepoRootedFileSystemLayer } from "./runLayers.js";
-import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
-import { makeNodeSessionLayer } from "../../infra/session.js";
-import { Session } from "../../ports/session.js";
-import { DEFAULT_PROVIDER_CONFIG } from "../../domain/routing/defaults.js";
+import { runThroughOutput } from "../bridge.js";
+import { makeAdjustPlanCommand } from "../definitions/adjustPlan.js";
 
-const VALID_EFFORT_VALUES = ["low", "medium", "high"] as const;
-type ValidEffort = (typeof VALID_EFFORT_VALUES)[number];
-
-function isValidEffort(value: string): value is ValidEffort {
-  return (VALID_EFFORT_VALUES as readonly string[]).includes(value);
-}
-
-// cheaper per token than Opus 5, scores above Fable 5.1 from medium effort up
-export const DEFAULT_MODEL = "claude-opus-5-5";
-export const DEFAULT_EFFORT: ValidEffort = "high";
+export { DEFAULT_EFFORT, DEFAULT_MODEL } from "../definitions/adjustPlan.js";
 
 export interface AdjustPlanCommandOptions {
   readonly landed: string;
@@ -33,120 +15,23 @@ export interface AdjustPlanCommandOptions {
   readonly verbose?: boolean;
 }
 
-export async function runAdjustPlan(
+export function runAdjustPlan(
   planPathArg: string,
   opts: AdjustPlanCommandOptions,
   out: OutputPort,
 ): Promise<number> {
-  const configResult = loadConfig(process.cwd());
-  if (Either.isLeft(configResult)) {
-    out.error(`Config error: ${configResult.left.message}`);
-    return 1;
-  }
-  const config = configResult.right;
-
-  if (opts.effort !== undefined && !isValidEffort(opts.effort)) {
-    out.error(
-      `Invalid --effort value "${opts.effort}". Allowed values: ${VALID_EFFORT_VALUES.join(" | ")}`,
-    );
-    return 1;
-  }
-
-  const effectiveModel = opts.model ?? DEFAULT_MODEL;
-  const effectiveEffort: ValidEffort = opts.effort !== undefined ? opts.effort : DEFAULT_EFFORT;
-
-  const stateRoot = effectiveStateRoot(config);
-  const resolveResult = resolveRunRef(opts.landed, config, stateRoot);
-  if (Either.isLeft(resolveResult)) {
-    out.error(resolveResult.left.message);
-    return 1;
-  }
-  const { namespace, shortName, info, crossProject } = resolveResult.right;
-  const qualifiedName = runKey(namespace, shortName);
-  if (crossProject) {
-    out.log(`Target: ${qualifiedName}`);
-  }
-
-  const notLanded = landedRunRefusal(qualifiedName, info.runState);
-  if (notLanded !== null) {
-    out.error(notLanded);
-    return 1;
-  }
-
-  let planMarkdown: string;
-  // Resolve explicitly against cwd here, at the command layer, rather than
-  // relying on readFile to do it implicitly.
-  const resolvedPlanPath = resolve(process.cwd(), planPathArg);
-  try {
-    planMarkdown = await readFile(resolvedPlanPath, "utf8");
-  } catch {
-    out.error(`Cannot read plan.md at "${planPathArg}": file not found or not readable.`);
-    return 1;
-  }
-
-  const phaseFolderPath = join(info.runPath, info.finalPhaseId);
-  const bindingResult = await readAgentBinding(phaseFolderPath);
-  if (Either.isLeft(bindingResult)) {
-    out.error(`No agent binding found for run "${qualifiedName}": ${bindingResult.left}`);
-    return 1;
-  }
-  const binding = bindingResult.right;
-
-  const nodeLayer = Layer.mergeAll(
-    makeProviderBackendLayer(DEFAULT_PROVIDER_CONFIG),
-    makeRepoRootedFileSystemLayer(config),
-    NoopSystemTelemetryLayer,
-  );
-
-  const prepareEffect = prepareAdjustPlanSession({
-    planPath: planPathArg,
-    planMarkdown,
-    runPath: info.runPath,
-    runKey: qualifiedName,
-    provider: binding.provider,
-    cwd: process.cwd(),
-    extract: {
-      model: config.extractPlanModel,
-      effort: config.extractPlanEffort,
-      stateRoot,
+  return runThroughOutput(
+    makeAdjustPlanCommand(),
+    {
+      args: [planPathArg],
+      flags: {
+        landed: opts.landed,
+        ...(opts.newSession !== undefined ? { newSession: opts.newSession } : {}),
+        ...(opts.model !== undefined ? { model: opts.model } : {}),
+        ...(opts.effort !== undefined ? { effort: opts.effort } : {}),
+      },
     },
-    newSession: opts.newSession ?? false,
-    nowIso: new Date().toISOString(),
-    ...(opts.model !== undefined ? { modelOverride: opts.model } : {}),
-    ...(opts.effort !== undefined ? { effortOverride: opts.effort } : {}),
-    model: effectiveModel,
-    effort: effectiveEffort,
-  }).pipe(Effect.provide(nodeLayer));
-
-  const prepareResult = await Effect.runPromise(Effect.either(prepareEffect));
-  if (Either.isLeft(prepareResult)) {
-    out.error(`Unexpected error during adjust-plan preparation: ${prepareResult.left.message}`);
-    return 1;
-  }
-
-  const result = prepareResult.right;
-
-  if (result.kind === "unsupported" || result.kind === "refused") {
-    out.error(result.message);
-    return 1;
-  }
-
-  const { invocation, mode } = result;
-  if (mode === "new") {
-    out.log(`Starting plan adjustment session in ${invocation.cwd}`);
-  } else {
-    out.log(`Resuming plan adjustment session in ${invocation.cwd}`);
-  }
-
-  const sessionEffect = Effect.gen(function* () {
-    const s = yield* Session;
-    return yield* s.resume({ ...invocation, env: {} });
-  }).pipe(Effect.provide(makeNodeSessionLayer()));
-
-  const sessionResult = await Effect.runPromise(Effect.either(sessionEffect));
-  if (Either.isLeft(sessionResult)) {
-    out.error(`Failed to launch ${invocation.executable}: ${sessionResult.left.message}`);
-    return 1;
-  }
-  return sessionResult.right;
+    out,
+    { lineByLine: true },
+  );
 }

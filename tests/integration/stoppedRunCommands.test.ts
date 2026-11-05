@@ -1,12 +1,4 @@
-import {
-  chmodSync,
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { execFileSync, spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -196,11 +188,8 @@ describe("phax ls and phax session-info on a waiting run", () => {
 describe("phax path, shell and open on a waiting run", () => {
   it("target the stopped phase's worktree", async () => {
     const run = await stopRun(world);
-    // A fake shell that records the directory it was started in.
-    const recorded = join(world.root, "shell-cwd.txt");
+    // `shell` hands $SHELL to the Session port, which this file replaces with the fake session.
     const script = join(world.root, "fake-shell.sh");
-    writeFileSync(script, `#!/bin/sh\npwd -P > "${recorded}"\n`);
-    chmodSync(script, 0o755);
     vi.stubEnv("SHELL", script);
 
     const { runPath } = await import("../../src/cli/commands/path.js");
@@ -212,7 +201,9 @@ describe("phax path, shell and open on a waiting run", () => {
     expect(pathOut.logs).toEqual([run.worktree]);
 
     expect(await runShell(run.shortName, makeOutput().out)).toBe(0);
-    expect(readFileSync(recorded, "utf8").trim()).toBe(run.worktree);
+    expect(fakeSession.impl.invocations).toEqual([
+      { executable: script, args: [], cwd: run.worktree, env: {} },
+    ]);
 
     expect(await runOpen(run.shortName, makeOutput().out)).toBe(0);
     expect(fakeEditor.impl.openCalls).toEqual([run.worktree]);
