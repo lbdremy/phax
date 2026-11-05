@@ -40,7 +40,7 @@ Both commands are already in `security.agentCommands` in phax.json: `pnpm gen:us
 - Tests. The run and resume family, whose streams, verdicts and progress the spec states (ac-error-sentence's resume case, ac-progress), gets an acceptance pair: phase-04, passed by phase-05. It runs through the runner's memory Io over the definition factories with fake layers and a real lock file held by the test's own pid. Every acceptance test carries its own `.fails` marker on its own `it`, fails on its own assertion against phase-04's stubs, and is changed by the passing phase only by removing that marker. The other families add their --json, error-sentence, written-file and prompting tests in the phase that moves them. Plan 2's tests/unit/cli/runnerCommandContracts.test.ts covers each command's --json-schema, --help and undeclared option as it joins phaxProgram. Phase-07 adds the every-command table: each command of `phax --usage` has a row, or names the family test that proves it with fakes, and the table fails on a command with neither. Existing tests keep their assertions, except where --json is new, a harness is a deleted registration or run function (as q-kept-run-functions decides), or the spec changes an answer. Each such change is named in the phase's handoff and in docs/upgrading.md. Loss accepted: the other families' tests are written with the code, not frozen before it.
 - Docs. Each moving phase adds one bullet to docs/upgrading.md's 0.34.0 entry, naming each change a person or a script can observe. That includes new --json answers, refusals of prompting calls under --json, the retired `--skip-oracle` exit, the `[options]` terms in root help, note lines under --json, and what the open questions decide. It never says a moved command is unchanged. Phase-09 adds the bullet for the program itself, and phase-10 writes the page reference/json-output (§11) and links it from the docs site's map (site/pages.ts).
 
-## Open questions
+## Arbitrated questions
 
 ### q-run-pauses — A run that pauses (rate or usage limit 8, network 14, a handoff turn 5 or 14, gates exhausted or a gate step refused 4, a phase with no changes 9, and on resume a refused close 1, 4, 5, 8 or 14) persists its state, writes everything on stderr today and exits with that code. What do run and resume answer for a pause?
 
@@ -49,12 +49,18 @@ Both commands are already in `security.agentCommands` in phax.json: `pnpm gen:us
 
 Recommendation: pause-verdicts — A paused run is a resumable state with a known next command, the outcome an agent most needs to read. As a verdict it answers on stdout like review_open and stopped, through the same outcome contract. The empty-render gain phase-01 adds is needed anyway (resume's already-in-review answer writes nothing on stdout today), and the shared codes were never unambiguous: today an exit 5 is already either a failed handoff turn or a failed invocation.
 
+Decision: pause-verdicts — by operator (Rémy Loubradou), 2026-11-05
+Why: A paused run is a resumable state with a known next command, the outcome an agent most needs to read. As a verdict it answers on stdout like review_open and stopped, through the same outcome contract. The empty-render gain phase-01 adds is needed anyway (resume's already-in-review answer writes nothing on stdout today), and the shared codes were never unambiguous: today an exit 5 is already either a failed handoff turn or a failed invocation. Advocate: The strongest case for pause-errors: a pause with code 1, 4, 5, 8 or 14 is indistinguishable by its code from a declared failure of the same command, and an error line is the one place a script already looks to learn why a call did not succeed, so keeping every non-success outcome an error leaves the code's meaning unambiguous and stdout reserved for success. Principles: C3, C5. Reversibility: costly. Revised: none. Phase: phase-05.
+
 ### q-session-exit — `enter`, `enter-phase`, `shell`, `review-code` (interactive) and `adjust-plan` exit with the code of the process they handed the terminal to, any of 0 to 255, 64 and 70 included. The runner exits only declared codes, and §5.10 forbids a command declaring the `defect` code. How do these commands keep the code?
 
 - pass-through — A port gain, `handsOver`: the command's output names the exit of the process it handed the terminal to, and the runner exits that code after the render, whatever it is; the catalogue marks the entry as handing over; the gain applies only without --json, since each of these commands declares `prompts` and is refused under it — abandons: the rule that every code a command exits with is declared and means one thing: a session that exits 64 or 70 reads to a script as a refused call or a phax defect, as it does today
 - verdict-table — Declare every code 1 to 255 except 64 and 70 as a verdict read from the output's exit, and answer a session's 64 or 70 with 1 — abandons: today's code for a session that exits 64 or 70, which §7 and the brief's no-new-code rule keep, and a catalogue entry listing 253 verdicts per command
 
 Recommendation: pass-through — These commands are a door to another process, and their code has always been that process's. Under --json they are refused before anything starts, so only a person at a terminal ever sees the passed-through code. A verdict table would change two codes and bury each catalogue entry under hundreds of verdicts.
+
+Decision: pass-through — by operator (Rémy Loubradou), 2026-11-05
+Why: These commands are a door to another process, and their code has always been that process's. Under --json they are refused before anything starts, so only a person at a terminal ever sees the passed-through code. A verdict table would change two codes and bury each catalogue entry under hundreds of verdicts. Advocate: The strongest case for verdict-table: every code a command exits with stays declared and means one thing, so a session exiting 64 or 70 can never be mistaken for a refused call or a phax defect, and the runner needs no new gain for a single family of commands. Principles: C1, E0. Reversibility: costly. Revised: none. Phase: phase-01.
 
 ### q-local-trace-flags — `resume` and `reset-phase` each declare their own `--verbose` and `--trace` in phax.usage.kdl today, as `security` did before q-security-bare. On the runner `--verbose` and `--trace` are the program's options, read anywhere in the call. What do the two commands declare?
 
@@ -63,12 +69,25 @@ Recommendation: pass-through — These commands are a door to another process, a
 
 Recommendation: drop-local — q-security-bare already settled this for `security`. `phax resume x --yes --verbose` still works and the skills keep working, and the four declarations only ever restated the root's global flags. Keeping them would widen the contract with a redundant gain.
 
+Decision: drop-local — by operator (Rémy Loubradou), 2026-11-05
+Why: q-security-bare already settled this for `security`. `phax resume x --yes --verbose` still works and the skills keep working, and the four declarations only ever restated the root's global flags. Keeping them would widen the contract with a redundant gain. Advocate: The strongest case for redeclare: the usage spec keeps declaring exactly what each command declared before, four declarations included, so §5.21 holds without an allowlist exception and shell completion for `resume --` and `reset-phase --` still offers both flags. Principles: C1, E0. Reversibility: cheap. Revised: none. Phase: phase-05.
+
 ### q-kept-run-functions — Plans 1 to 4 keep a run function per moved command (runLs, runResume, runEnterPhase, …), each a `runThroughOutput` composition over an OutputPort, and about forty test files call them, some asserting a line as `out.warn` rather than `out.error`. When the bridge goes, where do those tests run?
 
 - runner-harness — Move every such test onto the runner: tests/helpers/runnerCall.ts runs the command's definition over the memory Io, and the test asserts stdout, stderr and the code; an assertion that told a warning from an error asserts the same text on stderr, each named in the handoff; the run functions and runThroughOutput are deleted — abandons: assertions unchanged for every test that told `out.warn` from `out.error`: both are stderr on the runner, so that split is no longer asserted, and phases 06 and 07 rewrite the harness of about forty files
 - output-harness — Move runThroughOutput and the run functions into tests/helpers/ unchanged, so the tests change only their import path and src/ holds none of them — abandons: the tests' proof of the real streams: they keep passing through a second, test-only runner that reimplements verdicts, documents, checks and notes over an OutputPort, which can drift from the runner phax actually runs
 
 Recommendation: runner-harness — The runner is what a person and an agent meet. A test that passes through a reimplementation of it proves nothing about the streams §5.4 and the brief's first lesson are about, and the warn/error split it would keep is not observable outside the process. The rewrite is mechanical, split over two Sonnet phases, and each changed assertion is named.
+
+Decision: runner-harness — by operator (Rémy Loubradou), 2026-11-05
+Why: The runner is what a person and an agent meet. A test that passes through a reimplementation of it proves nothing about the streams §5.4 and the brief's first lesson are about, and the warn/error split it would keep is not observable outside the process. The rewrite is mechanical, split over two Sonnet phases, and each changed assertion is named. Advocate: The strongest case for output-harness: about forty test files change only an import path and keep every assertion, the warn/error split included, so the move is cheap to review and no assertion is weakened, while src/ still ends with no run functions. Principles: C4, C1. Reversibility: cheap. Revised: none. Phase: phase-06.
+
+## Decision log
+
+- 2026-11-05 q-run-pauses decided pause-verdicts — operator (Rémy Loubradou)
+- 2026-11-05 q-session-exit decided pass-through — operator (Rémy Loubradou)
+- 2026-11-05 q-local-trace-flags decided drop-local — operator (Rémy Loubradou)
+- 2026-11-05 q-kept-run-functions decided runner-harness — operator (Rémy Loubradou)
 
 ---
 
