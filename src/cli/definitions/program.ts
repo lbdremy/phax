@@ -31,6 +31,8 @@ import { initCommand } from "./init.js";
 import { publishPrCommand } from "./publishPr.js";
 import { pruneCommand } from "./prune.js";
 import { reviewCodeCommand, reviewComplianceCommand, reviewHandoffCommand } from "./review.js";
+import { adjustPlanCommand } from "./adjustPlan.js";
+import { enterCommand, enterPhaseCommand, openCommand, shellCommand } from "./sessions.js";
 import { unlockCommand } from "./unlock.js";
 
 /** The options every phax command takes, wherever they stand in the call, with today's help. */
@@ -64,8 +66,12 @@ export const phaxProgram = defineProgram({
   commands: [
     validateCommand,
     unlockCommand,
+    enterCommand,
+    enterPhaseCommand,
     sessionInfoCommand,
+    shellCommand,
     pathCommand,
+    openCommand,
     lsCommand,
     archiveCommand,
     pruneCommand,
@@ -79,6 +85,7 @@ export const phaxProgram = defineProgram({
     publishPrCommand,
     reviewComplianceCommand,
     reviewCodeCommand,
+    adjustPlanCommand,
     agentGroup,
     securityGroup,
     skillsGroup,

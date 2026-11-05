@@ -4,11 +4,6 @@ import { isInPhaseWorktree } from "../app/loadConfig.js";
 import { phaseGuardRefusal } from "../domain/security/phaseGuard.js";
 import { cliDocs } from "./cliDocs.js";
 import { readPackageVersion, runUsageFlagAndExit } from "./commands/usage.js";
-import { runEnter } from "./commands/enter.js";
-import { runEnterPhase } from "./commands/enterPhase.js";
-import { runShell } from "./commands/shell.js";
-import { runOpen } from "./commands/open.js";
-import { runAdjustPlan } from "./commands/adjustPlan.js";
 import { runRun } from "./commands/run.js";
 import { runResume } from "./commands/resume.js";
 import { registerResumeCommand } from "./commands/resumeRegister.js";
@@ -74,50 +69,16 @@ export function buildProgram(): Command {
   // `unlock` answers through the runner: its help-only stub, in place.
   mountRunnerStub(program, phaxProgram, ["unlock"]);
 
-  program
-    .command("enter")
-    .description("Resume the final phase's agent session interactively")
-    .argument("<short-name>", "Run short name, e.g. usage-cli")
-    .action(async (shortName: string) => {
-      const exitCode = await runEnter(shortName, consoleOutput);
-      process.exit(exitCode);
-    });
-
-  program
-    .command("enter-phase")
-    .description("Resume a specific phase's agent session interactively")
-    .argument("<short-name>", "Run short name, e.g. usage-cli")
-    .argument("<phase-id>", "Phase identifier, e.g. phase-02")
-    .option(
-      "--new-session",
-      "At a stopped phase, run a new read-only first turn and continue its session",
-    )
-    .action(async (shortName: string, phaseId: string, opts: { newSession?: boolean }) => {
-      const exitCode = await runEnterPhase(shortName, phaseId, consoleOutput, opts);
-      process.exit(exitCode);
-    });
+  mountRunnerStub(program, phaxProgram, ["enter"]);
+  mountRunnerStub(program, phaxProgram, ["enter-phase"]);
 
   mountRunnerStub(program, phaxProgram, ["session-info"]);
 
-  program
-    .command("shell")
-    .description("Open a shell in the final worktree")
-    .argument("<short-name>", "Run short name, e.g. usage-cli")
-    .action(async (shortName: string) => {
-      const exitCode = await runShell(shortName, consoleOutput);
-      process.exit(exitCode);
-    });
+  mountRunnerStub(program, phaxProgram, ["shell"]);
 
   mountRunnerStub(program, phaxProgram, ["path"]);
 
-  program
-    .command("open")
-    .description("Open the final worktree in the configured editor")
-    .argument("<short-name>", "Run short name, e.g. usage-cli")
-    .action(async (shortName: string) => {
-      const exitCode = await runOpen(shortName, consoleOutput);
-      process.exit(exitCode);
-    });
+  mountRunnerStub(program, phaxProgram, ["open"]);
 
   // `ls` answers through the runner: its help-only stub, at its place in the help.
   mountRunnerStub(program, phaxProgram, ["ls"]);
@@ -181,27 +142,7 @@ export function buildProgram(): Command {
 
   mountRunnerStub(program, phaxProgram, ["review-code"]);
 
-  program
-    .command("adjust-plan")
-    .description("Open an interactive session to adjust a plan after a landed run")
-    .argument("<plan>", "Path to the plan.md to adjust")
-    .requiredOption("--landed <run>", "The landed run whose actual changes drive the adjustment")
-    .option("--new-session", "Start a fresh adjustment session instead of resuming")
-    .option("--model <model>", "Override the model (default: claude-opus-5-5)")
-    .option("--effort <effort>", "Override the effort (low | medium | high)")
-    .action(
-      async (
-        plan: string,
-        opts: { landed: string; newSession?: boolean; model?: string; effort?: string },
-      ) => {
-        const exitCode = await runAdjustPlan(
-          plan,
-          { ...opts, ...globalTraceOpts() },
-          consoleOutput,
-        );
-        process.exit(exitCode);
-      },
-    );
+  mountRunnerStub(program, phaxProgram, ["adjust-plan"]);
 
   mountRunnerStub(program, phaxProgram, ["brief"]);
   mountRunnerStub(program, phaxProgram, ["architecture"]);

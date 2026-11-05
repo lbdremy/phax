@@ -243,7 +243,7 @@ describe("route", () => {
       to: "runner",
       command: ["artifact", "new", "spec"],
     });
-    expect(route(phaxProgram, ["enter", "x"])).toEqual({ to: "commander" });
+    expect(route(phaxProgram, ["run", "x"])).toEqual({ to: "commander" });
   });
 
   // Commander reads past these to the command word, and would call the help-only stub's action.
@@ -383,7 +383,7 @@ describe("help on a runner command", () => {
   });
 
   it("leaves `help` on an unmigrated command to Commander", async () => {
-    const call = edge(["help", "enter"]);
+    const call = edge(["help", "run"]);
     await dispatch(phaxProgram, call.edge);
     expect(call.runRunner).not.toHaveBeenCalled();
   });
@@ -547,8 +547,12 @@ describe("the help-only stubs", () => {
       "artifact",
       "validate",
       "unlock",
+      "enter",
+      "enter-phase",
       "session-info",
+      "shell",
       "path",
+      "open",
       "ls",
       "archive",
       "prune",
@@ -562,6 +566,7 @@ describe("the help-only stubs", () => {
       "publish-pr",
       "review-compliance",
       "review-code",
+      "adjust-plan",
       "agent",
       "security",
       "skills",
@@ -843,8 +848,12 @@ describe("runnerUsage", () => {
     expect([...usage.commands.keys()]).toEqual([
       "validate",
       "unlock",
+      "enter",
+      "enter-phase",
       "session-info",
+      "shell",
       "path",
+      "open",
       "ls",
       "archive",
       "prune",
@@ -858,6 +867,7 @@ describe("runnerUsage", () => {
       "publish-pr",
       "review-compliance",
       "review-code",
+      "adjust-plan",
       "agent models",
       "agent resolve",
       "agent probe",

@@ -47,29 +47,19 @@ cmd unlock help="Remove a stale run lock; use --force to remove any lock" {
     arg <short-name> help="Run short name, e.g. usage-cli"
 }
 
-cmd "enter" {
-    help "Resume the final phase's agent session interactively"
-    long_help "Attaches to the kept-open agent session in the final worktree, so you can review the agent's work, ask follow-up questions, or apply manual fixes interactively."
+cmd enter help="Resume the final phase's agent session interactively" long_help="Attaches to the kept-open agent session in the final worktree, so you can review the agent's work, ask follow-up questions, or apply manual fixes interactively." {
     example "phax enter usage-cli"
-    arg "<short-name>" {
-        help "Run short name, e.g. usage-cli"
-    }
+    flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
+    arg <short-name> help="Run short name, e.g. usage-cli"
 }
 
-cmd "enter-phase" {
-    help "Resume a specific phase's agent session interactively"
-    long_help "Continues a phase's agent session interactively in the phase's worktree: claude-code with `claude --resume` and codex with `codex resume`; mistral-vibe has no verified interactive resume. The session carries the phase's own filesystem, network and MCP posture, rebuilt from its security.json; a phase whose security.json cannot be read is refused rather than opened unconfined. Useful for inspecting intermediate state or debugging a phase that has not yet been committed to main.\n\nAt the stopped phase of a run in awaiting_review, it continues the stop's current session, or starts a fresh session with the stop's fresh-start command when no session is current or the provider's resume is unverified. --new-session first runs a new read-only first turn there under the run lock, makes its session current (keeping the earlier ones in interactive-session.json) and refreshes review-stop.json; a held lock refuses it with exit 7. A turn that fails or is refused leaves the previous session current. Once the run's close has started, enter-phase refuses the stopped phase until the close ends. At a held stop the current session is the builder's own, continued by default; --new-session starts a read-only look in a fresh session and refreshes only the session and the continue command of review-stop.json. --new-session on a phase that is not stopped is refused with exit 1."
+cmd enter-phase help="Resume a specific phase's agent session interactively" long_help="Continues a phase's agent session interactively in the phase's worktree: claude-code with `claude --resume` and codex with `codex resume`; mistral-vibe has no verified interactive resume. The session carries the phase's own filesystem, network and MCP posture, rebuilt from its security.json; a phase whose security.json cannot be read is refused rather than opened unconfined. Useful for inspecting intermediate state or debugging a phase that has not yet been committed to main.\n\nAt the stopped phase of a run in awaiting_review, it continues the stop's current session, or starts a fresh session with the stop's fresh-start command when no session is current or the provider's resume is unverified. --new-session first runs a new read-only first turn there under the run lock, makes its session current (keeping the earlier ones in interactive-session.json) and refreshes review-stop.json; a held lock refuses it with exit 7. A turn that fails or is refused leaves the previous session current. Once the run's close has started, enter-phase refuses the stopped phase until the close ends. At a held stop the current session is the builder's own, continued by default; --new-session starts a read-only look in a fresh session and refreshes only the session and the continue command of review-stop.json. --new-session on a phase that is not stopped is refused with exit 1." {
     example "phax enter-phase usage-cli phase-02"
     example "phax enter-phase usage-cli phase-03 --new-session"
-    arg "<short-name>" {
-        help "Run short name, e.g. usage-cli"
-    }
-    arg "<phase-id>" {
-        help "Phase identifier, e.g. phase-02"
-    }
-    flag "--new-session" {
-        help "At a stopped phase, run a new read-only first turn and continue its session"
-    }
+    flag --new-session help="At a stopped phase, run a new read-only first turn and continue its session"
+    flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
+    arg <short-name> help="Run short name, e.g. usage-cli"
+    arg <phase-id> help="Phase identifier, e.g. phase-02"
 }
 
 cmd session-info help="Print session diagnostics for a run (state, phase, worktree, session id)" long_help="Prints diagnostic information about a run: its current state, active phase, worktree path, and agent session id. For a run in awaiting_review it prints the stop's cause, the stopped phase, its worktree, the seed and the current session with the phax enter-phase command that continues it. A held stop reads `headless, committed <short sha>`, and its session is the builder's. Read-only — no side effects." {
@@ -80,13 +70,10 @@ cmd session-info help="Print session diagnostics for a run (state, phase, worktr
     arg <short-name> help="Run short name, e.g. usage-cli"
 }
 
-cmd "shell" {
-    help "Open a shell in the final worktree"
-    long_help "Opens an interactive shell in the final worktree. Useful for manually inspecting files, running tests, or executing commands outside the agent session. For a run in awaiting_review it opens the stopped phase's worktree."
+cmd shell help="Open a shell in the final worktree" long_help="Opens an interactive shell in the final worktree. Useful for manually inspecting files, running tests, or executing commands outside the agent session. For a run in awaiting_review it opens the stopped phase's worktree." {
     example "phax shell usage-cli"
-    arg "<short-name>" {
-        help "Run short name, e.g. usage-cli"
-    }
+    flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
+    arg <short-name> help="Run short name, e.g. usage-cli"
 }
 
 cmd path help="Print the final worktree path (script-friendly, one line)" long_help="Prints the absolute path to the final worktree on a single line. Useful in scripts: cd $(phax path my-run) or for piping to other tools. For a run in awaiting_review it prints the stopped phase's worktree." {
@@ -96,13 +83,10 @@ cmd path help="Print the final worktree path (script-friendly, one line)" long_h
     arg <short-name> help="Run short name, e.g. usage-cli"
 }
 
-cmd "open" {
-    help "Open the final worktree in the configured editor"
-    long_help "Opens the final worktree in the editor configured in phax.json (or the EDITOR environment variable). Equivalent to running your editor with the worktree path as an argument. For a run in awaiting_review it opens the stopped phase's worktree."
+cmd open help="Open the final worktree in the configured editor" long_help="Opens the final worktree in the editor configured in phax.json (or the EDITOR environment variable). Equivalent to running your editor with the worktree path as an argument. For a run in awaiting_review it opens the stopped phase's worktree." {
     example "phax open usage-cli"
-    arg "<short-name>" {
-        help "Run short name, e.g. usage-cli"
-    }
+    flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
+    arg <short-name> help="Run short name, e.g. usage-cli"
 }
 
 cmd ls help="List runs from the registry" long_help="Lists runs from the local registry (~/.phax/runs/). With no filter flags, shows all runs. Use status filters to narrow output: --active (created or running), --failed, --review-open (finished, open for human review), --awaiting-review (stopped at an interactive phase), or --archived. A run waiting at a stop reads awaiting_review (declared) or awaiting_review (held), and its PHASE column names the stopped phase. Use --json for the versioned run list: one run-list document (a $schema and a runs array) whose runs carry qualifiedName, namespace, shortName, state, branch, currentPhase, gateProfile, updatedAt, lockState, recordsPending, archivePath, stop and pullRequest. A value that is unknown is null, stop is the run's review-stop document, or null when the run is not waiting at a stop, and pullRequest is the URL of the pull request phax opened for the run, or null when it opened none." {
@@ -218,29 +202,14 @@ cmd review-code help="Open an interactive, pre-prompted code-review session for 
     arg <short-name> help="Run short name, e.g. usage-cli"
 }
 
-cmd "adjust-plan" {
-    help "Open an interactive session to adjust a plan after a landed run"
-    long_help "Opens an interactive, pre-prompted session to help you adjust a plan.md after a landed run has introduced drift. The session establishes which of the plan's declared files, line references, and decisions are invalidated by the landed run's actual changes, asks clarifying questions where needed, proposes concrete edits and waits for your explicit approval, and only then edits and commits the plan — all interactively within the session. The command itself mutates nothing.\n\nInput: the path to the plan.md to adjust and --landed <run> (the run whose actual changes drive the adjustment). The landed run must have a global-file-reconciliation.json (i.e. it must have reached review); a run in awaiting_review is refused until it lands. Re-invocation without --new-session resumes the same session; --new-session starts a fresh one.\n\nSide effects: spawns a long-lived interactive provider session (network I/O); the session may, after developer approval, edit and commit the plan.md."
+cmd adjust-plan help="Open an interactive session to adjust a plan after a landed run" long_help="Opens an interactive, pre-prompted session to help you adjust a plan.md after a landed run has introduced drift. The session establishes which of the plan's declared files, line references, and decisions are invalidated by the landed run's actual changes, asks clarifying questions where needed, proposes concrete edits and waits for your explicit approval, and only then edits and commits the plan — all interactively within the session. The command itself mutates nothing.\n\nInput: the path to the plan.md to adjust and --landed <run> (the run whose actual changes drive the adjustment). The landed run must have a global-file-reconciliation.json (i.e. it must have reached review); a run in awaiting_review is refused until it lands. Re-invocation without --new-session resumes the same session; --new-session starts a fresh one.\n\nSide effects: spawns a long-lived interactive provider session (network I/O); the session may, after developer approval, edit and commit the plan.md." {
     example "phax adjust-plan docs/plans/2609101030-plan-prune-plan.md --landed my-feature"
-    arg "<plan>" {
-        help "Path to the plan.md to adjust"
-    }
-    flag "--landed" {
-        arg "<run>"
-        required #true
-        help "The landed run whose actual changes drive the adjustment"
-    }
-    flag "--new-session" {
-        help "Start a fresh adjustment session instead of resuming"
-    }
-    flag "--model" {
-        arg "<model>"
-        help "Override the model (default: claude-opus-5-5)"
-    }
-    flag "--effort" {
-        arg "<effort>"
-        help "Override the effort (low | medium | high)"
-    }
+    flag "--landed <run>" help="The landed run whose actual changes drive the adjustment" required=#true
+    flag --new-session help="Start a fresh adjustment session instead of resuming"
+    flag "--model <model>" help="Override the model (default: claude-opus-5-5)"
+    flag "--effort <effort>" help="Override the effort (low | medium | high)"
+    flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
+    arg <plan> help="Path to the plan.md to adjust"
 }
 
 cmd brief help="Ask the configured brief provider for the rules over the given paths and the findings there; with no path, inside a phase, the phase's brief" long_help="Asks the brief provider configured as \"brief\": { \"command\": …, \"push\": … } in phax.json, phax.local.json or ~/.phax/config.json which rules cover the given paths, what fails there and how to fix it. Paths resolve against the current directory, may not exist yet, and must lie inside the working tree; they are sent relative to its root, deduplicated, in the order given. Config is read from the repository's main checkout; the provider runs from the working tree's root, with no shell, one brief request on stdin, and a fixed 60-second limit.\n\nInside a phase worktree, the request is `$schema`, the phase facts copied from .phax-context/brief-request.json (phase, base, terminal, phases), then files: the paths, or null with no path, which asks for the phase's brief (its planned files). Outside a phase, the request is `$schema` and files only, and at least one path is required.\n\nThe provider prints a brief report on stdout: {\"$schema\": \".../brief-report/<release>.json\", \"rules\": [{ rule, files, guide }], \"findings\": [{ id, rule, location, message, related, guide, due }]}. The report must carry its own `$schema` naming brief-report at a release this phax reads. A location is { file, lines }, with lines [start, end] or null; a guide is { summary, read } or null; due is this-phase, later or null. The provider's order is its rank, a key the format does not name is refused, and empty rules and findings lists mean nothing to report. phax checks nothing in the report beyond its shape: a brief informs and never blocks.\n\nPrints the whole report, every rule with its files and guide, then every finding with its location, due, rule, message, related locations and guide, in the provider's order, and exits 0 on any readable report. Exits 1 otherwise: the provider fails, exits non-zero, prints invalid JSON or outruns the limit; the report is refused at $schema or by shape; no brief provider is configured; .phax-context/brief-request.json is not a phase's brief request; no path outside a phase; a path outside the working tree; or no git working tree at all. An invalid config exits 2.\n\nSide effects: runs the brief provider. Inside a phase whose briefs are not yet collected, each pull is recorded as .phax-context/briefs/brief-NN.json, numbered from 01 in call order; outside a phase nothing is written." {
