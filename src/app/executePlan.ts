@@ -1559,6 +1559,7 @@ export function executePlan(
       const phase = plan.phases[i];
       if (phase === undefined) continue;
       const isFinal = i === plan.phases.length - 1;
+      const phaseSteps = selectGateSteps(gateSteps, isFinal);
       const isResumeFromGate = i === startIndex && resumeFromGate;
       const isResumeFromHandoff = i === startIndex && resumeFromHandoff;
       const isResumeFromCommit = i === startIndex && resumeFromCommit;
@@ -2229,7 +2230,7 @@ export function executePlan(
           previousHandoff,
           previousReconciliation,
           reviewCorrections,
-          gateCommands: gateCommandStrings,
+          gateSteps: phaseSteps,
           briefSection,
           acceptanceRole: acceptanceRoleOf(plan.phases, phase.id),
           ...(config.protectedPaths === undefined
@@ -2378,7 +2379,6 @@ export function executePlan(
         // per-attempt file in the phase folder, so numbering continues and no
         // earlier attempt's files are overwritten; each entry gets a fresh fix
         // budget.
-        const phaseSteps = selectGateSteps(gateSteps, isFinal);
         // One request per phase entry, from the base noted when phax created
         // the branch — never re-derived from git — so every attempt, and a
         // resume, hands declaring steps the same facts.

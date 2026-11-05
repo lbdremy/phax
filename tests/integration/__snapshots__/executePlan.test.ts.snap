@@ -84,8 +84,16 @@ Carry out phase-01's made-up instructions.
 - Do not implement excluded scope.
 - Do not move work from future phases into this phase unless required to keep the current phase coherent.
 - If any planned file was not touched or any unplanned (non-optional) file was changed, explain why under "## What the next phase needs to know" in \`phase-handoff.md\`.
-- Run the gate commands again after your changes to verify the gates are satisfied.
-pnpm test
+
+## Gate
+
+After this session ends, phax runs these gate steps, in order:
+
+- local: pnpm test
+
+If a step fails, phax resumes this same session with its output and you fix it here.
+While you work, check each change with the narrowest command that covers it.
+You need not run a whole gate step before finishing: the gate runs it.
 
 ## Required output
 
@@ -252,8 +260,16 @@ Ready to proceed.
 - Do not implement excluded scope.
 - Do not move work from future phases into this phase unless required to keep the current phase coherent.
 - If any planned file was not touched or any unplanned (non-optional) file was changed, explain why under "## What the next phase needs to know" in \`phase-handoff.md\`.
-- Run the gate commands again after your changes to verify the gates are satisfied.
-pnpm test
+
+## Gate
+
+After this session ends, phax runs these gate steps, in order:
+
+- local: pnpm test
+
+If a step fails, phax resumes this same session with its output and you fix it here.
+While you work, check each change with the narrowest command that covers it.
+You need not run a whole gate step before finishing: the gate runs it.
 
 ## Required output
 

@@ -137,7 +137,7 @@ async function promptFor(phaseIndex: number): Promise<string> {
     previousHandoff: await provided(readPreviousHandoff(runPath, phases, phaseIndex)),
     previousReconciliation: await provided(readPreviousReconciliation(runPath, phases, phaseIndex)),
     reviewCorrections: await provided(readReviewCorrections(runPath, phases, phaseIndex, statuses)),
-    gateCommands: ["pnpm test"],
+    gateSteps: [{ command: "pnpm test", surface: "local", firing: "every-phase", output: "log" }],
     acceptanceRole: null,
   });
 }

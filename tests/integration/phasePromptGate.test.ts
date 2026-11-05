@@ -285,7 +285,7 @@ describe("phase prompt names the gate (acceptance)", () => {
     return { profile, everyPhase, terminal, prompts: await readPrompts(runPath) };
   }
 
-  it.fails("ac-nonterminal-list: phase-01 lists exactly the every-phase steps", async () => {
+  it("ac-nonterminal-list: phase-01 lists exactly the every-phase steps", async () => {
     const { everyPhase, terminal, prompts } = await runStandard();
     const prompt = prompts["phase-01"] ?? "";
     const section = gateSectionOf(prompt);
@@ -295,13 +295,13 @@ describe("phase prompt names the gate (acceptance)", () => {
     }
   });
 
-  it.fails("ac-terminal-list: the terminal phase lists every-phase then terminal steps", async () => {
+  it("ac-terminal-list: the terminal phase lists every-phase then terminal steps", async () => {
     const { everyPhase, terminal, prompts } = await runStandard();
     const section = gateSectionOf(prompts["phase-02"] ?? "");
     expect(stepLinesOf(section)).toEqual(expectedLines([...everyPhase, ...terminal]));
   });
 
-  it.fails("ac-prompt-equals-gate: listed commands equal the commands the gate ran", async () => {
+  it("ac-prompt-equals-gate: listed commands equal the commands the gate ran", async () => {
     const config = makeConfig(
       root,
       { full: [baseStep("echo base-a", "every-phase"), baseStep("echo base-b", "terminal")] },
@@ -349,7 +349,7 @@ describe("phase prompt names the gate (acceptance)", () => {
     }
   });
 
-  it.fails("ac-contract: every gate section states the gate contract", async () => {
+  it("ac-contract: every gate section states the gate contract", async () => {
     const { prompts } = await runStandard();
     for (const phaseId of PHASE_IDS) {
       const section = gateSectionOf(prompts[phaseId] ?? "");
@@ -360,7 +360,7 @@ describe("phase prompt names the gate (acceptance)", () => {
     }
   });
 
-  it.fails("ac-no-rerun: no rerun instruction and no unfiltered command list", async () => {
+  it("ac-no-rerun: no rerun instruction and no unfiltered command list", async () => {
     const { profile, terminal, prompts } = await runStandard();
     const bare = profile.map((s) => s.command);
     for (const phaseId of PHASE_IDS) {
@@ -380,7 +380,7 @@ describe("phase prompt names the gate (acceptance)", () => {
     }
   });
 
-  it.fails("ac-resume: a regenerated phase-01 prompt keeps its gate section", async () => {
+  it("ac-resume: a regenerated phase-01 prompt keeps its gate section", async () => {
     const profile = await standardProfile();
     const config = makeConfig(root, { full: profile as never });
     const s = makeRun(root, config, undefined, { failCommand: "pnpm test" });
