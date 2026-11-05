@@ -188,6 +188,13 @@ export default definePageMap({
         "Every phax command with its flags and arguments: artifacts, plans, runs, review and publishing, records, and the read-only commands.",
     },
     {
+      route: "/reference/json-output",
+      title: "Machine answers",
+      source: "docs/json-output.md",
+      description:
+        "What --json writes on stdout, the message lines on stderr, the refused and defect exit codes and what --json-schema prints, for agents and scripts.",
+    },
+    {
       route: "/guide/arbitration",
       title: "Deciding open questions",
       source: "docs/arbitration.md",
