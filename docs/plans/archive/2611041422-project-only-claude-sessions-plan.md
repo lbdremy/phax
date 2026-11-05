@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2611041159-project-only-claude-sessions.md
 completes-spec: true
 approved:
