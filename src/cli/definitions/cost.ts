@@ -48,7 +48,7 @@ const CostBackfillOutput = Schema.Struct({
   written: Schema.Array(Written),
 });
 
-export const costBackfillCommand = defineCommand({
+const costBackfillCommand = defineCommand({
   name: "backfill",
   summary: "Write a cost ledger for every kept run that has none, from its kept streams",
   help: "Writes cost-ledger.json for every run in the registry, across namespaces, that has none, derived from the Claude streams its run folder kept: each phase's output.jsonl, fix-attempt-NN.jsonl and handoff-generation.jsonl (reset phase folders first), then compliance-review.session.jsonl, compliance-review-retry.session.jsonl, code-review.session.jsonl and code-review-retry.session.jsonl. It reads the active run folder (~/.phax/runs/<namespace>.<short-name>/) or the archived one (~/.phax/archive/<namespace>.<short-name>/runs/). Each entry is the invocation's own cost, corrected when Claude Code reports a resumed session cumulatively; its end time is the stream's modification time, and an interrupted invocation carries no duration. A run with no Claude stream gets an empty ledger.\n\nNever touches a run that already has a ledger, never rewrites a ledger and never reads a pruned run or phax/records/v1. A locked run is skipped and named, and so is a run whose folder is missing. A second pass reports nothing to backfill.\n\nPrints `wrote <N> cost ledgers (<M> invocations, $<X> API-list)` or `nothing to backfill`. Exits 0 on success, 1 on error.\n\nSide effects: creates cost-ledger.json in run folders under ~/.phax/runs/ and ~/.phax/archive/.",

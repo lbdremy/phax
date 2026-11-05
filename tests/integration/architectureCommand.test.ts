@@ -12,12 +12,11 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { runArchitecture } from "../../src/cli/commands/architecture.js";
 import { NO_ARCHITECTURE_PROVIDER } from "../../src/domain/architecture/request.js";
 import { phaseGuardRefusal } from "../../src/domain/security/phaseGuard.js";
-import type { OutputPort } from "../../src/ports/output.js";
 import { CURRENT_STAMPS } from "../../src/schemas/release.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
+import { phaxCall } from "../helpers/runnerCall.js";
 
 // A made-up repository with a linked phase worktree, made-up phax.json files
 // and a made-up provider script. HOME points at a temp dir, so no real
@@ -98,37 +97,42 @@ function providerCommand(
   return `node ${script}`;
 }
 
-function capture(): { out: OutputPort; stdout: string[]; stderr: string[] } {
-  const stdout: string[] = [];
-  const stderr: string[] = [];
-  return {
-    out: {
-      log: (m) => stdout.push(m),
-      warn: (m) => stderr.push(m),
-      error: (m) => stderr.push(m),
-    },
-    stdout,
-    stderr,
-  };
-}
-
+/** `phax architecture …paths` run from `cwd`: the code and the lines on each stream. */
 async function architecture(cwd: string, ...paths: string[]) {
-  const io = capture();
-  const code = await runArchitecture(paths, io.out, cwd);
-  return { code, stdout: io.stdout, stderr: io.stderr };
+  const previous = process.cwd();
+  process.chdir(cwd);
+  try {
+    const called = await phaxCall(["architecture", ...paths]);
+    return {
+      code: called.code,
+      stdout: called.outLines,
+      stderr: called.errLines,
+      text: called.out.replace(/\n$/, ""),
+    };
+  } finally {
+    process.chdir(previous);
+  }
 }
 
 describe("phax architecture", () => {
   it("with no provider in any layer, prints one stdout line and exits 1", async () => {
     writeConfig("phax.json", projectConfig());
     const result = await architecture(mainRoot);
-    expect(result).toEqual({ code: 1, stdout: [NO_ARCHITECTURE_PROVIDER], stderr: [] });
+    expect({ code: result.code, stdout: result.stdout, stderr: result.stderr }).toEqual({
+      code: 1,
+      stdout: [NO_ARCHITECTURE_PROVIDER],
+      stderr: [],
+    });
   });
 
   it("prints the body of a provider declared in phax.json", async () => {
     writeConfig("phax.json", projectConfig({ architecture: { command: providerCommand() } }));
     const result = await architecture(mainRoot);
-    expect(result).toEqual({ code: 0, stdout: [BODY], stderr: [] });
+    expect({ code: result.code, stdout: result.stdout, stderr: result.stderr }).toEqual({
+      code: 0,
+      stdout: [BODY],
+      stderr: [],
+    });
   });
 
   it("The report's parts are rendered", async () => {
@@ -152,30 +156,28 @@ describe("phax architecture", () => {
       projectConfig({ architecture: { command: providerCommand(BODY, { parts }) } }),
     );
     const result = await architecture(mainRoot);
-    expect(result).toEqual({
-      code: 0,
-      stdout: [
-        [
-          BODY,
-          "",
-          "## Parts",
-          "",
-          "### core · decide (`core-decide`)",
-          "The pure decision logic.",
-          "- `src/core/decide/**`",
-          "",
-          "### http · requests (`http-requests`)",
-          "Request handlers.",
-          "- `src/http/**`",
-          "- `src/*/schemas/**`",
-          "",
-          "### docs (`docs`)",
-          "The docs.",
-          "- `docs/**`",
-        ].join("\n"),
-      ],
-      stderr: [],
-    });
+    expect(result.code).toBe(0);
+    expect(result.stderr).toEqual([]);
+    expect(result.text).toBe(
+      [
+        BODY,
+        "",
+        "## Parts",
+        "",
+        "### core · decide (`core-decide`)",
+        "The pure decision logic.",
+        "- `src/core/decide/**`",
+        "",
+        "### http · requests (`http-requests`)",
+        "Request handlers.",
+        "- `src/http/**`",
+        "- `src/*/schemas/**`",
+        "",
+        "### docs (`docs`)",
+        "The docs.",
+        "- `docs/**`",
+      ].join("\n"),
+    );
   });
 
   describe("with assignment bounds", () => {
@@ -218,9 +220,8 @@ describe("phax architecture", () => {
       const result = await architecture(mainRoot);
       expect(result.code).toBe(0);
       expect(result.stderr).toEqual([]);
-      expect(result.stdout).toHaveLength(3);
-      expect(result.stdout[0]).toContain("## Parts");
-      expect(result.stdout.slice(1)).toEqual(["", BOUNDS]);
+      expect(result.text).toContain("## Parts");
+      expect(result.text.endsWith(`\n\n${BOUNDS}`)).toBe(true);
     });
 
     it("marks a part bound a path-scoped report does not carry", async () => {
@@ -233,7 +234,7 @@ describe("phax architecture", () => {
       );
       const result = await architecture(mainRoot, "docs/guide.md");
       expect(result.code).toBe(0);
-      expect(result.stdout[2]).toContain(
+      expect(result.text).toContain(
         "part core-decide — (not in this report: run `phax architecture` with no path for its globs): claude-opus-5-5",
       );
     });
@@ -245,10 +246,10 @@ describe("phax architecture", () => {
       expect(result.stderr).toEqual([]);
       expect(result.stdout[0]).toBe(NO_ARCHITECTURE_PROVIDER);
       expect(result.stdout[1]).toBe("");
-      expect(result.stdout[2]).toContain(
+      expect(result.text).toContain(
         "- assignments[0] part core-decide — (unresolved: no architecture provider): claude-opus-5-5, medium–high",
       );
-      expect(result.stdout[2]).toContain(
+      expect(result.text).toContain(
         "- assignments[1] globs `src/*/schemas/**`: claude-sonnet-5-5, medium–high",
       );
     });
@@ -401,7 +402,11 @@ describe("phax architecture — inside a phase worktree", () => {
 
     expect(phaseGuardRefusal("architecture")).toBeUndefined();
     const result = await architecture(worktree, "src/core");
-    expect(result).toEqual({ code: 0, stdout: [BODY], stderr: [] });
+    expect({ code: result.code, stdout: result.stdout, stderr: result.stderr }).toEqual({
+      code: 0,
+      stdout: [BODY],
+      stderr: [],
+    });
 
     const request = JSON.parse(readFileSync(join(scripts, "stdin.json"), "utf8")) as {
       files: string[];

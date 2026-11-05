@@ -1,23 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Effect } from "effect";
-import { runArtifactStatus } from "../../../src/cli/commands/artifact.js";
+import { phaxCall } from "../../helpers/runnerCall.js";
 import type { ArtifactAuthoring, ArtifactQuestions } from "../../../src/app/artifactStatus.js";
 
 vi.mock("../../../src/app/artifactStatus.js", () => ({
   inspectArtifact: vi.fn(),
   transitionArtifact: vi.fn(),
 }));
-
-function makeOutput() {
-  const lines: string[] = [];
-  const errors: string[] = [];
-  const out = {
-    log: (m: string) => lines.push(m),
-    warn: (m: string) => lines.push(`WARN: ${m}`),
-    error: (m: string) => errors.push(m),
-  };
-  return { out, lines, errors };
-}
 
 const INTERACTIVE: ArtifactAuthoring = { kind: "interactive" };
 const NO_QUESTIONS: ArtifactQuestions = { kind: "none" };
@@ -47,8 +36,11 @@ describe("runArtifactStatus — approval rendering", () => {
       }),
     );
 
-    const { out, lines } = makeOutput();
-    const code = await runArtifactStatus("docs/specs/2609101231-spec-approval-ground.md", out);
+    const { code, outLines: lines } = await phaxCall([
+      "artifact",
+      "status",
+      "docs/specs/2609101231-spec-approval-ground.md",
+    ]);
 
     expect(code).toBe(0);
     const text = lines.join("\n");
@@ -81,11 +73,11 @@ describe("runArtifactStatus — approval rendering", () => {
         }),
       );
 
-      const { out, lines } = makeOutput();
-      const code = await runArtifactStatus(
+      const { code, outLines: lines } = await phaxCall([
+        "artifact",
+        "status",
         "docs/plans/2609101256-spec-approval-ground-plan.md",
-        out,
-      );
+      ]);
 
       expect(code).toBe(0);
       const approvedAt = lines.findIndex((l) => l.startsWith("Approved:"));
@@ -115,8 +107,11 @@ describe("runArtifactStatus — approval rendering", () => {
       }),
     );
 
-    const { out, lines } = makeOutput();
-    const code = await runArtifactStatus("docs/specs/2609101231-spec-approval-ground.md", out);
+    const { code, outLines: lines } = await phaxCall([
+      "artifact",
+      "status",
+      "docs/specs/2609101231-spec-approval-ground.md",
+    ]);
 
     expect(code).toBe(0);
     const text = lines.join("\n");
@@ -138,8 +133,11 @@ describe("runArtifactStatus — approval rendering", () => {
       }),
     );
 
-    const { out, lines } = makeOutput();
-    const code = await runArtifactStatus("docs/specs/2609101231-spec-approval-ground.md", out);
+    const { code, outLines: lines } = await phaxCall([
+      "artifact",
+      "status",
+      "docs/specs/2609101231-spec-approval-ground.md",
+    ]);
 
     expect(code).toBe(0);
     const text = lines.join("\n");
@@ -161,8 +159,11 @@ describe("runArtifactStatus — approval rendering", () => {
       }),
     );
 
-    const { out, lines } = makeOutput();
-    const code = await runArtifactStatus("docs/plans/2609101256-spec-approval-ground-plan.md", out);
+    const { code, outLines: lines } = await phaxCall([
+      "artifact",
+      "status",
+      "docs/plans/2609101256-spec-approval-ground-plan.md",
+    ]);
 
     expect(code).toBe(0);
     const text = lines.join("\n");
@@ -213,8 +214,11 @@ describe("runArtifactStatus — authoring rendering", () => {
       }),
     );
 
-    const { out, lines } = makeOutput();
-    const code = await runArtifactStatus("docs/specs/2609230835-plan-prune.md", out);
+    const { code, outLines: lines } = await phaxCall([
+      "artifact",
+      "status",
+      "docs/specs/2609230835-plan-prune.md",
+    ]);
 
     expect(code).toBe(0);
     expect(lines).toContain(expected);
@@ -256,8 +260,11 @@ describe("runArtifactStatus — authoring rendering", () => {
         }),
       );
 
-      const { out, lines } = makeOutput();
-      await runArtifactStatus("docs/specs/2609230835-plan-prune.md", out);
+      const { outLines: lines } = await phaxCall([
+        "artifact",
+        "status",
+        "docs/specs/2609230835-plan-prune.md",
+      ]);
 
       expect(lines).toContain(expected);
     },
@@ -269,7 +276,7 @@ describe("runArtifactStatus — questions rendering", () => {
     vi.clearAllMocks();
   });
 
-  async function questionLines(questions: ArtifactQuestions): Promise<string[]> {
+  async function questionLines(questions: ArtifactQuestions): Promise<ReadonlyArray<string>> {
     const { inspectArtifact } = vi.mocked(await import("../../../src/app/artifactStatus.js"));
     inspectArtifact.mockReturnValue(
       Effect.succeed({
@@ -282,9 +289,13 @@ describe("runArtifactStatus — questions rendering", () => {
         orphanRecords: [],
       }),
     );
-    const { out, lines } = makeOutput();
-    expect(await runArtifactStatus("docs/specs/2609230835-plan-prune.md", out)).toBe(0);
-    return lines;
+    const { code, outLines } = await phaxCall([
+      "artifact",
+      "status",
+      "docs/specs/2609230835-plan-prune.md",
+    ]);
+    expect(code).toBe(0);
+    return outLines;
   }
 
   it("prints the counts and open ids right after Authored", async () => {

@@ -6,7 +6,6 @@ import { answerJsonSchema } from "../../../src/schemas/answerSchemas.js";
 import { getDecideVerdictsFileJsonSchema } from "../../../src/schemas/decideVerdicts.js";
 import { currentSchemaUrl } from "../../../src/schemas/persisted.js";
 import {
-  runArtifactStatus,
   runArtifactTransition,
   runArtifactMigrateApprovals,
   runArtifactSchema,
@@ -17,7 +16,7 @@ import {
   makeArtifactNewSpecCommand,
 } from "../../../src/cli/definitions/artifactNew.js";
 import { fullName } from "../../../src/cli/commandLibrary/contract/index.js";
-import { inArtifactNew, runnerCall } from "../../helpers/runnerCall.js";
+import { inArtifactNew, phaxCall, runnerCall } from "../../helpers/runnerCall.js";
 import {
   ApprovalMigrationRefusedError,
   ArtifactArbiterRefusedError,
@@ -106,11 +105,15 @@ describe("runArtifactStatus", () => {
       }),
     );
 
-    const { out, lines } = makeOutput();
-    const code = await runArtifactStatus(
+    const {
+      code,
+      outLines: lines,
+      errLines,
+    } = await phaxCall([
+      "artifact",
+      "status",
       "docs/plans/2607101056-typescript-7-migration-plan.md",
-      out,
-    );
+    ]);
 
     expect(code).toBe(0);
     const text = lines.join("\n");
@@ -120,7 +123,7 @@ describe("runArtifactStatus", () => {
     expect(text).toContain("Approved");
     expect(text).toContain("Legal transitions:");
     expect(text).toContain("Stale, Abandoned, Completed");
-    expect(lines.filter((l) => l.startsWith("WARN: "))).toEqual([]);
+    expect(errLines).toEqual([]);
   });
 
   it("warns once per orphan record of the kind, keeping the exit code and stdout lines", async () => {
@@ -134,8 +137,7 @@ describe("runArtifactStatus", () => {
       questions: { kind: "none" as const },
     };
     inspectArtifact.mockReturnValue(Effect.succeed({ ...report, orphanRecords: [] }));
-    const clean = makeOutput();
-    const cleanCode = await runArtifactStatus("docs/specs/2609101221-foo.md", clean.out);
+    const clean = await phaxCall(["artifact", "status", "docs/specs/2609101221-foo.md"]);
 
     inspectArtifact.mockReturnValue(
       Effect.succeed({
@@ -148,13 +150,16 @@ describe("runArtifactStatus", () => {
         ],
       }),
     );
-    const { out, lines } = makeOutput();
-    const code = await runArtifactStatus("docs/specs/2609101221-foo.md", out);
+    const { code, outLines, errLines } = await phaxCall([
+      "artifact",
+      "status",
+      "docs/specs/2609101221-foo.md",
+    ]);
 
-    expect(code).toBe(cleanCode);
-    expect(lines.filter((l) => !l.startsWith("WARN: "))).toEqual(clean.lines);
-    expect(lines.filter((l) => l.startsWith("WARN: "))).toEqual([
-      "WARN: warning: orphan approval record docs/specs/approvals/2609010000-gone.json — docs/specs/2609010000-gone.md does not exist; delete the record file",
+    expect(code).toBe(clean.code);
+    expect(outLines).toEqual(clean.outLines);
+    expect(errLines).toEqual([
+      "warning: orphan approval record docs/specs/approvals/2609010000-gone.json — docs/specs/2609010000-gone.md does not exist; delete the record file",
     ]);
   });
 
@@ -170,8 +175,7 @@ describe("runArtifactStatus", () => {
       ),
     );
 
-    const { out, errors } = makeOutput();
-    const code = await runArtifactStatus("docs/plans/foo.md", out);
+    const { code, errLines: errors } = await phaxCall(["artifact", "status", "docs/plans/foo.md"]);
 
     expect(code).toBe(12);
     expect(errors.join("\n")).toContain("has no frontmatter block");

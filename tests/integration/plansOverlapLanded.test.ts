@@ -8,6 +8,7 @@ import { planMdSha256, cacheEntryPath } from "../../src/app/planCacheStore.js";
 import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
 import { withSchemaUrl } from "../../src/schemas/persisted.js";
 import { encodeRegistryFile } from "../../src/schemas/registry.js";
+import { phaxCall } from "../helpers/runnerCall.js";
 
 vi.mock("../../src/app/loadConfig.js", () => ({
   loadConfig: vi.fn(),
@@ -253,18 +254,15 @@ describe("runPlansOverlap --landed", () => {
       makeReconciliation([], ["src/shared.ts"], []),
     );
 
-    const { runPlansOverlap } = await import("../../src/cli/commands/plansOverlap.js");
-    const logs: string[] = [];
-    const out = {
-      log: (m: string) => logs.push(m),
-      error: (m: string) => logs.push(`ERR: ${m}`),
-      warn: vi.fn(),
-    };
-
-    const exitCode = await runPlansOverlap([planPath], { landed: "landed-run" }, out);
+    const { code: exitCode, out: output } = await phaxCall([
+      "plans",
+      "overlap",
+      "--landed",
+      "landed-run",
+      planPath,
+    ]);
 
     expect(exitCode).toBe(0);
-    const output = logs.join("\n");
     expect(output).toContain("src/shared.ts");
     expect(output).toContain("plan-a");
     expect(output).toMatch(/impacted|re-adjustment/i);
@@ -282,18 +280,15 @@ describe("runPlansOverlap --landed", () => {
       makeReconciliation(["src/different.ts"], [], []),
     );
 
-    const { runPlansOverlap } = await import("../../src/cli/commands/plansOverlap.js");
-    const logs: string[] = [];
-    const out = {
-      log: (m: string) => logs.push(m),
-      error: (m: string) => logs.push(`ERR: ${m}`),
-      warn: vi.fn(),
-    };
-
-    const exitCode = await runPlansOverlap([planPath], { landed: "landed-run" }, out);
+    const { code: exitCode, out: output } = await phaxCall([
+      "plans",
+      "overlap",
+      "--landed",
+      "landed-run",
+      planPath,
+    ]);
 
     expect(exitCode).toBe(0);
-    const output = logs.join("\n");
     expect(output).toMatch(/unaffected/i);
   });
 
@@ -336,14 +331,16 @@ describe("runPlansOverlap --landed", () => {
     await writeFile(planPath, md);
     await seedCache(stateRoot, md, "plan-c", ["src/foo.ts"], []);
 
-    const { runPlansOverlap } = await import("../../src/cli/commands/plansOverlap.js");
-    const errors: string[] = [];
-    const out = { log: vi.fn(), error: (m: string) => errors.push(m), warn: vi.fn() };
-
-    const exitCode = await runPlansOverlap([planPath], { landed: "empty-run" }, out);
+    const { code: exitCode, err } = await phaxCall([
+      "plans",
+      "overlap",
+      "--landed",
+      "empty-run",
+      planPath,
+    ]);
 
     expect(exitCode).toBe(1);
-    expect(errors.join("\n")).toMatch(/reconciliation|review/i);
+    expect(err).toMatch(/reconciliation|review/i);
   });
 
   it("--json: exit 0 and output parses with impacted/unaffected keys", async () => {
@@ -358,14 +355,17 @@ describe("runPlansOverlap --landed", () => {
       makeReconciliation([], ["src/touched.ts"], []),
     );
 
-    const { runPlansOverlap } = await import("../../src/cli/commands/plansOverlap.js");
-    const logs: string[] = [];
-    const out = { log: (m: string) => logs.push(m), error: vi.fn(), warn: vi.fn() };
-
-    const exitCode = await runPlansOverlap([planPath], { landed: "landed-run", json: true }, out);
+    const { code: exitCode, out } = await phaxCall([
+      "plans",
+      "overlap",
+      "--landed",
+      "landed-run",
+      "--json",
+      planPath,
+    ]);
 
     expect(exitCode).toBe(0);
-    const parsed = JSON.parse(logs.join("")) as unknown;
+    const parsed = JSON.parse(out) as unknown;
     expect(parsed).toHaveProperty("impacted");
     expect(parsed).toHaveProperty("unaffected");
     expect(parsed).toHaveProperty("landedLabel");
@@ -375,14 +375,16 @@ describe("runPlansOverlap --landed", () => {
     const planPath = join(tmpDir, "plan-e.md");
     await writeFile(planPath, makePlanMd("plan-e"));
 
-    const { runPlansOverlap } = await import("../../src/cli/commands/plansOverlap.js");
-    const errors: string[] = [];
-    const out = { log: vi.fn(), error: (m: string) => errors.push(m), warn: vi.fn() };
-
-    const exitCode = await runPlansOverlap([planPath], { landed: "INVALID_NAME" }, out);
+    const { code: exitCode, err } = await phaxCall([
+      "plans",
+      "overlap",
+      "--landed",
+      "INVALID_NAME",
+      planPath,
+    ]);
 
     expect(exitCode).toBe(1);
-    expect(errors.join("\n")).toContain('"INVALID_NAME" is not a valid run short name');
+    expect(err).toContain('"INVALID_NAME" is not a valid run short name');
   });
 
   it("archived run: reads the landed diff from the archive folder", async () => {
@@ -422,18 +424,15 @@ describe("runPlansOverlap --landed", () => {
       ),
     );
 
-    const { runPlansOverlap } = await import("../../src/cli/commands/plansOverlap.js");
-    const logs: string[] = [];
-    const out = {
-      log: (m: string) => logs.push(m),
-      error: (m: string) => logs.push(`ERR: ${m}`),
-      warn: vi.fn(),
-    };
-
-    const exitCode = await runPlansOverlap([planPath], { landed: "shipped-run" }, out);
+    const { code: exitCode, out: output } = await phaxCall([
+      "plans",
+      "overlap",
+      "--landed",
+      "shipped-run",
+      planPath,
+    ]);
 
     expect(exitCode).toBe(0);
-    const output = logs.join("\n");
     expect(output).toContain("src/shared.ts");
     expect(output).toContain(`${NAMESPACE}.shipped-run`);
     expect(output).toMatch(/impacted|re-adjustment/i);
@@ -451,31 +450,31 @@ describe("runPlansOverlap --landed", () => {
       makeReconciliation([], ["src/shared.ts"], []),
     );
 
-    const { runPlansOverlap } = await import("../../src/cli/commands/plansOverlap.js");
-    const logs: string[] = [];
-    const out = {
-      log: (m: string) => logs.push(m),
-      error: (m: string) => logs.push(`ERR: ${m}`),
-      warn: vi.fn(),
-    };
-
-    const exitCode = await runPlansOverlap([planPath], { landed: `${NAMESPACE}.landed-run` }, out);
+    const { code: exitCode, out } = await phaxCall([
+      "plans",
+      "overlap",
+      "--landed",
+      `${NAMESPACE}.landed-run`,
+      planPath,
+    ]);
 
     expect(exitCode).toBe(0);
-    expect(logs.join("\n")).toContain("src/shared.ts");
+    expect(out).toContain("src/shared.ts");
   });
 
   it("unknown run: exit 1 naming the run as unknown", async () => {
     const planPath = join(tmpDir, "plan-h.md");
     await writeFile(planPath, makePlanMd("plan-h"));
 
-    const { runPlansOverlap } = await import("../../src/cli/commands/plansOverlap.js");
-    const errors: string[] = [];
-    const out = { log: vi.fn(), error: (m: string) => errors.push(m), warn: vi.fn() };
-
-    const exitCode = await runPlansOverlap([planPath], { landed: "never-ran" }, out);
+    const { code: exitCode, err } = await phaxCall([
+      "plans",
+      "overlap",
+      "--landed",
+      "never-ran",
+      planPath,
+    ]);
 
     expect(exitCode).toBe(1);
-    expect(errors.join("\n")).toContain(`Run "${NAMESPACE}.never-ran" is unknown`);
+    expect(err).toContain(`Run "${NAMESPACE}.never-ran" is unknown`);
   });
 });

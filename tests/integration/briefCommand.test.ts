@@ -14,12 +14,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Either } from "effect";
 import { serializeBriefRequest, stampBriefRequest } from "../../src/app/briefProvider.js";
-import { runBrief } from "../../src/cli/commands/brief.js";
 import { phaseBriefRequest } from "../../src/domain/brief/request.js";
-import type { OutputPort } from "../../src/ports/output.js";
 import { readBriefRecordFile } from "../../src/schemas/persisted.js";
 import { CURRENT_STAMPS } from "../../src/schemas/release.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
+import { phaxCall } from "../helpers/runnerCall.js";
 
 // A made-up repository with a linked phase worktree, made-up phax.json files
 // and a made-up provider script that saves its stdin and cwd. HOME points at a
@@ -192,24 +191,20 @@ function calls(): { stdin: unknown; cwd: string }[] {
     });
 }
 
-function capture(): { out: OutputPort; stdout: string[]; stderr: string[] } {
-  const stdout: string[] = [];
-  const stderr: string[] = [];
-  return {
-    out: {
-      log: (m) => stdout.push(m),
-      warn: (m) => stderr.push(m),
-      error: (m) => stderr.push(m),
-    },
-    stdout,
-    stderr,
-  };
-}
-
+/** `phax brief …paths` run from `cwd`: the code and each stream's text, the last newline dropped. */
 async function brief(cwd: string, ...paths: string[]) {
-  const io = capture();
-  const code = await runBrief(paths, io.out, cwd);
-  return { code, stdout: io.stdout.join("\n"), stderr: io.stderr.join("\n") };
+  const previous = process.cwd();
+  process.chdir(cwd);
+  try {
+    const called = await phaxCall(["brief", ...paths]);
+    return {
+      code: called.code,
+      stdout: called.out.replace(/\n$/, ""),
+      stderr: called.err.replace(/\n$/, ""),
+    };
+  } finally {
+    process.chdir(previous);
+  }
 }
 
 const briefsDir = () => join(worktree, ".phax-context", "briefs");

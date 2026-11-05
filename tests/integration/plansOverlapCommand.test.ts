@@ -6,6 +6,7 @@ import { Either } from "effect";
 import { EXTRACTOR_VERSION, planCacheKey } from "../../src/domain/planCache/key.js";
 import { planMdSha256, cacheEntryPath } from "../../src/app/planCacheStore.js";
 import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
+import { phaxCall } from "../helpers/runnerCall.js";
 
 vi.mock("../../src/app/loadConfig.js", () => ({
   loadConfig: vi.fn(),
@@ -150,18 +151,14 @@ describe("runPlansOverlap", () => {
     await seedCache(stateRoot, mdA, "plan-a", ["src/foo.ts"], []);
     await seedCache(stateRoot, mdB, "plan-b", ["src/bar.ts"], []);
 
-    const { runPlansOverlap } = await import("../../src/cli/commands/plansOverlap.js");
-    const logs: string[] = [];
-    const out = {
-      log: (m: string) => logs.push(m),
-      error: (m: string) => logs.push(`ERR: ${m}`),
-      warn: (m: string) => logs.push(`WARN: ${m}`),
-    };
-
-    const exitCode = await runPlansOverlap([planAPath, planBPath], {}, out);
+    const { code: exitCode, out: output } = await phaxCall([
+      "plans",
+      "overlap",
+      planAPath,
+      planBPath,
+    ]);
 
     expect(exitCode).toBe(0);
-    const output = logs.join("\n");
     expect(output).toContain("plan-a");
     expect(output).toContain("plan-b");
     expect(output).toMatch(/parallel-safe|clean/i);
@@ -177,18 +174,14 @@ describe("runPlansOverlap", () => {
     await seedCache(stateRoot, mdA, "plan-a", [], ["src/shared.ts"]);
     await seedCache(stateRoot, mdB, "plan-b", [], ["src/shared.ts"]);
 
-    const { runPlansOverlap } = await import("../../src/cli/commands/plansOverlap.js");
-    const logs: string[] = [];
-    const out = {
-      log: (m: string) => logs.push(m),
-      error: (m: string) => logs.push(`ERR: ${m}`),
-      warn: (m: string) => logs.push(`WARN: ${m}`),
-    };
-
-    const exitCode = await runPlansOverlap([planAPath, planBPath], {}, out);
+    const { code: exitCode, out: output } = await phaxCall([
+      "plans",
+      "overlap",
+      planAPath,
+      planBPath,
+    ]);
 
     expect(exitCode).toBe(0);
-    const output = logs.join("\n");
     expect(output).toContain("src/shared.ts");
     expect(output).toMatch(/medium/i);
   });
@@ -203,18 +196,16 @@ describe("runPlansOverlap", () => {
     // Seed only planA's cache entry; planB is uncached
     await seedCache(stateRoot, mdA, "plan-a", ["src/foo.ts"], []);
 
-    const { runPlansOverlap } = await import("../../src/cli/commands/plansOverlap.js");
-    const errors: string[] = [];
-    const out = {
-      log: vi.fn(),
-      error: (m: string) => errors.push(m),
-      warn: vi.fn(),
-    };
-
-    const exitCode = await runPlansOverlap([planAPath, planBPath], { noExtract: true }, out);
+    const { code: exitCode, out } = await phaxCall([
+      "plans",
+      "overlap",
+      "--no-extract",
+      planAPath,
+      planBPath,
+    ]);
 
     expect(exitCode).toBe(1);
-    expect(out.log).not.toHaveBeenCalled();
+    expect(out).toBe("");
   });
 
   it("missing path: exit 1 and error mentions the path", async () => {
@@ -224,18 +215,10 @@ describe("runPlansOverlap", () => {
     await seedCache(stateRoot, mdA, "plan-a", ["src/foo.ts"], []);
     const missingPath = join(tmpDir, "missing.md");
 
-    const { runPlansOverlap } = await import("../../src/cli/commands/plansOverlap.js");
-    const errors: string[] = [];
-    const out = {
-      log: vi.fn(),
-      error: (m: string) => errors.push(m),
-      warn: vi.fn(),
-    };
-
-    const exitCode = await runPlansOverlap([planAPath, missingPath], {}, out);
+    const { code: exitCode, err } = await phaxCall(["plans", "overlap", planAPath, missingPath]);
 
     expect(exitCode).toBe(1);
-    expect(errors.join("\n")).toContain("missing.md");
+    expect(err).toContain("missing.md");
   });
 
   it("fewer than two paths: exit 1", async () => {
@@ -244,10 +227,7 @@ describe("runPlansOverlap", () => {
     await writeFile(planAPath, mdA);
     await seedCache(stateRoot, mdA, "plan-a", ["src/foo.ts"], []);
 
-    const { runPlansOverlap } = await import("../../src/cli/commands/plansOverlap.js");
-    const out = { log: vi.fn(), error: vi.fn(), warn: vi.fn() };
-
-    const exitCode = await runPlansOverlap([planAPath], {}, out);
+    const { code: exitCode } = await phaxCall(["plans", "overlap", planAPath]);
 
     expect(exitCode).toBe(1);
   });
@@ -262,18 +242,16 @@ describe("runPlansOverlap", () => {
     await seedCache(stateRoot, mdA, "plan-a", ["src/foo.ts"], []);
     await seedCache(stateRoot, mdB, "plan-b", ["src/bar.ts"], []);
 
-    const { runPlansOverlap } = await import("../../src/cli/commands/plansOverlap.js");
-    const logs: string[] = [];
-    const out = {
-      log: (m: string) => logs.push(m),
-      error: vi.fn(),
-      warn: vi.fn(),
-    };
-
-    const exitCode = await runPlansOverlap([planAPath, planBPath], { json: true }, out);
+    const { code: exitCode, out } = await phaxCall([
+      "plans",
+      "overlap",
+      "--json",
+      planAPath,
+      planBPath,
+    ]);
 
     expect(exitCode).toBe(0);
-    const parsed = JSON.parse(logs.join("")) as unknown;
+    const parsed = JSON.parse(out) as unknown;
     expect(parsed).toHaveProperty("edges");
     expect(parsed).toHaveProperty("cleanPairs");
     expect(parsed).toHaveProperty("waves");
@@ -292,13 +270,10 @@ describe("runPlansOverlap", () => {
     await seedCache(stateRoot, mdA, "plan-a", ["src/foo.ts"], []);
     await seedCache(stateRoot, mdB, "plan-b", ["src/bar.ts"], []);
 
-    const { runPlansOverlap } = await import("../../src/cli/commands/plansOverlap.js");
-    const out = { log: vi.fn(), error: vi.fn(), warn: vi.fn() };
+    const first = await phaxCall(["plans", "overlap", planAPath, planBPath]);
+    const second = await phaxCall(["plans", "overlap", planAPath, planBPath]);
 
-    const exit1 = await runPlansOverlap([planAPath, planBPath], {}, out);
-    const exit2 = await runPlansOverlap([planAPath, planBPath], {}, out);
-
-    expect(exit1).toBe(0);
-    expect(exit2).toBe(0);
+    expect(first.code).toBe(0);
+    expect(second.code).toBe(0);
   });
 });

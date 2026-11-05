@@ -9,7 +9,6 @@ import { dirname, join } from "node:path";
 import { Effect } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { backfillCostLedgers } from "../../src/app/costBackfill.js";
-import { runCostBackfill } from "../../src/cli/commands/cost.js";
 import { runKey } from "../../src/domain/runRef.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import { makeNodeLockLayer } from "../../src/infra/lock.js";
@@ -19,9 +18,9 @@ import { withSchemaUrl } from "../../src/schemas/persisted.js";
 import { encodeRegistryFile, type RegistryEntry } from "../../src/schemas/registry.js";
 import type { CostLedgerEntry } from "../../src/schemas/costLedger.js";
 import { isolatePhaxHome } from "../helpers/isolatePhaxHome.js";
+import { phaxCall } from "../helpers/runnerCall.js";
 import {
   createPruneRepo,
-  recordingOutput,
   registryPath,
   removePruneRepo,
   type PruneRepo,
@@ -173,16 +172,16 @@ describe("phax cost backfill", () => {
     const spentLedger = readFileSync(join(spent, "cost-ledger.json"), "utf8");
 
     // The busy run is unlocked now: the command backfills it, then has nothing left.
-    const first = recordingOutput();
-    expect(await runCostBackfill(first.port)).toBe(0);
-    expect(first.logs).toEqual([
+    const first = await phaxCall(["cost", "backfill"]);
+    expect(first.code).toBe(0);
+    expect(first.outLines).toEqual([
       "wrote 1 cost ledgers (1 invocations, $1.00 API-list)",
       `skipped 1 run(s) with no run folder: ${runKey(roots.namespace, "gone")}`,
     ]);
 
-    const second = recordingOutput();
-    expect(await runCostBackfill(second.port)).toBe(0);
-    expect(second.logs[0]).toBe("nothing to backfill");
+    const second = await phaxCall(["cost", "backfill"]);
+    expect(second.code).toBe(0);
+    expect(second.outLines[0]).toBe("nothing to backfill");
     expect(readFileSync(join(spent, "cost-ledger.json"), "utf8")).toBe(spentLedger);
   });
 
@@ -191,9 +190,9 @@ describe("phax cost backfill", () => {
     const busyKey = runKey(roots.namespace, "busy");
     await withLayers(Effect.flatMap(Lock, (lock) => lock.acquire(busyKey)));
     try {
-      const out = recordingOutput();
-      expect(await runCostBackfill(out.port)).toBe(0);
-      expect(out.logs).toContain(`skipped 1 locked run(s): ${busyKey}`);
+      const out = await phaxCall(["cost", "backfill"]);
+      expect(out.code).toBe(0);
+      expect(out.outLines).toContain(`skipped 1 locked run(s): ${busyKey}`);
     } finally {
       await withLayers(Effect.flatMap(Lock, (lock) => lock.release(busyKey)));
     }
@@ -205,9 +204,9 @@ describe("phax cost backfill", () => {
     writeFileSync(join(lone, "run-status.json"), "{}");
     writeRegistry([entry("lone")]);
 
-    const out = recordingOutput();
-    expect(await runCostBackfill(out.port)).toBe(0);
-    expect(out.logs).toEqual(["wrote 1 cost ledgers (0 invocations, $0.00 API-list)"]);
+    const out = await phaxCall(["cost", "backfill"]);
+    expect(out.code).toBe(0);
+    expect(out.outLines).toEqual(["wrote 1 cost ledgers (0 invocations, $0.00 API-list)"]);
     const ledger = JSON.parse(readFileSync(join(lone, "cost-ledger.json"), "utf8")) as {
       entries: unknown[];
     };
@@ -216,8 +215,8 @@ describe("phax cost backfill", () => {
 
   it("exits 1 on an unreadable registry", async () => {
     writeFileSync(registryPath(roots), "not json");
-    const out = recordingOutput();
-    expect(await runCostBackfill(out.port)).toBe(1);
-    expect(out.errors[0]).toMatch(/^phax cost backfill failed: /);
+    const out = await phaxCall(["cost", "backfill"]);
+    expect(out.code).toBe(1);
+    expect(out.errLines[0]).toMatch(/^phax cost backfill failed: /);
   });
 });

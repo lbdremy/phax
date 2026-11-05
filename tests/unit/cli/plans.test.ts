@@ -4,10 +4,9 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { Effect, Either } from "effect";
 import { Command } from "commander";
-import { runPlansStatus, runPlansLint } from "../../../src/cli/commands/plans.js";
 import { mountRunnerGroupStub } from "../../../src/cli/bridge.js";
 import { phaxProgram } from "../../../src/cli/definitions/program.js";
-import { runPlansOverview } from "../../../src/cli/commands/plansOverview.js";
+import { phaxCall } from "../../helpers/runnerCall.js";
 import type { PlanOverview } from "../../../src/domain/plan/overview.js";
 import { currentSchemaUrl } from "../../../src/schemas/persisted.js";
 import {
@@ -38,18 +37,6 @@ vi.mock("../../../src/app/lintPlan.js", () => ({
 vi.mock("../../../src/app/planOverview.js", () => ({
   planOverview: vi.fn(),
 }));
-
-function makeOutput() {
-  const lines: string[] = [];
-  const warnings: string[] = [];
-  const errors: string[] = [];
-  const out = {
-    log: (m: string) => lines.push(m),
-    warn: (m: string) => warnings.push(m),
-    error: (m: string) => errors.push(m),
-  };
-  return { out, lines, warnings, errors };
-}
 
 function makeConfig(): ResolvedConfig {
   return {
@@ -121,8 +108,7 @@ describe("runPlansStatus", () => {
     );
     plansStalenessReport.mockReturnValue(Effect.succeed(FRESH_STALE_RESULT));
 
-    const { out, lines } = makeOutput();
-    const code = await runPlansStatus({}, out);
+    const { code, outLines: lines } = await phaxCall(["plans", "status"]);
 
     expect(code).toBe(0);
     const text = lines.join("\n");
@@ -151,8 +137,7 @@ describe("runPlansStatus", () => {
       ]),
     );
 
-    const { out, lines } = makeOutput();
-    const code = await runPlansStatus({ apply: true }, out);
+    const { code, outLines: lines } = await phaxCall(["plans", "status", "--apply"]);
 
     expect(code).toBe(0);
     expect(applyStalenessReport).toHaveBeenCalledTimes(1);
@@ -168,8 +153,7 @@ describe("runPlansStatus", () => {
     );
     plansStalenessReport.mockReturnValue(Effect.succeed(FRESH_STALE_RESULT));
 
-    const { out } = makeOutput();
-    await runPlansStatus({}, out);
+    await phaxCall(["plans", "status"]);
 
     expect(applyStalenessReport).not.toHaveBeenCalled();
   });
@@ -181,8 +165,7 @@ describe("runPlansStatus", () => {
       Effect.fail({ _tag: "FsError", message: "boom: could not list docs/plans" } as never),
     );
 
-    const { out, errors } = makeOutput();
-    const code = await runPlansStatus({}, out);
+    const { code, errLines: errors } = await phaxCall(["plans", "status"]);
 
     expect(code).not.toBe(0);
     expect(errors.join("\n")).toContain("boom");
@@ -193,8 +176,7 @@ describe("runPlansStatus", () => {
     const { plansStalenessReport } = vi.mocked(await import("../../../src/app/planStaleness.js"));
     plansStalenessReport.mockReturnValue(Effect.succeed(FRESH_STALE_RESULT));
 
-    const { out, lines } = makeOutput();
-    const code = await runPlansStatus({ json: true }, out);
+    const { code, outLines: lines } = await phaxCall(["plans", "status", "--json"]);
 
     expect(code).toBe(0);
     const parsed = JSON.parse(lines.join("\n")) as { report: StalenessReport };
@@ -205,19 +187,17 @@ describe("runPlansStatus", () => {
     await setupConfig();
     const { plansStalenessReport } = vi.mocked(await import("../../../src/app/planStaleness.js"));
     plansStalenessReport.mockReturnValue(Effect.succeed(FRESH_STALE_RESULT));
-    const clean = makeOutput();
-    const cleanCode = await runPlansStatus({}, clean.out);
+    const clean = await phaxCall(["plans", "status"]);
 
     plansStalenessReport.mockReturnValue(
       Effect.succeed({ report: FRESH_STALE_REPORT, orphanRecords: [GONE_PLAN_ORPHAN] }),
     );
-    const { out, lines, warnings } = makeOutput();
-    const code = await runPlansStatus({}, out);
+    const { code, outLines: lines, errLines: warnings } = await phaxCall(["plans", "status"]);
 
-    expect(code).toBe(cleanCode);
+    expect(code).toBe(clean.code);
     expect(warnings).toEqual([GONE_PLAN_WARNING]);
-    expect(lines).toEqual(clean.lines);
-    expect(clean.warnings).toEqual([]);
+    expect(lines).toEqual(clean.outLines);
+    expect(clean.errLines).toEqual([]);
   });
 
   it("--json carries orphanRecords beside an unchanged report and still warns on stderr", async () => {
@@ -227,15 +207,21 @@ describe("runPlansStatus", () => {
       Effect.succeed({ report: FRESH_STALE_REPORT, orphanRecords: [GONE_PLAN_ORPHAN] }),
     );
 
-    const { out, lines, warnings } = makeOutput();
-    const code = await runPlansStatus({ json: true }, out);
+    const {
+      code,
+      outLines: lines,
+      errLines: warnings,
+    } = await phaxCall(["plans", "status", "--json"]);
 
     expect(code).toBe(0);
     expect(JSON.parse(lines.join("\n"))).toEqual({
       report: FRESH_STALE_REPORT,
       orphanRecords: [GONE_PLAN_ORPHAN],
     });
-    expect(warnings).toEqual([GONE_PLAN_WARNING]);
+    // Under --json a note is a JSON line on stderr carrying the same text.
+    expect(warnings.map((w) => (JSON.parse(w) as { text: string }).text)).toEqual([
+      GONE_PLAN_WARNING,
+    ]);
   });
 });
 
@@ -256,8 +242,7 @@ describe("runPlansLint", () => {
     );
     const { lintPlan } = vi.mocked(await import("../../../src/app/lintPlan.js"));
 
-    const { out, errors } = makeOutput();
-    const code = await runPlansLint("plan.md", {}, out);
+    const { code, errLines: errors } = await phaxCall(["plans", "lint", "plan.md"]);
 
     expect(code).toBe(2);
     expect(errors.join("\n")).toContain(
@@ -270,8 +255,11 @@ describe("runPlansLint", () => {
     await setupConfig();
     const lintPlan = await mockLint({ plan: "docs/plans/2609101260-foo-plan.md", findings: [] });
 
-    const { out, lines } = makeOutput();
-    const code = await runPlansLint("docs/plans/2609101260-foo-plan.md", {}, out);
+    const { code, outLines: lines } = await phaxCall([
+      "plans",
+      "lint",
+      "docs/plans/2609101260-foo-plan.md",
+    ]);
 
     expect(code).toBe(0);
     expect(lintPlan).toHaveBeenCalledWith(
@@ -298,8 +286,7 @@ describe("runPlansLint", () => {
       ],
     });
 
-    const { out, lines } = makeOutput();
-    const code = await runPlansLint("plan.md", {}, out);
+    const { code, outLines: lines } = await phaxCall(["plans", "lint", "plan.md"]);
 
     expect(code).toBe(0);
     const text = lines.join("\n");
@@ -321,8 +308,7 @@ describe("runPlansLint", () => {
       ],
     });
 
-    const { out } = makeOutput();
-    const code = await runPlansLint("plan.md", {}, out);
+    const { code } = await phaxCall(["plans", "lint", "plan.md"]);
 
     expect(code).toBe(1);
   });
@@ -331,8 +317,7 @@ describe("runPlansLint", () => {
     await setupConfig();
     await mockLint({ plan: "/fake-repo/plan.md", findings: [] });
 
-    const { out, lines } = makeOutput();
-    const code = await runPlansLint("plan.md", {}, out);
+    const { code, outLines: lines } = await phaxCall(["plans", "lint", "plan.md"]);
 
     expect(code).toBe(0);
     expect(lines.join("\n")).toContain("no findings");
@@ -348,12 +333,11 @@ describe("runPlansLint", () => {
     };
     await mockLint(report);
 
-    const { out, lines } = makeOutput();
-    const code = await runPlansLint("plan.md", { json: true }, out);
+    const { code, out: stdout } = await phaxCall(["plans", "lint", "plan.md", "--json"]);
 
     expect(code).toBe(1);
-    expect(lines).toHaveLength(1);
-    const document = JSON.parse(lines[0]!) as Record<string, unknown>;
+    // The whole of stdout is the one document (pretty-printed over several lines).
+    const document = JSON.parse(stdout) as Record<string, unknown>;
     expect(Object.keys(document)[0]).toBe("$schema");
     expect(document).toEqual({ $schema: currentSchemaUrl("plan-lint"), ...report });
   });
@@ -363,8 +347,7 @@ describe("runPlansLint", () => {
     loadConfig.mockReturnValue(Either.right({ ...makeConfig(), repoRoot: process.cwd() }));
     const lintPlan = await mockLint({ plan: "docs/plans/2609101260-foo-plan.md", findings: [] });
 
-    const { out } = makeOutput();
-    await runPlansLint("docs/plans/2609101260-foo-plan.md", {}, out);
+    await phaxCall(["plans", "lint", "docs/plans/2609101260-foo-plan.md"]);
 
     expect(lintPlan).toHaveBeenCalledWith(
       expect.objectContaining({ repoRelPath: "docs/plans/2609101260-foo-plan.md" }),
@@ -379,8 +362,11 @@ describe("runPlansLint", () => {
       Effect.fail(new ArtifactValidationError({ path: "docs/plans/foo-plan.md", message })),
     );
 
-    const { out, errors, lines } = makeOutput();
-    const code = await runPlansLint("docs/plans/foo-plan.md", {}, out);
+    const {
+      code,
+      errLines: errors,
+      outLines: lines,
+    } = await phaxCall(["plans", "lint", "docs/plans/foo-plan.md"]);
 
     expect(code).toBe(12);
     expect(errors).toEqual([message]);
@@ -394,8 +380,7 @@ describe("runPlansLint", () => {
       Effect.fail({ _tag: "FsError", message: "ENOENT: plan.md" } as never) as never,
     );
 
-    const { out, errors } = makeOutput();
-    const code = await runPlansLint("plan.md", {}, out);
+    const { code, errLines: errors } = await phaxCall(["plans", "lint", "plan.md"]);
 
     expect(code).not.toBe(0);
     expect(errors.join("\n")).toContain("ENOENT");
@@ -433,8 +418,7 @@ describe("runPlansOverview", () => {
     );
     const planOverview = await mockOverview(Effect.succeed(OVERVIEW));
 
-    const { out, errors } = makeOutput();
-    const code = await runPlansOverview("plan.md", {}, out);
+    const { code, errLines: errors } = await phaxCall(["plans", "overview", "plan.md"]);
 
     expect(code).toBe(2);
     expect(errors).toEqual(["Config error: bad phax.json"]);
@@ -445,8 +429,11 @@ describe("runPlansOverview", () => {
     await setupConfig();
     const planOverview = await mockOverview(Effect.succeed(OVERVIEW));
 
-    const { out, lines } = makeOutput();
-    const code = await runPlansOverview("docs/plans/2609101260-foo-plan.md", {}, out);
+    const { code, outLines: lines } = await phaxCall([
+      "plans",
+      "overview",
+      "docs/plans/2609101260-foo-plan.md",
+    ]);
 
     expect(code).toBe(0);
     expect(planOverview).toHaveBeenCalledWith(
@@ -462,12 +449,15 @@ describe("runPlansOverview", () => {
     await setupConfig();
     await mockOverview(Effect.succeed(OVERVIEW));
 
-    const { out, lines, warnings } = makeOutput();
-    const code = await runPlansOverview("plan.md", { json: true }, out);
+    const {
+      code,
+      out: stdout,
+      errLines: warnings,
+    } = await phaxCall(["plans", "overview", "plan.md", "--json"]);
 
     expect(code).toBe(0);
-    expect(lines).toHaveLength(1);
-    const document = JSON.parse(lines[0]!) as Record<string, unknown>;
+    // The whole of stdout is the one document (pretty-printed over several lines).
+    const document = JSON.parse(stdout) as Record<string, unknown>;
     expect(Object.keys(document)[0]).toBe("$schema");
     expect(document).toEqual({ $schema: currentSchemaUrl("plan-overview"), ...OVERVIEW });
     expect(warnings).toEqual([]);
@@ -479,8 +469,7 @@ describe("runPlansOverview", () => {
       Effect.succeed({ ...OVERVIEW, architecture: { kind: "failed", message: "boom" } }),
     );
 
-    const { out, warnings } = makeOutput();
-    const code = await runPlansOverview("plan.md", {}, out);
+    const { code, errLines: warnings } = await phaxCall(["plans", "overview", "plan.md"]);
 
     expect(code).toBe(0);
     expect(warnings).toEqual(["Warning: architecture provider failed: boom"]);
@@ -491,8 +480,11 @@ describe("runPlansOverview", () => {
     const line = "plan.md: the plan does not parse — run phax plans lint plan.md";
     await mockOverview(Effect.fail({ kind: "unparsable", line }));
 
-    const { out, errors, lines } = makeOutput();
-    const code = await runPlansOverview("plan.md", {}, out);
+    const {
+      code,
+      errLines: errors,
+      outLines: lines,
+    } = await phaxCall(["plans", "overview", "plan.md"]);
 
     expect(code).toBe(1);
     expect(errors).toEqual([line]);

@@ -55,7 +55,7 @@ const PathArg = Schema.String.annotations({
 
 /** `phax architecture` over an invocation directory, which the kept run function
  *  (`runArchitecture`) names. */
-export function makeArchitectureCommand(cwdOf: () => string) {
+function makeArchitectureCommand(cwdOf: () => string) {
   return defineCommand({
     name: "architecture",
     summary:
@@ -134,7 +134,7 @@ export function makeArchitectureCommand(cwdOf: () => string) {
 
 /** The sections of the text, each printed as one block: the report (or the no-provider line),
  *  then, when bounds are declared, a blank line and the bounds. */
-export function architectureSections(
+function architectureSections(
   value: Schema.Schema.Type<typeof ArchitectureOutput>,
 ): ReadonlyArray<string> {
   if (value.kind === "no-provider") {

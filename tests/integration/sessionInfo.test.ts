@@ -7,6 +7,7 @@ import { findCurrentPhase } from "../../src/app/resolveRunInfo.js";
 import type { PhaseStatus } from "../../src/schemas/status.js";
 import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
 import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
+import { phaxCall } from "../helpers/runnerCall.js";
 
 vi.mock("../../src/app/loadConfig.js", () => ({
   loadConfig: vi.fn(),
@@ -190,15 +191,7 @@ describe("runSessionInfo", () => {
       { stoppedReason: "rate_limited", lastError: "Rate limit exceeded" },
     );
 
-    const { runSessionInfo } = await import("../../src/cli/commands/sessionInfo.js");
-    const lines: string[] = [];
-    const out = {
-      log: (m: string) => lines.push(m),
-      warn: (m: string) => lines.push(`WARN: ${m}`),
-      error: (m: string) => lines.push(`ERR: ${m}`),
-    };
-
-    const exitCode = await runSessionInfo("my-run", out);
+    const { code: exitCode, outLines: lines } = await phaxCall(["session-info", "my-run"]);
 
     expect(exitCode).toBe(0);
     expect(lines.some((l) => l.includes("rate_limited"))).toBe(true);
@@ -213,15 +206,7 @@ describe("runSessionInfo", () => {
       { id: "phase-01", index: 0, state: "review_open", sessionId: "sess-ro", worktreePath },
     ]);
 
-    const { runSessionInfo } = await import("../../src/cli/commands/sessionInfo.js");
-    const lines: string[] = [];
-    const out = {
-      log: (m: string) => lines.push(m),
-      warn: (m: string) => lines.push(`WARN: ${m}`),
-      error: (m: string) => lines.push(`ERR: ${m}`),
-    };
-
-    const exitCode = await runSessionInfo("my-run", out);
+    const { code: exitCode, outLines: lines } = await phaxCall(["session-info", "my-run"]);
 
     expect(exitCode).toBe(0);
     expect(lines.some((l) => l.includes("not resumable"))).toBe(true);
@@ -229,22 +214,14 @@ describe("runSessionInfo", () => {
   });
 
   it("returns 1 for an invalid short name", async () => {
-    const { runSessionInfo } = await import("../../src/cli/commands/sessionInfo.js");
-    const errors: string[] = [];
-    const out = { log: vi.fn(), warn: vi.fn(), error: (m: string) => errors.push(m) };
-
-    const exitCode = await runSessionInfo("INVALID NAME", out);
+    const { code: exitCode, errLines: errors } = await phaxCall(["session-info", "INVALID NAME"]);
 
     expect(exitCode).toBe(1);
     expect(errors.some((e) => e.includes("not a valid run short name"))).toBe(true);
   });
 
   it("returns 1 when run does not exist", async () => {
-    const { runSessionInfo } = await import("../../src/cli/commands/sessionInfo.js");
-    const errors: string[] = [];
-    const out = { log: vi.fn(), warn: vi.fn(), error: (m: string) => errors.push(m) };
-
-    const exitCode = await runSessionInfo("no-such-run", out);
+    const { code: exitCode } = await phaxCall(["session-info", "no-such-run"]);
 
     expect(exitCode).toBe(1);
   });
@@ -275,11 +252,7 @@ describe("runSessionInfo", () => {
       status: "running",
     });
 
-    const { runSessionInfo } = await import("../../src/cli/commands/sessionInfo.js");
-    const lines: string[] = [];
-    const out = { log: (m: string) => lines.push(m), warn: vi.fn(), error: vi.fn() };
-
-    const exitCode = await runSessionInfo("my-run", out);
+    const { code: exitCode, outLines: lines } = await phaxCall(["session-info", "my-run"]);
 
     expect(exitCode).toBe(0);
     expect(lines.some((l) => l.includes("Provider:") && l.includes("codex-cli"))).toBe(true);
@@ -337,11 +310,9 @@ describe("runSessionInfo", () => {
       }),
     );
 
-    const { runSessionInfo } = await import("../../src/cli/commands/sessionInfo.js");
-    const lines: string[] = [];
-    const out = { log: (m: string) => lines.push(m), warn: vi.fn(), error: vi.fn() };
+    const { code, outLines: lines } = await phaxCall(["session-info", "my-run"]);
 
-    expect(await runSessionInfo("my-run", out)).toBe(0);
+    expect(code).toBe(0);
 
     expect(lines).toContain("Suggested enter:  phax enter-phase test.my-run phase-01");
     expect(lines.some((l) => l.startsWith("Resume:"))).toBe(false);
@@ -376,11 +347,7 @@ describe("runSessionInfo", () => {
 
     // Even if routing config were changed to prefer claude-code, the binding must win.
     // session-info never consults routing, so no routing mock needed — we just verify output.
-    const { runSessionInfo } = await import("../../src/cli/commands/sessionInfo.js");
-    const lines: string[] = [];
-    const out = { log: (m: string) => lines.push(m), warn: vi.fn(), error: vi.fn() };
-
-    const exitCode = await runSessionInfo("my-run", out);
+    const { code: exitCode, outLines: lines } = await phaxCall(["session-info", "my-run"]);
 
     expect(exitCode).toBe(0);
     expect(lines.some((l) => l.includes("Provider:") && l.includes("mistral-vibe"))).toBe(true);
@@ -397,11 +364,7 @@ describe("runSessionInfo", () => {
       { id: "phase-01", index: 0, state: "review_open", worktreePath },
     ]);
 
-    const { runSessionInfo } = await import("../../src/cli/commands/sessionInfo.js");
-    const lines: string[] = [];
-    const out = { log: (m: string) => lines.push(m), warn: vi.fn(), error: vi.fn() };
-
-    const exitCode = await runSessionInfo("my-run", out);
+    const { code: exitCode, outLines: lines } = await phaxCall(["session-info", "my-run"]);
 
     expect(exitCode).toBe(0);
     expect(
@@ -436,11 +399,7 @@ describe("runSessionInfo", () => {
       status: "completed",
     });
 
-    const { runSessionInfo } = await import("../../src/cli/commands/sessionInfo.js");
-    const lines: string[] = [];
-    const out = { log: (m: string) => lines.push(m), warn: vi.fn(), error: vi.fn() };
-
-    const exitCode = await runSessionInfo("my-run", out);
+    const { code: exitCode, outLines: lines } = await phaxCall(["session-info", "my-run"]);
 
     expect(exitCode).toBe(0);
     expect(lines.some((l) => l.includes("Binding status:") && l.includes("completed"))).toBe(true);
@@ -472,11 +431,7 @@ describe("runSessionInfo", () => {
       status: "awaiting_manual_review",
     });
 
-    const { runSessionInfo } = await import("../../src/cli/commands/sessionInfo.js");
-    const lines: string[] = [];
-    const out = { log: (m: string) => lines.push(m), warn: vi.fn(), error: vi.fn() };
-
-    const exitCode = await runSessionInfo("my-run", out);
+    const { code: exitCode, outLines: lines } = await phaxCall(["session-info", "my-run"]);
 
     expect(exitCode).toBe(0);
     expect(
@@ -510,11 +465,7 @@ describe("runSessionInfo", () => {
       status: "failed",
     });
 
-    const { runSessionInfo } = await import("../../src/cli/commands/sessionInfo.js");
-    const lines: string[] = [];
-    const out = { log: (m: string) => lines.push(m), warn: vi.fn(), error: vi.fn() };
-
-    const exitCode = await runSessionInfo("my-run", out);
+    const { code: exitCode, outLines: lines } = await phaxCall(["session-info", "my-run"]);
 
     expect(exitCode).toBe(0);
     expect(lines.some((l) => l.includes("Binding status:") && l.includes("failed"))).toBe(true);
@@ -546,11 +497,7 @@ describe("runSessionInfo", () => {
       status: "archived",
     });
 
-    const { runSessionInfo } = await import("../../src/cli/commands/sessionInfo.js");
-    const lines: string[] = [];
-    const out = { log: (m: string) => lines.push(m), warn: vi.fn(), error: vi.fn() };
-
-    const exitCode = await runSessionInfo("my-run", out);
+    const { code: exitCode, outLines: lines } = await phaxCall(["session-info", "my-run"]);
 
     expect(exitCode).toBe(0);
     expect(lines.some((l) => l.includes("Binding status:") && l.includes("archived"))).toBe(true);
@@ -583,11 +530,11 @@ describe("runSessionInfo", () => {
     };
     await writeAgentBindingFile(phaseFolderPath, bindingObj);
 
-    const { runSessionInfo } = await import("../../src/cli/commands/sessionInfo.js");
-    const lines: string[] = [];
-    const out = { log: (m: string) => lines.push(m), warn: vi.fn(), error: vi.fn() };
-
-    const exitCode = await runSessionInfo("my-run", out, { debug: true });
+    const { code: exitCode, outLines: lines } = await phaxCall([
+      "session-info",
+      "my-run",
+      "--debug",
+    ]);
 
     expect(exitCode).toBe(0);
     expect(lines.some((l) => l.includes("Debug:"))).toBe(true);

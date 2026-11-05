@@ -27,7 +27,7 @@ const SchemaUpgradeOutput = Schema.Struct({
   written: Schema.Array(Written),
 });
 
-export const schemaUpgradeCommand = defineCommand({
+const schemaUpgradeCommand = defineCommand({
   name: "upgrade",
   summary:
     "Regenerate phax.schema.json from the installed binary's config contract; never modifies phax.json",

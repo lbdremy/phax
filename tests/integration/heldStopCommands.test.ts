@@ -34,6 +34,7 @@ import {
 } from "../helpers/heldRunFixture.js";
 import { patchJson, stopRun } from "../helpers/stoppedRunFixture.js";
 import { childEnvUnder } from "../helpers/providerStoreRoots.js";
+import { phaxCall } from "../helpers/runnerCall.js";
 
 // The commands that act on a run waiting at a held stop: the made-up
 // invoice-export run holding phase-02 (`--hold phase-02`), built by the real
@@ -171,10 +172,9 @@ describe("phax ls and phax session-info on a held run", () => {
 
   it("lists the held run as awaiting_review (held) with its stopped phase", async () => {
     await fourRuns();
-    const { runLs } = await import("../../src/cli/commands/ls.js");
-    const { out, logs } = makeOutput();
+    const { code, outLines: logs } = await phaxCall(["ls"]);
 
-    expect(await runLs({}, out)).toBe(0);
+    expect(code).toBe(0);
 
     const rows = logs.join("\n").split("\n");
     const held = rows.find((l) => l.includes("example.invoice-export"))!;
@@ -191,10 +191,9 @@ describe("phax ls and phax session-info on a held run", () => {
 
   it("lists the held run with the declared one under --awaiting-review, not the others", async () => {
     await fourRuns();
-    const { runLs } = await import("../../src/cli/commands/ls.js");
-    const { out, logs } = makeOutput();
+    const { code, outLines: logs } = await phaxCall(["ls", "--awaiting-review"]);
 
-    expect(await runLs({ awaitingReview: true }, out)).toBe(0);
+    expect(code).toBe(0);
 
     const rows = logs.join("\n").split("\n").slice(2);
     expect(rows).toHaveLength(2);
@@ -205,10 +204,9 @@ describe("phax ls and phax session-info on a held run", () => {
   });
 
   it("session-info prints the state, cause, phase and its commit, worktree and X0 with origin builder", async () => {
-    const { runSessionInfo } = await import("../../src/cli/commands/sessionInfo.js");
-    const { out, logs } = makeOutput();
+    const { code, outLines: logs } = await phaxCall(["session-info", SHORT]);
 
-    expect(await runSessionInfo(SHORT, out)).toBe(0);
+    expect(code).toBe(0);
 
     const text = logs.join("\n");
     expect(text).toContain("Status:           awaiting_review (held)");
@@ -227,10 +225,9 @@ describe("phax ls and phax session-info on a held run", () => {
   it("session-info prints the session as none when the builder recorded no id", async () => {
     const stop = readJson(stopPath());
     writeFileSync(stopPath(), JSON.stringify({ ...stop, session: null }, null, 2));
-    const { runSessionInfo } = await import("../../src/cli/commands/sessionInfo.js");
-    const { out, logs } = makeOutput();
+    const { code, outLines: logs } = await phaxCall(["session-info", SHORT]);
 
-    expect(await runSessionInfo(SHORT, out)).toBe(0);
+    expect(code).toBe(0);
 
     expect(logs.join("\n")).toContain("Session:          none");
   });
@@ -242,13 +239,12 @@ describe("phax path, shell and open on a held run", () => {
     const script = join(world.root, "fake-shell.sh");
     vi.stubEnv("SHELL", script);
 
-    const { runPath } = await import("../../src/cli/commands/path.js");
     const { runShell } = await import("../../src/cli/commands/shell.js");
     const { runOpen } = await import("../../src/cli/commands/open.js");
 
-    const pathOut = makeOutput();
-    expect(await runPath(SHORT, pathOut.out)).toBe(0);
-    expect(pathOut.logs).toEqual([tree()]);
+    const pathCall = await phaxCall(["path", SHORT]);
+    expect(pathCall.code).toBe(0);
+    expect(pathCall.outLines).toEqual([tree()]);
 
     expect(await runShell(SHORT, makeOutput().out)).toBe(0);
     expect(fakeSession.impl.invocations).toEqual([

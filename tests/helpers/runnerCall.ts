@@ -89,3 +89,28 @@ export async function runnerCall(
     stdinReads: memory.stdinReads(),
   };
 }
+
+/** Runs `argv` against phax's whole program, as `phax <argv>` does in a terminal. The commands
+ *  keep their real adapters, so a test swaps what they reach with `vi.mock` or a fixture on disk,
+ *  and the working directory is the process's. */
+export async function phaxCall(
+  argv: ReadonlyArray<string>,
+  options: Omit<RunnerCallOptions, "programOptions"> = {},
+): Promise<RunnerCallResult> {
+  const { phaxProgram } = await import("../../src/cli/definitions/program.js");
+  const memory = memoryIo({ argv, ...options });
+  const code = await Effect.runPromise(
+    runner.run(phaxProgram, memory.io) as Effect.Effect<ExitCode>,
+  );
+  const out = memory.out();
+  const err = memory.err();
+  return {
+    code,
+    out,
+    err,
+    outLines: linesOf(out),
+    errLines: linesOf(err),
+    writes: memory.writes(),
+    stdinReads: memory.stdinReads(),
+  };
+}
