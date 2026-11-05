@@ -66,7 +66,7 @@ Codex is the only one that enforces a hard on/off egress boundary.
 - **`disabled`**: MCP is disabled entirely
 - **`local-only`**: Only local MCP servers are allowed
 - **`allowlist`**: Only MCP servers whose config files are listed in `mcp.allow` (as file paths) can be used
-- **`provider-default`**: Use the provider's default MCP behavior
+- **`provider-default`**: Use the provider's default MCP behavior. A headless Claude Code session no longer loads user-scope servers (see [What a Claude Code session loads](#what-a-claude-code-session-loads))
 
 ## CLI Override
 
@@ -109,9 +109,10 @@ network control at all.
 **Claude Code** (`claude-code`):
 
 - Secure mode runs headless with `--permission-mode acceptEdits` (edits auto-approved within the working dirs, denied outside)
+- Headless sessions load the repository's harness and Claude Code's bundled skills only, not your user settings, skills, plugins, hooks, rules, `CLAUDE.md` or auto-memory (see [What a Claude Code session loads](#what-a-claude-code-session-loads))
 - File-editing tools restricted to the worktree cwd + `--add-dir` paths; an allowed shell command runs with the user's rights, outside any OS sandbox
 - No native domain-allowlist flag; `network.profile` is recorded but not enforced as a per-domain filter
-- MCP disabled or allowlisted via `--strict-mcp-config`
+- MCP disabled or allowlisted via `--strict-mcp-config`; under `provider-default`, a headless session loads no user-scope server
 - Shell is denied by default; only the phase's gate commands are allowlisted (see [Shell command execution](#shell-command-execution))
 
 **Codex CLI** (`codex-cli`):
@@ -139,6 +140,50 @@ network control at all.
 Example: with `providerPriority` `[mistral-vibe, claude-code]` in secure mode, the phase runs on Vibe, and its `security.json` shows `"provider": "mistral-vibe"`, `"downgraded": false` and `"marks": []`.
 
 **Accepted loss.** Vibe's enforcement is tool-level: code that an allowed agent command runs can still read and write outside the roots, with the user's rights, as under Claude Code's allowlist.
+
+### What a Claude Code session loads
+
+Claude Code reads a lot besides the repository: your skills, plugins, hooks, rules, `CLAUDE.md` and auto-memory. phax keeps that layer out of the sessions nobody watches, so a run reads the same on your machine as on a colleague's, and compares in the records.
+
+| Session     | Repository harness (`CLAUDE.md`, `.claude/skills`, `.claude/rules`, `.claude/settings.json`) | User skills and plugins | User hooks | User rules and `CLAUDE.md` | Auto-memory | Bundled skills |
+| ----------- | -------------------------------------------------------------------------------------------- | ----------------------- | ---------- | -------------------------- | ----------- | -------------- |
+| Headless    | loaded                                                                                       | not loaded              | not loaded | not loaded                 | not loaded  | loaded         |
+| Interactive | loaded                                                                                       | loaded                  | loaded     | loaded                     | loaded      | loaded         |
+
+- **Headless sessions** are phase sessions and their fix attempts, handoff generation, headless authoring, decide's headless handback and its corrective retry, headless and compliance review, an interactive phase's first turn, and structured completions.
+- **Interactive sessions** are `phax enter`, a stop's continue and fresh-start commands, decide's interactive session and interactive review. They are your own sessions, so they keep your setup.
+- **The usage probe** keeps your settings, because the authentication it checks may live there.
+
+A headless session is launched with `--setting-sources project` right after the stream flags, and with `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1` added to the environment phax runs in. Every other variable is passed unchanged.
+
+```text
+claude --print --output-format stream-json --verbose --setting-sources project --permission-mode acceptEdits ...
+CLAUDE_CODE_DISABLE_AUTO_MEMORY=1
+```
+
+Still loaded in a headless session:
+
+- Claude Code's bundled skills and the builtin `cc-plugin-*` plugins.
+- Managed (organisation) settings.
+- MCP servers, as the security policy's `mcp` settings decide. Under `provider-default`, user-scope servers no longer load.
+
+A claude-code phase's `record.json` says so:
+
+```json
+"userConfig": "excluded"
+```
+
+Records of `codex-cli` and `mistral-vibe` phases say `loaded`, as do records written before 0.34.0.
+
+**Authentication in user settings.** Because a headless session does not read `~/.claude/settings.json`, an `apiKeyHelper` or an `env` block set there (including Bedrock or Vertex settings) is not used. Claude Code then reports it is not authenticated, and phax fails the phase with its own kind. It is never retried as a network or limit failure:
+
+```text
+✗ claude-code session failed (not-authenticated): Invalid API key · Please run /login
+Claude Code is not authenticated. phax's headless sessions do not load your Claude Code user settings (~/.claude/settings.json), so an apiKeyHelper or env set there is not used.
+Log in with `claude /login`, or set ANTHROPIC_API_KEY where you run phax.
+```
+
+Either remedy works: run `claude /login`, or set `ANTHROPIC_API_KEY` in the environment phax runs in. There is no opt-out. A setting a headless session needs belongs in the repository's committed `.claude/settings.json`.
 
 ### Skill edit grants (Claude Code)
 
@@ -321,7 +366,7 @@ A close copies the transcript of each session it recorded into the run folder, `
 - **Roots.** `~/.claude` and `~/.codex`, moved by `CLAUDE_CONFIG_DIR` and `CODEX_HOME`. An empty variable counts as unset. phax reads no session from `~/.vibe` or `VIBE_HOME`; it only checks whether `agents/accept-edits.toml` exists there before a confined Vibe session.
 - **At closing, phax reads only the transcript file of each recorded session.** Claude Code: `projects/<slug>/<session id>.jsonl`, the slug being the worktree path with every character outside `A-Z a-z 0-9` replaced by `-`. When it misses, phax tries the slug of the worktree's real path (`/var/…` is `/private/var/…` on macOS). When both miss, it lists the names under `projects/` and tries `<name>/<session id>.jsonl` in each. Codex: `sessions/YYYY/MM/DD/rollout-*-<session id>.jsonl`, listing the date directories' names.
 - **Mistral Vibe: nothing.** The answer, the session id, the usage and the transcript come from the turn's own stream and from the `export.json` Vibe writes into the turn's `--output-dir`, `<turn>.vibe-export/` beside the stream. A close builds a Vibe session's transcript from the turn streams kept in the phase folder whose first entry carries the session id, so a session the person ran in Vibe's TUI has no transcript.
-- **Never read:** a provider's credentials or configuration.
+- **Never read:** a provider's credentials or configuration. phax reads session transcripts only; a headless Claude Code session leaves your user settings out through Claude Code's own launch option, not by phax reading them.
 - **Session ids** outside letters, digits, `.`, `_` and `-` are refused before any path is built.
 
 ## Final Report Security Section
