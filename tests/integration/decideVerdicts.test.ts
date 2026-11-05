@@ -590,7 +590,7 @@ describe("decide --verdicts — a writer's answer is checked", { timeout: 30_000
         questions: verdicts.map((v) => v.question),
         requestedModel: "claude-sonnet-5-5",
       });
-      expect(manifest["$schema"]).toBe(schemaUrl("decision-record-manifest", "0.30.0"));
+      expect(manifest["$schema"]).toBe(schemaUrl("decision-record-manifest", "0.34.0"));
     },
   );
 
@@ -1173,7 +1173,7 @@ describe(
       });
     });
 
-    it("a session failing with kind network exits 14 and records failure network at 0.30.0", async () => {
+    it("a session failing with kind network exits 14 and records failure network at 0.34.0", async () => {
       seed(FILE_VALID);
       world.keepAuthoringSession(AUTHORING_ID);
       const h = world.harness();
@@ -1197,7 +1197,7 @@ describe(
         world.git(["show", `${RECORDS_BRANCH}:decision/${AUTHORING_ID}/01/record.json`]),
       ) as Json;
       expect(manifest).toMatchObject({ outcome: "failed", commit: null, failure: "network" });
-      expect(manifest["$schema"]).toBe(schemaUrl("decision-record-manifest", "0.30.0"));
+      expect(manifest["$schema"]).toBe(schemaUrl("decision-record-manifest", "0.34.0"));
     });
 
     it("a limit on the corrective resume is not retried either", async () => {

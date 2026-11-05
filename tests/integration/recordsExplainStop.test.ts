@@ -270,6 +270,7 @@ describe("explain's address: which trailers name a record", () => {
       model: "claude-sonnet-5",
       effort: "high",
       provider: "claude-code",
+      userConfig: "loaded",
       outcome: "committed",
       usage: { available: false },
       verifiedSurfaces: [],

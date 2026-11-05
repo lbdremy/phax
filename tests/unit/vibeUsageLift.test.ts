@@ -76,17 +76,21 @@ const USAGES: ReadonlyArray<readonly [provider: string, usage: Doc, lifted: Doc]
 /** A current-shape document restamped at `stamp`, carrying `usage` where its format keeps one. */
 type Frozen = (stamp: string, usage: Doc) => Doc;
 
+// A frozen phase manifest carries the `oracle` role and, being older than 0.34.0, no `userConfig`.
 const phase: Frozen = (stamp, usage) =>
-  withOracleRole(
-    withKey(
+  withoutKey(
+    withOracleRole(
       withKey(
-        validDocuments["phase-record-manifest"],
-        "$schema",
-        schemaUrl("phase-record-manifest", stamp),
+        withKey(
+          validDocuments["phase-record-manifest"],
+          "$schema",
+          schemaUrl("phase-record-manifest", stamp),
+        ),
+        "usage",
+        usage,
       ),
-      "usage",
-      usage,
     ),
+    "userConfig",
   );
 
 const authoring: Frozen = (stamp, usage) =>

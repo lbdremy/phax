@@ -98,6 +98,7 @@ export async function buildJsonContractsRepo(): Promise<JsonContractsRepo> {
     model: "claude-sonnet-5",
     effort: "high",
     provider: "claude-code",
+    userConfig: "loaded",
     outcome: "committed",
     usage: { available: false },
     verifiedSurfaces: ["local"],

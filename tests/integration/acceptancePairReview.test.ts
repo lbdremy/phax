@@ -736,6 +736,8 @@ function recordManifestOf(run: HeldRun, phaseId: string): Record<string, unknown
 }
 
 const stamp = (format: string): string => `https://docs.phax.run/schemas/${format}/0.33.0.json`;
+// phase-record-manifest moved on to 0.34.0 with `userConfig`; its acceptance roles are unchanged.
+const RECORD_MANIFEST_STAMP = stamp("phase-record-manifest").replace("0.33.0", "0.34.0");
 
 describe("a held acceptance phase closed with a correction", { timeout: 60_000 }, () => {
   it("records acceptanceStep authored in status.json and the acceptance and passing roles in the manifests, all at 0.33.0", async () => {
@@ -791,13 +793,13 @@ describe("a held acceptance phase closed with a correction", { timeout: 60_000 }
     });
 
     const authored = recordManifestOf(run, "phase-03");
-    expect(authored["$schema"]).toBe(stamp("phase-record-manifest"));
+    expect(authored["$schema"]).toBe(RECORD_MANIFEST_STAMP);
     expect(authored["acceptance"]).toEqual({ role: "acceptance", passedBy: "phase-04" });
     expect(authored["verifiedSurfaces"]).toContain("acceptance");
     expect(authored).not.toHaveProperty("oracle");
 
     const passing = recordManifestOf(run, "phase-04");
-    expect(passing["$schema"]).toBe(stamp("phase-record-manifest"));
+    expect(passing["$schema"]).toBe(RECORD_MANIFEST_STAMP);
     expect(passing["acceptance"]).toEqual({ role: "passing", acceptancePhase: "phase-03" });
     expect(passing).not.toHaveProperty("oracle");
   });

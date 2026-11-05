@@ -130,6 +130,7 @@ import { decodeCostLedgerV0_25_0 } from "./history/cost-ledger/0.25.0.js";
 import { decodeCostLedgerV0_26_0 } from "./history/cost-ledger/0.26.0.js";
 import { decodeDecisionRecordManifestV0_25_0 } from "./history/decision-record-manifest/0.25.0.js";
 import { decodeDecisionRecordManifestV0_28_0 } from "./history/decision-record-manifest/0.28.0.js";
+import { decodeDecisionRecordManifestV0_30_0 } from "./history/decision-record-manifest/0.30.0.js";
 import { decodeGateAttributionV0_26_0 } from "./history/gate-attribution/0.26.0.js";
 import { decodeGateAttributionV0_31_0 } from "./history/gate-attribution/0.31.0.js";
 import { decodeGateAttributionPreSchema } from "./history/gate-attribution/pre-schema.js";
@@ -142,6 +143,7 @@ import {
   decodePhaseRecordManifestV0_30_0,
   type PhaseRecordManifestV0_30_0,
 } from "./history/phase-record-manifest/0.30.0.js";
+import { decodePhaseRecordManifestV0_33_0 } from "./history/phase-record-manifest/0.33.0.js";
 import { decodePhaseRecordManifestPreSchema } from "./history/phase-record-manifest/pre-schema.js";
 import { decodePhaseStatusV0_20_0 } from "./history/phase-status/0.20.0.js";
 import { decodePhaseStatusV0_26_0 } from "./history/phase-status/0.26.0.js";
@@ -225,7 +227,7 @@ import { CURRENT_STAMPS, PHAX_RELEASE } from "./release.js";
 import { decodeCodeReviewV0_29_0 } from "./history/code-review/0.29.0.js";
 import { decodeReviewStopV0_26_0 } from "./history/review-stop/0.26.0.js";
 import { decodeReviewStopFile, type ReviewStop } from "./reviewStop.js";
-import { liftFrozenTokenUsage, type TokenUsage } from "./runRecord.js";
+import { liftFrozenTokenUsage, withLoadedUserConfig, type TokenUsage } from "./runRecord.js";
 import {
   compareReleases,
   parseSchemaUrl,
@@ -1800,19 +1802,32 @@ function isStampedBelowCurrent(
 }
 
 // A phase manifest stamped below the format's current stamp is read by the
-// frozen 0.30.0 decoder when stamped 0.30.0 or later, by the frozen 0.26.0
-// decoder when stamped 0.26.0 or later, else by the frozen 0.17.0 decoder.
-// The 0.30.0 and 0.26.0 shapes' `oracle` role becomes the `acceptance` role
-// and their `oracle` verified surface `acceptance`, sorted again. One written
-// before the role (pre-schema, or read by the 0.17.0 decoder) is upgraded with
+// frozen 0.33.0 decoder when stamped 0.33.0 or later, by the frozen 0.30.0
+// decoder when stamped 0.30.0 or later, by the frozen 0.26.0 decoder when
+// stamped 0.26.0 or later, else by the frozen 0.17.0 decoder. The 0.30.0 and
+// 0.26.0 shapes' `oracle` role becomes the `acceptance` role and their
+// `oracle` verified surface `acceptance`, sorted again. One written before the
+// role (pre-schema, or read by the 0.17.0 decoder) is upgraded with
 // `acceptance: null`, `mode: "headless"` and `stop: null`: no phax before it
-// could run an oracle phase or stop a phase. Every lift of a frozen usage
-// turns a Vibe session cost into unavailable.
+// could run an oracle phase or stop a phase. Every shape below 0.34.0 recorded
+// no `userConfig`: every lift inserts `userConfig: "loaded"` after `provider`,
+// because every earlier phax loaded the user layer for every provider. Every
+// lift of a frozen usage turns a Vibe session cost into unavailable.
 function readPhaseRecordManifestAs(label: string): Reader<RecordManifest> {
   return (file, input) => {
     if (isDocumentObject(input) && isStampedBelowCurrent("phase-record-manifest", input)) {
       // `isStampedBelowCurrent` has parsed the stamp, so the release is there.
       const release = parseSchemaUrl(input["$schema"])?.release ?? "0.0.0";
+      if (compareReleases(release, "0.33.0") >= 0) {
+        const older = decodePhaseRecordManifestV0_33_0(input);
+        if (Either.isLeft(older)) {
+          return Either.left(
+            readError(file, "phase-record-manifest", formatFirstViolation(older.left)),
+          );
+        }
+        const { $schema: _schema, ...manifest } = older.right;
+        return Either.right(withLoadedUserConfig(manifest));
+      }
       if (compareReleases(release, "0.30.0") >= 0) {
         const older = decodePhaseRecordManifestV0_30_0(input);
         if (Either.isLeft(older)) {
@@ -1841,13 +1856,15 @@ function readPhaseRecordManifestAs(label: string): Reader<RecordManifest> {
         );
       }
       const { $schema: _schema, usage, ...manifest } = older.right;
-      return Either.right({
-        ...manifest,
-        usage: liftFrozenTokenUsage(usage),
-        acceptance: null,
-        mode: "headless",
-        stop: null,
-      });
+      return Either.right(
+        withLoadedUserConfig({
+          ...manifest,
+          usage: liftFrozenTokenUsage(usage),
+          acceptance: null,
+          mode: "headless",
+          stop: null,
+        }),
+      );
     }
     return readPersisted(input, {
       format: "phase-record-manifest",
@@ -1857,13 +1874,15 @@ function readPhaseRecordManifestAs(label: string): Reader<RecordManifest> {
       decodePreSchema: decodePhaseRecordManifestPreSchema,
       fromCurrent: fromRecordManifestFile,
       fromPreSchema: ({ version: _version, usage, ...manifest }) =>
-        Either.right({
-          ...manifest,
-          usage: liftFrozenTokenUsage(usage),
-          acceptance: null,
-          mode: "headless",
-          stop: null,
-        }),
+        Either.right(
+          withLoadedUserConfig({
+            ...manifest,
+            usage: liftFrozenTokenUsage(usage),
+            acceptance: null,
+            mode: "headless",
+            stop: null,
+          }),
+        ),
     });
   };
 }
@@ -1871,20 +1890,21 @@ function readPhaseRecordManifestAs(label: string): Reader<RecordManifest> {
 /**
  * A phase manifest of the 0.26.0 or 0.30.0 shape, its usage already current:
  * `$schema` dropped, the `oracle` role key renamed `acceptance` and its value
- * lifted (`liftRecordRole`), in the key's own position, and the verified
- * surfaces lifted (`liftVerifiedSurfaces`).
+ * lifted (`liftRecordRole`), in the key's own position, the verified
+ * surfaces lifted (`liftVerifiedSurfaces`), and `userConfig: "loaded"`
+ * inserted after `provider`.
  */
 function liftOracleRecordManifest(
   manifest: Omit<PhaseRecordManifestV0_30_0, "usage"> & { readonly usage: TokenUsage },
 ): RecordManifest {
   const { $schema: _schema, oracle, verifiedSurfaces, mode, stop, ...head } = manifest;
-  return {
+  return withLoadedUserConfig({
     ...head,
     verifiedSurfaces: liftVerifiedSurfaces(verifiedSurfaces),
     acceptance: liftRecordRole(oracle),
     mode,
     stop,
-  };
+  });
 }
 
 const readPhaseRecordManifest = readPhaseRecordManifestAs("phase record manifest");
@@ -1893,15 +1913,27 @@ const readPhaseRecordManifest = readPhaseRecordManifestAs("phase record manifest
 const readAnyRecordManifest = readPhaseRecordManifestAs("record manifest");
 
 // Born with `$schema`: a decision manifest without one is unreadable. One
-// stamped below the format's current stamp is read by the frozen 0.28.0
+// stamped below the format's current stamp is read by the frozen 0.30.0
+// decoder when stamped 0.30.0 or later (lifted as it is, but for `$schema`:
+// its failure kinds are a subset of the current ones), by the frozen 0.28.0
 // decoder when stamped 0.28.0 or later, else by the frozen 0.25.0 decoder; an
-// 0.25.0 manifest is an interactive record, valid as it is. Every lift turns a
-// Vibe usage into unavailable, and a failed record, which named no failure
-// before 0.30.0, gets `failure: null`.
+// 0.25.0 manifest is an interactive record, valid as it is. Every lift of a
+// shape below 0.30.0 turns a Vibe usage into unavailable, and a failed record,
+// which named no failure before 0.30.0, gets `failure: null`.
 const readDecisionRecordManifest: Reader<RecordManifest> = (file, input) => {
   if (isDocumentObject(input) && isStampedBelowCurrent("decision-record-manifest", input)) {
     // `isStampedBelowCurrent` has parsed the stamp, so the release is there.
     const release = parseSchemaUrl(input["$schema"])?.release ?? "0.0.0";
+    if (compareReleases(release, "0.30.0") >= 0) {
+      const current = decodeDecisionRecordManifestV0_30_0(input);
+      if (Either.isLeft(current)) {
+        return Either.left(
+          readError(file, "decision-record-manifest", formatFirstViolation(current.left)),
+        );
+      }
+      const { $schema: _schema, ...manifest } = current.right;
+      return Either.right(manifest);
+    }
     const older =
       compareReleases(release, "0.28.0") >= 0
         ? decodeDecisionRecordManifestV0_28_0(input)

@@ -20,6 +20,7 @@ const baseManifest = {
   model: "claude-sonnet-5",
   effort: "high",
   provider: "claude-code" as const,
+  userConfig: "loaded" as const,
   outcome: "committed" as const,
   usage: UNAVAILABLE_TOKEN_USAGE,
   verifiedSurfaces: [] as const,
@@ -206,6 +207,30 @@ describe("RunRecordManifestSchema", () => {
         true,
       );
     }
+  });
+
+  it("requires userConfig, refusing a manifest without it by naming the field", () => {
+    const { userConfig: _userConfig, ...withoutUserConfig } = baseManifest;
+    const result = decodeRunRecordManifestFile(withoutUserConfig);
+    expect(Either.isLeft(result)).toBe(true);
+    if (Either.isLeft(result)) expect(String(result.left)).toContain("userConfig");
+  });
+
+  it.each(["excluded", "loaded"] as const)("decodes userConfig %s as recorded", (userConfig) => {
+    const result = decodeRunRecordManifestFile({ ...baseManifest, userConfig });
+    expect(Either.isRight(result)).toBe(true);
+    if (Either.isRight(result)) expect(result.right.userConfig).toBe(userConfig);
+  });
+
+  it.each(["included", "", null, true, "Loaded"])("refuses the unknown userConfig %j", (value) => {
+    expect(Either.isLeft(decodeRunRecordManifestFile({ ...baseManifest, userConfig: value }))).toBe(
+      true,
+    );
+  });
+
+  it("writes userConfig right after provider", () => {
+    const keys = Object.keys(encodeRunRecordManifest(baseManifest));
+    expect(keys[keys.indexOf("provider") + 1]).toBe("userConfig");
   });
 
   it("rejects a v1 manifest (no verifiedSurfaces field)", () => {

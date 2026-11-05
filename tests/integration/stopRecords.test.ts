@@ -313,6 +313,7 @@ describe(
         model: selected.concreteModel,
         effort: selected.thinking ?? "medium",
         provider: selected.provider,
+        userConfig: "loaded",
         outcome: "committed",
         usage: { available: false },
         verifiedSurfaces: expect.any(Array),

@@ -11,6 +11,7 @@ import type {
 import type { RecordedSurface } from "../../schemas/surface.js";
 import { isArchivedTranscript } from "../session/failureArchive.js";
 import { isStopArtifact } from "./stopArtifacts.js";
+import { userConfigOf } from "./userConfig.js";
 import { isVibeExportDir } from "./usage.js";
 
 const TRANSCRIPT_FILE = "output.jsonl";
@@ -96,6 +97,7 @@ export function assembleRecord(input: AssembleRecordInput): AssembledRecord {
     model: input.model,
     effort: input.effort,
     provider: input.provider,
+    userConfig: userConfigOf(input.provider),
     outcome: input.outcome,
     usage: input.usage,
     verifiedSurfaces: input.verifiedSurfaces,

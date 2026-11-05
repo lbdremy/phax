@@ -49,6 +49,7 @@ const phaseManifest = {
   model: "claude-opus-5-5",
   effort: "high",
   provider: "claude-code",
+  userConfig: "loaded",
   outcome: "committed",
   usage: { available: false },
   verifiedSurfaces: ["local"],

@@ -631,6 +631,10 @@ export {
   type DecisionRecordManifestV0_28_0,
 } from "../../../src/schemas/history/decision-record-manifest/0.28.0.js";
 export {
+  DecisionRecordManifestV0_30_0Schema,
+  type DecisionRecordManifestV0_30_0,
+} from "../../../src/schemas/history/decision-record-manifest/0.30.0.js";
+export {
   FirstReadingV0_26_0Schema,
   type FirstReadingV0_26_0,
 } from "../../../src/schemas/history/first-reading/0.26.0.js";
@@ -722,6 +726,10 @@ export {
   PhaseRecordManifestV0_30_0Schema,
   type PhaseRecordManifestV0_30_0,
 } from "../../../src/schemas/history/phase-record-manifest/0.30.0.js";
+export {
+  PhaseRecordManifestV0_33_0Schema,
+  type PhaseRecordManifestV0_33_0,
+} from "../../../src/schemas/history/phase-record-manifest/0.33.0.js";
 export {
   BriefRecordV0_20_0Schema,
   type BriefRecordV0_20_0,

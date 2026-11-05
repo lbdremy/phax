@@ -1007,6 +1007,7 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
     RunRecordManifestFileSchema,
     withSchemaUrl("phase-record-manifest", {
       ...stepped(phaseRecordManifest),
+      userConfig: "loaded",
       usage: liftFrozenTokenUsage(phaseRecordManifest.usage),
       acceptance: null,
       mode: "headless",
@@ -1564,6 +1565,7 @@ export const heldPhaseRecordManifestDocument: Doc = encoded(
   RunRecordManifestFileSchema,
   withSchemaUrl("phase-record-manifest", {
     ...stepped(phaseRecordManifest),
+    userConfig: "loaded",
     usage: liftFrozenTokenUsage(phaseRecordManifest.usage),
     acceptance: null,
     mode: "headless",
