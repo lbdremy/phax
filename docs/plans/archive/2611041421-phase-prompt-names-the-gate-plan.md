@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2611041203-phase-prompt-names-the-gate.md
 completes-spec: true
 approved:
