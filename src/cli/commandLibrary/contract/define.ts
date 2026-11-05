@@ -95,6 +95,12 @@ export function strip<
   return source(contract, "strip", binding);
 }
 
+/** A command, as written: its input, output, codes, run and views.
+ *
+ *  Gains carried for upstream (the run and session commands): `retiredOptions`, each option the
+ *  command once took with the sentence the runner refuses it with; and `handsOver`, the exit of
+ *  the process the command handed the terminal to, which the runner exits with without `--json`
+ *  (a command declaring it declares `prompts`). */
 export function defineCommand<
   const I extends Inputs,
   A,

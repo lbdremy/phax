@@ -5,7 +5,8 @@
 // ./conformance/ to apply what each source declares. The names are the library's, so that
 // swapping in the published package is an import change; the gains the port carries for
 // upstream are the names after the library's (`AliasAnnotationId`, `Completer`,
-// `CompleterAnnotationId`, `ProgramUsage`, `Refused`, `RunContext`, `StdinDocument`).
+// `CompleterAnnotationId`, `OptionalValueAnnotationId`, `ProgramUsage`, `Refused`, `RunContext`,
+// `StdinDocument`).
 export type {
   Command,
   CommandDef,
@@ -50,6 +51,7 @@ export {
   flagShapes,
   fullName,
   kebabCase,
+  OptionalValueAnnotationId,
   stdinFlagHelp,
 } from "./shapes.js";
 export { OPTION_HELP, usageSpec } from "./usage.js";

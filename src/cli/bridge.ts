@@ -7,7 +7,7 @@
 // help list it; the usage spec generator splices the runner's own block at the stub's position.
 // The bridge is internal and goes with the last plan of command-contracts, when the runner owns
 // the program.
-import { Command, CommanderError } from "commander";
+import { Command, CommanderError, Option as CommanderOption } from "commander";
 import { Cause, Effect, Exit, Option } from "effect";
 import * as Schema from "effect/Schema";
 import { isInPhaseWorktree } from "../app/loadConfig.js";
@@ -345,7 +345,16 @@ function mountStub(parent: Command, command: RunnerCommand<unknown>): void {
   for (const flag of inputs.flags === undefined ? [] : flagShapes(inputs.flags.contract)) {
     const names =
       flag.alias === undefined ? `--${flag.option}` : `-${flag.alias}, --${flag.option}`;
-    stub.option(flag.switch ? names : `${names} <${flag.valueName}>`, flag.help ?? "");
+    const usage = flag.switch
+      ? names
+      : flag.valueOptional
+        ? `${names} [${flag.valueName}]`
+        : `${names} <${flag.valueName}>`;
+    stub.option(usage, flag.help ?? "");
+  }
+  // A retired option is the runner's to refuse: declared hidden, so the stub never lists it.
+  for (const [option, sentence] of Object.entries(command.retiredOptions ?? {})) {
+    stub.addOption(new CommanderOption(`--${option}`, sentence).hideHelp());
   }
   const stdin = inputs.stdin;
   const stdinFlag = stdin?.flag;
@@ -562,10 +571,17 @@ export async function runThroughOutput(
     for (const section of options.sections(value as never)) out.log(section);
   } else if (command.render !== undefined) {
     const text = command.render(value, OUTPUT_TERMINAL);
-    for (const line of options.lineByLine === true ? text.split("\n") : [text]) out.log(line);
+    // An empty render logs nothing, as the runner writes nothing.
+    if (text !== "") {
+      for (const line of options.lineByLine === true ? text.split("\n") : [text]) out.log(line);
+    }
   }
   const notes = command.notes?.(value, OUTPUT_TERMINAL) ?? "";
   for (const line of notes === "" ? [] : notes.split("\n")) out.warn(line);
+  // The exit of the process the command handed the terminal to, as the runner answers it
+  // without `--json`.
+  const handsOver: ((value: unknown) => number) | undefined = command.handsOver;
+  if (options.json !== true && handsOver !== undefined) return handsOver(value);
   const verdicts: Readonly<Record<number, (value: unknown) => boolean>> = command.verdicts ?? {};
   const verdict = Object.keys(verdicts)
     .map(Number)

@@ -1,0 +1,47 @@
+Usage: phax [options] [command]
+
+Drive AI coding agents through isolated, gated phases
+
+Options:
+  -V, --version                                  output the version number
+  --verbose                                      Print human-readable progress and system events
+  --trace                                        Write structured JSONL trace events to the run folder
+  --usage                                        Print the phax.usage.kdl CLI spec and exit
+  --usage-format <format>                        Format for --usage output: kdl (default, no external dependency) or json (requires the usage CLI) (default: "kdl")
+  --json-schema                                  Print the program's contracts as JSON Schema, or a command's after its name, and run nothing
+  -h, --help                                     display help for command
+
+Commands:
+  validate [options]                             Validate phax.json and its user overlays without any side effects; pass --plan to also validate a phax-plan.json
+  unlock [options] <short-name>                  Remove a stale run lock; use --force to remove any lock
+  enter <short-name>                             Resume the final phase's agent session interactively
+  enter-phase [options] <short-name> <phase-id>  Resume a specific phase's agent session interactively
+  session-info [options] <short-name>            Print session diagnostics for a run (state, phase, worktree, session id)
+  shell <short-name>                             Open a shell in the final worktree
+  path [options] <short-name>                    Print the final worktree path (script-friendly, one line)
+  open <short-name>                              Open the final worktree in the configured editor
+  ls [options]                                   List runs from the registry
+  archive [options] <short-name>                 Archive a run that is not running; --force is required for an unfinished run
+  prune [options] [short-name...]                Delete archived runs of the current namespace for real, freeing their names and disk space
+  cost                                           Manage the runs' cost ledgers
+  run [options] [short-name]                     Extract a plan from plan.md and run all phases, or preview with --dry-run
+  review-handoff [options] <short-name>          Regenerate review-handoff.md and global file reconciliation for a review_open run
+  publish-pr <short-name>                        Push the final branch and create (or reuse) a GitHub PR for a review_open run
+  review-compliance <short-name>                 Run a plan-compliance review for a review_open run and record its result
+  review-code [options] <short-name>             Open an interactive, pre-prompted code-review session for a review_open run, or run the review headless with --headless
+  adjust-plan [options] <plan>                   Open an interactive session to adjust a plan after a landed run
+  brief [options] [path...]                      Ask the configured brief provider for the rules over the given paths and the findings there; with no path, inside a phase, the phase's brief
+  architecture [options] [path...]               Ask the configured architecture provider for the repository's architecture; with paths, for the parts that hold them
+  init [options]                                 Create phax.json and phax.schema.json in the current directory
+  report [options] [short-name]                  Open a GitHub issue from local telemetry (run semantic.jsonl or latest daily journal)
+  completions [options] <shell>                  Generate a shell completion script (zsh, bash, fish, nu, powershell). Requires the usage CLI.
+  resume [options] <short-name>                  Resume a run from its next pending phase
+  reset-phase [options] <short-name> [phase-id]  Reset a stuck or failed phase so phax resume re-runs it from scratch
+  agent                                          Inspect and manage model routing and provider configuration
+  security                                       Security-related commands
+  skills                                         Manage PHAX skills
+  schema                                         Manage the local phax.schema.json
+  artifact                                       Inspect and transition the lifecycle status of a spec or plan
+  plans                                          Lint, estimate and lay out a plan, and report plan staleness and cross-plan overlap
+  records                                        Manage phax run records
+  help [command]                                 display help for command

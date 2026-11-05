@@ -247,7 +247,9 @@ describe("the seven root inspection commands under --json", () => {
         expect(MESSAGE_KINDS, label).toContain(line.kind);
       }
     }
-  });
+    // Seven sequential CLI cold-starts: the default 30s budget is too tight under the full
+    // parallel run, as for the other multi-spawn tests of this file.
+  }, 120_000);
 
   it("answers the facts of each command", () => {
     const validated = JSON.parse(runCli(["validate", "--json"]).stdout) as {

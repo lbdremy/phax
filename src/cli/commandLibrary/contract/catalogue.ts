@@ -37,6 +37,9 @@ export interface CommandContract {
   /** Gain carried for upstream (verdict codes): the codes a successful output may answer with,
    *  ascending; present only when the command declares some. */
   readonly verdicts?: ReadonlyArray<ExitCode>;
+  /** Gain carried for upstream (a handed-over exit): the command exits, without `--json`, with
+   *  the code of the process it handed the terminal to; present only when it declares so. */
+  readonly handsOver?: true;
 }
 
 /** What `<program> --json-schema` prints. */
@@ -293,6 +296,7 @@ function commandEntry(command: Command<unknown>): CommandContract {
       };
     }),
     ...(verdicts.length === 0 ? {} : { verdicts }),
+    ...(command.handsOver === undefined ? {} : { handsOver: true as const }),
   };
 }
 
