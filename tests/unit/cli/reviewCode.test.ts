@@ -136,6 +136,7 @@ const accepted = (
       kind: "accepted",
       review: { $schema: "x", findings },
       reviewPath: "/run/code-review.json",
+      sessionPath: "/run/code-review-session.json",
       session: { provider, sessionId: "session-cr", worktreePath: "/wt/phase-02" },
     },
     record: { kind: "no-entry" },
@@ -226,15 +227,17 @@ describe("runReviewCode --headless", () => {
       } as never),
     );
 
-    const { out, errors } = makeOutput();
+    const { out, lines, errors } = makeOutput();
     const code = await runReviewCode(SHORT_NAME, { headless: true }, out);
 
     expect(code).toBe(1);
     expect(errors).toEqual([
       `Code review failed: code-review answer rejected twice — first answer: findings[0].lens: not a lens; retry: the session's final message is not JSON. To retry, run: phax review-code ${SHORT_NAME} --headless`,
     ]);
-    // The command hands its own output to the use case, for the retry warning.
-    expect(mocks.reviewCodeAndRecord.mock.calls[0]?.[5]).toMatchObject({ output: out });
+    // The command hands a port of its own output to the use case, for the retry warning.
+    const given = mocks.reviewCodeAndRecord.mock.calls[0]?.[5]?.output;
+    given?.warn("the retry warning");
+    expect(lines).toContain("WARN: the retry warning");
   });
 
   it("names the qualified run in the retry command for a run of another project", async () => {

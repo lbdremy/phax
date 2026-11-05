@@ -1,98 +1,21 @@
-import { Effect, Either, Layer } from "effect";
+// `publish-pr` answers through the command runner (src/cli/definitions/publishPr.ts). This run function is
+// kept, until the last plan of command-contracts, as the definition's run and render over the
+// OutputPort, for the tests that call it.
 import type { OutputPort } from "../../ports/output.js";
-import { loadConfig } from "../../app/loadConfig.js";
-import { resolveRunRef } from "../../app/resolveRunRef.js";
-import { runKey } from "../../domain/runRef.js";
-import { publishRun } from "../../app/publishRun.js";
-import { recordsClonePath } from "../../app/recordsSync.js";
-import { NodeGitLayer } from "../../infra/git.js";
-import { NodeGitHubLayer } from "../../infra/github.js";
-import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
-import { makeRepoRootedFileSystemLayer } from "./runLayers.js";
-import { readPackageVersion } from "./usage.js";
-import type { FileSystem } from "../../ports/fs.js";
-import type { Git } from "../../ports/git.js";
-import type { GitHub } from "../../ports/github.js";
-import type { SystemTelemetry } from "../../ports/systemTelemetry.js";
-import type { ResolvedConfig } from "../../schemas/phaxConfig.js";
+import { runThroughOutput } from "../bridge.js";
+import { makePublishPrCommand } from "../definitions/publishPr.js";
 
 export interface PublishPrCommandOptions {
   verbose?: boolean;
 }
 
-function buildLayer(
-  config: ResolvedConfig,
-): Layer.Layer<FileSystem | Git | GitHub | SystemTelemetry> {
-  return Layer.mergeAll(
-    makeRepoRootedFileSystemLayer(config),
-    NodeGitLayer,
-    NodeGitHubLayer,
-    NoopSystemTelemetryLayer,
-  );
-}
-
-export async function runPublishPr(
+export function runPublishPr(
   shortNameArg: string,
   opts: PublishPrCommandOptions,
   out: OutputPort,
 ): Promise<number> {
-  const configResult = loadConfig(process.cwd());
-  if (Either.isLeft(configResult)) {
-    out.error(`Config error: ${configResult.left.message}`);
-    return 1;
-  }
-  const config = configResult.right;
-
-  const resolveResult = resolveRunRef(shortNameArg, config, config.stateRoot);
-  if (Either.isLeft(resolveResult)) {
-    out.error(resolveResult.left.message);
-    return 1;
-  }
-  const { namespace, shortName, info, crossProject } = resolveResult.right;
-  const qualifiedName = runKey(namespace, shortName);
-  if (crossProject) {
-    out.log(`Target: ${qualifiedName}`);
-  }
-
-  if (info.runState !== "review_open") {
-    out.error(
-      `Run "${qualifiedName}" is in state "${info.runState}", not "review_open". ` +
-        `The publish-pr command only operates on runs in review_open state.`,
-    );
-    return 1;
-  }
-
-  const effect = publishRun(info, config.publish, {
-    repoRoot: config.repoRoot,
-    phaxVersion: readPackageVersion(),
-    records: config.records,
-    ...(config.records.destination.kind === "repo"
-      ? { recordsClonePath: recordsClonePath(config.stateRoot, namespace) }
-      : {}),
-    ...(opts.verbose !== undefined ? { verbose: opts.verbose } : {}),
-  }).pipe(Effect.provide(buildLayer(config)));
-
-  const result = await Effect.runPromise(Effect.either(effect));
-  if (Either.isLeft(result)) {
-    out.error(`Unexpected error during publication: ${result.left.message}`);
-    return 1;
-  }
-
-  const publication = result.right;
-
-  if (publication.kind === "failed") {
-    out.error(
-      `Publication failed: ${publication.failureReason ?? "unknown error"}. ` +
-        `To retry, run: phax publish-pr ${qualifiedName}`,
-    );
-    return 1;
-  }
-
-  // published
-  if (publication.prUrl !== undefined) {
-    out.log(`Pull request: ${publication.prUrl}`);
-  } else {
-    out.log(`Run "${qualifiedName}" published (branch pushed, no PR created).`);
-  }
-  return 0;
+  return runThroughOutput(makePublishPrCommand(), { args: [shortNameArg] }, out, {
+    lineByLine: true,
+    program: opts.verbose !== undefined ? { verbose: opts.verbose } : {},
+  });
 }

@@ -148,10 +148,19 @@ ${phaseDetails}
 `;
 }
 
+/** What a handoff regeneration wrote: the absolute paths of the files written on this call. */
+export interface GeneratedReviewHandoff {
+  readonly written: readonly string[];
+}
+
 export function generateReviewHandoff(
   info: RunReviewInfo,
   opts: GenerateReviewHandoffOpts,
-): Effect.Effect<void, ReviewHandoffArtifactMissingError | FsError, FileSystem | SystemTelemetry> {
+): Effect.Effect<
+  GeneratedReviewHandoff,
+  ReviewHandoffArtifactMissingError | FsError,
+  FileSystem | SystemTelemetry
+> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
 
@@ -196,5 +205,14 @@ export function generateReviewHandoff(
     yield* fs.writeAtomic(join(info.runPath, "review-handoff.md"), reviewHandoffContent);
 
     yield* writeFinalReport(info);
+
+    return {
+      written: [
+        join(info.runPath, "global-file-reconciliation.json"),
+        join(info.runPath, "global-file-reconciliation.md"),
+        join(info.runPath, "review-handoff.md"),
+        join(info.runPath, "final-report.md"),
+      ],
+    };
   });
 }

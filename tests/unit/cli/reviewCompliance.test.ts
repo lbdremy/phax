@@ -458,8 +458,13 @@ describe("runReviewCompliance", () => {
   });
 
   it("hands the command's output port to the use case, for the refusal warning", async () => {
-    const { reviewComplianceAndRecord, out } = await runWith(noEntry(GENERATED));
+    const { reviewComplianceAndRecord, lines } = await runWith(noEntry(GENERATED));
 
-    expect(reviewComplianceAndRecord.mock.calls[0]?.[5]).toMatchObject({ output: out });
+    // The runner builds the port from the call: its lines reach the command's output as they go.
+    const given = reviewComplianceAndRecord.mock.calls[0]?.[5]?.output;
+    given?.warn("the refusal warning");
+    given?.log("a said line");
+    expect(lines).toContain("WARN: the refusal warning");
+    expect(lines).toContain("a said line");
   });
 });

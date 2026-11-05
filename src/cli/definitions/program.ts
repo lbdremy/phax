@@ -28,7 +28,9 @@ import { skillsGroup } from "./skills.js";
 import { validateCommand } from "./validate.js";
 import { archiveCommand } from "./archive.js";
 import { initCommand } from "./init.js";
+import { publishPrCommand } from "./publishPr.js";
 import { pruneCommand } from "./prune.js";
+import { reviewCodeCommand, reviewComplianceCommand, reviewHandoffCommand } from "./review.js";
 import { unlockCommand } from "./unlock.js";
 
 /** The options every phax command takes, wherever they stand in the call, with today's help. */
@@ -73,6 +75,10 @@ export const phaxProgram = defineProgram({
     reportCommand,
     completionsCommand,
     costGroup,
+    reviewHandoffCommand,
+    publishPrCommand,
+    reviewComplianceCommand,
+    reviewCodeCommand,
     agentGroup,
     securityGroup,
     skillsGroup,
