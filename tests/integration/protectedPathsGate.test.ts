@@ -44,6 +44,7 @@ import type { ProviderConfig } from "../../src/schemas/providerConfig.js";
 import { makeFakeProviderCli, type FakeProviderCli } from "../helpers/fakeProviderCli.js";
 import { isolateGit } from "../helpers/isolateGit.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
+import { processOutput } from "../helpers/processOutput.js";
 
 // The protected-paths check at the gate (spec §5.12 to §5.16, §6): in a project
 // that declares `protectedPaths`, every gate attempt checks the phase's files
@@ -347,6 +348,7 @@ async function runPhase(input: PhaseCase): Promise<Observed> {
     Effect.either(
       executePlan({
         phaxVersion: "0.0.0-test",
+        output: processOutput,
         shortName,
         namespace: NAMESPACE,
         plan,

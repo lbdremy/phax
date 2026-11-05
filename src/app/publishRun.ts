@@ -32,6 +32,7 @@ import type { RunId } from "../domain/branded.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import { GitHub, type GitHubError } from "../ports/github.js";
+import type { OutputPort } from "../ports/output.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
 import { pushRecordsBranch } from "./recordsSync.js";
 import {
@@ -67,6 +68,8 @@ export interface PublishRunOpts {
   readonly homeDir?: string;
   /** The phax version the pull request footer names; the CLI reads it from package.json. */
   readonly phaxVersion: string;
+  /** Where `--verbose` lines go: the CLI hands its own port, so under `--json` they are note lines. */
+  readonly output: Pick<OutputPort, "log">;
 }
 
 const REVIEW_HANDOFF_FILENAME = "review-handoff.md";
@@ -228,12 +231,13 @@ function loadCodeReview(
   }).pipe(Effect.orElseSucceed(() => notReviewed));
 }
 
-function logVerbose(verbose: boolean, line: string): Effect.Effect<void, never, never> {
+function logVerbose(
+  output: Pick<OutputPort, "log">,
+  verbose: boolean,
+  line: string,
+): Effect.Effect<void, never, never> {
   if (!verbose) return Effect.void;
-  return Effect.sync(() => {
-    // eslint-disable-next-line no-console
-    console.log(line);
-  });
+  return Effect.sync(() => output.log(line));
 }
 
 export function publishRun(
@@ -256,7 +260,7 @@ export function publishRun(
       makeStepStartedTelemetryEvent({ runId, operationId: info.shortName, step: "publish.run" }),
     );
 
-    yield* logVerbose(verbose, `Publishing branch to ${publish.remote}…`);
+    yield* logVerbose(opts.output, verbose, `Publishing branch to ${publish.remote}…`);
 
     const branchString = info.finalPhaseBranch as unknown as string;
 
@@ -306,9 +310,10 @@ export function publishRun(
             : {}),
         });
         if (result.kind === "pushed") {
-          yield* logVerbose(verbose, `Records pushed to ${result.remote}.`);
+          yield* logVerbose(opts.output, verbose, `Records pushed to ${result.remote}.`);
         } else if (result.kind === "failed") {
           yield* logVerbose(
+            opts.output,
             verbose,
             `Records push to ${result.remote} failed: ${result.message} — records remain pending (see \`phax records status\`).`,
           );
@@ -331,7 +336,7 @@ export function publishRun(
           failureReason: reason,
         };
         yield* writeRecordAndReport(record);
-        yield* logVerbose(verbose, `Publication failed: ${reason}`);
+        yield* logVerbose(opts.output, verbose, `Publication failed: ${reason}`);
         yield* telemetry.recordEvent(
           makeStepCompletedTelemetryEvent({
             runId,
@@ -485,7 +490,7 @@ export function publishRun(
           operation: "pushBranch",
         }),
       );
-      yield* logVerbose(verbose, `Branch pushed: ${publish.remote}/${branchString}`);
+      yield* logVerbose(opts.output, verbose, `Branch pushed: ${publish.remote}/${branchString}`);
     }
 
     if (!publish.createPullRequest) {
@@ -524,7 +529,7 @@ export function publishRun(
 
     // Reuse-or-create PR
 
-    yield* logVerbose(verbose, "Creating GitHub pull request…");
+    yield* logVerbose(opts.output, verbose, "Creating GitHub pull request…");
 
     const existingResult = yield* Effect.either(
       github.findPullRequestForBranch(info.finalPhaseBranch, opts.repoRoot),
@@ -549,7 +554,7 @@ export function publishRun(
       };
       yield* writeRecordAndReport(record);
       yield* pushRecordsIfConfigured();
-      yield* logVerbose(verbose, `Pull request already exists: ${existingUrl}`);
+      yield* logVerbose(opts.output, verbose, `Pull request already exists: ${existingUrl}`);
       yield* telemetry.recordEvent(
         makeStepCompletedTelemetryEvent({
           runId,
@@ -704,7 +709,7 @@ export function publishRun(
     };
     yield* writeRecordAndReport(record);
     yield* pushRecordsIfConfigured();
-    yield* logVerbose(verbose, `Pull request created: ${prUrl}`);
+    yield* logVerbose(opts.output, verbose, `Pull request created: ${prUrl}`);
     yield* telemetry.recordEvent(
       makeStepCompletedTelemetryEvent({
         runId,

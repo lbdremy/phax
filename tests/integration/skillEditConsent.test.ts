@@ -25,6 +25,7 @@ import type { PhaxPlan } from "../../src/schemas/phaxPlan.js";
 import { decodeRunStatusFile } from "../../src/schemas/status.js";
 import { planMdFor } from "../helpers/planMarkdown.js";
 import { liftFixturePhaxPlanToCurrent } from "../helpers/liftFixturePhaxPlan.js";
+import { processOutput } from "../helpers/processOutput.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -181,6 +182,7 @@ describe("executePlan — skill edit consent preflight", () => {
       Effect.either(
         executePlan({
           phaxVersion: "0.0.0-test",
+          output: processOutput,
           shortName,
           namespace: "test-project",
           plan,

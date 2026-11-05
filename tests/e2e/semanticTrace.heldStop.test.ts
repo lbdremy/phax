@@ -53,6 +53,7 @@ import type { PhaxPlan, PhaxPlanPhase } from "../../src/schemas/phaxPlan.js";
 import type { RunHold } from "../../src/schemas/status.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 import { withTelemetryCapture } from "./helpers/telemetry.js";
+import { processOutput } from "../helpers/processOutput.js";
 
 const UNSTABLE_FIELD_NAMES = ["timestamp", "traceId", "spanId", "durationMs"] as const;
 
@@ -314,6 +315,7 @@ describe.skipIf(!shouldRun)("E2E semantic trace — held stop snapshot", () => {
         `${NAMESPACE}.${SHORT}`,
         executePlan({
           phaxVersion: "0.0.0-test",
+          output: processOutput,
           shortName,
           namespace: NAMESPACE,
           plan,

@@ -20,6 +20,7 @@ import type { ResolvedRecordsConfig } from "../../src/schemas/recordsConfig.js";
 import { withSchemaUrl } from "../../src/schemas/persisted.js";
 import { runStatus } from "../helpers/runStatusFixture.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
+import { processOutput } from "../helpers/processOutput.js";
 
 const RECORDS_BRANCH: BranchName = Either.getOrThrow(decodeBranchName("phax/records/v1"));
 
@@ -310,6 +311,7 @@ describe("publishRun: records push wiring", () => {
         repoRoot: publishRepoRoot,
         now: constNow,
         phaxVersion: "0.0.0-test",
+        output: processOutput,
       }).pipe(Effect.provide(layers)),
     );
 
@@ -334,7 +336,13 @@ describe("publishRun: records push wiring", () => {
       publishRun(
         makeInfo(),
         defaultPublishConfig({ pushBranch: false, createPullRequest: false }),
-        { repoRoot: publishRepoRoot, now: constNow, phaxVersion: "0.0.0-test", records },
+        {
+          repoRoot: publishRepoRoot,
+          now: constNow,
+          phaxVersion: "0.0.0-test",
+          records,
+          output: processOutput,
+        },
       ).pipe(Effect.provide(layers)),
     );
 
@@ -358,7 +366,13 @@ describe("publishRun: records push wiring", () => {
       publishRun(
         makeInfo(),
         defaultPublishConfig({ pushBranch: false, createPullRequest: false }),
-        { repoRoot: publishRepoRoot, now: constNow, phaxVersion: "0.0.0-test", records },
+        {
+          repoRoot: publishRepoRoot,
+          now: constNow,
+          phaxVersion: "0.0.0-test",
+          records,
+          output: processOutput,
+        },
       ).pipe(Effect.provide(layers)),
     );
 
@@ -388,6 +402,7 @@ describe("publishRun: records push wiring", () => {
           repoRoot: publishRepoRoot,
           now: constNow,
           phaxVersion: "0.0.0-test",
+          output: processOutput,
           records,
           recordsClonePath: "/fake-records-clone",
         },
@@ -417,7 +432,13 @@ describe("publishRun: records push wiring", () => {
       publishRun(
         makeInfo(),
         defaultPublishConfig({ pushBranch: false, createPullRequest: false }),
-        { repoRoot: publishRepoRoot, now: constNow, phaxVersion: "0.0.0-test", records },
+        {
+          repoRoot: publishRepoRoot,
+          now: constNow,
+          phaxVersion: "0.0.0-test",
+          records,
+          output: processOutput,
+        },
       ).pipe(Effect.provide(layers)),
     );
 

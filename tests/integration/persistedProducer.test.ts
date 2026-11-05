@@ -63,6 +63,7 @@ import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import { CURRENT_STAMPS } from "../../src/schemas/release.js";
 import { FORMAT_IDS, schemaUrl, type FormatId } from "../../src/schemas/schemaUrl.js";
 import type { ResolvedSecurityConfig } from "../../src/schemas/securityConfig.js";
+import { processOutput } from "../helpers/processOutput.js";
 
 const STATE_ROOT = "/state";
 const REPO_ROOT = "/work/example-repo";
@@ -625,6 +626,7 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
       worktreePath: WORKTREE,
       phaseFolderPath: PHASE_FOLDER,
       phaseId: "phase-01",
+      output: processOutput,
     }),
   );
 

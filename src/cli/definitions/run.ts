@@ -503,7 +503,7 @@ function runRunCommand(call: RunCall, deps: RunDeps): Effect.Effect<RunAnswer, R
         )
       : NoopSystemTelemetryLayer;
 
-    setRunInterruptContext(shortName, namespace, config.stateRoot);
+    setRunInterruptContext(shortName, namespace, config.stateRoot, (text) => out.warn(text));
     const program = withRunLock(
       qualifiedName,
       createRunFolder(
@@ -530,6 +530,7 @@ function runRunCommand(call: RunCall, deps: RunDeps): Effect.Effect<RunAnswer, R
               runId,
               startIndex: 0,
               phaxVersion: readPackageVersion(),
+              output: out,
               routing,
               providerConfig,
               securityMode: effectiveSecurityMode,

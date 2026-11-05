@@ -206,6 +206,10 @@ export const EXIT_CODE_MEANINGS: ReadonlyArray<{
     meaning: "Refused call: unknown command or option, or an argument that does not decode",
   },
   { code: 70, meaning: "Defect: an unexpected failure, a bug in phax" },
+  {
+    code: 130,
+    meaning: "Interrupted (SIGINT or SIGTERM): `phax run` or `phax resume` saved the run",
+  },
 ];
 
 export function exitCodeForError(err: unknown): number {

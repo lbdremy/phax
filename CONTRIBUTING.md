@@ -32,7 +32,7 @@ phax emits its events — state transitions, adapter calls, gate results, artifa
 
 ## The CLI contract
 
-`phax.usage.kdl` is the CLI's machine-readable contract, generated from the Commander program in `src/cli/`, which is the source of truth. Regenerate it, and the CLI reference, after changing any command, flag or argument:
+`phax.usage.kdl` is the CLI's machine-readable contract, generated from the command definitions in `src/cli/definitions/`, which are the source of truth. Regenerate it, and the CLI reference, after changing any command, flag or argument:
 
 ```bash
 pnpm gen:usage-spec

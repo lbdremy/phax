@@ -376,6 +376,39 @@ describe("architectural guard: no direct Node I/O outside ports/infra", () => {
   });
 });
 
+// ── Use cases write through their OutputPort ──────────────────────────────────
+// A use case under src/app/ never writes to the process's streams: under `--json`
+// the runner owns stdout (the answer) and stderr (message lines), so a line written
+// around it breaks the contract (§5.3). Each exception is listed with its reason.
+
+const PROCESS_WRITE = /\bprocess\.(?:stdout|stderr)\.write\(|\bconsole\.(?:log|warn|error|info)\(/;
+
+const APP_PROCESS_WRITE_ALLOWLIST: ReadonlyMap<string, string> = new Map([
+  [
+    "src/app/costLedger.ts",
+    "withInvocationCost wraps every provider invocation (phases, fixes, stops, handoffs, reviews); its rare ledger-write warning has no port to reach yet",
+  ],
+]);
+
+describe("architectural guard: use cases write through their OutputPort", () => {
+  it("no file under src/app/ writes to process.stdout, process.stderr or the console (except the documented allowlist)", () => {
+    const violations = listTsFiles(join(srcRoot, "app"))
+      .map((absPath) => relative(repoRoot, absPath).split("\\").join("/"))
+      .filter((rel) => !APP_PROCESS_WRITE_ALLOWLIST.has(rel))
+      .filter((rel) => PROCESS_WRITE.test(readFileSync(join(repoRoot, rel), "utf8")));
+    expect(violations).toEqual([]);
+  });
+
+  it("app process-write allowlist entries are kept honest by still writing to the process", () => {
+    for (const rel of APP_PROCESS_WRITE_ALLOWLIST.keys()) {
+      expect(
+        PROCESS_WRITE.test(readFileSync(join(repoRoot, rel), "utf8")),
+        `${rel} no longer writes to the process — remove it from APP_PROCESS_WRITE_ALLOWLIST`,
+      ).toBe(true);
+    }
+  });
+});
+
 // ── The command library's contract stays pure ─────────────────────────────────
 // src/cli/commandLibrary/contract/ is the library's contract package, ported: it
 // imports neither the argument parser nor any Node module, so that a runner over

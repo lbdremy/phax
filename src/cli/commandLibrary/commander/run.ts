@@ -1353,11 +1353,26 @@ function guarded<R>(
   );
 }
 
-/** Gain (the root's help command): `help [words]` read as `[words] --help`; any other call as
- *  it is. */
+/** Gain (the root's help command): `help [words]` read as `[words] --help`, and inside a group,
+ *  `<group…> help [words]` read as `<group…> [words] --help` where the group holds nothing named
+ *  `help`; any other call as it is. */
 function asHelp(program: Program<unknown>, words: Words): Words {
-  const [head, ...rest] = words;
-  return head === HELP_WORD && hasHelpCommand(program) ? [...rest, HELP[0] ?? "--help"] : words;
+  if (!hasHelpCommand(program)) return words;
+  const asked = HELP[0] ?? "--help";
+  let level = treeOf(program);
+  for (let at = 0; at < words.length; at += 1) {
+    const word = words[at];
+    if (word === HELP_WORD && !level.some((entry) => entryName(entry) === HELP_WORD)) {
+      return [...words.slice(0, at), ...words.slice(at + 1), asked];
+    }
+    const group = level.find(
+      (entry): entry is Extract<Entry<unknown>, { kind: "group" }> =>
+        entry.kind === "group" && entry.name === word,
+    );
+    if (group === undefined) return words;
+    level = group.entries;
+  }
+  return words;
 }
 
 function runProgram<R>(program: Program<R>, io: Io): Effect.Effect<ExitCode, never, R> {

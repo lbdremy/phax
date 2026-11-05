@@ -18,6 +18,7 @@ import type { ResolvedPublishConfig } from "../../src/schemas/phaxConfig.js";
 import type { ResolvedRecordsConfig } from "../../src/schemas/recordsConfig.js";
 import { currentSchemaUrl, withSchemaUrl } from "../../src/schemas/persisted.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
+import { processOutput } from "../helpers/processOutput.js";
 
 const stateRoot = "/fake-state";
 const shortName = "test-run";
@@ -152,6 +153,7 @@ describe("publishRun", () => {
         repoRoot,
         now: constNow,
         phaxVersion: "0.0.0-test",
+        output: processOutput,
       }).pipe(Effect.provide(layers)),
     );
 
@@ -170,6 +172,7 @@ describe("publishRun", () => {
         repoRoot,
         now: constNow,
         phaxVersion: "0.0.0-test",
+        output: processOutput,
       }).pipe(Effect.provide(layers)),
     );
 
@@ -205,6 +208,7 @@ describe("publishRun", () => {
         repoRoot,
         now: constNow,
         phaxVersion: "0.0.0-test",
+        output: processOutput,
       }).pipe(Effect.provide(layers)),
     );
 
@@ -225,6 +229,7 @@ describe("publishRun", () => {
         repoRoot,
         now: constNow,
         phaxVersion: "0.0.0-test",
+        output: processOutput,
       }).pipe(Effect.provide(layers)),
     );
 
@@ -245,6 +250,7 @@ describe("publishRun", () => {
         repoRoot,
         now: constNow,
         phaxVersion: "0.0.0-test",
+        output: processOutput,
       }).pipe(Effect.provide(layers)),
     );
 
@@ -272,6 +278,7 @@ describe("publishRun", () => {
         repoRoot,
         now: constNow,
         phaxVersion: "0.0.0-test",
+        output: processOutput,
       }).pipe(Effect.provide(layers)),
     );
 
@@ -290,6 +297,7 @@ describe("publishRun", () => {
         repoRoot,
         now: constNow,
         phaxVersion: "0.0.0-test",
+        output: processOutput,
       }).pipe(Effect.provide(layers)),
     );
 
@@ -319,6 +327,7 @@ describe("publishRun", () => {
         repoRoot,
         now: constNow,
         phaxVersion: "0.0.0-test",
+        output: processOutput,
       }).pipe(Effect.provide(layers)),
     );
 
@@ -337,6 +346,7 @@ describe("publishRun", () => {
         repoRoot,
         now: constNow,
         phaxVersion: "0.0.0-test",
+        output: processOutput,
       }).pipe(Effect.provide(layers)),
     );
 
@@ -356,6 +366,7 @@ describe("publishRun", () => {
         repoRoot,
         now: constNow,
         phaxVersion: "0.0.0-test",
+        output: processOutput,
       }).pipe(Effect.provide(layers)),
     );
 
@@ -374,6 +385,7 @@ describe("publishRun", () => {
         repoRoot,
         now: constNow,
         phaxVersion: "0.0.0-test",
+        output: processOutput,
       }).pipe(Effect.provide(layers)),
     );
 
@@ -408,6 +420,7 @@ describe("publishRun", () => {
           repoRoot,
           now: constNow,
           phaxVersion: "0.0.0-test",
+          output: processOutput,
         }).pipe(Effect.provide(layers)),
       );
 
@@ -444,6 +457,7 @@ describe("publishRun", () => {
         repoRoot,
         now: constNow,
         phaxVersion: "0.0.0-test",
+        output: processOutput,
       }).pipe(Effect.provide(layers)),
     );
     return fs.impl.getFile(`${runPath}/pr-body.md`)!;
@@ -475,6 +489,7 @@ describe("publishRun", () => {
         repoRoot,
         now: constNow,
         phaxVersion: "0.0.0-test",
+        output: processOutput,
       }).pipe(Effect.provide(layers)),
     );
 
@@ -496,6 +511,7 @@ describe("publishRun", () => {
         repoRoot,
         now: constNow,
         phaxVersion: "0.0.0-test",
+        output: processOutput,
       }).pipe(Effect.provide(layers)),
     );
 
@@ -513,6 +529,7 @@ describe("publishRun", () => {
         repoRoot,
         now: constNow,
         phaxVersion: "0.0.0-test",
+        output: processOutput,
       }).pipe(Effect.provide(layers)),
     );
 
@@ -535,6 +552,7 @@ describe("publishRun", () => {
         repoRoot,
         now: constNow,
         phaxVersion: "0.0.0-test",
+        output: processOutput,
       }).pipe(Effect.provide(layers)),
     );
 
@@ -562,6 +580,7 @@ describe("publishRun", () => {
         repoRoot,
         now: constNow,
         phaxVersion: "0.0.0-test",
+        output: processOutput,
         homeDir,
       }).pipe(Effect.provide(layers)),
     );
@@ -593,6 +612,7 @@ describe("publishRun", () => {
           repoRoot,
           now: constNow,
           phaxVersion: "0.0.0-test",
+          output: processOutput,
           ...opts,
         }).pipe(Effect.provide(layers)),
       );
@@ -622,6 +642,7 @@ describe("publishRun", () => {
           repoRoot,
           now: constNow,
           phaxVersion: "0.0.0-test",
+          output: processOutput,
         }).pipe(Effect.provide(layers)),
       );
 
@@ -639,6 +660,7 @@ describe("publishRun", () => {
         repoRoot,
         now: constNow,
         phaxVersion: "0.0.0-test",
+        output: processOutput,
       }).pipe(Effect.provide(layers)),
     );
 
@@ -680,6 +702,7 @@ describe("publishRun", () => {
         repoRoot,
         now: constNow,
         phaxVersion: "0.0.0-test",
+        output: processOutput,
       }).pipe(Effect.provide(layers)),
     );
 
@@ -766,6 +789,7 @@ describe("publishRun — the phax footer", () => {
         repoRoot,
         now: constNow,
         phaxVersion: args.phaxVersion ?? "0.0.0-test",
+        output: processOutput,
       }).pipe(Effect.provide(s.layers)),
     );
     return { ...s, result, sha, body: s.fs.impl.getFile(`${runPath}/pr-body.md`) ?? "" };

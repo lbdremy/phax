@@ -37,6 +37,7 @@ import type { RunHold } from "../../src/schemas/status.js";
 import { isolateGit } from "./isolateGit.js";
 import { providerStoreRootsUnder } from "./providerStoreRoots.js";
 import { disableGitAutoMaintenance, removeTempDir } from "./tempGit.js";
+import { processOutput } from "./processOutput.js";
 
 // A made-up world for a run that holds phases: the six-phase invoice-export
 // plan (phase-03 declared interactive, phase-02 built on codex), run through
@@ -518,6 +519,7 @@ function executeHeldRun(
     RUN_KEY,
     executePlan({
       phaxVersion: "0.0.0-test",
+      output: processOutput,
       shortName,
       namespace: NAMESPACE,
       plan: run.plan,

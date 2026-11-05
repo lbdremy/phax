@@ -292,7 +292,8 @@ export function parseCall(
       const key = path.join(" ");
       let node = groups.get(key);
       if (node === undefined) {
-        node = parent.command(group.name).helpCommand(false);
+        // A group lists the help command too: the runner reads `<group…> help [command]` (asHelp).
+        node = parent.command(group.name).helpCommand(program.helpCommand === true);
         describeGroup(node, group);
         groups.set(key, node);
       }

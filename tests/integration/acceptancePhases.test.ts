@@ -33,6 +33,7 @@ import {
 } from "../../src/schemas/phaxConfig.js";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import type { PhaxPlan } from "../../src/schemas/phaxPlan.js";
+import { processOutput } from "../helpers/processOutput.js";
 
 // Full runs of acme-billing's made-up refunds plans on a fake backend and fake
 // git, over a real run folder. The oracles provider is a scripted fake: it
@@ -320,6 +321,7 @@ describe("acceptance phases in a run", () => {
         Effect.either(
           executePlan({
             phaxVersion: "0.0.0-test",
+            output: processOutput,
             shortName,
             namespace: NAMESPACE,
             plan,

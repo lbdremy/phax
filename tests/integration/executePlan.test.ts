@@ -35,6 +35,7 @@ import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import { planMdFor } from "../helpers/planMarkdown.js";
 import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
 import { liftFixturePhaxPlanToCurrent } from "../helpers/liftFixturePhaxPlan.js";
+import { processOutput } from "../helpers/processOutput.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -275,6 +276,7 @@ describe("executePlan — happy-path 2-phase run", () => {
       Effect.either(
         executePlan({
           phaxVersion: "0.0.0-test",
+          output: processOutput,
           shortName,
           namespace: "test-project",
           plan,
@@ -450,6 +452,7 @@ describe("executePlan — happy-path 2-phase run", () => {
       Effect.either(
         executePlan({
           phaxVersion: "0.0.0-test",
+          output: processOutput,
           shortName,
           namespace: "test-project",
           plan,
@@ -572,6 +575,7 @@ describe("executePlan — happy-path 2-phase run", () => {
       Effect.either(
         executePlan({
           phaxVersion: "0.0.0-test",
+          output: processOutput,
           shortName,
           namespace: "test-project",
           plan,
@@ -667,6 +671,7 @@ describe("executePlan — happy-path 2-phase run", () => {
       Effect.either(
         executePlan({
           phaxVersion: "0.0.0-test",
+          output: processOutput,
           shortName,
           namespace: "test-project",
           plan,
@@ -857,6 +862,7 @@ describe("executePlan — firing scheduling", () => {
       Effect.either(
         executePlan({
           phaxVersion: "0.0.0-test",
+          output: processOutput,
           shortName,
           namespace: "test-project",
           plan,
@@ -969,6 +975,7 @@ describe("executePlan — binding status lifecycle", () => {
       Effect.either(
         executePlan({
           phaxVersion: "0.0.0-test",
+          output: processOutput,
           shortName,
           namespace: "test-project",
           plan,
@@ -1023,6 +1030,7 @@ describe("executePlan — binding status lifecycle", () => {
       Effect.either(
         executePlan({
           phaxVersion: "0.0.0-test",
+          output: processOutput,
           shortName,
           namespace: "test-project",
           plan,
@@ -1143,6 +1151,7 @@ describe("executePlan — handoff prompt deviation injection", () => {
       Effect.either(
         executePlan({
           phaxVersion: "0.0.0-test",
+          output: processOutput,
           shortName,
           namespace: "test-project",
           plan,
@@ -1232,6 +1241,7 @@ describe("executePlan — handoff prompt deviation injection", () => {
       Effect.either(
         executePlan({
           phaxVersion: "0.0.0-test",
+          output: processOutput,
           shortName,
           namespace: "test-project",
           plan,
@@ -1381,6 +1391,7 @@ describe("executePlan — resume from gates_exhausted", () => {
       Effect.either(
         executePlan({
           phaxVersion: "0.0.0-test",
+          output: processOutput,
           shortName,
           namespace: "test-project",
           plan,
@@ -1458,6 +1469,7 @@ describe("executePlan — resume from gates_exhausted", () => {
       Effect.either(
         executePlan({
           phaxVersion: "0.0.0-test",
+          output: processOutput,
           shortName,
           namespace: "test-project",
           plan,
@@ -1531,6 +1543,7 @@ describe("executePlan — resume from gates_exhausted", () => {
       Effect.either(
         executePlan({
           phaxVersion: "0.0.0-test",
+          output: processOutput,
           shortName,
           namespace: "test-project",
           plan,
@@ -1629,6 +1642,7 @@ describe("executePlan — resume from gates_exhausted", () => {
       Effect.either(
         executePlan({
           phaxVersion: "0.0.0-test",
+          output: processOutput,
           shortName,
           namespace: "test-project",
           plan,
@@ -1799,6 +1813,7 @@ describe("executePlan — auto-publish after final review", () => {
       Effect.either(
         executePlan({
           phaxVersion: "0.0.0-test",
+          output: processOutput,
           shortName,
           namespace: "test-project",
           plan,
@@ -1862,6 +1877,7 @@ describe("executePlan — auto-publish after final review", () => {
       Effect.either(
         executePlan({
           phaxVersion: "0.0.0-test",
+          output: processOutput,
           shortName,
           namespace: "test-project",
           plan,
@@ -1924,6 +1940,7 @@ describe("executePlan — auto-publish after final review", () => {
       Effect.either(
         executePlan({
           phaxVersion: "0.0.0-test",
+          output: processOutput,
           shortName,
           namespace: "test-project",
           plan,
@@ -2050,6 +2067,7 @@ describe("executePlan — security preflight", () => {
       Effect.either(
         executePlan({
           phaxVersion: "0.0.0-test",
+          output: processOutput,
           shortName,
           namespace: "test-project",
           plan,
@@ -2196,6 +2214,7 @@ describe("executePlan — security preflight", () => {
       Effect.either(
         executePlan({
           phaxVersion: "0.0.0-test",
+          output: processOutput,
           shortName,
           namespace: "test-project",
           plan,
@@ -2354,6 +2373,7 @@ describe("executePlan — records destination refusal", () => {
       Effect.either(
         executePlan({
           phaxVersion: "0.0.0-test",
+          output: processOutput,
           shortName,
           namespace: "test-project",
           plan,
@@ -2498,6 +2518,7 @@ function makeBaselineScenario(root: string) {
       Effect.either(
         executePlan({
           phaxVersion: "0.0.0-test",
+          output: processOutput,
           shortName,
           namespace: "test-project",
           plan,
@@ -2789,6 +2810,7 @@ describe("executePlan — resumed-session prompts", () => {
       Effect.either(
         executePlan({
           phaxVersion: "0.0.0-test",
+          output: processOutput,
           shortName,
           namespace: "test-project",
           plan,
@@ -2925,6 +2947,7 @@ describe("executePlan — a green gate-report gate", () => {
       Effect.either(
         executePlan({
           phaxVersion: "0.0.0-test",
+          output: processOutput,
           shortName,
           namespace: "test-project",
           plan,

@@ -45,6 +45,7 @@ import {
   vibe3Text,
   writeFakeVibe,
 } from "../helpers/vibe3Fixtures.js";
+import { processOutput } from "../helpers/processOutput.js";
 
 // The native protected-path rules (spec §5.9 to §5.11): in secure mode, Claude
 // Code's phase turn, fix attempt and handoff turn each carry one --settings
@@ -302,6 +303,7 @@ async function runPhase(
     Effect.either(
       executePlan({
         phaxVersion: "0.0.0-test",
+        output: processOutput,
         shortName,
         namespace: NAMESPACE,
         plan,

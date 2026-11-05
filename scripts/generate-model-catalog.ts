@@ -200,7 +200,7 @@ src/infra/providers/        ← ONLY place that may spawn provider binaries
   sessionWriter.ts          ← shared atomic session-id writer
   dispatcher.ts             ← makeNodeBackendLayer(providerConfig) — selects adapter by options.provider
 
-src/cli/commands/agent.ts   ← phax agent models|resolve|probe|setup commands
+src/cli/definitions/agent.ts ← phax agent models|resolve|probe|setup commands
 \`\`\`
 
 ## Key invariants

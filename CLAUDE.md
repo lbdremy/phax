@@ -44,7 +44,9 @@ cli → app → domain ← ports ← infra
   output, telemetry).
 - `src/infra/` — the only place side effects live; adapters implementing the ports.
 - `src/app/` — use cases orchestrating domain + ports via Effect dependency injection.
-- `src/cli/` — thin command layer: parse args, call one use case, render via OutputPort.
+- `src/cli/` — thin command layer: one definition per command family under
+  `src/cli/definitions/`, run by the command library's runner; each calls one use case and
+  renders its answer.
 - `src/schemas/` — Effect Schemas decoding every external input at the boundary.
 
 Non-negotiables (enforced by `audit:architecture`):
@@ -62,7 +64,7 @@ These load on demand. Reach for the matching one before editing that area:
 | Skill                     | When                                                          |
 | ------------------------- | ------------------------------------------------------------- |
 | `boundaries`              | adding/moving code across the four layers                     |
-| `cli-view-layer`          | touching `src/cli/commands/`                                  |
+| `cli-view-layer`          | touching `src/cli/definitions/`                               |
 | `effect-services`         | adding a side-effecting operation (route it through a port)   |
 | `infrastructure-adapters` | implementing an adapter in `src/infra/`                       |
 | `validation-boundaries`   | decoding any external input                                   |

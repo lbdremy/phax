@@ -211,6 +211,14 @@ describe("the root's help command", () => {
       ["help", "records", "init"],
       ["records", "init", "--help"],
     ],
+    [
+      ["records", "help", "init"],
+      ["records", "init", "--help"],
+    ],
+    [
+      ["records", "help"],
+      ["records", "--help"],
+    ],
   ])("%j answers as %j does", async (asked, flagged) => {
     const byWord = await call(makeProgram().program, { argv: asked });
     const byFlag = await call(makeProgram().program, { argv: flagged });
@@ -218,6 +226,11 @@ describe("the root's help command", () => {
     expect(byWord.out.join("")).not.toBe("");
     expect(byWord.out).toEqual(byFlag.out);
     expect(byWord.err).toEqual([]);
+  });
+
+  it("lists itself in a group's help", async () => {
+    const result = await call(makeProgram().program, { argv: ["records", "--help"] });
+    expect(result.out.join("")).toContain("help [command]");
   });
 
   it("refuses a word that names no command", async () => {

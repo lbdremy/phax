@@ -24,6 +24,7 @@ import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import type { PhaxPlan } from "../../src/schemas/phaxPlan.js";
 import { planMdFor } from "../helpers/planMarkdown.js";
 import { liftFixturePhaxPlanToCurrent } from "../helpers/liftFixturePhaxPlan.js";
+import { processOutput } from "../helpers/processOutput.js";
 
 // A report step that refuses to run, on fakes over a real run folder. The
 // report and the run are made up, after the spec's examples.
@@ -177,6 +178,7 @@ describe("a refused gate report", () => {
         Effect.either(
           executePlan({
             phaxVersion: "0.0.0-test",
+            output: processOutput,
             shortName,
             namespace: "hello-world",
             plan,

@@ -26,6 +26,7 @@ import {
 import type { PhaxPlan } from "../../src/schemas/phaxPlan.js";
 import { planMdFor } from "../helpers/planMarkdown.js";
 import { liftFixturePhaxPlanToCurrent } from "../helpers/liftFixturePhaxPlan.js";
+import { processOutput } from "../helpers/processOutput.js";
 
 const DIRTY_MESSAGE = "Working tree is not clean. Commit or stash changes, or pass --allow-dirty.";
 
@@ -157,6 +158,7 @@ describe("phax run — dirty tree at branch creation is still refused (spec Q2)"
           Effect.flatMap(({ runPath, runId }) =>
             executePlan({
               phaxVersion: "0.0.0-test",
+              output: processOutput,
               shortName,
               namespace: "test-project",
               plan,

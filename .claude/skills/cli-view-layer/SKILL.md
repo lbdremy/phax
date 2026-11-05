@@ -1,72 +1,47 @@
 ---
 name: cli-view-layer
-description: Keep CLI command files thin — parse args, call one app/ use case, render via OutputPort — no business logic in src/cli/commands/.
+description: Keep CLI command definitions thin — declare the input, call one app/ use case, answer data and render it as text — no business logic in src/cli/definitions/.
 ---
 
 # CLI view layer
 
 ## The rule
 
-**Files under `src/cli/commands/` must stay thin.** A command handler's only
-jobs are:
+**Each command is a definition under `src/cli/definitions/`, and it stays thin.**
+A definition built with `defineCommand` (from `src/cli/commandLibrary/contract/`)
+only:
 
-1. Parse and decode CLI arguments into a typed command object.
-2. Call one `app/` use case.
-3. Render the result or error through the `OutputPort`.
-4. Return the exit code.
+1. Declares its input: `args` and `flags` as Effect Schemas, plus `stdin` when it
+   reads a document. The runner decodes them; a call that does not decode is
+   refused with exit 64 before `run`.
+2. Calls one `app/` use case in `run`, providing its layers.
+3. Answers data: `output` is the schema of the answer `--json` prints.
+4. Renders that answer as today's text in `render`, and declares each failure as a
+   tagged error with its exit code and sentence.
 
-Command handlers must not import `infra/` directly, must not contain business
-logic, and must not call multiple unrelated use cases in sequence (that belongs
-in `app/`).
+A definition must not contain business logic, nor chain unrelated use cases (that
+belongs in `app/`). What `src/cli/commands/` still holds is shared plumbing the
+definitions import (layers, usage, stop and session-failure text), not commands.
 
-## The output port
+## Output
 
-All printing goes through `src/ports/output.ts`:
-
-```typescript
-export interface OutputPort {
-  log(message: string): void;
-  error(message: string): void;
-}
-```
-
-No `console.log` or `process.stdout.write` outside `cli/` or the output port
-adapter. This keeps domain and app testable without capturing stdout.
+A definition never writes to the process. While it runs, it writes through its
+context: `say` (stdout, a `note` line under `--json`) and `progress` (stderr, a
+`note` line under `--json`). A use case that prints as it goes takes an
+`OutputPort` (`src/ports/output.ts`); `outputPortOf(call)` in
+`src/cli/definitions/runOutcome.ts` builds one from the context. The runner owns
+stdout and stderr under `--json`: a line written around it breaks the answer.
 
 ## Why
 
-Thin command handlers mean:
+- The use cases are testable without a CLI harness.
+- Exit codes, refusals and `--json` live in the runner, the same for every command.
+- `phax <command> --json-schema` and `phax.usage.kdl` are generated from the
+  definitions, so they cannot drift from the code.
 
-- The application use cases are independently testable without a CLI harness.
-- Exit-code mapping lives in one place and is consistent across commands.
-- The output port can be swapped for a test double that captures output.
+## Guards
 
-## What "thin" means in practice
-
-A well-formed command handler is typically 15–30 lines:
-
-```typescript
-export async function runArchive(
-  shortName: string,
-  opts: { force?: boolean },
-  out: OutputPort,
-): Promise<number> {
-  const result = await archiveRun(shortName, { force: opts.force ?? false });
-  if (Either.isLeft(result)) {
-    out.error(result.left.message);
-    return 1;
-  }
-  out.log(`Archived ${shortName}`);
-  return 0;
-}
-```
-
-If your handler contains `if/else` chains that implement business rules, move
-those rules into `app/`.
-
-## Audit rules
-
-`PHAX_CLI_001` — `src/cli/commands/` file imports from `infra/` or contains
-more than trivial logic.
-`PHAX_OUTPUT_001` — `console.*` or `process.stdout.write` outside `cli/` or
-the output port adapter.
+`tests/unit/architecturalGuards.test.ts` enforces the boundaries: the cli imports
+only layer composition from `infra/`, no direct Node I/O outside its allowlist,
+only the runner's adapter imports commander, and no file under `src/app/` writes
+to `process.stdout`, `process.stderr` or the console.

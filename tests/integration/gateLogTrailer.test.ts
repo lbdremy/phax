@@ -24,6 +24,7 @@ import {
 import { planMdFor } from "../helpers/planMarkdown.js";
 import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
 import { liftFixturePhaxPlanToCurrent } from "../helpers/liftFixturePhaxPlan.js";
+import { processOutput } from "../helpers/processOutput.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -247,6 +248,7 @@ describe("executePlan — the Gate-Log trailer", () => {
       Effect.either(
         executePlan({
           phaxVersion: "0.0.0-test",
+          output: processOutput,
           shortName,
           namespace: "test-project",
           plan,
