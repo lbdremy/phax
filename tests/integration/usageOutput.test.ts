@@ -28,9 +28,10 @@ describe("phax --usage", () => {
       const result = runCli(["--usage"]);
       expect(result.status, `stderr: ${result.stderr}`).toBe(0);
       expect(result.stdout.length).toBeGreaterThan(0);
-      // KDL spec starts with the generated file comment and then 'name "phax"'
-      expect(result.stdout).toContain('name "phax"');
-      expect(result.stdout).toContain('bin "phax"');
+      // KDL spec starts with the generated file comment and then `name phax`, a bare word as
+      // the runner's usage spec writes one.
+      expect(result.stdout).toContain("\nname phax\n");
+      expect(result.stdout).toContain("\nbin phax\n");
     },
     CLI_SPAWN_TIMEOUT_MS,
   );
@@ -89,12 +90,12 @@ describe("phax --usage", () => {
   );
 
   it(
-    "works when passed before a subcommand (preAction hook intercepts)",
+    "works when passed before a subcommand (main.ts's catch intercepts)",
     () => {
       // --usage before `validate` should print spec, not run validate
       const result = runCli(["--usage", "validate"]);
       expect(result.status, `stderr: ${result.stderr}`).toBe(0);
-      expect(result.stdout).toContain('name "phax"');
+      expect(result.stdout).toContain("\nname phax\n");
     },
     CLI_SPAWN_TIMEOUT_MS,
   );

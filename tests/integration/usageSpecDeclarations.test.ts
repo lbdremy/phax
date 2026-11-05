@@ -1,14 +1,14 @@
-// The declarations of phax.usage.kdl during command-contracts, against a frozen copy of the file
-// as it stood before the plan (tests/fixtures/usage/phax.usage.before-command-contracts.kdl).
-// While commands move onto the runner the file mixes two KDL styles: today's walk writes child
-// nodes, the runner's blocks properties. Read node by node through tests/helpers/usageKdl.ts,
-// the committed file declares exactly what the frozen one declares, apart from the allowlist: the
-// root's `--json-schema` and its exit-code documentation, and `--json` on each migrated command.
+// The declarations of phax.usage.kdl after command-contracts, against a frozen copy of the file
+// as it stood before the spec (tests/fixtures/usage/phax.usage.before-command-contracts.kdl).
+// The frozen file was walked from Commander and written in child nodes; the committed one is the
+// runner's usage spec of phaxProgram, written in properties. Read node by node through
+// tests/helpers/usageKdl.ts, the committed file declares exactly what the frozen one declares,
+// apart from the allowlists: the root's `--json-schema` and its exit-code documentation, `--json`
+// on every command, and the rewordings and drops plans 1 to 4 named.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { PARTIAL_GROUPS } from "../../src/cli/bridge.js";
 import { fullName } from "../../src/cli/commandLibrary/contract/index.js";
 import { phaxProgram } from "../../src/cli/definitions/program.js";
 import { generateUsageSpec } from "../../scripts/generate-usage-spec.js";
@@ -21,8 +21,7 @@ const frozen = readFileSync(
   "utf8",
 );
 
-/** The commands on the runner, in the program's order: the root inspection commands, `ls`,
- *  `artifact status` and the `plans` commands, each allowed the `--json` flag it gains with the
+/** Every command of phaxProgram, in its order, each allowed the `--json` flag it gains with the
  *  library's help. */
 const MIGRATED_COMMANDS: ReadonlyArray<string> = [
   "validate",
@@ -36,13 +35,6 @@ const MIGRATED_COMMANDS: ReadonlyArray<string> = [
   "ls",
   "archive",
   "prune",
-  "brief",
-  "architecture",
-  "init",
-  "report",
-  "completions",
-  "resume",
-  "reset-phase",
   "cost backfill",
   "run",
   "review-handoff",
@@ -50,6 +42,13 @@ const MIGRATED_COMMANDS: ReadonlyArray<string> = [
   "review-compliance",
   "review-code",
   "adjust-plan",
+  "brief",
+  "architecture",
+  "init",
+  "report",
+  "completions",
+  "resume",
+  "reset-phase",
   "agent models",
   "agent resolve",
   "agent probe",
@@ -107,19 +106,6 @@ const REWORDED_JSON: ReadonlyArray<string> = [
  *  `--json` object is indented and carries `written` and `record`. */
 const REWORDED_LONG_HELP: ReadonlyArray<string> = ["ls", "artifact decide", "plans overview"];
 
-/** The groups the runner holds whole, nested ones by their full path: every group of phaxProgram
- *  whose outermost group the bridge does not hold in part. Each block is the runner's, whose
- *  header declares `subcommand_required` (`plans`). */
-const WHOLE_GROUPS: ReadonlyArray<string> = [
-  ...new Set(
-    phaxProgram.commands.flatMap((command) => {
-      const name = fullName(command);
-      if (PARTIAL_GROUPS.includes(name[0] ?? "")) return [];
-      return name.slice(0, -1).map((_, index) => name.slice(0, index + 1).join(" "));
-    }),
-  ),
-];
-
 /** What the committed file may declare beyond the frozen one: a path and a declaration's head
  *  (its kind and key). */
 const ALLOWED_ADDITIONS: ReadonlyArray<readonly [string, string]> = [
@@ -128,7 +114,6 @@ const ALLOWED_ADDITIONS: ReadonlyArray<readonly [string, string]> = [
   ...MIGRATED_COMMANDS.map((path) => [path, "flag --json "] as const),
   ...CHOICES_DECLARED.map((path) => [path, "arg <kind> "] as const),
   ...REWORDED_LONG_HELP.map((path) => [path, "long_help "] as const),
-  ...WHOLE_GROUPS.map((path) => [path, "subcommand_required "] as const),
 ];
 
 /** q-security-bare (refuse-bare): `security` and `security status` no longer declare their own
@@ -225,20 +210,8 @@ describe("phax.usage.kdl's declarations against the frozen file", () => {
     );
   });
 
-  it("declares subcommand_required on exactly the groups the runner holds whole", () => {
-    const required = [...now]
-      .filter(([, declarations]) =>
-        declarations.some((each) => each.startsWith("subcommand_required ")),
-      )
-      .map(([path]) => path);
-    const frozenRequired = [...before]
-      .filter(([, declarations]) =>
-        declarations.some((each) => each.startsWith("subcommand_required ")),
-      )
-      .map(([path]) => path);
-    expect(required.filter((path) => !frozenRequired.includes(path)).toSorted()).toEqual(
-      [...WHOLE_GROUPS].toSorted(),
-    );
+  it("declares no subcommand_required: the program writes its groups plainly", () => {
+    expect(committed).not.toContain("subcommand_required");
   });
 
   it("reads both styles to the same declarations", () => {

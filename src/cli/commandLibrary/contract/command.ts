@@ -297,6 +297,10 @@ export interface ProgramUsage {
   readonly formatDefault?: string;
   /** Gain carried for upstream (the usage header): the root's `min_usage_version`. */
   readonly minUsageVersion?: string;
+  /** Gain carried for upstream (global usage flags): the program's edge answers the usage flag
+   *  anywhere in the call, ahead of the runner, so the usage spec declares the usage flag and its
+   *  format option `global`. The runner itself still answers the flag only alone. */
+  readonly global?: true;
   /** Gain carried for upstream (plain groups): how the usage spec writes a group — as a command
    *  that needs a subcommand (`subcommand-required`, the library's way, the default), or `plain`,
    *  without `subcommand_required`. The runner refuses a group called alone either way. */

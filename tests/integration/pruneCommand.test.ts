@@ -14,7 +14,11 @@ import { prepareRunBranch } from "../../src/app/worktree.js";
 import { runner } from "../../src/cli/commandLibrary/commander/index.js";
 import { memoryIo } from "../../src/cli/commandLibrary/contract/conformance/memoryIo.js";
 import type { ExitCode } from "../../src/cli/commandLibrary/contract/index.js";
-import { phaxProgram } from "../../src/cli/definitions/program.js";
+import { phaxProgram as guardedProgram } from "../../src/cli/definitions/program.js";
+import { withoutGuard } from "../helpers/runnerCall.js";
+
+// The phase guard reads the process's cwd, which may be a phase worktree: proved on its own.
+const phaxProgram = withoutGuard(guardedProgram);
 import { decodeShortName } from "../../src/domain/branded.js";
 import { formatBytes } from "../../src/domain/prune.js";
 import { nextAvailableShortName, runKey } from "../../src/domain/runRef.js";

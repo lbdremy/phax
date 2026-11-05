@@ -9,7 +9,7 @@
 export type PhaseGuardClass = "allowed" | "refused";
 
 /**
- * Every subcommand path registered in src/cli/program.ts. Allowed are
+ * Every command of phaxProgram (src/cli/definitions/program.ts), by its full name. Allowed are
  * `phax brief`, `phax architecture`, `schema upgrade` (it writes only the working tree's local
  * schemas) and the commands that only read. A unit test fails on a registered
  * command missing here, so a new command is refused until it is classified.

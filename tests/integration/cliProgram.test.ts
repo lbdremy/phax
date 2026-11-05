@@ -1,7 +1,14 @@
+// phax's program as the runner holds it (src/cli/definitions/program.ts): its top-level commands
+// and groups, and the arguments and options a few commands declare, read from their shapes.
 import { describe, expect, it } from "vitest";
-import { buildProgram } from "../../src/cli/program.js";
-import { isHiddenCommand } from "../../src/cli/introspect.js";
+import {
+  argShapes,
+  flagShapes,
+  fullName,
+  type Command,
+} from "../../src/cli/commandLibrary/contract/index.js";
 import { ARCHIVE_RETIRED, artifactGroup } from "../../src/cli/definitions/artifact.js";
+import { phaxProgram } from "../../src/cli/definitions/program.js";
 
 const TOP_LEVEL_COMMANDS = [
   "validate",
@@ -38,51 +45,68 @@ const TOP_LEVEL_COMMANDS = [
   "records",
 ] as const;
 
-describe("buildProgram", () => {
-  it("returns a Command without executing side effects", () => {
-    const program = buildProgram();
-    expect(program.name()).toBe("phax");
+/** The words that follow `words` in the program's commands, each once, in the order declared:
+ *  the root's commands and groups for `[]`, a group's for its name. */
+function under(words: ReadonlyArray<string>): ReadonlyArray<string> {
+  const next: string[] = [];
+  for (const command of phaxProgram.commands) {
+    const name = fullName(command);
+    if (name.length <= words.length || !words.every((word, index) => name[index] === word)) {
+      continue;
+    }
+    const word = name[words.length] as string;
+    if (!next.includes(word)) next.push(word);
+  }
+  return next;
+}
+
+function commandNamed(words: string): Command<unknown> {
+  const command = phaxProgram.commands.find((each) => fullName(each).join(" ") === words);
+  if (command === undefined) throw new Error(`phax ${words} is not a command`);
+  return command;
+}
+
+const argsOf = (words: string): ReadonlyArray<string> => {
+  const args = commandNamed(words).input.args;
+  return args === undefined ? [] : argShapes(args.contract).map((arg) => arg.name);
+};
+
+const optionsOf = (words: string): ReadonlyArray<string> => {
+  const flags = commandNamed(words).input.flags;
+  return flags === undefined ? [] : flagShapes(flags.contract).map((flag) => `--${flag.option}`);
+};
+
+describe("phaxProgram", () => {
+  it("is the phax program", () => {
+    expect(phaxProgram.name).toBe("phax");
   });
 
   it("exposes the expected top-level commands", () => {
-    const program = buildProgram();
-    const names = program.commands.map((c) => c.name());
+    const names = under([]);
     for (const name of TOP_LEVEL_COMMANDS) {
       expect(names, `expected top-level command '${name}'`).toContain(name);
     }
     expect(names.length).toBe(TOP_LEVEL_COMMANDS.length);
   });
 
-  it("exposes plans lint's stub with a <plan> argument, --json and --json-schema", () => {
-    const program = buildProgram();
-    const plansCmd = program.commands.find((c) => c.name() === "plans");
-    expect(plansCmd).toBeDefined();
-    const lintCmd = plansCmd!.commands.find((c) => c.name() === "lint");
-    expect(lintCmd).toBeDefined();
-    expect(lintCmd!.registeredArguments.map((a) => a.name())).toEqual(["plan"]);
-    expect(lintCmd!.options.map((o) => o.long)).toEqual(["--json", "--json-schema"]);
+  it("declares plans lint with a <plan> argument and no option of its own", () => {
+    expect(argsOf("plans lint")).toEqual(["plan"]);
+    expect(optionsOf("plans lint")).toEqual([]);
   });
 
-  it("exposes ls's stub with its filters, --complete, --json and --json-schema", () => {
-    const program = buildProgram();
-    const lsCmd = program.commands.find((c) => c.name() === "ls");
-    expect(lsCmd?.options.map((o) => o.long)).toEqual([
+  it("declares ls's filters and --complete", () => {
+    expect(optionsOf("ls")).toEqual([
       "--active",
       "--failed",
       "--review-open",
       "--awaiting-review",
       "--archived",
       "--complete",
-      "--json",
-      "--json-schema",
     ]);
   });
 
   it("exposes agent subcommands: models, resolve, probe, setup", () => {
-    const program = buildProgram();
-    const agentCmd = program.commands.find((c) => c.name() === "agent");
-    expect(agentCmd).toBeDefined();
-    const agentSubs = agentCmd!.commands.map((c) => c.name());
+    const agentSubs = under(["agent"]);
     expect(agentSubs).toContain("models");
     expect(agentSubs).toContain("resolve");
     expect(agentSubs).toContain("probe");
@@ -90,62 +114,34 @@ describe("buildProgram", () => {
   });
 
   it("exposes agent setup subcommands: mistral-vibe, providers", () => {
-    const program = buildProgram();
-    const agentCmd = program.commands.find((c) => c.name() === "agent");
-    const setupCmd = agentCmd!.commands.find((c) => c.name() === "setup");
-    expect(setupCmd).toBeDefined();
-    const setupSubs = setupCmd!.commands.map((c) => c.name());
+    const setupSubs = under(["agent", "setup"]);
     expect(setupSubs).toContain("mistral-vibe");
     expect(setupSubs).toContain("providers");
   });
 
   it("exposes security subcommand: status", () => {
-    const program = buildProgram();
-    const securityCmd = program.commands.find((c) => c.name() === "security");
-    expect(securityCmd).toBeDefined();
-    const subs = securityCmd!.commands.map((c) => c.name());
-    expect(subs).toContain("status");
+    expect(under(["security"])).toContain("status");
   });
 
   it("exposes skills subcommand: install", () => {
-    const program = buildProgram();
-    const skillsCmd = program.commands.find((c) => c.name() === "skills");
-    expect(skillsCmd).toBeDefined();
-    const subs = skillsCmd!.commands.map((c) => c.name());
-    expect(subs).toContain("install");
+    expect(under(["skills"])).toContain("install");
   });
 
   it("exposes schema subcommand: upgrade", () => {
-    const program = buildProgram();
-    const schemaCmd = program.commands.find((c) => c.name() === "schema");
-    expect(schemaCmd).toBeDefined();
-    const subs = schemaCmd!.commands.map((c) => c.name());
-    expect(subs).toContain("upgrade");
+    expect(under(["schema"])).toContain("upgrade");
   });
 
   it("review-code has <short-name> arg and --new-session, --model, --effort flags", () => {
-    const program = buildProgram();
-    const cmd = program.commands.find((c) => c.name() === "review-code");
-    expect(cmd).toBeDefined();
-
-    const argNames = cmd!.registeredArguments.map((a) => a.name());
-    expect(argNames).toContain("short-name");
-
-    const optionNames = cmd!.options.map((o) => o.long);
+    expect(argsOf("review-code")).toContain("short-name");
+    const optionNames = optionsOf("review-code");
     expect(optionNames).toContain("--new-session");
     expect(optionNames).toContain("--model");
     expect(optionNames).toContain("--effort");
   });
 
   it("adjust-plan has <plan> arg and --landed, --new-session, --model, --effort flags", () => {
-    const program = buildProgram();
-    const cmd = program.commands.find((c) => c.name() === "adjust-plan");
-    expect(cmd).toBeDefined();
-
-    const argNames = cmd!.registeredArguments.map((a) => a.name());
-    expect(argNames).toContain("plan");
-
-    const optionNames = cmd!.options.map((o) => o.long);
+    expect(argsOf("adjust-plan")).toContain("plan");
+    const optionNames = optionsOf("adjust-plan");
     expect(optionNames).toContain("--landed");
     expect(optionNames).toContain("--new-session");
     expect(optionNames).toContain("--model");
@@ -153,38 +149,20 @@ describe("buildProgram", () => {
   });
 
   it("plans overlap has variadic <plan...> arg and --json, --no-extract, --landed flags", () => {
-    const program = buildProgram();
-    const plansCmd = program.commands.find((c) => c.name() === "plans");
-    expect(plansCmd).toBeDefined();
-    const cmd = plansCmd!.commands.find((c) => c.name() === "overlap");
-    expect(cmd).toBeDefined();
-
-    const argNames = cmd!.registeredArguments.map((a) => a.name());
-    expect(argNames).toContain("plan");
-
-    const optionNames = cmd!.options.map((o) => o.long);
-    expect(optionNames).toContain("--json");
+    expect(argsOf("plans overlap")).toContain("plan");
+    const optionNames = optionsOf("plans overlap");
     expect(optionNames).toContain("--no-extract");
     expect(optionNames).toContain("--landed");
   });
 
   it("exposes plans subcommands: status, overlap", () => {
-    const program = buildProgram();
-    const plansCmd = program.commands.find((c) => c.name() === "plans");
-    expect(plansCmd).toBeDefined();
-    const subs = plansCmd!.commands.map((c) => c.name());
+    const subs = under(["plans"]);
     expect(subs).toContain("status");
     expect(subs).toContain("overlap");
   });
 
-  it("artifact's visible subcommands are exactly status, approve, stale, abandon, complete, reopen, decide, new, schema, migrate-approvals, migrate-documents; archive is a retired word of the runner's group", () => {
-    const program = buildProgram();
-    const artifactCmd = program.commands.find((c) => c.name() === "artifact");
-    expect(artifactCmd).toBeDefined();
-
-    const subs = artifactCmd!.commands;
-    const visibleNames = subs.filter((c) => !isHiddenCommand(c)).map((c) => c.name());
-    expect(visibleNames).toEqual([
+  it("artifact's subcommands are exactly status, approve, stale, abandon, complete, reopen, decide, new, schema, migrate-approvals, migrate-documents; archive is a retired word of the group", () => {
+    expect(under(["artifact"])).toEqual([
       "status",
       "approve",
       "stale",
@@ -197,25 +175,13 @@ describe("buildProgram", () => {
       "migrate-approvals",
       "migrate-documents",
     ]);
-
-    // The runner holds `artifact` whole: `archive` is no Commander command, hidden or not, but a
-    // retired word of the runner's group, refused with the sentence naming `complete`.
-    expect(subs.find((c) => c.name() === "archive")).toBeUndefined();
+    // `archive` is no command, but a retired word of the group, refused with the sentence naming
+    // `complete`.
     expect(artifactGroup.retired?.["archive"]).toBe(ARCHIVE_RETIRED);
-
-    const newCmd = subs.find((c) => c.name() === "new");
-    const newSubNames = newCmd!.commands.map((c) => c.name());
-    expect(newSubNames).toEqual(["spec", "plan"]);
+    expect(under(["artifact", "new"])).toEqual(["spec", "plan"]);
   });
 
-  it("plans status has --apply and --json flags", () => {
-    const program = buildProgram();
-    const plansCmd = program.commands.find((c) => c.name() === "plans");
-    const cmd = plansCmd!.commands.find((c) => c.name() === "status");
-    expect(cmd).toBeDefined();
-
-    const optionNames = cmd!.options.map((o) => o.long);
-    expect(optionNames).toContain("--apply");
-    expect(optionNames).toContain("--json");
+  it("plans status has the --apply flag", () => {
+    expect(optionsOf("plans status")).toContain("--apply");
   });
 });

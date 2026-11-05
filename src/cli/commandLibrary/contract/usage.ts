@@ -255,12 +255,14 @@ function programFlags(program: Program<unknown>, listsJsonSchema: boolean): Read
     lines.push("flag --usage-spec hide=#true");
   } else {
     // Gain (the usage flags' help): the program's own sentences and default, else the library's.
+    // Gain (global usage flags): declared global when the program's edge reads them anywhere.
+    const global = usage.global === true ? " global=#true" : "";
     lines.push(
-      `flag ${usageOf(`--${usage.flag}`)}${property("help", usage.help ?? OPTION_HELP.usage)}`,
+      `flag ${usageOf(`--${usage.flag}`)}${global}${property("help", usage.help ?? OPTION_HELP.usage)}`,
     );
     if (usage.format !== undefined) {
       lines.push(
-        `flag ${usageOf(`--${usage.format} <format>`)}${property("help", usage.formatHelp ?? OPTION_HELP.usageFormat)}${property("default", usage.formatDefault ?? "kdl")}`,
+        `flag ${usageOf(`--${usage.format} <format>`)}${global}${property("help", usage.formatHelp ?? OPTION_HELP.usageFormat)}${property("default", usage.formatDefault ?? "kdl")}`,
       );
     }
   }

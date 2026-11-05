@@ -1,5 +1,8 @@
 // phax's runner program (src/cli/definitions/program.ts) passes the runner's misdeclared-program
 // check, and a variant declaring an option the runner reserves does not (ac-misdeclared).
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { Effect } from "effect";
 import * as Schema from "effect/Schema";
 import { describe, expect, it } from "vitest";
@@ -10,7 +13,7 @@ import {
   reject,
   strip,
 } from "../../../src/cli/commandLibrary/contract/index.js";
-import { phaxProgram } from "../../../src/cli/definitions/program.js";
+import { PHAX_LICENSE, phaxProgram } from "../../../src/cli/definitions/program.js";
 import { PHAX_RELEASE } from "../../../src/schemas/release.js";
 import { call } from "../commandLibrary/commander/support/memoryIo.js";
 
@@ -23,8 +26,30 @@ describe("phaxProgram", () => {
       flag: "usage",
       format: "usage-format",
       jsonSchema: "program",
+      help: "Print the phax.usage.kdl CLI spec and exit",
+      formatHelp:
+        "Format for --usage output: kdl (default, no external dependency) or json (requires the usage CLI)",
+      formatDefault: "kdl",
+      minUsageVersion: "1.0.0",
+      groups: "plain",
+      global: true,
     });
     expect(Object.keys(phaxProgram.options?.contract.fields ?? {})).toEqual(["verbose", "trace"]);
+  });
+
+  it("declares its summary, -V, help [command] and the phase guard", () => {
+    expect(phaxProgram.summary).toBe("Drive AI coding agents through isolated, gated phases");
+    expect(phaxProgram.versionAlias).toBe("V");
+    expect(phaxProgram.helpCommand).toBe(true);
+    expect(phaxProgram.guard).toBeTypeOf("function");
+  });
+
+  it("declares package.json's licence", () => {
+    const pkg = JSON.parse(
+      readFileSync(join(fileURLToPath(import.meta.url), "../../../../package.json"), "utf8"),
+    ) as { readonly license: string };
+    expect(PHAX_LICENSE).toBe(pkg.license);
+    expect(phaxProgram.license).toBe(PHAX_LICENSE);
   });
 
   it("passes the runner's misdeclared-program check: --json-schema answers its catalogue", async () => {

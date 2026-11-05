@@ -273,12 +273,6 @@ export const ALLOWLIST: readonly AllowEntry[] = [
     lines: [/includes\("oracle"\)/, /--hold 'oracle' is no longer read/],
   },
   {
-    id: "skip-oracle-option",
-    reason: "old-name refusal",
-    file: "src/cli/introspect.ts",
-    lines: [/--skip-oracle/],
-  },
-  {
     id: "skip-oracle-definition",
     reason: "old-name refusal",
     file: "src/cli/definitions/resume.ts",
@@ -673,7 +667,7 @@ describe("acceptance words in the sources (ac-oracle-kept, source half)", () => 
     expect(files).toContain("README.md");
     expect(files).toContain("docs/acceptance-phases.md");
     expect(files).toContain("examples/vitest-acceptance/main.mjs");
-    expect(files).toContain("src/cli/cliDocs.ts");
+    expect(files).toContain("src/cli/definitions/program.ts");
     expect(files).toContain("phax.schema.json");
     // Only the current snapshot of a format: `next` while a release is
     // pending, the release's own stamp once it is cut.

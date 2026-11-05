@@ -14,8 +14,8 @@ fi
 echo "OK: dist/bin/phax --version = $VERSION"
 
 USAGE_OUT="$(./dist/bin/phax --usage 2>&1)"
-if ! echo "$USAGE_OUT" | grep -q 'name "phax"'; then
-  echo "FAIL: dist/bin/phax --usage did not print the spec (no 'name \"phax\"' found)" >&2
+if ! echo "$USAGE_OUT" | grep -q '^name phax$'; then
+  echo "FAIL: dist/bin/phax --usage did not print the spec (no 'name phax' found)" >&2
   echo "Output was: $USAGE_OUT" >&2
   exit 1
 fi

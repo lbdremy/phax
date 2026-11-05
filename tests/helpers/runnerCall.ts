@@ -90,9 +90,17 @@ export async function runnerCall(
   };
 }
 
-/** Runs `argv` against phax's whole program, as `phax <argv>` does in a terminal. The commands
- *  keep their real adapters, so a test swaps what they reach with `vi.mock` or a fixture on disk,
- *  and the working directory is the process's. */
+/** A program without its guard: phax's phase guard reads the process's working directory, and
+ *  the suite may run inside a phase worktree, where it would refuse the commands under test. The
+ *  guard is proved on its own in tests/integration/phaseGuard.test.ts. */
+export function withoutGuard<R>(program: Program<R>): Program<R> {
+  const { guard: _guard, ...rest } = program;
+  return rest;
+}
+
+/** Runs `argv` against phax's whole program, as `phax <argv>` does in a terminal, its phase guard
+ *  set aside. The commands keep their real adapters, so a test swaps what they reach with
+ *  `vi.mock` or a fixture on disk, and the working directory is the process's. */
 export async function phaxCall(
   argv: ReadonlyArray<string>,
   options: Omit<RunnerCallOptions, "programOptions"> = {},
@@ -100,7 +108,7 @@ export async function phaxCall(
   const { phaxProgram } = await import("../../src/cli/definitions/program.js");
   const memory = memoryIo({ argv, ...options });
   const code = await Effect.runPromise(
-    runner.run(phaxProgram, memory.io) as Effect.Effect<ExitCode>,
+    runner.run(withoutGuard(phaxProgram), memory.io) as Effect.Effect<ExitCode>,
   );
   const out = memory.out();
   const err = memory.err();

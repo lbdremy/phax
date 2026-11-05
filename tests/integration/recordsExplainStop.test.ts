@@ -9,7 +9,11 @@ import { explainRecord } from "../../src/app/recordsExplain.js";
 import { loadConfig } from "../../src/app/loadConfig.js";
 import { runner } from "../../src/cli/commandLibrary/commander/index.js";
 import type { ExitCode } from "../../src/cli/commandLibrary/contract/index.js";
-import { phaxProgram } from "../../src/cli/definitions/program.js";
+import { phaxProgram as guardedProgram } from "../../src/cli/definitions/program.js";
+import { withoutGuard } from "../helpers/runnerCall.js";
+
+// The phase guard reads the process's cwd, which may be a phase worktree: proved on its own.
+const phaxProgram = withoutGuard(guardedProgram);
 import { memoryIo } from "../unit/commandLibrary/commander/support/memoryIo.js";
 import { decodeBranchName, type BranchName } from "../../src/domain/branded.js";
 import { AwaitingReviewStopError } from "../../src/domain/errors.js";
