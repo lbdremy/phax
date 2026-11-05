@@ -16,6 +16,18 @@ export const CompleterAnnotationId: unique symbol = Symbol.for("cli-command/anno
  *  property `x-alias: "-y"`, and the usage spec `flag "--yes -y"`. */
 export const AliasAnnotationId: unique symbol = Symbol.for("cli-command/annotation/Alias");
 
+/** Gain carried for upstream (an option with an optional value): the key of the annotation an
+ *  option's field declares, on the field or on its type, when its value may be left out. The
+ *  field's schema is a union of `true` and a string:
+ *  `Schema.optionalWith(Schema.Union(Schema.Literal(true), Schema.String), { exact: true })
+ *  .annotations({ identifier: "selection", [OptionalValueAnnotationId]: true })`.
+ *  The option then decodes to `true` when given bare (`--hold`) and to its value when given one
+ *  (`--hold phase-02`, `--hold=phase-02`); help shows `--hold [selection]`, the catalogue the
+ *  union, and the usage spec `flag "--hold [selection]"`. */
+export const OptionalValueAnnotationId: unique symbol = Symbol.for(
+  "cli-command/annotation/OptionalValue",
+);
+
 /** What an argument's completer says: the command line whose output lists the candidates, and
  *  whether each of its lines carries a description after a `:`. */
 export interface Completer {
@@ -64,6 +76,9 @@ export interface FlagShape {
   /** Gain carried for upstream (a short alias): the letter its field's alias annotation declares,
    *  without its dash; `undefined` when it declares none. */
   readonly alias: string | undefined;
+  /** Gain carried for upstream (an option with an optional value): the field's annotation says
+   *  its value may be left out, `--hold [selection]`; never for a switch. */
+  readonly valueOptional: boolean;
 }
 
 /** `dryRun` as `dry-run`: a hyphen before each uppercase letter, lowercased. */
@@ -262,6 +277,19 @@ function aliasOf(written: SchemaAST.PropertySignature | undefined): string | und
   return typeof declared === "string" ? declared : undefined;
 }
 
+/** Whether a field declares its value optional: on its place, else on its type, else on the one
+ *  member of its union with `undefined`. */
+function valueOptionalOf(written: SchemaAST.PropertySignature | undefined): boolean {
+  if (written === undefined) return false;
+  const members = defined(written.type);
+  const only = members.length === 1 ? members[0] : undefined;
+  const declared: unknown =
+    written.annotations[OptionalValueAnnotationId] ??
+    written.type.annotations[OptionalValueAnnotationId] ??
+    only?.annotations[OptionalValueAnnotationId];
+  return declared === true;
+}
+
 export function flagShapes(contract: StructContract): ReadonlyArray<FlagShape> {
   const declared = literalOf(contract.ast)?.propertySignatures ?? [];
   const encoded = literalOf(SchemaAST.encodedAST(contract.ast))?.propertySignatures ?? [];
@@ -286,6 +314,7 @@ export function flagShapes(contract: StructContract): ReadonlyArray<FlagShape> {
               : undefined,
           ),
       alias: aliasOf(written),
+      valueOptional: !isSwitch && valueOptionalOf(written),
     };
   });
 }

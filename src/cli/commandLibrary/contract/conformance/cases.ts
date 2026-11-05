@@ -23,7 +23,7 @@ import {
   reject,
   strip,
 } from "../define.js";
-import { AliasAnnotationId, CompleterAnnotationId } from "../shapes.js";
+import { AliasAnnotationId, CompleterAnnotationId, OptionalValueAnnotationId } from "../shapes.js";
 import { usageSpec } from "../usage.js";
 import { utf8Bytes, Written, written } from "../written.js";
 import { memoryIo } from "./memoryIo.js";
@@ -2609,6 +2609,232 @@ const lifecycleGainCases: ReadonlyArray<Case> = [
   },
 ];
 
+// ---------------------------------------------------------------- the gains of phax's run and session commands
+
+/** Gain (an option with an optional value): `run`, whose `--hold` is bare or takes a selection. */
+const Hold = Schema.optionalWith(Schema.Union(Schema.Literal(true), Schema.String), {
+  exact: true,
+}).annotations({
+  identifier: "selection",
+  description: "Hold the run at a phase",
+  [OptionalValueAnnotationId]: true,
+});
+const holding = () =>
+  recording("run", {
+    args: reject(Schema.Tuple(Schema.optionalElement(Str))),
+    flags: reject(Schema.Struct({ hold: Hold })),
+  });
+
+/** Gain (a command's retired options): `resume`, which retired `--skip-check`. */
+const SKIP_CHECK_SENTENCE = "--skip-check is no longer read: write --skip-review";
+const resuming = () => {
+  const recorded = recording("resume", {
+    args: reject(Schema.Tuple(Str)),
+    flags: reject(Schema.Struct({ skipAcceptance: Switch })),
+  });
+  return {
+    ...recorded,
+    command: { ...recorded.command, retiredOptions: { "skip-check": SKIP_CHECK_SENTENCE } },
+  };
+};
+
+/** Gain (an empty render): `quiet`, whose render answers nothing and whose notes say a line. */
+const quiet = () =>
+  defineCommand({
+    name: "quiet",
+    summary: "answers nothing on stdout",
+    input: {},
+    output: strip(Schema.Struct({ said: Str })),
+    exits: {},
+    run: () => Effect.succeed({ said: "a note" }),
+    render: () => "",
+    notes: (value) => value.said,
+  });
+
+/** Gain (a handed-over exit): `enter`, which hands the terminal to a process exiting `code`. */
+const entering = (code: ExitCode) =>
+  defineCommand({
+    name: "enter",
+    summary: "hands the terminal over",
+    input: {},
+    output: strip(Schema.Struct({ exit: Schema.Number })),
+    exits: {},
+    prompts: () => true,
+    run: () => Effect.succeed({ exit: code }),
+    render: (value) => `exited ${value.exit}`,
+    handsOver: (value) => value.exit,
+  });
+
+// Gains carried for upstream that phax's run and session commands need (command-contracts
+// plan 4). They stand before the lifecycle commands' gains.
+const runSessionGainCases: ReadonlyArray<Case> = [
+  {
+    // Gain: an option with an optional value. Bare, it decodes to true; spaced or attached, to its
+    // value; absent, to nothing. Help shows `--hold [selection]`, the catalogue the union, and the
+    // usage spec `flag "--hold [selection]"`.
+    id: "flags.optional-value",
+    check: (runner) =>
+      Effect.gen(function* () {
+        const bareHold = holding();
+        const byBare = yield* call(runner, [bareHold.command], ["run", "--hold"]);
+        const spaced = holding();
+        const bySpace = yield* call(runner, [spaced.command], ["run", "--hold", "phase-02"]);
+        const attached = holding();
+        const byEquals = yield* call(runner, [attached.command], ["run", "--hold=phase-02"]);
+        const absent = holding();
+        const without = yield* call(runner, [absent.command], ["run", "x"]);
+        const before = holding();
+        const named = yield* call(runner, [before.command], ["run", "--hold", "--json"]);
+        const help = yield* call(runner, [holding().command], ["run", "--help"]);
+        const entry = yield* printed(runner, [holding().command], ["run", "--json-schema"]);
+        const spec = yield* call(runner, [holding().command], ["--usage-spec"]);
+        const property: unknown = inputOfEntry(entry.parsed).properties["hold"];
+        return verdict(
+          ended(byBare, 0),
+          is("input of a bare --hold", [{ args: [], flags: { hold: true } }], bareHold.seen),
+          ended(bySpace, 0),
+          is("input of --hold phase-02", [{ args: [], flags: { hold: "phase-02" } }], spaced.seen),
+          ended(byEquals, 0),
+          is(
+            "input of --hold=phase-02",
+            [{ args: [], flags: { hold: "phase-02" } }],
+            attached.seen,
+          ),
+          ended(without, 0),
+          is("input without --hold", [{ args: ["x"], flags: {} }], absent.seen),
+          ended(named, 0),
+          is("input of --hold before --json", [{ args: [], flags: { hold: true } }], before.seen),
+          ended(help, 0),
+          has(help.out, "--hold [selection]"),
+          has(JSON.stringify(property), "true"),
+          has(JSON.stringify(property), '"string"'),
+          has(spec.out, `flag "--hold [selection]" help="Hold the run at a phase"`),
+        );
+      }),
+  },
+  {
+    // Gain: a command's retired options. A call giving a retired option is refused with its own
+    // sentence, then the refusal hint; under `--json`, one `refused` line from the flags. It is
+    // never in help, the catalogue, a suggestion or the usage spec; a command retiring an option
+    // it declares stops the program.
+    id: "flags.retired-option",
+    check: (runner) =>
+      Effect.gen(function* () {
+        const first = resuming();
+        const text = yield* call(runner, [first.command], ["resume", "x", "--skip-check"]);
+        const second = resuming();
+        const json = yield* call(
+          runner,
+          [second.command],
+          ["resume", "x", "--skip-check=true", "--json"],
+        );
+        const help = yield* call(runner, [resuming().command], ["resume", "--help"]);
+        const near = yield* call(runner, [resuming().command], ["resume", "x", "--skip-chec"]);
+        const entry = yield* printed(runner, [resuming().command], ["resume", "--json-schema"]);
+        const spec = yield* call(runner, [resuming().command], ["--usage-spec"]);
+        const ok = recording("ok", {});
+        const base = recording("resume", {
+          args: reject(Schema.Tuple(Str)),
+          flags: reject(Schema.Struct({ skipCheck: Switch })),
+        });
+        const clashing = { ...base.command, retiredOptions: { "skip-check": "retired" } };
+        const clash = yield* call(runner, [ok.command, clashing], ["ok"]);
+        return verdict(
+          ...refusal(text),
+          is("err of a retired option", `${SKIP_CHECK_SENTENCE}\n`, text.err),
+          ran([first]),
+          ended(json, REFUSED),
+          outEmpty(json),
+          is(
+            "the refused line",
+            [
+              {
+                kind: "refused",
+                source: "flags",
+                path: ["skip-check"],
+                expected: "no such option",
+                text: SKIP_CHECK_SENTENCE,
+                exit: REFUSED,
+              },
+            ],
+            parsedLines(json.err),
+          ),
+          ran([second]),
+          ended(help, 0),
+          lacks(help.out, "skip-check"),
+          ...refusal(near),
+          lacks(near.err, "skip-check"),
+          ended(entry.called, 0),
+          lacks(entry.called.out, "skip-check"),
+          ended(spec, 0),
+          lacks(spec.out, "skip-check"),
+          ...defect(clash),
+          naming(clash, "resume"),
+          ran([ok, base]),
+        );
+      }),
+  },
+  {
+    // Gain: an empty render. A render answering the empty text writes nothing on `out`, not even
+    // a newline, while its notes still reach `err`; under `--json` the encoded output is written.
+    id: "output.empty-render",
+    check: (runner) =>
+      Effect.gen(function* () {
+        const text = yield* call(runner, [quiet()], ["quiet"]);
+        const json = yield* call(runner, [quiet()], ["quiet", "--json"]);
+        return verdict(
+          ended(text, 0),
+          outEmpty(text),
+          is("err of the notes", "a note\n", text.err),
+          ended(json, 0),
+          is("out under --json", `${JSON.stringify({ said: "a note" }, null, 2)}\n`, json.out),
+          is(
+            "the note line",
+            [{ kind: "note", text: "a note" }],
+            parsedLines(json.err).map((each) => ({
+              kind: Reflect.get(Object(each), "kind"),
+              text: Reflect.get(Object(each), "text"),
+            })),
+          ),
+        );
+      }),
+  },
+  {
+    // Gain: a handed-over exit. Without `--json`, a command handing the terminal over exits the
+    // code its process answered, whatever it is, the program's `refused` and `defect` codes
+    // included, after its render; under `--json` it is refused, as it prompts. A command handing
+    // the terminal over that declares no prompts stops the program; the catalogue says
+    // `handsOver: true`.
+    id: "exits.handed-over",
+    check: (runner) =>
+      Effect.gen(function* () {
+        // 64 is the program's `refused` code; 70, a code many programs choose for a defect.
+        const codes: ReadonlyArray<ExitCode> = [0, 1, REFUSED, 70];
+        const checks: Check[] = [];
+        for (const code of codes) {
+          const called = yield* call(runner, [entering(code)], ["enter"]);
+          checks.push(
+            ended(called, code),
+            is(`out of a process exiting ${code}`, `exited ${code}\n`, called.out),
+          );
+        }
+        const json = yield* call(runner, [entering(70)], ["enter", "--json"]);
+        const entry = yield* printed(runner, [entering(0)], ["enter", "--json-schema"]);
+        const ok = recording("ok", {});
+        const { prompts: _prompts, ...unprompted } = entering(0);
+        const stopped = yield* call(runner, [ok.command, unprompted], ["ok"]);
+        return verdict(
+          ...checks,
+          ...refusal(json),
+          is("handsOver in the entry", true, Reflect.get(Object(entry.parsed), "handsOver")),
+          ...defect(stopped),
+          naming(stopped, "enter"),
+          ran([ok]),
+        );
+      }),
+  },
+];
+
 // ---------------------------------------------------------------- the table
 
 export const cases: ReadonlyArray<Case> = [
@@ -3136,6 +3362,7 @@ export const cases: ReadonlyArray<Case> = [
   },
   ...jsonCases,
   ...groupCases,
+  ...runSessionGainCases,
   ...lifecycleGainCases,
   ...inspectionGainCases,
   ...gainCases,

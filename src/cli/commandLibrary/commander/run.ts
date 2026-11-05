@@ -162,7 +162,11 @@ function rootOptionsOf(program: Program<unknown>): ReadonlyArray<RootOption> {
   if (program.options !== undefined) {
     for (const flag of flagShapes(program.options.contract)) {
       options.push({
-        flags: flag.switch ? `--${flag.option}` : `--${flag.option} <${flag.valueName}>`,
+        flags: flag.switch
+          ? `--${flag.option}`
+          : flag.valueOptional
+            ? `--${flag.option} [${flag.valueName}]`
+            : `--${flag.option} <${flag.valueName}>`,
         help: flag.help ?? "",
       });
     }
@@ -454,9 +458,25 @@ function precheck<R>(
           option: flag.option,
           takesValue: !flag.switch,
           alias: flag.alias,
+          valueOptional: flag.valueOptional,
         })),
   );
   if (read.help) return { words: [...path, "--help"] };
+  // Gain (a command's retired options): a retired option is refused with its own sentence, alone,
+  // before anything is decoded.
+  const retiredOptions = command.retiredOptions;
+  if (retiredOptions !== undefined) {
+    for (const word of read.undeclared) {
+      const name = (word.split("=")[0] ?? "").replace(/^--/, "");
+      if (word.startsWith("--") && Object.hasOwn(retiredOptions, name)) {
+        return refusal(retiredOptions[name] ?? "", {
+          source: "flags",
+          path: [name],
+          expected: "no such option",
+        });
+      }
+    }
+  }
   const problems: Problem[] = [];
   if (read.version) {
     problems.push({
@@ -731,7 +751,9 @@ function compose<R>(
       output === undefined || document !== undefined ? undefined : yield* encode(output, value);
     const needsView =
       document === undefined &&
-      (notes !== undefined || verdicts !== undefined || (!json && render !== undefined));
+      (notes !== undefined ||
+        verdicts !== undefined ||
+        (!json && (render !== undefined || command.handsOver !== undefined)));
     const view: unknown =
       output === undefined || !needsView ? value : yield* reduced(output, encoded);
     const toPath = command.writesDocument === true && out.tag === "Path" ? out.path : undefined;
@@ -766,7 +788,9 @@ function compose<R>(
         ),
       });
     } else if (!json && render !== undefined) {
-      stdout = `${yield* Effect.sync(() => render(view, io.terminal))}\n`;
+      // Gain (an empty render): the empty text writes nothing, not even a newline.
+      const rendered = yield* Effect.sync(() => render(view, io.terminal));
+      stdout = rendered === "" ? "" : `${rendered}\n`;
     } else if (output !== undefined) {
       stdout = encodedText(encoded);
     }
@@ -776,7 +800,15 @@ function compose<R>(
       : said === ""
         ? ""
         : line(said);
-    const code = verdicts === undefined ? 0 : yield* Effect.sync(() => verdictOf(verdicts, view));
+    // Gain (a handed-over exit): without `--json`, the code of the process the command handed the
+    // terminal to, whatever it is, in place of a verdict.
+    const handsOver: ((value: unknown) => ExitCode) | undefined = command.handsOver;
+    const code =
+      !json && handsOver !== undefined
+        ? yield* Effect.sync(() => handsOver(view))
+        : verdicts === undefined
+          ? 0
+          : yield* Effect.sync(() => verdictOf(verdicts, view));
     return { out: stdout, err, code };
   });
 }
@@ -1048,15 +1080,52 @@ function retiredCollision<R>(program: Program<R>): string | undefined {
   return walk(treeOf(program), []);
 }
 
+/** Gain carried for upstream (a command's retired options): the first command, in program order,
+ *  that retires an option it declares (a field's option or its stdin flag). */
+function retiredOptionCollision<R>(program: Program<R>): string | undefined {
+  for (const command of program.commands) {
+    const retired = Object.keys(command.retiredOptions ?? {});
+    if (retired.length === 0) continue;
+    const inputs: Inputs = command.input;
+    const declared = [
+      ...(inputs.flags === undefined
+        ? []
+        : flagShapes(inputs.flags.contract).map((flag) => flag.option)),
+      ...(inputs.stdin?.flag === undefined ? [] : [inputs.stdin.flag]),
+    ];
+    const taken = retired.find((option) => declared.includes(option));
+    if (taken !== undefined) {
+      return line(
+        `error: ${fullName(command).join(" ")} retires --${taken}, an option it declares`,
+      );
+    }
+  }
+  return undefined;
+}
+
+/** Gain carried for upstream (a handed-over exit): the first command, in program order, that
+ *  hands the terminal over and declares no `prompts`: under `--json` it would wait on a person. */
+function handsOverUnprompted<R>(program: Program<R>): string | undefined {
+  const command = program.commands.find(
+    (each) => each.handsOver !== undefined && each.prompts === undefined,
+  );
+  return command === undefined
+    ? undefined
+    : line(`error: ${fullName(command).join(" ")} hands the terminal over and declares no prompts`);
+}
+
 /** A program the runner will not run: a command mapping a tag to the defect code, a verdict code
- *  that collides (gain), an option the runner owns, an alias that collides (gain), or a retired
- *  word a group holds (gain). */
+ *  that collides (gain), an option the runner owns, an alias that collides (gain), a retired
+ *  word a group holds (gain), a retired option a command declares (gain), or a command handing
+ *  the terminal over that declares no prompts (gain). */
 const misdeclared = <R>(program: Program<R>): string | undefined =>
   collision(program) ??
   verdictCollision(program) ??
   reserved(program) ??
   aliasCollision(program) ??
-  retiredCollision(program);
+  retiredCollision(program) ??
+  retiredOptionCollision(program) ??
+  handsOverUnprompted(program);
 
 /** The contracts, printed, and nothing else run or read. */
 function printContracts<R>(

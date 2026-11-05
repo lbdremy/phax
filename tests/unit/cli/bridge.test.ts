@@ -27,6 +27,7 @@ import {
   defineCommand,
   defineGroup,
   defineProgram,
+  OptionalValueAnnotationId,
   Refused,
   reject,
   strip,
@@ -700,6 +701,74 @@ describe("runThroughOutput's gains", () => {
     });
     expect(code).toBe(64);
     expect(lines).toEqual([["error", "error: no brief"]]);
+  });
+});
+
+/** A command shaped like the run and session commands: an optional-value `--hold`, a retired
+ *  `--skip-oracle`, an empty render with a note, and a handed-over exit. */
+const handing = defineCommand({
+  name: "enter",
+  summary: "Hand the terminal over",
+  input: {
+    flags: reject(
+      Schema.Struct({
+        hold: Schema.optionalWith(Schema.Union(Schema.Literal(true), Schema.String), {
+          exact: true,
+        }).annotations({
+          identifier: "selection",
+          description: "Hold the run",
+          [OptionalValueAnnotationId]: true,
+        }),
+      }),
+    ),
+  },
+  output: strip(Schema.Struct({ exit: Schema.Number })),
+  exits: {},
+  retiredOptions: { "skip-oracle": "--skip-oracle is no longer read: write --skip-acceptance" },
+  prompts: () => true,
+  run: () => Effect.succeed({ exit: 70 }),
+  render: () => "",
+  notes: () => "session ended",
+  handsOver: (value) => value.exit,
+});
+
+describe("the stubs of the run and session gains", () => {
+  const programOfHanding = defineProgram({
+    name: "phax",
+    version: "1.0.0",
+    exits: { refused: 64, defect: 70 },
+    commands: [handing],
+  });
+
+  it("declares an optional-value option as --hold [selection]", () => {
+    const root = new Command("phax");
+    mountRunnerStub(root, programOfHanding, ["enter"]);
+    const stub = root.commands[0];
+    expect(stub?.options[0]?.flags).toBe("--hold [selection]");
+    expect(stub?.options[0]?.optional).toBe(true);
+  });
+
+  it("declares a retired option hidden, so its help never lists it", () => {
+    const root = new Command("phax");
+    mountRunnerStub(root, programOfHanding, ["enter"]);
+    const stub = root.commands[0];
+    const retired = stub?.options.find((option) => option.long === "--skip-oracle");
+    expect(retired?.hidden).toBe(true);
+    expect(stub?.helpInformation()).not.toContain("skip-oracle");
+  });
+});
+
+describe("runThroughOutput's run and session gains", () => {
+  it("logs nothing for an empty render, warns its notes, and answers the handed-over exit", async () => {
+    const { out, lines } = recorded();
+    const code = await runThroughOutput(handing, { flags: {} }, out);
+    expect(code).toBe(70);
+    expect(lines).toEqual([["warn", "session ended"]]);
+  });
+
+  it("answers no handed-over exit under --json", async () => {
+    const { out } = recorded();
+    expect(await runThroughOutput(handing, { flags: {} }, out, { json: true })).toBe(0);
   });
 });
 

@@ -4,6 +4,9 @@ export interface DeclaredOption {
   readonly takesValue: boolean;
   /** Gain (a short alias): its letter, given as `-y` alone, never with `=`. */
   readonly alias?: string | undefined;
+  /** Gain (an option with an optional value): the next word is its value when it is not an
+   *  option, as Commander reads `--hold [selection]`; given bare, it misses nothing. */
+  readonly valueOptional?: boolean | undefined;
 }
 
 /** The words after a command's name, read once, before Commander sees any of them. */
@@ -90,7 +93,7 @@ export function readWords(
     if (!option.takesValue || equals !== -1) continue;
     const next = words[index + 1];
     if (next === undefined || isOption(next)) {
-      valueMissing ??= word;
+      if (option.valueOptional !== true) valueMissing ??= word;
       continue;
     }
     index += 1;

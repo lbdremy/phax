@@ -198,7 +198,8 @@ export interface CommandDef<
   readonly verdicts?: { readonly [code: number]: (value: Shown<O, A>) => boolean };
   readonly run: (context: RunContext<I>) => Effect.Effect<Shown<O, A>, E, R>;
   /** A pure view: the reduced output in, text out. Without it, the runner prints the output's
-   *  encoded form. */
+   *  encoded form. Gain carried for upstream (an empty render): the empty text writes nothing on
+   *  stdout, not even a newline; the notes are written as always. */
   readonly render?: (value: Shown<O, A>, terminal: Terminal) => string;
   /** Lines for the standard error beside the output: a note for the person reading, never the
    *  output itself. Empty says nothing; under `--json` each line is a `note` line. */
@@ -232,6 +233,21 @@ export interface CommandDef<
     readonly input: Parsed<I>;
     readonly document: StdinDocument | undefined;
   }) => Effect.Effect<void, Refused, R>;
+  /** Gain carried for upstream (a command's retired options): options the command once took,
+   *  each by its name without dashes, with the sentence that names its replacement. The runner
+   *  reads the call's words before decoding: a call giving a retired option is refused with that
+   *  sentence (then the refusal hint without `--json`; one `refused` line from `flags` with it)
+   *  and the program's `refused` code. A retired option is never in help, the catalogue, a
+   *  suggestion or the usage spec; one equal to an option the command declares stops the
+   *  program. */
+  readonly retiredOptions?: Readonly<Record<string, string>>;
+  /** Gain carried for upstream (a handed-over exit): the exit code of the process the command
+   *  handed the terminal to, read from the value `run` succeeded with. Without `--json` the
+   *  runner writes the render and the notes, then exits that code, whatever it is (the program's
+   *  `refused` and `defect` codes included), in place of a verdict. Under `--json` it is never
+   *  asked. A command declaring it declares `prompts` too, else the program stops; the
+   *  catalogue's entry says `handsOver: true`. */
+  readonly handsOver?: (value: Shown<O, A>) => ExitCode;
 }
 
 /** A command as a runner reads it; `R`, the services its run needs. */

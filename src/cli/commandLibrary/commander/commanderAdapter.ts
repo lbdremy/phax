@@ -46,6 +46,9 @@ export interface CommandSpec {
       readonly switch: boolean;
       /** Gain (a short alias): the option's letter, declared as `-y, --yes`. */
       readonly alias?: string | undefined;
+      /** Gain (an option with an optional value): declared as `--hold [selection]`; Commander
+       *  answers `true` when it is given bare and its value when given one. */
+      readonly valueOptional?: boolean | undefined;
     }
   >;
   /** What the command reads on stdin, when it declares a read: JSON, or text (gain). */
@@ -154,7 +157,11 @@ function declare(
   for (const flag of spec.flags) {
     const names =
       flag.alias === undefined ? `--${flag.option}` : `-${flag.alias}, --${flag.option}`;
-    const flags = flag.switch ? names : `${names} <${flag.valueName}>`;
+    const flags = flag.switch
+      ? names
+      : flag.valueOptional === true
+        ? `${names} [${flag.valueName}]`
+        : `${names} <${flag.valueName}>`;
     if (flag.optional) command.option(flags, describing(flag));
     else command.requiredOption(flags, describing(flag));
   }
