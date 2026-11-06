@@ -646,6 +646,7 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
       stop: null,
       usage: { kind: "session", sessionId: undefined },
       records: RECORDS_IN_REPO,
+      publishRemote: "origin",
       sourceSha: "abc1234",
     }),
   );
@@ -661,6 +662,7 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
       mode: "interactive",
       repoRoot: REPO_ROOT,
       records: RECORDS_IN_REPO,
+      publishRemote: "origin",
       folder: decisionFolder,
       decisionId: "2601011100-decided/01",
       artifact: "docs/specs/2601011100-decided.md",
@@ -745,6 +747,7 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
     writeReviewRecord({
       repoRoot: REPO_ROOT,
       records: RECORDS_IN_REPO,
+      publishRemote: "origin",
       runId: created.right.runId,
       runPath: RUN_PATH,
       review: "compliance-review",
@@ -782,6 +785,7 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
     writeReviewRecord({
       repoRoot: REPO_ROOT,
       records: RECORDS_IN_REPO,
+      publishRemote: "origin",
       runId: created.right.runId,
       runPath: RUN_PATH,
       review: "code-review",

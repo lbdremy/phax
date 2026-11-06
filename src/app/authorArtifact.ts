@@ -582,6 +582,7 @@ function recordSession(
     outcome: session.sourceSha === undefined ? "failed" : "committed",
     retry,
     records: input.records,
+    publishRemote: input.publishRemote,
     ...(session.sourceSha !== undefined ? { sourceSha: session.sourceSha } : {}),
     ...(sessionId !== undefined ? { sessionId } : {}),
     ...(retrySessionId !== undefined ? { retrySessionId } : {}),
@@ -601,6 +602,7 @@ export function recordWarning(
 ): string | undefined {
   switch (record.kind) {
     case "written":
+      return record.branchNote === null ? undefined : `authoring ${record.branchNote}`;
     case "records-off":
       return undefined;
     case "deferred-destination":

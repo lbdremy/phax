@@ -459,6 +459,7 @@ describe("compliance review entry by hand (real git)", () => {
           kind: "project",
           records: { ...RECORDS, autoPush: true },
           repoRoot: repoDir,
+          publishRemote: "origin",
           push: { publishRemote: "origin" },
         },
         { output: { log() {}, warn() {}, error() {} } },

@@ -120,6 +120,7 @@ describe("writeAuthoringRecord (real git)", () => {
       outcome: "committed",
       retry: "none",
       records: inRepoConfig(true),
+      publishRemote: "origin",
       ...overrides,
     };
   }

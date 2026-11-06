@@ -153,10 +153,15 @@ export function recordOutcome<R extends { readonly kind: string }, P>(
   },
 ): RecordOutcome {
   if (record.kind === "written") {
+    // A written record can still owe a note (kept on a diverged records branch);
+    // it rides beside the push's warning.
+    const notes = [sentences.warningOf(record), sentences.pushWarningOf(push)].filter(
+      (note): note is string => note !== undefined,
+    );
     return {
       kind: "written",
       key: String(Reflect.get(record, "key")),
-      pushWarning: sentences.pushWarningOf(push) ?? null,
+      pushWarning: notes.length === 0 ? null : notes.join("\n"),
     };
   }
   if (record.kind === "records-off") return { kind: "off" };

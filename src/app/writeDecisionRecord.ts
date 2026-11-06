@@ -83,6 +83,8 @@ interface DecisionRecordFields {
   /** The local records clone, required for a dedicated `repo` destination. */
   readonly recordsClonePath?: string | undefined;
   readonly records: ResolvedRecordsConfig;
+  /** The remote an in-repo destination publishes to (`publish.remote`). */
+  readonly publishRemote: string;
   /** `<stateRoot>/decide/<stamp>-<slug>/<NN>/`, the decision folder. */
   readonly folder: string;
   /** `<stamp>-<slug>/<NN>`: the record key's tail and the `Decision-Id` trailer. */
@@ -204,8 +206,9 @@ export function writeDecisionRecord(
       `Shape: ${shape}`,
     ].join("\n");
 
-    const { commitSha, branch, fileCount } = yield* commitRecordTree({
+    const { commitSha, branch, fileCount, branchState, branchNote } = yield* commitRecordTree({
       repo: destination.repo,
+      remote: destination.remote,
       folder: input.folder,
       key,
       artifactPaths,
@@ -214,7 +217,16 @@ export function writeDecisionRecord(
       redact: input.sessionIds,
     });
 
-    return { kind: "written", commitSha, branch, key, shape, fileCount } as const;
+    return {
+      kind: "written",
+      commitSha,
+      branch,
+      key,
+      shape,
+      fileCount,
+      branchState,
+      branchNote,
+    } as const;
   });
 }
 
@@ -244,6 +256,7 @@ export function decisionRecordWarning(
 ): string | undefined {
   switch (record.kind) {
     case "written":
+      return record.branchNote === null ? undefined : `decision ${record.branchNote}`;
     case "records-off":
       return undefined;
     case "deferred-destination":

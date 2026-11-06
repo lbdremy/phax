@@ -61,6 +61,8 @@ export interface WriteAuthoringRecordInput {
   /** Whether the session was resumed to retry a refused document. */
   readonly retry: AuthoringRecordRetry;
   readonly records: ResolvedRecordsConfig;
+  /** The remote an in-repo destination publishes to (`publish.remote`). */
+  readonly publishRemote: string;
   /** The artifact commit; absent when the session did not commit. */
   readonly sourceSha?: string | undefined;
   /**
@@ -136,8 +138,9 @@ export function writeAuthoringRecord(
       `Shape: ${shape}`,
     ].join("\n");
 
-    const { commitSha, branch, fileCount } = yield* commitRecordTree({
+    const { commitSha, branch, fileCount, branchState, branchNote } = yield* commitRecordTree({
       repo: destination.repo,
+      remote: destination.remote,
       folder: input.sessionFolder,
       key,
       artifactPaths,
@@ -149,6 +152,15 @@ export function writeAuthoringRecord(
       ),
     });
 
-    return { kind: "written", commitSha, branch, key, shape, fileCount } as const;
+    return {
+      kind: "written",
+      commitSha,
+      branch,
+      key,
+      shape,
+      fileCount,
+      branchState,
+      branchNote,
+    } as const;
   });
 }

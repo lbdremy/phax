@@ -13,6 +13,7 @@ import {
   type VisibilityReading,
 } from "../domain/records/destination.js";
 import { decodeBranchName, type BranchName } from "../domain/branded.js";
+import { recordParentFor, type RecordsBranchReading } from "../domain/records/branchState.js";
 import { FileSystem, type FileSystemOps, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import { GitHub } from "../ports/github.js";
@@ -24,17 +25,19 @@ import {
   type RecordShape,
   type TokenUsage,
 } from "../schemas/runRecord.js";
+import {
+  describeRecordWriteBranch,
+  RECORDS_BRANCH_NAME,
+  readRecordsBranch,
+  recordsBranchLocation,
+} from "./recordsBranch.js";
 
 // Shared by the three record writers (`writeRecord.ts` for phases,
 // `writeAuthoringRecord.ts` for headless authoring sessions,
 // `writeDecisionRecord.ts` for decide sessions): destination policy, usage
 // extraction, and the tree-only commit on the records branch.
 
-/**
- * The records branch is an ordinary branch, not a custom ref namespace, so it
- * travels with a clone and a fetch (spec §5.3).
- */
-export const RECORDS_BRANCH_NAME = "phax/records/v1";
+export { RECORDS_BRANCH_NAME };
 
 const RECORDS_BRANCH: BranchName = Either.getOrThrow(decodeBranchName(RECORDS_BRANCH_NAME));
 
@@ -50,6 +53,10 @@ export type RecordWriteResult =
       readonly key: string;
       readonly shape: RecordShape;
       readonly fileCount: number;
+      /** The records branch as read before the write: how it related to its remote tip. */
+      readonly branchState: RecordsBranchReading;
+      /** The sentence owed when the record was kept on a diverged or unrelated branch, else null. */
+      readonly branchNote: string | null;
     }
   | RecordSkipped;
 
@@ -69,6 +76,8 @@ export interface RecordDestinationInput {
   /** The local records clone, required for a dedicated `repo` destination. */
   readonly recordsClonePath?: string | undefined;
   readonly records: ResolvedRecordsConfig;
+  /** The remote the in-repo destination publishes to (`publish.remote`). */
+  readonly publishRemote: string;
 }
 
 /**
@@ -80,7 +89,11 @@ export interface RecordDestinationInput {
  */
 export function resolveRecordDestination(
   input: RecordDestinationInput,
-): Effect.Effect<{ readonly kind: "write"; readonly repo: string } | RecordSkipped, never, GitHub> {
+): Effect.Effect<
+  { readonly kind: "write"; readonly repo: string; readonly remote: string } | RecordSkipped,
+  never,
+  GitHub
+> {
   return Effect.gen(function* () {
     if (!input.records.enabled) return { kind: "records-off" } as const;
 
@@ -89,13 +102,10 @@ export function resolveRecordDestination(
     // (recordsSync.ts) refuses the run before any phase spawns otherwise.
     // No clone path here is a caller bug, not a policy refusal, but degrades
     // to a deferred outcome rather than crashing the caller.
-    let repo = input.repoRoot;
-    if (input.records.destination.kind === "repo") {
-      if (input.recordsClonePath === undefined) {
-        return { kind: "deferred-destination", destination: "repo" } as const;
-      }
-      repo = input.recordsClonePath;
+    if (input.records.destination.kind === "repo" && input.recordsClonePath === undefined) {
+      return { kind: "deferred-destination", destination: "repo" } as const;
     }
+    const { repo, remote } = recordsBranchLocation(input);
 
     // Visibility is only consulted for an in-repo destination with
     // transcripts on — a skeleton record is safe in-repo whatever the
@@ -124,13 +134,15 @@ export function resolveRecordDestination(
         remedy: decision.remedy,
       } as const;
     }
-    return { kind: "write", repo } as const;
+    return { kind: "write", repo, remote } as const;
   });
 }
 
 export interface CommitRecordTreeInput {
   /** The repository whose records branch receives the commit. */
   readonly repo: string;
+  /** The remote whose last-fetched records branch the commit parents on. */
+  readonly remote: string;
   /** The folder the record's artifacts are read from. */
   readonly folder: string;
   /** The record's key: the directory its files live under in the commit's tree. */
@@ -149,15 +161,33 @@ export interface CommitRecordTreeInput {
 
 const REDACTED_SESSION_ID = "[session id withheld]";
 
+/** How many times a record write reads the branch and tries its compare-and-swap. */
+const MAX_WRITE_ATTEMPTS = 3;
+
+/** `writeTreeCommit` refused because the branch is no longer at the tip it read. */
+function isStaleTipError(error: GitError): boolean {
+  return error.command.startsWith("git update-ref");
+}
+
 /**
  * Write one record as one commit on `phax/records/v1` — the artifacts plus
  * the manifest under `<key>/` — without touching the working tree or index
- * (the tree-only plumbing drives a scratch index).
+ * (the tree-only plumbing drives a scratch index). The commit parents on the
+ * remote tip when the local branch is missing or behind it, and on the local
+ * tip otherwise (`recordParentFor`); the branch moves by one compare-and-swap.
+ * When a concurrent writer moved the branch between the read and the swap, the
+ * branch is read again and the record recommitted, up to three attempts.
  */
-export function commitRecordTree(
-  input: CommitRecordTreeInput,
-): Effect.Effect<
-  { readonly commitSha: string; readonly branch: string; readonly fileCount: number },
+export function commitRecordTree(input: CommitRecordTreeInput): Effect.Effect<
+  {
+    readonly commitSha: string;
+    readonly branch: string;
+    readonly fileCount: number;
+    /** The branch as read before the write that succeeded. */
+    readonly branchState: RecordsBranchReading;
+    /** `describeRecordWriteBranch` of that reading. */
+    readonly branchNote: string | null;
+  },
   GitError | FsError,
   FileSystem | Git
 > {
@@ -178,16 +208,37 @@ export function commitRecordTree(
       content: encoder.encode(`${JSON.stringify(input.manifest, null, 2)}\n`),
     });
 
-    const tip = yield* git.resolveRef(input.repo, `refs/heads/${RECORDS_BRANCH}`);
-    const commitSha = yield* git.writeTreeCommit({
-      repo: input.repo,
-      branch: RECORDS_BRANCH,
-      message: input.message,
-      files,
-      parent: tip,
-      expectedTip: tip,
-    });
-    return { commitSha, branch: RECORDS_BRANCH_NAME, fileCount: files.length };
+    let attempt = 1;
+    for (;;) {
+      const branchState = yield* readRecordsBranch(input.repo, input.remote);
+      const { parent, expectedTip } = recordParentFor(branchState);
+      const written = yield* git
+        .writeTreeCommit({
+          repo: input.repo,
+          branch: RECORDS_BRANCH,
+          message: input.message,
+          files,
+          parent,
+          expectedTip,
+        })
+        .pipe(Effect.either);
+      if (Either.isRight(written)) {
+        return {
+          commitSha: written.right,
+          branch: RECORDS_BRANCH_NAME,
+          fileCount: files.length,
+          branchState,
+          branchNote: describeRecordWriteBranch(branchState, {
+            localPath: input.repo,
+            remote: input.remote,
+          }),
+        };
+      }
+      if (!isStaleTipError(written.left) || attempt >= MAX_WRITE_ATTEMPTS) {
+        return yield* Effect.fail(written.left);
+      }
+      attempt += 1;
+    }
   });
 }
 

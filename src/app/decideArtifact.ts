@@ -777,6 +777,7 @@ export function decideArtifact(
       repoRoot: input.repoRoot,
       recordsClonePath: input.recordsClonePath,
       records: input.records,
+      publishRemote: input.publishRemote,
       folder,
       mode: "interactive",
       decisionId,

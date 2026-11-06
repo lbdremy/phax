@@ -52,6 +52,8 @@ export interface WriteRecordInput {
   /** The phase's role in an acceptance pair, or null when it is in none. */
   readonly acceptance: RecordAcceptanceRole;
   readonly records: ResolvedRecordsConfig;
+  /** The remote an in-repo destination publishes to (`publish.remote`). */
+  readonly publishRemote: string;
   /** Back-reference recorded when the phase committed; absent for a phase that never did. */
   readonly sourceSha?: string | undefined;
   /** The plan's mode for the phase. */
@@ -126,8 +128,9 @@ export function writeRecord(
       `Shape: ${manifest.shape}`,
     ].join("\n");
 
-    const { commitSha, branch, fileCount } = yield* commitRecordTree({
+    const { commitSha, branch, fileCount, branchState, branchNote } = yield* commitRecordTree({
       repo: destination.repo,
+      remote: destination.remote,
       folder: input.phaseFolderPath,
       key,
       artifactPaths,
@@ -135,7 +138,16 @@ export function writeRecord(
       message,
     });
 
-    return { kind: "written", commitSha, branch, key, shape: manifest.shape, fileCount } as const;
+    return {
+      kind: "written",
+      commitSha,
+      branch,
+      key,
+      shape: manifest.shape,
+      fileCount,
+      branchState,
+      branchNote,
+    } as const;
   });
 }
 

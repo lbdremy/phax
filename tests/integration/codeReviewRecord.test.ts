@@ -157,7 +157,7 @@ describe("code review entry (real git)", () => {
         { enabled: false, model: "claude-opus-5-5", effort: "high" },
         resolution,
         security,
-        { kind: "project", records, repoRoot: repoDir, push: null },
+        { kind: "project", records, repoRoot: repoDir, publishRemote: "origin", push: null },
         {
           bundledReviewSkill: "# phax review\n",
           nowIso: "2026-10-27T12:30:00.000Z",
@@ -232,7 +232,13 @@ describe("code review entry (real git)", () => {
         { enabled: false, model: "claude-opus-5-5", effort: "high" },
         resolution,
         security,
-        { kind: "project", records: RECORDS, repoRoot: repoDir, push: null },
+        {
+          kind: "project",
+          records: RECORDS,
+          repoRoot: repoDir,
+          publishRemote: "origin",
+          push: null,
+        },
         {
           bundledReviewSkill: "# phax review\n",
           nowIso: "2026-10-27T12:30:00.000Z",

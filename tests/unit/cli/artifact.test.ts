@@ -840,6 +840,8 @@ const WRITTEN_RECORD: AuthoringRecordStatus = {
   key: "authoring/2609230835-plan-prune",
   shape: "full",
   fileCount: 5,
+  branchState: { state: "no-remote-branch", localTip: "f".repeat(40), remoteTip: null },
+  branchNote: null,
 };
 
 function authoredResult(

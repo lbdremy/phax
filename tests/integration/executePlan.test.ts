@@ -36,6 +36,7 @@ import { planMdFor } from "../helpers/planMarkdown.js";
 import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
 import { liftFixturePhaxPlanToCurrent } from "../helpers/liftFixturePhaxPlan.js";
 import { processOutput } from "../helpers/processOutput.js";
+import type { OutputPort } from "../../src/ports/output.js";
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -2246,7 +2247,14 @@ describe("executePlan — records destination refusal", () => {
     await rm(stateRoot, { recursive: true, force: true });
   });
 
-  it("fails the run with a non-zero exit when a committed phase's records destination is refused", async () => {
+  // One committed phase with records on, in-repo, against a FakeGit whose
+  // records branch `seedRecords` may shape first.
+  async function runOnePhaseWithRecords(opts: {
+    readonly transcript: boolean;
+    readonly visibility: "public" | "private";
+    readonly output: OutputPort;
+    readonly seedRecords?: (git: ReturnType<typeof makeFakeGit>["impl"]) => void;
+  }) {
     const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
     await mkdir(join(worktreePath, ".phax-context"), { recursive: true });
     await writeFile(
@@ -2307,11 +2315,11 @@ describe("executePlan — records destination refusal", () => {
       extractPlanModel: "claude-haiku-4-5-20251001",
       extractPlanEffort: "low" as const,
       fileReconciliationMode: "report_only" as const,
-      // Transcripts on, in-repo, and the source repo detected public below —
-      // spec §5.4's one refused combination.
+      // Transcripts on, in-repo, and the source repo detected public —
+      // spec §5.4's one refused combination — unless the caller says otherwise.
       records: {
         enabled: true,
-        transcript: true,
+        transcript: opts.transcript,
         destination: { kind: "in-repo" as const },
         autoPush: false,
       },
@@ -2353,8 +2361,10 @@ describe("executePlan — records destination refusal", () => {
       finalText: "",
     });
 
+    opts.seedRecords?.(fakeGit.impl);
+
     const fakeGitHub = makeFakeGitHub();
-    fakeGitHub.impl.setVisibility("public");
+    fakeGitHub.impl.setVisibility(opts.visibility);
 
     const layers = Layer.mergeAll(
       fakeGit.layer,
@@ -2369,11 +2379,11 @@ describe("executePlan — records destination refusal", () => {
       createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(layers)),
     );
 
-    const result = await Effect.runPromise(
+    return Effect.runPromise(
       Effect.either(
         executePlan({
           phaxVersion: "0.0.0-test",
-          output: processOutput,
+          output: opts.output,
           shortName,
           namespace: "test-project",
           plan,
@@ -2387,12 +2397,49 @@ describe("executePlan — records destination refusal", () => {
         }).pipe(Effect.provide(layers)),
       ),
     );
+  }
+
+  it("fails the run with a non-zero exit when a committed phase's records destination is refused", async () => {
+    const result = await runOnePhaseWithRecords({
+      transcript: true,
+      visibility: "public",
+      output: processOutput,
+    });
 
     expect(Either.isLeft(result)).toBe(true);
     if (Either.isLeft(result)) {
       expect(result.left).toBeInstanceOf(RecordsDestinationRefusedError);
       expect(exitCodeForError(result.left)).not.toBe(0);
     }
+  });
+
+  it("warns, and goes on, when a committed phase's record is kept on a branch unrelated to its remote", async () => {
+    const warnings: string[] = [];
+    const output: OutputPort = {
+      log() {},
+      warn: (message) => warnings.push(message),
+      error: (message) => warnings.push(message),
+    };
+
+    const result = await runOnePhaseWithRecords({
+      transcript: false,
+      visibility: "private",
+      output,
+      seedRecords: (git) => {
+        const local = git.addFakeCommit({ parent: null, paths: ["local/record.json"] });
+        const remote = git.addFakeCommit({ parent: null, paths: ["remote/record.json"] });
+        git.setBranchRef("phax/records/v1", local);
+        git.setRemoteTrackingRef("origin", "phax/records/v1", remote);
+      },
+    });
+
+    // The record stands and the run is not failed by it.
+    if (Either.isLeft(result))
+      expect(result.left).not.toBeInstanceOf(RecordsDestinationRefusedError);
+    const warning = warnings.find((line) => line.includes("unrelated"));
+    expect(warning).toMatch(
+      /^\[phax\] Warning: phase "phase-01" — record kept on the local records branch, which is unrelated to origin's \(local [0-9a-f]{7}, origin [0-9a-f]{7}\); run `phax records sync --replay`, then push\.$/,
+    );
   });
 });
 

@@ -530,6 +530,7 @@ export function executePlan(
         // phase's transcript.
         usage: args.usage,
         records: config.records,
+        publishRemote: config.publish.remote,
         ...(config.records.destination.kind === "repo"
           ? { recordsClonePath: recordsClonePath(config.stateRoot, namespace) }
           : {}),
@@ -548,6 +549,11 @@ export function executePlan(
 
       if (result.kind === "written") {
         recordedPhaseIds.add(args.phaseId);
+        // Kept on a diverged or unrelated branch: the record stands, the
+        // operator learns which command brings it home.
+        if (result.branchNote !== null) {
+          output.warn(`[phax] Warning: phase "${args.phaseId}" — ${result.branchNote}.`);
+        }
         return;
       }
       if (result.kind === "refused") {

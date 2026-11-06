@@ -1010,6 +1010,7 @@ describe("records explain and list (real git)", () => {
             outcome: "committed",
             retry: "none",
             records: IN_REPO_CONFIG,
+            publishRemote: "origin",
             ...overrides,
           }),
           Layer.mergeAll(NodeFileSystemLayer, NodeGitLayer, fakeGitHub.layer),
@@ -1240,6 +1241,7 @@ describe("records explain and list (real git)", () => {
             mode: "interactive",
             repoRoot: repoDir,
             records: IN_REPO_CONFIG,
+            publishRemote: "origin",
             folder: decisionFolder,
             decisionId,
             artifact: ARTIFACT,
@@ -1490,6 +1492,7 @@ describe("records explain and list (real git)", () => {
           writeReviewRecord({
             repoRoot: repoDir,
             records: { ...IN_REPO_CONFIG, transcript: false },
+            publishRemote: "origin",
             runId,
             runPath: runFolder,
             review: "compliance-review",
