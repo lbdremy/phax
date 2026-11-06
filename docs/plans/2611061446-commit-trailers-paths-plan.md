@@ -1,6 +1,9 @@
 ---
-status: Draft
+status: Approved
 source-spec: null
+approved:
+  date: 2026-11-06
+  baseline: bb96628
 ---
 # Commit trailers without machine paths
 

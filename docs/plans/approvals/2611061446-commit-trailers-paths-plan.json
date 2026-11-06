@@ -1,0 +1,12 @@
+{
+  "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+  "artifact": "docs/plans/2611061446-commit-trailers-paths-plan.md",
+  "planFingerprint": "18a31d7e192f95e1fa25815ffc5c65f5f1710201a6c096862bf32c971dc1536c",
+  "approvedAt": "2026-11-06T15:07:02.628Z",
+  "baseline": "bb966286aaccf323954eb8597914908c0e5bf1ed",
+  "sourceSpec": null,
+  "approvedBy": {
+    "kind": "operator",
+    "name": "Rémy Loubradou"
+  }
+}
