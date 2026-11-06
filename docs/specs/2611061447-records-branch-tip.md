@@ -1,8 +1,11 @@
 ---
-status: Draft
+status: Approved
 date: 2026-11-06
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
+approved:
+  date: 2026-11-06
+  baseline: 32679f9
 ---
 # Records land on the records remote's tip
 
