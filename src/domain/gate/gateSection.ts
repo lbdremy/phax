@@ -17,7 +17,17 @@ export function renderGateSection(steps: readonly GateStep[]): string[] {
       "",
     ];
   }
-  const stepLines = steps.map((s) => `- ${s.surface}: ${s.command}`);
+  const stepLines = steps.flatMap((s) => [
+    `- ${s.surface}: ${s.command}`,
+    ...(s.partial?.files !== undefined ? [`  - on some files: ${s.partial.files}`] : []),
+    ...(s.partial?.diff !== undefined ? [`  - on your changes: ${s.partial.diff}`] : []),
+  ]);
+  const explainPartials = steps.some((s) => s.partial !== undefined)
+    ? [
+        `A step's "on some files" and "on your changes" commands check part of what the step checks.`,
+        "Replace a placeholder such as <files> with the files you choose. phax does not run these commands.",
+      ]
+    : [];
   return [
     "## Gate",
     "",
@@ -27,6 +37,7 @@ export function renderGateSection(steps: readonly GateStep[]): string[] {
     "",
     "If a step fails, phax resumes this same session with its output and you fix it here.",
     "While you work, check each change with the narrowest command that covers it.",
+    ...explainPartials,
     "You need not run a whole gate step before finishing: the gate runs it.",
     "",
   ];
