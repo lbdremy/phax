@@ -97,6 +97,44 @@ const GATE_OUTPUT_DESCRIPTION =
 const GATE_INPUT_DESCRIPTION =
   "Absent: the step's stdin is not connected. \"gate-request\": phax writes the gate request {$schema, phase, base, terminal, phases} on the step's stdin and saves it as checks-attempt-NN.request.json.";
 
+const PARTIAL_DESCRIPTION =
+  "Commands that check part of what this step checks. phax shows them in the phase prompt under the step and allows them in secure mode like the step, and never runs them.";
+
+const PARTIAL_FILES_DESCRIPTION =
+  "Checks the files the agent chooses. Holds a <name> placeholder (a lowercase word in angle brackets, for example <files>) that the agent replaces with those files. Commands are joined with | only.";
+
+const PARTIAL_DIFF_DESCRIPTION =
+  "Checks the phase's current, uncommitted changes. Holds no placeholder. Commands are joined with | only.";
+
+// The loader refuses a malformed partial with the step's path before this
+// decode; the schema declares the structure for the type and the editor schema.
+const PartialSchema = Schema.Struct({
+  files: Schema.optionalWith(
+    Schema.NonEmptyString.annotations({ jsonSchema: { description: PARTIAL_FILES_DESCRIPTION } }),
+    { exact: true },
+  ),
+  diff: Schema.optionalWith(
+    Schema.NonEmptyString.annotations({ jsonSchema: { description: PARTIAL_DIFF_DESCRIPTION } }),
+    { exact: true },
+  ),
+}).pipe(
+  Schema.filter((value) => value.files !== undefined || value.diff !== undefined, {
+    message: () => 'declare "files", "diff" or both',
+    // A jsonSchema annotation on a refinement replaces the struct's generated
+    // schema, so the whole object is spelled out here.
+    jsonSchema: {
+      type: "object",
+      description: PARTIAL_DESCRIPTION,
+      properties: {
+        files: { type: "string", minLength: 1, description: PARTIAL_FILES_DESCRIPTION },
+        diff: { type: "string", minLength: 1, description: PARTIAL_DIFF_DESCRIPTION },
+      },
+      additionalProperties: false,
+      anyOf: [{ required: ["files"] }, { required: ["diff"] }],
+    },
+  }),
+);
+
 const GateStepSchema = Schema.Struct({
   command: Schema.NonEmptyString,
   surface: SurfaceSchema,
@@ -114,6 +152,7 @@ const GateStepSchema = Schema.Struct({
     }),
     { exact: true },
   ),
+  partial: Schema.optionalWith(PartialSchema, { exact: true }),
 });
 export type GateStep = Schema.Schema.Type<typeof GateStepSchema>;
 

@@ -358,6 +358,31 @@
                 "type": "string",
                 "enum": ["gate-request"],
                 "description": "Absent: the step's stdin is not connected. \"gate-request\": phax writes the gate request {$schema, phase, base, terminal, phases} on the step's stdin and saves it as checks-attempt-NN.request.json."
+              },
+              "partial": {
+                "type": "object",
+                "description": "Commands that check part of what this step checks. phax shows them in the phase prompt under the step and allows them in secure mode like the step, and never runs them.",
+                "properties": {
+                  "files": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Checks the files the agent chooses. Holds a <name> placeholder (a lowercase word in angle brackets, for example <files>) that the agent replaces with those files. Commands are joined with | only."
+                  },
+                  "diff": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Checks the phase's current, uncommitted changes. Holds no placeholder. Commands are joined with | only."
+                  }
+                },
+                "additionalProperties": false,
+                "anyOf": [
+                  {
+                    "required": ["files"]
+                  },
+                  {
+                    "required": ["diff"]
+                  }
+                ]
               }
             },
             "additionalProperties": false
@@ -415,6 +440,31 @@
                       "type": "string",
                       "enum": ["gate-request"],
                       "description": "Absent: the step's stdin is not connected. \"gate-request\": phax writes the gate request {$schema, phase, base, terminal, phases} on the step's stdin and saves it as checks-attempt-NN.request.json."
+                    },
+                    "partial": {
+                      "type": "object",
+                      "description": "Commands that check part of what this step checks. phax shows them in the phase prompt under the step and allows them in secure mode like the step, and never runs them.",
+                      "properties": {
+                        "files": {
+                          "type": "string",
+                          "minLength": 1,
+                          "description": "Checks the files the agent chooses. Holds a <name> placeholder (a lowercase word in angle brackets, for example <files>) that the agent replaces with those files. Commands are joined with | only."
+                        },
+                        "diff": {
+                          "type": "string",
+                          "minLength": 1,
+                          "description": "Checks the phase's current, uncommitted changes. Holds no placeholder. Commands are joined with | only."
+                        }
+                      },
+                      "additionalProperties": false,
+                      "anyOf": [
+                        {
+                          "required": ["files"]
+                        },
+                        {
+                          "required": ["diff"]
+                        }
+                      ]
                     }
                   },
                   "additionalProperties": false
