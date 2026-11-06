@@ -115,7 +115,10 @@ describe("phax --json-schema", { timeout: 60_000 }, () => {
       messages: Record<string, unknown>;
     };
     expect(catalogue.program).toBe("phax");
-    expect(catalogue.version).toBe("0.34.0");
+    const packageJson = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8")) as {
+      version: string;
+    };
+    expect(catalogue.version).toBe(packageJson.version);
     expect(catalogue.exits).toEqual({ refused: 64, defect: 70 });
     expect(Object.keys(catalogue.messages).toSorted()).toEqual([
       "defect",

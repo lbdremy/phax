@@ -117,6 +117,8 @@ const REWORDED_LONG_HELP: ReadonlyArray<string> = [
 /** What the committed file may declare beyond the frozen one: a path and a declaration's head
  *  (its kind and key). */
 const ALLOWED_ADDITIONS: ReadonlyArray<readonly [string, string]> = [
+  // The program's version follows package.json from release to release.
+  ["", 'version "'],
   ["", "after_long_help "],
   ["", "flag --json-schema "],
   ...MIGRATED_COMMANDS.map((path) => [path, "flag --json "] as const),
@@ -148,6 +150,7 @@ const DROPPED_LOCAL_TRACE_FLAGS: ReadonlyArray<readonly [string, string]> = [
  *  `--json` and long help, the four security flags q-security-bare drops and the four local
  *  trace flags q-local-trace-flags drops. */
 const ALLOWED_REWORDINGS: ReadonlyArray<readonly [string, string]> = [
+  ["", 'version "'],
   ...DROPPED_SECURITY_FLAGS,
   ...DROPPED_LOCAL_TRACE_FLAGS,
   ...REWORDED_JSON.map((path) => [path, "flag --json "] as const),
