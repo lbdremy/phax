@@ -127,7 +127,9 @@ export async function buildJsonContractsRepo(): Promise<JsonContractsRepo> {
   ].join("\n");
   await Effect.runPromise(
     Effect.provide(
-      Effect.flatMap(Git, (g) => g.writeTreeCommit({ repo, branch, message, files })),
+      Effect.flatMap(Git, (g) =>
+        g.writeTreeCommit({ repo, branch, message, files, parent: null, expectedTip: null }),
+      ),
       NodeGitLayer,
     ),
   );

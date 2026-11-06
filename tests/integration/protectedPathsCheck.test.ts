@@ -457,6 +457,8 @@ describe("Git.observeWorktree", () => {
         const fakeBase = yield* g.writeTreeCommit({
           repo,
           branch: "base" as BranchName,
+          parent: null,
+          expectedTip: null,
           message: "base",
           files: tracked.map((path) => ({ path, content: new TextEncoder().encode("{}\n") })),
         });

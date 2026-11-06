@@ -178,11 +178,14 @@ export function commitRecordTree(
       content: encoder.encode(`${JSON.stringify(input.manifest, null, 2)}\n`),
     });
 
+    const tip = yield* git.resolveRef(input.repo, `refs/heads/${RECORDS_BRANCH}`);
     const commitSha = yield* git.writeTreeCommit({
       repo: input.repo,
       branch: RECORDS_BRANCH,
       message: input.message,
       files,
+      parent: tip,
+      expectedTip: tip,
     });
     return { commitSha, branch: RECORDS_BRANCH_NAME, fileCount: files.length };
   });

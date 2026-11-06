@@ -289,6 +289,8 @@ describe("runGatesWithFixLoop", () => {
         fakeGit.impl.writeTreeCommit({
           repo: cwd,
           branch: "base" as BranchName,
+          parent: null,
+          expectedTip: null,
           message: "base",
           files: [
             {

@@ -43,6 +43,14 @@ export interface WriteTreeCommitInput {
   /** The full commit message (subject and body already joined). */
   readonly message: string;
   readonly files: readonly GitFileEntry[];
+  /** The commit the new one is parented on; an orphan root when null. */
+  readonly parent: string | null;
+  /**
+   * The value `refs/heads/<branch>` must hold for the branch to move: the
+   * branch is created when this is null (and fails if it exists), and updated
+   * only when it is still at this sha otherwise. A stale value is a GitError.
+   */
+  readonly expectedTip: string | null;
 }
 
 export interface GitOps {
@@ -84,9 +92,9 @@ export interface GitOps {
 
   /**
    * Write `files` as a single commit on `branch` without touching the working
-   * tree or the index. The branch is created as an orphan (no parent) on its
-   * first write and parents onto its current tip on every write thereafter.
-   * Returns the new commit sha.
+   * tree or the index. The commit is parented on `parent` (an orphan when
+   * null) and the branch moves only when it is still at `expectedTip`, in one
+   * compare-and-swap. Returns the new commit sha.
    */
   writeTreeCommit(input: WriteTreeCommitInput): Effect.Effect<string, GitError>;
   /**
@@ -94,6 +102,47 @@ export interface GitOps {
    * or `null` when it does not exist.
    */
   resolveRef(repo: string, ref: string): Effect.Effect<string | null, GitError>;
+  /** The best common ancestor of commits `a` and `b`, or `null` when they share none. */
+  mergeBase(repo: string, a: string, b: string): Effect.Effect<string | null, GitError>;
+  /**
+   * Every commit reachable from `tip` and not from `exclude` (all of `tip`'s
+   * history when `exclude` is null), oldest first, each with the paths of its
+   * own tree. A commit with an empty tree has no paths.
+   */
+  listCommitFiles(
+    repo: string,
+    tip: string,
+    exclude: string | null,
+  ): Effect.Effect<
+    readonly { readonly sha: string; readonly paths: readonly string[] }[],
+    GitError
+  >;
+  /**
+   * A new commit with `commit`'s tree, message bytes and author name, email and
+   * date, parented on `parent`. Only the parent, the committer and the sha
+   * differ. No ref moves. Returns the new commit sha.
+   */
+  recommit(repo: string, commit: string, parent: string): Effect.Effect<string, GitError>;
+  /**
+   * Compare-and-swap of `ref` to `newSha`: fails when the ref is not at
+   * `expectedOld`, or when it already exists and `expectedOld` is null. Never
+   * forces.
+   */
+  updateRef(
+    repo: string,
+    ref: string,
+    newSha: string,
+    expectedOld: string | null,
+  ): Effect.Effect<void, GitError>;
+  /**
+   * Fetch the one branch `branch` of `remote` into `refs/remotes/<remote>/<branch>`
+   * (no `+`, no other ref). `absent` when the remote has no such branch.
+   */
+  fetchBranch(
+    repo: string,
+    remote: string,
+    branch: BranchName,
+  ): Effect.Effect<"fetched" | "absent", GitError>;
   /** Recursively list the blob entries of a commit-or-tree. */
   readTree(repo: string, treeish: string): Effect.Effect<readonly GitTreeEntry[], GitError>;
   /** Read a blob's raw bytes by object id. */

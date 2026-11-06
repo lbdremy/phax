@@ -28,7 +28,24 @@ function fakeOidFromString(input: string): string {
   return fakeOidFromBytes(new TextEncoder().encode(input));
 }
 
+export interface FakeAuthor {
+  readonly name: string;
+  readonly email: string;
+  readonly date: string;
+}
+
+const DEFAULT_FAKE_AUTHOR: FakeAuthor = {
+  name: "Fake Author",
+  email: "fake@example.com",
+  date: "1700000000 +0000",
+};
+
 export type GitCall =
+  | { method: "mergeBase"; repo: string; a: string; b: string }
+  | { method: "listCommitFiles"; repo: string; tip: string; exclude: string | null }
+  | { method: "recommit"; repo: string; commit: string; parent: string }
+  | { method: "updateRef"; repo: string; ref: string; newSha: string; expectedOld: string | null }
+  | { method: "fetchBranch"; repo: string; remote: string; branch: string }
   | { method: "isClean"; repo: string }
   | { method: "currentBranch"; repo: string }
   | { method: "createBranch"; branch: string; from: string; repo: string }
@@ -394,8 +411,144 @@ export class FakeGitImpl implements GitOps {
   readonly fakeTrees = new Map<string, GitTreeEntry[]>();
   readonly fakeCommits = new Map<
     string,
-    { tree: string; parent: string | null; message: string }
+    { tree: string; parent: string | null; message: string; author: FakeAuthor }
   >();
+  /** The branches each remote holds, `remote` → `branch` → tip sha. */
+  readonly fakeRemoteBranches = new Map<string, Map<string, string>>();
+
+  /** Sets (or, with null, removes) the tip of `branch` on `remote`, as a push from elsewhere would. */
+  setRemoteBranch(remote: string, branch: string, sha: string | null): void {
+    const branches = this.fakeRemoteBranches.get(remote) ?? new Map<string, string>();
+    if (sha === null) branches.delete(branch);
+    else branches.set(branch, sha);
+    this.fakeRemoteBranches.set(remote, branches);
+  }
+
+  /** Sets a remote-tracking ref (`refs/remotes/<remote>/<branch>`) without a fetch. */
+  setRemoteTrackingRef(remote: string, branch: string, sha: string): void {
+    this.fakeRefs.set(`refs/remotes/${remote}/${branch}`, sha);
+  }
+
+  /** Adds a commit to the graph without moving a ref; returns its sha. */
+  addFakeCommit(input: {
+    parent: string | null;
+    paths: readonly string[];
+    message?: string;
+    author?: FakeAuthor;
+  }): string {
+    const entries: GitTreeEntry[] = input.paths
+      .map((path) => {
+        const content = new TextEncoder().encode(`${path}\n`);
+        const oid = fakeOidFromBytes(content);
+        this.fakeBlobs.set(oid, content);
+        return { mode: "100644", type: "blob" as const, oid, path };
+      })
+      .toSorted((a, b) => a.path.localeCompare(b.path));
+    const tree = fakeOidFromString(`tree:${entries.map((e) => `${e.oid} ${e.path}`).join("\n")}`);
+    this.fakeTrees.set(tree, entries);
+    const message = input.message ?? "fake commit";
+    const sha = fakeOidFromString(
+      `commit:${this.fakeWriteCounter++}:${tree}:${input.parent ?? ""}:${message}`,
+    );
+    this.fakeCommits.set(sha, {
+      tree,
+      parent: input.parent,
+      message,
+      author: input.author ?? DEFAULT_FAKE_AUTHOR,
+    });
+    return sha;
+  }
+
+  private staleTipError(ref: string, expected: string | null, actual: string | null): GitError {
+    const command = `git update-ref --stdin ${ref}`;
+    return new GitError({
+      message: `${ref} is at ${actual ?? "nothing"}, expected ${expected ?? "no ref"}`,
+      command,
+      stderr: `cannot lock ref '${ref}': is at ${actual ?? "nothing"} but expected ${expected ?? "nothing"}`,
+      exitCode: 128,
+    });
+  }
+
+  /** `tip` and its ancestors, nearest first. */
+  private ancestorsOf(tip: string): string[] {
+    const chain: string[] = [];
+    let cursor: string | null = tip;
+    while (cursor !== null && this.fakeCommits.has(cursor)) {
+      chain.push(cursor);
+      cursor = this.fakeCommits.get(cursor)!.parent;
+    }
+    return chain;
+  }
+
+  mergeBase(repo: string, a: string, b: string): Effect.Effect<string | null, GitError> {
+    this.calls.push({ method: "mergeBase", repo, a, b });
+    const ofB = new Set(this.ancestorsOf(b));
+    return Effect.succeed(this.ancestorsOf(a).find((sha) => ofB.has(sha)) ?? null);
+  }
+
+  listCommitFiles(
+    repo: string,
+    tip: string,
+    exclude: string | null,
+  ): Effect.Effect<
+    readonly { readonly sha: string; readonly paths: readonly string[] }[],
+    GitError
+  > {
+    this.calls.push({ method: "listCommitFiles", repo, tip, exclude });
+    const excluded = new Set(exclude === null ? [] : this.ancestorsOf(exclude));
+    return Effect.succeed(
+      this.ancestorsOf(tip)
+        .filter((sha) => !excluded.has(sha))
+        .toReversed()
+        .map((sha) => ({
+          sha,
+          paths: (this.fakeTrees.get(this.fakeCommits.get(sha)!.tree) ?? []).map((e) => e.path),
+        })),
+    );
+  }
+
+  recommit(repo: string, commit: string, parent: string): Effect.Effect<string, GitError> {
+    this.calls.push({ method: "recommit", repo, commit, parent });
+    const original = this.fakeCommits.get(commit);
+    if (original === undefined || !this.fakeCommits.has(parent)) {
+      return Effect.fail(
+        new GitError({
+          message: `unknown commit: ${original === undefined ? commit : parent}`,
+          command: `git cat-file commit ${commit}`,
+        }),
+      );
+    }
+    const sha = fakeOidFromString(
+      `recommit:${this.fakeWriteCounter++}:${original.tree}:${parent}:${original.message}`,
+    );
+    this.fakeCommits.set(sha, { ...original, parent });
+    return Effect.succeed(sha);
+  }
+
+  updateRef(
+    repo: string,
+    ref: string,
+    newSha: string,
+    expectedOld: string | null,
+  ): Effect.Effect<void, GitError> {
+    this.calls.push({ method: "updateRef", repo, ref, newSha, expectedOld });
+    const actual = this.fakeRefs.get(ref) ?? null;
+    if (actual !== expectedOld) return Effect.fail(this.staleTipError(ref, expectedOld, actual));
+    this.fakeRefs.set(ref, newSha);
+    return Effect.void;
+  }
+
+  fetchBranch(
+    repo: string,
+    remote: string,
+    branch: BranchName,
+  ): Effect.Effect<"fetched" | "absent", GitError> {
+    this.calls.push({ method: "fetchBranch", repo, remote, branch });
+    const tip = this.fakeRemoteBranches.get(remote)?.get(branch);
+    if (tip === undefined) return Effect.succeed("absent");
+    this.fakeRefs.set(`refs/remotes/${remote}/${branch}`, tip);
+    return Effect.succeed("fetched");
+  }
   readonly fakeRefs = new Map<string, string>();
   private fakeWriteCounter = 0;
 
@@ -439,11 +592,19 @@ export class FakeGitImpl implements GitOps {
       `tree:${entries.map((e) => `${e.oid} ${e.path}`).join("\n")}`,
     );
     this.fakeTrees.set(treeOid, entries);
-    const parent = this.fakeRefs.get(ref) ?? null;
+    const actual = this.fakeRefs.get(ref) ?? null;
+    if (actual !== input.expectedTip) {
+      return Effect.fail(this.staleTipError(ref, input.expectedTip, actual));
+    }
     const commitOid = fakeOidFromString(
-      `commit:${this.fakeWriteCounter++}:${treeOid}:${parent ?? ""}:${input.message}`,
+      `commit:${this.fakeWriteCounter++}:${treeOid}:${input.parent ?? ""}:${input.message}`,
     );
-    this.fakeCommits.set(commitOid, { tree: treeOid, parent, message: input.message });
+    this.fakeCommits.set(commitOid, {
+      tree: treeOid,
+      parent: input.parent,
+      message: input.message,
+      author: DEFAULT_FAKE_AUTHOR,
+    });
     this.fakeRefs.set(ref, commitOid);
     return Effect.succeed(commitOid);
   }
