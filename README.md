@@ -736,6 +736,35 @@ phax writes the same bytes to every declaring step of every attempt, then closes
 node ./audit.mjs < checks-attempt-01.request.json
 ```
 
+### Partial commands
+
+A gate step can carry a `partial` object naming cheaper commands that cover part of what the step checks. The `files` variant holds a `<name>` placeholder; the `diff` variant holds none:
+
+```json
+{
+  "command": "pnpm test",
+  "surface": "local",
+  "firing": "every-phase",
+  "partial": {
+    "files": "pnpm exec vitest run <files>",
+    "diff": "pnpm exec vitest run --changed"
+  }
+}
+```
+
+- Each phase prompt shows both commands under the step, as "on some files" and "on your changes", and tells the agent to replace the placeholder with the files it chooses.
+- In secure mode the agent may run them without you listing them in `security.agentCommands`. phax allows the start of every pipe segment of a partial command (its words before a placeholder), for every step of the profile, whatever its `firing`.
+- phax never runs a partial command. The gate still runs `pnpm test`, in full.
+- The grammar is small: `files` needs a `<name>` placeholder (lowercase letters, digits and `-`), `diff` takes none, and the parts of a command are joined with `|` only. Anything else (`&&`, `||`, `;`, `&`, `>`, `>>`, `$(…)`, a backtick, a line break, a stray `<`, an empty segment, a segment that starts with a placeholder) is refused when the config loads, and `phax validate` names the step, the variant and the construct. Quotes are not parsed, so a quoted `|` is split like any other; wrap such a command in a script.
+
+A piped `diff` command has two traps. With an empty diff, `xargs` may run the tool on the whole repository unless it skips empty input (`xargs -r`). And `git diff` does not list new untracked files, which a phase worktree holds until phax commits. A safer form:
+
+```json
+"partial": {
+  "diff": "git diff --name-only --diff-filter=d | xargs -r pnpm exec oxlint"
+}
+```
+
 ### Brief provider
 
 ```json
