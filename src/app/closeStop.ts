@@ -101,7 +101,11 @@ import {
 import type { GateStep } from "../schemas/phaxConfig.js";
 import type { PhaxPlanPhase } from "../schemas/phaxPlan.js";
 import type { ReviewStop } from "../schemas/reviewStop.js";
-import { buildHeldReviewCommitBody, buildInteractiveCommitBody } from "./commit.js";
+import {
+  buildHeldReviewCommitBody,
+  buildInteractiveCommitBody,
+  resolveGateLogTrailer,
+} from "./commit.js";
 import { withInvocationCost } from "./costLedger.js";
 import { dispatch, type DispatcherContext } from "./dispatcher.js";
 import {
@@ -191,7 +195,8 @@ interface CloseReportFacts {
   /** Who closed the stop: the main checkout's git identity, never read from a commit. */
   readonly closedBy: Closer;
   readonly handoffSource: HandoffSource;
-  /** The closing gate attempt's log: the commit's `Gate-Log` trailer. */
+  /** The closing gate attempt's log, absolute: the commit's `Gate-Log` trailer
+   *  resolved against the run folder (an older absolute trailer is read as is). */
   readonly gateLog: string | null;
   /** The closing gate's steps; empty for an `earlier-close`, whose gate ran before. */
   readonly gateSteps: readonly GateStepResult[];
@@ -485,7 +490,7 @@ function finishLandedCommit(
     const diff = yield* at("files", git.diffTrees(input.worktree, baseTree, headTree));
     yield* at("files", fs.writeAtomic(join(input.phaseFolder, layout.diffFile), diff));
     yield* at("files", reconcileReview(input, layout));
-    const gateLog = trailerValue(message, "Gate-Log");
+    const gateLog = resolveGateLogTrailer(input.runPath, trailerValue(message, "Gate-Log"));
     const changedPaths = changed.map((c) => c.path).toSorted();
     const facts = {
       closedBy,
@@ -1386,7 +1391,7 @@ function closeSteps(
       phase: input.phase,
       runId: input.runId,
       shortName: input.shortName,
-      worktreePath: input.worktree,
+      runPath: input.runPath,
       gateLogPath: gate.log,
     };
     const commitGated = (tree: string, body: string) =>

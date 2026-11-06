@@ -277,7 +277,7 @@ describe("executePlan — the Gate-Log trailer", () => {
     backend.impl.addResumeResponse(resumeResponse("sess-fix-02"));
     backend.impl.addResumeResponse(resumeResponse("sess-handoff"));
 
-    const { result, commits, phaseFolder } = await run({
+    const { result, commits } = await run({
       config: makeConfig(2),
       shell: new ScriptedGateShell([FAIL, FAIL, PASS]),
       backend,
@@ -285,9 +285,7 @@ describe("executePlan — the Gate-Log trailer", () => {
 
     expect(Either.isRight(result)).toBe(true);
     expect(commits).toHaveLength(1);
-    expect(gateLogTrailer(commits[0]?.body)).toBe(
-      `Gate-Log: ${join(phaseFolder, "checks-attempt-03.log")}`,
-    );
+    expect(gateLogTrailer(commits[0]?.body)).toBe("Gate-Log: phase-01/checks-attempt-03.log");
     expect(commits.some((c) => c.body.includes("checks-attempt-01.log"))).toBe(false);
   });
 
@@ -300,7 +298,7 @@ describe("executePlan — the Gate-Log trailer", () => {
       return [`checks-attempt-${nn}.log`, `fix-attempt-${nn}.jsonl`];
     });
 
-    const { result, commits, phaseFolder } = await run({
+    const { result, commits } = await run({
       config: makeConfig(1),
       shell: new ScriptedGateShell([PASS]),
       backend,
@@ -316,9 +314,7 @@ describe("executePlan — the Gate-Log trailer", () => {
 
     expect(Either.isRight(result)).toBe(true);
     expect(backend.impl.runCalls).toHaveLength(0);
-    expect(gateLogTrailer(commits[0]?.body)).toBe(
-      `Gate-Log: ${join(phaseFolder, "checks-attempt-07.log")}`,
-    );
+    expect(gateLogTrailer(commits[0]?.body)).toBe("Gate-Log: phase-01/checks-attempt-07.log");
   });
 
   it("names the highest recorded attempt on a commit-only resume, running no new attempt", async () => {
@@ -343,9 +339,7 @@ describe("executePlan — the Gate-Log trailer", () => {
     });
 
     expect(Either.isRight(result)).toBe(true);
-    expect(gateLogTrailer(commits[0]?.body)).toBe(
-      `Gate-Log: ${join(phaseFolder, "checks-attempt-02.log")}`,
-    );
+    expect(gateLogTrailer(commits[0]?.body)).toBe("Gate-Log: phase-01/checks-attempt-02.log");
     expect(shell.calls.some((c) => c.command.join(" ") === GATE_COMMAND)).toBe(false);
     const attemptFiles = (await readdir(phaseFolder)).filter((name) =>
       /^(checks|fix)-attempt-/.test(name),
