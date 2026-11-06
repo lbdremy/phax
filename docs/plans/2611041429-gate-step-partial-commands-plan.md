@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2611041417-gate-step-partial-commands.md
 completes-spec: true
+approved:
+  date: 2026-11-06
+  baseline: "5879e11"
 ---
 # Partial commands on gate steps
 
