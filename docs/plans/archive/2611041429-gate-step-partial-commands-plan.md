@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2611041417-gate-step-partial-commands.md
 completes-spec: true
 approved:
