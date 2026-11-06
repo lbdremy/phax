@@ -16,7 +16,8 @@
       "One phase covers the code, its tests and the docs. The change is a few lines in the body builders and one resolution in `closeStop`, with no seam worth a commit of its own. No acceptance pair is declared: the guarantees live in the body builders and one close path, which the phase's own tests pin. Loss accepted: no test is frozen ahead of the code.",
       "The `CloseReport.gateLog` fact that `closeStop` returns stays an absolute path. Only the commit's trailer becomes relative, because the report never leaves the machine. Loss accepted: the in-memory and on-disk path differs in form from the trailer, so the conversion lives in two small functions (one to write the trailer, one to resolve it)."
     ],
-    "openQuestions": [
+    "openQuestions": [],
+    "arbitratedQuestions": [
       {
         "id": "Q1",
         "question": "What becomes of the `Worktree` trailer on phase, interactive and held review commits?",
@@ -33,7 +34,30 @@
           }
         ],
         "recommendation": "drop",
-        "rationale": "Nothing reads `Worktree` back: `closeStop` and `phax records explain` both find what they need without it, and once a run is pruned the folder it names is gone. A relative path keeps a line that has no reader. Removing it is the only option that loses nothing a reader uses."
+        "rationale": "Nothing reads `Worktree` back: `closeStop` and `phax records explain` both find what they need without it, and once a run is pruned the folder it names is gone. A relative path keeps a line that has no reader. Removing it is the only option that loses nothing a reader uses.",
+        "verdict": {
+          "kind": "decided",
+          "chosen": "drop",
+          "abandoned": [
+            "relative"
+          ],
+          "why": "Nothing reads `Worktree` back: `closeStop` and `phax records explain` both find what they need without it, and once a run is pruned the folder it names is gone. A relative path keeps a line that has no reader. Removing it is the only option that loses nothing a reader uses.",
+          "advocate": "The strongest case for relative: a reader of the history keeps a record of which worktree folder each phase ran in, in a form that names no person and no disk, and a future tool could use it to correlate a commit with a worktree without a schema change.",
+          "principles": [
+            "C3",
+            "C5",
+            "E0"
+          ],
+          "reversibility": "cheap",
+          "by": {
+            "kind": "operator",
+            "name": "Rémy Loubradou"
+          },
+          "at": "2026-11-06T15:03:47.515Z",
+          "revised": [],
+          "phase": "phase-01"
+        },
+        "history": []
       },
       {
         "id": "Q2",
@@ -56,7 +80,31 @@
           }
         ],
         "recommendation": "run-relative",
-        "rationale": "The value contains no name and no disk layout, `closeStop` resolves it with the `runPath` it already receives, and an older absolute value still closes. Its only loss is that the line does not name the run folder on its own, and only the machine that ran the gate can use the trailer anyway."
+        "rationale": "The value contains no name and no disk layout, `closeStop` resolves it with the `runPath` it already receives, and an older absolute value still closes. Its only loss is that the line does not name the run folder on its own, and only the machine that ran the gate can use the trailer anyway.",
+        "verdict": {
+          "kind": "decided",
+          "chosen": "run-relative",
+          "abandoned": [
+            "state-relative",
+            "drop"
+          ],
+          "why": "The value contains no name and no disk layout, `closeStop` resolves it with the `runPath` it already receives, and an older absolute value still closes. Its only loss is that the line does not name the run folder on its own, and only the machine that ran the gate can use the trailer anyway.",
+          "advocate": "The strongest case for state-relative: the trailer is then self-describing, naming the run folder under the state root without help from `Short-Name` and the namespace, so a reader with the state root can open the log from the commit alone.",
+          "principles": [
+            "C1",
+            "C4",
+            "E0"
+          ],
+          "reversibility": "cheap",
+          "by": {
+            "kind": "operator",
+            "name": "Rémy Loubradou"
+          },
+          "at": "2026-11-06T15:03:47.515Z",
+          "revised": [],
+          "phase": "phase-01"
+        },
+        "history": []
       },
       {
         "id": "Q3",
@@ -79,10 +127,33 @@
           }
         ],
         "recommendation": "drop",
-        "rationale": "No phax code reads `Session-Id` back from a commit. The run already keeps the id in the phase folder's agent binding, and the records already treat it as something not to publish. A setting would maintain a key for a value that only leaves the machine."
+        "rationale": "No phax code reads `Session-Id` back from a commit. The run already keeps the id in the phase folder's agent binding, and the records already treat it as something not to publish. A setting would maintain a key for a value that only leaves the machine.",
+        "verdict": {
+          "kind": "decided",
+          "chosen": "drop",
+          "abandoned": [
+            "keep",
+            "setting"
+          ],
+          "why": "No phax code reads `Session-Id` back from a commit. The run already keeps the id in the phase folder's agent binding, and the records already treat it as something not to publish. A setting would maintain a key for a value that only leaves the machine.",
+          "advocate": "The strongest case for setting: a team that joins commits to provider transcripts or checkpoint tools keyed on session ids can opt in, while the default stays private, so nobody who needs the join loses it.",
+          "principles": [
+            "C1",
+            "C2",
+            "E0"
+          ],
+          "reversibility": "costly",
+          "by": {
+            "kind": "operator",
+            "name": "Rémy Loubradou"
+          },
+          "at": "2026-11-06T15:03:47.515Z",
+          "revised": [],
+          "phase": "phase-01"
+        },
+        "history": []
       }
-    ],
-    "arbitratedQuestions": []
+    ]
   },
   "phases": [
     {

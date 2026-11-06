@@ -22,7 +22,7 @@ No new command: the phase uses the repository's existing pnpm scripts through th
 - One phase covers the code, its tests and the docs. The change is a few lines in the body builders and one resolution in `closeStop`, with no seam worth a commit of its own. No acceptance pair is declared: the guarantees live in the body builders and one close path, which the phase's own tests pin. Loss accepted: no test is frozen ahead of the code.
 - The `CloseReport.gateLog` fact that `closeStop` returns stays an absolute path. Only the commit's trailer becomes relative, because the report never leaves the machine. Loss accepted: the in-memory and on-disk path differs in form from the trailer, so the conversion lives in two small functions (one to write the trailer, one to resolve it).
 
-## Open questions
+## Arbitrated questions
 
 ### Q1 — What becomes of the `Worktree` trailer on phase, interactive and held review commits?
 
@@ -30,6 +30,9 @@ No new command: the phase uses the repository's existing pnpm scripts through th
 - relative — Keep it, relative to the state root (`worktrees/<namespace>.<short name>/phase-02`) — abandons: Every commit keeps a line that no command reads and that means nothing on any other machine, and the project's namespace stays in the history for no use.
 
 Recommendation: drop — Nothing reads `Worktree` back: `closeStop` and `phax records explain` both find what they need without it, and once a run is pruned the folder it names is gone. A relative path keeps a line that has no reader. Removing it is the only option that loses nothing a reader uses.
+
+Decision: drop — by operator (Rémy Loubradou), 2026-11-06
+Why: Nothing reads `Worktree` back: `closeStop` and `phax records explain` both find what they need without it, and once a run is pruned the folder it names is gone. A relative path keeps a line that has no reader. Removing it is the only option that loses nothing a reader uses. Advocate: The strongest case for relative: a reader of the history keeps a record of which worktree folder each phase ran in, in a form that names no person and no disk, and a future tool could use it to correlate a commit with a worktree without a schema change. Principles: C3, C5, E0. Reversibility: cheap. Revised: none. Phase: phase-01.
 
 ### Q2 — In what form does the `Gate-Log` trailer stay, and what finds the gate attempt when a stop is closed?
 
@@ -39,6 +42,9 @@ Recommendation: drop — Nothing reads `Worktree` back: `closeStop` and `phax re
 
 Recommendation: run-relative — The value contains no name and no disk layout, `closeStop` resolves it with the `runPath` it already receives, and an older absolute value still closes. Its only loss is that the line does not name the run folder on its own, and only the machine that ran the gate can use the trailer anyway.
 
+Decision: run-relative — by operator (Rémy Loubradou), 2026-11-06
+Why: The value contains no name and no disk layout, `closeStop` resolves it with the `runPath` it already receives, and an older absolute value still closes. Its only loss is that the line does not name the run folder on its own, and only the machine that ran the gate can use the trailer anyway. Advocate: The strongest case for state-relative: the trailer is then self-describing, naming the run folder under the state root without help from `Short-Name` and the namespace, so a reader with the state root can open the log from the commit alone. Principles: C1, C4, E0. Reversibility: cheap. Revised: none. Phase: phase-01.
+
 ### Q3 — What becomes of the `Session-Id` trailer on phase commits?
 
 - drop — Remove it, as decision and authoring records withhold session ids — abandons: Nothing in the history links a phase commit to a provider session, so a reader can no longer join a commit to the provider's transcript store or to a tool keyed on session ids (such as the Entire checkpoint join tried in the archived spike) from the commit alone. The phase folder's agent binding still holds the id on the machine.
@@ -46,6 +52,15 @@ Recommendation: run-relative — The value contains no name and no disk layout, 
 - setting — Remove it by default, with a setting to write it — abandons: A config key and its schema, docs and tests have to be maintained for a trailer no phax command reads, and the history then differs from one repository to the next.
 
 Recommendation: drop — No phax code reads `Session-Id` back from a commit. The run already keeps the id in the phase folder's agent binding, and the records already treat it as something not to publish. A setting would maintain a key for a value that only leaves the machine.
+
+Decision: drop — by operator (Rémy Loubradou), 2026-11-06
+Why: No phax code reads `Session-Id` back from a commit. The run already keeps the id in the phase folder's agent binding, and the records already treat it as something not to publish. A setting would maintain a key for a value that only leaves the machine. Advocate: The strongest case for setting: a team that joins commits to provider transcripts or checkpoint tools keyed on session ids can opt in, while the default stays private, so nobody who needs the join loses it. Principles: C1, C2, E0. Reversibility: costly. Revised: none. Phase: phase-01.
+
+## Decision log
+
+- 2026-11-06 Q1 decided drop — operator (Rémy Loubradou)
+- 2026-11-06 Q2 decided run-relative — operator (Rémy Loubradou)
+- 2026-11-06 Q3 decided drop — operator (Rémy Loubradou)
 
 ---
 
