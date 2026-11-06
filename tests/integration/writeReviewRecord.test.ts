@@ -86,6 +86,7 @@ describe("writeReviewRecord (real git)", () => {
     return {
       repoRoot: repoDir,
       records: inRepoConfig(),
+      publishRemote: "origin",
       runId: RUN_ID,
       runPath,
       review,
@@ -181,6 +182,7 @@ describe("writeReviewRecord (real git)", () => {
         Effect.provide(
           commitRecordTree({
             repo: repoDir,
+            remote: "origin",
             folder: phaseFolder,
             key: phaseKey,
             artifactPaths: ["prompt.md"],
@@ -353,6 +355,7 @@ describe("writeReviewRecord when the records commit fails", () => {
         writeReviewRecord({
           repoRoot: "/repo",
           records: inRepoConfig(),
+          publishRemote: "origin",
           runId: RUN_ID,
           runPath: "/runs/example",
           review: "compliance-review",

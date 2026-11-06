@@ -599,6 +599,7 @@ export function decideVerdicts(
       repoRoot: input.repoRoot,
       recordsClonePath: input.recordsClonePath,
       records: input.records,
+      publishRemote: input.publishRemote,
       folder,
       decisionId,
       artifact: path,

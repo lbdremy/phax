@@ -2,6 +2,7 @@ import { Effect } from "effect";
 import { FileSystem } from "../ports/fs.js";
 import { type Git } from "../ports/git.js";
 import { type GitHub } from "../ports/github.js";
+import type { RecordsBranchReading } from "../domain/records/branchState.js";
 import { withSchemaUrl } from "../schemas/persisted.js";
 import type { ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
 import {
@@ -23,6 +24,8 @@ export interface WriteReviewRecordInput {
   /** The local records clone, required for a dedicated `repo` destination. */
   readonly recordsClonePath?: string | undefined;
   readonly records: ResolvedRecordsConfig;
+  /** The remote an in-repo destination publishes to (`publish.remote`). */
+  readonly publishRemote: string;
   readonly runId: string;
   /** The run folder, which holds the review's file. */
   readonly runPath: string;
@@ -41,6 +44,10 @@ export type ReviewRecordStatus =
       readonly branch: string;
       readonly key: string;
       readonly fileCount: number;
+      /** The records branch as read before the write. */
+      readonly branchState: RecordsBranchReading;
+      /** The sentence owed when the entry was kept on a diverged or unrelated branch, else null. */
+      readonly branchNote: string | null;
     }
   | RecordSkipped
   | { readonly kind: "write-failed"; readonly message: string };
@@ -90,8 +97,9 @@ export function writeReviewRecord(
       `Review: ${input.review}`,
     ].join("\n");
 
-    const { commitSha, branch, fileCount } = yield* commitRecordTree({
+    const { commitSha, branch, fileCount, branchState, branchNote } = yield* commitRecordTree({
       repo: destination.repo,
+      remote: destination.remote,
       folder: input.runPath,
       key,
       artifactPaths: [REVIEW_RECORD_FILES[input.review]],
@@ -105,7 +113,7 @@ export function writeReviewRecord(
       message,
     });
 
-    return { kind: "written", commitSha, branch, key, fileCount } as const;
+    return { kind: "written", commitSha, branch, key, fileCount, branchState, branchNote } as const;
   }).pipe(
     Effect.catchAll((error) =>
       Effect.succeed({
@@ -145,6 +153,7 @@ export function reviewRecordWarning(
 ): string | undefined {
   switch (status.kind) {
     case "written":
+      return status.branchNote === null ? undefined : `${review} ${status.branchNote}`;
     case "records-off":
       return undefined;
     case "deferred-destination":

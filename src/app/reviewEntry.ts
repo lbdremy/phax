@@ -22,6 +22,8 @@ export interface ReviewRecordTarget {
   readonly repoRoot: string;
   /** The local records clone, required for a dedicated `repo` destination. */
   readonly recordsClonePath?: string | undefined;
+  /** The project's `publish.remote`: where an in-repo entry's branch is compared and pushed. */
+  readonly publishRemote: string;
   /** Push the entry now (by hand), or `null` to leave it to publish's records push. */
   readonly push: { readonly publishRemote: string } | null;
 }
@@ -70,6 +72,7 @@ export function recordReviewEntry(input: {
       repoRoot: target.repoRoot,
       recordsClonePath: target.recordsClonePath,
       records: target.records,
+      publishRemote: target.publishRemote,
       runId: input.runId,
       runPath: input.runPath,
       review: input.review,
@@ -135,6 +138,7 @@ export function runEndReviewRecordTarget(
     ...(config.records.destination.kind === "repo"
       ? { recordsClonePath: recordsClonePath(config.stateRoot, namespace) }
       : {}),
+    publishRemote: config.publish.remote,
     push: null,
   };
 }
@@ -183,6 +187,7 @@ export function reviewRecordTargetFor(input: {
     ...(project.records.destination.kind === "repo"
       ? { recordsClonePath: recordsClonePath(project.stateRoot, input.namespace) }
       : {}),
+    publishRemote: project.publish.remote,
     push: { publishRemote: project.publish.remote },
   };
 }

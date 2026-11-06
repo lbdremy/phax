@@ -96,6 +96,7 @@ describe("writeDecisionRecord (real git)", () => {
       mode: "interactive",
       repoRoot: repoDir,
       records: inRepoConfig(true),
+      publishRemote: "origin",
       folder,
       decisionId: DECISION_ID,
       artifact: ARTIFACT,

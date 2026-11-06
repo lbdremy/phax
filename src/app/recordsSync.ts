@@ -4,11 +4,9 @@ import { decodeBranchName, type BranchName } from "../domain/branded.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import type { ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
-import { RECORDS_BRANCH_NAME } from "./writeRecord.js";
+import { ORIGIN, RECORDS_BRANCH_NAME } from "./recordsBranch.js";
 
-/** The local records clone's remote is always named `origin` — it is cloned,
- * never added by hand — so this is also the push target for a `repo` destination. */
-export const ORIGIN = "origin";
+export { ORIGIN };
 
 const RECORDS_BRANCH: BranchName = Either.getOrThrow(decodeBranchName(RECORDS_BRANCH_NAME));
 

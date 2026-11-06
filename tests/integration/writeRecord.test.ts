@@ -123,6 +123,7 @@ describe("writeRecord", () => {
       stop: null,
       usage: { kind: "session", sessionId: undefined },
       records: inRepoConfig(true),
+      publishRemote: "origin",
       ...overrides,
     };
   }

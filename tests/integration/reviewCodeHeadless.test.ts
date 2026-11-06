@@ -517,7 +517,13 @@ describe("reviewCodeAndRecord", () => {
         config,
         resolutionOn("claude-code"),
         security,
-        { kind: "project", records: recordsOff, repoRoot: "/repo", push: null },
+        {
+          kind: "project",
+          records: recordsOff,
+          repoRoot: "/repo",
+          publishRemote: "origin",
+          push: null,
+        },
         { bundledReviewSkill, nowIso, output: t.output },
       ).pipe(Effect.provide(t.layer)),
     );
@@ -538,7 +544,13 @@ describe("reviewCodeAndRecord", () => {
         config,
         resolutionOn("claude-code"),
         security,
-        { kind: "project", records: recordsOff, repoRoot: "/repo", push: null },
+        {
+          kind: "project",
+          records: recordsOff,
+          repoRoot: "/repo",
+          publishRemote: "origin",
+          push: null,
+        },
         { bundledReviewSkill, nowIso, output: t.output },
       ).pipe(Effect.provide(t.layer)),
     );
