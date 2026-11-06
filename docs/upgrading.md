@@ -23,7 +23,7 @@ Only the releases that ask for something are listed. phax never asks for a step 
 
 ### 0.35.0
 
-- **Commit trailers name no path of the machine.** Phase, interactive and held review commits no longer carry `Worktree` or `Session-Id`, and `Gate-Log` is relative to the run's folder (`phase-02/checks-attempt-01.log`), or `none`. A stop whose commit was written by an older version still closes, and no record or run file changes. A script that read those trailers reads the phase folder instead: `agent-binding` for the session, the attempt logs for the gate. See [The phase commit](../README.md#the-phase-commit) for history already written.
+- **Commit trailers name no path of the machine.** Phase, interactive and held review commits no longer carry `Worktree` or `Session-Id`, and `Gate-Log` is relative to the run's folder (`phase-02/checks-attempt-01.log`), or `none`. A stop whose commit was written by an older version still closes, and no record or run file changes. A script that read those trailers reads the phase folder instead: `<run>/<phase>/agent-binding.json` for the session, the `checks-attempt-NN.log` files for the gate. See [The phase commit](../README.md#the-phase-commit) for history already written.
 
 ### 0.34.0
 

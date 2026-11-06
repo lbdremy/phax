@@ -355,7 +355,7 @@ A phase commit is the planned subject and body, then a `---` line and these trai
 - `Model` and `Effort`: what the phase ran on.
 - `Gate-Log`: the log of the gate attempt that let the commit through, as a path relative to the run's folder (`phase-02/checks-attempt-01.log`), or `none` when no attempt is recorded.
 
-A commit made when a stop is closed carries the same kind of trailers. A declared interactive phase writes `Interactive-Phase` in place of `Model` and `Effort`; a held stop's review commit writes `Held-Phase`, and its `Gate-Log` reads `phase-03/review-gate/checks-attempt-01.log`.
+A commit made when a stop is closed carries fewer trailers. A declared interactive phase's commit carries `Run-Id`, `Short-Name`, `Phase-Id`, `Phase-Title`, `Interactive-Phase` and `Gate-Log`: no `Model` or `Effort`, since no agent session wrote the correction. A held stop's review commit carries `Run-Id`, `Short-Name`, `Phase-Title`, `Held-Phase` and `Gate-Log` (`phase-03/review-gate/checks-attempt-01.log`): no `Phase-Id`, `Model` or `Effort`, since the phase commit it sits on keeps its own; it is found by `Run-Id` and `Held-Phase`.
 
 No trailer names a path outside the run's folder, and none carries a provider session.
 
