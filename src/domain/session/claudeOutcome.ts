@@ -4,7 +4,10 @@ import {
   type ClaudeResultOutcomeEvent,
 } from "../../schemas/claudeOutput.js";
 import type { EndedSession, FailureKind, SessionFailure, SessionOutcome } from "./outcome.js";
-import { isClaudeNotAuthenticatedText } from "./claudeAuthentication.js";
+import {
+  isClaudeNotAuthenticatedStderr,
+  isClaudeNotAuthenticatedText,
+} from "./claudeAuthentication.js";
 import {
   classifyVerdictText,
   extractResetAt,
@@ -219,7 +222,7 @@ export function readClaudeOutcome(
   }
   if (ending === "exited") {
     const fromStderr = stderrMessage(ended.stderr);
-    if (fromStderr.length > 0 && isClaudeNotAuthenticatedText(fromStderr)) {
+    if (fromStderr.length > 0 && isClaudeNotAuthenticatedStderr(fromStderr)) {
       return {
         kind: "failure",
         failure: {

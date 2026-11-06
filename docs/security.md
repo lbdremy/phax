@@ -167,23 +167,33 @@ Still loaded in a headless session:
 - Managed (organisation) settings.
 - MCP servers, as the security policy's `mcp` settings decide. Under `provider-default`, user-scope servers no longer load.
 
+Not loaded either: the repository's local layer, `CLAUDE.local.md` and `.claude/settings.local.json`. Claude Code counts them as the `local` source, which `--setting-sources project` leaves out with the user's. Personal instructions or settings kept there reach your interactive sessions only.
+
+**Your own guardrails stop applying.** The `permissions.deny` rules and the hooks (a PreToolUse hook that blocks `rm -rf`, a secret scanner) in your `~/.claude/settings.json` or `.claude/settings.local.json` do not run in a headless session. phax's own deny rules and grants still apply, through `--settings`. In secure mode, writes outside the working directories stay denied. In unsafe mode (`bypassPermissions`), nothing else blocks what your rules blocked before. A guardrail every session must keep belongs in the repository's committed `.claude/settings.json`, or in managed settings.
+
 A claude-code phase's `record.json` says so:
 
 ```json
 "userConfig": "excluded"
 ```
 
-Records of `codex-cli` and `mistral-vibe` phases say `loaded`, as do records written before 0.34.0.
+Records of `codex-cli` and `mistral-vibe` phases say `loaded`, as do records written before 0.34.0. `excluded` describes the phase's headless sessions only. Turns you drive in the same session (`phax enter`, a stop's continue command) load your setup. So do the turns of a session that began before you upgraded and that a 0.34.0 fix attempt resumes.
 
-**Authentication in user settings.** Because a headless session does not read `~/.claude/settings.json`, an `apiKeyHelper` or an `env` block set there (including Bedrock or Vertex settings) is not used. Claude Code then reports it is not authenticated, and phax fails the phase with its own kind. It is never retried as a network or limit failure:
+**Authentication in user settings.** Because a headless session does not read `~/.claude/settings.json`, an `apiKeyHelper` or an `env` block set there (including Bedrock or Vertex settings) is not used. When no other credential is available, Claude Code reports it is not authenticated, and phax fails the phase with its own kind. It is never retried as a network or limit failure:
 
 ```text
 ✗ claude-code session failed (not-authenticated): Invalid API key · Please run /login
-Claude Code is not authenticated. phax's headless sessions do not load your Claude Code user settings (~/.claude/settings.json), so an apiKeyHelper or env set there is not used.
-Log in with `claude /login`, or set ANTHROPIC_API_KEY where you run phax.
+  Claude Code is not authenticated. phax's headless sessions do not load your Claude Code user settings (~/.claude/settings.json), so an apiKeyHelper or env set there is not used.
+  Log in with `claude /login`, or set ANTHROPIC_API_KEY where you run phax; for Bedrock, Vertex or a gateway, export CLAUDE_CODE_USE_BEDROCK, CLAUDE_CODE_USE_VERTEX or ANTHROPIC_BASE_URL and its credentials there instead.
+  session: 6f1c2a9e-0d4b-4e7a-9c3f-2b8d5e1a7c40
+  See ~/.phax/runs/phax.refunds/phase-01/agent-error.log and output.jsonl
 ```
 
-Either remedy works: run `claude /login`, or set `ANTHROPIC_API_KEY` in the environment phax runs in. There is no opt-out. A setting a headless session needs belongs in the repository's committed `.claude/settings.json`.
+Pick the remedy that matches where your sessions should run. With a first-party account, run `claude /login` or set `ANTHROPIC_API_KEY` in the environment phax runs in. With Bedrock, Vertex or a company gateway, export the variables your settings' `env` block sets (`CLAUDE_CODE_USE_BEDROCK`, `CLAUDE_CODE_USE_VERTEX`, `ANTHROPIC_BASE_URL`, and their credentials) in the environment phax runs in: a headless session inherits it unchanged. There is no opt-out.
+
+**A silent switch of account.** The failure above appears only when Claude Code finds no other credential. If your settings route Claude Code to Bedrock, Vertex or a gateway and you are also logged in with `claude /login`, or `ANTHROPIC_API_KEY` is set, a headless session authenticates with that other credential and runs. It fails nothing and warns of nothing: its traffic and its cost go to that account, not to the backend your settings name. The usage probe still loads your settings, so its verdict can describe the other account. Export the backend's variables as above to keep headless sessions on it.
+
+**Decide after the interactive part.** `phax artifact decide`'s interactive session loads your setup and its headless handback does not. If your authentication lives in your settings, you can decide every question and then see the handback fail as `not-authenticated`, with nothing transcribed. Fix the authentication before you start a decide session.
 
 ### Skill edit grants (Claude Code)
 
