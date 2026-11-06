@@ -17,7 +17,10 @@
  *   - held stop: the closing turn resumes the builder session narrowed, and
  *     security.json records the narrowing;
  *   - refused before spawning: a user accept-edits profile, and Vibe config
- *     under an extra writable root.
+ *     under an extra writable root;
+ *   - piped partial command: a diff command piped through `xargs`, with each
+ *     pipe segment's prefix on the bash allowlist, is attempted; whether Vibe
+ *     ran or refused it is recorded for docs/security.md, not asserted.
  *
  * Every claim about a call reads the stream's tool-call entries (`effect`
  * entries: the tool, its input, and how it settled), never the raw stream,
@@ -25,7 +28,7 @@
  * tokens and trusts Vibe's own enforcement, which a unit test cannot check.
  */
 
-import { Effect } from "effect";
+import { Effect, Either } from "effect";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createHash } from "node:crypto";
 import {
@@ -39,6 +42,7 @@ import {
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
+import { parsePartialCommand } from "../../src/domain/gate/partialCommand.js";
 import type { SecurityPolicy } from "../../src/domain/security/types.js";
 import { runVibeAgent } from "../../src/infra/providers/mistralVibe.js";
 import { vibeExportFileOf } from "../../src/domain/records/usage.js";
@@ -645,6 +649,76 @@ describe.skipIf(SKIP !== undefined)("Mistral Vibe 3 in secure mode (real CLI)", 
         );
         expect(readFileSync(join(worktree, file), "utf8"), `${file} is unchanged`).toBe(ORIGINAL);
       }
+    },
+  );
+
+  it(
+    "piped partial command: a diff command through xargs is attempted, its outcome recorded",
+    { timeout: 600_000 },
+    async () => {
+      const diffCommand = "git diff --name-only --diff-filter=d | xargs wc -l";
+      const parsed = parsePartialCommand(diffCommand, "diff");
+      if (Either.isLeft(parsed)) throw new Error(`refused: ${parsed.left.kind}`);
+      const prefixes = parsed.right.segments.map((segment) => segment.prefix);
+
+      const cwd = mkdtempSync(join(tmpdir(), "phax-e2e-vibe-partial-"));
+      scratch.push(cwd);
+      const git = (...args: string[]): void => {
+        const r = spawnSync("git", args, { cwd, encoding: "utf8", stdio: "pipe" });
+        expect(r.status, `git ${args.join(" ")}: ${r.stderr}`).toBe(0);
+      };
+      git("init", "-q");
+      git("config", "user.email", "e2e@example.com");
+      git("config", "user.name", "e2e");
+      writeFileSync(join(cwd, "tracked.txt"), "one\n");
+      git("add", "tracked.txt");
+      git("commit", "-q", "-m", "init");
+      writeFileSync(join(cwd, "tracked.txt"), "one\ntwo\nthree\n");
+
+      const phaseFolder = mkdtempSync(join(tmpdir(), "phax-e2e-vibe-partial-phase-"));
+      scratch.push(phaseFolder);
+      const security: SecurityPolicy = {
+        mode: "secure",
+        filesystem: { allowRead: [cwd], allowWrite: [cwd] },
+        network: { profile: "provider-only" },
+        mcp: { mode: "disabled", allow: [] },
+        agentCommands: prefixes,
+        failClosed: true,
+      };
+      const streamPath = join(phaseFolder, "output.jsonl");
+      await Effect.runPromise(
+        runVibeAgent(
+          `Run this shell command verbatim, exactly once: ${diffCommand}\n` +
+            "If it is refused, do not retry it or look for another way. Then finish.",
+          {
+            provider: "mistral-vibe",
+            model: "phax-mistral-medium-3.5-off",
+            effort: "off",
+            cwd,
+            security,
+            agentCommands: prefixes,
+            phaseFolderPath: phaseFolder,
+            outputJsonlPath: streamPath,
+          },
+          { executable: "vibe", modelEnvVar: "VIBE_ACTIVE_MODEL", defaultAgent: "auto-approve" },
+        ),
+      );
+
+      const attempts = toolCallsOf(readFileSync(streamPath, "utf8")).filter(
+        bashCall("xargs wc -l"),
+      );
+      expect(attempts.length, "Vibe attempted the piped command").toBeGreaterThan(0);
+      for (const call of attempts) {
+        expect(ran(call) || refused(call), `settled: ${JSON.stringify(call)}`).toBe(true);
+      }
+
+      // Recorded, not asserted: the operator copies this into docs/security.md.
+      const settlement = attempts
+        .map((call) => `status=${call.status} decision=${call.decision ?? "(none)"}`)
+        .join("; ");
+      const note = `piped partial command ${attempts.some(ran) ? "ran" : "refused"} on Vibe (${settlement}); prefixes: ${prefixes.join(" | ")}`;
+      console.info(`VIBE PARTIAL OUTCOME: ${note}`);
+      printArtifacts({ repoDir: cwd, phaxHome: phaseFolder }, note);
     },
   );
 
