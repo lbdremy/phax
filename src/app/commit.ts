@@ -37,10 +37,11 @@ export interface CommitResult {
 
 /**
  * The `Gate-Log` trailer value: the log's POSIX path relative to the run
- * folder, or `none` for no log or one outside the run folder.
+ * folder, or `none` for no log, a path that is not absolute (never resolved
+ * against the working directory) or one outside the run folder.
  */
 export function gateLogTrailerValue(runPath: string, gateLogPath: string | null): string {
-  if (gateLogPath === null) return "none";
+  if (gateLogPath === null || !isAbsolute(gateLogPath)) return "none";
   const rel = relative(runPath, gateLogPath);
   if (
     rel === "" ||

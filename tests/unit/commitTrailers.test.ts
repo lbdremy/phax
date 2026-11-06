@@ -1,5 +1,6 @@
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import type { ClaudeSessionId, WorktreePath } from "../../src/domain/branded.js";
 import {
   buildCommitBody,
   buildHeldReviewCommitBody,
@@ -9,6 +10,7 @@ import {
   type CommitPhaseOptions,
   type InteractiveCommitBodyOptions,
 } from "../../src/app/commit.js";
+import type { PhaxPlanPhase } from "../../src/schemas/phaxPlan.js";
 
 const HOME = "/home/ada";
 const STATE_ROOT = `${HOME}/.phax`;
@@ -20,18 +22,30 @@ const HELD_LOG = join(RUN, "phase-03", "review-gate", "checks-attempt-01.log");
 const commit = { subject: "feat: x", body: "Body text." };
 const phase = { id: "phase-02", title: "Row header", commit };
 
-const phaseOptions = (gateLogPath: string | null): CommitPhaseOptions =>
-  ({
-    phase: { ...phase, model: "claude-sonnet-5-5", effort: "medium" },
-    worktreePath: WORKTREE,
-    phaseFolderPath: join(RUN, "phase-02"),
-    runId: "run-1",
-    shortName: "invoices",
-    sessionId: "sess-secret",
-    gateLogPath,
-    repoRoot: "/repo",
-    runPath: RUN,
-  }) as unknown as CommitPhaseOptions;
+const planPhase: PhaxPlanPhase = {
+  ...phase,
+  model: "claude-sonnet-5-5",
+  effort: "medium",
+  planMarkdownAnchor: "#phase-02",
+  plannedFilesToCreate: [],
+  plannedFilesToEdit: [],
+  optionalFilesToEdit: [],
+  mode: "headless",
+  acceptance: null,
+  testLines: [],
+};
+
+const phaseOptions = (gateLogPath: string | null): CommitPhaseOptions => ({
+  phase: planPhase,
+  worktreePath: WORKTREE as WorktreePath,
+  phaseFolderPath: join(RUN, "phase-02"),
+  runId: "run-1",
+  shortName: "invoices",
+  sessionId: "sess-secret" as ClaudeSessionId,
+  gateLogPath,
+  repoRoot: "/repo",
+  runPath: RUN,
+});
 
 const interactiveOptions = (gateLogPath: string): InteractiveCommitBodyOptions => ({
   phase,
@@ -51,6 +65,11 @@ describe("gateLogTrailerValue", () => {
     expect(gateLogTrailerValue(RUN, null)).toBe("none");
     expect(gateLogTrailerValue(RUN, `${STATE_ROOT}/elsewhere/a.log`)).toBe("none");
     expect(gateLogTrailerValue(RUN, RUN)).toBe("none");
+  });
+
+  it("writes none for a relative or empty log path, whatever the working directory", () => {
+    expect(gateLogTrailerValue(RUN, "")).toBe("none");
+    expect(gateLogTrailerValue(RUN, "phase-02/checks-attempt-01.log")).toBe("none");
   });
 });
 
@@ -118,13 +137,12 @@ describe("commit bodies", () => {
 
   it.each([
     ["phase", (log: string | null) => buildCommitBody(phaseOptions(log))],
-    [
-      "interactive",
-      (log: string | null) => buildInteractiveCommitBody(interactiveOptions(log ?? "")),
-    ],
-    ["held", (log: string | null) => buildHeldReviewCommitBody(interactiveOptions(log ?? ""))],
-  ])("the %s body names no run path, state root or home folder", (_name, build) => {
-    for (const log of [LOG, HELD_LOG, null, `${STATE_ROOT}/elsewhere/a.log`]) {
+    ["interactive", (log: string | null) => buildInteractiveCommitBody(interactiveOptions(log!))],
+    ["held", (log: string | null) => buildHeldReviewCommitBody(interactiveOptions(log!))],
+  ])("the %s body names no run path, state root or home folder", (name, build) => {
+    const logs = [LOG, HELD_LOG, `${STATE_ROOT}/elsewhere/a.log`];
+    // Only the phase commit's gate log can be null; the closing commits always have one.
+    for (const log of name === "phase" ? [...logs, null] : logs) {
       const body = build(log);
       for (const forbidden of [RUN, STATE_ROOT, HOME, WORKTREE, "sess-secret"]) {
         expect(body).not.toContain(forbidden);
