@@ -258,6 +258,10 @@ Given every records push and every records branch update phax makes, exercised a
 
 ## 9. Open questions
 
+None.
+
+## 9b. Arbitrated questions
+
 ### q-replay — How should records already written on an orphan or stale tip be brought home?
 
 - replay-flag — `phax records sync --replay` replays them onto the remote tip on request; plain sync refuses and names it — abandons: zero-touch recovery: the operator has to run one more command after reading the refusal
@@ -265,6 +269,9 @@ Given every records push and every records branch update phax makes, exercised a
 - report-only — phax only reports the divergence and prints the git commands (commit-tree per record) that do the replay — abandons: a supported recovery: each operator hand-runs plumbing that is easy to get wrong, at the moment records are most at risk
 
 Recommendation: replay-flag — A replay cannot conflict except on a shared key, which phax detects, so phax can do it safely. What remains is consent: one explicit flag keeps the history rewrite visible and costs a single command that the refusal already names.
+
+Decision: replay-flag — by operator (Rémy Loubradou), 2026-11-06
+Why: A replay cannot conflict except on a shared key, which phax detects, so phax can do it safely. What remains is consent: one explicit flag keeps the history rewrite visible and costs a single command that the refusal already names. Advocate: The strongest case for replay-auto: the refusal already names the one command that fixes it, so asking the operator to type it adds a step with no information, and a records push that never needs attention is the goal. Principles: S1, S7, E0. Reversibility: cheap. Revised: none.
 
 ### q-two-writers — Does phax support two writers on one records branch of one remote (two machines, two projects, or an in-repo and a dedicated destination)?
 
@@ -274,6 +281,9 @@ Recommendation: replay-flag — A replay cannot conflict except on a shared key,
 
 Recommendation: support — Two machines are already two writers, and that case has to work. Once a refused push is self-explaining and recoverable, refusing other pairings protects nothing that the parent rule and replay do not already protect.
 
+Decision: support — by operator (Rémy Loubradou), 2026-11-06
+Why: Two machines are already two writers, and that case has to work. Once a refused push is self-explaining and recoverable, refusing other pairings protects nothing that the parent rule and replay do not already protect. Advocate: The strongest case for refuse-detectable: a dedicated clone of the project's own publish remote is the one pairing phax can see, and refusing it removes a source of refused pushes before it starts, which is what a strict refusal is for. Principles: S1, S8. Reversibility: cheap. Revised: none.
+
 ### q-in-repo-sync — The in-repo destination has the same missing-branch defect after a fresh clone. Should `phax records sync` also create, fast-forward and replay the in-repo records branch against `publish.remote`?
 
 - sync-in-repo — Yes: for in-repo, sync fetches `publish.remote`'s records branch and applies the same create, fast-forward, refuse and replay rules — abandons: today's `nothing to sync` answer for in-repo: sync starts fetching from the source repository's remote
@@ -281,9 +291,8 @@ Recommendation: support — Two machines are already two writers, and that case 
 
 Recommendation: sync-in-repo — The defect is the same, so the remedy should be the same. Keeping in-repo sync a no-op would leave the in-repo operator as stranded as the dedicated one is today.
 
-## 9b. Arbitrated questions
-
-None.
+Decision: sync-in-repo — by operator (Rémy Loubradou), 2026-11-06
+Why: The defect is the same, so the remedy should be the same. Keeping in-repo sync a no-op would leave the in-repo operator as stranded as the dedicated one is today. Advocate: The strongest case for write-time-only: in-repo sync is a no-op today, and making it fetch from the source repository's remote changes what a command does for every in-repo project, including those that never had the defect. Principles: S1, S4, S5. Reversibility: costly. Revised: none.
 
 ## 10. Implementation-planning note
 
@@ -315,3 +324,9 @@ Page: guide/records — a section "When the records branch and its remote disagr
 Reader: an operator whose records stay pending after a fresh clone or a second machine
 
 Example: `phax records status` shows `Records branch: unrelated to origin (local a41c0de, origin 3f2a9c1)`. The operator runs `phax records sync --replay`, sees `Replayed 3 record(s) onto origin's tip`, and the next push succeeds.
+
+## 12. Decision log
+
+- 2026-11-06 q-replay decided replay-flag — operator (Rémy Loubradou)
+- 2026-11-06 q-two-writers decided support — operator (Rémy Loubradou)
+- 2026-11-06 q-in-repo-sync decided sync-in-repo — operator (Rémy Loubradou)

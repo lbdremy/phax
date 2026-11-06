@@ -316,7 +316,8 @@
       ]
     }
   ],
-  "openQuestions": [
+  "openQuestions": [],
+  "arbitratedQuestions": [
     {
       "id": "q-replay",
       "question": "How should records already written on an orphan or stale tip be brought home?",
@@ -338,7 +339,30 @@
         }
       ],
       "recommendation": "replay-flag",
-      "rationale": "A replay cannot conflict except on a shared key, which phax detects, so phax can do it safely. What remains is consent: one explicit flag keeps the history rewrite visible and costs a single command that the refusal already names."
+      "rationale": "A replay cannot conflict except on a shared key, which phax detects, so phax can do it safely. What remains is consent: one explicit flag keeps the history rewrite visible and costs a single command that the refusal already names.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "replay-flag",
+        "abandoned": [
+          "replay-auto",
+          "report-only"
+        ],
+        "why": "A replay cannot conflict except on a shared key, which phax detects, so phax can do it safely. What remains is consent: one explicit flag keeps the history rewrite visible and costs a single command that the refusal already names.",
+        "advocate": "The strongest case for replay-auto: the refusal already names the one command that fixes it, so asking the operator to type it adds a step with no information, and a records push that never needs attention is the goal.",
+        "principles": [
+          "S1",
+          "S7",
+          "E0"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-06T15:05:22.317Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-two-writers",
@@ -361,7 +385,29 @@
         }
       ],
       "recommendation": "support",
-      "rationale": "Two machines are already two writers, and that case has to work. Once a refused push is self-explaining and recoverable, refusing other pairings protects nothing that the parent rule and replay do not already protect."
+      "rationale": "Two machines are already two writers, and that case has to work. Once a refused push is self-explaining and recoverable, refusing other pairings protects nothing that the parent rule and replay do not already protect.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "support",
+        "abandoned": [
+          "refuse-detectable",
+          "refuse-all"
+        ],
+        "why": "Two machines are already two writers, and that case has to work. Once a refused push is self-explaining and recoverable, refusing other pairings protects nothing that the parent rule and replay do not already protect.",
+        "advocate": "The strongest case for refuse-detectable: a dedicated clone of the project's own publish remote is the one pairing phax can see, and refusing it removes a source of refused pushes before it starts, which is what a strict refusal is for.",
+        "principles": [
+          "S1",
+          "S8"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-06T15:05:22.317Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-in-repo-sync",
@@ -379,10 +425,31 @@
         }
       ],
       "recommendation": "sync-in-repo",
-      "rationale": "The defect is the same, so the remedy should be the same. Keeping in-repo sync a no-op would leave the in-repo operator as stranded as the dedicated one is today."
+      "rationale": "The defect is the same, so the remedy should be the same. Keeping in-repo sync a no-op would leave the in-repo operator as stranded as the dedicated one is today.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "sync-in-repo",
+        "abandoned": [
+          "write-time-only"
+        ],
+        "why": "The defect is the same, so the remedy should be the same. Keeping in-repo sync a no-op would leave the in-repo operator as stranded as the dedicated one is today.",
+        "advocate": "The strongest case for write-time-only: in-repo sync is a no-op today, and making it fetch from the source repository's remote changes what a command does for every in-repo project, including those that never had the defect.",
+        "principles": [
+          "S1",
+          "S4",
+          "S5"
+        ],
+        "reversibility": "costly",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-06T15:05:22.317Z",
+        "revised": []
+      },
+      "history": []
     }
   ],
-  "arbitratedQuestions": [],
   "planningNote": {
     "settled": [
       "The branch state is derived from git alone (L, R and their ancestry), with no state file, just as pending is today.",
