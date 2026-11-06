@@ -365,11 +365,14 @@ describe("closing a held stop", () => {
         phase: phase02(),
         runId: run.runId,
         shortName: SHORT,
-        worktreePath: tree(),
+        runPath: run.runPath,
         gateLogPath: gateLog,
       }),
     );
     expect(body).toContain("Held-Phase: phase-02");
+    expect(body).not.toMatch(/^(Worktree|Session-Id):/m);
+    expect(body).toContain("Gate-Log: phase-02/review-gate/checks-attempt-01.log");
+    expect(body).not.toContain(tree());
     expect(body).not.toMatch(/^(Phase-Id|Session-Id|Model|Effort):/m);
     expect(gitIn(tree(), "show", "--name-only", "--format=", "HEAD").split("\n")).toEqual([
       "src/invoiceRow.ts",
@@ -704,7 +707,7 @@ describe("a held close taken up again", () => {
             phase: phase02(),
             runId: run.runId,
             shortName: SHORT,
-            worktreePath: tree(),
+            runPath: run.runPath,
             gateLogPath: gateLog,
           }),
         );
@@ -743,6 +746,61 @@ describe("a held close taken up again", () => {
       state: "committed",
       commitHash: c2,
       stop: { cause: "held", status: "closed", outcome: "corrected", reviewCommit: landed },
+    });
+  });
+});
+
+describe("a held close whose landed commit was written by an older version", () => {
+  it("finishes from an absolute Gate-Log, with Worktree and Session-Id lines in the commit", async () => {
+    const c2 = head();
+    correct();
+    const gateLog = join(phaseFolder(), "review-gate", "checks-attempt-01.log");
+    const landed = await Effect.runPromise(
+      Effect.gen(function* () {
+        yield* resumeRequested();
+        const parked = readJson(parkedPath());
+        writeFileSync(parkedPath(), JSON.stringify({ ...parked, closeBase: c2 }, null, 2));
+        writeFileSync(join(phaseFolder(), "correction-handoff.md"), PERSON_HANDOFF);
+        const snapshot = yield* realGit.snapshotWorktree(tree());
+        return yield* realGit.commitTree(
+          tree(),
+          snapshot,
+          phase02().commit.subject,
+          [
+            `Review corrections to ${phase02().id} (${phase02().title}), made by a person at a held stop.`,
+            "",
+            "---",
+            "",
+            `Run-Id: ${run.runId}`,
+            `Short-Name: ${SHORT}`,
+            `Phase-Title: ${phase02().title}`,
+            `Held-Phase: ${phase02().id}`,
+            `Worktree: ${tree()}`,
+            `Session-Id: sess-old`,
+            `Gate-Log: ${gateLog}`,
+          ].join("\n"),
+        );
+      }).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            NodeFileSystemLayer,
+            NodeGitLayer,
+            NodeShellLayer,
+            NoopSystemTelemetryLayer,
+          ),
+        ),
+      ),
+    );
+
+    const { result, order } = await close({ resume: false });
+    const closed = report(result);
+
+    expect(order).toEqual([]);
+    expect(head()).toBe(landed);
+    expect(closed).toMatchObject({ cause: "held", reviewCommit: landed, gateLog });
+    expect(phaseStatus()).toMatchObject({
+      state: "committed",
+      stop: { cause: "held", status: "closed", reviewCommit: landed },
     });
   });
 });

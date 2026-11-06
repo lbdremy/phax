@@ -237,7 +237,7 @@ describe("who closed a held stop", () => {
             phase: phase02(),
             runId: run.runId,
             shortName: SHORT,
-            worktreePath: tree(),
+            runPath: run.runPath,
             gateLogPath: join(phaseFolder(), "review-gate", "checks-attempt-01.log"),
           }),
         );

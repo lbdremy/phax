@@ -361,11 +361,14 @@ describe("closing a declared stop", () => {
         phase: PHASE_03,
         runId: run.runId,
         shortName: run.shortName,
-        worktreePath: run.worktree,
+        runPath: run.runPath,
         gateLogPath: closed.gateLog!,
       }),
     );
     expect(body).toContain("Interactive-Phase: phase-03");
+    expect(body).not.toMatch(/^(Worktree|Session-Id):/m);
+    expect(body).toContain("Gate-Log: phase-03/checks-attempt-01.log");
+    expect(body).not.toContain(run.worktree);
     expect(body).not.toMatch(/^(Session-Id|Model|Effort):/m);
     expect(closed.gateLog).toBe(join(run.phaseFolder, "checks-attempt-01.log"));
     expect(
@@ -808,7 +811,7 @@ describe("a close taken up again", () => {
             phase: PHASE_03,
             runId: run.runId,
             shortName: run.shortName,
-            worktreePath: run.worktree,
+            runPath: run.runPath,
             gateLogPath: join(run.phaseFolder, "checks-attempt-01.log"),
           }),
         );
@@ -836,6 +839,49 @@ describe("a close taken up again", () => {
     expect(existsSync(parkedPath(run))).toBe(false);
   });
 
+  it("finishes a close whose landed commit carries an absolute Gate-Log written by an older version", async () => {
+    const run = await stopRun(world);
+    const base = head(run);
+    correct(run);
+    const oldGateLog = join(run.phaseFolder, "checks-attempt-01.log");
+    const landed = await Effect.runPromise(
+      Effect.gen(function* () {
+        yield* resumeRequested(run);
+        const parked = readJson(parkedPath(run));
+        writeFileSync(parkedPath(run), JSON.stringify({ ...parked, closeBase: base }, null, 2));
+        writeFileSync(join(run.phaseFolder, "phase-handoff.md"), PERSON_HANDOFF);
+        const tree = yield* realGit.snapshotWorktree(run.worktree);
+        return yield* realGit.commitTree(
+          run.worktree,
+          tree,
+          PHASE_03.commit.subject,
+          [
+            PHASE_03.commit.body,
+            "",
+            "---",
+            "",
+            `Run-Id: ${run.runId}`,
+            `Short-Name: ${run.shortName}`,
+            `Phase-Id: ${PHASE_03.id}`,
+            `Phase-Title: ${PHASE_03.title}`,
+            `Interactive-Phase: ${PHASE_03.id}`,
+            `Worktree: ${run.worktree}`,
+            `Session-Id: sess-old`,
+            `Gate-Log: ${oldGateLog}`,
+          ].join("\n"),
+        );
+      }).pipe(Effect.provide(layers({}, [], makeFakeBackend().impl))),
+    );
+
+    const { result, order } = await close(run, { resume: false });
+    const closed = report(result);
+
+    expect(order).toEqual([]);
+    expect(head(run)).toBe(landed);
+    expect(closed).toMatchObject({ outcome: "corrected", commit: landed, gateLog: oldGateLog });
+    expect(phaseStatus(run)).toMatchObject({ state: "committed", commitHash: landed });
+  });
+
   it("refuses to finish a landed close while the worktree changed since its commit", async () => {
     const run = await stopRun(world);
     const base = head(run);
@@ -854,7 +900,7 @@ describe("a close taken up again", () => {
             phase: PHASE_03,
             runId: run.runId,
             shortName: run.shortName,
-            worktreePath: run.worktree,
+            runPath: run.runPath,
             gateLogPath: join(run.phaseFolder, "checks-attempt-01.log"),
           }),
         );

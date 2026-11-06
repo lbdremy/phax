@@ -346,6 +346,21 @@ Then, for each phase:
 
 A phase that changes nothing stops the run (exit 9). The last phase runs the gate's `terminal` steps too, then the run stops at `review_open`. Its plan is completed on the run's branch, and its spec too when the plan says it is the spec's last (`completes-spec: true`) and no other live plan still needs it. The run's folder is `~/.phax/runs/<namespace>.<name>/`; when the run ends, phax prints what happened and the next command to run. On a Mac, keep it awake for long runs: `caffeinate -ims phax run --plan <plan>`.
 
+### The phase commit
+
+A phase commit is the planned subject and body, then a `---` line and these trailers, in this order:
+
+- `Run-Id` and `Short-Name`: the run, and its short name.
+- `Phase-Id` and `Phase-Title`: the phase. `phax records explain` and the release notes find a phase's commits by them.
+- `Model` and `Effort`: what the phase ran on.
+- `Gate-Log`: the log of the gate attempt that let the commit through, as a path relative to the run's folder (`phase-02/checks-attempt-01.log`), or `none` when no attempt is recorded.
+
+A commit made when a stop is closed carries the same kind of trailers. A declared interactive phase writes `Interactive-Phase` in place of `Model` and `Effort`; a held stop's review commit writes `Held-Phase`, and its `Gate-Log` reads `phase-03/review-gate/checks-attempt-01.log`.
+
+No trailer names a path outside the run's folder, and none carries a provider session.
+
+Commits written by earlier versions may also carry `Worktree:`, a `Gate-Log:` holding an absolute path, and `Session-Id:`. Closing a stop still reads such a `Gate-Log`. phax never rewrites history: cleaning older commits is your choice, on your own branches. `git filter-repo --message-callback` and `git filter-branch --msg-filter` can drop those lines from commit messages; read their documentation first, and do not rewrite a branch others have pulled.
+
 ### When a run stops
 
 ```bash

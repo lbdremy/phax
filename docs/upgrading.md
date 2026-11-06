@@ -21,6 +21,10 @@ phax schema upgrade                   # phax.schema.json, the editor schema of p
 
 Only the releases that ask for something are listed. phax never asks for a step silently: a command that needs one refuses with exit 12 and names it.
 
+### 0.35.0
+
+- **Commit trailers name no path of the machine.** Phase, interactive and held review commits no longer carry `Worktree` or `Session-Id`, and `Gate-Log` is relative to the run's folder (`phase-02/checks-attempt-01.log`), or `none`. A stop whose commit was written by an older version still closes, and no record or run file changes. A script that read those trailers reads the phase folder instead: `agent-binding` for the session, the attempt logs for the gate. See [The phase commit](../README.md#the-phase-commit) for history already written.
+
 ### 0.34.0
 
 - **Gate steps accept `partial`.** An optional `partial` object with a `files` and/or a `diff` command, joined by pipes only, is shown in the phase prompt and allowed in secure mode; a malformed one is refused when the config loads, as is a quote, a backslash or a `*` in it. `phax validate` and `phax run --dry-run` list the prefixes each profile's partial commands allow (the `--json` answers gain `partialPrefixes`). See [Partial commands](../README.md#partial-commands). Records readers: `security.json` `agentCommands[].source` gains the value `"partial"`; the file stays at version 3. No migration is needed.

@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import { randomUUID } from "node:crypto";
-import { join } from "node:path";
+import { isAbsolute, join, relative } from "node:path";
 import type { ClaudeSessionId, PhaseId, RunId, WorktreePath } from "../domain/branded.js";
 import {
   PhaseHadNoChangesError,
@@ -35,7 +35,37 @@ export interface CommitResult {
   readonly commitHash: string;
 }
 
-function buildCommitBody(opts: CommitPhaseOptions): string {
+/**
+ * The `Gate-Log` trailer value: the log's POSIX path relative to the run
+ * folder, or `none` for no log or one outside the run folder.
+ */
+export function gateLogTrailerValue(runPath: string, gateLogPath: string | null): string {
+  if (gateLogPath === null) return "none";
+  const rel = relative(runPath, gateLogPath);
+  if (
+    rel === "" ||
+    isAbsolute(rel) ||
+    rel === ".." ||
+    rel.startsWith("../") ||
+    rel.startsWith("..\\")
+  ) {
+    return "none";
+  }
+  return rel.replaceAll("\\", "/");
+}
+
+/**
+ * Reads a `Gate-Log` trailer back to the absolute log path: null for null or
+ * `none`, an absolute value (written by an older version) as is, any other
+ * value joined onto the run folder.
+ */
+export function resolveGateLogTrailer(runPath: string, value: string | null): string | null {
+  if (value === null || value === "none") return null;
+  if (isAbsolute(value)) return value;
+  return join(runPath, value);
+}
+
+export function buildCommitBody(opts: CommitPhaseOptions): string {
   const lines: string[] = [
     opts.phase.commit.body,
     "",
@@ -47,9 +77,7 @@ function buildCommitBody(opts: CommitPhaseOptions): string {
     `Phase-Title: ${opts.phase.title}`,
     `Model: ${opts.phase.model}`,
     `Effort: ${opts.phase.effort}`,
-    `Worktree: ${opts.worktreePath}`,
-    `Session-Id: ${opts.sessionId}`,
-    `Gate-Log: ${opts.gateLogPath ?? "none"}`,
+    `Gate-Log: ${gateLogTrailerValue(opts.runPath, opts.gateLogPath)}`,
   ];
   return lines.join("\n");
 }
@@ -58,7 +86,8 @@ export interface InteractiveCommitBodyOptions {
   readonly phase: Pick<PhaxPlanPhase, "id" | "title" | "commit">;
   readonly runId: string;
   readonly shortName: string;
-  readonly worktreePath: string;
+  /** Run folder: the `Gate-Log` trailer is written relative to it. */
+  readonly runPath: string;
   /** The log of the closing gate attempt whose tree the commit holds: its `Gate-Log` trailer. */
   readonly gateLogPath: string;
 }
@@ -67,7 +96,9 @@ export interface InteractiveCommitBodyOptions {
  * The body of a declared interactive phase's commit: the plan's body, then
  * the trailers. No `Model`, `Effort` or `Session-Id`: no agent session wrote
  * the correction. `Phase-Id` stays, as `phax records explain` finds a phase's
- * commits by it.
+ * commits by it. Trailers written, in order: `Run-Id`, `Short-Name`,
+ * `Phase-Id`, `Phase-Title`, `Interactive-Phase`, `Gate-Log` (relative to the
+ * run folder, or `none`). None names a path outside the run.
  */
 export function buildInteractiveCommitBody(opts: InteractiveCommitBodyOptions): string {
   return [
@@ -80,8 +111,7 @@ export function buildInteractiveCommitBody(opts: InteractiveCommitBodyOptions): 
     `Phase-Id: ${opts.phase.id}`,
     `Phase-Title: ${opts.phase.title}`,
     `Interactive-Phase: ${opts.phase.id}`,
-    `Worktree: ${opts.worktreePath}`,
-    `Gate-Log: ${opts.gateLogPath}`,
+    `Gate-Log: ${gateLogTrailerValue(opts.runPath, opts.gateLogPath)}`,
   ].join("\n");
 }
 
@@ -89,7 +119,9 @@ export function buildInteractiveCommitBody(opts: InteractiveCommitBodyOptions): 
  * The body of a held stop's review commit: one line saying a person corrected
  * the phase, then the trailers. No `Phase-Id`, `Model`, `Effort` or
  * `Session-Id`: the review commit names neither a record nor an agent, and
- * the phase commit it sits on keeps its own trailers.
+ * the phase commit it sits on keeps its own trailers. Trailers written, in
+ * order: `Run-Id`, `Short-Name`, `Phase-Title`, `Held-Phase`, `Gate-Log`
+ * (relative to the run folder, or `none`). None names a path outside the run.
  */
 export function buildHeldReviewCommitBody(opts: InteractiveCommitBodyOptions): string {
   return [
@@ -101,8 +133,7 @@ export function buildHeldReviewCommitBody(opts: InteractiveCommitBodyOptions): s
     `Short-Name: ${opts.shortName}`,
     `Phase-Title: ${opts.phase.title}`,
     `Held-Phase: ${opts.phase.id}`,
-    `Worktree: ${opts.worktreePath}`,
-    `Gate-Log: ${opts.gateLogPath}`,
+    `Gate-Log: ${gateLogTrailerValue(opts.runPath, opts.gateLogPath)}`,
   ].join("\n");
 }
 
