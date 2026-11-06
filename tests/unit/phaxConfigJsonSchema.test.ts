@@ -146,6 +146,30 @@ describe("getPhaxConfigJsonSchema", () => {
     expect(surface["enum"]).toEqual(["local", "structural", "product"]);
   });
 
+  it.each([
+    ["project", getPhaxConfigJsonSchema],
+    ["user", getPhaxUserOverlayJsonSchema],
+  ])(
+    "describes partial on a gate step in the %s schema: files and diff, at least one, no other key",
+    (_name, get) => {
+      const stepSchema = findGateStepSchema(get());
+      expect(stepSchema).toBeDefined();
+      const properties = stepSchema!["properties"] as Record<string, Record<string, unknown>>;
+      const partial = properties["partial"]!;
+      expect(partial).toBeDefined();
+      expect(Object.keys(partial["properties"] as object).toSorted()).toEqual(["diff", "files"]);
+      expect(partial["additionalProperties"]).toBe(false);
+      expect(partial["anyOf"]).toEqual([{ required: ["files"] }, { required: ["diff"] }]);
+      expect(partial["description"]).toContain("never runs them");
+      const variants = partial["properties"] as Record<string, Record<string, unknown>>;
+      expect(variants["files"]!["description"]).toContain("<files>");
+      expect(variants["files"]!["minLength"]).toBe(1);
+      expect(variants["diff"]!["description"]).toContain("no placeholder");
+      expect(variants["diff"]!["minLength"]).toBe(1);
+      expect((stepSchema!["required"] as string[]) ?? []).not.toContain("partial");
+    },
+  );
+
   it("commits root schema files equal to the generated ones", () => {
     const root = new URL("../../", import.meta.url).pathname;
     const committed = JSON.parse(readFileSync(join(root, "phax.schema.json"), "utf8"));

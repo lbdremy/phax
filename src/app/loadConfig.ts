@@ -8,6 +8,7 @@ import { decodeNamespace } from "../domain/branded.js";
 import { mergeConfigLayers } from "../domain/config/mergeLayers.js";
 import { parseGitmodulesPaths } from "../domain/config/gitmodules.js";
 import { findDuplicateCommand } from "../domain/gate/commandWords.js";
+import { describePartialRefusal, parsePartialCommand } from "../domain/gate/partialCommand.js";
 import { isPhaseWorktree } from "../domain/security/phaseGuard.js";
 import { protectedList, submoduleConflict } from "../domain/security/protectedPaths.js";
 import { PHAX_CONTEXT_DIR } from "./worktree.js";
@@ -216,6 +217,60 @@ function protectedPathsError(
   return undefined;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+// The raw `partial` of every gate step, in phax.json or a user overlay, checked
+// before the full decode so each refusal names the step's bracketed path, the
+// variant and the construct. A non-string variant is left to the decode.
+function partialCommandsError(raw: unknown, configPath: string): ConfigValidationError | undefined {
+  const refuse = (message: string) => new ConfigValidationError({ message, path: configPath });
+  const usage = 'declare "files", "diff" or both';
+  const checkProfiles = (prefix: string, profiles: unknown): ConfigValidationError | undefined => {
+    if (!isRecord(profiles)) return undefined;
+    for (const [profile, steps] of Object.entries(profiles)) {
+      if (!Array.isArray(steps)) continue;
+      for (const [index, step] of steps.entries()) {
+        if (!isRecord(step) || !Object.hasOwn(step, "partial")) continue;
+        const path = `${prefix}.${profile}[${index}].partial`;
+        const partial = step["partial"];
+        if (!isRecord(partial)) return refuse(`${path}: ${usage}`);
+        const unknownKey = Object.keys(partial).find((key) => key !== "files" && key !== "diff");
+        if (unknownKey !== undefined) {
+          return refuse(
+            `${path}: ${JSON.stringify(unknownKey)} is not a partial variant; ${usage}`,
+          );
+        }
+        if (!Object.hasOwn(partial, "files") && !Object.hasOwn(partial, "diff")) {
+          return refuse(`${path}: ${usage}`);
+        }
+        for (const variant of ["files", "diff"] as const) {
+          const command = partial[variant];
+          if (typeof command !== "string") continue;
+          const parsed = parsePartialCommand(command, variant);
+          if (Either.isLeft(parsed)) {
+            return refuse(`${path}.${variant}: ${describePartialRefusal(parsed.left)}`);
+          }
+        }
+      }
+    }
+    return undefined;
+  };
+  if (!isRecord(raw)) return undefined;
+  const top = checkProfiles("gateProfiles", raw["gateProfiles"]);
+  if (top) return top;
+  const workspaces = raw["workspaces"];
+  if (!Array.isArray(workspaces)) return undefined;
+  for (const [index, workspace] of workspaces.entries()) {
+    if (!isRecord(workspace)) continue;
+    const id = typeof workspace["id"] === "string" ? workspace["id"] : String(index);
+    const found = checkProfiles(`workspaces[${id}].gateProfiles`, workspace["gateProfiles"]);
+    if (found) return found;
+  }
+  return undefined;
+}
+
 // The first of `declared` that names one path (no `*` or `?`) and that path a
 // directory: a tree in HEAD, or a directory on disk now. Such an entry matches
 // no file, since a glob covers files. HEAD is read by one `git cat-file`
@@ -297,6 +352,8 @@ function readUserOverlay(
       );
     }
   }
+  const partialRefusal = partialCommandsError(raw, filePath);
+  if (partialRefusal) return Either.left(partialRefusal);
   const decoded = decodePhaxUserOverlay(raw);
   if (Either.isLeft(decoded)) {
     return Either.left(
@@ -435,6 +492,9 @@ export function loadConfig(
 
   const protectedPathsRefusal = protectedPathsError(raw, configPath, gitRoot);
   if (protectedPathsRefusal) return Either.left(protectedPathsRefusal);
+
+  const partialRefusal = partialCommandsError(raw, configPath);
+  if (partialRefusal) return Either.left(partialRefusal);
 
   const decoded = decodePhaxConfig(raw);
   if (Either.isLeft(decoded)) {

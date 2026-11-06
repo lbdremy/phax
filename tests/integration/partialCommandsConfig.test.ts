@@ -85,7 +85,7 @@ const BOTH = {
 
 describe("partial on a gate step: accepted", () => {
   // ac-accepted
-  it.fails("loads both variants in phax.json and a files-only step in the user overlay", () => {
+  it("loads both variants in phax.json and a files-only step in the user overlay", () => {
     writeProject(standardSteps(step("pnpm lint", { partial: BOTH })));
     const overlayPartial = { files: "pnpm exec vitest run <files>" };
     writeOverlay({ gateProfiles: { overlay: [step("pnpm test", { partial: overlayPartial })] } });
@@ -101,13 +101,13 @@ describe("partial on a gate step: accepted", () => {
 
 describe("partial on a gate step: shape refusals", () => {
   // ac-empty-refused
-  it.fails("refuses an empty partial, naming the bracketed step path", () => {
+  it("refuses an empty partial, naming the bracketed step path", () => {
     writeProject(standardSteps(step("pnpm lint", { partial: {} })));
     expect(message(loadConfig(repoDir))).toContain("gateProfiles.standard[3].partial");
   });
 
   // ac-empty-refused
-  it.fails("refuses a partial with an unknown key, naming the bracketed step path", () => {
+  it("refuses a partial with an unknown key, naming the bracketed step path", () => {
     writeProject(standardSteps(step("pnpm lint", { partial: { all: "pnpm exec oxlint ." } })));
     expect(message(loadConfig(repoDir))).toContain("gateProfiles.standard[3].partial");
   });
@@ -115,7 +115,7 @@ describe("partial on a gate step: shape refusals", () => {
 
 describe("partial on a gate step: placeholders", () => {
   // ac-files-placeholder
-  it.fails("refuses a files command without a placeholder", () => {
+  it("refuses a files command without a placeholder", () => {
     writeProject(
       standardSteps(
         step("pnpm lint"),
@@ -126,7 +126,7 @@ describe("partial on a gate step: placeholders", () => {
   });
 
   // ac-diff-placeholder
-  it.fails("refuses a diff command with a placeholder", () => {
+  it("refuses a diff command with a placeholder", () => {
     writeProject(
       standardSteps(step("pnpm lint", { partial: { diff: "pnpm exec oxlint <files>" } })),
     );
@@ -149,7 +149,7 @@ describe("partial on a gate step: compound and nested constructs", () => {
   ];
 
   // ac-compound-refused
-  it.fails.each(refused)("refuses %s in a diff command", (_name, command, construct) => {
+  it.each(refused)("refuses %s in a diff command", (_name, command, construct) => {
     writeProject(standardSteps(step("pnpm lint", { partial: { diff: command } })));
     const text = message(loadConfig(repoDir));
     expect(text).toContain("gateProfiles.standard[3].partial.diff");
@@ -157,7 +157,7 @@ describe("partial on a gate step: compound and nested constructs", () => {
   });
 
   // ac-compound-refused
-  it.fails("names the overlay's profile path when the user overlay holds the refusal", () => {
+  it("names the overlay's profile path when the user overlay holds the refusal", () => {
     writeProject(standardSteps());
     writeOverlay({
       gateProfiles: { overlay: [step("pnpm lint", { partial: { diff: "ls; ls" } })] },
@@ -168,7 +168,7 @@ describe("partial on a gate step: compound and nested constructs", () => {
   });
 
   // ac-compound-refused
-  it.fails("accepts a plain pipe in a diff command", () => {
+  it("accepts a plain pipe in a diff command", () => {
     writeProject(standardSteps(step("pnpm lint", { partial: { diff: "ls | xargs wc -l" } })));
     const result = loadConfig(repoDir);
     expect(Either.isRight(result)).toBe(true);
@@ -180,7 +180,7 @@ describe("partial on a gate step: compound and nested constructs", () => {
   });
 
   // ac-compound-refused
-  it.fails("accepts a files command with a placeholder", () => {
+  it("accepts a files command with a placeholder", () => {
     writeProject(
       standardSteps(step("pnpm lint", { partial: { files: "pnpm exec oxlint <files>" } })),
     );
