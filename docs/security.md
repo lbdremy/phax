@@ -113,7 +113,7 @@ network control at all.
 - File-editing tools restricted to the worktree cwd + `--add-dir` paths; an allowed shell command runs with the user's rights, outside any OS sandbox
 - No native domain-allowlist flag; `network.profile` is recorded but not enforced as a per-domain filter
 - MCP disabled or allowlisted via `--strict-mcp-config`; under `provider-default`, a headless session loads no user-scope server
-- Shell is denied by default; only the phase's gate commands are allowlisted (see [Shell command execution](#shell-command-execution))
+- Shell is denied by default; only the phase's gate and partial commands are allowlisted (see [Shell command execution](#shell-command-execution))
 
 **Codex CLI** (`codex-cli`):
 
@@ -276,7 +276,11 @@ Code and Vibe phax controls which commands may start, and a started command runs
 with the user's rights. The allowlisted set is every
 step's command in the profile, regardless of its `firing` — terminal steps
 still execute at the last phase, so their commands must be allowlisted from
-the start:
+the start. A step's [partial commands](../README.md#partial-commands) are
+allowlisted with it: the set also holds the segment prefix of every pipe segment
+of every partial command in the profile, whatever the step's `firing`, recorded
+in `security.json` with `source` `"partial"`. phax never runs a partial command;
+it only lets the agent start it.
 
 | Provider       | Shell model in secure mode                                                                                                                                                                                      |
 | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -294,6 +298,16 @@ Notes:
   the broader shell surface is documented here rather than emitted as a separate mark.
 - Vibe's allowlist is a prefix match, recorded as `prefix` enforcement. It checks the
   call, not what an allowed command goes on to do.
+- Partial commands on Claude Code: each pipe segment is its own `Bash(<prefix>:*)`
+  rule. A pipe whose every segment is allowed runs, and a `$(…)` form is denied even
+  when allowed as an exact string (guarded by `tests/e2e/claudePartialCommands.test.ts`).
+- Partial commands on Vibe: a pipe whose every segment is on the allowlist is expected
+  to run; `tests/e2e/vibeSecure.test.ts` records the observed result. **To be confirmed
+  by a real-CLI run:** this sentence is provisional until the operator runs that test
+  and replaces it with the observed outcome.
+- Known residual: an allowed segment prefix accepts any further options and arguments,
+  as gate commands already do. A prefix that stops before a placeholder allows the tool
+  on any files.
 
 ### Read-only review sessions
 
