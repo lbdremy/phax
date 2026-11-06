@@ -53,6 +53,14 @@ const STEPS: readonly GateStep[] = [
 ];
 const STEP_COMMANDS = STEPS.map((s) => s.command);
 
+function session(id: string) {
+  return {
+    sessionId: id as ClaudeSessionId,
+    outputPath: "",
+    finalText: "",
+  };
+}
+
 describe("partial commands are never run", () => {
   let root: string;
 
@@ -160,11 +168,6 @@ describe("partial commands are never run", () => {
       return baseRun(options);
     };
 
-    const session = (id: string) => ({
-      sessionId: id as ClaudeSessionId,
-      outputPath: "",
-      finalText: "",
-    });
     const fakeBackend = makeFakeBackend();
     fakeBackend.impl.addRunResponse(session("sess-01"));
     for (const id of ["sess-01-fix", "sess-01-h"]) fakeBackend.impl.addResumeResponse(session(id));

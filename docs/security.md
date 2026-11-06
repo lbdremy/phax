@@ -284,7 +284,7 @@ it only lets the agent start it.
 
 | Provider       | Shell model in secure mode                                                                                                                                                                                      |
 | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `claude-code`  | **Per-command allowlist.** Bash is denied by default; phax allowlists exactly the gate commands (`--allowedTools "Bash(<cmd>:*)"`). Every other shell command is denied.                                        |
+| `claude-code`  | **Per-command allowlist.** Bash is denied by default; phax allowlists exactly the config `agentCommands`, the gate commands and the pipe segments of the gate steps' partial commands (`--allowedTools "Bash(<cmd>:*)"`). Every other shell command is denied.                                        |
 | `codex-cli`    | **OS-sandboxed execution.** Any command may run, but the `workspace-write` sandbox confines writes to the writable roots and the network profile gates egress. There is no per-command allowlist surface.       |
 | `mistral-vibe` | **Prefix allowlist.** `VIBE_TOOLS` gives `bash` `permission: ask` with an allowlist equal to the phase's agent commands, so any other call is refused in a headless turn. In the 2026-10-27 probe, chained, outside-the-roots and background calls fell outside the prefixes and were refused; the real-CLI suite (`tests/e2e/vibeSecure.test.ts`) checks each from the stream's tool calls. |
 
@@ -299,15 +299,25 @@ Notes:
 - Vibe's allowlist is a prefix match, recorded as `prefix` enforcement. It checks the
   call, not what an allowed command goes on to do.
 - Partial commands on Claude Code: each pipe segment is its own `Bash(<prefix>:*)`
-  rule. A pipe whose every segment is allowed runs, and a `$(…)` form is denied even
-  when allowed as an exact string (guarded by `tests/e2e/claudePartialCommands.test.ts`).
-- Partial commands on Vibe: a pipe whose every segment is on the allowlist is expected
-  to run; `tests/e2e/vibeSecure.test.ts` records the observed result. **To be confirmed
-  by a real-CLI run:** this sentence is provisional until the operator runs that test
-  and replaces it with the observed outcome.
+  rule. A pipe whose every segment is allowed runs; a pipe into a command no rule
+  allows is denied though its first segment is allowed; and a `$(…)` form is denied
+  though its outer and inner commands both start with an allowed prefix (guarded by
+  `tests/e2e/claudePartialCommands.test.ts`). phax refuses a `*` in a partial command,
+  because Claude Code reads `*` in a rule as a wildcard.
+- Partial commands on Vibe: Vibe checks each pipe segment against the allowlist. A
+  pipe whose every segment is allowed runs, and a pipe into a command off the allowlist
+  is refused though its first segment is allowed (observed on Vibe 3.0.3, 2026-11-06,
+  by `tests/e2e/vibeSecure.test.ts`).
 - Known residual: an allowed segment prefix accepts any further options and arguments,
   as gate commands already do. A prefix that stops before a placeholder allows the tool
-  on any files.
+  on any files. Unlike a gate command, which is usually a project script, a partial
+  prefix is often a general tool, so the further arguments reach more: `git diff
+  --name-only` also allows `git diff --output=<path>`, which writes a file, and a prefix
+  that ends at a launcher (`sh -c`, `xargs`, `env FOO=1`, `node`, `pnpm exec`) allows any
+  command started through it. phax refuses none of these; `phax validate` and
+  `phax run --dry-run` list every prefix so the maintainer sees what a partial grants.
+  Once a test runner is allowed and the agent can write files, the allowlist is already
+  not a boundary against running code.
 
 ### Read-only review sessions
 

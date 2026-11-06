@@ -755,15 +755,18 @@ A gate step can carry a `partial` object naming cheaper commands that cover part
 - Each phase prompt shows both commands under the step, as "on some files" and "on your changes", and tells the agent to replace the placeholder with the files it chooses.
 - In secure mode the agent may run them without you listing them in `security.agentCommands`. phax allows the start of every pipe segment of a partial command (its words before a placeholder), for every step of the profile, whatever its `firing`.
 - phax never runs a partial command. The gate still runs `pnpm test`, in full.
-- The grammar is small: `files` needs a `<name>` placeholder (lowercase letters, digits and `-`), `diff` takes none, and the parts of a command are joined with `|` only. Anything else (`&&`, `||`, `;`, `&`, `>`, `>>`, `$(…)`, a backtick, a line break, a stray `<`, an empty segment, a segment that starts with a placeholder) is refused when the config loads, and `phax validate` names the step, the variant and the construct. Quotes are not parsed, so a quoted `|` is split like any other; wrap such a command in a script.
+- The grammar is small: `files` needs a `<name>` placeholder (lowercase letters, digits and `-`), `diff` takes none, and the parts of a command are joined with `|` only. Anything else (`&&`, `||`, `;`, `&`, `>`, `>>`, `$(…)`, a backtick, a line break, a stray `<`, a quote, a backslash, a `*`, an empty segment, a segment whose first word holds a placeholder) is refused when the config loads, and `phax validate` names the step, the variant and the construct. phax parses no quotes, escapes or globs, so wrap a command that needs them in a committed script.
+- `phax validate` and `phax run --dry-run` list the prefixes each profile's partial commands allow. A prefix that ends at a launcher (`sh -c <cmd>`, `xargs <files>`, `env FOO=1 <files>`, `node <files>`) lets the agent start any command through it: read the list before you commit a partial.
 
-A piped `diff` command has two traps. With an empty diff, `xargs` may run the tool on the whole repository unless it skips empty input (`xargs -r`). And `git diff` does not list new untracked files, which a phase worktree holds until phax commits. A safer form:
+A piped `diff` command has two traps. With an empty diff, `xargs` may run the tool on the whole repository unless it skips empty input (`xargs -r`). And `git diff` does not list new untracked files, which a phase worktree holds until phax commits. This form avoids the first trap only:
 
 ```json
 "partial": {
   "diff": "git diff --name-only --diff-filter=d | xargs -r pnpm exec oxlint"
 }
 ```
+
+It still skips the files the phase created. A partial command cannot join two listings, so to cover new files too, point `diff` at a committed script that lists both (`git diff --name-only --diff-filter=d` and `git ls-files --others --exclude-standard`) and runs the tool on them.
 
 ### Brief provider
 

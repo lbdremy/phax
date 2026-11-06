@@ -7,6 +7,7 @@ import * as Schema from "effect/Schema";
 import { invalidBoundMessages } from "../../app/assignmentBounds.js";
 import { describeConfigSources, loadConfig } from "../../app/loadConfig.js";
 import { loadPlan } from "../../app/loadPlan.js";
+import { partialPrefixesByProfile } from "../../domain/gate/partialCommand.js";
 import { defineCommand, reject } from "../commandLibrary/contract/index.js";
 import { makeRepoRootedFileSystemLayer } from "../commands/runLayers.js";
 import { exposeMessage } from "./shared.js";
@@ -42,6 +43,9 @@ const ValidateOutput = Schema.Struct({
   namespace: Schema.String,
   sources: Schema.NullOr(Sources),
   protectedPaths: Schema.NullOr(Schema.Array(Schema.String)),
+  partialPrefixes: Schema.Array(
+    Schema.Struct({ profile: Schema.String, prefixes: Schema.Array(Schema.String) }),
+  ),
   assignments: Schema.NullOr(
     Schema.Struct({ total: Schema.Number, part: Schema.Number, globs: Schema.Number }),
   ),
@@ -69,7 +73,7 @@ export const validateCommand = defineCommand({
   name: "validate",
   summary:
     "Validate phax.json and its user overlays without any side effects; pass --plan to also validate a phax-plan.json",
-  help: "Checks that the configuration decodes and, with --plan, that the given phax-plan.json decodes. The config layers (phax.json, phax.local.json, ~/.phax/config.json) are merged and decoded; a user overlay that carries assignments is refused, because assignments is accepted only in phax.json.\n\nThe protected paths are listed: the globs of phax.json's \"protectedPaths\" in order, then the phax.json phax loaded, which is protected too, by its repo-relative path. A malformed glob exits 2 naming protectedPaths[N], and protectedPaths in phax.local.json or ~/.phax/config.json is refused, because it is accepted only in phax.json.\n\nThe assignment bounds of phax.json are checked against the routing catalog: each bound's model must be in the catalog, its min and max efforts must be efforts that model offers, and min may not come after max. A bad bound exits 2 naming assignments[N] and the field. The shape of a bound is checked at decode time by every command; the catalog check is this command's, lint's and the run preflight's.\n\nExits 0 when everything is valid, 2 otherwise.\n\nSide effects: none.",
+  help: "Checks that the configuration decodes and, with --plan, that the given phax-plan.json decodes. The config layers (phax.json, phax.local.json, ~/.phax/config.json) are merged and decoded; a user overlay that carries assignments is refused, because assignments is accepted only in phax.json.\n\nThe protected paths are listed: the globs of phax.json's \"protectedPaths\" in order, then the phax.json phax loaded, which is protected too, by its repo-relative path. A malformed glob exits 2 naming protectedPaths[N], and protectedPaths in phax.local.json or ~/.phax/config.json is refused, because it is accepted only in phax.json.\n\nThe prefixes that gate steps' partial commands allow a secure session to start are listed per gate profile that declares any: the words of each pipe segment before its first placeholder, each one a command the agent may run with any further arguments.\n\nThe assignment bounds of phax.json are checked against the routing catalog: each bound's model must be in the catalog, its min and max efforts must be efforts that model offers, and min may not come after max. A bad bound exits 2 naming assignments[N] and the field. The shape of a bound is checked at decode time by every command; the catalog check is this command's, lint's and the run preflight's.\n\nExits 0 when everything is valid, 2 otherwise.\n\nSide effects: none.",
   examples: ["phax validate", "phax validate --plan phax-plan.json"],
   input: { flags: reject(ValidateFlags) },
   output: reject(ValidateOutput),
@@ -121,6 +125,7 @@ export const validateCommand = defineCommand({
                 global: sources.globalOverlay ?? null,
               },
         protectedPaths: config.protectedPaths?.map((entry) => entry.glob) ?? null,
+        partialPrefixes: partialPrefixesByProfile(config.raw),
         assignments,
         plan: null,
       };
@@ -193,6 +198,9 @@ function renderValidated(value: typeof ValidateOutput.Type): string {
   }
   if (value.protectedPaths !== null) {
     lines.push(`  protected paths: ${value.protectedPaths.join(", ")}`);
+  }
+  for (const { profile, prefixes } of value.partialPrefixes) {
+    lines.push(`  partial commands allow (${profile}): ${prefixes.join(", ")}`);
   }
   if (value.assignments !== null) {
     const { total, part, globs } = value.assignments;

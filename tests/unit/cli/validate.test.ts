@@ -32,7 +32,7 @@ vi.mock("../../../src/app/loadRouting.js", async (importOriginal) => {
 
 function makeConfig(namespace = "myproject"): ResolvedConfig {
   return {
-    raw: {} as never,
+    raw: { gateProfiles: {} } as never,
     namespace,
     stateRoot: "/fake-state",
     repoRoot: "/fake-repo",
@@ -157,6 +157,41 @@ describe("runValidate", () => {
     expect(lines.indexOf("  protected paths: **/steme.baseline.json, phax.json")).toBe(
       lines.indexOf("  global:  (none)") + 1,
     );
+  });
+
+  it("lists the prefixes each profile's partial commands allow", async () => {
+    const { loadConfig, describeConfigSources } = vi.mocked(
+      await import("../../../src/app/loadConfig.js"),
+    );
+    const lint = {
+      command: "pnpm lint",
+      surface: "local",
+      firing: "every-phase",
+      output: "log",
+      partial: {
+        files: "pnpm exec oxlint <files>",
+        diff: "git diff --name-only --diff-filter=d | xargs -r pnpm exec oxlint",
+      },
+    };
+    loadConfig.mockReturnValue(
+      Either.right({
+        ...makeConfig(),
+        raw: { gateProfiles: { quick: [], standard: [lint] } } as never,
+      }),
+    );
+    describeConfigSources.mockReturnValue({
+      project: "/repo/phax.json",
+      localOverlay: undefined,
+      globalOverlay: undefined,
+    });
+
+    const { code, outLines: lines } = await phaxCall(["validate"]);
+
+    expect(code).toBe(0);
+    expect(lines).toContain(
+      "  partial commands allow (standard): pnpm exec oxlint, git diff --name-only --diff-filter=d, xargs -r pnpm exec oxlint",
+    );
+    expect(lines.some((line) => line.includes("(quick)"))).toBe(false);
   });
 
   it("prints no protected paths line for a project that declares none", async () => {

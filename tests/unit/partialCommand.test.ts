@@ -4,6 +4,7 @@ import {
   describePartialRefusal,
   parsePartialCommand,
   partialAllowPrefixes,
+  partialPrefixesByProfile,
   type PartialCommandRefusal,
   type PartialVariant,
 } from "../../src/domain/gate/partialCommand.js";
@@ -32,6 +33,10 @@ const constructs: readonly [string, string, string][] = [
   ["a redirection", "ls > out", ">"],
   ["an input redirection", "ls < in", "<"],
   ["a semicolon", "ls; ls", ";"],
+  ["a single quote", "grep -E 'a' x", "'"],
+  ["a double quote", 'grep -E "a" x', '"'],
+  ["a backslash", "grep a\\.b x", "\\"],
+  ["a glob", "git diff --name-only -- *.ts", "*"],
 ];
 
 describe("parsePartialCommand refusals", () => {
@@ -73,6 +78,7 @@ describe("parsePartialCommand refusals", () => {
   it("refuses a segment that starts with a placeholder", () => {
     expect(refusalOf("<files>", "files")).toEqual({ kind: "leading-placeholder" });
     expect(refusalOf("ls | <files> --fix", "files")).toEqual({ kind: "leading-placeholder" });
+    expect(refusalOf("x<files> --fix", "files")).toEqual({ kind: "leading-placeholder" });
   });
 
   it("refuses a files command with no placeholder", () => {
@@ -85,15 +91,38 @@ describe("parsePartialCommand refusals", () => {
     });
   });
 
-  it("splits or refuses a quoted metacharacter like an unquoted one", () => {
+  it("refuses a quoted command, naming the quote unless an earlier construct comes first", () => {
     expect(refusalOf("grep 'a;b'", "diff")).toEqual({ kind: "construct", construct: ";" });
-    expect(prefixesOf("grep 'a|b'", "diff")).toEqual(["grep 'a", "b'"]);
+    expect(refusalOf("grep 'a|b'", "diff")).toEqual({ kind: "construct", construct: "'" });
+    expect(refusalOf('ls | "<files>" --fix', "files")).toEqual({
+      kind: "construct",
+      construct: '"',
+    });
+  });
+
+  it("refuses an empty command", () => {
+    expect(refusalOf("", "files")).toEqual({ kind: "empty-command" });
+    expect(refusalOf("   ", "diff")).toEqual({ kind: "empty-command" });
+  });
+
+  it("names a malformed placeholder as a placeholder, not a redirection", () => {
+    expect(refusalOf("pnpm exec oxlint <FILES>", "files")).toEqual({
+      kind: "malformed-placeholder",
+    });
+    expect(refusalOf("pnpm exec oxlint <1st>", "files")).toEqual({
+      kind: "malformed-placeholder",
+    });
   });
 
   it("words every refusal", () => {
     expect(describePartialRefusal({ kind: "construct", construct: ";" })).toBe(
       '";" is not allowed in a partial command; join commands with "|" only',
     );
+    expect(describePartialRefusal({ kind: "construct", construct: "'" })).toBe(
+      `"'" is not allowed in a partial command; phax parses no quotes, escapes or globs, so wrap such a command in a committed script`,
+    );
+    expect(describePartialRefusal({ kind: "empty-command" })).toBe("a partial command is empty");
+    expect(describePartialRefusal({ kind: "malformed-placeholder" })).toContain("lowercase");
     expect(describePartialRefusal({ kind: "needs-placeholder" })).toBe(
       "a files command needs a placeholder such as <files>",
     );
@@ -161,7 +190,8 @@ describe("parsePartialCommand accepted forms", () => {
       for (const { text, prefix } of parsed.right.segments) {
         expect(prefix).not.toMatch(/[<>|]/);
         const words = text.split(" ");
-        const prefixWords = prefix === "" ? [] : prefix.split(" ");
+        expect(prefix).not.toBe("");
+        const prefixWords = prefix.split(" ");
         expect(words.slice(0, prefixWords.length)).toEqual(prefixWords);
       }
     }
@@ -215,5 +245,26 @@ describe("partialAllowPrefixes", () => {
 
   it("throws on a command the loader would have refused", () => {
     expect(() => partialAllowPrefixes([step("a", { diff: "ls; ls" })])).toThrow();
+  });
+});
+
+describe("partialPrefixesByProfile", () => {
+  it("lists each declaring profile, top-level first, then workspaces as <workspace>/<profile>", () => {
+    const lint = step("pnpm lint", { files: "pnpm exec oxlint <files>" });
+    expect(
+      partialPrefixesByProfile({
+        gateProfiles: { quick: [step("pnpm test")], standard: [lint] },
+        workspaces: [
+          {
+            id: "web",
+            gateProfiles: { standard: [step("pnpm test", { diff: "git diff --name-only" })] },
+          },
+          { id: "api" },
+        ],
+      }),
+    ).toEqual([
+      { profile: "standard", prefixes: ["pnpm exec oxlint"] },
+      { profile: "web/standard", prefixes: ["git diff --name-only"] },
+    ]);
   });
 });

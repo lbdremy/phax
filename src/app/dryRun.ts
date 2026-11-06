@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import { resolveGateProfile } from "./gates.js";
 import { checkRequiredCommands } from "../domain/security/agentCommands.js";
+import { partialAllowPrefixes } from "../domain/gate/partialCommand.js";
 import { runKey } from "../domain/runRef.js";
 import { checkSkillEditConsent, phaseSkillEditGrants } from "../domain/security/skillEditGrants.js";
 import type { ResolvedConfig } from "../schemas/phaxConfig.js";
@@ -31,6 +32,8 @@ export interface DryRunReport {
   readonly cleanupCommands: readonly string[];
   readonly gateCommands: readonly string[];
   readonly agentCommands: readonly string[];
+  /** The prefixes the profile's partial commands allow a secure session to start. */
+  readonly partialPrefixes: readonly string[];
   readonly requiredCommands: readonly string[];
   readonly uncoveredRequiredCommands: readonly string[];
   readonly phases: readonly DryRunPhase[];
@@ -55,7 +58,9 @@ export function buildDryRunReport(
   hold: HoldRequest = { kind: "none" },
 ): DryRunReport {
   const profileId = gateProfileId ?? Object.keys(config.raw.gateProfiles)[0] ?? "";
-  const gateCommands = resolveGateProfile(config, profileId).map((s) => s.command);
+  const gateSteps = resolveGateProfile(config, profileId);
+  const gateCommands = gateSteps.map((s) => s.command);
+  const partialPrefixes = partialAllowPrefixes(gateSteps);
 
   // Use the passed securityMode if provided, otherwise fall back to config
   const effectiveSecurityMode = securityMode ?? config.security.profile;
@@ -105,6 +110,7 @@ export function buildDryRunReport(
     cleanupCommands: config.raw.commands?.cleanup ?? [],
     gateCommands,
     agentCommands,
+    partialPrefixes,
     requiredCommands,
     uncoveredRequiredCommands,
     phases,
@@ -155,6 +161,16 @@ export function formatDryRunReport(report: DryRunReport): string {
   if (report.agentCommands.length > 0) {
     for (const cmd of report.agentCommands) {
       lines.push(`  ${cmd}`);
+    }
+  } else {
+    lines.push("  (none)");
+  }
+  lines.push("");
+
+  lines.push("Partial command prefixes (gate steps' partial):");
+  if (report.partialPrefixes.length > 0) {
+    for (const prefix of report.partialPrefixes) {
+      lines.push(`  ${prefix}`);
     }
   } else {
     lines.push("  (none)");

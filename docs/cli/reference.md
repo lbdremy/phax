@@ -39,6 +39,8 @@ Checks that the configuration decodes and, with --plan, that the given phax-plan
 
 The protected paths are listed: the globs of phax.json's "protectedPaths" in order, then the phax.json phax loaded, which is protected too, by its repo-relative path. A malformed glob exits 2 naming protectedPaths[N], and protectedPaths in phax.local.json or ~/.phax/config.json is refused, because it is accepted only in phax.json.
 
+The prefixes that gate steps' partial commands allow a secure session to start are listed per gate profile that declares any: the words of each pipe segment before its first placeholder, each one a command the agent may run with any further arguments.
+
 The assignment bounds of phax.json are checked against the routing catalog: each bound's model must be in the catalog, its min and max efforts must be efforts that model offers, and min may not come after max. A bad bound exits 2 naming assignments[N] and the field. The shape of a bound is checked at decode time by every command; the catalog check is this command's, lint's and the run preflight's.
 
 Exits 0 when everything is valid, 2 otherwise.
