@@ -228,6 +228,13 @@ desktop — none is promised by the announcement.
       command. Probe Claude Code's native Bash sandbox (settings, seatbelt on macOS) with a write
       allowlist of the worktree (none for a read-only session), apply it to every Claude session, and
       find Vibe's equivalent; until then `docs/security.md` states the limit.
+- [ ] **The codex e2e suite checks a provider the router no longer picks.** Found 2026-11-06
+      reviewing #193. `realFlow [codex-cli] (secure) > each phase recorded the expected security
+      posture and provider` fails: `tests/e2e/fixtures/minimal-repo/plan.md` asks for
+      `claude-haiku-4-5-20251001` / `none`, no codex model is anchored to that pair in
+      `src/domain/routing/defaults.ts` any more, so a forced codex-cli resolves to claude-code, while
+      `expectedSelectedProvider` (`tests/e2e/helpers/providers.ts`) assumes the forced provider wins.
+      Give the codex suite a phase model it serves, or make the helper follow `resolveModel`.
 - [ ] **Codex never ends a session on network loss.** Codex 0.165, its API unreachable, emits
       `Reconnecting... N/5`, then `Reconnecting... waiting for network` every ~50 s without end and no
       `turn.failed` (2026-10-28, real e2e of `provider-failures`). A Codex phase hangs with nothing on
