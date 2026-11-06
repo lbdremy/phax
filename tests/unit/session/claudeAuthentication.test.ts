@@ -95,6 +95,18 @@ describe("a Claude session with no result", () => {
     });
   });
 
+  it("reads a stderr `Not logged in` from another tool as before", () => {
+    expect(claudeFailure(ended([], "Error: Not logged in. Run gh auth login.\n")).kind).toBe(
+      "provider-error",
+    );
+  });
+
+  it("reads Claude Code's own stderr `Not logged in · Please run /login` as not-authenticated", () => {
+    expect(claudeFailure(ended([], "Not logged in · Please run /login\n")).kind).toBe(
+      "not-authenticated",
+    );
+  });
+
   it("reads an unrelated stderr as before", () => {
     expect(claudeFailure(ended([], "something broke\n")).kind).toBe("provider-error");
   });
