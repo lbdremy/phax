@@ -1,4 +1,5 @@
-Write the phax spec `commit-trailers-paths`: a phase's commit carries no path of the machine that ran it, so a
+Write the phax plan `commit-trailers-paths`, with no source spec (the change is small enough to go straight to a
+plan): a phase's commit carries no path of the machine that ran it, so a
 repository's history says nothing of who ran phax, nor where, nor of the folders on their disk.
 
 ## Why
@@ -29,7 +30,7 @@ phase, on the records branch, is where the run's own data belongs.
 There is also an inconsistency to settle: a decision or authoring record withholds its provider session ids
 (`[session id withheld]`, `src/app/recordPlumbing.ts`), while every phase commit carries `Session-Id` in clear.
 
-## What the spec must cover
+## What the plan must settle
 
 - **Which trailers a phase commit keeps**, and in which form. At least: `Worktree` and `Gate-Log` either go, or become
   relative to the state root (`runs/<namespace>.<short name>/phase-02/checks-attempt-01.log`), which names no person
@@ -40,7 +41,7 @@ There is also an inconsistency to settle: a decision or authoring record withhol
 - **Whether any of this is a setting.** A trailer that is only ever a leak is better gone than configurable; one that a
   reader of the history needs may stay on by default.
 - **What phax says about history it already wrote.** Rewriting a repository's history is the user's, never phax's: the
-  spec may name the trailers a user would strip (`git filter-branch --msg-filter`, `git filter-repo`) without phax
+  docs may name the trailers a user would strip (`git filter-branch --msg-filter`, `git filter-repo`) without phax
   doing it.
 
 ## Constraints
@@ -50,8 +51,11 @@ There is also an inconsistency to settle: a decision or authoring record withhol
 - **No persisted format bumps**: a record or a run file changes only by what it no longer writes, at its current
   version.
 - **phax knows no project**: the words are phax's.
-- **§9 holds genuine choices only**, each with its options, what each abandons and a recommended default. At least:
-  drop or relativise `Worktree` and `Gate-Log`; what becomes of `Session-Id`.
+- **Technical arbitrations hold genuine choices only**, raised as open questions, each with its options, what each
+  abandons and a recommended default. At least: drop or relativise `Worktree` and `Gate-Log`; what becomes of
+  `Session-Id`.
+- **One phase if it fits**: the code, its tests and the docs (`docs/upgrading.md`, and wherever the trailers are
+  described) together, unless the change splits along a real seam.
 
 ## Out of scope
 

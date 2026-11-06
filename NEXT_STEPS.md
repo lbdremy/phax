@@ -50,7 +50,7 @@ names the narrow check of each step.
 
 ### 4. Small briefs to spec
 
-- [ ] **`commit-trailers-paths`** — `docs/briefs/commit-trailers-paths.md` (2026-11-04). The
+- [ ] **`commit-trailers-paths`** — `docs/briefs/commit-trailers-paths-plan.md` (2026-11-04; straight to a plan, no spec). The
       `Worktree:` and `Gate-Log:` trailers put the operator's home path into every repository's
       history.
 - [ ] **`records-branch-tip`** — `docs/briefs/records-branch-tip.md` (2026-11-04). A record
