@@ -36,8 +36,7 @@ import { processOutput } from "../helpers/processOutput.js";
 
 // Acceptance tests for partial commands in a run: the prompt's partial lines,
 // the Claude Code allow rules, the "partial" source in security.json, resume,
-// and provider-agnostic rendering. Marked as expected failures until phase-04
-// wires them; phase-04 removes the markers.
+// and provider-agnostic rendering.
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -204,11 +203,6 @@ function makeRun(
     stderr: "",
   });
 
-  const session = (id: string) => ({
-    sessionId: id as ClaudeSessionId,
-    outputPath: "",
-    finalText: "",
-  });
   const fakeBackend = makeFakeBackend();
   for (const id of ["sess-01", "sess-02"]) fakeBackend.impl.addRunResponse(session(id));
   const resumeIds = opts.failCommand === undefined ? ["sess-01-h", "sess-02-h"] : ["sess-01-fix"];
@@ -310,6 +304,14 @@ function allowedToolsOf(s: Scenario): string[] {
   return (flags[at + 1] ?? "").split(",");
 }
 
+function session(id: string) {
+  return {
+    sessionId: id as ClaudeSessionId,
+    outputPath: "",
+    finalText: "",
+  };
+}
+
 describe("partial commands in a run (acceptance)", () => {
   let root: string;
 
@@ -395,7 +397,7 @@ describe("partial commands in a run (acceptance)", () => {
     expect(Either.isRight(result)).toBe(true);
     const records = (await readPosture(runPath)).agentCommands;
 
-    const partials = records.filter((r) => (r.source as string) === "partial");
+    const partials = records.filter((r) => r.source === "partial");
     expect(partials.map((r) => r.command).toSorted()).toEqual(
       [
         "git diff --name-only --diff-filter=d",

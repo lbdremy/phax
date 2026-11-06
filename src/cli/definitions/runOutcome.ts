@@ -72,6 +72,7 @@ const DryRunReportSchema = Schema.Struct({
   cleanupCommands: Schema.Array(Schema.String),
   gateCommands: Schema.Array(Schema.String),
   agentCommands: Schema.Array(Schema.String),
+  partialPrefixes: Schema.Array(Schema.String),
   requiredCommands: Schema.Array(Schema.String),
   uncoveredRequiredCommands: Schema.Array(Schema.String),
   phases: Schema.Array(
@@ -110,6 +111,7 @@ export function dryRunReportValue(report: DryRunReport): DryRunReportValue {
     cleanupCommands: report.cleanupCommands,
     gateCommands: report.gateCommands,
     agentCommands: report.agentCommands,
+    partialPrefixes: report.partialPrefixes,
     requiredCommands: report.requiredCommands,
     uncoveredRequiredCommands: report.uncoveredRequiredCommands,
     phases: report.phases.map((phase) => ({

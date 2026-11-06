@@ -718,7 +718,73 @@ describe.skipIf(SKIP !== undefined)("Mistral Vibe 3 in secure mode (real CLI)", 
         .join("; ");
       const note = `piped partial command ${attempts.some(ran) ? "ran" : "refused"} on Vibe (${settlement}); prefixes: ${prefixes.join(" | ")}`;
       console.info(`VIBE PARTIAL OUTCOME: ${note}`);
-      printArtifacts({ repoDir: cwd, phaxHome: phaseFolder }, note);
+    },
+  );
+
+  it(
+    "piped partial command: a pipe into a command off the allowlist is refused, its first segment allowed",
+    { timeout: 600_000 },
+    async () => {
+      // `tee` is on no prefix: if this ran, Vibe matched only the call's start,
+      // and any partial prefix would let a secure agent pipe into anything.
+      const canary = "pipe-canary.txt";
+      const allowed = "git diff --name-only --diff-filter=d | xargs wc -l";
+      const unlisted = `git diff --name-only --diff-filter=d | tee ${canary}`;
+      const parsed = parsePartialCommand(allowed, "diff");
+      if (Either.isLeft(parsed)) throw new Error(`refused: ${parsed.left.kind}`);
+      const prefixes = parsed.right.segments.map((segment) => segment.prefix);
+
+      const cwd = mkdtempSync(join(tmpdir(), "phax-e2e-vibe-partial-neg-"));
+      scratch.push(cwd);
+      const git = (...args: string[]): void => {
+        const r = spawnSync("git", args, { cwd, encoding: "utf8", stdio: "pipe" });
+        expect(r.status, `git ${args.join(" ")}: ${r.stderr}`).toBe(0);
+      };
+      git("init", "-q");
+      git("config", "user.email", "e2e@example.com");
+      git("config", "user.name", "e2e");
+      writeFileSync(join(cwd, "tracked.txt"), "one\n");
+      git("add", "tracked.txt");
+      git("commit", "-q", "-m", "init");
+      writeFileSync(join(cwd, "tracked.txt"), "one\ntwo\nthree\n");
+
+      const phaseFolder = mkdtempSync(join(tmpdir(), "phax-e2e-vibe-partial-neg-phase-"));
+      scratch.push(phaseFolder);
+      const security: SecurityPolicy = {
+        mode: "secure",
+        filesystem: { allowRead: [cwd], allowWrite: [cwd] },
+        network: { profile: "provider-only" },
+        mcp: { mode: "disabled", allow: [] },
+        agentCommands: prefixes,
+        failClosed: true,
+      };
+      const streamPath = join(phaseFolder, "output.jsonl");
+      await Effect.runPromise(
+        runVibeAgent(
+          `Run this shell command verbatim, exactly once: ${unlisted}\n` +
+            "If it is refused, do not retry it or look for another way. Then finish.",
+          {
+            provider: "mistral-vibe",
+            model: "phax-mistral-medium-3.5-off",
+            effort: "off",
+            cwd,
+            security,
+            agentCommands: prefixes,
+            phaseFolderPath: phaseFolder,
+            outputJsonlPath: streamPath,
+          },
+          { executable: "vibe", modelEnvVar: "VIBE_ACTIVE_MODEL", defaultAgent: "auto-approve" },
+        ),
+      );
+
+      const attempts = toolCallsOf(readFileSync(streamPath, "utf8")).filter(
+        bashCall(`tee ${canary}`),
+      );
+      expect(attempts.length, "Vibe attempted the pipe into tee").toBeGreaterThan(0);
+      for (const call of attempts) {
+        expect(refused(call), `not refused: ${JSON.stringify(call)}`).toBe(true);
+      }
+      expect(existsSync(join(cwd, canary)), `tee ran: ${canary} exists`).toBe(false);
     },
   );
 

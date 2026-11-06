@@ -23,7 +23,8 @@ import type { SecurityPolicy } from "../security/types.js";
 //                              implicit, so worktree pass-through happens via
 //                              the spawn cwd)
 //   --allowedTools Bash(...)   (one prefix rule per frozen agentCommand; the
-//                              set is config ∪ gate commands, computed before
+//                              set is config ∪ gate ∪ partial-command
+//                              prefixes, computed before
 //                              the agent spawns and recorded in security.json.
 //                              Under acceptEdits the headless --print session
 //                              has no approver, so any Bash not matched here

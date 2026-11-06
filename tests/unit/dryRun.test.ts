@@ -145,6 +145,42 @@ describe("buildDryRunReport / formatDryRunReport", () => {
     expect(output).toContain("Required commands (plan.run.requiredCommands):");
   });
 
+  it("lists the prefixes the profile's partial commands allow, or (none)", () => {
+    expect(buildDryRunReport(minimalPlan, minimalConfig).partialPrefixes).toEqual([]);
+    expect(formatDryRunReport(buildDryRunReport(minimalPlan, minimalConfig))).toContain(
+      "Partial command prefixes (gate steps' partial):\n  (none)",
+    );
+    const withPartial: ResolvedConfig = {
+      ...minimalConfig,
+      raw: {
+        ...minimalConfig.raw,
+        gateProfiles: {
+          full: [
+            {
+              command: "pnpm lint",
+              surface: "local",
+              firing: "every-phase",
+              output: "log",
+              partial: {
+                files: "pnpm exec oxlint <files>",
+                diff: "git diff --name-only --diff-filter=d | xargs -r pnpm exec oxlint",
+              },
+            },
+          ],
+        },
+      },
+    };
+    const report = buildDryRunReport(minimalPlan, withPartial);
+    expect(report.partialPrefixes).toEqual([
+      "pnpm exec oxlint",
+      "git diff --name-only --diff-filter=d",
+      "xargs -r pnpm exec oxlint",
+    ]);
+    expect(formatDryRunReport(report)).toContain(
+      "Partial command prefixes (gate steps' partial):\n  pnpm exec oxlint\n  git diff --name-only --diff-filter=d\n  xargs -r pnpm exec oxlint\n",
+    );
+  });
+
   it("reports uncovered required commands and preflight warning", () => {
     const planWithRequired: PhaxPlan = {
       ...minimalPlan,

@@ -8,6 +8,8 @@ export type PartialCommandRefusal =
   | { readonly kind: "needs-placeholder" }
   | { readonly kind: "no-placeholder-allowed" }
   | { readonly kind: "empty-segment" }
+  | { readonly kind: "empty-command" }
+  | { readonly kind: "malformed-placeholder" }
   | { readonly kind: "leading-placeholder" };
 
 interface PartialSegment {
@@ -21,7 +23,16 @@ export interface ParsedPartialCommand {
 
 const PLACEHOLDER = /<[a-z][a-z0-9-]*>/g;
 const HAS_PLACEHOLDER = /<[a-z][a-z0-9-]*>/;
-const STARTS_WITH_PLACEHOLDER = /^<[a-z][a-z0-9-]*>/;
+// What is left of a `<word>` once well-formed placeholders are removed, such
+// as `<FILES>` or `<1st>`: named as a placeholder, not as a redirection.
+const MALFORMED_PLACEHOLDER = /<[^\s<>|]+>/;
+const MALFORMED = "malformed placeholder";
+
+const UNPARSED = ["'", '"', "\\", "*"] as const;
+
+function isUnparsed(construct: string): boolean {
+  return (UNPARSED as readonly string[]).includes(construct);
+}
 
 // Checked on the raw string, in this order; the first one found is named.
 // Placeholders are removed before `<` and `>` are tested, so only a stray one
@@ -34,10 +45,16 @@ function findConstruct(command: string): string | undefined {
   if (command.includes("||")) return "||";
   if (command.includes("&")) return "&";
   const bare = command.replace(PLACEHOLDER, "");
+  if (MALFORMED_PLACEHOLDER.test(bare)) return MALFORMED;
   if (bare.includes(">>")) return ">>";
   if (bare.includes(">")) return ">";
   if (bare.includes("<")) return "<";
   if (command.includes(";")) return ";";
+  // Not parsed: a quote, an escape or a glob would reach the allow rules
+  // as written, and Claude Code reads `*` in a rule as a wildcard.
+  for (const unparsed of UNPARSED) {
+    if (command.includes(unparsed)) return unparsed;
+  }
   return undefined;
 }
 
@@ -56,11 +73,15 @@ export function parsePartialCommand(
   command: string,
   variant: PartialVariant,
 ): Either.Either<ParsedPartialCommand, PartialCommandRefusal> {
+  if (command.trim() === "") return Either.left({ kind: "empty-command" });
   const construct = findConstruct(command);
+  if (construct === MALFORMED) return Either.left({ kind: "malformed-placeholder" });
   if (construct !== undefined) return Either.left({ kind: "construct", construct });
   const texts = command.split("|").map((segment) => segment.trim().split(/\s+/).join(" "));
   if (texts.some((text) => text === "")) return Either.left({ kind: "empty-segment" });
-  if (texts.some((text) => STARTS_WITH_PLACEHOLDER.test(text.split(" ")[0] ?? ""))) {
+  // A placeholder anywhere in a segment's first word (`<files>`, `x<files>`,
+  // `"<files>"`) leaves it no prefix to allow.
+  if (texts.some((text) => HAS_PLACEHOLDER.test(text.split(" ")[0] ?? ""))) {
     return Either.left({ kind: "leading-placeholder" });
   }
   const holdsPlaceholder = HAS_PLACEHOLDER.test(command);
@@ -77,11 +98,17 @@ export function parsePartialCommand(
 export function describePartialRefusal(refusal: PartialCommandRefusal): string {
   switch (refusal.kind) {
     case "construct":
-      return `"${refusal.construct}" is not allowed in a partial command; join commands with "|" only`;
+      return isUnparsed(refusal.construct)
+        ? `"${refusal.construct}" is not allowed in a partial command; phax parses no quotes, escapes or globs, so wrap such a command in a committed script`
+        : `"${refusal.construct}" is not allowed in a partial command; join commands with "|" only`;
     case "needs-placeholder":
       return "a files command needs a placeholder such as <files>";
     case "no-placeholder-allowed":
       return "a diff command takes no placeholder";
+    case "empty-command":
+      return "a partial command is empty";
+    case "malformed-placeholder":
+      return "a placeholder is lowercase letters, digits and -, starting with a letter, such as <files>";
     case "empty-segment":
       return 'a partial command has an empty segment; join commands with "|" only';
     case "leading-placeholder":
@@ -112,4 +139,36 @@ export function partialAllowPrefixes(steps: readonly GateStep[]): readonly strin
     }
   }
   return prefixes;
+}
+
+export interface ProfilePartialPrefixes {
+  /** The profile's name, `<workspace>/<profile>` for a workspace's own. */
+  readonly profile: string;
+  readonly prefixes: readonly string[];
+}
+
+/**
+ * The prefixes each gate profile's partial commands allow, for the profiles
+ * that declare any: the top-level ones in order, then each workspace's.
+ */
+export function partialPrefixesByProfile(config: {
+  readonly gateProfiles: Readonly<Record<string, readonly GateStep[]>>;
+  readonly workspaces?:
+    | readonly {
+        readonly id: string;
+        readonly gateProfiles?: Readonly<Record<string, readonly GateStep[]>> | undefined;
+      }[]
+    | undefined;
+}): readonly ProfilePartialPrefixes[] {
+  const named: [string, readonly GateStep[]][] = [
+    ...Object.entries(config.gateProfiles),
+    ...(config.workspaces ?? []).flatMap((workspace) =>
+      Object.entries(workspace.gateProfiles ?? {}).map(
+        ([profile, steps]): [string, readonly GateStep[]] => [`${workspace.id}/${profile}`, steps],
+      ),
+    ),
+  ];
+  return named
+    .map(([profile, steps]) => ({ profile, prefixes: partialAllowPrefixes(steps) }))
+    .filter((entry) => entry.prefixes.length > 0);
 }

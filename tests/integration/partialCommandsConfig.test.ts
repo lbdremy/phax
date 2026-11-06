@@ -146,6 +146,10 @@ describe("partial on a gate step: compound and nested constructs", () => {
     [">", "ls > out.txt", '">"'],
     [">>", "ls >> out.txt", '">>"'],
     ["a bare <", "wc -l < a.txt", '"<"'],
+    ["a single quote", "git diff --name-only | grep -E '\\.(ts|tsx)$'", '"\'"'],
+    ["a double quote", 'git diff --name-only -- "src"', `"""`],
+    ["a backslash", "git diff --name-only | grep a\\.ts", '"\\"'],
+    ["a glob", "git diff --name-only -- *.ts", '"*"'],
   ];
 
   // ac-compound-refused

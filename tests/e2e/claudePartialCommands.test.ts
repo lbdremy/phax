@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { Either } from "effect";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { buildArgs } from "../../src/infra/providers/claudeCode.js";
@@ -12,14 +12,23 @@ import { probeProvider } from "./helpers/providers.js";
 
 // ac-claude-real: guards the probe fact behind partial commands. Under phax's
 // secure Claude Code flags, one `Bash(<prefix>:*)` rule per pipe segment lets a
-// piped diff command run, while a nested `$(…)` form is denied. The diff
+// piped diff command run; a pipe into a command no rule allows is denied though
+// its first segment is allowed; and a nested `$(…)` form is denied though its
+// outer and inner leading words are both allowed. The diff
 // command is a tool-free stand-in for a project's `pnpm exec oxlint …` pipe
 // (that tool does not exist in a temporary repository). Opt-in like realFlow
 // (PHAX_E2E_RUN=1); the operator runs it by name, the phase gate does not.
 const shouldRun = process.env["PHAX_E2E_RUN"] === "1" && probeProvider("claude");
 
 const DIFF_COMMAND = "git diff --name-only --diff-filter=d | xargs wc -l";
-const NESTED_COMMAND = "wc -l $(git diff --name-only)";
+// Both the outer and the inner command start with an allowed prefix, so a
+// denial can come only from the substitution itself.
+const NESTED_COMMAND =
+  "git diff --name-only --diff-filter=d $(git diff --name-only --diff-filter=d)";
+// The first segment is allowed, `tee` is not: if this ran, Claude Code matched
+// the call's start only, and the canary file would exist.
+const CANARY = "pipe-canary.txt";
+const UNLISTED_PIPE_COMMAND = `git diff --name-only --diff-filter=d | tee ${CANARY}`;
 const TRACKED = "tracked.txt";
 
 interface ToolCall {
@@ -94,7 +103,7 @@ describe.skipIf(!shouldRun)("ac-claude-real: claude-code piped partial command",
     if (repoDir) rmSync(repoDir, { recursive: true, force: true });
   });
 
-  it("runs the piped diff command and denies the nested $(…) form", () => {
+  it("runs the piped diff command, denies a pipe into an unlisted command and the nested $(…) form", () => {
     const parsed = parsePartialCommand(DIFF_COMMAND, "diff");
     if (Either.isLeft(parsed)) throw new Error(`the diff command was refused: ${parsed.left.kind}`);
     const prefixes = parsed.right.segments.map((segment) => segment.prefix);
@@ -123,9 +132,10 @@ describe.skipIf(!shouldRun)("ac-claude-real: claude-code piped partial command",
     expect(argv).toContain("Bash(xargs wc -l:*)");
 
     const prompt = [
-      "Make exactly these two Bash calls, one after another, and continue even if one is denied:",
+      "Make exactly these three Bash calls, one after another, and continue even if one is denied:",
       `1. Run this command verbatim: ${DIFF_COMMAND}`,
       `2. Run this command verbatim: ${NESTED_COMMAND}`,
+      `3. Run this command verbatim: ${UNLISTED_PIPE_COMMAND}`,
       "Make no other tool call. Then reply DONE.",
     ].join("\n");
 
@@ -149,8 +159,10 @@ describe.skipIf(!shouldRun)("ac-claude-real: claude-code piped partial command",
     const bash = calls.filter((call) => call.name === "Bash");
     const piped = bash.find((call) => commandOf(call).includes("xargs wc -l"));
     const nested = bash.find((call) => commandOf(call).includes("$("));
+    const unlisted = bash.find((call) => commandOf(call).includes(`tee ${CANARY}`));
     expect(piped, `no piped diff call\n${trace}`).toBeDefined();
     expect(nested, `no nested call\n${trace}`).toBeDefined();
+    expect(unlisted, `no call piping into an unlisted command\n${trace}`).toBeDefined();
 
     expect(piped?.isError, `the piped command did not run\n${trace}`).toBe(false);
     expect(piped?.result, `the result lacks the file's line count\n${trace}`).toMatch(
@@ -159,5 +171,9 @@ describe.skipIf(!shouldRun)("ac-claude-real: claude-code piped partial command",
 
     expect(nested?.isError, `the nested command was not denied\n${trace}`).toBe(true);
     expect(nested?.result, trace).toMatch(/den(y|ied)|permission|not allowed|nested|substitution/i);
+
+    expect(unlisted?.isError, `the pipe into tee was not denied\n${trace}`).toBe(true);
+    expect(unlisted?.result, trace).toMatch(/den(y|ied)|permission|not allowed|requires approval/i);
+    expect(existsSync(join(repoDir, CANARY)), `tee ran: ${CANARY} exists\n${trace}`).toBe(false);
   });
 });
