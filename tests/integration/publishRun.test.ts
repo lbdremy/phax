@@ -739,6 +739,8 @@ describe("publishRun — the phax footer", () => {
       git.impl.writeTreeCommit({
         repo: repoRoot,
         branch: finalBranch,
+        parent: null,
+        expectedTip: null,
         message: "phase-01",
         files: paths.map((path) => ({ path, content: new TextEncoder().encode(path) })),
       }),

@@ -6,7 +6,7 @@ import { execFileSync } from "node:child_process";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Effect, Either } from "effect";
 import { NodeGitLayer } from "../../src/infra/git.js";
-import { Git, type GitError } from "../../src/ports/git.js";
+import { Git, type GitError, type GitOps, type WriteTreeCommitInput } from "../../src/ports/git.js";
 import { decodeBranchName, type BranchName } from "../../src/domain/branded.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 
@@ -22,6 +22,13 @@ function git(args: readonly string[], cwd: string): string {
 
 function run<A>(effect: Effect.Effect<A, GitError, Git>): Promise<A> {
   return Effect.runPromise(Effect.provide(effect, NodeGitLayer));
+}
+
+// A write that parents on the branch's current tip and expects to find it there.
+function writeOnTip(g: GitOps, input: Omit<WriteTreeCommitInput, "parent" | "expectedTip">) {
+  return Effect.flatMap(g.resolveRef(input.repo, `refs/heads/${input.branch}`), (tip) =>
+    g.writeTreeCommit({ ...input, parent: tip, expectedTip: tip }),
+  );
 }
 
 const encoder = new TextEncoder();
@@ -58,7 +65,7 @@ describe("NodeGitLayer object plumbing", () => {
 
     await run(
       Effect.flatMap(Git, (g) =>
-        g.writeTreeCommit({
+        writeOnTip(g, {
           repo: repoDir,
           branch: RECORDS_BRANCH,
           message: "record: run-1 phase-01",
@@ -74,7 +81,7 @@ describe("NodeGitLayer object plumbing", () => {
   it("creates an orphan branch on first write and parents onto it on the second", async () => {
     const first = await run(
       Effect.flatMap(Git, (g) =>
-        g.writeTreeCommit({
+        writeOnTip(g, {
           repo: repoDir,
           branch: RECORDS_BRANCH,
           message: "record: first",
@@ -91,7 +98,7 @@ describe("NodeGitLayer object plumbing", () => {
 
     const second = await run(
       Effect.flatMap(Git, (g) =>
-        g.writeTreeCommit({
+        writeOnTip(g, {
           repo: repoDir,
           branch: RECORDS_BRANCH,
           message: "record: second",
@@ -117,7 +124,7 @@ describe("NodeGitLayer object plumbing", () => {
 
     await run(
       Effect.flatMap(Git, (g) =>
-        g.writeTreeCommit({
+        writeOnTip(g, {
           repo: repoDir,
           branch: RECORDS_BRANCH,
           message: "record: readable",
@@ -154,7 +161,7 @@ describe("NodeGitLayer object plumbing", () => {
 
     await run(
       Effect.flatMap(Git, (g) =>
-        g.writeTreeCommit({
+        writeOnTip(g, {
           repo: repoDir,
           branch: RECORDS_BRANCH,
           message: "record: no switch",
@@ -165,6 +172,44 @@ describe("NodeGitLayer object plumbing", () => {
 
     expect(git(["rev-parse", "--abbrev-ref", "HEAD"], repoDir).trim()).toBe(branchBefore);
     expect(git(["rev-parse", "HEAD"], repoDir).trim()).toBe(headBefore);
+  });
+
+  it("parents on the given parent and moves the branch only from the expected tip", async () => {
+    const base = git(["rev-parse", "HEAD"], repoDir).trim();
+    const files = [{ path: "run-1/phase-01/record.json", content: encoder.encode("x\n") }];
+    const onBase = await run(
+      Effect.flatMap(Git, (g) =>
+        g.writeTreeCommit({
+          repo: repoDir,
+          branch: RECORDS_BRANCH,
+          message: "record: on base",
+          files,
+          parent: base,
+          expectedTip: null,
+        }),
+      ),
+    );
+    expect(git(["rev-list", "--parents", "-n", "1", onBase], repoDir).trim()).toBe(
+      `${onBase} ${base}`,
+    );
+    expect(git(["rev-parse", "refs/heads/phax/records/v1"], repoDir).trim()).toBe(onBase);
+
+    const stale = await run(
+      Effect.either(
+        Effect.flatMap(Git, (g) =>
+          g.writeTreeCommit({
+            repo: repoDir,
+            branch: RECORDS_BRANCH,
+            message: "record: stale",
+            files,
+            parent: base,
+            expectedTip: base,
+          }),
+        ),
+      ),
+    );
+    expect(Either.isLeft(stale)).toBe(true);
+    expect(git(["rev-parse", "refs/heads/phax/records/v1"], repoDir).trim()).toBe(onBase);
   });
 
   it("resolves a missing ref to null", async () => {

@@ -103,12 +103,16 @@ function writeRecordDocumentCommit(
   });
   return runGitOnly(
     Effect.flatMap(Git, (g) =>
-      g.writeTreeCommit({
-        repo,
-        branch: RECORDS_BRANCH,
-        message,
-        files,
-      }),
+      Effect.flatMap(g.resolveRef(repo, `refs/heads/${RECORDS_BRANCH}`), (tip) =>
+        g.writeTreeCommit({
+          repo,
+          branch: RECORDS_BRANCH,
+          message,
+          files,
+          parent: tip,
+          expectedTip: tip,
+        }),
+      ),
     ),
   );
 }

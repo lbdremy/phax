@@ -35,17 +35,21 @@ function run<A>(effect: Effect.Effect<A, GitError, Git>): Promise<A> {
 function writeRecordCommit(repo: string, runId: string, phaseId: string, seed: string) {
   return run(
     Effect.flatMap(Git, (g) =>
-      g.writeTreeCommit({
-        repo,
-        branch: RECORDS_BRANCH,
-        message: `records(${phaseId}): committed`,
-        files: [
-          {
-            path: `${runId}/${phaseId}/record.json`,
-            content: new TextEncoder().encode(`{"seed":"${seed}"}\n`),
-          },
-        ],
-      }),
+      Effect.flatMap(g.resolveRef(repo, `refs/heads/${RECORDS_BRANCH}`), (tip) =>
+        g.writeTreeCommit({
+          repo,
+          branch: RECORDS_BRANCH,
+          message: `records(${phaseId}): committed`,
+          files: [
+            {
+              path: `${runId}/${phaseId}/record.json`,
+              content: new TextEncoder().encode(`{"seed":"${seed}"}\n`),
+            },
+          ],
+          parent: tip,
+          expectedTip: tip,
+        }),
+      ),
     ),
   );
 }

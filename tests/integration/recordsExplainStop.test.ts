@@ -284,24 +284,28 @@ describe("explain's address: which trailers name a record", () => {
     const manifest = recordOf(phaseId);
     await Effect.runPromise(
       Effect.flatMap(Git, (g) =>
-        g.writeTreeCommit({
-          repo: repoDir,
-          branch: RECORDS_BRANCH,
-          message: [
-            `records(${phaseId}): committed`,
-            "",
-            `Run-Id: ${RUN}`,
-            `Phase-Id: ${phaseId}`,
-          ].join("\n"),
-          files: [
-            {
-              path: `${RUN}/${phaseId}/record.json`,
-              content: new TextEncoder().encode(
-                `${JSON.stringify(encodeRunRecordManifest(withSchemaUrl("phase-record-manifest", manifest)), null, 2)}\n`,
-              ),
-            },
-          ],
-        }),
+        Effect.flatMap(g.resolveRef(repoDir, `refs/heads/${RECORDS_BRANCH}`), (tip) =>
+          g.writeTreeCommit({
+            parent: tip,
+            expectedTip: tip,
+            repo: repoDir,
+            branch: RECORDS_BRANCH,
+            message: [
+              `records(${phaseId}): committed`,
+              "",
+              `Run-Id: ${RUN}`,
+              `Phase-Id: ${phaseId}`,
+            ].join("\n"),
+            files: [
+              {
+                path: `${RUN}/${phaseId}/record.json`,
+                content: new TextEncoder().encode(
+                  `${JSON.stringify(encodeRunRecordManifest(withSchemaUrl("phase-record-manifest", manifest)), null, 2)}\n`,
+                ),
+              },
+            ],
+          }),
+        ),
       ).pipe(Effect.provide(NodeGitLayer)),
     );
   }

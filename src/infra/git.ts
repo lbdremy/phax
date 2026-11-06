@@ -115,6 +115,65 @@ function resolveRefEffect(repo: string, ref: string): Effect.Effect<string | nul
   );
 }
 
+// Compare-and-swap a ref through `update-ref --stdin`: `create` fails when the
+// ref exists, `update` fails when it is not at the old value. No zero-oid
+// literal, no --force.
+function updateRefEffect(
+  repo: string,
+  ref: string,
+  newSha: string,
+  expectedOld: string | null,
+): Effect.Effect<void, GitError> {
+  const line =
+    expectedOld === null ? `create ${ref} ${newSha}\n` : `update ${ref} ${newSha} ${expectedOld}\n`;
+  return gitRun(["update-ref", "--stdin"], repo, { input: line }).pipe(Effect.asVoid);
+}
+
+// Split a `git cat-file commit` body into its header and raw message
+// (everything after the first blank line, bytes untouched).
+function parseCommitObject(
+  raw: string,
+  commit: string,
+): Effect.Effect<
+  { tree: string; author: { name: string; email: string; date: string }; message: string },
+  GitError
+> {
+  const split = raw.indexOf("\n\n");
+  const header = split === -1 ? raw : raw.slice(0, split);
+  const message = split === -1 ? "" : raw.slice(split + 2);
+  const tree = /^tree ([0-9a-f]+)$/m.exec(header)?.[1];
+  const author = /^author (.*) <([^>]*)> (\d+ [+-]\d{4})$/m.exec(header);
+  if (tree === undefined || author === null) {
+    return Effect.fail(
+      new GitError({
+        message: `Could not parse commit ${commit}`,
+        command: `git cat-file commit ${commit}`,
+      }),
+    );
+  }
+  return Effect.succeed({
+    tree,
+    author: { name: author[1]!, email: author[2]!, date: author[3]! },
+    message,
+  });
+}
+
+const LIST_MARKER = "\u0001phax-commit ";
+
+function parseCommitFiles(
+  stdout: string,
+): readonly { readonly sha: string; readonly paths: readonly string[] }[] {
+  const commits: { sha: string; paths: string[] }[] = [];
+  for (const line of stdout.split("\n")) {
+    if (line.startsWith(LIST_MARKER)) {
+      commits.push({ sha: line.slice(LIST_MARKER.length).trim(), paths: [] });
+    } else if (line.length > 0) {
+      commits[commits.length - 1]?.paths.push(line);
+    }
+  }
+  return commits;
+}
+
 // Write `files` as one commit on `branch`, driving a throwaway index through
 // GIT_INDEX_FILE so the repo's own index and working tree are never touched.
 // hash-object stages blobs, update-index --index-info builds the scratch index,
@@ -125,6 +184,8 @@ function writeTreeCommitEffect(
   branch: string,
   message: string,
   files: readonly { path: string; content: Uint8Array }[],
+  parent: string | null,
+  expectedTip: string | null,
 ): Effect.Effect<string, GitError> {
   const ref = `refs/heads/${branch}`;
   return Effect.acquireUseRelease(
@@ -159,7 +220,6 @@ function writeTreeCommitEffect(
         const { stdout: treeOut } = yield* gitRun(["write-tree"], repo, { env });
         const tree = treeOut.trim();
 
-        const parent = yield* resolveRefEffect(repo, ref);
         const commitArgs =
           parent !== null
             ? ["commit-tree", tree, "-p", parent, "-m", message]
@@ -167,7 +227,7 @@ function writeTreeCommitEffect(
         const { stdout: commitOut } = yield* gitRun(commitArgs, repo);
         const commit = commitOut.trim();
 
-        yield* gitRun(["update-ref", ref, commit], repo);
+        yield* updateRefEffect(repo, ref, commit, expectedTip);
         return commit;
       }),
     (scratchDir) => Effect.promise(() => rm(scratchDir, { recursive: true, force: true })),
@@ -887,8 +947,83 @@ export const NodeGitLayer = Layer.succeed(Git, {
       Effect.map(({ stdout }) => parseChangedFilesOutput(stdout)),
     ),
 
-  writeTreeCommit: ({ repo, branch, message, files }) =>
-    writeTreeCommitEffect(repo, branch, message, files),
+  writeTreeCommit: ({ repo, branch, message, files, parent, expectedTip }) =>
+    writeTreeCommitEffect(repo, branch, message, files, parent, expectedTip),
+
+  mergeBase: (repo, a, b) =>
+    gitRunAllowFail(["merge-base", "--end-of-options", a, b], repo).pipe(
+      Effect.flatMap(({ stdout, stderr, exitCode }) => {
+        if (exitCode === 0) return Effect.succeed<string | null>(parseHeadCommitOutput(stdout));
+        if (exitCode === 1) return Effect.succeed<string | null>(null);
+        return Effect.fail(
+          new GitError({
+            message: `git merge-base failed: ${stderr.trim()}`,
+            command: `git merge-base --end-of-options ${a} ${b}`,
+            stderr,
+            exitCode,
+          }),
+        );
+      }),
+    ),
+
+  listCommitFiles: (repo, tip, exclude) =>
+    gitRun(
+      [
+        "log",
+        "--reverse",
+        "--no-renames",
+        // Each record commit's tree holds only its own files, so against its
+        // parent the paths it adds or rewrites are its own; the deletions of
+        // the previous commit's files are not.
+        "--diff-filter=AM",
+        `--format=${LIST_MARKER}%H`,
+        "--name-only",
+        ...(exclude === null ? [tip] : [tip, `^${exclude}`]),
+        "--",
+      ],
+      repo,
+    ).pipe(Effect.map(({ stdout }) => parseCommitFiles(stdout))),
+
+  recommit: (repo, commit, parent) =>
+    Effect.gen(function* () {
+      const { stdout } = yield* gitRun(["cat-file", "commit", commit], repo);
+      const { tree, author, message } = yield* parseCommitObject(stdout, commit);
+      const { stdout: out } = yield* gitRun(["commit-tree", tree, "-p", parent, "-F", "-"], repo, {
+        input: message,
+        env: {
+          GIT_AUTHOR_NAME: author.name,
+          GIT_AUTHOR_EMAIL: author.email,
+          GIT_AUTHOR_DATE: author.date,
+        },
+      });
+      return out.trim();
+    }),
+
+  updateRef: (repo, ref, newSha, expectedOld) => updateRefEffect(repo, ref, newSha, expectedOld),
+
+  fetchBranch: (repo, remote, branch) =>
+    Effect.gen(function* () {
+      const probe = yield* gitRunAllowFail(
+        ["ls-remote", "--exit-code", "--heads", "--", remote, `refs/heads/${branch}`],
+        repo,
+      );
+      if (probe.exitCode === 2) return "absent" as const;
+      if (probe.exitCode !== 0) {
+        return yield* Effect.fail(
+          new GitError({
+            message: `git ls-remote failed: ${probe.stderr.trim()}`,
+            command: `git ls-remote --exit-code --heads -- ${remote} refs/heads/${branch}`,
+            stderr: probe.stderr,
+            exitCode: probe.exitCode,
+          }),
+        );
+      }
+      yield* gitRun(
+        ["fetch", "--", remote, `refs/heads/${branch}:refs/remotes/${remote}/${branch}`],
+        repo,
+      );
+      return "fetched" as const;
+    }),
 
   resolveRef: (repo, ref) => resolveRefEffect(repo, ref),
 
