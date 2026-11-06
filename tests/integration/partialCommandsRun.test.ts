@@ -331,7 +331,7 @@ describe("partial commands in a run (acceptance)", () => {
     };
   }
 
-  it.fails("ac-prompt-lines: partial lines sit under their step, verbatim", async () => {
+  it("ac-prompt-lines: partial lines sit under their step, verbatim", async () => {
     const { first } = await runFull();
     const lines = first.split("\n");
     const at = lines.indexOf("- local: pnpm lint");
@@ -351,7 +351,7 @@ describe("partial commands in a run (acceptance)", () => {
     expect(first.match(/on your changes:/g)).toHaveLength(1);
   });
 
-  it.fails("ac-prompt-explains: the section explains partials and names no tool", async () => {
+  it("ac-prompt-explains: the section explains partials and names no tool", async () => {
     const { first } = await runFull();
     expect(first).toContain("check part of what the step checks");
     expect(first).toContain("Replace a placeholder such as <files> with the files you choose");
@@ -366,7 +366,7 @@ describe("partial commands in a run (acceptance)", () => {
     expect(fixed).not.toMatch(/\bgit\b/);
   });
 
-  it.fails("ac-terminal-partials: a terminal step's lines appear on the terminal phase only", async () => {
+  it("ac-terminal-partials: a terminal step's lines appear on the terminal phase only", async () => {
     const { first, second } = await runFull();
     expect(second).toContain(
       "- product: pnpm build\n  - on some files: pnpm exec vite build <files>",
@@ -375,7 +375,7 @@ describe("partial commands in a run (acceptance)", () => {
     expect(first).not.toContain("pnpm exec vite build");
   });
 
-  it.fails("ac-claude-rules: one Claude allow rule per partial segment, none with a placeholder or pipe", async () => {
+  it("ac-claude-rules: one Claude allow rule per partial segment, none with a placeholder or pipe", async () => {
     const s = makeRun(root, makeConfig(root, { secure: true }), { secure: true });
     const { result } = await s.startRun();
     expect(Either.isRight(result)).toBe(true);
@@ -388,7 +388,7 @@ describe("partial commands in a run (acceptance)", () => {
     }
   });
 
-  it.fails("ac-security-json: partial prefixes are recorded with source partial", async () => {
+  it("ac-security-json: partial prefixes are recorded with source partial", async () => {
     const config = makeConfig(root, { secure: true, agentCommands: ["pnpm exec oxlint"] });
     const s = makeRun(root, config, { secure: true });
     const { runPath, result } = await s.startRun();
@@ -415,7 +415,7 @@ describe("partial commands in a run (acceptance)", () => {
     for (const r of records) expect(r.command).not.toMatch(/[<|]/);
   });
 
-  it.fails("ac-resume: a relaunched phase keeps its partial lines and prefixes", async () => {
+  it("ac-resume: a relaunched phase keeps its partial lines and prefixes", async () => {
     const config = makeConfig(root, { secure: true });
     const s = makeRun(root, config, { failCommand: "pnpm test", secure: true });
     const { runPath, runId } = await s.startRun();
@@ -463,7 +463,7 @@ describe("partial commands in a run (acceptance)", () => {
     expect(partialsIn(relaunch?.options.agentCommands)).toEqual(firstPartials);
   });
 
-  it.fails("ac-resume: a resumed session keeps the same partial prefixes", async () => {
+  it("ac-resume: a resumed session keeps the same partial prefixes", async () => {
     // The gate never passes, so phase-01 stops in gates_exhausted with a binding;
     // a second execute re-enters its session through the binding path of executePlan.
     const config = makeConfig(root, { secure: true });
@@ -489,7 +489,7 @@ describe("partial commands in a run (acceptance)", () => {
     }
   });
 
-  it.fails("ac-providers: the gate section, partial lines included, is identical on every provider", async () => {
+  it("ac-providers: the gate section, partial lines included, is identical on every provider", async () => {
     const received = new Map<string, string>();
     for (const [provider, model] of [
       ["claude-code", "claude-sonnet-4-6"],

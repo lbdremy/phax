@@ -23,7 +23,7 @@ const PostureBaseFields = {
   agentCommands: Schema.Array(
     Schema.Struct({
       command: Schema.NonEmptyString,
-      source: Schema.Literal("config", "gate", "brief"),
+      source: Schema.Literal("config", "gate", "partial", "brief"),
       explicit: Schema.Boolean,
       requiredByPlan: Schema.Boolean,
       enforcement: Schema.Literal("exact", "prefix", "executable", "none"),

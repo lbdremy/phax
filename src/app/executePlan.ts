@@ -94,6 +94,7 @@ import { DEFAULT_MODEL_ROUTING, DEFAULT_PROVIDER_CONFIG } from "../domain/routin
 import { resolveModel } from "../domain/routing/resolve.js";
 import type { SecurityMode } from "../domain/security/types.js";
 import { evaluateProviderSecurity, securityFilterFor } from "../domain/security/capabilities.js";
+import { partialAllowPrefixes } from "../domain/gate/partialCommand.js";
 import { computeFrozenAgentCommands } from "../domain/security/agentCommands.js";
 import { resolveSecurityPolicy } from "../domain/security/resolvePolicy.js";
 import { phaseSkillEditGrants } from "../domain/security/skillEditGrants.js";
@@ -800,6 +801,7 @@ export function executePlan(
     readonly worktreePath: string;
     readonly phaseFolderPath: string;
     readonly gateCommands: readonly string[];
+    readonly partialCommands: readonly string[];
     readonly briefCommands: readonly string[];
     readonly skillEditGrants: readonly string[];
   }) {
@@ -850,6 +852,7 @@ export function executePlan(
       const frozenResult = computeFrozenAgentCommands({
         configCommands: securityPolicy.agentCommands,
         gateCommands: args.gateCommands,
+        partialCommands: args.partialCommands,
         briefCommands: args.briefCommands,
         requiredCommands: plan.run.requiredCommands,
         provider: resolution.selected.provider,
@@ -1176,6 +1179,9 @@ export function executePlan(
       startIndex,
     });
     const gateCommandStrings = gateSteps.map((s) => s.command);
+    // Every segment prefix of every partial command of the resolved profile (all
+    // firings): a secure phase may run each, though phax never does.
+    const partialPrefixes = partialAllowPrefixes(gateSteps);
     // A configured brief provider grants the in-phase agent `phax brief`.
     const briefCommands = config.brief !== undefined ? ["phax brief"] : [];
 
@@ -1748,6 +1754,7 @@ export function executePlan(
           worktreePath: stopWorktree as string,
           phaseFolderPath: stopFolder,
           gateCommands: gateCommandStrings,
+          partialCommands: partialPrefixes,
           briefCommands,
           skillEditGrants,
         });
@@ -2109,6 +2116,7 @@ export function executePlan(
         const resumeFrozenResult = computeFrozenAgentCommands({
           configCommands: securityPolicy.agentCommands,
           gateCommands: gateCommandStrings,
+          partialCommands: partialPrefixes,
           briefCommands,
           requiredCommands: plan.run.requiredCommands,
           provider: binding.provider,
@@ -2245,6 +2253,7 @@ export function executePlan(
           worktreePath: worktreePath as string,
           phaseFolderPath,
           gateCommands: gateCommandStrings,
+          partialCommands: partialPrefixes,
           briefCommands,
           skillEditGrants,
         });

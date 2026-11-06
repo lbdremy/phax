@@ -12,6 +12,7 @@ describe("computeFrozenAgentCommands — enforcement and degradation", () => {
       const { records, degraded } = computeFrozenAgentCommands({
         configCommands: ["deno"],
         gateCommands: [],
+        partialCommands: [],
         briefCommands: [],
         requiredCommands: [],
         provider,
@@ -25,6 +26,7 @@ describe("computeFrozenAgentCommands — enforcement and degradation", () => {
     const { records, degraded } = computeFrozenAgentCommands({
       configCommands: ["deno fmt"],
       gateCommands: [],
+      partialCommands: [],
       briefCommands: [],
       requiredCommands: [],
       provider: "codex-cli",
@@ -37,6 +39,7 @@ describe("computeFrozenAgentCommands — enforcement and degradation", () => {
     const { records, degraded } = computeFrozenAgentCommands({
       configCommands: ["deno fmt", "pnpm test:integration"],
       gateCommands: [],
+      partialCommands: [],
       briefCommands: [],
       requiredCommands: [],
       provider: "mistral-vibe",
@@ -52,6 +55,7 @@ describe("computeFrozenAgentCommands — enforcement and degradation", () => {
     const { records, degraded } = computeFrozenAgentCommands({
       configCommands: ["deno fmt"],
       gateCommands: [],
+      partialCommands: [],
       briefCommands: [],
       requiredCommands: [],
       provider: "claude-code",
@@ -66,6 +70,7 @@ describe("computeFrozenAgentCommands — source and explicit", () => {
     const { records } = computeFrozenAgentCommands({
       configCommands: ["deno fmt"],
       gateCommands: ["deno fmt"],
+      partialCommands: [],
       briefCommands: [],
       requiredCommands: [],
       provider: "claude-code",
@@ -79,6 +84,7 @@ describe("computeFrozenAgentCommands — source and explicit", () => {
     const { records } = computeFrozenAgentCommands({
       configCommands: [],
       gateCommands: ["git commit"],
+      partialCommands: [],
       briefCommands: [],
       requiredCommands: [],
       provider: "claude-code",
@@ -91,6 +97,7 @@ describe("computeFrozenAgentCommands — source and explicit", () => {
     const { records } = computeFrozenAgentCommands({
       configCommands: ["deno"],
       gateCommands: [],
+      partialCommands: [],
       briefCommands: [],
       requiredCommands: [],
       provider: "claude-code",
@@ -105,6 +112,7 @@ describe("computeFrozenAgentCommands — requiredByPlan", () => {
     const { records } = computeFrozenAgentCommands({
       configCommands: ["deno fmt", "git commit"],
       gateCommands: [],
+      partialCommands: [],
       briefCommands: [],
       requiredCommands: ["deno fmt"],
       provider: "claude-code",
@@ -119,6 +127,7 @@ describe("computeFrozenAgentCommands — requiredByPlan", () => {
     const { records } = computeFrozenAgentCommands({
       configCommands: ["deno  fmt"],
       gateCommands: [],
+      partialCommands: [],
       briefCommands: [],
       requiredCommands: ["deno fmt"],
       provider: "claude-code",
@@ -133,6 +142,7 @@ describe("computeFrozenAgentCommands — normalisation and deduplication", () =>
     const { records } = computeFrozenAgentCommands({
       configCommands: ["", "  "],
       gateCommands: [""],
+      partialCommands: [],
       briefCommands: [],
       requiredCommands: [],
       provider: "claude-code",
@@ -144,6 +154,7 @@ describe("computeFrozenAgentCommands — normalisation and deduplication", () =>
     const { records } = computeFrozenAgentCommands({
       configCommands: ["deno"],
       gateCommands: ["git commit", "deno"],
+      partialCommands: [],
       briefCommands: [],
       requiredCommands: [],
       provider: "claude-code",
@@ -157,6 +168,7 @@ describe("computeFrozenAgentCommands — normalisation and deduplication", () =>
     const { records: claude } = computeFrozenAgentCommands({
       configCommands: ["deno"],
       gateCommands: [],
+      partialCommands: [],
       briefCommands: [],
       requiredCommands: [],
       provider: "claude-code",
@@ -166,6 +178,7 @@ describe("computeFrozenAgentCommands — normalisation and deduplication", () =>
     const { records: codex } = computeFrozenAgentCommands({
       configCommands: ["deno"],
       gateCommands: [],
+      partialCommands: [],
       briefCommands: [],
       requiredCommands: [],
       provider: "codex-cli",
@@ -179,6 +192,7 @@ describe("computeFrozenAgentCommands — brief grant", () => {
     const { records } = computeFrozenAgentCommands({
       configCommands: ["deno"],
       gateCommands: ["git commit"],
+      partialCommands: [],
       briefCommands: ["phax brief"],
       requiredCommands: [],
       provider: "claude-code",
@@ -191,6 +205,7 @@ describe("computeFrozenAgentCommands — brief grant", () => {
     const { records } = computeFrozenAgentCommands({
       configCommands: ["phax  brief"],
       gateCommands: [],
+      partialCommands: [],
       briefCommands: ["phax brief"],
       requiredCommands: [],
       provider: "claude-code",
@@ -203,6 +218,7 @@ describe("computeFrozenAgentCommands — brief grant", () => {
     const { records } = computeFrozenAgentCommands({
       configCommands: [],
       gateCommands: ["phax brief"],
+      partialCommands: [],
       briefCommands: ["phax brief"],
       requiredCommands: [],
       provider: "claude-code",
@@ -215,6 +231,7 @@ describe("computeFrozenAgentCommands — brief grant", () => {
     const { records } = computeFrozenAgentCommands({
       configCommands: ["deno fmt"],
       gateCommands: ["git commit"],
+      partialCommands: [],
       briefCommands: [],
       requiredCommands: [],
       provider: "claude-code",
@@ -229,12 +246,105 @@ describe("computeFrozenAgentCommands — brief grant", () => {
     const { records, degraded } = computeFrozenAgentCommands({
       configCommands: [],
       gateCommands: [],
+      partialCommands: [],
       briefCommands: ["phax brief"],
       requiredCommands: [],
       provider: "codex-cli",
     });
     expect(records[0]?.degraded).toBe(true);
     expect(degraded).toBe(true);
+  });
+});
+
+describe("computeFrozenAgentCommands — partial prefixes", () => {
+  const cases: ReadonlyArray<{
+    readonly name: string;
+    readonly config: readonly string[];
+    readonly gate: readonly string[];
+    readonly partial: readonly string[];
+    readonly brief: readonly string[];
+    readonly expected: ReadonlyArray<readonly [string, string]>;
+  }> = [
+    {
+      name: "config and partial: once, as config",
+      config: ["pnpm exec oxlint"],
+      gate: [],
+      partial: ["pnpm exec oxlint"],
+      brief: [],
+      expected: [["pnpm exec oxlint", "config"]],
+    },
+    {
+      name: "gate and partial: once, as gate",
+      config: [],
+      gate: ["pnpm exec oxlint"],
+      partial: ["pnpm  exec oxlint"],
+      brief: [],
+      expected: [["pnpm exec oxlint", "gate"]],
+    },
+    {
+      name: "partial and brief: once, as partial",
+      config: [],
+      gate: [],
+      partial: ["phax brief"],
+      brief: ["phax brief"],
+      expected: [["phax brief", "partial"]],
+    },
+    {
+      name: "order is config, gate, partial, brief",
+      config: ["a"],
+      gate: ["b c"],
+      partial: ["d e", "xargs f"],
+      brief: ["phax brief"],
+      expected: [
+        ["a", "config"],
+        ["b c", "gate"],
+        ["d e", "partial"],
+        ["xargs f", "partial"],
+        ["phax brief", "brief"],
+      ],
+    },
+  ];
+
+  for (const c of cases) {
+    it(c.name, () => {
+      const { records } = computeFrozenAgentCommands({
+        configCommands: c.config,
+        gateCommands: c.gate,
+        partialCommands: c.partial,
+        briefCommands: c.brief,
+        requiredCommands: [],
+        provider: "claude-code",
+      });
+      expect(records.map((r) => [r.command, r.source])).toEqual(c.expected);
+      for (const r of records.filter((x) => x.source === "partial")) {
+        expect(r.explicit).toBe(false);
+      }
+    });
+  }
+
+  it("a narrow partial prefix is degraded exactly as a gate command is, per provider", () => {
+    for (const provider of ["claude-code", "mistral-vibe", "codex-cli"] as const) {
+      const viaPartial = computeFrozenAgentCommands({
+        configCommands: [],
+        gateCommands: [],
+        partialCommands: ["pnpm exec oxlint", "xargs"],
+        briefCommands: [],
+        requiredCommands: [],
+        provider,
+      });
+      const viaGate = computeFrozenAgentCommands({
+        configCommands: [],
+        gateCommands: ["pnpm exec oxlint", "xargs"],
+        partialCommands: [],
+        briefCommands: [],
+        requiredCommands: [],
+        provider,
+      });
+      expect(viaPartial.records.map((r) => [r.enforcement, r.degraded])).toEqual(
+        viaGate.records.map((r) => [r.enforcement, r.degraded]),
+      );
+      expect(viaPartial.degraded).toBe(viaGate.degraded);
+    }
   });
 });
 

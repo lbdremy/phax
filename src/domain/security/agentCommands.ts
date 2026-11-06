@@ -5,7 +5,7 @@ import type { ProviderId } from "../routing/types.js";
 
 export interface AgentCommandRecord {
   readonly command: string;
-  readonly source: "config" | "gate" | "brief";
+  readonly source: "config" | "gate" | "partial" | "brief";
   readonly explicit: boolean;
   readonly requiredByPlan: boolean;
   readonly enforcement: CommandEnforcement;
@@ -54,6 +54,8 @@ export function authoringAgentCommands(input: {
 export function computeFrozenAgentCommands(input: {
   readonly configCommands: readonly string[];
   readonly gateCommands: readonly string[];
+  /** Segment prefixes of the partial commands of the resolved gate profile, after gate entries. */
+  readonly partialCommands: readonly string[];
   /** Granted by a configured brief provider (`phax brief`), after config and gate entries. */
   readonly briefCommands: readonly string[];
   readonly requiredCommands: readonly string[];
@@ -63,7 +65,7 @@ export function computeFrozenAgentCommands(input: {
   const normalisedRequired = new Set(input.requiredCommands.map(normalise).filter(Boolean));
 
   // Build ordered, deduplicated map: config entries take precedence over gate
-  // entries, which take precedence over brief entries.
+  // entries, then partial entries, then brief entries.
   const seen = new Map<string, { source: AgentCommandRecord["source"]; explicit: boolean }>();
 
   for (const raw of input.configCommands) {
@@ -77,6 +79,13 @@ export function computeFrozenAgentCommands(input: {
     const cmd = normalise(raw);
     if (cmd && !seen.has(cmd)) {
       seen.set(cmd, { source: "gate", explicit: false });
+    }
+  }
+
+  for (const raw of input.partialCommands) {
+    const cmd = normalise(raw);
+    if (cmd && !seen.has(cmd)) {
+      seen.set(cmd, { source: "partial", explicit: false });
     }
   }
 
