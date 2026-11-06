@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2611061447-records-branch-tip.md
 completes-spec: true
+approved:
+  date: 2026-11-06
+  baseline: 0977ed7
 ---
 # Records land on the records remote's tip
 
