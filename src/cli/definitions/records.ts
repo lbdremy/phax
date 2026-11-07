@@ -11,12 +11,11 @@ import { configureRecords } from "../../app/configureRecords.js";
 import { locatePhaxConfig } from "../../app/loadConfig.js";
 import { listRecords } from "../../app/recordsList.js";
 import { computeRecordsPending, groupPendingByRun } from "../../app/recordsStatus.js";
-import {
-  reconcileRecordsSync,
-  recordsClonePath,
-  type RecordsSyncResult,
-} from "../../app/recordsSync.js";
+import { recordsClonePath, type RecordsSyncResult } from "../../app/recordsSync.js";
+import { ORIGIN, RECORDS_BRANCH_NAME } from "../../app/recordsBranch.js";
+import { syncRecordsBranch } from "../../app/recordsBranchSync.js";
 import { readRegistry } from "../../app/registry.js";
+import { RECORDS_BRANCH_STATES, recordsBranchPhrase } from "../../domain/records/branchState.js";
 import { makeClackPromptLayer } from "../../infra/prompt.js";
 import { NodeGitLayer } from "../../infra/git.js";
 import { NodeGitHubLayer } from "../../infra/github.js";
@@ -59,6 +58,24 @@ class RecordsSyncRefusedError extends Data.TaggedError("RecordsSyncRefusedError"
   readonly reason: "origin-mismatch" | "local-only-history";
   readonly path: string;
   readonly remote: string;
+}> {}
+
+/** The records branch has split from the remote's: sync moves nothing without `--replay`. */
+class RecordsBranchDivergedError extends Data.TaggedError("RecordsBranchDivergedError")<{
+  readonly message: string;
+  readonly reason: "diverged" | "unrelated";
+  readonly localTip: string;
+  readonly remoteTip: string;
+  readonly localOnly: number;
+  readonly remedy: "phax records sync --replay";
+}> {}
+
+/** A local-only record's key is already on the remote side: the replay writes nothing. */
+class RecordsReplayCollisionError extends Data.TaggedError("RecordsReplayCollisionError")<{
+  readonly message: string;
+  readonly key: string;
+  readonly localCommit: string;
+  readonly remoteCommit: string;
 }> {}
 
 // ── What a sync did ─────────────────────────────────────────────────────────────
@@ -239,40 +256,148 @@ const recordsInitCommand = makeRecordsInitCommand(makeClackPromptLayer());
 
 // ── sync ────────────────────────────────────────────────────────────────────────
 
+/** What sync did to the local records branch (spec records-branch-tip §6). */
+const BranchOutcome = Schema.Union(
+  Schema.Struct({ kind: Schema.Literal("created"), tip: Schema.String, records: Schema.Number }),
+  Schema.Struct({ kind: Schema.Literal("fast-forwarded"), from: Schema.String, to: Schema.String }),
+  Schema.Struct({
+    kind: Schema.Literal("replayed"),
+    count: Schema.Number,
+    previousTip: Schema.String,
+    newTip: Schema.String,
+    remoteTip: Schema.String,
+  }),
+  Schema.Struct({
+    kind: Schema.Literal("unchanged"),
+    state: Schema.Literal(...RECORDS_BRANCH_STATES),
+    /** Local-only records, as `phax records status` counts them. */
+    pending: Schema.Number,
+  }),
+);
+
 const RecordsSyncOutput = Schema.Union(
   Schema.Struct({ kind: Schema.Literal("disabled") }),
-  SyncDone,
+  Schema.Struct({
+    kind: Schema.Literal("cloned", "fetched"),
+    /** Where the records branch lives: the local clone, or the source repository in-repo. */
+    path: Schema.String,
+    /** The configured records remote's URL, or `publish.remote` in-repo. */
+    remote: Schema.String,
+    /** The remote's name inside `path`: `origin` for a clone, `publish.remote` in-repo. */
+    remoteName: Schema.String,
+    branch: BranchOutcome,
+  }),
 );
+
+type SyncedValue = Extract<typeof RecordsSyncOutput.Type, { readonly kind: "cloned" | "fetched" }>;
+
+const short = (sha: string): string => sha.slice(0, 7);
+
+/** The lines after `Cloned …` / `Fetched …` that say what happened to the records branch. */
+function branchLines(value: SyncedValue): string[] {
+  const { branch, remoteName } = value;
+  switch (branch.kind) {
+    case "created":
+      return [
+        `Records branch created at ${remoteName}'s tip ${short(branch.tip)} (${branch.records} records)`,
+      ];
+    case "fast-forwarded":
+      return [`Records branch fast-forwarded ${short(branch.from)} → ${short(branch.to)}`];
+    case "replayed":
+      return [
+        `Replayed ${branch.count} record(s) onto ${remoteName}'s tip ${short(branch.remoteTip)} → new tip ${short(branch.newTip)} (previous tip ${short(branch.previousTip)})`,
+        `Push them with the next record, or \`git -C ${value.path} push ${remoteName} ${RECORDS_BRANCH_NAME}\``,
+      ];
+    case "unchanged":
+      return branch.state === "ahead"
+        ? [`Records branch is ahead of ${remoteName}: ${branch.pending} record(s) pending`]
+        : [`Records branch is ${recordsBranchPhrase(branch.state, remoteName)}`];
+  }
+}
 
 const recordsSyncCommand = defineCommand({
   name: "sync",
   summary: "Bring the local records clone in line with its configured remote",
-  input: {},
+  input: {
+    flags: reject(
+      Schema.Struct({
+        replay: Schema.optionalWith(
+          Schema.Boolean.annotations({
+            description:
+              "Replay local-only records onto the remote tip when the records branch has diverged",
+          }),
+          { exact: true },
+        ),
+      }),
+    ),
+  },
   output: reject(RecordsSyncOutput),
-  run: () =>
+  run: ({ input, say }) =>
     Effect.gen(function* () {
       const config = yield* configured();
       if (!config.records.enabled) return { kind: "disabled" } as const;
-      const sync = yield* reconcileRecordsSync({
+      const sync = yield* syncRecordsBranch({
         records: config.records,
         stateRoot: config.stateRoot,
         namespace: config.namespace,
+        repoRoot: config.repoRoot,
+        publishRemote: config.publish.remote,
+        replay: input.flags.replay === true,
       }).pipe(Effect.provide(Layer.mergeAll(makeRepoRootedFileSystemLayer(config), NodeGitLayer)));
-      const value = syncValue(sync);
-      if (value.kind === "refused") {
-        return yield* Effect.fail(
-          new RecordsSyncRefusedError({
-            message: value.message,
-            remedy: value.remedy,
-            reason: value.reason,
-            path: value.path,
-            remote: value.remote,
-          }),
-        );
+      const remoteName =
+        config.records.destination.kind === "in-repo" ? config.publish.remote : ORIGIN;
+      switch (sync.kind) {
+        case "refused":
+          return yield* Effect.fail(
+            new RecordsSyncRefusedError({
+              message: sync.message,
+              remedy: sync.remedy,
+              reason: sync.reason,
+              path: sync.path,
+              remote: sync.remote,
+            }),
+          );
+        case "diverged":
+          // The fetch did happen: say so before the refusal, as a successful sync does.
+          yield* say(`Fetched records into ${sync.path}`);
+          return yield* Effect.fail(
+            new RecordsBranchDivergedError({
+              message: `records branch is ${recordsBranchPhrase(sync.reason, remoteName)}: local tip ${short(sync.localTip)}, ${remoteName} tip ${short(sync.remoteTip)}, ${sync.localOnly} local-only record(s)\n  replay them onto ${remoteName}'s tip with \`${sync.remedy}\``,
+              reason: sync.reason,
+              localTip: sync.localTip,
+              remoteTip: sync.remoteTip,
+              localOnly: sync.localOnly,
+              remedy: sync.remedy,
+            }),
+          );
+        case "replay-collision":
+          return yield* Effect.fail(
+            new RecordsReplayCollisionError({
+              message: `record ${sync.key} exists on both sides (local ${short(sync.localCommit)}, ${remoteName} ${short(sync.remoteCommit)}); nothing replayed`,
+              key: sync.key,
+              localCommit: sync.localCommit,
+              remoteCommit: sync.remoteCommit,
+            }),
+          );
+        case "cloned":
+        case "fetched":
+          return {
+            kind: sync.kind,
+            path: sync.path,
+            remote: sync.remote,
+            remoteName,
+            branch: sync.branch,
+          } as const;
       }
-      return value;
     }).pipe(Effect.mapError(exposeMessage)),
-  exits: { ConfigValidationError: 2, FsError: 1, GitError: 1, RecordsSyncRefusedError: 1 },
+  exits: {
+    ConfigValidationError: 2,
+    FsError: 1,
+    GitError: 1,
+    RecordsSyncRefusedError: 1,
+    RecordsBranchDivergedError: 1,
+    RecordsReplayCollisionError: 1,
+  },
   errors: {
     ConfigValidationError: MessageFields,
     FsError: MessageFields,
@@ -284,6 +409,20 @@ const recordsSyncCommand = defineCommand({
       path: Schema.String,
       remote: Schema.String,
     }),
+    RecordsBranchDivergedError: Schema.Struct({
+      message: Schema.String,
+      reason: Schema.Literal("diverged", "unrelated"),
+      localTip: Schema.String,
+      remoteTip: Schema.String,
+      localOnly: Schema.Number,
+      remedy: Schema.Literal("phax records sync --replay"),
+    }),
+    RecordsReplayCollisionError: Schema.Struct({
+      message: Schema.String,
+      key: Schema.String,
+      localCommit: Schema.String,
+      remoteCommit: Schema.String,
+    }),
   },
   texts: {
     ConfigValidationError: (error) => error.message,
@@ -291,8 +430,18 @@ const recordsSyncCommand = defineCommand({
     GitError: (error) => error.message,
     // What it found, then how to put it right.
     RecordsSyncRefusedError: (error) => `${error.message}\n${error.remedy}`,
+    RecordsBranchDivergedError: (error) => `✗ ${error.message}`,
+    RecordsReplayCollisionError: (error) => `✗ ${error.message}`,
   },
-  render: (value) => (value.kind === "disabled" ? DISABLED_TEXT : syncLines(value).join("\n")),
+  render: (value) =>
+    value.kind === "disabled"
+      ? DISABLED_TEXT
+      : [
+          value.kind === "cloned"
+            ? `Cloned records into ${value.path}`
+            : `Fetched records into ${value.path}`,
+          ...branchLines(value),
+        ].join("\n"),
 });
 
 // ── status ──────────────────────────────────────────────────────────────────────

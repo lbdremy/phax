@@ -388,6 +388,7 @@ cmd records help="Manage phax run records" {
         flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
     }
     cmd sync help="Bring the local records clone in line with its configured remote" {
+        flag --replay help="Replay local-only records onto the remote tip when the records branch has diverged"
         flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
     }
     cmd status help="Show pending (unpushed) records, by run and phase" {
