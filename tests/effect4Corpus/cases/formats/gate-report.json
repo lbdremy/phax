@@ -1,0 +1,652 @@
+{
+  "format": "gate-report",
+  "current": [
+    {
+      "name": "accepts a typical document",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-report/0.21.0.json",
+        "outcome": "checked",
+        "findings": [
+          {
+            "id": "example-no-io src/example.ts node:fs",
+            "rule": "a module under src/ imports no node: module",
+            "location": {
+              "file": "src/example.ts",
+              "lines": [
+                3,
+                3
+              ]
+            },
+            "message": "imports node:fs",
+            "related": [
+              {
+                "file": "src/other.ts",
+                "lines": [
+                  1,
+                  4
+                ],
+                "why": "the caller, where the read belongs"
+              }
+            ],
+            "guide": {
+              "summary": "keep I/O in the caller",
+              "read": "guides/example.md"
+            }
+          }
+        ],
+        "review": [
+          {
+            "owner": "example-team",
+            "note": "whether the greeting reads well"
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.21.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/gate-report/0.21.0.json",
+          "findings": [
+            {
+              "guide": {
+                "read": "guides/example.md",
+                "summary": "keep I/O in the caller"
+              },
+              "id": "example-no-io src/example.ts node:fs",
+              "location": {
+                "file": "src/example.ts",
+                "lines": [
+                  3,
+                  3
+                ]
+              },
+              "message": "imports node:fs",
+              "related": [
+                {
+                  "file": "src/other.ts",
+                  "lines": [
+                    1,
+                    4
+                  ],
+                  "why": "the caller, where the read belongs"
+                }
+              ],
+              "rule": "a module under src/ imports no node: module"
+            }
+          ],
+          "outcome": "checked",
+          "review": [
+            {
+              "note": "whether the greeting reads well",
+              "owner": "example-team"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "accepts a document setting every field",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-report/0.21.0.json",
+        "outcome": "refused",
+        "reason": "text-1",
+        "remedy": "text-2"
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.21.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/gate-report/0.21.0.json",
+          "outcome": "refused",
+          "reason": "text-1",
+          "remedy": "text-2"
+        }
+      }
+    },
+    {
+      "name": "accepts a document with only its required fields",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-report/0.21.0.json",
+        "outcome": "checked",
+        "findings": [
+          {
+            "id": "example-no-io src/example.ts node:fs",
+            "rule": "a module under src/ imports no node: module",
+            "location": {
+              "file": "src/example.ts",
+              "lines": [
+                3,
+                3
+              ]
+            },
+            "message": "imports node:fs",
+            "related": [
+              {
+                "file": "src/other.ts",
+                "lines": [
+                  1,
+                  4
+                ],
+                "why": "the caller, where the read belongs"
+              }
+            ],
+            "guide": {
+              "summary": "keep I/O in the caller",
+              "read": "guides/example.md"
+            }
+          }
+        ],
+        "review": [
+          {
+            "owner": "example-team",
+            "note": "whether the greeting reads well"
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.21.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/gate-report/0.21.0.json",
+          "findings": [
+            {
+              "guide": {
+                "read": "guides/example.md",
+                "summary": "keep I/O in the caller"
+              },
+              "id": "example-no-io src/example.ts node:fs",
+              "location": {
+                "file": "src/example.ts",
+                "lines": [
+                  3,
+                  3
+                ]
+              },
+              "message": "imports node:fs",
+              "related": [
+                {
+                  "file": "src/other.ts",
+                  "lines": [
+                    1,
+                    4
+                  ],
+                  "why": "the caller, where the read belongs"
+                }
+              ],
+              "rule": "a module under src/ imports no node: module"
+            }
+          ],
+          "outcome": "checked",
+          "review": [
+            {
+              "note": "whether the greeting reads well",
+              "owner": "example-team"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "refuses a document that is not an object",
+      "input": [
+        "not",
+        "an",
+        "object"
+      ],
+      "expected": {
+        "ok": false,
+        "refusal": ": a gate report is a JSON object, got an array"
+      }
+    },
+    {
+      "name": "refuses a stamp naming another format",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/registry/0.17.0.json",
+        "outcome": "checked",
+        "findings": [
+          {
+            "id": "example-no-io src/example.ts node:fs",
+            "rule": "a module under src/ imports no node: module",
+            "location": {
+              "file": "src/example.ts",
+              "lines": [
+                3,
+                3
+              ]
+            },
+            "message": "imports node:fs",
+            "related": [
+              {
+                "file": "src/other.ts",
+                "lines": [
+                  1,
+                  4
+                ],
+                "why": "the caller, where the read belongs"
+              }
+            ],
+            "guide": {
+              "summary": "keep I/O in the caller",
+              "read": "guides/example.md"
+            }
+          }
+        ],
+        "review": [
+          {
+            "owner": "example-team",
+            "note": "whether the greeting reads well"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: https://docs.phax.run/schemas/registry/0.17.0.json is a registry document, not a gate-report"
+      }
+    },
+    {
+      "name": "refuses a malformed $schema",
+      "input": {
+        "$schema": "not a schema url",
+        "outcome": "checked",
+        "findings": [
+          {
+            "id": "example-no-io src/example.ts node:fs",
+            "rule": "a module under src/ imports no node: module",
+            "location": {
+              "file": "src/example.ts",
+              "lines": [
+                3,
+                3
+              ]
+            },
+            "message": "imports node:fs",
+            "related": [
+              {
+                "file": "src/other.ts",
+                "lines": [
+                  1,
+                  4
+                ],
+                "why": "the caller, where the read belongs"
+              }
+            ],
+            "guide": {
+              "summary": "keep I/O in the caller",
+              "read": "guides/example.md"
+            }
+          }
+        ],
+        "review": [
+          {
+            "owner": "example-team",
+            "note": "whether the greeting reads well"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: expected https://docs.phax.run/schemas/<format-id>/<X.Y.Z>.json, got \"not a schema url\""
+      }
+    },
+    {
+      "name": "refuses a stamp newer than the package",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-report/9.0.0.json",
+        "outcome": "checked",
+        "findings": [
+          {
+            "id": "example-no-io src/example.ts node:fs",
+            "rule": "a module under src/ imports no node: module",
+            "location": {
+              "file": "src/example.ts",
+              "lines": [
+                3,
+                3
+              ]
+            },
+            "message": "imports node:fs",
+            "related": [
+              {
+                "file": "src/other.ts",
+                "lines": [
+                  1,
+                  4
+                ],
+                "why": "the caller, where the read belongs"
+              }
+            ],
+            "guide": {
+              "summary": "keep I/O in the caller",
+              "read": "guides/example.md"
+            }
+          }
+        ],
+        "review": [
+          {
+            "owner": "example-team",
+            "note": "whether the greeting reads well"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: gate-report 9.0.0 is newer than @lbdremy/phax-schemas 0.36.0 — upgrade the package"
+      }
+    },
+    {
+      "name": "refuses a stamp below the first supported release",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-report/0.1.0.json",
+        "outcome": "checked",
+        "findings": [
+          {
+            "id": "example-no-io src/example.ts node:fs",
+            "rule": "a module under src/ imports no node: module",
+            "location": {
+              "file": "src/example.ts",
+              "lines": [
+                3,
+                3
+              ]
+            },
+            "message": "imports node:fs",
+            "related": [
+              {
+                "file": "src/other.ts",
+                "lines": [
+                  1,
+                  4
+                ],
+                "why": "the caller, where the read belongs"
+              }
+            ],
+            "guide": {
+              "summary": "keep I/O in the caller",
+              "read": "guides/example.md"
+            }
+          }
+        ],
+        "review": [
+          {
+            "owner": "example-team",
+            "note": "whether the greeting reads well"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: https://docs.phax.run/schemas/gate-report/0.1.0.json was written by a development build of phax before 0.17.0, the first supported release — not supported"
+      }
+    },
+    {
+      "name": "refuses a document without $schema",
+      "input": {
+        "outcome": "checked",
+        "findings": [
+          {
+            "id": "example-no-io src/example.ts node:fs",
+            "rule": "a module under src/ imports no node: module",
+            "location": {
+              "file": "src/example.ts",
+              "lines": [
+                3,
+                3
+              ]
+            },
+            "message": "imports node:fs",
+            "related": [
+              {
+                "file": "src/other.ts",
+                "lines": [
+                  1,
+                  4
+                ],
+                "why": "the caller, where the read belongs"
+              }
+            ],
+            "guide": {
+              "summary": "keep I/O in the caller",
+              "read": "guides/example.md"
+            }
+          }
+        ],
+        "review": [
+          {
+            "owner": "example-team",
+            "note": "whether the greeting reads well"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: gate report has no $schema — every gate report is written with one"
+      }
+    },
+    {
+      "name": "refuses a document missing outcome",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-report/0.21.0.json",
+        "findings": [
+          {
+            "id": "example-no-io src/example.ts node:fs",
+            "rule": "a module under src/ imports no node: module",
+            "location": {
+              "file": "src/example.ts",
+              "lines": [
+                3,
+                3
+              ]
+            },
+            "message": "imports node:fs",
+            "related": [
+              {
+                "file": "src/other.ts",
+                "lines": [
+                  1,
+                  4
+                ],
+                "why": "the caller, where the read belongs"
+              }
+            ],
+            "guide": {
+              "summary": "keep I/O in the caller",
+              "read": "guides/example.md"
+            }
+          }
+        ],
+        "review": [
+          {
+            "owner": "example-team",
+            "note": "whether the greeting reads well"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "outcome: is missing"
+      }
+    },
+    {
+      "name": "refuses an unexpected key",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-report/0.21.0.json",
+        "outcome": "checked",
+        "findings": [
+          {
+            "id": "example-no-io src/example.ts node:fs",
+            "rule": "a module under src/ imports no node: module",
+            "location": {
+              "file": "src/example.ts",
+              "lines": [
+                3,
+                3
+              ]
+            },
+            "message": "imports node:fs",
+            "related": [
+              {
+                "file": "src/other.ts",
+                "lines": [
+                  1,
+                  4
+                ],
+                "why": "the caller, where the read belongs"
+              }
+            ],
+            "guide": {
+              "summary": "keep I/O in the caller",
+              "read": "guides/example.md"
+            }
+          }
+        ],
+        "review": [
+          {
+            "owner": "example-team",
+            "note": "whether the greeting reads well"
+          }
+        ],
+        "unexpectedKey": 1
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "unexpectedKey: is unexpected, expected: \"$schema\" | \"outcome\" | \"findings\" | \"review\""
+      }
+    },
+    {
+      "name": "refuses findings[0].id of the wrong type",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-report/0.21.0.json",
+        "outcome": "checked",
+        "findings": [
+          {
+            "id": 42,
+            "rule": "a module under src/ imports no node: module",
+            "location": {
+              "file": "src/example.ts",
+              "lines": [
+                3,
+                3
+              ]
+            },
+            "message": "imports node:fs",
+            "related": [
+              {
+                "file": "src/other.ts",
+                "lines": [
+                  1,
+                  4
+                ],
+                "why": "the caller, where the read belongs"
+              }
+            ],
+            "guide": {
+              "summary": "keep I/O in the caller",
+              "read": "guides/example.md"
+            }
+          }
+        ],
+        "review": [
+          {
+            "owner": "example-team",
+            "note": "whether the greeting reads well"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.id: Expected string, actual 42"
+      }
+    },
+    {
+      "name": "refuses outcome outside its value",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-report/0.21.0.json",
+        "outcome": "bogus-value",
+        "findings": [
+          {
+            "id": "example-no-io src/example.ts node:fs",
+            "rule": "a module under src/ imports no node: module",
+            "location": {
+              "file": "src/example.ts",
+              "lines": [
+                3,
+                3
+              ]
+            },
+            "message": "imports node:fs",
+            "related": [
+              {
+                "file": "src/other.ts",
+                "lines": [
+                  1,
+                  4
+                ],
+                "why": "the caller, where the read belongs"
+              }
+            ],
+            "guide": {
+              "summary": "keep I/O in the caller",
+              "read": "guides/example.md"
+            }
+          }
+        ],
+        "review": [
+          {
+            "owner": "example-team",
+            "note": "whether the greeting reads well"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "outcome: Expected \"checked\" | \"refused\", actual \"bogus-value\""
+      }
+    },
+    {
+      "name": "refuses findings[0].id when empty",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-report/0.21.0.json",
+        "outcome": "checked",
+        "findings": [
+          {
+            "id": "",
+            "rule": "a module under src/ imports no node: module",
+            "location": {
+              "file": "src/example.ts",
+              "lines": [
+                3,
+                3
+              ]
+            },
+            "message": "imports node:fs",
+            "related": [
+              {
+                "file": "src/other.ts",
+                "lines": [
+                  1,
+                  4
+                ],
+                "why": "the caller, where the read belongs"
+              }
+            ],
+            "guide": {
+              "summary": "keep I/O in the caller",
+              "read": "guides/example.md"
+            }
+          }
+        ],
+        "review": [
+          {
+            "owner": "example-team",
+            "note": "whether the greeting reads well"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.id: Expected a non empty string, actual \"\""
+      }
+    }
+  ],
+  "shapes": {}
+}

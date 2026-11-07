@@ -1,0 +1,1132 @@
+{
+  "format": "phax-plan-extraction",
+  "current": [
+    {
+      "name": "accepts a typical document",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json",
+        "plan": {
+          "run": {
+            "shortName": "invoice-export",
+            "title": "Invoice export",
+            "requiredCommands": [
+              "pnpm check"
+            ]
+          },
+          "phases": [
+            {
+              "id": "phase-01",
+              "model": "claude-sonnet-5-5",
+              "effort": "medium",
+              "planMarkdownAnchor": "#phase-01-export-rows",
+              "plannedFilesToCreate": [
+                "src/exportRows.ts"
+              ],
+              "plannedFilesToEdit": [],
+              "optionalFilesToEdit": [],
+              "testLines": [],
+              "commit": {
+                "subject": "feat: export rows",
+                "body": "Builds the export rows."
+              }
+            }
+          ]
+        },
+        "incomplete": null
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.33.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json",
+          "incomplete": null,
+          "plan": {
+            "phases": [
+              {
+                "commit": {
+                  "body": "Builds the export rows.",
+                  "subject": "feat: export rows"
+                },
+                "effort": "medium",
+                "id": "phase-01",
+                "model": "claude-sonnet-5-5",
+                "optionalFilesToEdit": [],
+                "planMarkdownAnchor": "#phase-01-export-rows",
+                "plannedFilesToCreate": [
+                  "src/exportRows.ts"
+                ],
+                "plannedFilesToEdit": [],
+                "testLines": []
+              }
+            ],
+            "run": {
+              "requiredCommands": [
+                "pnpm check"
+              ],
+              "shortName": "invoice-export",
+              "title": "Invoice export"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "accepts a document setting every field",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json",
+        "plan": {
+          "run": {
+            "shortName": "invoice-export",
+            "title": "Invoice export",
+            "requiredCommands": [
+              "pnpm check"
+            ]
+          },
+          "phases": [
+            {
+              "id": "phase-01",
+              "model": "claude-sonnet-5-5",
+              "effort": "medium",
+              "planMarkdownAnchor": "#phase-01-export-rows",
+              "plannedFilesToCreate": [
+                "src/exportRows.ts"
+              ],
+              "plannedFilesToEdit": [
+                "text-8"
+              ],
+              "optionalFilesToEdit": [
+                "text-9"
+              ],
+              "testLines": [
+                {
+                  "guarantee": "text-10",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "text-11",
+                  "loop": "acceptance",
+                  "criterion": "text-12"
+                }
+              ],
+              "commit": {
+                "subject": "feat: export rows",
+                "body": "Builds the export rows."
+              }
+            }
+          ]
+        },
+        "incomplete": null
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.33.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json",
+          "incomplete": null,
+          "plan": {
+            "phases": [
+              {
+                "commit": {
+                  "body": "Builds the export rows.",
+                  "subject": "feat: export rows"
+                },
+                "effort": "medium",
+                "id": "phase-01",
+                "model": "claude-sonnet-5-5",
+                "optionalFilesToEdit": [
+                  "text-9"
+                ],
+                "planMarkdownAnchor": "#phase-01-export-rows",
+                "plannedFilesToCreate": [
+                  "src/exportRows.ts"
+                ],
+                "plannedFilesToEdit": [
+                  "text-8"
+                ],
+                "testLines": [
+                  {
+                    "criterion": "text-12",
+                    "guarantee": "text-10",
+                    "loop": "acceptance",
+                    "oracle": "text-11",
+                    "size": "small",
+                    "technique": "example"
+                  }
+                ]
+              }
+            ],
+            "run": {
+              "requiredCommands": [
+                "pnpm check"
+              ],
+              "shortName": "invoice-export",
+              "title": "Invoice export"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "accepts a document with only its required fields",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json",
+        "plan": {
+          "run": {
+            "shortName": "invoice-export",
+            "title": "Invoice export",
+            "requiredCommands": [
+              "pnpm check"
+            ]
+          },
+          "phases": [
+            {
+              "id": "phase-01",
+              "model": "claude-sonnet-5-5",
+              "effort": "medium",
+              "planMarkdownAnchor": "#phase-01-export-rows",
+              "plannedFilesToCreate": [
+                "src/exportRows.ts"
+              ],
+              "plannedFilesToEdit": [
+                "text-8"
+              ],
+              "optionalFilesToEdit": [
+                "text-9"
+              ],
+              "testLines": [
+                {
+                  "guarantee": "text-10",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "text-11",
+                  "loop": "acceptance",
+                  "criterion": "text-12"
+                }
+              ],
+              "commit": {
+                "subject": "feat: export rows",
+                "body": "Builds the export rows."
+              }
+            }
+          ]
+        },
+        "incomplete": null
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.33.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json",
+          "incomplete": null,
+          "plan": {
+            "phases": [
+              {
+                "commit": {
+                  "body": "Builds the export rows.",
+                  "subject": "feat: export rows"
+                },
+                "effort": "medium",
+                "id": "phase-01",
+                "model": "claude-sonnet-5-5",
+                "optionalFilesToEdit": [
+                  "text-9"
+                ],
+                "planMarkdownAnchor": "#phase-01-export-rows",
+                "plannedFilesToCreate": [
+                  "src/exportRows.ts"
+                ],
+                "plannedFilesToEdit": [
+                  "text-8"
+                ],
+                "testLines": [
+                  {
+                    "criterion": "text-12",
+                    "guarantee": "text-10",
+                    "loop": "acceptance",
+                    "oracle": "text-11",
+                    "size": "small",
+                    "technique": "example"
+                  }
+                ]
+              }
+            ],
+            "run": {
+              "requiredCommands": [
+                "pnpm check"
+              ],
+              "shortName": "invoice-export",
+              "title": "Invoice export"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "refuses a document that is not an object",
+      "input": [
+        "not",
+        "an",
+        "object"
+      ],
+      "expected": {
+        "ok": false,
+        "refusal": ": a plan extraction is a JSON object, got an array"
+      }
+    },
+    {
+      "name": "refuses a stamp naming another format",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/registry/0.17.0.json",
+        "plan": {
+          "run": {
+            "shortName": "invoice-export",
+            "title": "Invoice export",
+            "requiredCommands": [
+              "pnpm check"
+            ]
+          },
+          "phases": [
+            {
+              "id": "phase-01",
+              "model": "claude-sonnet-5-5",
+              "effort": "medium",
+              "planMarkdownAnchor": "#phase-01-export-rows",
+              "plannedFilesToCreate": [
+                "src/exportRows.ts"
+              ],
+              "plannedFilesToEdit": [],
+              "optionalFilesToEdit": [],
+              "testLines": [],
+              "commit": {
+                "subject": "feat: export rows",
+                "body": "Builds the export rows."
+              }
+            }
+          ]
+        },
+        "incomplete": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: https://docs.phax.run/schemas/registry/0.17.0.json is a registry document, not a phax-plan-extraction"
+      }
+    },
+    {
+      "name": "refuses a malformed $schema",
+      "input": {
+        "$schema": "not a schema url",
+        "plan": {
+          "run": {
+            "shortName": "invoice-export",
+            "title": "Invoice export",
+            "requiredCommands": [
+              "pnpm check"
+            ]
+          },
+          "phases": [
+            {
+              "id": "phase-01",
+              "model": "claude-sonnet-5-5",
+              "effort": "medium",
+              "planMarkdownAnchor": "#phase-01-export-rows",
+              "plannedFilesToCreate": [
+                "src/exportRows.ts"
+              ],
+              "plannedFilesToEdit": [],
+              "optionalFilesToEdit": [],
+              "testLines": [],
+              "commit": {
+                "subject": "feat: export rows",
+                "body": "Builds the export rows."
+              }
+            }
+          ]
+        },
+        "incomplete": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: expected https://docs.phax.run/schemas/<format-id>/<X.Y.Z>.json, got \"not a schema url\""
+      }
+    },
+    {
+      "name": "refuses a stamp newer than the package",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/9.0.0.json",
+        "plan": {
+          "run": {
+            "shortName": "invoice-export",
+            "title": "Invoice export",
+            "requiredCommands": [
+              "pnpm check"
+            ]
+          },
+          "phases": [
+            {
+              "id": "phase-01",
+              "model": "claude-sonnet-5-5",
+              "effort": "medium",
+              "planMarkdownAnchor": "#phase-01-export-rows",
+              "plannedFilesToCreate": [
+                "src/exportRows.ts"
+              ],
+              "plannedFilesToEdit": [],
+              "optionalFilesToEdit": [],
+              "testLines": [],
+              "commit": {
+                "subject": "feat: export rows",
+                "body": "Builds the export rows."
+              }
+            }
+          ]
+        },
+        "incomplete": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: phax-plan-extraction 9.0.0 is newer than @lbdremy/phax-schemas 0.36.0 — upgrade the package"
+      }
+    },
+    {
+      "name": "refuses a stamp below the first supported release",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.1.0.json",
+        "plan": {
+          "run": {
+            "shortName": "invoice-export",
+            "title": "Invoice export",
+            "requiredCommands": [
+              "pnpm check"
+            ]
+          },
+          "phases": [
+            {
+              "id": "phase-01",
+              "model": "claude-sonnet-5-5",
+              "effort": "medium",
+              "planMarkdownAnchor": "#phase-01-export-rows",
+              "plannedFilesToCreate": [
+                "src/exportRows.ts"
+              ],
+              "plannedFilesToEdit": [],
+              "optionalFilesToEdit": [],
+              "testLines": [],
+              "commit": {
+                "subject": "feat: export rows",
+                "body": "Builds the export rows."
+              }
+            }
+          ]
+        },
+        "incomplete": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: https://docs.phax.run/schemas/phax-plan-extraction/0.1.0.json was written by a development build of phax before 0.17.0, the first supported release — not supported"
+      }
+    },
+    {
+      "name": "refuses a document without $schema",
+      "input": {
+        "plan": {
+          "run": {
+            "shortName": "invoice-export",
+            "title": "Invoice export",
+            "requiredCommands": [
+              "pnpm check"
+            ]
+          },
+          "phases": [
+            {
+              "id": "phase-01",
+              "model": "claude-sonnet-5-5",
+              "effort": "medium",
+              "planMarkdownAnchor": "#phase-01-export-rows",
+              "plannedFilesToCreate": [
+                "src/exportRows.ts"
+              ],
+              "plannedFilesToEdit": [],
+              "optionalFilesToEdit": [],
+              "testLines": [],
+              "commit": {
+                "subject": "feat: export rows",
+                "body": "Builds the export rows."
+              }
+            }
+          ]
+        },
+        "incomplete": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: plan extraction has no $schema — every plan extraction is written with one"
+      }
+    },
+    {
+      "name": "refuses a document missing plan",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json",
+        "incomplete": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "plan: is missing"
+      }
+    },
+    {
+      "name": "refuses an unexpected key",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json",
+        "plan": {
+          "run": {
+            "shortName": "invoice-export",
+            "title": "Invoice export",
+            "requiredCommands": [
+              "pnpm check"
+            ]
+          },
+          "phases": [
+            {
+              "id": "phase-01",
+              "model": "claude-sonnet-5-5",
+              "effort": "medium",
+              "planMarkdownAnchor": "#phase-01-export-rows",
+              "plannedFilesToCreate": [
+                "src/exportRows.ts"
+              ],
+              "plannedFilesToEdit": [],
+              "optionalFilesToEdit": [],
+              "testLines": [],
+              "commit": {
+                "subject": "feat: export rows",
+                "body": "Builds the export rows."
+              }
+            }
+          ]
+        },
+        "incomplete": null,
+        "unexpectedKey": 1
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "unexpectedKey: is unexpected, expected: \"$schema\" | \"plan\" | \"incomplete\""
+      }
+    },
+    {
+      "name": "refuses plan.run.shortName of the wrong type",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json",
+        "plan": {
+          "run": {
+            "shortName": 42,
+            "title": "Invoice export",
+            "requiredCommands": [
+              "pnpm check"
+            ]
+          },
+          "phases": [
+            {
+              "id": "phase-01",
+              "model": "claude-sonnet-5-5",
+              "effort": "medium",
+              "planMarkdownAnchor": "#phase-01-export-rows",
+              "plannedFilesToCreate": [
+                "src/exportRows.ts"
+              ],
+              "plannedFilesToEdit": [],
+              "optionalFilesToEdit": [],
+              "testLines": [],
+              "commit": {
+                "subject": "feat: export rows",
+                "body": "Builds the export rows."
+              }
+            }
+          ]
+        },
+        "incomplete": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "plan.run.shortName: Expected string, actual 42"
+      }
+    },
+    {
+      "name": "refuses plan.phases[0].effort outside its values",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json",
+        "plan": {
+          "run": {
+            "shortName": "invoice-export",
+            "title": "Invoice export",
+            "requiredCommands": [
+              "pnpm check"
+            ]
+          },
+          "phases": [
+            {
+              "id": "phase-01",
+              "model": "claude-sonnet-5-5",
+              "effort": "bogus-value",
+              "planMarkdownAnchor": "#phase-01-export-rows",
+              "plannedFilesToCreate": [
+                "src/exportRows.ts"
+              ],
+              "plannedFilesToEdit": [],
+              "optionalFilesToEdit": [],
+              "testLines": [],
+              "commit": {
+                "subject": "feat: export rows",
+                "body": "Builds the export rows."
+              }
+            }
+          ]
+        },
+        "incomplete": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "plan.phases.0.effort: Expected \"none\", actual \"bogus-value\""
+      }
+    },
+    {
+      "name": "refuses plan.run.shortName that breaks its pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json",
+        "plan": {
+          "run": {
+            "shortName": "",
+            "title": "Invoice export",
+            "requiredCommands": [
+              "pnpm check"
+            ]
+          },
+          "phases": [
+            {
+              "id": "phase-01",
+              "model": "claude-sonnet-5-5",
+              "effort": "medium",
+              "planMarkdownAnchor": "#phase-01-export-rows",
+              "plannedFilesToCreate": [
+                "src/exportRows.ts"
+              ],
+              "plannedFilesToEdit": [],
+              "optionalFilesToEdit": [],
+              "testLines": [],
+              "commit": {
+                "subject": "feat: export rows",
+                "body": "Builds the export rows."
+              }
+            }
+          ]
+        },
+        "incomplete": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "plan.run.shortName: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "reads a document stamped 0.32.0",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.32.0.json",
+        "plan": {
+          "run": {
+            "shortName": "invoice-export",
+            "title": "Invoice export",
+            "requiredCommands": [
+              "pnpm check"
+            ]
+          },
+          "phases": [
+            {
+              "id": "phase-01",
+              "model": "claude-sonnet-5-5",
+              "effort": "medium",
+              "planMarkdownAnchor": "#phase-01-export-rows",
+              "plannedFilesToCreate": [
+                "src/exportRows.ts"
+              ],
+              "plannedFilesToEdit": [
+                "text-8"
+              ],
+              "optionalFilesToEdit": [
+                "text-9"
+              ],
+              "testLines": [
+                {
+                  "guarantee": "text-10",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "text-11",
+                  "loop": "oracle",
+                  "criterion": "text-12"
+                }
+              ],
+              "commit": {
+                "subject": "feat: export rows",
+                "body": "Builds the export rows."
+              }
+            }
+          ]
+        },
+        "incomplete": null
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.32.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.32.0.json",
+          "incomplete": null,
+          "plan": {
+            "phases": [
+              {
+                "commit": {
+                  "body": "Builds the export rows.",
+                  "subject": "feat: export rows"
+                },
+                "effort": "medium",
+                "id": "phase-01",
+                "model": "claude-sonnet-5-5",
+                "optionalFilesToEdit": [
+                  "text-9"
+                ],
+                "planMarkdownAnchor": "#phase-01-export-rows",
+                "plannedFilesToCreate": [
+                  "src/exportRows.ts"
+                ],
+                "plannedFilesToEdit": [
+                  "text-8"
+                ],
+                "testLines": [
+                  {
+                    "criterion": "text-12",
+                    "guarantee": "text-10",
+                    "loop": "oracle",
+                    "oracle": "text-11",
+                    "size": "small",
+                    "technique": "example"
+                  }
+                ]
+              }
+            ],
+            "run": {
+              "requiredCommands": [
+                "pnpm check"
+              ],
+              "shortName": "invoice-export",
+              "title": "Invoice export"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "shapes": {
+    "0.32.0": [
+      {
+        "name": "accepts a document setting every field",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.32.0.json",
+          "plan": {
+            "run": {
+              "shortName": "invoice-export",
+              "title": "Invoice export",
+              "requiredCommands": [
+                "pnpm check"
+              ]
+            },
+            "phases": [
+              {
+                "id": "phase-01",
+                "model": "claude-sonnet-5-5",
+                "effort": "medium",
+                "planMarkdownAnchor": "#phase-01-export-rows",
+                "plannedFilesToCreate": [
+                  "src/exportRows.ts"
+                ],
+                "plannedFilesToEdit": [
+                  "text-8"
+                ],
+                "optionalFilesToEdit": [
+                  "text-9"
+                ],
+                "testLines": [
+                  {
+                    "guarantee": "text-10",
+                    "size": "small",
+                    "technique": "example",
+                    "oracle": "text-11",
+                    "loop": "oracle",
+                    "criterion": "text-12"
+                  }
+                ],
+                "commit": {
+                  "subject": "feat: export rows",
+                  "body": "Builds the export rows."
+                }
+              }
+            ]
+          },
+          "incomplete": null
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.32.0.json",
+            "incomplete": null,
+            "plan": {
+              "phases": [
+                {
+                  "commit": {
+                    "body": "Builds the export rows.",
+                    "subject": "feat: export rows"
+                  },
+                  "effort": "medium",
+                  "id": "phase-01",
+                  "model": "claude-sonnet-5-5",
+                  "optionalFilesToEdit": [
+                    "text-9"
+                  ],
+                  "planMarkdownAnchor": "#phase-01-export-rows",
+                  "plannedFilesToCreate": [
+                    "src/exportRows.ts"
+                  ],
+                  "plannedFilesToEdit": [
+                    "text-8"
+                  ],
+                  "testLines": [
+                    {
+                      "criterion": "text-12",
+                      "guarantee": "text-10",
+                      "loop": "oracle",
+                      "oracle": "text-11",
+                      "size": "small",
+                      "technique": "example"
+                    }
+                  ]
+                }
+              ],
+              "run": {
+                "requiredCommands": [
+                  "pnpm check"
+                ],
+                "shortName": "invoice-export",
+                "title": "Invoice export"
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "accepts a document with only its required fields",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.32.0.json",
+          "plan": {
+            "run": {
+              "shortName": "invoice-export",
+              "title": "Invoice export",
+              "requiredCommands": [
+                "pnpm check"
+              ]
+            },
+            "phases": [
+              {
+                "id": "phase-01",
+                "model": "claude-sonnet-5-5",
+                "effort": "medium",
+                "planMarkdownAnchor": "#phase-01-export-rows",
+                "plannedFilesToCreate": [
+                  "src/exportRows.ts"
+                ],
+                "plannedFilesToEdit": [
+                  "text-8"
+                ],
+                "optionalFilesToEdit": [
+                  "text-9"
+                ],
+                "testLines": [
+                  {
+                    "guarantee": "text-10",
+                    "size": "small",
+                    "technique": "example",
+                    "oracle": "text-11",
+                    "loop": "oracle",
+                    "criterion": "text-12"
+                  }
+                ],
+                "commit": {
+                  "subject": "feat: export rows",
+                  "body": "Builds the export rows."
+                }
+              }
+            ]
+          },
+          "incomplete": null
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.32.0.json",
+            "incomplete": null,
+            "plan": {
+              "phases": [
+                {
+                  "commit": {
+                    "body": "Builds the export rows.",
+                    "subject": "feat: export rows"
+                  },
+                  "effort": "medium",
+                  "id": "phase-01",
+                  "model": "claude-sonnet-5-5",
+                  "optionalFilesToEdit": [
+                    "text-9"
+                  ],
+                  "planMarkdownAnchor": "#phase-01-export-rows",
+                  "plannedFilesToCreate": [
+                    "src/exportRows.ts"
+                  ],
+                  "plannedFilesToEdit": [
+                    "text-8"
+                  ],
+                  "testLines": [
+                    {
+                      "criterion": "text-12",
+                      "guarantee": "text-10",
+                      "loop": "oracle",
+                      "oracle": "text-11",
+                      "size": "small",
+                      "technique": "example"
+                    }
+                  ]
+                }
+              ],
+              "run": {
+                "requiredCommands": [
+                  "pnpm check"
+                ],
+                "shortName": "invoice-export",
+                "title": "Invoice export"
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "refuses a document missing plan",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.32.0.json",
+          "incomplete": null
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "plan: is missing"
+        }
+      },
+      {
+        "name": "refuses an unexpected key",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.32.0.json",
+          "plan": {
+            "run": {
+              "shortName": "invoice-export",
+              "title": "Invoice export",
+              "requiredCommands": [
+                "pnpm check"
+              ]
+            },
+            "phases": [
+              {
+                "id": "phase-01",
+                "model": "claude-sonnet-5-5",
+                "effort": "medium",
+                "planMarkdownAnchor": "#phase-01-export-rows",
+                "plannedFilesToCreate": [
+                  "src/exportRows.ts"
+                ],
+                "plannedFilesToEdit": [
+                  "text-8"
+                ],
+                "optionalFilesToEdit": [
+                  "text-9"
+                ],
+                "testLines": [
+                  {
+                    "guarantee": "text-10",
+                    "size": "small",
+                    "technique": "example",
+                    "oracle": "text-11",
+                    "loop": "oracle",
+                    "criterion": "text-12"
+                  }
+                ],
+                "commit": {
+                  "subject": "feat: export rows",
+                  "body": "Builds the export rows."
+                }
+              }
+            ]
+          },
+          "incomplete": null,
+          "unexpectedKey": 1
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "unexpectedKey: is unexpected, expected: \"$schema\" | \"plan\" | \"incomplete\""
+        }
+      },
+      {
+        "name": "refuses plan.run.shortName of the wrong type",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.32.0.json",
+          "plan": {
+            "run": {
+              "shortName": 42,
+              "title": "Invoice export",
+              "requiredCommands": [
+                "pnpm check"
+              ]
+            },
+            "phases": [
+              {
+                "id": "phase-01",
+                "model": "claude-sonnet-5-5",
+                "effort": "medium",
+                "planMarkdownAnchor": "#phase-01-export-rows",
+                "plannedFilesToCreate": [
+                  "src/exportRows.ts"
+                ],
+                "plannedFilesToEdit": [
+                  "text-8"
+                ],
+                "optionalFilesToEdit": [
+                  "text-9"
+                ],
+                "testLines": [
+                  {
+                    "guarantee": "text-10",
+                    "size": "small",
+                    "technique": "example",
+                    "oracle": "text-11",
+                    "loop": "oracle",
+                    "criterion": "text-12"
+                  }
+                ],
+                "commit": {
+                  "subject": "feat: export rows",
+                  "body": "Builds the export rows."
+                }
+              }
+            ]
+          },
+          "incomplete": null
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "plan.run.shortName: Expected string, actual 42"
+        }
+      },
+      {
+        "name": "refuses plan.phases[0].effort outside its values",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.32.0.json",
+          "plan": {
+            "run": {
+              "shortName": "invoice-export",
+              "title": "Invoice export",
+              "requiredCommands": [
+                "pnpm check"
+              ]
+            },
+            "phases": [
+              {
+                "id": "phase-01",
+                "model": "claude-sonnet-5-5",
+                "effort": "bogus-value",
+                "planMarkdownAnchor": "#phase-01-export-rows",
+                "plannedFilesToCreate": [
+                  "src/exportRows.ts"
+                ],
+                "plannedFilesToEdit": [
+                  "text-8"
+                ],
+                "optionalFilesToEdit": [
+                  "text-9"
+                ],
+                "testLines": [
+                  {
+                    "guarantee": "text-10",
+                    "size": "small",
+                    "technique": "example",
+                    "oracle": "text-11",
+                    "loop": "oracle",
+                    "criterion": "text-12"
+                  }
+                ],
+                "commit": {
+                  "subject": "feat: export rows",
+                  "body": "Builds the export rows."
+                }
+              }
+            ]
+          },
+          "incomplete": null
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "plan.phases.0.effort: Expected \"none\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "refuses plan.run.shortName that breaks its pattern",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.32.0.json",
+          "plan": {
+            "run": {
+              "shortName": "",
+              "title": "Invoice export",
+              "requiredCommands": [
+                "pnpm check"
+              ]
+            },
+            "phases": [
+              {
+                "id": "phase-01",
+                "model": "claude-sonnet-5-5",
+                "effort": "medium",
+                "planMarkdownAnchor": "#phase-01-export-rows",
+                "plannedFilesToCreate": [
+                  "src/exportRows.ts"
+                ],
+                "plannedFilesToEdit": [
+                  "text-8"
+                ],
+                "optionalFilesToEdit": [
+                  "text-9"
+                ],
+                "testLines": [
+                  {
+                    "guarantee": "text-10",
+                    "size": "small",
+                    "technique": "example",
+                    "oracle": "text-11",
+                    "loop": "oracle",
+                    "criterion": "text-12"
+                  }
+                ],
+                "commit": {
+                  "subject": "feat: export rows",
+                  "body": "Builds the export rows."
+                }
+              }
+            ]
+          },
+          "incomplete": null
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "plan.run.shortName: Expected a non empty string, actual \"\""
+        }
+      }
+    ]
+  }
+}

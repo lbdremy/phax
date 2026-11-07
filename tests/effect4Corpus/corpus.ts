@@ -8,9 +8,12 @@
 import { readdirSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 
-/** What one case decodes to: the decoded value as plain data, or the refusal line phax prints. */
+/**
+ * What one case decodes to: the decoded value as plain data, or the refusal line
+ * phax prints. A format's parse function also names the `shape` it read.
+ */
 export type Expected =
-  | { readonly ok: true; readonly value: unknown }
+  | { readonly ok: true; readonly value: unknown; readonly shape?: string }
   | { readonly ok: false; readonly refusal: string };
 
 /** One input of a subject. `expected` is null until the capture script fills it. */
@@ -29,6 +32,21 @@ export interface CaseFile {
   readonly cases: ReadonlyArray<Case>;
 }
 
+/**
+ * One persisted format's case file, `cases/formats/<format-id>.json`: `current`
+ * replays through the schemas package's parse function for the format
+ * (subject `format:<id>`), and each `shapes[<shape>]` list through that frozen
+ * module's decoder (subject `frozen:<id>/<shape>`).
+ */
+export interface FormatCaseFile {
+  readonly format: string;
+  readonly current: ReadonlyArray<Case>;
+  readonly shapes: Readonly<Record<string, ReadonlyArray<Case>>>;
+}
+
+/** A case file as stored: a subject's, or a format's. */
+export type CorpusFile = CaseFile | FormatCaseFile;
+
 /** Decodes one case's input as phax does: `subjects.ts` provides it. */
 export type Replay = (subject: string, input: unknown) => Expected;
 
@@ -43,11 +61,18 @@ function hasOnlyKeys(value: Record<string, unknown>, keys: ReadonlyArray<string>
   return Object.keys(value).every((key) => keys.includes(key));
 }
 
-/** An expectation: exactly `{ ok: true, value }` or `{ ok: false, refusal: string }`. */
+/**
+ * An expectation: `{ ok: true, value }` (with a string `shape` for a format's
+ * parse function) or `{ ok: false, refusal: string }`.
+ */
 function isExpected(value: unknown): value is Expected {
   if (!isRecord(value)) return false;
   if (value["ok"] === true) {
-    return Object.hasOwn(value, "value") && hasOnlyKeys(value, ["ok", "value"]);
+    return (
+      Object.hasOwn(value, "value") &&
+      hasOnlyKeys(value, ["ok", "value", "shape"]) &&
+      (!Object.hasOwn(value, "shape") || typeof value["shape"] === "string")
+    );
   }
   if (value["ok"] === false) {
     return typeof value["refusal"] === "string" && hasOnlyKeys(value, ["ok", "refusal"]);
@@ -79,11 +104,80 @@ export function isCaseFile(value: unknown): value is CaseFile {
   );
 }
 
-/** The case file a file's text holds; throws, naming `source`, when it is not one. */
-export function parseCaseFile(text: string, source: string): CaseFile {
+/** A format case file: `{ format, current, shapes }`, every case `{ name, input, expected }`. */
+function isFormatCaseFile(value: unknown): value is FormatCaseFile {
+  if (!isRecord(value) || !hasOnlyKeys(value, ["format", "current", "shapes"])) return false;
+  const { format, current, shapes } = value;
+  return (
+    typeof format === "string" &&
+    format.length > 0 &&
+    Array.isArray(current) &&
+    current.every(isCase) &&
+    isRecord(shapes) &&
+    Object.values(shapes).every((cases) => Array.isArray(cases) && cases.every(isCase))
+  );
+}
+
+/** The case file (a subject's or a format's) a file's text holds; throws, naming `source`, when it is neither. */
+export function parseCorpusFile(text: string, source: string): CorpusFile {
   const parsed: unknown = JSON.parse(text);
-  if (!isCaseFile(parsed)) throw new Error(`${source}: not a corpus case file`);
-  return parsed;
+  if (isCaseFile(parsed) || isFormatCaseFile(parsed)) return parsed;
+  throw new Error(`${source}: not a corpus case file`);
+}
+
+/**
+ * The input of a flattened format case: which subject (`format:<id>` or
+ * `frozen:<id>/<shape>`) decodes `document`.
+ */
+export interface TargetInput {
+  readonly target: string;
+  readonly document: unknown;
+}
+
+export function readTargetInput(input: unknown): TargetInput {
+  if (!isRecord(input) || !hasOnlyKeys(input, ["target", "document"])) {
+    throw new Error("corpus input: expected { target, document }");
+  }
+  const target = input["target"];
+  if (typeof target !== "string" || !Object.hasOwn(input, "document")) {
+    throw new Error("corpus input: expected { target, document }");
+  }
+  return { target, document: input["document"] };
+}
+
+/**
+ * A format case file as a subject case file, so a walk that knows only
+ * `{ subject, cases }` replays it: subject `formats/<id>`, the current cases
+ * named `current <name>` and each frozen shape's `<shape> <name>`, every input
+ * wrapped as a `TargetInput`.
+ */
+function targeted(target: string, label: string, list: ReadonlyArray<Case>): Case[] {
+  return list.map((c) => ({
+    name: `${label} ${c.name}`,
+    input: { target, document: c.input },
+    expected: c.expected,
+  }));
+}
+
+function flattenFormatFile(file: FormatCaseFile): CaseFile {
+  return {
+    subject: `formats/${file.format}`,
+    cases: [
+      ...targeted(`format:${file.format}`, "current", file.current),
+      ...Object.entries(file.shapes).flatMap(([shape, list]) =>
+        targeted(`frozen:${file.format}/${shape}`, shape, list),
+      ),
+    ],
+  };
+}
+
+/**
+ * The case file a file's text holds, as subject cases (a format's flattened);
+ * throws, naming `source`, when it is not one.
+ */
+export function parseCaseFile(text: string, source: string): CaseFile {
+  const parsed = parseCorpusFile(text, source);
+  return "format" in parsed ? flattenFormatFile(parsed) : parsed;
 }
 
 // ---------------------------------------------------------------------------
@@ -164,27 +258,68 @@ function storedExpectation(expected: Expected): Expected {
  * one's. Throws when a replay answers a value that is not plain data.
  */
 export function captureFile(file: CaseFile, replay: Replay, effectMajor: number): CaptureOutcome {
-  if (effectMajor !== 3) {
-    return {
-      kind: "refused",
-      reason: `the corpus is captured on Effect 3 only; the installed effect major is ${String(effectMajor)}`,
-    };
-  }
-  let filled = 0;
-  const cases = file.cases.map((c): Case => {
-    if (c.expected !== null) return c;
-    filled += 1;
-    return {
-      name: c.name,
-      input: c.input,
-      expected: storedExpectation(replay(file.subject, c.input)),
-    };
-  });
+  if (effectMajor !== 3) return refusedOutcome(effectMajor);
+  const { cases, filled } = fillCases(file.cases, (input) => replay(file.subject, input));
   return { kind: "captured", file: { subject: file.subject, cases }, filled };
 }
 
+function refusedOutcome(effectMajor: number): {
+  readonly kind: "refused";
+  readonly reason: string;
+} {
+  return {
+    kind: "refused",
+    reason: `the corpus is captured on Effect 3 only; the installed effect major is ${String(effectMajor)}`,
+  };
+}
+
+function fillCases(
+  list: ReadonlyArray<Case>,
+  decode: (input: unknown) => Expected,
+): { readonly cases: Case[]; readonly filled: number } {
+  let filled = 0;
+  const cases = list.map((c): Case => {
+    if (c.expected !== null) return c;
+    filled += 1;
+    return { name: c.name, input: c.input, expected: storedExpectation(decode(c.input)) };
+  });
+  return { cases, filled };
+}
+
+export type CorpusCaptureOutcome =
+  | { readonly kind: "captured"; readonly file: CorpusFile; readonly filled: number }
+  | { readonly kind: "refused"; readonly reason: string };
+
+/**
+ * `captureFile` for either kind of file. A format file's current cases are
+ * filled through `format:<id>` and each frozen shape's through
+ * `frozen:<id>/<shape>`.
+ */
+export function captureCorpusFile(
+  file: CorpusFile,
+  replay: Replay,
+  effectMajor: number,
+): CorpusCaptureOutcome {
+  if (!("format" in file)) return captureFile(file, replay, effectMajor);
+  if (effectMajor !== 3) return refusedOutcome(effectMajor);
+  let filled = 0;
+  const fill = (subject: string, list: ReadonlyArray<Case>): Case[] => {
+    const result = fillCases(list, (input) => replay(subject, input));
+    filled += result.filled;
+    return result.cases;
+  };
+  const current = fill(`format:${file.format}`, file.current);
+  const shapes = Object.fromEntries(
+    Object.entries(file.shapes).map(([shape, list]) => [
+      shape,
+      fill(`frozen:${file.format}/${shape}`, list),
+    ]),
+  );
+  return { kind: "captured", file: { format: file.format, current, shapes }, filled };
+}
+
 /** A case file's text as the capture script writes it. */
-export function caseFileText(file: CaseFile): string {
+export function caseFileText(file: CorpusFile): string {
   return JSON.stringify(file, null, 2) + "\n";
 }
 

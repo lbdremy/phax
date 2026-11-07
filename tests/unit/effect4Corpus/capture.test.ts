@@ -5,13 +5,16 @@
 import { describe, expect, it } from "vitest";
 import {
   canonicalJson,
+  captureCorpusFile,
   captureFile,
   caseFileText,
   isCaseFile,
   parseCaseFile,
+  parseCorpusFile,
   streamLines,
   type CaseFile,
   type Expected,
+  type FormatCaseFile,
   type Replay,
 } from "../../effect4Corpus/corpus.js";
 
@@ -35,6 +38,69 @@ function caseFile(expected: ReadonlyArray<Expected | null>): CaseFile {
     cases: expected.map((e, i) => ({ name: `case ${i}`, input: { n: i }, expected: e })),
   };
 }
+
+// A format case file: current cases through the parse function, one list per frozen shape.
+function formatFile(): FormatCaseFile {
+  return {
+    format: "demo",
+    current: [{ name: "reads one", input: { n: 1 }, expected: null }],
+    shapes: {
+      "pre-schema": [{ name: "reads old", input: { n: 2 }, expected: null }],
+      "0.17.0": [{ name: "refuses old", input: { n: 3 }, expected: captured }],
+    },
+  };
+}
+
+describe("format case files", () => {
+  it("fills the current cases through format:<id> and each shape through frozen:<id>/<shape>", () => {
+    const { replay, calls } = recordingReplay();
+    const seen: string[] = [];
+    const result = captureCorpusFile(
+      formatFile(),
+      (subject, input) => {
+        seen.push(subject);
+        return replay(subject, input);
+      },
+      3,
+    );
+    if (result.kind !== "captured") throw new Error("refused");
+    expect(result.filled).toBe(2);
+    expect(seen).toEqual(["format:demo", "frozen:demo/pre-schema"]);
+    expect(calls).toEqual([{ n: 1 }, { n: 2 }]);
+    expect(parseCorpusFile(caseFileText(result.file), "demo.json")).toEqual(result.file);
+  });
+
+  it("is refused on any effect major but 3", () => {
+    expect(captureCorpusFile(formatFile(), recordingReplay().replay, 4).kind).toBe("refused");
+  });
+
+  it("reads as a subject case file whose inputs name their target", () => {
+    const flat = parseCaseFile(JSON.stringify(formatFile()), "formats/demo.json");
+    expect(flat.subject).toBe("formats/demo");
+    expect(flat.cases.map((c) => [c.name, c.input])).toEqual([
+      ["current reads one", { target: "format:demo", document: { n: 1 } }],
+      ["pre-schema reads old", { target: "frozen:demo/pre-schema", document: { n: 2 } }],
+      ["0.17.0 refuses old", { target: "frozen:demo/0.17.0", document: { n: 3 } }],
+    ]);
+    expect(flat.cases.map((c) => c.expected)).toEqual([null, null, captured]);
+  });
+
+  it("holds a shape on an accepted expectation and no other key", () => {
+    const ok = { ok: true, shape: "0.17.0", value: { a: 1 } };
+    const file = JSON.stringify({
+      format: "demo",
+      current: [{ name: "n", input: 1, expected: ok }],
+      shapes: {},
+    });
+    expect(parseCorpusFile(file, "demo.json")).toEqual(JSON.parse(file));
+    const bad = JSON.stringify({
+      format: "demo",
+      current: [{ name: "n", input: 1, expected: { ...ok, extra: 1 } }],
+      shapes: {},
+    });
+    expect(() => parseCorpusFile(bad, "demo.json")).toThrow(/not a corpus case file/);
+  });
+});
 
 describe("captureFile", () => {
   const rows: ReadonlyArray<{

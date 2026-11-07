@@ -1,0 +1,596 @@
+{
+  "format": "plan-hand-decision-answer",
+  "current": [
+    {
+      "name": "accepts a typical document",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/plan-hand-decision-answer/0.32.0.json",
+        "kind": "plan",
+        "decisions": [
+          {
+            "id": "q-owner",
+            "verdict": {
+              "kind": "decided",
+              "chosen": "p2",
+              "abandoned": [
+                "p1"
+              ],
+              "why": "a month covers a release cycle",
+              "advocate": "a week keeps the disk small",
+              "principles": [
+                "S1"
+              ],
+              "reversibility": "cheap",
+              "by": {
+                "kind": "operator",
+                "name": "Example Operator"
+              },
+              "at": "2026-10-16T09:30:00Z",
+              "revised": [],
+              "phase": "phase-02"
+            }
+          }
+        ],
+        "markdown": "---\nstatus: Draft\n---\n# Example plan\n"
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.32.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/plan-hand-decision-answer/0.32.0.json",
+          "decisions": [
+            {
+              "id": "q-owner",
+              "verdict": {
+                "abandoned": [
+                  "p1"
+                ],
+                "advocate": "a week keeps the disk small",
+                "at": "2026-10-16T09:30:00Z",
+                "by": {
+                  "kind": "operator",
+                  "name": "Example Operator"
+                },
+                "chosen": "p2",
+                "kind": "decided",
+                "phase": "phase-02",
+                "principles": [
+                  "S1"
+                ],
+                "reversibility": "cheap",
+                "revised": [],
+                "why": "a month covers a release cycle"
+              }
+            }
+          ],
+          "kind": "plan",
+          "markdown": "---\nstatus: Draft\n---\n# Example plan\n"
+        }
+      }
+    },
+    {
+      "name": "accepts a document setting every field",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/plan-hand-decision-answer/0.32.0.json",
+        "kind": "plan",
+        "decisions": [
+          {
+            "id": "q-owner",
+            "verdict": {
+              "kind": "decided",
+              "chosen": "p2",
+              "abandoned": [
+                "p1"
+              ],
+              "why": "a month covers a release cycle",
+              "advocate": "a week keeps the disk small",
+              "principles": [
+                "S1"
+              ],
+              "reversibility": "cheap",
+              "by": {
+                "kind": "operator",
+                "name": "Example Operator"
+              },
+              "at": "2026-10-16T09:30:00Z",
+              "revised": [
+                "text-9"
+              ],
+              "phase": "phase-02"
+            }
+          }
+        ],
+        "markdown": "---\nstatus: Draft\n---\n# Example plan\n"
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.32.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/plan-hand-decision-answer/0.32.0.json",
+          "decisions": [
+            {
+              "id": "q-owner",
+              "verdict": {
+                "abandoned": [
+                  "p1"
+                ],
+                "advocate": "a week keeps the disk small",
+                "at": "2026-10-16T09:30:00Z",
+                "by": {
+                  "kind": "operator",
+                  "name": "Example Operator"
+                },
+                "chosen": "p2",
+                "kind": "decided",
+                "phase": "phase-02",
+                "principles": [
+                  "S1"
+                ],
+                "reversibility": "cheap",
+                "revised": [
+                  "text-9"
+                ],
+                "why": "a month covers a release cycle"
+              }
+            }
+          ],
+          "kind": "plan",
+          "markdown": "---\nstatus: Draft\n---\n# Example plan\n"
+        }
+      }
+    },
+    {
+      "name": "accepts a document with only its required fields",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/plan-hand-decision-answer/0.32.0.json",
+        "kind": "plan",
+        "decisions": [
+          {
+            "id": "q-owner",
+            "verdict": {
+              "kind": "decided",
+              "chosen": "p2",
+              "abandoned": [
+                "p1"
+              ],
+              "why": "a month covers a release cycle",
+              "advocate": "a week keeps the disk small",
+              "principles": [
+                "S1"
+              ],
+              "reversibility": "cheap",
+              "by": {
+                "kind": "operator",
+                "name": "Example Operator"
+              },
+              "at": "2026-10-16T09:30:00Z",
+              "revised": [
+                "text-9"
+              ],
+              "phase": "phase-02"
+            }
+          }
+        ],
+        "markdown": "---\nstatus: Draft\n---\n# Example plan\n"
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.32.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/plan-hand-decision-answer/0.32.0.json",
+          "decisions": [
+            {
+              "id": "q-owner",
+              "verdict": {
+                "abandoned": [
+                  "p1"
+                ],
+                "advocate": "a week keeps the disk small",
+                "at": "2026-10-16T09:30:00Z",
+                "by": {
+                  "kind": "operator",
+                  "name": "Example Operator"
+                },
+                "chosen": "p2",
+                "kind": "decided",
+                "phase": "phase-02",
+                "principles": [
+                  "S1"
+                ],
+                "reversibility": "cheap",
+                "revised": [
+                  "text-9"
+                ],
+                "why": "a month covers a release cycle"
+              }
+            }
+          ],
+          "kind": "plan",
+          "markdown": "---\nstatus: Draft\n---\n# Example plan\n"
+        }
+      }
+    },
+    {
+      "name": "refuses a document that is not an object",
+      "input": [
+        "not",
+        "an",
+        "object"
+      ],
+      "expected": {
+        "ok": false,
+        "refusal": ": a plan hand decision answer is a JSON object, got an array"
+      }
+    },
+    {
+      "name": "refuses a stamp naming another format",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/registry/0.17.0.json",
+        "kind": "plan",
+        "decisions": [
+          {
+            "id": "q-owner",
+            "verdict": {
+              "kind": "decided",
+              "chosen": "p2",
+              "abandoned": [
+                "p1"
+              ],
+              "why": "a month covers a release cycle",
+              "advocate": "a week keeps the disk small",
+              "principles": [
+                "S1"
+              ],
+              "reversibility": "cheap",
+              "by": {
+                "kind": "operator",
+                "name": "Example Operator"
+              },
+              "at": "2026-10-16T09:30:00Z",
+              "revised": [],
+              "phase": "phase-02"
+            }
+          }
+        ],
+        "markdown": "---\nstatus: Draft\n---\n# Example plan\n"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: https://docs.phax.run/schemas/registry/0.17.0.json is a registry document, not a plan-hand-decision-answer"
+      }
+    },
+    {
+      "name": "refuses a malformed $schema",
+      "input": {
+        "$schema": "not a schema url",
+        "kind": "plan",
+        "decisions": [
+          {
+            "id": "q-owner",
+            "verdict": {
+              "kind": "decided",
+              "chosen": "p2",
+              "abandoned": [
+                "p1"
+              ],
+              "why": "a month covers a release cycle",
+              "advocate": "a week keeps the disk small",
+              "principles": [
+                "S1"
+              ],
+              "reversibility": "cheap",
+              "by": {
+                "kind": "operator",
+                "name": "Example Operator"
+              },
+              "at": "2026-10-16T09:30:00Z",
+              "revised": [],
+              "phase": "phase-02"
+            }
+          }
+        ],
+        "markdown": "---\nstatus: Draft\n---\n# Example plan\n"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: expected https://docs.phax.run/schemas/<format-id>/<X.Y.Z>.json, got \"not a schema url\""
+      }
+    },
+    {
+      "name": "refuses a stamp newer than the package",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/plan-hand-decision-answer/9.0.0.json",
+        "kind": "plan",
+        "decisions": [
+          {
+            "id": "q-owner",
+            "verdict": {
+              "kind": "decided",
+              "chosen": "p2",
+              "abandoned": [
+                "p1"
+              ],
+              "why": "a month covers a release cycle",
+              "advocate": "a week keeps the disk small",
+              "principles": [
+                "S1"
+              ],
+              "reversibility": "cheap",
+              "by": {
+                "kind": "operator",
+                "name": "Example Operator"
+              },
+              "at": "2026-10-16T09:30:00Z",
+              "revised": [],
+              "phase": "phase-02"
+            }
+          }
+        ],
+        "markdown": "---\nstatus: Draft\n---\n# Example plan\n"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: plan-hand-decision-answer 9.0.0 is newer than @lbdremy/phax-schemas 0.36.0 — upgrade the package"
+      }
+    },
+    {
+      "name": "refuses a stamp below the first supported release",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/plan-hand-decision-answer/0.1.0.json",
+        "kind": "plan",
+        "decisions": [
+          {
+            "id": "q-owner",
+            "verdict": {
+              "kind": "decided",
+              "chosen": "p2",
+              "abandoned": [
+                "p1"
+              ],
+              "why": "a month covers a release cycle",
+              "advocate": "a week keeps the disk small",
+              "principles": [
+                "S1"
+              ],
+              "reversibility": "cheap",
+              "by": {
+                "kind": "operator",
+                "name": "Example Operator"
+              },
+              "at": "2026-10-16T09:30:00Z",
+              "revised": [],
+              "phase": "phase-02"
+            }
+          }
+        ],
+        "markdown": "---\nstatus: Draft\n---\n# Example plan\n"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: https://docs.phax.run/schemas/plan-hand-decision-answer/0.1.0.json was written by a development build of phax before 0.17.0, the first supported release — not supported"
+      }
+    },
+    {
+      "name": "refuses a document without $schema",
+      "input": {
+        "kind": "plan",
+        "decisions": [
+          {
+            "id": "q-owner",
+            "verdict": {
+              "kind": "decided",
+              "chosen": "p2",
+              "abandoned": [
+                "p1"
+              ],
+              "why": "a month covers a release cycle",
+              "advocate": "a week keeps the disk small",
+              "principles": [
+                "S1"
+              ],
+              "reversibility": "cheap",
+              "by": {
+                "kind": "operator",
+                "name": "Example Operator"
+              },
+              "at": "2026-10-16T09:30:00Z",
+              "revised": [],
+              "phase": "phase-02"
+            }
+          }
+        ],
+        "markdown": "---\nstatus: Draft\n---\n# Example plan\n"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: plan hand decision answer has no $schema — every plan hand decision answer is written with one"
+      }
+    },
+    {
+      "name": "refuses a document missing kind",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/plan-hand-decision-answer/0.32.0.json",
+        "decisions": [
+          {
+            "id": "q-owner",
+            "verdict": {
+              "kind": "decided",
+              "chosen": "p2",
+              "abandoned": [
+                "p1"
+              ],
+              "why": "a month covers a release cycle",
+              "advocate": "a week keeps the disk small",
+              "principles": [
+                "S1"
+              ],
+              "reversibility": "cheap",
+              "by": {
+                "kind": "operator",
+                "name": "Example Operator"
+              },
+              "at": "2026-10-16T09:30:00Z",
+              "revised": [],
+              "phase": "phase-02"
+            }
+          }
+        ],
+        "markdown": "---\nstatus: Draft\n---\n# Example plan\n"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "kind: is missing"
+      }
+    },
+    {
+      "name": "refuses an unexpected key",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/plan-hand-decision-answer/0.32.0.json",
+        "kind": "plan",
+        "decisions": [
+          {
+            "id": "q-owner",
+            "verdict": {
+              "kind": "decided",
+              "chosen": "p2",
+              "abandoned": [
+                "p1"
+              ],
+              "why": "a month covers a release cycle",
+              "advocate": "a week keeps the disk small",
+              "principles": [
+                "S1"
+              ],
+              "reversibility": "cheap",
+              "by": {
+                "kind": "operator",
+                "name": "Example Operator"
+              },
+              "at": "2026-10-16T09:30:00Z",
+              "revised": [],
+              "phase": "phase-02"
+            }
+          }
+        ],
+        "markdown": "---\nstatus: Draft\n---\n# Example plan\n",
+        "unexpectedKey": 1
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "unexpectedKey: is unexpected, expected: \"$schema\" | \"kind\" | \"decisions\" | \"markdown\""
+      }
+    },
+    {
+      "name": "refuses decisions[0].id of the wrong type",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/plan-hand-decision-answer/0.32.0.json",
+        "kind": "plan",
+        "decisions": [
+          {
+            "id": 42,
+            "verdict": {
+              "kind": "decided",
+              "chosen": "p2",
+              "abandoned": [
+                "p1"
+              ],
+              "why": "a month covers a release cycle",
+              "advocate": "a week keeps the disk small",
+              "principles": [
+                "S1"
+              ],
+              "reversibility": "cheap",
+              "by": {
+                "kind": "operator",
+                "name": "Example Operator"
+              },
+              "at": "2026-10-16T09:30:00Z",
+              "revised": [],
+              "phase": "phase-02"
+            }
+          }
+        ],
+        "markdown": "---\nstatus: Draft\n---\n# Example plan\n"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "decisions.0.id: Expected string, actual 42"
+      }
+    },
+    {
+      "name": "refuses kind outside its value",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/plan-hand-decision-answer/0.32.0.json",
+        "kind": "bogus-value",
+        "decisions": [
+          {
+            "id": "q-owner",
+            "verdict": {
+              "kind": "decided",
+              "chosen": "p2",
+              "abandoned": [
+                "p1"
+              ],
+              "why": "a month covers a release cycle",
+              "advocate": "a week keeps the disk small",
+              "principles": [
+                "S1"
+              ],
+              "reversibility": "cheap",
+              "by": {
+                "kind": "operator",
+                "name": "Example Operator"
+              },
+              "at": "2026-10-16T09:30:00Z",
+              "revised": [],
+              "phase": "phase-02"
+            }
+          }
+        ],
+        "markdown": "---\nstatus: Draft\n---\n# Example plan\n"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "kind: Expected \"plan\", actual \"bogus-value\""
+      }
+    },
+    {
+      "name": "refuses decisions[0].id that breaks its pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/plan-hand-decision-answer/0.32.0.json",
+        "kind": "plan",
+        "decisions": [
+          {
+            "id": "",
+            "verdict": {
+              "kind": "decided",
+              "chosen": "p2",
+              "abandoned": [
+                "p1"
+              ],
+              "why": "a month covers a release cycle",
+              "advocate": "a week keeps the disk small",
+              "principles": [
+                "S1"
+              ],
+              "reversibility": "cheap",
+              "by": {
+                "kind": "operator",
+                "name": "Example Operator"
+              },
+              "at": "2026-10-16T09:30:00Z",
+              "revised": [],
+              "phase": "phase-02"
+            }
+          }
+        ],
+        "markdown": "---\nstatus: Draft\n---\n# Example plan\n"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "decisions.0.id: Expected A question id of the artifact: no whitespace., actual \"\""
+      }
+    }
+  ],
+  "shapes": {}
+}

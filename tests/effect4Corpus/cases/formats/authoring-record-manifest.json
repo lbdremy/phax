@@ -1,0 +1,1881 @@
+{
+  "format": "authoring-record-manifest",
+  "current": [
+    {
+      "name": "accepts a typical document",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/0.30.0.json",
+        "kind": "authoring",
+        "authoringId": "authoring-0001",
+        "artifact": "docs/specs/example.md",
+        "artifactKind": "spec",
+        "shape": "skeleton",
+        "sourceSha": "def5678",
+        "provider": "codex-cli",
+        "model": "example-model",
+        "effort": "medium",
+        "outcome": "committed",
+        "retry": "none",
+        "usage": {
+          "available": true,
+          "usage": {
+            "provider": "codex-cli",
+            "inputTokens": 500,
+            "cachedInputTokens": 100,
+            "outputTokens": 50,
+            "reasoningOutputTokens": 10
+          }
+        }
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.30.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/0.30.0.json",
+          "artifact": "docs/specs/example.md",
+          "artifactKind": "spec",
+          "authoringId": "authoring-0001",
+          "effort": "medium",
+          "kind": "authoring",
+          "model": "example-model",
+          "outcome": "committed",
+          "provider": "codex-cli",
+          "retry": "none",
+          "shape": "skeleton",
+          "sourceSha": "def5678",
+          "usage": {
+            "available": true,
+            "usage": {
+              "cachedInputTokens": 100,
+              "inputTokens": 500,
+              "outputTokens": 50,
+              "provider": "codex-cli",
+              "reasoningOutputTokens": 10
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "accepts a document setting every field",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/0.30.0.json",
+        "kind": "authoring",
+        "authoringId": "authoring-0001",
+        "artifact": "docs/specs/example.md",
+        "artifactKind": "spec",
+        "shape": "skeleton",
+        "sourceSha": "def5678",
+        "provider": "codex-cli",
+        "model": "example-model",
+        "effort": "medium",
+        "outcome": "committed",
+        "retry": "none",
+        "usage": {
+          "available": true,
+          "usage": {
+            "provider": "claude-code",
+            "inputTokens": 500,
+            "cacheCreationInputTokens": 1,
+            "cacheReadInputTokens": 1,
+            "outputTokens": 50,
+            "totalCostUsd": 1
+          }
+        }
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.30.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/0.30.0.json",
+          "artifact": "docs/specs/example.md",
+          "artifactKind": "spec",
+          "authoringId": "authoring-0001",
+          "effort": "medium",
+          "kind": "authoring",
+          "model": "example-model",
+          "outcome": "committed",
+          "provider": "codex-cli",
+          "retry": "none",
+          "shape": "skeleton",
+          "sourceSha": "def5678",
+          "usage": {
+            "available": true,
+            "usage": {
+              "cacheCreationInputTokens": 1,
+              "cacheReadInputTokens": 1,
+              "inputTokens": 500,
+              "outputTokens": 50,
+              "provider": "claude-code",
+              "totalCostUsd": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "accepts a document setting every field, variant 2",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/0.30.0.json",
+        "kind": "authoring",
+        "authoringId": "authoring-0001",
+        "artifact": "docs/specs/example.md",
+        "artifactKind": "spec",
+        "shape": "skeleton",
+        "sourceSha": "def5678",
+        "provider": "codex-cli",
+        "model": "example-model",
+        "effort": "medium",
+        "outcome": "committed",
+        "retry": "none",
+        "usage": {
+          "available": true,
+          "usage": {
+            "provider": "mistral-vibe",
+            "inputTokens": 500,
+            "cachedInputTokens": 100,
+            "outputTokens": 50,
+            "costUsd": 1
+          }
+        }
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.30.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/0.30.0.json",
+          "artifact": "docs/specs/example.md",
+          "artifactKind": "spec",
+          "authoringId": "authoring-0001",
+          "effort": "medium",
+          "kind": "authoring",
+          "model": "example-model",
+          "outcome": "committed",
+          "provider": "codex-cli",
+          "retry": "none",
+          "shape": "skeleton",
+          "sourceSha": "def5678",
+          "usage": {
+            "available": true,
+            "usage": {
+              "cachedInputTokens": 100,
+              "costUsd": 1,
+              "inputTokens": 500,
+              "outputTokens": 50,
+              "provider": "mistral-vibe"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "accepts a document with only its required fields",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/0.30.0.json",
+        "kind": "authoring",
+        "authoringId": "authoring-0001",
+        "artifact": "docs/specs/example.md",
+        "artifactKind": "spec",
+        "shape": "skeleton",
+        "provider": "codex-cli",
+        "model": "example-model",
+        "effort": "medium",
+        "outcome": "committed",
+        "retry": "none",
+        "usage": {
+          "available": true,
+          "usage": {
+            "provider": "claude-code",
+            "inputTokens": 500,
+            "cacheCreationInputTokens": 1,
+            "cacheReadInputTokens": 1,
+            "outputTokens": 50,
+            "totalCostUsd": 1
+          }
+        }
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.30.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/0.30.0.json",
+          "artifact": "docs/specs/example.md",
+          "artifactKind": "spec",
+          "authoringId": "authoring-0001",
+          "effort": "medium",
+          "kind": "authoring",
+          "model": "example-model",
+          "outcome": "committed",
+          "provider": "codex-cli",
+          "retry": "none",
+          "shape": "skeleton",
+          "usage": {
+            "available": true,
+            "usage": {
+              "cacheCreationInputTokens": 1,
+              "cacheReadInputTokens": 1,
+              "inputTokens": 500,
+              "outputTokens": 50,
+              "provider": "claude-code",
+              "totalCostUsd": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "refuses a document that is not an object",
+      "input": [
+        "not",
+        "an",
+        "object"
+      ],
+      "expected": {
+        "ok": false,
+        "refusal": ": a authoring record manifest is a JSON object, got an array"
+      }
+    },
+    {
+      "name": "refuses a stamp naming another format",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/registry/0.17.0.json",
+        "kind": "authoring",
+        "authoringId": "authoring-0001",
+        "artifact": "docs/specs/example.md",
+        "artifactKind": "spec",
+        "shape": "skeleton",
+        "sourceSha": "def5678",
+        "provider": "codex-cli",
+        "model": "example-model",
+        "effort": "medium",
+        "outcome": "committed",
+        "retry": "none",
+        "usage": {
+          "available": true,
+          "usage": {
+            "provider": "codex-cli",
+            "inputTokens": 500,
+            "cachedInputTokens": 100,
+            "outputTokens": 50,
+            "reasoningOutputTokens": 10
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: https://docs.phax.run/schemas/registry/0.17.0.json is a registry document, not a authoring-record-manifest"
+      }
+    },
+    {
+      "name": "refuses a malformed $schema",
+      "input": {
+        "$schema": "not a schema url",
+        "kind": "authoring",
+        "authoringId": "authoring-0001",
+        "artifact": "docs/specs/example.md",
+        "artifactKind": "spec",
+        "shape": "skeleton",
+        "sourceSha": "def5678",
+        "provider": "codex-cli",
+        "model": "example-model",
+        "effort": "medium",
+        "outcome": "committed",
+        "retry": "none",
+        "usage": {
+          "available": true,
+          "usage": {
+            "provider": "codex-cli",
+            "inputTokens": 500,
+            "cachedInputTokens": 100,
+            "outputTokens": 50,
+            "reasoningOutputTokens": 10
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: expected https://docs.phax.run/schemas/<format-id>/<X.Y.Z>.json, got \"not a schema url\""
+      }
+    },
+    {
+      "name": "refuses a stamp newer than the package",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/9.0.0.json",
+        "kind": "authoring",
+        "authoringId": "authoring-0001",
+        "artifact": "docs/specs/example.md",
+        "artifactKind": "spec",
+        "shape": "skeleton",
+        "sourceSha": "def5678",
+        "provider": "codex-cli",
+        "model": "example-model",
+        "effort": "medium",
+        "outcome": "committed",
+        "retry": "none",
+        "usage": {
+          "available": true,
+          "usage": {
+            "provider": "codex-cli",
+            "inputTokens": 500,
+            "cachedInputTokens": 100,
+            "outputTokens": 50,
+            "reasoningOutputTokens": 10
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: authoring-record-manifest 9.0.0 is newer than @lbdremy/phax-schemas 0.36.0 — upgrade the package"
+      }
+    },
+    {
+      "name": "refuses a stamp below the first supported release",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/0.1.0.json",
+        "kind": "authoring",
+        "authoringId": "authoring-0001",
+        "artifact": "docs/specs/example.md",
+        "artifactKind": "spec",
+        "shape": "skeleton",
+        "sourceSha": "def5678",
+        "provider": "codex-cli",
+        "model": "example-model",
+        "effort": "medium",
+        "outcome": "committed",
+        "retry": "none",
+        "usage": {
+          "available": true,
+          "usage": {
+            "provider": "codex-cli",
+            "inputTokens": 500,
+            "cachedInputTokens": 100,
+            "outputTokens": 50,
+            "reasoningOutputTokens": 10
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: https://docs.phax.run/schemas/authoring-record-manifest/0.1.0.json was written by a development build of phax before 0.17.0, the first supported release — not supported"
+      }
+    },
+    {
+      "name": "reads a document written before $schema",
+      "input": {
+        "version": 1,
+        "kind": "authoring",
+        "authoringId": "authoring-0001",
+        "artifact": "docs/specs/example.md",
+        "artifactKind": "spec",
+        "shape": "skeleton",
+        "sourceSha": "def5678",
+        "provider": "codex-cli",
+        "model": "example-model",
+        "effort": "medium",
+        "outcome": "committed",
+        "usage": {
+          "available": true,
+          "usage": {
+            "provider": "codex-cli",
+            "inputTokens": 500,
+            "cachedInputTokens": 100,
+            "outputTokens": 50,
+            "reasoningOutputTokens": 10
+          }
+        }
+      },
+      "expected": {
+        "ok": true,
+        "shape": "pre-schema",
+        "value": {
+          "artifact": "docs/specs/example.md",
+          "artifactKind": "spec",
+          "authoringId": "authoring-0001",
+          "effort": "medium",
+          "kind": "authoring",
+          "model": "example-model",
+          "outcome": "committed",
+          "provider": "codex-cli",
+          "shape": "skeleton",
+          "sourceSha": "def5678",
+          "usage": {
+            "available": true,
+            "usage": {
+              "cachedInputTokens": 100,
+              "inputTokens": 500,
+              "outputTokens": 50,
+              "provider": "codex-cli",
+              "reasoningOutputTokens": 10
+            }
+          },
+          "version": 1
+        }
+      }
+    },
+    {
+      "name": "refuses a pre-schema document missing a key",
+      "input": {
+        "kind": "authoring",
+        "authoringId": "authoring-0001",
+        "artifact": "docs/specs/example.md",
+        "artifactKind": "spec",
+        "shape": "skeleton",
+        "sourceSha": "def5678",
+        "provider": "codex-cli",
+        "model": "example-model",
+        "effort": "medium",
+        "outcome": "committed",
+        "usage": {
+          "available": true,
+          "usage": {
+            "provider": "codex-cli",
+            "inputTokens": 500,
+            "cachedInputTokens": 100,
+            "outputTokens": 50,
+            "reasoningOutputTokens": 10
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "version: authoring record manifest older than phax 0.17.0, the first supported release — not supported (is missing)"
+      }
+    },
+    {
+      "name": "refuses a document missing kind",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/0.30.0.json",
+        "authoringId": "authoring-0001",
+        "artifact": "docs/specs/example.md",
+        "artifactKind": "spec",
+        "shape": "skeleton",
+        "sourceSha": "def5678",
+        "provider": "codex-cli",
+        "model": "example-model",
+        "effort": "medium",
+        "outcome": "committed",
+        "retry": "none",
+        "usage": {
+          "available": true,
+          "usage": {
+            "provider": "codex-cli",
+            "inputTokens": 500,
+            "cachedInputTokens": 100,
+            "outputTokens": 50,
+            "reasoningOutputTokens": 10
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "kind: is missing"
+      }
+    },
+    {
+      "name": "refuses an unexpected key",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/0.30.0.json",
+        "kind": "authoring",
+        "authoringId": "authoring-0001",
+        "artifact": "docs/specs/example.md",
+        "artifactKind": "spec",
+        "shape": "skeleton",
+        "sourceSha": "def5678",
+        "provider": "codex-cli",
+        "model": "example-model",
+        "effort": "medium",
+        "outcome": "committed",
+        "retry": "none",
+        "usage": {
+          "available": true,
+          "usage": {
+            "provider": "codex-cli",
+            "inputTokens": 500,
+            "cachedInputTokens": 100,
+            "outputTokens": 50,
+            "reasoningOutputTokens": 10
+          }
+        },
+        "unexpectedKey": 1
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "unexpectedKey: is unexpected, expected: \"$schema\" | \"kind\" | \"authoringId\" | \"artifact\" | \"artifactKind\" | \"shape\" | \"sourceSha\" | \"provider\" | \"model\" | \"effort\" | \"outcome\" | \"retry\" | \"usage\""
+      }
+    },
+    {
+      "name": "refuses authoringId of the wrong type",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/0.30.0.json",
+        "kind": "authoring",
+        "authoringId": 42,
+        "artifact": "docs/specs/example.md",
+        "artifactKind": "spec",
+        "shape": "skeleton",
+        "sourceSha": "def5678",
+        "provider": "codex-cli",
+        "model": "example-model",
+        "effort": "medium",
+        "outcome": "committed",
+        "retry": "none",
+        "usage": {
+          "available": true,
+          "usage": {
+            "provider": "codex-cli",
+            "inputTokens": 500,
+            "cachedInputTokens": 100,
+            "outputTokens": 50,
+            "reasoningOutputTokens": 10
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "authoringId: Expected string, actual 42"
+      }
+    },
+    {
+      "name": "refuses kind outside its value",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/0.30.0.json",
+        "kind": "bogus-value",
+        "authoringId": "authoring-0001",
+        "artifact": "docs/specs/example.md",
+        "artifactKind": "spec",
+        "shape": "skeleton",
+        "sourceSha": "def5678",
+        "provider": "codex-cli",
+        "model": "example-model",
+        "effort": "medium",
+        "outcome": "committed",
+        "retry": "none",
+        "usage": {
+          "available": true,
+          "usage": {
+            "provider": "codex-cli",
+            "inputTokens": 500,
+            "cachedInputTokens": 100,
+            "outputTokens": 50,
+            "reasoningOutputTokens": 10
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "kind: Expected \"authoring\", actual \"bogus-value\""
+      }
+    },
+    {
+      "name": "refuses authoringId when empty",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/0.30.0.json",
+        "kind": "authoring",
+        "authoringId": "",
+        "artifact": "docs/specs/example.md",
+        "artifactKind": "spec",
+        "shape": "skeleton",
+        "sourceSha": "def5678",
+        "provider": "codex-cli",
+        "model": "example-model",
+        "effort": "medium",
+        "outcome": "committed",
+        "retry": "none",
+        "usage": {
+          "available": true,
+          "usage": {
+            "provider": "codex-cli",
+            "inputTokens": 500,
+            "cachedInputTokens": 100,
+            "outputTokens": 50,
+            "reasoningOutputTokens": 10
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "authoringId: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "reads a document stamped 0.17.0",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/0.17.0.json",
+        "kind": "authoring",
+        "authoringId": "authoring-0001",
+        "artifact": "docs/specs/example.md",
+        "artifactKind": "spec",
+        "shape": "skeleton",
+        "sourceSha": "def5678",
+        "provider": "codex-cli",
+        "model": "example-model",
+        "effort": "medium",
+        "outcome": "committed",
+        "usage": {
+          "available": true,
+          "usage": {
+            "provider": "mistral-vibe",
+            "inputTokens": 500,
+            "outputTokens": 50,
+            "sessionCostUsd": 1,
+            "toolCallsAgreed": 1,
+            "toolCallsRejected": 1,
+            "toolCallsFailed": 1,
+            "toolCallsSucceeded": 1
+          }
+        }
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.17.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/0.17.0.json",
+          "artifact": "docs/specs/example.md",
+          "artifactKind": "spec",
+          "authoringId": "authoring-0001",
+          "effort": "medium",
+          "kind": "authoring",
+          "model": "example-model",
+          "outcome": "committed",
+          "provider": "codex-cli",
+          "shape": "skeleton",
+          "sourceSha": "def5678",
+          "usage": {
+            "available": true,
+            "usage": {
+              "inputTokens": 500,
+              "outputTokens": 50,
+              "provider": "mistral-vibe",
+              "sessionCostUsd": 1,
+              "toolCallsAgreed": 1,
+              "toolCallsFailed": 1,
+              "toolCallsRejected": 1,
+              "toolCallsSucceeded": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "reads a document stamped 0.23.0",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/0.23.0.json",
+        "kind": "authoring",
+        "authoringId": "authoring-0001",
+        "artifact": "docs/specs/example.md",
+        "artifactKind": "spec",
+        "shape": "skeleton",
+        "sourceSha": "def5678",
+        "provider": "codex-cli",
+        "model": "example-model",
+        "effort": "medium",
+        "outcome": "committed",
+        "retry": "none",
+        "usage": {
+          "available": true,
+          "usage": {
+            "provider": "mistral-vibe",
+            "inputTokens": 500,
+            "outputTokens": 50,
+            "sessionCostUsd": 1,
+            "toolCallsAgreed": 1,
+            "toolCallsRejected": 1,
+            "toolCallsFailed": 1,
+            "toolCallsSucceeded": 1
+          }
+        }
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.23.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/0.23.0.json",
+          "artifact": "docs/specs/example.md",
+          "artifactKind": "spec",
+          "authoringId": "authoring-0001",
+          "effort": "medium",
+          "kind": "authoring",
+          "model": "example-model",
+          "outcome": "committed",
+          "provider": "codex-cli",
+          "retry": "none",
+          "shape": "skeleton",
+          "sourceSha": "def5678",
+          "usage": {
+            "available": true,
+            "usage": {
+              "inputTokens": 500,
+              "outputTokens": 50,
+              "provider": "mistral-vibe",
+              "sessionCostUsd": 1,
+              "toolCallsAgreed": 1,
+              "toolCallsFailed": 1,
+              "toolCallsRejected": 1,
+              "toolCallsSucceeded": 1
+            }
+          }
+        }
+      }
+    }
+  ],
+  "shapes": {
+    "pre-schema": [
+      {
+        "name": "accepts a typical document",
+        "input": {
+          "version": 1,
+          "kind": "authoring",
+          "authoringId": "authoring-0001",
+          "artifact": "docs/specs/example.md",
+          "artifactKind": "spec",
+          "shape": "skeleton",
+          "sourceSha": "def5678",
+          "provider": "codex-cli",
+          "model": "example-model",
+          "effort": "medium",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 500,
+              "cachedInputTokens": 100,
+              "outputTokens": 50,
+              "reasoningOutputTokens": 10
+            }
+          }
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "artifact": "docs/specs/example.md",
+            "artifactKind": "spec",
+            "authoringId": "authoring-0001",
+            "effort": "medium",
+            "kind": "authoring",
+            "model": "example-model",
+            "outcome": "committed",
+            "provider": "codex-cli",
+            "shape": "skeleton",
+            "sourceSha": "def5678",
+            "usage": {
+              "available": true,
+              "usage": {
+                "cachedInputTokens": 100,
+                "inputTokens": 500,
+                "outputTokens": 50,
+                "provider": "codex-cli",
+                "reasoningOutputTokens": 10
+              }
+            },
+            "version": 1
+          }
+        }
+      },
+      {
+        "name": "accepts a document setting every field",
+        "input": {
+          "version": 1,
+          "kind": "authoring",
+          "authoringId": "authoring-0001",
+          "artifact": "docs/specs/example.md",
+          "artifactKind": "spec",
+          "shape": "skeleton",
+          "sourceSha": "def5678",
+          "provider": "codex-cli",
+          "model": "example-model",
+          "effort": "medium",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "mistral-vibe",
+              "inputTokens": 500,
+              "outputTokens": 50,
+              "sessionCostUsd": 1,
+              "toolCallsAgreed": 1,
+              "toolCallsRejected": 1,
+              "toolCallsFailed": 1,
+              "toolCallsSucceeded": 1
+            }
+          }
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "artifact": "docs/specs/example.md",
+            "artifactKind": "spec",
+            "authoringId": "authoring-0001",
+            "effort": "medium",
+            "kind": "authoring",
+            "model": "example-model",
+            "outcome": "committed",
+            "provider": "codex-cli",
+            "shape": "skeleton",
+            "sourceSha": "def5678",
+            "usage": {
+              "available": true,
+              "usage": {
+                "inputTokens": 500,
+                "outputTokens": 50,
+                "provider": "mistral-vibe",
+                "sessionCostUsd": 1,
+                "toolCallsAgreed": 1,
+                "toolCallsFailed": 1,
+                "toolCallsRejected": 1,
+                "toolCallsSucceeded": 1
+              }
+            },
+            "version": 1
+          }
+        }
+      },
+      {
+        "name": "accepts a document setting every field, variant 2",
+        "input": {
+          "version": 1,
+          "kind": "authoring",
+          "authoringId": "authoring-0001",
+          "artifact": "docs/specs/example.md",
+          "artifactKind": "spec",
+          "shape": "skeleton",
+          "sourceSha": "def5678",
+          "provider": "codex-cli",
+          "model": "example-model",
+          "effort": "medium",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 500,
+              "cacheCreationInputTokens": 1,
+              "cacheReadInputTokens": 1,
+              "outputTokens": 50,
+              "totalCostUsd": 1
+            }
+          }
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "artifact": "docs/specs/example.md",
+            "artifactKind": "spec",
+            "authoringId": "authoring-0001",
+            "effort": "medium",
+            "kind": "authoring",
+            "model": "example-model",
+            "outcome": "committed",
+            "provider": "codex-cli",
+            "shape": "skeleton",
+            "sourceSha": "def5678",
+            "usage": {
+              "available": true,
+              "usage": {
+                "cacheCreationInputTokens": 1,
+                "cacheReadInputTokens": 1,
+                "inputTokens": 500,
+                "outputTokens": 50,
+                "provider": "claude-code",
+                "totalCostUsd": 1
+              }
+            },
+            "version": 1
+          }
+        }
+      },
+      {
+        "name": "accepts a document with only its required fields",
+        "input": {
+          "version": 1,
+          "kind": "authoring",
+          "authoringId": "authoring-0001",
+          "artifact": "docs/specs/example.md",
+          "artifactKind": "spec",
+          "shape": "skeleton",
+          "provider": "codex-cli",
+          "model": "example-model",
+          "effort": "medium",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "mistral-vibe",
+              "inputTokens": 500,
+              "outputTokens": 50,
+              "sessionCostUsd": 1,
+              "toolCallsAgreed": 1,
+              "toolCallsRejected": 1,
+              "toolCallsFailed": 1,
+              "toolCallsSucceeded": 1
+            }
+          }
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "artifact": "docs/specs/example.md",
+            "artifactKind": "spec",
+            "authoringId": "authoring-0001",
+            "effort": "medium",
+            "kind": "authoring",
+            "model": "example-model",
+            "outcome": "committed",
+            "provider": "codex-cli",
+            "shape": "skeleton",
+            "usage": {
+              "available": true,
+              "usage": {
+                "inputTokens": 500,
+                "outputTokens": 50,
+                "provider": "mistral-vibe",
+                "sessionCostUsd": 1,
+                "toolCallsAgreed": 1,
+                "toolCallsFailed": 1,
+                "toolCallsRejected": 1,
+                "toolCallsSucceeded": 1
+              }
+            },
+            "version": 1
+          }
+        }
+      },
+      {
+        "name": "refuses a document missing version",
+        "input": {
+          "kind": "authoring",
+          "authoringId": "authoring-0001",
+          "artifact": "docs/specs/example.md",
+          "artifactKind": "spec",
+          "shape": "skeleton",
+          "sourceSha": "def5678",
+          "provider": "codex-cli",
+          "model": "example-model",
+          "effort": "medium",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 500,
+              "cachedInputTokens": 100,
+              "outputTokens": 50,
+              "reasoningOutputTokens": 10
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "version: is missing"
+        }
+      },
+      {
+        "name": "refuses an unexpected key",
+        "input": {
+          "version": 1,
+          "kind": "authoring",
+          "authoringId": "authoring-0001",
+          "artifact": "docs/specs/example.md",
+          "artifactKind": "spec",
+          "shape": "skeleton",
+          "sourceSha": "def5678",
+          "provider": "codex-cli",
+          "model": "example-model",
+          "effort": "medium",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 500,
+              "cachedInputTokens": 100,
+              "outputTokens": 50,
+              "reasoningOutputTokens": 10
+            }
+          },
+          "unexpectedKey": 1
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "unexpectedKey: is unexpected, expected: \"version\" | \"kind\" | \"authoringId\" | \"artifact\" | \"artifactKind\" | \"shape\" | \"sourceSha\" | \"provider\" | \"model\" | \"effort\" | \"outcome\" | \"usage\""
+        }
+      },
+      {
+        "name": "refuses version of the wrong type",
+        "input": {
+          "version": "forty-two",
+          "kind": "authoring",
+          "authoringId": "authoring-0001",
+          "artifact": "docs/specs/example.md",
+          "artifactKind": "spec",
+          "shape": "skeleton",
+          "sourceSha": "def5678",
+          "provider": "codex-cli",
+          "model": "example-model",
+          "effort": "medium",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 500,
+              "cachedInputTokens": 100,
+              "outputTokens": 50,
+              "reasoningOutputTokens": 10
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "version: Expected 1, actual \"forty-two\""
+        }
+      },
+      {
+        "name": "refuses version outside its value",
+        "input": {
+          "version": "bogus-value",
+          "kind": "authoring",
+          "authoringId": "authoring-0001",
+          "artifact": "docs/specs/example.md",
+          "artifactKind": "spec",
+          "shape": "skeleton",
+          "sourceSha": "def5678",
+          "provider": "codex-cli",
+          "model": "example-model",
+          "effort": "medium",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 500,
+              "cachedInputTokens": 100,
+              "outputTokens": 50,
+              "reasoningOutputTokens": 10
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "version: Expected 1, actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "refuses authoringId when empty",
+        "input": {
+          "version": 1,
+          "kind": "authoring",
+          "authoringId": "",
+          "artifact": "docs/specs/example.md",
+          "artifactKind": "spec",
+          "shape": "skeleton",
+          "sourceSha": "def5678",
+          "provider": "codex-cli",
+          "model": "example-model",
+          "effort": "medium",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 500,
+              "cachedInputTokens": 100,
+              "outputTokens": 50,
+              "reasoningOutputTokens": 10
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "authoringId: Expected a non empty string, actual \"\""
+        }
+      }
+    ],
+    "0.17.0": [
+      {
+        "name": "accepts a document setting every field",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/0.17.0.json",
+          "kind": "authoring",
+          "authoringId": "authoring-0001",
+          "artifact": "docs/specs/example.md",
+          "artifactKind": "spec",
+          "shape": "skeleton",
+          "sourceSha": "def5678",
+          "provider": "codex-cli",
+          "model": "example-model",
+          "effort": "medium",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "mistral-vibe",
+              "inputTokens": 500,
+              "outputTokens": 50,
+              "sessionCostUsd": 1,
+              "toolCallsAgreed": 1,
+              "toolCallsRejected": 1,
+              "toolCallsFailed": 1,
+              "toolCallsSucceeded": 1
+            }
+          }
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/0.17.0.json",
+            "artifact": "docs/specs/example.md",
+            "artifactKind": "spec",
+            "authoringId": "authoring-0001",
+            "effort": "medium",
+            "kind": "authoring",
+            "model": "example-model",
+            "outcome": "committed",
+            "provider": "codex-cli",
+            "shape": "skeleton",
+            "sourceSha": "def5678",
+            "usage": {
+              "available": true,
+              "usage": {
+                "inputTokens": 500,
+                "outputTokens": 50,
+                "provider": "mistral-vibe",
+                "sessionCostUsd": 1,
+                "toolCallsAgreed": 1,
+                "toolCallsFailed": 1,
+                "toolCallsRejected": 1,
+                "toolCallsSucceeded": 1
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "accepts a document setting every field, variant 2",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/0.17.0.json",
+          "kind": "authoring",
+          "authoringId": "authoring-0001",
+          "artifact": "docs/specs/example.md",
+          "artifactKind": "spec",
+          "shape": "skeleton",
+          "sourceSha": "def5678",
+          "provider": "codex-cli",
+          "model": "example-model",
+          "effort": "medium",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 500,
+              "cacheCreationInputTokens": 1,
+              "cacheReadInputTokens": 1,
+              "outputTokens": 50,
+              "totalCostUsd": 1
+            }
+          }
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/0.17.0.json",
+            "artifact": "docs/specs/example.md",
+            "artifactKind": "spec",
+            "authoringId": "authoring-0001",
+            "effort": "medium",
+            "kind": "authoring",
+            "model": "example-model",
+            "outcome": "committed",
+            "provider": "codex-cli",
+            "shape": "skeleton",
+            "sourceSha": "def5678",
+            "usage": {
+              "available": true,
+              "usage": {
+                "cacheCreationInputTokens": 1,
+                "cacheReadInputTokens": 1,
+                "inputTokens": 500,
+                "outputTokens": 50,
+                "provider": "claude-code",
+                "totalCostUsd": 1
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "accepts a document setting every field, variant 3",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/0.17.0.json",
+          "kind": "authoring",
+          "authoringId": "authoring-0001",
+          "artifact": "docs/specs/example.md",
+          "artifactKind": "spec",
+          "shape": "skeleton",
+          "sourceSha": "def5678",
+          "provider": "codex-cli",
+          "model": "example-model",
+          "effort": "medium",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 500,
+              "cachedInputTokens": 100,
+              "outputTokens": 50,
+              "reasoningOutputTokens": 10
+            }
+          }
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/0.17.0.json",
+            "artifact": "docs/specs/example.md",
+            "artifactKind": "spec",
+            "authoringId": "authoring-0001",
+            "effort": "medium",
+            "kind": "authoring",
+            "model": "example-model",
+            "outcome": "committed",
+            "provider": "codex-cli",
+            "shape": "skeleton",
+            "sourceSha": "def5678",
+            "usage": {
+              "available": true,
+              "usage": {
+                "cachedInputTokens": 100,
+                "inputTokens": 500,
+                "outputTokens": 50,
+                "provider": "codex-cli",
+                "reasoningOutputTokens": 10
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "accepts a document with only its required fields",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/0.17.0.json",
+          "kind": "authoring",
+          "authoringId": "authoring-0001",
+          "artifact": "docs/specs/example.md",
+          "artifactKind": "spec",
+          "shape": "skeleton",
+          "provider": "codex-cli",
+          "model": "example-model",
+          "effort": "medium",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "mistral-vibe",
+              "inputTokens": 500,
+              "outputTokens": 50,
+              "sessionCostUsd": 1,
+              "toolCallsAgreed": 1,
+              "toolCallsRejected": 1,
+              "toolCallsFailed": 1,
+              "toolCallsSucceeded": 1
+            }
+          }
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/0.17.0.json",
+            "artifact": "docs/specs/example.md",
+            "artifactKind": "spec",
+            "authoringId": "authoring-0001",
+            "effort": "medium",
+            "kind": "authoring",
+            "model": "example-model",
+            "outcome": "committed",
+            "provider": "codex-cli",
+            "shape": "skeleton",
+            "usage": {
+              "available": true,
+              "usage": {
+                "inputTokens": 500,
+                "outputTokens": 50,
+                "provider": "mistral-vibe",
+                "sessionCostUsd": 1,
+                "toolCallsAgreed": 1,
+                "toolCallsFailed": 1,
+                "toolCallsRejected": 1,
+                "toolCallsSucceeded": 1
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "refuses a document missing kind",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/0.17.0.json",
+          "authoringId": "authoring-0001",
+          "artifact": "docs/specs/example.md",
+          "artifactKind": "spec",
+          "shape": "skeleton",
+          "sourceSha": "def5678",
+          "provider": "codex-cli",
+          "model": "example-model",
+          "effort": "medium",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "mistral-vibe",
+              "inputTokens": 500,
+              "outputTokens": 50,
+              "sessionCostUsd": 1,
+              "toolCallsAgreed": 1,
+              "toolCallsRejected": 1,
+              "toolCallsFailed": 1,
+              "toolCallsSucceeded": 1
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "kind: is missing"
+        }
+      },
+      {
+        "name": "refuses an unexpected key",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/0.17.0.json",
+          "kind": "authoring",
+          "authoringId": "authoring-0001",
+          "artifact": "docs/specs/example.md",
+          "artifactKind": "spec",
+          "shape": "skeleton",
+          "sourceSha": "def5678",
+          "provider": "codex-cli",
+          "model": "example-model",
+          "effort": "medium",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "mistral-vibe",
+              "inputTokens": 500,
+              "outputTokens": 50,
+              "sessionCostUsd": 1,
+              "toolCallsAgreed": 1,
+              "toolCallsRejected": 1,
+              "toolCallsFailed": 1,
+              "toolCallsSucceeded": 1
+            }
+          },
+          "unexpectedKey": 1
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "unexpectedKey: is unexpected, expected: \"$schema\" | \"kind\" | \"authoringId\" | \"artifact\" | \"artifactKind\" | \"shape\" | \"sourceSha\" | \"provider\" | \"model\" | \"effort\" | \"outcome\" | \"usage\""
+        }
+      },
+      {
+        "name": "refuses authoringId of the wrong type",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/0.17.0.json",
+          "kind": "authoring",
+          "authoringId": 42,
+          "artifact": "docs/specs/example.md",
+          "artifactKind": "spec",
+          "shape": "skeleton",
+          "sourceSha": "def5678",
+          "provider": "codex-cli",
+          "model": "example-model",
+          "effort": "medium",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "mistral-vibe",
+              "inputTokens": 500,
+              "outputTokens": 50,
+              "sessionCostUsd": 1,
+              "toolCallsAgreed": 1,
+              "toolCallsRejected": 1,
+              "toolCallsFailed": 1,
+              "toolCallsSucceeded": 1
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "authoringId: Expected string, actual 42"
+        }
+      },
+      {
+        "name": "refuses kind outside its value",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/0.17.0.json",
+          "kind": "bogus-value",
+          "authoringId": "authoring-0001",
+          "artifact": "docs/specs/example.md",
+          "artifactKind": "spec",
+          "shape": "skeleton",
+          "sourceSha": "def5678",
+          "provider": "codex-cli",
+          "model": "example-model",
+          "effort": "medium",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "mistral-vibe",
+              "inputTokens": 500,
+              "outputTokens": 50,
+              "sessionCostUsd": 1,
+              "toolCallsAgreed": 1,
+              "toolCallsRejected": 1,
+              "toolCallsFailed": 1,
+              "toolCallsSucceeded": 1
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "kind: Expected \"authoring\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "refuses authoringId when empty",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/0.17.0.json",
+          "kind": "authoring",
+          "authoringId": "",
+          "artifact": "docs/specs/example.md",
+          "artifactKind": "spec",
+          "shape": "skeleton",
+          "sourceSha": "def5678",
+          "provider": "codex-cli",
+          "model": "example-model",
+          "effort": "medium",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "mistral-vibe",
+              "inputTokens": 500,
+              "outputTokens": 50,
+              "sessionCostUsd": 1,
+              "toolCallsAgreed": 1,
+              "toolCallsRejected": 1,
+              "toolCallsFailed": 1,
+              "toolCallsSucceeded": 1
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "authoringId: Expected a non empty string, actual \"\""
+        }
+      }
+    ],
+    "0.23.0": [
+      {
+        "name": "accepts a document setting every field",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/0.23.0.json",
+          "kind": "authoring",
+          "authoringId": "authoring-0001",
+          "artifact": "docs/specs/example.md",
+          "artifactKind": "spec",
+          "shape": "skeleton",
+          "sourceSha": "def5678",
+          "provider": "codex-cli",
+          "model": "example-model",
+          "effort": "medium",
+          "outcome": "committed",
+          "retry": "none",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "mistral-vibe",
+              "inputTokens": 500,
+              "outputTokens": 50,
+              "sessionCostUsd": 1,
+              "toolCallsAgreed": 1,
+              "toolCallsRejected": 1,
+              "toolCallsFailed": 1,
+              "toolCallsSucceeded": 1
+            }
+          }
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/0.23.0.json",
+            "artifact": "docs/specs/example.md",
+            "artifactKind": "spec",
+            "authoringId": "authoring-0001",
+            "effort": "medium",
+            "kind": "authoring",
+            "model": "example-model",
+            "outcome": "committed",
+            "provider": "codex-cli",
+            "retry": "none",
+            "shape": "skeleton",
+            "sourceSha": "def5678",
+            "usage": {
+              "available": true,
+              "usage": {
+                "inputTokens": 500,
+                "outputTokens": 50,
+                "provider": "mistral-vibe",
+                "sessionCostUsd": 1,
+                "toolCallsAgreed": 1,
+                "toolCallsFailed": 1,
+                "toolCallsRejected": 1,
+                "toolCallsSucceeded": 1
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "accepts a document setting every field, variant 2",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/0.23.0.json",
+          "kind": "authoring",
+          "authoringId": "authoring-0001",
+          "artifact": "docs/specs/example.md",
+          "artifactKind": "spec",
+          "shape": "skeleton",
+          "sourceSha": "def5678",
+          "provider": "codex-cli",
+          "model": "example-model",
+          "effort": "medium",
+          "outcome": "committed",
+          "retry": "none",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 500,
+              "cacheCreationInputTokens": 1,
+              "cacheReadInputTokens": 1,
+              "outputTokens": 50,
+              "totalCostUsd": 1
+            }
+          }
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/0.23.0.json",
+            "artifact": "docs/specs/example.md",
+            "artifactKind": "spec",
+            "authoringId": "authoring-0001",
+            "effort": "medium",
+            "kind": "authoring",
+            "model": "example-model",
+            "outcome": "committed",
+            "provider": "codex-cli",
+            "retry": "none",
+            "shape": "skeleton",
+            "sourceSha": "def5678",
+            "usage": {
+              "available": true,
+              "usage": {
+                "cacheCreationInputTokens": 1,
+                "cacheReadInputTokens": 1,
+                "inputTokens": 500,
+                "outputTokens": 50,
+                "provider": "claude-code",
+                "totalCostUsd": 1
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "accepts a document setting every field, variant 3",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/0.23.0.json",
+          "kind": "authoring",
+          "authoringId": "authoring-0001",
+          "artifact": "docs/specs/example.md",
+          "artifactKind": "spec",
+          "shape": "skeleton",
+          "sourceSha": "def5678",
+          "provider": "codex-cli",
+          "model": "example-model",
+          "effort": "medium",
+          "outcome": "committed",
+          "retry": "none",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 500,
+              "cachedInputTokens": 100,
+              "outputTokens": 50,
+              "reasoningOutputTokens": 10
+            }
+          }
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/0.23.0.json",
+            "artifact": "docs/specs/example.md",
+            "artifactKind": "spec",
+            "authoringId": "authoring-0001",
+            "effort": "medium",
+            "kind": "authoring",
+            "model": "example-model",
+            "outcome": "committed",
+            "provider": "codex-cli",
+            "retry": "none",
+            "shape": "skeleton",
+            "sourceSha": "def5678",
+            "usage": {
+              "available": true,
+              "usage": {
+                "cachedInputTokens": 100,
+                "inputTokens": 500,
+                "outputTokens": 50,
+                "provider": "codex-cli",
+                "reasoningOutputTokens": 10
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "accepts a document with only its required fields",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/0.23.0.json",
+          "kind": "authoring",
+          "authoringId": "authoring-0001",
+          "artifact": "docs/specs/example.md",
+          "artifactKind": "spec",
+          "shape": "skeleton",
+          "provider": "codex-cli",
+          "model": "example-model",
+          "effort": "medium",
+          "outcome": "committed",
+          "retry": "none",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "mistral-vibe",
+              "inputTokens": 500,
+              "outputTokens": 50,
+              "sessionCostUsd": 1,
+              "toolCallsAgreed": 1,
+              "toolCallsRejected": 1,
+              "toolCallsFailed": 1,
+              "toolCallsSucceeded": 1
+            }
+          }
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/0.23.0.json",
+            "artifact": "docs/specs/example.md",
+            "artifactKind": "spec",
+            "authoringId": "authoring-0001",
+            "effort": "medium",
+            "kind": "authoring",
+            "model": "example-model",
+            "outcome": "committed",
+            "provider": "codex-cli",
+            "retry": "none",
+            "shape": "skeleton",
+            "usage": {
+              "available": true,
+              "usage": {
+                "inputTokens": 500,
+                "outputTokens": 50,
+                "provider": "mistral-vibe",
+                "sessionCostUsd": 1,
+                "toolCallsAgreed": 1,
+                "toolCallsFailed": 1,
+                "toolCallsRejected": 1,
+                "toolCallsSucceeded": 1
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "refuses a document missing kind",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/0.23.0.json",
+          "authoringId": "authoring-0001",
+          "artifact": "docs/specs/example.md",
+          "artifactKind": "spec",
+          "shape": "skeleton",
+          "sourceSha": "def5678",
+          "provider": "codex-cli",
+          "model": "example-model",
+          "effort": "medium",
+          "outcome": "committed",
+          "retry": "none",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "mistral-vibe",
+              "inputTokens": 500,
+              "outputTokens": 50,
+              "sessionCostUsd": 1,
+              "toolCallsAgreed": 1,
+              "toolCallsRejected": 1,
+              "toolCallsFailed": 1,
+              "toolCallsSucceeded": 1
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "kind: is missing"
+        }
+      },
+      {
+        "name": "refuses an unexpected key",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/0.23.0.json",
+          "kind": "authoring",
+          "authoringId": "authoring-0001",
+          "artifact": "docs/specs/example.md",
+          "artifactKind": "spec",
+          "shape": "skeleton",
+          "sourceSha": "def5678",
+          "provider": "codex-cli",
+          "model": "example-model",
+          "effort": "medium",
+          "outcome": "committed",
+          "retry": "none",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "mistral-vibe",
+              "inputTokens": 500,
+              "outputTokens": 50,
+              "sessionCostUsd": 1,
+              "toolCallsAgreed": 1,
+              "toolCallsRejected": 1,
+              "toolCallsFailed": 1,
+              "toolCallsSucceeded": 1
+            }
+          },
+          "unexpectedKey": 1
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "unexpectedKey: is unexpected, expected: \"$schema\" | \"kind\" | \"authoringId\" | \"artifact\" | \"artifactKind\" | \"shape\" | \"sourceSha\" | \"provider\" | \"model\" | \"effort\" | \"outcome\" | \"retry\" | \"usage\""
+        }
+      },
+      {
+        "name": "refuses authoringId of the wrong type",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/0.23.0.json",
+          "kind": "authoring",
+          "authoringId": 42,
+          "artifact": "docs/specs/example.md",
+          "artifactKind": "spec",
+          "shape": "skeleton",
+          "sourceSha": "def5678",
+          "provider": "codex-cli",
+          "model": "example-model",
+          "effort": "medium",
+          "outcome": "committed",
+          "retry": "none",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "mistral-vibe",
+              "inputTokens": 500,
+              "outputTokens": 50,
+              "sessionCostUsd": 1,
+              "toolCallsAgreed": 1,
+              "toolCallsRejected": 1,
+              "toolCallsFailed": 1,
+              "toolCallsSucceeded": 1
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "authoringId: Expected string, actual 42"
+        }
+      },
+      {
+        "name": "refuses kind outside its value",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/0.23.0.json",
+          "kind": "bogus-value",
+          "authoringId": "authoring-0001",
+          "artifact": "docs/specs/example.md",
+          "artifactKind": "spec",
+          "shape": "skeleton",
+          "sourceSha": "def5678",
+          "provider": "codex-cli",
+          "model": "example-model",
+          "effort": "medium",
+          "outcome": "committed",
+          "retry": "none",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "mistral-vibe",
+              "inputTokens": 500,
+              "outputTokens": 50,
+              "sessionCostUsd": 1,
+              "toolCallsAgreed": 1,
+              "toolCallsRejected": 1,
+              "toolCallsFailed": 1,
+              "toolCallsSucceeded": 1
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "kind: Expected \"authoring\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "refuses authoringId when empty",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/authoring-record-manifest/0.23.0.json",
+          "kind": "authoring",
+          "authoringId": "",
+          "artifact": "docs/specs/example.md",
+          "artifactKind": "spec",
+          "shape": "skeleton",
+          "sourceSha": "def5678",
+          "provider": "codex-cli",
+          "model": "example-model",
+          "effort": "medium",
+          "outcome": "committed",
+          "retry": "none",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "mistral-vibe",
+              "inputTokens": 500,
+              "outputTokens": 50,
+              "sessionCostUsd": 1,
+              "toolCallsAgreed": 1,
+              "toolCallsRejected": 1,
+              "toolCallsFailed": 1,
+              "toolCallsSucceeded": 1
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "authoringId: Expected a non empty string, actual \"\""
+        }
+      }
+    ]
+  }
+}
