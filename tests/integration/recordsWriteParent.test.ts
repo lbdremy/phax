@@ -374,6 +374,9 @@ describe("record write compare-and-swap retry", () => {
     if (Either.isLeft(outcome)) expect(outcome.left).toHaveProperty("command");
     if (Either.isLeft(outcome) && "command" in outcome.left) {
       expect(outcome.left.command).toContain("update-ref");
+      expect(outcome.left.message).toMatch(
+        /^the records branch kept moving under other writers in .+; record not written after 3 attempts$/,
+      );
     }
   });
 

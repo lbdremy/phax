@@ -116,24 +116,43 @@ export function recordKeysOf(paths: readonly string[]): readonly string[] {
   return keys;
 }
 
-interface CommitKeys {
+export interface CommitKeys {
   readonly sha: string;
+  /** The commit's tree: a record commit's tree holds only that record's files. */
+  readonly tree: string;
   readonly keys: readonly string[];
 }
 
-export function findReplayCollision(
+/** What a replay does with the local-only records (operator decision 2026-11-06, amending §5.8). */
+export interface ReplayPlan {
+  /** The local-only commits to recommit onto the remote tip, oldest first. */
+  readonly replay: readonly string[];
+  /** The local-only commits left out: the remote already holds a commit with the same tree,
+   *  so the same record, file for file. */
+  readonly skipped: readonly string[];
+  /** The keys of replayed commits that the remote also holds with other content: both stay on
+   *  the branch, and readers take the newest. */
+  readonly sharedKeys: readonly string[];
+}
+
+export function planReplay(
   localOnly: readonly CommitKeys[],
   remote: readonly CommitKeys[],
-): { key: string; localCommit: string; remoteCommit: string } | null {
-  const remoteByKey = new Map<string, string>();
-  for (const commit of remote) {
-    for (const key of commit.keys) if (!remoteByKey.has(key)) remoteByKey.set(key, commit.sha);
-  }
+): ReplayPlan {
+  const remoteTrees = new Set(remote.map((commit) => commit.tree));
+  const remoteKeys = new Set(remote.flatMap((commit) => commit.keys));
+  const replay: string[] = [];
+  const skipped: string[] = [];
+  const sharedKeys: string[] = [];
   for (const commit of localOnly) {
+    if (remoteTrees.has(commit.tree)) {
+      skipped.push(commit.sha);
+      continue;
+    }
+    replay.push(commit.sha);
     for (const key of commit.keys) {
-      const remoteCommit = remoteByKey.get(key);
-      if (remoteCommit !== undefined) return { key, localCommit: commit.sha, remoteCommit };
+      if (remoteKeys.has(key) && !sharedKeys.includes(key)) sharedKeys.push(key);
     }
   }
-  return null;
+  return { replay, skipped, sharedKeys };
 }

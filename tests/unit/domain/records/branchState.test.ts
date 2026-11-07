@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   classifyRecordsBranch,
-  findReplayCollision,
+  planReplay,
   recordKeysOf,
   recordParentFor,
   recordsBranchPhrase,
@@ -87,18 +87,28 @@ describe("record keys and collisions", () => {
     ).toEqual(["a/b", "c"]);
   });
 
-  it("finds the oldest local commit's shared key", () => {
+  it("skips a local record the remote holds file for file, and replays a shared key with other content", () => {
     expect(
-      findReplayCollision(
+      planReplay(
         [
-          { sha: "l1", keys: ["x"] },
-          { sha: "l2", keys: ["y", "z"] },
+          { sha: "l1", tree: "t-x", keys: ["x"] },
+          { sha: "l2", tree: "t-y-local", keys: ["y", "z"] },
+          { sha: "l3", tree: "t-w", keys: ["w"] },
         ],
-        [{ sha: "r1", keys: ["z", "y"] }],
+        [
+          { sha: "r1", tree: "t-w", keys: ["w"] },
+          { sha: "r2", tree: "t-y-remote", keys: ["z", "y"] },
+        ],
       ),
-    ).toEqual({ key: "y", localCommit: "l2", remoteCommit: "r1" });
+    ).toEqual({ replay: ["l1", "l2"], skipped: ["l3"], sharedKeys: ["y", "z"] });
+  });
+
+  it("replays everything when nothing is shared", () => {
     expect(
-      findReplayCollision([{ sha: "l1", keys: ["x"] }], [{ sha: "r1", keys: ["y"] }]),
-    ).toBeNull();
+      planReplay(
+        [{ sha: "l1", tree: "t1", keys: ["x"] }],
+        [{ sha: "r1", tree: "t2", keys: ["y"] }],
+      ),
+    ).toEqual({ replay: ["l1"], skipped: [], sharedKeys: [] });
   });
 });

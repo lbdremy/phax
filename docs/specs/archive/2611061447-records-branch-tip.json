@@ -109,9 +109,9 @@
     },
     {
       "id": "replay-collision",
-      "title": "Replay never duplicates a key",
+      "title": "A shared key does not stop a replay",
       "pattern": "unwanted",
-      "statement": "IF a local-only record has the same key as a record reachable from the remote tip THEN `phax records sync --replay` SHALL exit 1 naming that key and both commits, and leave the local branch untouched."
+      "statement": "IF a local-only record has the same key as a record reachable from the remote tip THEN `phax records sync --replay` SHALL leave it out when the remote holds a commit with the same tree, and otherwise replay it and name its key; it SHALL NOT refuse the replay for a shared key. (Amended 2026-11-07 by operator decision, reviewing #194: a refusal left a decision taken on two machines, whose keys are numbered per machine, with no way home.)"
     },
     {
       "id": "status-state",
@@ -267,10 +267,10 @@
     },
     {
       "id": "ac-replay-collision",
-      "name": "Replay refuses a key already on the remote",
-      "given": "a diverged clone where one local-only record has the same key as a record on the remote branch",
+      "name": "Replay leaves out a record the remote holds and names a shared key",
+      "given": "a diverged clone where one local-only record has the same key as a record on the remote branch with other content, and another is the remote's record file for file",
       "when": "`phax records sync --replay` runs",
-      "then": "it exits 1 naming that key and both commits, and the local branch ref is unchanged.",
+      "then": "it replays the first and names its key, leaves the second out and counts it, and the branch descends from the remote tip.",
       "refs": [
         "replay-collision"
       ]

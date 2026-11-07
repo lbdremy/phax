@@ -74,14 +74,6 @@ class RecordsBranchDivergedError extends Data.TaggedError("RecordsBranchDiverged
   readonly remedy: "phax records sync --replay";
 }> {}
 
-/** A local-only record's key is already on the remote side: the replay writes nothing. */
-class RecordsReplayCollisionError extends Data.TaggedError("RecordsReplayCollisionError")<{
-  readonly message: string;
-  readonly key: string;
-  readonly localCommit: string;
-  readonly remoteCommit: string;
-}> {}
-
 // ── What a sync did ─────────────────────────────────────────────────────────────
 
 const SyncDone = Schema.Union(
@@ -267,6 +259,10 @@ const BranchOutcome = Schema.Union(
   Schema.Struct({
     kind: Schema.Literal("replayed"),
     count: Schema.Number,
+    /** Local-only records left out: the remote holds the same record, file for file. */
+    skipped: Schema.Number,
+    /** Keys replayed although the remote holds them with other content; readers take the newest. */
+    sharedKeys: Schema.Array(Schema.String),
     previousTip: Schema.String,
     newTip: Schema.String,
     remoteTip: Schema.String,
@@ -289,6 +285,8 @@ const RecordsSyncOutput = Schema.Union(
     remote: Schema.String,
     /** The remote's name inside `path`: `origin` for a clone, `publish.remote` in-repo. */
     remoteName: Schema.String,
+    /** Whether `--replay` was given. */
+    replay: Schema.Boolean,
     branch: BranchOutcome,
   }),
 );
@@ -299,6 +297,13 @@ const short = (sha: string): string => sha.slice(0, 7);
 
 /** The lines after `Cloned …` / `Fetched …` that say what happened to the records branch. */
 function branchLines(value: SyncedValue): string[] {
+  const lines = branchOutcomeLines(value);
+  return value.replay && value.branch.kind !== "replayed"
+    ? [...lines, "Nothing to replay: the records branch has not split from its remote's"]
+    : lines;
+}
+
+function branchOutcomeLines(value: SyncedValue): string[] {
   const { branch, remoteName } = value;
   switch (branch.kind) {
     case "created":
@@ -310,6 +315,14 @@ function branchLines(value: SyncedValue): string[] {
     case "replayed":
       return [
         `Replayed ${branch.count} record(s) onto ${remoteName}'s tip ${short(branch.remoteTip)} → new tip ${short(branch.newTip)} (previous tip ${short(branch.previousTip)})`,
+        ...(branch.skipped > 0
+          ? [`Left out ${branch.skipped} record(s) ${remoteName} already holds, file for file`]
+          : []),
+        ...(branch.sharedKeys.length > 0
+          ? [
+              `${remoteName} also holds ${branch.sharedKeys.join(", ")} with other content; both stay, and readers take the newest`,
+            ]
+          : []),
         `Push them with the next record, or \`git -C ${value.path} push ${remoteName} ${RECORDS_BRANCH_NAME}\``,
       ];
     case "unchanged":
@@ -374,15 +387,6 @@ const recordsSyncCommand = defineCommand({
               remedy: sync.remedy,
             }),
           );
-        case "replay-collision":
-          return yield* Effect.fail(
-            new RecordsReplayCollisionError({
-              message: `record ${sync.key} exists on both sides (local ${short(sync.localCommit)}, ${remoteName} ${short(sync.remoteCommit)}); nothing replayed`,
-              key: sync.key,
-              localCommit: sync.localCommit,
-              remoteCommit: sync.remoteCommit,
-            }),
-          );
         case "cloned":
         case "fetched":
           return {
@@ -390,6 +394,7 @@ const recordsSyncCommand = defineCommand({
             path: sync.path,
             remote: sync.remote,
             remoteName,
+            replay: input.flags.replay === true,
             branch: sync.branch,
           } as const;
       }
@@ -400,7 +405,6 @@ const recordsSyncCommand = defineCommand({
     GitError: 1,
     RecordsSyncRefusedError: 1,
     RecordsBranchDivergedError: 1,
-    RecordsReplayCollisionError: 1,
   },
   errors: {
     ConfigValidationError: MessageFields,
@@ -421,12 +425,6 @@ const recordsSyncCommand = defineCommand({
       localOnly: Schema.Number,
       remedy: Schema.Literal("phax records sync --replay"),
     }),
-    RecordsReplayCollisionError: Schema.Struct({
-      message: Schema.String,
-      key: Schema.String,
-      localCommit: Schema.String,
-      remoteCommit: Schema.String,
-    }),
   },
   texts: {
     ConfigValidationError: (error) => error.message,
@@ -435,7 +433,6 @@ const recordsSyncCommand = defineCommand({
     // What it found, then how to put it right.
     RecordsSyncRefusedError: (error) => `${error.message}\n${error.remedy}`,
     RecordsBranchDivergedError: (error) => `✗ ${error.message}`,
-    RecordsReplayCollisionError: (error) => `✗ ${error.message}`,
   },
   render: (value) =>
     value.kind === "disabled"
@@ -553,6 +550,14 @@ const recordsStatusCommand = defineCommand({
         : `repo "${value.destination.remote}" (local clone: ${value.localPath})`;
     const lines = [`Records destination: ${destinationLabel}`];
     const { branch } = value;
+    if (branch.localTip === null && branch.remoteTip === null) {
+      // In sync only because nothing is there yet: the remote may hold records phax never fetched.
+      lines.push(
+        `Records branch: none here and none fetched from ${value.remote} — run \`phax records sync\``,
+        "No record written here yet.",
+      );
+      return lines.join("\n");
+    }
     const remedy = recordsBranchRemedy(branch.state, {
       localPath: value.localPath,
       remote: value.remote,

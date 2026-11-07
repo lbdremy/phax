@@ -82,9 +82,9 @@ IF `phax records sync` finds the branch state `diverged` or `unrelated` and `--r
 
 WHERE `phax records sync --replay` is run and the branch state is `diverged` or `unrelated` THE system SHALL replay every local-only record onto the remote tip. It SHALL then print the number of records replayed, the new local tip and the previous local tip.
 
-### 5.8 Replay never duplicates a key
+### 5.8 A shared key does not stop a replay
 
-IF a local-only record has the same key as a record reachable from the remote tip THEN `phax records sync --replay` SHALL exit 1 naming that key and both commits, and leave the local branch untouched.
+IF a local-only record has the same key as a record reachable from the remote tip THEN `phax records sync --replay` SHALL leave it out when the remote holds a commit with the same tree, and otherwise replay it and name its key; it SHALL NOT refuse the replay for a shared key. (Amended 2026-11-07 by operator decision, reviewing #194: a refusal left a decision taken on two machines, whose keys are numbered per machine, with no way home.)
 
 ### 5.9 Status reports the branch state
 
@@ -239,9 +239,9 @@ Given a dedicated clone whose local records branch is `unrelated` (or `diverged`
 
 Given the clone of the previous criterion, when `phax records sync --replay` runs, then the local branch descends from the remote tip and holds exactly 3 new commits, whose trees and messages equal the 3 local-only records'. The output names the previous tip, `phax records status` reports `ahead` with 3 pending, and a plain push succeeds as a fast-forward. (refs §5.7, §5.12)
 
-### Replay refuses a key already on the remote
+### Replay leaves out a record the remote holds and names a shared key
 
-Given a diverged clone where one local-only record has the same key as a record on the remote branch, when `phax records sync --replay` runs, then it exits 1 naming that key and both commits, and the local branch ref is unchanged. (refs §5.8)
+Given a diverged clone where one local-only record has the same key as a record on the remote branch with other content, and another is the remote's record file for file, when `phax records sync --replay` runs, then it replays the first and names its key, leaves the second out and counts it, and the branch descends from the remote tip. (refs §5.8)
 
 ### Status reports each branch state
 

@@ -39,7 +39,8 @@ import { phaxHomeEnv } from "../helpers/isolatePhaxHome.js";
 // `.fails`, because the use case is a stub and the command still only fetches. Each runs on real
 // git repositories (tests/fixtures/records/branchTipRepos.ts) in a temporary directory, with git
 // isolated from the person's configuration.
-//   ac-fresh-clone, ac-behind, ac-sync-refuse, ac-replay, ac-replay-collision and ac-never-forced.
+//   ac-fresh-clone, ac-behind, ac-sync-refuse, ac-replay, ac-replay-collision and ac-never-forced. ac-replay-collision follows the
+// operator decision of 2026-11-06 amending §5.8: a shared key no longer refuses the replay.
 
 const LAYER = Layer.mergeAll(NodeFileSystemLayer, NodeGitLayer);
 const mainTs = join(fileURLToPath(import.meta.url), "../../../src/cli/main.ts");
@@ -267,6 +268,8 @@ describe("phax records sync --replay brings stranded records home", () => {
       expect(branchOf(result)).toEqual({
         kind: "replayed",
         count: 3,
+        skipped: 0,
+        sharedKeys: [],
         previousTip,
         newTip,
         remoteTip,
@@ -301,22 +304,38 @@ describe("phax records sync --replay brings stranded records home", () => {
   }
 
   // ac-replay-collision
-  it("ac-replay-collision: refuses a key the remote already holds, naming the key and both commits, and moves nothing", async () => {
+  it("ac-replay-collision: replays a key the remote holds with other content and names it; a record the remote holds file for file is left out", async () => {
     const world = await newWorld();
     const collision = await putKeyCollision(world);
-    const localTip = tipOf(world.clonePath);
+    const remoteTip = world.remoteTip();
+    // One more local-only commit: the very record the remote's collision commit holds.
+    const sameTree = git(["rev-parse", `${collision.remoteCommit}^{tree}`], world.clonePath);
+    const previousTip = tipOf(world.clonePath);
+    const identical = git(
+      ["commit-tree", sameTree, "-p", previousTip, "-m", "the remote's record, again"],
+      world.clonePath,
+    );
+    git(["update-ref", BRANCH_REF, identical, previousTip], world.clonePath);
 
     const result = await runSync(world, "dedicated", true);
 
-    expect(result).toEqual({
-      kind: "replay-collision",
-      path: world.clonePath,
-      remote: world.remoteUrl,
-      key: collision.key,
-      localCommit: collision.localCommit,
-      remoteCommit: collision.remoteCommit,
+    expect(branchOf(result)).toMatchObject({
+      kind: "replayed",
+      count: 3,
+      skipped: 1,
+      sharedKeys: [collision.key],
+      previousTip: identical,
+      remoteTip,
     });
-    expect(tipOf(world.clonePath)).toBe(localTip);
+    const newTip = tipOf(world.clonePath);
+    expect(isAncestor(world.clonePath, remoteTip, newTip)).toBe(true);
+    const replayed = git(["rev-list", "--reverse", `${remoteTip}..${newTip}`], world.clonePath)
+      .split("\n")
+      .filter((line) => line !== "");
+    expect(replayed).toHaveLength(3);
+    expect(
+      replayed.map((sha) => git(["rev-parse", `${sha}^{tree}`], world.clonePath)),
+    ).not.toContain(sameTree);
   });
 });
 

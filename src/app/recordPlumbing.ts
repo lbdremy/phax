@@ -15,7 +15,7 @@ import {
 import { decodeBranchName, type BranchName } from "../domain/branded.js";
 import { recordParentFor, type RecordsBranchReading } from "../domain/records/branchState.js";
 import { FileSystem, type FileSystemOps, type FsError } from "../ports/fs.js";
-import { Git, type GitError } from "../ports/git.js";
+import { Git, GitError } from "../ports/git.js";
 import { GitHub } from "../ports/github.js";
 import type { ProviderId } from "../schemas/providerId.js";
 import type { RecordsDestination, ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
@@ -234,8 +234,15 @@ export function commitRecordTree(input: CommitRecordTreeInput): Effect.Effect<
           }),
         };
       }
-      if (!isStaleTipError(written.left) || attempt >= MAX_WRITE_ATTEMPTS) {
-        return yield* Effect.fail(written.left);
+      if (!isStaleTipError(written.left)) return yield* Effect.fail(written.left);
+      if (attempt >= MAX_WRITE_ATTEMPTS) {
+        // Said in phax's words: the raw `cannot lock ref … expected …` names no cause.
+        return yield* Effect.fail(
+          new GitError({
+            ...written.left,
+            message: `the records branch kept moving under other writers in ${input.repo}; record not written after ${MAX_WRITE_ATTEMPTS} attempts`,
+          }),
+        );
       }
       attempt += 1;
     }
