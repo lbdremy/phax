@@ -17,6 +17,7 @@
     "dist",
     "packages/schemas/dist",
     "tests/e2e/fixtures",
+    "tests/unit/effect4Codemod/__fixtures__",
     "site/generated",
     "site/doc_build"
   ]
