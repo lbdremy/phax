@@ -1,0 +1,11 @@
+Effect's v3 → v4 migration reference, vendored byte for byte for phax's Effect 4 migration
+(docs/specs/2611071052-effect-4-migration.md, decision q-reference). Phase sessions have no network,
+so they and the migration codemod read it from here. Do not edit these files; refresh them only by
+re-vendoring at a new tag, and remove the folder with the codemod at the end (decision q-keep).
+
+repository: https://github.com/Effect-TS/effect
+tag:        effect@4.1.2
+commit:     506eef143bcc1750ce58920aac1e45da7265d103
+licence:    MIT (LICENSE, copied from the repository at that tag)
+files:      MIGRATION.md, migration/*.md (13 topic guides and the generated v3-to-v4.md)
+not vendored: migration/annotations/ (the YAML that v3-to-v4.md is generated from)
