@@ -5,7 +5,18 @@ export default defineConfig({
     environment: "node",
     setupFiles: ["tests/setup/providerStores.ts", "tests/setup/phaxHomeGuard.ts"],
     projects: [
-      { extends: true, test: { name: "unit", include: ["tests/unit/**/*.test.ts"] } },
+      {
+        extends: true,
+        test: {
+          name: "unit",
+          include: ["tests/unit/**/*.test.ts"],
+          // The tests under tests/unit/cli import the whole command program on their first call.
+          // Alone that takes well under a second; under a full suite on a loaded machine (a phase
+          // gate) the cold import alone went over the 5 s default and failed green gates in four
+          // attempts in a row.
+          testTimeout: 30_000,
+        },
+      },
       {
         extends: true,
         test: {

@@ -21,6 +21,10 @@ phax schema upgrade                   # phax.schema.json, the editor schema of p
 
 Only the releases that ask for something are listed. phax never asks for a step silently: a command that needs one refuses with exit 12 and names it.
 
+### 0.36.0
+
+- **Refusals: a value of the wrong shape reads in phax's words.** Where a config file, an answer, a frontmatter or a report has a value that should be an object or an array, the refusal reads `(root): Expected an object, actual null` or `findings: Expected an array, actual "none"`, not the full type description it printed before (`Expected { readonly $schema?: string | undefined; … }, actual null`). Every other refusal line is unchanged. A script that matched the old type text matches `Expected an object` or `Expected an array`.
+
 ### 0.35.0
 
 - **Commit trailers name no path of the machine.** Phase, interactive and held review commits no longer carry `Worktree` or `Session-Id`, and `Gate-Log` is relative to the run's folder (`phase-02/checks-attempt-01.log`), or `none`. A stop whose commit was written by an older version still closes, and no record or run file changes. A script that read those trailers reads the phase folder instead: `<run>/<phase>/agent-binding.json` for the session, the `checks-attempt-NN.log` files for the gate. See [The phase commit](../README.md#the-phase-commit) for history already written.

@@ -91,7 +91,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "  findings: Expected ReadonlyArray<{ readonly message: NonEmptyString; readonly phases: ReadonlyArray<NonEmptyString> }>, actual \"none\""
+        "refusal": "  findings: Expected an array, actual \"none\""
       }
     },
     {
@@ -148,7 +148,7 @@
       "input": null,
       "expected": {
         "ok": false,
-        "refusal": "  (root): Expected { readonly findings: ReadonlyArray<{ readonly message: NonEmptyString; readonly phases: ReadonlyArray<NonEmptyString> }> }, actual null"
+        "refusal": "  (root): Expected an object, actual null"
       }
     }
   ]
