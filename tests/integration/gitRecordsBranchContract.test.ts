@@ -326,3 +326,25 @@ describe.each([
     });
   });
 });
+
+describe("listCommitFiles under a user's git config", () => {
+  let world: World;
+  beforeEach(() => {
+    world = realWorld();
+  });
+  afterEach(() => world.teardown());
+
+  it("lists a root commit's paths and non-ASCII keys with log.showRoot=false and core.quotePath=true", async () => {
+    sh(["config", "--local", "log.showRoot", "false"], world.repo);
+    sh(["config", "--local", "core.quotePath", "true"], world.repo);
+    sh(["config", "--local", "log.showSignature", "true"], world.repo);
+    const c1 = world.makeCommit({ parent: null, paths: ["clé-1/record.json"] });
+    const c2 = world.makeCommit({ parent: c1, paths: ["k2/record.json"] });
+
+    const listed = await world.run((g) => g.listCommitFiles(world.repo, c2, null));
+
+    expect(listed.map((c) => c.sha)).toEqual([c1, c2]);
+    expect(listed[0]!.paths).toEqual(["clé-1/record.json"]);
+    expect(listed[1]!.paths).toEqual(["k2/record.json"]);
+  });
+});

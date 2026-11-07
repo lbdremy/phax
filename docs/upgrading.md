@@ -30,6 +30,8 @@ Only the releases that ask for something are listed. phax never asks for a step 
 - **Records: `phax records status --json` gains a required `branch` object** (`state`, `localTip`, `remoteTip`), between `remote` and `pending`. The text gains a `Records branch:` line with its remedy.
 - **Records: pending counts only local-only records.** On a diverged or unrelated branch, the records the remote already holds are no longer counted.
 - **Records: a refused records push names the branch state and the fix.** When the branch is behind, diverged or unrelated, the message gives the state and `phax records sync` or `phax records sync --replay`, not a plain `git push`. A record is also written on top of the remote's tip as phax last fetched it, so a lagging branch catches up with the write.
+- **Records: a refused records push is always reported.** `phax publish` and `phax run` print it as a warning, where it was shown only with `--verbose`.
+- **Artifacts: the `--json` record of `artifact new --headless` and `artifact decide` gains a required `branchNote`** beside `pushWarning`: the note of a record kept on a diverged or unrelated records branch, or null. `pushWarning` still names only a failed push.
 
 Record format, manifests and versions are unchanged. No migration is needed.
 

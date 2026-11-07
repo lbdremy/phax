@@ -127,12 +127,14 @@ export const CommitFailedFields = Schema.Struct({
 
 // ── A session command's record ──────────────────────────────────────────────────
 
-/** What became of a session's record (a decision or an authoring record): written with its key
- *  (and the warning of a push that failed, or null), off, or not written with its warning. */
+/** What became of a session's record (a decision or an authoring record): written with its key,
+ *  the note of a record kept on a diverged or unrelated records branch (or null) and the warning
+ *  of a push that failed (or null); off; or not written with its warning. */
 export const RecordOutcome = Schema.Union(
   Schema.Struct({
     kind: Schema.Literal("written"),
     key: Schema.String,
+    branchNote: Schema.NullOr(Schema.String),
     pushWarning: Schema.NullOr(Schema.String),
   }),
   Schema.Struct({ kind: Schema.Literal("off") }),
@@ -153,15 +155,13 @@ export function recordOutcome<R extends { readonly kind: string }, P>(
   },
 ): RecordOutcome {
   if (record.kind === "written") {
-    // A written record can still owe a note (kept on a diverged records branch);
-    // it rides beside the push's warning.
-    const notes = [sentences.warningOf(record), sentences.pushWarningOf(push)].filter(
-      (note): note is string => note !== undefined,
-    );
+    // A written record can still owe a note (kept on a diverged records branch),
+    // its own field beside the push's warning: pushWarning stays a failed push.
     return {
       kind: "written",
       key: String(Reflect.get(record, "key")),
-      pushWarning: notes.length === 0 ? null : notes.join("\n"),
+      branchNote: sentences.warningOf(record) ?? null,
+      pushWarning: sentences.pushWarningOf(push) ?? null,
     };
   }
   if (record.kind === "records-off") return { kind: "off" };
@@ -171,7 +171,9 @@ export function recordOutcome<R extends { readonly kind: string }, P>(
 /** The notes of a record's outcome: its warning, or its push's, on stderr after the answer. */
 export function recordNotes(record: RecordOutcome): string {
   if (record.kind === "not-written") return record.warning;
-  if (record.kind === "written" && record.pushWarning !== null) return record.pushWarning;
+  if (record.kind === "written") {
+    return [record.branchNote, record.pushWarning].filter((note) => note !== null).join("\n");
+  }
   return "";
 }
 

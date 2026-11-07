@@ -387,7 +387,7 @@ cmd records help="Manage phax run records" {
         flag --force help="Reconfigure records even if already configured"
         flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
     }
-    cmd sync help="Bring the local records clone in line with its configured remote" {
+    cmd sync help="Fetch the records remote and bring the local records branch level with it" {
         flag --replay help="Replay local-only records onto the remote tip when the records branch has diverged"
         flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
     }

@@ -1874,7 +1874,7 @@ Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 - **Usage**: `phax records sync [--replay] [--json]`
 
-Bring the local records clone in line with its configured remote
+Fetch the records remote and bring the local records branch level with it
 
 ### Flags
 
