@@ -1,0 +1,3227 @@
+{
+  "subject": "answers/authoring-answer",
+  "cases": [
+    {
+      "name": "spec: accepts a spec document",
+      "input": {
+        "decoder": "spec",
+        "raw": {
+          "$schema": "https://docs.phax.run/schemas/spec-document/0.32.0.json",
+          "kind": "spec",
+          "title": "Plan Prune",
+          "ground": [
+            {
+              "path": "docs/ideas/plan-prune.md",
+              "note": "the idea this spec makes precise"
+            }
+          ],
+          "context": "A slug is held forever by its archived run.",
+          "problem": "The `-2` habit is the visible symptom.",
+          "productGoal": {
+            "statement": "Free a slug once its run is archived.",
+            "guidingRule": "A slug is held only by a live run."
+          },
+          "terminology": [
+            {
+              "term": "live run",
+              "definition": "a run that is not archived"
+            }
+          ],
+          "requirements": [
+            {
+              "id": "5.1",
+              "title": "Prune eligibility",
+              "pattern": "event",
+              "statement": "WHEN a run is archived THE system SHALL make it eligible to prune."
+            },
+            {
+              "id": "5.2",
+              "title": "Prune refusal",
+              "pattern": "unwanted",
+              "statement": "IF the run is live THEN the system SHALL refuse to prune it."
+            }
+          ],
+          "surface": [
+            {
+              "surface": "cli: `phax prune <run>`",
+              "summary": "An operator can free an archived run's slug with one command.",
+              "binding": "normative",
+              "before": null,
+              "after": "phax prune usage-cli\n  pruned usage-cli\n  $? = 0"
+            }
+          ],
+          "nonGoals": [
+            "pruning a run that is not archived"
+          ],
+          "acceptanceCriteria": [
+            {
+              "id": "AC-1",
+              "name": "Prune frees the slug",
+              "given": "an archived run usage-cli",
+              "when": "`phax prune usage-cli` runs",
+              "then": "the slug is free",
+              "refs": [
+                "5.1"
+              ]
+            },
+            {
+              "id": "AC-2",
+              "name": "Live runs are kept",
+              "given": "a live run usage-cli",
+              "when": "`phax prune usage-cli` runs",
+              "then": "it refuses",
+              "refs": [
+                "5.2",
+                "5.1"
+              ]
+            }
+          ],
+          "openQuestions": [
+            {
+              "id": "Q1",
+              "question": "Is pruning manual or automatic past `keep`?",
+              "options": [
+                {
+                  "id": "manual",
+                  "label": "an explicit `phax prune`",
+                  "abandons": "self-shrinking"
+                },
+                {
+                  "id": "auto",
+                  "label": "prune at archive time",
+                  "abandons": "later inspection"
+                }
+              ],
+              "recommendation": "manual",
+              "rationale": "records already keep the trajectory"
+            }
+          ],
+          "arbitratedQuestions": [],
+          "planningNote": {
+            "settled": [
+              "manual prune"
+            ],
+            "open": [],
+            "constraints": [
+              "no new state"
+            ]
+          },
+          "docsPage": {
+            "kind": "page",
+            "page": "docs/cli/prune.md",
+            "reader": "an operator whose `-2` runs pile up",
+            "example": "phax prune usage-cli"
+          }
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/spec-document/0.32.0.json",
+          "acceptanceCriteria": [
+            {
+              "given": "an archived run usage-cli",
+              "id": "AC-1",
+              "name": "Prune frees the slug",
+              "refs": [
+                "5.1"
+              ],
+              "then": "the slug is free",
+              "when": "`phax prune usage-cli` runs"
+            },
+            {
+              "given": "a live run usage-cli",
+              "id": "AC-2",
+              "name": "Live runs are kept",
+              "refs": [
+                "5.2",
+                "5.1"
+              ],
+              "then": "it refuses",
+              "when": "`phax prune usage-cli` runs"
+            }
+          ],
+          "arbitratedQuestions": [],
+          "context": "A slug is held forever by its archived run.",
+          "docsPage": {
+            "example": "phax prune usage-cli",
+            "kind": "page",
+            "page": "docs/cli/prune.md",
+            "reader": "an operator whose `-2` runs pile up"
+          },
+          "ground": [
+            {
+              "note": "the idea this spec makes precise",
+              "path": "docs/ideas/plan-prune.md"
+            }
+          ],
+          "kind": "spec",
+          "nonGoals": [
+            "pruning a run that is not archived"
+          ],
+          "openQuestions": [
+            {
+              "id": "Q1",
+              "options": [
+                {
+                  "abandons": "self-shrinking",
+                  "id": "manual",
+                  "label": "an explicit `phax prune`"
+                },
+                {
+                  "abandons": "later inspection",
+                  "id": "auto",
+                  "label": "prune at archive time"
+                }
+              ],
+              "question": "Is pruning manual or automatic past `keep`?",
+              "rationale": "records already keep the trajectory",
+              "recommendation": "manual"
+            }
+          ],
+          "planningNote": {
+            "constraints": [
+              "no new state"
+            ],
+            "open": [],
+            "settled": [
+              "manual prune"
+            ]
+          },
+          "problem": "The `-2` habit is the visible symptom.",
+          "productGoal": {
+            "guidingRule": "A slug is held only by a live run.",
+            "statement": "Free a slug once its run is archived."
+          },
+          "requirements": [
+            {
+              "id": "5.1",
+              "pattern": "event",
+              "statement": "WHEN a run is archived THE system SHALL make it eligible to prune.",
+              "title": "Prune eligibility"
+            },
+            {
+              "id": "5.2",
+              "pattern": "unwanted",
+              "statement": "IF the run is live THEN the system SHALL refuse to prune it.",
+              "title": "Prune refusal"
+            }
+          ],
+          "surface": [
+            {
+              "after": "phax prune usage-cli\n  pruned usage-cli\n  $? = 0",
+              "before": null,
+              "binding": "normative",
+              "summary": "An operator can free an archived run's slug with one command.",
+              "surface": "cli: `phax prune <run>`"
+            }
+          ],
+          "terminology": [
+            {
+              "definition": "a run that is not archived",
+              "term": "live run"
+            }
+          ],
+          "title": "Plan Prune"
+        }
+      }
+    },
+    {
+      "name": "spec: accepts the none docs-page variant",
+      "input": {
+        "decoder": "spec",
+        "raw": {
+          "$schema": "https://docs.phax.run/schemas/spec-document/0.32.0.json",
+          "kind": "spec",
+          "title": "Plan Prune",
+          "ground": [
+            {
+              "path": "docs/ideas/plan-prune.md",
+              "note": "the idea this spec makes precise"
+            }
+          ],
+          "context": "A slug is held forever by its archived run.",
+          "problem": "The `-2` habit is the visible symptom.",
+          "productGoal": {
+            "statement": "Free a slug once its run is archived.",
+            "guidingRule": "A slug is held only by a live run."
+          },
+          "terminology": [
+            {
+              "term": "live run",
+              "definition": "a run that is not archived"
+            }
+          ],
+          "requirements": [
+            {
+              "id": "5.1",
+              "title": "Prune eligibility",
+              "pattern": "event",
+              "statement": "WHEN a run is archived THE system SHALL make it eligible to prune."
+            },
+            {
+              "id": "5.2",
+              "title": "Prune refusal",
+              "pattern": "unwanted",
+              "statement": "IF the run is live THEN the system SHALL refuse to prune it."
+            }
+          ],
+          "surface": [
+            {
+              "surface": "cli: `phax prune <run>`",
+              "summary": "An operator can free an archived run's slug with one command.",
+              "binding": "normative",
+              "before": null,
+              "after": "phax prune usage-cli\n  pruned usage-cli\n  $? = 0"
+            }
+          ],
+          "nonGoals": [
+            "pruning a run that is not archived"
+          ],
+          "acceptanceCriteria": [
+            {
+              "id": "AC-1",
+              "name": "Prune frees the slug",
+              "given": "an archived run usage-cli",
+              "when": "`phax prune usage-cli` runs",
+              "then": "the slug is free",
+              "refs": [
+                "5.1"
+              ]
+            },
+            {
+              "id": "AC-2",
+              "name": "Live runs are kept",
+              "given": "a live run usage-cli",
+              "when": "`phax prune usage-cli` runs",
+              "then": "it refuses",
+              "refs": [
+                "5.2",
+                "5.1"
+              ]
+            }
+          ],
+          "openQuestions": [
+            {
+              "id": "Q1",
+              "question": "Is pruning manual or automatic past `keep`?",
+              "options": [
+                {
+                  "id": "manual",
+                  "label": "an explicit `phax prune`",
+                  "abandons": "self-shrinking"
+                },
+                {
+                  "id": "auto",
+                  "label": "prune at archive time",
+                  "abandons": "later inspection"
+                }
+              ],
+              "recommendation": "manual",
+              "rationale": "records already keep the trajectory"
+            }
+          ],
+          "arbitratedQuestions": [],
+          "planningNote": {
+            "settled": [
+              "manual prune"
+            ],
+            "open": [],
+            "constraints": [
+              "no new state"
+            ]
+          },
+          "docsPage": {
+            "kind": "none",
+            "why": "an internal change with no reader"
+          }
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/spec-document/0.32.0.json",
+          "acceptanceCriteria": [
+            {
+              "given": "an archived run usage-cli",
+              "id": "AC-1",
+              "name": "Prune frees the slug",
+              "refs": [
+                "5.1"
+              ],
+              "then": "the slug is free",
+              "when": "`phax prune usage-cli` runs"
+            },
+            {
+              "given": "a live run usage-cli",
+              "id": "AC-2",
+              "name": "Live runs are kept",
+              "refs": [
+                "5.2",
+                "5.1"
+              ],
+              "then": "it refuses",
+              "when": "`phax prune usage-cli` runs"
+            }
+          ],
+          "arbitratedQuestions": [],
+          "context": "A slug is held forever by its archived run.",
+          "docsPage": {
+            "kind": "none",
+            "why": "an internal change with no reader"
+          },
+          "ground": [
+            {
+              "note": "the idea this spec makes precise",
+              "path": "docs/ideas/plan-prune.md"
+            }
+          ],
+          "kind": "spec",
+          "nonGoals": [
+            "pruning a run that is not archived"
+          ],
+          "openQuestions": [
+            {
+              "id": "Q1",
+              "options": [
+                {
+                  "abandons": "self-shrinking",
+                  "id": "manual",
+                  "label": "an explicit `phax prune`"
+                },
+                {
+                  "abandons": "later inspection",
+                  "id": "auto",
+                  "label": "prune at archive time"
+                }
+              ],
+              "question": "Is pruning manual or automatic past `keep`?",
+              "rationale": "records already keep the trajectory",
+              "recommendation": "manual"
+            }
+          ],
+          "planningNote": {
+            "constraints": [
+              "no new state"
+            ],
+            "open": [],
+            "settled": [
+              "manual prune"
+            ]
+          },
+          "problem": "The `-2` habit is the visible symptom.",
+          "productGoal": {
+            "guidingRule": "A slug is held only by a live run.",
+            "statement": "Free a slug once its run is archived."
+          },
+          "requirements": [
+            {
+              "id": "5.1",
+              "pattern": "event",
+              "statement": "WHEN a run is archived THE system SHALL make it eligible to prune.",
+              "title": "Prune eligibility"
+            },
+            {
+              "id": "5.2",
+              "pattern": "unwanted",
+              "statement": "IF the run is live THEN the system SHALL refuse to prune it.",
+              "title": "Prune refusal"
+            }
+          ],
+          "surface": [
+            {
+              "after": "phax prune usage-cli\n  pruned usage-cli\n  $? = 0",
+              "before": null,
+              "binding": "normative",
+              "summary": "An operator can free an archived run's slug with one command.",
+              "surface": "cli: `phax prune <run>`"
+            }
+          ],
+          "terminology": [
+            {
+              "definition": "a run that is not archived",
+              "term": "live run"
+            }
+          ],
+          "title": "Plan Prune"
+        }
+      }
+    },
+    {
+      "name": "spec: refuses an empty refs list on the third criterion",
+      "input": {
+        "decoder": "spec",
+        "raw": {
+          "$schema": "https://docs.phax.run/schemas/spec-document/0.32.0.json",
+          "kind": "spec",
+          "title": "Plan Prune",
+          "ground": [
+            {
+              "path": "docs/ideas/plan-prune.md",
+              "note": "the idea this spec makes precise"
+            }
+          ],
+          "context": "A slug is held forever by its archived run.",
+          "problem": "The `-2` habit is the visible symptom.",
+          "productGoal": {
+            "statement": "Free a slug once its run is archived.",
+            "guidingRule": "A slug is held only by a live run."
+          },
+          "terminology": [
+            {
+              "term": "live run",
+              "definition": "a run that is not archived"
+            }
+          ],
+          "requirements": [
+            {
+              "id": "5.1",
+              "title": "Prune eligibility",
+              "pattern": "event",
+              "statement": "WHEN a run is archived THE system SHALL make it eligible to prune."
+            },
+            {
+              "id": "5.2",
+              "title": "Prune refusal",
+              "pattern": "unwanted",
+              "statement": "IF the run is live THEN the system SHALL refuse to prune it."
+            }
+          ],
+          "surface": [
+            {
+              "surface": "cli: `phax prune <run>`",
+              "summary": "An operator can free an archived run's slug with one command.",
+              "binding": "normative",
+              "before": null,
+              "after": "phax prune usage-cli\n  pruned usage-cli\n  $? = 0"
+            }
+          ],
+          "nonGoals": [
+            "pruning a run that is not archived"
+          ],
+          "acceptanceCriteria": [
+            {
+              "id": "AC-1",
+              "name": "Prune frees the slug",
+              "given": "an archived run usage-cli",
+              "when": "`phax prune usage-cli` runs",
+              "then": "the slug is free",
+              "refs": [
+                "5.1"
+              ]
+            },
+            {
+              "id": "AC-2",
+              "name": "Live runs are kept",
+              "given": "a live run usage-cli",
+              "when": "`phax prune usage-cli` runs",
+              "then": "it refuses",
+              "refs": [
+                "5.2",
+                "5.1"
+              ]
+            },
+            {
+              "id": "AC-3",
+              "name": "Dangling",
+              "given": "g",
+              "when": "w",
+              "then": "t",
+              "refs": []
+            }
+          ],
+          "openQuestions": [
+            {
+              "id": "Q1",
+              "question": "Is pruning manual or automatic past `keep`?",
+              "options": [
+                {
+                  "id": "manual",
+                  "label": "an explicit `phax prune`",
+                  "abandons": "self-shrinking"
+                },
+                {
+                  "id": "auto",
+                  "label": "prune at archive time",
+                  "abandons": "later inspection"
+                }
+              ],
+              "recommendation": "manual",
+              "rationale": "records already keep the trajectory"
+            }
+          ],
+          "arbitratedQuestions": [],
+          "planningNote": {
+            "settled": [
+              "manual prune"
+            ],
+            "open": [],
+            "constraints": [
+              "no new state"
+            ]
+          },
+          "docsPage": {
+            "kind": "page",
+            "page": "docs/cli/prune.md",
+            "reader": "an operator whose `-2` runs pile up",
+            "example": "phax prune usage-cli"
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "acceptanceCriteria[2].refs[0]: is missing"
+      }
+    },
+    {
+      "name": "spec: refuses a ref naming no requirement",
+      "input": {
+        "decoder": "spec",
+        "raw": {
+          "$schema": "https://docs.phax.run/schemas/spec-document/0.32.0.json",
+          "kind": "spec",
+          "title": "Plan Prune",
+          "ground": [
+            {
+              "path": "docs/ideas/plan-prune.md",
+              "note": "the idea this spec makes precise"
+            }
+          ],
+          "context": "A slug is held forever by its archived run.",
+          "problem": "The `-2` habit is the visible symptom.",
+          "productGoal": {
+            "statement": "Free a slug once its run is archived.",
+            "guidingRule": "A slug is held only by a live run."
+          },
+          "terminology": [
+            {
+              "term": "live run",
+              "definition": "a run that is not archived"
+            }
+          ],
+          "requirements": [
+            {
+              "id": "5.1",
+              "title": "Prune eligibility",
+              "pattern": "event",
+              "statement": "WHEN a run is archived THE system SHALL make it eligible to prune."
+            },
+            {
+              "id": "5.2",
+              "title": "Prune refusal",
+              "pattern": "unwanted",
+              "statement": "IF the run is live THEN the system SHALL refuse to prune it."
+            }
+          ],
+          "surface": [
+            {
+              "surface": "cli: `phax prune <run>`",
+              "summary": "An operator can free an archived run's slug with one command.",
+              "binding": "normative",
+              "before": null,
+              "after": "phax prune usage-cli\n  pruned usage-cli\n  $? = 0"
+            }
+          ],
+          "nonGoals": [
+            "pruning a run that is not archived"
+          ],
+          "acceptanceCriteria": [
+            {
+              "id": "AC-1",
+              "name": "Prune frees the slug",
+              "given": "an archived run usage-cli",
+              "when": "`phax prune usage-cli` runs",
+              "then": "the slug is free",
+              "refs": [
+                "5.1"
+              ]
+            },
+            {
+              "id": "AC-2",
+              "name": "Live runs are kept",
+              "given": "a live run usage-cli",
+              "when": "`phax prune usage-cli` runs",
+              "then": "it refuses",
+              "refs": [
+                "5.2",
+                "5.1"
+              ]
+            },
+            {
+              "id": "AC-3",
+              "name": "Dangling",
+              "given": "g",
+              "when": "w",
+              "then": "t",
+              "refs": [
+                "5.9"
+              ]
+            }
+          ],
+          "openQuestions": [
+            {
+              "id": "Q1",
+              "question": "Is pruning manual or automatic past `keep`?",
+              "options": [
+                {
+                  "id": "manual",
+                  "label": "an explicit `phax prune`",
+                  "abandons": "self-shrinking"
+                },
+                {
+                  "id": "auto",
+                  "label": "prune at archive time",
+                  "abandons": "later inspection"
+                }
+              ],
+              "recommendation": "manual",
+              "rationale": "records already keep the trajectory"
+            }
+          ],
+          "arbitratedQuestions": [],
+          "planningNote": {
+            "settled": [
+              "manual prune"
+            ],
+            "open": [],
+            "constraints": [
+              "no new state"
+            ]
+          },
+          "docsPage": {
+            "kind": "page",
+            "page": "docs/cli/prune.md",
+            "reader": "an operator whose `-2` runs pile up",
+            "example": "phax prune usage-cli"
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "acceptanceCriteria[2].refs[0]: \"5.9\" names no requirement"
+      }
+    },
+    {
+      "name": "spec: refuses a requirement no criterion covers",
+      "input": {
+        "decoder": "spec",
+        "raw": {
+          "$schema": "https://docs.phax.run/schemas/spec-document/0.32.0.json",
+          "kind": "spec",
+          "title": "Plan Prune",
+          "ground": [
+            {
+              "path": "docs/ideas/plan-prune.md",
+              "note": "the idea this spec makes precise"
+            }
+          ],
+          "context": "A slug is held forever by its archived run.",
+          "problem": "The `-2` habit is the visible symptom.",
+          "productGoal": {
+            "statement": "Free a slug once its run is archived.",
+            "guidingRule": "A slug is held only by a live run."
+          },
+          "terminology": [
+            {
+              "term": "live run",
+              "definition": "a run that is not archived"
+            }
+          ],
+          "requirements": [
+            {
+              "id": "5.1",
+              "title": "Prune eligibility",
+              "pattern": "event",
+              "statement": "WHEN a run is archived THE system SHALL make it eligible to prune."
+            },
+            {
+              "id": "5.2",
+              "title": "Prune refusal",
+              "pattern": "unwanted",
+              "statement": "IF the run is live THEN the system SHALL refuse to prune it."
+            }
+          ],
+          "surface": [
+            {
+              "surface": "cli: `phax prune <run>`",
+              "summary": "An operator can free an archived run's slug with one command.",
+              "binding": "normative",
+              "before": null,
+              "after": "phax prune usage-cli\n  pruned usage-cli\n  $? = 0"
+            }
+          ],
+          "nonGoals": [
+            "pruning a run that is not archived"
+          ],
+          "acceptanceCriteria": [
+            {
+              "id": "AC-1",
+              "name": "Prune frees the slug",
+              "given": "an archived run usage-cli",
+              "when": "`phax prune usage-cli` runs",
+              "then": "the slug is free",
+              "refs": [
+                "5.1"
+              ]
+            },
+            {
+              "id": "AC-2",
+              "name": "Live runs are kept",
+              "given": "a live run usage-cli",
+              "when": "`phax prune usage-cli` runs",
+              "then": "it refuses",
+              "refs": [
+                "5.1"
+              ]
+            }
+          ],
+          "openQuestions": [
+            {
+              "id": "Q1",
+              "question": "Is pruning manual or automatic past `keep`?",
+              "options": [
+                {
+                  "id": "manual",
+                  "label": "an explicit `phax prune`",
+                  "abandons": "self-shrinking"
+                },
+                {
+                  "id": "auto",
+                  "label": "prune at archive time",
+                  "abandons": "later inspection"
+                }
+              ],
+              "recommendation": "manual",
+              "rationale": "records already keep the trajectory"
+            }
+          ],
+          "arbitratedQuestions": [],
+          "planningNote": {
+            "settled": [
+              "manual prune"
+            ],
+            "open": [],
+            "constraints": [
+              "no new state"
+            ]
+          },
+          "docsPage": {
+            "kind": "page",
+            "page": "docs/cli/prune.md",
+            "reader": "an operator whose `-2` runs pile up",
+            "example": "phax prune usage-cli"
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "requirements[1].id: \"5.2\" is referenced by no acceptance criterion"
+      }
+    },
+    {
+      "name": "spec: refuses the version 1 shape at its first violation",
+      "input": {
+        "decoder": "spec",
+        "raw": {
+          "version": 1,
+          "kind": "spec",
+          "title": "Plan Prune",
+          "ground": [
+            {
+              "path": "docs/ideas/plan-prune.md",
+              "note": "the idea this spec makes precise"
+            }
+          ],
+          "context": "A slug is held forever by its archived run.",
+          "problem": "The `-2` habit is the visible symptom.",
+          "productGoal": {
+            "statement": "Free a slug once its run is archived.",
+            "guidingRule": "A slug is held only by a live run."
+          },
+          "terminology": [
+            {
+              "term": "live run",
+              "definition": "a run that is not archived"
+            }
+          ],
+          "requirements": [
+            {
+              "id": "5.1",
+              "title": "Prune eligibility",
+              "pattern": "event",
+              "statement": "WHEN a run is archived THE system SHALL make it eligible to prune."
+            },
+            {
+              "id": "5.2",
+              "title": "Prune refusal",
+              "pattern": "unwanted",
+              "statement": "IF the run is live THEN the system SHALL refuse to prune it."
+            }
+          ],
+          "surface": [
+            {
+              "surface": "cli: `phax prune <run>`",
+              "summary": "An operator can free an archived run's slug with one command.",
+              "binding": "normative",
+              "before": null,
+              "after": "phax prune usage-cli\n  pruned usage-cli\n  $? = 0"
+            }
+          ],
+          "nonGoals": [
+            "pruning a run that is not archived"
+          ],
+          "acceptanceCriteria": [
+            {
+              "id": "AC-1",
+              "name": "Prune frees the slug",
+              "given": "an archived run usage-cli",
+              "when": "`phax prune usage-cli` runs",
+              "then": "the slug is free",
+              "refs": [
+                "5.1"
+              ]
+            },
+            {
+              "id": "AC-2",
+              "name": "Live runs are kept",
+              "given": "a live run usage-cli",
+              "when": "`phax prune usage-cli` runs",
+              "then": "it refuses",
+              "refs": [
+                "5.2",
+                "5.1"
+              ]
+            }
+          ],
+          "openQuestions": [
+            {
+              "id": "Q1",
+              "question": "Is pruning manual or automatic past `keep`?",
+              "options": [
+                {
+                  "id": "manual",
+                  "label": "an explicit `phax prune`",
+                  "abandons": "self-shrinking"
+                },
+                {
+                  "id": "auto",
+                  "label": "prune at archive time",
+                  "abandons": "later inspection"
+                }
+              ],
+              "recommendation": "manual",
+              "rationale": "records already keep the trajectory"
+            }
+          ],
+          "arbitratedQuestions": [],
+          "planningNote": {
+            "settled": [
+              "manual prune"
+            ],
+            "open": [],
+            "constraints": [
+              "no new state"
+            ]
+          },
+          "docsPage": {
+            "kind": "page",
+            "page": "docs/cli/prune.md",
+            "reader": "an operator whose `-2` runs pile up",
+            "example": "phax prune usage-cli"
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "version: is unexpected, expected: \"$schema\" | \"kind\" | \"title\" | \"ground\" | \"context\" | \"problem\" | \"productGoal\" | \"terminology\" | \"requirements\" | \"surface\" | \"nonGoals\" | \"acceptanceCriteria\" | \"openQuestions\" | \"arbitratedQuestions\" | \"planningNote\" | \"docsPage\""
+      }
+    },
+    {
+      "name": "spec: refuses a missing $schema",
+      "input": {
+        "decoder": "spec",
+        "raw": {
+          "kind": "spec",
+          "title": "Plan Prune",
+          "ground": [
+            {
+              "path": "docs/ideas/plan-prune.md",
+              "note": "the idea this spec makes precise"
+            }
+          ],
+          "context": "A slug is held forever by its archived run.",
+          "problem": "The `-2` habit is the visible symptom.",
+          "productGoal": {
+            "statement": "Free a slug once its run is archived.",
+            "guidingRule": "A slug is held only by a live run."
+          },
+          "terminology": [
+            {
+              "term": "live run",
+              "definition": "a run that is not archived"
+            }
+          ],
+          "requirements": [
+            {
+              "id": "5.1",
+              "title": "Prune eligibility",
+              "pattern": "event",
+              "statement": "WHEN a run is archived THE system SHALL make it eligible to prune."
+            },
+            {
+              "id": "5.2",
+              "title": "Prune refusal",
+              "pattern": "unwanted",
+              "statement": "IF the run is live THEN the system SHALL refuse to prune it."
+            }
+          ],
+          "surface": [
+            {
+              "surface": "cli: `phax prune <run>`",
+              "summary": "An operator can free an archived run's slug with one command.",
+              "binding": "normative",
+              "before": null,
+              "after": "phax prune usage-cli\n  pruned usage-cli\n  $? = 0"
+            }
+          ],
+          "nonGoals": [
+            "pruning a run that is not archived"
+          ],
+          "acceptanceCriteria": [
+            {
+              "id": "AC-1",
+              "name": "Prune frees the slug",
+              "given": "an archived run usage-cli",
+              "when": "`phax prune usage-cli` runs",
+              "then": "the slug is free",
+              "refs": [
+                "5.1"
+              ]
+            },
+            {
+              "id": "AC-2",
+              "name": "Live runs are kept",
+              "given": "a live run usage-cli",
+              "when": "`phax prune usage-cli` runs",
+              "then": "it refuses",
+              "refs": [
+                "5.2",
+                "5.1"
+              ]
+            }
+          ],
+          "openQuestions": [
+            {
+              "id": "Q1",
+              "question": "Is pruning manual or automatic past `keep`?",
+              "options": [
+                {
+                  "id": "manual",
+                  "label": "an explicit `phax prune`",
+                  "abandons": "self-shrinking"
+                },
+                {
+                  "id": "auto",
+                  "label": "prune at archive time",
+                  "abandons": "later inspection"
+                }
+              ],
+              "recommendation": "manual",
+              "rationale": "records already keep the trajectory"
+            }
+          ],
+          "arbitratedQuestions": [],
+          "planningNote": {
+            "settled": [
+              "manual prune"
+            ],
+            "open": [],
+            "constraints": [
+              "no new state"
+            ]
+          },
+          "docsPage": {
+            "kind": "page",
+            "page": "docs/cli/prune.md",
+            "reader": "an operator whose `-2` runs pile up",
+            "example": "phax prune usage-cli"
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: is missing"
+      }
+    },
+    {
+      "name": "spec: refuses another release's $schema",
+      "input": {
+        "decoder": "spec",
+        "raw": {
+          "$schema": "https://docs.phax.run/schemas/spec-document/0.31.0.json",
+          "kind": "spec",
+          "title": "Plan Prune",
+          "ground": [
+            {
+              "path": "docs/ideas/plan-prune.md",
+              "note": "the idea this spec makes precise"
+            }
+          ],
+          "context": "A slug is held forever by its archived run.",
+          "problem": "The `-2` habit is the visible symptom.",
+          "productGoal": {
+            "statement": "Free a slug once its run is archived.",
+            "guidingRule": "A slug is held only by a live run."
+          },
+          "terminology": [
+            {
+              "term": "live run",
+              "definition": "a run that is not archived"
+            }
+          ],
+          "requirements": [
+            {
+              "id": "5.1",
+              "title": "Prune eligibility",
+              "pattern": "event",
+              "statement": "WHEN a run is archived THE system SHALL make it eligible to prune."
+            },
+            {
+              "id": "5.2",
+              "title": "Prune refusal",
+              "pattern": "unwanted",
+              "statement": "IF the run is live THEN the system SHALL refuse to prune it."
+            }
+          ],
+          "surface": [
+            {
+              "surface": "cli: `phax prune <run>`",
+              "summary": "An operator can free an archived run's slug with one command.",
+              "binding": "normative",
+              "before": null,
+              "after": "phax prune usage-cli\n  pruned usage-cli\n  $? = 0"
+            }
+          ],
+          "nonGoals": [
+            "pruning a run that is not archived"
+          ],
+          "acceptanceCriteria": [
+            {
+              "id": "AC-1",
+              "name": "Prune frees the slug",
+              "given": "an archived run usage-cli",
+              "when": "`phax prune usage-cli` runs",
+              "then": "the slug is free",
+              "refs": [
+                "5.1"
+              ]
+            },
+            {
+              "id": "AC-2",
+              "name": "Live runs are kept",
+              "given": "a live run usage-cli",
+              "when": "`phax prune usage-cli` runs",
+              "then": "it refuses",
+              "refs": [
+                "5.2",
+                "5.1"
+              ]
+            }
+          ],
+          "openQuestions": [
+            {
+              "id": "Q1",
+              "question": "Is pruning manual or automatic past `keep`?",
+              "options": [
+                {
+                  "id": "manual",
+                  "label": "an explicit `phax prune`",
+                  "abandons": "self-shrinking"
+                },
+                {
+                  "id": "auto",
+                  "label": "prune at archive time",
+                  "abandons": "later inspection"
+                }
+              ],
+              "recommendation": "manual",
+              "rationale": "records already keep the trajectory"
+            }
+          ],
+          "arbitratedQuestions": [],
+          "planningNote": {
+            "settled": [
+              "manual prune"
+            ],
+            "open": [],
+            "constraints": [
+              "no new state"
+            ]
+          },
+          "docsPage": {
+            "kind": "page",
+            "page": "docs/cli/prune.md",
+            "reader": "an operator whose `-2` runs pile up",
+            "example": "phax prune usage-cli"
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: Expected The spec-document format's shape, exactly: https://docs.phax.run/schemas/spec-document/0.32.0.json, actual \"https://docs.phax.run/schemas/spec-document/0.31.0.json\""
+      }
+    },
+    {
+      "name": "spec: refuses an unexpected root key",
+      "input": {
+        "decoder": "spec",
+        "raw": {
+          "$schema": "https://docs.phax.run/schemas/spec-document/0.32.0.json",
+          "kind": "spec",
+          "title": "Plan Prune",
+          "ground": [
+            {
+              "path": "docs/ideas/plan-prune.md",
+              "note": "the idea this spec makes precise"
+            }
+          ],
+          "context": "A slug is held forever by its archived run.",
+          "problem": "The `-2` habit is the visible symptom.",
+          "productGoal": {
+            "statement": "Free a slug once its run is archived.",
+            "guidingRule": "A slug is held only by a live run."
+          },
+          "terminology": [
+            {
+              "term": "live run",
+              "definition": "a run that is not archived"
+            }
+          ],
+          "requirements": [
+            {
+              "id": "5.1",
+              "title": "Prune eligibility",
+              "pattern": "event",
+              "statement": "WHEN a run is archived THE system SHALL make it eligible to prune."
+            },
+            {
+              "id": "5.2",
+              "title": "Prune refusal",
+              "pattern": "unwanted",
+              "statement": "IF the run is live THEN the system SHALL refuse to prune it."
+            }
+          ],
+          "surface": [
+            {
+              "surface": "cli: `phax prune <run>`",
+              "summary": "An operator can free an archived run's slug with one command.",
+              "binding": "normative",
+              "before": null,
+              "after": "phax prune usage-cli\n  pruned usage-cli\n  $? = 0"
+            }
+          ],
+          "nonGoals": [
+            "pruning a run that is not archived"
+          ],
+          "acceptanceCriteria": [
+            {
+              "id": "AC-1",
+              "name": "Prune frees the slug",
+              "given": "an archived run usage-cli",
+              "when": "`phax prune usage-cli` runs",
+              "then": "the slug is free",
+              "refs": [
+                "5.1"
+              ]
+            },
+            {
+              "id": "AC-2",
+              "name": "Live runs are kept",
+              "given": "a live run usage-cli",
+              "when": "`phax prune usage-cli` runs",
+              "then": "it refuses",
+              "refs": [
+                "5.2",
+                "5.1"
+              ]
+            }
+          ],
+          "openQuestions": [
+            {
+              "id": "Q1",
+              "question": "Is pruning manual or automatic past `keep`?",
+              "options": [
+                {
+                  "id": "manual",
+                  "label": "an explicit `phax prune`",
+                  "abandons": "self-shrinking"
+                },
+                {
+                  "id": "auto",
+                  "label": "prune at archive time",
+                  "abandons": "later inspection"
+                }
+              ],
+              "recommendation": "manual",
+              "rationale": "records already keep the trajectory"
+            }
+          ],
+          "arbitratedQuestions": [],
+          "planningNote": {
+            "settled": [
+              "manual prune"
+            ],
+            "open": [],
+            "constraints": [
+              "no new state"
+            ]
+          },
+          "docsPage": {
+            "kind": "page",
+            "page": "docs/cli/prune.md",
+            "reader": "an operator whose `-2` runs pile up",
+            "example": "phax prune usage-cli"
+          },
+          "author": "Ada"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "author: is unexpected, expected: \"$schema\" | \"kind\" | \"title\" | \"ground\" | \"context\" | \"problem\" | \"productGoal\" | \"terminology\" | \"requirements\" | \"surface\" | \"nonGoals\" | \"acceptanceCriteria\" | \"openQuestions\" | \"arbitratedQuestions\" | \"planningNote\" | \"docsPage\""
+      }
+    },
+    {
+      "name": "spec: refuses a title that is not a string",
+      "input": {
+        "decoder": "spec",
+        "raw": {
+          "$schema": "https://docs.phax.run/schemas/spec-document/0.32.0.json",
+          "kind": "spec",
+          "title": 3,
+          "ground": [
+            {
+              "path": "docs/ideas/plan-prune.md",
+              "note": "the idea this spec makes precise"
+            }
+          ],
+          "context": "A slug is held forever by its archived run.",
+          "problem": "The `-2` habit is the visible symptom.",
+          "productGoal": {
+            "statement": "Free a slug once its run is archived.",
+            "guidingRule": "A slug is held only by a live run."
+          },
+          "terminology": [
+            {
+              "term": "live run",
+              "definition": "a run that is not archived"
+            }
+          ],
+          "requirements": [
+            {
+              "id": "5.1",
+              "title": "Prune eligibility",
+              "pattern": "event",
+              "statement": "WHEN a run is archived THE system SHALL make it eligible to prune."
+            },
+            {
+              "id": "5.2",
+              "title": "Prune refusal",
+              "pattern": "unwanted",
+              "statement": "IF the run is live THEN the system SHALL refuse to prune it."
+            }
+          ],
+          "surface": [
+            {
+              "surface": "cli: `phax prune <run>`",
+              "summary": "An operator can free an archived run's slug with one command.",
+              "binding": "normative",
+              "before": null,
+              "after": "phax prune usage-cli\n  pruned usage-cli\n  $? = 0"
+            }
+          ],
+          "nonGoals": [
+            "pruning a run that is not archived"
+          ],
+          "acceptanceCriteria": [
+            {
+              "id": "AC-1",
+              "name": "Prune frees the slug",
+              "given": "an archived run usage-cli",
+              "when": "`phax prune usage-cli` runs",
+              "then": "the slug is free",
+              "refs": [
+                "5.1"
+              ]
+            },
+            {
+              "id": "AC-2",
+              "name": "Live runs are kept",
+              "given": "a live run usage-cli",
+              "when": "`phax prune usage-cli` runs",
+              "then": "it refuses",
+              "refs": [
+                "5.2",
+                "5.1"
+              ]
+            }
+          ],
+          "openQuestions": [
+            {
+              "id": "Q1",
+              "question": "Is pruning manual or automatic past `keep`?",
+              "options": [
+                {
+                  "id": "manual",
+                  "label": "an explicit `phax prune`",
+                  "abandons": "self-shrinking"
+                },
+                {
+                  "id": "auto",
+                  "label": "prune at archive time",
+                  "abandons": "later inspection"
+                }
+              ],
+              "recommendation": "manual",
+              "rationale": "records already keep the trajectory"
+            }
+          ],
+          "arbitratedQuestions": [],
+          "planningNote": {
+            "settled": [
+              "manual prune"
+            ],
+            "open": [],
+            "constraints": [
+              "no new state"
+            ]
+          },
+          "docsPage": {
+            "kind": "page",
+            "page": "docs/cli/prune.md",
+            "reader": "an operator whose `-2` runs pile up",
+            "example": "phax prune usage-cli"
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "title: Expected string, actual 3"
+      }
+    },
+    {
+      "name": "spec: refuses a requirement pattern outside the enum",
+      "input": {
+        "decoder": "spec",
+        "raw": {
+          "$schema": "https://docs.phax.run/schemas/spec-document/0.32.0.json",
+          "kind": "spec",
+          "title": "Plan Prune",
+          "ground": [
+            {
+              "path": "docs/ideas/plan-prune.md",
+              "note": "the idea this spec makes precise"
+            }
+          ],
+          "context": "A slug is held forever by its archived run.",
+          "problem": "The `-2` habit is the visible symptom.",
+          "productGoal": {
+            "statement": "Free a slug once its run is archived.",
+            "guidingRule": "A slug is held only by a live run."
+          },
+          "terminology": [
+            {
+              "term": "live run",
+              "definition": "a run that is not archived"
+            }
+          ],
+          "requirements": [
+            {
+              "id": "5.1",
+              "title": "Prune eligibility",
+              "pattern": "sometimes",
+              "statement": "WHEN a run is archived THE system SHALL make it eligible to prune."
+            },
+            {
+              "id": "5.2",
+              "title": "Prune refusal",
+              "pattern": "unwanted",
+              "statement": "IF the run is live THEN the system SHALL refuse to prune it."
+            }
+          ],
+          "surface": [
+            {
+              "surface": "cli: `phax prune <run>`",
+              "summary": "An operator can free an archived run's slug with one command.",
+              "binding": "normative",
+              "before": null,
+              "after": "phax prune usage-cli\n  pruned usage-cli\n  $? = 0"
+            }
+          ],
+          "nonGoals": [
+            "pruning a run that is not archived"
+          ],
+          "acceptanceCriteria": [
+            {
+              "id": "AC-1",
+              "name": "Prune frees the slug",
+              "given": "an archived run usage-cli",
+              "when": "`phax prune usage-cli` runs",
+              "then": "the slug is free",
+              "refs": [
+                "5.1"
+              ]
+            },
+            {
+              "id": "AC-2",
+              "name": "Live runs are kept",
+              "given": "a live run usage-cli",
+              "when": "`phax prune usage-cli` runs",
+              "then": "it refuses",
+              "refs": [
+                "5.2",
+                "5.1"
+              ]
+            }
+          ],
+          "openQuestions": [
+            {
+              "id": "Q1",
+              "question": "Is pruning manual or automatic past `keep`?",
+              "options": [
+                {
+                  "id": "manual",
+                  "label": "an explicit `phax prune`",
+                  "abandons": "self-shrinking"
+                },
+                {
+                  "id": "auto",
+                  "label": "prune at archive time",
+                  "abandons": "later inspection"
+                }
+              ],
+              "recommendation": "manual",
+              "rationale": "records already keep the trajectory"
+            }
+          ],
+          "arbitratedQuestions": [],
+          "planningNote": {
+            "settled": [
+              "manual prune"
+            ],
+            "open": [],
+            "constraints": [
+              "no new state"
+            ]
+          },
+          "docsPage": {
+            "kind": "page",
+            "page": "docs/cli/prune.md",
+            "reader": "an operator whose `-2` runs pile up",
+            "example": "phax prune usage-cli"
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "requirements[0].pattern: Expected \"ubiquitous\", actual \"sometimes\""
+      }
+    },
+    {
+      "name": "spec: refuses an arbitrated question in an authoring answer",
+      "input": {
+        "decoder": "spec",
+        "raw": {
+          "$schema": "https://docs.phax.run/schemas/spec-document/0.32.0.json",
+          "kind": "spec",
+          "title": "Plan Prune",
+          "ground": [
+            {
+              "path": "docs/ideas/plan-prune.md",
+              "note": "the idea this spec makes precise"
+            }
+          ],
+          "context": "A slug is held forever by its archived run.",
+          "problem": "The `-2` habit is the visible symptom.",
+          "productGoal": {
+            "statement": "Free a slug once its run is archived.",
+            "guidingRule": "A slug is held only by a live run."
+          },
+          "terminology": [
+            {
+              "term": "live run",
+              "definition": "a run that is not archived"
+            }
+          ],
+          "requirements": [
+            {
+              "id": "5.1",
+              "title": "Prune eligibility",
+              "pattern": "event",
+              "statement": "WHEN a run is archived THE system SHALL make it eligible to prune."
+            },
+            {
+              "id": "5.2",
+              "title": "Prune refusal",
+              "pattern": "unwanted",
+              "statement": "IF the run is live THEN the system SHALL refuse to prune it."
+            }
+          ],
+          "surface": [
+            {
+              "surface": "cli: `phax prune <run>`",
+              "summary": "An operator can free an archived run's slug with one command.",
+              "binding": "normative",
+              "before": null,
+              "after": "phax prune usage-cli\n  pruned usage-cli\n  $? = 0"
+            }
+          ],
+          "nonGoals": [
+            "pruning a run that is not archived"
+          ],
+          "acceptanceCriteria": [
+            {
+              "id": "AC-1",
+              "name": "Prune frees the slug",
+              "given": "an archived run usage-cli",
+              "when": "`phax prune usage-cli` runs",
+              "then": "the slug is free",
+              "refs": [
+                "5.1"
+              ]
+            },
+            {
+              "id": "AC-2",
+              "name": "Live runs are kept",
+              "given": "a live run usage-cli",
+              "when": "`phax prune usage-cli` runs",
+              "then": "it refuses",
+              "refs": [
+                "5.2",
+                "5.1"
+              ]
+            }
+          ],
+          "openQuestions": [
+            {
+              "id": "Q1",
+              "question": "Is pruning manual or automatic past `keep`?",
+              "options": [
+                {
+                  "id": "manual",
+                  "label": "an explicit `phax prune`",
+                  "abandons": "self-shrinking"
+                },
+                {
+                  "id": "auto",
+                  "label": "prune at archive time",
+                  "abandons": "later inspection"
+                }
+              ],
+              "recommendation": "manual",
+              "rationale": "records already keep the trajectory"
+            }
+          ],
+          "arbitratedQuestions": [
+            {
+              "id": "Q1",
+              "question": "Is pruning manual or automatic past `keep`?",
+              "options": [
+                {
+                  "id": "manual",
+                  "label": "an explicit `phax prune`",
+                  "abandons": "self-shrinking"
+                },
+                {
+                  "id": "auto",
+                  "label": "prune at archive time",
+                  "abandons": "later inspection"
+                }
+              ],
+              "recommendation": "manual",
+              "rationale": "records already keep the trajectory"
+            }
+          ],
+          "planningNote": {
+            "settled": [
+              "manual prune"
+            ],
+            "open": [],
+            "constraints": [
+              "no new state"
+            ]
+          },
+          "docsPage": {
+            "kind": "page",
+            "page": "docs/cli/prune.md",
+            "reader": "an operator whose `-2` runs pile up",
+            "example": "phax prune usage-cli"
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "arbitratedQuestions[0]: an authoring session returns open questions only: arbitratedQuestions must be []"
+      }
+    },
+    {
+      "name": "spec: refuses a kind other than spec",
+      "input": {
+        "decoder": "spec",
+        "raw": {
+          "$schema": "https://docs.phax.run/schemas/spec-document/0.32.0.json",
+          "kind": "plan",
+          "title": "Plan Prune",
+          "ground": [
+            {
+              "path": "docs/ideas/plan-prune.md",
+              "note": "the idea this spec makes precise"
+            }
+          ],
+          "context": "A slug is held forever by its archived run.",
+          "problem": "The `-2` habit is the visible symptom.",
+          "productGoal": {
+            "statement": "Free a slug once its run is archived.",
+            "guidingRule": "A slug is held only by a live run."
+          },
+          "terminology": [
+            {
+              "term": "live run",
+              "definition": "a run that is not archived"
+            }
+          ],
+          "requirements": [
+            {
+              "id": "5.1",
+              "title": "Prune eligibility",
+              "pattern": "event",
+              "statement": "WHEN a run is archived THE system SHALL make it eligible to prune."
+            },
+            {
+              "id": "5.2",
+              "title": "Prune refusal",
+              "pattern": "unwanted",
+              "statement": "IF the run is live THEN the system SHALL refuse to prune it."
+            }
+          ],
+          "surface": [
+            {
+              "surface": "cli: `phax prune <run>`",
+              "summary": "An operator can free an archived run's slug with one command.",
+              "binding": "normative",
+              "before": null,
+              "after": "phax prune usage-cli\n  pruned usage-cli\n  $? = 0"
+            }
+          ],
+          "nonGoals": [
+            "pruning a run that is not archived"
+          ],
+          "acceptanceCriteria": [
+            {
+              "id": "AC-1",
+              "name": "Prune frees the slug",
+              "given": "an archived run usage-cli",
+              "when": "`phax prune usage-cli` runs",
+              "then": "the slug is free",
+              "refs": [
+                "5.1"
+              ]
+            },
+            {
+              "id": "AC-2",
+              "name": "Live runs are kept",
+              "given": "a live run usage-cli",
+              "when": "`phax prune usage-cli` runs",
+              "then": "it refuses",
+              "refs": [
+                "5.2",
+                "5.1"
+              ]
+            }
+          ],
+          "openQuestions": [
+            {
+              "id": "Q1",
+              "question": "Is pruning manual or automatic past `keep`?",
+              "options": [
+                {
+                  "id": "manual",
+                  "label": "an explicit `phax prune`",
+                  "abandons": "self-shrinking"
+                },
+                {
+                  "id": "auto",
+                  "label": "prune at archive time",
+                  "abandons": "later inspection"
+                }
+              ],
+              "recommendation": "manual",
+              "rationale": "records already keep the trajectory"
+            }
+          ],
+          "arbitratedQuestions": [],
+          "planningNote": {
+            "settled": [
+              "manual prune"
+            ],
+            "open": [],
+            "constraints": [
+              "no new state"
+            ]
+          },
+          "docsPage": {
+            "kind": "page",
+            "page": "docs/cli/prune.md",
+            "reader": "an operator whose `-2` runs pile up",
+            "example": "phax prune usage-cli"
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "kind: Expected \"spec\", actual \"plan\""
+      }
+    },
+    {
+      "name": "plan: accepts a plan document",
+      "input": {
+        "decoder": "plan",
+        "raw": {
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.33.0.json",
+          "kind": "plan",
+          "sourceSpec": "docs/specs/2609230835-headless-authoring.md",
+          "completesSpec": true,
+          "run": {
+            "shortName": "headless-authoring",
+            "title": "Headless authoring",
+            "requiredCommands": [
+              "pnpm gen:usage-spec"
+            ]
+          },
+          "preamble": {
+            "summary": "Core to surface.",
+            "requiredCommandsNote": "Regenerates the usage spec.",
+            "technicalArbitrations": [],
+            "openQuestions": [],
+            "arbitratedQuestions": []
+          },
+          "phases": [
+            {
+              "id": "phase-01",
+              "title": "Phase 1",
+              "assignmentReason": null,
+              "model": "claude-opus-5-5",
+              "effort": "high",
+              "planMarkdownAnchor": "#phase-01-work",
+              "plannedFilesToCreate": [
+                "src/phase1.ts"
+              ],
+              "plannedFilesToEdit": [
+                "README.md"
+              ],
+              "optionalFilesToEdit": [],
+              "mode": "headless",
+              "acceptance": null,
+              "commit": {
+                "subject": "feat: phase 1",
+                "body": "Phase 1 body."
+              },
+              "objective": "Deliver the phase.",
+              "detailedInstructions": [
+                "Write the module."
+              ],
+              "boundaryContracts": null,
+              "testStrategy": [
+                {
+                  "guarantee": "phase 1 works",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "the module's output",
+                  "loop": "in-phase",
+                  "criterion": null
+                },
+                {
+                  "guarantee": "phase 1 keeps working",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "the module's output",
+                  "loop": "in-phase",
+                  "criterion": null
+                }
+              ],
+              "implementationOrder": [
+                "Module",
+                "Tests"
+              ],
+              "excludedScope": [],
+              "verification": "standard",
+              "expectedHandoff": "The exported names."
+            },
+            {
+              "id": "phase-02",
+              "title": "Phase 2",
+              "assignmentReason": null,
+              "model": "claude-opus-5-5",
+              "effort": "high",
+              "planMarkdownAnchor": "#phase-02-work",
+              "plannedFilesToCreate": [
+                "src/phase2.ts"
+              ],
+              "plannedFilesToEdit": [
+                "README.md"
+              ],
+              "optionalFilesToEdit": [],
+              "mode": "headless",
+              "acceptance": null,
+              "commit": {
+                "subject": "feat: phase 2",
+                "body": "Phase 2 body."
+              },
+              "objective": "Deliver the phase.",
+              "detailedInstructions": [
+                "Write the module."
+              ],
+              "boundaryContracts": "phase-03 consumes X.",
+              "testStrategy": [
+                {
+                  "guarantee": "phase 2 works",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "the module's output",
+                  "loop": "in-phase",
+                  "criterion": null
+                },
+                {
+                  "guarantee": "phase 2 keeps working",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "the module's output",
+                  "loop": "in-phase",
+                  "criterion": null
+                }
+              ],
+              "implementationOrder": [
+                "Module",
+                "Tests"
+              ],
+              "excludedScope": [],
+              "verification": "standard",
+              "expectedHandoff": "The exported names."
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.33.0.json",
+          "completesSpec": true,
+          "kind": "plan",
+          "phases": [
+            {
+              "acceptance": null,
+              "assignmentReason": null,
+              "boundaryContracts": null,
+              "commit": {
+                "body": "Phase 1 body.",
+                "subject": "feat: phase 1"
+              },
+              "detailedInstructions": [
+                "Write the module."
+              ],
+              "effort": "high",
+              "excludedScope": [],
+              "expectedHandoff": "The exported names.",
+              "id": "phase-01",
+              "implementationOrder": [
+                "Module",
+                "Tests"
+              ],
+              "mode": "headless",
+              "model": "claude-opus-5-5",
+              "objective": "Deliver the phase.",
+              "optionalFilesToEdit": [],
+              "planMarkdownAnchor": "#phase-01-work",
+              "plannedFilesToCreate": [
+                "src/phase1.ts"
+              ],
+              "plannedFilesToEdit": [
+                "README.md"
+              ],
+              "testStrategy": [
+                {
+                  "criterion": null,
+                  "guarantee": "phase 1 works",
+                  "loop": "in-phase",
+                  "oracle": "the module's output",
+                  "size": "small",
+                  "technique": "example"
+                },
+                {
+                  "criterion": null,
+                  "guarantee": "phase 1 keeps working",
+                  "loop": "in-phase",
+                  "oracle": "the module's output",
+                  "size": "small",
+                  "technique": "example"
+                }
+              ],
+              "title": "Phase 1",
+              "verification": "standard"
+            },
+            {
+              "acceptance": null,
+              "assignmentReason": null,
+              "boundaryContracts": "phase-03 consumes X.",
+              "commit": {
+                "body": "Phase 2 body.",
+                "subject": "feat: phase 2"
+              },
+              "detailedInstructions": [
+                "Write the module."
+              ],
+              "effort": "high",
+              "excludedScope": [],
+              "expectedHandoff": "The exported names.",
+              "id": "phase-02",
+              "implementationOrder": [
+                "Module",
+                "Tests"
+              ],
+              "mode": "headless",
+              "model": "claude-opus-5-5",
+              "objective": "Deliver the phase.",
+              "optionalFilesToEdit": [],
+              "planMarkdownAnchor": "#phase-02-work",
+              "plannedFilesToCreate": [
+                "src/phase2.ts"
+              ],
+              "plannedFilesToEdit": [
+                "README.md"
+              ],
+              "testStrategy": [
+                {
+                  "criterion": null,
+                  "guarantee": "phase 2 works",
+                  "loop": "in-phase",
+                  "oracle": "the module's output",
+                  "size": "small",
+                  "technique": "example"
+                },
+                {
+                  "criterion": null,
+                  "guarantee": "phase 2 keeps working",
+                  "loop": "in-phase",
+                  "oracle": "the module's output",
+                  "size": "small",
+                  "technique": "example"
+                }
+              ],
+              "title": "Phase 2",
+              "verification": "standard"
+            }
+          ],
+          "preamble": {
+            "arbitratedQuestions": [],
+            "openQuestions": [],
+            "requiredCommandsNote": "Regenerates the usage spec.",
+            "summary": "Core to surface.",
+            "technicalArbitrations": []
+          },
+          "run": {
+            "requiredCommands": [
+              "pnpm gen:usage-spec"
+            ],
+            "shortName": "headless-authoring",
+            "title": "Headless authoring"
+          },
+          "sourceSpec": "docs/specs/2609230835-headless-authoring.md"
+        }
+      }
+    },
+    {
+      "name": "plan: accepts a plan without a source spec",
+      "input": {
+        "decoder": "plan",
+        "raw": {
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.33.0.json",
+          "kind": "plan",
+          "sourceSpec": null,
+          "completesSpec": null,
+          "run": {
+            "shortName": "headless-authoring",
+            "title": "Headless authoring",
+            "requiredCommands": [
+              "pnpm gen:usage-spec"
+            ]
+          },
+          "preamble": {
+            "summary": "Core to surface.",
+            "requiredCommandsNote": "Regenerates the usage spec.",
+            "technicalArbitrations": [],
+            "openQuestions": [],
+            "arbitratedQuestions": []
+          },
+          "phases": [
+            {
+              "id": "phase-01",
+              "title": "Phase 1",
+              "assignmentReason": null,
+              "model": "claude-opus-5-5",
+              "effort": "high",
+              "planMarkdownAnchor": "#phase-01-work",
+              "plannedFilesToCreate": [
+                "src/phase1.ts"
+              ],
+              "plannedFilesToEdit": [
+                "README.md"
+              ],
+              "optionalFilesToEdit": [],
+              "mode": "headless",
+              "acceptance": null,
+              "commit": {
+                "subject": "feat: phase 1",
+                "body": "Phase 1 body."
+              },
+              "objective": "Deliver the phase.",
+              "detailedInstructions": [
+                "Write the module."
+              ],
+              "boundaryContracts": null,
+              "testStrategy": [
+                {
+                  "guarantee": "phase 1 works",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "the module's output",
+                  "loop": "in-phase",
+                  "criterion": null
+                },
+                {
+                  "guarantee": "phase 1 keeps working",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "the module's output",
+                  "loop": "in-phase",
+                  "criterion": null
+                }
+              ],
+              "implementationOrder": [
+                "Module",
+                "Tests"
+              ],
+              "excludedScope": [],
+              "verification": "standard",
+              "expectedHandoff": "The exported names."
+            },
+            {
+              "id": "phase-02",
+              "title": "Phase 2",
+              "assignmentReason": null,
+              "model": "claude-opus-5-5",
+              "effort": "high",
+              "planMarkdownAnchor": "#phase-02-work",
+              "plannedFilesToCreate": [
+                "src/phase2.ts"
+              ],
+              "plannedFilesToEdit": [
+                "README.md"
+              ],
+              "optionalFilesToEdit": [],
+              "mode": "headless",
+              "acceptance": null,
+              "commit": {
+                "subject": "feat: phase 2",
+                "body": "Phase 2 body."
+              },
+              "objective": "Deliver the phase.",
+              "detailedInstructions": [
+                "Write the module."
+              ],
+              "boundaryContracts": "phase-03 consumes X.",
+              "testStrategy": [
+                {
+                  "guarantee": "phase 2 works",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "the module's output",
+                  "loop": "in-phase",
+                  "criterion": null
+                },
+                {
+                  "guarantee": "phase 2 keeps working",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "the module's output",
+                  "loop": "in-phase",
+                  "criterion": null
+                }
+              ],
+              "implementationOrder": [
+                "Module",
+                "Tests"
+              ],
+              "excludedScope": [],
+              "verification": "standard",
+              "expectedHandoff": "The exported names."
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.33.0.json",
+          "completesSpec": null,
+          "kind": "plan",
+          "phases": [
+            {
+              "acceptance": null,
+              "assignmentReason": null,
+              "boundaryContracts": null,
+              "commit": {
+                "body": "Phase 1 body.",
+                "subject": "feat: phase 1"
+              },
+              "detailedInstructions": [
+                "Write the module."
+              ],
+              "effort": "high",
+              "excludedScope": [],
+              "expectedHandoff": "The exported names.",
+              "id": "phase-01",
+              "implementationOrder": [
+                "Module",
+                "Tests"
+              ],
+              "mode": "headless",
+              "model": "claude-opus-5-5",
+              "objective": "Deliver the phase.",
+              "optionalFilesToEdit": [],
+              "planMarkdownAnchor": "#phase-01-work",
+              "plannedFilesToCreate": [
+                "src/phase1.ts"
+              ],
+              "plannedFilesToEdit": [
+                "README.md"
+              ],
+              "testStrategy": [
+                {
+                  "criterion": null,
+                  "guarantee": "phase 1 works",
+                  "loop": "in-phase",
+                  "oracle": "the module's output",
+                  "size": "small",
+                  "technique": "example"
+                },
+                {
+                  "criterion": null,
+                  "guarantee": "phase 1 keeps working",
+                  "loop": "in-phase",
+                  "oracle": "the module's output",
+                  "size": "small",
+                  "technique": "example"
+                }
+              ],
+              "title": "Phase 1",
+              "verification": "standard"
+            },
+            {
+              "acceptance": null,
+              "assignmentReason": null,
+              "boundaryContracts": "phase-03 consumes X.",
+              "commit": {
+                "body": "Phase 2 body.",
+                "subject": "feat: phase 2"
+              },
+              "detailedInstructions": [
+                "Write the module."
+              ],
+              "effort": "high",
+              "excludedScope": [],
+              "expectedHandoff": "The exported names.",
+              "id": "phase-02",
+              "implementationOrder": [
+                "Module",
+                "Tests"
+              ],
+              "mode": "headless",
+              "model": "claude-opus-5-5",
+              "objective": "Deliver the phase.",
+              "optionalFilesToEdit": [],
+              "planMarkdownAnchor": "#phase-02-work",
+              "plannedFilesToCreate": [
+                "src/phase2.ts"
+              ],
+              "plannedFilesToEdit": [
+                "README.md"
+              ],
+              "testStrategy": [
+                {
+                  "criterion": null,
+                  "guarantee": "phase 2 works",
+                  "loop": "in-phase",
+                  "oracle": "the module's output",
+                  "size": "small",
+                  "technique": "example"
+                },
+                {
+                  "criterion": null,
+                  "guarantee": "phase 2 keeps working",
+                  "loop": "in-phase",
+                  "oracle": "the module's output",
+                  "size": "small",
+                  "technique": "example"
+                }
+              ],
+              "title": "Phase 2",
+              "verification": "standard"
+            }
+          ],
+          "preamble": {
+            "arbitratedQuestions": [],
+            "openQuestions": [],
+            "requiredCommandsNote": "Regenerates the usage spec.",
+            "summary": "Core to surface.",
+            "technicalArbitrations": []
+          },
+          "run": {
+            "requiredCommands": [
+              "pnpm gen:usage-spec"
+            ],
+            "shortName": "headless-authoring",
+            "title": "Headless authoring"
+          },
+          "sourceSpec": null
+        }
+      }
+    },
+    {
+      "name": "plan: refuses a missing completesSpec",
+      "input": {
+        "decoder": "plan",
+        "raw": {
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.33.0.json",
+          "kind": "plan",
+          "sourceSpec": "docs/specs/2609230835-headless-authoring.md",
+          "run": {
+            "shortName": "headless-authoring",
+            "title": "Headless authoring",
+            "requiredCommands": [
+              "pnpm gen:usage-spec"
+            ]
+          },
+          "preamble": {
+            "summary": "Core to surface.",
+            "requiredCommandsNote": "Regenerates the usage spec.",
+            "technicalArbitrations": [],
+            "openQuestions": [],
+            "arbitratedQuestions": []
+          },
+          "phases": [
+            {
+              "id": "phase-01",
+              "title": "Phase 1",
+              "assignmentReason": null,
+              "model": "claude-opus-5-5",
+              "effort": "high",
+              "planMarkdownAnchor": "#phase-01-work",
+              "plannedFilesToCreate": [
+                "src/phase1.ts"
+              ],
+              "plannedFilesToEdit": [
+                "README.md"
+              ],
+              "optionalFilesToEdit": [],
+              "mode": "headless",
+              "acceptance": null,
+              "commit": {
+                "subject": "feat: phase 1",
+                "body": "Phase 1 body."
+              },
+              "objective": "Deliver the phase.",
+              "detailedInstructions": [
+                "Write the module."
+              ],
+              "boundaryContracts": null,
+              "testStrategy": [
+                {
+                  "guarantee": "phase 1 works",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "the module's output",
+                  "loop": "in-phase",
+                  "criterion": null
+                },
+                {
+                  "guarantee": "phase 1 keeps working",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "the module's output",
+                  "loop": "in-phase",
+                  "criterion": null
+                }
+              ],
+              "implementationOrder": [
+                "Module",
+                "Tests"
+              ],
+              "excludedScope": [],
+              "verification": "standard",
+              "expectedHandoff": "The exported names."
+            },
+            {
+              "id": "phase-02",
+              "title": "Phase 2",
+              "assignmentReason": null,
+              "model": "claude-opus-5-5",
+              "effort": "high",
+              "planMarkdownAnchor": "#phase-02-work",
+              "plannedFilesToCreate": [
+                "src/phase2.ts"
+              ],
+              "plannedFilesToEdit": [
+                "README.md"
+              ],
+              "optionalFilesToEdit": [],
+              "mode": "headless",
+              "acceptance": null,
+              "commit": {
+                "subject": "feat: phase 2",
+                "body": "Phase 2 body."
+              },
+              "objective": "Deliver the phase.",
+              "detailedInstructions": [
+                "Write the module."
+              ],
+              "boundaryContracts": "phase-03 consumes X.",
+              "testStrategy": [
+                {
+                  "guarantee": "phase 2 works",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "the module's output",
+                  "loop": "in-phase",
+                  "criterion": null
+                },
+                {
+                  "guarantee": "phase 2 keeps working",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "the module's output",
+                  "loop": "in-phase",
+                  "criterion": null
+                }
+              ],
+              "implementationOrder": [
+                "Module",
+                "Tests"
+              ],
+              "excludedScope": [],
+              "verification": "standard",
+              "expectedHandoff": "The exported names."
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "completesSpec: is missing"
+      }
+    },
+    {
+      "name": "plan: refuses the version 1 shape at its first violation",
+      "input": {
+        "decoder": "plan",
+        "raw": {
+          "version": 1,
+          "kind": "plan",
+          "sourceSpec": "docs/specs/2609230835-headless-authoring.md",
+          "completesSpec": true,
+          "run": {
+            "shortName": "headless-authoring",
+            "title": "Headless authoring",
+            "requiredCommands": [
+              "pnpm gen:usage-spec"
+            ]
+          },
+          "preamble": {
+            "summary": "Core to surface.",
+            "requiredCommandsNote": "Regenerates the usage spec.",
+            "technicalArbitrations": [],
+            "openQuestions": [],
+            "arbitratedQuestions": []
+          },
+          "phases": [
+            {
+              "id": "phase-01",
+              "title": "Phase 1",
+              "assignmentReason": null,
+              "model": "claude-opus-5-5",
+              "effort": "high",
+              "planMarkdownAnchor": "#phase-01-work",
+              "plannedFilesToCreate": [
+                "src/phase1.ts"
+              ],
+              "plannedFilesToEdit": [
+                "README.md"
+              ],
+              "optionalFilesToEdit": [],
+              "mode": "headless",
+              "acceptance": null,
+              "commit": {
+                "subject": "feat: phase 1",
+                "body": "Phase 1 body."
+              },
+              "objective": "Deliver the phase.",
+              "detailedInstructions": [
+                "Write the module."
+              ],
+              "boundaryContracts": null,
+              "testStrategy": [
+                {
+                  "guarantee": "phase 1 works",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "the module's output",
+                  "loop": "in-phase",
+                  "criterion": null
+                },
+                {
+                  "guarantee": "phase 1 keeps working",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "the module's output",
+                  "loop": "in-phase",
+                  "criterion": null
+                }
+              ],
+              "implementationOrder": [
+                "Module",
+                "Tests"
+              ],
+              "excludedScope": [],
+              "verification": "standard",
+              "expectedHandoff": "The exported names."
+            },
+            {
+              "id": "phase-02",
+              "title": "Phase 2",
+              "assignmentReason": null,
+              "model": "claude-opus-5-5",
+              "effort": "high",
+              "planMarkdownAnchor": "#phase-02-work",
+              "plannedFilesToCreate": [
+                "src/phase2.ts"
+              ],
+              "plannedFilesToEdit": [
+                "README.md"
+              ],
+              "optionalFilesToEdit": [],
+              "mode": "headless",
+              "acceptance": null,
+              "commit": {
+                "subject": "feat: phase 2",
+                "body": "Phase 2 body."
+              },
+              "objective": "Deliver the phase.",
+              "detailedInstructions": [
+                "Write the module."
+              ],
+              "boundaryContracts": "phase-03 consumes X.",
+              "testStrategy": [
+                {
+                  "guarantee": "phase 2 works",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "the module's output",
+                  "loop": "in-phase",
+                  "criterion": null
+                },
+                {
+                  "guarantee": "phase 2 keeps working",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "the module's output",
+                  "loop": "in-phase",
+                  "criterion": null
+                }
+              ],
+              "implementationOrder": [
+                "Module",
+                "Tests"
+              ],
+              "excludedScope": [],
+              "verification": "standard",
+              "expectedHandoff": "The exported names."
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "version: is unexpected, expected: \"$schema\" | \"kind\" | \"sourceSpec\" | \"completesSpec\" | \"run\" | \"preamble\" | \"phases\""
+      }
+    },
+    {
+      "name": "plan: refuses an unexpected key on a phase",
+      "input": {
+        "decoder": "plan",
+        "raw": {
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.33.0.json",
+          "kind": "plan",
+          "sourceSpec": "docs/specs/2609230835-headless-authoring.md",
+          "completesSpec": true,
+          "run": {
+            "shortName": "headless-authoring",
+            "title": "Headless authoring",
+            "requiredCommands": [
+              "pnpm gen:usage-spec"
+            ]
+          },
+          "preamble": {
+            "summary": "Core to surface.",
+            "requiredCommandsNote": "Regenerates the usage spec.",
+            "technicalArbitrations": [],
+            "openQuestions": [],
+            "arbitratedQuestions": []
+          },
+          "phases": [
+            {
+              "id": "phase-01",
+              "title": "Phase 1",
+              "assignmentReason": null,
+              "model": "claude-opus-5-5",
+              "effort": "high",
+              "planMarkdownAnchor": "#phase-01-work",
+              "plannedFilesToCreate": [
+                "src/phase1.ts"
+              ],
+              "plannedFilesToEdit": [
+                "README.md"
+              ],
+              "optionalFilesToEdit": [],
+              "mode": "headless",
+              "acceptance": null,
+              "commit": {
+                "subject": "feat: phase 1",
+                "body": "Phase 1 body."
+              },
+              "objective": "Deliver the phase.",
+              "detailedInstructions": [
+                "Write the module."
+              ],
+              "boundaryContracts": null,
+              "testStrategy": [
+                {
+                  "guarantee": "phase 1 works",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "the module's output",
+                  "loop": "in-phase",
+                  "criterion": null
+                },
+                {
+                  "guarantee": "phase 1 keeps working",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "the module's output",
+                  "loop": "in-phase",
+                  "criterion": null
+                }
+              ],
+              "implementationOrder": [
+                "Module",
+                "Tests"
+              ],
+              "excludedScope": [],
+              "verification": "standard",
+              "expectedHandoff": "The exported names.",
+              "notes": "x"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "phases[0].notes: is unexpected, expected: \"id\" | \"title\" | \"objective\" | \"detailedInstructions\" | \"planMarkdownAnchor\" | \"plannedFilesToCreate\" | \"plannedFilesToEdit\" | \"optionalFilesToEdit\" | \"mode\" | \"acceptance\" | \"boundaryContracts\" | \"testStrategy\" | \"implementationOrder\" | \"excludedScope\" | \"verification\" | \"expectedHandoff\" | \"commit\" | \"assignmentReason\" | \"model\" | \"effort\""
+      }
+    },
+    {
+      "name": "plan: refuses a test line missing its loop, naming the phase and line",
+      "input": {
+        "decoder": "plan",
+        "raw": {
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.33.0.json",
+          "kind": "plan",
+          "sourceSpec": "docs/specs/2609230835-headless-authoring.md",
+          "completesSpec": true,
+          "run": {
+            "shortName": "headless-authoring",
+            "title": "Headless authoring",
+            "requiredCommands": [
+              "pnpm gen:usage-spec"
+            ]
+          },
+          "preamble": {
+            "summary": "Core to surface.",
+            "requiredCommandsNote": "Regenerates the usage spec.",
+            "technicalArbitrations": [],
+            "openQuestions": [],
+            "arbitratedQuestions": []
+          },
+          "phases": [
+            {
+              "id": "phase-01",
+              "title": "Phase 1",
+              "assignmentReason": null,
+              "model": "claude-opus-5-5",
+              "effort": "high",
+              "planMarkdownAnchor": "#phase-01-work",
+              "plannedFilesToCreate": [
+                "src/phase1.ts"
+              ],
+              "plannedFilesToEdit": [
+                "README.md"
+              ],
+              "optionalFilesToEdit": [],
+              "mode": "headless",
+              "acceptance": null,
+              "commit": {
+                "subject": "feat: phase 1",
+                "body": "Phase 1 body."
+              },
+              "objective": "Deliver the phase.",
+              "detailedInstructions": [
+                "Write the module."
+              ],
+              "boundaryContracts": null,
+              "testStrategy": [
+                {
+                  "guarantee": "phase 1 works",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "the module's output",
+                  "loop": "in-phase",
+                  "criterion": null
+                },
+                {
+                  "guarantee": "phase 1 keeps working",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "the module's output",
+                  "loop": "in-phase",
+                  "criterion": null
+                }
+              ],
+              "implementationOrder": [
+                "Module",
+                "Tests"
+              ],
+              "excludedScope": [],
+              "verification": "standard",
+              "expectedHandoff": "The exported names."
+            },
+            {
+              "id": "phase-02",
+              "title": "Phase 2",
+              "assignmentReason": null,
+              "model": "claude-opus-5-5",
+              "effort": "high",
+              "planMarkdownAnchor": "#phase-02-work",
+              "plannedFilesToCreate": [
+                "src/phase2.ts"
+              ],
+              "plannedFilesToEdit": [
+                "README.md"
+              ],
+              "optionalFilesToEdit": [],
+              "mode": "headless",
+              "acceptance": null,
+              "commit": {
+                "subject": "feat: phase 2",
+                "body": "Phase 2 body."
+              },
+              "objective": "Deliver the phase.",
+              "detailedInstructions": [
+                "Write the module."
+              ],
+              "boundaryContracts": "phase-03 consumes X.",
+              "testStrategy": [
+                {
+                  "guarantee": "phase 2 works",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "the module's output",
+                  "loop": "in-phase",
+                  "criterion": null
+                },
+                {
+                  "guarantee": "phase 2 keeps working",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "the module's output",
+                  "criterion": null
+                }
+              ],
+              "implementationOrder": [
+                "Module",
+                "Tests"
+              ],
+              "excludedScope": [],
+              "verification": "standard",
+              "expectedHandoff": "The exported names."
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "phase-02 test line 2 loop: is missing"
+      }
+    },
+    {
+      "name": "plan: refuses a test line size outside the enum",
+      "input": {
+        "decoder": "plan",
+        "raw": {
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.33.0.json",
+          "kind": "plan",
+          "sourceSpec": "docs/specs/2609230835-headless-authoring.md",
+          "completesSpec": true,
+          "run": {
+            "shortName": "headless-authoring",
+            "title": "Headless authoring",
+            "requiredCommands": [
+              "pnpm gen:usage-spec"
+            ]
+          },
+          "preamble": {
+            "summary": "Core to surface.",
+            "requiredCommandsNote": "Regenerates the usage spec.",
+            "technicalArbitrations": [],
+            "openQuestions": [],
+            "arbitratedQuestions": []
+          },
+          "phases": [
+            {
+              "id": "phase-01",
+              "title": "Phase 1",
+              "assignmentReason": null,
+              "model": "claude-opus-5-5",
+              "effort": "high",
+              "planMarkdownAnchor": "#phase-01-work",
+              "plannedFilesToCreate": [
+                "src/phase1.ts"
+              ],
+              "plannedFilesToEdit": [
+                "README.md"
+              ],
+              "optionalFilesToEdit": [],
+              "mode": "headless",
+              "acceptance": null,
+              "commit": {
+                "subject": "feat: phase 1",
+                "body": "Phase 1 body."
+              },
+              "objective": "Deliver the phase.",
+              "detailedInstructions": [
+                "Write the module."
+              ],
+              "boundaryContracts": null,
+              "testStrategy": [
+                {
+                  "guarantee": "works",
+                  "size": "huge",
+                  "technique": "example",
+                  "oracle": "the module's output",
+                  "loop": "in-phase",
+                  "criterion": null
+                }
+              ],
+              "implementationOrder": [
+                "Module",
+                "Tests"
+              ],
+              "excludedScope": [],
+              "verification": "standard",
+              "expectedHandoff": "The exported names."
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "phase-01 test line 1 size: Expected \"small\", actual \"huge\""
+      }
+    },
+    {
+      "name": "plan: refuses an effort that is not a string",
+      "input": {
+        "decoder": "plan",
+        "raw": {
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.33.0.json",
+          "kind": "plan",
+          "sourceSpec": "docs/specs/2609230835-headless-authoring.md",
+          "completesSpec": true,
+          "run": {
+            "shortName": "headless-authoring",
+            "title": "Headless authoring",
+            "requiredCommands": [
+              "pnpm gen:usage-spec"
+            ]
+          },
+          "preamble": {
+            "summary": "Core to surface.",
+            "requiredCommandsNote": "Regenerates the usage spec.",
+            "technicalArbitrations": [],
+            "openQuestions": [],
+            "arbitratedQuestions": []
+          },
+          "phases": [
+            {
+              "id": "phase-01",
+              "title": "Phase 1",
+              "assignmentReason": null,
+              "model": "claude-opus-5-5",
+              "effort": 3,
+              "planMarkdownAnchor": "#phase-01-work",
+              "plannedFilesToCreate": [
+                "src/phase1.ts"
+              ],
+              "plannedFilesToEdit": [
+                "README.md"
+              ],
+              "optionalFilesToEdit": [],
+              "mode": "headless",
+              "acceptance": null,
+              "commit": {
+                "subject": "feat: phase 1",
+                "body": "Phase 1 body."
+              },
+              "objective": "Deliver the phase.",
+              "detailedInstructions": [
+                "Write the module."
+              ],
+              "boundaryContracts": null,
+              "testStrategy": [
+                {
+                  "guarantee": "phase 1 works",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "the module's output",
+                  "loop": "in-phase",
+                  "criterion": null
+                },
+                {
+                  "guarantee": "phase 1 keeps working",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "the module's output",
+                  "loop": "in-phase",
+                  "criterion": null
+                }
+              ],
+              "implementationOrder": [
+                "Module",
+                "Tests"
+              ],
+              "excludedScope": [],
+              "verification": "standard",
+              "expectedHandoff": "The exported names."
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "phases[0].effort: Expected \"none\", actual 3"
+      }
+    },
+    {
+      "name": "plan: refuses a phase id outside the phase-NN form",
+      "input": {
+        "decoder": "plan",
+        "raw": {
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.33.0.json",
+          "kind": "plan",
+          "sourceSpec": "docs/specs/2609230835-headless-authoring.md",
+          "completesSpec": true,
+          "run": {
+            "shortName": "headless-authoring",
+            "title": "Headless authoring",
+            "requiredCommands": [
+              "pnpm gen:usage-spec"
+            ]
+          },
+          "preamble": {
+            "summary": "Core to surface.",
+            "requiredCommandsNote": "Regenerates the usage spec.",
+            "technicalArbitrations": [],
+            "openQuestions": [],
+            "arbitratedQuestions": []
+          },
+          "phases": [
+            {
+              "id": "phase-1",
+              "title": "Phase 1",
+              "assignmentReason": null,
+              "model": "claude-opus-5-5",
+              "effort": "high",
+              "planMarkdownAnchor": "#phase-01-work",
+              "plannedFilesToCreate": [
+                "src/phase1.ts"
+              ],
+              "plannedFilesToEdit": [
+                "README.md"
+              ],
+              "optionalFilesToEdit": [],
+              "mode": "headless",
+              "acceptance": null,
+              "commit": {
+                "subject": "feat: phase 1",
+                "body": "Phase 1 body."
+              },
+              "objective": "Deliver the phase.",
+              "detailedInstructions": [
+                "Write the module."
+              ],
+              "boundaryContracts": null,
+              "testStrategy": [
+                {
+                  "guarantee": "phase 1 works",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "the module's output",
+                  "loop": "in-phase",
+                  "criterion": null
+                },
+                {
+                  "guarantee": "phase 1 keeps working",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "the module's output",
+                  "loop": "in-phase",
+                  "criterion": null
+                }
+              ],
+              "implementationOrder": [
+                "Module",
+                "Tests"
+              ],
+              "excludedScope": [],
+              "verification": "standard",
+              "expectedHandoff": "The exported names."
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "phases[0].id: Expected a string matching the pattern ^phase-\\d{2}$, actual \"phase-1\""
+      }
+    },
+    {
+      "name": "plan: refuses an empty phase list",
+      "input": {
+        "decoder": "plan",
+        "raw": {
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.33.0.json",
+          "kind": "plan",
+          "sourceSpec": "docs/specs/2609230835-headless-authoring.md",
+          "completesSpec": true,
+          "run": {
+            "shortName": "headless-authoring",
+            "title": "Headless authoring",
+            "requiredCommands": [
+              "pnpm gen:usage-spec"
+            ]
+          },
+          "preamble": {
+            "summary": "Core to surface.",
+            "requiredCommandsNote": "Regenerates the usage spec.",
+            "technicalArbitrations": [],
+            "openQuestions": [],
+            "arbitratedQuestions": []
+          },
+          "phases": []
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "phases[0]: is missing"
+      }
+    },
+    {
+      "name": "plan: refuses a decided question in an authoring answer",
+      "input": {
+        "decoder": "plan",
+        "raw": {
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.33.0.json",
+          "kind": "plan",
+          "sourceSpec": "docs/specs/2609230835-headless-authoring.md",
+          "completesSpec": true,
+          "run": {
+            "shortName": "headless-authoring",
+            "title": "Headless authoring",
+            "requiredCommands": [
+              "pnpm gen:usage-spec"
+            ]
+          },
+          "preamble": {
+            "summary": "Core to surface.",
+            "requiredCommandsNote": "Regenerates the usage spec.",
+            "technicalArbitrations": [],
+            "openQuestions": [],
+            "arbitratedQuestions": [
+              {
+                "id": "q-decided",
+                "question": "Who owns it?",
+                "options": [
+                  {
+                    "id": "p1",
+                    "label": "phase-01",
+                    "abandons": "a smaller first phase"
+                  },
+                  {
+                    "id": "p2",
+                    "label": "phase-02",
+                    "abandons": "an early registry"
+                  }
+                ],
+                "recommendation": "p1",
+                "rationale": "the registry is the core",
+                "verdict": {
+                  "kind": "decided",
+                  "chosen": "p2",
+                  "abandoned": [
+                    "p1"
+                  ],
+                  "why": "w",
+                  "advocate": "a",
+                  "principles": [],
+                  "reversibility": "costly",
+                  "by": {
+                    "kind": "operator",
+                    "name": "Ada Lovelace"
+                  },
+                  "at": "2026-10-20T08:02:11Z",
+                  "revised": [],
+                  "phase": "phase-01"
+                },
+                "history": []
+              }
+            ]
+          },
+          "phases": [
+            {
+              "id": "phase-01",
+              "title": "Phase 1",
+              "assignmentReason": null,
+              "model": "claude-opus-5-5",
+              "effort": "high",
+              "planMarkdownAnchor": "#phase-01-work",
+              "plannedFilesToCreate": [
+                "src/phase1.ts"
+              ],
+              "plannedFilesToEdit": [
+                "README.md"
+              ],
+              "optionalFilesToEdit": [],
+              "mode": "headless",
+              "acceptance": null,
+              "commit": {
+                "subject": "feat: phase 1",
+                "body": "Phase 1 body."
+              },
+              "objective": "Deliver the phase.",
+              "detailedInstructions": [
+                "Write the module."
+              ],
+              "boundaryContracts": null,
+              "testStrategy": [
+                {
+                  "guarantee": "phase 1 works",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "the module's output",
+                  "loop": "in-phase",
+                  "criterion": null
+                },
+                {
+                  "guarantee": "phase 1 keeps working",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "the module's output",
+                  "loop": "in-phase",
+                  "criterion": null
+                }
+              ],
+              "implementationOrder": [
+                "Module",
+                "Tests"
+              ],
+              "excludedScope": [],
+              "verification": "standard",
+              "expectedHandoff": "The exported names."
+            },
+            {
+              "id": "phase-02",
+              "title": "Phase 2",
+              "assignmentReason": null,
+              "model": "claude-opus-5-5",
+              "effort": "high",
+              "planMarkdownAnchor": "#phase-02-work",
+              "plannedFilesToCreate": [
+                "src/phase2.ts"
+              ],
+              "plannedFilesToEdit": [
+                "README.md"
+              ],
+              "optionalFilesToEdit": [],
+              "mode": "headless",
+              "acceptance": null,
+              "commit": {
+                "subject": "feat: phase 2",
+                "body": "Phase 2 body."
+              },
+              "objective": "Deliver the phase.",
+              "detailedInstructions": [
+                "Write the module."
+              ],
+              "boundaryContracts": "phase-03 consumes X.",
+              "testStrategy": [
+                {
+                  "guarantee": "phase 2 works",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "the module's output",
+                  "loop": "in-phase",
+                  "criterion": null
+                },
+                {
+                  "guarantee": "phase 2 keeps working",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "the module's output",
+                  "loop": "in-phase",
+                  "criterion": null
+                }
+              ],
+              "implementationOrder": [
+                "Module",
+                "Tests"
+              ],
+              "excludedScope": [],
+              "verification": "standard",
+              "expectedHandoff": "The exported names."
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "preamble.arbitratedQuestions[0]: an authoring session returns open questions only: arbitratedQuestions must be []"
+      }
+    }
+  ]
+}

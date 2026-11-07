@@ -1,0 +1,453 @@
+{
+  "subject": "config/provider-config",
+  "cases": [
+    {
+      "name": "accepts a catalog of two providers",
+      "input": {
+        "providers": {
+          "claude-code": {
+            "enabled": true,
+            "executable": "claude",
+            "modelEnvVar": "ANTHROPIC_MODEL",
+            "families": {
+              "claude-opus": {
+                "models": [
+                  {
+                    "id": "claude-opus-5-5",
+                    "efforts": [
+                      "low",
+                      "medium",
+                      "high",
+                      "xhigh",
+                      "max"
+                    ],
+                    "status": "active"
+                  }
+                ]
+              },
+              "claude-sonnet": {
+                "models": [
+                  {
+                    "id": "claude-sonnet-5",
+                    "efforts": [
+                      "low",
+                      "high"
+                    ],
+                    "status": "deprecated"
+                  }
+                ]
+              }
+            }
+          },
+          "mistral-vibe": {
+            "enabled": false,
+            "executable": "vibe",
+            "defaultAgent": "phax",
+            "output": "streaming"
+          }
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "providers": {
+            "claude-code": {
+              "enabled": true,
+              "executable": "claude",
+              "families": {
+                "claude-opus": {
+                  "models": [
+                    {
+                      "efforts": [
+                        "low",
+                        "medium",
+                        "high",
+                        "xhigh",
+                        "max"
+                      ],
+                      "id": "claude-opus-5-5",
+                      "status": "active"
+                    }
+                  ]
+                },
+                "claude-sonnet": {
+                  "models": [
+                    {
+                      "efforts": [
+                        "low",
+                        "high"
+                      ],
+                      "id": "claude-sonnet-5",
+                      "status": "deprecated"
+                    }
+                  ]
+                }
+              },
+              "modelEnvVar": "ANTHROPIC_MODEL"
+            },
+            "mistral-vibe": {
+              "defaultAgent": "phax",
+              "enabled": false,
+              "executable": "vibe",
+              "output": "streaming"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "accepts an empty provider record",
+      "input": {
+        "providers": {}
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "providers": {}
+        }
+      }
+    },
+    {
+      "name": "refuses a missing providers",
+      "input": {},
+      "expected": {
+        "ok": false,
+        "refusal": "  providers: is missing"
+      }
+    },
+    {
+      "name": "refuses a provider missing its executable",
+      "input": {
+        "providers": {
+          "claude-code": {
+            "enabled": true,
+            "modelEnvVar": "ANTHROPIC_MODEL",
+            "families": {
+              "claude-opus": {
+                "models": [
+                  {
+                    "id": "claude-opus-5-5",
+                    "efforts": [
+                      "low",
+                      "medium",
+                      "high",
+                      "xhigh",
+                      "max"
+                    ],
+                    "status": "active"
+                  }
+                ]
+              },
+              "claude-sonnet": {
+                "models": [
+                  {
+                    "id": "claude-sonnet-5",
+                    "efforts": [
+                      "low",
+                      "high"
+                    ],
+                    "status": "deprecated"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  providers.claude-code.executable: is missing"
+      }
+    },
+    {
+      "name": "refuses an unexpected key on a provider",
+      "input": {
+        "providers": {
+          "claude-code": {
+            "enabled": true,
+            "executable": "claude",
+            "modelEnvVar": "ANTHROPIC_MODEL",
+            "families": {
+              "claude-opus": {
+                "models": [
+                  {
+                    "id": "claude-opus-5-5",
+                    "efforts": [
+                      "low",
+                      "medium",
+                      "high",
+                      "xhigh",
+                      "max"
+                    ],
+                    "status": "active"
+                  }
+                ]
+              },
+              "claude-sonnet": {
+                "models": [
+                  {
+                    "id": "claude-sonnet-5",
+                    "efforts": [
+                      "low",
+                      "high"
+                    ],
+                    "status": "deprecated"
+                  }
+                ]
+              }
+            },
+            "version": "2.1"
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  providers.claude-code.version: is unexpected, expected: \"enabled\" | \"executable\" | \"modelEnvVar\" | \"defaultAgent\" | \"output\" | \"families\""
+      }
+    },
+    {
+      "name": "refuses an unexpected root key",
+      "input": {
+        "providers": {
+          "claude-code": {
+            "enabled": true,
+            "executable": "claude",
+            "modelEnvVar": "ANTHROPIC_MODEL",
+            "families": {
+              "claude-opus": {
+                "models": [
+                  {
+                    "id": "claude-opus-5-5",
+                    "efforts": [
+                      "low",
+                      "medium",
+                      "high",
+                      "xhigh",
+                      "max"
+                    ],
+                    "status": "active"
+                  }
+                ]
+              },
+              "claude-sonnet": {
+                "models": [
+                  {
+                    "id": "claude-sonnet-5",
+                    "efforts": [
+                      "low",
+                      "high"
+                    ],
+                    "status": "deprecated"
+                  }
+                ]
+              }
+            }
+          },
+          "mistral-vibe": {
+            "enabled": false,
+            "executable": "vibe",
+            "defaultAgent": "phax",
+            "output": "streaming"
+          }
+        },
+        "updatedAt": "2026-11-07"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  updatedAt: is unexpected, expected: \"providers\""
+      }
+    },
+    {
+      "name": "refuses enabled that is not a boolean",
+      "input": {
+        "providers": {
+          "claude-code": {
+            "enabled": "yes",
+            "executable": "claude",
+            "modelEnvVar": "ANTHROPIC_MODEL",
+            "families": {
+              "claude-opus": {
+                "models": [
+                  {
+                    "id": "claude-opus-5-5",
+                    "efforts": [
+                      "low",
+                      "medium",
+                      "high",
+                      "xhigh",
+                      "max"
+                    ],
+                    "status": "active"
+                  }
+                ]
+              },
+              "claude-sonnet": {
+                "models": [
+                  {
+                    "id": "claude-sonnet-5",
+                    "efforts": [
+                      "low",
+                      "high"
+                    ],
+                    "status": "deprecated"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  providers.claude-code.enabled: Expected boolean, actual \"yes\""
+      }
+    },
+    {
+      "name": "refuses a model status outside the enum",
+      "input": {
+        "providers": {
+          "claude-code": {
+            "enabled": true,
+            "executable": "claude",
+            "families": {
+              "claude-opus": {
+                "models": [
+                  {
+                    "id": "claude-opus-5-5",
+                    "efforts": [
+                      "high"
+                    ],
+                    "status": "retired"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  providers.claude-code.families.claude-opus.models.0.status: Expected \"active\", actual \"retired\"\n  providers.claude-code.families.claude-opus.models.0.status: Expected \"deprecated\", actual \"retired\"\n  providers.claude-code.families: Expected undefined, actual {\"claude-opus\":{\"models\":[{\"id\":\"claude-opus-5-5\",\"efforts\":[\"high\"],\"status\":\"retired\"}]}}"
+      }
+    },
+    {
+      "name": "refuses an effort outside the enum",
+      "input": {
+        "providers": {
+          "claude-code": {
+            "enabled": true,
+            "executable": "claude",
+            "families": {
+              "claude-opus": {
+                "models": [
+                  {
+                    "id": "claude-opus-5-5",
+                    "efforts": [
+                      "extreme"
+                    ],
+                    "status": "active"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  providers.claude-code.families.claude-opus.models.0.efforts.0: Expected \"none\", actual \"extreme\"\n  providers.claude-code.families.claude-opus.models.0.efforts.0: Expected \"off\", actual \"extreme\"\n  providers.claude-code.families.claude-opus.models.0.efforts.0: Expected \"low\", actual \"extreme\"\n  providers.claude-code.families.claude-opus.models.0.efforts.0: Expected \"medium\", actual \"extreme\"\n  providers.claude-code.families.claude-opus.models.0.efforts.0: Expected \"high\", actual \"extreme\"\n  providers.claude-code.families.claude-opus.models.0.efforts.0: Expected \"xhigh\", actual \"extreme\"\n  providers.claude-code.families.claude-opus.models.0.efforts.0: Expected \"max\", actual \"extreme\"\n  providers.claude-code.families.claude-opus.models.0.efforts.0: Expected \"ultracode\", actual \"extreme\"\n  providers.claude-code.families.claude-opus.models.0.efforts.0: Expected \"ultra\", actual \"extreme\"\n  providers.claude-code.families: Expected undefined, actual {\"claude-opus\":{\"models\":[{\"id\":\"claude-opus-5-5\",\"efforts\":[\"extreme\"],\"status\":\"active\"}]}}"
+      }
+    },
+    {
+      "name": "refuses an empty executable",
+      "input": {
+        "providers": {
+          "claude-code": {
+            "enabled": true,
+            "executable": "",
+            "modelEnvVar": "ANTHROPIC_MODEL",
+            "families": {
+              "claude-opus": {
+                "models": [
+                  {
+                    "id": "claude-opus-5-5",
+                    "efforts": [
+                      "low",
+                      "medium",
+                      "high",
+                      "xhigh",
+                      "max"
+                    ],
+                    "status": "active"
+                  }
+                ]
+              },
+              "claude-sonnet": {
+                "models": [
+                  {
+                    "id": "claude-sonnet-5",
+                    "efforts": [
+                      "low",
+                      "high"
+                    ],
+                    "status": "deprecated"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  providers.claude-code.executable: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "refuses an empty efforts list",
+      "input": {
+        "providers": {
+          "claude-code": {
+            "enabled": true,
+            "executable": "claude",
+            "families": {
+              "claude-opus": {
+                "models": [
+                  {
+                    "id": "claude-opus-5-5",
+                    "efforts": [],
+                    "status": "active"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  providers.claude-code.families.claude-opus.models.0.efforts.0: is missing\n  providers.claude-code.families: Expected undefined, actual {\"claude-opus\":{\"models\":[{\"id\":\"claude-opus-5-5\",\"efforts\":[],\"status\":\"active\"}]}}"
+      }
+    },
+    {
+      "name": "refuses a family with no model",
+      "input": {
+        "providers": {
+          "claude-code": {
+            "enabled": true,
+            "executable": "claude",
+            "families": {
+              "claude-opus": {
+                "models": []
+              }
+            }
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  providers.claude-code.families.claude-opus.models.0: is missing\n  providers.claude-code.families: Expected undefined, actual {\"claude-opus\":{\"models\":[]}}"
+      }
+    }
+  ]
+}

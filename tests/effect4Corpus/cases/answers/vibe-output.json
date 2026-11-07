@@ -1,0 +1,311 @@
+{
+  "subject": "answers/vibe-output",
+  "cases": [
+    {
+      "name": "result: joins the text blocks of the last assistant message",
+      "input": {
+        "decoder": "findVibeResultEvent",
+        "raw": [
+          {
+            "type": "message",
+            "role": "assistant",
+            "content": [
+              {
+                "type": "text",
+                "text": "Old."
+              }
+            ],
+            "sessionId": "vs-1",
+            "createdAt": 1793000000000
+          },
+          {
+            "type": "message",
+            "role": "assistant",
+            "content": [
+              {
+                "type": "text",
+                "text": "Hello, "
+              },
+              {
+                "type": "thinking",
+                "thinking": "..."
+              },
+              {
+                "type": "text",
+                "text": "world."
+              }
+            ],
+            "sessionId": "vs-1",
+            "createdAt": 1793000000000
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "finalText": "Hello, world."
+        }
+      }
+    },
+    {
+      "name": "result: skips a later message from another role",
+      "input": {
+        "decoder": "findVibeResultEvent",
+        "raw": [
+          {
+            "type": "message",
+            "role": "assistant",
+            "content": [
+              {
+                "type": "text",
+                "text": "Answer."
+              }
+            ],
+            "sessionId": "vs-1",
+            "createdAt": 1793000000000
+          },
+          {
+            "type": "message",
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": "Thanks."
+              }
+            ],
+            "sessionId": "vs-1",
+            "createdAt": 1793000000000
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "finalText": "Answer."
+        }
+      }
+    },
+    {
+      "name": "result: skips an assistant message without a text block",
+      "input": {
+        "decoder": "findVibeResultEvent",
+        "raw": [
+          {
+            "type": "message",
+            "role": "assistant",
+            "content": [
+              {
+                "type": "text",
+                "text": "Answer."
+              }
+            ],
+            "sessionId": "vs-1",
+            "createdAt": 1793000000000
+          },
+          {
+            "type": "message",
+            "role": "assistant",
+            "content": [
+              {
+                "type": "tool_use",
+                "name": "bash"
+              }
+            ],
+            "sessionId": "vs-1",
+            "createdAt": 1793000000000
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "finalText": "Answer."
+        }
+      }
+    },
+    {
+      "name": "result: skips a text block whose text is not a string",
+      "input": {
+        "decoder": "findVibeResultEvent",
+        "raw": [
+          {
+            "type": "message",
+            "role": "assistant",
+            "content": [
+              {
+                "type": "text",
+                "text": 42
+              }
+            ],
+            "sessionId": "vs-1",
+            "createdAt": 1793000000000
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": null
+      }
+    },
+    {
+      "name": "result: skips a message whose content is not an array",
+      "input": {
+        "decoder": "findVibeResultEvent",
+        "raw": [
+          {
+            "type": "message",
+            "role": "assistant",
+            "content": "Answer."
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": null
+      }
+    },
+    {
+      "name": "result: skips effect entries and lines that are not JSON",
+      "input": {
+        "decoder": "findVibeResultEvent",
+        "raw": [
+          {
+            "type": "message",
+            "role": "assistant",
+            "content": [
+              {
+                "type": "text",
+                "text": "Answer."
+              }
+            ],
+            "sessionId": "vs-1",
+            "createdAt": 1793000000000
+          },
+          {
+            "type": "effect",
+            "sessionId": "vs-1",
+            "createdAt": 1
+          },
+          "garbage",
+          ""
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "finalText": "Answer."
+        }
+      }
+    },
+    {
+      "name": "result: finds no answer in an empty stream",
+      "input": {
+        "decoder": "findVibeResultEvent",
+        "raw": []
+      },
+      "expected": {
+        "ok": true,
+        "value": null
+      }
+    },
+    {
+      "name": "head: reads the first entry's session id and creation time",
+      "input": {
+        "decoder": "findVibeStreamHead",
+        "raw": [
+          {
+            "type": "callback",
+            "sessionId": "vs-1",
+            "createdAt": 1793000000000
+          },
+          {
+            "type": "message",
+            "role": "assistant",
+            "content": [],
+            "sessionId": "vs-1",
+            "createdAt": 1793000000000
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "createdAt": 1793000000000,
+          "sessionId": "vs-1"
+        }
+      }
+    },
+    {
+      "name": "head: skips an entry with an empty session id",
+      "input": {
+        "decoder": "findVibeStreamHead",
+        "raw": [
+          {
+            "type": "message",
+            "sessionId": "",
+            "createdAt": 1
+          },
+          {
+            "type": "message",
+            "sessionId": "vs-2",
+            "createdAt": 2
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "createdAt": 2,
+          "sessionId": "vs-2"
+        }
+      }
+    },
+    {
+      "name": "head: skips an entry whose creation time is not a number",
+      "input": {
+        "decoder": "findVibeStreamHead",
+        "raw": [
+          {
+            "type": "message",
+            "sessionId": "vs-1",
+            "createdAt": "now"
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": null
+      }
+    },
+    {
+      "name": "head: skips an entry missing its type",
+      "input": {
+        "decoder": "findVibeStreamHead",
+        "raw": [
+          {
+            "sessionId": "vs-1",
+            "createdAt": 1
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": null
+      }
+    },
+    {
+      "name": "head: finds no head in lines that are not JSON",
+      "input": {
+        "decoder": "findVibeStreamHead",
+        "raw": [
+          "vibe 3.0.3",
+          ""
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": null
+      }
+    }
+  ]
+}

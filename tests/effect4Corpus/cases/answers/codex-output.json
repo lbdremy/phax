@@ -1,0 +1,236 @@
+{
+  "subject": "answers/codex-output",
+  "cases": [
+    {
+      "name": "reads a completed turn",
+      "input": [
+        {
+          "type": "thread.started",
+          "thread_id": "thr-1"
+        },
+        {
+          "type": "turn.started"
+        },
+        {
+          "type": "item.completed",
+          "item": {
+            "id": "item_0",
+            "type": "agent_message",
+            "text": "Answer."
+          }
+        },
+        {
+          "type": "turn.completed",
+          "usage": {
+            "input_tokens": 10
+          }
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "value": {
+          "agentMessage": "Answer.",
+          "threadId": "thr-1",
+          "turnEnd": {
+            "kind": "completed"
+          }
+        }
+      }
+    },
+    {
+      "name": "reads a failed turn with its message",
+      "input": [
+        {
+          "type": "thread.started",
+          "thread_id": "thr-1"
+        },
+        {
+          "type": "error",
+          "message": "Reconnecting... 1/5"
+        },
+        {
+          "type": "turn.failed",
+          "error": {
+            "message": "stream disconnected"
+          }
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "value": {
+          "errorMessage": "Reconnecting... 1/5",
+          "threadId": "thr-1",
+          "turnEnd": {
+            "kind": "failed",
+            "message": "stream disconnected"
+          }
+        }
+      }
+    },
+    {
+      "name": "reads a failed turn without an error",
+      "input": [
+        {
+          "type": "turn.failed"
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "value": {
+          "turnEnd": {
+            "kind": "failed"
+          }
+        }
+      }
+    },
+    {
+      "name": "reads the last error of a stream that never ends its turn",
+      "input": [
+        {
+          "type": "error",
+          "message": "Reconnecting... 5/5"
+        },
+        {
+          "type": "error",
+          "message": "Reconnecting... waiting for network"
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "value": {
+          "errorMessage": "Reconnecting... waiting for network"
+        }
+      }
+    },
+    {
+      "name": "keeps the first thread id",
+      "input": [
+        {
+          "type": "thread.started",
+          "thread_id": "thr-1"
+        },
+        {
+          "type": "thread.started",
+          "thread_id": "thr-2"
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "value": {
+          "threadId": "thr-1"
+        }
+      }
+    },
+    {
+      "name": "keeps the last agent message that is not blank",
+      "input": [
+        {
+          "type": "item.completed",
+          "item": {
+            "id": "item_0",
+            "type": "agent_message",
+            "text": "First."
+          }
+        },
+        {
+          "type": "item.completed",
+          "item": {
+            "id": "item_1",
+            "type": "agent_message",
+            "text": "  \n"
+          }
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "value": {
+          "agentMessage": "First."
+        }
+      }
+    },
+    {
+      "name": "skips an item other than an agent message",
+      "input": [
+        {
+          "type": "item.completed",
+          "item": {
+            "id": "item_0",
+            "type": "command_execution",
+            "command": "ls"
+          }
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "value": {}
+      }
+    },
+    {
+      "name": "skips an agent message missing its text",
+      "input": [
+        {
+          "type": "item.completed",
+          "item": {
+            "id": "item_0",
+            "type": "agent_message"
+          }
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "value": {}
+      }
+    },
+    {
+      "name": "skips a thread id that is not a string",
+      "input": [
+        {
+          "type": "thread.started",
+          "thread_id": 7
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "value": {}
+      }
+    },
+    {
+      "name": "skips an error event without a message",
+      "input": [
+        {
+          "type": "error"
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "value": {}
+      }
+    },
+    {
+      "name": "skips a failed turn whose error message is not a string",
+      "input": [
+        {
+          "type": "turn.failed",
+          "error": {
+            "message": 500
+          }
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "value": {}
+      }
+    },
+    {
+      "name": "skips a line that is not JSON",
+      "input": [
+        "Reading prompt from stdin...",
+        ""
+      ],
+      "expected": {
+        "ok": true,
+        "value": {}
+      }
+    }
+  ]
+}

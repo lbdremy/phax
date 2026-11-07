@@ -1,0 +1,96 @@
+{
+  "subject": "config/vibe-config",
+  "cases": [
+    {
+      "name": "accepts the base model block of the alias",
+      "input": {
+        "toml": "active_model = \"mistral-medium-3.5\"\n\n\n\n[[models]]\nalias = \"devstral\"\nname = \"devstral-2\"\nprovider = \"mistral\"\ntemperature = 0\ninput_price = 0\noutput_price = 0\nauto_compact_threshold = 100\n\n[[models]]\nalias = \"mistral-medium-3.5\"\nname = \"mistral-medium-2604\"\nprovider = \"mistral\"\ntemperature = 0.2\ninput_price = 0.4\noutput_price = 2\nauto_compact_threshold = 200000\n",
+        "alias": "mistral-medium-3.5"
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "auto_compact_threshold": 200000,
+          "input_price": 0.4,
+          "name": "mistral-medium-2604",
+          "output_price": 2,
+          "provider": "mistral",
+          "temperature": 0.2
+        }
+      }
+    },
+    {
+      "name": "accepts and drops a key the base model does not name",
+      "input": {
+        "toml": "active_model = \"mistral-medium-3.5\"\n\n\n\n[[models]]\nalias = \"mistral-medium-3.5\"\nname = \"mistral-medium-2604\"\nprovider = \"mistral\"\ntemperature = 0.2\ninput_price = 0.4\noutput_price = 2\nauto_compact_threshold = 200000\nthinking = \"high\"\n",
+        "alias": "mistral-medium-3.5"
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "auto_compact_threshold": 200000,
+          "input_price": 0.4,
+          "name": "mistral-medium-2604",
+          "output_price": 2,
+          "provider": "mistral",
+          "temperature": 0.2
+        }
+      }
+    },
+    {
+      "name": "refuses an alias no block holds",
+      "input": {
+        "toml": "active_model = \"mistral-medium-3.5\"\n\n\n\n[[models]]\nalias = \"mistral-medium-3.5\"\nname = \"mistral-medium-2604\"\nprovider = \"mistral\"\ntemperature = 0.2\ninput_price = 0.4\noutput_price = 2\nauto_compact_threshold = 200000\n",
+        "alias": "mistral-large"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "Base model block with alias \"mistral-large\" not found in config"
+      }
+    },
+    {
+      "name": "refuses a block missing its provider",
+      "input": {
+        "toml": "active_model = \"mistral-medium-3.5\"\n\n\n\n[[models]]\nalias = \"mistral-medium-3.5\"\nname = \"mistral-medium-2604\"\ntemperature = 0.2\ninput_price = 0.4\noutput_price = 2\nauto_compact_threshold = 200000\n",
+        "alias": "mistral-medium-3.5"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "Invalid base model block for alias \"mistral-medium-3.5\":   provider: is missing"
+      }
+    },
+    {
+      "name": "refuses a temperature that is not a number",
+      "input": {
+        "toml": "active_model = \"mistral-medium-3.5\"\n\n\n\n[[models]]\nalias = \"mistral-medium-3.5\"\nname = \"mistral-medium-2604\"\nprovider = \"mistral\"\ntemperature = \"warm\"\ninput_price = 0.4\noutput_price = 2\nauto_compact_threshold = 200000\n",
+        "alias": "mistral-medium-3.5"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "Invalid base model block for alias \"mistral-medium-3.5\":   temperature: Expected number, actual \"warm\""
+      }
+    },
+    {
+      "name": "refuses an empty model name",
+      "input": {
+        "toml": "active_model = \"mistral-medium-3.5\"\n\n\n\n[[models]]\nalias = \"mistral-medium-3.5\"\nname = \"\"\nprovider = \"mistral\"\ntemperature = 0.2\ninput_price = 0.4\noutput_price = 2\nauto_compact_threshold = 200000\n",
+        "alias": "mistral-medium-3.5"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "Invalid base model block for alias \"mistral-medium-3.5\":   name: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "refuses a block missing every price",
+      "input": {
+        "toml": "active_model = \"mistral-medium-3.5\"\n\n\n\n[[models]]\nalias = \"mistral-medium-3.5\"\nname = \"mistral-medium-2604\"\nprovider = \"mistral\"\ntemperature = 0.2\nauto_compact_threshold = 200000\n",
+        "alias": "mistral-medium-3.5"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "Invalid base model block for alias \"mistral-medium-3.5\":   input_price: is missing"
+      }
+    }
+  ]
+}

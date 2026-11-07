@@ -1,0 +1,155 @@
+{
+  "subject": "answers/plan-audit",
+  "cases": [
+    {
+      "name": "accepts findings naming phases",
+      "input": {
+        "findings": [
+          {
+            "message": "phase-01 and phase-02 both edit src/x.ts",
+            "phases": [
+              "phase-01",
+              "phase-02"
+            ]
+          },
+          {
+            "message": "plan-wide note",
+            "phases": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "findings": [
+            {
+              "message": "phase-01 and phase-02 both edit src/x.ts",
+              "phases": [
+                "phase-01",
+                "phase-02"
+              ]
+            },
+            {
+              "message": "plan-wide note",
+              "phases": []
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "accepts no finding",
+      "input": {
+        "findings": []
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "findings": []
+        }
+      }
+    },
+    {
+      "name": "accepts and drops a key the response does not name",
+      "input": {
+        "findings": [],
+        "model": "auditor-1"
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "findings": []
+        }
+      }
+    },
+    {
+      "name": "refuses a missing findings",
+      "input": {},
+      "expected": {
+        "ok": false,
+        "refusal": "  findings: is missing"
+      }
+    },
+    {
+      "name": "refuses a finding missing its phases",
+      "input": {
+        "findings": [
+          {
+            "message": "x"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  findings.0.phases: is missing"
+      }
+    },
+    {
+      "name": "refuses findings that are not an array",
+      "input": {
+        "findings": "none"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  findings: Expected ReadonlyArray<{ readonly message: NonEmptyString; readonly phases: ReadonlyArray<NonEmptyString> }>, actual \"none\""
+      }
+    },
+    {
+      "name": "refuses a phase that is not a string",
+      "input": {
+        "findings": [
+          {
+            "message": "x",
+            "phases": [
+              1
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  findings.0.phases.0: Expected string, actual 1"
+      }
+    },
+    {
+      "name": "refuses an empty message",
+      "input": {
+        "findings": [
+          {
+            "message": "",
+            "phases": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  findings.0.message: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "refuses an empty phase id",
+      "input": {
+        "findings": [
+          {
+            "message": "x",
+            "phases": [
+              ""
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  findings.0.phases.0: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "refuses a response that is not an object",
+      "input": null,
+      "expected": {
+        "ok": false,
+        "refusal": "  (root): Expected { readonly findings: ReadonlyArray<{ readonly message: NonEmptyString; readonly phases: ReadonlyArray<NonEmptyString> }> }, actual null"
+      }
+    }
+  ]
+}

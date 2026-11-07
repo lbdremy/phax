@@ -1,0 +1,470 @@
+{
+  "subject": "answers/vibe-export",
+  "cases": [
+    {
+      "name": "export: reads a finished turn and drops keys phax does not read",
+      "input": {
+        "decoder": "decodeVibeExportText",
+        "raw": {
+          "schema_version": 1,
+          "session_id": "vs-1",
+          "usage": {
+            "input_tokens": 1000,
+            "output_tokens": 200,
+            "cached_input_tokens": 300,
+            "total_tokens": 1200
+          },
+          "cost_usd": 0.0123,
+          "outcome": "finished",
+          "exit_code": 0,
+          "vibe_version": "3.0.3",
+          "config": {
+            "active_model": "phax-mistral-medium-3.5-high"
+          },
+          "limits": {},
+          "steps": 4
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "config": {
+            "active_model": "phax-mistral-medium-3.5-high"
+          },
+          "cost_usd": 0.0123,
+          "exit_code": 0,
+          "outcome": "finished",
+          "schema_version": 1,
+          "session_id": "vs-1",
+          "usage": {
+            "cached_input_tokens": 300,
+            "input_tokens": 1000,
+            "output_tokens": 200,
+            "total_tokens": 1200
+          },
+          "vibe_version": "3.0.3"
+        }
+      }
+    },
+    {
+      "name": "export: reads an export without config",
+      "input": {
+        "decoder": "decodeVibeExportText",
+        "raw": {
+          "schema_version": 1,
+          "session_id": "vs-1",
+          "usage": {
+            "input_tokens": 1000,
+            "output_tokens": 200,
+            "cached_input_tokens": 300,
+            "total_tokens": 1200
+          },
+          "cost_usd": 0.0123,
+          "outcome": "finished",
+          "exit_code": 0,
+          "vibe_version": "3.0.3",
+          "limits": {},
+          "steps": 4
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "cost_usd": 0.0123,
+          "exit_code": 0,
+          "outcome": "finished",
+          "schema_version": 1,
+          "session_id": "vs-1",
+          "usage": {
+            "cached_input_tokens": 300,
+            "input_tokens": 1000,
+            "output_tokens": 200,
+            "total_tokens": 1200
+          },
+          "vibe_version": "3.0.3"
+        }
+      }
+    },
+    {
+      "name": "export: refuses schema version 2",
+      "input": {
+        "decoder": "decodeVibeExportText",
+        "raw": {
+          "schema_version": 2,
+          "session_id": "vs-1",
+          "usage": {
+            "input_tokens": 1000,
+            "output_tokens": 200,
+            "cached_input_tokens": 300,
+            "total_tokens": 1200
+          },
+          "cost_usd": 0.0123,
+          "outcome": "finished",
+          "exit_code": 0,
+          "vibe_version": "3.0.3",
+          "config": {
+            "active_model": "phax-mistral-medium-3.5-high"
+          },
+          "limits": {},
+          "steps": 4
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "(not-an-export): schema_version: Expected 1, actual 2"
+      }
+    },
+    {
+      "name": "export: refuses a missing usage",
+      "input": {
+        "decoder": "decodeVibeExportText",
+        "raw": {
+          "schema_version": 1,
+          "session_id": "vs-1",
+          "cost_usd": 0.0123,
+          "outcome": "finished",
+          "exit_code": 0,
+          "vibe_version": "3.0.3",
+          "config": {
+            "active_model": "phax-mistral-medium-3.5-high"
+          },
+          "limits": {},
+          "steps": 4
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "(not-an-export): usage: is missing"
+      }
+    },
+    {
+      "name": "export: refuses a null session id",
+      "input": {
+        "decoder": "decodeVibeExportText",
+        "raw": {
+          "schema_version": 1,
+          "session_id": null,
+          "usage": null,
+          "cost_usd": null,
+          "outcome": "error",
+          "exit_code": 1,
+          "error": {
+            "message": "401 Unauthorized",
+            "code": "auth"
+          },
+          "vibe_version": "3.0.3",
+          "config": null
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "(not-an-export): session_id: Expected string, actual null"
+      }
+    },
+    {
+      "name": "export: refuses a negative token count",
+      "input": {
+        "decoder": "decodeVibeExportText",
+        "raw": {
+          "schema_version": 1,
+          "session_id": "vs-1",
+          "usage": {
+            "input_tokens": 1000,
+            "output_tokens": -3,
+            "cached_input_tokens": 300,
+            "total_tokens": 1200
+          },
+          "cost_usd": 0.0123,
+          "outcome": "finished",
+          "exit_code": 0,
+          "vibe_version": "3.0.3",
+          "config": {
+            "active_model": "phax-mistral-medium-3.5-high"
+          },
+          "limits": {},
+          "steps": 4
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "(not-an-export): usage.output_tokens: Expected a non-negative number, actual -3"
+      }
+    },
+    {
+      "name": "export: refuses a cost that is not a number",
+      "input": {
+        "decoder": "decodeVibeExportText",
+        "raw": {
+          "schema_version": 1,
+          "session_id": "vs-1",
+          "usage": {
+            "input_tokens": 1000,
+            "output_tokens": 200,
+            "cached_input_tokens": 300,
+            "total_tokens": 1200
+          },
+          "cost_usd": "0.01",
+          "outcome": "finished",
+          "exit_code": 0,
+          "vibe_version": "3.0.3",
+          "config": {
+            "active_model": "phax-mistral-medium-3.5-high"
+          },
+          "limits": {},
+          "steps": 4
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "(not-an-export): cost_usd: Expected number, actual \"0.01\""
+      }
+    },
+    {
+      "name": "export: refuses an empty session id",
+      "input": {
+        "decoder": "decodeVibeExportText",
+        "raw": {
+          "schema_version": 1,
+          "session_id": "",
+          "usage": {
+            "input_tokens": 1000,
+            "output_tokens": 200,
+            "cached_input_tokens": 300,
+            "total_tokens": 1200
+          },
+          "cost_usd": 0.0123,
+          "outcome": "finished",
+          "exit_code": 0,
+          "vibe_version": "3.0.3",
+          "config": {
+            "active_model": "phax-mistral-medium-3.5-high"
+          },
+          "limits": {},
+          "steps": 4
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "(not-an-export): session_id: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "export: refuses a JSON value that is not an object",
+      "input": {
+        "decoder": "decodeVibeExportText",
+        "raw": "[]"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "(not-an-export): Expected { readonly schema_version: 1; readonly session_id: NonEmptyString; readonly usage: { readonly input_tokens: finite & nonNegative; readonly output_tokens: finite & nonNegative; readonly cached_input_tokens: finite & nonNegative; readonly total_tokens: finite & nonNegative }; readonly cost_usd: finite; readonly outcome: string; readonly exit_code: number; readonly vibe_version: string; readonly config?: unknown | undefined }, actual []"
+      }
+    },
+    {
+      "name": "outcome: reads a turn that failed early",
+      "input": {
+        "decoder": "decodeVibeOutcomeText",
+        "raw": {
+          "schema_version": 1,
+          "session_id": null,
+          "usage": null,
+          "cost_usd": null,
+          "outcome": "error",
+          "exit_code": 1,
+          "error": {
+            "message": "401 Unauthorized",
+            "code": "auth"
+          },
+          "vibe_version": "3.0.3",
+          "config": null
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "config": null,
+          "cost_usd": null,
+          "error": {
+            "code": "auth",
+            "message": "401 Unauthorized"
+          },
+          "exit_code": 1,
+          "outcome": "error",
+          "schema_version": 1,
+          "session_id": null,
+          "usage": null,
+          "vibe_version": "3.0.3"
+        }
+      }
+    },
+    {
+      "name": "outcome: reads a finished turn",
+      "input": {
+        "decoder": "decodeVibeOutcomeText",
+        "raw": {
+          "schema_version": 1,
+          "session_id": "vs-1",
+          "usage": {
+            "input_tokens": 1000,
+            "output_tokens": 200,
+            "cached_input_tokens": 300,
+            "total_tokens": 1200
+          },
+          "cost_usd": 0.0123,
+          "outcome": "finished",
+          "exit_code": 0,
+          "vibe_version": "3.0.3",
+          "config": {
+            "active_model": "phax-mistral-medium-3.5-high"
+          },
+          "limits": {},
+          "steps": 4
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "config": {
+            "active_model": "phax-mistral-medium-3.5-high"
+          },
+          "cost_usd": 0.0123,
+          "exit_code": 0,
+          "outcome": "finished",
+          "schema_version": 1,
+          "session_id": "vs-1",
+          "usage": {
+            "cached_input_tokens": 300,
+            "input_tokens": 1000,
+            "output_tokens": 200,
+            "total_tokens": 1200
+          },
+          "vibe_version": "3.0.3"
+        }
+      }
+    },
+    {
+      "name": "outcome: reads a null error",
+      "input": {
+        "decoder": "decodeVibeOutcomeText",
+        "raw": {
+          "schema_version": 1,
+          "session_id": null,
+          "usage": null,
+          "cost_usd": null,
+          "outcome": "error",
+          "exit_code": 1,
+          "error": null,
+          "vibe_version": "3.0.3",
+          "config": null
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "config": null,
+          "cost_usd": null,
+          "error": null,
+          "exit_code": 1,
+          "outcome": "error",
+          "schema_version": 1,
+          "session_id": null,
+          "usage": null,
+          "vibe_version": "3.0.3"
+        }
+      }
+    },
+    {
+      "name": "outcome: refuses an error without a message",
+      "input": {
+        "decoder": "decodeVibeOutcomeText",
+        "raw": {
+          "schema_version": 1,
+          "session_id": null,
+          "usage": null,
+          "cost_usd": null,
+          "outcome": "error",
+          "exit_code": 1,
+          "error": {
+            "code": "auth"
+          },
+          "vibe_version": "3.0.3",
+          "config": null
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "(not-an-export): error.message: is missing"
+      }
+    },
+    {
+      "name": "outcome: refuses a missing outcome",
+      "input": {
+        "decoder": "decodeVibeOutcomeText",
+        "raw": {
+          "schema_version": 1,
+          "session_id": null,
+          "usage": null,
+          "cost_usd": null,
+          "exit_code": 1,
+          "error": {
+            "message": "401 Unauthorized",
+            "code": "auth"
+          },
+          "vibe_version": "3.0.3",
+          "config": null
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "(not-an-export): outcome: is missing"
+      }
+    },
+    {
+      "name": "outcome: refuses an exit code that is not a number",
+      "input": {
+        "decoder": "decodeVibeOutcomeText",
+        "raw": {
+          "schema_version": 1,
+          "session_id": null,
+          "usage": null,
+          "cost_usd": null,
+          "outcome": "error",
+          "exit_code": "1",
+          "error": {
+            "message": "401 Unauthorized",
+            "code": "auth"
+          },
+          "vibe_version": "3.0.3",
+          "config": null
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "(not-an-export): exit_code: Expected number, actual \"1\""
+      }
+    },
+    {
+      "name": "outcome: refuses a schema version outside 1",
+      "input": {
+        "decoder": "decodeVibeOutcomeText",
+        "raw": {
+          "schema_version": 0,
+          "session_id": null,
+          "usage": null,
+          "cost_usd": null,
+          "outcome": "error",
+          "exit_code": 1,
+          "error": {
+            "message": "401 Unauthorized",
+            "code": "auth"
+          },
+          "vibe_version": "3.0.3",
+          "config": null
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "(not-an-export): schema_version: Expected 1, actual 0"
+      }
+    }
+  ]
+}

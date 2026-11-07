@@ -1,0 +1,627 @@
+{
+  "subject": "answers/claude-stream",
+  "cases": [
+    {
+      "name": "reads a full stream",
+      "input": [
+        {
+          "type": "system",
+          "subtype": "init",
+          "session_id": "sess-2",
+          "claude_code_version": "2.1.312",
+          "apiKeySource": "none"
+        },
+        {
+          "type": "assistant",
+          "message": {
+            "id": "msg_1",
+            "model": "claude-opus-5-5",
+            "usage": {
+              "input_tokens": 10,
+              "output_tokens": 20,
+              "cache_read_input_tokens": 300,
+              "cache_creation_input_tokens": 40,
+              "cache_creation": {
+                "ephemeral_1h_input_tokens": 15,
+                "ephemeral_5m_input_tokens": 25
+              }
+            }
+          }
+        },
+        {
+          "type": "rate_limit_event",
+          "rate_limit_info": {
+            "status": "allowed",
+            "unifiedWindows": {
+              "five_hour": {
+                "utilization": 0.42,
+                "resetsAt": 1793000000
+              },
+              "seven_day": {
+                "utilization": 0.1,
+                "resetsAt": 1793500000
+              }
+            }
+          }
+        },
+        {
+          "type": "result",
+          "session_id": "sess-2",
+          "duration_ms": 5000,
+          "modelUsage": {
+            "claude-opus-5-5": {
+              "inputTokens": 10,
+              "outputTokens": 20,
+              "cacheReadInputTokens": 300,
+              "cacheCreationInputTokens": 40,
+              "costUSD": 0.12,
+              "webSearchRequests": 0
+            }
+          }
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "value": {
+          "apiKeySource": "none",
+          "claudeCodeVersion": [
+            2,
+            1,
+            312
+          ],
+          "events": [
+            {
+              "id": "msg_1",
+              "kind": "message",
+              "model": "claude-opus-5-5",
+              "usage": {
+                "cacheReadTokens": 300,
+                "cacheWrite1hTokens": 15,
+                "cacheWriteTokens": 40,
+                "inputTokens": 10,
+                "outputTokens": 20
+              }
+            },
+            {
+              "kind": "rate-limit",
+              "readings": [
+                {
+                  "fraction": 0.42,
+                  "resetsAtEpochSeconds": 1793000000,
+                  "window": "five-hour"
+                },
+                {
+                  "fraction": 0.1,
+                  "resetsAtEpochSeconds": 1793500000,
+                  "window": "seven-day"
+                }
+              ]
+            }
+          ],
+          "result": {
+            "durationMs": 5000,
+            "modelUsage": {
+              "claude-opus-5-5": {
+                "cacheReadTokens": 300,
+                "cacheWriteTokens": 40,
+                "costUsd": 0.12,
+                "inputTokens": 10,
+                "outputTokens": 20
+              }
+            }
+          },
+          "sessionId": "sess-2",
+          "undecodedRateLimitEvents": 0
+        }
+      }
+    },
+    {
+      "name": "defaults missing token counts to zero",
+      "input": [
+        {
+          "type": "assistant",
+          "message": {
+            "id": "msg_1",
+            "model": "claude-opus-5-5",
+            "usage": {}
+          }
+        },
+        {
+          "type": "result",
+          "modelUsage": {
+            "claude-opus-5-5": {}
+          }
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "value": {
+          "apiKeySource": null,
+          "claudeCodeVersion": null,
+          "events": [
+            {
+              "id": "msg_1",
+              "kind": "message",
+              "model": "claude-opus-5-5",
+              "usage": {
+                "cacheReadTokens": 0,
+                "cacheWrite1hTokens": 0,
+                "cacheWriteTokens": 0,
+                "inputTokens": 0,
+                "outputTokens": 0
+              }
+            }
+          ],
+          "result": {
+            "durationMs": 0,
+            "modelUsage": {
+              "claude-opus-5-5": {
+                "cacheReadTokens": 0,
+                "cacheWriteTokens": 0,
+                "costUsd": 0,
+                "inputTokens": 0,
+                "outputTokens": 0
+              }
+            }
+          },
+          "sessionId": null,
+          "undecodedRateLimitEvents": 0
+        }
+      }
+    },
+    {
+      "name": "sums every result's duration and keeps the last model usage",
+      "input": [
+        {
+          "type": "result",
+          "session_id": "sess-2",
+          "duration_ms": 5000,
+          "modelUsage": {
+            "claude-opus-5-5": {
+              "inputTokens": 10,
+              "outputTokens": 20,
+              "cacheReadInputTokens": 300,
+              "cacheCreationInputTokens": 40,
+              "costUSD": 0.12,
+              "webSearchRequests": 0
+            }
+          }
+        },
+        {
+          "type": "result",
+          "session_id": "sess-2",
+          "duration_ms": 700,
+          "modelUsage": {
+            "claude-opus-5-5": {
+              "inputTokens": 10,
+              "outputTokens": 20,
+              "cacheReadInputTokens": 300,
+              "cacheCreationInputTokens": 40,
+              "costUSD": 0.12,
+              "webSearchRequests": 0
+            }
+          }
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "value": {
+          "apiKeySource": null,
+          "claudeCodeVersion": null,
+          "events": [],
+          "result": {
+            "durationMs": 5700,
+            "modelUsage": {
+              "claude-opus-5-5": {
+                "cacheReadTokens": 300,
+                "cacheWriteTokens": 40,
+                "costUsd": 0.12,
+                "inputTokens": 10,
+                "outputTokens": 20
+              }
+            }
+          },
+          "sessionId": "sess-2",
+          "undecodedRateLimitEvents": 0
+        }
+      }
+    },
+    {
+      "name": "reads no version from a version that is not a triple",
+      "input": [
+        {
+          "type": "system",
+          "subtype": "init",
+          "session_id": "sess-3",
+          "claude_code_version": "2.1",
+          "apiKeySource": null
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "value": {
+          "apiKeySource": null,
+          "claudeCodeVersion": null,
+          "events": [],
+          "result": null,
+          "sessionId": "sess-3",
+          "undecodedRateLimitEvents": 0
+        }
+      }
+    },
+    {
+      "name": "falls back to the result's session id",
+      "input": [
+        {
+          "type": "result",
+          "session_id": "sess-2",
+          "duration_ms": 5000,
+          "modelUsage": {
+            "claude-opus-5-5": {
+              "inputTokens": 10,
+              "outputTokens": 20,
+              "cacheReadInputTokens": 300,
+              "cacheCreationInputTokens": 40,
+              "costUSD": 0.12,
+              "webSearchRequests": 0
+            }
+          }
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "value": {
+          "apiKeySource": null,
+          "claudeCodeVersion": null,
+          "events": [],
+          "result": {
+            "durationMs": 5000,
+            "modelUsage": {
+              "claude-opus-5-5": {
+                "cacheReadTokens": 300,
+                "cacheWriteTokens": 40,
+                "costUsd": 0.12,
+                "inputTokens": 10,
+                "outputTokens": 20
+              }
+            }
+          },
+          "sessionId": "sess-2",
+          "undecodedRateLimitEvents": 0
+        }
+      }
+    },
+    {
+      "name": "skips an assistant message with negative tokens",
+      "input": [
+        {
+          "type": "assistant",
+          "message": {
+            "id": "msg_1",
+            "model": "claude-opus-5-5",
+            "usage": {
+              "input_tokens": 10,
+              "output_tokens": -1,
+              "cache_read_input_tokens": 300,
+              "cache_creation_input_tokens": 40,
+              "cache_creation": {
+                "ephemeral_1h_input_tokens": 15,
+                "ephemeral_5m_input_tokens": 25
+              }
+            }
+          }
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "value": {
+          "apiKeySource": null,
+          "claudeCodeVersion": null,
+          "events": [],
+          "result": null,
+          "sessionId": null,
+          "undecodedRateLimitEvents": 0
+        }
+      }
+    },
+    {
+      "name": "skips an assistant message with fractional tokens",
+      "input": [
+        {
+          "type": "assistant",
+          "message": {
+            "id": "msg_1",
+            "model": "claude-opus-5-5",
+            "usage": {
+              "input_tokens": 1.5,
+              "output_tokens": 20,
+              "cache_read_input_tokens": 300,
+              "cache_creation_input_tokens": 40,
+              "cache_creation": {
+                "ephemeral_1h_input_tokens": 15,
+                "ephemeral_5m_input_tokens": 25
+              }
+            }
+          }
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "value": {
+          "apiKeySource": null,
+          "claudeCodeVersion": null,
+          "events": [],
+          "result": null,
+          "sessionId": null,
+          "undecodedRateLimitEvents": 0
+        }
+      }
+    },
+    {
+      "name": "skips an assistant message with an empty id",
+      "input": [
+        {
+          "type": "assistant",
+          "message": {
+            "id": "",
+            "model": "claude-opus-5-5",
+            "usage": {
+              "input_tokens": 10,
+              "output_tokens": 20,
+              "cache_read_input_tokens": 300,
+              "cache_creation_input_tokens": 40,
+              "cache_creation": {
+                "ephemeral_1h_input_tokens": 15,
+                "ephemeral_5m_input_tokens": 25
+              }
+            }
+          }
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "value": {
+          "apiKeySource": null,
+          "claudeCodeVersion": null,
+          "events": [],
+          "result": null,
+          "sessionId": null,
+          "undecodedRateLimitEvents": 0
+        }
+      }
+    },
+    {
+      "name": "skips an assistant message missing its model",
+      "input": [
+        {
+          "type": "assistant",
+          "message": {
+            "id": "msg_1",
+            "usage": {
+              "input_tokens": 10,
+              "output_tokens": 20,
+              "cache_read_input_tokens": 300,
+              "cache_creation_input_tokens": 40,
+              "cache_creation": {
+                "ephemeral_1h_input_tokens": 15,
+                "ephemeral_5m_input_tokens": 25
+              }
+            }
+          }
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "value": {
+          "apiKeySource": null,
+          "claudeCodeVersion": null,
+          "events": [],
+          "result": null,
+          "sessionId": null,
+          "undecodedRateLimitEvents": 0
+        }
+      }
+    },
+    {
+      "name": "counts a rate limit event whose reset is out of range",
+      "input": [
+        {
+          "type": "rate_limit_event",
+          "rate_limit_info": {
+            "unifiedWindows": {
+              "five_hour": {
+                "utilization": 0.5,
+                "resetsAt": 9000000000000
+              }
+            }
+          }
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "value": {
+          "apiKeySource": null,
+          "claudeCodeVersion": null,
+          "events": [],
+          "result": null,
+          "sessionId": null,
+          "undecodedRateLimitEvents": 1
+        }
+      }
+    },
+    {
+      "name": "counts a rate limit event whose utilization is not a number",
+      "input": [
+        {
+          "type": "rate_limit_event",
+          "rate_limit_info": {
+            "unifiedWindows": {
+              "seven_day": {
+                "utilization": "half",
+                "resetsAt": 1
+              }
+            }
+          }
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "value": {
+          "apiKeySource": null,
+          "claudeCodeVersion": null,
+          "events": [],
+          "result": null,
+          "sessionId": null,
+          "undecodedRateLimitEvents": 1
+        }
+      }
+    },
+    {
+      "name": "counts a rate limit event missing its info",
+      "input": [
+        {
+          "type": "rate_limit_event"
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "value": {
+          "apiKeySource": null,
+          "claudeCodeVersion": null,
+          "events": [],
+          "result": null,
+          "sessionId": null,
+          "undecodedRateLimitEvents": 1
+        }
+      }
+    },
+    {
+      "name": "reads a rate limit event without windows as no reading",
+      "input": [
+        {
+          "type": "rate_limit_event",
+          "rate_limit_info": {
+            "status": "allowed"
+          }
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "value": {
+          "apiKeySource": null,
+          "claudeCodeVersion": null,
+          "events": [],
+          "result": null,
+          "sessionId": null,
+          "undecodedRateLimitEvents": 0
+        }
+      }
+    },
+    {
+      "name": "skips a result without model usage",
+      "input": [
+        {
+          "type": "result",
+          "session_id": "sess-4",
+          "duration_ms": 10
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "value": {
+          "apiKeySource": null,
+          "claudeCodeVersion": null,
+          "events": [],
+          "result": null,
+          "sessionId": null,
+          "undecodedRateLimitEvents": 0
+        }
+      }
+    },
+    {
+      "name": "skips a result with a negative cost",
+      "input": [
+        {
+          "type": "result",
+          "session_id": "sess-2",
+          "duration_ms": 5000,
+          "modelUsage": {
+            "claude-opus-5-5": {
+              "costUSD": -0.5
+            }
+          }
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "value": {
+          "apiKeySource": null,
+          "claudeCodeVersion": null,
+          "events": [],
+          "result": null,
+          "sessionId": null,
+          "undecodedRateLimitEvents": 0
+        }
+      }
+    },
+    {
+      "name": "skips a result whose model key is empty",
+      "input": [
+        {
+          "type": "result",
+          "session_id": "sess-2",
+          "duration_ms": 5000,
+          "modelUsage": {
+            "": {
+              "inputTokens": 1
+            }
+          }
+        }
+      ],
+      "expected": {
+        "ok": true,
+        "value": {
+          "apiKeySource": null,
+          "claudeCodeVersion": null,
+          "events": [],
+          "result": {
+            "durationMs": 5000,
+            "modelUsage": {}
+          },
+          "sessionId": "sess-2",
+          "undecodedRateLimitEvents": 0
+        }
+      }
+    },
+    {
+      "name": "skips a line that is not JSON",
+      "input": [
+        "{",
+        "",
+        "{\"type\":\"result\",\"session_id\":\"sess-2\",\"duration_ms\":5000,\"modelUsage\":{\"claude-opus-5-5\":{\"inputTokens\":10,\"outputTokens\":20,\"cacheReadInputTokens\":300,\"cacheCreationInputTokens\":40,\"costUSD\":0.12,\"webSearchRequests\":0}}}"
+      ],
+      "expected": {
+        "ok": true,
+        "value": {
+          "apiKeySource": null,
+          "claudeCodeVersion": null,
+          "events": [],
+          "result": {
+            "durationMs": 5000,
+            "modelUsage": {
+              "claude-opus-5-5": {
+                "cacheReadTokens": 300,
+                "cacheWriteTokens": 40,
+                "costUsd": 0.12,
+                "inputTokens": 10,
+                "outputTokens": 20
+              }
+            }
+          },
+          "sessionId": "sess-2",
+          "undecodedRateLimitEvents": 0
+        }
+      }
+    }
+  ]
+}

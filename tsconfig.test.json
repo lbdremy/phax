@@ -5,7 +5,13 @@
     "rootDir": ".",
     "jsx": "react-jsx"
   },
-  "include": ["src/**/*", "tests/**/*", "packages/schemas/**/*", "site/**/*"],
+  "include": [
+    "src/**/*",
+    "tests/**/*",
+    "packages/schemas/**/*",
+    "site/**/*",
+    "scripts/effect4-corpus-capture.ts"
+  ],
   "exclude": [
     "node_modules",
     "dist",

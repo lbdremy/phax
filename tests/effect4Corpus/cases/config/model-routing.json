@@ -1,0 +1,424 @@
+{
+  "subject": "config/model-routing",
+  "cases": [
+    {
+      "name": "accepts a routing file",
+      "input": {
+        "version": 2,
+        "providerPriority": [
+          "claude-code",
+          "codex-cli",
+          "mistral-vibe"
+        ],
+        "allowDowngrade": false,
+        "equivalence": {
+          "gpt-5.5": {
+            "high": {
+              "claude": "claude-opus-5-5",
+              "effort": "high",
+              "relation": "equivalent"
+            },
+            "low": {
+              "claude": "claude-sonnet-5-5",
+              "effort": "low",
+              "relation": "downgrade"
+            }
+          }
+        },
+        "requestedModelNormalization": {
+          "opus": "claude-opus",
+          "sonnet": "claude-sonnet",
+          "medium": "mistral-medium"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "allowDowngrade": false,
+          "equivalence": {
+            "gpt-5.5": {
+              "high": {
+                "claude": "claude-opus-5-5",
+                "effort": "high",
+                "relation": "equivalent"
+              },
+              "low": {
+                "claude": "claude-sonnet-5-5",
+                "effort": "low",
+                "relation": "downgrade"
+              }
+            }
+          },
+          "providerPriority": [
+            "claude-code",
+            "codex-cli",
+            "mistral-vibe"
+          ],
+          "requestedModelNormalization": {
+            "medium": "mistral-medium",
+            "opus": "claude-opus",
+            "sonnet": "claude-sonnet"
+          },
+          "version": 2
+        }
+      }
+    },
+    {
+      "name": "accepts empty records",
+      "input": {
+        "version": 2,
+        "providerPriority": [
+          "claude-code",
+          "codex-cli",
+          "mistral-vibe"
+        ],
+        "allowDowngrade": false,
+        "equivalence": {},
+        "requestedModelNormalization": {}
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "allowDowngrade": false,
+          "equivalence": {},
+          "providerPriority": [
+            "claude-code",
+            "codex-cli",
+            "mistral-vibe"
+          ],
+          "requestedModelNormalization": {},
+          "version": 2
+        }
+      }
+    },
+    {
+      "name": "refuses version 1",
+      "input": {
+        "version": 1,
+        "providerPriority": [
+          "claude-code",
+          "codex-cli",
+          "mistral-vibe"
+        ],
+        "allowDowngrade": false,
+        "equivalence": {
+          "gpt-5.5": {
+            "high": {
+              "claude": "claude-opus-5-5",
+              "effort": "high",
+              "relation": "equivalent"
+            },
+            "low": {
+              "claude": "claude-sonnet-5-5",
+              "effort": "low",
+              "relation": "downgrade"
+            }
+          }
+        },
+        "requestedModelNormalization": {
+          "opus": "claude-opus",
+          "sonnet": "claude-sonnet",
+          "medium": "mistral-medium"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  version: Expected 2, actual 1"
+      }
+    },
+    {
+      "name": "refuses a missing allowDowngrade",
+      "input": {
+        "version": 2,
+        "providerPriority": [
+          "claude-code",
+          "codex-cli",
+          "mistral-vibe"
+        ],
+        "equivalence": {
+          "gpt-5.5": {
+            "high": {
+              "claude": "claude-opus-5-5",
+              "effort": "high",
+              "relation": "equivalent"
+            },
+            "low": {
+              "claude": "claude-sonnet-5-5",
+              "effort": "low",
+              "relation": "downgrade"
+            }
+          }
+        },
+        "requestedModelNormalization": {
+          "opus": "claude-opus",
+          "sonnet": "claude-sonnet",
+          "medium": "mistral-medium"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  allowDowngrade: is missing"
+      }
+    },
+    {
+      "name": "refuses an unexpected root key",
+      "input": {
+        "version": 2,
+        "providerPriority": [
+          "claude-code",
+          "codex-cli",
+          "mistral-vibe"
+        ],
+        "allowDowngrade": false,
+        "equivalence": {
+          "gpt-5.5": {
+            "high": {
+              "claude": "claude-opus-5-5",
+              "effort": "high",
+              "relation": "equivalent"
+            },
+            "low": {
+              "claude": "claude-sonnet-5-5",
+              "effort": "low",
+              "relation": "downgrade"
+            }
+          }
+        },
+        "requestedModelNormalization": {
+          "opus": "claude-opus",
+          "sonnet": "claude-sonnet",
+          "medium": "mistral-medium"
+        },
+        "notes": "x"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  notes: is unexpected, expected: \"version\" | \"providerPriority\" | \"allowDowngrade\" | \"equivalence\" | \"requestedModelNormalization\""
+      }
+    },
+    {
+      "name": "refuses an unexpected key on an edge",
+      "input": {
+        "version": 2,
+        "providerPriority": [
+          "claude-code",
+          "codex-cli",
+          "mistral-vibe"
+        ],
+        "allowDowngrade": false,
+        "equivalence": {
+          "gpt-5.5": {
+            "high": {
+              "claude": "claude-opus-5-5",
+              "effort": "high",
+              "relation": "exact",
+              "score": 1
+            }
+          }
+        },
+        "requestedModelNormalization": {
+          "opus": "claude-opus",
+          "sonnet": "claude-sonnet",
+          "medium": "mistral-medium"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  equivalence.gpt-5.5.high.score: is unexpected, expected: \"claude\" | \"effort\" | \"relation\""
+      }
+    },
+    {
+      "name": "refuses allowDowngrade that is not a boolean",
+      "input": {
+        "version": 2,
+        "providerPriority": [
+          "claude-code",
+          "codex-cli",
+          "mistral-vibe"
+        ],
+        "allowDowngrade": "no",
+        "equivalence": {
+          "gpt-5.5": {
+            "high": {
+              "claude": "claude-opus-5-5",
+              "effort": "high",
+              "relation": "equivalent"
+            },
+            "low": {
+              "claude": "claude-sonnet-5-5",
+              "effort": "low",
+              "relation": "downgrade"
+            }
+          }
+        },
+        "requestedModelNormalization": {
+          "opus": "claude-opus",
+          "sonnet": "claude-sonnet",
+          "medium": "mistral-medium"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  allowDowngrade: Expected boolean, actual \"no\""
+      }
+    },
+    {
+      "name": "refuses a provider outside the enum",
+      "input": {
+        "version": 2,
+        "providerPriority": [
+          "claude-code",
+          "gemini-cli"
+        ],
+        "allowDowngrade": false,
+        "equivalence": {
+          "gpt-5.5": {
+            "high": {
+              "claude": "claude-opus-5-5",
+              "effort": "high",
+              "relation": "equivalent"
+            },
+            "low": {
+              "claude": "claude-sonnet-5-5",
+              "effort": "low",
+              "relation": "downgrade"
+            }
+          }
+        },
+        "requestedModelNormalization": {
+          "opus": "claude-opus",
+          "sonnet": "claude-sonnet",
+          "medium": "mistral-medium"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  providerPriority.1: Expected \"claude-code\", actual \"gemini-cli\"\n  providerPriority.1: Expected \"mistral-vibe\", actual \"gemini-cli\"\n  providerPriority.1: Expected \"codex-cli\", actual \"gemini-cli\""
+      }
+    },
+    {
+      "name": "refuses a relation outside the enum",
+      "input": {
+        "version": 2,
+        "providerPriority": [
+          "claude-code",
+          "codex-cli",
+          "mistral-vibe"
+        ],
+        "allowDowngrade": false,
+        "equivalence": {
+          "gpt-5.5": {
+            "high": {
+              "claude": "claude-opus-5-5",
+              "effort": "high",
+              "relation": "sideways"
+            }
+          }
+        },
+        "requestedModelNormalization": {
+          "opus": "claude-opus",
+          "sonnet": "claude-sonnet",
+          "medium": "mistral-medium"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  equivalence.gpt-5.5.high.relation: Expected \"exact\", actual \"sideways\"\n  equivalence.gpt-5.5.high.relation: Expected \"equivalent\", actual \"sideways\"\n  equivalence.gpt-5.5.high.relation: Expected \"upgrade\", actual \"sideways\"\n  equivalence.gpt-5.5.high.relation: Expected \"fallback\", actual \"sideways\"\n  equivalence.gpt-5.5.high.relation: Expected \"downgrade\", actual \"sideways\"\n  equivalence.gpt-5.5.high.relation: Expected \"no_equivalent\", actual \"sideways\""
+      }
+    },
+    {
+      "name": "refuses a family outside the enum",
+      "input": {
+        "version": 2,
+        "providerPriority": [
+          "claude-code",
+          "codex-cli",
+          "mistral-vibe"
+        ],
+        "allowDowngrade": false,
+        "equivalence": {
+          "gpt-5.5": {
+            "high": {
+              "claude": "claude-opus-5-5",
+              "effort": "high",
+              "relation": "equivalent"
+            },
+            "low": {
+              "claude": "claude-sonnet-5-5",
+              "effort": "low",
+              "relation": "downgrade"
+            }
+          }
+        },
+        "requestedModelNormalization": {
+          "gemini": "google-gemini"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  requestedModelNormalization.gemini: Expected \"claude-haiku\", actual \"google-gemini\"\n  requestedModelNormalization.gemini: Expected \"claude-sonnet\", actual \"google-gemini\"\n  requestedModelNormalization.gemini: Expected \"claude-opus\", actual \"google-gemini\"\n  requestedModelNormalization.gemini: Expected \"claude-fable\", actual \"google-gemini\"\n  requestedModelNormalization.gemini: Expected \"mistral-medium\", actual \"google-gemini\"\n  requestedModelNormalization.gemini: Expected \"openai-gpt\", actual \"google-gemini\""
+      }
+    },
+    {
+      "name": "refuses an empty provider priority",
+      "input": {
+        "version": 2,
+        "providerPriority": [],
+        "allowDowngrade": false,
+        "equivalence": {
+          "gpt-5.5": {
+            "high": {
+              "claude": "claude-opus-5-5",
+              "effort": "high",
+              "relation": "equivalent"
+            },
+            "low": {
+              "claude": "claude-sonnet-5-5",
+              "effort": "low",
+              "relation": "downgrade"
+            }
+          }
+        },
+        "requestedModelNormalization": {
+          "opus": "claude-opus",
+          "sonnet": "claude-sonnet",
+          "medium": "mistral-medium"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  providerPriority.0: is missing"
+      }
+    },
+    {
+      "name": "refuses an empty hub model",
+      "input": {
+        "version": 2,
+        "providerPriority": [
+          "claude-code",
+          "codex-cli",
+          "mistral-vibe"
+        ],
+        "allowDowngrade": false,
+        "equivalence": {
+          "gpt-5.5": {
+            "high": {
+              "claude": "",
+              "effort": "high",
+              "relation": "exact"
+            }
+          }
+        },
+        "requestedModelNormalization": {
+          "opus": "claude-opus",
+          "sonnet": "claude-sonnet",
+          "medium": "mistral-medium"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  equivalence.gpt-5.5.high.claude: Expected a non empty string, actual \"\""
+      }
+    }
+  ]
+}
