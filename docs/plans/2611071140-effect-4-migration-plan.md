@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2611071052-effect-4-migration.md
 completes-spec: false
+approved:
+  date: 2026-11-07
+  baseline: 7c00a08
 ---
 # Effect 4 migration groundwork
 
