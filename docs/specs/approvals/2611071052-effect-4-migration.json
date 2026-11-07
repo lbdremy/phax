@@ -1,0 +1,11 @@
+{
+  "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
+  "artifact": "docs/specs/2611071052-effect-4-migration.md",
+  "specFingerprint": "515ea3d6a559d87decf1226eb6c879f25188049e5605335e384b6a4fafc5dc6a",
+  "approvedAt": "2026-11-07T11:28:07.382Z",
+  "baseline": "cee87b099b39e119baa16ebed77f6ed38e5f4805",
+  "approvedBy": {
+    "kind": "operator",
+    "name": "Rémy Loubradou"
+  }
+}
