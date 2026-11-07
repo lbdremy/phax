@@ -65,6 +65,13 @@ export function isAncestor(repo: string, ancestor: string, of: string): boolean 
 
 export type Destination = "dedicated" | "in-repo";
 
+const IDENTITY_VARIABLES = [
+  "GIT_AUTHOR_NAME",
+  "GIT_AUTHOR_EMAIL",
+  "GIT_COMMITTER_NAME",
+  "GIT_COMMITTER_EMAIL",
+] as const;
+
 /** A repository holding the records branch, and the remote it is measured against. */
 interface RecordsRepo {
   readonly repo: string;
@@ -153,6 +160,12 @@ export async function buildBranchTipWorld(options: BranchTipOptions = {}): Promi
   writeFileSync(sshScript, FAKE_SSH, { mode: 0o755 });
   const savedSsh = process.env["GIT_SSH_COMMAND"];
   process.env["GIT_SSH_COMMAND"] = sshScript;
+  // A clone `phax records sync` makes has no identity of its own, and git is isolated from the
+  // person's config: on a machine whose hostname git cannot turn into an email (CI), a record
+  // commit there would fail with "Author identity unknown".
+  const savedIdentity = IDENTITY_VARIABLES.map((name) => [name, process.env[name]] as const);
+  process.env["GIT_AUTHOR_NAME"] = process.env["GIT_COMMITTER_NAME"] = "Rita Recorder";
+  process.env["GIT_AUTHOR_EMAIL"] = process.env["GIT_COMMITTER_EMAIL"] = "rita@records.test";
 
   git(["init", "-q", "--bare", "-b", "main", remoteDir], tmpdir());
   disableGitAutoMaintenance(remoteDir);
@@ -312,6 +325,10 @@ export async function buildBranchTipWorld(options: BranchTipOptions = {}): Promi
     cleanup: () => {
       if (savedSsh === undefined) delete process.env["GIT_SSH_COMMAND"];
       else process.env["GIT_SSH_COMMAND"] = savedSsh;
+      for (const [name, value] of savedIdentity) {
+        if (value === undefined) delete process.env[name];
+        else process.env[name] = value;
+      }
       removeTempDir(base);
     },
   };
