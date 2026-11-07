@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2611061447-records-branch-tip.md
 completes-spec: true
 approved:
