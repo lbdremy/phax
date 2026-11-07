@@ -1,0 +1,76 @@
+{
+  "subject": "config/telemetry-config",
+  "cases": [
+    {
+      "name": "accepts enabled true",
+      "input": {
+        "enabled": true
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "enabled": true
+        }
+      }
+    },
+    {
+      "name": "accepts enabled false",
+      "input": {
+        "enabled": false
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "name": "refuses a missing enabled",
+      "input": {},
+      "expected": {
+        "ok": false,
+        "refusal": "  enabled: is missing"
+      }
+    },
+    {
+      "name": "refuses an unexpected key",
+      "input": {
+        "enabled": true,
+        "endpoint": "https://otel.example.com"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  endpoint: is unexpected, expected: \"enabled\""
+      }
+    },
+    {
+      "name": "refuses enabled that is not a boolean",
+      "input": {
+        "enabled": "true"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  enabled: Expected boolean, actual \"true\""
+      }
+    },
+    {
+      "name": "refuses enabled outside true and false",
+      "input": {
+        "enabled": 1
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  enabled: Expected boolean, actual 1"
+      }
+    },
+    {
+      "name": "refuses a config that is not an object",
+      "input": true,
+      "expected": {
+        "ok": false,
+        "refusal": "  (root): Expected { readonly enabled: boolean }, actual true"
+      }
+    }
+  ]
+}

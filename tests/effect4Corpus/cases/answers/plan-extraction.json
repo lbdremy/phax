@@ -1,0 +1,521 @@
+{
+  "subject": "answers/plan-extraction",
+  "cases": [
+    {
+      "name": "reads an extracted plan",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json",
+        "plan": {
+          "run": {
+            "shortName": "my-run",
+            "title": "My Run",
+            "requiredCommands": [
+              "pnpm build"
+            ]
+          },
+          "phases": [
+            {
+              "id": "phase-01",
+              "model": "claude-sonnet-5-5",
+              "effort": "medium",
+              "planMarkdownAnchor": "#phase-01-first",
+              "plannedFilesToCreate": [
+                "src/first.ts"
+              ],
+              "plannedFilesToEdit": [],
+              "optionalFilesToEdit": [],
+              "testLines": [
+                {
+                  "guarantee": "the first module answers",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "its return value",
+                  "loop": "in-phase",
+                  "criterion": null
+                }
+              ],
+              "commit": {
+                "subject": "feat: first",
+                "body": "Body."
+              }
+            }
+          ]
+        },
+        "incomplete": null
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "kind": "plan",
+          "plan": {
+            "phases": [
+              {
+                "commit": {
+                  "body": "Body.",
+                  "subject": "feat: first"
+                },
+                "effort": "medium",
+                "id": "phase-01",
+                "model": "claude-sonnet-5-5",
+                "optionalFilesToEdit": [],
+                "planMarkdownAnchor": "#phase-01-first",
+                "plannedFilesToCreate": [
+                  "src/first.ts"
+                ],
+                "plannedFilesToEdit": [],
+                "testLines": [
+                  {
+                    "criterion": null,
+                    "guarantee": "the first module answers",
+                    "loop": "in-phase",
+                    "oracle": "its return value",
+                    "size": "small",
+                    "technique": "example"
+                  }
+                ]
+              }
+            ],
+            "run": {
+              "requiredCommands": [
+                "pnpm build"
+              ],
+              "shortName": "my-run",
+              "title": "My Run"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "reads an incomplete report",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json",
+        "plan": null,
+        "incomplete": "phase-02 has no commit subject"
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "kind": "incomplete",
+          "reason": "phase-02 has no commit subject"
+        }
+      }
+    },
+    {
+      "name": "refuses an older answer naming every root difference, $schema first",
+      "input": {
+        "version": 1,
+        "plan": null,
+        "incomplete": "phase-02 has no commit subject"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: is missing; version: is unexpected, expected: \"$schema\" | \"plan\" | \"incomplete\""
+      }
+    },
+    {
+      "name": "refuses the version 1 shape, naming every root difference",
+      "input": {
+        "version": 1,
+        "run": {
+          "shortName": "my-run",
+          "title": "My Run",
+          "requiredCommands": [
+            "pnpm build"
+          ]
+        },
+        "phases": [
+          {
+            "id": "phase-01",
+            "model": "claude-sonnet-5-5",
+            "effort": "medium",
+            "planMarkdownAnchor": "#phase-01-first",
+            "plannedFilesToCreate": [
+              "src/first.ts"
+            ],
+            "plannedFilesToEdit": [],
+            "optionalFilesToEdit": [],
+            "testLines": [
+              {
+                "guarantee": "the first module answers",
+                "size": "small",
+                "technique": "example",
+                "oracle": "its return value",
+                "loop": "in-phase",
+                "criterion": null
+              }
+            ],
+            "commit": {
+              "subject": "feat: first",
+              "body": "Body."
+            }
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: is missing; version: is unexpected, expected: \"$schema\" | \"plan\" | \"incomplete\"; run: is unexpected, expected: \"$schema\" | \"plan\" | \"incomplete\"; phases: is unexpected, expected: \"$schema\" | \"plan\" | \"incomplete\"; plan: is missing; incomplete: is missing"
+      }
+    },
+    {
+      "name": "refuses a missing $schema",
+      "input": {
+        "plan": null,
+        "incomplete": "x"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: is missing"
+      }
+    },
+    {
+      "name": "refuses another format's $schema",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/code-review/0.33.0.json",
+        "plan": {
+          "run": {
+            "shortName": "my-run",
+            "title": "My Run",
+            "requiredCommands": [
+              "pnpm build"
+            ]
+          },
+          "phases": [
+            {
+              "id": "phase-01",
+              "model": "claude-sonnet-5-5",
+              "effort": "medium",
+              "planMarkdownAnchor": "#phase-01-first",
+              "plannedFilesToCreate": [
+                "src/first.ts"
+              ],
+              "plannedFilesToEdit": [],
+              "optionalFilesToEdit": [],
+              "testLines": [
+                {
+                  "guarantee": "the first module answers",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "its return value",
+                  "loop": "in-phase",
+                  "criterion": null
+                }
+              ],
+              "commit": {
+                "subject": "feat: first",
+                "body": "Body."
+              }
+            }
+          ]
+        },
+        "incomplete": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: Expected The phax-plan-extraction format's shape, exactly: https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json, actual \"https://docs.phax.run/schemas/code-review/0.33.0.json\""
+      }
+    },
+    {
+      "name": "refuses an unexpected root key",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json",
+        "plan": {
+          "run": {
+            "shortName": "my-run",
+            "title": "My Run",
+            "requiredCommands": [
+              "pnpm build"
+            ]
+          },
+          "phases": [
+            {
+              "id": "phase-01",
+              "model": "claude-sonnet-5-5",
+              "effort": "medium",
+              "planMarkdownAnchor": "#phase-01-first",
+              "plannedFilesToCreate": [
+                "src/first.ts"
+              ],
+              "plannedFilesToEdit": [],
+              "optionalFilesToEdit": [],
+              "testLines": [
+                {
+                  "guarantee": "the first module answers",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "its return value",
+                  "loop": "in-phase",
+                  "criterion": null
+                }
+              ],
+              "commit": {
+                "subject": "feat: first",
+                "body": "Body."
+              }
+            }
+          ]
+        },
+        "incomplete": null,
+        "summary": "x"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "summary: is unexpected, expected: \"$schema\" | \"plan\" | \"incomplete\""
+      }
+    },
+    {
+      "name": "refuses both set by the coherence check",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json",
+        "plan": {
+          "run": {
+            "shortName": "my-run",
+            "title": "My Run",
+            "requiredCommands": [
+              "pnpm build"
+            ]
+          },
+          "phases": [
+            {
+              "id": "phase-01",
+              "model": "claude-sonnet-5-5",
+              "effort": "medium",
+              "planMarkdownAnchor": "#phase-01-first",
+              "plannedFilesToCreate": [
+                "src/first.ts"
+              ],
+              "plannedFilesToEdit": [],
+              "optionalFilesToEdit": [],
+              "testLines": [
+                {
+                  "guarantee": "the first module answers",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "its return value",
+                  "loop": "in-phase",
+                  "criterion": null
+                }
+              ],
+              "commit": {
+                "subject": "feat: first",
+                "body": "Body."
+              }
+            }
+          ]
+        },
+        "incomplete": "x"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "plan and incomplete: exactly one of them is null"
+      }
+    },
+    {
+      "name": "refuses both null by the coherence check",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json",
+        "plan": null,
+        "incomplete": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "plan and incomplete: exactly one of them is null"
+      }
+    },
+    {
+      "name": "refuses an incomplete that is not a string",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json",
+        "plan": null,
+        "incomplete": 3
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "incomplete: Expected string, actual 3"
+      }
+    },
+    {
+      "name": "refuses an empty incomplete",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json",
+        "plan": null,
+        "incomplete": ""
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "incomplete: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "refuses a phase effort outside the enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json",
+        "plan": {
+          "run": {
+            "shortName": "my-run",
+            "title": "My Run",
+            "requiredCommands": [
+              "pnpm build"
+            ]
+          },
+          "phases": [
+            {
+              "id": "phase-01",
+              "model": "claude-sonnet-5-5",
+              "effort": "huge",
+              "planMarkdownAnchor": "#phase-01-first",
+              "plannedFilesToCreate": [
+                "src/first.ts"
+              ],
+              "plannedFilesToEdit": [],
+              "optionalFilesToEdit": [],
+              "testLines": [
+                {
+                  "guarantee": "the first module answers",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "its return value",
+                  "loop": "in-phase",
+                  "criterion": null
+                }
+              ],
+              "commit": {
+                "subject": "feat: first",
+                "body": "Body."
+              }
+            }
+          ]
+        },
+        "incomplete": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "plan.phases[0].effort: Expected \"none\", actual \"huge\""
+      }
+    },
+    {
+      "name": "refuses a phase carrying mode",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json",
+        "plan": {
+          "run": {
+            "shortName": "my-run",
+            "title": "My Run",
+            "requiredCommands": [
+              "pnpm build"
+            ]
+          },
+          "phases": [
+            {
+              "id": "phase-01",
+              "model": "claude-sonnet-5-5",
+              "effort": "medium",
+              "planMarkdownAnchor": "#phase-01-first",
+              "plannedFilesToCreate": [
+                "src/first.ts"
+              ],
+              "plannedFilesToEdit": [],
+              "optionalFilesToEdit": [],
+              "testLines": [
+                {
+                  "guarantee": "the first module answers",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "its return value",
+                  "loop": "in-phase",
+                  "criterion": null
+                }
+              ],
+              "commit": {
+                "subject": "feat: first",
+                "body": "Body."
+              },
+              "mode": "headless"
+            }
+          ]
+        },
+        "incomplete": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "plan.phases[0].mode: is unexpected, expected: \"id\" | \"model\" | \"effort\" | \"planMarkdownAnchor\" | \"plannedFilesToCreate\" | \"plannedFilesToEdit\" | \"optionalFilesToEdit\" | \"testLines\" | \"commit\""
+      }
+    },
+    {
+      "name": "refuses a plan with no phase",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json",
+        "plan": {
+          "run": {
+            "shortName": "my-run",
+            "title": "My Run",
+            "requiredCommands": [
+              "pnpm build"
+            ]
+          },
+          "phases": []
+        },
+        "incomplete": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "plan.phases[0]: is missing"
+      }
+    },
+    {
+      "name": "refuses a phase id outside the phase-NN form",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json",
+        "plan": {
+          "run": {
+            "shortName": "my-run",
+            "title": "My Run",
+            "requiredCommands": [
+              "pnpm build"
+            ]
+          },
+          "phases": [
+            {
+              "id": "phase-1",
+              "model": "claude-sonnet-5-5",
+              "effort": "medium",
+              "planMarkdownAnchor": "#phase-01-first",
+              "plannedFilesToCreate": [
+                "src/first.ts"
+              ],
+              "plannedFilesToEdit": [],
+              "optionalFilesToEdit": [],
+              "testLines": [
+                {
+                  "guarantee": "the first module answers",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "its return value",
+                  "loop": "in-phase",
+                  "criterion": null
+                }
+              ],
+              "commit": {
+                "subject": "feat: first",
+                "body": "Body."
+              }
+            }
+          ]
+        },
+        "incomplete": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "plan.phases[0].id: Expected a string matching the pattern ^phase-\\d{2}$, actual \"phase-1\""
+      }
+    },
+    {
+      "name": "refuses an answer that is not an object",
+      "input": "plan",
+      "expected": {
+        "ok": false,
+        "refusal": "Expected { readonly $schema: The phax-plan-extraction format's shape, exactly: https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json; readonly plan: The extracted plan, or null when the plan is incomplete.; readonly incomplete: What is missing from the plan, or a test strategy item not in the line format; null when the plan is extracted. }, actual \"plan\""
+      }
+    }
+  ]
+}

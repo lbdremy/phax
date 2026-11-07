@@ -1,0 +1,200 @@
+{
+  "subject": "config/phax-user-overlay",
+  "cases": [
+    {
+      "name": "accepts an empty overlay",
+      "input": {},
+      "expected": {
+        "ok": true,
+        "value": {}
+      }
+    },
+    {
+      "name": "accepts an overlay with state, agent, security and gate profiles",
+      "input": {
+        "state": {
+          "root": "/tmp/phax"
+        },
+        "agent": {
+          "maxFixAttempts": 2,
+          "extractPlan": {
+            "effort": "medium"
+          }
+        },
+        "security": {
+          "profile": "unsafe"
+        },
+        "review": {
+          "code": {
+            "enabled": true
+          }
+        },
+        "gateProfiles": {
+          "quick": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "local",
+              "firing": "every-phase",
+              "output": "gate-report"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "agent": {
+            "extractPlan": {
+              "effort": "medium"
+            },
+            "maxFixAttempts": 2
+          },
+          "gateProfiles": {
+            "quick": [
+              {
+                "command": "pnpm typecheck",
+                "firing": "every-phase",
+                "output": "gate-report",
+                "surface": "local"
+              }
+            ]
+          },
+          "review": {
+            "code": {
+              "enabled": true
+            }
+          },
+          "security": {
+            "profile": "unsafe"
+          },
+          "state": {
+            "root": "/tmp/phax"
+          }
+        }
+      }
+    },
+    {
+      "name": "refuses a project-only key name",
+      "input": {
+        "name": "demo"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  name: is unexpected, expected: \"state\" | \"agent\" | \"commands\" | \"fileReconciliation\" | \"security\" | \"publish\" | \"brief\" | \"planAuditor\" | \"architecture\" | \"acceptance\" | \"review\" | \"authoring\" | \"gateProfiles\" | \"workspaces\""
+      }
+    },
+    {
+      "name": "refuses an unexpected key",
+      "input": {
+        "theme": "dark"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  theme: is unexpected, expected: \"state\" | \"agent\" | \"commands\" | \"fileReconciliation\" | \"security\" | \"publish\" | \"brief\" | \"planAuditor\" | \"architecture\" | \"acceptance\" | \"review\" | \"authoring\" | \"gateProfiles\" | \"workspaces\""
+      }
+    },
+    {
+      "name": "refuses a state root that is not a string",
+      "input": {
+        "state": {
+          "root": 7
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  state.root: Expected string, actual 7\n  state: Expected undefined, actual {\"root\":7}"
+      }
+    },
+    {
+      "name": "refuses an empty state root",
+      "input": {
+        "state": {
+          "root": ""
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  state.root: Expected a non empty string, actual \"\"\n  state: Expected undefined, actual {\"root\":\"\"}"
+      }
+    },
+    {
+      "name": "refuses a network profile outside the enum",
+      "input": {
+        "security": {
+          "network": {
+            "profile": "closed"
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  security.network.profile: Expected \"provider-only\", actual \"closed\"\n  security.network.profile: Expected \"dev-allowlist\", actual \"closed\"\n  security.network.profile: Expected \"open\", actual \"closed\"\n  security.network.profile: Expected undefined, actual \"closed\"\n  security.network: Expected undefined, actual {\"profile\":\"closed\"}\n  security: Expected undefined, actual {\"network\":{\"profile\":\"closed\"}}"
+      }
+    },
+    {
+      "name": "refuses maxFixAttempts below the bound",
+      "input": {
+        "agent": {
+          "maxFixAttempts": 0
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  agent.maxFixAttempts: Expected a number between 1 and 10, actual 0\n  agent.maxFixAttempts: Expected undefined, actual 0\n  agent: Expected undefined, actual {\"maxFixAttempts\":0}"
+      }
+    },
+    {
+      "name": "refuses a missing compliance enabled",
+      "input": {
+        "review": {
+          "compliance": {
+            "model": "claude-sonnet-5-5"
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  review.compliance.enabled: is missing\n  review.compliance: Expected undefined, actual {\"model\":\"claude-sonnet-5-5\"}\n  review: Expected undefined, actual {\"compliance\":{\"model\":\"claude-sonnet-5-5\"}}"
+      }
+    },
+    {
+      "name": "refuses a missing brief push once",
+      "input": {
+        "brief": {
+          "command": "./brief.sh"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  brief.push must be \"findings\" or \"findings-and-rules\""
+      }
+    },
+    {
+      "name": "refuses a gate step output outside the enum, naming its command",
+      "input": {
+        "gateProfiles": {
+          "quick": [
+            {
+              "command": "pnpm lint",
+              "surface": "local",
+              "firing": "every-phase",
+              "output": "json"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  gate step \"pnpm lint\": output must be \"log\" or \"gate-report\"\n  gateProfiles: Expected undefined, actual {\"quick\":[{\"command\":\"pnpm lint\",\"surface\":\"local\",\"firing\":\"every-phase\",\"output\":\"json\"}]}"
+      }
+    },
+    {
+      "name": "refuses an overlay that is not an object",
+      "input": "phax",
+      "expected": {
+        "ok": false,
+        "refusal": "  (root): Expected { readonly state?: { readonly root: NonEmptyString } | undefined; readonly agent?: { readonly maxFixAttempts?: Int & between(1, 10) | undefined; readonly extractPlan?: { readonly model?: NonEmptyString | undefined; readonly effort?: \"low\" | \"medium\" | \"high\" | undefined } | undefined } | undefined; readonly commands?: { readonly setup?: readonly [NonEmptyString, ...NonEmptyString[]] | undefined; readonly cleanup?: readonly [NonEmptyString, ...NonEmptyString[]] | undefined } | undefined; readonly fileReconciliation?: { readonly mode: \"report_only\" | \"warn\" } | undefined; readonly security?: { readonly profile?: \"secure\" | \"unsafe\" | \"isolated\" | undefined; readonly filesystem?: { readonly allowRead?: ReadonlyArray<NonEmptyString> | undefined; readonly allowWrite?: ReadonlyArray<NonEmptyString> | undefined } | undefined; readonly network?: { readonly profile?: \"provider-only\" | \"dev-allowlist\" | \"open\" | undefined } | undefined; readonly mcp?: { readonly mode?: \"disabled\" | \"local-only\" | \"allowlist\" | \"provider-default\" | undefined; readonly allow?: ReadonlyArray<NonEmptyString> | undefined } | undefined; readonly agentCommands?: ReadonlyArray<NonEmptyString> | undefined } | undefined; readonly publish?: { readonly auto: boolean; readonly remote?: NonEmptyString | undefined; readonly provider?: \"github\" | undefined; readonly pushBranch?: boolean | undefined; readonly createPullRequest?: boolean | undefined; readonly baseBranch?: NonEmptyString | undefined; readonly title?: NonEmptyString | undefined } | undefined; readonly brief?: { readonly command: nonEmptyString; readonly push: \"findings\" | \"findings-and-rules\" } | undefined; readonly planAuditor?: { readonly command: nonEmptyString } | undefined; readonly architecture?: { readonly command: nonEmptyString } | undefined; readonly acceptance?: { readonly command: nonEmptyString } | undefined; readonly review?: { readonly compliance?: { readonly enabled: boolean; readonly model?: NonEmptyString | undefined; readonly effort?: \"low\" | \"medium\" | \"high\" | undefined } | undefined; readonly code?: { readonly enabled?: boolean | undefined; readonly model?: NonEmptyString | undefined; readonly effort?: \"low\" | \"medium\" | \"high\" | undefined } | undefined } | undefined; readonly authoring?: { readonly spec?: { readonly model?: NonEmptyString | undefined; readonly effort?: \"low\" | \"medium\" | \"high\" | undefined } | undefined; readonly plan?: { readonly model?: NonEmptyString | undefined; readonly effort?: \"low\" | \"medium\" | \"high\" | undefined } | undefined } | undefined; readonly gateProfiles?: { readonly [x: NonEmptyString]: readonly [(Struct (Encoded side) <-> Struct (Type side)), ...(Struct (Encoded side) <-> Struct (Type side))[]] } | undefined; readonly workspaces?: ReadonlyArray<{ readonly id: NonEmptyString; readonly name: NonEmptyString; readonly path: NonEmptyString; readonly gateProfiles?: { readonly [x: NonEmptyString]: readonly [(Struct (Encoded side) <-> Struct (Type side)), ...(Struct (Encoded side) <-> Struct (Type side))[]] } | undefined }> | undefined }, actual \"phax\""
+      }
+    }
+  ]
+}

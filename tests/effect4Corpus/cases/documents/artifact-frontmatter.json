@@ -1,0 +1,308 @@
+{
+  "subject": "documents/artifact-frontmatter",
+  "cases": [
+    {
+      "name": "spec: accepts a draft",
+      "input": {
+        "decoder": "spec",
+        "raw": {
+          "status": "Draft",
+          "date": "2026-11-07",
+          "audience": "phax maintainers",
+          "scope": "the migration"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "audience": "phax maintainers",
+          "date": "2026-11-07",
+          "scope": "the migration",
+          "status": "Draft"
+        }
+      }
+    },
+    {
+      "name": "spec: accepts an approved spec with its stamp",
+      "input": {
+        "decoder": "spec",
+        "raw": {
+          "status": "Approved",
+          "date": "2026-11-07",
+          "audience": "phax maintainers",
+          "scope": "the migration",
+          "approved": {
+            "date": "2026-11-07",
+            "baseline": "fb0157ce"
+          }
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "approved": {
+            "baseline": "fb0157ce",
+            "date": "2026-11-07"
+          },
+          "audience": "phax maintainers",
+          "date": "2026-11-07",
+          "scope": "the migration",
+          "status": "Approved"
+        }
+      }
+    },
+    {
+      "name": "spec: refuses a missing audience",
+      "input": {
+        "decoder": "spec",
+        "raw": {
+          "status": "Draft",
+          "date": "2026-11-07",
+          "scope": "the migration"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  audience: is missing"
+      }
+    },
+    {
+      "name": "spec: refuses an unexpected key",
+      "input": {
+        "decoder": "spec",
+        "raw": {
+          "status": "Draft",
+          "date": "2026-11-07",
+          "audience": "phax maintainers",
+          "scope": "the migration",
+          "source-spec": null
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  source-spec: is unexpected, expected: \"status\" | \"date\" | \"audience\" | \"scope\" | \"approved\""
+      }
+    },
+    {
+      "name": "spec: refuses a status outside the enum",
+      "input": {
+        "decoder": "spec",
+        "raw": {
+          "status": "Stale",
+          "date": "2026-11-07",
+          "audience": "phax maintainers",
+          "scope": "the migration"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  status: Expected \"Draft\", actual \"Stale\"\n  status: Expected \"Approved\", actual \"Stale\"\n  status: Expected \"Abandoned\", actual \"Stale\"\n  status: Expected \"Completed\", actual \"Stale\""
+      }
+    },
+    {
+      "name": "spec: refuses a date that is not a string",
+      "input": {
+        "decoder": "spec",
+        "raw": {
+          "status": "Draft",
+          "date": 20261107,
+          "audience": "phax maintainers",
+          "scope": "the migration"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  date: Expected string, actual 20261107"
+      }
+    },
+    {
+      "name": "spec: refuses an empty approval baseline",
+      "input": {
+        "decoder": "spec",
+        "raw": {
+          "status": "Draft",
+          "date": "2026-11-07",
+          "audience": "phax maintainers",
+          "scope": "the migration",
+          "approved": {
+            "date": "2026-11-07",
+            "baseline": ""
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  approved.baseline: Expected a non empty string, actual \"\"\n  approved: Expected undefined, actual {\"date\":\"2026-11-07\",\"baseline\":\"\"}"
+      }
+    },
+    {
+      "name": "spec: refuses a value that is not a mapping",
+      "input": {
+        "decoder": "spec",
+        "raw": "status: Draft"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  (root): Expected { readonly status: \"Draft\" | \"Approved\" | \"Abandoned\" | \"Completed\"; readonly date: string; readonly audience: string; readonly scope: string; readonly approved?: { readonly date: string; readonly baseline: NonEmptyString } | undefined }, actual \"status: Draft\""
+      }
+    },
+    {
+      "name": "plan: accepts a plan without a source spec",
+      "input": {
+        "decoder": "plan",
+        "raw": {
+          "status": "Draft",
+          "source-spec": null
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "source-spec": null,
+          "status": "Draft"
+        }
+      }
+    },
+    {
+      "name": "plan: accepts a plan bound to a spec",
+      "input": {
+        "decoder": "plan",
+        "raw": {
+          "status": "Approved",
+          "source-spec": "docs/specs/x.md",
+          "completes-spec": false,
+          "approved": {
+            "date": "2026-11-07",
+            "baseline": "fb0157ce"
+          }
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "approved": {
+            "baseline": "fb0157ce",
+            "date": "2026-11-07"
+          },
+          "completes-spec": false,
+          "source-spec": "docs/specs/x.md",
+          "status": "Approved"
+        }
+      }
+    },
+    {
+      "name": "plan: refuses a spec-bound plan missing completes-spec",
+      "input": {
+        "decoder": "plan",
+        "raw": {
+          "status": "Draft",
+          "source-spec": "docs/specs/x.md"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  completes-spec: is missing — a plan with a source-spec must say completes-spec: true (its run completes the spec) or false (more plans follow)"
+      }
+    },
+    {
+      "name": "plan: refuses a completes-spec that is not a boolean",
+      "input": {
+        "decoder": "plan",
+        "raw": {
+          "status": "Draft",
+          "source-spec": "docs/specs/x.md",
+          "completes-spec": "yes"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  completes-spec: must be true or false, actual \"yes\" — true when this plan is its spec's last, false when more plans follow"
+      }
+    },
+    {
+      "name": "plan: refuses a completes-spec beside source-spec null",
+      "input": {
+        "decoder": "plan",
+        "raw": {
+          "status": "Draft",
+          "source-spec": null,
+          "completes-spec": true
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  completes-spec: is inconsistent with source-spec: null — a plan without a source spec completes none; remove the key"
+      }
+    },
+    {
+      "name": "plan: refuses a status outside the enum",
+      "input": {
+        "decoder": "plan",
+        "raw": {
+          "status": "Published",
+          "source-spec": null
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  status: Expected \"Draft\", actual \"Published\"\n  status: Expected \"Approved\", actual \"Published\"\n  status: Expected \"Stale\", actual \"Published\"\n  status: Expected \"Abandoned\", actual \"Published\"\n  status: Expected \"Completed\", actual \"Published\""
+      }
+    },
+    {
+      "name": "plan: refuses an unexpected key",
+      "input": {
+        "decoder": "plan",
+        "raw": {
+          "status": "Draft",
+          "source-spec": null,
+          "owner": "Ada"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  owner: is unexpected, expected: \"status\" | \"source-spec\" | \"approved\""
+      }
+    },
+    {
+      "name": "plan: refuses a missing source-spec",
+      "input": {
+        "decoder": "plan",
+        "raw": {
+          "status": "Draft"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  source-spec: is missing"
+      }
+    },
+    {
+      "name": "plan: refuses an empty source-spec",
+      "input": {
+        "decoder": "plan",
+        "raw": {
+          "status": "Draft",
+          "source-spec": "",
+          "completes-spec": true
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  source-spec: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "plan: refuses a value that is not a mapping",
+      "input": {
+        "decoder": "plan",
+        "raw": [
+          "status"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  (root): Expected { readonly status: \"Draft\" | \"Approved\" | \"Stale\" | \"Abandoned\" | \"Completed\"; readonly source-spec: null; readonly approved?: { readonly date: string; readonly baseline: NonEmptyString } | undefined }, actual [\"status\"]"
+      }
+    }
+  ]
+}

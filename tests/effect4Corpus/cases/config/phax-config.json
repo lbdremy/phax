@@ -1,0 +1,1034 @@
+{
+  "subject": "config/phax-config",
+  "cases": [
+    {
+      "name": "accepts the minimal config, a step's output defaulting to log",
+      "input": {
+        "version": 1,
+        "name": "demo",
+        "gateProfiles": {
+          "standard": [
+            {
+              "command": "pnpm test",
+              "surface": "local",
+              "firing": "every-phase"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "gateProfiles": {
+            "standard": [
+              {
+                "command": "pnpm test",
+                "firing": "every-phase",
+                "output": "log",
+                "surface": "local"
+              }
+            ]
+          },
+          "name": "demo",
+          "version": 1
+        }
+      }
+    },
+    {
+      "name": "accepts a config with every key",
+      "input": {
+        "$schema": "./node_modules/phax/schemas/phax.schema.json",
+        "version": 1,
+        "name": "demo",
+        "state": {
+          "root": "~/.phax"
+        },
+        "agent": {
+          "maxFixAttempts": 3,
+          "extractPlan": {
+            "model": "claude-haiku-5-5",
+            "effort": "low"
+          }
+        },
+        "commands": {
+          "setup": [
+            "pnpm install"
+          ],
+          "cleanup": [
+            "git clean -fdX"
+          ]
+        },
+        "fileReconciliation": {
+          "mode": "warn"
+        },
+        "security": {
+          "profile": "secure",
+          "filesystem": {
+            "allowRead": [
+              "~/.cache"
+            ],
+            "allowWrite": []
+          },
+          "network": {
+            "profile": "dev-allowlist"
+          },
+          "mcp": {
+            "mode": "allowlist",
+            "allow": [
+              "context7"
+            ]
+          },
+          "agentCommands": [
+            "pnpm add"
+          ]
+        },
+        "publish": {
+          "auto": false,
+          "remote": "origin",
+          "provider": "github",
+          "pushBranch": true,
+          "createPullRequest": true,
+          "baseBranch": "main",
+          "title": "phax run"
+        },
+        "brief": {
+          "command": "./brief.sh",
+          "push": "findings-and-rules"
+        },
+        "planAuditor": {
+          "command": "./audit.sh"
+        },
+        "architecture": {
+          "command": "./architecture.sh"
+        },
+        "acceptance": {
+          "command": "./acceptance.sh"
+        },
+        "review": {
+          "compliance": {
+            "enabled": true,
+            "model": "claude-sonnet-5-5",
+            "effort": "medium"
+          },
+          "code": {
+            "enabled": false,
+            "effort": "high"
+          }
+        },
+        "authoring": {
+          "spec": {
+            "model": "claude-opus-5-5",
+            "effort": "high"
+          },
+          "plan": {
+            "effort": "medium"
+          }
+        },
+        "gateProfiles": {
+          "standard": [
+            {
+              "command": "pnpm format",
+              "surface": "local",
+              "firing": "every-phase"
+            },
+            {
+              "command": "pnpm lint",
+              "surface": "local",
+              "firing": "every-phase",
+              "output": "log",
+              "partial": {
+                "files": "pnpm exec oxlint <files>",
+                "diff": "git diff --name-only | xargs oxlint"
+              }
+            },
+            {
+              "command": "./review.sh",
+              "surface": "structural",
+              "firing": "terminal",
+              "output": "gate-report",
+              "input": "gate-request"
+            },
+            {
+              "command": "pnpm build",
+              "surface": "product",
+              "firing": "terminal"
+            }
+          ]
+        },
+        "workspaces": [
+          {
+            "id": "site",
+            "name": "Site",
+            "path": "site",
+            "gateProfiles": {
+              "standard": [
+                {
+                  "command": "pnpm site:build",
+                  "surface": "product",
+                  "firing": "terminal"
+                }
+              ]
+            }
+          }
+        ],
+        "records": {
+          "transcript": false,
+          "destination": {
+            "kind": "repo",
+            "remote": "git@github.com:acme/records.git"
+          },
+          "autoPush": true
+        },
+        "assignments": [
+          {
+            "kind": "part",
+            "part": "domain-core",
+            "model": "claude-opus-5-5",
+            "effort": {
+              "min": "high",
+              "max": "xhigh"
+            }
+          },
+          {
+            "kind": "globs",
+            "globs": [
+              "docs/**"
+            ],
+            "model": "claude-sonnet-5-5",
+            "effort": {
+              "min": "low",
+              "max": "medium"
+            }
+          }
+        ],
+        "protectedPaths": [
+          "tests/corpus/**",
+          "scripts/ratchet.ts"
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "./node_modules/phax/schemas/phax.schema.json",
+          "acceptance": {
+            "command": "./acceptance.sh"
+          },
+          "agent": {
+            "extractPlan": {
+              "effort": "low",
+              "model": "claude-haiku-5-5"
+            },
+            "maxFixAttempts": 3
+          },
+          "architecture": {
+            "command": "./architecture.sh"
+          },
+          "assignments": [
+            {
+              "effort": {
+                "max": "xhigh",
+                "min": "high"
+              },
+              "kind": "part",
+              "model": "claude-opus-5-5",
+              "part": "domain-core"
+            },
+            {
+              "effort": {
+                "max": "medium",
+                "min": "low"
+              },
+              "globs": [
+                "docs/**"
+              ],
+              "kind": "globs",
+              "model": "claude-sonnet-5-5"
+            }
+          ],
+          "authoring": {
+            "plan": {
+              "effort": "medium"
+            },
+            "spec": {
+              "effort": "high",
+              "model": "claude-opus-5-5"
+            }
+          },
+          "brief": {
+            "command": "./brief.sh",
+            "push": "findings-and-rules"
+          },
+          "commands": {
+            "cleanup": [
+              "git clean -fdX"
+            ],
+            "setup": [
+              "pnpm install"
+            ]
+          },
+          "fileReconciliation": {
+            "mode": "warn"
+          },
+          "gateProfiles": {
+            "standard": [
+              {
+                "command": "pnpm format",
+                "firing": "every-phase",
+                "output": "log",
+                "surface": "local"
+              },
+              {
+                "command": "pnpm lint",
+                "firing": "every-phase",
+                "output": "log",
+                "partial": {
+                  "diff": "git diff --name-only | xargs oxlint",
+                  "files": "pnpm exec oxlint <files>"
+                },
+                "surface": "local"
+              },
+              {
+                "command": "./review.sh",
+                "firing": "terminal",
+                "input": "gate-request",
+                "output": "gate-report",
+                "surface": "structural"
+              },
+              {
+                "command": "pnpm build",
+                "firing": "terminal",
+                "output": "log",
+                "surface": "product"
+              }
+            ]
+          },
+          "name": "demo",
+          "planAuditor": {
+            "command": "./audit.sh"
+          },
+          "protectedPaths": [
+            "tests/corpus/**",
+            "scripts/ratchet.ts"
+          ],
+          "publish": {
+            "auto": false,
+            "baseBranch": "main",
+            "createPullRequest": true,
+            "provider": "github",
+            "pushBranch": true,
+            "remote": "origin",
+            "title": "phax run"
+          },
+          "records": {
+            "autoPush": true,
+            "destination": {
+              "kind": "repo",
+              "remote": "git@github.com:acme/records.git"
+            },
+            "transcript": false
+          },
+          "review": {
+            "code": {
+              "effort": "high",
+              "enabled": false
+            },
+            "compliance": {
+              "effort": "medium",
+              "enabled": true,
+              "model": "claude-sonnet-5-5"
+            }
+          },
+          "security": {
+            "agentCommands": [
+              "pnpm add"
+            ],
+            "filesystem": {
+              "allowRead": [
+                "~/.cache"
+              ],
+              "allowWrite": []
+            },
+            "mcp": {
+              "allow": [
+                "context7"
+              ],
+              "mode": "allowlist"
+            },
+            "network": {
+              "profile": "dev-allowlist"
+            },
+            "profile": "secure"
+          },
+          "state": {
+            "root": "~/.phax"
+          },
+          "version": 1,
+          "workspaces": [
+            {
+              "gateProfiles": {
+                "standard": [
+                  {
+                    "command": "pnpm site:build",
+                    "firing": "terminal",
+                    "output": "log",
+                    "surface": "product"
+                  }
+                ]
+              },
+              "id": "site",
+              "name": "Site",
+              "path": "site"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "accepts an in-repo records destination",
+      "input": {
+        "version": 1,
+        "name": "demo",
+        "gateProfiles": {
+          "standard": [
+            {
+              "command": "pnpm test",
+              "surface": "local",
+              "firing": "every-phase"
+            }
+          ]
+        },
+        "records": {
+          "transcript": true,
+          "destination": {
+            "kind": "in-repo",
+            "acknowledgedUnknownVisibility": true
+          },
+          "autoPush": false
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "gateProfiles": {
+            "standard": [
+              {
+                "command": "pnpm test",
+                "firing": "every-phase",
+                "output": "log",
+                "surface": "local"
+              }
+            ]
+          },
+          "name": "demo",
+          "records": {
+            "autoPush": false,
+            "destination": {
+              "acknowledgedUnknownVisibility": true,
+              "kind": "in-repo"
+            },
+            "transcript": true
+          },
+          "version": 1
+        }
+      }
+    },
+    {
+      "name": "refuses a missing gateProfiles",
+      "input": {
+        "version": 1,
+        "name": "demo"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  gateProfiles: is missing"
+      }
+    },
+    {
+      "name": "refuses a missing name",
+      "input": {
+        "version": 1,
+        "gateProfiles": {
+          "standard": [
+            {
+              "command": "pnpm test",
+              "surface": "local",
+              "firing": "every-phase"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  name: is missing"
+      }
+    },
+    {
+      "name": "refuses an unexpected root key",
+      "input": {
+        "version": 1,
+        "name": "demo",
+        "gateProfiles": {
+          "standard": [
+            {
+              "command": "pnpm test",
+              "surface": "local",
+              "firing": "every-phase"
+            }
+          ]
+        },
+        "colour": "blue"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  colour: is unexpected, expected: \"$schema\" | \"version\" | \"name\" | \"state\" | \"agent\" | \"commands\" | \"fileReconciliation\" | \"security\" | \"publish\" | \"brief\" | \"planAuditor\" | \"architecture\" | \"acceptance\" | \"review\" | \"authoring\" | \"gateProfiles\" | \"workspaces\" | \"records\" | \"assignments\" | \"protectedPaths\""
+      }
+    },
+    {
+      "name": "refuses an unexpected key in a gate step",
+      "input": {
+        "version": 1,
+        "name": "demo",
+        "gateProfiles": {
+          "standard": [
+            {
+              "command": "pnpm test",
+              "surface": "local",
+              "firing": "every-phase",
+              "timeout": 30
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  gateProfiles.standard.0.timeout: is unexpected, expected: \"command\" | \"surface\" | \"firing\" | \"output\" | \"input\" | \"partial\""
+      }
+    },
+    {
+      "name": "refuses a name that is not a string",
+      "input": {
+        "version": 1,
+        "name": 42,
+        "gateProfiles": {
+          "standard": [
+            {
+              "command": "pnpm test",
+              "surface": "local",
+              "firing": "every-phase"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  name: Expected string, actual 42"
+      }
+    },
+    {
+      "name": "refuses a version other than 1",
+      "input": {
+        "version": 2,
+        "name": "demo",
+        "gateProfiles": {
+          "standard": [
+            {
+              "command": "pnpm test",
+              "surface": "local",
+              "firing": "every-phase"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  version: Expected 1, actual 2"
+      }
+    },
+    {
+      "name": "refuses a surface outside the enum",
+      "input": {
+        "version": 1,
+        "name": "demo",
+        "gateProfiles": {
+          "standard": [
+            {
+              "command": "pnpm test",
+              "surface": "remote",
+              "firing": "every-phase"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  gateProfiles.standard.0.surface: Expected \"local\", actual \"remote\"\n  gateProfiles.standard.0.surface: Expected \"structural\", actual \"remote\"\n  gateProfiles.standard.0.surface: Expected \"product\", actual \"remote\""
+      }
+    },
+    {
+      "name": "refuses a firing outside the enum",
+      "input": {
+        "version": 1,
+        "name": "demo",
+        "gateProfiles": {
+          "standard": [
+            {
+              "command": "pnpm test",
+              "surface": "local",
+              "firing": "always"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  gateProfiles.standard.0.firing: Expected \"every-phase\", actual \"always\"\n  gateProfiles.standard.0.firing: Expected \"terminal\", actual \"always\""
+      }
+    },
+    {
+      "name": "refuses a gate step output outside log and gate-report, naming its command",
+      "input": {
+        "version": 1,
+        "name": "demo",
+        "gateProfiles": {
+          "standard": [
+            {
+              "command": "pnpm test",
+              "surface": "local",
+              "firing": "every-phase",
+              "output": "stdout"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  gate step \"pnpm test\": output must be \"log\" or \"gate-report\""
+      }
+    },
+    {
+      "name": "refuses a missing brief push once",
+      "input": {
+        "version": 1,
+        "name": "demo",
+        "gateProfiles": {
+          "standard": [
+            {
+              "command": "pnpm test",
+              "surface": "local",
+              "firing": "every-phase"
+            }
+          ]
+        },
+        "brief": {
+          "command": "./brief.sh"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  brief.push must be \"findings\" or \"findings-and-rules\""
+      }
+    },
+    {
+      "name": "refuses a brief push outside the enum",
+      "input": {
+        "version": 1,
+        "name": "demo",
+        "gateProfiles": {
+          "standard": [
+            {
+              "command": "pnpm test",
+              "surface": "local",
+              "firing": "every-phase"
+            }
+          ]
+        },
+        "brief": {
+          "command": "./brief.sh",
+          "push": "rules"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  brief.push must be \"findings\" or \"findings-and-rules\""
+      }
+    },
+    {
+      "name": "refuses maxFixAttempts above the bound",
+      "input": {
+        "version": 1,
+        "name": "demo",
+        "gateProfiles": {
+          "standard": [
+            {
+              "command": "pnpm test",
+              "surface": "local",
+              "firing": "every-phase"
+            }
+          ]
+        },
+        "agent": {
+          "maxFixAttempts": 11
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  agent.maxFixAttempts: Expected a number between 1 and 10, actual 11\n  agent.maxFixAttempts: Expected undefined, actual 11\n  agent: Expected undefined, actual {\"maxFixAttempts\":11}"
+      }
+    },
+    {
+      "name": "refuses a fractional maxFixAttempts",
+      "input": {
+        "version": 1,
+        "name": "demo",
+        "gateProfiles": {
+          "standard": [
+            {
+              "command": "pnpm test",
+              "surface": "local",
+              "firing": "every-phase"
+            }
+          ]
+        },
+        "agent": {
+          "maxFixAttempts": 2.5
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  agent.maxFixAttempts: Expected an integer, actual 2.5\n  agent.maxFixAttempts: Expected undefined, actual 2.5\n  agent: Expected undefined, actual {\"maxFixAttempts\":2.5}"
+      }
+    },
+    {
+      "name": "refuses an empty gate profile",
+      "input": {
+        "version": 1,
+        "name": "demo",
+        "gateProfiles": {
+          "standard": []
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  gateProfiles.standard.0: is missing"
+      }
+    },
+    {
+      "name": "refuses an empty command",
+      "input": {
+        "version": 1,
+        "name": "demo",
+        "gateProfiles": {
+          "standard": [
+            {
+              "command": "",
+              "surface": "local",
+              "firing": "every-phase"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  gateProfiles.standard.0.command: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "refuses a partial with neither variant",
+      "input": {
+        "version": 1,
+        "name": "demo",
+        "gateProfiles": {
+          "standard": [
+            {
+              "command": "pnpm test",
+              "surface": "local",
+              "firing": "every-phase",
+              "partial": {}
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  gateProfiles.standard.0.partial: declare \"files\", \"diff\" or both"
+      }
+    },
+    {
+      "name": "refuses a protected path breaking the glob dialect",
+      "input": {
+        "version": 1,
+        "name": "demo",
+        "gateProfiles": {
+          "standard": [
+            {
+              "command": "pnpm test",
+              "surface": "local",
+              "firing": "every-phase"
+            }
+          ]
+        },
+        "protectedPaths": [
+          "/etc/passwd"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  protectedPaths.0: \"/etc/passwd\" starts with /\n  protectedPaths: Expected undefined, actual [\"/etc/passwd\"]"
+      }
+    },
+    {
+      "name": "refuses an empty protectedPaths list",
+      "input": {
+        "version": 1,
+        "name": "demo",
+        "gateProfiles": {
+          "standard": [
+            {
+              "command": "pnpm test",
+              "surface": "local",
+              "firing": "every-phase"
+            }
+          ]
+        },
+        "protectedPaths": []
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  protectedPaths.0: is missing\n  protectedPaths: Expected undefined, actual []"
+      }
+    },
+    {
+      "name": "refuses an empty assignments list",
+      "input": {
+        "version": 1,
+        "name": "demo",
+        "gateProfiles": {
+          "standard": [
+            {
+              "command": "pnpm test",
+              "surface": "local",
+              "firing": "every-phase"
+            }
+          ]
+        },
+        "assignments": []
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  assignments: must not be empty: omit the key to declare no bounds"
+      }
+    },
+    {
+      "name": "refuses an assignment effort outside the vocabulary in one line",
+      "input": {
+        "version": 1,
+        "name": "demo",
+        "gateProfiles": {
+          "standard": [
+            {
+              "command": "pnpm test",
+              "surface": "local",
+              "firing": "every-phase"
+            }
+          ]
+        },
+        "assignments": [
+          {
+            "kind": "globs",
+            "globs": [
+              "src/**"
+            ],
+            "model": "claude-opus-5-5",
+            "effort": {
+              "min": "huge",
+              "max": "high"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  assignments[0].effort.min: Expected \"none\" | \"off\" | \"low\" | \"medium\" | \"high\" | \"xhigh\" | \"max\" | \"ultracode\" | \"ultra\", actual \"huge\""
+      }
+    },
+    {
+      "name": "refuses an assignment part that is not kebab-case",
+      "input": {
+        "version": 1,
+        "name": "demo",
+        "gateProfiles": {
+          "standard": [
+            {
+              "command": "pnpm test",
+              "surface": "local",
+              "firing": "every-phase"
+            }
+          ]
+        },
+        "assignments": [
+          {
+            "kind": "part",
+            "part": "Domain Core",
+            "model": "claude-opus-5-5",
+            "effort": {
+              "min": "high",
+              "max": "high"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  assignments[0].part: a kebab-case slug: lowercase letters and digits, single hyphens between"
+      }
+    },
+    {
+      "name": "refuses an assignment with no globs",
+      "input": {
+        "version": 1,
+        "name": "demo",
+        "gateProfiles": {
+          "standard": [
+            {
+              "command": "pnpm test",
+              "surface": "local",
+              "firing": "every-phase"
+            }
+          ]
+        },
+        "assignments": [
+          {
+            "kind": "globs",
+            "globs": [],
+            "model": "claude-opus-5-5",
+            "effort": {
+              "min": "high",
+              "max": "high"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  assignments[0].globs: must not be empty"
+      }
+    },
+    {
+      "name": "refuses a records remote that is not a safe URL",
+      "input": {
+        "version": 1,
+        "name": "demo",
+        "gateProfiles": {
+          "standard": [
+            {
+              "command": "pnpm test",
+              "surface": "local",
+              "firing": "every-phase"
+            }
+          ]
+        },
+        "records": {
+          "transcript": false,
+          "destination": {
+            "kind": "repo",
+            "remote": "http://example.com/r.git"
+          },
+          "autoPush": false
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  records.destination.remote: records.destination.remote must be an https://, ssh://, or git@host:path URL\n  records: Expected undefined, actual {\"transcript\":false,\"destination\":{\"kind\":\"repo\",\"remote\":\"http://example.com/r.git\"},\"autoPush\":false}"
+      }
+    },
+    {
+      "name": "refuses a security profile outside the enum",
+      "input": {
+        "version": 1,
+        "name": "demo",
+        "gateProfiles": {
+          "standard": [
+            {
+              "command": "pnpm test",
+              "surface": "local",
+              "firing": "every-phase"
+            }
+          ]
+        },
+        "security": {
+          "profile": "lax"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  security.profile: Expected \"secure\", actual \"lax\"\n  security.profile: Expected \"unsafe\", actual \"lax\"\n  security.profile: Expected \"isolated\", actual \"lax\"\n  security.profile: Expected undefined, actual \"lax\"\n  security: Expected undefined, actual {\"profile\":\"lax\"}"
+      }
+    },
+    {
+      "name": "refuses a workspace without a path",
+      "input": {
+        "version": 1,
+        "name": "demo",
+        "gateProfiles": {
+          "standard": [
+            {
+              "command": "pnpm test",
+              "surface": "local",
+              "firing": "every-phase"
+            }
+          ]
+        },
+        "workspaces": [
+          {
+            "id": "site",
+            "name": "Site"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  workspaces.0.path: is missing\n  workspaces: Expected undefined, actual [{\"id\":\"site\",\"name\":\"Site\"}]"
+      }
+    },
+    {
+      "name": "reports every issue of a config at once",
+      "input": {
+        "version": 2,
+        "name": "",
+        "colour": "blue",
+        "gateProfiles": {
+          "standard": [
+            {
+              "command": "pnpm test",
+              "surface": "remote",
+              "firing": "every-phase",
+              "output": "stdout"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "  colour: is unexpected, expected: \"$schema\" | \"version\" | \"name\" | \"state\" | \"agent\" | \"commands\" | \"fileReconciliation\" | \"security\" | \"publish\" | \"brief\" | \"planAuditor\" | \"architecture\" | \"acceptance\" | \"review\" | \"authoring\" | \"gateProfiles\" | \"workspaces\" | \"records\" | \"assignments\" | \"protectedPaths\"\n  version: Expected 1, actual 2\n  name: Expected a non empty string, actual \"\"\n  gateProfiles.standard.0.surface: Expected \"local\", actual \"remote\"\n  gateProfiles.standard.0.surface: Expected \"structural\", actual \"remote\"\n  gateProfiles.standard.0.surface: Expected \"product\", actual \"remote\"\n  gate step \"pnpm test\": output must be \"log\" or \"gate-report\""
+      }
+    },
+    {
+      "name": "refuses a config that is not an object",
+      "input": [
+        "demo"
+      ],
+      "expected": {
+        "ok": false,
+        "refusal": "  (root): Expected { readonly $schema?: string | undefined; readonly version: 1; readonly name: NonEmptyString; readonly state?: { readonly root: NonEmptyString } | undefined; readonly agent?: { readonly maxFixAttempts?: Int & between(1, 10) | undefined; readonly extractPlan?: { readonly model?: NonEmptyString | undefined; readonly effort?: \"low\" | \"medium\" | \"high\" | undefined } | undefined } | undefined; readonly commands?: { readonly setup?: readonly [NonEmptyString, ...NonEmptyString[]] | undefined; readonly cleanup?: readonly [NonEmptyString, ...NonEmptyString[]] | undefined } | undefined; readonly fileReconciliation?: { readonly mode: \"report_only\" | \"warn\" } | undefined; readonly security?: { readonly profile?: \"secure\" | \"unsafe\" | \"isolated\" | undefined; readonly filesystem?: { readonly allowRead?: ReadonlyArray<NonEmptyString> | undefined; readonly allowWrite?: ReadonlyArray<NonEmptyString> | undefined } | undefined; readonly network?: { readonly profile?: \"provider-only\" | \"dev-allowlist\" | \"open\" | undefined } | undefined; readonly mcp?: { readonly mode?: \"disabled\" | \"local-only\" | \"allowlist\" | \"provider-default\" | undefined; readonly allow?: ReadonlyArray<NonEmptyString> | undefined } | undefined; readonly agentCommands?: ReadonlyArray<NonEmptyString> | undefined } | undefined; readonly publish?: { readonly auto: boolean; readonly remote?: NonEmptyString | undefined; readonly provider?: \"github\" | undefined; readonly pushBranch?: boolean | undefined; readonly createPullRequest?: boolean | undefined; readonly baseBranch?: NonEmptyString | undefined; readonly title?: NonEmptyString | undefined } | undefined; readonly brief?: { readonly command: nonEmptyString; readonly push: \"findings\" | \"findings-and-rules\" } | undefined; readonly planAuditor?: { readonly command: nonEmptyString } | undefined; readonly architecture?: { readonly command: nonEmptyString } | undefined; readonly acceptance?: { readonly command: nonEmptyString } | undefined; readonly review?: { readonly compliance?: { readonly enabled: boolean; readonly model?: NonEmptyString | undefined; readonly effort?: \"low\" | \"medium\" | \"high\" | undefined } | undefined; readonly code?: { readonly enabled?: boolean | undefined; readonly model?: NonEmptyString | undefined; readonly effort?: \"low\" | \"medium\" | \"high\" | undefined } | undefined } | undefined; readonly authoring?: { readonly spec?: { readonly model?: NonEmptyString | undefined; readonly effort?: \"low\" | \"medium\" | \"high\" | undefined } | undefined; readonly plan?: { readonly model?: NonEmptyString | undefined; readonly effort?: \"low\" | \"medium\" | \"high\" | undefined } | undefined } | undefined; readonly gateProfiles: { readonly [x: NonEmptyString]: readonly [(Struct (Encoded side) <-> Struct (Type side)), ...(Struct (Encoded side) <-> Struct (Type side))[]] }; readonly workspaces?: ReadonlyArray<{ readonly id: NonEmptyString; readonly name: NonEmptyString; readonly path: NonEmptyString; readonly gateProfiles?: { readonly [x: NonEmptyString]: readonly [(Struct (Encoded side) <-> Struct (Type side)), ...(Struct (Encoded side) <-> Struct (Type side))[]] } | undefined }> | undefined; readonly records?: { readonly transcript: boolean; readonly destination: { readonly kind: \"in-repo\"; readonly acknowledgedUnknownVisibility?: boolean | undefined } | { readonly kind: \"repo\"; readonly remote: { NonEmptyString | filter } }; readonly autoPush: boolean } | undefined; readonly assignments?: The repository owner's assignment bounds, ordered from most to least demanding: the first bound that matches any of a phase's planned files governs it. A phase conforms when it takes the bound's model at an effort within the range; a departure needs an **Assignment reason:** line. Accepted in phax.json only. | undefined; readonly protectedPaths?: readonly [{ NonEmptyString | filter }, ...({ NonEmptyString | filter })[]] | undefined }, actual [\"demo\"]"
+      }
+    },
+    {
+      "name": "refuses null",
+      "input": null,
+      "expected": {
+        "ok": false,
+        "refusal": "  (root): Expected { readonly $schema?: string | undefined; readonly version: 1; readonly name: NonEmptyString; readonly state?: { readonly root: NonEmptyString } | undefined; readonly agent?: { readonly maxFixAttempts?: Int & between(1, 10) | undefined; readonly extractPlan?: { readonly model?: NonEmptyString | undefined; readonly effort?: \"low\" | \"medium\" | \"high\" | undefined } | undefined } | undefined; readonly commands?: { readonly setup?: readonly [NonEmptyString, ...NonEmptyString[]] | undefined; readonly cleanup?: readonly [NonEmptyString, ...NonEmptyString[]] | undefined } | undefined; readonly fileReconciliation?: { readonly mode: \"report_only\" | \"warn\" } | undefined; readonly security?: { readonly profile?: \"secure\" | \"unsafe\" | \"isolated\" | undefined; readonly filesystem?: { readonly allowRead?: ReadonlyArray<NonEmptyString> | undefined; readonly allowWrite?: ReadonlyArray<NonEmptyString> | undefined } | undefined; readonly network?: { readonly profile?: \"provider-only\" | \"dev-allowlist\" | \"open\" | undefined } | undefined; readonly mcp?: { readonly mode?: \"disabled\" | \"local-only\" | \"allowlist\" | \"provider-default\" | undefined; readonly allow?: ReadonlyArray<NonEmptyString> | undefined } | undefined; readonly agentCommands?: ReadonlyArray<NonEmptyString> | undefined } | undefined; readonly publish?: { readonly auto: boolean; readonly remote?: NonEmptyString | undefined; readonly provider?: \"github\" | undefined; readonly pushBranch?: boolean | undefined; readonly createPullRequest?: boolean | undefined; readonly baseBranch?: NonEmptyString | undefined; readonly title?: NonEmptyString | undefined } | undefined; readonly brief?: { readonly command: nonEmptyString; readonly push: \"findings\" | \"findings-and-rules\" } | undefined; readonly planAuditor?: { readonly command: nonEmptyString } | undefined; readonly architecture?: { readonly command: nonEmptyString } | undefined; readonly acceptance?: { readonly command: nonEmptyString } | undefined; readonly review?: { readonly compliance?: { readonly enabled: boolean; readonly model?: NonEmptyString | undefined; readonly effort?: \"low\" | \"medium\" | \"high\" | undefined } | undefined; readonly code?: { readonly enabled?: boolean | undefined; readonly model?: NonEmptyString | undefined; readonly effort?: \"low\" | \"medium\" | \"high\" | undefined } | undefined } | undefined; readonly authoring?: { readonly spec?: { readonly model?: NonEmptyString | undefined; readonly effort?: \"low\" | \"medium\" | \"high\" | undefined } | undefined; readonly plan?: { readonly model?: NonEmptyString | undefined; readonly effort?: \"low\" | \"medium\" | \"high\" | undefined } | undefined } | undefined; readonly gateProfiles: { readonly [x: NonEmptyString]: readonly [(Struct (Encoded side) <-> Struct (Type side)), ...(Struct (Encoded side) <-> Struct (Type side))[]] }; readonly workspaces?: ReadonlyArray<{ readonly id: NonEmptyString; readonly name: NonEmptyString; readonly path: NonEmptyString; readonly gateProfiles?: { readonly [x: NonEmptyString]: readonly [(Struct (Encoded side) <-> Struct (Type side)), ...(Struct (Encoded side) <-> Struct (Type side))[]] } | undefined }> | undefined; readonly records?: { readonly transcript: boolean; readonly destination: { readonly kind: \"in-repo\"; readonly acknowledgedUnknownVisibility?: boolean | undefined } | { readonly kind: \"repo\"; readonly remote: { NonEmptyString | filter } }; readonly autoPush: boolean } | undefined; readonly assignments?: The repository owner's assignment bounds, ordered from most to least demanding: the first bound that matches any of a phase's planned files governs it. A phase conforms when it takes the bound's model at an effort within the range; a departure needs an **Assignment reason:** line. Accepted in phax.json only. | undefined; readonly protectedPaths?: readonly [{ NonEmptyString | filter }, ...({ NonEmptyString | filter })[]] | undefined }, actual null"
+      }
+    }
+  ]
+}
