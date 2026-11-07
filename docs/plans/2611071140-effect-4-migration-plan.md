@@ -41,7 +41,7 @@ Both commands are already in `security.agentCommands` in phax.json: `pnpm add` p
 - ac-phase-skill (§5.10) governs phases that migrate code. No phase of this groundwork plan changes an Effect call site; each one opens with `Follows skill: none (groundwork on Effect 3)` and is bounded by its planned files. Loss accepted: this plan does not show the one-skill-per-phase discipline itself; the next plan is the first to hold it.
 - "Pinned" for the codemod's packages means declared in devDependencies and fixed by `pnpm-lock.yaml`. ts-morph is pinned exactly at 28.0.0, as the brief asks. tsx (the runner) and typescript (the counts' `tsc`) keep their existing ranges. Loss accepted: an install that ignores the lockfile could resolve another tsx or typescript.
 
-## Open questions
+## Arbitrated questions
 
 ### q-guard — Should phax.json protect the corpus and the ratchet from later migration phases with `protectedPaths`?
 
@@ -50,12 +50,23 @@ Both commands are already in `security.agentCommands` in phax.json: `pnpm add` p
 
 Recommendation: protect — The whole migration's proof rests on two things a phase must not move: the captured Effect 3 behaviour and the error ratchet. The cost of protection is a handful of operator edits to phax.json over the remaining plans. The profile itself adds no capability: its commands run repository code exactly as `standard`'s `pnpm test` already does. If `protect` is chosen, phase-06 adds the key; if `review-only`, phase-06 adds nothing.
 
+Decision: protect — by operator (Rémy Loubradou), 2026-11-07
+Why: The whole migration's proof rests on two things a phase must not move: the captured Effect 3 behaviour and the error ratchet. The cost of protection is a handful of operator edits to phax.json over the remaining plans. The profile itself adds no capability: its commands run repository code exactly as `standard`'s `pnpm test` already does. If `protect` is chosen, phase-06 adds the key; if `review-only`, phase-06 adds nothing. Advocate: The strongest case for review-only: protecting any path also protects phax.json itself for every later run, so the final plan's profile removal, any ratchet fix and the corpus's eventual removal all need a hand edit outside a phase; a reviewer reading the diff against the spec's criteria (ac-tests, ac-no-silencing) already catches a bent ratchet or edited expectation. Principles: C4, C2. Reversibility: cheap. Revised: none. Phase: phase-06.
+
 ### q-official-text — The skills must quote the official effect-v3-to-v4 skill's discipline with its source and version (q-skills own-cite), but phase sessions have no network. Where does that text come from?
 
 - vendor-text — Before the run, the operator vendors the official `skills/effect-v3-to-v4/SKILL.md` at a pinned commit under `docs/vendor/effect-skills/effect-v3-to-v4/` with a SOURCE file (repository, commit, licence), byte-identical; phase-07 quotes from it — abandons: An unattended start: the run waits on a manual vendoring step, and another upstream file enters the repository until the final plan removes it with the reference.
 - restate — phase-07 restates the discipline in phax's words from the spec's own summary, citing the upstream URL without a verbatim quote or a pinned version — abandons: Fidelity and a version: the skills paraphrase a paraphrase, so a difference from the official wording, and the version it held, is invisible to a reviewer.
 
 Recommendation: vendor-text — q-skills settled on quoting the official discipline with its source and version, and only a local copy makes that possible offline. It mirrors how the reference was vendored, so the same SOURCE convention and the same removal at the end apply.
+
+Decision: vendor-text — by operator (Rémy Loubradou), 2026-11-07
+Why: Vendored before the run: docs/vendor/effect-skills/effect-v3-to-v4/ (SKILL.md, LICENSE, SOURCE) at Effect-TS/skills commit 155c50c911f9c99c294ef8a4461981c5bbe6453e. Advocate: The strongest case for restate: the run starts unattended with no manual vendoring step and no further upstream file in the repository, and phax's own words fit how its phases work, whereas a verbatim copy carries wording about clones and sub-agents that the skills must then work around. Principles: C1, E0. Reversibility: cheap. Revised: none. Phase: phase-07.
+
+## Decision log
+
+- 2026-11-07 q-guard decided protect — operator (Rémy Loubradou)
+- 2026-11-07 q-official-text decided vendor-text — operator (Rémy Loubradou)
 
 ---
 

@@ -30,7 +30,8 @@
       "ac-phase-skill (§5.10) governs phases that migrate code. No phase of this groundwork plan changes an Effect call site; each one opens with `Follows skill: none (groundwork on Effect 3)` and is bounded by its planned files. Loss accepted: this plan does not show the one-skill-per-phase discipline itself; the next plan is the first to hold it.",
       "\"Pinned\" for the codemod's packages means declared in devDependencies and fixed by `pnpm-lock.yaml`. ts-morph is pinned exactly at 28.0.0, as the brief asks. tsx (the runner) and typescript (the counts' `tsc`) keep their existing ranges. Loss accepted: an install that ignores the lockfile could resolve another tsx or typescript."
     ],
-    "openQuestions": [
+    "openQuestions": [],
+    "arbitratedQuestions": [
       {
         "id": "q-guard",
         "question": "Should phax.json protect the corpus and the ratchet from later migration phases with `protectedPaths`?",
@@ -47,7 +48,29 @@
           }
         ],
         "recommendation": "protect",
-        "rationale": "The whole migration's proof rests on two things a phase must not move: the captured Effect 3 behaviour and the error ratchet. The cost of protection is a handful of operator edits to phax.json over the remaining plans. The profile itself adds no capability: its commands run repository code exactly as `standard`'s `pnpm test` already does. If `protect` is chosen, phase-06 adds the key; if `review-only`, phase-06 adds nothing."
+        "rationale": "The whole migration's proof rests on two things a phase must not move: the captured Effect 3 behaviour and the error ratchet. The cost of protection is a handful of operator edits to phax.json over the remaining plans. The profile itself adds no capability: its commands run repository code exactly as `standard`'s `pnpm test` already does. If `protect` is chosen, phase-06 adds the key; if `review-only`, phase-06 adds nothing.",
+        "verdict": {
+          "kind": "decided",
+          "chosen": "protect",
+          "abandoned": [
+            "review-only"
+          ],
+          "why": "The whole migration's proof rests on two things a phase must not move: the captured Effect 3 behaviour and the error ratchet. The cost of protection is a handful of operator edits to phax.json over the remaining plans. The profile itself adds no capability: its commands run repository code exactly as `standard`'s `pnpm test` already does. If `protect` is chosen, phase-06 adds the key; if `review-only`, phase-06 adds nothing.",
+          "advocate": "The strongest case for review-only: protecting any path also protects phax.json itself for every later run, so the final plan's profile removal, any ratchet fix and the corpus's eventual removal all need a hand edit outside a phase; a reviewer reading the diff against the spec's criteria (ac-tests, ac-no-silencing) already catches a bent ratchet or edited expectation.",
+          "principles": [
+            "C4",
+            "C2"
+          ],
+          "reversibility": "cheap",
+          "by": {
+            "kind": "operator",
+            "name": "Rémy Loubradou"
+          },
+          "at": "2026-11-07T11:56:05.616Z",
+          "revised": [],
+          "phase": "phase-06"
+        },
+        "history": []
       },
       {
         "id": "q-official-text",
@@ -65,10 +88,31 @@
           }
         ],
         "recommendation": "vendor-text",
-        "rationale": "q-skills settled on quoting the official discipline with its source and version, and only a local copy makes that possible offline. It mirrors how the reference was vendored, so the same SOURCE convention and the same removal at the end apply."
+        "rationale": "q-skills settled on quoting the official discipline with its source and version, and only a local copy makes that possible offline. It mirrors how the reference was vendored, so the same SOURCE convention and the same removal at the end apply.",
+        "verdict": {
+          "kind": "decided",
+          "chosen": "vendor-text",
+          "abandoned": [
+            "restate"
+          ],
+          "why": "Vendored before the run: docs/vendor/effect-skills/effect-v3-to-v4/ (SKILL.md, LICENSE, SOURCE) at Effect-TS/skills commit 155c50c911f9c99c294ef8a4461981c5bbe6453e.",
+          "advocate": "The strongest case for restate: the run starts unattended with no manual vendoring step and no further upstream file in the repository, and phax's own words fit how its phases work, whereas a verbatim copy carries wording about clones and sub-agents that the skills must then work around.",
+          "principles": [
+            "C1",
+            "E0"
+          ],
+          "reversibility": "cheap",
+          "by": {
+            "kind": "operator",
+            "name": "Rémy Loubradou"
+          },
+          "at": "2026-11-07T11:56:05.616Z",
+          "revised": [],
+          "phase": "phase-07"
+        },
+        "history": []
       }
-    ],
-    "arbitratedQuestions": []
+    ]
   },
   "phases": [
     {
