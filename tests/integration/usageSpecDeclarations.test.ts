@@ -124,6 +124,8 @@ const ALLOWED_ADDITIONS: ReadonlyArray<readonly [string, string]> = [
   ...MIGRATED_COMMANDS.map((path) => [path, "flag --json "] as const),
   ...CHOICES_DECLARED.map((path) => [path, "arg <kind> "] as const),
   ...REWORDED_LONG_HELP.map((path) => [path, "long_help "] as const),
+  // records-branch-tip: `records sync --replay` replays local-only records onto the remote tip.
+  ["records sync", "flag --replay "],
 ];
 
 /** q-security-bare (refuse-bare): `security` and `security status` no longer declare their own

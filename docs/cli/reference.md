@@ -1872,11 +1872,15 @@ Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 ## `phax records sync`
 
-- **Usage**: `phax records sync [--json]`
+- **Usage**: `phax records sync [--replay] [--json]`
 
 Bring the local records clone in line with its configured remote
 
 ### Flags
+
+#### `--replay`
+
+Replay local-only records onto the remote tip when the records branch has diverged
 
 #### `--json`
 

@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { spawnSync, type SpawnSyncReturns } from "node:child_process";
+import { execFileSync, spawnSync, type SpawnSyncReturns } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -60,6 +60,11 @@ interface CatalogueEntry {
 beforeAll(async () => {
   restoreGit = isolateGit();
   fixture = await buildJsonContractsRepo();
+  // `phax records sync` fetches an in-repo records branch from `publish.remote`: give the
+  // repository an `origin` to fetch from. It holds no records branch, so sync leaves it alone.
+  const origin = join(fixture.base, "origin.git");
+  execFileSync("git", ["init", "-q", "--bare", origin]);
+  execFileSync("git", ["remote", "add", "origin", origin], { cwd: fixture.repo });
 });
 
 afterAll(() => {

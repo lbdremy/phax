@@ -135,7 +135,7 @@ function push(world: BranchTipWorld, destination: Destination) {
 
 describe("phax records sync creates the missing branch", () => {
   // ac-fresh-clone
-  it.fails("ac-fresh-clone: after a fresh clone, two phase records descend from origin's tip and push as a fast-forward", async () => {
+  it("ac-fresh-clone: after a fresh clone, two phase records descend from origin's tip and push as a fast-forward", async () => {
     const world = await newWorld({ remoteRecords: 4 });
     const remoteTip = world.remoteTip();
 
@@ -165,7 +165,7 @@ describe("phax records sync creates the missing branch", () => {
 
 describe("phax records sync fast-forwards a branch that is behind", () => {
   // ac-behind
-  it.fails("ac-behind: fast-forwards to the remote tip, names both tips, and the next record parents on it", async () => {
+  it("ac-behind: fast-forwards to the remote tip, names both tips, and the next record parents on it", async () => {
     const world = await newWorld({ remoteRecords: 3 });
     const behind = await putBranchBehind(world, { newRecords: 2 });
     const oldTip = behind.localTip;
@@ -188,7 +188,7 @@ describe("phax records sync fast-forwards a branch that is behind", () => {
 describe("phax records sync without --replay refuses a branch that has split", () => {
   for (const state of ["unrelated", "diverged"] as const) {
     // ac-sync-refuse
-    it.fails(`ac-sync-refuse: the use case answers ${state} with both tips and the local-only count, and moves nothing`, async () => {
+    it(`ac-sync-refuse: the use case answers ${state} with both tips and the local-only count, and moves nothing`, async () => {
       const world = await newWorld();
       const split =
         state === "unrelated"
@@ -214,7 +214,7 @@ describe("phax records sync without --replay refuses a branch that has split", (
     });
 
     // ac-sync-refuse
-    it.fails(`ac-sync-refuse: \`phax records sync --json\` on a ${state} branch exits 1 with the normative error fields`, async () => {
+    it(`ac-sync-refuse: \`phax records sync --json\` on a ${state} branch exits 1 with the normative error fields`, async () => {
       const world = await newWorld();
       if (state === "unrelated") await putBranchUnrelated(world, { localOnly: 3 });
       else await putBranchDiverged(world, { localOnly: 3, remoteNew: 1 });
@@ -251,7 +251,7 @@ describe("phax records sync without --replay refuses a branch that has split", (
 describe("phax records sync --replay brings stranded records home", () => {
   for (const state of ["unrelated", "diverged"] as const) {
     // ac-replay
-    it.fails(`ac-replay: replays the 3 local-only records of a ${state} branch onto the remote tip, then it pushes as a fast-forward`, async () => {
+    it(`ac-replay: replays the 3 local-only records of a ${state} branch onto the remote tip, then it pushes as a fast-forward`, async () => {
       const world = await newWorld();
       const split =
         state === "unrelated"
@@ -301,7 +301,7 @@ describe("phax records sync --replay brings stranded records home", () => {
   }
 
   // ac-replay-collision
-  it.fails("ac-replay-collision: refuses a key the remote already holds, naming the key and both commits, and moves nothing", async () => {
+  it("ac-replay-collision: refuses a key the remote already holds, naming the key and both commits, and moves nothing", async () => {
     const world = await newWorld();
     const collision = await putKeyCollision(world);
     const localTip = tipOf(world.clonePath);
@@ -331,7 +331,7 @@ function pushes(commands: readonly (readonly string[])[]): number {
 
 describe("no path forces the records branch", () => {
   // ac-never-forced
-  it.fails("ac-never-forced: fresh clone, behind, write-time, replay and push never force; every update fast-forwards or replays", async () => {
+  it("ac-never-forced: fresh clone, behind, write-time, replay and push never force; every update fast-forwards or replays", async () => {
     // A fresh clone, two phase records written on it, and their push.
     const fresh = await newWorld();
     const freshClone = await withGitTrace(async () => {
