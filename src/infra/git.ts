@@ -969,7 +969,15 @@ export const NodeGitLayer = Layer.succeed(Git, {
   listCommitFiles: (repo, tip, exclude) =>
     gitRun(
       [
+        // Pin what the user's config could change in the parsed output: a root
+        // commit's paths (a first record), unquoted non-ASCII paths, and no
+        // signature lines among the paths.
+        "-c",
+        "log.showRoot=true",
+        "-c",
+        "core.quotePath=false",
         "log",
+        "--no-show-signature",
         "--reverse",
         "--no-renames",
         // Each record commit's tree holds only its own files, so against its

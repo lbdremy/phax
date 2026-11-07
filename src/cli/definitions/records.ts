@@ -321,7 +321,7 @@ function branchLines(value: SyncedValue): string[] {
 
 const recordsSyncCommand = defineCommand({
   name: "sync",
-  summary: "Bring the local records clone in line with its configured remote",
+  summary: "Fetch the records remote and bring the local records branch level with it",
   input: {
     flags: reject(
       Schema.Struct({

@@ -69,8 +69,9 @@ export interface PublishRunOpts {
   readonly homeDir?: string;
   /** The phax version the pull request footer names; the CLI reads it from package.json. */
   readonly phaxVersion: string;
-  /** Where `--verbose` lines go: the CLI hands its own port, so under `--json` they are note lines. */
-  readonly output: Pick<OutputPort, "log">;
+  /** Where `--verbose` lines and the refused-records-push warning go: the CLI
+   *  hands its own port, so under `--json` they are note lines. */
+  readonly output: Pick<OutputPort, "log" | "warn">;
 }
 
 const REVIEW_HANDOFF_FILENAME = "review-handoff.md";
@@ -313,7 +314,10 @@ export function publishRun(
         if (result.kind === "pushed") {
           yield* logVerbose(opts.output, verbose, `Records pushed to ${result.remote}.`);
         } else if (result.kind === "failed") {
-          yield* logVerbose(opts.output, verbose, describeRecordsPushFailure(result, "Records"));
+          // Always shown: the sentence names the branch state and the command
+          // that fixes it, which the operator needs whatever --verbose says.
+          const sentence = describeRecordsPushFailure(result, "Records");
+          yield* Effect.sync(() => opts.output.warn(sentence));
         }
       });
 

@@ -450,4 +450,35 @@ describe("publishRun: records push wiring", () => {
     expect(result.kind).toBe("published");
     expect(git.impl.pushedBranches.has("phax/records/v1")).toBe(false);
   });
+
+  it("a refused records push is reported without --verbose", async () => {
+    const { fs, git, layers } = setupPublishLayers();
+    seedPublishPreconditions({ fs, git });
+    git.impl.failNextPushBranch("remote rejected");
+    const lines: string[] = [];
+    const warnings: string[] = [];
+
+    await Effect.runPromise(
+      publishRun(
+        makeInfo(),
+        defaultPublishConfig({ pushBranch: false, createPullRequest: false }),
+        {
+          repoRoot: publishRepoRoot,
+          now: constNow,
+          phaxVersion: "0.0.0-test",
+          records: {
+            enabled: true,
+            transcript: true,
+            destination: { kind: "in-repo" },
+            autoPush: true,
+          },
+          output: { log: (line) => lines.push(line), warn: (line) => warnings.push(line) },
+        },
+      ).pipe(Effect.provide(layers)),
+    );
+
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toMatch(/^Records push to origin (failed|refused): /);
+    expect(lines.some((line) => line.startsWith("Records push"))).toBe(false);
+  });
 });
