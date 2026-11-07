@@ -605,6 +605,46 @@ phax records explain <commit>   # a commit's record: prompt, diff, gates, handof
 
 The branch can live in the same repository or in a separate one. Transcripts can hold anything the agent read, so phax refuses to keep them on a public repository's own records branch, and on one it cannot tell is private (the refusal quotes `gh`'s first line: retry after a network or authentication failure, or confirm the repository is private with `records.destination.acknowledgedUnknownVisibility`). `records explain` takes `--prompt`, `--diff`, `--transcript` or `--gates` to print each part in full. A phase that stopped for a person's review, declared or held, records its stop too (mode, cause, outcome, closer and sessions, never a transcript's content): see [The record of a stop](#the-record-of-a-stop). To read records from another tool, see [Read phax files from code](#read-phax-files-from-code).
 
+### When the records branch and its remote disagree
+
+A record lands on top of the records remote's tip as phax last fetched it, so a branch that lags its remote catches up in the same step that writes the record. `phax records status` compares the local `phax/records/v1` with the remote's and reports one of seven states:
+
+- **in sync**: both tips are the same commit.
+- **ahead**: the local branch holds records the remote does not. They are pending; push them.
+- **behind**: the remote holds records the local branch does not.
+- **diverged**: each side holds records the other lacks.
+- **unrelated**: the two branches share no commit.
+- **missing locally**: the remote has a records branch and this clone has none.
+- **not on the remote yet**: the local branch exists and the remote has none.
+
+`phax records sync` fetches the remote, then acts on the state:
+
+- missing locally: it creates the local branch at the remote's tip.
+- behind: it fast-forwards the local branch to the remote's tip.
+- ahead, in sync, not on the remote yet: it moves nothing and says where the branch stands.
+- diverged or unrelated: it refuses and names `phax records sync --replay`.
+
+`--replay` recommits each local-only record, oldest first, onto the remote's tip. A replayed record keeps its tree, its message and its author name, email and date; only its parent, committer and sha change. If a local-only record has the same key as one already on the remote, nothing is replayed and the command names the key. The previous tip is printed, and Git's reflog keeps it. In any other state `--replay` does what plain `sync` does and replays nothing. It works for a dedicated records repository and for the in-repo destination, where the records branch is fetched from `publish.remote`.
+
+phax never forces the records branch: no push uses `--force` or a `+` refspec. A push that the remote refuses leaves the records pending and names the state and the sync command to run.
+
+For example, a clone whose records branch was started again, so that it shares no commit with `origin`'s:
+
+```console
+$ phax records status
+Records destination: repo "git@example.com:team/records.git" (local clone: /home/me/.phax/records/team-records)
+Records branch: unrelated to origin's (local a41c0de, origin 3f2a9c1) — run `phax records sync --replay`
+Pending: 3 record(s) across 1 run(s)
+  add-export (phase-01, phase-02, phase-03)
+
+$ phax records sync --replay
+Fetched records into /home/me/.phax/records/team-records
+Replayed 3 record(s) onto origin's tip 3f2a9c1 → new tip 8be40d2 (previous tip a41c0de)
+Push them with the next record, or `git -C /home/me/.phax/records/team-records push origin phax/records/v1`
+```
+
+The next push, whether the next record's or the `git push` printed above, fast-forwards the remote.
+
 ## Providers and security
 
 ### Models and providers

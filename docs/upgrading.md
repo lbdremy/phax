@@ -24,6 +24,14 @@ Only the releases that ask for something are listed. phax never asks for a step 
 ### 0.35.0
 
 - **Commit trailers name no path of the machine.** Phase, interactive and held review commits no longer carry `Worktree` or `Session-Id`, and `Gate-Log` is relative to the run's folder (`phase-02/checks-attempt-01.log`), or `none`. A stop whose commit was written by an older version still closes, and no record or run file changes. A script that read those trailers reads the phase folder instead: `<run>/<phase>/agent-binding.json` for the session, the `checks-attempt-NN.log` files for the gate. See [The phase commit](../README.md#the-phase-commit) for history already written.
+- **Records: `phax records sync` aligns the local records branch.** It creates the branch at the remote's tip when it is missing, fast-forwards it when it is behind, and refuses when it has diverged from the remote's or shares no commit with it. `--replay` recommits the local-only records onto the remote's tip, keeping their trees, messages and authors, and prints the previous tip. phax never forces the branch. See [When the records branch and its remote disagree](../README.md#when-the-records-branch-and-its-remote-disagree).
+- **Records: `phax records sync` works for the in-repo destination.** It fetches the records branch from `publish.remote` and no longer says `nothing to sync`.
+- **Records: `phax records sync --json` gains a required `branch` outcome** (`created`, `fast-forwarded`, `replayed` or `unchanged`) on a `cloned` or `fetched` answer, which also gains `remoteName`. A refusal adds two errors: `RecordsBranchDivergedError` (`reason`, `localTip`, `remoteTip`, `localOnly`, `remedy`) and `RecordsReplayCollisionError` (`key`, `localCommit`, `remoteCommit`). A script that matches the answer's keys exactly adds them.
+- **Records: `phax records status --json` gains a required `branch` object** (`state`, `localTip`, `remoteTip`), between `remote` and `pending`. The text gains a `Records branch:` line with its remedy.
+- **Records: pending counts only local-only records.** On a diverged or unrelated branch, the records the remote already holds are no longer counted.
+- **Records: a refused records push names the branch state and the fix.** When the branch is behind, diverged or unrelated, the message gives the state and `phax records sync` or `phax records sync --replay`, not a plain `git push`. A record is also written on top of the remote's tip as phax last fetched it, so a lagging branch catches up with the write.
+
+Record format, manifests and versions are unchanged. No migration is needed.
 
 ### 0.34.0
 
