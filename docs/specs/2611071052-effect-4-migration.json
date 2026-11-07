@@ -539,7 +539,8 @@
       ]
     }
   ],
-  "openQuestions": [
+  "openQuestions": [],
+  "arbitratedQuestions": [
     {
       "id": "q-ast",
       "question": "Which AST library does the codemod use?",
@@ -566,7 +567,30 @@
         }
       ],
       "recommendation": "ts-morph",
-      "rationale": "codemod-origin needs certainty that a renamed Either or catchAll comes from effect. ts-morph gives that across phax's own re-exports, and the bundled 5.x compiler is enough to resolve imports. The cost of the dependency is paid once, and it leaves with the codemod if q-keep removes it."
+      "rationale": "codemod-origin needs certainty that a renamed Either or catchAll comes from effect. ts-morph gives that across phax's own re-exports, and the bundled 5.x compiler is enough to resolve imports. The cost of the dependency is paid once, and it leaves with the codemod if q-keep removes it.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "ts-morph",
+        "abandoned": [
+          "oxc-parser",
+          "jscodeshift",
+          "registry-fork"
+        ],
+        "why": "codemod-origin needs certainty that a renamed Either or catchAll comes from effect. ts-morph gives that across phax's own re-exports, and the bundled 5.x compiler is enough to resolve imports. The cost of the dependency is paid once, and it leaves with the codemod if q-keep removes it.",
+        "advocate": "The strongest case for oxc-parser: it is already pinned in devDependencies and parses with the same native toolchain as the repository, so the codemod adds no dependency and no second TypeScript compiler, and the few aliased or re-exported symbols it cannot resolve are exactly what the report exists to catch.",
+        "principles": [
+          "S1",
+          "C4"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-07T11:24:15.529Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-reference",
@@ -584,7 +608,28 @@
         }
       ],
       "recommendation": "vendored",
-      "rationale": "The codemod reads v3-to-v4.md as data, and its output must be reproducible from the commit alone. Phase worktrees reliably see only the repository. A one-time size cost is the acceptable loss, and q-keep can remove the vendored copy with the codemod."
+      "rationale": "The codemod reads v3-to-v4.md as data, and its output must be reproducible from the commit alone. Phase worktrees reliably see only the repository. A one-time size cost is the acceptable loss, and q-keep can remove the vendored copy with the codemod.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "vendored",
+        "abandoned": [
+          "state-root"
+        ],
+        "why": "The codemod reads v3-to-v4.md as data, and its output must be reproducible from the commit alone. Phase worktrees reliably see only the repository. A one-time size cost is the acceptable loss, and q-keep can remove the vendored copy with the codemod.",
+        "advocate": "The strongest case for state-root: the reference is someone else's 1.6 MB of text, and keeping it out of the repository leaves git history, formatters, linters and knip untouched, while a setup step can still fetch it at the pinned tag.",
+        "principles": [
+          "S1",
+          "C4"
+        ],
+        "reversibility": "costly",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-07T11:24:15.529Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-skills",
@@ -602,7 +647,28 @@
         }
       ],
       "recommendation": "own-cite",
-      "rationale": "Three of the official skill's mechanisms (network clones, sub-agents, manual-only invocation) contradict the settled direction. Its discipline is the part worth keeping, and quoting it keeps that. The migration is a one-time event, so drift from upstream does not matter."
+      "rationale": "Three of the official skill's mechanisms (network clones, sub-agents, manual-only invocation) contradict the settled direction. Its discipline is the part worth keeping, and quoting it keeps that. The migration is a one-time event, so drift from upstream does not matter.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "own-cite",
+        "abandoned": [
+          "vendor-adapt"
+        ],
+        "why": "Three of the official skill's mechanisms (network clones, sub-agents, manual-only invocation) contradict the settled direction. Its discipline is the part worth keeping, and quoting it keeps that. The migration is a one-time event, so drift from upstream does not matter.",
+        "advocate": "The strongest case for vendor-adapt: a vendored copy keeps the official skill's wording and structure as a visible baseline, so a reviewer can diff phax's adaptations against upstream and see exactly what was changed and why.",
+        "principles": [
+          "S1",
+          "S4"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-07T11:24:15.529Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-keep",
@@ -620,7 +686,28 @@
         }
       ],
       "recommendation": "remove-at-end",
-      "rationale": "Once no v3 symbol is left, the codemod has nothing to rewrite. Its value is the record it left behind (the commit bodies and the report), and git keeps the script for anyone who wants to reproduce it."
+      "rationale": "Once no v3 symbol is left, the codemod has nothing to rewrite. Its value is the record it left behind (the commit bodies and the report), and git keeps the script for anyone who wants to reproduce it.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "remove-at-end",
+        "abandoned": [
+          "keep"
+        ],
+        "why": "Once no v3 symbol is left, the codemod has nothing to rewrite. Its value is the record it left behind (the commit bodies and the report), and git keeps the script for anyone who wants to reproduce it.",
+        "advocate": "The strongest case for keep: with the codemod and reference in the tree, anyone can re-run the migration on a branch that still holds Effect 3 code, such as a long-lived fork or a late-merged pull request, without digging through history.",
+        "principles": [
+          "S1",
+          "S5"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-07T11:24:15.529Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-releases",
@@ -638,7 +725,28 @@
         }
       ],
       "recommendation": "one-release",
-      "rationale": "The package and phax share their schema sources and their version number, so a split is impossible without the dual install the settled direction forbids. A large release is the acceptable loss."
+      "rationale": "The package and phax share their schema sources and their version number, so a split is impossible without the dual install the settled direction forbids. A large release is the acceptable loss.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "one-release",
+        "abandoned": [
+          "phax-first"
+        ],
+        "why": "The package and phax share their schema sources and their version number, so a split is impossible without the dual install the settled direction forbids. A large release is the acceptable loss.",
+        "advocate": "The strongest case for phax-first: shipping phax alone gets a smaller release out sooner and lets the Effect 4 runtime be proven in the field before package consumers are asked to move.",
+        "principles": [
+          "S1",
+          "S4"
+        ],
+        "reversibility": "costly",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-07T11:24:15.529Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-green",
@@ -661,7 +769,29 @@
         }
       ],
       "recommendation": "ratchet",
-      "rationale": "Only the ratchet keeps both settled rules, phases that follow skills and no compatibility layer. The behaviour corpus and the untouched test expectations make the terminal check:full a full proof, so late test evidence is the acceptable loss."
+      "rationale": "Only the ratchet keeps both settled rules, phases that follow skills and no compatibility layer. The behaviour corpus and the untouched test expectations make the terminal check:full a full proof, so late test evidence is the acceptable loss.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "ratchet",
+        "abandoned": [
+          "single-phase",
+          "dual-install"
+        ],
+        "why": "Only the ratchet keeps both settled rules, phases that follow skills and no compatibility layer. The behaviour corpus and the untouched test expectations make the terminal check:full a full proof, so late test evidence is the acceptable loss.",
+        "advocate": "The strongest case for dual-install: running both Effect versions side by side keeps the full test suite green after every file, so each phase carries real behavioural evidence instead of a falling error count.",
+        "principles": [
+          "S1",
+          "C4"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-07T11:24:15.529Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-snapshots",
@@ -684,10 +814,31 @@
         }
       ],
       "recommendation": "equivalence",
-      "rationale": "Consumers rely on which documents a schema accepts and on published URLs that never change; equivalence keeps both, needs no translator back to Effect 3 and moves no stamp. Bumping every format was weighed and set aside: an older phax refuses a file stamped newer than itself, so every file written after the migration would become unreadable to it, for 41 formats whose documents did not change."
+      "rationale": "Consumers rely on which documents a schema accepts and on published URLs that never change; equivalence keeps both, needs no translator back to Effect 3 and moves no stamp. Bumping every format was weighed and set aside: an older phax refuses a file stamped newer than itself, so every file written after the migration would become unreadable to it, for 41 formats whose documents did not change.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "equivalence",
+        "abandoned": [
+          "rerecord-latest",
+          "normalize"
+        ],
+        "why": "The text change is the 2026-10-07 spike's finding, not yet measured on 4.1: the first migration phase diffs the Effect 4 generator's output (draft-07 target) against the released snapshots, parsed and annotations aside, and records what differs.",
+        "advocate": "The strongest case for rerecord-latest: comparing by text keeps the schemas check exact to the character, so any real format change is caught without depending on how complete the behaviour corpus is, and the one-time re-record is named openly in docs/upgrading.md.",
+        "principles": [
+          "S1",
+          "C3"
+        ],
+        "reversibility": "costly",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-07T11:24:15.529Z",
+        "revised": []
+      },
+      "history": []
     }
   ],
-  "arbitratedQuestions": [],
   "planningNote": {
     "settled": [
       "Hybrid: the codemod does the mechanical rewrites, and no phase hand-applies a rename a codemod rule covers.",

@@ -395,6 +395,10 @@ Given the migrated tree, when CLAUDE.md and .claude/skills/ are searched for Eff
 
 ## 9. Open questions
 
+None.
+
+## 9b. Arbitrated questions
+
 ### q-ast — Which AST library does the codemod use?
 
 - ts-morph — ts-morph, type-aware: it resolves an identifier to the effect package before rewriting it — abandons: Using the repository's own compiler: ts-morph bundles a TypeScript 5.x compiler beside the native TypeScript 7 the repository builds with, and it is a heavy new devDependency.
@@ -404,12 +408,18 @@ Given the migrated tree, when CLAUDE.md and .claude/skills/ are searched for Eff
 
 Recommendation: ts-morph — codemod-origin needs certainty that a renamed Either or catchAll comes from effect. ts-morph gives that across phax's own re-exports, and the bundled 5.x compiler is enough to resolve imports. The cost of the dependency is paid once, and it leaves with the codemod if q-keep removes it.
 
+Decision: ts-morph — by operator (Rémy Loubradou), 2026-11-07
+Why: codemod-origin needs certainty that a renamed Either or catchAll comes from effect. ts-morph gives that across phax's own re-exports, and the bundled 5.x compiler is enough to resolve imports. The cost of the dependency is paid once, and it leaves with the codemod if q-keep removes it. Advocate: The strongest case for oxc-parser: it is already pinned in devDependencies and parses with the same native toolchain as the repository, so the codemod adds no dependency and no second TypeScript compiler, and the few aliased or re-exported symbols it cannot resolve are exactly what the report exists to catch. Principles: S1, C4. Reversibility: cheap. Revised: none.
+
 ### q-reference — Where does the reference live for phase sessions?
 
 - vendored — Vendored in the repository at the pinned tag, with a SOURCE file naming the tag, commit and licence — abandons: A lean repository: about 1.6 MB of Effect's text in git history for good, and paths that format, lint and knip must ignore.
 - state-root — Fetched outside the run into phax's state root by a setup step, and read from there — abandons: Reproducibility from the tree: the codemod and the reviewer depend on a file outside the repository that a session's sandbox may not reach and a reviewer cannot diff.
 
 Recommendation: vendored — The codemod reads v3-to-v4.md as data, and its output must be reproducible from the commit alone. Phase worktrees reliably see only the repository. A one-time size cost is the acceptable loss, and q-keep can remove the vendored copy with the codemod.
+
+Decision: vendored — by operator (Rémy Loubradou), 2026-11-07
+Why: The codemod reads v3-to-v4.md as data, and its output must be reproducible from the commit alone. Phase worktrees reliably see only the repository. A one-time size cost is the acceptable loss, and q-keep can remove the vendored copy with the codemod. Advocate: The strongest case for state-root: the reference is someone else's 1.6 MB of text, and keeping it out of the repository leaves git history, formatters, linters and knip untouched, while a setup step can still fetch it at the pinned tag. Principles: S1, C4. Reversibility: costly. Revised: none.
 
 ### q-skills — Are the migration skills the official skill vendored and adapted, or phax's own skills that cite it?
 
@@ -418,6 +428,9 @@ Recommendation: vendored — The codemod reads v3-to-v4.md as data, and its outp
 
 Recommendation: own-cite — Three of the official skill's mechanisms (network clones, sub-agents, manual-only invocation) contradict the settled direction. Its discipline is the part worth keeping, and quoting it keeps that. The migration is a one-time event, so drift from upstream does not matter.
 
+Decision: own-cite — by operator (Rémy Loubradou), 2026-11-07
+Why: Three of the official skill's mechanisms (network clones, sub-agents, manual-only invocation) contradict the settled direction. Its discipline is the part worth keeping, and quoting it keeps that. The migration is a one-time event, so drift from upstream does not matter. Advocate: The strongest case for vendor-adapt: a vendored copy keeps the official skill's wording and structure as a visible baseline, so a reviewer can diff phax's adaptations against upstream and see exactly what was changed and why. Principles: S1, S4. Reversibility: cheap. Revised: none.
+
 ### q-keep — Does the codemod stay in the repository after the migration?
 
 - remove-at-end — The last migration plan removes the codemod, its devDependency and the vendored reference — abandons: Re-running the migration from the tree: the script and reference survive only in git history and in the commit bodies that record their numbers.
@@ -425,12 +438,18 @@ Recommendation: own-cite — Three of the official skill's mechanisms (network c
 
 Recommendation: remove-at-end — Once no v3 symbol is left, the codemod has nothing to rewrite. Its value is the record it left behind (the commit bodies and the report), and git keeps the script for anyone who wants to reproduce it.
 
+Decision: remove-at-end — by operator (Rémy Loubradou), 2026-11-07
+Why: Once no v3 symbol is left, the codemod has nothing to rewrite. Its value is the record it left behind (the commit bodies and the report), and git keeps the script for anyone who wants to reproduce it. Advocate: The strongest case for keep: with the codemod and reference in the tree, anyone can re-run the migration on a branch that still holds Effect 3 code, such as a long-lived fork or a late-merged pull request, without digging through history. Principles: S1, S5. Reversibility: cheap. Revised: none.
+
 ### q-releases — Does the migration ship in one release or several?
 
 - one-release — One release moves phax and @lbdremy/phax-schemas together — abandons: A smaller first step: the whole migration, around 4,400 type errors, must land before anything ships.
 - phax-first — phax ships on Effect 4 first, and the package follows in a later release — abandons: The one-version rule and the shared sources: the package is built from phax's schema files, so shipping it on Effect 3 would mean two Effect versions, or two copies of the schemas, in one tree.
 
 Recommendation: one-release — The package and phax share their schema sources and their version number, so a split is impossible without the dual install the settled direction forbids. A large release is the acceptable loss.
+
+Decision: one-release — by operator (Rémy Loubradou), 2026-11-07
+Why: The package and phax share their schema sources and their version number, so a split is impossible without the dual install the settled direction forbids. A large release is the acceptable loss. Advocate: The strongest case for phax-first: shipping phax alone gets a smaller release out sooner and lets the Effect 4 runtime be proven in the field before package consumers are asked to move. Principles: S1, S4. Reversibility: costly. Revised: none.
 
 ### q-green — How does a run stay green when a type error in src breaks every test at once?
 
@@ -440,6 +459,9 @@ Recommendation: one-release — The package and phax share their schema sources 
 
 Recommendation: ratchet — Only the ratchet keeps both settled rules, phases that follow skills and no compatibility layer. The behaviour corpus and the untouched test expectations make the terminal check:full a full proof, so late test evidence is the acceptable loss.
 
+Decision: ratchet — by operator (Rémy Loubradou), 2026-11-07
+Why: Only the ratchet keeps both settled rules, phases that follow skills and no compatibility layer. The behaviour corpus and the untouched test expectations make the terminal check:full a full proof, so late test evidence is the acceptable loss. Advocate: The strongest case for dual-install: running both Effect versions side by side keeps the full test suite green after every file, so each phase carries real behavioural evidence instead of a falling error count. Principles: S1, C4. Reversibility: cheap. Revised: none.
+
 ### q-snapshots — Effect 4's generator changes the text of every JSON Schema. How is that kept from moving every format's stamp?
 
 - rerecord-latest — Re-record each format's latest released snapshot from Effect 4 once, proven equivalent by the ajv corpus check, and name it in docs/upgrading.md — abandons: The rule that a released snapshot never changes: for one release, json/ files and snapshots differ in text from what 0.36.0 shipped.
@@ -448,9 +470,8 @@ Recommendation: ratchet — Only the ratchet keeps both settled rules, phases th
 
 Recommendation: equivalence — Consumers rely on which documents a schema accepts and on published URLs that never change; equivalence keeps both, needs no translator back to Effect 3 and moves no stamp. Bumping every format was weighed and set aside: an older phax refuses a file stamped newer than itself, so every file written after the migration would become unreadable to it, for 41 formats whose documents did not change.
 
-## 9b. Arbitrated questions
-
-None.
+Decision: equivalence — by operator (Rémy Loubradou), 2026-11-07
+Why: The text change is the 2026-10-07 spike's finding, not yet measured on 4.1: the first migration phase diffs the Effect 4 generator's output (draft-07 target) against the released snapshots, parsed and annotations aside, and records what differs. Advocate: The strongest case for rerecord-latest: comparing by text keeps the schemas check exact to the character, so any real format change is caught without depending on how complete the behaviour corpus is, and the one-time re-record is named openly in docs/upgrading.md. Principles: S1, C3. Reversibility: costly. Revised: none.
 
 ## 10. Implementation-planning note
 
@@ -484,3 +505,13 @@ Constraints:
 ## 11. Docs page
 
 None — The migration changes no command, config key or file a reader uses. What a consumer needs (the package's Schema values are now Effect 4 values) goes in docs/upgrading.md and the package README, both covered by consumers-told.
+
+## 12. Decision log
+
+- 2026-11-07 q-ast decided ts-morph — operator (Rémy Loubradou)
+- 2026-11-07 q-reference decided vendored — operator (Rémy Loubradou)
+- 2026-11-07 q-skills decided own-cite — operator (Rémy Loubradou)
+- 2026-11-07 q-keep decided remove-at-end — operator (Rémy Loubradou)
+- 2026-11-07 q-releases decided one-release — operator (Rémy Loubradou)
+- 2026-11-07 q-green decided ratchet — operator (Rémy Loubradou)
+- 2026-11-07 q-snapshots decided equivalence — operator (Rémy Loubradou)
