@@ -1,13 +1,14 @@
 import { Effect, Either } from "effect";
 import { decodeBranchName, type BranchName } from "../domain/branded.js";
 import {
-  findReplayCollision,
+  planReplay,
   recordKeysOf,
   recordsSyncActionFor,
+  type CommitKeys,
   type RecordsBranchState,
 } from "../domain/records/branchState.js";
 import type { FileSystem, FsError } from "../ports/fs.js";
-import { Git, type GitError } from "../ports/git.js";
+import { Git, type CommitFiles, type GitError } from "../ports/git.js";
 import type { ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
 import { ORIGIN, RECORDS_BRANCH_NAME, readRecordsBranch } from "./recordsBranch.js";
 import { reconcileRecordsSync } from "./recordsSync.js";
@@ -34,6 +35,10 @@ export type RecordsBranchOutcome =
   | {
       readonly kind: "replayed";
       readonly count: number;
+      /** Local-only records left out because the remote holds the same record, file for file. */
+      readonly skipped: number;
+      /** Keys replayed although the remote holds that key with other content; readers take the newest. */
+      readonly sharedKeys: readonly string[];
       readonly previousTip: string;
       readonly newTip: string;
       readonly remoteTip: string;
@@ -69,14 +74,6 @@ export type RecordsBranchSyncResult =
       readonly remoteTip: string;
       readonly localOnly: number;
       readonly remedy: "phax records sync --replay";
-    }
-  | {
-      readonly kind: "replay-collision";
-      readonly path: string;
-      readonly remote: string;
-      readonly key: string;
-      readonly localCommit: string;
-      readonly remoteCommit: string;
     };
 
 /**
@@ -136,11 +133,10 @@ export function syncRecordsBranch(
         const onto = remoteTip ?? "";
         const localOnly = keyed(yield* git.listCommitFiles(repo, localTip, onto));
         const remoteSide = keyed(yield* git.listCommitFiles(repo, onto, null));
-        const collision = findReplayCollision(localOnly, remoteSide);
-        if (collision !== null) return { kind: "replay-collision", path, remote, ...collision };
+        const plan = planReplay(localOnly, remoteSide);
         // Every new commit is written before the branch moves, then it moves once.
         let newTip = onto;
-        for (const commit of localOnly) newTip = yield* git.recommit(repo, commit.sha, newTip);
+        for (const sha of plan.replay) newTip = yield* git.recommit(repo, sha, newTip);
         yield* git.updateRef(repo, BRANCH_REF, newTip, localTip);
         return {
           kind,
@@ -148,7 +144,9 @@ export function syncRecordsBranch(
           remote,
           branch: {
             kind: "replayed",
-            count: localOnly.length,
+            count: plan.replay.length,
+            skipped: plan.skipped.length,
+            sharedKeys: plan.sharedKeys,
             previousTip: localTip,
             newTip,
             remoteTip: onto,
@@ -159,10 +157,12 @@ export function syncRecordsBranch(
   });
 }
 
-function keyed(
-  commits: readonly { readonly sha: string; readonly paths: readonly string[] }[],
-): readonly { readonly sha: string; readonly keys: readonly string[] }[] {
-  return commits.map((commit) => ({ sha: commit.sha, keys: recordKeysOf(commit.paths) }));
+function keyed(commits: readonly CommitFiles[]): readonly CommitKeys[] {
+  return commits.map((commit) => ({
+    sha: commit.sha,
+    tree: commit.tree,
+    keys: recordKeysOf(commit.paths),
+  }));
 }
 
 type Fetched =

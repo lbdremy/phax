@@ -168,6 +168,18 @@ describe("phax records status reports the branch state", () => {
     });
   }
 
+  it("names phax records sync, not 'all pushed', before anything was written or fetched", async () => {
+    const world = await newWorld();
+
+    const text = runStatus(world, false);
+
+    expect(text).toContain(
+      "Records branch: none here and none fetched from origin — run `phax records sync`",
+    );
+    expect(text).toContain("No record written here yet.");
+    expect(text).not.toContain("All records are pushed");
+  });
+
   // ac-status-pending
   it("counts only the local-only records of a diverged branch sharing 300 with the remote", async () => {
     const world = await newWorld(300);

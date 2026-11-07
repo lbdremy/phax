@@ -67,6 +67,18 @@ describe("phax records sync prints what it did to the records branch", () => {
     ]);
   });
 
+  it("says nothing was replayed when --replay meets a branch that has not split", async () => {
+    const world = await newWorld({ remoteRecords: 3 });
+    await putBranchBehind(world, { newRecords: 1 });
+
+    const result = sync(world, "--replay");
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(linesOf(result.stdout).at(-1)).toBe(
+      "Nothing to replay: the records branch has not split from its remote's",
+    );
+  });
+
   it("prints the two normative refusal lines for an unrelated branch, then the replay with the previous tip", async () => {
     const world = await newWorld();
     await putBranchUnrelated(world, { localOnly: 3 });

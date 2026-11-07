@@ -5,7 +5,7 @@ import type { Stats } from "node:fs";
 import { lstat, mkdtemp, readlink, realpath, rm, rmdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve as resolvePath, sep } from "node:path";
-import { Git, GitError, type GitTreeEntry } from "../ports/git.js";
+import { Git, GitError, type GitTreeEntry, type CommitFiles } from "../ports/git.js";
 import type {
   ObservedEntry,
   ObservedLink,
@@ -158,20 +158,55 @@ function parseCommitObject(
   });
 }
 
-const LIST_MARKER = "\u0001phax-commit ";
-
-function parseCommitFiles(
-  stdout: string,
-): readonly { readonly sha: string; readonly paths: readonly string[] }[] {
-  const commits: { sha: string; paths: string[] }[] = [];
-  for (const line of stdout.split("\n")) {
-    if (line.startsWith(LIST_MARKER)) {
-      commits.push({ sha: line.slice(LIST_MARKER.length).trim(), paths: [] });
-    } else if (line.length > 0) {
-      commits[commits.length - 1]?.paths.push(line);
+// Every commit of `tip` not reachable from `exclude`, oldest first, with every
+// path of its own tree. Two git processes, whatever the history's length: `log`
+// lists the commits and their trees, then one `diff-tree --stdin` compares each
+// tree with the empty tree, so a commit lists its whole tree rather than its
+// diff against its parent (a record identical to its parent's would list
+// nothing). The config that could change the parsed output is pinned.
+function listCommitFilesEffect(
+  repo: string,
+  tip: string,
+  exclude: string | null,
+): Effect.Effect<readonly CommitFiles[], GitError> {
+  return Effect.gen(function* () {
+    const { stdout: listed } = yield* gitRun(
+      [
+        "log",
+        "--no-show-signature",
+        "--reverse",
+        "--format=%H %T",
+        ...(exclude === null ? [tip] : [tip, `^${exclude}`]),
+        "--",
+      ],
+      repo,
+    );
+    const commits = listed
+      .split("\n")
+      .filter((line) => line.length > 0)
+      .map((line) => {
+        const [sha = "", tree = ""] = line.split(" ");
+        return { sha, tree };
+      });
+    if (commits.length === 0) return [];
+    const { stdout: emptyTree } = yield* gitRun(["hash-object", "-t", "tree", "--stdin"], repo, {
+      input: "",
+    });
+    const empty = emptyTree.trim();
+    const { stdout: diffed } = yield* gitRun(
+      ["-c", "core.quotePath=false", "diff-tree", "--stdin", "-r", "--name-only", "--no-renames"],
+      repo,
+      { input: `${commits.map((c) => `${empty} ${c.tree}`).join("\n")}\n` },
+    );
+    // diff-tree echoes each input pair, then that tree's paths, in input order.
+    const paths: string[][] = [];
+    for (const line of diffed.split("\n")) {
+      if (line.length === 0) continue;
+      if (line.startsWith(`${empty} `)) paths.push([]);
+      else paths[paths.length - 1]?.push(line);
     }
-  }
-  return commits;
+    return commits.map((c, i) => ({ sha: c.sha, tree: c.tree, paths: paths[i] ?? [] }));
+  });
 }
 
 // Write `files` as one commit on `branch`, driving a throwaway index through
@@ -966,31 +1001,7 @@ export const NodeGitLayer = Layer.succeed(Git, {
       }),
     ),
 
-  listCommitFiles: (repo, tip, exclude) =>
-    gitRun(
-      [
-        // Pin what the user's config could change in the parsed output: a root
-        // commit's paths (a first record), unquoted non-ASCII paths, and no
-        // signature lines among the paths.
-        "-c",
-        "log.showRoot=true",
-        "-c",
-        "core.quotePath=false",
-        "log",
-        "--no-show-signature",
-        "--reverse",
-        "--no-renames",
-        // Each record commit's tree holds only its own files, so against its
-        // parent the paths it adds or rewrites are its own; the deletions of
-        // the previous commit's files are not.
-        "--diff-filter=AM",
-        `--format=${LIST_MARKER}%H`,
-        "--name-only",
-        ...(exclude === null ? [tip] : [tip, `^${exclude}`]),
-        "--",
-      ],
-      repo,
-    ).pipe(Effect.map(({ stdout }) => parseCommitFiles(stdout))),
+  listCommitFiles: (repo, tip, exclude) => listCommitFilesEffect(repo, tip, exclude),
 
   recommit: (repo, commit, parent) =>
     Effect.gen(function* () {

@@ -53,6 +53,13 @@ export interface WriteTreeCommitInput {
   readonly expectedTip: string | null;
 }
 
+/** A commit, its tree, and every path its tree holds. */
+export interface CommitFiles {
+  readonly sha: string;
+  readonly tree: string;
+  readonly paths: readonly string[];
+}
+
 export interface GitOps {
   isClean(repo: string): Effect.Effect<boolean, GitError>;
   currentBranch(repo: string): Effect.Effect<BranchName, GitError>;
@@ -106,17 +113,15 @@ export interface GitOps {
   mergeBase(repo: string, a: string, b: string): Effect.Effect<string | null, GitError>;
   /**
    * Every commit reachable from `tip` and not from `exclude` (all of `tip`'s
-   * history when `exclude` is null), oldest first, each with the paths of its
-   * own tree. A commit with an empty tree has no paths.
+   * history when `exclude` is null), oldest first, each with its tree id and
+   * every path of its tree (not its diff against its parent). A commit with an
+   * empty tree has no paths.
    */
   listCommitFiles(
     repo: string,
     tip: string,
     exclude: string | null,
-  ): Effect.Effect<
-    readonly { readonly sha: string; readonly paths: readonly string[] }[],
-    GitError
-  >;
+  ): Effect.Effect<readonly CommitFiles[], GitError>;
   /**
    * A new commit with `commit`'s tree, message bytes and author name, email and
    * date, parented on `parent`. Only the parent, the committer and the sha

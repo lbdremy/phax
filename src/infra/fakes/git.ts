@@ -7,6 +7,7 @@ import {
   type GitTreeEntry,
   type GitWorktreeEntry,
   type WriteTreeCommitInput,
+  type CommitFiles,
 } from "../../ports/git.js";
 import type { ChangedPath } from "../../domain/interactive/worktreeChange.js";
 import type { NameStatusEntry } from "../../domain/reconciliation/types.js";
@@ -490,20 +491,17 @@ export class FakeGitImpl implements GitOps {
     repo: string,
     tip: string,
     exclude: string | null,
-  ): Effect.Effect<
-    readonly { readonly sha: string; readonly paths: readonly string[] }[],
-    GitError
-  > {
+  ): Effect.Effect<readonly CommitFiles[], GitError> {
     this.calls.push({ method: "listCommitFiles", repo, tip, exclude });
     const excluded = new Set(exclude === null ? [] : this.ancestorsOf(exclude));
     return Effect.succeed(
       this.ancestorsOf(tip)
         .filter((sha) => !excluded.has(sha))
         .toReversed()
-        .map((sha) => ({
-          sha,
-          paths: (this.fakeTrees.get(this.fakeCommits.get(sha)!.tree) ?? []).map((e) => e.path),
-        })),
+        .map((sha) => {
+          const tree = this.fakeCommits.get(sha)!.tree;
+          return { sha, tree, paths: (this.fakeTrees.get(tree) ?? []).map((e) => e.path) };
+        }),
     );
   }
 

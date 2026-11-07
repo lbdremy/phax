@@ -184,6 +184,18 @@ describe.each([
       expect(listed[2]!.paths).toEqual(["k3/record.json"]);
     });
 
+    it("lists a commit's whole tree and its tree id, even a tree identical to its parent's", async () => {
+      const c1 = world.makeCommit({ parent: null, paths: ["review/r1/record.json"] });
+      const c2 = world.makeCommit({ parent: c1, paths: ["review/r1/record.json"] });
+      const listed = await world.run((g) => g.listCommitFiles(world.repo, c2, null));
+      expect(listed.map((c) => c.paths)).toEqual([
+        ["review/r1/record.json"],
+        ["review/r1/record.json"],
+      ]);
+      expect(listed[0]!.tree).toBe(listed[1]!.tree);
+      expect(listed[0]!.tree).toMatch(/\S/);
+    });
+
     it("leaves out what the excluded commit reaches", async () => {
       const c1 = world.makeCommit({ parent: null, paths: ["k1/record.json"] });
       const c2 = world.makeCommit({ parent: c1, paths: ["k2/record.json"] });
