@@ -51,69 +51,69 @@ function expectSettled(ruleId: string): void {
 }
 
 describe("effect4 codemod rules: each fixture rewrites to its expected output", () => {
-  it.fails("either-to-result rewrites its input to its expected output", () => {
+  it("either-to-result rewrites its input to its expected output", () => {
     expectRewrite("either-to-result");
   });
 
-  it.fails("effect-either rewrites its input to its expected output", () => {
+  it("effect-either rewrites its input to its expected output", () => {
     expectRewrite("effect-either");
   });
 
-  it.fails("schema-decode-either rewrites its input to its expected output", () => {
+  it("schema-decode-either rewrites its input to its expected output", () => {
     expectRewrite("schema-decode-either");
   });
 
-  it.fails("context-tag rewrites its input to its expected output", () => {
+  it("context-tag rewrites its input to its expected output", () => {
     expectRewrite("context-tag");
   });
 
-  it.fails("schema-filters rewrites its input to its expected output", () => {
+  it("schema-filters rewrites its input to its expected output", () => {
     expectRewrite("schema-filters");
   });
 
-  it.fails("schema-optional-with rewrites its input to its expected output", () => {
+  it("schema-optional-with rewrites its input to its expected output", () => {
     expectRewrite("schema-optional-with");
   });
 
-  it.fails("catch-all rewrites its input to its expected output", () => {
+  it("catch-all rewrites its input to its expected output", () => {
     expectRewrite("catch-all");
   });
 
-  it.fails("parse-result-issues rewrites its input to its expected output", () => {
+  it("parse-result-issues rewrites its input to its expected output", () => {
     expectRewrite("parse-result-issues");
   });
 });
 
 describe("effect4 codemod rules: a rewritten file comes back unchanged", () => {
-  it.fails("either-to-result changes nothing in its own output", () => {
+  it("either-to-result changes nothing in its own output", () => {
     expectSettled("either-to-result");
   });
 
-  it.fails("effect-either changes nothing in its own output", () => {
+  it("effect-either changes nothing in its own output", () => {
     expectSettled("effect-either");
   });
 
-  it.fails("schema-decode-either changes nothing in its own output", () => {
+  it("schema-decode-either changes nothing in its own output", () => {
     expectSettled("schema-decode-either");
   });
 
-  it.fails("context-tag changes nothing in its own output", () => {
+  it("context-tag changes nothing in its own output", () => {
     expectSettled("context-tag");
   });
 
-  it.fails("schema-filters changes nothing in its own output", () => {
+  it("schema-filters changes nothing in its own output", () => {
     expectSettled("schema-filters");
   });
 
-  it.fails("schema-optional-with changes nothing in its own output", () => {
+  it("schema-optional-with changes nothing in its own output", () => {
     expectSettled("schema-optional-with");
   });
 
-  it.fails("catch-all changes nothing in its own output", () => {
+  it("catch-all changes nothing in its own output", () => {
     expectSettled("catch-all");
   });
 
-  it.fails("parse-result-issues changes nothing in its own output", () => {
+  it("parse-result-issues changes nothing in its own output", () => {
     expectSettled("parse-result-issues");
   });
 });
@@ -155,12 +155,12 @@ const PLANNED_MAPPINGS: ReadonlyArray<{
 ];
 
 describe("effect4 codemod rules: the rule table", () => {
-  it.fails("the rule ids are the rule fixture directories", () => {
+  it("the rule ids are the rule fixture directories", () => {
     const directories = readdirSync(`${repoRoot}${rulesFixtures}`).toSorted();
     expect(RULES.map((rule) => rule.id).toSorted()).toEqual(directories);
   });
 
-  it.fails("every mapping's line in the vendored v3-to-v4.md holds its v3 symbol's entry", () => {
+  it("every mapping's line in the vendored v3-to-v4.md holds its v3 symbol's entry", () => {
     const lines = readRepoFile(referencePath).split("\n");
     const mappings = RULES.flatMap((rule) =>
       rule.mappings.map((mapping) => ({ rule: rule.id, ...mapping })),
@@ -173,7 +173,7 @@ describe("effect4 codemod rules: the rule table", () => {
     expect(misplaced).toEqual([]);
   });
 
-  it.fails("every planned mapping is in its rule, with its verified line", () => {
+  it("every planned mapping is in its rule, with its verified line", () => {
     const mappings = RULES.flatMap((rule) =>
       rule.mappings.map((mapping) => ({
         rule: rule.id,
