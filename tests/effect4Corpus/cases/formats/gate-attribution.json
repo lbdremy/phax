@@ -1,0 +1,1718 @@
+{
+  "format": "gate-attribution",
+  "current": [
+    {
+      "name": "accepts a typical document",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-attribution/0.33.0.json",
+        "phase": "phase-01",
+        "steps": [
+          {
+            "command": "pnpm typecheck",
+            "surface": "structural",
+            "result": "pass"
+          },
+          {
+            "command": "pnpm test",
+            "surface": "local",
+            "result": "fail"
+          }
+        ],
+        "protectedPaths": null
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.33.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.33.0.json",
+          "phase": "phase-01",
+          "protectedPaths": null,
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "result": "pass",
+              "surface": "structural"
+            },
+            {
+              "command": "pnpm test",
+              "result": "fail",
+              "surface": "local"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "accepts a document setting every field",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-attribution/0.33.0.json",
+        "phase": "phase-01",
+        "steps": [
+          {
+            "command": "pnpm typecheck",
+            "surface": "structural",
+            "result": "pass"
+          }
+        ],
+        "protectedPaths": {
+          "result": "fail",
+          "changes": [
+            {
+              "path": "text-3",
+              "kind": "created",
+              "entry": "text-4"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.33.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.33.0.json",
+          "phase": "phase-01",
+          "protectedPaths": {
+            "changes": [
+              {
+                "entry": "text-4",
+                "kind": "created",
+                "path": "text-3"
+              }
+            ],
+            "result": "fail"
+          },
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "result": "pass",
+              "surface": "structural"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "accepts a document with only its required fields",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-attribution/0.33.0.json",
+        "phase": "phase-01",
+        "steps": [
+          {
+            "command": "pnpm typecheck",
+            "surface": "structural",
+            "result": "pass"
+          }
+        ],
+        "protectedPaths": {
+          "result": "fail",
+          "changes": [
+            {
+              "path": "text-3",
+              "kind": "created",
+              "entry": "text-4"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.33.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.33.0.json",
+          "phase": "phase-01",
+          "protectedPaths": {
+            "changes": [
+              {
+                "entry": "text-4",
+                "kind": "created",
+                "path": "text-3"
+              }
+            ],
+            "result": "fail"
+          },
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "result": "pass",
+              "surface": "structural"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "refuses a document that is not an object",
+      "input": [
+        "not",
+        "an",
+        "object"
+      ],
+      "expected": {
+        "ok": false,
+        "refusal": ": a gate attribution is a JSON object, got an array"
+      }
+    },
+    {
+      "name": "refuses a stamp naming another format",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/registry/0.17.0.json",
+        "phase": "phase-01",
+        "steps": [
+          {
+            "command": "pnpm typecheck",
+            "surface": "structural",
+            "result": "pass"
+          },
+          {
+            "command": "pnpm test",
+            "surface": "local",
+            "result": "fail"
+          }
+        ],
+        "protectedPaths": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: https://docs.phax.run/schemas/registry/0.17.0.json is a registry document, not a gate-attribution"
+      }
+    },
+    {
+      "name": "refuses a malformed $schema",
+      "input": {
+        "$schema": "not a schema url",
+        "phase": "phase-01",
+        "steps": [
+          {
+            "command": "pnpm typecheck",
+            "surface": "structural",
+            "result": "pass"
+          },
+          {
+            "command": "pnpm test",
+            "surface": "local",
+            "result": "fail"
+          }
+        ],
+        "protectedPaths": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: expected https://docs.phax.run/schemas/<format-id>/<X.Y.Z>.json, got \"not a schema url\""
+      }
+    },
+    {
+      "name": "refuses a stamp newer than the package",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-attribution/9.0.0.json",
+        "phase": "phase-01",
+        "steps": [
+          {
+            "command": "pnpm typecheck",
+            "surface": "structural",
+            "result": "pass"
+          },
+          {
+            "command": "pnpm test",
+            "surface": "local",
+            "result": "fail"
+          }
+        ],
+        "protectedPaths": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: gate-attribution 9.0.0 is newer than @lbdremy/phax-schemas 0.36.0 — upgrade the package"
+      }
+    },
+    {
+      "name": "refuses a stamp below the first supported release",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-attribution/0.1.0.json",
+        "phase": "phase-01",
+        "steps": [
+          {
+            "command": "pnpm typecheck",
+            "surface": "structural",
+            "result": "pass"
+          },
+          {
+            "command": "pnpm test",
+            "surface": "local",
+            "result": "fail"
+          }
+        ],
+        "protectedPaths": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: https://docs.phax.run/schemas/gate-attribution/0.1.0.json was written by a development build of phax before 0.17.0, the first supported release — not supported"
+      }
+    },
+    {
+      "name": "reads a document written before $schema",
+      "input": {
+        "phase": "phase-01",
+        "steps": [
+          {
+            "command": "pnpm typecheck",
+            "surface": "structural",
+            "result": "pass"
+          },
+          {
+            "command": "pnpm test",
+            "surface": "local",
+            "result": "fail"
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "shape": "pre-schema",
+        "value": {
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "result": "pass",
+              "surface": "structural"
+            },
+            {
+              "command": "pnpm test",
+              "result": "fail",
+              "surface": "local"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "refuses a pre-schema document missing a key",
+      "input": {
+        "steps": [
+          {
+            "command": "pnpm typecheck",
+            "surface": "structural",
+            "result": "pass"
+          },
+          {
+            "command": "pnpm test",
+            "surface": "local",
+            "result": "fail"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "phase: gate attribution older than phax 0.17.0, the first supported release — not supported (is missing)"
+      }
+    },
+    {
+      "name": "refuses a document missing phase",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-attribution/0.33.0.json",
+        "steps": [
+          {
+            "command": "pnpm typecheck",
+            "surface": "structural",
+            "result": "pass"
+          },
+          {
+            "command": "pnpm test",
+            "surface": "local",
+            "result": "fail"
+          }
+        ],
+        "protectedPaths": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "phase: is missing"
+      }
+    },
+    {
+      "name": "refuses phase of the wrong type",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-attribution/0.33.0.json",
+        "phase": 42,
+        "steps": [
+          {
+            "command": "pnpm typecheck",
+            "surface": "structural",
+            "result": "pass"
+          },
+          {
+            "command": "pnpm test",
+            "surface": "local",
+            "result": "fail"
+          }
+        ],
+        "protectedPaths": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "phase: Expected string, actual 42"
+      }
+    },
+    {
+      "name": "refuses steps[0].surface outside its values",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-attribution/0.33.0.json",
+        "phase": "phase-01",
+        "steps": [
+          {
+            "command": "pnpm typecheck",
+            "surface": "bogus-value",
+            "result": "pass"
+          },
+          {
+            "command": "pnpm test",
+            "surface": "local",
+            "result": "fail"
+          }
+        ],
+        "protectedPaths": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "steps.0.surface: Expected \"acceptance\", actual \"bogus-value\""
+      }
+    },
+    {
+      "name": "refuses phase when empty",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-attribution/0.33.0.json",
+        "phase": "",
+        "steps": [
+          {
+            "command": "pnpm typecheck",
+            "surface": "structural",
+            "result": "pass"
+          },
+          {
+            "command": "pnpm test",
+            "surface": "local",
+            "result": "fail"
+          }
+        ],
+        "protectedPaths": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "phase: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "accepts an unexpected key without reading it",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-attribution/0.33.0.json",
+        "phase": "phase-01",
+        "steps": [
+          {
+            "command": "pnpm typecheck",
+            "surface": "structural",
+            "result": "pass"
+          },
+          {
+            "command": "pnpm test",
+            "surface": "local",
+            "result": "fail"
+          }
+        ],
+        "protectedPaths": null,
+        "unexpectedKey": 1
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.33.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.33.0.json",
+          "phase": "phase-01",
+          "protectedPaths": null,
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "result": "pass",
+              "surface": "structural"
+            },
+            {
+              "command": "pnpm test",
+              "result": "fail",
+              "surface": "local"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "reads a document stamped 0.17.0",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-attribution/0.17.0.json",
+        "phase": "phase-01",
+        "steps": [
+          {
+            "command": "pnpm typecheck",
+            "surface": "structural",
+            "result": "pass"
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.17.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.17.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "result": "pass",
+              "surface": "structural"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "reads a document stamped 0.20.0",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-attribution/0.20.0.json",
+        "phase": "phase-01",
+        "steps": [
+          {
+            "command": "pnpm typecheck",
+            "surface": "structural",
+            "result": "pass"
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.20.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.20.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "result": "pass",
+              "surface": "structural"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "reads a document stamped 0.21.0",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-attribution/0.21.0.json",
+        "phase": "phase-01",
+        "steps": [
+          {
+            "command": "pnpm typecheck",
+            "surface": "structural",
+            "result": "pass"
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.21.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.21.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "result": "pass",
+              "surface": "structural"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "reads a document stamped 0.26.0",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-attribution/0.26.0.json",
+        "phase": "phase-01",
+        "steps": [
+          {
+            "command": "pnpm typecheck",
+            "surface": "structural",
+            "result": "pass"
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.26.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.26.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "result": "pass",
+              "surface": "structural"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "reads a document stamped 0.31.0",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-attribution/0.31.0.json",
+        "phase": "phase-01",
+        "steps": [
+          {
+            "command": "pnpm typecheck",
+            "surface": "structural",
+            "result": "pass"
+          }
+        ],
+        "protectedPaths": {
+          "result": "fail",
+          "changes": [
+            {
+              "path": "text-3",
+              "kind": "created",
+              "entry": "text-4"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.31.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.31.0.json",
+          "phase": "phase-01",
+          "protectedPaths": {
+            "changes": [
+              {
+                "entry": "text-4",
+                "kind": "created",
+                "path": "text-3"
+              }
+            ],
+            "result": "fail"
+          },
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "result": "pass",
+              "surface": "structural"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "shapes": {
+    "pre-schema": [
+      {
+        "name": "accepts a typical document",
+        "input": {
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            },
+            {
+              "command": "pnpm test",
+              "surface": "local",
+              "result": "fail"
+            }
+          ]
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "phase": "phase-01",
+            "steps": [
+              {
+                "command": "pnpm typecheck",
+                "result": "pass",
+                "surface": "structural"
+              },
+              {
+                "command": "pnpm test",
+                "result": "fail",
+                "surface": "local"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "accepts a document setting every field",
+        "input": {
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "phase": "phase-01",
+            "steps": [
+              {
+                "command": "pnpm typecheck",
+                "result": "pass",
+                "surface": "structural"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "accepts a document with only its required fields",
+        "input": {
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "phase": "phase-01",
+            "steps": [
+              {
+                "command": "pnpm typecheck",
+                "result": "pass",
+                "surface": "structural"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "refuses a document missing phase",
+        "input": {
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            },
+            {
+              "command": "pnpm test",
+              "surface": "local",
+              "result": "fail"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phase: is missing"
+        }
+      },
+      {
+        "name": "refuses phase of the wrong type",
+        "input": {
+          "phase": 42,
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            },
+            {
+              "command": "pnpm test",
+              "surface": "local",
+              "result": "fail"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phase: Expected string, actual 42"
+        }
+      },
+      {
+        "name": "refuses steps[0].surface outside its values",
+        "input": {
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "bogus-value",
+              "result": "pass"
+            },
+            {
+              "command": "pnpm test",
+              "surface": "local",
+              "result": "fail"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps[0].surface: Expected \"local\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "refuses phase when empty",
+        "input": {
+          "phase": "",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            },
+            {
+              "command": "pnpm test",
+              "surface": "local",
+              "result": "fail"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phase: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "accepts an unexpected key without reading it",
+        "input": {
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            },
+            {
+              "command": "pnpm test",
+              "surface": "local",
+              "result": "fail"
+            }
+          ],
+          "unexpectedKey": 1
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "phase": "phase-01",
+            "steps": [
+              {
+                "command": "pnpm typecheck",
+                "result": "pass",
+                "surface": "structural"
+              },
+              {
+                "command": "pnpm test",
+                "result": "fail",
+                "surface": "local"
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "0.17.0": [
+      {
+        "name": "accepts a document setting every field",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.17.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/gate-attribution/0.17.0.json",
+            "phase": "phase-01",
+            "steps": [
+              {
+                "command": "pnpm typecheck",
+                "result": "pass",
+                "surface": "structural"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "accepts a document with only its required fields",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.17.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/gate-attribution/0.17.0.json",
+            "phase": "phase-01",
+            "steps": [
+              {
+                "command": "pnpm typecheck",
+                "result": "pass",
+                "surface": "structural"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "refuses a document missing phase",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.17.0.json",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phase: is missing"
+        }
+      },
+      {
+        "name": "refuses phase of the wrong type",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.17.0.json",
+          "phase": 42,
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phase: Expected string, actual 42"
+        }
+      },
+      {
+        "name": "refuses steps[0].surface outside its values",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.17.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "bogus-value",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps.0.surface: Expected \"local\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "refuses phase when empty",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.17.0.json",
+          "phase": "",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phase: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "accepts an unexpected key without reading it",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.17.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ],
+          "unexpectedKey": 1
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/gate-attribution/0.17.0.json",
+            "phase": "phase-01",
+            "steps": [
+              {
+                "command": "pnpm typecheck",
+                "result": "pass",
+                "surface": "structural"
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "0.20.0": [
+      {
+        "name": "accepts a document setting every field",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.20.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/gate-attribution/0.20.0.json",
+            "phase": "phase-01",
+            "steps": [
+              {
+                "command": "pnpm typecheck",
+                "result": "pass",
+                "surface": "structural"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "accepts a document with only its required fields",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.20.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/gate-attribution/0.20.0.json",
+            "phase": "phase-01",
+            "steps": [
+              {
+                "command": "pnpm typecheck",
+                "result": "pass",
+                "surface": "structural"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "refuses a document missing phase",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.20.0.json",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phase: is missing"
+        }
+      },
+      {
+        "name": "refuses phase of the wrong type",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.20.0.json",
+          "phase": 42,
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phase: Expected string, actual 42"
+        }
+      },
+      {
+        "name": "refuses steps[0].surface outside its values",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.20.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "bogus-value",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps.0.surface: Expected \"local\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "refuses phase when empty",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.20.0.json",
+          "phase": "",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phase: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "accepts an unexpected key without reading it",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.20.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ],
+          "unexpectedKey": 1
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/gate-attribution/0.20.0.json",
+            "phase": "phase-01",
+            "steps": [
+              {
+                "command": "pnpm typecheck",
+                "result": "pass",
+                "surface": "structural"
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "0.21.0": [
+      {
+        "name": "accepts a document setting every field",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.21.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/gate-attribution/0.21.0.json",
+            "phase": "phase-01",
+            "steps": [
+              {
+                "command": "pnpm typecheck",
+                "result": "pass",
+                "surface": "structural"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "accepts a document with only its required fields",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.21.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/gate-attribution/0.21.0.json",
+            "phase": "phase-01",
+            "steps": [
+              {
+                "command": "pnpm typecheck",
+                "result": "pass",
+                "surface": "structural"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "refuses a document missing phase",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.21.0.json",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phase: is missing"
+        }
+      },
+      {
+        "name": "refuses phase of the wrong type",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.21.0.json",
+          "phase": 42,
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phase: Expected string, actual 42"
+        }
+      },
+      {
+        "name": "refuses steps[0].surface outside its values",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.21.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "bogus-value",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps.0.surface: Expected \"local\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "refuses phase when empty",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.21.0.json",
+          "phase": "",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phase: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "accepts an unexpected key without reading it",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.21.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ],
+          "unexpectedKey": 1
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/gate-attribution/0.21.0.json",
+            "phase": "phase-01",
+            "steps": [
+              {
+                "command": "pnpm typecheck",
+                "result": "pass",
+                "surface": "structural"
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "0.26.0": [
+      {
+        "name": "accepts a document setting every field",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.26.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/gate-attribution/0.26.0.json",
+            "phase": "phase-01",
+            "steps": [
+              {
+                "command": "pnpm typecheck",
+                "result": "pass",
+                "surface": "structural"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "accepts a document with only its required fields",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.26.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/gate-attribution/0.26.0.json",
+            "phase": "phase-01",
+            "steps": [
+              {
+                "command": "pnpm typecheck",
+                "result": "pass",
+                "surface": "structural"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "refuses a document missing phase",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.26.0.json",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phase: is missing"
+        }
+      },
+      {
+        "name": "refuses phase of the wrong type",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.26.0.json",
+          "phase": 42,
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phase: Expected string, actual 42"
+        }
+      },
+      {
+        "name": "refuses steps[0].surface outside its values",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.26.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "bogus-value",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps[0].surface: Expected \"oracle\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "refuses phase when empty",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.26.0.json",
+          "phase": "",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phase: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "accepts an unexpected key without reading it",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.26.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ],
+          "unexpectedKey": 1
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/gate-attribution/0.26.0.json",
+            "phase": "phase-01",
+            "steps": [
+              {
+                "command": "pnpm typecheck",
+                "result": "pass",
+                "surface": "structural"
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "0.31.0": [
+      {
+        "name": "accepts a document setting every field",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.31.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ],
+          "protectedPaths": {
+            "result": "fail",
+            "changes": [
+              {
+                "path": "text-3",
+                "kind": "created",
+                "entry": "text-4"
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/gate-attribution/0.31.0.json",
+            "phase": "phase-01",
+            "protectedPaths": {
+              "changes": [
+                {
+                  "entry": "text-4",
+                  "kind": "created",
+                  "path": "text-3"
+                }
+              ],
+              "result": "fail"
+            },
+            "steps": [
+              {
+                "command": "pnpm typecheck",
+                "result": "pass",
+                "surface": "structural"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "accepts a document with only its required fields",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.31.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ],
+          "protectedPaths": {
+            "result": "fail",
+            "changes": [
+              {
+                "path": "text-3",
+                "kind": "created",
+                "entry": "text-4"
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/gate-attribution/0.31.0.json",
+            "phase": "phase-01",
+            "protectedPaths": {
+              "changes": [
+                {
+                  "entry": "text-4",
+                  "kind": "created",
+                  "path": "text-3"
+                }
+              ],
+              "result": "fail"
+            },
+            "steps": [
+              {
+                "command": "pnpm typecheck",
+                "result": "pass",
+                "surface": "structural"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "refuses a document missing phase",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.31.0.json",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ],
+          "protectedPaths": {
+            "result": "fail",
+            "changes": [
+              {
+                "path": "text-3",
+                "kind": "created",
+                "entry": "text-4"
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phase: is missing"
+        }
+      },
+      {
+        "name": "refuses phase of the wrong type",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.31.0.json",
+          "phase": 42,
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ],
+          "protectedPaths": {
+            "result": "fail",
+            "changes": [
+              {
+                "path": "text-3",
+                "kind": "created",
+                "entry": "text-4"
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phase: Expected string, actual 42"
+        }
+      },
+      {
+        "name": "refuses steps[0].surface outside its values",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.31.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "bogus-value",
+              "result": "pass"
+            }
+          ],
+          "protectedPaths": {
+            "result": "fail",
+            "changes": [
+              {
+                "path": "text-3",
+                "kind": "created",
+                "entry": "text-4"
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps[0].surface: Expected \"oracle\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "refuses phase when empty",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.31.0.json",
+          "phase": "",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ],
+          "protectedPaths": {
+            "result": "fail",
+            "changes": [
+              {
+                "path": "text-3",
+                "kind": "created",
+                "entry": "text-4"
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phase: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "accepts an unexpected key without reading it",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.31.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ],
+          "protectedPaths": {
+            "result": "fail",
+            "changes": [
+              {
+                "path": "text-3",
+                "kind": "created",
+                "entry": "text-4"
+              }
+            ]
+          },
+          "unexpectedKey": 1
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/gate-attribution/0.31.0.json",
+            "phase": "phase-01",
+            "protectedPaths": {
+              "changes": [
+                {
+                  "entry": "text-4",
+                  "kind": "created",
+                  "path": "text-3"
+                }
+              ],
+              "result": "fail"
+            },
+            "steps": [
+              {
+                "command": "pnpm typecheck",
+                "result": "pass",
+                "surface": "structural"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

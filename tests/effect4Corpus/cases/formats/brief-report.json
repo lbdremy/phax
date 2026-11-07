@@ -1,0 +1,595 @@
+{
+  "format": "brief-report",
+  "current": [
+    {
+      "name": "accepts a typical document",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json",
+        "rules": [
+          {
+            "rule": "a module under src/ imports no node: module",
+            "files": [
+              "src/example.ts",
+              "src/missing.ts"
+            ],
+            "guide": {
+              "summary": "keep I/O in the caller",
+              "read": "guides/example.md"
+            }
+          }
+        ],
+        "findings": [
+          {
+            "id": "example-no-io src/example.ts node:fs",
+            "rule": "a module under src/ imports no node: module",
+            "location": {
+              "file": "src/example.ts",
+              "lines": null
+            },
+            "message": "imports node:fs",
+            "related": [],
+            "guide": null,
+            "due": "this-phase"
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.21.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json",
+          "findings": [
+            {
+              "due": "this-phase",
+              "guide": null,
+              "id": "example-no-io src/example.ts node:fs",
+              "location": {
+                "file": "src/example.ts",
+                "lines": null
+              },
+              "message": "imports node:fs",
+              "related": [],
+              "rule": "a module under src/ imports no node: module"
+            }
+          ],
+          "rules": [
+            {
+              "files": [
+                "src/example.ts",
+                "src/missing.ts"
+              ],
+              "guide": {
+                "read": "guides/example.md",
+                "summary": "keep I/O in the caller"
+              },
+              "rule": "a module under src/ imports no node: module"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "accepts a document setting every field",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json",
+        "rules": [
+          {
+            "rule": "a module under src/ imports no node: module",
+            "files": [
+              "src/example.ts"
+            ],
+            "guide": {
+              "summary": "keep I/O in the caller",
+              "read": "guides/example.md"
+            }
+          }
+        ],
+        "findings": [
+          {
+            "id": "example-no-io src/example.ts node:fs",
+            "rule": "a module under src/ imports no node: module",
+            "location": {
+              "file": "src/example.ts",
+              "lines": [
+                1,
+                1
+              ]
+            },
+            "message": "imports node:fs",
+            "related": [
+              {
+                "file": "text-9",
+                "lines": [
+                  1,
+                  1
+                ],
+                "why": "text-10"
+              }
+            ],
+            "guide": {
+              "summary": "text-11",
+              "read": "text-12"
+            },
+            "due": "this-phase"
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.21.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json",
+          "findings": [
+            {
+              "due": "this-phase",
+              "guide": {
+                "read": "text-12",
+                "summary": "text-11"
+              },
+              "id": "example-no-io src/example.ts node:fs",
+              "location": {
+                "file": "src/example.ts",
+                "lines": [
+                  1,
+                  1
+                ]
+              },
+              "message": "imports node:fs",
+              "related": [
+                {
+                  "file": "text-9",
+                  "lines": [
+                    1,
+                    1
+                  ],
+                  "why": "text-10"
+                }
+              ],
+              "rule": "a module under src/ imports no node: module"
+            }
+          ],
+          "rules": [
+            {
+              "files": [
+                "src/example.ts"
+              ],
+              "guide": {
+                "read": "guides/example.md",
+                "summary": "keep I/O in the caller"
+              },
+              "rule": "a module under src/ imports no node: module"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "accepts a document with only its required fields",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json",
+        "rules": [
+          {
+            "rule": "a module under src/ imports no node: module",
+            "files": [
+              "src/example.ts"
+            ],
+            "guide": {
+              "summary": "keep I/O in the caller",
+              "read": "guides/example.md"
+            }
+          }
+        ],
+        "findings": [
+          {
+            "id": "example-no-io src/example.ts node:fs",
+            "rule": "a module under src/ imports no node: module",
+            "location": {
+              "file": "src/example.ts",
+              "lines": [
+                1,
+                1
+              ]
+            },
+            "message": "imports node:fs",
+            "related": [
+              {
+                "file": "text-9",
+                "lines": [
+                  1,
+                  1
+                ],
+                "why": "text-10"
+              }
+            ],
+            "guide": {
+              "summary": "text-11",
+              "read": "text-12"
+            },
+            "due": "this-phase"
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.21.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json",
+          "findings": [
+            {
+              "due": "this-phase",
+              "guide": {
+                "read": "text-12",
+                "summary": "text-11"
+              },
+              "id": "example-no-io src/example.ts node:fs",
+              "location": {
+                "file": "src/example.ts",
+                "lines": [
+                  1,
+                  1
+                ]
+              },
+              "message": "imports node:fs",
+              "related": [
+                {
+                  "file": "text-9",
+                  "lines": [
+                    1,
+                    1
+                  ],
+                  "why": "text-10"
+                }
+              ],
+              "rule": "a module under src/ imports no node: module"
+            }
+          ],
+          "rules": [
+            {
+              "files": [
+                "src/example.ts"
+              ],
+              "guide": {
+                "read": "guides/example.md",
+                "summary": "keep I/O in the caller"
+              },
+              "rule": "a module under src/ imports no node: module"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "refuses a document that is not an object",
+      "input": [
+        "not",
+        "an",
+        "object"
+      ],
+      "expected": {
+        "ok": false,
+        "refusal": ": a brief report is a JSON object, got an array"
+      }
+    },
+    {
+      "name": "refuses a stamp naming another format",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/registry/0.17.0.json",
+        "rules": [
+          {
+            "rule": "a module under src/ imports no node: module",
+            "files": [
+              "src/example.ts",
+              "src/missing.ts"
+            ],
+            "guide": {
+              "summary": "keep I/O in the caller",
+              "read": "guides/example.md"
+            }
+          }
+        ],
+        "findings": [
+          {
+            "id": "example-no-io src/example.ts node:fs",
+            "rule": "a module under src/ imports no node: module",
+            "location": {
+              "file": "src/example.ts",
+              "lines": null
+            },
+            "message": "imports node:fs",
+            "related": [],
+            "guide": null,
+            "due": "this-phase"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: https://docs.phax.run/schemas/registry/0.17.0.json is a registry document, not a brief-report"
+      }
+    },
+    {
+      "name": "refuses a malformed $schema",
+      "input": {
+        "$schema": "not a schema url",
+        "rules": [
+          {
+            "rule": "a module under src/ imports no node: module",
+            "files": [
+              "src/example.ts",
+              "src/missing.ts"
+            ],
+            "guide": {
+              "summary": "keep I/O in the caller",
+              "read": "guides/example.md"
+            }
+          }
+        ],
+        "findings": [
+          {
+            "id": "example-no-io src/example.ts node:fs",
+            "rule": "a module under src/ imports no node: module",
+            "location": {
+              "file": "src/example.ts",
+              "lines": null
+            },
+            "message": "imports node:fs",
+            "related": [],
+            "guide": null,
+            "due": "this-phase"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: expected https://docs.phax.run/schemas/<format-id>/<X.Y.Z>.json, got \"not a schema url\""
+      }
+    },
+    {
+      "name": "refuses a stamp newer than the package",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-report/9.0.0.json",
+        "rules": [
+          {
+            "rule": "a module under src/ imports no node: module",
+            "files": [
+              "src/example.ts",
+              "src/missing.ts"
+            ],
+            "guide": {
+              "summary": "keep I/O in the caller",
+              "read": "guides/example.md"
+            }
+          }
+        ],
+        "findings": [
+          {
+            "id": "example-no-io src/example.ts node:fs",
+            "rule": "a module under src/ imports no node: module",
+            "location": {
+              "file": "src/example.ts",
+              "lines": null
+            },
+            "message": "imports node:fs",
+            "related": [],
+            "guide": null,
+            "due": "this-phase"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: brief-report 9.0.0 is newer than @lbdremy/phax-schemas 0.36.0 — upgrade the package"
+      }
+    },
+    {
+      "name": "refuses a stamp below the first supported release",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-report/0.1.0.json",
+        "rules": [
+          {
+            "rule": "a module under src/ imports no node: module",
+            "files": [
+              "src/example.ts",
+              "src/missing.ts"
+            ],
+            "guide": {
+              "summary": "keep I/O in the caller",
+              "read": "guides/example.md"
+            }
+          }
+        ],
+        "findings": [
+          {
+            "id": "example-no-io src/example.ts node:fs",
+            "rule": "a module under src/ imports no node: module",
+            "location": {
+              "file": "src/example.ts",
+              "lines": null
+            },
+            "message": "imports node:fs",
+            "related": [],
+            "guide": null,
+            "due": "this-phase"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: https://docs.phax.run/schemas/brief-report/0.1.0.json was written by a development build of phax before 0.17.0, the first supported release — not supported"
+      }
+    },
+    {
+      "name": "refuses a document without $schema",
+      "input": {
+        "rules": [
+          {
+            "rule": "a module under src/ imports no node: module",
+            "files": [
+              "src/example.ts",
+              "src/missing.ts"
+            ],
+            "guide": {
+              "summary": "keep I/O in the caller",
+              "read": "guides/example.md"
+            }
+          }
+        ],
+        "findings": [
+          {
+            "id": "example-no-io src/example.ts node:fs",
+            "rule": "a module under src/ imports no node: module",
+            "location": {
+              "file": "src/example.ts",
+              "lines": null
+            },
+            "message": "imports node:fs",
+            "related": [],
+            "guide": null,
+            "due": "this-phase"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: brief report has no $schema — every brief report is written with one"
+      }
+    },
+    {
+      "name": "refuses a document missing rules",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json",
+        "findings": [
+          {
+            "id": "example-no-io src/example.ts node:fs",
+            "rule": "a module under src/ imports no node: module",
+            "location": {
+              "file": "src/example.ts",
+              "lines": null
+            },
+            "message": "imports node:fs",
+            "related": [],
+            "guide": null,
+            "due": "this-phase"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "rules: is missing"
+      }
+    },
+    {
+      "name": "refuses an unexpected key",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json",
+        "rules": [
+          {
+            "rule": "a module under src/ imports no node: module",
+            "files": [
+              "src/example.ts",
+              "src/missing.ts"
+            ],
+            "guide": {
+              "summary": "keep I/O in the caller",
+              "read": "guides/example.md"
+            }
+          }
+        ],
+        "findings": [
+          {
+            "id": "example-no-io src/example.ts node:fs",
+            "rule": "a module under src/ imports no node: module",
+            "location": {
+              "file": "src/example.ts",
+              "lines": null
+            },
+            "message": "imports node:fs",
+            "related": [],
+            "guide": null,
+            "due": "this-phase"
+          }
+        ],
+        "unexpectedKey": 1
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "unexpectedKey: is unexpected, expected: \"$schema\" | \"rules\" | \"findings\""
+      }
+    },
+    {
+      "name": "refuses rules[0].rule of the wrong type",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json",
+        "rules": [
+          {
+            "rule": 42,
+            "files": [
+              "src/example.ts",
+              "src/missing.ts"
+            ],
+            "guide": {
+              "summary": "keep I/O in the caller",
+              "read": "guides/example.md"
+            }
+          }
+        ],
+        "findings": [
+          {
+            "id": "example-no-io src/example.ts node:fs",
+            "rule": "a module under src/ imports no node: module",
+            "location": {
+              "file": "src/example.ts",
+              "lines": null
+            },
+            "message": "imports node:fs",
+            "related": [],
+            "guide": null,
+            "due": "this-phase"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "rules.0.rule: Expected string, actual 42"
+      }
+    },
+    {
+      "name": "refuses rules[0].rule when empty",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json",
+        "rules": [
+          {
+            "rule": "",
+            "files": [
+              "src/example.ts",
+              "src/missing.ts"
+            ],
+            "guide": {
+              "summary": "keep I/O in the caller",
+              "read": "guides/example.md"
+            }
+          }
+        ],
+        "findings": [
+          {
+            "id": "example-no-io src/example.ts node:fs",
+            "rule": "a module under src/ imports no node: module",
+            "location": {
+              "file": "src/example.ts",
+              "lines": null
+            },
+            "message": "imports node:fs",
+            "related": [],
+            "guide": null,
+            "due": "this-phase"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "rules.0.rule: Expected a non empty string, actual \"\""
+      }
+    }
+  ],
+  "shapes": {}
+}

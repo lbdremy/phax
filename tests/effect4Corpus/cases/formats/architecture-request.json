@@ -1,0 +1,182 @@
+{
+  "format": "architecture-request",
+  "current": [
+    {
+      "name": "accepts a typical document",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/architecture-request/0.26.0.json",
+        "files": [
+          "src/example.ts",
+          "src/missing.ts"
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.26.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/architecture-request/0.26.0.json",
+          "files": [
+            "src/example.ts",
+            "src/missing.ts"
+          ]
+        }
+      }
+    },
+    {
+      "name": "accepts a document setting every field",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/architecture-request/0.26.0.json",
+        "files": [
+          "src/example.ts"
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.26.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/architecture-request/0.26.0.json",
+          "files": [
+            "src/example.ts"
+          ]
+        }
+      }
+    },
+    {
+      "name": "accepts a document with only its required fields",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/architecture-request/0.26.0.json",
+        "files": [
+          "src/example.ts"
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.26.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/architecture-request/0.26.0.json",
+          "files": [
+            "src/example.ts"
+          ]
+        }
+      }
+    },
+    {
+      "name": "refuses a document that is not an object",
+      "input": [
+        "not",
+        "an",
+        "object"
+      ],
+      "expected": {
+        "ok": false,
+        "refusal": ": a architecture request is a JSON object, got an array"
+      }
+    },
+    {
+      "name": "refuses a stamp naming another format",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/registry/0.17.0.json",
+        "files": [
+          "src/example.ts",
+          "src/missing.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: https://docs.phax.run/schemas/registry/0.17.0.json is a registry document, not a architecture-request"
+      }
+    },
+    {
+      "name": "refuses a malformed $schema",
+      "input": {
+        "$schema": "not a schema url",
+        "files": [
+          "src/example.ts",
+          "src/missing.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: expected https://docs.phax.run/schemas/<format-id>/<X.Y.Z>.json, got \"not a schema url\""
+      }
+    },
+    {
+      "name": "refuses a stamp newer than the package",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/architecture-request/9.0.0.json",
+        "files": [
+          "src/example.ts",
+          "src/missing.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: architecture-request 9.0.0 is newer than @lbdremy/phax-schemas 0.36.0 — upgrade the package"
+      }
+    },
+    {
+      "name": "refuses a stamp below the first supported release",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/architecture-request/0.1.0.json",
+        "files": [
+          "src/example.ts",
+          "src/missing.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: https://docs.phax.run/schemas/architecture-request/0.1.0.json was written by a development build of phax before 0.17.0, the first supported release — not supported"
+      }
+    },
+    {
+      "name": "refuses a document without $schema",
+      "input": {
+        "files": [
+          "src/example.ts",
+          "src/missing.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: architecture request has no $schema — every architecture request is written with one"
+      }
+    },
+    {
+      "name": "refuses a document missing files",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/architecture-request/0.26.0.json"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "files: is missing"
+      }
+    },
+    {
+      "name": "refuses an unexpected key",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/architecture-request/0.26.0.json",
+        "files": [
+          "src/example.ts",
+          "src/missing.ts"
+        ],
+        "unexpectedKey": 1
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "unexpectedKey: is unexpected, expected: \"$schema\" | \"files\""
+      }
+    },
+    {
+      "name": "refuses files of the wrong type",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/architecture-request/0.26.0.json",
+        "files": 42
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "files: Expected readonly [NonEmptyString, ...NonEmptyString[]], actual 42"
+      }
+    }
+  ],
+  "shapes": {}
+}

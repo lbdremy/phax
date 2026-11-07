@@ -1,0 +1,2970 @@
+{
+  "format": "decision-record-manifest",
+  "current": [
+    {
+      "name": "accepts a typical document",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.34.0.json",
+        "kind": "decision",
+        "decisionId": "2610160930-example/01",
+        "artifact": "docs/specs/2610160930-example.md",
+        "artifactKind": "spec",
+        "session": "new",
+        "doctrine": [
+          {
+            "kind": "skill",
+            "name": "phax-decide-spec",
+            "source": "bundled",
+            "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "kind": "file",
+            "path": "docs/doctrine/spec.md",
+            "fingerprint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ],
+        "questions": [
+          "q-retention",
+          "q-scope"
+        ],
+        "arbitrated": 2,
+        "departed": 1,
+        "sourceSha": "abc1234",
+        "shape": "skeleton",
+        "provider": "claude-code",
+        "model": "example-model",
+        "effort": "high",
+        "mode": "interactive",
+        "outcome": "committed",
+        "commit": "def5678",
+        "usage": {
+          "available": false
+        }
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.34.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.34.0.json",
+          "arbitrated": 2,
+          "artifact": "docs/specs/2610160930-example.md",
+          "artifactKind": "spec",
+          "commit": "def5678",
+          "decisionId": "2610160930-example/01",
+          "departed": 1,
+          "doctrine": [
+            {
+              "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "kind": "skill",
+              "name": "phax-decide-spec",
+              "source": "bundled"
+            },
+            {
+              "fingerprint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "kind": "file",
+              "path": "docs/doctrine/spec.md"
+            }
+          ],
+          "effort": "high",
+          "kind": "decision",
+          "mode": "interactive",
+          "model": "example-model",
+          "outcome": "committed",
+          "provider": "claude-code",
+          "questions": [
+            "q-retention",
+            "q-scope"
+          ],
+          "session": "new",
+          "shape": "skeleton",
+          "sourceSha": "abc1234",
+          "usage": {
+            "available": false
+          }
+        }
+      }
+    },
+    {
+      "name": "accepts a document setting every field",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.34.0.json",
+        "kind": "decision",
+        "decisionId": "2610160930-example/01",
+        "artifact": "docs/specs/2610160930-example.md",
+        "artifactKind": "spec",
+        "session": "new",
+        "doctrine": [
+          {
+            "kind": "skill",
+            "name": "phax-decide-spec",
+            "source": "bundled",
+            "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ],
+        "questions": [
+          "q-retention"
+        ],
+        "arbitrated": 2,
+        "departed": 1,
+        "sourceSha": "abc1234",
+        "shape": "skeleton",
+        "provider": "claude-code",
+        "model": "example-model",
+        "effort": "high",
+        "requestedModel": "text-9",
+        "mode": "verdicts",
+        "outcome": "failed",
+        "commit": null,
+        "failure": "network",
+        "usage": {
+          "available": true,
+          "usage": {
+            "provider": "claude-code",
+            "inputTokens": 1,
+            "cacheCreationInputTokens": 1,
+            "cacheReadInputTokens": 1,
+            "outputTokens": 1,
+            "totalCostUsd": 1
+          }
+        }
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.34.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.34.0.json",
+          "arbitrated": 2,
+          "artifact": "docs/specs/2610160930-example.md",
+          "artifactKind": "spec",
+          "commit": null,
+          "decisionId": "2610160930-example/01",
+          "departed": 1,
+          "doctrine": [
+            {
+              "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "kind": "skill",
+              "name": "phax-decide-spec",
+              "source": "bundled"
+            }
+          ],
+          "effort": "high",
+          "failure": "network",
+          "kind": "decision",
+          "mode": "verdicts",
+          "model": "example-model",
+          "outcome": "failed",
+          "provider": "claude-code",
+          "questions": [
+            "q-retention"
+          ],
+          "requestedModel": "text-9",
+          "session": "new",
+          "shape": "skeleton",
+          "sourceSha": "abc1234",
+          "usage": {
+            "available": true,
+            "usage": {
+              "cacheCreationInputTokens": 1,
+              "cacheReadInputTokens": 1,
+              "inputTokens": 1,
+              "outputTokens": 1,
+              "provider": "claude-code",
+              "totalCostUsd": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "accepts a document setting every field, variant 2",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.34.0.json",
+        "kind": "decision",
+        "decisionId": "2610160930-example/01",
+        "artifact": "docs/specs/2610160930-example.md",
+        "artifactKind": "spec",
+        "session": "new",
+        "doctrine": [
+          {
+            "kind": "skill",
+            "name": "phax-decide-spec",
+            "source": "bundled",
+            "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ],
+        "questions": [
+          "q-retention"
+        ],
+        "arbitrated": 2,
+        "departed": 1,
+        "sourceSha": "abc1234",
+        "shape": "skeleton",
+        "provider": "claude-code",
+        "model": "example-model",
+        "effort": "high",
+        "mode": "interactive",
+        "outcome": "committed",
+        "commit": "def5678",
+        "usage": {
+          "available": true,
+          "usage": {
+            "provider": "codex-cli",
+            "inputTokens": 1,
+            "cachedInputTokens": 1,
+            "outputTokens": 1,
+            "reasoningOutputTokens": 1
+          }
+        }
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.34.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.34.0.json",
+          "arbitrated": 2,
+          "artifact": "docs/specs/2610160930-example.md",
+          "artifactKind": "spec",
+          "commit": "def5678",
+          "decisionId": "2610160930-example/01",
+          "departed": 1,
+          "doctrine": [
+            {
+              "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "kind": "skill",
+              "name": "phax-decide-spec",
+              "source": "bundled"
+            }
+          ],
+          "effort": "high",
+          "kind": "decision",
+          "mode": "interactive",
+          "model": "example-model",
+          "outcome": "committed",
+          "provider": "claude-code",
+          "questions": [
+            "q-retention"
+          ],
+          "session": "new",
+          "shape": "skeleton",
+          "sourceSha": "abc1234",
+          "usage": {
+            "available": true,
+            "usage": {
+              "cachedInputTokens": 1,
+              "inputTokens": 1,
+              "outputTokens": 1,
+              "provider": "codex-cli",
+              "reasoningOutputTokens": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "accepts a document setting every field, variant 3",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.34.0.json",
+        "kind": "decision",
+        "decisionId": "2610160930-example/01",
+        "artifact": "docs/specs/2610160930-example.md",
+        "artifactKind": "spec",
+        "session": "new",
+        "doctrine": [
+          {
+            "kind": "skill",
+            "name": "phax-decide-spec",
+            "source": "bundled",
+            "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ],
+        "questions": [
+          "q-retention"
+        ],
+        "arbitrated": 2,
+        "departed": 1,
+        "sourceSha": "abc1234",
+        "shape": "skeleton",
+        "provider": "claude-code",
+        "model": "example-model",
+        "effort": "high",
+        "mode": "interactive",
+        "outcome": "committed",
+        "commit": "def5678",
+        "usage": {
+          "available": true,
+          "usage": {
+            "provider": "mistral-vibe",
+            "inputTokens": 1,
+            "cachedInputTokens": 1,
+            "outputTokens": 1,
+            "costUsd": 1
+          }
+        }
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.34.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.34.0.json",
+          "arbitrated": 2,
+          "artifact": "docs/specs/2610160930-example.md",
+          "artifactKind": "spec",
+          "commit": "def5678",
+          "decisionId": "2610160930-example/01",
+          "departed": 1,
+          "doctrine": [
+            {
+              "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "kind": "skill",
+              "name": "phax-decide-spec",
+              "source": "bundled"
+            }
+          ],
+          "effort": "high",
+          "kind": "decision",
+          "mode": "interactive",
+          "model": "example-model",
+          "outcome": "committed",
+          "provider": "claude-code",
+          "questions": [
+            "q-retention"
+          ],
+          "session": "new",
+          "shape": "skeleton",
+          "sourceSha": "abc1234",
+          "usage": {
+            "available": true,
+            "usage": {
+              "cachedInputTokens": 1,
+              "costUsd": 1,
+              "inputTokens": 1,
+              "outputTokens": 1,
+              "provider": "mistral-vibe"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "accepts a document with only its required fields",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.34.0.json",
+        "kind": "decision",
+        "decisionId": "2610160930-example/01",
+        "artifact": "docs/specs/2610160930-example.md",
+        "artifactKind": "spec",
+        "session": "new",
+        "doctrine": [
+          {
+            "kind": "skill",
+            "name": "phax-decide-spec",
+            "source": "bundled",
+            "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ],
+        "questions": [
+          "q-retention"
+        ],
+        "arbitrated": 2,
+        "departed": 1,
+        "sourceSha": "abc1234",
+        "shape": "skeleton",
+        "provider": "claude-code",
+        "model": "example-model",
+        "effort": "high",
+        "requestedModel": "text-9",
+        "mode": "verdicts",
+        "outcome": "failed",
+        "commit": null,
+        "failure": "network",
+        "usage": {
+          "available": true,
+          "usage": {
+            "provider": "claude-code",
+            "inputTokens": 1,
+            "cacheCreationInputTokens": 1,
+            "cacheReadInputTokens": 1,
+            "outputTokens": 1,
+            "totalCostUsd": 1
+          }
+        }
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.34.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.34.0.json",
+          "arbitrated": 2,
+          "artifact": "docs/specs/2610160930-example.md",
+          "artifactKind": "spec",
+          "commit": null,
+          "decisionId": "2610160930-example/01",
+          "departed": 1,
+          "doctrine": [
+            {
+              "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "kind": "skill",
+              "name": "phax-decide-spec",
+              "source": "bundled"
+            }
+          ],
+          "effort": "high",
+          "failure": "network",
+          "kind": "decision",
+          "mode": "verdicts",
+          "model": "example-model",
+          "outcome": "failed",
+          "provider": "claude-code",
+          "questions": [
+            "q-retention"
+          ],
+          "requestedModel": "text-9",
+          "session": "new",
+          "shape": "skeleton",
+          "sourceSha": "abc1234",
+          "usage": {
+            "available": true,
+            "usage": {
+              "cacheCreationInputTokens": 1,
+              "cacheReadInputTokens": 1,
+              "inputTokens": 1,
+              "outputTokens": 1,
+              "provider": "claude-code",
+              "totalCostUsd": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "refuses a document that is not an object",
+      "input": [
+        "not",
+        "an",
+        "object"
+      ],
+      "expected": {
+        "ok": false,
+        "refusal": ": a decision record manifest is a JSON object, got an array"
+      }
+    },
+    {
+      "name": "refuses a stamp naming another format",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/registry/0.17.0.json",
+        "kind": "decision",
+        "decisionId": "2610160930-example/01",
+        "artifact": "docs/specs/2610160930-example.md",
+        "artifactKind": "spec",
+        "session": "new",
+        "doctrine": [
+          {
+            "kind": "skill",
+            "name": "phax-decide-spec",
+            "source": "bundled",
+            "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "kind": "file",
+            "path": "docs/doctrine/spec.md",
+            "fingerprint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ],
+        "questions": [
+          "q-retention",
+          "q-scope"
+        ],
+        "arbitrated": 2,
+        "departed": 1,
+        "sourceSha": "abc1234",
+        "shape": "skeleton",
+        "provider": "claude-code",
+        "model": "example-model",
+        "effort": "high",
+        "mode": "interactive",
+        "outcome": "committed",
+        "commit": "def5678",
+        "usage": {
+          "available": false
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: https://docs.phax.run/schemas/registry/0.17.0.json is a registry document, not a decision-record-manifest"
+      }
+    },
+    {
+      "name": "refuses a malformed $schema",
+      "input": {
+        "$schema": "not a schema url",
+        "kind": "decision",
+        "decisionId": "2610160930-example/01",
+        "artifact": "docs/specs/2610160930-example.md",
+        "artifactKind": "spec",
+        "session": "new",
+        "doctrine": [
+          {
+            "kind": "skill",
+            "name": "phax-decide-spec",
+            "source": "bundled",
+            "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "kind": "file",
+            "path": "docs/doctrine/spec.md",
+            "fingerprint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ],
+        "questions": [
+          "q-retention",
+          "q-scope"
+        ],
+        "arbitrated": 2,
+        "departed": 1,
+        "sourceSha": "abc1234",
+        "shape": "skeleton",
+        "provider": "claude-code",
+        "model": "example-model",
+        "effort": "high",
+        "mode": "interactive",
+        "outcome": "committed",
+        "commit": "def5678",
+        "usage": {
+          "available": false
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: expected https://docs.phax.run/schemas/<format-id>/<X.Y.Z>.json, got \"not a schema url\""
+      }
+    },
+    {
+      "name": "refuses a stamp newer than the package",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/decision-record-manifest/9.0.0.json",
+        "kind": "decision",
+        "decisionId": "2610160930-example/01",
+        "artifact": "docs/specs/2610160930-example.md",
+        "artifactKind": "spec",
+        "session": "new",
+        "doctrine": [
+          {
+            "kind": "skill",
+            "name": "phax-decide-spec",
+            "source": "bundled",
+            "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "kind": "file",
+            "path": "docs/doctrine/spec.md",
+            "fingerprint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ],
+        "questions": [
+          "q-retention",
+          "q-scope"
+        ],
+        "arbitrated": 2,
+        "departed": 1,
+        "sourceSha": "abc1234",
+        "shape": "skeleton",
+        "provider": "claude-code",
+        "model": "example-model",
+        "effort": "high",
+        "mode": "interactive",
+        "outcome": "committed",
+        "commit": "def5678",
+        "usage": {
+          "available": false
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: decision-record-manifest 9.0.0 is newer than @lbdremy/phax-schemas 0.36.0 — upgrade the package"
+      }
+    },
+    {
+      "name": "refuses a stamp below the first supported release",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.1.0.json",
+        "kind": "decision",
+        "decisionId": "2610160930-example/01",
+        "artifact": "docs/specs/2610160930-example.md",
+        "artifactKind": "spec",
+        "session": "new",
+        "doctrine": [
+          {
+            "kind": "skill",
+            "name": "phax-decide-spec",
+            "source": "bundled",
+            "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "kind": "file",
+            "path": "docs/doctrine/spec.md",
+            "fingerprint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ],
+        "questions": [
+          "q-retention",
+          "q-scope"
+        ],
+        "arbitrated": 2,
+        "departed": 1,
+        "sourceSha": "abc1234",
+        "shape": "skeleton",
+        "provider": "claude-code",
+        "model": "example-model",
+        "effort": "high",
+        "mode": "interactive",
+        "outcome": "committed",
+        "commit": "def5678",
+        "usage": {
+          "available": false
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: https://docs.phax.run/schemas/decision-record-manifest/0.1.0.json was written by a development build of phax before 0.17.0, the first supported release — not supported"
+      }
+    },
+    {
+      "name": "refuses a document without $schema",
+      "input": {
+        "kind": "decision",
+        "decisionId": "2610160930-example/01",
+        "artifact": "docs/specs/2610160930-example.md",
+        "artifactKind": "spec",
+        "session": "new",
+        "doctrine": [
+          {
+            "kind": "skill",
+            "name": "phax-decide-spec",
+            "source": "bundled",
+            "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "kind": "file",
+            "path": "docs/doctrine/spec.md",
+            "fingerprint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ],
+        "questions": [
+          "q-retention",
+          "q-scope"
+        ],
+        "arbitrated": 2,
+        "departed": 1,
+        "sourceSha": "abc1234",
+        "shape": "skeleton",
+        "provider": "claude-code",
+        "model": "example-model",
+        "effort": "high",
+        "mode": "interactive",
+        "outcome": "committed",
+        "commit": "def5678",
+        "usage": {
+          "available": false
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: decision record manifest has no $schema — every decision record manifest is written with one"
+      }
+    },
+    {
+      "name": "refuses a document missing kind",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.34.0.json",
+        "decisionId": "2610160930-example/01",
+        "artifact": "docs/specs/2610160930-example.md",
+        "artifactKind": "spec",
+        "session": "new",
+        "doctrine": [
+          {
+            "kind": "skill",
+            "name": "phax-decide-spec",
+            "source": "bundled",
+            "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "kind": "file",
+            "path": "docs/doctrine/spec.md",
+            "fingerprint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ],
+        "questions": [
+          "q-retention",
+          "q-scope"
+        ],
+        "arbitrated": 2,
+        "departed": 1,
+        "sourceSha": "abc1234",
+        "shape": "skeleton",
+        "provider": "claude-code",
+        "model": "example-model",
+        "effort": "high",
+        "mode": "interactive",
+        "outcome": "committed",
+        "commit": "def5678",
+        "usage": {
+          "available": false
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "kind: is missing"
+      }
+    },
+    {
+      "name": "refuses an unexpected key",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.34.0.json",
+        "kind": "decision",
+        "decisionId": "2610160930-example/01",
+        "artifact": "docs/specs/2610160930-example.md",
+        "artifactKind": "spec",
+        "session": "new",
+        "doctrine": [
+          {
+            "kind": "skill",
+            "name": "phax-decide-spec",
+            "source": "bundled",
+            "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "kind": "file",
+            "path": "docs/doctrine/spec.md",
+            "fingerprint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ],
+        "questions": [
+          "q-retention",
+          "q-scope"
+        ],
+        "arbitrated": 2,
+        "departed": 1,
+        "sourceSha": "abc1234",
+        "shape": "skeleton",
+        "provider": "claude-code",
+        "model": "example-model",
+        "effort": "high",
+        "mode": "interactive",
+        "outcome": "committed",
+        "commit": "def5678",
+        "usage": {
+          "available": false
+        },
+        "unexpectedKey": 1
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+      }
+    },
+    {
+      "name": "refuses decisionId of the wrong type",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.34.0.json",
+        "kind": "decision",
+        "decisionId": 42,
+        "artifact": "docs/specs/2610160930-example.md",
+        "artifactKind": "spec",
+        "session": "new",
+        "doctrine": [
+          {
+            "kind": "skill",
+            "name": "phax-decide-spec",
+            "source": "bundled",
+            "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "kind": "file",
+            "path": "docs/doctrine/spec.md",
+            "fingerprint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ],
+        "questions": [
+          "q-retention",
+          "q-scope"
+        ],
+        "arbitrated": 2,
+        "departed": 1,
+        "sourceSha": "abc1234",
+        "shape": "skeleton",
+        "provider": "claude-code",
+        "model": "example-model",
+        "effort": "high",
+        "mode": "interactive",
+        "outcome": "committed",
+        "commit": "def5678",
+        "usage": {
+          "available": false
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+      }
+    },
+    {
+      "name": "refuses kind outside its value",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.34.0.json",
+        "kind": "bogus-value",
+        "decisionId": "2610160930-example/01",
+        "artifact": "docs/specs/2610160930-example.md",
+        "artifactKind": "spec",
+        "session": "new",
+        "doctrine": [
+          {
+            "kind": "skill",
+            "name": "phax-decide-spec",
+            "source": "bundled",
+            "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "kind": "file",
+            "path": "docs/doctrine/spec.md",
+            "fingerprint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ],
+        "questions": [
+          "q-retention",
+          "q-scope"
+        ],
+        "arbitrated": 2,
+        "departed": 1,
+        "sourceSha": "abc1234",
+        "shape": "skeleton",
+        "provider": "claude-code",
+        "model": "example-model",
+        "effort": "high",
+        "mode": "interactive",
+        "outcome": "committed",
+        "commit": "def5678",
+        "usage": {
+          "available": false
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "kind: Expected \"decision\", actual \"bogus-value\""
+      }
+    },
+    {
+      "name": "refuses decisionId that breaks its pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.34.0.json",
+        "kind": "decision",
+        "decisionId": "",
+        "artifact": "docs/specs/2610160930-example.md",
+        "artifactKind": "spec",
+        "session": "new",
+        "doctrine": [
+          {
+            "kind": "skill",
+            "name": "phax-decide-spec",
+            "source": "bundled",
+            "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "kind": "file",
+            "path": "docs/doctrine/spec.md",
+            "fingerprint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ],
+        "questions": [
+          "q-retention",
+          "q-scope"
+        ],
+        "arbitrated": 2,
+        "departed": 1,
+        "sourceSha": "abc1234",
+        "shape": "skeleton",
+        "provider": "claude-code",
+        "model": "example-model",
+        "effort": "high",
+        "mode": "interactive",
+        "outcome": "committed",
+        "commit": "def5678",
+        "usage": {
+          "available": false
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+      }
+    },
+    {
+      "name": "reads a document stamped 0.25.0",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.25.0.json",
+        "kind": "decision",
+        "decisionId": "2610160930-example/01",
+        "artifact": "docs/specs/2610160930-example.md",
+        "artifactKind": "spec",
+        "mode": "interactive",
+        "session": "new",
+        "doctrine": [
+          {
+            "kind": "skill",
+            "name": "phax-decide-spec",
+            "source": "bundled",
+            "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ],
+        "questions": [
+          "q-retention"
+        ],
+        "arbitrated": 2,
+        "departed": 1,
+        "sourceSha": "abc1234",
+        "shape": "skeleton",
+        "provider": "claude-code",
+        "model": "example-model",
+        "effort": "high",
+        "outcome": "committed",
+        "commit": "def5678",
+        "usage": {
+          "available": true,
+          "usage": {
+            "provider": "mistral-vibe",
+            "inputTokens": 1,
+            "outputTokens": 1,
+            "sessionCostUsd": 1,
+            "toolCallsAgreed": 1,
+            "toolCallsRejected": 1,
+            "toolCallsFailed": 1,
+            "toolCallsSucceeded": 1
+          }
+        }
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.25.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.25.0.json",
+          "arbitrated": 2,
+          "artifact": "docs/specs/2610160930-example.md",
+          "artifactKind": "spec",
+          "commit": "def5678",
+          "decisionId": "2610160930-example/01",
+          "departed": 1,
+          "doctrine": [
+            {
+              "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "kind": "skill",
+              "name": "phax-decide-spec",
+              "source": "bundled"
+            }
+          ],
+          "effort": "high",
+          "kind": "decision",
+          "mode": "interactive",
+          "model": "example-model",
+          "outcome": "committed",
+          "provider": "claude-code",
+          "questions": [
+            "q-retention"
+          ],
+          "session": "new",
+          "shape": "skeleton",
+          "sourceSha": "abc1234",
+          "usage": {
+            "available": true,
+            "usage": {
+              "inputTokens": 1,
+              "outputTokens": 1,
+              "provider": "mistral-vibe",
+              "sessionCostUsd": 1,
+              "toolCallsAgreed": 1,
+              "toolCallsFailed": 1,
+              "toolCallsRejected": 1,
+              "toolCallsSucceeded": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "reads a document stamped 0.28.0",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.28.0.json",
+        "kind": "decision",
+        "decisionId": "2610160930-example/01",
+        "artifact": "docs/specs/2610160930-example.md",
+        "artifactKind": "spec",
+        "session": "new",
+        "doctrine": [
+          {
+            "kind": "skill",
+            "name": "phax-decide-spec",
+            "source": "bundled",
+            "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ],
+        "questions": [
+          "q-retention"
+        ],
+        "arbitrated": 2,
+        "departed": 1,
+        "sourceSha": "abc1234",
+        "shape": "skeleton",
+        "provider": "claude-code",
+        "model": "example-model",
+        "effort": "high",
+        "requestedModel": "text-9",
+        "mode": "verdicts",
+        "outcome": "committed",
+        "commit": "def5678",
+        "usage": {
+          "available": true,
+          "usage": {
+            "provider": "mistral-vibe",
+            "inputTokens": 1,
+            "outputTokens": 1,
+            "sessionCostUsd": 1,
+            "toolCallsAgreed": 1,
+            "toolCallsRejected": 1,
+            "toolCallsFailed": 1,
+            "toolCallsSucceeded": 1
+          }
+        }
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.28.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.28.0.json",
+          "arbitrated": 2,
+          "artifact": "docs/specs/2610160930-example.md",
+          "artifactKind": "spec",
+          "commit": "def5678",
+          "decisionId": "2610160930-example/01",
+          "departed": 1,
+          "doctrine": [
+            {
+              "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "kind": "skill",
+              "name": "phax-decide-spec",
+              "source": "bundled"
+            }
+          ],
+          "effort": "high",
+          "kind": "decision",
+          "mode": "verdicts",
+          "model": "example-model",
+          "outcome": "committed",
+          "provider": "claude-code",
+          "questions": [
+            "q-retention"
+          ],
+          "requestedModel": "text-9",
+          "session": "new",
+          "shape": "skeleton",
+          "sourceSha": "abc1234",
+          "usage": {
+            "available": true,
+            "usage": {
+              "inputTokens": 1,
+              "outputTokens": 1,
+              "provider": "mistral-vibe",
+              "sessionCostUsd": 1,
+              "toolCallsAgreed": 1,
+              "toolCallsFailed": 1,
+              "toolCallsRejected": 1,
+              "toolCallsSucceeded": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "reads a document stamped 0.30.0",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.30.0.json",
+        "kind": "decision",
+        "decisionId": "2610160930-example/01",
+        "artifact": "docs/specs/2610160930-example.md",
+        "artifactKind": "spec",
+        "session": "new",
+        "doctrine": [
+          {
+            "kind": "skill",
+            "name": "phax-decide-spec",
+            "source": "bundled",
+            "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ],
+        "questions": [
+          "q-retention"
+        ],
+        "arbitrated": 2,
+        "departed": 1,
+        "sourceSha": "abc1234",
+        "shape": "skeleton",
+        "provider": "claude-code",
+        "model": "example-model",
+        "effort": "high",
+        "requestedModel": "text-9",
+        "mode": "verdicts",
+        "outcome": "failed",
+        "commit": null,
+        "failure": "network",
+        "usage": {
+          "available": true,
+          "usage": {
+            "provider": "claude-code",
+            "inputTokens": 1,
+            "cacheCreationInputTokens": 1,
+            "cacheReadInputTokens": 1,
+            "outputTokens": 1,
+            "totalCostUsd": 1
+          }
+        }
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.30.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.30.0.json",
+          "arbitrated": 2,
+          "artifact": "docs/specs/2610160930-example.md",
+          "artifactKind": "spec",
+          "commit": null,
+          "decisionId": "2610160930-example/01",
+          "departed": 1,
+          "doctrine": [
+            {
+              "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "kind": "skill",
+              "name": "phax-decide-spec",
+              "source": "bundled"
+            }
+          ],
+          "effort": "high",
+          "failure": "network",
+          "kind": "decision",
+          "mode": "verdicts",
+          "model": "example-model",
+          "outcome": "failed",
+          "provider": "claude-code",
+          "questions": [
+            "q-retention"
+          ],
+          "requestedModel": "text-9",
+          "session": "new",
+          "shape": "skeleton",
+          "sourceSha": "abc1234",
+          "usage": {
+            "available": true,
+            "usage": {
+              "cacheCreationInputTokens": 1,
+              "cacheReadInputTokens": 1,
+              "inputTokens": 1,
+              "outputTokens": 1,
+              "provider": "claude-code",
+              "totalCostUsd": 1
+            }
+          }
+        }
+      }
+    }
+  ],
+  "shapes": {
+    "0.25.0": [
+      {
+        "name": "accepts a document setting every field",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.25.0.json",
+          "kind": "decision",
+          "decisionId": "2610160930-example/01",
+          "artifact": "docs/specs/2610160930-example.md",
+          "artifactKind": "spec",
+          "mode": "interactive",
+          "session": "new",
+          "doctrine": [
+            {
+              "kind": "skill",
+              "name": "phax-decide-spec",
+              "source": "bundled",
+              "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ],
+          "questions": [
+            "q-retention"
+          ],
+          "arbitrated": 2,
+          "departed": 1,
+          "sourceSha": "abc1234",
+          "shape": "skeleton",
+          "provider": "claude-code",
+          "model": "example-model",
+          "effort": "high",
+          "outcome": "committed",
+          "commit": "def5678",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "mistral-vibe",
+              "inputTokens": 1,
+              "outputTokens": 1,
+              "sessionCostUsd": 1,
+              "toolCallsAgreed": 1,
+              "toolCallsRejected": 1,
+              "toolCallsFailed": 1,
+              "toolCallsSucceeded": 1
+            }
+          }
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.25.0.json",
+            "arbitrated": 2,
+            "artifact": "docs/specs/2610160930-example.md",
+            "artifactKind": "spec",
+            "commit": "def5678",
+            "decisionId": "2610160930-example/01",
+            "departed": 1,
+            "doctrine": [
+              {
+                "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "kind": "skill",
+                "name": "phax-decide-spec",
+                "source": "bundled"
+              }
+            ],
+            "effort": "high",
+            "kind": "decision",
+            "mode": "interactive",
+            "model": "example-model",
+            "outcome": "committed",
+            "provider": "claude-code",
+            "questions": [
+              "q-retention"
+            ],
+            "session": "new",
+            "shape": "skeleton",
+            "sourceSha": "abc1234",
+            "usage": {
+              "available": true,
+              "usage": {
+                "inputTokens": 1,
+                "outputTokens": 1,
+                "provider": "mistral-vibe",
+                "sessionCostUsd": 1,
+                "toolCallsAgreed": 1,
+                "toolCallsFailed": 1,
+                "toolCallsRejected": 1,
+                "toolCallsSucceeded": 1
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "accepts a document setting every field, variant 2",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.25.0.json",
+          "kind": "decision",
+          "decisionId": "2610160930-example/01",
+          "artifact": "docs/specs/2610160930-example.md",
+          "artifactKind": "spec",
+          "mode": "interactive",
+          "session": "new",
+          "doctrine": [
+            {
+              "kind": "file",
+              "path": "text-3",
+              "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ],
+          "questions": [
+            "q-retention"
+          ],
+          "arbitrated": 2,
+          "departed": 1,
+          "sourceSha": "abc1234",
+          "shape": "skeleton",
+          "provider": "claude-code",
+          "model": "example-model",
+          "effort": "high",
+          "outcome": "committed",
+          "commit": "def5678",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1,
+              "cacheCreationInputTokens": 1,
+              "cacheReadInputTokens": 1,
+              "outputTokens": 1,
+              "totalCostUsd": 1
+            }
+          }
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.25.0.json",
+            "arbitrated": 2,
+            "artifact": "docs/specs/2610160930-example.md",
+            "artifactKind": "spec",
+            "commit": "def5678",
+            "decisionId": "2610160930-example/01",
+            "departed": 1,
+            "doctrine": [
+              {
+                "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "kind": "file",
+                "path": "text-3"
+              }
+            ],
+            "effort": "high",
+            "kind": "decision",
+            "mode": "interactive",
+            "model": "example-model",
+            "outcome": "committed",
+            "provider": "claude-code",
+            "questions": [
+              "q-retention"
+            ],
+            "session": "new",
+            "shape": "skeleton",
+            "sourceSha": "abc1234",
+            "usage": {
+              "available": true,
+              "usage": {
+                "cacheCreationInputTokens": 1,
+                "cacheReadInputTokens": 1,
+                "inputTokens": 1,
+                "outputTokens": 1,
+                "provider": "claude-code",
+                "totalCostUsd": 1
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "accepts a document setting every field, variant 3",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.25.0.json",
+          "kind": "decision",
+          "decisionId": "2610160930-example/01",
+          "artifact": "docs/specs/2610160930-example.md",
+          "artifactKind": "spec",
+          "mode": "interactive",
+          "session": "new",
+          "doctrine": [
+            {
+              "kind": "skill",
+              "name": "phax-decide-spec",
+              "source": "bundled",
+              "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ],
+          "questions": [
+            "q-retention"
+          ],
+          "arbitrated": 2,
+          "departed": 1,
+          "sourceSha": "abc1234",
+          "shape": "skeleton",
+          "provider": "claude-code",
+          "model": "example-model",
+          "effort": "high",
+          "outcome": "committed",
+          "commit": "def5678",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 1,
+              "cachedInputTokens": 1,
+              "outputTokens": 1,
+              "reasoningOutputTokens": 1
+            }
+          }
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.25.0.json",
+            "arbitrated": 2,
+            "artifact": "docs/specs/2610160930-example.md",
+            "artifactKind": "spec",
+            "commit": "def5678",
+            "decisionId": "2610160930-example/01",
+            "departed": 1,
+            "doctrine": [
+              {
+                "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "kind": "skill",
+                "name": "phax-decide-spec",
+                "source": "bundled"
+              }
+            ],
+            "effort": "high",
+            "kind": "decision",
+            "mode": "interactive",
+            "model": "example-model",
+            "outcome": "committed",
+            "provider": "claude-code",
+            "questions": [
+              "q-retention"
+            ],
+            "session": "new",
+            "shape": "skeleton",
+            "sourceSha": "abc1234",
+            "usage": {
+              "available": true,
+              "usage": {
+                "cachedInputTokens": 1,
+                "inputTokens": 1,
+                "outputTokens": 1,
+                "provider": "codex-cli",
+                "reasoningOutputTokens": 1
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "accepts a document with only its required fields",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.25.0.json",
+          "kind": "decision",
+          "decisionId": "2610160930-example/01",
+          "artifact": "docs/specs/2610160930-example.md",
+          "artifactKind": "spec",
+          "mode": "interactive",
+          "session": "new",
+          "doctrine": [
+            {
+              "kind": "skill",
+              "name": "phax-decide-spec",
+              "source": "bundled",
+              "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ],
+          "questions": [
+            "q-retention"
+          ],
+          "arbitrated": 2,
+          "departed": 1,
+          "sourceSha": "abc1234",
+          "shape": "skeleton",
+          "provider": "claude-code",
+          "model": "example-model",
+          "effort": "high",
+          "outcome": "committed",
+          "commit": "def5678",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "mistral-vibe",
+              "inputTokens": 1,
+              "outputTokens": 1,
+              "sessionCostUsd": 1,
+              "toolCallsAgreed": 1,
+              "toolCallsRejected": 1,
+              "toolCallsFailed": 1,
+              "toolCallsSucceeded": 1
+            }
+          }
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.25.0.json",
+            "arbitrated": 2,
+            "artifact": "docs/specs/2610160930-example.md",
+            "artifactKind": "spec",
+            "commit": "def5678",
+            "decisionId": "2610160930-example/01",
+            "departed": 1,
+            "doctrine": [
+              {
+                "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "kind": "skill",
+                "name": "phax-decide-spec",
+                "source": "bundled"
+              }
+            ],
+            "effort": "high",
+            "kind": "decision",
+            "mode": "interactive",
+            "model": "example-model",
+            "outcome": "committed",
+            "provider": "claude-code",
+            "questions": [
+              "q-retention"
+            ],
+            "session": "new",
+            "shape": "skeleton",
+            "sourceSha": "abc1234",
+            "usage": {
+              "available": true,
+              "usage": {
+                "inputTokens": 1,
+                "outputTokens": 1,
+                "provider": "mistral-vibe",
+                "sessionCostUsd": 1,
+                "toolCallsAgreed": 1,
+                "toolCallsFailed": 1,
+                "toolCallsRejected": 1,
+                "toolCallsSucceeded": 1
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "refuses a document missing kind",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.25.0.json",
+          "decisionId": "2610160930-example/01",
+          "artifact": "docs/specs/2610160930-example.md",
+          "artifactKind": "spec",
+          "mode": "interactive",
+          "session": "new",
+          "doctrine": [
+            {
+              "kind": "skill",
+              "name": "phax-decide-spec",
+              "source": "bundled",
+              "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ],
+          "questions": [
+            "q-retention"
+          ],
+          "arbitrated": 2,
+          "departed": 1,
+          "sourceSha": "abc1234",
+          "shape": "skeleton",
+          "provider": "claude-code",
+          "model": "example-model",
+          "effort": "high",
+          "outcome": "committed",
+          "commit": "def5678",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "mistral-vibe",
+              "inputTokens": 1,
+              "outputTokens": 1,
+              "sessionCostUsd": 1,
+              "toolCallsAgreed": 1,
+              "toolCallsRejected": 1,
+              "toolCallsFailed": 1,
+              "toolCallsSucceeded": 1
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "kind: is missing"
+        }
+      },
+      {
+        "name": "refuses an unexpected key",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.25.0.json",
+          "kind": "decision",
+          "decisionId": "2610160930-example/01",
+          "artifact": "docs/specs/2610160930-example.md",
+          "artifactKind": "spec",
+          "mode": "interactive",
+          "session": "new",
+          "doctrine": [
+            {
+              "kind": "skill",
+              "name": "phax-decide-spec",
+              "source": "bundled",
+              "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ],
+          "questions": [
+            "q-retention"
+          ],
+          "arbitrated": 2,
+          "departed": 1,
+          "sourceSha": "abc1234",
+          "shape": "skeleton",
+          "provider": "claude-code",
+          "model": "example-model",
+          "effort": "high",
+          "outcome": "committed",
+          "commit": "def5678",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "mistral-vibe",
+              "inputTokens": 1,
+              "outputTokens": 1,
+              "sessionCostUsd": 1,
+              "toolCallsAgreed": 1,
+              "toolCallsRejected": 1,
+              "toolCallsFailed": 1,
+              "toolCallsSucceeded": 1
+            }
+          },
+          "unexpectedKey": 1
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "unexpectedKey: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"mode\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"outcome\" | \"commit\" | \"usage\""
+        }
+      },
+      {
+        "name": "refuses decisionId of the wrong type",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.25.0.json",
+          "kind": "decision",
+          "decisionId": 42,
+          "artifact": "docs/specs/2610160930-example.md",
+          "artifactKind": "spec",
+          "mode": "interactive",
+          "session": "new",
+          "doctrine": [
+            {
+              "kind": "skill",
+              "name": "phax-decide-spec",
+              "source": "bundled",
+              "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ],
+          "questions": [
+            "q-retention"
+          ],
+          "arbitrated": 2,
+          "departed": 1,
+          "sourceSha": "abc1234",
+          "shape": "skeleton",
+          "provider": "claude-code",
+          "model": "example-model",
+          "effort": "high",
+          "outcome": "committed",
+          "commit": "def5678",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "mistral-vibe",
+              "inputTokens": 1,
+              "outputTokens": 1,
+              "sessionCostUsd": 1,
+              "toolCallsAgreed": 1,
+              "toolCallsRejected": 1,
+              "toolCallsFailed": 1,
+              "toolCallsSucceeded": 1
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "decisionId: Expected string, actual 42"
+        }
+      },
+      {
+        "name": "refuses kind outside its value",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.25.0.json",
+          "kind": "bogus-value",
+          "decisionId": "2610160930-example/01",
+          "artifact": "docs/specs/2610160930-example.md",
+          "artifactKind": "spec",
+          "mode": "interactive",
+          "session": "new",
+          "doctrine": [
+            {
+              "kind": "skill",
+              "name": "phax-decide-spec",
+              "source": "bundled",
+              "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ],
+          "questions": [
+            "q-retention"
+          ],
+          "arbitrated": 2,
+          "departed": 1,
+          "sourceSha": "abc1234",
+          "shape": "skeleton",
+          "provider": "claude-code",
+          "model": "example-model",
+          "effort": "high",
+          "outcome": "committed",
+          "commit": "def5678",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "mistral-vibe",
+              "inputTokens": 1,
+              "outputTokens": 1,
+              "sessionCostUsd": 1,
+              "toolCallsAgreed": 1,
+              "toolCallsRejected": 1,
+              "toolCallsFailed": 1,
+              "toolCallsSucceeded": 1
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "kind: Expected \"decision\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "refuses decisionId that breaks its pattern",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.25.0.json",
+          "kind": "decision",
+          "decisionId": "",
+          "artifact": "docs/specs/2610160930-example.md",
+          "artifactKind": "spec",
+          "mode": "interactive",
+          "session": "new",
+          "doctrine": [
+            {
+              "kind": "skill",
+              "name": "phax-decide-spec",
+              "source": "bundled",
+              "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ],
+          "questions": [
+            "q-retention"
+          ],
+          "arbitrated": 2,
+          "departed": 1,
+          "sourceSha": "abc1234",
+          "shape": "skeleton",
+          "provider": "claude-code",
+          "model": "example-model",
+          "effort": "high",
+          "outcome": "committed",
+          "commit": "def5678",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "mistral-vibe",
+              "inputTokens": 1,
+              "outputTokens": 1,
+              "sessionCostUsd": 1,
+              "toolCallsAgreed": 1,
+              "toolCallsRejected": 1,
+              "toolCallsFailed": 1,
+              "toolCallsSucceeded": 1
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "decisionId: Expected `<stamp>-<slug>/<NN>`, the Decision-Id trailer., actual \"\""
+        }
+      }
+    ],
+    "0.28.0": [
+      {
+        "name": "accepts a document setting every field",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.28.0.json",
+          "kind": "decision",
+          "decisionId": "2610160930-example/01",
+          "artifact": "docs/specs/2610160930-example.md",
+          "artifactKind": "spec",
+          "session": "new",
+          "doctrine": [
+            {
+              "kind": "skill",
+              "name": "phax-decide-spec",
+              "source": "bundled",
+              "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ],
+          "questions": [
+            "q-retention"
+          ],
+          "arbitrated": 2,
+          "departed": 1,
+          "sourceSha": "abc1234",
+          "shape": "skeleton",
+          "provider": "claude-code",
+          "model": "example-model",
+          "effort": "high",
+          "requestedModel": "text-9",
+          "mode": "verdicts",
+          "outcome": "committed",
+          "commit": "def5678",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "mistral-vibe",
+              "inputTokens": 1,
+              "outputTokens": 1,
+              "sessionCostUsd": 1,
+              "toolCallsAgreed": 1,
+              "toolCallsRejected": 1,
+              "toolCallsFailed": 1,
+              "toolCallsSucceeded": 1
+            }
+          }
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.28.0.json",
+            "arbitrated": 2,
+            "artifact": "docs/specs/2610160930-example.md",
+            "artifactKind": "spec",
+            "commit": "def5678",
+            "decisionId": "2610160930-example/01",
+            "departed": 1,
+            "doctrine": [
+              {
+                "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "kind": "skill",
+                "name": "phax-decide-spec",
+                "source": "bundled"
+              }
+            ],
+            "effort": "high",
+            "kind": "decision",
+            "mode": "verdicts",
+            "model": "example-model",
+            "outcome": "committed",
+            "provider": "claude-code",
+            "questions": [
+              "q-retention"
+            ],
+            "requestedModel": "text-9",
+            "session": "new",
+            "shape": "skeleton",
+            "sourceSha": "abc1234",
+            "usage": {
+              "available": true,
+              "usage": {
+                "inputTokens": 1,
+                "outputTokens": 1,
+                "provider": "mistral-vibe",
+                "sessionCostUsd": 1,
+                "toolCallsAgreed": 1,
+                "toolCallsFailed": 1,
+                "toolCallsRejected": 1,
+                "toolCallsSucceeded": 1
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "accepts a document setting every field, variant 2",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.28.0.json",
+          "kind": "decision",
+          "decisionId": "2610160930-example/01",
+          "artifact": "docs/specs/2610160930-example.md",
+          "artifactKind": "spec",
+          "session": "new",
+          "doctrine": [
+            {
+              "kind": "file",
+              "path": "text-3",
+              "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ],
+          "questions": [
+            "q-retention"
+          ],
+          "arbitrated": 2,
+          "departed": 1,
+          "sourceSha": "abc1234",
+          "shape": "skeleton",
+          "provider": "claude-code",
+          "model": "example-model",
+          "effort": "high",
+          "mode": "interactive",
+          "outcome": "committed",
+          "commit": "def5678",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1,
+              "cacheCreationInputTokens": 1,
+              "cacheReadInputTokens": 1,
+              "outputTokens": 1,
+              "totalCostUsd": 1
+            }
+          }
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.28.0.json",
+            "arbitrated": 2,
+            "artifact": "docs/specs/2610160930-example.md",
+            "artifactKind": "spec",
+            "commit": "def5678",
+            "decisionId": "2610160930-example/01",
+            "departed": 1,
+            "doctrine": [
+              {
+                "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "kind": "file",
+                "path": "text-3"
+              }
+            ],
+            "effort": "high",
+            "kind": "decision",
+            "mode": "interactive",
+            "model": "example-model",
+            "outcome": "committed",
+            "provider": "claude-code",
+            "questions": [
+              "q-retention"
+            ],
+            "session": "new",
+            "shape": "skeleton",
+            "sourceSha": "abc1234",
+            "usage": {
+              "available": true,
+              "usage": {
+                "cacheCreationInputTokens": 1,
+                "cacheReadInputTokens": 1,
+                "inputTokens": 1,
+                "outputTokens": 1,
+                "provider": "claude-code",
+                "totalCostUsd": 1
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "accepts a document setting every field, variant 3",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.28.0.json",
+          "kind": "decision",
+          "decisionId": "2610160930-example/01",
+          "artifact": "docs/specs/2610160930-example.md",
+          "artifactKind": "spec",
+          "session": "new",
+          "doctrine": [
+            {
+              "kind": "skill",
+              "name": "phax-decide-spec",
+              "source": "bundled",
+              "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ],
+          "questions": [
+            "q-retention"
+          ],
+          "arbitrated": 2,
+          "departed": 1,
+          "sourceSha": "abc1234",
+          "shape": "skeleton",
+          "provider": "claude-code",
+          "model": "example-model",
+          "effort": "high",
+          "mode": "interactive",
+          "outcome": "committed",
+          "commit": "def5678",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 1,
+              "cachedInputTokens": 1,
+              "outputTokens": 1,
+              "reasoningOutputTokens": 1
+            }
+          }
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.28.0.json",
+            "arbitrated": 2,
+            "artifact": "docs/specs/2610160930-example.md",
+            "artifactKind": "spec",
+            "commit": "def5678",
+            "decisionId": "2610160930-example/01",
+            "departed": 1,
+            "doctrine": [
+              {
+                "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "kind": "skill",
+                "name": "phax-decide-spec",
+                "source": "bundled"
+              }
+            ],
+            "effort": "high",
+            "kind": "decision",
+            "mode": "interactive",
+            "model": "example-model",
+            "outcome": "committed",
+            "provider": "claude-code",
+            "questions": [
+              "q-retention"
+            ],
+            "session": "new",
+            "shape": "skeleton",
+            "sourceSha": "abc1234",
+            "usage": {
+              "available": true,
+              "usage": {
+                "cachedInputTokens": 1,
+                "inputTokens": 1,
+                "outputTokens": 1,
+                "provider": "codex-cli",
+                "reasoningOutputTokens": 1
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "accepts a document with only its required fields",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.28.0.json",
+          "kind": "decision",
+          "decisionId": "2610160930-example/01",
+          "artifact": "docs/specs/2610160930-example.md",
+          "artifactKind": "spec",
+          "session": "new",
+          "doctrine": [
+            {
+              "kind": "skill",
+              "name": "phax-decide-spec",
+              "source": "bundled",
+              "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ],
+          "questions": [
+            "q-retention"
+          ],
+          "arbitrated": 2,
+          "departed": 1,
+          "sourceSha": "abc1234",
+          "shape": "skeleton",
+          "provider": "claude-code",
+          "model": "example-model",
+          "effort": "high",
+          "requestedModel": "text-9",
+          "mode": "verdicts",
+          "outcome": "committed",
+          "commit": "def5678",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "mistral-vibe",
+              "inputTokens": 1,
+              "outputTokens": 1,
+              "sessionCostUsd": 1,
+              "toolCallsAgreed": 1,
+              "toolCallsRejected": 1,
+              "toolCallsFailed": 1,
+              "toolCallsSucceeded": 1
+            }
+          }
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.28.0.json",
+            "arbitrated": 2,
+            "artifact": "docs/specs/2610160930-example.md",
+            "artifactKind": "spec",
+            "commit": "def5678",
+            "decisionId": "2610160930-example/01",
+            "departed": 1,
+            "doctrine": [
+              {
+                "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "kind": "skill",
+                "name": "phax-decide-spec",
+                "source": "bundled"
+              }
+            ],
+            "effort": "high",
+            "kind": "decision",
+            "mode": "verdicts",
+            "model": "example-model",
+            "outcome": "committed",
+            "provider": "claude-code",
+            "questions": [
+              "q-retention"
+            ],
+            "requestedModel": "text-9",
+            "session": "new",
+            "shape": "skeleton",
+            "sourceSha": "abc1234",
+            "usage": {
+              "available": true,
+              "usage": {
+                "inputTokens": 1,
+                "outputTokens": 1,
+                "provider": "mistral-vibe",
+                "sessionCostUsd": 1,
+                "toolCallsAgreed": 1,
+                "toolCallsFailed": 1,
+                "toolCallsRejected": 1,
+                "toolCallsSucceeded": 1
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "refuses a document missing kind",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.28.0.json",
+          "decisionId": "2610160930-example/01",
+          "artifact": "docs/specs/2610160930-example.md",
+          "artifactKind": "spec",
+          "session": "new",
+          "doctrine": [
+            {
+              "kind": "skill",
+              "name": "phax-decide-spec",
+              "source": "bundled",
+              "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ],
+          "questions": [
+            "q-retention"
+          ],
+          "arbitrated": 2,
+          "departed": 1,
+          "sourceSha": "abc1234",
+          "shape": "skeleton",
+          "provider": "claude-code",
+          "model": "example-model",
+          "effort": "high",
+          "requestedModel": "text-9",
+          "mode": "verdicts",
+          "outcome": "committed",
+          "commit": "def5678",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "mistral-vibe",
+              "inputTokens": 1,
+              "outputTokens": 1,
+              "sessionCostUsd": 1,
+              "toolCallsAgreed": 1,
+              "toolCallsRejected": 1,
+              "toolCallsFailed": 1,
+              "toolCallsSucceeded": 1
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "kind: is missing"
+        }
+      },
+      {
+        "name": "refuses an unexpected key",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.28.0.json",
+          "kind": "decision",
+          "decisionId": "2610160930-example/01",
+          "artifact": "docs/specs/2610160930-example.md",
+          "artifactKind": "spec",
+          "session": "new",
+          "doctrine": [
+            {
+              "kind": "skill",
+              "name": "phax-decide-spec",
+              "source": "bundled",
+              "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ],
+          "questions": [
+            "q-retention"
+          ],
+          "arbitrated": 2,
+          "departed": 1,
+          "sourceSha": "abc1234",
+          "shape": "skeleton",
+          "provider": "claude-code",
+          "model": "example-model",
+          "effort": "high",
+          "requestedModel": "text-9",
+          "mode": "verdicts",
+          "outcome": "committed",
+          "commit": "def5678",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "mistral-vibe",
+              "inputTokens": 1,
+              "outputTokens": 1,
+              "sessionCostUsd": 1,
+              "toolCallsAgreed": 1,
+              "toolCallsRejected": 1,
+              "toolCallsFailed": 1,
+              "toolCallsSucceeded": 1
+            }
+          },
+          "unexpectedKey": 1
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        }
+      },
+      {
+        "name": "refuses decisionId of the wrong type",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.28.0.json",
+          "kind": "decision",
+          "decisionId": 42,
+          "artifact": "docs/specs/2610160930-example.md",
+          "artifactKind": "spec",
+          "session": "new",
+          "doctrine": [
+            {
+              "kind": "skill",
+              "name": "phax-decide-spec",
+              "source": "bundled",
+              "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ],
+          "questions": [
+            "q-retention"
+          ],
+          "arbitrated": 2,
+          "departed": 1,
+          "sourceSha": "abc1234",
+          "shape": "skeleton",
+          "provider": "claude-code",
+          "model": "example-model",
+          "effort": "high",
+          "requestedModel": "text-9",
+          "mode": "verdicts",
+          "outcome": "committed",
+          "commit": "def5678",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "mistral-vibe",
+              "inputTokens": 1,
+              "outputTokens": 1,
+              "sessionCostUsd": 1,
+              "toolCallsAgreed": 1,
+              "toolCallsRejected": 1,
+              "toolCallsFailed": 1,
+              "toolCallsSucceeded": 1
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        }
+      },
+      {
+        "name": "refuses kind outside its value",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.28.0.json",
+          "kind": "bogus-value",
+          "decisionId": "2610160930-example/01",
+          "artifact": "docs/specs/2610160930-example.md",
+          "artifactKind": "spec",
+          "session": "new",
+          "doctrine": [
+            {
+              "kind": "skill",
+              "name": "phax-decide-spec",
+              "source": "bundled",
+              "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ],
+          "questions": [
+            "q-retention"
+          ],
+          "arbitrated": 2,
+          "departed": 1,
+          "sourceSha": "abc1234",
+          "shape": "skeleton",
+          "provider": "claude-code",
+          "model": "example-model",
+          "effort": "high",
+          "requestedModel": "text-9",
+          "mode": "verdicts",
+          "outcome": "committed",
+          "commit": "def5678",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "mistral-vibe",
+              "inputTokens": 1,
+              "outputTokens": 1,
+              "sessionCostUsd": 1,
+              "toolCallsAgreed": 1,
+              "toolCallsRejected": 1,
+              "toolCallsFailed": 1,
+              "toolCallsSucceeded": 1
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "kind: Expected \"decision\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "refuses decisionId that breaks its pattern",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.28.0.json",
+          "kind": "decision",
+          "decisionId": "",
+          "artifact": "docs/specs/2610160930-example.md",
+          "artifactKind": "spec",
+          "session": "new",
+          "doctrine": [
+            {
+              "kind": "skill",
+              "name": "phax-decide-spec",
+              "source": "bundled",
+              "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ],
+          "questions": [
+            "q-retention"
+          ],
+          "arbitrated": 2,
+          "departed": 1,
+          "sourceSha": "abc1234",
+          "shape": "skeleton",
+          "provider": "claude-code",
+          "model": "example-model",
+          "effort": "high",
+          "requestedModel": "text-9",
+          "mode": "verdicts",
+          "outcome": "committed",
+          "commit": "def5678",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "mistral-vibe",
+              "inputTokens": 1,
+              "outputTokens": 1,
+              "sessionCostUsd": 1,
+              "toolCallsAgreed": 1,
+              "toolCallsRejected": 1,
+              "toolCallsFailed": 1,
+              "toolCallsSucceeded": 1
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        }
+      }
+    ],
+    "0.30.0": [
+      {
+        "name": "accepts a document setting every field",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.30.0.json",
+          "kind": "decision",
+          "decisionId": "2610160930-example/01",
+          "artifact": "docs/specs/2610160930-example.md",
+          "artifactKind": "spec",
+          "session": "new",
+          "doctrine": [
+            {
+              "kind": "skill",
+              "name": "phax-decide-spec",
+              "source": "bundled",
+              "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ],
+          "questions": [
+            "q-retention"
+          ],
+          "arbitrated": 2,
+          "departed": 1,
+          "sourceSha": "abc1234",
+          "shape": "skeleton",
+          "provider": "claude-code",
+          "model": "example-model",
+          "effort": "high",
+          "requestedModel": "text-9",
+          "mode": "verdicts",
+          "outcome": "failed",
+          "commit": null,
+          "failure": "network",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1,
+              "cacheCreationInputTokens": 1,
+              "cacheReadInputTokens": 1,
+              "outputTokens": 1,
+              "totalCostUsd": 1
+            }
+          }
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.30.0.json",
+            "arbitrated": 2,
+            "artifact": "docs/specs/2610160930-example.md",
+            "artifactKind": "spec",
+            "commit": null,
+            "decisionId": "2610160930-example/01",
+            "departed": 1,
+            "doctrine": [
+              {
+                "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "kind": "skill",
+                "name": "phax-decide-spec",
+                "source": "bundled"
+              }
+            ],
+            "effort": "high",
+            "failure": "network",
+            "kind": "decision",
+            "mode": "verdicts",
+            "model": "example-model",
+            "outcome": "failed",
+            "provider": "claude-code",
+            "questions": [
+              "q-retention"
+            ],
+            "requestedModel": "text-9",
+            "session": "new",
+            "shape": "skeleton",
+            "sourceSha": "abc1234",
+            "usage": {
+              "available": true,
+              "usage": {
+                "cacheCreationInputTokens": 1,
+                "cacheReadInputTokens": 1,
+                "inputTokens": 1,
+                "outputTokens": 1,
+                "provider": "claude-code",
+                "totalCostUsd": 1
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "accepts a document setting every field, variant 2",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.30.0.json",
+          "kind": "decision",
+          "decisionId": "2610160930-example/01",
+          "artifact": "docs/specs/2610160930-example.md",
+          "artifactKind": "spec",
+          "session": "new",
+          "doctrine": [
+            {
+              "kind": "file",
+              "path": "text-3",
+              "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ],
+          "questions": [
+            "q-retention"
+          ],
+          "arbitrated": 2,
+          "departed": 1,
+          "sourceSha": "abc1234",
+          "shape": "skeleton",
+          "provider": "claude-code",
+          "model": "example-model",
+          "effort": "high",
+          "mode": "interactive",
+          "outcome": "committed",
+          "commit": "def5678",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 1,
+              "cachedInputTokens": 1,
+              "outputTokens": 1,
+              "reasoningOutputTokens": 1
+            }
+          }
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.30.0.json",
+            "arbitrated": 2,
+            "artifact": "docs/specs/2610160930-example.md",
+            "artifactKind": "spec",
+            "commit": "def5678",
+            "decisionId": "2610160930-example/01",
+            "departed": 1,
+            "doctrine": [
+              {
+                "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "kind": "file",
+                "path": "text-3"
+              }
+            ],
+            "effort": "high",
+            "kind": "decision",
+            "mode": "interactive",
+            "model": "example-model",
+            "outcome": "committed",
+            "provider": "claude-code",
+            "questions": [
+              "q-retention"
+            ],
+            "session": "new",
+            "shape": "skeleton",
+            "sourceSha": "abc1234",
+            "usage": {
+              "available": true,
+              "usage": {
+                "cachedInputTokens": 1,
+                "inputTokens": 1,
+                "outputTokens": 1,
+                "provider": "codex-cli",
+                "reasoningOutputTokens": 1
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "accepts a document setting every field, variant 3",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.30.0.json",
+          "kind": "decision",
+          "decisionId": "2610160930-example/01",
+          "artifact": "docs/specs/2610160930-example.md",
+          "artifactKind": "spec",
+          "session": "new",
+          "doctrine": [
+            {
+              "kind": "skill",
+              "name": "phax-decide-spec",
+              "source": "bundled",
+              "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ],
+          "questions": [
+            "q-retention"
+          ],
+          "arbitrated": 2,
+          "departed": 1,
+          "sourceSha": "abc1234",
+          "shape": "skeleton",
+          "provider": "claude-code",
+          "model": "example-model",
+          "effort": "high",
+          "mode": "interactive",
+          "outcome": "committed",
+          "commit": "def5678",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "mistral-vibe",
+              "inputTokens": 1,
+              "cachedInputTokens": 1,
+              "outputTokens": 1,
+              "costUsd": 1
+            }
+          }
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.30.0.json",
+            "arbitrated": 2,
+            "artifact": "docs/specs/2610160930-example.md",
+            "artifactKind": "spec",
+            "commit": "def5678",
+            "decisionId": "2610160930-example/01",
+            "departed": 1,
+            "doctrine": [
+              {
+                "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "kind": "skill",
+                "name": "phax-decide-spec",
+                "source": "bundled"
+              }
+            ],
+            "effort": "high",
+            "kind": "decision",
+            "mode": "interactive",
+            "model": "example-model",
+            "outcome": "committed",
+            "provider": "claude-code",
+            "questions": [
+              "q-retention"
+            ],
+            "session": "new",
+            "shape": "skeleton",
+            "sourceSha": "abc1234",
+            "usage": {
+              "available": true,
+              "usage": {
+                "cachedInputTokens": 1,
+                "costUsd": 1,
+                "inputTokens": 1,
+                "outputTokens": 1,
+                "provider": "mistral-vibe"
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "accepts a document with only its required fields",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.30.0.json",
+          "kind": "decision",
+          "decisionId": "2610160930-example/01",
+          "artifact": "docs/specs/2610160930-example.md",
+          "artifactKind": "spec",
+          "session": "new",
+          "doctrine": [
+            {
+              "kind": "skill",
+              "name": "phax-decide-spec",
+              "source": "bundled",
+              "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ],
+          "questions": [
+            "q-retention"
+          ],
+          "arbitrated": 2,
+          "departed": 1,
+          "sourceSha": "abc1234",
+          "shape": "skeleton",
+          "provider": "claude-code",
+          "model": "example-model",
+          "effort": "high",
+          "requestedModel": "text-9",
+          "mode": "verdicts",
+          "outcome": "failed",
+          "commit": null,
+          "failure": "network",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1,
+              "cacheCreationInputTokens": 1,
+              "cacheReadInputTokens": 1,
+              "outputTokens": 1,
+              "totalCostUsd": 1
+            }
+          }
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.30.0.json",
+            "arbitrated": 2,
+            "artifact": "docs/specs/2610160930-example.md",
+            "artifactKind": "spec",
+            "commit": null,
+            "decisionId": "2610160930-example/01",
+            "departed": 1,
+            "doctrine": [
+              {
+                "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "kind": "skill",
+                "name": "phax-decide-spec",
+                "source": "bundled"
+              }
+            ],
+            "effort": "high",
+            "failure": "network",
+            "kind": "decision",
+            "mode": "verdicts",
+            "model": "example-model",
+            "outcome": "failed",
+            "provider": "claude-code",
+            "questions": [
+              "q-retention"
+            ],
+            "requestedModel": "text-9",
+            "session": "new",
+            "shape": "skeleton",
+            "sourceSha": "abc1234",
+            "usage": {
+              "available": true,
+              "usage": {
+                "cacheCreationInputTokens": 1,
+                "cacheReadInputTokens": 1,
+                "inputTokens": 1,
+                "outputTokens": 1,
+                "provider": "claude-code",
+                "totalCostUsd": 1
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "refuses a document missing kind",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.30.0.json",
+          "decisionId": "2610160930-example/01",
+          "artifact": "docs/specs/2610160930-example.md",
+          "artifactKind": "spec",
+          "session": "new",
+          "doctrine": [
+            {
+              "kind": "skill",
+              "name": "phax-decide-spec",
+              "source": "bundled",
+              "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ],
+          "questions": [
+            "q-retention"
+          ],
+          "arbitrated": 2,
+          "departed": 1,
+          "sourceSha": "abc1234",
+          "shape": "skeleton",
+          "provider": "claude-code",
+          "model": "example-model",
+          "effort": "high",
+          "requestedModel": "text-9",
+          "mode": "verdicts",
+          "outcome": "failed",
+          "commit": null,
+          "failure": "network",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1,
+              "cacheCreationInputTokens": 1,
+              "cacheReadInputTokens": 1,
+              "outputTokens": 1,
+              "totalCostUsd": 1
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "kind: is missing"
+        }
+      },
+      {
+        "name": "refuses an unexpected key",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.30.0.json",
+          "kind": "decision",
+          "decisionId": "2610160930-example/01",
+          "artifact": "docs/specs/2610160930-example.md",
+          "artifactKind": "spec",
+          "session": "new",
+          "doctrine": [
+            {
+              "kind": "skill",
+              "name": "phax-decide-spec",
+              "source": "bundled",
+              "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ],
+          "questions": [
+            "q-retention"
+          ],
+          "arbitrated": 2,
+          "departed": 1,
+          "sourceSha": "abc1234",
+          "shape": "skeleton",
+          "provider": "claude-code",
+          "model": "example-model",
+          "effort": "high",
+          "requestedModel": "text-9",
+          "mode": "verdicts",
+          "outcome": "failed",
+          "commit": null,
+          "failure": "network",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1,
+              "cacheCreationInputTokens": 1,
+              "cacheReadInputTokens": 1,
+              "outputTokens": 1,
+              "totalCostUsd": 1
+            }
+          },
+          "unexpectedKey": 1
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+        }
+      },
+      {
+        "name": "refuses decisionId of the wrong type",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.30.0.json",
+          "kind": "decision",
+          "decisionId": 42,
+          "artifact": "docs/specs/2610160930-example.md",
+          "artifactKind": "spec",
+          "session": "new",
+          "doctrine": [
+            {
+              "kind": "skill",
+              "name": "phax-decide-spec",
+              "source": "bundled",
+              "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ],
+          "questions": [
+            "q-retention"
+          ],
+          "arbitrated": 2,
+          "departed": 1,
+          "sourceSha": "abc1234",
+          "shape": "skeleton",
+          "provider": "claude-code",
+          "model": "example-model",
+          "effort": "high",
+          "requestedModel": "text-9",
+          "mode": "verdicts",
+          "outcome": "failed",
+          "commit": null,
+          "failure": "network",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1,
+              "cacheCreationInputTokens": 1,
+              "cacheReadInputTokens": 1,
+              "outputTokens": 1,
+              "totalCostUsd": 1
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+        }
+      },
+      {
+        "name": "refuses kind outside its value",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.30.0.json",
+          "kind": "bogus-value",
+          "decisionId": "2610160930-example/01",
+          "artifact": "docs/specs/2610160930-example.md",
+          "artifactKind": "spec",
+          "session": "new",
+          "doctrine": [
+            {
+              "kind": "skill",
+              "name": "phax-decide-spec",
+              "source": "bundled",
+              "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ],
+          "questions": [
+            "q-retention"
+          ],
+          "arbitrated": 2,
+          "departed": 1,
+          "sourceSha": "abc1234",
+          "shape": "skeleton",
+          "provider": "claude-code",
+          "model": "example-model",
+          "effort": "high",
+          "requestedModel": "text-9",
+          "mode": "verdicts",
+          "outcome": "failed",
+          "commit": null,
+          "failure": "network",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1,
+              "cacheCreationInputTokens": 1,
+              "cacheReadInputTokens": 1,
+              "outputTokens": 1,
+              "totalCostUsd": 1
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "kind: Expected \"decision\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "refuses decisionId that breaks its pattern",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/decision-record-manifest/0.30.0.json",
+          "kind": "decision",
+          "decisionId": "",
+          "artifact": "docs/specs/2610160930-example.md",
+          "artifactKind": "spec",
+          "session": "new",
+          "doctrine": [
+            {
+              "kind": "skill",
+              "name": "phax-decide-spec",
+              "source": "bundled",
+              "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            }
+          ],
+          "questions": [
+            "q-retention"
+          ],
+          "arbitrated": 2,
+          "departed": 1,
+          "sourceSha": "abc1234",
+          "shape": "skeleton",
+          "provider": "claude-code",
+          "model": "example-model",
+          "effort": "high",
+          "requestedModel": "text-9",
+          "mode": "verdicts",
+          "outcome": "failed",
+          "commit": null,
+          "failure": "network",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1,
+              "cacheCreationInputTokens": 1,
+              "cacheReadInputTokens": 1,
+              "outputTokens": 1,
+              "totalCostUsd": 1
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+        }
+      }
+    ]
+  }
+}

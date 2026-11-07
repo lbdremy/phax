@@ -1,0 +1,204 @@
+{
+  "format": "review-record-manifest",
+  "current": [
+    {
+      "name": "accepts a typical document",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/review-record-manifest/0.29.0.json",
+        "kind": "review",
+        "runId": "2610270900-example",
+        "review": "compliance-review"
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.29.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/review-record-manifest/0.29.0.json",
+          "kind": "review",
+          "review": "compliance-review",
+          "runId": "2610270900-example"
+        }
+      }
+    },
+    {
+      "name": "accepts a document setting every field",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/review-record-manifest/0.29.0.json",
+        "kind": "review",
+        "runId": "2610270900-example",
+        "review": "compliance-review"
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.29.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/review-record-manifest/0.29.0.json",
+          "kind": "review",
+          "review": "compliance-review",
+          "runId": "2610270900-example"
+        }
+      }
+    },
+    {
+      "name": "accepts a document with only its required fields",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/review-record-manifest/0.29.0.json",
+        "kind": "review",
+        "runId": "2610270900-example",
+        "review": "compliance-review"
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.29.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/review-record-manifest/0.29.0.json",
+          "kind": "review",
+          "review": "compliance-review",
+          "runId": "2610270900-example"
+        }
+      }
+    },
+    {
+      "name": "refuses a document that is not an object",
+      "input": [
+        "not",
+        "an",
+        "object"
+      ],
+      "expected": {
+        "ok": false,
+        "refusal": ": a review record manifest is a JSON object, got an array"
+      }
+    },
+    {
+      "name": "refuses a stamp naming another format",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/registry/0.17.0.json",
+        "kind": "review",
+        "runId": "2610270900-example",
+        "review": "compliance-review"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: https://docs.phax.run/schemas/registry/0.17.0.json is a registry document, not a review-record-manifest"
+      }
+    },
+    {
+      "name": "refuses a malformed $schema",
+      "input": {
+        "$schema": "not a schema url",
+        "kind": "review",
+        "runId": "2610270900-example",
+        "review": "compliance-review"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: expected https://docs.phax.run/schemas/<format-id>/<X.Y.Z>.json, got \"not a schema url\""
+      }
+    },
+    {
+      "name": "refuses a stamp newer than the package",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/review-record-manifest/9.0.0.json",
+        "kind": "review",
+        "runId": "2610270900-example",
+        "review": "compliance-review"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: review-record-manifest 9.0.0 is newer than @lbdremy/phax-schemas 0.36.0 — upgrade the package"
+      }
+    },
+    {
+      "name": "refuses a stamp below the first supported release",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/review-record-manifest/0.1.0.json",
+        "kind": "review",
+        "runId": "2610270900-example",
+        "review": "compliance-review"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: https://docs.phax.run/schemas/review-record-manifest/0.1.0.json was written by a development build of phax before 0.17.0, the first supported release — not supported"
+      }
+    },
+    {
+      "name": "refuses a document without $schema",
+      "input": {
+        "kind": "review",
+        "runId": "2610270900-example",
+        "review": "compliance-review"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: review record manifest has no $schema — every review record manifest is written with one"
+      }
+    },
+    {
+      "name": "refuses a document missing kind",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/review-record-manifest/0.29.0.json",
+        "runId": "2610270900-example",
+        "review": "compliance-review"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "kind: is missing"
+      }
+    },
+    {
+      "name": "refuses an unexpected key",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/review-record-manifest/0.29.0.json",
+        "kind": "review",
+        "runId": "2610270900-example",
+        "review": "compliance-review",
+        "unexpectedKey": 1
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "unexpectedKey: is unexpected, expected: \"$schema\" | \"kind\" | \"runId\" | \"review\""
+      }
+    },
+    {
+      "name": "refuses runId of the wrong type",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/review-record-manifest/0.29.0.json",
+        "kind": "review",
+        "runId": 42,
+        "review": "compliance-review"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "runId: Expected string, actual 42"
+      }
+    },
+    {
+      "name": "refuses kind outside its value",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/review-record-manifest/0.29.0.json",
+        "kind": "bogus-value",
+        "runId": "2610270900-example",
+        "review": "compliance-review"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "kind: Expected \"review\", actual \"bogus-value\""
+      }
+    },
+    {
+      "name": "refuses runId when empty",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/review-record-manifest/0.29.0.json",
+        "kind": "review",
+        "runId": "",
+        "review": "compliance-review"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "runId: Expected a non empty string, actual \"\""
+      }
+    }
+  ],
+  "shapes": {}
+}

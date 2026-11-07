@@ -1,0 +1,444 @@
+{
+  "format": "brief-request",
+  "current": [
+    {
+      "name": "accepts a typical document",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+        "phase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "terminal": false,
+        "phases": [
+          {
+            "id": "phase-01",
+            "files": [
+              "src/example.ts",
+              "tests/example.test.ts"
+            ]
+          },
+          {
+            "id": "phase-02",
+            "files": [
+              "src/other.ts"
+            ]
+          }
+        ],
+        "files": [
+          "src/example.ts",
+          "src/missing.ts"
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.20.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "files": [
+            "src/example.ts",
+            "src/missing.ts"
+          ],
+          "phase": "phase-02",
+          "phases": [
+            {
+              "files": [
+                "src/example.ts",
+                "tests/example.test.ts"
+              ],
+              "id": "phase-01"
+            },
+            {
+              "files": [
+                "src/other.ts"
+              ],
+              "id": "phase-02"
+            }
+          ],
+          "terminal": false
+        }
+      }
+    },
+    {
+      "name": "accepts a document setting every field",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+        "phase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "terminal": false,
+        "phases": [
+          {
+            "id": "phase-01",
+            "files": [
+              "src/example.ts"
+            ]
+          }
+        ],
+        "files": [
+          "src/example.ts"
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.20.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "files": [
+            "src/example.ts"
+          ],
+          "phase": "phase-02",
+          "phases": [
+            {
+              "files": [
+                "src/example.ts"
+              ],
+              "id": "phase-01"
+            }
+          ],
+          "terminal": false
+        }
+      }
+    },
+    {
+      "name": "accepts a document with only its required fields",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+        "phase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "terminal": false,
+        "phases": [
+          {
+            "id": "phase-01",
+            "files": [
+              "src/example.ts"
+            ]
+          }
+        ],
+        "files": [
+          "src/example.ts"
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.20.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "files": [
+            "src/example.ts"
+          ],
+          "phase": "phase-02",
+          "phases": [
+            {
+              "files": [
+                "src/example.ts"
+              ],
+              "id": "phase-01"
+            }
+          ],
+          "terminal": false
+        }
+      }
+    },
+    {
+      "name": "refuses a document that is not an object",
+      "input": [
+        "not",
+        "an",
+        "object"
+      ],
+      "expected": {
+        "ok": false,
+        "refusal": ": a brief request is a JSON object, got an array"
+      }
+    },
+    {
+      "name": "refuses a stamp naming another format",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/registry/0.17.0.json",
+        "phase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "terminal": false,
+        "phases": [
+          {
+            "id": "phase-01",
+            "files": [
+              "src/example.ts",
+              "tests/example.test.ts"
+            ]
+          },
+          {
+            "id": "phase-02",
+            "files": [
+              "src/other.ts"
+            ]
+          }
+        ],
+        "files": [
+          "src/example.ts",
+          "src/missing.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: https://docs.phax.run/schemas/registry/0.17.0.json is a registry document, not a brief-request"
+      }
+    },
+    {
+      "name": "refuses a malformed $schema",
+      "input": {
+        "$schema": "not a schema url",
+        "phase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "terminal": false,
+        "phases": [
+          {
+            "id": "phase-01",
+            "files": [
+              "src/example.ts",
+              "tests/example.test.ts"
+            ]
+          },
+          {
+            "id": "phase-02",
+            "files": [
+              "src/other.ts"
+            ]
+          }
+        ],
+        "files": [
+          "src/example.ts",
+          "src/missing.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: expected https://docs.phax.run/schemas/<format-id>/<X.Y.Z>.json, got \"not a schema url\""
+      }
+    },
+    {
+      "name": "refuses a stamp newer than the package",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-request/9.0.0.json",
+        "phase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "terminal": false,
+        "phases": [
+          {
+            "id": "phase-01",
+            "files": [
+              "src/example.ts",
+              "tests/example.test.ts"
+            ]
+          },
+          {
+            "id": "phase-02",
+            "files": [
+              "src/other.ts"
+            ]
+          }
+        ],
+        "files": [
+          "src/example.ts",
+          "src/missing.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: brief-request 9.0.0 is newer than @lbdremy/phax-schemas 0.36.0 — upgrade the package"
+      }
+    },
+    {
+      "name": "refuses a stamp below the first supported release",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-request/0.1.0.json",
+        "phase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "terminal": false,
+        "phases": [
+          {
+            "id": "phase-01",
+            "files": [
+              "src/example.ts",
+              "tests/example.test.ts"
+            ]
+          },
+          {
+            "id": "phase-02",
+            "files": [
+              "src/other.ts"
+            ]
+          }
+        ],
+        "files": [
+          "src/example.ts",
+          "src/missing.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: https://docs.phax.run/schemas/brief-request/0.1.0.json was written by a development build of phax before 0.17.0, the first supported release — not supported"
+      }
+    },
+    {
+      "name": "refuses a document without $schema",
+      "input": {
+        "phase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "terminal": false,
+        "phases": [
+          {
+            "id": "phase-01",
+            "files": [
+              "src/example.ts",
+              "tests/example.test.ts"
+            ]
+          },
+          {
+            "id": "phase-02",
+            "files": [
+              "src/other.ts"
+            ]
+          }
+        ],
+        "files": [
+          "src/example.ts",
+          "src/missing.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: brief request has no $schema — every brief request is written with one"
+      }
+    },
+    {
+      "name": "refuses a document missing phase",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "terminal": false,
+        "phases": [
+          {
+            "id": "phase-01",
+            "files": [
+              "src/example.ts",
+              "tests/example.test.ts"
+            ]
+          },
+          {
+            "id": "phase-02",
+            "files": [
+              "src/other.ts"
+            ]
+          }
+        ],
+        "files": [
+          "src/example.ts",
+          "src/missing.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "phase: is missing"
+      }
+    },
+    {
+      "name": "refuses an unexpected key",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+        "phase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "terminal": false,
+        "phases": [
+          {
+            "id": "phase-01",
+            "files": [
+              "src/example.ts",
+              "tests/example.test.ts"
+            ]
+          },
+          {
+            "id": "phase-02",
+            "files": [
+              "src/other.ts"
+            ]
+          }
+        ],
+        "files": [
+          "src/example.ts",
+          "src/missing.ts"
+        ],
+        "unexpectedKey": 1
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "unexpectedKey: is unexpected, expected: \"$schema\" | \"phase\" | \"base\" | \"terminal\" | \"phases\" | \"files\""
+      }
+    },
+    {
+      "name": "refuses phase of the wrong type",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+        "phase": 42,
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "terminal": false,
+        "phases": [
+          {
+            "id": "phase-01",
+            "files": [
+              "src/example.ts",
+              "tests/example.test.ts"
+            ]
+          },
+          {
+            "id": "phase-02",
+            "files": [
+              "src/other.ts"
+            ]
+          }
+        ],
+        "files": [
+          "src/example.ts",
+          "src/missing.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "phase: Expected string, actual 42"
+      }
+    },
+    {
+      "name": "refuses phase that breaks its pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+        "phase": "",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "terminal": false,
+        "phases": [
+          {
+            "id": "phase-01",
+            "files": [
+              "src/example.ts",
+              "tests/example.test.ts"
+            ]
+          },
+          {
+            "id": "phase-02",
+            "files": [
+              "src/other.ts"
+            ]
+          }
+        ],
+        "files": [
+          "src/example.ts",
+          "src/missing.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "phase: Expected The gated phase., actual \"\""
+      }
+    }
+  ],
+  "shapes": {}
+}
