@@ -58,7 +58,7 @@ import { seedPlanCache } from "./planCacheStore.js";
 import { readSpecCriteria } from "./sourceSpecCriteria.js";
 import { pushRecordsBranch, type RecordsPushResult } from "./recordsSync.js";
 import { writeAuthoringRecord, type WriteAuthoringRecordResult } from "./writeAuthoringRecord.js";
-import { RECORDS_BRANCH_NAME } from "./writeRecord.js";
+import { describeRecordsPushFailure } from "./recordsBranch.js";
 
 /**
  * Files of an authoring session folder, `<stateRoot>/authoring/<authoringId>/`.
@@ -621,5 +621,5 @@ export function recordWarning(
  */
 export function recordPushWarning(push: AuthoringRecordPush): string | undefined {
   if (push.kind !== "failed") return undefined;
-  return `authoring record not pushed to ${push.remote} (${push.message}) — it stays pending (\`phax records status\` lists it); share it with \`git -C ${push.path} push ${push.remote} ${RECORDS_BRANCH_NAME}\``;
+  return describeRecordsPushFailure(push, "authoring record");
 }

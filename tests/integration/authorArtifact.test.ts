@@ -1203,6 +1203,8 @@ describe("authorArtifact — authoring record push", () => {
       remote: PUBLISH_REMOTE,
       path: REPO_ROOT,
       message: "remote rejected",
+      // The branch read after the refusal: a local record, nothing on the remote.
+      branch: { state: "no-remote-branch", localTip: expect.any(String), remoteTip: null },
     });
     expect(recordPushWarning(result.right.recordPush)).toBe(
       `authoring record not pushed to ${PUBLISH_REMOTE} (remote rejected) — it stays pending (\`phax records status\` lists it); share it with \`git -C ${REPO_ROOT} push ${PUBLISH_REMOTE} phax/records/v1\``,
@@ -1238,6 +1240,7 @@ describe("authorArtifact — authoring record push", () => {
       remote: "origin",
       path: CLONE_PATH,
       message: "denied",
+      branch: null,
     });
     expect(warning).toContain("not pushed to origin (denied)");
     expect(warning).toContain("stays pending");

@@ -79,3 +79,39 @@ export function describeRecordWriteBranch(
   const remote = (reading.remoteTip ?? "").slice(0, SHORT_SHA_LENGTH);
   return `record kept on the local records branch, which is ${recordsBranchPhrase(reading.state, where.remote)} (local ${local}, ${where.remote} ${remote}); run \`${remedy}\`, then push`;
 }
+
+/** A records push that git refused or could not make, as `pushRecordsBranch` reports it. */
+export interface RecordsPushFailure {
+  readonly remote: string;
+  readonly path: string;
+  readonly message: string;
+  readonly branch: RecordsBranchReading | null;
+}
+
+/**
+ * The sentence a failed records push owes its operator. When the branch is
+ * behind, diverged or unrelated the push was refused because the remote holds
+ * records the local branch does not: the sentence names that state and the
+ * `phax records sync` command that fixes it, never a plain `git push`. Any
+ * other failure (no network, no rights) keeps git's message and the
+ * `git push` remedy.
+ */
+export function describeRecordsPushFailure(result: RecordsPushFailure, subject: string): string {
+  const { branch } = result;
+  if (
+    branch !== null &&
+    (branch.state === "behind" || branch.state === "diverged" || branch.state === "unrelated")
+  ) {
+    const remedy = recordsBranchRemedy(branch.state, {
+      localPath: result.path,
+      remote: result.remote,
+    });
+    const local = (branch.localTip ?? "").slice(0, SHORT_SHA_LENGTH);
+    const remote = (branch.remoteTip ?? "").slice(0, SHORT_SHA_LENGTH);
+    return `${subject} push to ${result.remote} refused: the records branch is ${recordsBranchPhrase(branch.state, result.remote)} (local ${local}, ${result.remote} ${remote}) — records remain pending; run \`${remedy}\`, then push.`;
+  }
+  const gitPush = `git -C ${result.path} push ${result.remote} ${RECORDS_BRANCH_NAME}`;
+  return subject === "Records"
+    ? `Records push to ${result.remote} failed: ${result.message} — records remain pending (see \`phax records status\`).`
+    : `${subject} not pushed to ${result.remote} (${result.message}) — it stays pending (\`phax records status\` lists it); share it with \`${gitPush}\``;
+}

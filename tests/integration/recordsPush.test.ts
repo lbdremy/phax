@@ -215,6 +215,7 @@ describe("records push and pending status (real git)", () => {
       localPath: repoDir,
       remote: "",
       pending: [],
+      branch: { state: "in-sync", localTip: null, remoteTip: null },
     });
   });
 });

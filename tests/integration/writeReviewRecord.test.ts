@@ -394,6 +394,7 @@ describe("reviewRecordPushWarning", () => {
       remote: "origin",
       path: "/repo",
       message: "rejected",
+      branch: null,
     });
     expect(warning).toBe(
       `review entry not pushed to origin (rejected) — it stays pending (\`phax records status\` lists it); share it with \`git -C /repo push origin ${RECORDS_BRANCH_NAME}\``,
@@ -407,6 +408,7 @@ describe("reviewRecordPushWarning", () => {
       path: "/repo",
       message:
         "To ../remote.git\n ! [remote rejected] phax/records/v1 -> phax/records/v1 (pre-receive hook declined)\nerror: failed to push some refs to '../remote.git'\n",
+      branch: null,
     });
     expect(warning).toContain(
       "(! [remote rejected] phax/records/v1 -> phax/records/v1 (pre-receive hook declined))",
