@@ -229,6 +229,12 @@ desktop — none is promised by the announcement.
       command. Probe Claude Code's native Bash sandbox (settings, seatbelt on macOS) with a write
       allowlist of the worktree (none for a read-only session), apply it to every Claude session, and
       find Vibe's equivalent; until then `docs/security.md` states the limit.
+- [ ] **A test's `spawnSync` with no timeout can hang a gate for hours.** Found 2026-11-07 on the
+      `records-branch-tip` run: phase-05's gate sat 13 h in `tests/integration/usageSpecCompleters.test.ts`,
+      whose `spawnSync` of `phax ls --complete` never returned (not reproduced by hand; the child ignored
+      SIGTERM), and a synchronous spawn blocks the vitest worker, so the test timeout never fires. Some 40
+      test files call `spawnSync`, most with no `timeout`. Give every CLI spawn in tests a `timeout`
+      (one shared helper), and consider a wall-clock limit on a gate step so a hung step fails the attempt.
 - [ ] **The codex e2e suite checks a provider the router no longer picks.** Found 2026-11-06
       reviewing #193. `realFlow [codex-cli] (secure) > each phase recorded the expected security
       posture and provider` fails: `tests/e2e/fixtures/minimal-repo/plan.md` asks for
