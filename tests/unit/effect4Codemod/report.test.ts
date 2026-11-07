@@ -39,7 +39,7 @@ function lineOf(text: string, needle: string): number {
 }
 
 describe("effect4 codemod report", () => {
-  it.fails("leaves local namesakes of Effect symbols byte-identical, with no leftover", () => {
+  it("leaves local namesakes of Effect symbols byte-identical, with no leftover", () => {
     const result = rewriteFiles({ root: repoRoot, files: [namesakesPath] });
     const file = onlyFile(result, namesakesPath);
     expect(file.before).toBe(readRepoFile(namesakesPath));
@@ -48,14 +48,14 @@ describe("effect4 codemod report", () => {
     expect(result.leftovers).toEqual([]);
   });
 
-  it.fails("leaves a file whose Effect symbol no rule covers byte-identical", () => {
+  it("leaves a file whose Effect symbol no rule covers byte-identical", () => {
     const file = onlyFile(rewriteFiles({ root: repoRoot, files: [uncoveredPath] }), uncoveredPath);
     expect(file.before).toBe(readRepoFile(uncoveredPath));
     expect(file.after).toBe(file.before);
     expect(totalRewrites(file)).toBe(0);
   });
 
-  it.fails("lists ParseResult.ArrayFormatter by file and line under effect4-schema", () => {
+  it("lists ParseResult.ArrayFormatter by file and line under effect4-schema", () => {
     const result = rewriteFiles({ root: repoRoot, files: [uncoveredPath] });
     expect(result.leftovers).toEqual([
       {
