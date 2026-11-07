@@ -18,6 +18,7 @@
     "site/retired-schemas",
     "site/doc_build",
     "tests/effect4Corpus/cases",
-    "tests/effect4Corpus/baseline"
+    "tests/effect4Corpus/baseline",
+    "tests/unit/effect4Codemod/__fixtures__"
   ]
 }
