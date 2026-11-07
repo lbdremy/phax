@@ -126,6 +126,8 @@ const ALLOWED_ADDITIONS: ReadonlyArray<readonly [string, string]> = [
   ...REWORDED_LONG_HELP.map((path) => [path, "long_help "] as const),
   // records-branch-tip: `records sync --replay` replays local-only records onto the remote tip.
   ["records sync", "flag --replay "],
+  // records-branch-tip: the summary says sync now also brings the local records branch level.
+  ["records sync", 'help "'],
 ];
 
 /** q-security-bare (refuse-bare): `security` and `security status` no longer declare their own
@@ -158,6 +160,7 @@ const ALLOWED_REWORDINGS: ReadonlyArray<readonly [string, string]> = [
   ...REWORDED_JSON.map((path) => [path, "flag --json "] as const),
   ...CHOICES_DECLARED.map((path) => [path, "arg <kind> "] as const),
   ...REWORDED_LONG_HELP.map((path) => [path, "long_help "] as const),
+  ["records sync", 'help "'],
 ];
 
 function difference(
