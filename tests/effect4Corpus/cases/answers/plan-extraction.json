@@ -514,7 +514,7 @@
       "input": "plan",
       "expected": {
         "ok": false,
-        "refusal": "Expected { readonly $schema: The phax-plan-extraction format's shape, exactly: https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json; readonly plan: The extracted plan, or null when the plan is incomplete.; readonly incomplete: What is missing from the plan, or a test strategy item not in the line format; null when the plan is extracted. }, actual \"plan\""
+        "refusal": "Expected an object, actual \"plan\""
       }
     }
   ]

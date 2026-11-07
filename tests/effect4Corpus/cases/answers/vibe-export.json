@@ -256,7 +256,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "(not-an-export): Expected { readonly schema_version: 1; readonly session_id: NonEmptyString; readonly usage: { readonly input_tokens: finite & nonNegative; readonly output_tokens: finite & nonNegative; readonly cached_input_tokens: finite & nonNegative; readonly total_tokens: finite & nonNegative }; readonly cost_usd: finite; readonly outcome: string; readonly exit_code: number; readonly vibe_version: string; readonly config?: unknown | undefined }, actual []"
+        "refusal": "(not-an-export): Expected an object, actual []"
       }
     },
     {

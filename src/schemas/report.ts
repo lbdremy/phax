@@ -5,6 +5,7 @@
 // so a key a definition does not name is refused at any level. Pure, and
 // imports only `effect`, so the schemas package can carry it.
 import { ParseResult, Schema } from "effect";
+import { issueMessage } from "./formatError.js";
 
 /**
  * A key with its description. The description sits on the key, not on its
@@ -162,5 +163,6 @@ export function describeReportIssue(error: ParseResult.ParseError): string {
   const [first] = ParseResult.ArrayFormatter.formatErrorSync(error);
   if (first === undefined) return error.message;
   const path = issuePath(first.path);
-  return path.length > 0 ? `${path}: ${first.message}` : first.message;
+  const message = issueMessage(first.message);
+  return path.length > 0 ? `${path}: ${message}` : message;
 }

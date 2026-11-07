@@ -1,11 +1,37 @@
 import { ParseResult } from "effect";
 
+/**
+ * An issue's message in phax's words where Effect would print a whole type:
+ * a value that should have been an object or an array reads `Expected an
+ * object, actual <value>` or `Expected an array, actual <value>`, not the
+ * struct's or the array's full type description. Every other message is
+ * Effect's, unchanged.
+ */
+export function issueMessage(message: string): string {
+  const shape = message.startsWith("Expected { ")
+    ? { kind: "an object", open: "{", close: "}" }
+    : message.startsWith("Expected ReadonlyArray<")
+      ? { kind: "an array", open: "<", close: ">" }
+      : null;
+  if (shape === null) return message;
+  let depth = 0;
+  for (let i = "Expected ".length; i < message.length; i++) {
+    const char = message[i];
+    if (char === shape.open) depth++;
+    else if (char === shape.close && --depth === 0) {
+      const rest = message.slice(i + 1);
+      return rest.startsWith(", actual ") ? `Expected ${shape.kind}${rest}` : message;
+    }
+  }
+  return message;
+}
+
 export function formatParseError(err: ParseResult.ParseError): string {
   const issues = ParseResult.ArrayFormatter.formatErrorSync(err);
   return issues
     .map((issue) => {
       const path = issue.path.length > 0 ? issue.path.map(String).join(".") : "(root)";
-      return `  ${path}: ${issue.message}`;
+      return `  ${path}: ${issueMessage(issue.message)}`;
     })
     .join("\n");
 }
@@ -36,7 +62,7 @@ export function formatConfigParseError(raw: unknown, err: ParseResult.ParseError
       const bound = bounds.get(issue);
       if (bound !== undefined) return `  ${bound}`;
       const path = issue.path.length > 0 ? issue.path.map(String).join(".") : "(root)";
-      return `  ${path}: ${issue.message}`;
+      return `  ${path}: ${issueMessage(issue.message)}`;
     });
   return [...new Set(lines)].join("\n");
 }
@@ -66,7 +92,7 @@ function assignmentIssueLines(
   const lines = new Map<ConfigIssue, string>();
   for (const [path, group] of byPath) {
     const [first] = group as [ConfigIssue, ...ConfigIssue[]];
-    let message = first.message;
+    let message = issueMessage(first.message);
     if (isEmptyListIssue(raw, first)) {
       message =
         path === "assignments"
@@ -143,7 +169,8 @@ export function formatFirstViolation(err: ParseResult.ParseError): string {
   const [first] = ParseResult.ArrayFormatter.formatErrorSync(err);
   if (first === undefined) return err.message;
   const path = formatIssuePath(first.path);
-  return path.length > 0 ? `${path}: ${first.message}` : first.message;
+  const message = issueMessage(first.message);
+  return path.length > 0 ? `${path}: ${message}` : message;
 }
 
 /**
@@ -159,7 +186,8 @@ export function formatAnswerViolations(err: ParseResult.ParseError): string {
   const issues = ParseResult.ArrayFormatter.formatErrorSync(err);
   const line = (issue: ParseResult.ArrayFormatterIssue): string => {
     const path = formatIssuePath(issue.path);
-    return path.length > 0 ? `${path}: ${issue.message}` : issue.message;
+    const message = issueMessage(issue.message);
+    return path.length > 0 ? `${path}: ${message}` : message;
   };
   const ownKeys = issues.filter(
     ({ path, message }) =>
@@ -196,7 +224,7 @@ export function formatPlanDocumentViolation(input: unknown, err: ParseResult.Par
   }
   const phaseId = phaseIdAt(input, i) ?? `phases[${String(i)}]`;
   const where = inner.length > 0 ? ` ${formatIssuePath(inner)}` : "";
-  return `${phaseId} test line ${String(j + 1)}${where}: ${first.message}`;
+  return `${phaseId} test line ${String(j + 1)}${where}: ${issueMessage(first.message)}`;
 }
 
 function phaseIdAt(input: unknown, i: number): string | undefined {

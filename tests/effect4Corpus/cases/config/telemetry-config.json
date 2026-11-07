@@ -69,7 +69,7 @@
       "input": true,
       "expected": {
         "ok": false,
-        "refusal": "  (root): Expected { readonly enabled: boolean }, actual true"
+        "refusal": "  (root): Expected an object, actual true"
       }
     }
   ]
