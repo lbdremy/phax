@@ -1020,6 +1020,7 @@ describe("artifact new --headless", () => {
           remote: "origin",
           path: "/fake-repo",
           message: "remote rejected",
+          branch: null,
         }),
       ),
     );

@@ -34,6 +34,7 @@ import { Git, type GitError } from "../ports/git.js";
 import { GitHub, type GitHubError } from "../ports/github.js";
 import type { OutputPort } from "../ports/output.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
+import { describeRecordsPushFailure } from "./recordsBranch.js";
 import { pushRecordsBranch } from "./recordsSync.js";
 import {
   makeAdapterCallStartedTelemetryEvent,
@@ -312,11 +313,7 @@ export function publishRun(
         if (result.kind === "pushed") {
           yield* logVerbose(opts.output, verbose, `Records pushed to ${result.remote}.`);
         } else if (result.kind === "failed") {
-          yield* logVerbose(
-            opts.output,
-            verbose,
-            `Records push to ${result.remote} failed: ${result.message} — records remain pending (see \`phax records status\`).`,
-          );
+          yield* logVerbose(opts.output, verbose, describeRecordsPushFailure(result, "Records"));
         }
       });
 

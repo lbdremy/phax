@@ -4,7 +4,8 @@ import { decodeBranchName, type BranchName } from "../domain/branded.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import type { ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
-import { ORIGIN, RECORDS_BRANCH_NAME } from "./recordsBranch.js";
+import type { RecordsBranchReading } from "../domain/records/branchState.js";
+import { ORIGIN, RECORDS_BRANCH_NAME, readRecordsBranch } from "./recordsBranch.js";
 
 export { ORIGIN };
 
@@ -141,6 +142,9 @@ export type RecordsPushResult =
       readonly remote: string;
       readonly path: string;
       readonly message: string;
+      /** The records branch read after the refusal, its remote tip freshly fetched;
+       * null when that read itself failed. */
+      readonly branch: RecordsBranchReading | null;
     };
 
 export interface RecordsPushInput {
@@ -182,17 +186,23 @@ export function pushRecordsBranch(
         remote,
         path: input.repoRoot,
         message: "Records destination is a dedicated repo but no local clone path was supplied.",
+        branch: null,
       } as const;
     }
 
     const git = yield* Git;
     const pushResult = yield* Effect.either(git.pushBranch(RECORDS_BRANCH, remote, path));
     if (Either.isLeft(pushResult)) {
+      // Only after a refusal: learn what the remote now holds so the failure can name the branch
+      // state. A failed fetch (no network) leaves the stale remote tip to classify against.
+      yield* Effect.ignore(git.fetchBranch(path, remote, RECORDS_BRANCH));
+      const branch = yield* Effect.orElseSucceed(readRecordsBranch(path, remote), () => null);
       return {
         kind: "failed",
         remote,
         path,
         message: pushResult.left.stderr ?? pushResult.left.message,
+        branch,
       } as const;
     }
     return { kind: "pushed", remote, path } as const;

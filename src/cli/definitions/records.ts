@@ -15,7 +15,11 @@ import { recordsClonePath, type RecordsSyncResult } from "../../app/recordsSync.
 import { ORIGIN, RECORDS_BRANCH_NAME } from "../../app/recordsBranch.js";
 import { syncRecordsBranch } from "../../app/recordsBranchSync.js";
 import { readRegistry } from "../../app/registry.js";
-import { RECORDS_BRANCH_STATES, recordsBranchPhrase } from "../../domain/records/branchState.js";
+import {
+  RECORDS_BRANCH_STATES,
+  recordsBranchPhrase,
+  recordsBranchRemedy,
+} from "../../domain/records/branchState.js";
 import { makeClackPromptLayer } from "../../infra/prompt.js";
 import { NodeGitLayer } from "../../infra/git.js";
 import { NodeGitHubLayer } from "../../infra/github.js";
@@ -458,6 +462,12 @@ const RecordsStatusOutput = Schema.Union(
     localPath: Schema.String,
     /** The remote pending is measured against. */
     remote: Schema.String,
+    /** The records branch against the remote tip phax last fetched (full shas). */
+    branch: Schema.Struct({
+      state: Schema.Literal(...RECORDS_BRANCH_STATES),
+      localTip: Schema.NullOr(Schema.String),
+      remoteTip: Schema.NullOr(Schema.String),
+    }),
     /** How many record commits are pending. */
     pending: Schema.Number,
     /** The pending records by run, with their phase ids. */
@@ -503,6 +513,11 @@ const recordsStatusCommand = defineCommand({
             : ({ kind: "repo", remote: pending.destination.remote } as const),
         localPath: pending.localPath,
         remote: pending.remote,
+        branch: {
+          state: pending.branch.state,
+          localTip: pending.branch.localTip,
+          remoteTip: pending.branch.remoteTip,
+        },
         pending: pending.pending.length,
         runs: runs.map((run) => ({
           runId: run.runId,
@@ -537,6 +552,14 @@ const recordsStatusCommand = defineCommand({
         ? `in-repo (${value.localPath}, remote "${value.remote}")`
         : `repo "${value.destination.remote}" (local clone: ${value.localPath})`;
     const lines = [`Records destination: ${destinationLabel}`];
+    const { branch } = value;
+    const remedy = recordsBranchRemedy(branch.state, {
+      localPath: value.localPath,
+      remote: value.remote,
+    });
+    lines.push(
+      `Records branch: ${recordsBranchPhrase(branch.state, value.remote)} (local ${branch.localTip === null ? "none" : short(branch.localTip)}, ${value.remote} ${branch.remoteTip === null ? "none" : short(branch.remoteTip)})${remedy === null ? "" : ` — run \`${remedy}\``}`,
+    );
     if (value.runs.length === 0) {
       lines.push("All records are pushed. Nothing pending.");
       return lines.join("\n");

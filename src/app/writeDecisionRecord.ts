@@ -17,10 +17,10 @@ import {
   commitRecordTree,
   computeSessionUsage,
   RECORD_TRANSCRIPT_FILE,
-  RECORDS_BRANCH_NAME,
   resolveRecordDestination,
   type RecordWriteResult,
 } from "./recordPlumbing.js";
+import { describeRecordsPushFailure } from "./recordsBranch.js";
 import type { RecordsPushResult } from "./recordsSync.js";
 
 /**
@@ -275,5 +275,5 @@ export function decisionRecordWarning(
  */
 export function decisionRecordPushWarning(push: DecisionRecordPush): string | undefined {
   if (push.kind !== "failed") return undefined;
-  return `decision record not pushed to ${push.remote} (${push.message}) — it stays pending (\`phax records status\` lists it); share it with \`git -C ${push.path} push ${push.remote} ${RECORDS_BRANCH_NAME}\``;
+  return describeRecordsPushFailure(push, "decision record");
 }

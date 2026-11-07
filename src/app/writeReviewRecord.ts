@@ -16,6 +16,7 @@ import {
   resolveRecordDestination,
   type RecordSkipped,
 } from "./recordPlumbing.js";
+import { describeRecordsPushFailure } from "./recordsBranch.js";
 import type { RecordsPushResult } from "./recordsSync.js";
 
 export interface WriteReviewRecordInput {
@@ -172,5 +173,8 @@ export function reviewRecordWarning(
  */
 export function reviewRecordPushWarning(push: ReviewRecordPush): string | undefined {
   if (push.kind !== "failed") return undefined;
-  return `review entry not pushed to ${push.remote} (${gitFailureLine(push.message)}) — it stays pending (\`phax records status\` lists it); share it with \`git -C ${push.path} push ${push.remote} ${RECORDS_BRANCH_NAME}\``;
+  return describeRecordsPushFailure(
+    { ...push, message: gitFailureLine(push.message) },
+    "review entry",
+  );
 }

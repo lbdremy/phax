@@ -2,8 +2,8 @@ import { Effect } from "effect";
 import { Git, type GitError } from "../ports/git.js";
 import type { RecordsDestination, ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
 import type { Registry } from "../schemas/registry.js";
-import { RECORDS_BRANCH_NAME } from "./writeRecord.js";
-import { ORIGIN } from "./recordsSync.js";
+import type { RecordsBranchReading } from "../domain/records/branchState.js";
+import { readRecordsBranch, recordsBranchLocation } from "./recordsBranch.js";
 
 export interface PendingRecordEntry {
   readonly runId: string;
@@ -18,6 +18,8 @@ export interface RecordsPendingStatus {
   /** The remote pending is measured against: `publish.remote` for in-repo, `origin` for a dedicated repo's clone. */
   readonly remote: string;
   readonly pending: readonly PendingRecordEntry[];
+  /** The records branch's state against the remote tip phax last fetched. */
+  readonly branch: RecordsBranchReading;
 }
 
 export interface RecordsPendingInput {
@@ -27,19 +29,12 @@ export interface RecordsPendingInput {
   readonly recordsClonePath?: string | undefined;
 }
 
-// Defensive cap on the parent walk below — a shared records branch realistically
-// holds nowhere near this many commits between two pushes; this only guards
-// against spinning forever on a corrupt or wildly misconfigured ref.
-const MAX_PENDING_WALK = 10_000;
-
 /**
  * Which record commits on `phax/records/v1` exist locally but not on the
- * configured remote. Each record commit's tree holds only that one write's
- * own files (spec §5.3's plumbing builds a fresh tree per commit, not a
- * cumulative one) — so this walks the first-parent chain from the local tip
- * back to (excluding) the remote-tracking tip, collecting every visited
- * commit's own tree, rather than diffing the two tips' trees directly.
- * Purely derived from git state — no separate pending-state file to go stale
+ * configured remote: every commit reachable from the local tip and not from
+ * the remote-tracking tip (all of the local history when the remote has no
+ * branch), whatever the branch state — so on a diverged or unrelated branch
+ * only the local-only records count. Purely derived from git state — no separate pending-state file to go stale
  * — so a run whose records were never pushed, or whose push failed, is still
  * reportable after the process that attempted it exits (spec §5.8). A
  * successful `git push` updates the local remote-tracking ref, so this
@@ -56,47 +51,27 @@ export function computeRecordsPending(
         localPath: input.repoRoot,
         remote: "",
         pending: [],
+        branch: { state: "in-sync", localTip: null, remoteTip: null },
       } as const;
     }
 
-    const isInRepo = input.records.destination.kind === "in-repo";
-    const localPath = isInRepo ? input.repoRoot : (input.recordsClonePath ?? input.repoRoot);
-    const remote = isInRepo ? input.publishRemote : ORIGIN;
-
-    const git = yield* Git;
-    const localTip = yield* git.resolveRef(localPath, `refs/heads/${RECORDS_BRANCH_NAME}`);
-    if (localTip === null) {
-      return {
-        configured: true,
-        destination: input.records.destination,
-        localPath,
-        remote,
-        pending: [],
-      } as const;
-    }
-
-    const remoteTip = yield* git.resolveRef(
-      localPath,
-      `refs/remotes/${remote}/${RECORDS_BRANCH_NAME}`,
-    );
-
-    const seen = new Set<string>();
+    const { repo: localPath, remote } = recordsBranchLocation(input);
+    const branch = yield* readRecordsBranch(localPath, remote);
     const pending: PendingRecordEntry[] = [];
-    let cursor: string | null = localTip;
-    let steps = 0;
-    while (cursor !== null && cursor !== remoteTip && steps < MAX_PENDING_WALK) {
-      steps++;
-      const entries = yield* git.readTree(localPath, cursor);
-      for (const entry of entries) {
-        if (entry.type !== "blob") continue;
-        const [runId, phaseId] = entry.path.split("/");
-        if (runId === undefined || phaseId === undefined) continue;
-        const key = `${runId}/${phaseId}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        pending.push({ runId, phaseId });
+    if (branch.localTip !== null) {
+      const git = yield* Git;
+      const commits = yield* git.listCommitFiles(localPath, branch.localTip, branch.remoteTip);
+      const seen = new Set<string>();
+      for (const commit of commits) {
+        for (const path of commit.paths) {
+          const [runId, phaseId] = path.split("/");
+          if (runId === undefined || phaseId === undefined) continue;
+          const key = `${runId}/${phaseId}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          pending.push({ runId, phaseId });
+        }
       }
-      cursor = yield* git.resolveRef(localPath, `${cursor}^`);
     }
 
     return {
@@ -105,6 +80,7 @@ export function computeRecordsPending(
       localPath,
       remote,
       pending,
+      branch,
     } as const;
   });
 }
