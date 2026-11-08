@@ -1,6 +1,6 @@
 // `pnpm codemod:effect4`: runs phax's Effect 4 codemod over a tree's TypeScript.
 //
-//   pnpm codemod:effect4 [--root <dir>] [--check]
+//   pnpm codemod:effect4 [--root <dir>] [--check | --ratchet]
 //
 // Targets `src/**/*.ts`, `tests/**/*.ts`, `scripts/**/*.ts` and
 // `packages/schemas/**/*.ts` under the root (the current directory by default), leaving
@@ -10,11 +10,16 @@
 // By default it writes the changed files, prints a per-rule table and lists every v3
 // symbol it left, under the topic skill that owns it. `--check` writes nothing, prints
 // how many files would change and the same list, and exits 1 when any file would change.
-// It reads nothing over the network.
+// A write run also measures the type errors of `src` and of the test suite before and
+// after, and prints them (a root without a tsconfig.json is not measured). `--ratchet`
+// does nothing else: it compares the measured counts with those committed at HEAD and
+// records them (see ratchet.ts). The codemod reads nothing over the network.
 import { existsSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { rewriteFiles, type CodemodResult } from "./codemod.js";
+import { measureCounts, typeErrorTable, type Counts } from "./counts.js";
 import { loadReference, REFERENCE_NAME } from "./reference.js";
+import { runRatchet } from "./ratchet.js";
 import { RULES } from "./rules.js";
 
 const TARGET_DIRECTORIES = ["src", "tests", "scripts", "packages/schemas"];
@@ -29,15 +34,18 @@ const EXCLUDED_PREFIXES = [
 /** Directory names left out wherever they appear. */
 const EXCLUDED_DIRECTORIES: ReadonlySet<string> = new Set(["dist", "node_modules"]);
 
-type Options = { readonly root: string; readonly check: boolean };
+type Options = { readonly root: string; readonly check: boolean; readonly ratchet: boolean };
 
 function parseArguments(argv: ReadonlyArray<string>): Options | string {
   let root = process.cwd();
   let check = false;
+  let ratchet = false;
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     if (argument === "--check") {
       check = true;
+    } else if (argument === "--ratchet") {
+      ratchet = true;
     } else if (argument === "--root") {
       const value = argv[index + 1];
       if (value === undefined || value.startsWith("--")) return "--root needs a directory";
@@ -47,7 +55,8 @@ function parseArguments(argv: ReadonlyArray<string>): Options | string {
       return `unknown argument: ${argument ?? ""}`;
     }
   }
-  return { root, check };
+  if (check && ratchet) return "--check and --ratchet cannot be combined";
+  return { root, check, ratchet };
 }
 
 /** Every target file under `root`, as sorted repository-relative POSIX paths. */
@@ -108,14 +117,24 @@ function leftoverLines(result: CodemodResult): Array<string> {
   return lines;
 }
 
+/**
+ * The type-error counts of `root`, or null when it has no tsconfig.json to measure (a
+ * scratch tree). A root with a tsconfig but no installed tsc fails loudly.
+ */
+function measureOrSkip(root: string): Counts | null {
+  return existsSync(join(root, "tsconfig.json")) ? measureCounts(root) : null;
+}
+
 function run(argv: ReadonlyArray<string>): number {
   const options = parseArguments(argv);
   if (typeof options === "string") {
     process.stderr.write(
-      `codemod:effect4: ${options}\nusage: codemod:effect4 [--root <dir>] [--check]\n`,
+      `codemod:effect4: ${options}\nusage: codemod:effect4 [--root <dir>] [--check | --ratchet]\n`,
     );
     return 2;
   }
+  if (options.ratchet) return runRatchet(options.root);
+  const before = options.check ? null : measureOrSkip(options.root);
   const result = rewriteFiles({ root: options.root, files: targetFiles(options.root) });
   const changed = result.files.filter((file) => file.after !== file.before);
   const out: Array<string> = [];
@@ -125,6 +144,12 @@ function run(argv: ReadonlyArray<string>): number {
   } else {
     for (const file of changed) writeFileSync(join(options.root, file.path), file.after);
     out.push(...ruleTable(result), `${changed.length} files changed`);
+    const after = before === null ? null : measureOrSkip(options.root);
+    out.push(
+      ...(before === null || after === null
+        ? ["type errors   not measured (no tsconfig.json under the root)"]
+        : typeErrorTable(before, after)),
+    );
   }
   out.push(...leftoverLines(result));
   process.stdout.write(`${out.join("\n")}\n`);

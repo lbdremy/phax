@@ -88,7 +88,9 @@ describe("pnpm codemod:effect4", () => {
     expect(stdout).toMatch(/^rule +files +rewrites +reference\n/);
     expect(stdout).toMatch(/\neither-to-result +1 +4 +v3-to-v4\.md:689,10395,/);
     expect(stdout).toMatch(/\neffect-either +1 +1 +v3-to-v4\.md:10057\n/);
-    expect(stdout).toContain("\n1 files changed\nleft to phases (1):\n");
+    expect(stdout).toContain(
+      "\n1 files changed\ntype errors   not measured (no tsconfig.json under the root)\nleft to phases (1):\n",
+    );
   });
 
   it("a second --check finds nothing to change and exits 0", () => {
