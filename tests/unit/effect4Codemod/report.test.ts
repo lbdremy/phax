@@ -14,6 +14,8 @@ import { rewriteFiles, type CodemodResult } from "../../../scripts/effect4-codem
 const repoRoot = fileURLToPath(new URL("../../../", import.meta.url));
 const namesakesPath = "tests/unit/effect4Codemod/__fixtures__/namesakes/input.ts";
 const uncoveredPath = "tests/unit/effect4Codemod/__fixtures__/uncovered/input.ts";
+const v4ShapedPath = "tests/unit/effect4Codemod/__fixtures__/v4-shaped/input.ts";
+const blockedPath = "tests/unit/effect4Codemod/__fixtures__/blocked/input.ts";
 
 function readRepoFile(path: string): string {
   return readFileSync(`${repoRoot}${path}`, "utf8");
@@ -39,6 +41,23 @@ function lineOf(text: string, needle: string): number {
 }
 
 describe("effect4 codemod report", () => {
+  it("names the uncovered use that blocks a binding's covered uses", () => {
+    const result = rewriteFiles({ root: repoRoot, files: [blockedPath] });
+    const text = readRepoFile(blockedPath);
+    const blocker = { v3Symbol: "Either.getOrThrow", line: lineOf(text, "export const value") };
+    const isLeft = result.leftovers.find((leftover) => leftover.v3Symbol === "Either.isLeft");
+    expect(isLeft?.blockedBy).toEqual(blocker);
+    const getOrThrow = result.leftovers.find((l) => l.v3Symbol === "Either.getOrThrow");
+    expect(getOrThrow?.blockedBy).toBeNull();
+  });
+
+  it("reports no leftover for a symbol whose v4 name is unchanged, in its v4 call shape", () => {
+    const result = rewriteFiles({ root: repoRoot, files: [v4ShapedPath] });
+    const file = onlyFile(result, v4ShapedPath);
+    expect(file.after).toBe(file.before);
+    expect(result.leftovers).toEqual([]);
+  });
+
   it("leaves local namesakes of Effect symbols byte-identical, with no leftover", () => {
     const result = rewriteFiles({ root: repoRoot, files: [namesakesPath] });
     const file = onlyFile(result, namesakesPath);
@@ -64,6 +83,7 @@ describe("effect4 codemod report", () => {
         v3Symbol: "ParseResult.ArrayFormatter",
         referenceLine: 13066,
         owner: "effect4-schema",
+        blockedBy: null,
       },
     ]);
   });

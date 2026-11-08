@@ -19,6 +19,9 @@ export function issueMessage(message: string): string {
     const char = message[i];
     if (char === shape.open) depth++;
     else if (char === shape.close && --depth === 0) {
+      // An anonymous refinement prints `{ <type> | filter }`: the braces wrap a filter, not
+      // an object, so the message is left as Effect wrote it.
+      if (message.slice(0, i + 1).endsWith("| filter }")) return message;
       const rest = message.slice(i + 1);
       return rest.startsWith(", actual ") ? `Expected ${shape.kind}${rest}` : message;
     }

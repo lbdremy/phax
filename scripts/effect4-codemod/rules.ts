@@ -72,14 +72,20 @@ export const RULES: ReadonlyArray<Rule> = [
     id: "effect-either",
     mappings: [rename("Effect.either", 10057, "Effect.result")],
   },
+  // The reference maps these to the `Exit` decoders, but the same pass rewrites every
+  // `Either` consumer to `Result`, and an `Exit` is not a `Result`. effect@4.1.2 ships
+  // `Schema.decodeUnknownResult` and `Schema.encodeUnknownResult` (dist/Schema.d.ts:1402,
+  // :1761), which return a `Result` and take any input, so the typed variants map onto them
+  // too. Cited by the v3 entry's line; the target is read from the v4 source, as the lookup
+  // skill's step 3 allows (operator decision 2026-11-08, reviewing #195).
   {
     id: "schema-decode-either",
     mappings: [
-      rename("Schema.decodeEither", 14950, "Schema.decodeExit"),
-      rename("Schema.decodeUnknownEither", 14954, "Schema.decodeUnknownExit"),
-      rename("Schema.encodeEither", 14970, "Schema.encodeExit"),
-      rename("Schema.encodeUnknownEither", 14974, "Schema.encodeUnknownExit"),
-      rename("ParseResult.decodeUnknownEither", 13130, "Schema.decodeUnknownExit"),
+      rename("Schema.decodeEither", 14950, "Schema.decodeUnknownResult"),
+      rename("Schema.decodeUnknownEither", 14954, "Schema.decodeUnknownResult"),
+      rename("Schema.encodeEither", 14970, "Schema.encodeUnknownResult"),
+      rename("Schema.encodeUnknownEither", 14974, "Schema.encodeUnknownResult"),
+      rename("ParseResult.decodeUnknownEither", 13130, "Schema.decodeUnknownResult"),
     ],
   },
   {
@@ -118,6 +124,10 @@ export const RULES: ReadonlyArray<Rule> = [
       rename("Effect.orElse", 10189, "Effect.catch"),
     ],
   },
+  // Rewrites nothing in phax today: every ParseResult binding here also uses ParseError or
+  // ArrayFormatter, which no rule covers, so the binding stays for the schema phase. Its
+  // `ParseResult.Type` -> `SchemaIssue.InvalidType` mapping renames a class whose constructor
+  // changes too (`actual` becomes an `Option`), which the type errors then surface.
   {
     id: "parse-result-issues",
     mappings: [

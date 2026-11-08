@@ -58,16 +58,28 @@ export function countsFrom(srcOutput: string, testsOutput: string): Counts {
   };
 }
 
-/** The runner phax uses: a real `spawnSync`. tsc exits non-zero when it finds errors. */
+/**
+ * The runner phax uses: a real `spawnSync`. tsc exits non-zero when it finds errors, so a
+ * non-zero exit is expected; one that printed no diagnostic phax can read (a crash, a
+ * panic, a format this parser does not know) throws, rather than read as zero errors and
+ * let the ratchet pass.
+ */
 export const spawnRunner: Runner = (command, args, cwd) => {
   const result = spawnSync(command, [...args], {
     cwd,
     encoding: "utf8",
     maxBuffer: 256 * 1024 * 1024,
+    timeout: 15 * 60 * 1000,
   });
   if (result.error !== undefined) throw result.error;
   if (result.status === null) throw new Error(`${command} was stopped by ${result.signal}`);
-  return `${result.stdout}${result.stderr}`;
+  const output = `${result.stdout}${result.stderr}`;
+  if (result.status !== 0 && parseTscErrors(output).size === 0) {
+    throw new Error(
+      `${command} ${args.join(" ")} exited ${result.status} with no diagnostic phax can count:\n${output.slice(0, 2000)}`,
+    );
+  }
+  return output;
 };
 
 /** The two `tsc` invocations, relative to the root. */

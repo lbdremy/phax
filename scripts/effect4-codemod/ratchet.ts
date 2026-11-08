@@ -9,8 +9,9 @@
 //   counts at or under the base   pass: the measured counts are written for the next base
 //   a count above its base   fail: nothing is written, exit 1
 //   a file at HEAD that is not `{ src, tests }` of numbers   fail
+//   package.json scripts that differ from HEAD's   fail, before anything is measured
 import { spawnSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { measureCounts, type Counts } from "./counts.js";
 
@@ -96,6 +97,34 @@ export function readBase(root: string): Base {
     : { kind: "found", counts };
 }
 
+/**
+ * Why the package's scripts at HEAD and in the working tree differ, or null when they do
+ * not (or HEAD holds no package.json). A phase that changes a script can change what the
+ * gate runs or counts (the ratchet's own command, the test command), so that is the
+ * operator's edit, never a phase's; package.json itself stays editable for dependencies.
+ */
+export function scriptsChange(root: string): string | null {
+  const shown = git(root, ["show", "HEAD:package.json"]);
+  if (!shown.ok) return null;
+  const scriptsOf = (text: string): string => {
+    try {
+      const parsed: unknown = JSON.parse(text);
+      return JSON.stringify(isRecord(parsed) ? (parsed["scripts"] ?? null) : null);
+    } catch {
+      return "unreadable";
+    }
+  };
+  let working: string;
+  try {
+    working = readFileSync(join(root, "package.json"), "utf8");
+  } catch {
+    return "package.json is missing from the working tree";
+  }
+  return scriptsOf(shown.stdout) === scriptsOf(working)
+    ? null
+    : "package.json scripts differ from HEAD: a phase may not change what the gate runs; that is the operator's edit";
+}
+
 export type RatchetOptions = {
   /** Measures the counts of `root`; `measureCounts` by default. */
   readonly measure?: (root: string) => Counts;
@@ -110,6 +139,11 @@ export function runRatchet(root: string, options: RatchetOptions = {}): number {
   const base = readBase(root);
   if (base.kind === "malformed" || base.kind === "unreadable") {
     write(`ratchet: ${base.reason}\n`);
+    return 1;
+  }
+  const scripts = scriptsChange(root);
+  if (scripts !== null) {
+    write(`ratchet: ${scripts}\n`);
     return 1;
   }
   const measured = measure(root);

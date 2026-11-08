@@ -12,17 +12,20 @@ silencing `as`, no invented API, no network, no delegated agent) bind here.
 
 ## May change
 
-- `src/schemas/**`, including `src/schemas/history/`
-- `packages/schemas/**`
-- `scripts/schemas-*.ts`
-- Schema tests under `tests/**`
-- `tests/effect4Corpus/subjects.ts`
+- The Schema symbols listed below, wherever the codemod reports them: any file under
+  `src/**`, `tests/**`, `scripts/**`, `site/**` and `packages/schemas/**`, `src/cli/**` and
+  `src/domain/**` included.
+- `src/schemas/history/` and `tests/effect4Corpus/subjects.ts`.
+- Method calls on schema values the report does not list (`.annotations(` → `.annotate(`): they are
+  this phase's work.
 
 Never the corpus case files (`tests/effect4Corpus/cases/**`), the baseline files
-(`tests/effect4Corpus/baseline/**`) or the corpus tests: they stay byte-identical.
+(`tests/effect4Corpus/baseline/**`), the corpus tests or any path `phax.json` protects: they stay
+byte-identical.
 
 A file mixing areas is migrated by more than one phase; each phase changes only the symbols
-listed below.
+listed below. When a leftover says it is blocked by another symbol, migrate the blocker, then
+re-run `pnpm codemod:effect4` so the covered uses it held back are rewritten mechanically.
 
 ## v3 symbols
 

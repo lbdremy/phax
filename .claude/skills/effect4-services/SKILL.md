@@ -12,12 +12,17 @@ silencing `as`, no invented API, no network, no delegated agent) bind here.
 
 ## May change
 
-- `src/ports/**`
-- Layer construction in `src/infra/**` and `src/cli/**`
-- Test layers and fakes under `tests/**`
+- The service and layer symbols listed below, wherever the codemod reports them: any file under
+  `src/**`, `tests/**`, `scripts/**`, `site/**` and `packages/schemas/**`.
+- Test layers and fakes under `tests/**`.
+
+Never the corpus case files (`tests/effect4Corpus/cases/**`), the baseline files
+(`tests/effect4Corpus/baseline/**`), the corpus tests or any path `phax.json` protects: they stay
+byte-identical.
 
 A file mixing areas is migrated by more than one phase; each phase changes only the symbols
-listed below.
+listed below. When a leftover says it is blocked by another symbol, migrate the blocker, then
+re-run `pnpm codemod:effect4` so the covered uses it held back are rewritten mechanically.
 
 ## v3 symbols
 

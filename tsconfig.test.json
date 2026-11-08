@@ -10,7 +10,11 @@
     "tests/**/*",
     "packages/schemas/**/*",
     "site/**/*",
-    "scripts/effect4-corpus-capture.ts"
+    "scripts/effect4-corpus-capture.ts",
+    "scripts/effect4-codemod/**/*.ts",
+    "scripts/release-notes.ts",
+    "scripts/rerender-spec.ts",
+    "scripts/schemas-smoke.ts"
   ],
   "exclude": [
     "node_modules",

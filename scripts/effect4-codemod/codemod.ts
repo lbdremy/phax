@@ -38,13 +38,16 @@ export type CodemodResult = {
   files: Array<{ path: string; before: string; after: string; rewrites: Record<string, number> }>;
   /** One entry per use: `line` is 1-based in the file as read, `referenceLine` is the
    *  v3-to-v4.md line of the symbol's entry (null when it has none), `owner` the topic
-   *  skill (`effect4-core`, `effect4-errors`, `effect4-schema` or `effect4-services`). */
+   *  skill (`effect4-core`, `effect4-errors`, `effect4-schema` or `effect4-services`),
+   *  `blockedBy` the uncovered symbol (and its line) that kept a rule-covered use from being
+   *  rewritten, or null when no rule covers the use itself. */
   leftovers: Array<{
     path: string;
     line: number;
     v3Symbol: string;
     referenceLine: number | null;
     owner: string;
+    blockedBy: { readonly v3Symbol: string; readonly line: number } | null;
   }>;
 };
 
@@ -389,13 +392,14 @@ function rewriteSource(
   const count = (ruleId: string): void => {
     rewrites[ruleId] = (rewrites[ruleId] ?? 0) + 1;
   };
-  const leave = (v3Symbol: string, line: number): void => {
+  const leave = (v3Symbol: string, line: number, blockedBy: Leftover["blockedBy"] = null): void => {
     leftovers.push({
       path,
       line,
       v3Symbol,
       referenceLine: reference.lineOf(v3Symbol),
       owner: ownerOf(v3Symbol),
+      blockedBy,
     });
   };
   const moduleMoved = (module: string): boolean => reference.movedSymbols.has(`effect/${module}`);
@@ -553,6 +557,12 @@ function rewriteSource(
       if (module === binding.module && renameTo === null && !drop) return binding.local;
       return boundLocal(module, binding);
     };
+    // The first use no rule covers is what keeps the binding's covered uses unrewritten.
+    const blocker = plans.find((plan) => plan.kind === "leftover");
+    const blockedBy =
+      blocker === undefined || blocker.kind !== "leftover"
+        ? null
+        : { v3Symbol: blocker.v3Symbol, line: blocker.line };
     for (const plan of plans) {
       if (plan.kind === "keep") continue;
       if (plan.kind === "leftover") {
@@ -561,7 +571,7 @@ function rewriteSource(
       }
       const local = localFor(plan.targetModule);
       if (local === undefined) {
-        leave(plan.v3Symbol, plan.line);
+        leave(plan.v3Symbol, plan.line, blockedBy);
         continue;
       }
       edits.push(...plan.build(local));

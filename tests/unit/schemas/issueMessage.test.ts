@@ -37,6 +37,8 @@ describe("issueMessage", () => {
       "is missing",
       'is unexpected, expected: "a" | "b"',
       "Expected { readonly a: string }",
+      'Expected { ReadonlyArray<string> | filter }, actual ["x"]',
+      'Expected { { readonly a: number; readonly b: number } | filter }, actual {"a":2,"b":1}',
     ]) {
       expect(issueMessage(message)).toBe(message);
     }

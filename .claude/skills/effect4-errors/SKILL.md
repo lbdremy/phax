@@ -12,11 +12,18 @@ silencing `as`, no invented API, no network, no delegated agent) bind here.
 
 ## May change
 
-- Error handling across `src/app/**`, `src/infra/**`, `src/domain/**` and `src/cli/**`
-- The tests of those directories under `tests/**`
+- The error-handling symbols listed below, wherever the codemod reports them: any file under
+  `src/**`, `tests/**`, `scripts/**`, `site/**` and `packages/schemas/**`, `src/schemas/**` included.
+- Member accesses on values those symbols type (`.left`/`.right` → `.failure`/`.success`, `_tag:
+  "Left"`/`"Right"` expectations): the report does not list them, but they are this phase's work.
+
+Never the corpus case files (`tests/effect4Corpus/cases/**`), the baseline files
+(`tests/effect4Corpus/baseline/**`), the corpus tests or any path `phax.json` protects: they stay
+byte-identical.
 
 A file mixing areas is migrated by more than one phase; each phase changes only the symbols
-listed below.
+listed below. When a leftover says it is blocked by another symbol, migrate the blocker, then
+re-run `pnpm codemod:effect4` so the covered uses it held back are rewritten mechanically.
 
 ## v3 symbols
 
