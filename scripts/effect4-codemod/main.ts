@@ -2,7 +2,7 @@
 //
 //   pnpm codemod:effect4 [--root <dir>] [--check | --ratchet]
 //
-// Targets `src/**/*.ts`, `tests/**/*.ts`, `scripts/**/*.ts` and
+// Targets `src/**/*.ts`, `tests/**/*.ts`, `scripts/**/*.ts`, `site/**/*.ts` and
 // `packages/schemas/**/*.ts` under the root (the current directory by default), leaving
 // out `dist` and `node_modules` directories, `tests/e2e/fixtures/**`, the codemod's own
 // fixtures and the codemod itself.
@@ -16,13 +16,14 @@
 // records them (see ratchet.ts). The codemod reads nothing over the network.
 import { existsSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { rewriteFiles, type CodemodResult } from "./codemod.js";
 import { measureCounts, typeErrorTable, type Counts } from "./counts.js";
 import { loadReference, REFERENCE_NAME } from "./reference.js";
 import { runRatchet } from "./ratchet.js";
 import { RULES } from "./rules.js";
 
-const TARGET_DIRECTORIES = ["src", "tests", "scripts", "packages/schemas"];
+const TARGET_DIRECTORIES = ["src", "tests", "scripts", "site", "packages/schemas"];
 
 /** Path prefixes (repository-relative, POSIX) the codemod never touches. */
 const EXCLUDED_PREFIXES = [
@@ -110,8 +111,12 @@ function leftoverLines(result: CodemodResult): Array<string> {
     const target =
       entry === undefined ? "(no entry)" : (entry.targets?.join(", ") ?? "(no stated target)");
     const cited = `${REFERENCE_NAME}:${leftover.referenceLine ?? "-"}`;
+    const blocked =
+      leftover.blockedBy === null
+        ? ""
+        : `  (blocked by ${leftover.blockedBy.v3Symbol} at line ${leftover.blockedBy.line}: migrate it, then re-run)`;
     lines.push(
-      `${leftover.owner}  ${leftover.path}:${leftover.line}  ${leftover.v3Symbol} -> ${target}  ${cited}`,
+      `${leftover.owner}  ${leftover.path}:${leftover.line}  ${leftover.v3Symbol} -> ${target}  ${cited}${blocked}`,
     );
   }
   return lines;
@@ -121,20 +126,42 @@ function leftoverLines(result: CodemodResult): Array<string> {
  * The type-error counts of `root`, or null when it has no tsconfig.json to measure (a
  * scratch tree). A root with a tsconfig but no installed tsc fails loudly.
  */
-function measureOrSkip(root: string): Counts | null {
-  return existsSync(join(root, "tsconfig.json")) ? measureCounts(root) : null;
+function measureOrSkip(root: string, measure: (root: string) => Counts): Counts | null {
+  return existsSync(join(root, "tsconfig.json")) ? measure(root) : null;
 }
 
-function run(argv: ReadonlyArray<string>): number {
+/** What `run` reaches outside the tree it rewrites; tests pass their own. */
+export type RunDependencies = {
+  readonly measure: (root: string) => Counts;
+  readonly stdout: (text: string) => void;
+  readonly stderr: (text: string) => void;
+};
+
+const processDependencies: RunDependencies = {
+  measure: (root) => measureCounts(root),
+  stdout: (text) => void process.stdout.write(text),
+  stderr: (text) => void process.stderr.write(text),
+};
+
+/** Runs the codemod with `argv` (the arguments after the script) and returns its exit code. */
+export function run(
+  argv: ReadonlyArray<string>,
+  dependencies: RunDependencies = processDependencies,
+): number {
   const options = parseArguments(argv);
   if (typeof options === "string") {
-    process.stderr.write(
+    dependencies.stderr(
       `codemod:effect4: ${options}\nusage: codemod:effect4 [--root <dir>] [--check | --ratchet]\n`,
     );
     return 2;
   }
-  if (options.ratchet) return runRatchet(options.root);
-  const before = options.check ? null : measureOrSkip(options.root);
+  if (options.ratchet) {
+    return runRatchet(options.root, {
+      measure: dependencies.measure,
+      write: dependencies.stdout,
+    });
+  }
+  const before = options.check ? null : measureOrSkip(options.root, dependencies.measure);
   const result = rewriteFiles({ root: options.root, files: targetFiles(options.root) });
   const changed = result.files.filter((file) => file.after !== file.before);
   const out: Array<string> = [];
@@ -144,7 +171,7 @@ function run(argv: ReadonlyArray<string>): number {
   } else {
     for (const file of changed) writeFileSync(join(options.root, file.path), file.after);
     out.push(...ruleTable(result), `${changed.length} files changed`);
-    const after = before === null ? null : measureOrSkip(options.root);
+    const after = before === null ? null : measureOrSkip(options.root, dependencies.measure);
     out.push(
       ...(before === null || after === null
         ? ["type errors   not measured (no tsconfig.json under the root)"]
@@ -152,8 +179,12 @@ function run(argv: ReadonlyArray<string>): number {
     );
   }
   out.push(...leftoverLines(result));
-  process.stdout.write(`${out.join("\n")}\n`);
+  dependencies.stdout(`${out.join("\n")}\n`);
   return options.check && changed.length > 0 ? 1 : 0;
 }
 
-process.exitCode = run(process.argv.slice(2));
+// Run only as the script itself, so a test can import `run`.
+const invoked = process.argv[1];
+if (invoked !== undefined && import.meta.url === pathToFileURL(invoked).href) {
+  process.exitCode = run(process.argv.slice(2));
+}

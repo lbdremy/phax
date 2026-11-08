@@ -12,12 +12,16 @@ silencing `as`, no invented API, no network, no delegated agent) bind here.
 
 ## May change
 
-- Any file in `src/**`, `tests/**` or `scripts/**` whose remaining v3 symbols are not owned by
-  `effect4-services`, `effect4-errors` or `effect4-schema`.
-- Never the corpus case files, the baseline files or the codemod's ratchet and counts.
+- Any v3 symbol not owned by `effect4-services`, `effect4-errors` or `effect4-schema`, wherever
+  the codemod reports it: any file under `src/**`, `tests/**`, `scripts/**`, `site/**` and `packages/schemas/**`.
+
+Never the corpus case files (`tests/effect4Corpus/cases/**`), the baseline files
+(`tests/effect4Corpus/baseline/**`), the corpus tests or any path `phax.json` protects: they stay
+byte-identical.
 
 A file mixing areas is migrated by more than one phase; each phase changes only the symbols
-listed below.
+listed below. When a leftover says it is blocked by another symbol, migrate the blocker, then
+re-run `pnpm codemod:effect4` so the covered uses it held back are rewritten mechanically.
 
 ## v3 symbols
 

@@ -54,6 +54,36 @@ afterEach(() => {
 });
 
 describe("runRatchet", () => {
+  it("fails, measuring nothing, when a phase changed package.json scripts", () => {
+    writeFileSync(join(root, "package.json"), '{ "scripts": { "test": "vitest run" } }\n');
+    commitAll();
+    writeFileSync(join(root, "package.json"), '{ "scripts": { "test": "true" } }\n');
+    let measured = false;
+    let output = "";
+    const status = runRatchet(root, {
+      measure: () => {
+        measured = true;
+        return { src: 0, tests: 0 };
+      },
+      write: (text) => {
+        output += text;
+      },
+    });
+    expect(status).toBe(1);
+    expect(measured).toBe(false);
+    expect(output).toContain("package.json scripts differ from HEAD");
+  });
+
+  it("passes when only package.json dependencies changed", () => {
+    writeFileSync(join(root, "package.json"), '{ "scripts": { "test": "vitest run" } }\n');
+    commitAll();
+    writeFileSync(
+      join(root, "package.json"),
+      '{ "scripts": { "test": "vitest run" }, "dependencies": { "effect": "4.1.2" } }\n',
+    );
+    expect(ratchet(3, 4).status).toBe(0);
+  });
+
   it("records the first counts and passes when HEAD has no counts file", () => {
     commitAll();
     const { status, output } = ratchet(140, 12);

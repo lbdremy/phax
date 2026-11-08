@@ -94,9 +94,21 @@ function partOf(heading: string): Part {
   return "preamble";
 }
 
+// The symbol a target names, without its call signature or type arguments:
+// `Schema.Union(members)` names `Schema.Union`, and `Schema.Literal / Schema.Literals`
+// names both alternatives.
+function targetNames(target: string): ReadonlyArray<string> {
+  return target.split(" / ").map((name) => name.replace(/[(<].*$/s, "").trim());
+}
+
+// A symbol moved when no target of its entry still names it. An entry that keeps the
+// name and only changes the call shape (`Schema.Union` -> `Schema.Union(members)`), or
+// lists it among alternatives, is a signature change: the code still writes that name in
+// v4, so a use of it is no leftover; the type errors and the ratchet track the new shape.
 function isMoved(entry: ReferenceEntry): boolean {
   const { targets } = entry;
-  return targets === null || targets.length !== 1 || targets[0] !== entry.v3Symbol;
+  if (targets === null) return true;
+  return !targets.some((target) => targetNames(target).includes(entry.v3Symbol));
 }
 
 /** Reads the reference's text into entries and lookups. */

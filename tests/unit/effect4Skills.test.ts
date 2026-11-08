@@ -30,6 +30,15 @@ describe("effect4 skills", () => {
     });
   }
 
+  it("each topic skill may change its symbols under every directory the codemod targets", () => {
+    for (const topic of TOPICS) {
+      const scope = section(read(topic), "May change");
+      for (const target of ["src/**", "tests/**", "scripts/**", "site/**", "packages/schemas/**"]) {
+        expect(scope, `${target} in ${topic}`).toContain(`\`${target}\``);
+      }
+    }
+  });
+
   it("each topic skill lists the modules and symbols owners.ts routes to it", () => {
     for (const [module, owner] of MODULE_OWNERS) {
       expect(section(read(owner), "v3 symbols"), `${module} in ${owner}`).toContain(

@@ -67,6 +67,13 @@ describe("effect4 codemod reference", () => {
     expect(reference.lineOf("Effect.notAnEffectSymbol")).toBeNull();
   });
 
+  it("does not count a symbol whose v4 name is unchanged as moved, whatever its call shape", () => {
+    for (const symbol of ["Schema.Union", "Schema.Tuple", "Schema.Record", "Schema.Literal"]) {
+      expect(reference.movedSymbols.has(symbol), symbol).toBe(false);
+    }
+    expect(reference.movedSymbols.has("Schema.optionalWith")).toBe(true);
+  });
+
   it("knows the v3 effect modules and the v4-only ones", () => {
     expect(reference.effectModules.has("Either")).toBe(true);
     expect(reference.effectModules.has("ParseResult")).toBe(true);
