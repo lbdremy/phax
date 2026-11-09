@@ -8,7 +8,6 @@ import { ProviderStoreRoots } from "../ports/providerStores.js";
  * home directory. The only code that reads `CLAUDE_CONFIG_DIR` and
  * `CODEX_HOME`.
  */
-export const ProviderStoreRootsLive: Layer.Layer<ProviderStoreRoots> = Layer.sync(
-  ProviderStoreRoots,
-  () => resolveProviderStoreRoots(process.env, homedir()),
+export const ProviderStoreRootsLive: Layer.Layer<never> = Layer.sync(ProviderStoreRoots, () =>
+  resolveProviderStoreRoots(process.env, homedir()),
 );

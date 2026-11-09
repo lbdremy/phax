@@ -26,5 +26,5 @@ const readStdin: Equals<
 void readStdin;
 
 // The Terminal tag provides exactly TerminalOps
-const tagService: Equals<Context.Tag.Service<typeof Terminal>, TerminalOps> = true;
+const tagService: Equals<Context.Service.Shape<typeof Terminal>, TerminalOps> = true;
 void tagService;

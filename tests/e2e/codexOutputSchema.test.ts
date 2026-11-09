@@ -4,7 +4,7 @@ import { mkdtempSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Effect, Result, Schema } from "effect";
-import { Backend, type AgentRunOptions } from "../../src/ports/backend.js";
+import { Backend, type AgentRunOptions, type BackendOps } from "../../src/ports/backend.js";
 import type { ClaudeSessionId } from "../../src/domain/branded.js";
 import { DEFAULT_PROVIDER_CONFIG } from "../../src/domain/routing/defaults.js";
 import { resolveReviewSecurityPolicy } from "../../src/domain/security/resolveReviewPolicy.js";
@@ -114,7 +114,7 @@ describe.skipIf(!shouldRun)("codex --output-schema (real provider)", () => {
   let repoDir: string;
 
   const layer = makeNodeBackendLayer(providerConfig());
-  const run = <A, E>(use: (backend: Backend["Type"]) => Effect.Effect<A, E, never>) =>
+  const run = <A, E>(use: (backend: BackendOps) => Effect.Effect<A, E, never>) =>
     Effect.runPromise(
       Effect.flatMap(Backend, use).pipe(
         Effect.provide(layer),
