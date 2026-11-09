@@ -12,7 +12,7 @@ Why one run. CI runs `pnpm check:full` on every pull request, and no tree betwee
 What the operator does around the run (none of it is a phase's work):
 
 1. Before the run, move `effect-migration` to be the first entry of `gateProfiles` in `phax.json`. `phax run` gates with the first profile listed. Put `standard` back first at the merge (operator decision, 2026-11-09). On every phase, `effect-migration` runs `pnpm format`, `pnpm codemod:effect4 --ratchet` (the type-error and test ratchets) and `pnpm lint`. On the terminal phase it adds `pnpm check:full`, `pnpm build`, `pnpm site:build`, `pnpm deno:smoke` and `pnpm deno:smoke-binary`.
-2. Answer q-commit-counts before approval. With the recommended option, also fill the numbers into phase-01's commit body.
+2. Nothing is measured or filled in before approval. The counts travel as data (q-commit-counts, operator decision 2026-11-09): phase-01's commit carries them in `scripts/effect4-codemod/type-error-counts.json` (the counts after) and `docs/effect-4-mapping.md` §1 (the type-error counts before and after, and each rule's rewrites). Its body names those files and carries no number. Spec §5.7 is amended to say so.
 3. Start the run with `phax run --allow-skill-edits`. phase-09 edits three skill files: `.claude/skills/state-machines/SKILL.md`, `.claude/skills/infrastructure-adapters/SKILL.md` and `.claude/skills/observability/SKILL.md`.
 
 Protected and read-only paths. `phax.json` declares `protectedPaths`: today the corpus baseline, `tests/effect4Corpus/corpus.ts`, `scripts/effect4-codemod/counts.ts`, both tsconfigs and `vitest.config.ts`. Declaring them also protects `phax.json` itself. Every phase also treats these as read-only:
@@ -73,7 +73,7 @@ All three are already in `security.agentCommands` in phax.json, so the plan need
 - The last code phase, phase-08, runs `pnpm check:full`, `pnpm build`, `pnpm site:build` and both Deno smokes itself, and leaves them green. phase-09 then starts from a green tree and only risks doc failures at the terminal gate.
   Loss accepted: the full gate runs twice at the end, and phase-08 may have to fix a late failure owned by an earlier topic (see the preamble rule).
 
-## Open questions
+## Arbitrated questions
 
 ### q-commit-counts — phax writes a phase's commit body verbatim from the plan, so phase-01's body cannot pick up numbers the codemod prints during the run. How does phase-01's commit carry the four type-error counts and each rule's rewrite count (§5.7)?
 
@@ -81,6 +81,13 @@ All three are already in `security.agentCommands` in phax.json, so the plan need
 - reword — phase-01 commits with the placeholders and records the real numbers in docs/effect-4-mapping.md. The operator rewords phase-01's commit body with those numbers before the pull request merges — abandons: The run branch's history as phax recorded it: rewording phase-01 rewrites every later phase's commit, so the hashes the run's records and the reviewed pull request point at no longer exist
 
 Recommendation: premeasure — The codemod is deterministic and the base is fixed, so a scratch run gives exactly the numbers phase-01 will print, and phase-01's own check catches any drift. Rewording rewrites nine phases' commits after phax has recorded them. If reword is chosen, phase-01's instruction to compare its numbers with the body is dropped; phase-01 still writes them into docs/effect-4-mapping.md.
+
+Decision: other — by operator (Rémy Loubradou), 2026-11-09
+Why: The counts travel as data in phase-01's own commit: scripts/effect4-codemod/type-error-counts.json (the counts after, written by --ratchet) and docs/effect-4-mapping.md §1 (type-error counts before and after, and each rule's rewrites); the commit body names those files and carries no number. §5.7 is amended to say so (operator, 2026-11-09). No premeasure, no reword. Advocate: The strongest case for premeasure: the commit body is where §5.7 says a reader finds the numbers, and a scratch run before approval puts the real figures in the git log itself, checked against the run's own output, with no extra file to consult. Principles: E0, C4, C3. Reversibility: cheap. Revised: preamble.summary, phase-01 detailedInstructions, phase-01 implementationOrder, phase-01 testStrategy, phase-01 expectedHandoff, phase-01 commit body. Phase: phase-01.
+
+## Decision log
+
+- 2026-11-09 q-commit-counts decided other — operator (Rémy Loubradou) — revised 6 sections
 
 ---
 
@@ -117,10 +124,10 @@ phax and @lbdremy/phax-schemas depend on effect 4.1.2 and on no other Effect pac
   - the type-error counts of src and of the test suite, before and after;
   - the `left to phases` list.
   Then run `pnpm format`.
-- Step 5: compare the printed numbers with this phase's commit body. The body carries src before and after, tests before and after, and one rewrite count per rule, which the operator filled in before approval (q-commit-counts). If any number differs, stop and report both sets in the handoff; do not edit the body.
+- Step 5: the counts travel as data, not in the commit body (q-commit-counts). The commit body carries no number; it names the two files that do. The four type-error counts and each rule's rewrites are recorded in `docs/effect-4-mapping.md` §1 (step 6), and the counts after are written by `--ratchet` to `scripts/effect4-codemod/type-error-counts.json` (step 8). Do not write a number into the commit body.
 - Step 6: record the real numbers in `docs/effect-4-mapping.md`. Its introduction says the counts that matter are the ones the first Effect 4 phase records.
   - In §1, replace the Rewrites column and the trial-run sentence with this run's per-rule rewrites and files.
-  - State the four type-error counts.
+  - State the four type-error counts: src before and after, tests before and after, exactly as the codemod printed them.
   - In §2, update the leftover totals per skill and the blocked-use table from this run's `left to phases` list.
   - Keep the document's structure and its other text.
 - Step 7: refresh the history lock (§5.17).
@@ -157,7 +164,7 @@ Producer of the ratchet base for every later phase: `scripts/effect4-codemod/typ
 ### Test strategy
 
 - exactly one effect version, 4.1.2, is installed, both manifests name ^4.1.2, and no platform package or packageExtensions entry remains — medium · smoke · pnpm-lock.yaml and both package.json files · in-phase · ac-deps
-- the codemod's printed type-error counts and per-rule rewrite counts are the ones the commit body carries — medium · smoke · the numbers in this phase's commit body · in-phase · ac-codemod-measure
+- the codemod's printed type-error counts and per-rule rewrite counts are recorded in docs/effect-4-mapping.md §1, and type-error-counts.json holds the counts after — medium · smoke · the codemod's printed output against docs/effect-4-mapping.md and type-error-counts.json · in-phase · ac-codemod-measure
 - the ratchet records the first type-error counts and the first set of passing tests — medium · smoke · type-error-counts.json and passing-tests.json written by pnpm codemod:effect4 --ratchet · in-phase · ac-green
 - every frozen decoder the codemod rewrote has a lock entry equal to the sha256 of its new bytes, and no entry was added or removed — small · example · sha256 of each file under src/schemas/history against packages/schemas/history.lock.json · in-phase · ac-lock
 - shipped-json.json holds the Effect 3 rendering of every shipped JSON Schema byte for byte — small · example · packages/schemas/json/ as rendered on Effect 3 before the install · in-phase · ac-json-schema
@@ -168,10 +175,9 @@ Producer of the ratchet base for every later phase: `scripts/effect4-codemod/typ
 2. Remove the platform packages from package.json and knip.json; set the package's effect range
 3. pnpm add effect@4.1.2 and check pnpm-lock.yaml
 4. Run the codemod, then pnpm format
-5. Compare the printed numbers with the commit body
-6. Record the numbers in docs/effect-4-mapping.md
-7. Re-pin the lock entries of the rewritten frozen decoders
-8. pnpm codemod:effect4 --ratchet
+5. Record the numbers in docs/effect-4-mapping.md
+6. Re-pin the lock entries of the rewritten frozen decoders
+7. pnpm codemod:effect4 --ratchet
 
 ### Excluded scope
 
@@ -191,7 +197,7 @@ The `effect-migration` gate profile in phax.json (`pnpm format`, `pnpm codemod:e
 - Confirmation that pnpm-lock.yaml resolves one effect version and no platform package.
 - The list of frozen decoder files whose lock entries were re-pinned.
 - The number of entries in shipped-json.json.
-- Any difference between the printed numbers and the commit body.
+- Confirmation that the four counts and each rule's rewrites are recorded in docs/effect-4-mapping.md §1 and that type-error-counts.json holds the counts after.
 - The file-plan deviation phax will flag: the hundreds of src, tests, scripts, site and packages/schemas files the codemod rewrote are unplanned by design. Name them by directory and point to the codemod's file list.
 
 ### Commit subject
@@ -202,19 +208,7 @@ The `effect-migration` gate profile in phax.json (`pnpm format`, `pnpm codemod:e
 
 Move phax and @lbdremy/phax-schemas to effect ^4.1.2. Remove @effect/platform, @effect/platform-node and their packageExtensions. Apply the codemod's mechanical rewrites (pnpm codemod:effect4), then pnpm format.
 
-Type errors (codemod run on the Effect 3 tree with effect 4.1.2 installed):
-  src    <src-before> -> <src-after>
-  tests  <tests-before> -> <tests-after>
-
-Rewrites per rule:
-  either-to-result      <n>
-  effect-either         <n>
-  schema-decode-either  <n>
-  context-tag           <n>
-  schema-filters        <n>
-  schema-optional-with  <n>
-  catch-all             <n>
-  parse-result-issues   <n>
+The counts travel as data, not in this body. scripts/effect4-codemod/type-error-counts.json holds the type-error counts after, written by pnpm codemod:effect4 --ratchet. docs/effect-4-mapping.md §1 holds the type-error counts of src and of the test suite before and after, and each rule's rewrites.
 
 The codemod rewrote frozen decoders under src/schemas/history/. This commit refreshes packages/schemas/history.lock.json for them, as the Effect 4 migration's refresh.
 
