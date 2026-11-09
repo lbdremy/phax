@@ -112,19 +112,19 @@ const paths: ReadonlyArray<readonly [string, RefusalPath, "bracketed" | "dotted"
 ];
 
 describe("refusalMessage", () => {
-  it.fails.each(messages)("renders %s", (_name, refusal, expected) => {
+  it.each(messages)("renders %s", (_name, refusal, expected) => {
     expect(refusalMessage(refusal)).toBe(expected);
   });
 });
 
 describe("formatActual", () => {
-  it.fails.each(actuals)("prints %s as Effect 3 printed it", (_name, value, expected) => {
+  it.each(actuals)("prints %s as Effect 3 printed it", (_name, value, expected) => {
     expect(formatActual(value)).toBe(expected);
   });
 });
 
 describe("refusalPath", () => {
-  it.fails.each(paths)("renders %s", (_name, path, notation, expected) => {
+  it.each(paths)("renders %s", (_name, path, notation, expected) => {
     expect(refusalPath(path, notation)).toBe(expected);
   });
 });
