@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   buildFootprint,
+  buildLandedFootprint,
   classifyShared,
   computePlanOverlap,
+  computeReadjustmentImpact,
 } from "../../../src/domain/planOverlap/compute.js";
 import type { PlanInput } from "../../../src/domain/planOverlap/types.js";
 
@@ -146,6 +148,43 @@ describe("classifyShared", () => {
 });
 
 describe("computePlanOverlap", () => {
+  it("recognizes the same path across equivalent relative spellings", () => {
+    const a: PlanInput = {
+      id: "a",
+      label: "A",
+      phases: [{ create: [], edit: ["./src/widget.ts"], optional: [] }],
+    };
+    const b: PlanInput = {
+      id: "b",
+      label: "B",
+      phases: [{ create: [], edit: ["src/widget.ts"], optional: [] }],
+    };
+    const result = computePlanOverlap([a, b]);
+    expect(result.edges).toHaveLength(1);
+    expect(result.edges[0]?.severity).toBe("medium");
+    expect(result.edges[0]?.shared[0]?.path).toBe("src/widget.ts");
+    expect(result.cleanPairs).toHaveLength(0);
+  });
+
+  it("detects a landed file change with an equivalent planned path", () => {
+    const landed = buildLandedFootprint({
+      id: "landed",
+      label: "Landed run",
+      added: [],
+      modified: ["src/widget.ts"],
+      deletedOrRenamed: [],
+    });
+    const plan = buildFootprint({
+      id: "planned",
+      label: "Planned run",
+      phases: [{ create: [], edit: ["./src/widget.ts"], optional: [] }],
+    });
+    const result = computeReadjustmentImpact(landed, [plan]);
+    expect(result.impacted).toHaveLength(1);
+    expect(result.impacted[0]?.shared[0]?.path).toBe("src/widget.ts");
+    expect(result.unaffected).toHaveLength(0);
+  });
+
   it("two disjoint plans → no edges, both in cleanPairs, one wave", () => {
     const result = computePlanOverlap([planA, planB]);
     expect(result.edges).toHaveLength(0);

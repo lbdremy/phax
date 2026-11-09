@@ -1,3 +1,4 @@
+import { posix } from "node:path";
 import { REGENERATED_ARTIFACTS } from "./generatedArtifacts.js";
 import type {
   ConflictSeverity,
@@ -17,9 +18,9 @@ export function buildFootprint(input: PlanInput): PlanFootprint {
   const optional = new Set<string>();
 
   for (const phase of input.phases) {
-    for (const p of phase.create) create.add(p);
-    for (const p of phase.edit) edit.add(p);
-    for (const p of phase.optional) optional.add(p);
+    for (const p of phase.create) create.add(posix.normalize(p));
+    for (const p of phase.edit) edit.add(posix.normalize(p));
+    for (const p of phase.optional) optional.add(posix.normalize(p));
   }
 
   const all = new Set<string>([...create, ...edit, ...optional]);
@@ -149,8 +150,10 @@ export function computePlanOverlap(inputs: readonly PlanInput[]): PlanOverlapRes
 }
 
 export function buildLandedFootprint(input: LandedInput): PlanFootprint {
-  const create = new Set<string>(input.added);
-  const edit = new Set<string>([...input.modified, ...input.deletedOrRenamed]);
+  const create = new Set<string>(input.added.map((p) => posix.normalize(p)));
+  const edit = new Set<string>(
+    [...input.modified, ...input.deletedOrRenamed].map((p) => posix.normalize(p)),
+  );
   const optional = new Set<string>();
   const all = new Set<string>([...create, ...edit]);
   return { id: input.id, label: input.label, create, edit, optional, all };
