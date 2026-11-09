@@ -15,7 +15,7 @@ silencing `as`, no invented API, no network, no delegated agent) bind here.
 - The Schema symbols listed below, wherever the codemod reports them: any file under
   `src/**`, `tests/**`, `scripts/**`, `site/**` and `packages/schemas/**`, `src/cli/**` and
   `src/domain/**` included.
-- `src/schemas/history/` and `tests/effect4Corpus/subjects.ts`.
+- `src/schemas/history/`, `src/schemas/refusal/adapter.ts` and `tests/effect4Corpus/subjects.ts`.
 - Method calls on schema values the report does not list (`.annotations(` → `.annotate(`): they are
   this phase's work.
 
@@ -38,10 +38,10 @@ report to this skill.
 
 ## Behaviour guards
 
-- Refusal wording stays. `src/schemas/formatError.ts` keeps printing `is missing`,
-  `is unexpected` and `Expected X, actual Y`; the corpus compares them with the frozen
-  expectations. A whole-type description is worded by `issueMessage`, never by a looser
-  comparison.
+- Refusal wording stays. Refusal words are built by `src/schemas/refusal/render.ts` from phax's
+  refusal model; the corpus compares them with the frozen expectations. This phase ports only
+  `src/schemas/refusal/adapter.ts`, from ParseResult issues to SchemaIssue, and changes no
+  message. No formatter reads Effect's message text, and none may start to.
 - Frozen decoders (`src/schemas/history/`) keep decoding what they decoded. A change to one comes
   with the `history.lock.json` refresh in the same commit, naming the Effect 4 migration.
 - JSON Schema equivalence is held by the corpus, not by eye. Create no `next` snapshot.
