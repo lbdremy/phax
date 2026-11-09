@@ -208,8 +208,8 @@ function fetchRecords(
         return { ...sync, remoteName: ORIGIN, repo: sync.path };
       case "nothing-to-bootstrap":
         // Only an in-repo destination answers this, and it is handled above.
-        return yield* Effect.dieMessage(
-          "reconcileRecordsSync: a dedicated clone had nothing to bootstrap",
+        return yield* Effect.die(
+          new Error("reconcileRecordsSync: a dedicated clone had nothing to bootstrap"),
         );
     }
   });

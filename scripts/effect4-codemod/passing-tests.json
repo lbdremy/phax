@@ -1,4 +1,38 @@
 {
+  "tests/integration/acceptanceLint.test.ts": [
+    "acceptance: the plan side of lint > ac-header-old: the Oracle phase and Oracle files lines are each refused",
+    "acceptance: the plan side of lint > ac-header-rules: a discharged-by value is refused with the acceptance message",
+    "acceptance: the plan side of lint > ac-header-rules: a phase line without its files line is refused with the acceptance message",
+    "acceptance: the plan side of lint > ac-header: the new header lines lint with no error",
+    "acceptance: the plan side of lint > ac-loop-old: a line in the oracle loop is refused by name",
+    "acceptance: the plan side of lint > ac-loop-rules: both loop rules say acceptance",
+    "acceptance: the plan side of lint > ac-provider-missing: an acceptance phase with no provider is named",
+    "lint of a plan half rewritten from the old names > reports only the old header lines when the test line is already in the acceptance loop",
+    "lint of a plan half rewritten from the old names > reports only the old loop when the header lines are already the new ones"
+  ],
+  "tests/integration/acceptancePairReview.test.ts": [
+    "a held discharge closes on its configured steps > closes unchanged with no request",
+    "a held discharge closes on its configured steps > returns a correction that breaks a configured step: exit 4, no fix attempt, nothing committed",
+    "a held oracle phase > keeps the stop on a failing authored verdict: exit 4",
+    "a held oracle phase > refuses a gate step that writes an oracle file, naming the file",
+    "a held oracle phase > refuses corrections that touch two pairs' oracle files, sending no request"
+  ],
+  "tests/integration/acceptancePhases.test.ts": [
+    "acceptance phases in a run > a skipped oracle step > discharges a wrong oracle without a provider call, and never counts it as verified",
+    "acceptance phases in a run > a skipped oracle step > reaches no later phase",
+    "acceptance phases in a run > a skipped oracle step > skips the authored verdict at the oracle phase, and the discharge is still judged against its commit",
+    "acceptance phases in a run > a skipped oracle step > still runs the configured gate and its fix loop",
+    "acceptance phases in a run > asks for an authored verdict at the oracle phase and a discharged one at its discharger",
+    "acceptance phases in a run > calls the provider at the pair's two phases only",
+    "acceptance phases in a run > exhausts an always-finding discharge, resumes with the same commit, and never resets the committed oracle phase",
+    "acceptance phases in a run > lists oracle among the PR body's verified surfaces once the pair passed",
+    "acceptance phases in a run > pauses on a refusal, and resume runs that gate again",
+    "acceptance phases in a run > refuses the discharge of a skipped oracle phase before its agent runs, naming the remedy",
+    "acceptance phases in a run > runs a plan with no oracle phase unchanged with a provider configured",
+    "acceptance phases in a run > runs a plan with no oracle phase unchanged without a provider",
+    "acceptance phases in a run > sends the acceptance phase an authored request with no acceptanceCommit",
+    "acceptance phases in a run > sends the passing phase a passed request, saves it, and attributes the step to acceptance"
+  ],
   "tests/integration/acceptancePreflight.test.ts": [
     "acceptance: extraction of the acceptance header lines > ac-header: the extracted phase carries acceptance, at phax-plan 0.33.0",
     "acceptance: extraction of the acceptance header lines > ac-loop-old: a line in the oracle loop is refused before any model call",
@@ -71,12 +105,18 @@
     "Approvals name their approver > --by operator without a git user.name exits 12 naming git config user.name, writing nothing",
     "Approvals name their approver > a grant that is not a kebab-case slug exits 12 naming the pattern, writing nothing",
     "Approvals name their approver > a machine approval needs no git user.name",
+    "Approvals name their approver > a plan approved from a terminal without --by records the operator by git user.name",
+    "Approvals name their approver > a plan approved with --by machine:roadmap-loop records the machine at the current shape, and status names it",
     "Approvals name their approver > a spec approved from a terminal without --by records the operator by git user.name",
     "Approvals name their approver > a spec approved with --by machine:roadmap-loop records the machine at the current shape, and status names it",
+    "Approvals name their approver > approving docs/plans/2609261000-plan-prune-store-plan.md with no terminal and no --by exits 12 naming --by, writing nothing",
     "Approvals name their approver > approving docs/specs/2609251400-plan-prune.md with no terminal and no --by exits 12 naming --by, writing nothing",
     "Approvals name their approver > the operator is the committing identity: GIT_COMMITTER_NAME over user.name",
     "Approvals name their approver > the terminal default without a git user.name exits 12 naming git config user.name, writing nothing",
-    "Records written before attribution read as unattributed > re-approving rewrites the 0.19.0 record at the current shape with the new approver"
+    "Records written before attribution read as unattributed > leaves both 0.19.0 files byte-identical after every read",
+    "Records written before attribution read as unattributed > plans status computes the plan's staleness as before: fresh, then stale once edited",
+    "Records written before attribution read as unattributed > re-approving rewrites the 0.19.0 record at the current shape with the new approver",
+    "Records written before attribution read as unattributed > status prints both approvals as unattributed, never as the operator"
   ],
   "tests/integration/approvalLedgerRefusal.test.ts": [
     "An old ledger refuses until migrated > with only docs/plans/approvals.json committed > approve refuses with exit 12 and writes nothing",
@@ -98,12 +138,32 @@
     "Approval waits for no open question > refuses a hand-authored spec with an open question, naming it and decide",
     "Approval waits for no open question > refuses a hand-authored §9 listing the reserved option id other, naming Q2",
     "Approval waits for no open question > refuses a hand-authored §9 that does not parse, naming its first departing line",
-    "Approval waits for no open question > refuses a headless Draft spec with open questions, naming them and decide"
+    "Approval waits for no open question > refuses a headless Draft spec with open questions, naming them and decide",
+    "Approval waits for no open question > refuses a headless plan with open Q2, naming Q2 alone"
+  ],
+  "tests/integration/approvalRecordGround.test.ts": [
+    "A plan's own approval is never ground change > is fresh right after approve when the footprint names its own path and record",
+    "A plan's own approval is never ground change > is ground change once another footprint file changes",
+    "Another plan's lifecycle no longer stales a plan > approving and completing Q after P's approval leaves P fresh",
+    "Another plan's lifecycle no longer stales a plan > is ground change when P's footprint names Q's own record file",
+    "Another plan's lifecycle no longer stales a plan > is ground change when Q, approved before P, is completed after P's approval"
   ],
   "tests/integration/approvalRecordMerge.test.ts": [
+    "A run's PR merges after an approval on main > merges the run branch cleanly (approval on main after completion)",
+    "A run's PR merges after an approval on main > merges the run branch cleanly (approval on main before completion)",
     "Complete and abandon delete the record file > abandoning a never-approved Draft spec commits without a record file",
+    "Complete and abandon delete the record file > plan → Abandoned moves the artifact and deletes its record file in one commit",
+    "Complete and abandon delete the record file > plan → Completed moves the artifact and deletes its record file in one commit",
     "Complete and abandon delete the record file > spec → Abandoned moves the artifact and deletes its record file in one commit",
     "Complete and abandon delete the record file > spec → Completed moves the artifact and deletes its record file in one commit",
+    "Plan approval writes its own record file > a headless plan's approve commit holds nothing beyond the plan, its sidecar and its record file",
+    "Plan approval writes its own record file > the approve commit holds exactly the plan and its record file",
+    "Plan transitions on two branches merge cleanly > approve A on one branch, abandon B on the other — branch one first",
+    "Plan transitions on two branches merge cleanly > approve A on one branch, abandon B on the other — branch two first",
+    "Plan transitions on two branches merge cleanly > approve A on one branch, complete B on the other — branch one first",
+    "Plan transitions on two branches merge cleanly > approve A on one branch, complete B on the other — branch two first",
+    "Plan transitions on two branches merge cleanly > approve A on one branch, reopen B on the other — branch one first",
+    "Plan transitions on two branches merge cleanly > approve A on one branch, reopen B on the other — branch two first",
     "Spec transitions on two branches merge cleanly > approve S1 on one branch, abandon S2 on the other — branch one first",
     "Spec transitions on two branches merge cleanly > approve S1 on one branch, abandon S2 on the other — branch two first",
     "Spec transitions on two branches merge cleanly > approve S1 on one branch, complete S2 on the other — branch one first",
@@ -185,8 +245,11 @@
     "phax artifact status — hand-authored §9 > a spec listing the reserved option id other prints the departure naming Q3 and exits 0",
     "phax artifact status — hand-authored §9 > a spec with bold question headings prints the departing line and exits 0",
     "phax artifact status — hand-authored §9 > a spec with neither question section prints no Questions line",
+    "phax artifact status — questions by state and arbiter > a headless plan in the same situation prints the same lines",
     "phax artifact status — questions by state and arbiter > a headless spec prints its open ids, then once they are decided and it is approved, its counts and the machine approver",
     "phax artifact status — questions by state and arbiter > names questions by their ids",
+    "phax artifact status — unmigrated sidecars > a Draft plan stamped 0.20.0 prints no Questions line and names migrate-documents",
+    "phax artifact status — unmigrated sidecars > a Draft plan stamped 0.26.0 with a prose test strategy still summarises the questions it recorded",
     "phax artifact status — unmigrated sidecars > a Draft spec stamped 0.17.0 names its shape and the migrate command, with its questions lifted by the marker"
   ],
   "tests/integration/artifactReopen.test.ts": [
@@ -194,13 +257,24 @@
     "Artifact reopen returns an Approved artifact to Draft > a Completed spec's reopen exits 12, writing nothing",
     "Artifact reopen returns an Approved artifact to Draft > a Draft spec's reopen exits 12, writing nothing",
     "Artifact reopen returns an Approved artifact to Draft > a Draft spec's reopen with no terminal and no --by says it is Draft, not --by",
+    "Artifact reopen returns an Approved artifact to Draft > a Stale plan reopens to Draft as before, its commit naming the arbiter",
+    "Artifact reopen returns an Approved artifact to Draft > an Approved headless plan reopens the same way, its sidecar carried along untouched",
     "Artifact reopen returns an Approved artifact to Draft > an Approved spec reopened by a machine is Draft, unstamped and unrecorded, in one commit naming the machine",
     "Artifact reopen returns an Approved artifact to Draft > an operator reopen without git user.name exits 12 naming git config user.name, writing nothing",
     "Artifact reopen returns an Approved artifact to Draft > reopen from a terminal without --by names the operator by git user.name",
-    "Artifact reopen returns an Approved artifact to Draft > reopen with no terminal and no --by exits 12 naming --by, writing nothing"
+    "Artifact reopen returns an Approved artifact to Draft > reopen with no terminal and no --by exits 12 naming --by, writing nothing",
+    "Reopening a spec names its plans and leaves them > names the Approved bound plan, leaves its files byte-identical, and plans status reads it fresh"
   ],
   "tests/integration/artifactStatus.test.ts": [
+    "checkPlanRunnable > passes for an Approved plan",
+    "checkPlanRunnable > passes for an Approved plan at a non-artifact path",
+    "checkPlanRunnable > refuses a Completed plan as retired, at its archive path",
+    "checkPlanRunnable > refuses a Draft plan",
+    "checkPlanRunnable > refuses a Stale plan with wording distinct from Draft",
+    "checkPlanRunnable > refuses a plan with an invalid status value",
     "checkPlanRunnable > refuses a plan with no frontmatter block",
+    "checkPlanRunnable > refuses an Abandoned plan as retired, at its archive path",
+    "checkPlanRunnable > refuses an Approved plan sitting under docs/plans/archive/ (location disagreement)",
     "headless-authored artifacts (JSON sidecar) > inspectArtifact > reports a sidecar written before $schema as unmigrated, whatever the body",
     "headless-authored artifacts (JSON sidecar) > inspectArtifact > reports an invalid sidecar with the reason",
     "headless-authored artifacts (JSON sidecar) > inspectArtifact > reports diverged after a body edit",
@@ -216,6 +290,8 @@
     "headless-authored artifacts (JSON sidecar) > transitionArtifact > refuses to archive over an existing archived sidecar, moving neither file",
     "inspectArtifact > lists orphan record files of the inspected kind only, changing no file",
     "inspectArtifact > refuses an off-grammar name with ArtifactValidationError naming the file and grammar",
+    "inspectArtifact > reports kind, status, legal targets, and approval:unrecorded for an Approved plan with no record",
+    "inspectArtifact > spec approval variants > reports a plan's approval and its approver the same way, edited or not",
     "inspectArtifact > spec approval variants > reports approval:none for a Draft spec with no stamp",
     "inspectArtifact > spec approval variants > reports approval:recorded/edited after a body edit post-approval",
     "inspectArtifact > spec approval variants > reports approval:recorded/not-edited for a stamped, unedited spec",
@@ -225,20 +301,53 @@
     "old approval ledger refusal > with only docs/plans/approvals.json > inspectArtifact refuses and changes no file",
     "old approval ledger refusal > with only docs/specs/approvals.json > approve refuses before any write or commit, for either kind",
     "old approval ledger refusal > with only docs/specs/approvals.json > inspectArtifact refuses and changes no file",
+    "transitionArtifact > abandon relocates an Approved plan and a further transition is refused",
+    "transitionArtifact > approval record capture > (none) plan approves with a null sourceSpec binding",
+    "transitionArtifact > approval record capture > re-approval replaces the sidecar entry with a fresh baseline",
+    "transitionArtifact > approval record capture > records plan fingerprint, spec identity+fingerprint, and HEAD baseline; stamps the header",
+    "transitionArtifact > approval record capture > the approve commit holds exactly the plan and its own record file",
     "transitionArtifact > approve rewrites a Draft spec's status line in place",
     "transitionArtifact > archive relocates an Approved spec under archive/ and removes the original",
+    "transitionArtifact > auto-commit > a no-op transition (no diff against HEAD) creates no commit",
+    "transitionArtifact > auto-commit > approve commits exactly the write-set",
     "transitionArtifact > auto-commit > archive captures the source removal, record deletion and archive addition in one commit",
+    "transitionArtifact > auto-commit > commit: false skips the precondition and creates no commit",
+    "transitionArtifact > auto-commit > refuses a dirty write-set target before writing anything",
+    "transitionArtifact > auto-commit > surfaces a commit failure loudly, leaving the writes in place",
+    "transitionArtifact > chain-gated plan approval > proceeds when the declared spec is Approved and recorded",
+    "transitionArtifact > chain-gated plan approval > refuses a dangling Source-Spec declaration, naming the reference",
+    "transitionArtifact > chain-gated plan approval > refuses when the declared spec is Approved but edited since its approval",
+    "transitionArtifact > chain-gated plan approval > refuses when the declared spec is Approved but unrecorded",
+    "transitionArtifact > chain-gated plan approval > refuses when the declared spec is not Approved",
+    "transitionArtifact > chain-gated plan approval > refuses when the declared spec resolves at its archive path but is not Approved (terminal)",
     "transitionArtifact > record file hygiene > a never-approved Draft spec's abandon commits without a record path",
+    "transitionArtifact > record file hygiene > deletes the plan's record file when an Approved plan goes terminal",
     "transitionArtifact > record file hygiene > deletes the spec's record file when an Approved spec goes terminal; archived file keeps the stamp",
+    "transitionArtifact > record file hygiene > leaves another artifact's record file byte-identical",
+    "transitionArtifact > record file hygiene > refuses a plan approval when its record file is failing to decode, touching nothing",
+    "transitionArtifact > record file hygiene > refuses a plan approval when its record file is from a newer release, touching nothing",
+    "transitionArtifact > record file hygiene > refuses a plan approval when its record file is not JSON, touching nothing",
+    "transitionArtifact > record file hygiene > refuses a plan approval when its record file is without $schema, touching nothing",
+    "transitionArtifact > record file hygiene > refuses a plan approval whose declared spec's record file records another spec",
+    "transitionArtifact > record file hygiene > refuses a plan whose record file records another plan",
     "transitionArtifact > record file hygiene > refuses a spec transition when its record file is not JSON, touching nothing",
+    "transitionArtifact > record file hygiene > refuses to complete a plan when its record file is corrupt, before moving it",
     "transitionArtifact > record file hygiene > refuses to complete a spec when its record file is corrupt, before moving it",
     "transitionArtifact > record file hygiene > refuses to inspect or transition a record file as an artifact",
     "transitionArtifact > record file hygiene > the dependent-plan check ignores the approvals/ directory",
+    "transitionArtifact > refuses to approve a plan naming a spec without completes-spec, writing nothing",
+    "transitionArtifact > refuses to archive over an existing destination and leaves the original intact",
+    "transitionArtifact > reopen clears the approval > Approved → Stale retains the record (pinned arbitration)",
+    "transitionArtifact > reopen clears the approval > Stale → Draft drops the approved: stamp and the sidecar record",
+    "transitionArtifact > reopen clears the approval > reopen leaves another plan's record file byte-identical",
+    "transitionArtifact > reopen clears the approval > the reopen commit carries the plan and its record file, leaving nothing uncommitted",
     "transitionArtifact > spec approval > approve stamps approved: with the short HEAD and writes the spec record with the full HEAD",
     "transitionArtifact > spec approval > re-approval after a body edit replaces only the spec's own record file",
     "transitionArtifact > spec approval > re-approval commit carries the spec file and its own record file",
     "transitionArtifact > spec approval > re-approval on an Approved spec replaces the record's baseline",
     "transitionArtifact > spec retirement gate > archives a spec with no dependents cleanly",
+    "transitionArtifact > spec retirement gate > archives cleanly once the dependent is abandoned, without touching the dependent again",
+    "transitionArtifact > spec retirement gate > refuses to retire a spec with a live dependent plan, naming it and its status",
     "transitionArtifact > surfaces ArtifactValidationError before any write on a validation failure",
     "transitionArtifact > surfaces InvalidArtifactTransitionError for an illegal transition"
   ],
@@ -317,7 +426,12 @@
   ],
   "tests/integration/briefRecords.test.ts": [
     "brief reports are recorded as printed > keeps the pushed and the pulled report with their keys in their printed order",
-    "pulled briefs reach the phase folder > collects the pulls of a phase that fails terminally"
+    "pulled briefs reach the phase folder > collects pulls across two sessions in call order, before the record is written",
+    "pulled briefs reach the phase folder > collects the pulls of a phase that fails terminally",
+    "pulled briefs reach the phase folder > collects the pulls with records disabled",
+    "pulled briefs reach the phase folder > writes no marker and copies no brief file without a provider",
+    "the brief grant > grants nothing without a provider",
+    "the brief grant > grants phax brief with source brief in a secure run with a provider"
   ],
   "tests/integration/claudeAuthFailure.test.ts": [
     "ac-auth > a claude-code phase refused as not authenticated fails with the named cause, is not paused or retried, and spawns claude once"
@@ -340,7 +454,19 @@
     "phaxProgram > review-code has <short-name> arg and --new-session, --model, --effort flags"
   ],
   "tests/integration/completeRunArtifacts.test.ts": [
+    "completeRunArtifacts > carries a headless plan's JSON sidecar into archive/ in the same commit",
+    "completeRunArtifacts > completes a plan that has no record file",
+    "completeRunArtifacts > completes the plan on the branch in a path-scoped commit",
+    "completeRunArtifacts > fails with InvalidArtifactTransitionError and leaves no commit for an illegal plan",
     "completeRunArtifacts > is a no-op with an empty report for a plan outside docs/plans/",
+    "completeRunArtifacts > is idempotent: a second run creates no commit and reports both already complete",
+    "completeRunArtifacts > lands the transition only under the worktree, leaving the test-process repo untouched",
+    "completeRunArtifacts > with completes-spec: false, completes only the plan and leaves the spec and its record untouched",
+    "completeRunArtifacts > with completes-spec: false, idempotent re-entry makes no commit and still keeps the spec",
+    "completeRunArtifacts > with completes-spec: true, keeps the spec when a sibling plan still depends on it, naming the blocker",
+    "completeRunArtifacts > with completes-spec: true, rides the source spec along in a second, separate commit",
+    "completeRunArtifacts — surface summaries > completes an Approved spec stamped 0.25.0, archiving its sidecar byte for byte",
+    "completeRunArtifacts — surface summaries > fails with SurfaceSummariesUnwrittenError for a current-shape spec holding the placeholder, after the plan is archived",
     "renderSourceSpecOutcome > is undefined when the report states no spec outcome",
     "renderSourceSpecOutcome > states a completed spec with its short hash, or already complete on re-entry",
     "renderSourceSpecOutcome > states a spec kept because the plan does not complete it",
@@ -354,6 +480,8 @@
   ],
   "tests/integration/costLedger.test.ts": [
     "cost ledger at run time > leaves a partial entry for a phase turn stopped by a usage limit before its result",
+    "cost ledger at run time > moves the ledger byte for byte into the archived run folder",
+    "cost ledger at run time > writes no entry for a phase routed to codex-cli",
     "withInvocationCost > does nothing for a provider other than Claude Code",
     "withInvocationCost > leaves a damaged ledger as it is, warns, reports to telemetry, and keeps the invocation's result",
     "withInvocationCost > lets the signal handler, which exits before onExit runs, record the running invocation",
@@ -362,6 +490,8 @@
     "withInvocationCost > records nothing for an absent stream or a stream that never started"
   ],
   "tests/integration/createArtifact.test.ts": [
+    "createArtifact > creates a Draft plan bound to an existing source spec, completes-spec true with --last",
+    "createArtifact > creates a Draft plan with source-spec null and no completes-spec when no --spec is given",
     "createArtifact > creates a Draft spec named from the current UTC minute",
     "createArtifact > refuses '--last without --spec', without writing",
     "createArtifact > refuses '--not-last without --spec', without writing",
@@ -372,6 +502,7 @@
     "createArtifact > refuses when --spec is missing, without writing",
     "createArtifact > refuses when --spec points at a plan path, without writing",
     "createArtifact > refuses when the target already exists, without writing",
+    "createArtifact > writes completes-spec false on the line after source-spec with --not-last",
     "resolveArtifactTarget > ignores --spec and the completion flags for a spec",
     "resolveArtifactTarget > resolves a plan's path, its validated source spec and completes-spec without writing"
   ],
@@ -438,6 +569,8 @@
     "exit code 13 > maps a stop to 13 and names it in the exit table"
   ],
   "tests/integration/declaredStopRun.test.ts": [
+    "a plan with no interactive phase > never stops when a phase's handoff ends with a question to a person",
+    "a plan with no interactive phase > never stops, carries no Review corrections and writes headless phase statuses",
     "an interactive phase under the assignment bounds > refuses an interactive phase that departs from its governing bound"
   ],
   "tests/integration/dispatcher.test.ts": [
@@ -548,8 +681,19 @@
     "readEstimateHistory > skips an undecodable ledger and a non-JSON pruned copy by path, without failing"
   ],
   "tests/integration/estimatePlan.test.ts": [
+    "estimatePlanCost > backfills a kept run with no cost ledger before reading the history, skipping a locked one",
+    "estimatePlanCost > estimates an Approved plan never extracted, and only the probe reaches a model (§8 no model reads the plan)",
     "estimatePlanCost > fails with ArtifactValidationError on an off-grammar docs/plans/ name (§8 exit codes)",
-    "estimatePlanCost > fails with PlanUnparseableError, naming phax plans lint, on a plan the parser cannot read"
+    "estimatePlanCost > fails with PlanUnparseableError, naming phax plans lint, on a plan the parser cannot read",
+    "estimatePlanCost > gives one warning per skip reason, naming its first three paths",
+    "estimatePlanCost > lists a codex-routed phase as other-provider",
+    "estimatePlanCost > names an interactive phase as interactive and sizes only its turns, in its own row (§8 only phax's turns are costed)",
+    "estimatePlanCost > never touches a Claude Code credential path, with or without the probe (§8 no credential is read)",
+    "estimatePlanCost > says an interactive phase has too few past interactive phases when the history holds none",
+    "estimatePlanCost > still estimates a plan with a departing test line, its departing entry left out",
+    "estimatePlanCost > with --no-probe calls no Backend method and reads the last sample (§8 --no-probe)",
+    "readEstimatePlan > reads a plan with a departing test line, keeping only its formatted lines",
+    "readEstimatePlan > sizes each phase's planned files in the working tree, a missing file counting 0"
   ],
   "tests/integration/eventAdapter.test.ts": [
     "adaptAgentResume > AgentInvocationError bubbles",
@@ -601,11 +745,32 @@
     "examples/hello-world plan auditor > flags src/greet.ts once the test-bearing phase is dropped"
   ],
   "tests/integration/executePlan.test.ts": [
+    "executePlan — a green gate-report gate > prints exactly what a passing gate with no findings printed before, on every phase",
+    "executePlan — auto-publish after final review > no publication side effects when publish.auto is false",
+    "executePlan — auto-publish after final review > publishes PR and writes publication.json when publish.auto is true",
+    "executePlan — auto-publish after final review > run stays review_open when gh is unavailable (non-fatal failure)",
+    "executePlan — binding status lifecycle > sets binding status to awaiting_manual_review for the single (final) phase on success",
     "executePlan — binding status lifecycle > sets binding status to failed when the agent invocation fails",
+    "executePlan — firing scheduling > runs only every-phase steps before the terminal phase, and both at the terminal phase",
+    "executePlan — handoff prompt deviation injection > injects the named deviating files into the handoff prompt passed to the backend",
+    "executePlan — handoff prompt deviation injection > renders the no-deviation line when the commit matches the plan exactly",
+    "executePlan — happy-path 2-phase run > app-layer patch is the sole owner of the launching→running binding transition",
+    "executePlan — happy-path 2-phase run > drives both phases to review_open and writes all expected artifacts",
+    "executePlan — happy-path 2-phase run > returns committed phase ids and final worktree path",
     "executePlan — happy-path 2-phase run > writes agent-binding.json with status launching before agent runs (pre-agent write guarantee)",
+    "executePlan — phase start on the no-provider baseline > case 1: starts no process between setup and agent launch, and pins each first prompt",
+    "executePlan — phase start on the no-provider baseline > case 2: the phase folder holds exactly the baseline files at agent launch",
+    "executePlan — phase start on the no-provider baseline > case 3: resume, reset-phase, then resume again start phase-02 on the baseline",
+    "executePlan — phase start on the no-provider baseline > case 4: writes the full plan to .phax-context/plan.md, and resume restores it",
+    "executePlan — records destination refusal > fails the run with a non-zero exit when a committed phase's records destination is refused",
+    "executePlan — records destination refusal > warns, and goes on, when a committed phase's record is kept on a branch unrelated to its remote",
     "executePlan — resume from gates_exhausted > fails loudly with a reset-phase-directing error when the persisted Claude session id is missing",
     "executePlan — resume from gates_exhausted > pauses the run again (does not fail it) when the gate keeps failing on resume",
-    "executePlan — security preflight > fails with SecurityPreflightError before any agent runs when required command is missing"
+    "executePlan — resume from gates_exhausted > re-enters the gate loop without invoking the implementation agent when the human's fix made the gate pass",
+    "executePlan — resume from gates_exhausted > uses the locked binding provider/model on resume, ignoring routing config",
+    "executePlan — resumed-session prompts > pins the fix-attempt and handoff prompts of a phase whose gate fails once",
+    "executePlan — security preflight > fails with SecurityPreflightError before any agent runs when required command is missing",
+    "executePlan — security preflight > proceeds normally when all required commands are covered by config"
   ],
   "tests/integration/finalReport.test.ts": [
     "writeFinalReport > renders an explicit empty state when no attribution records exist",
@@ -632,11 +797,40 @@
     "openFinalReview > writes review-handoff.md to the run path"
   ],
   "tests/integration/fixLoop.test.ts": [
+    "runGatesWithFixLoop > a report step > lists a failing report's findings in the fix prompt in report order",
+    "runGatesWithFixLoop > a report step > lists a failing report's findings in the fix prompt, and nothing else from it",
+    "runGatesWithFixLoop > a report step > spends one fix attempt on the raw-log prompt for a broken step",
+    "runGatesWithFixLoop > a report step > still failing, by id alone > marks across a resume, from the previous attempt's saved report",
+    "runGatesWithFixLoop > a report step > still failing, by id alone > marks nothing when the previous attempt failed on a step that ran before the report step",
+    "runGatesWithFixLoop > a report step > still failing, by id alone > marks nothing when the previous attempt's report is unreadable or refused",
+    "runGatesWithFixLoop > a report step > still failing, by id alone > marks the finding whose id the same step listed in the previous attempt, wherever it now is",
     "runGatesWithFixLoop > an acceptance step > exhausts the loop on an always-finding provider",
     "runGatesWithFixLoop > an acceptance step > pauses on a refusal with no fix attempt",
+    "runGatesWithFixLoop > an acceptance step > sends a finding to the fix prompt, queries the provider again, and passes",
+    "runGatesWithFixLoop > attempt numbering > continues above an earlier entry's attempts and leaves their files unchanged",
+    "runGatesWithFixLoop > attempt numbering > gives one attempt's files one number: log, request, report, step record and fix transcript",
     "runGatesWithFixLoop > attempt numbering > grants a fresh fix budget on a re-entry and numbers each attempt above the last",
+    "runGatesWithFixLoop > attempt numbering > reads numbers of any digit count",
+    "runGatesWithFixLoop > attempt numbering > skips past a cut-short attempt, which is never the previous one",
+    "runGatesWithFixLoop > calls resumeAgentSession on gate failure and dispatches the fix-loop event sequence",
     "runGatesWithFixLoop > fails with GateAttemptsExhaustedError and dispatches FixAttemptsExhausted after all attempts fail",
-    "runGatesWithFixLoop > the fix turn's telemetry names the provider that ran it > reports a Codex fix turn that lost the network with adapter codex-cli"
+    "runGatesWithFixLoop > gate-attribution.json reflects the final attempt, not intermediate failures",
+    "runGatesWithFixLoop > hands a declaring step the same request bytes on every attempt",
+    "runGatesWithFixLoop > includes gate output in the fix prompt sent to resumeAgentSession",
+    "runGatesWithFixLoop > numbers a first entry's attempts from 01: checks-attempt-01, then attempt-02 after one fix",
+    "runGatesWithFixLoop > still failing, keyed by command > marks a finding of a step that moved to another position",
+    "runGatesWithFixLoop > still failing, keyed by command > marks a finding the same command listed in the previous attempt, across a re-entry",
+    "runGatesWithFixLoop > still failing, keyed by command > marks nothing for an inserted step at the previous step's position",
+    "runGatesWithFixLoop > still failing, keyed by command > marks nothing over a folder written before step records, and changes none of it",
+    "runGatesWithFixLoop > still failing, keyed by command > marks nothing when the same command's previous report was refused",
+    "runGatesWithFixLoop > succeeds immediately when gates pass on the first attempt",
+    "runGatesWithFixLoop > the fix turn's telemetry names the provider that ran it > records the operation phax.codex-cli.agent.resume for a Codex fix turn",
+    "runGatesWithFixLoop > the fix turn's telemetry names the provider that ran it > reports a Codex fix turn that lost the network with adapter codex-cli",
+    "runGatesWithFixLoop > uses the session id from the fix result in the next gate attempt",
+    "runGatesWithFixLoop > with a protected list > fails a green attempt for the check alone, with no error report, and records the result",
+    "runGatesWithFixLoop > with a protected list > keeps a failed step's own kind and carries the change too",
+    "runGatesWithFixLoop > with a protected list > observes nothing when the project declares no list",
+    "runGatesWithFixLoop > with a protected list > passes when nothing protected changed, and records the pass"
   ],
   "tests/integration/fsApparentSize.test.ts": [
     "FileSystem.apparentSize (Node adapter) > does not follow a symlink to a large file",
@@ -661,12 +855,19 @@
     "FileSystem.createExclusive (fake) > returns false over an existing directory"
   ],
   "tests/integration/gateLogTrailer.test.ts": [
+    "executePlan — the Gate-Log trailer > names attempt 07 when a gate resume over attempts 01–06 passes first time",
+    "executePlan — the Gate-Log trailer > names the attempt that passed when the gate fails twice and passes on 03",
     "executePlan — the Gate-Log trailer > names the highest recorded attempt on a commit-only resume, running no new attempt",
     "executePlan — the Gate-Log trailer > writes `Gate-Log: none` on a commit-only resume with no recorded attempt, and goes on"
   ],
   "tests/integration/gateRefusal.test.ts": [
     "a refused gate report > pauses like exhaustion, and resume runs the gate first with the full fix budget",
     "a refused gate report > stops the phase without a fix attempt, naming the step, the reason and the remedy"
+  ],
+  "tests/integration/gateRequest.test.ts": [
+    "executePlan writes each phase's gate request > gives a single-phase plan a terminal request with one entry",
+    "executePlan writes each phase's gate request > hands phase-02 its noted base, a false terminal and the run's projection",
+    "executePlan writes each phase's gate request > resumes after exhausted gates with a byte-identical request, whatever the branch tip"
   ],
   "tests/integration/gates.test.ts": [
     "runGates > attribution > does not write an attribution record when attributionPath/phaseId are omitted",
@@ -801,8 +1002,13 @@
     "NodeGitLayer.dirtyPaths > returns empty output for empty input without invoking git"
   ],
   "tests/integration/gitCommitTree.test.ts": [
+    "NodeGitLayer.commitTree > commits exactly the given tree on HEAD, as Ada Example, and moves the branch and the index",
+    "NodeGitLayer.commitTree > fails when the pre-commit hook rejects, leaving HEAD and the real index unchanged",
     "NodeGitLayer.commitTree > lands an empty commit when given HEAD's own tree",
-    "NodeGitLayer.diffTrees > is empty between a tree and itself"
+    "NodeGitLayer.commitTree > runs the pre-commit and commit-msg hooks with the tree staged",
+    "NodeGitLayer.commitTree > undoes a commit whose pre-commit hook rewrote and staged a file, naming it",
+    "NodeGitLayer.diffTrees > is empty between a tree and itself",
+    "NodeGitLayer.diffTrees > returns the content diff of a modified, an added and a deleted file"
   ],
   "tests/integration/gitCommitterName.test.ts": [
     "Git committerName (Node adapter) > fails with a GitError when git cannot read the repository's config",
@@ -887,7 +1093,17 @@
     "records branch Git port contract: real git adapter > writeTreeCommit > refuses to move the branch from a stale expected tip"
   ],
   "tests/integration/gitWorktreeSnapshot.test.ts": [
-    "NodeGitLayer.changedPathsBetween > lists nothing between a tree and itself"
+    "NodeGitLayer.changedPathsBetween > lists modified, added and deleted paths with no rename detection",
+    "NodeGitLayer.changedPathsBetween > lists nothing between a tree and itself",
+    "NodeGitLayer.headTree and snapshotWorktree > answers HEAD's tree for an unchanged worktree, a tracked ignored file included",
+    "NodeGitLayer.headTree and snapshotWorktree > changes the tree for a modified, an added and a deleted file",
+    "NodeGitLayer.headTree and snapshotWorktree > leaves .phax-context/ and untracked ignored files out",
+    "NodeGitLayer.headTree and snapshotWorktree > never touches the real index",
+    "NodeGitLayer.headTree and snapshotWorktree > sees an edit to a tracked file that matches an ignore pattern",
+    "NodeGitLayer.restorePaths > brings the listed paths back and leaves every other path alone",
+    "NodeGitLayer.restorePaths > never touches .phax-context/, even when a path there is listed",
+    "NodeGitLayer.restorePaths > never touches the real index",
+    "NodeGitLayer.restorePaths > restores the tree it is given, ignored tracked files included"
   ],
   "tests/integration/githubRepoWebUrl.test.ts": [
     "NodeGitHubLayer.repoWebUrl refusals > is a GitHubError when gh answers something that is not JSON",
@@ -916,9 +1132,68 @@
     "makeGlobalTelemetryJournalLayer > writes events to the daily journal file"
   ],
   "tests/integration/groupCommandsJson.test.ts": [
-    "skills install failing part way > names a file installed outside any repository by its absolute path"
+    "skills install failing part way > names a file installed outside any repository by its absolute path",
+    "skills install failing part way > names the lines reached and the files already installed in its error"
+  ],
+  "tests/integration/heldStop.test.ts": [
+    "a run holding phase-02 > commits phase-01 and phase-02, then stops at phase-02 before its cleanup",
+    "a run holding phase-02 > never reads stdin, with no terminal and an idle stdin pipe",
+    "a run holding phase-02 > records no current session and prints the fresh start when the builder left no session id",
+    "a run holding phase-02 > writes review-stop.json's held variant, naming C2 and continuing X0",
+    "a run holding phase-02 > writes the held seed twice, holding all the person needs"
+  ],
+  "tests/integration/heldStopClose.test.ts": [
+    "a held close taken up again > finishes a close interrupted after its review commit, from the Held-Phase commit",
+    "a held close whose landed commit was written by an older version > finishes from an absolute Gate-Log, with Worktree and Session-Id lines in the commit",
+    "a refused held close > refuses 'a person\\'s file with three correctio…': exit 1, naming the defect, nothing committed",
+    "a refused held close > refuses 'a person\\'s file without ## Guards': exit 1, naming the defect, nothing committed",
+    "a refused held close > refuses a commit the person made on C2, naming C2 and the soft reset",
+    "a refused held close > returns a red gate to the person: exit 4, no turn, its log kept, C2 still the tip",
+    "closing a held stop > closes an unchanged held stop with no commit, no turn and the fixed handoff",
+    "closing a held stop > uses the person's handoff file byte for byte, with no turn",
+    "the run's branches after a held close > hold no path under .phax-context/ and none of the stop's documents",
+    "two identical held stops, corrected directly and through enter-phase > give review commits with the same tree and equal correction reconciliations"
+  ],
+  "tests/integration/heldStopCommands.test.ts": [
+    "phax archive and adjust-plan on a held run > archives the run with --force, leaving no review-stop.json",
+    "phax archive and adjust-plan on a held run > refuses adjust-plan --landed, naming awaiting_review, before any session starts",
+    "phax archive and adjust-plan on a held run > refuses archive without --force, naming the state and the flag",
+    "phax enter-phase at a held stop > runs the fresh-start command when the stop has no current session",
+    "phax enter-phase at a held stop > spawns codex resume X0 in phase-02's worktree with the phase's model, effort and posture",
+    "phax ls and phax session-info on a held run > session-info prints the session as none when the builder recorded no id",
+    "phax ls and phax session-info on a held run > session-info prints the state, cause, phase and its commit, worktree and X0 with origin builder",
+    "phax path, shell and open on a held run > target the held phase's worktree",
+    "phax reset-phase on a held run > previews the phase commit and the two corrections, and changes nothing without --yes",
+    "phax reset-phase on a held run > refuses to reset phase-01 before the held phase-02, naming it, and changes nothing",
+    "phax reset-phase on a held run > with --yes removes the worktree, the branch with C2 and the session files"
+  ],
+  "tests/integration/heldStopReentry.test.ts": [
+    "re-entering a hold point > collects the pulled briefs on a hold-point re-entry, so the closing record lists them",
+    "re-entering a hold point > pauses without a record or RunFailed when the seed cannot be written, and stops on a later resume",
+    "re-entering a hold point > re-enters the hold point of a handoff_failed phase whose copied handoff is valid, with no handoff turn",
+    "re-entering a hold point > re-runs the handoff turn of a committed held phase interrupted during it, then stops",
+    "re-entering a hold point > stops on resume after an interruption before the stop, with no turn, gate or commit",
+    "re-entering a hold point > stops once a resume validates the handoff of a held phase that paused on it"
+  ],
+  "tests/integration/heldStopRun.test.ts": [
+    "reset at a held stop > runs the phase again from phase-01's commit and holds it again"
   ],
   "tests/integration/holdCli.test.ts": [
+    "phax run --hold > --dry-run resolves the hold and names no run > prints Hold: none without --hold",
+    "phax run --hold > --dry-run resolves the hold and names no run > prints the hold check's errors under the line and still exits 0",
+    "phax run --hold > --dry-run resolves the hold and names no run > prints the resolved selection",
+    "phax run --hold > --dry-run resolves the hold and names no run > reads --hold <selection> on the runner and prints its hold line",
+    "phax run --hold > --dry-run resolves the hold and names no run > reads --hold=<selection> on the runner and prints its hold line",
+    "phax run --hold > --dry-run resolves the hold and names no run > reads a bare --hold on the runner and prints its hold line",
+    "phax run --hold > --dry-run resolves the hold and names no run > reads no --hold on the runner and prints its hold line",
+    "phax run --hold > --hold acceptance stamps the run at 0.33.0 > records the hold in a run-status.json stamped 0.33.0",
+    "phax run --hold > holds the phases of an oracle pair > --hold acceptance",
+    "phax run --hold > holds the phases of an oracle pair > --hold phase-02,phase-03",
+    "phax run --hold > holds the phases of an oracle pair > a bare --hold",
+    "phax run --hold > records the resolved hold with the run > --hold phase-02,phase-04",
+    "phax run --hold > records the resolved hold with the run > a bare --hold",
+    "phax run --hold > records the resolved hold with the run > no --hold",
+    "phax run --hold > records the resolved hold with the run > takes the run's name before --hold=<selection>",
     "phax run --hold > refuses a malformed value with exit 1 before the run is named > --hold acceptance,phase-02",
     "phax run --hold > refuses a malformed value with exit 1 before the run is named > --hold foo",
     "phax run --hold > refuses a malformed value with exit 1 before the run is named > --hold oracle",
@@ -927,6 +1202,11 @@
     "phax run --hold > refuses a malformed value with exit 1 before the run is named > --hold phase-02,phase-02",
     "phax run --hold > refuses a malformed value with exit 1 before the run is named > --hold phase-100",
     "phax run --hold > refuses a malformed value with exit 1 before the run is named > --hold phase-2",
+    "phax run --hold > refuses a selection the plan cannot honour with exit 11 before the run is named > --hold acceptance on a plan with no acceptance phase",
+    "phax run --hold > refuses a selection the plan cannot honour with exit 11 before the run is named > a bare --hold on a plan with no phase before its final one",
+    "phax run --hold > refuses a selection the plan cannot honour with exit 11 before the run is named > a declared interactive phase",
+    "phax run --hold > refuses a selection the plan cannot honour with exit 11 before the run is named > a phase the plan does not have",
+    "phax run --hold > refuses a selection the plan cannot honour with exit 11 before the run is named > the final phase",
     "the hold is fixed for the run and comes only from the flag > declares --hold on run, with its option text, and not on resume",
     "the hold is fixed for the run and comes only from the flag > refuses `phax resume <run> --hold` as an unknown option, with 64, before anything runs"
   ],
@@ -985,9 +1265,77 @@
     "a run whose phax-plan.json an earlier release stamped > is still read for display: resolveRun shows its phases, without test lines"
   ],
   "tests/integration/lintPlan.test.ts": [
+    "lintPlan > acceptance > keeps the rows that need no parsed plan when the plan does not parse",
+    "lintPlan > acceptance > reports a missing provider for a declared oracle phase",
+    "lintPlan > acceptance > reports a planned-file rule when the plan parses",
+    "lintPlan > acceptance > reports no oracles row once a provider is configured, and never spawns it",
+    "lintPlan > acceptance > reports the last-phase rule once, not twice",
+    "lintPlan > advisory check > fans an auditor finding out to one advisory warning per named phase, appended last",
+    "lintPlan > advisory check > never spawns the shell for a structurally broken plan even with an auditor registered",
+    "lintPlan > advisory check > never spawns the shell when no plan auditor is registered",
+    "lintPlan > advisory check > reports a failing auditor as a single warning without failing the lint",
+    "lintPlan > advisory check > sends exactly the phase projection — no gated phase, models, or optional files",
+    "lintPlan > assignment bounds > a Model reason line is an error, and the phase departs without a reason",
+    "lintPlan > assignment bounds > a conforming phase with a reason warns",
+    "lintPlan > assignment bounds > a stated departure is a warning that quotes the reason",
+    "lintPlan > assignment bounds > an effort outside the range departs",
+    "lintPlan > assignment bounds > an invalid bound is one lint error and compares nothing",
+    "lintPlan > assignment bounds > an unresolved part bound fails lint and compares nothing",
+    "lintPlan > assignment bounds > asks the provider once, for the whole repository, on a plan of three phases",
+    "lintPlan > assignment bounds > globs bounds are checked without a provider",
+    "lintPlan > assignment bounds > optional files count",
+    "lintPlan > assignment bounds > the first matching bound governs",
+    "lintPlan > assignment bounds > the policy default warns where no bound governs",
     "lintPlan > fails the effect, without a finding, when the plan cannot be read",
+    "lintPlan > interactive > accepts an interactive phase between two headless phases",
+    "lintPlan > interactive > fails lint for an interactive phase at a phase right after another",
+    "lintPlan > interactive > fails lint for an interactive phase at the first phase",
+    "lintPlan > interactive > fails lint for an interactive phase at the last phase",
+    "lintPlan > interactive > names each file an interactive phase plans to edit",
+    "lintPlan > interactive > reports a malformed Mode line on the interactive check",
+    "lintPlan > repo-tracked plan checks > fails with ArtifactValidationError naming completes-spec for a non-boolean completes-spec",
+    "lintPlan > repo-tracked plan checks > fails with ArtifactValidationError naming completes-spec for completes-spec beside source-spec: null",
+    "lintPlan > repo-tracked plan checks > fails with ArtifactValidationError naming completes-spec for no completes-spec beside a spec path",
     "lintPlan > repo-tracked plan checks > fails with ArtifactValidationError on a well-named plan with no frontmatter",
-    "lintPlan > repo-tracked plan checks > fails with ArtifactValidationError, naming the grammar, on an off-grammar name"
+    "lintPlan > repo-tracked plan checks > fails with ArtifactValidationError, naming the grammar, on an off-grammar name",
+    "lintPlan > repo-tracked plan checks > lints a plan with completes-spec: false without a validation refusal",
+    "lintPlan > repo-tracked plan checks > lints a plan with completes-spec: true without a validation refusal",
+    "lintPlan > repo-tracked plan checks > reports a plan slug that differs from its source spec's slug as a structure error",
+    "lintPlan > repo-tracked plan checks > reports nothing when the slug matches its source spec's, archived or live",
+    "lintPlan > repo-tracked plan checks > skips both checks for a loose plan.md outside docs/plans/",
+    "lintPlan > reports a Model reason line as a models error naming Assignment reason",
+    "lintPlan > reports a malformed Mode line on interactive even when the plan does not parse",
+    "lintPlan > reports a phase whose heading lacks its id as a structure error naming it",
+    "lintPlan > reports a required command covered by neither the grants nor the gate profile",
+    "lintPlan > reports an edit of a file absent from the working tree",
+    "lintPlan > reports an unknown model id and names the phase",
+    "lintPlan > reports no structure error for a rendered plan with or without an assignment reason",
+    "lintPlan > reports only structure findings for a structurally broken plan",
+    "lintPlan > returns no findings for a conforming plan whose files all resolve",
+    "lintPlan > returns no findings for a rendered plan whose preamble carries question sections",
+    "lintPlan > tests > flags nothing on a last phase with an empty test strategy and no other defect",
+    "lintPlan > tests > names only a phase's first departure, by its source item number",
+    "lintPlan > tests > reports a departing line as one tests error naming phase-01 and the line, while the files and models checks still run",
+    "lintPlan > tests > reports a departure even when the plan does not parse",
+    "lintPlan > tests > reports nothing for formatted lines, `- (none)` or no section",
+    "lintPlan > tests > reports the departure after the interactive and acceptance rows",
+    "lintPlan > tests > warns once of a loose plan.md whose frontmatter does not decode, and reads no spec",
+    "lintPlan > tests > warns once of a source-spec outside the repository, and reads nothing there"
+  ],
+  "tests/integration/lintTestLines.test.ts": [
+    "lint's test-line rules (acceptance) > the acceptance loop > departs a line still in the old oracle loop as a retired loop, with no silent-acceptance row",
+    "lint's test-line rules (acceptance) > the acceptance loop > flags an acceptance phase whose lines are all in-phase",
+    "lint's test-line rules (acceptance) > the acceptance loop > flags an acceptance phase with no test line at all",
+    "lint's test-line rules (acceptance) > the acceptance loop > flags an acceptance-loop line on a phase that passes an acceptance phase",
+    "lint's test-line rules (acceptance) > the acceptance loop > flags an acceptance-loop line on an ordinary phase",
+    "lint's test-line rules (acceptance) > the acceptance loop > gives no tests error to an acceptance-loop line on an acceptance phase, and extracts it with the loop acceptance and its oracle",
+    "lint's test-line rules (acceptance) > the order > lists the acceptance-loop error, the unknown id, then the uncovered warnings",
+    "lint's test-line rules (acceptance) > the source spec's criteria > falls back to the archived spec and its sidecar",
+    "lint's test-line rules (acceptance) > the source spec's criteria > flags a criterion id the source spec does not have",
+    "lint's test-line rules (acceptance) > the source spec's criteria > warns of a criterion that no test line names",
+    "lint's test-line rules (acceptance) > the source spec's criteria > warns once of a hand-written spec with no JSON sidecar",
+    "lint's test-line rules (acceptance) > the source spec's criteria > warns once of a sidecar that cannot be read",
+    "lint's test-line rules (acceptance) > the source spec's criteria > warns once of a spec found at neither path"
   ],
   "tests/integration/loadConfigLayers.test.ts": [
     "loadConfig allowlist union across layers > deduplicates paths that appear in multiple layers",
@@ -1060,18 +1408,37 @@
     "Migration splits made-up ledgers with no record lost > splits a pre-schema plan ledger and a 0.18.0 spec ledger in one commit",
     "Migration splits made-up ledgers with no record lost > splits a pre-schema plan ledger and a pre-schema spec ledger in one commit",
     "Migration splits made-up ledgers with no record lost > writes each record file at the current shape: $schema, artifact, the record fields, then approvedBy unattributed",
+    "Old formats stay readable and are never written > writes no ledger through any transition or run completion after migration",
     "Running the migration again is a no-op > reports nothing to migrate on a repository that never had a ledger",
     "Running the migration again is a no-op > reports nothing to migrate on an already-migrated repository"
   ],
   "tests/integration/migrateDocuments.test.ts": [
     "migrate-documents — 0.25.0 specs gain the summary placeholder > leaves an archived 0.25.0 spec and its sidecar byte for byte, out of the commit, and approve is not refused on their account",
+    "migrate-documents — 0.25.0 specs gain the summary placeholder > lifts an Approved 0.25.0 spec with a placeholder per element, re-renders §6, names the spec and the plan it unsettles",
     "migrate-documents — 0.25.0 specs gain the summary placeholder > prints the summaries still to write on the lifted spec's line",
     "migrate-documents — 0.25.0 specs gain the summary placeholder > refuses a hand-edited 0.25.0 spec, writing and committing nothing",
     "migrate-documents — an unreadable sidecar > refuses a live sidecar that is not JSON, naming it, and writes nothing",
     "migrate-documents — commit failure > fails with exit 12 and leaves the files written but uncommitted",
+    "migrate-documents — names only the plans it makes stale > does not name a plan that was already Stale",
+    "migrate-documents — names only the plans it makes stale > does not name an Approved plan already behind its spec before migration",
+    "migrate-documents — names what it unsettles > names Approved specs left edited since approval, their open questions, and the plan left stale",
     "migrate-documents — never overwrites a hand edit > refuses a hand-edited body, then uncommitted changes, then migrates, then has nothing to migrate",
+    "migrate-documents — plan documents in flight > lifts a 0.20.0 plan with mode headless and acceptance null on every phase, adding no line to plan.md",
+    "migrate-documents — plan documents in flight > lifts a 0.25.0 plan with its reasons, re-rendering its Model reason lines as Assignment reason",
+    "migrate-documents — plan documents in flight > lifts a 0.25.0 plan with mode headless and acceptance null on every phase, adding no line to plan.md",
+    "migrate-documents — plan documents in flight > migrates a live 0.26.0 plan whose every test strategy follows the line format to its lines, its body unchanged, and commits it",
+    "migrate-documents — plan documents in flight > refuses a 0.19.0 plan beside a spec as invalid, naming completesSpec, writing nothing",
+    "migrate-documents — plan documents in flight > refuses a 0.25.0 plan whose body was edited by hand, writing nothing",
+    "migrate-documents — plan documents in flight > refuses a live 0.26.0 plan holding a prose test strategy, naming phase-01, its first departing line and the remedy, leaving it as it was",
+    "migrate-documents — plan documents in flight > restamps a 0.28.0 plan to the current stamp, its Markdown byte-identical, and commits the sidecar alone",
+    "migrate-documents — plan documents in flight > restamps a Draft 0.20.0 plan with empty questions, its body and lineage byte-identical, its cache re-seeded",
     "migrate-documents — spec documents in flight > lifts a Draft 0.17.0 spec by the rationale marker; approve waits for it",
     "migrate-documents — spec documents in flight > restamps a 0.27.0 spec to the current stamp, its Markdown byte-identical",
+    "migrate-documents — the acceptance loop > leaves archived plans and specs that hold the oracle names byte for byte, out of the commit, and reads their status",
+    "migrate-documents — the acceptance loop > refuses a 0.32.0 plan whose body was edited by hand, writing nothing",
+    "migrate-documents — the acceptance loop > refuses to approve a plan whose sidecar is still 0.32.0, exit 12, naming migrate-documents",
+    "migrate-documents — the acceptance loop > rewrites a 0.28.0 plan's sidecar at the current stamp with the loop acceptance, and its plan.md test line, in one commit",
+    "migrate-documents — the acceptance loop > rewrites a 0.32.0 plan's sidecar at the current stamp with the loop acceptance, and its plan.md test line, in one commit",
     "phax artifact migrate-documents — the command > exits 0 with nothing to migrate, then migrates, and exits 12 on a refusal"
   ],
   "tests/integration/modelPreflight.test.ts": [
@@ -1081,9 +1448,20 @@
     "executePlan — model preflight > names all failing phases in the error when multiple phases are invalid"
   ],
   "tests/integration/networkPause.test.ts": [
+    "a phase or handoff turn whose Claude Code result is empty > does not pause when a handoff turn answers an empty result",
+    "a phase or handoff turn whose Claude Code result is empty > reaches the gate when a phase turn answers an empty result",
     "a phase session Claude Code ends on an API error > pauses the run and exits 14 on a connection failure Claude Code words its own way",
     "a phase session Claude Code ends on an API error > pauses the run rate_limited and exits 8 on Claude Code's plan limit",
-    "a phase session whose tool output printed HTTP 429 > prints a provider-error failure, exits 5 and leaves the run not rate_limited"
+    "a phase session whose tool output printed HTTP 429 > prints a provider-error failure, exits 5 and leaves the run not rate_limited",
+    "a phase whose handoff turn fails > a max-turns failure exits 5",
+    "a phase whose handoff turn fails > a network failure exits 14",
+    "a phase whose handoff turn fails > a provider-error failure exits 5",
+    "a phase whose handoff turn fails > a resume re-runs only the handoff and continues to review",
+    "a phase whose handoff turn fails > a unknown failure exits 5",
+    "a phase whose handoff turn fails > reports a network failure as itself and dispatches no HandoffMissing",
+    "a run whose phase session loses the network > continues the phase to review on a later resume",
+    "a run whose phase session loses the network > pauses resumable, exits 14 and names phax resume",
+    "a run whose phase session loses the network > writes resume instructions that name the session the failure reported"
   ],
   "tests/integration/nodeShell.test.ts": [
     "NodeShellLayer decoding > decodes a three-byte character split across two writes on stdout and on stderr",
@@ -1120,10 +1498,22 @@
     "partial on a gate step: shape refusals > refuses a partial with an unknown key, naming the bracketed step path",
     "partial on a gate step: shape refusals > refuses an empty partial, naming the bracketed step path"
   ],
+  "tests/integration/partialCommandsNeverRun.test.ts": [
+    "partial commands are never run > ac-never-run: a failing then fixed gate executes only the step commands, in order"
+  ],
   "tests/integration/partialCommandsRun.test.ts": [
-    "partial commands in a run (acceptance) > ac-resume: a resumed session keeps the same partial prefixes"
+    "partial commands in a run (acceptance) > ac-claude-rules: one Claude allow rule per partial segment, none with a placeholder or pipe",
+    "partial commands in a run (acceptance) > ac-prompt-explains: the section explains partials and names no tool",
+    "partial commands in a run (acceptance) > ac-prompt-lines: partial lines sit under their step, verbatim",
+    "partial commands in a run (acceptance) > ac-providers: the gate section, partial lines included, is identical on every provider",
+    "partial commands in a run (acceptance) > ac-resume: a relaunched phase keeps its partial lines and prefixes",
+    "partial commands in a run (acceptance) > ac-resume: a resumed session keeps the same partial prefixes",
+    "partial commands in a run (acceptance) > ac-security-json: partial prefixes are recorded with source partial",
+    "partial commands in a run (acceptance) > ac-terminal-partials: a terminal step's lines appear on the terminal phase only"
   ],
   "tests/integration/perPhaseBranch.test.ts": [
+    "executePlan — per-phase branch regression > creates two addWorktree calls with distinct branches and correct createBranch chain",
+    "executePlan — per-phase branch regression > seeds previousPhaseBranch correctly on resume: createBranch only for phase-02",
     "preparePhaseBranch — unit > builds the correct branch name and calls createBranch with the right from-ref",
     "preparePhaseBranch — unit > notes a deterministic full sha for a source branch the fake has no ref for",
     "preparePhaseBranch — unit > skips createBranch when the phase branch already exists",
@@ -1145,6 +1535,15 @@
     "phase guard — phaxProgram's guard on the runner > refuses nothing outside a phase worktree",
     "phase guard — phaxProgram's guard on the runner > still refuses a --help given after `--`, as an operand",
     "phase guard — phaxProgram's guard on the runner > writes one refused line under --json, its exit the guard's 1"
+  ],
+  "tests/integration/phasePromptGate.test.ts": [
+    "phase prompt names the gate (acceptance) > ac-agnostic: the gate section each provider receives is byte-identical and names no tool",
+    "phase prompt names the gate (acceptance) > ac-contract: every gate section states the gate contract",
+    "phase prompt names the gate (acceptance) > ac-no-rerun: no rerun instruction and no unfiltered command list",
+    "phase prompt names the gate (acceptance) > ac-nonterminal-list: phase-01 lists exactly the every-phase steps",
+    "phase prompt names the gate (acceptance) > ac-prompt-equals-gate: listed commands equal the commands the gate ran",
+    "phase prompt names the gate (acceptance) > ac-resume: a regenerated phase-01 prompt keeps its gate section",
+    "phase prompt names the gate (acceptance) > ac-terminal-list: the terminal phase lists every-phase then terminal steps"
   ],
   "tests/integration/planAuditor.test.ts": [
     "queryPlanAuditor > returns a typed failure for a whitespace-only command without spawning",
@@ -1169,12 +1568,59 @@
     "writeCacheEntry + readCacheEntry > writes to the expected path"
   ],
   "tests/integration/planOverview.test.ts": [
-    "planOverview > failures > is unreadable for a plan file that is not there"
+    "planOverview > asks for the whole repository when the plan plans no file",
+    "planOverview > degrades to the planned files when the provider exits non-zero, after one call",
+    "planOverview > degrades when the provider answers something that is not a report",
+    "planOverview > failures > is invalid-artifact for an unknown frontmatter status, with the validation error",
+    "planOverview > failures > is unparsable for a plan with a heading missing its anchor, and spawns nothing",
+    "planOverview > failures > is unparsable for a plan with a test line off the format",
+    "planOverview > failures > is unreadable for a plan file that is not there",
+    "planOverview > groups the planned files by the parts of one provider call",
+    "planOverview > names a loose plan.md after its run, with its frontmatter status or none",
+    "planOverview > reads no source spec outside the repository",
+    "planOverview > reads the criteria from the source spec's sidecar",
+    "planOverview > runs no provider when none is configured",
+    "planOverview > says a loose plan.md's frontmatter does not decode, and reads no source spec",
+    "planOverview > says why no criterion is known when the spec has no sidecar",
+    "planOverview > shows a criterion covered by a line in the acceptance loop",
+    "planOverview > shows a plan without a source spec with no coverage"
   ],
   "tests/integration/planStaleness.test.ts": [
+    "applyStalenessReport > flips a missing-record entry (vanished baseline) to Stale",
+    "applyStalenessReport > flips exactly the stale-computed plans to Stale, leaves fresh ones Approved, and never touches the backend",
+    "computePlanStaleness (extraction wrapper) > derives the footprint through deterministic extraction without touching the backend",
+    "computeStalenessForPlan (core, Backend-free) > a dangling recorded Source-Spec fails with ArtifactValidationError naming it",
+    "computeStalenessForPlan (core, Backend-free) > a declared spec's content edit reports spec-changed",
+    "computeStalenessForPlan (core, Backend-free) > a footprint file listed in changedFilesSince reports ground-changed naming exactly that file",
+    "computeStalenessForPlan (core, Backend-free) > a spec-less ((none)) plan never reports spec-changed",
+    "computeStalenessForPlan (core, Backend-free) > a vanished baseline commit reports missing-record naming it",
+    "computeStalenessForPlan (core, Backend-free) > changed files disjoint from the footprint do not flip the verdict",
+    "computeStalenessForPlan (core, Backend-free) > editing the plan body after approval reports self-changed",
+    "computeStalenessForPlan (core, Backend-free) > flipping completes-spec on an Approved, fresh plan reports self-changed",
     "computeStalenessForPlan (core, Backend-free) > no sidecar entry reports missing-record",
+    "computeStalenessForPlan (core, Backend-free) > re-approval on edited content restores freshness",
+    "computeStalenessForPlan (core, Backend-free) > re-approving the spec without editing it leaves the plan fresh (fingerprint is stamp-neutral)",
+    "computeStalenessForPlan (core, Backend-free) > reports all three reasons together, in enum order",
+    "computeStalenessForPlan (core, Backend-free) > reports fresh for an unchanged plan and spec with no ground changes",
+    "old approval ledger refusal > computeStalenessForPlan refuses with only docs/plans/approvals.json, writing nothing",
+    "old approval ledger refusal > computeStalenessForPlan refuses with only docs/specs/approvals.json, writing nothing",
+    "old approval ledger refusal > plansStalenessReport fails as a whole with only docs/plans/approvals.json, writing nothing",
+    "old approval ledger refusal > plansStalenessReport fails as a whole with only docs/specs/approvals.json, writing nothing",
+    "orphan record files > a record whose plan was completed into archive/ is an orphan; other entries are ignored",
+    "orphan record files > an unreadable orphan is still only an orphan",
+    "orphan record files > lists a plan record whose plan does not exist, leaving the report and every file unchanged",
+    "orphan record files > orders orphans by record file",
     "orphan record files > reports no orphans when no approvals directory exists",
-    "plansStalenessReport > returns an empty report when docs/plans does not exist"
+    "per-artifact approval record files > a plan whose record file is missing computes missing-record",
+    "per-artifact approval record files > an unreadable record of another plan never affects a plan",
+    "per-artifact approval record files > refuses a plan's own unreadable record file, reporting an error entry",
+    "per-artifact approval record files > the staleness report ignores the approvals/ directory",
+    "plansStalenessReport > a per-plan extraction failure yields an error entry and the sweep still completes",
+    "plansStalenessReport > a plan that fails artifact validation yields an error entry before any extraction",
+    "plansStalenessReport > lists exactly the Approved entries as fresh or stale, leaves the Draft plan untouched, and writes nothing",
+    "plansStalenessReport > reports the departure refusal for a live Approved plan with a departing test line, never asking the model",
+    "plansStalenessReport > returns an empty report when docs/plans does not exist",
+    "plansStalenessReport > scans only top-level plans, skipping the archive/ subdirectory"
   ],
   "tests/integration/plansOverlapCommand.test.ts": [
     "runPlansOverlap > --json: exit 0 and output parses as JSON with edges/cleanPairs/waves keys",
@@ -1206,11 +1652,13 @@
     "probeWindows > reads both windows after exactly one probe with the fixed prompt (§8 the probe reads both windows)"
   ],
   "tests/integration/projectOnlyBoundaries.test.ts": [
+    "ac-env-kept > hands ANTHROPIC_API_KEY, CLAUDE_CONFIG_DIR and an unrelated variable to a headless session unchanged",
     "ac-interactive > 'a stop\\'s continue command' carries no --setting-sources and no phax-set memory switch",
     "ac-interactive > 'a stop\\'s fresh-start command' carries no --setting-sources and no phax-set memory switch",
     "ac-interactive > 'decide\\'s interactive session' carries no --setting-sources and no phax-set memory switch",
     "ac-interactive > 'phax enter\\'s pre-prompted first turn' carries no --setting-sources and no phax-set memory switch",
     "ac-interactive > 'phax enter\\'s resume' carries no --setting-sources and no phax-set memory switch",
+    "ac-no-touch > leaves the configuration root's files, bytes and mtimes identical and copies none of them into the run",
     "ac-probe > launches the usage probe without --setting-sources and without a phax-set memory switch"
   ],
   "tests/integration/projectOnlyLaunch.test.ts": [
@@ -1218,8 +1666,20 @@
     "ac-every-headless > 'a secure session' launches with --setting-sources project and CLAUDE_CODE_DISABLE_AUTO_MEMORY=1",
     "ac-every-headless > 'a structured completion' launches with --setting-sources project and CLAUDE_CODE_DISABLE_AUTO_MEMORY=1",
     "ac-every-headless > 'an unsafe session' launches with --setting-sources project and CLAUDE_CODE_DISABLE_AUTO_MEMORY=1",
+    "ac-every-headless > 'handoff generation' launches with --setting-sources project and CLAUDE_CODE_DISABLE_AUTO_MEMORY=1",
     "ac-memory-wins > a headless session still gets CLAUDE_CODE_DISABLE_AUTO_MEMORY=1 when phax is run with 0",
-    "ac-memory-wins > a sealed completion still gets CLAUDE_CODE_DISABLE_AUTO_MEMORY=1 when phax is run with false"
+    "ac-memory-wins > a sealed completion still gets CLAUDE_CODE_DISABLE_AUTO_MEMORY=1 when phax is run with false",
+    "ac-phase-argv > a secure claude-code phase session carries --setting-sources project and CLAUDE_CODE_DISABLE_AUTO_MEMORY=1",
+    "ac-resume > a phase fix attempt resumes the first session and launches project-only"
+  ],
+  "tests/integration/protectedPathsAdditive.test.ts": [
+    "a phase on claude-code in a project that declares no protectedPaths > keeps its argv, environment, prompts, gate logs and output",
+    "a phase on claude-code in a project that declares no protectedPaths > records security.json and gate-attribution.json as before",
+    "a phase on claude-code in a project that declares protectedPaths > records its globs, phax.json included, and the enforcement",
+    "a phase on codex-cli in a project that declares no protectedPaths > keeps its argv, environment, prompts, gate logs and output",
+    "a phase on codex-cli in a project that declares no protectedPaths > records security.json and gate-attribution.json as before",
+    "a phase on mistral-vibe in a project that declares no protectedPaths > keeps its argv, environment, prompts, gate logs and output",
+    "a phase on mistral-vibe in a project that declares no protectedPaths > records security.json and gate-attribution.json as before"
   ],
   "tests/integration/protectedPathsCheck.test.ts": [
     "Git.observeWorktree > asks git for nothing when no path is given",
@@ -1254,6 +1714,35 @@
     "checkProtectedPaths on links it cannot see through > names a symbolic link to a folder inside .phax-context",
     "checkProtectedPaths on links it cannot see through > names a symbolic link to a folder outside the worktree",
     "checkProtectedPaths on links it cannot see through > names an ignored symbolic link to a folder outside the worktree"
+  ],
+  "tests/integration/protectedPathsGate.test.ts": [
+    "a phase base rewritten in status.json during the agent's turn > is checked against the base read before the turn",
+    "a project that declares no protectedPaths > makes no worktree observation and records a null check",
+    "a protected edit by the agent's own tools > fails an attempt whose steps all passed, resumes the session with the fix prompt and commits nothing",
+    "a protected edit by the agent's own tools > lets the phase pass once the file is put back, and records the pass",
+    "a protected file the agent leaves changed at every attempt > pauses the phase in gates_exhausted with exit 4, naming the path, the last fix transcript and the two ways on",
+    "a protected snapshot rewritten by an allowlisted command > fails the attempt naming it on claude-code secure, which only denies the agent's own edits",
+    "a protected write by a gate step > fails the attempt naming the path although the step exits 0",
+    "a secure codex-cli phase and an unsafe claude-code phase > each fail a protected write at the gate (claude-code, unsafe)",
+    "a secure codex-cli phase and an unsafe claude-code phase > each fail a protected write at the gate (codex-cli, secure)",
+    "a step failure or refusal together with a protected edit > gives the fix prompt both the failed step and the protected path",
+    "a step failure or refusal together with a protected edit > pauses a refused step with no fix attempt, naming the step and the path",
+    "the gate-attribution record of a failed check > carries the 0.33.0 $schema and the fail result with path, kind and entry",
+    "the phax.json the run was loaded from > fails the attempt naming phax.json when the agent removes the key"
+  ],
+  "tests/integration/protectedPathsHandoff.test.ts": [
+    "a commit-only resume > makes no commit for a protected change made since the pause, and pauses again as a failed commit",
+    "a held phase's hold-point re-entry > pauses again as a failed handoff with no handoff turn and opens no stop",
+    "the handoff turn > checks again after the new handoff turn of a resume out of the failed handoff",
+    "the handoff turn > pauses the phase as a failed handoff naming the path, with the commit at base content, no handoff copied and no phase record"
+  ],
+  "tests/integration/protectedPathsNativeRules.test.ts": [
+    "a claude-code secure phase that declares protectedPaths > carries one --settings with the hooks and the two native deny rules in every turn",
+    "a claude-code secure phase that declares protectedPaths > records enforced when every glob has a native form",
+    "a claude-code secure phase that declares protectedPaths > tells the agent which files are the operator's, in the phase prompt",
+    "a mistral-vibe secure phase that declares protectedPaths > denies the protected entries under the worktree's realpath, and the read-back accepts them",
+    "a phase with no native protected-path rule > claude-code --security unsafe gets none and records commit-check-only",
+    "a phase with no native protected-path rule > codex-cli gets none and records commit-check-only"
   ],
   "tests/integration/providerSessionFailures.test.ts": [
     "contract: the fake backend raises what the adapters raise > 'a max-turns failure'",
@@ -1407,14 +1896,45 @@
     "publishRun > states the source-spec outcome in the summary when source-spec-outcome.md exists",
     "publishRun > uses configured baseBranch when set, otherwise queries default",
     "publishRun > uses selected PR title precedence: configured > runTitle > phaseTitle > shortName",
+    "publishRun — the phax footer > (a) links an archived plan and spec at the head sha and names the archived plan",
+    "publishRun — the phax footer > (b) links a spec kept live at its docs/specs/ path",
+    "publishRun — the phax footer > (c) writes code spans when the web URL lookup fails, and still publishes",
+    "publishRun — the phax footer > (d) names the plan at its archive counterpart and no spec when the head is unresolved",
     "publishRun — the phax footer > (e) writes a loose plan as a code span",
+    "publishRun — the phax footer > (f) has no Spec part for a plan declaring source-spec: null",
     "publishRun — the phax footer > (g) groups three agent bindings with two assignments on one Agents line",
     "publishRun — the phax footer > (h) looks nothing up and writes no body for a pull request that already exists",
-    "publishRun — the phax footer > (i) names the version from the option in the generated line"
+    "publishRun — the phax footer > (i) names the version from the option in the generated line",
+    "publishRun — the phax footer > (j) writes code spans and looks up no web URL when the branch is not pushed"
+  ],
+  "tests/integration/pushedBrief.test.ts": [
+    "a failing pushed brief never blocks the phase > warns, marks the brief unavailable and runs the phase on a brief-answer document",
+    "a failing pushed brief never blocks the phase > warns, marks the brief unavailable and runs the phase on a gate-report document",
+    "a failing pushed brief never blocks the phase > warns, marks the brief unavailable and runs the phase on a newer report release",
+    "a failing pushed brief never blocks the phase > warns, marks the brief unavailable and runs the phase on a timeout",
+    "a failing pushed brief never blocks the phase > warns, marks the brief unavailable and runs the phase on an extra top-level review key",
+    "a failing pushed brief never blocks the phase > warns, marks the brief unavailable and runs the phase on an outcome key",
+    "a failing pushed brief never blocks the phase > warns, marks the brief unavailable and runs the phase on exit 1",
+    "a failing pushed brief never blocks the phase > warns, marks the brief unavailable and runs the phase on not json",
+    "a failing pushed brief never blocks the phase > warns, marks the brief unavailable and runs the phase on two findings sharing an id",
+    "executePlan pushes the phase's brief > asks once per phase from its worktree with the gate request's facts, and weaves the answer",
+    "executePlan pushes the phase's brief > calls the configured command",
+    "executePlan pushes the phase's brief > changes nothing without a brief key",
+    "executePlan pushes the phase's brief > with \"push\": \"findings\", lists only the finding due this phase",
+    "executePlan pushes the phase's brief > with \"push\": \"findings-and-rules\", lists that finding, then one line per rule",
+    "re-entering a phase asks no new brief > re-renders the section from brief-00.json on a rate-limited re-entry",
+    "re-entering a phase asks no new brief > resumes after exhausted gates by restoring the request file, with no brief call"
   ],
   "tests/integration/rateLimit.test.ts": [
     "executePlan — rate-limit detection and resume > classifies a usage limit and exits with code 8",
+    "executePlan — rate-limit detection and resume > continues gate attempt numbering after a fix attempt hit a rate limit, overwriting nothing",
+    "executePlan — rate-limit detection and resume > counts every committed phase of the run after a limit at phase-02 of three, not this invocation's",
+    "executePlan — rate-limit detection and resume > resumes a rate-limited run to review_open without re-running committed phases",
     "executePlan — rate-limit detection and resume > stops the run as rate_limited and writes resume-instructions.md"
+  ],
+  "tests/integration/reconciliation.test.ts": [
+    "reconcilePhaseFiles — lifecycle wiring > writes file-reconciliation.json and .md with correct classification",
+    "reconcilePhaseFiles — lifecycle wiring > writes no-deviation report when actual changes match planned exactly"
   ],
   "tests/integration/recordsBranchSync.acceptance.test.ts": [
     "no path forces the records branch > ac-never-forced: fresh clone, behind, write-time, replay and push never force; every update fast-forwards or replays",
@@ -1469,6 +1989,7 @@
     "records explain and list (real git) > review records > records status lists the entry as pending under its run"
   ],
   "tests/integration/recordsExplainStop.test.ts": [
+    "explain on a held phase's two commits (§8 A held phase's record is written once, at closing) > prints no stop line for a phase that never stopped",
     "explain's address: which trailers name a record > 'Held-Phase with no Run-Id is not a ph…'",
     "explain's address: which trailers name a record > 'Run-Id with Held-Phase alone resolves…'",
     "explain's address: which trailers name a record > 'Run-Id with Phase-Id alone is a phase…'",
@@ -1618,6 +2139,8 @@
     "resolveLandedRun > resolves an archived run through its registry entry's archivePath"
   ],
   "tests/integration/resume.test.ts": [
+    "executePlan — resume from startIndex: 1 > continues from phase-02 and drives the run to review_open",
+    "executePlan — resume from startIndex: 1 > does not call prepareRunBranch when startIndex > 0",
     "phax resume — a phax-plan.json an older phax wrote in the '0.17.0' shape > exits 2 naming the file, its shape and the way out, with nothing written",
     "phax resume — a phax-plan.json an older phax wrote in the '0.17.0' shape > refuses on the preview too, never promising a resume it would refuse",
     "phax resume — a phax-plan.json an older phax wrote in the '0.26.0' shape > exits 2 naming the file, its shape and the way out, with nothing written",
@@ -1628,13 +2151,28 @@
     "phax resume — a phax-plan.json an older phax wrote in the '0.32.0' shape > refuses on the preview too, never promising a resume it would refuse"
   ],
   "tests/integration/resumeFromCleanup.test.ts": [
-    "executePlan — resume from cleanup-paused (cleaning_up+interrupted) > pauses as CleanupPausedError when cleanup fails again on resume"
+    "executePlan — resume from cleanup-paused (cleaning_up+interrupted) > pauses as CleanupPausedError when cleanup fails again on resume",
+    "executePlan — resume from cleanup-paused (cleaning_up+interrupted) > re-runs only cleanup for a cleaning_up phase, skipping agent/gate/commit/handoff"
   ],
   "tests/integration/resumeFromCommit.test.ts": [
-    "executePlan — resume from commit-paused (passed+interrupted) > pauses as no-changes (skipped) when the user committed by hand before resuming"
+    "executePlan — resume from commit-paused (passed+interrupted) > pauses as no-changes (skipped) when the user committed by hand before resuming",
+    "executePlan — resume from commit-paused (passed+interrupted) > re-runs commit → handoff → cleanup for a passed phase, no agent re-run and no gate re-run"
+  ],
+  "tests/integration/resumeFromCompletion.test.ts": [
+    "executePlan — resume from completion-paused (committed final phase) > creates no second commit when the plan on the branch is already Completed",
+    "executePlan — resume from completion-paused (committed final phase) > re-enters at the completion step, spawning no agent and re-running no gate"
   ],
   "tests/integration/resumeHandoff.test.ts": [
-    "executePlan — resume from handoff_failed > pauses again (interrupted) when the handoff re-run fails a second time"
+    "executePlan — a limit inside a committed phase's handoff turn > (a) the resume writes a non-final phase's handoff first, and the next prompt carries it",
+    "executePlan — a limit inside a committed phase's handoff turn > (b) the resume writes the final phase's handoff, completes the plan and opens review",
+    "executePlan — a limit inside a committed phase's handoff turn > (c) a second limit in the regenerated handoff turn leaves the phase owing; a third invocation finishes",
+    "executePlan — a limit inside a committed phase's handoff turn > (d) refuses an owing phase whose worktree is gone, and resumes once its remedy restores it",
+    "executePlan — a limit inside a committed phase's handoff turn > (e) a final phase with its worktree and session id gone also names git worktree add",
+    "executePlan — a limit inside a committed phase's handoff turn > (e) refuses an owing phase whose session id is gone, naming the file to write by hand",
+    "executePlan — a limit inside a committed phase's handoff turn > (f) a hand-written handoff lifts the session-gone refusal; the resume finishes that phase first",
+    "executePlan — a limit inside a committed phase's handoff turn > (f) with its worktree gone too, the phase is cleaned up, warning of the cleanup commands not run",
+    "executePlan — resume from handoff_failed > pauses again (interrupted) when the handoff re-run fails a second time",
+    "executePlan — resume from handoff_failed > re-runs only the handoff and continues to the next phase — no second commit"
   ],
   "tests/integration/resumePreflightRechecks.test.ts": [
     "phax resume — re-checks the inputs that can change before any worktree > refuses a well-formed oracle run once phax.json loses its acceptance block",
@@ -1750,8 +2288,16 @@
     "FileSystem.rootedAt (Node adapter) > reads back a relative path written under the root",
     "FileSystem.rootedAt (Node adapter) > writes a relative path under the root, not the process cwd"
   ],
+  "tests/integration/routing.test.ts": [
+    "executePlan routing — mistral-vibe priority > resolves claude-sonnet-4-6/high to mistral-vibe with the phax alias"
+  ],
   "tests/integration/runBranchDirtyTree.test.ts": [
     "phax run — dirty tree at branch creation is still refused (spec Q2) > refuses with the dirty-tree error and exit 3 before any branch is created"
+  ],
+  "tests/integration/runCarriesCompletion.test.ts": [
+    "executePlan — run carries artifact completion (spec 27) > completes the plan and rides the spec along on the run branch, leaving the origin untouched",
+    "executePlan — run carries artifact completion (spec 27) > pauses the run as interrupted (not review_open) when the plan's transition is illegal",
+    "executePlan — run carries artifact completion (spec 27) > with completes-spec: false, completes only the plan and states the kept spec in the handoff"
   ],
   "tests/integration/runCommandsAnswers.test.ts": [
     "phax run and phax resume on the runner > resume --json without --yes answers its preview and takes no lock",
@@ -1773,7 +2319,39 @@
     "createRunFolder > writes the plan JSON with correct phase count"
   ],
   "tests/integration/runPreflightBeforeNaming.test.ts": [
-    "phax run — a preflight refusal precedes naming > a configured gate step claiming the oracle surface is a config error: exit 2, no run"
+    "phax run — a preflight refusal precedes naming > a configured gate step claiming the oracle surface is a config error: exit 2, no run",
+    "phax run — a preflight refusal precedes naming > a records refusal, then `phax records sync`, lets the retry take the bare slug",
+    "phax run — a preflight refusal precedes naming > a refused run leaves the runs list unchanged",
+    "phax run — a preflight refusal precedes naming > a repository without bounds passes the preflight and names the run",
+    "phax run — a preflight refusal precedes naming > a stated departure from a bound passes the preflight and names the run",
+    "phax run — a preflight refusal precedes naming > a well-formed oracle pair with a provider passes the preflight and names the run",
+    "phax run — a preflight refusal precedes naming > acceptance-phases (an interactive last phase declaring an acceptance phase): refuses with the unchanged message and leaves no trace",
+    "phax run — a preflight refusal precedes naming > acceptance-phases: refuses with the unchanged message and leaves no trace",
+    "phax run — a preflight refusal precedes naming > assignment-bounds (a part bound the provider resolves): refuses with the unchanged message and leaves no trace",
+    "phax run — a preflight refusal precedes naming > assignment-bounds (an invalid bound): refuses with the unchanged message and leaves no trace",
+    "phax run — a preflight refusal precedes naming > assignment-bounds (an unresolved part bound): refuses with the unchanged message and leaves no trace",
+    "phax run — a preflight refusal precedes naming > assignment-bounds: refuses with the unchanged message and leaves no trace",
+    "phax run — a preflight refusal precedes naming > clean-tree: refuses with the unchanged message and leaves no trace",
+    "phax run — a preflight refusal precedes naming > gate-profile: refuses with the unchanged message and leaves no trace",
+    "phax run — a preflight refusal precedes naming > interactive-phases (a malformed Mode line): refuses with the unchanged message and leaves no trace",
+    "phax run — a preflight refusal precedes naming > interactive-phases: refuses with the unchanged message and leaves no trace",
+    "phax run — a preflight refusal precedes naming > lint and the run preflight report the same acceptance rows: a discharging phase that does not exist",
+    "phax run — a preflight refusal precedes naming > lint and the run preflight report the same acceptance rows: a malformed Acceptance phase line",
+    "phax run — a preflight refusal precedes naming > lint and the run preflight report the same acceptance rows: an interactive discharging phase",
+    "phax run — a preflight refusal precedes naming > lint and the run preflight report the same acceptance rows: an oracle file the phase does not plan",
+    "phax run — a preflight refusal precedes naming > lint and the run preflight report the same acceptance rows: an oracle last phase",
+    "phax run — a preflight refusal precedes naming > lint and the run preflight report the same acceptance rows: no provider",
+    "phax run — a preflight refusal precedes naming > lint exits with the interactive error the run preflight refuses on",
+    "phax run — a preflight refusal precedes naming > mcp-allow: refuses with the unchanged message and leaves no trace",
+    "phax run — a preflight refusal precedes naming > phase-models (a Model reason line): refuses with the unchanged message and leaves no trace",
+    "phax run — a preflight refusal precedes naming > phase-models: refuses with the unchanged message and leaves no trace",
+    "phax run — a preflight refusal precedes naming > phase-sections: refuses with the unchanged message and leaves no trace",
+    "phax run — a preflight refusal precedes naming > records-destination: refuses with the unchanged message and leaves no trace",
+    "phax run — a preflight refusal precedes naming > required-commands: refuses with the unchanged message and leaves no trace",
+    "phax run — a preflight refusal precedes naming > routing-config: refuses with the unchanged message and leaves no trace",
+    "phax run — a preflight refusal precedes naming > several refusals at once report only the first, in today's order",
+    "phax run — a preflight refusal precedes naming > skill-edit-consent (a granted skill file a protected glob matches): refuses with the unchanged message and leaves no trace",
+    "phax run — a preflight refusal precedes naming > skill-edit-consent: refuses with the unchanged message and leaves no trace"
   ],
   "tests/integration/sessionHandoversJson.test.ts": [
     "commands that hand over the terminal > adjust-plan --json is refused with 64 before any session, shell or editor starts",
@@ -1826,16 +2404,30 @@
     "executePlan — skill edit consent preflight > resume inherits consent recorded in run-status.json without a flag"
   ],
   "tests/integration/skillEditGrants.test.ts": [
-    "executePlan — skill edit grants wiring > keeps the grant on the fix-loop resumeAgentSession call"
+    "executePlan — skill edit grants wiring > keeps the grant on the fix-loop resumeAgentSession call",
+    "executePlan — skill edit grants wiring > passes [] when the phase declares no skill files",
+    "executePlan — skill edit grants wiring > passes the phase's declared skill files to runAgent and records them in security.json",
+    "executePlan — skill edit grants wiring > records and passes the grant unchanged for a phase routed to codex"
   ],
   "tests/integration/specSurfaceSummary.test.ts": [
     "a live 0.25.0 sidecar waits for migrate-documents > does not refuse approve on account of an archived 0.25.0 spec",
+    "a live 0.25.0 sidecar waits for migrate-documents > refuses approve of a spec and of a plan, naming the sidecar and the shape, writing nothing",
     "a sidecar at the current shape needs a summary on every element > approves a sidecar whose every element has a summary",
     "a sidecar at the current shape needs a summary on every element > refuses approve for an invalid sidecar naming surface[1].summary, writing nothing"
   ],
   "tests/integration/stateMachineContract.test.ts": [
     "State Machine Contract > pauses the run as gates_exhausted when fix attempts are exhausted",
+    "State Machine Contract > snapshots the ordered semantic trace for a happy-path one-phase run",
     "State Machine Contract > snapshots the rate-limit pause semantic events"
+  ],
+  "tests/integration/stopClosedBy.test.ts": [
+    "who closed a held stop > names the main checkout's identity on a corrected held stop, not the committer",
+    "who closed a held stop > names the main checkout's identity on a held stop reviewed without change",
+    "who closed a held stop > refuses a close in a checkout with no identity, committing nothing and keeping the run waiting",
+    "who closed a held stop > writes closedBy from the checkout's configuration when it finishes a landed review commit"
+  ],
+  "tests/integration/stopTranscripts.test.ts": [
+    "transcripts at a held stop's close > captures the builder of an unchanged held close too"
   ],
   "tests/integration/structuredAnswerFlags.test.ts": [
     "ac-every-call: each structured call hands its answer schema on every spawn > sets answerSchema at the eight structured call sites alone, one site per call"
@@ -1850,6 +2442,9 @@
     "claude adapter failure via FakeBackend + reportAgentFailure > produces a SystemErrorReport with adapter=claude-code-cli when invocation fails",
     "git adapter failure via adaptWorktreeCreate > produces a SystemErrorReport with adapter=git when worktree creation fails",
     "shell adapter failure via runGatesWithFixLoop > produces a SystemErrorReport with adapter=shell when a gate command fails"
+  ],
+  "tests/integration/telemetry/end-to-end.test.ts": [
+    "executePlan — semantic telemetry end-to-end > emits the expected semantic event types for a one-phase run"
   ],
   "tests/integration/telemetry/inMemorySnapshot.test.ts": [
     "InMemoryTelemetry snapshot projection > pins the snapshot for a scripted workflow",
@@ -1984,6 +2579,9 @@
   "tests/integration/usageSpecLint.test.ts": [
     "phax.usage.kdl > lints clean with the usage CLI (warnings and infos treated as errors)",
     "phax.usage.kdl > spec file exists at the repo root"
+  ],
+  "tests/integration/userConfigRecord.test.ts": [
+    "ac-record > a claude-code phase record says userConfig excluded and a codex-cli one says loaded, both at 0.34.0"
   ],
   "tests/integration/vitestAcceptanceExample.test.ts": [
     "examples/vitest-acceptance, authored verdict > asks a marker of every added or modified test, and of no deleted or unchanged one",
@@ -2554,6 +3152,10 @@
     "decodeSpecStatus / decodePlanStatus > decodes every valid spec status",
     "decodeSpecStatus / decodePlanStatus > rejects a status outside the plan set",
     "decodeSpecStatus / decodePlanStatus > rejects a status outside the spec set",
+    "validateArtifact > accepts a Stale plan under docs/plans/",
+    "validateArtifact > accepts a plan declaring a spec path with completes-spec: false",
+    "validateArtifact > accepts a plan declaring a spec path with completes-spec: true",
+    "validateArtifact > accepts a plan with an explicit null source-spec",
     "validateArtifact > accepts a spec (which has no source-spec key)",
     "validateArtifact > accepts a terminal status inside archive/",
     "validateArtifact > accepts a valid live spec",
@@ -2564,15 +3166,29 @@
     "validateArtifact > refuses an off-grammar spec name, naming the file and the grammar",
     "validateArtifact > refuses the record path docs/plans/approvals/2609101221-foo-plan.json as not a recognized artifact path",
     "validateArtifact > refuses the record path docs/specs/approvals/2609101221-foo.md as not a recognized artifact path",
+    "validateArtifact > rejects a completed plan missing the source-spec key",
     "validateArtifact > rejects a header-line-only artifact with the missing-block message",
+    "validateArtifact > rejects a live plan missing the source-spec key, naming it",
     "validateArtifact > rejects a missing frontmatter block",
     "validateArtifact > rejects a non-artifact path",
+    "validateArtifact > rejects a non-boolean completes-spec, naming it",
     "validateArtifact > rejects a non-terminal status inside archive/ (disagreement)",
+    "validateArtifact > rejects a plan declaring a spec path without completes-spec, naming it",
     "validateArtifact > rejects a terminal status outside archive/ (disagreement)",
     "validateArtifact > rejects an unknown frontmatter key, naming the key and the allowed set",
-    "validateArtifact > rejects an unknown status value for a spec, naming the allowed statuses"
+    "validateArtifact > rejects an unknown status value for a spec, naming the allowed statuses",
+    "validateArtifact > rejects completes-spec beside source-spec: null, naming it as inconsistent"
   ],
   "tests/unit/artifact/documentMigration.test.ts": [
+    "decideDocumentMigration — plans > keeps a 0.20.0 plan's md untouched even when its body differs only in trailing whitespace",
+    "decideDocumentMigration — plans > migrates a 0.26.0 plan whose test strategies follow the line format to their lines, its body unchanged",
+    "decideDocumentMigration — plans > refuses a 0.19.0 plan beside a spec as an invalid sidecar naming completesSpec",
+    "decideDocumentMigration — plans > refuses a 0.25.0 plan whose body was edited by hand",
+    "decideDocumentMigration — plans > refuses a 0.26.0 plan holding a prose test strategy, naming the phase, its first departing line and the remedy",
+    "decideDocumentMigration — plans > refuses a prose test strategy before comparing the body, so a hand edit is never what it names",
+    "decideDocumentMigration — plans > renders a 0.20.0 plan's own shape with the frozen 0.26.0 renderer, as 0.26.0 and 0.27.0 did",
+    "decideDocumentMigration — plans > rewrites a 0.20.0 plan with empty preamble questions, keeping its body byte for byte",
+    "decideDocumentMigration — plans > rewrites a 0.25.0 plan whose body is its 0.25.0 rendering, its Model reason line becoming an Assignment reason line",
     "decideDocumentMigration — specs > compares as agreement does: trailing whitespace and CRLF in the body are not a hand edit",
     "decideDocumentMigration — specs > lifts a 0.17.0 spec's surface elements with the placeholder, a Summary line under each heading",
     "decideDocumentMigration — specs > refuses a 0.25.0 sidecar over a body in the current layout (a Summary line)",
@@ -2583,18 +3199,31 @@
     "decideDocumentMigration — specs > rewrites a spec written before $schema the same way",
     "decideDocumentMigration — specs > rewrites an in-sync 0.17.0 spec at the current shape, lifting its marked question, keeping its frontmatter",
     "decideDocumentMigration — specs > rewrites an in-sync 0.25.0 spec at the current shape, with the placeholder, keeping its questions and frontmatter",
+    "groupMigratedArtifacts > groups specs before plans, by older shape, each naming its format's current stamp",
     "groupMigratedArtifacts > names each rewritten artifact in the commit body"
   ],
   "tests/unit/artifact/frontmatter.test.ts": [
     "decodeArtifactFrontmatter (spec approved stamp) > decodes a spec with a valid approved mapping",
     "decodeArtifactFrontmatter (spec approved stamp) > decodes a spec with approved absent as valid",
     "decodeArtifactFrontmatter (spec approved stamp) > rejects a spec whose approved mapping carries an extra sub-key",
+    "decodeArtifactFrontmatter > decodes a plan with approved absent as valid",
+    "decodeArtifactFrontmatter > decodes a valid plan key set",
     "decodeArtifactFrontmatter > decodes a valid spec key set",
+    "decodeArtifactFrontmatter > decodes completes-spec: false beside a source-spec path",
+    "decodeArtifactFrontmatter > decodes source-spec: null as null",
+    "decodeArtifactFrontmatter > fails naming completes-spec as inconsistent beside source-spec: null (value false)",
+    "decodeArtifactFrontmatter > fails naming completes-spec as inconsistent beside source-spec: null (value true)",
+    "decodeArtifactFrontmatter > fails naming completes-spec when it is missing beside a source-spec path",
+    "decodeArtifactFrontmatter > fails naming completes-spec when its value is a bare yes",
+    "decodeArtifactFrontmatter > fails naming completes-spec when its value is a quoted string",
+    "decodeArtifactFrontmatter > fails naming completes-spec when its value is null",
+    "decodeArtifactFrontmatter > fails naming source-spec when it is missing from a plan",
     "decodeArtifactFrontmatter > fails naming the offending key when an unknown key is present",
     "decodeArtifactFrontmatter > fails on a bad status value",
     "decodeArtifactFrontmatter > fails with missing-block when there is no frontmatter",
     "decodeArtifactFrontmatter > fails with yaml-syntax on malformed YAML",
     "decodeArtifactFrontmatter > fails with yaml-syntax when the block is not a mapping",
+    "decodeArtifactFrontmatter > names an unknown key beside a source-spec path without blaming completes-spec",
     "fingerprintSource > differs when completes-spec flips",
     "fingerprintSource > differs when source-spec differs",
     "fingerprintSource > differs when the body differs",
@@ -2607,8 +3236,10 @@
     "removeFrontmatterKeys > fails with missing-block when there is no frontmatter",
     "removeFrontmatterKeys > fails with yaml-syntax on malformed input",
     "removeFrontmatterKeys > is a no-op on an absent key",
+    "setFrontmatterKeys > emits a numeric-looking baseline quoted, and it re-decodes as a string",
     "setFrontmatterKeys > fails with missing-block when there is no frontmatter to rewrite",
     "setFrontmatterKeys > rewrites status leaving other keys and the body byte-identical",
+    "setFrontmatterKeys > upserts approved, replacing a previous value in place",
     "splitFrontmatter > accepts a block at offset 0",
     "splitFrontmatter > preserves the body byte-for-byte including trailing newline",
     "splitFrontmatter > returns null for a leading blank line",
@@ -2639,6 +3270,8 @@
     "approval record store: no record > reads a missing record file as no record",
     "approval record store: no record > reads a non-live path as no record without touching disk",
     "approval record store: no record > refuses to write a record for a path that is not a live artifact",
+    "approval record store: one file per artifact > never reads another artifact's record file, even an unreadable one",
+    "approval record store: one file per artifact > reads back the record it wrote, carrying artifact and approvedBy",
     "approval record store: one file per artifact > removes only the artifact's own file",
     "approval record store: one file per artifact > removing a missing record file is a no-op",
     "approval record store: one file per artifact > replaces only the artifact's own file on re-approval",
@@ -2671,7 +3304,12 @@
     "fingerprintSource (approval-fingerprint neutrality) > changes when the source-spec value changes",
     "fingerprintSource (approval-fingerprint neutrality) > is unchanged when an approved mapping is added",
     "fingerprintSource (approval-fingerprint neutrality) > is unchanged when only the status key changes",
+    "readSourceSpec > reads a path-form declaration with completes-spec: false",
+    "readSourceSpec > reads a path-form declaration with completes-spec: true",
+    "readSourceSpec > reads the explicit null form",
+    "readSourceSpec > returns null when completes-spec is missing beside a spec path",
     "readSourceSpec > returns null when the frontmatter block is absent",
+    "readSourceSpec > returns null when the source-spec key is missing",
     "resolveCompletesSpec > refuses: '--last and --not-last are opposites: …'",
     "resolveCompletesSpec > refuses: '--last needs --spec: a plan without a…'",
     "resolveCompletesSpec > refuses: '--not-last needs --spec: a plan witho…'",
@@ -3282,6 +3920,7 @@
     "the notes > writes the overview's architecture failure as today's line, and as a note under --json"
   ],
   "tests/unit/cli/enterPhase.test.ts": [
+    "runEnterPhase — namespace-scoped resolution > resolves a run via resolveRunRef (namespace-scoped) and shows qualified name for cross-project runs",
     "runEnterPhase — namespace-scoped resolution > resolves phase from phaseStatuses (not a separate resolvePhaseInfo call)",
     "runEnterPhase — namespace-scoped resolution > returns 1 when resolveRunRef fails (run not found)",
     "runEnterPhase — namespace-scoped resolution > returns 1 with phase-not-found error when phaseId is absent from phaseStatuses",
@@ -3397,6 +4036,7 @@
     "runReviewCode --headless > exits 1 naming the refusal and the retry command when the review fails",
     "runReviewCode --headless > exits 1 naming the state and starts no session when the run is not review_open",
     "runReviewCode --headless > names the provider's own resume, with the session, when phax cannot resume it",
+    "runReviewCode --headless > names the qualified run in the retry command for a run of another project",
     "runReviewCode --headless > prints no fix line when the review found nothing",
     "runReviewCode --headless > prints the count line and the resume command, and exits 0, with review.code.enabled absent"
   ],
@@ -3405,6 +4045,7 @@
     "runReviewCompliance > exits 0 and prints the warning when the review was generated but its entry was not committed",
     "runReviewCompliance > hands the command's output port to the use case, for the refusal warning",
     "runReviewCompliance > logs Target: when crossProject is true",
+    "runReviewCompliance > names the run key in the retry command of a run of another project",
     "runReviewCompliance > names the same run key in the records warnings of a run of another project",
     "runReviewCompliance > prints one line naming the entry when it was committed and pushed",
     "runReviewCompliance > prints the failure and its retry command, exits 1 and never prints Verdict: unknown",
@@ -3431,11 +4072,42 @@
     "run and resume outcomes on the runner: today's lines on today's streams, today's codes > under --json, already-in-review answers one object on stdout, note lines on stderr, the same code",
     "run and resume outcomes on the runner: today's lines on today's streams, today's codes > under --json, review_open answers one object on stdout, note lines on stderr, the same code",
     "run and resume outcomes on the runner: today's lines on today's streams, today's codes > under --json, stopped answers one object on stdout, note lines on stderr, the same code",
+    "runRun — --plan resolves against process.cwd() > resolves a relative --plan path against process.cwd() before extraction",
     "runRun — AP2(a): config missing name fails before run folder creation > reports the validation path 'name' in the error output",
     "runRun — AP2(a): config missing name fails before run folder creation > returns exit code 2 and never calls createRunFolder",
+    "runRun — AP2(c): output includes qualified run name > logs the qualified name (namespace.shortName) before executing the plan",
+    "runRun — AP2(c): output includes qualified run name > shows the bumped qualified name when the base name is already taken in the namespace",
+    "runRun — a preflight refusal precedes naming > 'ConfigValidationError': nothing is named or allocated",
+    "runRun — a preflight refusal precedes naming > 'ModelPreflightError': nothing is named or allocated",
+    "runRun — a preflight refusal precedes naming > 'RecordsSyncRequiredError': nothing is named or allocated",
+    "runRun — a preflight refusal precedes naming > 'SecurityPreflightError': nothing is named or allocated",
+    "runRun — a preflight refusal precedes naming > 'SkillEditConsentError': nothing is named or allocated",
+    "runRun — a preflight refusal precedes naming > 'UnsafeGitStateError': nothing is named or allocated",
     "runRun — a refused gate report > maps to exit 4",
+    "runRun — a refused gate report > names the step, the reason and the remedy, says no fix attempt was made, and exits with the refusal's code",
+    "runRun — artifact-completion recap output (spec 27 §6) > renders a ✓ completed line with the short commit hash per transition",
     "runRun — artifact-completion recap output (spec 27 §6) > renders nothing extra when the completion report is empty",
-    "runRun — plan lifecycle status gate > refuses a plan with no frontmatter block and never calls loadOrExtractPlan"
+    "runRun — artifact-completion recap output (spec 27 §6) > renders the chain-gate skip line and the blocking plan with its status",
+    "runRun — artifact-completion recap output (spec 27 §6) > renders the kept line when the plan does not complete its spec",
+    "runRun — plan lifecycle status gate > proceeds into the extraction pipeline for an Approved plan",
+    "runRun — plan lifecycle status gate > refuses a Draft plan, naming approval as the remedy",
+    "runRun — plan lifecycle status gate > refuses a Stale plan with wording distinct from Draft",
+    "runRun — plan lifecycle status gate > refuses a plan with no frontmatter block and never calls loadOrExtractPlan",
+    "runRun — plan lifecycle status gate > refuses an Abandoned plan as retired, distinct from Draft and Stale",
+    "runRun — plan lifecycle status gate > refuses an Approved plan under docs/plans/archive/ — the path is normalized to repo-relative first",
+    "runRun — protected paths changed at the gate > names both the refused step and the paths when a refusal found a change",
+    "runRun — protected paths changed at the gate > names each path, the last fix transcript and the two ways on when the loop is exhausted",
+    "runRun — skill edit consent is refused before the run is created > with --allow-skill-edits, creates the run and records the consent",
+    "runRun — skill edit consent is refused before the run is created > without --allow-skill-edits, refuses with the files and never creates the run folder",
+    "runRun — staleness gate > never invokes the staleness check for a plan outside docs/plans/",
+    "runRun — staleness gate > proceeds into the run pipeline when the verdict is fresh",
+    "runRun — staleness gate > refuses on a missing-record verdict, never entering the pipeline",
+    "runRun — staleness gate > refuses with a stale verdict naming each reason and the approve remedy, never entering the pipeline",
+    "runRun — success recap output > includes final-report.md pointer on stdout",
+    "runRun — success recap output > prints a summary line on stdout with phase count",
+    "runRun — success recap output > recap includes phax open, shell, enter, archive steps",
+    "runRun — success recap output > shows PR URL when prUrl is present",
+    "runRun — success recap output > shows publish-pr command when prUrl is absent"
   ],
   "tests/unit/cli/runnerCommandContracts.test.ts": [
     "phax 'adjust-plan' > answers --help with 0, listing --json",
@@ -3697,6 +4369,11 @@
     "retryCommandLine > prefixes phax and quotes only the words a shell needs quoted"
   ],
   "tests/unit/cli/validate.test.ts": [
+    "runValidate > --plan on a phax-plan.json in the '0.17.0' shape: exits 2 naming the shape and the way out",
+    "runValidate > --plan on a phax-plan.json in the '0.26.0' shape: exits 2 naming the shape and the way out",
+    "runValidate > --plan on a phax-plan.json in the '0.28.0' shape: exits 2 naming the shape and the way out",
+    "runValidate > --plan on a phax-plan.json in the '0.32.0' shape: exits 2 naming the shape and the way out",
+    "runValidate > --plan resolution against process.cwd() > plan load failure: error output quotes the path as typed, not the resolved absolute path",
     "runValidate > --plan resolution against process.cwd() > resolves a relative --plan path against process.cwd(), not an implicit relative read",
     "runValidate > acceptance provider block > accepts an acceptance block with a command",
     "runValidate > acceptance provider block > accepts the block in a user overlay",
@@ -3712,6 +4389,7 @@
     "runValidate > assignment bounds > exits 2 for bounds declared in phax.local.json, naming it",
     "runValidate > assignment bounds > prints no count line without bounds",
     "runValidate > config invalid: returns 1, prints config error, loadPlan never called",
+    "runValidate > config valid + --plan invalid plan: returns 1, prints plan error",
     "runValidate > config valid + --plan valid plan: returns 0, logs plan-valid line",
     "runValidate > config valid, no --plan: returns 0, logs config line and layer lines, loadPlan never called",
     "runValidate > describeConfigSources returning undefined does not crash the success path",
@@ -3756,6 +4434,15 @@
   "tests/unit/commandLibrary/commander/exports.test.ts": [
     "the root entry > exposes exactly the pinned values at run time",
     "the root entry > only re-exports, and the names it re-exports are the pinned ones"
+  ],
+  "tests/unit/commandLibrary/commander/faultyRunners.test.ts": [
+    "the suite catches a runner that does not apply the definition > -- ignored: fails args.after-double-dash alone",
+    "the suite catches a runner that does not apply the definition > 1 for a defect: fails defect.code and exits.verdict-collides alone",
+    "the suite catches a runner that does not apply the definition > a narrowed environment: fails env.reject.whole-environment alone",
+    "the suite catches a runner that does not apply the definition > an attached value detached: fails flags.attached-dash-value alone",
+    "the suite catches a runner that does not apply the definition > run on a refused call: fails env.reject.whole-environment alone",
+    "the suite catches a runner that does not apply the definition > strip as reject: fails flags.strip.undeclared-dropped-alone alone",
+    "the suite catches a runner that does not apply the definition > the word after is the option's value: fails flags.strip.word-after-is-its-own alone"
   ],
   "tests/unit/commandLibrary/commander/groups.test.ts": [
     "a command group > answers --json and --json-schema as a command alone does",
@@ -4144,6 +4831,7 @@
     "Commander's runner holds every conformance case > env.strip.whole-environment",
     "Commander's runner holds every conformance case > error.line",
     "Commander's runner holds every conformance case > error.text-form",
+    "Commander's runner holds every conformance case > error.text-reached",
     "Commander's runner holds every conformance case > error.written",
     "Commander's runner holds every conformance case > exits.handed-over",
     "Commander's runner holds every conformance case > exits.mapped",
@@ -5646,6 +6334,16 @@
     "behaviour corpus > config/vibe-config refuses an alias no block holds",
     "behaviour corpus > config/vibe-config refuses an empty model name",
     "behaviour corpus > documents/artifact-frontmatter names its own path and gives each case a distinct name",
+    "behaviour corpus > documents/artifact-frontmatter plan: accepts a plan bound to a spec",
+    "behaviour corpus > documents/artifact-frontmatter plan: accepts a plan without a source spec",
+    "behaviour corpus > documents/artifact-frontmatter plan: refuses a completes-spec beside source-spec null",
+    "behaviour corpus > documents/artifact-frontmatter plan: refuses a completes-spec that is not a boolean",
+    "behaviour corpus > documents/artifact-frontmatter plan: refuses a missing source-spec",
+    "behaviour corpus > documents/artifact-frontmatter plan: refuses a spec-bound plan missing completes-spec",
+    "behaviour corpus > documents/artifact-frontmatter plan: refuses a status outside the enum",
+    "behaviour corpus > documents/artifact-frontmatter plan: refuses a value that is not a mapping",
+    "behaviour corpus > documents/artifact-frontmatter plan: refuses an empty source-spec",
+    "behaviour corpus > documents/artifact-frontmatter plan: refuses an unexpected key",
     "behaviour corpus > documents/artifact-frontmatter spec: accepts a draft",
     "behaviour corpus > documents/artifact-frontmatter spec: accepts an approved spec with its stamp",
     "behaviour corpus > documents/artifact-frontmatter spec: refuses a date that is not a string",
@@ -14133,11 +14831,36 @@
     "surfaceName > shows \"file:tool.log\" as \"tool.log\""
   ],
   "tests/unit/releaseNotesCollect.test.ts": [
+    "collectReleaseNotes > announces a plan without a spec by its title and first paragraph",
+    "collectReleaseNotes > announces only the completing plan of a spec that an intermediate plan also names",
+    "collectReleaseNotes > finds a spec at its live path",
+    "collectReleaseNotes > follows a run to the plan completed in the range and to its spec in the archive",
+    "collectReleaseNotes > gives no sidecar warning for the spec of an intermediate plan",
+    "collectReleaseNotes > leaves out an abandoned plan, a plan archived before the tag and a merge commit",
+    "collectReleaseNotes > lists run plans in the order of their first commit",
+    "collectReleaseNotes > neither announces nor reads the spec of an intermediate plan, and keeps its run's commits out",
+    "collectReleaseNotes > refuses > a completed plan with no title",
+    "collectReleaseNotes > refuses > a kept surface element that still holds the placeholder summary",
+    "collectReleaseNotes > refuses > a missing docs/upgrading.md",
     "collectReleaseNotes > refuses > a missing release ledger",
+    "collectReleaseNotes > refuses > a plan sidecar that does not decode",
+    "collectReleaseNotes > refuses > a plan sidecar that is not JSON",
+    "collectReleaseNotes > refuses > a plan whose frontmatter does not decode",
     "collectReleaseNotes > refuses > a plan with no frontmatter",
     "collectReleaseNotes > refuses > a previous release with no tag",
+    "collectReleaseNotes > refuses > a source spec found at neither of its paths",
+    "collectReleaseNotes > refuses > a source spec path that is not a spec path",
+    "collectReleaseNotes > refuses > a spec announced in full twice",
+    "collectReleaseNotes > refuses > a spec sidecar that does not decode",
+    "collectReleaseNotes > refuses > a spec sidecar that is not JSON",
     "collectReleaseNotes > refuses > a version with no release below it",
+    "collectReleaseNotes > refuses > two completed plans with the same run short name",
+    "collectReleaseNotes > review fixes carrying a Short-Name trailer alone > joins its run and is listed nowhere",
     "collectReleaseNotes > review fixes carrying a Short-Name trailer alone > naming an unmatched run is listed with that run's commits, with no warning of its own",
+    "collectReleaseNotes > review fixes carrying a Short-Name trailer alone > naming no run is a commit without a run, with one warning",
+    "collectReleaseNotes > takes a plan's run short name from its sidecar, falling back to its title without one",
+    "collectReleaseNotes > warns once for a run that names no plan and once for a plan no run names",
+    "collectReleaseNotes > warns once for a spec without a sidecar and announces it by its title",
     "parseArguments > reads [\"--github-body\",\"docs/releases/4.2.0.md\"]",
     "parseArguments > reads [\"--root\",\"copy\"]",
     "parseArguments > reads []",
@@ -14264,6 +14987,7 @@
     "renderPlanBody with interactive and oracle phases > renders the oracle lines, files as comma-separated code spans, after the effort line"
   ],
   "tests/unit/renderPlanV0_26_0.test.ts": [
+    "migrate-documents over the interactive-phases plan, made live > is refused naming phase-01, its first departing line and the remedy",
     "renderPlanBodyV0_26_0 > finds the archived 0.26.0 plans, interactive-phases among them",
     "renderPlanBodyV0_26_0 > reproduces 2610211045-assignment-bounds-plan's body byte for byte",
     "renderPlanBodyV0_26_0 > reproduces 2610211221-oracle-phases-plan's body byte for byte",
@@ -14284,6 +15008,10 @@
     "renderPlanBodyV0_26_0 > writes each phase's test strategy as the string it was, Mode and oracle lines included"
   ],
   "tests/unit/renderPlanV0_32_0.test.ts": [
+    "migrate-documents over a 0.32.0 sidecar > migrates the unedited own-shape body and rewrites its test line with the loop acceptance",
+    "migrate-documents over a 0.32.0 sidecar > refuses a 0.28.0 sidecar whose test line names the criterion acceptance, naming the line",
+    "migrate-documents over a 0.32.0 sidecar > refuses a 0.32.0 sidecar whose test line names the criterion acceptance, naming the line",
+    "migrate-documents over a 0.32.0 sidecar > refuses a body edited by hand",
     "renderPlanBodyV0_32_0 > differs from the current rendering in the header lines and the test lines' loop only",
     "renderPlanBodyV0_32_0 > finds archived plans at 0.28.0 and at 0.32.0, the acceptance-tests plan among them",
     "renderPlanBodyV0_32_0 > reproduces the archived 0.28.0 plan 2610271039-headless-code-review-plan's body byte for byte",
@@ -18482,15 +19210,31 @@
     "skills install validation > accepts both valid scopes without validation error",
     "skills install validation > accepts exposed skill names without validation error",
     "skills install validation > installs every bundled skill when no skill is named",
+    "skills install validation > keeps the lines printed before a failure part way on stdout, the failure on stderr",
     "skills install validation > returns 2 and prints error for an unknown skill",
     "skills install validation > returns 2 and prints error for invalid --scope",
     "skills install validation > returns 2 and prints error for invalid --target"
   ],
   "tests/unit/sourceSpecCriteria.test.ts": [
+    "readSourceSpecCriteria > falls back to the archived spec and its sidecar",
     "readSourceSpecCriteria > gives the same refusal to a spec path read on its own, as authoring reads it",
+    "readSourceSpecCriteria > lifts a sidecar of an older spec shape",
+    "readSourceSpecCriteria > names a frontmatter that does not decode, and reads no spec",
+    "readSourceSpecCriteria > names a sidecar that is not JSON",
+    "readSourceSpecCriteria > names a sidecar the spec schema refuses",
+    "readSourceSpecCriteria > names a spec found at neither path",
+    "readSourceSpecCriteria > names a spec with no sidecar",
     "readSourceSpecCriteria > names invalid YAML in brief, on one line",
+    "readSourceSpecCriteria > prefers the live spec over the archived one",
+    "readSourceSpecCriteria > reads a live spec's ids in spec order",
     "readSourceSpecCriteria > reads a plan with no frontmatter block as a plan without a source spec",
-    "readSourceSpecCriteria > reads each criterion's id and name for a spec path read on its own"
+    "readSourceSpecCriteria > reads each criterion's id and name for a spec path read on its own",
+    "readSourceSpecCriteria > refuses a path climbing out of the repository before any filesystem call",
+    "readSourceSpecCriteria > refuses a repository path that is not a spec path before any filesystem call",
+    "readSourceSpecCriteria > refuses a spec path climbing back out before any filesystem call",
+    "readSourceSpecCriteria > refuses a spec path with a dot segment before any filesystem call",
+    "readSourceSpecCriteria > refuses an absolute path before any filesystem call",
+    "readSourceSpecCriteria > says nothing of a plan with no source spec"
   ],
   "tests/unit/specDocument.test.ts": [
     "decodeAuthoredSpecDocument > accepts the `none` docs-page variant",

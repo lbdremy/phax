@@ -173,7 +173,7 @@ export function generatePhaseHandoff(
         base: protectedPaths.phaseCommit,
         list: protectedPaths.list,
       });
-      if (Arr.isNonEmptyReadonlyArray(changes)) {
+      if (Arr.isReadonlyArrayNonEmpty(changes)) {
         return yield* Effect.fail(
           new HandoffProtectedPathsError({
             message: `Protected paths changed after the commit: ${changes.map((change) => change.path).join(", ")}`,

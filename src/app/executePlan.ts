@@ -894,7 +894,7 @@ export function executePlan(
         skillEditGrants: [...args.skillEditGrants],
         // A declared list always holds the loaded phax.json, so it is never empty.
         protectedPaths:
-          config.protectedPaths !== undefined && Arr.isNonEmptyReadonlyArray(config.protectedPaths)
+          config.protectedPaths !== undefined && Arr.isReadonlyArrayNonEmpty(config.protectedPaths)
             ? {
                 globs: Arr.map(config.protectedPaths, (entry) => entry.glob),
                 enforcement: protectedEnforcement(
@@ -1635,7 +1635,7 @@ export function executePlan(
               ? stopReentry
               : yield* interactiveReentry(phase.id, resumeWorktreePath);
           if (reentry === undefined) {
-            return yield* Effect.dieMessage(`No checked re-entry for the stop at ${phase.id}`);
+            return yield* Effect.die(new Error(`No checked re-entry for the stop at ${phase.id}`));
           }
           const reentryBranch = reentry.branch;
           const reentryWorktree = reentry.worktree;
@@ -1647,7 +1647,7 @@ export function executePlan(
           // cleanup re-entry writes no record.
           const declaredRecord = isResumeFromCleanup ? undefined : stopRecordInputs;
           if (!isResumeFromCleanup && declaredRecord === undefined) {
-            return yield* Effect.dieMessage(`No record inputs for the stop at ${phase.id}`);
+            return yield* Effect.die(new Error(`No record inputs for the stop at ${phase.id}`));
           }
           if (isResumeFromStop) {
             // A failure of the close past its commit leaves the run for a
@@ -1672,7 +1672,9 @@ export function executePlan(
             closeInFlight = false;
             opts.onStopClosed?.({ phaseId: phase.id, phaseTitle: phase.title, report });
             if (report.cause !== "declared" || declaredRecord === undefined) {
-              return yield* Effect.dieMessage(`The stop at ${phase.id} did not close as declared`);
+              return yield* Effect.die(
+                new Error(`The stop at ${phase.id} did not close as declared`),
+              );
             }
             yield* writeStopRecord({
               phase,
@@ -1687,8 +1689,8 @@ export function executePlan(
               declaredRecord?.sourceSha === undefined ||
               declaredRecord.closedStop === undefined
             ) {
-              return yield* Effect.dieMessage(
-                `No recorded stop for the closed stop at ${phase.id}`,
+              return yield* Effect.die(
+                new Error(`No recorded stop for the closed stop at ${phase.id}`),
               );
             }
             yield* writeStopRecord({
@@ -1805,7 +1807,9 @@ export function executePlan(
         // Its worktree and branch were checked before RunResumeRequested. No
         // agent turn, gate, commit or handoff turn: straight to the hold point.
         if (holdPointReentry === undefined) {
-          return yield* Effect.dieMessage(`No checked re-entry for the hold point of ${phase.id}`);
+          return yield* Effect.die(
+            new Error(`No checked re-entry for the hold point of ${phase.id}`),
+          );
         }
         const heldFolder = join(runPath, phase.id);
         currentPhaseId = phase.id;
@@ -1824,7 +1828,7 @@ export function executePlan(
             base: yield* notedPhaseCommit(heldFolder),
             list: config.protectedPaths,
           });
-          if (Arr.isNonEmptyReadonlyArray(changes)) {
+          if (Arr.isReadonlyArrayNonEmpty(changes)) {
             yield* dispatch(
               {
                 ...eventBase(phase.id),
@@ -1860,7 +1864,9 @@ export function executePlan(
           phaseFolderPath: heldFolder,
           worktreePath: holdPointReentry.worktree,
         });
-        return yield* Effect.dieMessage(`The hold point of ${phase.id} owed no stop on re-entry`);
+        return yield* Effect.die(
+          new Error(`The hold point of ${phase.id} owed no stop on re-entry`),
+        );
       }
 
       if (i === startIndex && (resumeFromHeldStop || resumeFromClosedStop)) {
@@ -1868,13 +1874,17 @@ export function executePlan(
         // and what its record needs were read before RunResumeRequested, and
         // nothing is read after the close: the record is written from them.
         if (stopReentry === undefined || stopRecordInputs === undefined) {
-          return yield* Effect.dieMessage(`No checked re-entry for the held stop at ${phase.id}`);
+          return yield* Effect.die(
+            new Error(`No checked re-entry for the held stop at ${phase.id}`),
+          );
         }
         const heldRecord = stopRecordInputs;
         // The phase commit, never HEAD (which is the review commit).
         const phaseCommit = heldRecord.sourceSha;
         if (phaseCommit === undefined) {
-          return yield* Effect.dieMessage(`No phase commit read for the held stop at ${phase.id}`);
+          return yield* Effect.die(
+            new Error(`No phase commit read for the held stop at ${phase.id}`),
+          );
         }
         const heldFolder = join(runPath, phase.id);
         currentPhaseId = phase.id;
@@ -1924,7 +1934,9 @@ export function executePlan(
           yield* writeHeldRecord(recordStopOf(report));
         } else if (closedStopOwesRecord) {
           if (heldRecord.closedStop === undefined) {
-            return yield* Effect.dieMessage(`No recorded stop for the closed stop at ${phase.id}`);
+            return yield* Effect.die(
+              new Error(`No recorded stop for the closed stop at ${phase.id}`),
+            );
           }
           yield* writeHeldRecord(heldRecord.closedStop);
         }
@@ -1944,8 +1956,8 @@ export function executePlan(
         // the pulled briefs, the record and the cleanup. No agent turn, gate,
         // commit or handoff turn runs.
         if (postHandoffInputs === undefined) {
-          return yield* Effect.dieMessage(
-            `No checked inputs for what follows ${phase.id}'s handoff`,
+          return yield* Effect.die(
+            new Error(`No checked inputs for what follows ${phase.id}'s handoff`),
           );
         }
         const { worktree, assignment } = postHandoffInputs;
@@ -2237,8 +2249,10 @@ export function executePlan(
         // The phase-sections preflight located every phase, so a miss is a defect.
         const phaseSection = planSections.sections.get(phase.id);
         if (phaseSection === undefined) {
-          return yield* Effect.dieMessage(
-            `Phase "${phase.id}" has no located plan.md section after the phase-sections preflight`,
+          return yield* Effect.die(
+            new Error(
+              `Phase "${phase.id}" has no located plan.md section after the phase-sections preflight`,
+            ),
           );
         }
         const promptText = buildPhasePrompt({

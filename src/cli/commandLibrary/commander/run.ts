@@ -963,7 +963,7 @@ function execute<R>(
             Effect.flatMap((text) =>
               typeof text === "string"
                 ? io.err(line(text))
-                : Effect.zipRight(
+                : Effect.andThen(
                     text.out === "" ? Effect.void : io.out(`${text.out}\n`),
                     io.err(line(text.err)),
                   ),

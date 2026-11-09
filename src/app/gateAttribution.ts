@@ -54,7 +54,7 @@ export function aggregateVerifiedSurfaces(
 /** The record's form of a check's result: a pass with no change, else a fail naming each. */
 function protectedPathsResult(changes: readonly ProtectedChange[]): ProtectedPathsResult {
   const recorded = changes.map(({ path, kind, entry }) => ({ path, kind, entry }));
-  return Arr.isNonEmptyReadonlyArray(recorded)
+  return Arr.isReadonlyArrayNonEmpty(recorded)
     ? { result: "fail", changes: recorded }
     : { result: "pass", changes: [] };
 }

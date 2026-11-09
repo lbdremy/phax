@@ -421,7 +421,7 @@ describe("phax enter-phase --new-session", () => {
       acquire: (k: string) =>
         Effect.sync(() =>
           patchJson(join(run.runPath, "run-status.json"), { state: "running" }),
-        ).pipe(Effect.zipRight(fake.impl.acquire(k))),
+        ).pipe(Effect.andThen(fake.impl.acquire(k))),
       release: (k: string) => fake.impl.release(k),
       renew: (k: string) => fake.impl.renew(k),
       status: (k: string) => fake.impl.status(k),

@@ -282,7 +282,7 @@ export function runGatesWithFixLoop(
 
       let failure: AttemptFailure;
       if (Result.isSuccess(gateResult)) {
-        if (!Arr.isNonEmptyReadonlyArray(changes)) {
+        if (!Arr.isReadonlyArrayNonEmpty(changes)) {
           yield* telemetry.recordEvent(
             makeStepCompletedTelemetryEvent({
               runId,
@@ -539,7 +539,7 @@ export function runGatesWithFixLoop(
               // Only a declared list fails an attempt on the check alone.
               protectedBase:
                 protectedPaths === null
-                  ? yield* Effect.dieMessage("A protected-paths failure with no protected list")
+                  ? yield* Effect.die(new Error("A protected-paths failure with no protected list"))
                   : protectedPaths.base,
             })
           : buildFixPrompt({

@@ -600,8 +600,10 @@ function buildStopCommands(input: {
     );
     // A phase worktree is always a writable root, so no adapter refuses it.
     if (freshStart === null) {
-      return yield* Effect.dieMessage(
-        `No fresh-start command for ${input.provider} at ${input.phaseId}: its posture names no writable root`,
+      return yield* Effect.die(
+        new Error(
+          `No fresh-start command for ${input.provider} at ${input.phaseId}: its posture names no writable root`,
+        ),
       );
     }
     return {
