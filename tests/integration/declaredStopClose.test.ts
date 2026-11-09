@@ -988,13 +988,13 @@ describe("a close taken up again", () => {
         _options: AgentRunOptions,
       ): Effect.Effect<AgentRunResult, never> {
         write(run, "src/export/labels.ts", "export const labels = {};\n");
-        return Deferred.succeed(started, undefined).pipe(Effect.zipRight(Effect.never));
+        return Deferred.succeed(started, undefined).pipe(Effect.andThen(Effect.never));
       }
     }
     await Effect.runPromise(
       Effect.gen(function* () {
         yield* resumeRequested(run);
-        const fiber = yield* Effect.fork(closeStop(closeInput(run)));
+        const fiber = yield* Effect.forkChild(closeStop(closeInput(run)));
         yield* Deferred.await(started);
         yield* Fiber.interrupt(fiber);
       }).pipe(Effect.provide(layers({}, [], new HangingBackend()))),

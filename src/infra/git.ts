@@ -432,7 +432,7 @@ function stageSeededIndex(
 function snapshotWorktreeEffect(worktree: string): Effect.Effect<string, GitError> {
   return withTempIndex("phax-snapshot-index-", (env) =>
     gitRun(["read-tree", "HEAD"], worktree, { env }).pipe(
-      Effect.zipRight(stageSeededIndex(worktree, env, [])),
+      Effect.andThen(stageSeededIndex(worktree, env, [])),
     ),
   );
 }

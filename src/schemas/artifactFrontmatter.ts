@@ -72,7 +72,7 @@ const InconsistentCompletesSpec = Schema.Never.annotate({
 export function decodePlanFrontmatter(
   value: unknown,
 ): Result.Result<PlanFrontmatter, Schema.SchemaError> {
-  if (!Predicate.isRecord(value)) return decodeSpecLessPlanFrontmatter(value);
+  if (!Predicate.isReadonlyObject(value)) return decodeSpecLessPlanFrontmatter(value);
   const sourceSpec = value["source-spec"];
   if (sourceSpec === null && "completes-spec" in value) {
     return Result.fail(

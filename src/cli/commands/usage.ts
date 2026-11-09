@@ -85,16 +85,16 @@ const USAGE_WRITE_TIMEOUT_EXIT_CODE = 1;
 // Effect races the write-completion callback against a timeout so a wedged
 // write can never hang the CLI: whichever resolves first decides the code.
 export function runUsageFlagAndExit(format: string): Promise<void> {
-  const exitCode = Effect.async<number>((resume) => {
+  const exitCode = Effect.callback<number>((resume) => {
     handleUsageFlag(format, (code) => resume(Effect.succeed(code)));
   }).pipe(
-    Effect.timeoutTo({
+    Effect.timeoutOrElse({
       duration: USAGE_WRITE_TIMEOUT,
-      onSuccess: (code) => code,
-      onTimeout: () => {
-        process.stderr.write("Error: timed out flushing --usage output.\n");
-        return USAGE_WRITE_TIMEOUT_EXIT_CODE;
-      },
+      orElse: () =>
+        Effect.sync(() => {
+          process.stderr.write("Error: timed out flushing --usage output.\n");
+          return USAGE_WRITE_TIMEOUT_EXIT_CODE;
+        }),
     }),
   );
   return Effect.runPromise(exitCode).then((code) => {

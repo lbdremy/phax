@@ -6,7 +6,7 @@ import type { Shell } from "../../src/ports/shell.js";
 
 // The overview reads on the file system and the shell alone: it can reach no
 // model, because no Backend is in its requirements.
-type Requirements = Effect.Effect.Context<ReturnType<typeof planOverview>>;
+type Requirements = Effect.Services<ReturnType<typeof planOverview>>;
 
 type Equal<A, B> =
   (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;

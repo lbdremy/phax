@@ -733,7 +733,7 @@ describe("approval record store: one file per artifact", () => {
   it("reads back the record it wrote, carrying artifact and approvedBy", () => {
     const { value } = runWith(
       {},
-      Effect.zipRight(
+      Effect.andThen(
         putPlanApprovalRecord(PLAN, planRecord, APPROVER),
         readPlanApprovalRecord(PLAN),
       ),
@@ -741,7 +741,7 @@ describe("approval record store: one file per artifact", () => {
     expect(value).toEqual({ artifact: PLAN, ...planRecord, approvedBy: APPROVER });
     const { value: spec } = runWith(
       {},
-      Effect.zipRight(
+      Effect.andThen(
         putSpecApprovalRecord(SPEC, specRecord, APPROVER),
         readSpecApprovalRecord(SPEC),
       ),
@@ -823,7 +823,7 @@ describe("approval record store: one file per artifact", () => {
   it("never reads another artifact's record file, even an unreadable one", () => {
     const { value, fs } = runWith(
       { [OTHER_PLAN_RECORD]: "{ not json" },
-      Effect.zipRight(
+      Effect.andThen(
         putPlanApprovalRecord(PLAN, planRecord, APPROVER),
         readPlanApprovalRecord(PLAN),
       ),
