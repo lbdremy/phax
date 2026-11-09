@@ -12,13 +12,16 @@
 // how many files would change and the same list, and exits 1 when any file would change.
 // A write run also measures the type errors of `src` and of the test suite before and
 // after, and prints them (a root without a tsconfig.json is not measured). `--ratchet`
-// does nothing else: it compares the measured counts with those committed at HEAD and
-// records them (see ratchet.ts). The codemod reads nothing over the network.
+// rewrites nothing: it compares the measured counts with those committed at HEAD, also
+// runs the unit and integration suites and holds the passing tests to the record
+// committed at HEAD, and records both (see ratchet.ts and passingTests.ts). The codemod
+// reads nothing over the network.
 import { existsSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { rewriteFiles, type CodemodResult } from "./codemod.js";
 import { measureCounts, typeErrorTable, type Counts } from "./counts.js";
+import { vitestRunner, type TestRunner } from "./passingTests.js";
 import { loadReference, REFERENCE_NAME } from "./reference.js";
 import { runRatchet } from "./ratchet.js";
 import { RULES } from "./rules.js";
@@ -133,12 +136,14 @@ function measureOrSkip(root: string, measure: (root: string) => Counts): Counts 
 /** What `run` reaches outside the tree it rewrites; tests pass their own. */
 export type RunDependencies = {
   readonly measure: (root: string) => Counts;
+  readonly runTests: TestRunner;
   readonly stdout: (text: string) => void;
   readonly stderr: (text: string) => void;
 };
 
 const processDependencies: RunDependencies = {
   measure: (root) => measureCounts(root),
+  runTests: vitestRunner,
   stdout: (text) => void process.stdout.write(text),
   stderr: (text) => void process.stderr.write(text),
 };
@@ -158,6 +163,7 @@ export function run(
   if (options.ratchet) {
     return runRatchet(options.root, {
       measure: dependencies.measure,
+      runTests: dependencies.runTests,
       write: dependencies.stdout,
     });
   }
