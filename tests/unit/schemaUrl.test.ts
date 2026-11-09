@@ -1,4 +1,4 @@
-import { Result, JSONSchema, Schema } from "effect";
+import { Result, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import { findJsonSchemaGaps } from "../../packages/schemas/build/jsonSchemas.js";
 import {
@@ -7,6 +7,7 @@ import {
   SCHEMA_BORN_FORMAT_IDS,
   SCHEMA_URL_BASE,
   compareReleases,
+  draft07JsonSchema,
   isFormatId,
   parseSchemaUrl,
   schemaUrl,
@@ -100,7 +101,7 @@ describe("schemaUrl", () => {
 });
 
 describe("schemaUrlField", () => {
-  const decode = Schema.decodeUnknownResult(schemaUrlField("registry"));
+  const decode = Schema.decodeUnknownResult(schemaUrlField("registry"), { reportInput: true });
 
   it.each(["0.16.0", "0.17.0", "1.0.0", "12.34.56"])(
     "accepts the format's own URL at release %s",
@@ -131,7 +132,7 @@ describe("schemaUrlField", () => {
     (id) => {
       const field = schemaUrlField(id);
       expect(findJsonSchemaGaps(field)).toEqual([]);
-      const rendered = JSONSchema.make(field) as { pattern?: string; description?: string };
+      const rendered = draft07JsonSchema(field) as { pattern?: string; description?: string };
       expect(rendered.description).toContain(id);
       expect(new RegExp(rendered.pattern ?? "^$").test(schemaUrl(id, "0.17.0"))).toBe(true);
     },
@@ -140,7 +141,7 @@ describe("schemaUrlField", () => {
   it.each(FORMAT_IDS.map((id) => [id]))(
     "says the %s stamp names the release that last changed the format's shape",
     (id) => {
-      const rendered = JSONSchema.make(schemaUrlField(id)) as { description?: string };
+      const rendered = draft07JsonSchema(schemaUrlField(id)) as { description?: string };
       expect(rendered.description).toBe(
         `The ${id} format's shape, named by the phax release that last changed it ` +
           `(not necessarily the release that wrote this file): ${SCHEMA_URL_BASE}/${id}/<X.Y.Z>.json`,

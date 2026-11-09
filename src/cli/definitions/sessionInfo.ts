@@ -79,7 +79,7 @@ const SessionInfoOutput = Schema.Struct({
 
 const SessionInfoFlags = Schema.Struct({
   debug: Schema.optionalKey(
-    Schema.Boolean.annotations({
+    Schema.Boolean.annotate({
       description: "Dump raw binding and model-resolution metadata",
     }),
   ),
@@ -204,7 +204,7 @@ export const sessionInfoCommand = defineCommand({
   help: "Prints diagnostic information about a run: its current state, active phase, worktree path, and agent session id. For a run in awaiting_review it prints the stop's cause, the stopped phase, its worktree, the seed and the current session with the phax enter-phase command that continues it. A held stop reads `headless, committed <short sha>`, and its session is the builder's. Read-only — no side effects.",
   examples: ["phax session-info usage-cli", "phax session-info usage-cli --debug"],
   input: {
-    args: reject(Schema.Tuple(ShortNameArg)),
+    args: reject(Schema.Tuple([ShortNameArg])),
     flags: reject(SessionInfoFlags),
   },
   output: reject(SessionInfoOutput),

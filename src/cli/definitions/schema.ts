@@ -21,7 +21,7 @@ class NoPhaxConfigError extends Data.TaggedError("NoPhaxConfigError")<{
 }> {}
 
 const SchemaUpgradeOutput = Schema.Struct({
-  kind: Schema.Literal("updated", "current"),
+  kind: Schema.Literals(["updated", "current"]),
   schemaPath: Schema.String,
   userSchemaPath: Schema.String,
   written: Schema.Array(Written),

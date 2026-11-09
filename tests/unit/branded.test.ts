@@ -1,4 +1,4 @@
-import { Result, JSONSchema } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   BranchNameSchema,
@@ -13,6 +13,7 @@ import {
   decodeWorktreePath,
   slugifyShortName,
 } from "../../src/domain/branded.js";
+import { draft07JsonSchema } from "../../src/schemas/schemaUrl.js";
 
 describe("decodeNamespace", () => {
   it("accepts valid slug names", () => {
@@ -234,7 +235,7 @@ describe("decodeBranchName", () => {
 });
 
 describe("BranchNameSchema's JSON Schema", () => {
-  const jsonSchema = JSONSchema.make(BranchNameSchema) as {
+  const jsonSchema = draft07JsonSchema(BranchNameSchema) as {
     readonly pattern: string;
     readonly minLength: number;
     readonly maxLength: number;

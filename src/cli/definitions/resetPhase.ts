@@ -78,11 +78,11 @@ class LockConflictError extends Data.TaggedError("LockConflictError")<{
 }> {}
 
 const ChangedPath = Schema.Struct({
-  status: Schema.Literal("A", "M", "D", "T"),
+  status: Schema.Literals(["A", "M", "D", "T"]),
   path: Schema.String,
 });
 
-const ResetPhaseOutcome = Schema.Union(
+const ResetPhaseOutcome = Schema.Union([
   Schema.Struct({
     kind: Schema.Literal("preview"),
     /** The phase id the call named, or null for the stuck phase. */
@@ -102,7 +102,7 @@ const ResetPhaseOutcome = Schema.Union(
     branchDeleted: Schema.Boolean,
     wasStopped: Schema.Boolean,
   }),
-);
+]);
 
 const ResetPhaseOutput = Schema.Struct({
   qualifiedName: Schema.String,
@@ -191,19 +191,19 @@ export function makeResetPhaseCommand(layers: ResetPhaseLayers = {}) {
     examples: ["phax reset-phase usage-cli", "phax reset-phase usage-cli phase-02 --yes"],
     input: {
       args: reject(
-        Schema.Tuple(
+        Schema.Tuple([
           ShortNameArg,
-          Schema.optionalElement(
-            Schema.String.annotations({
+          Schema.optionalKey(
+            Schema.String.annotate({
               identifier: "phase-id",
               description: "Phase identifier to reset, e.g. phase-02; defaults to the stuck phase",
             }),
           ),
-        ),
+        ]),
       ),
       flags: reject(
         Schema.Struct({
-          yes: Schema.optionalKey(Schema.Boolean).annotations({
+          yes: Schema.optionalKey(Schema.Boolean).annotateKey({
             description: "Proceed without confirmation (removes the worktree and branch)",
             [AliasAnnotationId]: "y",
           }),

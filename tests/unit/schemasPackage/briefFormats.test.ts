@@ -2,7 +2,7 @@
 // shape. Both refuse unknown keys, as phax's decoders do, except inside a
 // record's answer, which is kept as printed. Every document comes from
 // documents.ts or below and is made up.
-import { Result, type ParseResult } from "effect";
+import { Result, type Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import { CURRENT_SHAPES, PACKAGE_VERSION } from "../../../packages/schemas/src/generated/index.js";
 import {
@@ -19,7 +19,7 @@ import { CURRENT_STAMPS } from "../../../src/schemas/release.js";
 import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
 import { validDocuments, withKey, withoutKey } from "./documents.js";
 
-type Decode = (input: unknown) => Result.Result<unknown, ParseResult.ParseError>;
+type Decode = (input: unknown) => Result.Result<unknown, Schema.SchemaError>;
 type Parse = (
   input: unknown,
 ) =>

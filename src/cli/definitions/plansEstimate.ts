@@ -33,7 +33,7 @@ const ObservedWindow = Schema.Struct({
 });
 
 const ReportWindows = Schema.Struct({
-  source: Schema.Literal("probe", "last-sample"),
+  source: Schema.Literals(["probe", "last-sample"]),
   observedAt: Schema.String,
   fiveHour: ObservedWindow,
   sevenDay: ObservedWindow,
@@ -43,7 +43,7 @@ const Scenario = Schema.Struct({
   pauses: Schema.Array(
     Schema.Struct({
       phase: Schema.String,
-      window: Schema.Literal("five-hour", "seven-day"),
+      window: Schema.Literals(["five-hour", "seven-day"]),
       at: Schema.String,
       resumesAt: Schema.String,
     }),
@@ -55,24 +55,24 @@ const Scenarios = Schema.Struct({ p50: Scenario, p90: Scenario });
 
 const Routing = {
   id: Schema.String,
-  provider: Schema.Literal("claude-code", "mistral-vibe", "codex-cli"),
+  provider: Schema.Literals(["claude-code", "mistral-vibe", "codex-cli"]),
   model: Schema.String,
   effort: Schema.String,
 };
 
-const PhaseEstimate = Schema.Union(
+const PhaseEstimate = Schema.Union([
   Schema.Struct({
     ...Routing,
-    mode: Schema.Literal("headless", "interactive"),
+    mode: Schema.Literals(["headless", "interactive"]),
     estimate: UsdRange,
   }),
   Schema.Struct({
     ...Routing,
-    mode: Schema.Literal("headless", "interactive"),
+    mode: Schema.Literals(["headless", "interactive"]),
     estimate: Schema.Null,
-    notEstimated: Schema.Literal("other-provider", "no-list-price", "thin-interactive-history"),
+    notEstimated: Schema.Literals(["other-provider", "no-list-price", "thin-interactive-history"]),
   }),
-);
+]);
 
 const History = Schema.Struct({
   phases: Schema.Number,
@@ -82,10 +82,15 @@ const History = Schema.Struct({
 });
 
 const NotEstimatedParts = Schema.Array(
-  Schema.Literal("plan-extraction", "plan-auditor", "interactive-code-review", "compliance-review"),
+  Schema.Literals([
+    "plan-extraction",
+    "plan-auditor",
+    "interactive-code-review",
+    "compliance-review",
+  ]),
 );
 
-const Uncalibrated = Schema.Array(Schema.Literal("five-hour", "seven-day", "burn-rate"));
+const Uncalibrated = Schema.Array(Schema.Literals(["five-hour", "seven-day", "burn-rate"]));
 
 const Run = Schema.Struct({ p10: Usd, p50: Usd, p90: Usd, runLevel: Usd });
 
@@ -100,7 +105,7 @@ const common = {
 
 /** The output contract of `phax plans estimate`: the estimate report of today, one variant per
  *  verdict. */
-export const PlansEstimateOutput = Schema.Union(
+export const PlansEstimateOutput = Schema.Union([
   Schema.Struct({
     ...common,
     verdict: Schema.Literal("thin-history"),
@@ -145,17 +150,17 @@ export const PlansEstimateOutput = Schema.Union(
     ...common,
     phases: Schema.Array(PhaseEstimate),
     run: Run,
-    verdict: Schema.Literal("fits", "risky", "wait"),
+    verdict: Schema.Literals(["fits", "risky", "wait"]),
     windows: ReportWindows,
     windowsUnavailable: Schema.Null,
     uncalibrated: Uncalibrated,
     scenarios: Scenarios,
   }),
-);
+]);
 
 const PlansEstimateFlags = Schema.Struct({
   noProbe: Schema.optionalKey(
-    Schema.Boolean.annotations({
+    Schema.Boolean.annotate({
       description:
         "Use the last rate-limit sample in the cost ledgers instead of a one-message Claude Code probe",
     }),
@@ -174,9 +179,9 @@ export const plansEstimateCommand = defineCommand({
   ],
   input: {
     args: reject(
-      Schema.Tuple(
-        Schema.String.annotations({ identifier: "plan", description: "Path to the plan.md" }),
-      ),
+      Schema.Tuple([
+        Schema.String.annotate({ identifier: "plan", description: "Path to the plan.md" }),
+      ]),
     ),
     flags: reject(PlansEstimateFlags),
   },

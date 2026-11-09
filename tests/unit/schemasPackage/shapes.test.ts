@@ -13,12 +13,15 @@ import {
 import type { Parsed } from "../../../packages/schemas/src/parsed.js";
 import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
 
-function shape<A, I>(schema: Schema.Schema<A, I>): Shape<A> {
-  return { schema, decode: Schema.decodeUnknownResult(schema, { onExcessProperty: "error" }) };
+function shape<A, I>(schema: Schema.Codec<A, I>): Shape<A> {
+  return {
+    schema,
+    decode: Schema.decodeUnknownResult(schema, { onExcessProperty: "error", reportInput: true }),
+  };
 }
 
 /** A shape whose decoder counts its calls, so a test can tell which decoder read a document. */
-function counted<A, I>(schema: Schema.Schema<A, I>): Shape<A> & { readonly calls: () => number } {
+function counted<A, I>(schema: Schema.Codec<A, I>): Shape<A> & { readonly calls: () => number } {
   const inner = shape(schema);
   let calls = 0;
   return {

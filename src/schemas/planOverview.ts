@@ -10,32 +10,32 @@ import { TestLineSchema } from "./testLine.js";
 
 const strictKeys = { parseOptions: { onExcessProperty: "error" } } as const;
 
-const FrontmatterSchema = Schema.Union(
+const FrontmatterSchema = Schema.Union([
   Schema.Struct({ kind: Schema.Literal("decoded"), status: Schema.String }),
   Schema.Struct({ kind: Schema.Literal("none") }),
   Schema.Struct({ kind: Schema.Literal("undecodable"), problem: Schema.String }),
-).annotations({
+]).annotate({
   description:
     "The plan's frontmatter: decoded with its status, absent, or a block that does not decode.",
 });
 
-const ArchitectureSchema = Schema.Union(
+const ArchitectureSchema = Schema.Union([
   Schema.Struct({ kind: Schema.Literal("parts") }),
   Schema.Struct({ kind: Schema.Literal("none") }),
   Schema.Struct({ kind: Schema.Literal("failed"), message: Schema.String }),
-).annotations({
+]).annotate({
   description:
     "What the architecture provider came to; the parts themselves are in each placement.",
 });
 
-const AcceptanceRoleSchema = Schema.Union(
+const AcceptanceRoleSchema = Schema.Union([
   Schema.Struct({ kind: Schema.Literal("acceptance"), passedBy: Schema.String }),
   Schema.Struct({ kind: Schema.Literal("passing"), acceptancePhase: Schema.String }),
   Schema.Struct({ kind: Schema.Literal("none") }),
-);
+]);
 
 const PlacementSchema = Schema.Struct({
-  part: Schema.NullOr(Schema.String).annotations({
+  part: Schema.NullOr(Schema.String).annotate({
     description: "The architecture part holding these files, or null for the files no part holds.",
   }),
   files: Schema.Array(Schema.String),
@@ -46,13 +46,13 @@ const PhaseSchema = Schema.Struct({
   title: Schema.String,
   model: Schema.String,
   effort: Schema.String,
-  mode: Schema.Literal("headless", "interactive"),
+  mode: Schema.Literals(["headless", "interactive"]),
   acceptanceRole: AcceptanceRoleSchema,
   placement: Schema.Array(PlacementSchema),
   testLines: Schema.Array(TestLineSchema),
 });
 
-const CoverageSchema = Schema.Union(
+const CoverageSchema = Schema.Union([
   Schema.Struct({
     kind: Schema.Literal("criteria"),
     spec: Schema.String,
@@ -61,7 +61,10 @@ const CoverageSchema = Schema.Union(
       Schema.Struct({
         id: Schema.String,
         lines: Schema.Array(
-          Schema.Struct({ phase: Schema.String, loop: Schema.Literal("acceptance", "in-phase") }),
+          Schema.Struct({
+            phase: Schema.String,
+            loop: Schema.Literals(["acceptance", "in-phase"]),
+          }),
         ),
       }),
     ),
@@ -72,15 +75,15 @@ const CoverageSchema = Schema.Union(
   Schema.Struct({
     kind: Schema.Literal("no-criterion-ids"),
     spec: Schema.String,
-    reason: Schema.Literal("not-a-spec-path", "no-sidecar", "not-found", "unreadable"),
+    reason: Schema.Literals(["not-a-spec-path", "no-sidecar", "not-found", "unreadable"]),
     message: Schema.String,
   }),
-);
+]);
 
 /** A `plan-overview` document: the answer of `phax plans overview --json`. */
 export const PlanOverviewFileSchema = Schema.Struct({
   $schema: schemaUrlField("plan-overview"),
-  plan: Schema.String.annotations({ description: "The plan path as the caller typed it." }),
+  plan: Schema.String.annotate({ description: "The plan path as the caller typed it." }),
   name: Schema.String,
   title: Schema.String,
   frontmatter: FrontmatterSchema,
@@ -88,7 +91,7 @@ export const PlanOverviewFileSchema = Schema.Struct({
   architecture: ArchitectureSchema,
   phases: Schema.Array(PhaseSchema),
   coverage: CoverageSchema,
-}).annotations(strictKeys);
+}).annotate(strictKeys);
 
 export type PlanOverviewFile = Schema.Schema.Type<typeof PlanOverviewFileSchema>;
 /** A plan overview without `$schema`. */
@@ -96,6 +99,7 @@ export type PlanOverviewDocument = Omit<PlanOverviewFile, "$schema">;
 
 export const decodePlanOverviewFile = Schema.decodeUnknownResult(PlanOverviewFileSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });
 
 export const encodePlanOverviewFile = Schema.encodeSync(PlanOverviewFileSchema);

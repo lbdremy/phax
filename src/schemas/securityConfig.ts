@@ -1,14 +1,14 @@
 import { Schema } from "effect";
 import type { SecurityMode, NetworkProfile, McpMode } from "../domain/security/types.js";
 
-export const SecurityProfileSchema = Schema.Literal("secure", "unsafe", "isolated");
-export const NetworkProfileSchema = Schema.Literal("provider-only", "dev-allowlist", "open");
-export const McpModeSchema = Schema.Literal(
+export const SecurityProfileSchema = Schema.Literals(["secure", "unsafe", "isolated"]);
+export const NetworkProfileSchema = Schema.Literals(["provider-only", "dev-allowlist", "open"]);
+export const McpModeSchema = Schema.Literals([
   "disabled",
   "local-only",
   "allowlist",
   "provider-default",
-);
+]);
 
 const FilesystemConfigSchema = Schema.Struct({
   allowRead: Schema.optional(Schema.Array(Schema.NonEmptyString)),

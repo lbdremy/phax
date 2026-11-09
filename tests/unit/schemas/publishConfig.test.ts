@@ -9,6 +9,7 @@ import { Schema } from "effect";
 
 const decodePublishConfig = Schema.decodeUnknownResult(PublishConfigSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });
 
 const minimalValidPhaxConfig = {

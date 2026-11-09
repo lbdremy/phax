@@ -6,7 +6,7 @@ import { defineCommand, reject, strip } from "../../../../src/cli/commandLibrary
 import { call, memoryIo } from "./support/memoryIo.js";
 import { programOf } from "./support/todos.js";
 
-const Request = Schema.Struct({ todos: Schema.Array(Schema.String) }).annotations({
+const Request = Schema.Struct({ todos: Schema.Array(Schema.String) }).annotate({
   identifier: "gate-request",
 });
 const document = JSON.stringify({ todos: ["a"] });
@@ -172,7 +172,7 @@ describe("the refusals of a stdin read", () => {
 
   it("names the title, then JSON, when the contract has no identifier", async () => {
     for (const [contract, name] of [
-      [Schema.Struct({}).annotations({ title: "a ledger" }), "a ledger"],
+      [Schema.Struct({}).annotate({ title: "a ledger" }), "a ledger"],
       [Schema.Struct({}), "JSON"],
     ] as const) {
       const command = defineCommand({

@@ -69,7 +69,7 @@ export function repoPaths(
 
 /** A run's short name, as every definition that takes a run declares it: with the completer that
  *  lists the runs (`phax ls --complete`), written once in the usage spec for the identifier. */
-export const ShortNameArg = Schema.String.annotations({
+export const ShortNameArg = Schema.String.annotate({
   identifier: "short-name",
   description: "Run short name, e.g. usage-cli",
   [CompleterAnnotationId]: { run: "phax ls --complete", descriptions: true },
@@ -130,7 +130,7 @@ export const CommitFailedFields = Schema.Struct({
 /** What became of a session's record (a decision or an authoring record): written with its key,
  *  the note of a record kept on a diverged or unrelated records branch (or null) and the warning
  *  of a push that failed (or null); off; or not written with its warning. */
-export const RecordOutcome = Schema.Union(
+export const RecordOutcome = Schema.Union([
   Schema.Struct({
     kind: Schema.Literal("written"),
     key: Schema.String,
@@ -139,7 +139,7 @@ export const RecordOutcome = Schema.Union(
   }),
   Schema.Struct({ kind: Schema.Literal("off") }),
   Schema.Struct({ kind: Schema.Literal("not-written"), warning: Schema.String }),
-);
+]);
 
 export type RecordOutcome = typeof RecordOutcome.Type;
 

@@ -84,8 +84,8 @@ function spec(
   readonly calls: { current: number; preSchema: number };
 } {
   const calls = { current: 0, preSchema: 0 };
-  const decodeCurrent = Schema.decodeUnknownResult(ToyCurrent);
-  const decodePreSchema = Schema.decodeUnknownResult(ToyPreSchema);
+  const decodeCurrent = Schema.decodeUnknownResult(ToyCurrent, { reportInput: true });
+  const decodePreSchema = Schema.decodeUnknownResult(ToyPreSchema, { reportInput: true });
   return {
     format: "registry",
     label: "toy document",
@@ -239,7 +239,7 @@ describe("readPersisted", () => {
 describe("readSchemaBornPersisted", () => {
   function bornSpec() {
     const calls = { current: 0 };
-    const decodeCurrent = Schema.decodeUnknownResult(ToyCurrent);
+    const decodeCurrent = Schema.decodeUnknownResult(ToyCurrent, { reportInput: true });
     return {
       format: "plan-approval-record" as const,
       label: "toy record",

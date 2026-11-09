@@ -1,7 +1,7 @@
 import { readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Result, type ParseResult } from "effect";
+import { Result, type Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   decodeApprovalRecordFile,
@@ -83,7 +83,7 @@ import {
   withoutKey,
 } from "./documents.js";
 
-type Decode = (input: unknown) => Result.Result<unknown, ParseResult.ParseError>;
+type Decode = (input: unknown) => Result.Result<unknown, Schema.SchemaError>;
 
 /** phax's own decoder for each format. */
 const PHAX_DECODERS: { readonly [F in FormatId]: Decode } = {

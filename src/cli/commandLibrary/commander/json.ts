@@ -1,4 +1,3 @@
-import * as ParseResult from "effect/ParseResult";
 import * as Schema from "effect/Schema";
 import { firstRefusal } from "../../../schemas/refusal/adapter.js";
 import { refusalMessage } from "../../../schemas/refusal/render.js";
@@ -129,7 +128,7 @@ export function detailsOf(
   failure: unknown,
   names: ReadonlyArray<string> = [],
 ): Details {
-  if (ParseResult.isParseError(failure)) {
+  if (Schema.isSchemaError(failure)) {
     const first = firstRefusal(failure);
     if (first !== undefined) {
       return {

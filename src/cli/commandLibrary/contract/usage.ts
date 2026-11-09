@@ -94,7 +94,7 @@ function optionNode(flag: FlagShape, depth: number, global: boolean): ReadonlyAr
   );
 }
 
-function stdinNode(stdin: Source<Schema.Schema.Any>, depth: number): ReadonlyArray<string> {
+function stdinNode(stdin: Source<Schema.Top>, depth: number): ReadonlyArray<string> {
   const flag = stdin.flag;
   if (flag === undefined) return [];
   const usage =

@@ -28,7 +28,7 @@ export type BriefRule = Schema.Schema.Type<typeof BriefRuleSchema>;
 const BriefFindingSchema = Schema.Struct({
   ...reportFindingFields,
   due: described(
-    Schema.NullOr(Schema.Literal("this-phase", "later")),
+    Schema.NullOr(Schema.Literals(["this-phase", "later"])),
     "The provider's word on when the finding must be closed: this-phase, later, or null when the request carried no phase facts. phax never computes or checks it.",
   ),
 });
@@ -59,4 +59,5 @@ export type BriefReport = Omit<BriefReportFile, "$schema">;
 
 export const decodeBriefReportFile = Schema.decodeUnknownResult(BriefReportFileSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });

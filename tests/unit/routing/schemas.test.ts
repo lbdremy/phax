@@ -19,10 +19,10 @@ import type {
   ThinkingLevel,
 } from "../../../src/domain/routing/types.js";
 
-const decodeProviderId = Schema.decodeUnknownResult(ProviderIdSchema);
-const decodeModelFamily = Schema.decodeUnknownResult(ModelFamilySchema);
-const decodeThinkingLevel = Schema.decodeUnknownResult(ThinkingLevelSchema);
-const decodeRelationship = Schema.decodeUnknownResult(RelationshipSchema);
+const decodeProviderId = Schema.decodeUnknownResult(ProviderIdSchema, { reportInput: true });
+const decodeModelFamily = Schema.decodeUnknownResult(ModelFamilySchema, { reportInput: true });
+const decodeThinkingLevel = Schema.decodeUnknownResult(ThinkingLevelSchema, { reportInput: true });
+const decodeRelationship = Schema.decodeUnknownResult(RelationshipSchema, { reportInput: true });
 
 const validModelRouting = {
   version: 2,

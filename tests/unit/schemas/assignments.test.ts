@@ -6,6 +6,7 @@ import { decodePhaxConfig } from "../../../src/schemas/phaxConfig.js";
 
 const decodeAssignments = Schema.decodeUnknownResult(AssignmentsSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });
 
 // The spec §6 example, for a made-up acme-billing repository.

@@ -15,7 +15,7 @@
 // package's first issue.
 // `encode/<id>` is a round trip for a format phax writes: the document decoded with
 // phax's file decoder, encoded with its writer, the encoded JSON answered.
-import { Result, Option, ParseResult, Schema } from "effect";
+import { Result, Option, Schema } from "effect";
 import { firstRefusal, refusalsOf } from "../../src/schemas/refusal/adapter.js";
 import { refusalMessage, refusalPath } from "../../src/schemas/refusal/render.js";
 import {
@@ -276,8 +276,8 @@ function refused(refusal: string): Expected {
 }
 
 function fromParse<A>(
-  result: Result.Result<A, ParseResult.ParseError>,
-  render: (error: ParseResult.ParseError) => string,
+  result: Result.Result<A, Schema.SchemaError>,
+  render: (error: Schema.SchemaError) => string,
 ): Expected {
   return Result.isFailure(result) ? refused(render(result.left)) : accepted(result.right);
 }
@@ -460,7 +460,7 @@ function formatSubject(id: FormatId): Subject {
 // package's first issue, `<path>: <message>`.
 type Render = "first" | "plan-document" | "package";
 
-function renderFrozen(render: Render, raw: unknown, error: ParseResult.ParseError): string {
+function renderFrozen(render: Render, raw: unknown, error: Schema.SchemaError): string {
   if (render === "first") return formatFirstViolation(error);
   if (render === "plan-document") return formatPlanDocumentViolation(raw, error);
   const first = firstRefusal(error);
@@ -471,7 +471,7 @@ function renderFrozen(render: Render, raw: unknown, error: ParseResult.ParseErro
 
 function frozen<A>(
   module: string,
-  decode: (input: unknown) => Result.Result<A, ParseResult.ParseError>,
+  decode: (input: unknown) => Result.Result<A, Schema.SchemaError>,
   render: Render,
 ): readonly [string, Subject] {
   return [
@@ -555,7 +555,7 @@ const FROZEN_SUBJECTS = new Map<string, Subject>([
 // the format's `encode…File` writer, and the encoded JSON is the answer. An encode
 // input must decode, so a decode failure throws instead of answering a refusal.
 function roundTrip<A>(
-  decode: (input: unknown) => Result.Result<A, ParseResult.ParseError>,
+  decode: (input: unknown) => Result.Result<A, Schema.SchemaError>,
   encode: (value: A) => unknown,
 ): Subject {
   return (raw) => {

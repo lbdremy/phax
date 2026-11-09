@@ -157,7 +157,7 @@ describe("agent resolve --json", () => {
   it("encodes a resolution with no thinking level, or with skipped providers, as stringify does", () => {
     // The default catalog always selects a thinking level, so the absent key is checked on the
     // contract itself, with the key order of the resolver's objects.
-    const contract = makeAgentResolveCommand(REAL_AGENT_LAYERS).output.contract as Schema.Schema<
+    const contract = makeAgentResolveCommand(REAL_AGENT_LAYERS).output.contract as Schema.Codec<
       unknown,
       unknown
     >;

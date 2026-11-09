@@ -70,11 +70,11 @@ export const archiveCommand = defineCommand({
     "phax archive plan-27 --force  # give up an interrupted run",
   ],
   input: {
-    args: reject(Schema.Tuple(ShortNameArg)),
+    args: reject(Schema.Tuple([ShortNameArg])),
     flags: reject(
       Schema.Struct({
         force: Schema.optionalKey(
-          Schema.Boolean.annotations({
+          Schema.Boolean.annotate({
             description:
               "Archive even if the run is unfinished or a worktree has uncommitted changes",
           }),

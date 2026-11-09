@@ -104,8 +104,8 @@ function expectDecodes(format: (typeof FORMATS)[number], finalText: string) {
     parsed = JSON.parse(finalText);
   }, "the final message is JSON").not.toThrow();
   const decoded = Schema.decodeUnknownResult(
-    ANSWER_FORMATS[format].schema as Schema.Schema<unknown, unknown>,
-    { onExcessProperty: "error" },
+    ANSWER_FORMATS[format].schema as Schema.Codec<unknown, unknown>,
+    { onExcessProperty: "error", reportInput: true },
   )(parsed);
   expect(Result.isSuccess(decoded) ? "" : String(decoded.left)).toBe("");
 }

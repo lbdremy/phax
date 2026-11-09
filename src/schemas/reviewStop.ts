@@ -7,17 +7,17 @@ import { ProviderIdSchema } from "./providerId.js";
 import { schemaUrlField } from "./schemaUrl.js";
 import { FullCommitShaSchema } from "./status.js";
 
-const PhaseIdSchema = Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/));
+const PhaseIdSchema = Schema.String.check(Schema.isPattern(/^phase-\d{2}$/));
 
-const InstantSchema = Schema.NonEmptyString.annotations({ description: "An ISO-8601 instant." });
+const InstantSchema = Schema.NonEmptyString.annotate({ description: "An ISO-8601 instant." });
 
 const CommandSchema = Schema.Struct({
   cwd: Schema.NonEmptyString,
   argv: Schema.NonEmptyArray(Schema.String),
-  env: Schema.Record({ key: Schema.String, value: Schema.String }),
+  env: Schema.Record(Schema.String, Schema.String),
 });
 
-const LastCloseSchema = Schema.Union(
+const LastCloseSchema = Schema.Union([
   Schema.Struct({
     result: Schema.Literal("gate-failed"),
     at: InstantSchema,
@@ -54,14 +54,12 @@ const LastCloseSchema = Schema.Union(
     exitCode: Schema.Literal(8),
     resetAt: Schema.NullOr(Schema.String),
   }),
-  // A closing turn that could not reach the provider: `detail` is the provider's message.
   Schema.Struct({
     result: Schema.Literal("network"),
     at: InstantSchema,
     exitCode: Schema.Literal(14),
     detail: Schema.NonEmptyString,
   }),
-  // A provider error in the closing session exits 5; a Git, file or shell error exits 1.
   Schema.Struct({
     result: Schema.Literal("close-error"),
     at: InstantSchema,
@@ -73,7 +71,7 @@ const LastCloseSchema = Schema.Union(
     result: Schema.Literal("close-error"),
     at: InstantSchema,
     exitCode: Schema.Literal(1),
-    step: Schema.Literal("gate", "commit", "files"),
+    step: Schema.Literals(["gate", "commit", "files"]),
     detail: Schema.NonEmptyString,
   }),
   Schema.Struct({
@@ -81,13 +79,13 @@ const LastCloseSchema = Schema.Union(
     at: InstantSchema,
     exitCode: Schema.Literal(130),
   }),
-);
+]);
 
-const RunNameSchema = Schema.NonEmptyString.annotations({
+const RunNameSchema = Schema.NonEmptyString.annotate({
   description: "The run's qualified name.",
 });
 
-const PositionSchema = Schema.Int.pipe(Schema.greaterThanOrEqualTo(1));
+const PositionSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(1));
 
 const CommandsSchema = Schema.Struct({
   continue: Schema.NullOr(CommandSchema),
@@ -97,7 +95,7 @@ const CommandsSchema = Schema.Struct({
   reset: CommandSchema,
 });
 
-const CloseBaseSchema = Schema.NullOr(Schema.NonEmptyString).annotations({
+const CloseBaseSchema = Schema.NullOr(Schema.NonEmptyString).annotate({
   description: "The HEAD sha a close recorded before its gate, or null before any close.",
 });
 
@@ -124,7 +122,7 @@ export const DeclaredReviewStopFileSchema = Schema.Struct({
     position: PositionSchema,
     of: PositionSchema,
   }),
-  firstReading: Schema.NullOr(Schema.String).annotations({
+  firstReading: Schema.NullOr(Schema.String).annotate({
     description: "The path of first-reading.md, or null when no first turn answered.",
   }),
   worktree: Schema.NonEmptyString,
@@ -133,14 +131,14 @@ export const DeclaredReviewStopFileSchema = Schema.Struct({
     Schema.Struct({
       provider: ProviderIdSchema,
       sessionId: Schema.NonEmptyString,
-      origin: Schema.Literal("first-turn", "new-session"),
-      interactiveResume: Schema.Literal("verified", "unverified"),
+      origin: Schema.Literals(["first-turn", "new-session"]),
+      interactiveResume: Schema.Literals(["verified", "unverified"]),
     }),
   ),
   commands: CommandsSchema,
   lastClose: Schema.NullOr(LastCloseSchema),
   closeBase: CloseBaseSchema,
-}).annotations(strictKeys);
+}).annotate(strictKeys);
 
 /**
  * A `review-stop` document, the held variant: a run stopped after a headless
@@ -160,7 +158,7 @@ export const HeldReviewStopFileSchema = Schema.Struct({
     position: PositionSchema,
     of: PositionSchema,
   }),
-  phaseCommit: FullCommitShaSchema.annotations({
+  phaseCommit: FullCommitShaSchema.annotate({
     description: "The full object name of the phase's commit, which the stop holds.",
   }),
   worktree: Schema.NonEmptyString,
@@ -169,20 +167,20 @@ export const HeldReviewStopFileSchema = Schema.Struct({
     Schema.Struct({
       provider: ProviderIdSchema,
       sessionId: Schema.NonEmptyString,
-      origin: Schema.Literal("builder", "new-session"),
-      interactiveResume: Schema.Literal("verified", "unverified"),
+      origin: Schema.Literals(["builder", "new-session"]),
+      interactiveResume: Schema.Literals(["verified", "unverified"]),
     }),
   ),
   commands: CommandsSchema,
   lastClose: Schema.NullOr(LastCloseSchema),
   closeBase: CloseBaseSchema,
-}).annotations(strictKeys);
+}).annotate(strictKeys);
 
 /** A `review-stop` document: the declared variant or the held one, told apart by `cause`. */
-export const ReviewStopFileSchema = Schema.Union(
+export const ReviewStopFileSchema = Schema.Union([
   DeclaredReviewStopFileSchema,
   HeldReviewStopFileSchema,
-).annotations(strictKeys);
+]).annotate(strictKeys);
 
 export type DeclaredReviewStopFile = Schema.Schema.Type<typeof DeclaredReviewStopFileSchema>;
 export type HeldReviewStopFile = Schema.Schema.Type<typeof HeldReviewStopFileSchema>;
@@ -202,6 +200,7 @@ export type LastClose = Schema.Schema.Type<typeof LastCloseSchema>;
 
 export const decodeReviewStopFile = Schema.decodeUnknownResult(ReviewStopFileSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });
 
 export const encodeReviewStopFile = Schema.encodeSync(ReviewStopFileSchema);

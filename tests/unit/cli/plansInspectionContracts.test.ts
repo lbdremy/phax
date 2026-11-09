@@ -18,7 +18,7 @@ import type {
 
 /** What the command printed for `value`: it is encoded through its output contract. */
 function printed(command: Command, value: unknown): string {
-  const contract = command.output?.contract as Schema.Schema<unknown, unknown> | undefined;
+  const contract = command.output?.contract as Schema.Codec<unknown, unknown> | undefined;
   if (contract === undefined) throw new Error(`${command.name} declares no output`);
   return encodedText(Schema.encodeUnknownSync(contract)(value));
 }

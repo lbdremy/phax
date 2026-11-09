@@ -151,15 +151,15 @@ export const artifactStatusCommand = defineCommand({
   ],
   input: {
     args: reject(
-      Schema.Tuple(
-        Schema.String.annotations({
+      Schema.Tuple([
+        Schema.String.annotate({
           identifier: "path",
           description: "Path to a spec or plan file under docs/specs/ or docs/plans/",
         }),
-      ),
+      ]),
     ),
   },
-  output: reject(ArtifactStatusFileSchema.annotations(publishedFormat("artifact-status"))),
+  output: reject(ArtifactStatusFileSchema.annotate(publishedFormat("artifact-status"))),
   run: ({ input, progress }) =>
     Effect.gen(function* () {
       const repoRoot = findGitRoot(process.cwd());

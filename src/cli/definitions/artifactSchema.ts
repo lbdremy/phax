@@ -15,8 +15,8 @@ const DOCUMENT_JSON_SCHEMAS = {
 } as const;
 
 const SchemaOutput = Schema.Struct({
-  kind: Schema.Literal("spec", "plan", "verdicts"),
-  schema: Schema.Record({ key: Schema.String, value: Schema.Unknown }),
+  kind: Schema.Literals(["spec", "plan", "verdicts"]),
+  schema: Schema.Record(Schema.String, Schema.Unknown),
 });
 
 export const artifactSchemaCommand = defineCommand({
@@ -31,12 +31,12 @@ export const artifactSchemaCommand = defineCommand({
   ],
   input: {
     args: reject(
-      Schema.Tuple(
-        Schema.Literal("spec", "plan", "verdicts").annotations({
+      Schema.Tuple([
+        Schema.Literals(["spec", "plan", "verdicts"]).annotate({
           identifier: "kind",
           description: "Document kind: spec, plan or verdicts",
         }),
-      ),
+      ]),
     ),
   },
   output: reject(SchemaOutput),

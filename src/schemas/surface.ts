@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 
-export const SurfaceSchema = Schema.Literal("local", "structural", "product");
+export const SurfaceSchema = Schema.Literals(["local", "structural", "product"]);
 export type Surface = Schema.Schema.Type<typeof SurfaceSchema>;
 
 /**
@@ -9,5 +9,10 @@ export type Surface = Schema.Schema.Type<typeof SurfaceSchema>;
  * gate step keeps `SurfaceSchema`, so `"surface": "acceptance"` in phax.json
  * stays refused.
  */
-export const RecordedSurfaceSchema = Schema.Literal("local", "structural", "product", "acceptance");
+export const RecordedSurfaceSchema = Schema.Literals([
+  "local",
+  "structural",
+  "product",
+  "acceptance",
+]);
 export type RecordedSurface = Schema.Schema.Type<typeof RecordedSurfaceSchema>;

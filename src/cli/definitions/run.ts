@@ -105,45 +105,45 @@ export interface RunDeps {
   readonly shellLayer?: Layer.Layer<Shell>;
 }
 
-const optional = <S extends Schema.Schema.Any>(schema: S) => Schema.optionalKey(schema);
+const optional = <S extends Schema.Top>(schema: S) => Schema.optionalKey(schema);
 
 const RunFlags = reject(
   Schema.Struct({
-    plan: Schema.String.annotations({
+    plan: Schema.String.annotate({
       identifier: "path",
       description: "Path to the plan.md file to extract from",
     }),
     allowDirty: optional(
-      Schema.Boolean.annotations({ description: "Allow starting when the working tree is dirty" }),
+      Schema.Boolean.annotate({ description: "Allow starting when the working tree is dirty" }),
     ),
     providerPriority: optional(
-      Schema.String.annotations({
+      Schema.String.annotate({
         identifier: "list",
         description: "Comma-separated provider priority override (e.g. mistral-vibe,claude-code)",
       }),
     ),
     dryRun: optional(
-      Schema.Boolean.annotations({
+      Schema.Boolean.annotate({
         description: "Preview only — extracts the plan but performs no run actions",
       }),
     ),
     security: optional(
-      Schema.String.annotations({
+      Schema.String.annotate({
         identifier: "mode",
         description: "Security mode override (secure|unsafe|isolated, overrides config default)",
       }),
     ),
     refresh: optional(
-      Schema.Boolean.annotations({
+      Schema.Boolean.annotate({
         description: "Re-extract the plan even if a cached extraction exists",
       }),
     ),
     allowSkillEdits: optional(
-      Schema.Boolean.annotations({
+      Schema.Boolean.annotate({
         description: "Allow phases to edit the .claude/skills files the plan declares",
       }),
     ),
-    hold: Schema.optionalKey(Schema.Union(Schema.Literal(true), Schema.String)).annotations({
+    hold: Schema.optionalKey(Schema.Union([Schema.Literal(true), Schema.String])).annotateKey({
       identifier: "selection",
       description:
         "Stop for review once these headless phases commit: no value for every phase but the final one, acceptance, or phase ids such as phase-02,phase-04",
@@ -611,7 +611,7 @@ export function makeRunCommand(deps: RunDeps = {}) {
       "phax run --plan plan.md --refresh",
     ],
     input: {
-      args: reject(Schema.Tuple(Schema.optionalElement(ShortNameArg))),
+      args: reject(Schema.Tuple([Schema.optionalKey(ShortNameArg)])),
       flags: RunFlags,
     },
     output: reject(RunAnswer),

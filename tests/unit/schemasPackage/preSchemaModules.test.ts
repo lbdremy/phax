@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Result, ParseResult, type Schema } from "effect";
+import { Result, SchemaIssue, type Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   JSON_SCHEMA_FORMATS,
@@ -44,8 +44,8 @@ import {
 import { preSchemaDocuments, withKey, withoutKey } from "./documents.js";
 
 interface FrozenModule {
-  readonly schema: Schema.Schema.Any;
-  readonly decode: (input: unknown) => Result.Result<unknown, ParseResult.ParseError>;
+  readonly schema: Schema.Top;
+  readonly decode: (input: unknown) => Result.Result<unknown, Schema.SchemaError>;
   readonly parse: (input: unknown) => { readonly ok: true; readonly shape: string } | ParseFailure;
 }
 
@@ -161,9 +161,9 @@ function pascal(id: FormatId): string {
 }
 
 /** The path of a decoder's first violation, joined with `.`. */
-function firstViolationPath(result: Result.Result<unknown, ParseResult.ParseError>): string {
+function firstViolationPath(result: Result.Result<unknown, Schema.SchemaError>): string {
   if (Result.isSuccess(result)) throw new Error("expected the frozen decoder to reject");
-  const [first] = ParseResult.ArrayFormatter.formatErrorSync(result.left);
+  const [first] = SchemaIssue.makeFormatterStandardSchemaV1()(result.left.issue).issues;
   return first === undefined ? "" : first.path.map(String).join(".");
 }
 

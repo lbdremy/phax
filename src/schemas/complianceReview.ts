@@ -11,17 +11,17 @@ import { CURRENT_STAMPS } from "./release.js";
 import { schemaUrl } from "./schemaUrl.js";
 import { NonEmptyString } from "./strictString.js";
 
-export const VerdictSchema = Schema.Literal(
+export const VerdictSchema = Schema.Literals([
   "conformant",
   "conformant-with-deviations",
   "divergent",
-);
+]);
 export type Verdict = Schema.Schema.Type<typeof VerdictSchema>;
 
-export const SeveritySchema = Schema.Literal("info", "deviation", "concern");
+export const SeveritySchema = Schema.Literals(["info", "deviation", "concern"]);
 export type Severity = Schema.Schema.Type<typeof SeveritySchema>;
 
-export const DimensionSchema = Schema.Literal(
+export const DimensionSchema = Schema.Literals([
   "objective",
   "excluded-scope",
   "files",
@@ -29,7 +29,7 @@ export const DimensionSchema = Schema.Literal(
   "boundaries",
   "commit",
   "handoff",
-);
+]);
 export type Dimension = Schema.Schema.Type<typeof DimensionSchema>;
 
 export const FindingSchema = Schema.Struct({
@@ -64,11 +64,11 @@ const complianceReviewFields = {
   verdict: VerdictSchema,
   summary: Schema.String,
   perPhase: Schema.Array(PhaseVerdictSchema),
-  unplannedChanges: Schema.Array(UnplannedChangeSchema).annotations({
+  unplannedChanges: Schema.Array(UnplannedChangeSchema).annotate({
     description:
       "Every change the plan did not call for: the phase that made it, the path, and a note. An empty list says there was none.",
   }),
-  unmetPromises: Schema.Array(UnmetPromiseSchema).annotations({
+  unmetPromises: Schema.Array(UnmetPromiseSchema).annotate({
     description:
       "Every promise of the plan a phase did not keep: the phase, the promise, and a note. An empty list says there was none.",
   }),
@@ -99,11 +99,13 @@ export type ComplianceReviewFile = Schema.Schema.Type<typeof ComplianceReviewFil
 
 export const decodeComplianceReviewFile = Schema.decodeUnknownResult(ComplianceReviewFileSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });
 
 const decodeComplianceReviewAnswerAll = Schema.decodeUnknownResult(ComplianceReviewFileSchema, {
   errors: "all",
   onExcessProperty: "error",
+  reportInput: true,
 });
 
 export const encodeComplianceReviewFile = Schema.encodeSync(ComplianceReviewFileSchema);

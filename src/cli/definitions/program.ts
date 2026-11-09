@@ -49,12 +49,12 @@ import { unlockCommand } from "./unlock.js";
 const phaxProgramOptions = reject(
   Schema.Struct({
     verbose: Schema.optionalKey(
-      Schema.Boolean.annotations({
+      Schema.Boolean.annotate({
         description: "Print human-readable progress and system events",
       }),
     ),
     trace: Schema.optionalKey(
-      Schema.Boolean.annotations({
+      Schema.Boolean.annotate({
         description: "Write structured JSONL trace events to the run folder",
       }),
     ),

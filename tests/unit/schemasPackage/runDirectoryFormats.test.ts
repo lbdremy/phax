@@ -1,4 +1,4 @@
-import { Result, type ParseResult } from "effect";
+import { Result, type Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import { FORMAT_DEFINITIONS } from "../../../packages/schemas/build/jsonSchemas.js";
 import { CURRENT_SHAPES, PACKAGE_VERSION } from "../../../packages/schemas/src/generated/index.js";
@@ -37,7 +37,7 @@ import {
   type Doc,
 } from "./documents.js";
 
-type Decode = (input: unknown) => Result.Result<unknown, ParseResult.ParseError>;
+type Decode = (input: unknown) => Result.Result<unknown, Schema.SchemaError>;
 
 interface RunDirectoryFormat {
   readonly id: PreSchemaFormatId;

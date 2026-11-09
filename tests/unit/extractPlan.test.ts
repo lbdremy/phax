@@ -10,6 +10,7 @@ import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 
 const decodeExtracted = Schema.decodeUnknownResult(ExtractedPhaxPlanSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });
 
 const PHAX_PLAN_URL = schemaUrl("phax-plan", CURRENT_STAMPS["phax-plan"]);

@@ -2,7 +2,7 @@ import { existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } fro
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Ajv } from "ajv";
-import { Result, JSONSchema, type ParseResult, Schema } from "effect";
+import { Result, Schema } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   JSON_SCHEMA_FORMATS,
@@ -77,12 +77,12 @@ import { CURRENT_SHAPES } from "../../../packages/schemas/src/generated/index.js
 import { writeJsonSchemas } from "../../../scripts/schemas-json.js";
 import { BranchNameSchema } from "../../../src/domain/branded.js";
 import { decodeRecordManifestFile } from "../../../src/schemas/authoringRecord.js";
-import { FORMAT_IDS, type FormatId } from "../../../src/schemas/schemaUrl.js";
+import { draft07JsonSchema, FORMAT_IDS, type FormatId } from "../../../src/schemas/schemaUrl.js";
 import { answerJsonSchema } from "../../../src/schemas/answerSchemas.js";
 import { SpecDocumentFileSchema } from "../../../src/schemas/specDocument.js";
 import { phaseStatusStopDocuments, validDocuments, withoutKey } from "./documents.js";
 
-type Decode = (input: unknown) => Result.Result<unknown, ParseResult.ParseError>;
+type Decode = (input: unknown) => Result.Result<unknown, Schema.SchemaError>;
 type JsonSchemaFormatId = FormatId | "record-manifest";
 
 const phaseManifest = validDocuments["phase-record-manifest"];
@@ -276,7 +276,7 @@ describe("renderJsonSchemas over the real table", () => {
     "$format: equals JSONSchema.make of its schema, apart from the title",
     (entry) => {
       expect(withoutTitle(renderedSchema(entry))).toEqual(
-        withoutTitle(JSONSchema.make(entry.schema)),
+        withoutTitle(draft07JsonSchema(entry.schema)),
       );
     },
   );
@@ -286,7 +286,7 @@ describe("renderJsonSchemas over the real table", () => {
     if (entry === undefined) throw new Error("no spec-document entry");
     const schema = renderedSchema(entry);
     expect(schema["title"]).toBe("phax spec document");
-    expect(withoutTitle(schema)).toEqual(withoutTitle(JSONSchema.make(SpecDocumentFileSchema)));
+    expect(withoutTitle(schema)).toEqual(withoutTitle(draft07JsonSchema(SpecDocumentFileSchema)));
     expect(schema["description"]).toContain("`refs` entry names an existing requirement");
   });
 
@@ -320,8 +320,8 @@ describe("findJsonSchemaGaps", () => {
 
   it("returns the path of a filter without a jsonSchema annotation", () => {
     const Toy = Schema.Struct({
-      a: Schema.Array(Schema.Struct({ n: Schema.Number.pipe(Schema.filter(isEven)) })),
-      b: Schema.Record({ key: Schema.String, value: Schema.Number.pipe(Schema.filter(isEven)) }),
+      a: Schema.Array(Schema.Struct({ n: Schema.Number.check(Schema.makeFilter(isEven)) })),
+      b: Schema.Record(Schema.String, Schema.Number.check(Schema.makeFilter(isEven))),
     });
     expect(findJsonSchemaGaps(Toy)).toEqual(["a[].n", "b.*"]);
   });
@@ -334,9 +334,9 @@ describe("findJsonSchemaGaps", () => {
   it("does not flag a brand-only refinement, an annotated filter or effect's built-ins", () => {
     const Toy = Schema.Struct({
       id: Schema.String.pipe(Schema.brand("Id")),
-      even: Schema.Number.pipe(Schema.filter(isEven, { jsonSchema: { multipleOf: 2 } })),
-      count: Schema.Number.pipe(Schema.int(), Schema.positive()),
-      name: Schema.String.pipe(Schema.minLength(1), Schema.pattern(/^[a-z]+$/)),
+      even: Schema.Number.check(Schema.makeFilter(isEven, { jsonSchema: { multipleOf: 2 } })),
+      count: Schema.Number.check(Schema.isInt(), Schema.isGreaterThan(0)),
+      name: Schema.String.check(Schema.isMinLength(1), Schema.isPattern(/^[a-z]+$/)),
       branch: BranchNameSchema,
     });
     expect(findJsonSchemaGaps(Toy)).toEqual([]);
@@ -348,7 +348,7 @@ describe("findJsonSchemaGaps", () => {
       readonly children: ReadonlyArray<Tree>;
     }
     const Tree: Schema.Schema<Tree> = Schema.Struct({
-      n: Schema.Number.pipe(Schema.filter(isEven)),
+      n: Schema.Number.check(Schema.makeFilter(isEven)),
       children: Schema.Array(Schema.suspend(() => Tree)),
     });
     expect(findJsonSchemaGaps(Tree)).toEqual(["n", "children[].n"]);
@@ -376,7 +376,7 @@ describe("renderJsonSchemas", () => {
       ...cleanEntry,
       format: "toy-throws",
       fileName: "toy-throws.schema.json",
-      schema: Schema.Struct({ at: Schema.DateFromSelf }),
+      schema: Schema.Struct({ at: Schema.DateFromString }),
     };
     const { files, failures } = renderJsonSchemas([throwing, cleanEntry]);
     expect(failures.map(({ format }) => format)).toEqual(["toy-throws"]);

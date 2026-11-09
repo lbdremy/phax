@@ -31,7 +31,7 @@ export const pathCommand = defineCommand({
   summary: "Print the final worktree path (script-friendly, one line)",
   help: "Prints the absolute path to the final worktree on a single line. Useful in scripts: cd $(phax path my-run) or for piping to other tools. For a run in awaiting_review it prints the stopped phase's worktree.",
   examples: ["phax path usage-cli", "cd $(phax path usage-cli)"],
-  input: { args: reject(Schema.Tuple(ShortNameArg)) },
+  input: { args: reject(Schema.Tuple([ShortNameArg])) },
   output: reject(PathOutput),
   run: ({ input }) =>
     Effect.gen(function* () {

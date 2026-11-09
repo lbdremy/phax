@@ -33,7 +33,7 @@ const lines = (written: ReadonlyArray<string>): ReadonlyArray<unknown> =>
     .filter((each) => each !== "")
     .map((each): unknown => JSON.parse(each));
 
-const Hold = Schema.optionalKey(Schema.Union(Schema.Literal(true), Schema.String)).annotations({
+const Hold = Schema.optionalKey(Schema.Union([Schema.Literal(true), Schema.String])).annotateKey({
   identifier: "selection",
   description: "Pause the run for review at the selected phases",
   [OptionalValueAnnotationId]: true,
@@ -45,7 +45,7 @@ function run() {
     name: "run",
     summary: "Run a plan",
     input: {
-      args: reject(Schema.Tuple(Schema.optionalElement(Schema.String))),
+      args: reject(Schema.Tuple([Schema.optionalKey(Schema.String)])),
       flags: reject(Schema.Struct({ hold: Hold })),
     },
     output: strip(Schema.String),
@@ -90,7 +90,7 @@ describe("an option with an optional value", () => {
   it("is no optional value without its annotation", () => {
     const [shape] = flagShapes(
       Schema.Struct({
-        hold: Schema.optionalKey(Schema.Union(Schema.Literal(true), Schema.String)),
+        hold: Schema.optionalKey(Schema.Union([Schema.Literal(true), Schema.String])),
       }),
     );
     expect(shape?.valueOptional).toBe(false);
@@ -105,7 +105,7 @@ function resume() {
     name: "resume",
     summary: "Resume a run",
     input: {
-      args: reject(Schema.Tuple(Schema.String)),
+      args: reject(Schema.Tuple([Schema.String])),
       flags: reject(
         Schema.Struct({
           skipAcceptance: Schema.optionalKey(Schema.Boolean),
@@ -213,7 +213,7 @@ function enter(code: number) {
   const command = defineCommand({
     name: "enter",
     summary: "Hand the terminal to a session",
-    input: { args: reject(Schema.Tuple(Schema.String)) },
+    input: { args: reject(Schema.Tuple([Schema.String])) },
     output: strip(Schema.Struct({ exit: Schema.Number })),
     exits: {},
     prompts: () => true,

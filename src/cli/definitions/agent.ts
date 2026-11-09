@@ -120,7 +120,7 @@ const AgentModelsOutput = Schema.Struct({
           models: Schema.Array(
             Schema.Struct({
               id: Schema.String,
-              status: Schema.Literal("active", "deprecated"),
+              status: Schema.Literals(["active", "deprecated"]),
               efforts: Schema.Array(ThinkingLevelSchema),
             }),
           ),
@@ -244,11 +244,11 @@ export function makeAgentResolveCommand(layers: AgentLayers) {
     input: {
       flags: reject(
         Schema.Struct({
-          model: Schema.String.annotations({
+          model: Schema.String.annotate({
             identifier: "id",
             description: "Requested model id (e.g. claude-sonnet-4-6)",
           }),
-          effort: Schema.String.annotations({
+          effort: Schema.String.annotate({
             identifier: "level",
             description:
               "Effort/thinking level (none|off|low|medium|high|xhigh|max|ultracode|ultra)",
@@ -369,12 +369,12 @@ function makeAgentSetupMistralVibeCommand(layers: AgentLayers) {
       flags: reject(
         Schema.Struct({
           dryRun: Schema.optionalKey(
-            Schema.Boolean.annotations({
+            Schema.Boolean.annotate({
               description: "Preview what would be appended without writing anything",
             }),
           ),
           installModelAliases: Schema.optionalKey(
-            Schema.Boolean.annotations({
+            Schema.Boolean.annotate({
               description: "Actually append the missing aliases and write the backup",
             }),
           ),
@@ -474,17 +474,17 @@ function makeAgentSetupProvidersCommand(layers: AgentLayers) {
       flags: reject(
         Schema.Struct({
           write: Schema.optionalKey(
-            Schema.Boolean.annotations({
+            Schema.Boolean.annotate({
               description: "Persist the reconciled config (writes a timestamped backup first)",
             }),
           ),
           prune: Schema.optionalKey(
-            Schema.Boolean.annotations({
+            Schema.Boolean.annotate({
               description: "Also disable providers whose executable is unavailable",
             }),
           ),
           withRouting: Schema.optionalKey(
-            Schema.Boolean.annotations({
+            Schema.Boolean.annotate({
               description:
                 "Scaffold ~/.phax/model-routing.json from defaults when absent (never overwrites)",
             }),

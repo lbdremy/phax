@@ -36,7 +36,7 @@ class LockHeldError extends Data.TaggedError("LockHeldError")<{
 
 const UnlockOutput = Schema.Struct({
   shortName: Schema.String,
-  removed: Schema.Literal("stale", "expired", "forced", "none"),
+  removed: Schema.Literals(["stale", "expired", "forced", "none"]),
   qualifiedName: Schema.String,
 });
 
@@ -60,11 +60,11 @@ export const unlockCommand = defineCommand({
   name: "unlock",
   summary: "Remove a stale run lock; use --force to remove any lock",
   input: {
-    args: reject(Schema.Tuple(ShortNameArg)),
+    args: reject(Schema.Tuple([ShortNameArg])),
     flags: reject(
       Schema.Struct({
         force: Schema.optionalKey(
-          Schema.Boolean.annotations({ description: "Remove the lock regardless of staleness" }),
+          Schema.Boolean.annotate({ description: "Remove the lock regardless of staleness" }),
         ),
       }),
     ),

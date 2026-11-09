@@ -14,7 +14,7 @@ import { schemaUrl, type FormatId } from "./schemaUrl.js";
  */
 export function answerSchemaUrlField(formatId: FormatId) {
   const url = schemaUrl(formatId, CURRENT_STAMPS[formatId]);
-  return Schema.Literal(url).annotations({
+  return Schema.Literal(url).annotate({
     jsonSchema: { const: url },
     description: `The ${formatId} format's shape, exactly: ${url}`,
   });

@@ -162,21 +162,37 @@ describe("decision record manifest", () => {
 
     it("exports the modes and each mode's outcomes", () => {
       expect(
-        Result.isSuccess(Schema.decodeUnknownResult(DecisionRecordModeSchema)("verdicts")),
+        Result.isSuccess(
+          Schema.decodeUnknownResult(DecisionRecordModeSchema, { reportInput: true })("verdicts"),
+        ),
       ).toBe(true);
       expect(
-        Result.isFailure(Schema.decodeUnknownResult(DecisionRecordModeSchema)("headless")),
+        Result.isFailure(
+          Schema.decodeUnknownResult(DecisionRecordModeSchema, { reportInput: true })("headless"),
+        ),
       ).toBe(true);
       for (const outcome of ["committed", "declined", "undecided", "failed"]) {
         expect(
-          Result.isSuccess(Schema.decodeUnknownResult(InteractiveDecisionOutcomeSchema)(outcome)),
+          Result.isSuccess(
+            Schema.decodeUnknownResult(InteractiveDecisionOutcomeSchema, { reportInput: true })(
+              outcome,
+            ),
+          ),
         ).toBe(true);
       }
       expect(
-        Result.isSuccess(Schema.decodeUnknownResult(VerdictsDecisionOutcomeSchema)("failed")),
+        Result.isSuccess(
+          Schema.decodeUnknownResult(VerdictsDecisionOutcomeSchema, { reportInput: true })(
+            "failed",
+          ),
+        ),
       ).toBe(true);
       expect(
-        Result.isFailure(Schema.decodeUnknownResult(VerdictsDecisionOutcomeSchema)("declined")),
+        Result.isFailure(
+          Schema.decodeUnknownResult(VerdictsDecisionOutcomeSchema, { reportInput: true })(
+            "declined",
+          ),
+        ),
       ).toBe(true);
     });
 

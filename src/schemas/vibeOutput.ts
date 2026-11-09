@@ -10,7 +10,7 @@ import { Result, Schema } from "effect";
 const VibeEntryHeaderSchema = Schema.Struct({
   type: Schema.String,
   sessionId: Schema.NonEmptyString,
-  createdAt: Schema.Number.pipe(Schema.finite()),
+  createdAt: Schema.Number.check(Schema.isFinite()),
 });
 
 const VibeMessageSchema = Schema.Struct({
@@ -24,9 +24,11 @@ const VibeTextBlockSchema = Schema.Struct({
   text: Schema.String,
 });
 
-const decodeVibeEntryHeader = Schema.decodeUnknownResult(VibeEntryHeaderSchema);
-const decodeVibeMessage = Schema.decodeUnknownResult(VibeMessageSchema);
-const decodeVibeTextBlock = Schema.decodeUnknownResult(VibeTextBlockSchema);
+const decodeVibeEntryHeader = Schema.decodeUnknownResult(VibeEntryHeaderSchema, {
+  reportInput: true,
+});
+const decodeVibeMessage = Schema.decodeUnknownResult(VibeMessageSchema, { reportInput: true });
+const decodeVibeTextBlock = Schema.decodeUnknownResult(VibeTextBlockSchema, { reportInput: true });
 
 function parseJsonLine(line: string): unknown {
   if (!line.trim()) return undefined;

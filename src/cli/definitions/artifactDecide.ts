@@ -78,45 +78,45 @@ export interface ArtifactDecideDeps {
 }
 
 const PathArg = reject(
-  Schema.Tuple(
-    Schema.String.annotations({
+  Schema.Tuple([
+    Schema.String.annotate({
       identifier: "path",
       description: "Path to a spec or plan file under docs/specs/ or docs/plans/",
     }),
-  ),
+  ]),
 );
 
-const optional = <S extends Schema.Schema.Any>(schema: S) => Schema.optionalKey(schema);
+const optional = <S extends Schema.Top>(schema: S) => Schema.optionalKey(schema);
 
 const DecideFlags = reject(
   Schema.Struct({
     question: optional(
-      Schema.String.annotations({
+      Schema.String.annotate({
         identifier: "id",
         description: "Present this question alone: an open one, or re-arbitrate one",
       }),
     ),
     by: optional(
-      Schema.String.annotations({
+      Schema.String.annotate({
         identifier: "arbiter",
         description:
           "operator: who gave the verdicts; required without a terminal (with --verdicts)",
       }),
     ),
     doctrine: optional(
-      Schema.String.annotations({
+      Schema.String.annotate({
         identifier: "file",
         description: "Append this doctrine file after the decide skill",
       }),
     ),
     model: optional(
-      Schema.String.annotations({
+      Schema.String.annotate({
         identifier: "model",
         description: "Override the decide model (interactive: a Claude Code model)",
       }),
     ),
     effort: optional(
-      Schema.String.annotations({
+      Schema.String.annotate({
         identifier: "effort",
         description: "Override the decide effort",
       }),
@@ -127,7 +127,7 @@ const DecideFlags = reject(
 /** `--verdicts <file|->`: a decide-verdicts document, read by the runner from the file named or
  *  from stdin, and decoded before anything runs. */
 const VerdictsStdin = reject(
-  DecideVerdictsFileSchema.annotations({
+  DecideVerdictsFileSchema.annotate({
     identifier: "decide-verdicts",
     description: "Decide from a verdicts file, or - for stdin, without an interactive session",
   }),
@@ -139,7 +139,7 @@ const Commit = Schema.Struct({ hash: Schema.String, subject: Schema.String });
 const VerdictsOutput = Schema.Struct({
   artifact: Schema.String,
   status: Schema.Literal("Draft"),
-  session: Schema.Literal("new", "resumed-authoring"),
+  session: Schema.Literals(["new", "resumed-authoring"]),
   provider: Schema.String,
   model: Schema.String,
   requestedModel: Schema.String,
@@ -164,7 +164,7 @@ const VerdictsOutput = Schema.Struct({
 });
 
 const InteractiveOutput = Schema.Struct({
-  kind: Schema.Literal("nothing", "undecided", "declined", "committed"),
+  kind: Schema.Literals(["nothing", "undecided", "declined", "committed"]),
   path: Schema.String,
   commit: Schema.NullOr(Commit),
   written: Schema.Array(Written),
@@ -172,7 +172,7 @@ const InteractiveOutput = Schema.Struct({
 });
 
 /** What decide answers: the verdicts report, or an interactive session's outcome. */
-const DecideOutput = Schema.Union(VerdictsOutput, InteractiveOutput);
+const DecideOutput = Schema.Union([VerdictsOutput, InteractiveOutput]);
 
 type DecideOutput = typeof DecideOutput.Type;
 type VerdictsOutput = typeof VerdictsOutput.Type;

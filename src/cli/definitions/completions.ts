@@ -42,12 +42,12 @@ export const completionsCommand = defineCommand({
     // A string, not a literal union: a shell that is none of the five is refused by `run` with
     // its own sentence and exit 1, as today.
     args: reject(
-      Schema.Tuple(
-        Schema.String.annotations({
+      Schema.Tuple([
+        Schema.String.annotate({
           identifier: "shell",
           description: "Shell to generate completions for (zsh, bash, fish, nu, powershell)",
         }),
-      ),
+      ]),
     ),
   },
   output: reject(CompletionsOutput),

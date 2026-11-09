@@ -1,7 +1,7 @@
 import { Schema } from "effect";
 import { schemaUrlField } from "./schemaUrl.js";
 
-const RunStateSchema = Schema.Union(
+const RunStateSchema = Schema.Union([
   Schema.Literal("created"),
   Schema.Literal("running"),
   Schema.Literal("failed"),
@@ -12,7 +12,7 @@ const RunStateSchema = Schema.Union(
   Schema.Literal("interrupted"),
   Schema.Literal("rate_limited"),
   Schema.Literal("awaiting_review"),
-);
+]);
 
 export const RegistryEntrySchema = Schema.Struct({
   namespace: Schema.NonEmptyString,
@@ -42,5 +42,7 @@ export const RegistryFileSchema = Schema.Struct({
 
 export type RegistryFile = Schema.Schema.Type<typeof RegistryFileSchema>;
 
-export const decodeRegistryFile = Schema.decodeUnknownResult(RegistryFileSchema);
+export const decodeRegistryFile = Schema.decodeUnknownResult(RegistryFileSchema, {
+  reportInput: true,
+});
 export const encodeRegistryFile = Schema.encodeSync(RegistryFileSchema);

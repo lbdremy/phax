@@ -9,92 +9,92 @@ import { schemaUrlField } from "./schemaUrl.js";
 
 const strictKeys = { parseOptions: { onExcessProperty: "error" } } as const;
 
-const StatusNameSchema = Schema.Literal("Draft", "Approved", "Stale", "Abandoned", "Completed");
+const StatusNameSchema = Schema.Literals(["Draft", "Approved", "Stale", "Abandoned", "Completed"]);
 
 const QuestionIdsSchema = Schema.Array(Schema.NonEmptyString);
 
-const ApprovalSchema = Schema.Union(
+const ApprovalSchema = Schema.Union([
   Schema.Struct({ kind: Schema.Literal("none") }),
-  Schema.Struct({ kind: Schema.Literal("unrecorded") }).annotations({
+  Schema.Struct({ kind: Schema.Literal("unrecorded") }).annotate({
     description:
       "The artifact is approved but no approval record backs it: run `phax artifact approve` to record one.",
   }),
   Schema.Struct({
     kind: Schema.Literal("recorded"),
-    date: Schema.NonEmptyString.annotations({ description: "The approval's date." }),
-    baseline: Schema.NonEmptyString.annotations({
+    date: Schema.NonEmptyString.annotate({ description: "The approval's date." }),
+    baseline: Schema.NonEmptyString.annotate({
       description: "The baseline the approval stamped.",
     }),
-    approver: ApprovedBySchema.annotations({
+    approver: ApprovedBySchema.annotate({
       description: "The arbiter as the approval record stores it.",
     }),
-    editedSinceApproval: Schema.Boolean.annotations({
+    editedSinceApproval: Schema.Boolean.annotate({
       description: "Whether the artifact's text differs from the one the approval recorded.",
     }),
-  }).annotations(strictKeys),
-);
+  }).annotate(strictKeys),
+]);
 
-const AgreementSchema = Schema.Union(
-  Schema.Literal("in-sync", "diverged"),
+const AgreementSchema = Schema.Union([
+  Schema.Literals(["in-sync", "diverged"]),
   Schema.Struct({
     kind: Schema.Literal("invalid"),
     message: Schema.NonEmptyString,
-  }).annotations(strictKeys),
+  }).annotate(strictKeys),
   Schema.Struct({
     kind: Schema.Literal("stamped"),
-    format: Schema.Literal("spec-document", "plan-document"),
-    shape: Schema.NonEmptyString.annotations({
+    format: Schema.Literals(["spec-document", "plan-document"]),
+    shape: Schema.NonEmptyString.annotate({
       description:
         "The shape the sidecar is stamped at: a release, or `pre-schema`. It is below the format's current shape, so it is not compared.",
     }),
-  }).annotations(strictKeys),
-);
+  }).annotate(strictKeys),
+]);
 
-const AuthoringSchema = Schema.Union(
+const AuthoringSchema = Schema.Union([
   Schema.Struct({ kind: Schema.Literal("interactive") }),
   Schema.Struct({
     kind: Schema.Literal("headless"),
-    sidecar: Schema.NonEmptyString.annotations({
+    sidecar: Schema.NonEmptyString.annotate({
       description: "The sidecar's repo-relative path.",
     }),
-    agreement: AgreementSchema.annotations({
+    agreement: AgreementSchema.annotate({
       description: "Whether the artifact's body is still the rendering of its sidecar.",
     }),
-  }).annotations(strictKeys),
-);
+  }).annotate(strictKeys),
+]);
 
-const QuestionsSchema = Schema.Union(
+const QuestionsSchema = Schema.Union([
   Schema.Struct({ kind: Schema.Literal("none") }),
   Schema.Struct({
     kind: Schema.Literal("departs"),
-    line: Schema.Int.pipe(Schema.greaterThanOrEqualTo(1)).annotations({
+    line: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)).annotate({
       description: "The 1-based line of the hand-authored §9 that departs from the format.",
     }),
     text: Schema.String,
-  }).annotations(strictKeys),
+  }).annotate(strictKeys),
   Schema.Struct({
     kind: Schema.Literal("parsed"),
     open: QuestionIdsSchema,
     arbitrated: QuestionIdsSchema,
-    lifted: QuestionIdsSchema.annotations({
+    lifted: QuestionIdsSchema.annotate({
       description: "The arbitrated questions whose verdict was lifted.",
     }),
-  }).annotations(strictKeys),
-);
+  }).annotate(strictKeys),
+]);
 
 /** An `artifact-status` document: the answer of `phax artifact status --json`. */
 export const ArtifactStatusFileSchema = Schema.Struct({
   $schema: schemaUrlField("artifact-status"),
-  path: Schema.NonEmptyString.annotations({ description: "The artifact's repo-relative path." }),
-  kind: Schema.Literal("spec", "plan"),
+  path: Schema.NonEmptyString.annotate({ description: "The artifact's repo-relative path." }),
+  kind: Schema.Literals(["spec", "plan"]),
   status: StatusNameSchema,
-  legalTransitions: Schema.Array(StatusNameSchema).annotations({
+  legalTransitions: Schema.Array(StatusNameSchema).annotate({
     description: "The statuses the artifact may move to, in the order phax lists them.",
   }),
   approval: ApprovalSchema,
   authoring: AuthoringSchema,
   questions: QuestionsSchema,
-}).annotations(strictKeys);
+}).annotate(strictKeys);
 
 export type ArtifactStatusFile = Schema.Schema.Type<typeof ArtifactStatusFileSchema>;
 /** An artifact status without `$schema`. */
@@ -102,6 +102,7 @@ export type ArtifactStatusDocument = Omit<ArtifactStatusFile, "$schema">;
 
 export const decodeArtifactStatusFile = Schema.decodeUnknownResult(ArtifactStatusFileSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });
 
 export const encodeArtifactStatusFile = Schema.encodeSync(ArtifactStatusFileSchema);

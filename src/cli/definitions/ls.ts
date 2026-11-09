@@ -30,8 +30,7 @@ import { configured, exposeMessage, MessageFields, publishedFormat } from "./sha
 
 const isRunState = EffectSchema.is(RunStateSchema);
 
-const flag = (description: string) =>
-  Schema.optionalKey(Schema.Boolean.annotations({ description }));
+const flag = (description: string) => Schema.optionalKey(Schema.Boolean.annotate({ description }));
 
 const LsFlags = Schema.Struct({
   active: flag("Show only active runs (created or running)"),
@@ -311,7 +310,7 @@ export const lsCommand = defineCommand({
     "phax ls --failed --json",
   ],
   input: { flags: reject(LsFlags) },
-  output: reject(RunListFileSchema.annotations(publishedFormat("run-list"))),
+  output: reject(RunListFileSchema.annotate(publishedFormat("run-list"))),
   run: ({ input }) => listRuns(input.flags).pipe(Effect.mapError(exposeMessage)),
   exits: { ConfigValidationError: 1, FsError: 1, RegistryCorruptionError: 1 },
   errors: {

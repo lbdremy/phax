@@ -10,10 +10,10 @@ import { schemaUrlField } from "./schemaUrl.js";
 const strictKeys = { parseOptions: { onExcessProperty: "error" } } as const;
 
 const FindingSchema = Schema.Struct({
-  severity: Schema.Literal("error", "warning").annotations({
+  severity: Schema.Literals(["error", "warning"]).annotate({
     description: "An error makes `phax plans lint` exit 1.",
   }),
-  check: Schema.Literal(
+  check: Schema.Literals([
     "structure",
     "files",
     "commands",
@@ -22,19 +22,19 @@ const FindingSchema = Schema.Struct({
     "acceptance",
     "tests",
     "advisory",
-  ),
-  phase: Schema.NullOr(Schema.String).annotations({
+  ]),
+  phase: Schema.NullOr(Schema.String).annotate({
     description: "The phase id the finding names, or null for a finding about the whole plan.",
   }),
   message: Schema.String,
-}).annotations(strictKeys);
+}).annotate(strictKeys);
 
 /** A `plan-lint` document: the answer of `phax plans lint --json`. */
 export const PlanLintFileSchema = Schema.Struct({
   $schema: schemaUrlField("plan-lint"),
-  plan: Schema.String.annotations({ description: "The plan path as the caller typed it." }),
+  plan: Schema.String.annotate({ description: "The plan path as the caller typed it." }),
   findings: Schema.Array(FindingSchema),
-}).annotations(strictKeys);
+}).annotate(strictKeys);
 
 export type PlanLintFile = Schema.Schema.Type<typeof PlanLintFileSchema>;
 /** A lint report without `$schema`. */
@@ -42,6 +42,7 @@ export type PlanLintDocument = Omit<PlanLintFile, "$schema">;
 
 export const decodePlanLintFile = Schema.decodeUnknownResult(PlanLintFileSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });
 
 export const encodePlanLintFile = Schema.encodeSync(PlanLintFileSchema);

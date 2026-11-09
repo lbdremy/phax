@@ -5,7 +5,7 @@ import { schemaUrlField } from "./schemaUrl.js";
  * The run-level reviews a review entry can carry. `code-review` joins the set
  * with the headless code review; nothing writes it before then.
  */
-export const ReviewRecordKindSchema = Schema.Literal("compliance-review", "code-review");
+export const ReviewRecordKindSchema = Schema.Literals(["compliance-review", "code-review"]);
 
 export type ReviewRecordKind = Schema.Schema.Type<typeof ReviewRecordKindSchema>;
 
@@ -46,7 +46,7 @@ export type ReviewRecordManifestFile = Schema.Schema.Type<typeof ReviewRecordMan
 
 export const decodeReviewRecordManifestFile = Schema.decodeUnknownResult(
   ReviewRecordManifestFileSchema,
-  { onExcessProperty: "error" },
+  { onExcessProperty: "error", reportInput: true },
 );
 
 export const encodeReviewRecordManifest = Schema.encodeSync(ReviewRecordManifestFileSchema);

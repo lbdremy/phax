@@ -1,6 +1,4 @@
-import { Option } from "effect";
-import * as JSONSchema from "effect/JSONSchema";
-import type * as Schema from "effect/Schema";
+import * as Schema from "effect/Schema";
 import * as SchemaAST from "effect/SchemaAST";
 import type { Command, ExitCode, Inputs, Program, Source } from "./command.js";
 import { DIALECT, messageSchemas, type JsonSchema } from "./messages.js";
@@ -59,97 +57,19 @@ const isDictionary = (value: unknown): value is Dictionary =>
 
 const dictionaryOf = (value: unknown): Dictionary => (isDictionary(value) ? value : {});
 
-/** The annotations an object, a tuple or a union keeps on its encoded side: its name and what
- *  its author wrote of it. */
-const NAMING: ReadonlyArray<symbol> = [
-  SchemaAST.IdentifierAnnotationId,
-  SchemaAST.TitleAnnotationId,
-  SchemaAST.DescriptionAnnotationId,
-];
-
-function naming(annotations: SchemaAST.Annotations): SchemaAST.Annotations {
-  const kept: Record<symbol, unknown> = {};
-  for (const key of NAMING) if (key in annotations) kept[key] = annotations[key];
-  return kept;
-}
-
-const isComposite = (ast: SchemaAST.AST): boolean =>
-  SchemaAST.isTypeLiteral(ast) || SchemaAST.isTupleType(ast) || SchemaAST.isUnion(ast);
-
-const named = (ast: SchemaAST.AST): boolean =>
-  Option.isSome(SchemaAST.getIdentifierAnnotation(ast));
-
-/** A contract's encoded side, its objects, tuples and unions keeping their names. Effect 3's
- *  `SchemaAST.encodedAST` drops a node's annotations once one of its members encodes to another
- *  type (a `NumberFromString` field), so a named contract would lose its `$defs` entry; Effect 4's
- *  encoded side keeps it. A transformation's name moves to its encoded side only when that side
- *  is an object, a tuple or a union, so that `NumberFromString` stays a plain string. */
-function encodedNamed(ast: SchemaAST.AST): SchemaAST.AST {
-  if (SchemaAST.isTransformation(ast)) {
-    const from = encodedNamed(ast.from);
-    return isComposite(from) && named(ast) && !named(from)
-      ? SchemaAST.annotations(from, naming(ast.annotations))
-      : from;
-  }
-  if (SchemaAST.isRefinement(ast)) return encodedNamed(ast.from);
-  if (SchemaAST.isTypeLiteral(ast)) {
-    return new SchemaAST.TypeLiteral(
-      ast.propertySignatures.map(
-        (property) =>
-          new SchemaAST.PropertySignature(
-            property.name,
-            encodedNamed(property.type),
-            property.isOptional,
-            property.isReadonly,
-            property.annotations,
-          ),
-      ),
-      ast.indexSignatures.map(
-        (signature) =>
-          new SchemaAST.IndexSignature(
-            SchemaAST.encodedAST(signature.parameter),
-            encodedNamed(signature.type),
-            signature.isReadonly,
-          ),
-      ),
-      naming(ast.annotations),
-    );
-  }
-  if (SchemaAST.isTupleType(ast)) {
-    return new SchemaAST.TupleType(
-      ast.elements.map(
-        (element) =>
-          new SchemaAST.OptionalType(
-            encodedNamed(element.type),
-            element.isOptional,
-            element.annotations,
-          ),
-      ),
-      ast.rest.map((rest) => new SchemaAST.Type(encodedNamed(rest.type), rest.annotations)),
-      ast.isReadonly,
-      naming(ast.annotations),
-    );
-  }
-  if (SchemaAST.isUnion(ast)) {
-    return SchemaAST.Union.make(ast.types.map(encodedNamed), naming(ast.annotations));
-  }
-  return SchemaAST.encodedAST(ast);
-}
-
 /** Effect's JSON Schema 2020-12 of a contract's encoded side, with the shared definitions beside
  *  it: `schema` is the root, `definitions` what its `$ref`s name. A `reject` contract closes its
- *  objects (`additionalProperties: false`), a `strip` one leaves them open. */
+ *  objects (`additionalProperties: false`), a `strip` one leaves them open. Effect 4 keeps an
+ *  object's, a tuple's and a union's names on the encoded side, so a named contract keeps its
+ *  `$defs` entry, and a transformation's field (`NumberFromString`) is its encoded type. */
 function generated(
-  contract: Schema.Schema.Any,
+  contract: Schema.Top,
   undeclared: "reject" | "strip",
 ): { readonly schema: Dictionary; readonly definitions: Dictionary } {
-  const definitions: Record<string, JSONSchema.JsonSchema7> = {};
-  const schema = JSONSchema.fromAST(encodedNamed(contract.ast), {
-    definitions,
-    target: "jsonSchema2020-12",
-    additionalPropertiesStrategy: undeclared === "reject" ? "strict" : "allow",
+  const document = Schema.toJsonSchemaDocument(contract, {
+    onExcessProperty: undeclared === "reject" ? "error" : "ignore",
   });
-  return { schema: dictionaryOf(schema), definitions };
+  return { schema: dictionaryOf(document.schema), definitions: document.definitions };
 }
 
 /** The schema as a document of its own: the dialect first, its definitions last. */
@@ -162,7 +82,7 @@ function standalone(schema: Dictionary, definitions: Dictionary): JsonSchema {
 }
 
 /** A contract's JSON Schema 2020-12, standalone. */
-function schemaOf(contract: Schema.Schema.Any, undeclared: "reject" | "strip"): JsonSchema {
+function schemaOf(contract: Schema.Top, undeclared: "reject" | "strip"): JsonSchema {
   const { schema, definitions } = generated(contract, undeclared);
   return standalone(schema, definitions);
 }
@@ -238,12 +158,12 @@ function inputOf(inputs: Inputs): JsonSchema {
 }
 
 /** A stdin flag as written: `--request`, or `--verdicts <file|->` when its value is required. */
-export function stdinFlagUsage(source: Source<Schema.Schema.Any>): string | null {
+export function stdinFlagUsage(source: Source<Schema.Top>): string | null {
   if (source.flag === undefined) return null;
   return source.valueRequired === true ? `--${source.flag} <file|->` : `--${source.flag}`;
 }
 
-function stdinOf(source: Source<Schema.Schema.Any> | undefined): StdinContract | null {
+function stdinOf(source: Source<Schema.Top> | undefined): StdinContract | null {
   if (source === undefined) return null;
   return {
     flag: stdinFlagUsage(source),
@@ -257,8 +177,8 @@ function stdinOf(source: Source<Schema.Schema.Any> | undefined): StdinContract |
  *  is a reference alone to an absolute URL (`{ $ref: "https://…/run-list/0.34.0.json" }`) is
  *  that reference in the catalogue, the format's published schema standing for the generated
  *  one. */
-function publishedReference(contract: Schema.Schema.Any): JsonSchema | undefined {
-  const annotation = Option.getOrUndefined(SchemaAST.getJSONSchemaAnnotation(contract.ast));
+function publishedReference(contract: Schema.Top): JsonSchema | undefined {
+  const annotation = SchemaAST.resolveAt<unknown>("jsonSchema")(contract.ast);
   if (!isDictionary(annotation)) return undefined;
   const reference = annotation["$ref"];
   return Object.keys(annotation).length === 1 &&
@@ -268,7 +188,7 @@ function publishedReference(contract: Schema.Schema.Any): JsonSchema | undefined
     : undefined;
 }
 
-function outputOf(output: Source<Schema.Schema.Any> | undefined): JsonSchema | null {
+function outputOf(output: Source<Schema.Top> | undefined): JsonSchema | null {
   if (output === undefined) return null;
   return publishedReference(output.contract) ?? schemaOf(output.contract, output.undeclared);
 }
@@ -276,9 +196,9 @@ function outputOf(output: Source<Schema.Schema.Any> | undefined): JsonSchema | n
 /** One command's contracts. */
 function commandEntry(command: Command<unknown>): CommandContract {
   const inputs: Inputs = command.input;
-  const output: Source<Schema.Schema.Any> | undefined = command.output;
+  const output: Source<Schema.Top> | undefined = command.output;
   const exits: Readonly<Record<string, ExitCode>> = command.exits;
-  const declared: Readonly<Record<string, Schema.Schema.Any | undefined>> = command.errors ?? {};
+  const declared: Readonly<Record<string, Schema.Top | undefined>> = command.errors ?? {};
   const verdicts = Object.keys(command.verdicts ?? {})
     .map(Number)
     .toSorted((a, b) => a - b);

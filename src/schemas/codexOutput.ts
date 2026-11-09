@@ -41,8 +41,12 @@ export type CodexItemCompletedAgentMessageEvent = Schema.Schema.Type<
   typeof CodexItemCompletedAgentMessageEventSchema
 >;
 
-const decodeThreadStarted = Schema.decodeUnknownResult(CodexThreadStartedEventSchema);
-const decodeItemCompleted = Schema.decodeUnknownResult(CodexItemCompletedAgentMessageEventSchema);
+const decodeThreadStarted = Schema.decodeUnknownResult(CodexThreadStartedEventSchema, {
+  reportInput: true,
+});
+const decodeItemCompleted = Schema.decodeUnknownResult(CodexItemCompletedAgentMessageEventSchema, {
+  reportInput: true,
+});
 
 function parseLine(line: string): unknown | undefined {
   if (!line.trim()) return undefined;
@@ -75,9 +79,14 @@ const CodexErrorEventSchema = Schema.Struct({
 
 export const decodeCodexTurnCompletedEvent = Schema.decodeUnknownResult(
   CodexTurnCompletedEventSchema,
+  { reportInput: true },
 );
-export const decodeCodexTurnFailedEvent = Schema.decodeUnknownResult(CodexTurnFailedEventSchema);
-export const decodeCodexErrorEvent = Schema.decodeUnknownResult(CodexErrorEventSchema);
+export const decodeCodexTurnFailedEvent = Schema.decodeUnknownResult(CodexTurnFailedEventSchema, {
+  reportInput: true,
+});
+export const decodeCodexErrorEvent = Schema.decodeUnknownResult(CodexErrorEventSchema, {
+  reportInput: true,
+});
 
 /** How the turn ended: the last `turn.completed` or `turn.failed` event. */
 type CodexTurnEnd =

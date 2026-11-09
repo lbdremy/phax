@@ -55,10 +55,10 @@ const RefusedGateReportFileSchema = Schema.Struct({
  * A `gate-report` document: `$schema`, then exactly the keys of one outcome.
  * Any other key is refused, at any level.
  */
-export const GateReportFileSchema = Schema.Union(
+export const GateReportFileSchema = Schema.Union([
   CheckedGateReportFileSchema,
   RefusedGateReportFileSchema,
-);
+]);
 
 export type GateReportFile = Schema.Schema.Type<typeof GateReportFileSchema>;
 
@@ -69,4 +69,5 @@ export type GateReport = WithoutSchema<GateReportFile>;
 
 export const decodeGateReportFile = Schema.decodeUnknownResult(GateReportFileSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });

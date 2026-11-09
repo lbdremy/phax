@@ -1,4 +1,4 @@
-import { Result, JSONSchema, type ParseResult } from "effect";
+import { Result, type Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import { FORMAT_DEFINITIONS } from "../../../packages/schemas/build/jsonSchemas.js";
 import { CURRENT_SHAPES, PACKAGE_VERSION } from "../../../packages/schemas/src/generated/index.js";
@@ -54,8 +54,9 @@ import {
   EXAMPLE_TEST_LINES,
   type Doc,
 } from "./documents.js";
+import { draft07JsonSchema } from "../../../src/schemas/schemaUrl.js";
 
-type Decode = (input: unknown) => Result.Result<unknown, ParseResult.ParseError>;
+type Decode = (input: unknown) => Result.Result<unknown, Schema.SchemaError>;
 
 interface RepositoryFormat {
   readonly id: PreSchemaFormatId;
@@ -597,7 +598,7 @@ describe("the spec document's traceability", () => {
   });
 
   it("declares the checks JSON Schema cannot express, in the root description", () => {
-    const file = JSONSchema.make(SpecDocumentFileSchema) as { description?: string };
+    const file = draft07JsonSchema(SpecDocumentFileSchema) as { description?: string };
     expect(file.description).toContain("`refs` entry names an existing requirement");
   });
 });

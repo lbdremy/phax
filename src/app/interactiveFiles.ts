@@ -377,7 +377,9 @@ export function readModelResolution(
       return yield* Effect.fail(new FsError({ message: `${path}: not found` }));
     }
     const parsed = yield* parseJson(path, yield* fs.readText(path));
-    const decoded = Schema.decodeUnknownResult(ModelResolutionSelectionSchema)(parsed);
+    const decoded = Schema.decodeUnknownResult(ModelResolutionSelectionSchema, {
+      reportInput: true,
+    })(parsed);
     if (Result.isFailure(decoded)) {
       return yield* Effect.fail(
         new FsError({ message: `${path}: ${formatParseError(decoded.left)}` }),

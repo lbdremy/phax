@@ -56,7 +56,7 @@ const ValidateOutput = Schema.Struct({
 
 const ValidateFlags = Schema.Struct({
   plan: Schema.optionalKey(
-    Schema.String.annotations({
+    Schema.String.annotate({
       identifier: "path",
       description: "Also validate a phax-plan.json at this path",
     }),

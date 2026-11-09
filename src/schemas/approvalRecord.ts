@@ -10,14 +10,14 @@ const SourceSpecBindingSchema = Schema.Struct({
 export const ApprovalRecordSchema = Schema.Struct({
   planFingerprint: Schema.NonEmptyString,
   approvedAt: Schema.NonEmptyString,
-  baseline: Schema.NonEmptyString.pipe(Schema.pattern(/^[0-9a-f]{40}$/)),
+  baseline: Schema.NonEmptyString.check(Schema.isPattern(/^[0-9a-f]{40}$/)),
   sourceSpec: Schema.NullOr(SourceSpecBindingSchema),
 });
 
 export type ApprovalRecord = Schema.Schema.Type<typeof ApprovalRecordSchema>;
 
 const planApprovalsFields = {
-  records: Schema.Record({ key: Schema.String, value: ApprovalRecordSchema }),
+  records: Schema.Record(Schema.String, ApprovalRecordSchema),
 };
 
 /**
@@ -40,6 +40,7 @@ export type ApprovalRecordFile = Schema.Schema.Type<typeof ApprovalRecordFileSch
 
 export const decodeApprovalRecordFile = Schema.decodeUnknownResult(ApprovalRecordFileSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });
 
 export const encodeApprovalRecordFile = Schema.encodeSync(ApprovalRecordFileSchema);
@@ -74,6 +75,7 @@ export type PlanRecordFile = Schema.Schema.Type<typeof PlanRecordFileSchema>;
 
 export const decodePlanRecordFile = Schema.decodeUnknownResult(PlanRecordFileSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });
 
 export const encodePlanRecordFile = Schema.encodeSync(PlanRecordFileSchema);

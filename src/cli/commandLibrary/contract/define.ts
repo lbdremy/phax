@@ -54,7 +54,7 @@ export interface Binding<
 }
 
 function source<
-  S extends Schema.Schema.Any,
+  S extends Schema.Top,
   U extends Undeclared,
   F extends string | undefined,
   Q extends boolean,
@@ -81,7 +81,7 @@ function source<
 
 /** An argument, an option or a key the contract does not declare fails the decode. */
 export function reject<
-  S extends Schema.Schema.Any,
+  S extends Schema.Top,
   const F extends string | undefined = undefined,
   const Q extends boolean = false,
 >(contract: S, binding?: Binding<F, Q>): Source<S, "reject", F, Q> {
@@ -90,7 +90,7 @@ export function reject<
 
 /** What the contract does not declare is dropped. */
 export function strip<
-  S extends Schema.Schema.Any,
+  S extends Schema.Top,
   const F extends string | undefined = undefined,
   const Q extends boolean = false,
 >(contract: S, binding?: Binding<F, Q>): Source<S, "strip", F, Q> {
@@ -107,7 +107,7 @@ export function defineCommand<
   const I extends Inputs,
   A,
   E extends Tagged = never,
-  O extends Source<Schema.Schema.Any> | undefined = undefined,
+  O extends Source<Schema.Top> | undefined = undefined,
   R = never,
 >(definition: CommandDef<I, A, E, O, R> & OutputRequired<O, A>): Command<R> {
   return definition;
@@ -209,6 +209,6 @@ export function document(
  *  say the rest. */
 export const DocumentOutput: Schema.Struct<{
   readonly $schema: typeof Schema.String;
-}> = Schema.Struct({ $schema: Schema.String }).annotations({
+}> = Schema.Struct({ $schema: Schema.String }).annotate({
   description: "A document of the format its $schema names.",
 });

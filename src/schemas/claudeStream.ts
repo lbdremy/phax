@@ -5,9 +5,11 @@
 // JSON, or no event this module reads, is skipped, as `scanClaudeOutcomeEvents`
 // skips one. A missing token count is 0. The cost ledger's domain receives only
 // these facts, never raw lines.
-import { Result, Schema } from "effect";
+import { Effect, Result, Schema } from "effect";
 
-const Tokens = Schema.optionalWith(Schema.NonNegativeInt, { default: () => 0 });
+const Tokens = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)).pipe(
+  Schema.withDecodingDefaultType(Effect.succeed(0)),
+);
 
 const InitEventSchema = Schema.Struct({
   type: Schema.Literal("system"),
@@ -35,7 +37,7 @@ const AssistantEventSchema = Schema.Struct({
 // Epoch seconds a Date can hold.
 const WindowSchema = Schema.Struct({
   utilization: Schema.Finite,
-  resetsAt: Schema.Int.pipe(Schema.between(0, 8_640_000_000_000)),
+  resetsAt: Schema.Int.check(Schema.isBetween({ minimum: 0, maximum: 8_640_000_000_000 })),
 });
 
 const RateLimitEventSchema = Schema.Struct({
@@ -53,23 +55,31 @@ const RateLimitEventSchema = Schema.Struct({
 const ResultEventSchema = Schema.Struct({
   type: Schema.Literal("result"),
   session_id: Schema.optional(Schema.String),
-  duration_ms: Schema.optionalWith(Schema.NonNegative, { default: () => 0 }),
-  modelUsage: Schema.Record({
-    key: Schema.NonEmptyString,
-    value: Schema.Struct({
+  duration_ms: Schema.Number.check(Schema.isGreaterThanOrEqualTo(0)).pipe(
+    Schema.withDecodingDefaultType(Effect.succeed(0)),
+  ),
+  modelUsage: Schema.Record(
+    Schema.NonEmptyString,
+    Schema.Struct({
       inputTokens: Tokens,
       outputTokens: Tokens,
       cacheReadInputTokens: Tokens,
       cacheCreationInputTokens: Tokens,
-      costUSD: Schema.optionalWith(Schema.NonNegative, { default: () => 0 }),
+      costUSD: Schema.Number.check(Schema.isGreaterThanOrEqualTo(0)).pipe(
+        Schema.withDecodingDefaultType(Effect.succeed(0)),
+      ),
     }),
-  }),
+  ),
 });
 
-const decodeInitEvent = Schema.decodeUnknownResult(InitEventSchema);
-const decodeAssistantEvent = Schema.decodeUnknownResult(AssistantEventSchema);
-const decodeRateLimitEvent = Schema.decodeUnknownResult(RateLimitEventSchema);
-const decodeResultEvent = Schema.decodeUnknownResult(ResultEventSchema);
+const decodeInitEvent = Schema.decodeUnknownResult(InitEventSchema, { reportInput: true });
+const decodeAssistantEvent = Schema.decodeUnknownResult(AssistantEventSchema, {
+  reportInput: true,
+});
+const decodeRateLimitEvent = Schema.decodeUnknownResult(RateLimitEventSchema, {
+  reportInput: true,
+});
+const decodeResultEvent = Schema.decodeUnknownResult(ResultEventSchema, { reportInput: true });
 
 /** One assistant message's usage; `cacheWrite1hTokens` is part of `cacheWriteTokens`. */
 export interface StreamMessageUsage {

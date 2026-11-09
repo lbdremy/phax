@@ -15,6 +15,7 @@ import {
 
 const decodeExtracted = Schema.decodeUnknownResult(ExtractedPhaxPlanSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });
 
 const PHASE_HEADING_RE = /^(phase-\d{2})\b/i;
@@ -315,7 +316,7 @@ function collectPreamble(root: Root): RootContent[] {
   return preamble;
 }
 
-const EffortSchema = Schema.Literal(
+const EffortSchema = Schema.Literals([
   "none",
   "off",
   "low",
@@ -325,8 +326,8 @@ const EffortSchema = Schema.Literal(
   "max",
   "ultracode",
   "ultra",
-);
-const decodeEffort = Schema.decodeUnknownResult(EffortSchema);
+]);
+const decodeEffort = Schema.decodeUnknownResult(EffortSchema, { reportInput: true });
 
 /**
  * A structural defect found while walking a plan.md. `phase` is the

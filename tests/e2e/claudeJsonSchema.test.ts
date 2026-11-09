@@ -92,8 +92,8 @@ const askFor = (answer: unknown): string =>
 function expectDecodes(format: AnswerFormatId, structured: { readonly value: unknown } | null) {
   expect(structured, "the result carries structured_output").not.toBeNull();
   const decoded = Schema.decodeUnknownResult(
-    ANSWER_FORMATS[format].schema as Schema.Schema<unknown, unknown>,
-    { onExcessProperty: "error" },
+    ANSWER_FORMATS[format].schema as Schema.Codec<unknown, unknown>,
+    { onExcessProperty: "error", reportInput: true },
   )(structured?.value);
   expect(Result.isSuccess(decoded) ? "" : String(decoded.left)).toBe("");
 }

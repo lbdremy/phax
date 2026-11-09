@@ -214,7 +214,7 @@ const withTarget = (
   lines: ReadonlyArray<string>,
 ): string => (value.crossProject ? [`Target: ${value.qualifiedName}`, ...lines] : lines).join("\n");
 
-const nullable = <S extends Schema.Schema.Any>(schema: S) => Schema.NullOr(schema);
+const nullable = <S extends Schema.Top>(schema: S) => Schema.NullOr(schema);
 
 // ── review-handoff ──────────────────────────────────────────────────────────────
 
@@ -230,11 +230,11 @@ export function makeReviewHandoffCommand() {
     name: "review-handoff",
     summary: "Regenerate review-handoff.md and global file reconciliation for a review_open run",
     input: {
-      args: reject(Schema.Tuple(ShortNameArg)),
+      args: reject(Schema.Tuple([ShortNameArg])),
       flags: reject(
         Schema.Struct({
           allowPartial: Schema.optionalKey(
-            Schema.Boolean.annotations({
+            Schema.Boolean.annotate({
               description: "Generate a partial document when some phase artifacts are missing",
             }),
           ),
@@ -346,7 +346,7 @@ export function makeReviewComplianceCommand(deps: ReviewDeps = {}) {
     summary: "Run a plan-compliance review for a review_open run and record its result",
     help: REVIEW_COMPLIANCE_HELP,
     examples: ["phax review-compliance usage-cli"],
-    input: { args: reject(Schema.Tuple(ShortNameArg)) },
+    input: { args: reject(Schema.Tuple([ShortNameArg])) },
     output: reject(ReviewComplianceOutput),
     run: ({ input, program, say, progress }) =>
       Effect.gen(function* () {
@@ -519,34 +519,34 @@ const HandedOverOutput = Schema.Struct({
   exit: Schema.Number,
 });
 
-const ReviewCodeOutput = Schema.Union(HeadlessOutput, HandedOverOutput);
+const ReviewCodeOutput = Schema.Union([HeadlessOutput, HandedOverOutput]);
 type ReviewCodeOutput = typeof ReviewCodeOutput.Type;
 
-const optional = <S extends Schema.Schema.Any>(schema: S) => Schema.optionalKey(schema);
+const optional = <S extends Schema.Top>(schema: S) => Schema.optionalKey(schema);
 
 const ReviewCodeFlags = reject(
   Schema.Struct({
     newSession: optional(
-      Schema.Boolean.annotations({
+      Schema.Boolean.annotate({
         description: "Start a fresh review session instead of resuming the existing one",
       }),
     ),
     model: optional(
-      Schema.String.annotations({
+      Schema.String.annotate({
         identifier: "model",
         description:
           "Override the model, including on resume (default: review.code.model, else claude-opus-5-5)",
       }),
     ),
     effort: optional(
-      Schema.String.annotations({
+      Schema.String.annotate({
         identifier: "effort",
         description:
           "Override the effort (low | medium | high), including on resume (default: review.code.effort, else high)",
       }),
     ),
     headless: optional(
-      Schema.Boolean.annotations({
+      Schema.Boolean.annotate({
         description:
           "Run the code review without a person: write code-review.json and record the session for review-code to resume; runs whether or not review.code.enabled is set",
       }),
@@ -735,7 +735,7 @@ export function makeReviewCodeCommand(deps: ReviewDeps = {}) {
       "Open an interactive, pre-prompted code-review session for a review_open run, or run the review headless with --headless",
     help: REVIEW_CODE_HELP,
     examples: ["phax review-code usage-cli", "phax review-code usage-cli --headless"],
-    input: { args: reject(Schema.Tuple(ShortNameArg)), flags: ReviewCodeFlags },
+    input: { args: reject(Schema.Tuple([ShortNameArg])), flags: ReviewCodeFlags },
     output: reject(ReviewCodeOutput),
     // The interactive review hands the terminal to a session; the headless one never waits.
     prompts: (input) => input.flags.headless !== true,

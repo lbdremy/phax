@@ -11,7 +11,7 @@
 // module: its fixtures record the verdicts of the answer it replaces. The
 // stricter parts — the `$schema` const, the unknown `version` — are covered in
 // their own tests.
-import { Result, ParseResult } from "effect";
+import { Result, SchemaIssue, type Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import { decodeCodeReviewFile } from "../../../src/schemas/codeReview.js";
 import { decodeComplianceReviewFile } from "../../../src/schemas/complianceReview.js";
@@ -43,12 +43,12 @@ import {
 } from "../../../src/schemas/specDocument.js";
 import { validDocuments, withOracleKey } from "../schemasPackage/documents.js";
 
-type Decode = (input: unknown) => Result.Result<unknown, ParseResult.ParseError>;
+type Decode = (input: unknown) => Result.Result<unknown, Schema.SchemaError>;
 type Body = Readonly<Record<string, unknown>>;
 
 /** The path of a decode's first violation, `findings[0].lens` style. */
-function firstPath(error: ParseResult.ParseError): string {
-  const [first] = ParseResult.ArrayFormatter.formatErrorSync(error);
+function firstPath(error: Schema.SchemaError): string {
+  const [first] = SchemaIssue.makeFormatterStandardSchemaV1()(error.issue).issues;
   return (first?.path ?? [])
     .map((segment, i) =>
       typeof segment === "number" ? `[${segment}]` : `${i === 0 ? "" : "."}${String(segment)}`,

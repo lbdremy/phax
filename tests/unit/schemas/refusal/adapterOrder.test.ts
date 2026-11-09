@@ -1,4 +1,4 @@
-import { Effect, Result, ParseResult, Schema } from "effect";
+import { Effect, Result, Schema, SchemaGetter, SchemaIssue } from "effect";
 import { describe, expect, it } from "vitest";
 import { decodeCodeReviewV0_29_0 } from "../../../../src/schemas/history/code-review/0.29.0.js";
 import { decodeRunStatusV0_26_0 } from "../../../../src/schemas/history/run-status/0.26.0.js";
@@ -17,7 +17,7 @@ type Exception =
   | { readonly collapse: RefusalPath; readonly into: Pick<Refusal, "kind"> & { expected: string } }
   | { readonly drop: RefusalPath };
 
-function refused(result: Result.Result<unknown, ParseResult.ParseError>): ParseResult.ParseError {
+function refused(result: Result.Result<unknown, Schema.SchemaError>): Schema.SchemaError {
   if (Result.isSuccess(result)) throw new Error("expected a refusal");
   return result.left;
 }
@@ -41,8 +41,11 @@ function expectedPaths(
   return kept;
 }
 
-function checkOrder(error: ParseResult.ParseError, exceptions: ReadonlyArray<Exception>): void {
-  const formatted = ParseResult.ArrayFormatter.formatErrorSync(error).map(({ path }) => path);
+function checkOrder(error: Schema.SchemaError, exceptions: ReadonlyArray<Exception>): void {
+  // A Standard Schema path segment may be an object holding its key.
+  const formatted = SchemaIssue.makeFormatterStandardSchemaV1()(error.issue).issues.map(
+    ({ path = [] }) => path.map((segment) => (typeof segment === "object" ? segment.key : segment)),
+  );
   const refusals = refusalsOf(error);
   expect(refusals.map(({ path }) => path)).toEqual(expectedPaths(formatted, exceptions));
   for (const exception of exceptions) {
@@ -111,7 +114,11 @@ const typicalPlanDocument = {
 describe("refusalsOf on phax's real decoders", () => {
   it("decodes the typical plan document the cases below mutate", () => {
     expect(
-      Result.isSuccess(Schema.decodeUnknownResult(PlanDocumentFileSchema)(typicalPlanDocument)),
+      Result.isSuccess(
+        Schema.decodeUnknownResult(PlanDocumentFileSchema, { reportInput: true })(
+          typicalPlanDocument,
+        ),
+      ),
     ).toBe(true);
   });
 
@@ -160,6 +167,7 @@ describe("refusalsOf on phax's real decoders", () => {
       Schema.decodeUnknownResult(PlanDocumentFileSchema, {
         errors: "all",
         onExcessProperty: "error",
+        reportInput: true,
       })({
         ...typicalPlanDocument,
         kind: "spec",
@@ -224,13 +232,14 @@ describe("refusalsOf on phax's real decoders", () => {
 
 describe("refusalsOf on a Forbidden issue", () => {
   it("gives an invalid-value refusal, never a crash", () => {
-    const Async = Schema.transformOrFail(Schema.String, Schema.String, {
-      strict: true,
-      decode: (s) => Effect.as(Effect.sleep("1 millis"), s),
-      encode: ParseResult.succeed,
-    });
-    const error = refused(Schema.decodeUnknownResult(Async)("x"));
-    expect(error.issue).toBeInstanceOf(ParseResult.Forbidden);
+    const Async = Schema.String.pipe(
+      Schema.decodeTo(Schema.String, {
+        decode: SchemaGetter.transformEffect((s: string) => Effect.as(Effect.sleep("1 millis"), s)),
+        encode: SchemaGetter.passthrough(),
+      }),
+    );
+    const error = refused(Schema.decodeUnknownResult(Async, { reportInput: true })("x"));
+    expect(error.issue).toBeInstanceOf(SchemaIssue.Forbidden);
     expect(refusalsOf(error)).toEqual([
       {
         kind: "invalid-value",

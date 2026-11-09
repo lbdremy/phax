@@ -14,7 +14,7 @@ import { exposeMessage, MessageFields } from "./shared.js";
 const SecurityStatusOutput = Schema.Struct({
   providers: Schema.Array(
     Schema.Struct({
-      provider: Schema.Literal("claude-code", "codex-cli", "mistral-vibe"),
+      provider: Schema.Literals(["claude-code", "codex-cli", "mistral-vibe"]),
       available: Schema.Boolean,
       filesystemJail: Schema.String,
       mcpAllowlist: Schema.String,

@@ -48,7 +48,7 @@ export interface AdjustPlanDeps {
 const ADJUST_PLAN_HELP =
   "Opens an interactive, pre-prompted session to help you adjust a plan.md after a landed run has introduced drift. The session establishes which of the plan's declared files, line references, and decisions are invalidated by the landed run's actual changes, asks clarifying questions where needed, proposes concrete edits and waits for your explicit approval, and only then edits and commits the plan — all interactively within the session. The command itself mutates nothing.\n\nInput: the path to the plan.md to adjust and --landed <run> (the run whose actual changes drive the adjustment). The landed run must have a global-file-reconciliation.json (i.e. it must have reached review); a run in awaiting_review is refused until it lands. Re-invocation without --new-session resumes the same session; --new-session starts a fresh one.\n\nSide effects: spawns a long-lived interactive provider session (network I/O); the session may, after developer approval, edit and commit the plan.md.";
 
-const optional = <S extends Schema.Schema.Any>(schema: S) => Schema.optionalKey(schema);
+const optional = <S extends Schema.Top>(schema: S) => Schema.optionalKey(schema);
 
 export function makeAdjustPlanCommand(deps: AdjustPlanDeps = {}) {
   return defineCommand({
@@ -58,32 +58,32 @@ export function makeAdjustPlanCommand(deps: AdjustPlanDeps = {}) {
     examples: ["phax adjust-plan docs/plans/2609101030-plan-prune-plan.md --landed my-feature"],
     input: {
       args: reject(
-        Schema.Tuple(
-          Schema.String.annotations({
+        Schema.Tuple([
+          Schema.String.annotate({
             identifier: "plan",
             description: "Path to the plan.md to adjust",
           }),
-        ),
+        ]),
       ),
       flags: reject(
         Schema.Struct({
-          landed: Schema.String.annotations({
+          landed: Schema.String.annotate({
             identifier: "run",
             description: "The landed run whose actual changes drive the adjustment",
           }),
           newSession: optional(
-            Schema.Boolean.annotations({
+            Schema.Boolean.annotate({
               description: "Start a fresh adjustment session instead of resuming",
             }),
           ),
           model: optional(
-            Schema.String.annotations({
+            Schema.String.annotate({
               identifier: "model",
               description: "Override the model (default: claude-opus-5-5)",
             }),
           ),
           effort: optional(
-            Schema.String.annotations({
+            Schema.String.annotate({
               identifier: "effort",
               description: "Override the effort (low | medium | high)",
             }),

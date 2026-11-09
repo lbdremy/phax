@@ -40,7 +40,9 @@ export function askRecordsAnswers(input: {
           "Records remote (this repo is public, so records with transcripts cannot be stored in it)",
         required: true,
         validate: (value) => {
-          const decoded = Schema.decodeUnknownResult(RecordsRemoteSchema)(value);
+          const decoded = Schema.decodeUnknownResult(RecordsRemoteSchema, { reportInput: true })(
+            value,
+          );
           return Result.isFailure(decoded)
             ? "Must be an https://, ssh://, or git@host:path URL"
             : undefined;

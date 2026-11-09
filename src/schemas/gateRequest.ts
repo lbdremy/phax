@@ -2,11 +2,11 @@ import { Schema } from "effect";
 import { schemaUrlField } from "./schemaUrl.js";
 import { FullCommitShaSchema } from "./status.js";
 
-const PhaseIdSchema = Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/));
+const PhaseIdSchema = Schema.String.check(Schema.isPattern(/^phase-\d{2}$/));
 
 const GateRequestPhaseSchema = Schema.Struct({
-  id: PhaseIdSchema.annotations({ description: "The phase's id." }),
-  files: Schema.Array(Schema.String).annotations({
+  id: PhaseIdSchema.annotate({ description: "The phase's id." }),
+  files: Schema.Array(Schema.String).annotate({
     description:
       "The phase's planned files to create and to edit, deduplicated in plan order; optional files are excluded.",
   }),
@@ -17,14 +17,14 @@ const GateRequestPhaseSchema = Schema.Struct({
  * inside a phase spreads exactly these field schemas.
  */
 export const gateRequestFields = {
-  phase: PhaseIdSchema.annotations({ description: "The gated phase." }),
-  base: FullCommitShaSchema.annotations({
+  phase: PhaseIdSchema.annotate({ description: "The gated phase." }),
+  base: FullCommitShaSchema.annotate({
     description: "The full object name of the commit the gated phase's branch was created from.",
   }),
-  terminal: Schema.Boolean.annotations({
+  terminal: Schema.Boolean.annotate({
     description: "True exactly when the gated phase is the run's terminal phase.",
   }),
-  phases: Schema.Array(GateRequestPhaseSchema).annotations({
+  phases: Schema.Array(GateRequestPhaseSchema).annotate({
     description: "Every phase of the run, in execution order, with its planned files.",
   }),
 };
@@ -46,6 +46,7 @@ export type GateRequestFile = Schema.Schema.Type<typeof GateRequestFileSchema>;
 
 export const decodeGateRequestFile = Schema.decodeUnknownResult(GateRequestFileSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });
 
 export const encodeGateRequestFile = Schema.encodeSync(GateRequestFileSchema);

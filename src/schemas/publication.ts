@@ -1,18 +1,18 @@
 import { Schema } from "effect";
 import type { PublicationRecord } from "../domain/publish/types.js";
 
-const PushStatusSchema = Schema.Union(
+const PushStatusSchema = Schema.Union([
   Schema.Literal("not_attempted"),
   Schema.Literal("pushed"),
   Schema.Literal("failed"),
-);
+]);
 
-const PrStatusSchema = Schema.Union(
+const PrStatusSchema = Schema.Union([
   Schema.Literal("not_attempted"),
   Schema.Literal("created"),
   Schema.Literal("exists"),
   Schema.Literal("failed"),
-);
+]);
 
 export const PublicationSchema = Schema.Struct({
   version: Schema.Literal(1),
@@ -36,5 +36,7 @@ type AssertPublicationRecord = Publication extends PublicationRecord ? true : ne
 const assertPublicationRecord: AssertPublicationRecord = true as const;
 void assertPublicationRecord;
 
-export const decodePublication = Schema.decodeUnknownResult(PublicationSchema);
+export const decodePublication = Schema.decodeUnknownResult(PublicationSchema, {
+  reportInput: true,
+});
 export const encodePublication = Schema.encodeSync(PublicationSchema);

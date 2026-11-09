@@ -50,7 +50,7 @@ export function makePublishPrCommand(deps: PublishPrDeps = {}) {
     summary: "Push the final branch and create (or reuse) a GitHub PR for a review_open run",
     help: PUBLISH_PR_HELP,
     examples: ["phax publish-pr usage-cli"],
-    input: { args: reject(Schema.Tuple(ShortNameArg)) },
+    input: { args: reject(Schema.Tuple([ShortNameArg])) },
     output: reject(PublishPrOutput),
     run: ({ input, program, say, progress }) =>
       Effect.gen(function* () {

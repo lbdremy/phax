@@ -109,7 +109,7 @@ const Branches = Schema.Array(
   Schema.Struct({ branch: Schema.String, unpreservedCommits: Schema.Number }),
 );
 
-const Kept = Schema.Union(
+const Kept = Schema.Union([
   Schema.Struct({ reason: Schema.Literal("unpreserved-commits"), branches: Branches }),
   Schema.Struct({
     reason: Schema.Literal("branch-checked-out"),
@@ -120,7 +120,7 @@ const Kept = Schema.Union(
     part: Schema.String,
     message: Schema.String,
   }),
-);
+]);
 
 /** Today's document, key for key. */
 const PruneOutput = Schema.Struct({
@@ -257,7 +257,7 @@ function makePruneCommand(layers: PruneLayers) {
     input: {
       args: reject(
         Schema.Array(
-          Schema.String.annotations({
+          Schema.String.annotate({
             identifier: "short-name",
             description: "Archived run short name, e.g. old-idea",
           }),
@@ -266,20 +266,20 @@ function makePruneCommand(layers: PruneLayers) {
       flags: reject(
         Schema.Struct({
           all: Schema.optionalKey(
-            Schema.Boolean.annotations({
+            Schema.Boolean.annotate({
               description: "Prune every archived run of the current namespace",
             }),
           ),
           force: Schema.optionalKey(
-            Schema.Boolean.annotations({
+            Schema.Boolean.annotate({
               description:
                 "Also prune runs whose branches hold unpreserved commits (discards those commits)",
             }),
           ),
           dryRun: Schema.optionalKey(
-            Schema.Boolean.annotations({ description: "Print the preview and delete nothing" }),
+            Schema.Boolean.annotate({ description: "Print the preview and delete nothing" }),
           ),
-          yes: Schema.optionalKey(Schema.Boolean).annotations({
+          yes: Schema.optionalKey(Schema.Boolean).annotateKey({
             description: "Proceed without confirmation (required without a TTY)",
             [AliasAnnotationId]: "y",
           }),
