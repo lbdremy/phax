@@ -102,7 +102,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "  state.root: Expected string, actual 7\n  state: Expected undefined, actual {\"root\":7}"
+        "refusal": "  state.root: Expected string, actual 7"
       }
     },
     {
@@ -114,7 +114,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "  state.root: Expected a non empty string, actual \"\"\n  state: Expected undefined, actual {\"root\":\"\"}"
+        "refusal": "  state.root: Expected a string at least 1 character(s) long, actual \"\""
       }
     },
     {
@@ -128,7 +128,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "  security.network.profile: Expected \"provider-only\", actual \"closed\"\n  security.network.profile: Expected \"dev-allowlist\", actual \"closed\"\n  security.network.profile: Expected \"open\", actual \"closed\"\n  security.network.profile: Expected undefined, actual \"closed\"\n  security.network: Expected undefined, actual {\"profile\":\"closed\"}\n  security: Expected undefined, actual {\"network\":{\"profile\":\"closed\"}}"
+        "refusal": "  security.network.profile: Expected one of \"provider-only\" | \"dev-allowlist\" | \"open\" | undefined, actual \"closed\""
       }
     },
     {
@@ -140,7 +140,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "  agent.maxFixAttempts: Expected a number between 1 and 10, actual 0\n  agent.maxFixAttempts: Expected undefined, actual 0\n  agent: Expected undefined, actual {\"maxFixAttempts\":0}"
+        "refusal": "  agent.maxFixAttempts: Expected a number between 1 and 10, actual 0"
       }
     },
     {
@@ -154,7 +154,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "  review.compliance.enabled: is missing\n  review.compliance: Expected undefined, actual {\"model\":\"claude-sonnet-5-5\"}\n  review: Expected undefined, actual {\"compliance\":{\"model\":\"claude-sonnet-5-5\"}}"
+        "refusal": "  review.compliance.enabled: is missing"
       }
     },
     {
@@ -185,7 +185,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "  gate step \"pnpm lint\": output must be \"log\" or \"gate-report\"\n  gateProfiles: Expected undefined, actual {\"quick\":[{\"command\":\"pnpm lint\",\"surface\":\"local\",\"firing\":\"every-phase\",\"output\":\"json\"}]}"
+        "refusal": "  gate step \"pnpm lint\": output must be \"log\" or \"gate-report\""
       }
     },
     {

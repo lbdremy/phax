@@ -212,7 +212,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "$schema: Expected The phax-plan-extraction format's shape, exactly: https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json, actual \"https://docs.phax.run/schemas/code-review/0.33.0.json\""
+        "refusal": "$schema: Expected \"https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json\", actual \"https://docs.phax.run/schemas/code-review/0.33.0.json\""
       }
     },
     {
@@ -331,7 +331,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "incomplete: Expected string, actual 3"
+        "refusal": "incomplete: Expected one of string | null, actual 3"
       }
     },
     {
@@ -390,7 +390,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "plan.phases[0].effort: Expected \"none\", actual \"huge\""
+        "refusal": "plan.phases[0].effort: Expected \"none\" | \"off\" | \"low\" | \"medium\" | \"high\" | \"xhigh\" | \"max\" | \"ultracode\" | \"ultra\", actual \"huge\""
       }
     },
     {

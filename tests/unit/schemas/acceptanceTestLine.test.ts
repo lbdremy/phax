@@ -114,8 +114,10 @@ describe("the techniques and loops of a test line (ac-boundary, ac-loop)", () =>
 
   it("refuses a plan-document answer with the loop `oracle` by the enum's own message, never by name", () => {
     const message = refusal(withPhase02Lines([line({ loop: "oracle" })]));
-    // Effect's own refusal of the literal, which only echoes the value it was given.
-    expect(message).toBe('phase-02 test line 1 loop: Expected "acceptance", actual "oracle"');
+    // The enum's own refusal, which lists the allowed values and echoes the value it was given.
+    expect(message).toBe(
+      'phase-02 test line 1 loop: Expected "acceptance" | "in-phase", actual "oracle"',
+    );
   });
 });
 

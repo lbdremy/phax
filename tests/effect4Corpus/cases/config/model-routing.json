@@ -293,7 +293,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "  providerPriority.1: Expected \"claude-code\", actual \"gemini-cli\"\n  providerPriority.1: Expected \"mistral-vibe\", actual \"gemini-cli\"\n  providerPriority.1: Expected \"codex-cli\", actual \"gemini-cli\""
+        "refusal": "  providerPriority.1: Expected \"claude-code\" | \"mistral-vibe\" | \"codex-cli\", actual \"gemini-cli\""
       }
     },
     {
@@ -323,7 +323,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "  equivalence.gpt-5.5.high.relation: Expected \"exact\", actual \"sideways\"\n  equivalence.gpt-5.5.high.relation: Expected \"equivalent\", actual \"sideways\"\n  equivalence.gpt-5.5.high.relation: Expected \"upgrade\", actual \"sideways\"\n  equivalence.gpt-5.5.high.relation: Expected \"fallback\", actual \"sideways\"\n  equivalence.gpt-5.5.high.relation: Expected \"downgrade\", actual \"sideways\"\n  equivalence.gpt-5.5.high.relation: Expected \"no_equivalent\", actual \"sideways\""
+        "refusal": "  equivalence.gpt-5.5.high.relation: Expected \"exact\" | \"equivalent\" | \"upgrade\" | \"fallback\" | \"downgrade\" | \"no_equivalent\", actual \"sideways\""
       }
     },
     {
@@ -356,7 +356,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "  requestedModelNormalization.gemini: Expected \"claude-haiku\", actual \"google-gemini\"\n  requestedModelNormalization.gemini: Expected \"claude-sonnet\", actual \"google-gemini\"\n  requestedModelNormalization.gemini: Expected \"claude-opus\", actual \"google-gemini\"\n  requestedModelNormalization.gemini: Expected \"claude-fable\", actual \"google-gemini\"\n  requestedModelNormalization.gemini: Expected \"mistral-medium\", actual \"google-gemini\"\n  requestedModelNormalization.gemini: Expected \"openai-gpt\", actual \"google-gemini\""
+        "refusal": "  requestedModelNormalization.gemini: Expected \"claude-haiku\" | \"claude-sonnet\" | \"claude-opus\" | \"claude-fable\" | \"mistral-medium\" | \"openai-gpt\", actual \"google-gemini\""
       }
     },
     {
@@ -417,7 +417,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "  equivalence.gpt-5.5.high.claude: Expected a non empty string, actual \"\""
+        "refusal": "  equivalence.gpt-5.5.high.claude: Expected a string at least 1 character(s) long, actual \"\""
       }
     }
   ]

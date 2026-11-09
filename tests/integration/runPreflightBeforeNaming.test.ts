@@ -563,7 +563,7 @@ describe("phax run — a preflight refusal precedes naming", () => {
     expect(code).toBe(2);
     expect(out.errors[0]).toMatch(/^Config error: Invalid phax\.json at /);
     expect(out.errors[0]).toContain(
-      'gateProfiles.standard.0.surface: Expected "local", actual "oracle"',
+      'gateProfiles.standard.0.surface: Expected "local" | "structural" | "product", actual "oracle"',
     );
     expect(out.logs.filter((l) => l.startsWith("Run: "))).toEqual([]);
     const after = snapshotRepo(r);

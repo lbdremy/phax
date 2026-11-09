@@ -454,7 +454,7 @@ describe("collectReleaseNotes", { timeout: 30_000 }, () => {
         withPlan((repo) =>
           repo.write(path, "---\nstatus: Finished\nsource-spec: null\n---\n\n# P\n\nText.\n"),
         ),
-        `${path}: status: Expected "Draft", actual "Finished"`,
+        `${path}: status: Expected "Draft" | "Approved" | "Stale" | "Abandoned" | "Completed", actual "Finished"`,
       );
     });
 

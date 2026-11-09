@@ -3,9 +3,10 @@
 // beyond keys and types — finding ids are unique within a report, and a lines
 // pair is ordered. Both formats are decoded with `onExcessProperty: "error"`,
 // so a key a definition does not name is refused at any level. Pure, and
-// imports only `effect`, so the schemas package can carry it.
-import { ParseResult, Schema } from "effect";
-import { issueMessage } from "./formatError.js";
+// imports only `effect` and its own refusal model, so the schemas package can carry it.
+import { type ParseResult, Schema } from "effect";
+import { firstRefusal } from "./refusal/adapter.js";
+import { refusalMessage, refusalPath } from "./refusal/render.js";
 
 /**
  * A key with its description. The description sits on the key, not on its
@@ -144,25 +145,15 @@ export function uniqueFindingIds<A extends { readonly id: string }, I, R>(
   );
 }
 
-// `findings[0].guide.kind` — indexes bracketed, keys dotted, a top-level key
-// bare — so an issue reads as the path a report's author would type.
-function issuePath(path: ReadonlyArray<PropertyKey>): string {
-  return path
-    .map((segment, i) =>
-      typeof segment === "number" ? `[${segment}]` : `${i === 0 ? "" : "."}${String(segment)}`,
-    )
-    .join("");
-}
-
 /**
  * The first issue of a report's decode error as one line, `<path>: <message>`
  * (the message alone at the root). An excess key and a missing key both name
  * the key's own path; a filter's message names the id or the file itself.
  */
 export function describeReportIssue(error: ParseResult.ParseError): string {
-  const [first] = ParseResult.ArrayFormatter.formatErrorSync(error);
+  const first = firstRefusal(error);
   if (first === undefined) return error.message;
-  const path = issuePath(first.path);
-  const message = issueMessage(first.message);
+  const path = refusalPath(first.path, "bracketed");
+  const message = refusalMessage(first);
   return path.length > 0 ? `${path}: ${message}` : message;
 }

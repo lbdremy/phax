@@ -1,123 +1,72 @@
-import { ParseResult } from "effect";
-
-/**
- * An issue's message in phax's words where Effect would print a whole type:
- * a value that should have been an object or an array reads `Expected an
- * object, actual <value>` or `Expected an array, actual <value>`, not the
- * struct's or the array's full type description. Every other message is
- * Effect's, unchanged.
- */
-export function issueMessage(message: string): string {
-  const shape = message.startsWith("Expected { ")
-    ? { kind: "an object", open: "{", close: "}" }
-    : message.startsWith("Expected ReadonlyArray<")
-      ? { kind: "an array", open: "<", close: ">" }
-      : null;
-  if (shape === null) return message;
-  let depth = 0;
-  for (let i = "Expected ".length; i < message.length; i++) {
-    const char = message[i];
-    if (char === shape.open) depth++;
-    else if (char === shape.close && --depth === 0) {
-      // An anonymous refinement prints `{ <type> | filter }`: the braces wrap a filter, not
-      // an object, so the message is left as Effect wrote it.
-      if (message.slice(0, i + 1).endsWith("| filter }")) return message;
-      const rest = message.slice(i + 1);
-      return rest.startsWith(", actual ") ? `Expected ${shape.kind}${rest}` : message;
-    }
-  }
-  return message;
-}
+import type { ParseResult } from "effect";
+import { firstRefusal, refusalsOf } from "./refusal/adapter.js";
+import type { Refusal } from "./refusal/model.js";
+import { refusalMessage, refusalPath } from "./refusal/render.js";
 
 export function formatParseError(err: ParseResult.ParseError): string {
-  const issues = ParseResult.ArrayFormatter.formatErrorSync(err);
-  return issues
-    .map((issue) => {
-      const path = issue.path.length > 0 ? issue.path.map(String).join(".") : "(root)";
-      return `  ${path}: ${issueMessage(issue.message)}`;
+  return refusalsOf(err)
+    .map((refusal) => {
+      const path = refusalPath(refusal.path, "dotted");
+      return `  ${path.length > 0 ? path : "(root)"}: ${refusalMessage(refusal)}`;
     })
     .join("\n");
 }
 
-// A config layer's decode failure, one issue per line as formatParseError
+// A config layer's decode failure, one refusal per line as formatParseError
 // prints it, except that a gate step whose `output` is not an allowed value
 // reads `gate step "<command>": output must be "log" or "gate-report"` — the
-// command found in `raw` at the issue's step path — a missing or other
-// `brief.push` reads `brief.push must be "findings" or "findings-and-rules"`,
-// once, without the `brief: Expected undefined` alternative of the optional
-// `brief` key beside it. A refusal under `assignments` names the bound as
-// `assignments[N]` (see assignmentIssueLines).
+// command found in `raw` at the refusal's step path — and a missing or other
+// `brief.push` reads `brief.push must be "findings" or "findings-and-rules"`.
+// A refusal under `assignments` names the bound as `assignments[N]` (see
+// assignmentRefusalLines).
 export function formatConfigParseError(raw: unknown, err: ParseResult.ParseError): string {
-  const issues = ParseResult.ArrayFormatter.formatErrorSync(err);
-  const pushRefused = issues.some(({ path }) => isBriefPush(path));
-  const bounds = assignmentIssueLines(raw, issues);
-  const lines = issues
-    .filter(({ path }) => !(pushRefused && path.length === 1 && path[0] === "brief"))
-    .filter(({ path }) => !(bounds.size > 0 && path.length === 1 && path[0] === "assignments"))
-    .map((issue) => {
-      const command = gateStepOutputCommand(raw, issue.path);
-      if (command !== undefined) {
-        return `  gate step ${JSON.stringify(command)}: output must be "log" or "gate-report"`;
-      }
-      if (isBriefPush(issue.path)) {
-        return '  brief.push must be "findings" or "findings-and-rules"';
-      }
-      const bound = bounds.get(issue);
-      if (bound !== undefined) return `  ${bound}`;
-      const path = issue.path.length > 0 ? issue.path.map(String).join(".") : "(root)";
-      return `  ${path}: ${issueMessage(issue.message)}`;
-    });
+  const refusals = refusalsOf(err);
+  const bounds = assignmentRefusalLines(raw, refusals);
+  const lines = refusals.map((refusal) => {
+    const command = gateStepOutputCommand(raw, refusal.path);
+    if (command !== undefined) {
+      return `  gate step ${JSON.stringify(command)}: output must be "log" or "gate-report"`;
+    }
+    if (isBriefPush(refusal.path)) {
+      return '  brief.push must be "findings" or "findings-and-rules"';
+    }
+    const bound = bounds.get(refusal);
+    if (bound !== undefined) return `  ${bound}`;
+    const path = refusalPath(refusal.path, "dotted");
+    return `  ${path.length > 0 ? path : "(root)"}: ${refusalMessage(refusal)}`;
+  });
   return [...new Set(lines)].join("\n");
 }
 
-type ConfigIssue = ParseResult.ArrayFormatterIssue;
-
-const LITERAL_MISMATCH_RE = /^Expected (.+), actual (.+)$/;
-
-// The line of every issue under `assignments` (not `assignments` itself),
-// keyed by issue. The path's indices are bracketed (`assignments[1].kind`). An
+// The line of every refusal under `assignments` (not `assignments` itself),
+// keyed by refusal. The path's indices are bracketed (`assignments[1].kind`). An
 // empty list reads `<path>: must not be empty`, not `<path>[0]: is missing`.
-// The issues of one literal union at one path (an effort outside the
-// vocabulary) merge into one `Expected "a" | "b", actual "x"` line. While any
-// of these issues stands, the `assignments: Expected undefined` alternative of
-// the optional key is dropped.
-function assignmentIssueLines(
+function assignmentRefusalLines(
   raw: unknown,
-  issues: readonly ConfigIssue[],
-): ReadonlyMap<ConfigIssue, string> {
-  const byPath = new Map<string, ConfigIssue[]>();
-  for (const issue of issues) {
-    if (issue.path.length < 2 || issue.path[0] !== "assignments") continue;
-    const empty = isEmptyListIssue(raw, issue);
-    const path = formatIssuePath(empty ? issue.path.slice(0, -1) : issue.path);
-    byPath.set(path, [...(byPath.get(path) ?? []), issue]);
-  }
-  const lines = new Map<ConfigIssue, string>();
-  for (const [path, group] of byPath) {
-    const [first] = group as [ConfigIssue, ...ConfigIssue[]];
-    let message = issueMessage(first.message);
-    if (isEmptyListIssue(raw, first)) {
-      message =
+  refusals: readonly Refusal[],
+): ReadonlyMap<Refusal, string> {
+  const lines = new Map<Refusal, string>();
+  for (const refusal of refusals) {
+    if (refusal.path.length < 2 || refusal.path[0] !== "assignments") continue;
+    if (isEmptyListRefusal(raw, refusal)) {
+      const path = refusalPath(refusal.path.slice(0, -1), "bracketed");
+      const message =
         path === "assignments"
           ? "must not be empty: omit the key to declare no bounds"
           : "must not be empty";
+      lines.set(refusal, `${path}: ${message}`);
     } else {
-      const mismatches = group.map((i) => i.message.match(LITERAL_MISMATCH_RE));
-      const actual = mismatches[0]?.[2];
-      if (group.length > 1 && mismatches.every((m) => m !== null && m[2] === actual)) {
-        message = `Expected ${mismatches.map((m) => m![1]).join(" | ")}, actual ${actual}`;
-      }
+      lines.set(refusal, `${refusalPath(refusal.path, "bracketed")}: ${refusalMessage(refusal)}`);
     }
-    for (const issue of group) lines.set(issue, `${path}: ${message}`);
   }
   return lines;
 }
 
 // `<list>[0]: is missing` where the list in `raw` is empty.
-function isEmptyListIssue(raw: unknown, issue: ConfigIssue): boolean {
-  if (issue.path.at(-1) !== 0 || issue.message !== "is missing") return false;
+function isEmptyListRefusal(raw: unknown, refusal: Refusal): boolean {
+  if (refusal.path.at(-1) !== 0 || refusal.kind !== "missing") return false;
   let value: unknown = raw;
-  for (const segment of issue.path.slice(0, -1)) {
+  for (const segment of refusal.path.slice(0, -1)) {
     if (typeof value !== "object" || value === null) return false;
     value = (value as Record<PropertyKey, unknown>)[segment];
   }
@@ -143,16 +92,6 @@ function gateStepOutputCommand(raw: unknown, path: ReadonlyArray<PropertyKey>): 
   return typeof command === "string" ? command : undefined;
 }
 
-// `acceptanceCriteria[2].refs[0]` — array indices bracketed, keys dotted — so a
-// violation reads as the JSON path a document author would type.
-function formatIssuePath(path: ReadonlyArray<PropertyKey>): string {
-  return path
-    .map((segment, i) =>
-      typeof segment === "number" ? `[${segment}]` : `${i === 0 ? "" : "."}${String(segment)}`,
-    )
-    .join("");
-}
-
 /**
  * A violation a decoder's own check found, before any schema ran, as the line
  * `formatFirstViolation` prints for the same path and message.
@@ -161,24 +100,30 @@ export function formatViolationAt(violation: {
   readonly path: ReadonlyArray<PropertyKey>;
   readonly message: string;
 }): string {
-  const path = formatIssuePath(violation.path);
+  const path = refusalPath(violation.path, "bracketed");
   return path.length > 0 ? `${path}: ${violation.message}` : violation.message;
+}
+
+// One refusal as `<path>: <message>` (the message alone at the root), the
+// path as `acceptanceCriteria[2].refs[0]` — indices bracketed, keys dotted — so
+// a violation reads as the JSON path a document author would type.
+function violationLine(refusal: Refusal): string {
+  const path = refusalPath(refusal.path, "bracketed");
+  const message = refusalMessage(refusal);
+  return path.length > 0 ? `${path}: ${message}` : message;
 }
 
 // The first violation as one line, `<path>: <message>` (the message alone when
 // the violation is at the root). Used where a single rejection reason is
 // printed verbatim, e.g. an authored spec or plan document.
 export function formatFirstViolation(err: ParseResult.ParseError): string {
-  const [first] = ParseResult.ArrayFormatter.formatErrorSync(err);
-  if (first === undefined) return err.message;
-  const path = formatIssuePath(first.path);
-  const message = issueMessage(first.message);
-  return path.length > 0 ? `${path}: ${message}` : message;
+  const first = firstRefusal(err);
+  return first === undefined ? err.message : violationLine(first);
 }
 
 /**
  * A refused provider answer as one line, from a decode that reported every
- * issue (`errors: "all"`). The issues about the answer's own keys (`$schema`,
+ * issue (`errors: "all"`). The refusals about the answer's own keys (`$schema`,
  * a key missing, a key it does not name) and about the answer itself are
  * reported together, `$schema` first and joined by `; ` (`$schema: is missing;
  * version: is unexpected, …`): a model that answered an older shape is told the
@@ -186,22 +131,18 @@ export function formatFirstViolation(err: ParseResult.ParseError): string {
  * `formatFirstViolation` reads it, at its full path.
  */
 export function formatAnswerViolations(err: ParseResult.ParseError): string {
-  const issues = ParseResult.ArrayFormatter.formatErrorSync(err);
-  const line = (issue: ParseResult.ArrayFormatterIssue): string => {
-    const path = formatIssuePath(issue.path);
-    const message = issueMessage(issue.message);
-    return path.length > 0 ? `${path}: ${message}` : message;
-  };
-  const ownKeys = issues.filter(
-    ({ path, message }) =>
+  const refusals = refusalsOf(err);
+  const ownKeys = refusals.filter(
+    ({ path, kind }) =>
       path.length === 0 ||
-      (path.length === 1 &&
-        (path[0] === "$schema" || message === "is missing" || message.startsWith("is unexpected"))),
+      (path.length === 1 && (path[0] === "$schema" || kind === "missing" || kind === "unexpected")),
   );
-  if (ownKeys.length === 0) return issues[0] === undefined ? err.message : line(issues[0]);
+  if (ownKeys.length === 0) {
+    return refusals[0] === undefined ? err.message : violationLine(refusals[0]);
+  }
   const stamp = ownKeys.filter(({ path }) => path[0] === "$schema");
   const others = ownKeys.filter(({ path }) => path[0] !== "$schema");
-  return [...stamp, ...others].map(line).join("; ");
+  return [...stamp, ...others].map(violationLine).join("; ");
 }
 
 /**
@@ -214,7 +155,7 @@ export function formatAnswerViolations(err: ParseResult.ParseError): string {
  * as `formatFirstViolation` reads it.
  */
 export function formatPlanDocumentViolation(input: unknown, err: ParseResult.ParseError): string {
-  const [first] = ParseResult.ArrayFormatter.formatErrorSync(err);
+  const first = firstRefusal(err);
   const [phases, i, strategy, j, ...inner] = first?.path ?? [];
   if (
     first === undefined ||
@@ -226,8 +167,8 @@ export function formatPlanDocumentViolation(input: unknown, err: ParseResult.Par
     return formatFirstViolation(err);
   }
   const phaseId = phaseIdAt(input, i) ?? `phases[${String(i)}]`;
-  const where = inner.length > 0 ? ` ${formatIssuePath(inner)}` : "";
-  return `${phaseId} test line ${String(j + 1)}${where}: ${issueMessage(first.message)}`;
+  const where = inner.length > 0 ? ` ${refusalPath(inner, "bracketed")}` : "";
+  return `${phaseId} test line ${String(j + 1)}${where}: ${refusalMessage(first)}`;
 }
 
 function phaseIdAt(input: unknown, i: number): string | undefined {

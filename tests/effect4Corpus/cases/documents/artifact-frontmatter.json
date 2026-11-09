@@ -96,7 +96,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "  status: Expected \"Draft\", actual \"Stale\"\n  status: Expected \"Approved\", actual \"Stale\"\n  status: Expected \"Abandoned\", actual \"Stale\"\n  status: Expected \"Completed\", actual \"Stale\""
+        "refusal": "  status: Expected \"Draft\" | \"Approved\" | \"Abandoned\" | \"Completed\", actual \"Stale\""
       }
     },
     {
@@ -132,7 +132,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "  approved.baseline: Expected a non empty string, actual \"\"\n  approved: Expected undefined, actual {\"date\":\"2026-11-07\",\"baseline\":\"\"}"
+        "refusal": "  approved.baseline: Expected a string at least 1 character(s) long, actual \"\""
       }
     },
     {
@@ -245,7 +245,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "  status: Expected \"Draft\", actual \"Published\"\n  status: Expected \"Approved\", actual \"Published\"\n  status: Expected \"Stale\", actual \"Published\"\n  status: Expected \"Abandoned\", actual \"Published\"\n  status: Expected \"Completed\", actual \"Published\""
+        "refusal": "  status: Expected \"Draft\" | \"Approved\" | \"Stale\" | \"Abandoned\" | \"Completed\", actual \"Published\""
       }
     },
     {
@@ -288,7 +288,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "  source-spec: Expected a non empty string, actual \"\""
+        "refusal": "  source-spec: Expected a string at least 1 character(s) long, actual \"\""
       }
     },
     {

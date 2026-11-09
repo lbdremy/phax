@@ -928,12 +928,14 @@ describe("format readers", () => {
         schemaUrl("plan-document", "0.32.0"),
       );
       expect(left(readPlanDocumentFile(file, acceptance)).message).toBe(
-        `${file}: phase-01 test line 1 loop: Expected "oracle", actual "acceptance"`,
+        `${file}: phase-01 test line 1 loop: Expected "oracle" | "in-phase", actual "acceptance"`,
       );
       expect(
         left(readPlanDocumentFile(file, withLoops(validDocuments["plan-document"], "oracle")))
           .message,
-      ).toBe(`${file}: phase-01 test line 1 loop: Expected "acceptance", actual "oracle"`);
+      ).toBe(
+        `${file}: phase-01 test line 1 loop: Expected "acceptance" | "in-phase", actual "oracle"`,
+      );
     });
 
     it("refuses a 0.25.0 sidecar that carries assignmentReason, naming the file", () => {
