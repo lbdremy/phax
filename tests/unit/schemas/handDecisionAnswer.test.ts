@@ -2,7 +2,7 @@
 // plan-hand-decision-answer each decode their own kind, every key is required,
 // and unknown keys, a lifted verdict, a spec verdict naming a phase and a plan
 // verdict without one are refused. Every document is made up.
-import { Result, ParseResult } from "effect";
+import { Result, SchemaIssue, type Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import { answerJsonSchema } from "../../../src/schemas/answerSchemas.js";
 import {
@@ -51,12 +51,12 @@ function planAnswer(): Doc {
   };
 }
 
-type Decode = (input: unknown) => Result.Result<unknown, ParseResult.ParseError>;
+type Decode = (input: unknown) => Result.Result<unknown, Schema.SchemaError>;
 
 function firstIssue(decode: Decode, input: unknown): { path: string; message: string } {
   const decoded = decode(input);
   if (Result.isSuccess(decoded)) throw new Error("expected a refusal");
-  const [issue] = ParseResult.ArrayFormatter.formatErrorSync(decoded.left);
+  const [issue] = SchemaIssue.makeFormatterStandardSchemaV1()(decoded.left.issue).issues;
   return { path: (issue?.path ?? []).join("."), message: issue?.message ?? "" };
 }
 

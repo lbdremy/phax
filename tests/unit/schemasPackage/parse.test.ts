@@ -82,6 +82,7 @@ describe("parseRunStatus", () => {
 describe("fromEither", () => {
   const decode = Schema.decodeUnknownResult(
     Schema.Struct({ a: Schema.Struct({ b: Schema.Number }) }),
+    { reportInput: true },
   );
 
   it("maps a right to ok", () => {
@@ -101,6 +102,7 @@ describe("fromEither", () => {
   it("reports an array index as a path segment", () => {
     const decodeList = Schema.decodeUnknownResult(
       Schema.Struct({ xs: Schema.Array(Schema.Number) }),
+      { reportInput: true },
     );
     const result = fromEither(decodeList({ xs: [1, "two"] }));
     expect(result.ok).toBe(false);

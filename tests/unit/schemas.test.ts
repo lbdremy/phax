@@ -1,10 +1,10 @@
-import { Result, JSONSchema } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { decodePhaxConfig } from "../../src/schemas/phaxConfig.js";
 import { decodePhaxPlanFile, PhaxPlanFileSchema } from "../../src/schemas/phaxPlan.js";
 import { CURRENT_STAMPS } from "../../src/schemas/release.js";
 import { decodeRegistryFile } from "../../src/schemas/registry.js";
-import { schemaUrl } from "../../src/schemas/schemaUrl.js";
+import { draft07JsonSchema, schemaUrl } from "../../src/schemas/schemaUrl.js";
 import { decodePhaseStatusFile, decodeRunStatusFile } from "../../src/schemas/status.js";
 
 const validConfig = {
@@ -186,7 +186,7 @@ describe("decodePhaxPlanFile — mode, acceptance and testLines", () => {
       "testLines",
       "commit",
     ]);
-    const jsonSchema = JSONSchema.make(PhaxPlanFileSchema) as unknown as {
+    const jsonSchema = draft07JsonSchema(PhaxPlanFileSchema) as unknown as {
       $defs?: Record<string, { properties?: Record<string, unknown> }>;
       properties: { phases: { items: { $ref?: string; properties?: Record<string, unknown> } } };
     };

@@ -8,4 +8,5 @@ export type TelemetryConfig = Schema.Schema.Type<typeof TelemetryConfigSchema>;
 
 export const decodeTelemetryConfig = Schema.decodeUnknownResult(TelemetryConfigSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });

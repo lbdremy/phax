@@ -18,7 +18,7 @@ import { call } from "./support/memoryIo.js";
 
 const Str = Schema.String;
 
-const Id = Str.annotations({ identifier: "id", description: "The todo's id" });
+const Id = Str.annotate({ identifier: "id", description: "The todo's id" });
 
 const show = defineCommand({
   name: "show",
@@ -26,15 +26,15 @@ const show = defineCommand({
   help: "Shows one todo, with its history.\nIt reads nothing else.",
   examples: ["todos show t1", "todos show t1 --mode b --json"],
   input: {
-    args: reject(Schema.Tuple(Id)),
+    args: reject(Schema.Tuple([Id])),
     flags: reject(
       Schema.Struct({
-        mode: Schema.optionalKey(Schema.Literal("a", "b").annotations({ description: "The mode" })),
+        mode: Schema.optionalKey(Schema.Literals(["a", "b"]).annotate({ description: "The mode" })),
         // Effect 3's decoding default: the key is optional on the command line, and the
         // contract gives `low` when it is absent.
-        level: Schema.optionalWith(Str.annotations({ description: "How loud" }), {
-          default: () => "low",
-        }),
+        level: Str.annotate({ description: "How loud" }).pipe(
+          Schema.withDecodingDefaultType(Effect.succeed("low")),
+        ),
         dryRun: Schema.optionalKey(Schema.Boolean),
       }),
     ),
@@ -48,7 +48,7 @@ const show = defineCommand({
 const accept = defineCommand({
   name: "accept",
   summary: "Accept a debt",
-  input: { args: reject(Schema.Tuple(Str)) },
+  input: { args: reject(Schema.Tuple([Str])) },
   output: strip(Str),
   exits: {},
   run: () => Effect.succeed("accepted"),
@@ -241,7 +241,7 @@ describe("the usage spec", () => {
 // Gains carried for upstream: the program's usage flag, `--json-schema` listed once, the
 // program's options as global flags, completers and the program's exits.
 describe("the usage spec of a program that names its usage flag", () => {
-  const ShortName = Str.annotations({
+  const ShortName = Str.annotate({
     identifier: "short-name",
     description: "The run's short name",
     [CompleterAnnotationId]: { run: "todos ls --complete", descriptions: true },
@@ -249,7 +249,7 @@ describe("the usage spec of a program that names its usage flag", () => {
   const resume = defineCommand({
     name: "resume",
     summary: "Resume a run",
-    input: { args: reject(Schema.Tuple(ShortName)) },
+    input: { args: reject(Schema.Tuple([ShortName])) },
     output: strip(Str),
     exits: {},
     run: () => Effect.succeed("resumed"),
@@ -262,7 +262,7 @@ describe("the usage spec of a program that names its usage flag", () => {
     usage: { flag: "usage", format: "usage-format", jsonSchema: "program" },
     options: reject(
       Schema.Struct({
-        verbose: Schema.optionalKey(Schema.Boolean.annotations({ description: "Say more" })),
+        verbose: Schema.optionalKey(Schema.Boolean.annotate({ description: "Say more" })),
       }),
     ),
     commands: [
@@ -330,8 +330,8 @@ describe("the usage spec of a program that names its usage flag", () => {
 
 // Gains carried for upstream: a group's long help and examples, and variadic arguments.
 describe("the usage spec of a documented group and of variadic arguments", () => {
-  const Plan = Str.annotations({ identifier: "plan", description: "A plan to compare" });
-  const FilePath = Str.annotations({ identifier: "path", description: "A file to read" });
+  const Plan = Str.annotate({ identifier: "plan", description: "A plan to compare" });
+  const FilePath = Str.annotate({ identifier: "path", description: "A file to read" });
   const overlap = defineCommand({
     name: "overlap",
     summary: "Compare plans",

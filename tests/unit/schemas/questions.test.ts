@@ -300,7 +300,7 @@ describe("firstQuestionViolation", () => {
 });
 
 describe("question and option ids", () => {
-  const decode = Schema.decodeUnknownResult(OpenQuestionSchema);
+  const decode = Schema.decodeUnknownResult(OpenQuestionSchema, { reportInput: true });
 
   it("accepts ids without whitespace", () => {
     expect(Result.isSuccess(decode(question("q-keep", "ten is enough")))).toBe(true);

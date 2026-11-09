@@ -136,6 +136,7 @@ function withPreamble(questions: { openQuestions?: unknown[]; arbitratedQuestion
 
 const decodeExtractedStrict = Schema.decodeUnknownResult(ExtractedPhaxPlanSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });
 
 function fileRejection(doc: unknown): string {

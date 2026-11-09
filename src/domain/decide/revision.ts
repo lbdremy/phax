@@ -1,4 +1,4 @@
-import { Result, ParseResult } from "effect";
+import { Result, type Schema } from "effect";
 import { decodeCurrentDocumentSidecar } from "../../schemas/persisted.js";
 import type {
   OpenQuestion,
@@ -281,7 +281,7 @@ export function stampSessionVerdicts(json: unknown, context: DecideContext): unk
 
 // ── Decoding ───────────────────────────────────────────────────────────────
 
-export function firstParseIssue(error: ParseResult.ParseError): RevisionRefusal {
+export function firstParseIssue(error: Schema.SchemaError): RevisionRefusal {
   const first = firstRefusal(error);
   if (first === undefined) return { path: "", message: UNDESCRIBED_REFUSAL };
   return refusal(first.path, refusalMessage(first));

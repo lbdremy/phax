@@ -15,9 +15,9 @@ import { configured, exposeMessage, MessageFields, publishedFormat, repoPaths } 
 
 /** The plan argument of `plans lint` and `plans overview`, named `plan`. */
 export const PlanArgs = reject(
-  Schema.Tuple(
-    Schema.String.annotations({ identifier: "plan", description: "Path to the plan.md" }),
-  ),
+  Schema.Tuple([
+    Schema.String.annotate({ identifier: "plan", description: "Path to the plan.md" }),
+  ]),
 );
 
 export const plansLintCommand = defineCommand({
@@ -29,7 +29,7 @@ export const plansLintCommand = defineCommand({
     "phax plans lint docs/plans/2609101200-foo-plan.md --json",
   ],
   input: { args: PlanArgs },
-  output: reject(PlanLintFileSchema.annotations(publishedFormat("plan-lint"))),
+  output: reject(PlanLintFileSchema.annotate(publishedFormat("plan-lint"))),
   run: ({ input }) =>
     Effect.gen(function* () {
       const config = yield* configured();

@@ -153,7 +153,7 @@ import {
 
 export type Doc = Readonly<Record<string, unknown>>;
 
-function encoded<A, I>(schema: Schema.Schema<A, I>, value: A): Doc {
+function encoded<A, I>(schema: Schema.Codec<A, I>, value: A): Doc {
   return Schema.encodeSync(schema)(value) as Doc;
 }
 

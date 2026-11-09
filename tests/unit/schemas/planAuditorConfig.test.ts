@@ -8,6 +8,7 @@ import {
 
 const decodePlanAuditorConfig = Schema.decodeUnknownResult(PlanAuditorConfigSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });
 
 const minimalValidPhaxConfig = {

@@ -16,7 +16,7 @@ export type ExtractedPlanCacheEntry = Schema.Schema.Type<typeof ExtractedPlanCac
 
 export const decodeExtractedPlanCacheEntry = Schema.decodeUnknownResult(
   ExtractedPlanCacheEntrySchema,
-  { onExcessProperty: "error" },
+  { onExcessProperty: "error", reportInput: true },
 );
 
 export const encodeExtractedPlanCacheEntry = Schema.encodeSync(ExtractedPlanCacheEntrySchema);

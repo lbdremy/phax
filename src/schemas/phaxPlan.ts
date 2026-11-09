@@ -4,7 +4,7 @@ import { NonEmptyString } from "./strictString.js";
 import { TestLineSchema } from "./testLine.js";
 
 /** phax's effort vocabulary: a plan phase's `effort`, and a bound's `effort.min` and `effort.max`. */
-export const PlanEffortSchema = Schema.Literal(
+export const PlanEffortSchema = Schema.Literals([
   "none",
   "off",
   "low",
@@ -14,12 +14,12 @@ export const PlanEffortSchema = Schema.Literal(
   "max",
   "ultracode",
   "ultra",
-);
+]);
 
 /** How a phase runs: headless, or kept open for a person (interactive-phases). */
-export const PhaseModeSchema = Schema.Literal("headless", "interactive");
+export const PhaseModeSchema = Schema.Literals(["headless", "interactive"]);
 
-const PhaseIdSchema = Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/));
+const PhaseIdSchema = Schema.String.check(Schema.isPattern(/^phase-\d{2}$/));
 
 /**
  * A phase's acceptance tests (acceptance-tests): the phase that passes them and
@@ -135,5 +135,6 @@ export type PhaxPlanFile = Schema.Schema.Type<typeof PhaxPlanFileSchema>;
 
 export const decodePhaxPlanFile = Schema.decodeUnknownResult(PhaxPlanFileSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });
 export const encodePhaxPlanFile = Schema.encodeSync(PhaxPlanFileSchema);

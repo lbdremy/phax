@@ -60,7 +60,7 @@
 // prints (`readArchitectureReport`). Each reads only stamps from its format's current stamp
 // up to the running version, refuses an older shape and any other format by
 // name, and names the URL it reads.
-import { Array as Arr, Either, type ParseResult } from "effect";
+import { Array as Arr, Either, type Schema } from "effect";
 import {
   departureMessage,
   readTestStrategyText,
@@ -268,7 +268,7 @@ export interface MissingFact {
   readonly fact: string;
 }
 
-type Decode<T> = (input: unknown) => Either.Either<T, ParseResult.ParseError>;
+type Decode<T> = (input: unknown) => Either.Either<T, Schema.SchemaError>;
 
 /** How one persisted format is read: its two decoders and their steps to the in-memory value. */
 export interface PersistedSpec<Current, PreSchema, InMemory> {
@@ -283,7 +283,7 @@ export interface PersistedSpec<Current, PreSchema, InMemory> {
   readonly formatViolation?: ViolationFormatter;
 }
 
-type ViolationFormatter = (input: unknown, err: ParseResult.ParseError) => string;
+type ViolationFormatter = (input: unknown, err: Schema.SchemaError) => string;
 
 function isDocumentObject(value: unknown): value is Readonly<Record<string, unknown>> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -1291,7 +1291,7 @@ export type CurrentDocument =
 export function decodeCurrentDocumentSidecar(
   kind: "spec" | "plan",
   input: unknown,
-): Either.Either<CurrentDocument, ParseResult.ParseError> {
+): Either.Either<CurrentDocument, Schema.SchemaError> {
   if (kind === "spec") {
     return Either.map(decodeSpecDocumentFile(input), ({ $schema: _schema, ...document }) => ({
       kind: "spec" as const,
@@ -1315,7 +1315,7 @@ export function decodeCurrentDocumentSidecar(
 export function decodeCurrentHandDecisionAnswer(
   input: unknown,
   kind: "spec" | "plan",
-): Either.Either<HandDecisionAnswer, ParseResult.ParseError> {
+): Either.Either<HandDecisionAnswer, Schema.SchemaError> {
   if (kind === "spec") {
     return Either.map(
       decodeSpecHandDecisionAnswerFile(input),
@@ -1336,7 +1336,7 @@ export function decodeCurrentHandDecisionAnswer(
  */
 export function decodeCurrentDecideVerdicts(
   input: unknown,
-): Either.Either<DecideVerdicts, ParseResult.ParseError> {
+): Either.Either<DecideVerdicts, Schema.SchemaError> {
   return Either.map(decodeDecideVerdictsFile(input), ({ $schema: _schema, ...file }) => file);
 }
 

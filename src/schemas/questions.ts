@@ -12,9 +12,8 @@ import { NonEmptyString } from "./strictString.js";
 // A question or option id: a run of characters without whitespace, so the §9
 // format's `### <id> — …`, `- <id> — …`, Recommendation and Decision lines
 // read it back.
-const QuestionIdSchema = Schema.String.pipe(
-  Schema.pattern(/^\S+$/),
-  Schema.annotations({ description: "An id: a run of characters without whitespace." }),
+const QuestionIdSchema = Schema.String.check(Schema.isPattern(/^\S+$/)).pipe(
+  Schema.annotate({ description: "An id: a run of characters without whitespace." }),
 );
 
 export const QuestionOptionSchema = Schema.Struct({
@@ -26,22 +25,20 @@ export const QuestionOptionSchema = Schema.Struct({
 export const OpenQuestionSchema = Schema.Struct({
   id: QuestionIdSchema,
   question: NonEmptyString,
-  options: Schema.Array(QuestionOptionSchema).pipe(Schema.minItems(2)),
+  options: Schema.Array(QuestionOptionSchema).check(Schema.isMinLength(2)),
   recommendation: NonEmptyString,
   rationale: NonEmptyString,
 });
 
 export type OpenQuestion = Schema.Schema.Type<typeof OpenQuestionSchema>;
 
-const DateSchema = Schema.String.pipe(
-  Schema.pattern(/^\d{4}-\d{2}-\d{2}$/),
-  Schema.annotations({ description: "A date, YYYY-MM-DD." }),
+const DateSchema = Schema.String.check(Schema.isPattern(/^\d{4}-\d{2}-\d{2}$/)).pipe(
+  Schema.annotate({ description: "A date, YYYY-MM-DD." }),
 );
 
-const TimestampSchema = Schema.String.pipe(
-  Schema.pattern(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/),
-  Schema.annotations({ description: "An ISO-8601 UTC timestamp." }),
-);
+const TimestampSchema = Schema.String.check(
+  Schema.isPattern(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/),
+).pipe(Schema.annotate({ description: "An ISO-8601 UTC timestamp." }));
 
 /**
  * A verdict lifted from a document written before verdicts existed: the
@@ -66,7 +63,7 @@ const decidedVerdictFields = {
   why: NonEmptyString,
   advocate: NonEmptyString,
   principles: Schema.Array(NonEmptyString),
-  reversibility: Schema.Literal("cheap", "costly", "irreversible"),
+  reversibility: Schema.Literals(["cheap", "costly", "irreversible"]),
   by: Schema.Struct({ kind: Schema.Literal("operator"), name: NonEmptyString }),
   at: TimestampSchema,
   revised: Schema.Array(NonEmptyString),
@@ -78,11 +75,11 @@ export const SpecDecidedVerdictSchema = Schema.Struct(decidedVerdictFields);
 /** A plan question decided by the operator: a spec's decided verdict, plus the phase it bears on. */
 export const PlanDecidedVerdictSchema = Schema.Struct({
   ...decidedVerdictFields,
-  phase: Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/)),
+  phase: Schema.String.check(Schema.isPattern(/^phase-\d{2}$/)),
 });
 
-export const SpecVerdictSchema = Schema.Union(SpecDecidedVerdictSchema, LiftedVerdictSchema);
-export const PlanVerdictSchema = Schema.Union(PlanDecidedVerdictSchema, LiftedVerdictSchema);
+export const SpecVerdictSchema = Schema.Union([SpecDecidedVerdictSchema, LiftedVerdictSchema]);
+export const PlanVerdictSchema = Schema.Union([PlanDecidedVerdictSchema, LiftedVerdictSchema]);
 
 export type SpecVerdict = Schema.Schema.Type<typeof SpecVerdictSchema>;
 export type PlanVerdict = Schema.Schema.Type<typeof PlanVerdictSchema>;
@@ -111,6 +108,13 @@ export const AUTHORING_ARBITRATED_MESSAGE =
 export interface QuestionViolation {
   readonly path: ReadonlyArray<PropertyKey>;
   readonly message: string;
+}
+
+/** A violation as a schema check's failure: its message at its path; none when it is undefined. */
+export function violationIssue(
+  violation: QuestionViolation | undefined,
+): Schema.FilterIssue | undefined {
+  return violation === undefined ? undefined : { path: violation.path, issue: violation.message };
 }
 
 /**

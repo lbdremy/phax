@@ -1,5 +1,5 @@
 import { posix } from "node:path";
-import { Result, ParseResult } from "effect";
+import { Result, type Schema } from "effect";
 import type { HandDecisionAnswer } from "../../schemas/handDecisionAnswer.js";
 import {
   decodeCurrentDecideVerdicts,
@@ -828,7 +828,7 @@ export function checkHandTranscription(input: {
   const named = boundOf(bound);
   const decoded = Result.mapError(
     decodeCurrentHandDecisionAnswer(stampHandAnswer(answer, named, operator, atIso), kind),
-    (error: ParseResult.ParseError) => firstParseIssue(error),
+    (error: Schema.SchemaError) => firstParseIssue(error),
   );
   if (Result.isFailure(decoded)) return Result.fail(decoded.left);
   const handAnswer = decoded.right;

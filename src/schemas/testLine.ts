@@ -9,11 +9,13 @@
 // provider's strict structured output accepts; the rules a pattern would need a
 // lookaround for (the oracle's three, the criterion's reserved words) are
 // filters phax checks, with their messages. The grammar that renders and reads
-// a line is src/domain/plan/testLineGrammar.ts.
+// a line is src/domain/plan/testLineGrammar.ts. Imports phax's refusal adapter
+// beside `effect` for one message that names the value's fault.
 import { Schema } from "effect";
+import { refusalMessage } from "./refusal/adapter.js";
 
-export const TestSizeSchema = Schema.Literal("small", "medium", "large");
-export const TestTechniqueSchema = Schema.Literal(
+export const TestSizeSchema = Schema.Literals(["small", "medium", "large"]);
+export const TestTechniqueSchema = Schema.Literals([
   "example",
   "boundary",
   "table",
@@ -23,8 +25,8 @@ export const TestTechniqueSchema = Schema.Literal(
   "fuzz",
   "contract",
   "smoke",
-);
-export const TestLoopSchema = Schema.Literal("acceptance", "in-phase");
+]);
+export const TestLoopSchema = Schema.Literals(["acceptance", "in-phase"]);
 
 export type TestSize = Schema.Schema.Type<typeof TestSizeSchema>;
 export type TestTechnique = Schema.Schema.Type<typeof TestTechniqueSchema>;
@@ -49,16 +51,18 @@ const ONE_LINE_TRIMMED = new RegExp(`^${ONE_LINE_EDGE}(?:${ONE_LINE_CHAR}*${ONE_
 
 // One pattern for both halves; its message names the half the value breaks.
 const oneLineText = (coordinate: string) =>
-  Schema.String.pipe(
-    Schema.pattern(ONE_LINE_TRIMMED, {
-      message: (issue) =>
-        typeof issue.actual === "string" && !ONE_LINE.test(issue.actual)
+  Schema.String.check(
+    Schema.isPattern(
+      ONE_LINE_TRIMMED,
+      refusalMessage((actual) =>
+        typeof actual === "string" && !ONE_LINE.test(actual)
           ? `a ${coordinate} is one line: no line break, U+2028, U+2029, U+0085 or other control character`
           : `a ${coordinate} is non-empty and trimmed: no leading or trailing whitespace`,
-    }),
+      ),
+    ),
   );
 
-const GuaranteeSchema = oneLineText("guarantee").annotations({
+const GuaranteeSchema = oneLineText("guarantee").annotate({
   description: "What the test guarantees: one non-empty, trimmed line.",
 });
 
@@ -82,8 +86,8 @@ function oracleViolation(oracle: string): string | undefined {
 }
 
 // The filter's JSON Schema description is the one the field renders with.
-const OracleSchema = oneLineText("oracle").pipe(
-  Schema.filter((oracle) => oracleViolation(oracle) ?? true, {
+const OracleSchema = oneLineText("oracle").check(
+  Schema.makeFilter((oracle) => oracleViolation(oracle) ?? true, {
     jsonSchema: {
       description: `What the test compares against: one non-empty, trimmed line, ${ORACLE_RULES} (these three checked by phax, not by this JSON Schema).`,
     },
@@ -96,14 +100,14 @@ const OracleSchema = oneLineText("oracle").pipe(
 // criterion.
 export const RESERVED_CRITERIA: ReadonlyArray<string> = [...TEST_LOOPS, "oracle"];
 
-const CriterionSchema = Schema.String.pipe(
+const CriterionSchema = Schema.String.check(
   // eslint-disable-next-line no-control-regex
-  Schema.pattern(/^[^\s`\x00-\x1F\x7F-\x9F]+$/, {
-    message: () =>
+  Schema.isPattern(/^[^\s`\x00-\x1F\x7F-\x9F]+$/, {
+    message:
       "a criterion is a run of non-whitespace characters holding no backtick and no control character",
   }),
-  Schema.filter(
-    (criterion) =>
+  Schema.makeFilter(
+    (criterion: string) =>
       !RESERVED_CRITERIA.includes(criterion) ||
       "a criterion is neither 'acceptance', 'in-phase' nor 'oracle'",
     {
@@ -122,7 +126,7 @@ export const TestLineSchema = Schema.Struct({
   oracle: OracleSchema,
   loop: TestLoopSchema,
   criterion: Schema.NullOr(CriterionSchema),
-}).annotations({
+}).annotate({
   description:
     "One test line of a phase's test strategy, rendered as `- <guarantee> — <size> · <technique> · <oracle> · <loop>[ · <criterion>]`, one per line under the phase's `### Test strategy` heading. `criterion` is an acceptance criterion id from the source spec's JSON sidecar, or null.",
 });

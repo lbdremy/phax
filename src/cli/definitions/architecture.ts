@@ -37,7 +37,7 @@ class ArchitectureFailedError extends Data.TaggedError("ArchitectureFailedError"
 
 const Bounds = Schema.NullOr(AssignmentsSchema);
 
-const ArchitectureOutput = Schema.Union(
+const ArchitectureOutput = Schema.Union([
   Schema.Struct({
     kind: Schema.Literal("report"),
     report: ArchitectureReportFileSchema,
@@ -46,9 +46,9 @@ const ArchitectureOutput = Schema.Union(
     scoped: Schema.Boolean,
   }),
   Schema.Struct({ kind: Schema.Literal("no-provider"), bounds: Bounds }),
-);
+]);
 
-const PathArg = Schema.String.annotations({
+const PathArg = Schema.String.annotate({
   identifier: "path",
   description: "Paths to ask about, existing or not, relative to the current directory",
 });

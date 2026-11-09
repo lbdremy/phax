@@ -4,7 +4,7 @@
 // the identifier NonEmptyString, and the first met in a walk silently takes
 // `$defs.NonEmptyString`, so a forgotten one could hide behind the strict one
 // in the rendered schema; the AST walk finds it wherever it sits.
-import { Option, Schema, SchemaAST } from "effect";
+import { Schema, SchemaAST } from "effect";
 import { describe, expect, it } from "vitest";
 import { strictCheckFindings } from "../../../packages/schemas/build/strictCheck.js";
 import {
@@ -49,7 +49,7 @@ describe("effectNonEmptyStrings", () => {
     const Toy = Schema.Struct({
       strict: NonEmptyString,
       list: Schema.Array(
-        Schema.Struct({ loose: Schema.NonEmptyString.annotations({ description: "x" }) }),
+        Schema.Struct({ loose: Schema.NonEmptyString.annotate({ description: "x" }) }),
       ),
       either: Schema.NullOr(Schema.NonEmptyString),
     });
@@ -58,12 +58,27 @@ describe("effectNonEmptyStrings", () => {
   });
 });
 
-const EFFECT_FILTER = (Schema.NonEmptyString.ast as SchemaAST.Refinement).filter;
-const STRICT_FILTER = (NonEmptyString.ast as SchemaAST.Refinement).filter;
+// A node's check as Effect builds it: a filter, its `run` kept by every `annotate`.
+function onlyFilter(ast: SchemaAST.AST): SchemaAST.Filter<never> {
+  const [check] = ast.checks ?? [];
+  if (!(check instanceof SchemaAST.Filter)) throw new Error("expected a node with one filter");
+  return check;
+}
+
+const EFFECT_RUN = onlyFilter(Schema.NonEmptyString.ast).run;
+const STRICT_RUN = onlyFilter(NonEmptyString.ast).run;
+
+// Effect's NonEmptyString check: one sharing its filter, or one carrying the
+// NonEmptyString identifier that is not the strict string's.
+function isEffectNonEmpty(check: SchemaAST.Check<never>): boolean {
+  if (check instanceof SchemaAST.FilterGroup) return check.checks.some(isEffectNonEmpty);
+  const named = check.annotations?.identifier === "NonEmptyString";
+  return check.run === EFFECT_RUN || (named && check.run !== STRICT_RUN);
+}
 
 /**
  * The paths of every node of Effect's `Schema.NonEmptyString` under `ast`: a
- * refinement sharing its filter, or one carrying the NonEmptyString identifier
+ * node holding its check, or a check carrying the NonEmptyString identifier
  * that is not the strict string's.
  */
 function effectNonEmptyStrings(ast: SchemaAST.AST): ReadonlyArray<string> {
@@ -72,30 +87,24 @@ function effectNonEmptyStrings(ast: SchemaAST.AST): ReadonlyArray<string> {
   const walk = (node: SchemaAST.AST, path: string): void => {
     if (seen.has(node)) return;
     seen.add(node);
-    if (SchemaAST.isRefinement(node)) {
-      const named =
-        Option.getOrUndefined(SchemaAST.getIdentifierAnnotation(node)) === "NonEmptyString";
-      if (node.filter === EFFECT_FILTER || (named && node.filter !== STRICT_FILTER)) {
-        found.push(path);
-      } else {
-        walk(node.from, path);
-      }
-    } else if (SchemaAST.isTypeLiteral(node)) {
+    if (node.checks?.some(isEffectNonEmpty)) {
+      found.push(path);
+      return;
+    }
+    for (const link of node.encoding ?? []) walk(link.to, path);
+    if (SchemaAST.isObjects(node)) {
       for (const property of node.propertySignatures) {
         const name = String(property.name);
         walk(property.type, path === "" ? name : `${path}.${name}`);
       }
       for (const signature of node.indexSignatures) walk(signature.type, `${path}.*`);
-    } else if (SchemaAST.isTupleType(node)) {
-      for (const element of node.elements) walk(element.type, `${path}[]`);
-      for (const rest of node.rest) walk(rest.type, `${path}[]`);
+    } else if (SchemaAST.isArrays(node)) {
+      for (const element of node.elements) walk(element, `${path}[]`);
+      for (const rest of node.rest) walk(rest, `${path}[]`);
     } else if (SchemaAST.isUnion(node)) {
       for (const member of node.types) walk(member, `${path}|`);
     } else if (SchemaAST.isSuspend(node)) {
-      walk(node.f(), path);
-    } else if (SchemaAST.isTransformation(node)) {
-      walk(node.from, path);
-      walk(node.to, path);
+      walk(node.thunk(), path);
     } else if (SchemaAST.isDeclaration(node)) {
       for (const parameter of node.typeParameters) walk(parameter, path);
     }

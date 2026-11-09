@@ -78,7 +78,7 @@ describe("schemas-check on the committed tree", () => {
       const entry = JSON_SCHEMA_FORMATS.find((format) => format.format === id);
       if (entry === undefined) throw new Error(`no JSON Schema entry for ${id}`);
       return FORMAT_DEFINITIONS[id].releases.map(([release, shape]) => {
-        const { schema } = shape as { readonly schema: Schema.Schema.Any };
+        const { schema } = shape as { readonly schema: Schema.Top };
         const { files, failures } = renderJsonSchemas([{ ...entry, schema }]);
         expect(failures).toEqual([]);
         return { id, release, content: files.get(entry.fileName) };

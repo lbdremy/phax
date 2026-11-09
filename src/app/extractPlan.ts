@@ -22,6 +22,7 @@ import { answerJson } from "../domain/session/structuredAnswer.js";
 
 const decodeExtractedPlan = Schema.decodeUnknownResult(ExtractedPhaxPlanSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });
 
 function buildExtractionPrompt(planMd: string, jsonSchema: object): string {

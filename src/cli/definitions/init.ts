@@ -39,7 +39,7 @@ class AlreadyInitializedError extends Data.TaggedError("AlreadyInitializedError"
 /** The wizard failed: its error's sentence. */
 class InitFailedError extends Data.TaggedError("InitFailedError")<{ readonly message: string }> {}
 
-const InitOutput = Schema.Union(
+const InitOutput = Schema.Union([
   Schema.Struct({
     kind: Schema.Literal("created"),
     configPath: Schema.String,
@@ -49,7 +49,7 @@ const InitOutput = Schema.Union(
     written: Schema.Array(Written),
   }),
   Schema.Struct({ kind: Schema.Literal("aborted") }),
-);
+]);
 
 function makeInitCommand(layers: InitLayers) {
   return defineCommand({
@@ -61,12 +61,12 @@ function makeInitCommand(layers: InitLayers) {
       flags: reject(
         Schema.Struct({
           force: Schema.optionalKey(
-            Schema.Boolean.annotations({
+            Schema.Boolean.annotate({
               description: "Overwrite and reconfigure an existing phax.json",
             }),
           ),
           yes: Schema.optionalKey(
-            Schema.Boolean.annotations({
+            Schema.Boolean.annotate({
               description: "Accept detected defaults without prompting",
             }),
           ),

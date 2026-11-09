@@ -12,7 +12,7 @@ export const LockFileSchema = Schema.Struct({
 
 export type LockFile = Schema.Schema.Type<typeof LockFileSchema>;
 
-export const decodeLockFile = Schema.decodeUnknownResult(LockFileSchema);
+export const decodeLockFile = Schema.decodeUnknownResult(LockFileSchema, { reportInput: true });
 
 export type LockStatus =
   | { readonly kind: "none" }

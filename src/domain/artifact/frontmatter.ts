@@ -1,4 +1,4 @@
-import { Result, type ParseResult } from "effect";
+import { Result, type Schema } from "effect";
 import { isMap, parseDocument, type Document } from "yaml";
 import { formatParseError } from "../../schemas/formatError.js";
 import {
@@ -89,7 +89,7 @@ export function decodeArtifactFrontmatter(
   if (Result.isFailure(docE)) return Result.fail(docE.left);
 
   const value: unknown = docE.right.toJS();
-  const decoded: Result.Result<SpecFrontmatter | PlanFrontmatter, ParseResult.ParseError> =
+  const decoded: Result.Result<SpecFrontmatter | PlanFrontmatter, Schema.SchemaError> =
     kind === "spec" ? decodeSpecFrontmatter(value) : decodePlanFrontmatter(value);
   if (Result.isFailure(decoded)) {
     return Result.fail({ kind: "schema", detail: formatParseError(decoded.left) });

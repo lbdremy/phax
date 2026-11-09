@@ -8,7 +8,7 @@ import { Schema } from "effect";
 import { answerSchemaUrlField } from "./answerStamp.js";
 import { NonEmptyString } from "./strictString.js";
 
-const PhaseIdSchema = Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/));
+const PhaseIdSchema = Schema.String.check(Schema.isPattern(/^phase-\d{2}$/));
 
 /**
  * A `first-reading` document: the pattern the phase introduces, the earlier
@@ -17,16 +17,16 @@ const PhaseIdSchema = Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/));
  */
 export const FirstReadingFileSchema = Schema.Struct({
   $schema: answerSchemaUrlField("first-reading"),
-  pattern: Schema.NonEmptyArray(NonEmptyString).annotations({
+  pattern: Schema.NonEmptyArray(NonEmptyString).annotate({
     description: "The pattern the phase introduces, one statement per item.",
   }),
   copiedBy: Schema.Array(
     Schema.Struct({
-      phase: PhaseIdSchema.annotations({ description: "The phase that copied the pattern." }),
-      what: NonEmptyString.annotations({ description: "What it copied." }),
+      phase: PhaseIdSchema.annotate({ description: "The phase that copied the pattern." }),
+      what: NonEmptyString.annotate({ description: "What it copied." }),
     }),
   ),
-  toCheck: Schema.Array(NonEmptyString).annotations({
+  toCheck: Schema.Array(NonEmptyString).annotate({
     description: "What the person should check first.",
   }),
 });
@@ -38,6 +38,7 @@ export type FirstReading = Omit<FirstReadingFile, "$schema">;
 
 export const decodeFirstReadingFile = Schema.decodeUnknownResult(FirstReadingFileSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });
 
 export const encodeFirstReadingFile = Schema.encodeSync(FirstReadingFileSchema);

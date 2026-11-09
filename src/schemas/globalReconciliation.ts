@@ -5,16 +5,16 @@
 // review-code read it from live and archived runs.
 import { Result, Schema } from "effect";
 
-const ActualActionSchema = Schema.Union(
+const ActualActionSchema = Schema.Union([
   Schema.Literal("added"),
   Schema.Literal("modified"),
   Schema.Literal("deleted"),
   Schema.Literal("renamed"),
-);
+]);
 
-const ExpectedActionSchema = Schema.Union(Schema.Literal("create"), Schema.Literal("edit"));
+const ExpectedActionSchema = Schema.Union([Schema.Literal("create"), Schema.Literal("edit")]);
 
-const LegacyGlobalFileStatusSchema = Schema.Union(
+const LegacyGlobalFileStatusSchema = Schema.Union([
   Schema.Literal("matched"),
   Schema.Literal("missing"),
   Schema.Literal("unplanned"),
@@ -25,12 +25,12 @@ const LegacyGlobalFileStatusSchema = Schema.Union(
   Schema.Literal("deleted"),
   Schema.Literal("renamed"),
   Schema.Literal("unknown"),
-);
+]);
 
-const GlobalFileStatusSchema = Schema.Union(
+const GlobalFileStatusSchema = Schema.Union([
   LegacyGlobalFileStatusSchema,
   Schema.Literal("review-corrected"),
-);
+]);
 
 const legacyEntryFields = {
   path: Schema.String,
@@ -43,7 +43,7 @@ const legacyEntryFields = {
   unplanned: Schema.Boolean,
   missing: Schema.Boolean,
   extraTouch: Schema.Boolean,
-  attention: Schema.Union(Schema.Literal("ok"), Schema.Literal("review")),
+  attention: Schema.Union([Schema.Literal("ok"), Schema.Literal("review")]),
 };
 
 const GlobalFileEntrySchema = Schema.Struct({
@@ -76,8 +76,12 @@ const LegacyGlobalFileReconciliationSchema = Schema.Struct({
 export type GlobalFileEntry = Schema.Schema.Type<typeof GlobalFileEntrySchema>;
 export type GlobalFileReconciliation = Schema.Schema.Type<typeof GlobalFileReconciliationSchema>;
 
-const decodeCurrent = Schema.decodeUnknownResult(GlobalFileReconciliationSchema);
-const decodeLegacy = Schema.decodeUnknownResult(LegacyGlobalFileReconciliationSchema);
+const decodeCurrent = Schema.decodeUnknownResult(GlobalFileReconciliationSchema, {
+  reportInput: true,
+});
+const decodeLegacy = Schema.decodeUnknownResult(LegacyGlobalFileReconciliationSchema, {
+  reportInput: true,
+});
 
 type LegacyEntry = Schema.Schema.Type<typeof LegacyGlobalFileEntrySchema>;
 

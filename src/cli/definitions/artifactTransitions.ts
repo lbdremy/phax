@@ -25,18 +25,18 @@ import {
 } from "./shared.js";
 
 const PathArg = reject(
-  Schema.Tuple(
-    Schema.String.annotations({
+  Schema.Tuple([
+    Schema.String.annotate({
       identifier: "path",
       description: "Path to a spec or plan file under docs/specs/ or docs/plans/",
     }),
-  ),
+  ]),
 );
 
 const ByFlag = reject(
   Schema.Struct({
     by: Schema.optionalKey(
-      Schema.String.annotations({
+      Schema.String.annotate({
         identifier: "arbiter",
         description: "operator or machine:<grant>; required without a terminal",
       }),
@@ -44,7 +44,7 @@ const ByFlag = reject(
   }),
 );
 
-const Status = Schema.Literal("Draft", "Approved", "Stale", "Abandoned", "Completed");
+const Status = Schema.Literals(["Draft", "Approved", "Stale", "Abandoned", "Completed"]);
 
 const TransitionOutput = Schema.Struct({
   status: Status,

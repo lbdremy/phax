@@ -4,7 +4,7 @@
 // pair is ordered. Both formats are decoded with `onExcessProperty: "error"`,
 // so a key a definition does not name is refused at any level. Pure, and
 // imports only `effect` and its own refusal model, so the schemas package can carry it.
-import { type ParseResult, Schema } from "effect";
+import { Schema } from "effect";
 import { firstRefusal } from "./refusal/adapter.js";
 import { refusalMessage, refusalPath, UNDESCRIBED_REFUSAL } from "./refusal/render.js";
 
@@ -13,19 +13,19 @@ import { refusalMessage, refusalPath, UNDESCRIBED_REFUSAL } from "./refusal/rend
  * value's schema, so a decode message says what was expected (`string`,
  * `"checked" | "refused"`) rather than quoting the description.
  */
-export function described<S extends Schema.Schema.All>(schema: S, description: string) {
-  return Schema.propertySignature(schema).annotations({ description });
+export function described<S extends Schema.Top>(schema: S, description: string) {
+  return schema.annotateKey({ description });
 }
 
 // A line number is at least 1. The JSON Schema says so; phax's decode leaves
 // it to the location's filter, so that a refusal names the location's file.
-const LineNumberSchema = Schema.Int.annotations({
+const LineNumberSchema = Schema.Int.annotate({
   identifier: "LineNumber",
   description: "A 1-based line number.",
   jsonSchema: { type: "integer", minimum: 1 },
 });
 
-const LinesSchema = Schema.NullOr(Schema.Tuple(LineNumberSchema, LineNumberSchema));
+const LinesSchema = Schema.NullOr(Schema.Tuple([LineNumberSchema, LineNumberSchema]));
 
 type Lines = Schema.Schema.Type<typeof LinesSchema>;
 
@@ -56,12 +56,13 @@ const ORDERED_LINES =
   "Checked by phax's parser: lines starts at 1 or above and ends at or after its start.";
 
 /** Where a finding is: a file, and the lines in it or null for the whole file. */
-export const ReportLocationSchema = Schema.Struct(locationFields).pipe(
-  Schema.filter(linesViolation, {
-    jsonSchema: { description: `A file and the lines in it. ${ORDERED_LINES}` },
-  }),
-  Schema.annotations({ identifier: "ReportLocation" }),
-);
+export const ReportLocationSchema = Schema.Struct(locationFields)
+  .check(
+    Schema.makeFilter(linesViolation, {
+      jsonSchema: { description: `A file and the lines in it. ${ORDERED_LINES}` },
+    }),
+  )
+  .pipe(Schema.annotate({ identifier: "ReportLocation" }));
 
 export type ReportLocation = Schema.Schema.Type<typeof ReportLocationSchema>;
 
@@ -69,12 +70,15 @@ export type ReportLocation = Schema.Schema.Type<typeof ReportLocationSchema>;
 export const ReportRelatedLocationSchema = Schema.Struct({
   ...locationFields,
   why: described(Schema.NonEmptyString, "Why the finding involves this location, in one line."),
-}).pipe(
-  Schema.filter(linesViolation, {
-    jsonSchema: { description: `Another location the finding involves, and why. ${ORDERED_LINES}` },
-  }),
-  Schema.annotations({ identifier: "ReportRelatedLocation" }),
-);
+})
+  .check(
+    Schema.makeFilter(linesViolation, {
+      jsonSchema: {
+        description: `Another location the finding involves, and why. ${ORDERED_LINES}`,
+      },
+    }),
+  )
+  .pipe(Schema.annotate({ identifier: "ReportRelatedLocation" }));
 
 export type ReportRelatedLocation = Schema.Schema.Type<typeof ReportRelatedLocationSchema>;
 
@@ -88,7 +92,7 @@ export const ReportGuideSchema = Schema.Struct({
     Schema.NonEmptyString,
     "A file, relative to the working tree, that the agent reads and follows. phax never opens it; what kind of file it is belongs to the provider.",
   ),
-}).annotations({ identifier: "ReportGuide" });
+}).annotate({ identifier: "ReportGuide" });
 
 export type ReportGuide = Schema.Schema.Type<typeof ReportGuideSchema>;
 
@@ -130,10 +134,10 @@ function firstDuplicateId(findings: ReadonlyArray<{ readonly id: string }>): str
  * check, and the key's own description, when it has one, replaces it.
  */
 export function uniqueFindingIds<A extends { readonly id: string }, I, R>(
-  self: Schema.Schema<ReadonlyArray<A>, I, R>,
+  self: Schema.Codec<ReadonlyArray<A>, I, R>,
 ) {
-  return self.pipe(
-    Schema.filter(
+  return self.check(
+    Schema.makeFilter(
       (findings) => {
         const duplicate = firstDuplicateId(findings);
         return duplicate === undefined
@@ -150,7 +154,7 @@ export function uniqueFindingIds<A extends { readonly id: string }, I, R>(
  * (the message alone at the root). An excess key and a missing key both name
  * the key's own path; a filter's message names the id or the file itself.
  */
-export function describeReportIssue(error: ParseResult.ParseError): string {
+export function describeReportIssue(error: Schema.SchemaError): string {
   const first = firstRefusal(error);
   if (first === undefined) return UNDESCRIBED_REFUSAL;
   const path = refusalPath(first.path, "bracketed");

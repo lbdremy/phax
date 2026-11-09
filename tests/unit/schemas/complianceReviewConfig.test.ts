@@ -12,6 +12,7 @@ import { DEFAULT_PROVIDER_CONFIG } from "../../../src/domain/routing/defaults.js
 
 const decodeComplianceReviewConfig = Schema.decodeUnknownResult(ComplianceReviewConfigSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });
 
 const minimalValidPhaxConfig = {

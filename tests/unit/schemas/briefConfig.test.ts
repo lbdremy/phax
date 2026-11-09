@@ -9,6 +9,7 @@ import {
 
 const decodeBriefConfig = Schema.decodeUnknownResult(BriefConfigSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });
 
 const minimalValidPhaxConfig = {

@@ -2,7 +2,7 @@
 // member refused on one of its own keys (a literal the value misses, a key it does not
 // declare) gives way to a member whose type there accepts the value; when no member accepts
 // it, every member's refusal stays.
-import { Result, ParseResult, Schema } from "effect";
+import { Result, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import { refusalsOf } from "../../../../src/schemas/refusal/adapter.js";
 import { refusalMessage, refusalPath } from "../../../../src/schemas/refusal/render.js";
@@ -10,7 +10,7 @@ import { refusalMessage, refusalPath } from "../../../../src/schemas/refusal/ren
 const Failed = Schema.Struct({
   outcome: Schema.Literal("failed"),
   commit: Schema.Null,
-  failure: Schema.Literal("refused", "timeout"),
+  failure: Schema.Literals(["refused", "timeout"]),
 });
 const Committed = Schema.Struct({
   outcome: Schema.Literal("committed"),
@@ -18,12 +18,15 @@ const Committed = Schema.Struct({
   arbitrated: Schema.Array(Schema.String),
 });
 // The failed member first, so Effect 3's order would print its line.
-const Record = Schema.Union(Failed, Committed);
+const Record = Schema.Union([Failed, Committed]);
 
 function lines(input: unknown): ReadonlyArray<string> {
-  const decoded = Schema.decodeUnknownResult(Record, { onExcessProperty: "error" })(input);
+  const decoded = Schema.decodeUnknownResult(Record, {
+    onExcessProperty: "error",
+    reportInput: true,
+  })(input);
   if (Result.isSuccess(decoded)) throw new Error(`expected a refusal of ${JSON.stringify(input)}`);
-  return refusalsOf(decoded.left as ParseResult.ParseError).map(
+  return refusalsOf(decoded.left).map(
     (r) => `${refusalPath(r.path, "dotted")}: ${refusalMessage(r)}`,
   );
 }

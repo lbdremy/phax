@@ -1,9 +1,9 @@
-import type { ParseResult } from "effect";
+import type { Schema } from "effect";
 import { firstRefusal, refusalsOf } from "./refusal/adapter.js";
 import type { Refusal } from "./refusal/model.js";
 import { refusalMessage, refusalPath, UNDESCRIBED_REFUSAL } from "./refusal/render.js";
 
-export function formatParseError(err: ParseResult.ParseError): string {
+export function formatParseError(err: Schema.SchemaError): string {
   return refusalsOf(err)
     .map((refusal) => {
       const path = refusalPath(refusal.path, "dotted");
@@ -19,7 +19,7 @@ export function formatParseError(err: ParseResult.ParseError): string {
 // `brief.push` reads `brief.push must be "findings" or "findings-and-rules"`.
 // A refusal under `assignments` names the bound as `assignments[N]` (see
 // assignmentRefusalLines).
-export function formatConfigParseError(raw: unknown, err: ParseResult.ParseError): string {
+export function formatConfigParseError(raw: unknown, err: Schema.SchemaError): string {
   const refusals = refusalsOf(err);
   const bounds = assignmentRefusalLines(raw, refusals);
   const lines = refusals.map((refusal) => {
@@ -116,7 +116,7 @@ function violationLine(refusal: Refusal): string {
 // The first violation as one line, `<path>: <message>` (the message alone when
 // the violation is at the root). Used where a single rejection reason is
 // printed verbatim, e.g. an authored spec or plan document.
-export function formatFirstViolation(err: ParseResult.ParseError): string {
+export function formatFirstViolation(err: Schema.SchemaError): string {
   const first = firstRefusal(err);
   return first === undefined ? UNDESCRIBED_REFUSAL : violationLine(first);
 }
@@ -130,7 +130,7 @@ export function formatFirstViolation(err: ParseResult.ParseError): string {
  * whole difference at once. Without one, the first violation reads as
  * `formatFirstViolation` reads it, at its full path.
  */
-export function formatAnswerViolations(err: ParseResult.ParseError): string {
+export function formatAnswerViolations(err: Schema.SchemaError): string {
   const refusals = refusalsOf(err);
   const ownKeys = refusals.filter(
     ({ path, kind }) =>
@@ -154,7 +154,7 @@ export function formatAnswerViolations(err: ParseResult.ParseError): string {
  * violation of the line itself has no inner path. Every other violation reads
  * as `formatFirstViolation` reads it.
  */
-export function formatPlanDocumentViolation(input: unknown, err: ParseResult.ParseError): string {
+export function formatPlanDocumentViolation(input: unknown, err: Schema.SchemaError): string {
   const first = firstRefusal(err);
   const [phases, i, strategy, j, ...inner] = first?.path ?? [];
   if (

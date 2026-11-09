@@ -203,7 +203,7 @@ export function makeEnterCommand(deps: EnterDeps = {}) {
     summary: "Resume the final phase's agent session interactively",
     help: ENTER_HELP,
     examples: ["phax enter usage-cli"],
-    input: { args: reject(Schema.Tuple(ShortNameArg)) },
+    input: { args: reject(Schema.Tuple([ShortNameArg])) },
     output: reject(HandedOver),
     // The session is a person's terminal.
     prompts: () => true,
@@ -275,18 +275,18 @@ export function makeEnterPhaseCommand(deps: EnterPhaseDeps = {}) {
     ],
     input: {
       args: reject(
-        Schema.Tuple(
+        Schema.Tuple([
           ShortNameArg,
-          Schema.String.annotations({
+          Schema.String.annotate({
             identifier: "phase-id",
             description: "Phase identifier, e.g. phase-02",
           }),
-        ),
+        ]),
       ),
       flags: reject(
         Schema.Struct({
           newSession: Schema.optionalKey(
-            Schema.Boolean.annotations({
+            Schema.Boolean.annotate({
               description:
                 "At a stopped phase, run a new read-only first turn and continue its session",
             }),
@@ -388,7 +388,7 @@ export function makeShellCommand(deps: EnterDeps = {}) {
     summary: "Open a shell in the final worktree",
     help: SHELL_HELP,
     examples: ["phax shell usage-cli"],
-    input: { args: reject(Schema.Tuple(ShortNameArg)) },
+    input: { args: reject(Schema.Tuple([ShortNameArg])) },
     output: reject(HandedOver),
     prompts: () => true,
     unprompted: "phax path <run> --json names the worktree",
@@ -441,7 +441,7 @@ export function makeOpenCommand(deps: OpenDeps = {}) {
     summary: "Open the final worktree in the configured editor",
     help: OPEN_HELP,
     examples: ["phax open usage-cli"],
-    input: { args: reject(Schema.Tuple(ShortNameArg)) },
+    input: { args: reject(Schema.Tuple([ShortNameArg])) },
     output: reject(OpenOutput),
     // The configured editor may be a terminal one.
     prompts: () => true,

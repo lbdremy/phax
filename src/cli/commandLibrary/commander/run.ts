@@ -1,5 +1,4 @@
 import { Cause, Data, Effect, Result, Option } from "effect";
-import * as ParseResult from "effect/ParseResult";
 import * as Schema from "effect/Schema";
 import * as SchemaAST from "effect/SchemaAST";
 import { firstRefusal, refusalsOf } from "../../../schemas/refusal/adapter.js";
@@ -212,12 +211,12 @@ function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
 }
 
 /** A contract's schema as the runner decodes and encodes with it: a source's contract needs no
- *  service, which `Schema.Schema.Any` cannot say (it leaves the context open). */
-const synchronous = (contract: Schema.Schema.Any): Schema.Schema<unknown, unknown, never> =>
-  contract as unknown as Schema.Schema<unknown, unknown, never>;
+ *  service, which `Schema.Top` cannot say (it leaves the context open). */
+const synchronous = (contract: Schema.Top): Schema.Codec<unknown, unknown> =>
+  contract as unknown as Schema.Codec<unknown, unknown>;
 
 /** The policy a source declares, as Effect 3's parse option. */
-const policyOf = (source: Source<Schema.Schema.Any>) =>
+const policyOf = (source: Source<Schema.Top>) =>
   ({
     onExcessProperty: source.undeclared === "reject" ? "error" : "ignore",
   }) as const;
@@ -226,7 +225,7 @@ const policyOf = (source: Source<Schema.Schema.Any>) =>
  *  phax's refusal model says of it. */
 function reasonOf(
   kind: Details["source"],
-  failure: ParseResult.ParseError,
+  failure: Schema.SchemaError,
   names: ReadonlyArray<string>,
 ): string {
   const first = firstRefusal(failure);
@@ -236,16 +235,19 @@ function reasonOf(
   return path.length === 0 ? message : `${path.join(".")}: ${message}`;
 }
 
-/** Decodes one source's value with its policy applied literally, with Effect 3's
- *  `Schema.decodeUnknownEither`. */
+/** Decodes one source's value with its policy applied literally, with
+ *  `Schema.decodeUnknownResult`. */
 function decode(
   label: string,
   kind: Details["source"],
-  source: Source<Schema.Schema.Any>,
+  source: Source<Schema.Top>,
   value: unknown,
   names: ReadonlyArray<string> = [],
 ): Effect.Effect<unknown, Refusal> {
-  const decoded = Schema.decodeUnknownResult(synchronous(source.contract), policyOf(source))(value);
+  const decoded = Schema.decodeUnknownResult(synchronous(source.contract), {
+    ...policyOf(source),
+    reportInput: true,
+  })(value);
   if (Result.isSuccess(decoded)) return Effect.succeed(decoded.right);
   const failure = decoded.left;
   const excess = source.undeclared === "reject" ? excessKeys(source.contract, value) : [];
@@ -256,17 +258,11 @@ function decode(
   );
 }
 
-/** The object node of a contract's encoded side, under its refinements and transformations. */
-function objectOf(ast: SchemaAST.AST): SchemaAST.TypeLiteral | undefined {
-  if (SchemaAST.isTypeLiteral(ast)) return ast;
-  if (SchemaAST.isRefinement(ast) || SchemaAST.isTransformation(ast)) return objectOf(ast.from);
-  return undefined;
-}
-
-/** The keys of `value` that the contract does not declare, for `err` to name. */
-function excessKeys(contract: Schema.Schema.Any, value: unknown): ReadonlyArray<string> {
-  const ast = objectOf(SchemaAST.encodedAST(contract.ast));
-  if (ast === undefined || !isRecord(value)) return [];
+/** The keys of `value` that the contract does not declare, for `err` to name: the object node of
+ *  the contract's encoded side, whose checks sit on the node itself. */
+function excessKeys(contract: Schema.Top, value: unknown): ReadonlyArray<string> {
+  const ast = SchemaAST.toEncoded(contract.ast);
+  if (!SchemaAST.isObjects(ast) || !isRecord(value)) return [];
   const declared = ast.propertySignatures.map((property) => String(property.name));
   return Object.keys(value).filter((key) => !declared.includes(key));
 }
@@ -592,7 +588,7 @@ function prepare<R>(
     // sees the words.
     const writes = known?.writesDocument === true;
     const outTaken = writes ? takeOut(words) : { kept: words, out: { tag: "Absent" } as Out };
-    const stdinSource = known?.input.stdin as Source<Schema.Schema.Any> | undefined;
+    const stdinSource = known?.input.stdin as Source<Schema.Top> | undefined;
     const flag = stdinSource?.flag;
     const taken =
       flag === undefined
@@ -646,7 +642,7 @@ function prepare<R>(
       input["flags"] = yield* decode("flags", "flags", declared.flags, parsed.options);
     }
     if (declared.stdin !== undefined) {
-      const stdin: Source<Schema.Schema.Any> = declared.stdin;
+      const stdin: Source<Schema.Top> = declared.stdin;
       const document = yield* readDocument(
         io,
         fullName(command).join(" "),
@@ -702,7 +698,7 @@ function describe(cause: Cause.Cause<unknown>): string {
 
 /** A failed encode or decode of an output as one line, in phax's words: each refusal
  *  as `<path>: <message>`, joined by `; `. */
-function failureText(error: ParseResult.ParseError): string {
+function failureText(error: Schema.SchemaError): string {
   const lines = refusalsOf(error).map((one) => {
     const path = one.path.map(String).join(".");
     return path.length === 0 ? refusalMessage(one) : `${path}: ${refusalMessage(one)}`;
@@ -712,7 +708,7 @@ function failureText(error: ParseResult.ParseError): string {
 
 /** Encodes `run`'s value with the output contract and its policy, with Effect 3's
  *  `Schema.encodeUnknownEither`: the output's encoded form. A failure is a defect. */
-function encode(output: Source<Schema.Schema.Any>, value: unknown): Effect.Effect<unknown, Defect> {
+function encode(output: Source<Schema.Top>, value: unknown): Effect.Effect<unknown, Defect> {
   const encoded = Schema.encodeUnknownResult(synchronous(output.contract), policyOf(output))(value);
   return Result.isFailure(encoded)
     ? Effect.fail(new Defect({ text: defectText(failureText(encoded.left)) }))
@@ -721,14 +717,11 @@ function encode(output: Source<Schema.Schema.Any>, value: unknown): Effect.Effec
 
 /** Decodes an encoded output back: the reduced value `render`, `notes` and the verdicts
  *  receive. A failure is a defect. */
-function reduced(
-  output: Source<Schema.Schema.Any>,
-  encoded: unknown,
-): Effect.Effect<unknown, Defect> {
-  const decoded = Schema.decodeUnknownResult(
-    synchronous(output.contract),
-    policyOf(output),
-  )(encoded);
+function reduced(output: Source<Schema.Top>, encoded: unknown): Effect.Effect<unknown, Defect> {
+  const decoded = Schema.decodeUnknownResult(synchronous(output.contract), {
+    ...policyOf(output),
+    reportInput: true,
+  })(encoded);
   return Result.isFailure(decoded)
     ? Effect.fail(new Defect({ text: defectText(failureText(decoded.left)) }))
     : Effect.succeed(decoded.right);
@@ -771,7 +764,7 @@ function compose<R>(
   out: Out,
 ): Effect.Effect<Presented, Defect | Refusal> {
   return Effect.gen(function* () {
-    const output: Source<Schema.Schema.Any> | undefined = command.output;
+    const output: Source<Schema.Top> | undefined = command.output;
     const render: ((value: unknown, terminal: Io["terminal"]) => string) | undefined =
       command.render;
     const notes: ((value: unknown, terminal: Io["terminal"]) => string) | undefined = command.notes;

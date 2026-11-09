@@ -3,7 +3,7 @@ import { BranchNameSchema } from "../domain/branded.js";
 import { PhaseModeSchema } from "./phaxPlan.js";
 import { schemaUrlField } from "./schemaUrl.js";
 
-export const RunStateSchema = Schema.Union(
+export const RunStateSchema = Schema.Union([
   Schema.Literal("created"),
   Schema.Literal("running"),
   Schema.Literal("failed"),
@@ -14,9 +14,9 @@ export const RunStateSchema = Schema.Union(
   Schema.Literal("interrupted"),
   Schema.Literal("rate_limited"),
   Schema.Literal("awaiting_review"),
-);
+]);
 
-const PhaseStateSchema = Schema.Union(
+const PhaseStateSchema = Schema.Union([
   Schema.Literal("pending"),
   Schema.Literal("setting_up_worktree"),
   Schema.Literal("running"),
@@ -33,9 +33,9 @@ const PhaseStateSchema = Schema.Union(
   Schema.Literal("skipped"),
   Schema.Literal("rate_limited"),
   Schema.Literal("awaiting_review"),
-);
+]);
 
-const EffortSchema = Schema.Union(
+const EffortSchema = Schema.Union([
   Schema.Literal("none"),
   Schema.Literal("off"),
   Schema.Literal("low"),
@@ -45,20 +45,22 @@ const EffortSchema = Schema.Union(
   Schema.Literal("max"),
   Schema.Literal("ultracode"),
   Schema.Literal("ultra"),
-);
+]);
 
-const HoldPhasesSchema = Schema.NonEmptyArray(Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/)));
+const HoldPhasesSchema = Schema.NonEmptyArray(
+  Schema.String.check(Schema.isPattern(/^phase-\d{2}$/)),
+);
 
 /**
  * The hold resolved when the run was named, one struct per selection: `none`
  * holds nothing; the others list the held phases in plan order.
  */
-export const RunHoldSchema = Schema.Union(
+export const RunHoldSchema = Schema.Union([
   Schema.Struct({ selection: Schema.Literal("none") }),
   Schema.Struct({ selection: Schema.Literal("all"), phases: HoldPhasesSchema }),
   Schema.Struct({ selection: Schema.Literal("listed"), phases: HoldPhasesSchema }),
   Schema.Struct({ selection: Schema.Literal("acceptance"), phases: HoldPhasesSchema }),
-);
+]);
 
 export type RunHold = Schema.Schema.Type<typeof RunHoldSchema>;
 
@@ -103,13 +105,16 @@ export const RunStatusFileSchema = Schema.Struct({
 
 export type RunStatusFile = Schema.Schema.Type<typeof RunStatusFileSchema>;
 
-export const decodeRunStatusFile = Schema.decodeUnknownResult(RunStatusFileSchema);
+export const decodeRunStatusFile = Schema.decodeUnknownResult(RunStatusFileSchema, {
+  reportInput: true,
+});
 export const encodeRunStatus = Schema.encodeSync(RunStatusFileSchema);
 
 /** A commit's full object name: 40 hex digits (SHA-1) or 64 (SHA-256). */
-export const FullCommitShaSchema = Schema.String.pipe(
-  Schema.pattern(/^[0-9a-f]{40}([0-9a-f]{24})?$/),
-  Schema.annotations({
+export const FullCommitShaSchema = Schema.String.check(
+  Schema.isPattern(/^[0-9a-f]{40}([0-9a-f]{24})?$/),
+).pipe(
+  Schema.annotate({
     description: "A commit's full object name: 40 lowercase hex digits (SHA-1) or 64 (SHA-256).",
   }),
 );
@@ -118,13 +123,13 @@ const ClosedBySchema = Schema.Struct({
   name: Schema.NonEmptyString,
   email: Schema.NonEmptyString,
 })
-  .annotations({
+  .annotate({
     description:
       "The git identity of the checkout that closed the stop, read from its configuration and never from a commit.",
   })
-  .annotations({ jsonSchema: { additionalProperties: false } });
+  .annotate({ jsonSchema: { additionalProperties: false } });
 
-const AcceptanceStepSchema = Schema.Literal("authored", "none").annotations({
+const AcceptanceStepSchema = Schema.Literals(["authored", "none"]).annotate({
   description:
     "Whether the close's gate ended with the `authored` acceptance step, which passed, since the close committed.",
 });
@@ -141,28 +146,28 @@ const strictStop = { jsonSchema: { additionalProperties: false } } as const;
  * and a declared one never does.
  */
 export const PhaseStopSchema = Schema.NullOr(
-  Schema.Union(
+  Schema.Union([
     Schema.Struct({
       cause: Schema.Literal("declared"),
       status: Schema.Literal("waiting"),
-    }).annotations(strictStop),
+    }).annotate(strictStop),
     Schema.Struct({
       cause: Schema.Literal("declared"),
       status: Schema.Literal("closed"),
       outcome: Schema.Literal("corrected"),
       acceptanceStep: AcceptanceStepSchema,
       closedBy: ClosedBySchema,
-    }).annotations(strictStop),
+    }).annotate(strictStop),
     Schema.Struct({
       cause: Schema.Literal("declared"),
       status: Schema.Literal("closed"),
       outcome: Schema.Literal("unchanged"),
       closedBy: ClosedBySchema,
-    }).annotations(strictStop),
+    }).annotate(strictStop),
     Schema.Struct({
       cause: Schema.Literal("held"),
       status: Schema.Literal("waiting"),
-    }).annotations(strictStop),
+    }).annotate(strictStop),
     Schema.Struct({
       cause: Schema.Literal("held"),
       status: Schema.Literal("closed"),
@@ -170,14 +175,14 @@ export const PhaseStopSchema = Schema.NullOr(
       reviewCommit: FullCommitShaSchema,
       acceptanceStep: AcceptanceStepSchema,
       closedBy: ClosedBySchema,
-    }).annotations(strictStop),
+    }).annotate(strictStop),
     Schema.Struct({
       cause: Schema.Literal("held"),
       status: Schema.Literal("closed"),
       outcome: Schema.Literal("unchanged"),
       closedBy: ClosedBySchema,
-    }).annotations(strictStop),
-  ).annotations({ parseOptions: { onExcessProperty: "error" } }),
+    }).annotate(strictStop),
+  ]).annotate({ parseOptions: { onExcessProperty: "error" } }),
 );
 
 export type PhaseStop = Schema.Schema.Type<typeof PhaseStopSchema>;
@@ -191,7 +196,7 @@ const phaseStatusFields = {
   createdAt: Schema.NonEmptyString,
   updatedAt: Schema.NonEmptyString,
   branchName: BranchNameSchema,
-  base: FullCommitShaSchema.annotations({
+  base: FullCommitShaSchema.annotate({
     description:
       "The full object name of the commit this phase's branch was created from, noted when phax created the branch.",
   }),
@@ -217,5 +222,7 @@ export const PhaseStatusFileSchema = Schema.Struct({
 
 export type PhaseStatusFile = Schema.Schema.Type<typeof PhaseStatusFileSchema>;
 
-export const decodePhaseStatusFile = Schema.decodeUnknownResult(PhaseStatusFileSchema);
+export const decodePhaseStatusFile = Schema.decodeUnknownResult(PhaseStatusFileSchema, {
+  reportInput: true,
+});
 export const encodePhaseStatus = Schema.encodeSync(PhaseStatusFileSchema);

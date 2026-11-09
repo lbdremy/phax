@@ -1,4 +1,4 @@
-import { Result, ParseResult } from "effect";
+import { Result, type Schema } from "effect";
 import type { HandDecision, HandDecisionAnswer } from "../../schemas/handDecisionAnswer.js";
 import { decodeCurrentHandDecisionAnswer } from "../../schemas/persisted.js";
 import { OTHER_OPTION_ID } from "../../schemas/questions.js";
@@ -123,7 +123,7 @@ export interface HandDecideContext {
   readonly atIso: string;
 }
 
-function firstParseIssue(error: ParseResult.ParseError): RevisionRefusal {
+function firstParseIssue(error: Schema.SchemaError): RevisionRefusal {
   const first = firstRefusal(error);
   if (first === undefined) return { path: "", message: UNDESCRIBED_REFUSAL };
   return refusal(first.path, refusalMessage(first));

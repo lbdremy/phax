@@ -218,7 +218,7 @@ describe("a verdict code", () => {
     return defineCommand({
       name: "lint",
       summary: "lint",
-      input: { args: reject(Schema.Tuple(Schema.NumberFromString, Schema.NumberFromString)) },
+      input: { args: reject(Schema.Tuple([Schema.NumberFromString, Schema.NumberFromString])) },
       output: strip(Report),
       exits: {},
       verdicts,

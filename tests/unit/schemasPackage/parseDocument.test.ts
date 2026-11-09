@@ -276,8 +276,11 @@ describe("parseDocument", () => {
 // A toy format with a frozen pre-schema shape and a release-named current
 // shape that carries $schema, so identification by $schema alone is proven
 // before any real format has one.
-function toyShape<A, I>(schema: Schema.Schema<A, I>): Shape<A> {
-  return { schema, decode: Schema.decodeUnknownResult(schema, { onExcessProperty: "error" }) };
+function toyShape<A, I>(schema: Schema.Codec<A, I>): Shape<A> {
+  return {
+    schema,
+    decode: Schema.decodeUnknownResult(schema, { onExcessProperty: "error", reportInput: true }),
+  };
 }
 const PreSchemaToy = Schema.Struct({ a: Schema.String });
 const Toy = Schema.Struct({ $schema: Schema.String, a: Schema.String });

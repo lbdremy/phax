@@ -10,7 +10,7 @@ import { RecordedSurfaceSchema } from "./surface.js";
  * Full = skeleton plus `output.jsonl`. Skeleton is produced both when the
  * transcript is turned off and when the provider produced no transcript.
  */
-export const RecordShapeSchema = Schema.Union(Schema.Literal("full"), Schema.Literal("skeleton"));
+export const RecordShapeSchema = Schema.Union([Schema.Literal("full"), Schema.Literal("skeleton")]);
 
 export type RecordShape = Schema.Schema.Type<typeof RecordShapeSchema>;
 
@@ -18,12 +18,12 @@ export type RecordShape = Schema.Schema.Type<typeof RecordShapeSchema>;
  * Mirrors spec §5.1's own wording for how a phase ends: committed, or one of
  * the three ways it can end without a commit (failed, abandoned, interrupted).
  */
-export const RecordPhaseOutcomeSchema = Schema.Union(
+export const RecordPhaseOutcomeSchema = Schema.Union([
   Schema.Literal("committed"),
   Schema.Literal("failed"),
   Schema.Literal("abandoned"),
   Schema.Literal("interrupted"),
-);
+]);
 
 export type RecordPhaseOutcome = Schema.Schema.Type<typeof RecordPhaseOutcomeSchema>;
 
@@ -63,11 +63,11 @@ export const VibeTokenUsageSchema = Schema.Struct({
 
 export type VibeTokenUsage = Schema.Schema.Type<typeof VibeTokenUsageSchema>;
 
-export const ProviderTokenUsageSchema = Schema.Union(
+export const ProviderTokenUsageSchema = Schema.Union([
   ClaudeTokenUsageSchema,
   CodexTokenUsageSchema,
   VibeTokenUsageSchema,
-);
+]);
 
 export type ProviderTokenUsage = Schema.Schema.Type<typeof ProviderTokenUsageSchema>;
 
@@ -76,10 +76,10 @@ export type ProviderTokenUsage = Schema.Schema.Type<typeof ProviderTokenUsageSch
  * zero: reporting an unavailable usage as `0` is the failure this shape
  * exists to prevent (spec §5.5).
  */
-export const TokenUsageSchema = Schema.Union(
+export const TokenUsageSchema = Schema.Union([
   Schema.Struct({ available: Schema.Literal(true), usage: ProviderTokenUsageSchema }),
   Schema.Struct({ available: Schema.Literal(false) }),
-);
+]);
 
 export type TokenUsage = Schema.Schema.Type<typeof TokenUsageSchema>;
 
@@ -114,7 +114,7 @@ export function liftFrozenTokenUsage(usage: FrozenTokenUsage): TokenUsage {
   return { available: true, usage: recorded };
 }
 
-const PhaseIdSchema = Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/));
+const PhaseIdSchema = Schema.String.check(Schema.isPattern(/^phase-\d{2}$/));
 
 /**
  * The phase's role in an acceptance pair: null when it is in none;
@@ -123,10 +123,10 @@ const PhaseIdSchema = Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/));
  * acceptance phase.
  */
 export const RecordAcceptanceRoleSchema = Schema.NullOr(
-  Schema.Union(
+  Schema.Union([
     Schema.Struct({ role: Schema.Literal("acceptance"), passedBy: PhaseIdSchema }),
     Schema.Struct({ role: Schema.Literal("passing"), acceptancePhase: PhaseIdSchema }),
-  ),
+  ]),
 );
 
 export type RecordAcceptanceRole = Schema.Schema.Type<typeof RecordAcceptanceRoleSchema>;
@@ -134,25 +134,24 @@ export type RecordAcceptanceRole = Schema.Schema.Type<typeof RecordAcceptanceRol
 const RecordClosedBySchema = Schema.Struct({
   name: Schema.NonEmptyString,
   email: Schema.NonEmptyString,
-}).annotations({
+}).annotate({
   description: "The git identity of the checkout that closed the stop.",
 });
 
 /** How a recorded session's transcript came out at the close: its digest, never its content. */
-const RecordTranscriptSchema = Schema.Union(
+const RecordTranscriptSchema = Schema.Union([
   Schema.Struct({
     status: Schema.Literal("captured"),
-    sha256: Schema.String.pipe(
-      Schema.pattern(/^[0-9a-f]{64}$/),
-      Schema.annotations({ description: "The sha256 of the transcript copy's bytes." }),
+    sha256: Schema.String.check(Schema.isPattern(/^[0-9a-f]{64}$/)).pipe(
+      Schema.annotate({ description: "The sha256 of the transcript copy's bytes." }),
     ),
   }),
   Schema.Struct({
     status: Schema.Literal("missing"),
-    reason: Schema.Literal("not-found", "unreadable"),
+    reason: Schema.Literals(["not-found", "unreadable"]),
     detail: Schema.NonEmptyString,
   }),
-);
+]);
 
 /** A session the stop recorded: the builder, a first turn that answered, or a `--new-session` one. */
 const RecordStopSessionSchema = Schema.Struct({
@@ -160,7 +159,7 @@ const RecordStopSessionSchema = Schema.Struct({
   model: Schema.NonEmptyString,
   effort: Schema.NonEmptyString,
   sessionId: SafeSessionIdSchema,
-  origin: Schema.Literal("first-turn", "new-session", "builder"),
+  origin: Schema.Literals(["first-turn", "new-session", "builder"]),
   transcript: RecordTranscriptSchema,
 });
 
@@ -177,7 +176,7 @@ const stopRecordFields = {
  * corrected something names its review commit.
  */
 export const RecordStopSchema = Schema.NullOr(
-  Schema.Union(
+  Schema.Union([
     Schema.Struct({
       cause: Schema.Literal("declared"),
       outcome: Schema.Literal("corrected"),
@@ -199,7 +198,7 @@ export const RecordStopSchema = Schema.NullOr(
       outcome: Schema.Literal("unchanged"),
       ...stopRecordFields,
     }),
-  ),
+  ]),
 );
 
 export type RecordStop = Schema.Schema.Type<typeof RecordStopSchema>;
@@ -209,7 +208,7 @@ export type RecordStop = Schema.Schema.Type<typeof RecordStopSchema>;
  * skills, plugins, memory) was loaded for the phase's headless sessions:
  * `excluded` when they ran project-only, `loaded` otherwise.
  */
-export const UserConfigSchema = Schema.Literal("excluded", "loaded").annotations({
+export const UserConfigSchema = Schema.Literals(["excluded", "loaded"]).annotate({
   description:
     "Whether the operator's user-level provider configuration was loaded for the phase's headless sessions.",
 });
@@ -274,6 +273,7 @@ export type RunRecordManifestFile = Schema.Schema.Type<typeof RunRecordManifestF
 
 export const decodeRunRecordManifestFile = Schema.decodeUnknownResult(RunRecordManifestFileSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });
 
 export const encodeRunRecordManifest = Schema.encodeSync(RunRecordManifestFileSchema);

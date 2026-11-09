@@ -44,7 +44,7 @@ const BriefOutput = Schema.Struct({
   recordWarning: Schema.NullOr(Schema.String),
 });
 
-const PathArg = Schema.String.annotations({
+const PathArg = Schema.String.annotate({
   identifier: "path",
   description: "Paths to brief, existing or not, relative to the current directory",
 });

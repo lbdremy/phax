@@ -67,7 +67,7 @@ const DryRunReportSchema = Schema.Struct({
   projectName: Schema.String,
   stateRoot: Schema.String,
   gateProfileId: Schema.String,
-  securityMode: Schema.Literal("secure", "unsafe", "isolated"),
+  securityMode: Schema.Literals(["secure", "unsafe", "isolated"]),
   setupCommands: Schema.Array(Schema.String),
   cleanupCommands: Schema.Array(Schema.String),
   gateCommands: Schema.Array(Schema.String),
@@ -142,21 +142,21 @@ function dryRunReportOf(value: DryRunReportValue): DryRunReport {
 const CompletionsSchema = Schema.Struct({
   transitions: Schema.Array(
     Schema.Struct({
-      kind: Schema.Literal("plan", "spec"),
+      kind: Schema.Literals(["plan", "spec"]),
       path: Schema.String,
       commit: Schema.NullOr(Schema.Struct({ hash: Schema.String, subject: Schema.String })),
       alreadyComplete: Schema.Boolean,
     }),
   ),
   keptSpec: Schema.NullOr(
-    Schema.Union(
+    Schema.Union([
       Schema.Struct({
         reason: Schema.Literal("blocked"),
         path: Schema.String,
         blockedBy: Schema.Array(Schema.Struct({ path: Schema.String, status: Schema.String })),
       }),
       Schema.Struct({ reason: Schema.Literal("not-completing"), path: Schema.String }),
-    ),
+    ]),
   ),
 });
 
@@ -218,7 +218,7 @@ const { $schema: _declaredStamp, ...declaredReviewStopFields } =
   DeclaredReviewStopFileSchema.fields;
 const { $schema: _heldStamp, ...heldReviewStopFields } = HeldReviewStopFileSchema.fields;
 
-const StopReportSchema = Schema.Union(
+const StopReportSchema = Schema.Union([
   Schema.Struct({
     cause: Schema.Literal("declared"),
     reviewStop: Schema.Struct(declaredReviewStopFields),
@@ -236,10 +236,10 @@ const StopReportSchema = Schema.Union(
     handoffPath: Schema.String,
     unverifiedProvider: Schema.Boolean,
   }),
-);
+]);
 
 /** Why a run paused: each a resumable state with its next command. */
-const PauseReason = Schema.Literal(
+const PauseReason = Schema.Literals([
   "limit",
   "network",
   "handoff-turn",
@@ -247,9 +247,9 @@ const PauseReason = Schema.Literal(
   "gate-refused",
   "no-changes",
   "close-refused",
-);
+]);
 
-const Outcome = Schema.Union(
+const Outcome = Schema.Union([
   Schema.Struct({ kind: Schema.Literal("dry-run"), report: DryRunReportSchema }),
   Schema.Struct({
     kind: Schema.Literal("preview"),
@@ -257,7 +257,7 @@ const Outcome = Schema.Union(
     nextPhaseId: Schema.String,
     nextPhaseIndex: Schema.Number,
     skippedPhaseIds: Schema.Array(Schema.String),
-    owedStep: Schema.Literal("none", "handoff", "post-handoff"),
+    owedStep: Schema.Literals(["none", "handoff", "post-handoff"]),
     skipAcceptance: Schema.Boolean,
   }),
   Schema.Struct({
@@ -287,7 +287,7 @@ const Outcome = Schema.Union(
     /** The lines a person reads on stderr, today's text of the pause. */
     lines: Schema.Array(Schema.String),
   }),
-);
+]);
 
 /** What run and resume answer. */
 export const RunAnswer = Schema.Struct({

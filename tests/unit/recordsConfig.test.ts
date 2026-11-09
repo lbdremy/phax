@@ -10,11 +10,13 @@ import { decodePhaxConfig } from "../../src/schemas/phaxConfig.js";
 
 const decodeRecordsConfig = Schema.decodeUnknownResult(RecordsConfigSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });
 const decodeRecordsDestination = Schema.decodeUnknownResult(RecordsDestinationSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });
-const decodeRecordsRemote = Schema.decodeUnknownResult(RecordsRemoteSchema);
+const decodeRecordsRemote = Schema.decodeUnknownResult(RecordsRemoteSchema, { reportInput: true });
 
 const minimalValidPhaxConfig = {
   version: 1,

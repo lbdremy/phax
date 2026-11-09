@@ -19,7 +19,7 @@ describe("an undeclared option under strip is dropped alone", () => {
     name: "tag-todo",
     summary: "tag a todo",
     input: {
-      args: reject(Schema.Tuple(Schema.String)),
+      args: reject(Schema.Tuple([Schema.String])),
       flags: strip(Schema.Struct({ to: Schema.String })),
     },
     exits: {},
@@ -120,7 +120,7 @@ describe("the other policies, as declared", () => {
     defineCommand({
       name: "args-strip",
       summary: "strip the surplus arguments",
-      input: { args: strip(Schema.Tuple(Schema.String)) },
+      input: { args: strip(Schema.Tuple([Schema.String])) },
       exits: {},
       run: ({ input }) => runs.args(input),
       output: strip(Schema.String),
@@ -217,7 +217,7 @@ describe("a word that starts with - is an option, under every policy", () => {
     defineCommand({
       name: "num",
       summary: "take one argument, no options",
-      input: { args: reject(Schema.Tuple(Schema.String)) },
+      input: { args: reject(Schema.Tuple([Schema.String])) },
       exits: {},
       run: ({ input }) => runs.num(input),
       output: strip(Schema.String),
@@ -227,7 +227,7 @@ describe("a word that starts with - is an option, under every policy", () => {
       name: "opts",
       summary: "reject an undeclared option",
       input: {
-        args: reject(Schema.Tuple(Schema.String)),
+        args: reject(Schema.Tuple([Schema.String])),
         flags: reject(Schema.Struct({ to: Schema.String })),
       },
       exits: {},
@@ -239,7 +239,7 @@ describe("a word that starts with - is an option, under every policy", () => {
       name: "tag",
       summary: "drop an undeclared option",
       input: {
-        args: reject(Schema.Tuple(Schema.String)),
+        args: reject(Schema.Tuple([Schema.String])),
         flags: strip(Schema.Struct({ to: Schema.String })),
       },
       exits: {},
@@ -313,7 +313,7 @@ describe("-- ends the options, and an attached value may start with -", () => {
     defineCommand({
       name: "num",
       summary: "take one argument, no options",
-      input: { args: reject(Schema.Tuple(Schema.String)) },
+      input: { args: reject(Schema.Tuple([Schema.String])) },
       exits: {},
       run: ({ input }) => runs.num(input),
       output: strip(Schema.String),
@@ -322,7 +322,7 @@ describe("-- ends the options, and an attached value may start with -", () => {
     defineCommand({
       name: "loose",
       summary: "drop a surplus argument",
-      input: { args: strip(Schema.Tuple(Schema.String)) },
+      input: { args: strip(Schema.Tuple([Schema.String])) },
       exits: {},
       run: ({ input }) => runs.loose(input),
       output: strip(Schema.String),
@@ -332,7 +332,7 @@ describe("-- ends the options, and an attached value may start with -", () => {
       name: "opts",
       summary: "one argument, one valued option",
       input: {
-        args: reject(Schema.Tuple(Schema.String)),
+        args: reject(Schema.Tuple([Schema.String])),
         flags: reject(Schema.Struct({ to: Schema.String })),
       },
       exits: {},
@@ -388,7 +388,7 @@ function traced() {
   const show = defineCommand({
     name: "show",
     summary: "show",
-    input: { args: reject(Schema.Tuple(Schema.String)) },
+    input: { args: reject(Schema.Tuple([Schema.String])) },
     output: strip(Schema.String),
     exits: {},
     run: (context) =>
@@ -404,7 +404,9 @@ function traced() {
     options: reject(
       Schema.Struct({
         verbose: Schema.optionalKey(Schema.Boolean),
-        trace: Schema.optionalWith(Schema.Literal("off", "on"), { default: () => "off" }),
+        trace: Schema.Literals(["off", "on"]).pipe(
+          Schema.withDecodingDefaultType(Effect.succeed("off" as const)),
+        ),
       }),
     ),
     commands: [defineGroup({ name: "runs", summary: "Runs", commands: [show] })],
@@ -471,9 +473,7 @@ describe("a negated switch", () => {
       input: {
         flags: reject(
           Schema.Struct({
-            noProbe: Schema.optionalKey(
-              Schema.Boolean.annotations({ description: "Skip the probe" }),
-            ),
+            noProbe: Schema.optionalKey(Schema.Boolean.annotate({ description: "Skip the probe" })),
             dryRun: Schema.optionalKey(Schema.Boolean),
           }),
         ),

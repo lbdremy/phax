@@ -12,7 +12,7 @@ export const VibeBaseModelSchema = Schema.Struct({
 
 export type VibeBaseModel = Schema.Schema.Type<typeof VibeBaseModelSchema>;
 
-const decodeVibeBaseModel = Schema.decodeUnknownResult(VibeBaseModelSchema);
+const decodeVibeBaseModel = Schema.decodeUnknownResult(VibeBaseModelSchema, { reportInput: true });
 
 /** The reasoning levels the Mistral API serves for mistral-medium-3.5: one phax alias each. */
 export const PHAX_ALIAS_LEVELS = ["off", "high"] as const;

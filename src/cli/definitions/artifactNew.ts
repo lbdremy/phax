@@ -76,31 +76,31 @@ const SKILL_SOURCE_DIR_FOR_KIND: Readonly<Record<ArtifactKind, string>> = {
 const NO_COMPLETION_FLAGS: CompletionFlags = { last: false, notLast: false };
 
 const SlugArg = reject(
-  Schema.Tuple(
-    Schema.String.annotations({
+  Schema.Tuple([
+    Schema.String.annotate({
       identifier: "slug",
       description: "Slug matching `[a-z0-9]+(-[a-z0-9]+)*`",
     }),
-  ),
+  ]),
 );
 
-const optional = <S extends Schema.Schema.Any>(schema: S) => Schema.optionalKey(schema);
+const optional = <S extends Schema.Top>(schema: S) => Schema.optionalKey(schema);
 
 const headlessFields = {
   headless: optional(
-    Schema.Boolean.annotations({
+    Schema.Boolean.annotate({
       description:
         "Author via a recorded agent session from a brief instead of a blank skeleton (experimental)",
     }),
   ),
   model: optional(
-    Schema.String.annotations({
+    Schema.String.annotate({
       identifier: "model",
       description: "Override the authoring model (default: flag → config → catalog)",
     }),
   ),
   effort: optional(
-    Schema.String.annotations({
+    Schema.String.annotate({
       identifier: "effort",
       description: "Override the authoring effort (low|medium|high)",
     }),
@@ -112,18 +112,18 @@ const SpecFlags = reject(Schema.Struct(headlessFields));
 const PlanFlags = reject(
   Schema.Struct({
     spec: optional(
-      Schema.String.annotations({
+      Schema.String.annotate({
         identifier: "path",
         description: "Path to the source spec to bind as source-spec",
       }),
     ),
     last: optional(
-      Schema.Boolean.annotations({
+      Schema.Boolean.annotate({
         description: "This plan is its spec's last: its run completes the spec",
       }),
     ),
     notLast: optional(
-      Schema.Boolean.annotations({
+      Schema.Boolean.annotate({
         description: "More plans of the spec follow: its run leaves the spec live",
       }),
     ),
@@ -133,7 +133,7 @@ const PlanFlags = reject(
 
 /** `--brief <file|->`: the brief's text, read by the runner from the file named or from stdin. */
 const BriefStdin = reject(
-  Schema.String.annotations({
+  Schema.String.annotate({
     identifier: "brief",
     description: "Path to a brief file, or - to read the brief from stdin",
   }),
@@ -142,7 +142,7 @@ const BriefStdin = reject(
 
 const BlankOutput = Schema.Struct({
   path: Schema.String,
-  kind: Schema.Literal("spec", "plan"),
+  kind: Schema.Literals(["spec", "plan"]),
   sourceSpec: Schema.NullOr(Schema.String),
   completesSpec: Schema.NullOr(Schema.Boolean),
   written: Schema.Array(Written),
@@ -157,7 +157,7 @@ const HeadlessOutput = Schema.Struct({
 });
 
 /** What `artifact new` answers: a blank skeleton, or (with `--headless`) an authored artifact. */
-const NewOutput = Schema.Union(BlankOutput, HeadlessOutput);
+const NewOutput = Schema.Union([BlankOutput, HeadlessOutput]);
 
 type NewOutput = typeof NewOutput.Type;
 

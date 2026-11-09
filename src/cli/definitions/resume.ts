@@ -88,18 +88,18 @@ const SKIP_ORACLE_RETIRED = "--skip-oracle is no longer read: write --skip-accep
 
 const ResumeFlags = reject(
   Schema.Struct({
-    yes: Schema.optionalKey(Schema.Boolean).annotations({
+    yes: Schema.optionalKey(Schema.Boolean).annotateKey({
       description: "Proceed without confirmation",
       [AliasAnnotationId]: "y",
     }),
     providerPriority: Schema.optionalKey(
-      Schema.String.annotations({
+      Schema.String.annotate({
         identifier: "list",
         description: "Comma-separated provider priority override (e.g. mistral-vibe,claude-code)",
       }),
     ),
     skipAcceptance: Schema.optionalKey(
-      Schema.Boolean.annotations({
+      Schema.Boolean.annotate({
         description:
           "Skip the acceptance step of the phase this resume restarts at; its configured gate still runs",
       }),
@@ -423,7 +423,7 @@ export function makeResumeCommand(deps: ResumeDeps = {}) {
       "phax resume usage-cli --yes",
       "phax resume refunds --yes --skip-acceptance",
     ],
-    input: { args: reject(Schema.Tuple(ShortNameArg)), flags: ResumeFlags },
+    input: { args: reject(Schema.Tuple([ShortNameArg])), flags: ResumeFlags },
     output: reject(RunAnswer),
     retiredOptions: { "skip-oracle": SKIP_ORACLE_RETIRED },
     run: ({ input, program, say, progress }) =>

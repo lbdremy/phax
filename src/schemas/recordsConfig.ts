@@ -7,9 +7,9 @@ function isSafeRecordsRemote(remote: string): boolean {
   return /^git@[^\s:/]+:\S+$/.test(remote);
 }
 
-export const RecordsRemoteSchema = Schema.NonEmptyString.pipe(
-  Schema.filter(isSafeRecordsRemote, {
-    message: () => `records.destination.remote must be an https://, ssh://, or git@host:path URL`,
+export const RecordsRemoteSchema = Schema.NonEmptyString.check(
+  Schema.makeFilter(isSafeRecordsRemote, {
+    message: `records.destination.remote must be an https://, ssh://, or git@host:path URL`,
   }),
 );
 
@@ -26,10 +26,10 @@ export const RepoRecordsDestinationSchema = Schema.Struct({
   remote: RecordsRemoteSchema,
 });
 
-export const RecordsDestinationSchema = Schema.Union(
+export const RecordsDestinationSchema = Schema.Union([
   InRepoRecordsDestinationSchema,
   RepoRecordsDestinationSchema,
-);
+]);
 
 export type RecordsDestination = Schema.Schema.Type<typeof RecordsDestinationSchema>;
 

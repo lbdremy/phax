@@ -1,4 +1,4 @@
-import { Effect, Result, type ParseResult } from "effect";
+import { Effect, Result, type Schema } from "effect";
 import { formatParseError } from "../schemas/formatError.js";
 import { Shell } from "../ports/shell.js";
 
@@ -44,7 +44,7 @@ export function runProviderQuery<T, E>(
   command: string,
   cwd: string,
   requestBody: unknown,
-  decode: (input: unknown) => Result.Result<T, ParseResult.ParseError>,
+  decode: (input: unknown) => Result.Result<T, Schema.SchemaError>,
   makeError: (failure: ProviderQueryFailure) => E,
   options: ProviderQueryOptions = {},
 ): Effect.Effect<Result.Result<T, E>, never, Shell> {

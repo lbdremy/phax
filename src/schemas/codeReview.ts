@@ -9,17 +9,17 @@ import { Result, Schema } from "effect";
 import { answerSchemaUrlField } from "./answerStamp.js";
 import { formatAnswerViolations } from "./formatError.js";
 import { CURRENT_STAMPS } from "./release.js";
+import { refusalOverride } from "./refusal/adapter.js";
 import { schemaUrl } from "./schemaUrl.js";
 import { NonEmptyString } from "./strictString.js";
 
 // A value outside a closed set names itself and the set: `"security" is not a
 // lens (expected one of surface, acceptance, …)`.
 // The literal union reports its first member otherwise, hence the override.
-const notOneOf =
-  (noun: string, ids: readonly string[]) => (issue: { readonly actual: unknown }) => ({
-    message: `${JSON.stringify(issue.actual)} is not ${noun} (expected one of ${ids.join(", ")})`,
-    override: true,
-  });
+const notOneOf = (noun: string, ids: readonly string[]) =>
+  refusalOverride(
+    (actual) => `${JSON.stringify(actual)} is not ${noun} (expected one of ${ids.join(", ")})`,
+  );
 
 const SEVERITY_IDS = ["bug", "deviation", "concern", "info"] as const;
 const LENS_IDS = [
@@ -42,17 +42,17 @@ const ESCAPE_IDS = [
   "untestable",
 ] as const;
 
-export const CodeReviewSeveritySchema = Schema.Literal(...SEVERITY_IDS).annotations({
-  message: notOneOf("a severity", SEVERITY_IDS),
-});
+export const CodeReviewSeveritySchema = Schema.Literals(SEVERITY_IDS).annotate(
+  notOneOf("a severity", SEVERITY_IDS),
+);
 
-export const CodeReviewLensSchema = Schema.Literal(...LENS_IDS).annotations({
-  message: notOneOf("a lens", LENS_IDS),
-});
+export const CodeReviewLensSchema = Schema.Literals(LENS_IDS).annotate(
+  notOneOf("a lens", LENS_IDS),
+);
 
-export const CodeReviewEscapeSchema = Schema.Literal(...ESCAPE_IDS).annotations({
-  message: notOneOf("an escape", ESCAPE_IDS),
-});
+export const CodeReviewEscapeSchema = Schema.Literals(ESCAPE_IDS).annotate(
+  notOneOf("an escape", ESCAPE_IDS),
+);
 
 export type CodeReviewSeverity = Schema.Schema.Type<typeof CodeReviewSeveritySchema>;
 export type CodeReviewLens = Schema.Schema.Type<typeof CodeReviewLensSchema>;
@@ -66,23 +66,17 @@ export const CODE_REVIEW_JSON_FILENAME = "code-review.json";
 
 const CodeReviewFindingSchema = Schema.Struct({
   severity: CodeReviewSeveritySchema,
-  file: NonEmptyString.annotations({
+  file: NonEmptyString.annotate({
     description: "The path the finding is about, as the reviewer gave it.",
   }),
-  line: Schema.Int.pipe(
-    Schema.positive(),
-    Schema.annotations({
-      description: "The 1-based line the finding is about.",
-      message: (issue) => ({
-        message: `must be a positive integer, actual ${JSON.stringify(issue.actual)}`,
-        override: true,
-      }),
-    }),
-  ),
+  line: Schema.Int.check(Schema.isGreaterThan(0)).annotate({
+    description: "The 1-based line the finding is about.",
+    ...refusalOverride((actual) => `must be a positive integer, actual ${JSON.stringify(actual)}`),
+  }),
   message: NonEmptyString,
   lens: CodeReviewLensSchema,
   escape: CodeReviewEscapeSchema,
-  criterion: Schema.NullOr(NonEmptyString).annotations({
+  criterion: Schema.NullOr(NonEmptyString).annotate({
     description: "The acceptance criterion id the finding is about, or null.",
   }),
   suggestion: NonEmptyString,
@@ -109,11 +103,13 @@ export type CodeReviewFile = Schema.Schema.Type<typeof CodeReviewFileSchema>;
 
 export const decodeCodeReviewFile = Schema.decodeUnknownResult(CodeReviewFileSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });
 
 const decodeCodeReviewAnswerAll = Schema.decodeUnknownResult(CodeReviewFileSchema, {
   errors: "all",
   onExcessProperty: "error",
+  reportInput: true,
 });
 
 export const encodeCodeReviewFile = Schema.encodeSync(CodeReviewFileSchema);

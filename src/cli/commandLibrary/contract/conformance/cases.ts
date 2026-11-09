@@ -1,8 +1,10 @@
 // The library's conformance cases, ported to Effect 3 with their ids and meanings unchanged, and
 // one case per gain the port carries for upstream (each marked `Gain:` where it stands). The
 // cases are frozen: phase-02's runner passes them, nothing edits them.
-import { Data, Effect } from "effect";
+import { Data, Effect, Number as Num, Option } from "effect";
 import * as Schema from "effect/Schema";
+import * as SchemaGetter from "effect/SchemaGetter";
+import * as SchemaIssue from "effect/SchemaIssue";
 import type {
   Command,
   ExitCode,
@@ -78,17 +80,32 @@ function recording(name: string, input: Inputs): Recording {
   return { command, seen };
 }
 
-const pair = () => recording("pair", { args: reject(Schema.Tuple(Str, Str)) });
+/** A number written as a string, refused when it reads as no number (`x`): the reference's
+ *  string-to-number transformation, as Effect 3's `NumberFromString` decoded (Effect 4's decodes
+ *  `x` to NaN). */
+const NumberFromString = Schema.String.pipe(
+  Schema.decodeTo(Schema.Number, {
+    decode: SchemaGetter.transformEffect((s: string) =>
+      Option.match(Num.parse(s), {
+        onNone: () => Effect.fail(new SchemaIssue.InvalidValue()),
+        onSome: Effect.succeed,
+      }),
+    ),
+    encode: SchemaGetter.String(),
+  }),
+);
+
+const pair = () => recording("pair", { args: reject(Schema.Tuple([Str, Str])) });
 const opt = () =>
   recording("opt", {
-    args: reject(Schema.Tuple(Str, Schema.optionalElement(Str))),
+    args: reject(Schema.Tuple([Str, Schema.optionalKey(Str)])),
   });
-const oneReject = () => recording("one", { args: reject(Schema.Tuple(Str)) });
-const oneStrip = () => recording("one", { args: strip(Schema.Tuple(Str)) });
+const oneReject = () => recording("one", { args: reject(Schema.Tuple([Str])) });
+const oneStrip = () => recording("one", { args: strip(Schema.Tuple([Str])) });
 const bare = () => recording("bare", {});
 const move = () =>
   recording("move", {
-    args: reject(Schema.Tuple(Str)),
+    args: reject(Schema.Tuple([Str])),
     flags: reject(Schema.Struct({ to: Str })),
   });
 const opts = () =>
@@ -97,17 +114,17 @@ const opts = () =>
   });
 const sw = () =>
   recording("sw", {
-    args: reject(Schema.Tuple(Str)),
+    args: reject(Schema.Tuple([Str])),
     flags: reject(Schema.Struct({ dryRun: Switch })),
   });
 const tag = () =>
   recording("tag", {
-    args: reject(Schema.Tuple(Str)),
+    args: reject(Schema.Tuple([Str])),
     flags: strip(Schema.Struct({ to: Str })),
   });
 const count = () =>
   recording("count", {
-    flags: reject(Schema.Struct({ count: Schema.NumberFromString })),
+    flags: reject(Schema.Struct({ count: NumberFromString })),
   });
 const inStrip = () => recording("in-strip", { stdin: strip(Todos) });
 const inReject = () => recording("in-reject", { stdin: reject(Todos) });
@@ -436,7 +453,7 @@ function collidingCommands(): {
 // ---------------------------------------------------------------- the document cases
 
 /** A document with a name, as the stdin refusals call its format. */
-const Doc = Schema.Struct({ todos: Schema.Array(Schema.String) }).annotations({
+const Doc = Schema.Struct({ todos: Schema.Array(Schema.String) }).annotate({
   identifier: "todos",
 });
 const DOC_JSON = JSON.stringify({ todos: ["a"] });
@@ -468,7 +485,7 @@ export const WRITTEN_FIXTURE = {
 /** An output with a field whose encoded form is not its decoded one, and a `$schema` last. */
 const Encoded = Schema.Struct({
   id: Str,
-  count: Schema.NumberFromString,
+  count: NumberFromString,
   $schema: Str,
 });
 
@@ -985,7 +1002,7 @@ function debt() {
     name: "accept",
     summary: "Accept a debt",
     input: {
-      args: reject(Schema.Tuple(Str)),
+      args: reject(Schema.Tuple([Str])),
       flags: reject(Schema.Struct({ why: Str })),
     },
     output: strip(Schema.Struct({ id: Str, why: Str })),
@@ -1002,7 +1019,7 @@ function debt() {
   const withdraw = defineCommand({
     name: "withdraw",
     summary: "Withdraw a debt",
-    input: { args: reject(Schema.Tuple(Str)) },
+    input: { args: reject(Schema.Tuple([Str])) },
     output: strip(Schema.Struct({ id: Str })),
     exits: { NoEntry: NO_ENTRY },
     run: ({ input }) =>
@@ -1155,24 +1172,24 @@ const groupCases: ReadonlyArray<Case> = [
         // its commands under it, and `--json` and `--json-schema` on every command.
         const shown = recording("show", {
           args: reject(
-            Schema.Tuple(
-              Schema.String.annotations({
+            Schema.Tuple([
+              Schema.String.annotate({
                 identifier: "id",
                 description: "The todo's id",
               }),
-              Schema.optionalElement(Str),
-            ),
+              Schema.optionalKey(Str),
+            ]),
           ),
           flags: reject(
             Schema.Struct({
               mode: Schema.optionalKey(
-                Schema.Literal("a", "b").annotations({
+                Schema.Literals(["a", "b"]).annotate({
                   description: "The mode",
                 }),
               ),
-              level: Schema.optionalWith(Str.annotations({ description: "How loud" }), {
-                default: () => "low",
-              }),
+              level: Str.annotate({ description: "How loud" }).pipe(
+                Schema.withDecodingDefaultType(Effect.succeed("low")),
+              ),
               dryRun: Switch,
             }),
           ),
@@ -1221,7 +1238,7 @@ const groupCases: ReadonlyArray<Case> = [
           summary: "Explain a topic",
           help: "Explains a topic in depth.\nIt takes the topic.",
           examples: ["suite explain intro", "suite explain intro --json"],
-          input: { args: reject(Schema.Tuple(Str)) },
+          input: { args: reject(Schema.Tuple([Str])) },
           output: strip(Str),
           exits: {},
           run: () => Effect.succeed("x"),
@@ -1265,7 +1282,7 @@ const groupCases: ReadonlyArray<Case> = [
  *  which holds a command `leaf` taking one argument. */
 function nested() {
   const top = recording("top", {});
-  const leaf = recording("leaf", { args: reject(Schema.Tuple(Str)) });
+  const leaf = recording("leaf", { args: reject(Schema.Tuple([Str])) });
   const inner = defineGroup({
     name: "inner",
     summary: "The inner group",
@@ -1280,12 +1297,12 @@ function nested() {
 }
 
 /** Gain (completers): two named arguments, each declaring the completer of its candidates. */
-const ShortName = Schema.String.annotations({
+const ShortName = Schema.String.annotate({
   identifier: "short-name",
   description: "The run's short name",
   [CompleterAnnotationId]: { run: "suite ls --complete", descriptions: true },
 });
-const PlanPath = Schema.String.annotations({
+const PlanPath = Schema.String.annotate({
   identifier: "plan",
   [CompleterAnnotationId]: { run: "suite plans --complete", descriptions: false },
 });
@@ -1296,7 +1313,7 @@ const linting = () =>
   defineCommand({
     name: "lint",
     summary: "lints a thing",
-    input: { args: reject(Schema.Tuple(Str)) },
+    input: { args: reject(Schema.Tuple([Str])) },
     output: strip(Report),
     exits: {},
     verdicts: { 1: (report) => report.errors > 0 },
@@ -1435,8 +1452,8 @@ const gainCases: ReadonlyArray<Case> = [
   // Gain: completers. One top-level `complete` node per distinct identifier whose argument
   // declares a completer, in declaration order, before the first command.
   contractOnly("usage.complete-nodes", () => {
-    const resume = recording("resume", { args: reject(Schema.Tuple(ShortName)) });
-    const open = recording("open", { args: reject(Schema.Tuple(PlanPath, ShortName)) });
+    const resume = recording("resume", { args: reject(Schema.Tuple([ShortName])) });
+    const open = recording("open", { args: reject(Schema.Tuple([PlanPath, ShortName])) });
     const spec = usageSpec(program(resume.command, open.command));
     const lines = linesOf(spec);
     const completes = lines.filter((each) => each.startsWith("complete "));
@@ -1543,7 +1560,7 @@ const gainCases: ReadonlyArray<Case> = [
         const unreadable = briefed();
         const missing = yield* call(runner, [unreadable.command], ["brief", "--brief=missing.md"]);
         const empty = recording("empty", {
-          stdin: reject(Schema.String.pipe(Schema.minLength(1)), { text: true }),
+          stdin: reject(Schema.String.check(Schema.isMinLength(1)), { text: true }),
         });
         const undecoded = yield* call(runner, [empty.command], ["empty"], { stdin: "" });
         return verdict(
@@ -1858,7 +1875,7 @@ const gainCases: ReadonlyArray<Case> = [
           [["pair", "a", "b"], {}],
         ];
         for (const [argv, options] of calls) {
-          const pairing = observed("pair", { args: reject(Schema.Tuple(Str, Str)) });
+          const pairing = observed("pair", { args: reject(Schema.Tuple([Str, Str])) });
           const called = yield* callProgram(
             runner,
             programWith({ options: ProgramOptions }, pairing.command),
@@ -1873,7 +1890,7 @@ const gainCases: ReadonlyArray<Case> = [
             ),
           );
         }
-        const withdrawing = observed("withdraw", { args: reject(Schema.Tuple(Str)) });
+        const withdrawing = observed("withdraw", { args: reject(Schema.Tuple([Str])) });
         const grouped = yield* callProgram(
           runner,
           programWith(
@@ -1882,7 +1899,7 @@ const gainCases: ReadonlyArray<Case> = [
           ),
           ["debt", "--verbose", "withdraw", "1"],
         );
-        const stray = observed("pair", { args: reject(Schema.Tuple(Str, Str)) });
+        const stray = observed("pair", { args: reject(Schema.Tuple([Str, Str])) });
         const refused = yield* callProgram(
           runner,
           programWith({ options: ProgramOptions }, stray.command),
@@ -1931,8 +1948,8 @@ function documentedDebt() {
 
 /** Gain (variadic arguments): a rest alone, optional, and a rest after an element of its own
  *  schema, required. */
-const FilePath = Schema.String.annotations({ identifier: "path", description: "A file to read" });
-const PlanFile = Schema.String.annotations({ identifier: "plan", description: "A plan" });
+const FilePath = Schema.String.annotate({ identifier: "path", description: "A file to read" });
+const PlanFile = Schema.String.annotate({ identifier: "plan", description: "A plan" });
 const files = () => recording("files", { args: reject(Schema.Array(FilePath)) });
 const overlap = () => recording("overlap", { args: reject(Schema.NonEmptyArray(PlanFile)) });
 
@@ -2201,7 +2218,7 @@ const inspectionGainCases: ReadonlyArray<Case> = [
 // ---------------------------------------------------------------- the gains of phax's lifecycle commands
 
 /** Gain (a short alias): `prune`, whose `--yes` is also `-y`. */
-const Yes = Schema.optionalKey(Schema.Boolean).annotations({
+const Yes = Schema.optionalKey(Schema.Boolean).annotateKey({
   description: "Proceed without asking",
   [AliasAnnotationId]: "y",
 });
@@ -2320,7 +2337,7 @@ const lifecycleGainCases: ReadonlyArray<Case> = [
         const helpless = recording("helpless", {
           flags: reject(
             Schema.Struct({
-              hard: Schema.optionalKey(Schema.Boolean).annotations({
+              hard: Schema.optionalKey(Schema.Boolean).annotateKey({
                 [AliasAnnotationId]: "h",
               }),
             }),
@@ -2610,14 +2627,14 @@ const lifecycleGainCases: ReadonlyArray<Case> = [
 // ---------------------------------------------------------------- the gains of phax's run and session commands
 
 /** Gain (an option with an optional value): `run`, whose `--hold` is bare or takes a selection. */
-const Hold = Schema.optionalKey(Schema.Union(Schema.Literal(true), Schema.String)).annotations({
+const Hold = Schema.optionalKey(Schema.Union([Schema.Literal(true), Schema.String])).annotateKey({
   identifier: "selection",
   description: "Hold the run at a phase",
   [OptionalValueAnnotationId]: true,
 });
 const holding = () =>
   recording("run", {
-    args: reject(Schema.Tuple(Schema.optionalElement(Str))),
+    args: reject(Schema.Tuple([Schema.optionalKey(Str)])),
     flags: reject(Schema.Struct({ hold: Hold })),
   });
 
@@ -2625,7 +2642,7 @@ const holding = () =>
 const SKIP_CHECK_SENTENCE = "--skip-check is no longer read: write --skip-review";
 const resuming = () => {
   const recorded = recording("resume", {
-    args: reject(Schema.Tuple(Str)),
+    args: reject(Schema.Tuple([Str])),
     flags: reject(Schema.Struct({ skipAcceptance: Switch })),
   });
   return {
@@ -2730,7 +2747,7 @@ const runSessionGainCases: ReadonlyArray<Case> = [
         const spec = yield* call(runner, [resuming().command], ["--usage-spec"]);
         const ok = recording("ok", {});
         const base = recording("resume", {
-          args: reject(Schema.Tuple(Str)),
+          args: reject(Schema.Tuple([Str])),
           flags: reject(Schema.Struct({ skipCheck: Switch })),
         });
         const clashing = { ...base.command, retiredOptions: { "skip-check": "retired" } };
@@ -2870,11 +2887,11 @@ function guarding() {
 
 const guardedRun = () =>
   recording("run", {
-    args: reject(Schema.Tuple(Str)),
+    args: reject(Schema.Tuple([Str])),
     flags: reject(Schema.Struct({ dryRun: Switch })),
   });
 
-const Verbose = Schema.optionalKey(Schema.Boolean).annotations({
+const Verbose = Schema.optionalKey(Schema.Boolean).annotateKey({
   description: "Say more",
 });
 

@@ -308,7 +308,7 @@ describe("SemanticTelemetryEventSchema accepted types", () => {
     const union = SemanticTelemetryEventSchema.ast;
     if (!SchemaAST.isUnion(union)) throw new Error("expected a union schema");
     const types = union.types.map((member) => {
-      if (!SchemaAST.isTypeLiteral(member)) throw new Error("expected a struct member");
+      if (!SchemaAST.isObjects(member)) throw new Error("expected a struct member");
       const typeField = member.propertySignatures.find((p) => p.name === "type");
       if (typeField === undefined || !SchemaAST.isLiteral(typeField.type)) {
         throw new Error("expected a literal type field");

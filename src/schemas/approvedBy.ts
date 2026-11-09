@@ -8,23 +8,22 @@ export const GRANT_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
  * `user.name`, or no one recorded — an approval written before phax named its
  * approver. Every key is required; the kinds are the whole set.
  */
-export const ApprovedBySchema = Schema.Union(
+export const ApprovedBySchema = Schema.Union([
   Schema.Struct({
     kind: Schema.Literal("machine"),
-    grant: Schema.String.pipe(
-      Schema.pattern(GRANT_PATTERN),
-      Schema.annotations({
+    grant: Schema.String.check(Schema.isPattern(GRANT_PATTERN)).pipe(
+      Schema.annotate({
         description: "The grant the machine declared with `--by machine:<grant>`.",
       }),
     ),
   }),
   Schema.Struct({
     kind: Schema.Literal("operator"),
-    name: Schema.NonEmptyString.annotations({
+    name: Schema.NonEmptyString.annotate({
       description: "The operator's git user.name when they approved.",
     }),
   }),
   Schema.Struct({ kind: Schema.Literal("unattributed") }),
-);
+]);
 
 export type ApprovedBy = Schema.Schema.Type<typeof ApprovedBySchema>;

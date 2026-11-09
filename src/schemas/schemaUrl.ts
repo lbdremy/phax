@@ -4,7 +4,7 @@
  * release that wrote the document): `<base>/<format-id>/<X.Y.Z>.json`. Pure, and
  * imports only `effect`, so the schemas package can carry it.
  */
-import { Schema } from "effect";
+import { JsonSchema, Schema } from "effect";
 
 export const SCHEMA_URL_BASE = "https://docs.phax.run/schemas";
 
@@ -171,9 +171,10 @@ export function schemaUrl(formatId: FormatId, release: string): string {
  */
 export function schemaUrlField(formatId: FormatId) {
   const prefix = `${SCHEMA_URL_BASE}/${formatId}/`.replaceAll(".", "\\.");
-  return Schema.String.pipe(
-    Schema.pattern(new RegExp(`^${prefix}${RELEASE_TRIPLE}\\.json$`)),
-    Schema.annotations({
+  return Schema.String.check(
+    Schema.isPattern(new RegExp(`^${prefix}${RELEASE_TRIPLE}\\.json$`)),
+  ).pipe(
+    Schema.annotate({
       description: `The ${formatId} format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): ${SCHEMA_URL_BASE}/${formatId}/<X.Y.Z>.json`,
     }),
   );
@@ -192,6 +193,21 @@ export function parseSchemaUrl(value: unknown): { formatId: string; release: str
   const release = match?.[2];
   if (formatId === undefined || release === undefined || !isRelease(release)) return undefined;
   return { formatId, release };
+}
+
+/**
+ * A schema's JSON Schema as a Draft-07 document: the meta-schema, the root
+ * schema, and its definitions when there are any.
+ */
+export function draft07JsonSchema(schema: Schema.Top): object {
+  const document = JsonSchema.toDocumentDraft07(
+    Schema.toJsonSchemaDocument(schema, { onExcessProperty: "error" }),
+  );
+  return {
+    $schema: JsonSchema.META_SCHEMA_URI_DRAFT_07,
+    ...document.schema,
+    ...(Object.keys(document.definitions).length > 0 ? { definitions: document.definitions } : {}),
+  };
 }
 
 /** Orders two `X.Y.Z` releases numerically: negative, zero or positive. */

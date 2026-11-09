@@ -16,6 +16,7 @@ export type AdjustPlanSession = Schema.Schema.Type<typeof AdjustPlanSessionSchem
 
 export const decodeAdjustPlanSession = Schema.decodeUnknownResult(AdjustPlanSessionSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });
 
 export const encodeAdjustPlanSession = Schema.encodeSync(AdjustPlanSessionSchema);

@@ -1,4 +1,4 @@
-import { Effect, Option } from "effect";
+import { Effect } from "effect";
 import type * as Schema from "effect/Schema";
 import * as SchemaAST from "effect/SchemaAST";
 import type { Io, Source, StdinDocument } from "../contract/index.js";
@@ -81,24 +81,23 @@ export interface ReadFailure {
   readonly expected: string;
 }
 
-/** The identifier a contract declares: on its node, else on the side a refinement or a
- *  transformation stands on. */
+/** The identifier a contract declares: on its node (or its last check), else on the side its
+ *  first transformation decodes from. */
 function identifierOf(ast: SchemaAST.AST): string | undefined {
-  const own = Option.getOrUndefined(SchemaAST.getIdentifierAnnotation(ast));
+  const own = SchemaAST.resolveIdentifier(ast);
   if (own !== undefined) return own;
-  if (SchemaAST.isRefinement(ast)) return identifierOf(ast.from);
-  if (SchemaAST.isTransformation(ast)) return identifierOf(ast.to) ?? identifierOf(ast.from);
-  return undefined;
+  const from = ast.encoding?.[0].to;
+  return from === undefined ? undefined : identifierOf(from);
 }
 
 /** The format a document is called in a refusal: its contract's identifier, else its title, else
  *  JSON. A text document (gain) is called by its identifier, else `text`: Effect 3 titles its
  *  keywords and refinements itself (`string`, `minLength(1)`), which no one wrote. */
-function formatName(contract: Schema.Schema.Any, text = false): string {
+function formatName(contract: Schema.Top, text = false): string {
   const identifier = identifierOf(contract.ast);
   if (identifier !== undefined) return identifier;
   if (text) return "text";
-  return Option.getOrUndefined(SchemaAST.getTitleAnnotation(contract.ast)) ?? "JSON";
+  return SchemaAST.resolveTitle(contract.ast) ?? "JSON";
 }
 
 const line = (text: string): string => `${text}\n`;
@@ -115,7 +114,7 @@ const failure = (text: string, path: ReadonlyArray<string>, expected: string): R
 export function readDocument(
   io: Io,
   command: string,
-  source: Source<Schema.Schema.Any>,
+  source: Source<Schema.Top>,
   reading: Reading,
 ): Effect.Effect<Document | undefined, ReadFailure> {
   const flag = source.flag;

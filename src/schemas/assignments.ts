@@ -10,7 +10,7 @@ import { PlanEffortSchema } from "./phaxPlan.js";
 export const EffortRangeSchema = Schema.Struct({
   min: PlanEffortSchema,
   max: PlanEffortSchema,
-}).annotations({
+}).annotate({
   description:
     "The efforts a phase may take, inclusive, in the order of the bound model's catalog `efforts` list. `min` equal to `max` admits one effort.",
 });
@@ -20,26 +20,26 @@ const BOUND_MODEL_DESCRIPTION =
 
 export const PartBoundSchema = Schema.Struct({
   kind: Schema.Literal("part"),
-  part: ArchitecturePartIdSchema.annotations({
+  part: ArchitecturePartIdSchema.annotate({
     description:
       "The id of an architecture-report part: the bound covers the files of the part whose id this is, read from the architecture provider.",
   }),
-  model: Schema.NonEmptyString.annotations({ description: BOUND_MODEL_DESCRIPTION }),
+  model: Schema.NonEmptyString.annotate({ description: BOUND_MODEL_DESCRIPTION }),
   effort: EffortRangeSchema,
 });
 
 export const GlobsBoundSchema = Schema.Struct({
   kind: Schema.Literal("globs"),
-  globs: Schema.NonEmptyArray(ArchitectureGlobSchema).annotations({
+  globs: Schema.NonEmptyArray(ArchitectureGlobSchema).annotate({
     description: `The files the bound covers, as globs: ${GLOB_DIALECT}`,
   }),
-  model: Schema.NonEmptyString.annotations({ description: BOUND_MODEL_DESCRIPTION }),
+  model: Schema.NonEmptyString.annotate({ description: BOUND_MODEL_DESCRIPTION }),
   effort: EffortRangeSchema,
 });
 
-export const AssignmentBoundSchema = Schema.Union(PartBoundSchema, GlobsBoundSchema);
+export const AssignmentBoundSchema = Schema.Union([PartBoundSchema, GlobsBoundSchema]);
 
-export const AssignmentsSchema = Schema.NonEmptyArray(AssignmentBoundSchema).annotations({
+export const AssignmentsSchema = Schema.NonEmptyArray(AssignmentBoundSchema).annotate({
   description:
     "The repository owner's assignment bounds, ordered from most to least demanding: the first bound that matches any of a phase's planned files governs it. A phase conforms when it takes the bound's model at an effort within the range; a departure needs an **Assignment reason:** line. Accepted in phax.json only.",
 });

@@ -17,14 +17,14 @@ const DIALECT = "https://json-schema.org/draft/2020-12/schema";
 const Item = Schema.Struct({
   id: Schema.String,
   count: Schema.NumberFromString,
-}).annotations({ identifier: "item" });
+}).annotate({ identifier: "item" });
 
 /** A command with every kind of source, an output and a declared error. */
 const full = defineCommand({
   name: "full",
   summary: "full",
   input: {
-    args: reject(Schema.Tuple(Schema.String, Schema.optionalElement(Schema.String))),
+    args: reject(Schema.Tuple([Schema.String, Schema.optionalKey(Schema.String)])),
     flags: reject(
       Schema.Struct({
         dryRun: Schema.optionalKey(Schema.Boolean),

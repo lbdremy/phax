@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
-import { Result, Schema } from "effect";
+import { Result, Schema, SchemaTransformation } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   formatAnswerViolations,
@@ -20,10 +20,11 @@ const Config = Schema.Struct({
   steps: Schema.Array(Schema.Struct({ command: Schema.String })),
 });
 
-function refused<A, I>(schema: Schema.Schema<A, I>, input: unknown): never {
+function refused<A, I>(schema: Schema.Codec<A, I>, input: unknown): never {
   const decoded = Schema.decodeUnknownResult(schema, {
     errors: "all",
     onExcessProperty: "error",
+    reportInput: true,
   })(input);
   if (Result.isSuccess(decoded)) throw new Error("expected a refusal");
   return decoded.left as never;
@@ -46,7 +47,7 @@ describe("a value of the wrong shape", () => {
   });
 
   it("names a tuple by its kind", () => {
-    const Pair = Schema.Tuple(Schema.String, Schema.Number);
+    const Pair = Schema.Tuple([Schema.String, Schema.Number]);
     expect(formatParseError(refused(Pair, "x"))).toBe('  (root): Expected a tuple, actual "x"');
     expect(formatFirstViolation(refused(Pair, ["a", "b"]))).toBe(
       '[1]: Expected number, actual "b"',
@@ -54,10 +55,14 @@ describe("a value of the wrong shape", () => {
   });
 
   it("names a struct behind a transformation by its kind", () => {
-    const Renamed = Schema.transform(
-      Schema.Struct({ a: Schema.String }),
-      Schema.Struct({ b: Schema.String }),
-      { decode: (x) => ({ b: x.a }), encode: (x) => ({ a: x.b }) },
+    const Renamed = Schema.Struct({ a: Schema.String }).pipe(
+      Schema.decodeTo(
+        Schema.Struct({ b: Schema.String }),
+        SchemaTransformation.transform({
+          decode: (x) => ({ b: x.a }),
+          encode: (x) => ({ a: x.b }),
+        }),
+      ),
     );
     expect(formatParseError(refused(Renamed, "q"))).toBe(
       '  (root): Expected an object, actual "q"',
@@ -66,10 +71,10 @@ describe("a value of the wrong shape", () => {
 });
 
 describe("a union", () => {
-  const Shapes = Schema.Union(
+  const Shapes = Schema.Union([
     Schema.Struct({ kind: Schema.Literal("a"), x: Schema.String }),
     Schema.Struct({ kind: Schema.Literal("b"), y: Schema.String }),
-  );
+  ]);
 
   it("of object shapes reads as the object it is not", () => {
     expect(formatParseError(refused(Shapes, 3))).toBe("  (root): Expected an object, actual 3");
@@ -92,7 +97,7 @@ describe("a union", () => {
 
 describe("a literal", () => {
   it("is labelled by its text, whatever its description says", () => {
-    const Kind = Schema.Literal("spec").annotations({ description: "The kind of document" });
+    const Kind = Schema.Literal("spec").annotate({ description: "The kind of document" });
     expect(formatParseError(refused(Kind, "plan"))).toBe(
       '  (root): Expected "spec", actual "plan"',
     );
@@ -121,7 +126,7 @@ describe("formatAnswerViolations", () => {
 describe("formatConfigParseError", () => {
   const Push = Schema.Struct({
     brief: Schema.optional(
-      Schema.Struct({ push: Schema.Literal("findings", "findings-and-rules") }),
+      Schema.Struct({ push: Schema.Literals(["findings", "findings-and-rules"]) }),
     ),
     assignments: Schema.optional(Schema.Array(Schema.Struct({ kind: Schema.String }))),
   });

@@ -13,7 +13,7 @@ import { defineCommand, reject } from "../commandLibrary/contract/index.js";
 import { makeProviderBackendLayer, makeRepoRootedFileSystemLayer } from "../commands/runLayers.js";
 import { configured, exposeMessage, MessageFields } from "./shared.js";
 
-const Severity = Schema.Literal("hard", "medium", "soft");
+const Severity = Schema.Literals(["hard", "medium", "soft"]);
 
 const SharedFile = Schema.Struct({
   path: Schema.String,
@@ -21,13 +21,16 @@ const SharedFile = Schema.Struct({
   reason: Schema.String,
 });
 
+// A set of paths, written as a JSON array: the set's canonical JSON codec.
+const PathSet = Schema.toCodecJson(Schema.ReadonlySet(Schema.String));
+
 const Footprint = Schema.Struct({
   id: Schema.String,
   label: Schema.String,
-  create: Schema.ReadonlySet(Schema.String),
-  edit: Schema.ReadonlySet(Schema.String),
-  optional: Schema.ReadonlySet(Schema.String),
-  all: Schema.ReadonlySet(Schema.String),
+  create: PathSet,
+  edit: PathSet,
+  optional: PathSet,
+  all: PathSet,
 });
 
 /** The answer of `phax plans overlap` (predicted): today's unversioned object. */
@@ -41,7 +44,7 @@ const OverlapResult = Schema.Struct({
       severity: Severity,
     }),
   ),
-  cleanPairs: Schema.Array(Schema.Tuple(Schema.String, Schema.String)),
+  cleanPairs: Schema.Array(Schema.Tuple([Schema.String, Schema.String])),
   largestParallelSafeSet: Schema.Array(Schema.String),
   waves: Schema.Array(Schema.Array(Schema.String)),
   exhaustiveSearchSkipped: Schema.Boolean,
@@ -62,21 +65,21 @@ const ReadjustmentImpact = Schema.Struct({
 });
 
 /** The output contract of `phax plans overlap`. */
-const PlansOverlapOutput = Schema.Union(OverlapResult, ReadjustmentImpact);
+const PlansOverlapOutput = Schema.Union([OverlapResult, ReadjustmentImpact]);
 
-const PlanPath = Schema.String.annotations({
+const PlanPath = Schema.String.annotate({
   identifier: "plan",
   description: "Paths to two or more plan.md files",
 });
 
 const PlansOverlapFlags = Schema.Struct({
   noExtract: Schema.optionalKey(
-    Schema.Boolean.annotations({
+    Schema.Boolean.annotate({
       description: "Fail on a cache miss instead of extracting the plan.md",
     }),
   ),
   landed: Schema.optionalKey(
-    Schema.String.annotations({
+    Schema.String.annotate({
       identifier: "run",
       description:
         "Report which of the given plans need re-adjustment after this run's actual changes",

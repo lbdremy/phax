@@ -10,6 +10,7 @@ import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 
 const decodeTokenUsage = Schema.decodeUnknownResult(TokenUsageSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });
 
 const baseManifest = {

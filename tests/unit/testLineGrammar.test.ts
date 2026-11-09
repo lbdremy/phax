@@ -12,7 +12,10 @@ import { TestLineSchema, type TestLine } from "../../src/schemas/testLine.js";
 // what `readTestStrategyText` or `parseTestLine` reads, and, where the case
 // concerns a value, the schema's refusal of it.
 
-const decode = Schema.decodeUnknownResult(TestLineSchema, { onExcessProperty: "error" });
+const decode = Schema.decodeUnknownResult(TestLineSchema, {
+  onExcessProperty: "error",
+  reportInput: true,
+});
 
 function line(overrides: Partial<TestLine> = {}): TestLine {
   return {

@@ -31,15 +31,15 @@ export type ExtractionPlan = Schema.Schema.Type<typeof ExtractionPlanSchema>;
  */
 export const PlanExtractionAnswerSchema = Schema.Struct({
   $schema: answerSchemaUrlField("phax-plan-extraction"),
-  plan: Schema.NullOr(ExtractionPlanSchema).annotations({
+  plan: Schema.NullOr(ExtractionPlanSchema).annotate({
     description: "The extracted plan, or null when the plan is incomplete.",
   }),
-  incomplete: Schema.NullOr(NonEmptyString).annotations({
+  incomplete: Schema.NullOr(NonEmptyString).annotate({
     description:
       "What is missing from the plan, or a test strategy item not in the line format; null when the plan is extracted.",
   }),
-}).pipe(
-  Schema.filter(
+}).check(
+  Schema.makeFilter(
     (answer) => (answer.plan === null) !== (answer.incomplete === null) || EXACTLY_ONE,
     {
       jsonSchema: {},
@@ -57,11 +57,13 @@ export type PlanExtractionReading =
 
 export const decodePlanExtractionAnswer = Schema.decodeUnknownResult(PlanExtractionAnswerSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });
 
 const decodePlanExtractionAnswerAll = Schema.decodeUnknownResult(PlanExtractionAnswerSchema, {
   errors: "all",
   onExcessProperty: "error",
+  reportInput: true,
 });
 
 /**

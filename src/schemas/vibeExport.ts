@@ -1,7 +1,7 @@
-import { Result, type ParseResult, Schema } from "effect";
+import { Result, Schema } from "effect";
 import { formatFirstViolation } from "./formatError.js";
 
-const TokenCountSchema = Schema.Number.pipe(Schema.finite(), Schema.nonNegative());
+const TokenCountSchema = Schema.Number.check(Schema.isFinite(), Schema.isGreaterThanOrEqualTo(0));
 
 const VibeUsageSchema = Schema.Struct({
   input_tokens: TokenCountSchema,
@@ -23,7 +23,7 @@ const VibeExportSchema = Schema.Struct({
   schema_version: Schema.Literal(1),
   session_id: Schema.NonEmptyString,
   usage: VibeUsageSchema,
-  cost_usd: Schema.Number.pipe(Schema.finite()),
+  cost_usd: Schema.Number.check(Schema.isFinite()),
   outcome: Schema.String,
   exit_code: Schema.Number,
   vibe_version: Schema.String,
@@ -42,7 +42,7 @@ const VibeOutcomeExportSchema = Schema.Struct({
   schema_version: Schema.Literal(1),
   session_id: Schema.NullOr(Schema.NonEmptyString),
   usage: Schema.NullOr(VibeUsageSchema),
-  cost_usd: Schema.NullOr(Schema.Number.pipe(Schema.finite())),
+  cost_usd: Schema.NullOr(Schema.Number.check(Schema.isFinite())),
   outcome: Schema.String,
   exit_code: Schema.Number,
   error: Schema.optional(
@@ -65,11 +65,13 @@ interface VibeExportRefusal {
   readonly detail: string;
 }
 
-const decodeVibeExport = Schema.decodeUnknownResult(VibeExportSchema);
-const decodeVibeOutcomeExport = Schema.decodeUnknownResult(VibeOutcomeExportSchema);
+const decodeVibeExport = Schema.decodeUnknownResult(VibeExportSchema, { reportInput: true });
+const decodeVibeOutcomeExport = Schema.decodeUnknownResult(VibeOutcomeExportSchema, {
+  reportInput: true,
+});
 
 function decodeExportText<A>(
-  decode: (input: unknown) => Result.Result<A, ParseResult.ParseError>,
+  decode: (input: unknown) => Result.Result<A, Schema.SchemaError>,
   text: string,
 ): Result.Result<A, VibeExportRefusal> {
   let parsed: unknown;

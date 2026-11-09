@@ -156,7 +156,7 @@ const leaf = (name: string, flags?: Schema.Struct.Fields) =>
     name,
     summary: `The ${name} command`,
     input: {
-      args: reject(Schema.Tuple(Schema.optionalElement(Schema.String))),
+      args: reject(Schema.Tuple([Schema.optionalKey(Schema.String)])),
       ...(flags === undefined ? {} : { flags: reject(Schema.Struct(flags)) }),
     },
     output: strip(Schema.String),

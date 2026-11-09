@@ -6,9 +6,10 @@
 import { Schema } from "effect";
 
 /** A string with at least one character; renders as a `pattern`, never `minLength`. */
-export const NonEmptyString = Schema.String.pipe(
-  Schema.pattern(/^[\s\S]+$/, {
+export const NonEmptyString = Schema.String.check(
+  Schema.isPattern(/^[\s\S]+$/, {
     identifier: "NonEmptyString",
-    message: (issue) => `Expected a non empty string, actual ${JSON.stringify(issue.actual)}`,
+    // The pattern refuses the empty string alone, so the refused value is always "".
+    message: 'Expected a non empty string, actual ""',
   }),
 );

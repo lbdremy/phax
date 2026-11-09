@@ -76,15 +76,15 @@ class RecordsBranchDivergedError extends Data.TaggedError("RecordsBranchDiverged
 
 // ── What a sync did ─────────────────────────────────────────────────────────────
 
-const SyncDone = Schema.Union(
+const SyncDone = Schema.Union([
   Schema.Struct({ kind: Schema.Literal("nothing-to-bootstrap") }),
   Schema.Struct({ kind: Schema.Literal("cloned"), path: Schema.String, remote: Schema.String }),
   Schema.Struct({ kind: Schema.Literal("fetched"), path: Schema.String, remote: Schema.String }),
-);
+]);
 
 const SyncRefused = Schema.Struct({
   kind: Schema.Literal("refused"),
-  reason: Schema.Literal("origin-mismatch", "local-only-history"),
+  reason: Schema.Literals(["origin-mismatch", "local-only-history"]),
   path: Schema.String,
   remote: Schema.String,
   message: Schema.String,
@@ -129,16 +129,16 @@ function syncValue(sync: RecordsSyncResult): SyncValue {
 
 // ── init ────────────────────────────────────────────────────────────────────────
 
-const RecordsInitOutput = Schema.Union(
+const RecordsInitOutput = Schema.Union([
   Schema.Struct({
     kind: Schema.Literal("configured"),
     configPath: Schema.String,
-    sync: Schema.Union(SyncDone, SyncRefused),
+    sync: Schema.Union([SyncDone, SyncRefused]),
     /** phax.json, which the command configured. */
     written: Schema.Array(Written),
   }),
   Schema.Struct({ kind: Schema.Literal("aborted") }),
-);
+]);
 
 /** `phax records init` over this Prompt layer (and the GitHub layer that tells the repository's
  *  visibility): the program uses the clack prompts and the real `gh`; a test scripts both. */
@@ -153,7 +153,7 @@ export function makeRecordsInitCommand(
       flags: reject(
         Schema.Struct({
           force: Schema.optionalKey(
-            Schema.Boolean.annotations({
+            Schema.Boolean.annotate({
               description: "Reconfigure records even if already configured",
             }),
           ),
@@ -252,7 +252,7 @@ const recordsInitCommand = makeRecordsInitCommand(makeClackPromptLayer());
 // ── sync ────────────────────────────────────────────────────────────────────────
 
 /** What sync did to the local records branch (spec records-branch-tip §6). */
-const BranchOutcome = Schema.Union(
+const BranchOutcome = Schema.Union([
   Schema.Struct({ kind: Schema.Literal("created"), tip: Schema.String, records: Schema.Number }),
   Schema.Struct({ kind: Schema.Literal("fast-forwarded"), from: Schema.String, to: Schema.String }),
   Schema.Struct({
@@ -268,16 +268,16 @@ const BranchOutcome = Schema.Union(
   }),
   Schema.Struct({
     kind: Schema.Literal("unchanged"),
-    state: Schema.Literal(...RECORDS_BRANCH_STATES),
+    state: Schema.Literals(RECORDS_BRANCH_STATES),
     /** Local-only records, as `phax records status` counts them. */
     pending: Schema.Number,
   }),
-);
+]);
 
-const RecordsSyncOutput = Schema.Union(
+const RecordsSyncOutput = Schema.Union([
   Schema.Struct({ kind: Schema.Literal("disabled") }),
   Schema.Struct({
-    kind: Schema.Literal("cloned", "fetched"),
+    kind: Schema.Literals(["cloned", "fetched"]),
     /** Where the records branch lives: the local clone, or the source repository in-repo. */
     path: Schema.String,
     /** The configured records remote's URL, or `publish.remote` in-repo. */
@@ -288,7 +288,7 @@ const RecordsSyncOutput = Schema.Union(
     replay: Schema.Boolean,
     branch: BranchOutcome,
   }),
-);
+]);
 
 type SyncedValue = Extract<typeof RecordsSyncOutput.Type, { readonly kind: "cloned" | "fetched" }>;
 
@@ -338,7 +338,7 @@ const recordsSyncCommand = defineCommand({
     flags: reject(
       Schema.Struct({
         replay: Schema.optionalKey(
-          Schema.Boolean.annotations({
+          Schema.Boolean.annotate({
             description:
               "Replay local-only records onto the remote tip when the records branch has diverged",
           }),
@@ -411,13 +411,13 @@ const recordsSyncCommand = defineCommand({
     RecordsSyncRefusedError: Schema.Struct({
       message: Schema.String,
       remedy: Schema.String,
-      reason: Schema.Literal("origin-mismatch", "local-only-history"),
+      reason: Schema.Literals(["origin-mismatch", "local-only-history"]),
       path: Schema.String,
       remote: Schema.String,
     }),
     RecordsBranchDivergedError: Schema.Struct({
       message: Schema.String,
-      reason: Schema.Literal("diverged", "unrelated"),
+      reason: Schema.Literals(["diverged", "unrelated"]),
       localTip: Schema.String,
       remoteTip: Schema.String,
       localOnly: Schema.Number,
@@ -445,21 +445,21 @@ const recordsSyncCommand = defineCommand({
 
 // ── status ──────────────────────────────────────────────────────────────────────
 
-const RecordsStatusOutput = Schema.Union(
+const RecordsStatusOutput = Schema.Union([
   Schema.Struct({ kind: Schema.Literal("disabled") }),
   Schema.Struct({
     kind: Schema.Literal("status"),
-    destination: Schema.Union(
+    destination: Schema.Union([
       Schema.Struct({ kind: Schema.Literal("in-repo") }),
       Schema.Struct({ kind: Schema.Literal("repo"), remote: Schema.String }),
-    ),
+    ]),
     /** The repository the records branch lives in: the source repository, or the local clone. */
     localPath: Schema.String,
     /** The remote pending is measured against. */
     remote: Schema.String,
     /** The records branch against the remote tip phax last fetched (full shas). */
     branch: Schema.Struct({
-      state: Schema.Literal(...RECORDS_BRANCH_STATES),
+      state: Schema.Literals(RECORDS_BRANCH_STATES),
       localTip: Schema.NullOr(Schema.String),
       remoteTip: Schema.NullOr(Schema.String),
     }),
@@ -475,7 +475,7 @@ const RecordsStatusOutput = Schema.Union(
       }),
     ),
   }),
-);
+]);
 
 const recordsStatusCommand = defineCommand({
   name: "status",
@@ -575,7 +575,7 @@ const recordsStatusCommand = defineCommand({
 
 // ── list ────────────────────────────────────────────────────────────────────────
 
-const RecordListEntry = Schema.Union(
+const RecordListEntry = Schema.Union([
   Schema.Struct({
     kind: Schema.Literal("phase"),
     runId: Schema.String,
@@ -593,7 +593,7 @@ const RecordListEntry = Schema.Union(
     recordCommitSha: Schema.String,
     /** The artifact the session authored. */
     artifact: Schema.String,
-    artifactKind: Schema.Literal("spec", "plan"),
+    artifactKind: Schema.Literals(["spec", "plan"]),
   }),
   Schema.Struct({
     kind: Schema.Literal("decision"),
@@ -603,7 +603,7 @@ const RecordListEntry = Schema.Union(
     recordCommitSha: Schema.String,
     /** The artifact the session decided. */
     artifact: Schema.String,
-    artifactKind: Schema.Literal("spec", "plan"),
+    artifactKind: Schema.Literals(["spec", "plan"]),
   }),
   Schema.Struct({
     kind: Schema.Literal("review"),
@@ -613,12 +613,12 @@ const RecordListEntry = Schema.Union(
     /** The review's own file the entry carries. */
     file: Schema.String,
   }),
-);
+]);
 
-const RecordsListOutput = Schema.Union(
+const RecordsListOutput = Schema.Union([
   Schema.Struct({ kind: Schema.Literal("disabled") }),
   Schema.Struct({ kind: Schema.Literal("listed"), records: Schema.Array(RecordListEntry) }),
-);
+]);
 
 type ListEntry = typeof RecordListEntry.Type;
 
@@ -652,7 +652,7 @@ const recordsListCommand = defineCommand({
     flags: reject(
       Schema.Struct({
         run: Schema.optionalKey(
-          Schema.String.annotations({
+          Schema.String.annotate({
             identifier: "id",
             description: "Only show records for this run id",
           }),

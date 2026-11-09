@@ -26,7 +26,7 @@ const ReportOutput = Schema.Struct({ issueUrl: Schema.String });
 
 const ReportFlags = Schema.Struct({
   noGist: Schema.optionalKey(
-    Schema.Boolean.annotations({
+    Schema.Boolean.annotate({
       description: "Inline the full log in the issue body instead of creating a secret gist",
     }),
   ),
@@ -38,7 +38,7 @@ export const reportCommand = defineCommand({
   help: "Creates a GitHub issue from local run telemetry. By default, uploads the full log as a secret GitHub gist and links it in the issue body. Use --no-gist to inline the log directly.\n\nSide effects: GitHub API calls — creates a GitHub issue and, unless --no-gist is set, a secret gist.",
   examples: ["phax report", "phax report usage-cli", "phax report usage-cli --no-gist"],
   input: {
-    args: reject(Schema.Tuple(Schema.optionalElement(ShortNameArg))),
+    args: reject(Schema.Tuple([Schema.optionalKey(ShortNameArg)])),
     flags: reject(ReportFlags),
   },
   output: reject(ReportOutput),

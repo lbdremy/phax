@@ -9,9 +9,9 @@ import { Schema } from "effect";
 import { schemaUrlField } from "./schemaUrl.js";
 import { FullCommitShaSchema } from "./status.js";
 
-const PhaseIdSchema = Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/));
+const PhaseIdSchema = Schema.String.check(Schema.isPattern(/^phase-\d{2}$/));
 
-const filesSchema = Schema.NonEmptyArray(Schema.NonEmptyString).annotations({
+const filesSchema = Schema.NonEmptyArray(Schema.NonEmptyString).annotate({
   description:
     "The acceptance test files the pair declares, working-tree-root-relative paths in declaration order.",
 });
@@ -23,15 +23,15 @@ const filesSchema = Schema.NonEmptyArray(Schema.NonEmptyString).annotations({
  * against the acceptance phase's commit. Exactly the keys of its variant; any
  * other is refused.
  */
-export const AcceptanceRequestFileSchema = Schema.Union(
+export const AcceptanceRequestFileSchema = Schema.Union([
   Schema.Struct({
     $schema: schemaUrlField("acceptance-request"),
-    verdict: Schema.Literal("authored").annotations({
+    verdict: Schema.Literal("authored").annotate({
       description: "Which judgment the provider gives: the acceptance phase's tests are authored.",
     }),
-    phase: PhaseIdSchema.annotations({ description: "The gated phase." }),
-    acceptancePhase: PhaseIdSchema.annotations({ description: "The pair's acceptance phase." }),
-    base: FullCommitShaSchema.annotations({
+    phase: PhaseIdSchema.annotate({ description: "The gated phase." }),
+    acceptancePhase: PhaseIdSchema.annotate({ description: "The pair's acceptance phase." }),
+    base: FullCommitShaSchema.annotate({
       description:
         "The full object name of the commit the acceptance phase's branch was created from.",
     }),
@@ -39,23 +39,23 @@ export const AcceptanceRequestFileSchema = Schema.Union(
   }),
   Schema.Struct({
     $schema: schemaUrlField("acceptance-request"),
-    verdict: Schema.Literal("passed").annotations({
+    verdict: Schema.Literal("passed").annotate({
       description:
         "Which judgment the provider gives: the passing phase left no acceptance marker.",
     }),
-    phase: PhaseIdSchema.annotations({ description: "The gated phase, the pair's passing phase." }),
-    acceptancePhase: PhaseIdSchema.annotations({ description: "The pair's acceptance phase." }),
-    base: FullCommitShaSchema.annotations({
+    phase: PhaseIdSchema.annotate({ description: "The gated phase, the pair's passing phase." }),
+    acceptancePhase: PhaseIdSchema.annotate({ description: "The pair's acceptance phase." }),
+    base: FullCommitShaSchema.annotate({
       description:
         "The full object name of the commit the acceptance phase's branch was created from.",
     }),
-    acceptanceCommit: FullCommitShaSchema.annotations({
+    acceptanceCommit: FullCommitShaSchema.annotate({
       description:
         "The full object name of the acceptance phase's commit, the one to judge against.",
     }),
     files: filesSchema,
   }),
-);
+]);
 
 export type AcceptanceRequestFile = Schema.Schema.Type<typeof AcceptanceRequestFileSchema>;
 
@@ -68,6 +68,7 @@ export type AcceptanceRequest = AcceptanceRequestFile extends infer V
 
 export const decodeAcceptanceRequestFile = Schema.decodeUnknownResult(AcceptanceRequestFileSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });
 
 export const encodeAcceptanceRequestFile = Schema.encodeSync(AcceptanceRequestFileSchema);

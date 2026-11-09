@@ -8,6 +8,7 @@ import {
   QUESTION_CHECKS_DESCRIPTION,
   authoringArbitratedViolation,
   firstQuestionViolation,
+  violationIssue,
   type OpenQuestion,
   type PlanArbitratedQuestion,
 } from "./questions.js";
@@ -43,7 +44,7 @@ const PlanDocumentPhaseSchema = Schema.Struct({
   // Null for a phase that crosses no boundary: the phax-planning skill omits the
   // section rather than filling it.
   boundaryContracts: Schema.NullOr(NonEmptyString),
-  testStrategy: Schema.Array(TestLineSchema).annotations({
+  testStrategy: Schema.Array(TestLineSchema).annotate({
     description:
       "The phase's test lines. Each renders as one `- <guarantee> — <size> · <technique> · <oracle> · <loop>[ · <criterion>]` line under `### Test strategy`; `[]` is a phase that tests nothing, rendered `- (none)`.",
   }),
@@ -52,7 +53,7 @@ const PlanDocumentPhaseSchema = Schema.Struct({
   verification: NonEmptyString,
   expectedHandoff: NonEmptyString,
   commit: ExtractedPhaseFields.commit,
-  assignmentReason: Schema.NullOr(NonEmptyString).annotations({
+  assignmentReason: Schema.NullOr(NonEmptyString).annotate({
     description:
       "Why this phase's model and effort depart from the assignment the phax-planning skill gives it; null when they do not. Rendered as an **Assignment reason:** line, never extracted.",
   }),
@@ -71,7 +72,7 @@ const preambleFields = {
 const planDocumentFields = {
   kind: Schema.Literal("plan"),
   sourceSpec: Schema.NullOr(NonEmptyString),
-  completesSpec: Schema.NullOr(Schema.Boolean).annotations({
+  completesSpec: Schema.NullOr(Schema.Boolean).annotate({
     description:
       "Whether this plan's run completes its source spec: true when it is the spec's last plan, false when more plans of the spec follow. A boolean beside a sourceSpec path; null beside sourceSpec: null.",
   }),
@@ -103,11 +104,13 @@ function isLineage(doc: {
 // pairing is a coherence check phax runs, not a schema construct: a root
 // `oneOf` is outside a provider's strict structured output. Its JSON Schema is
 // a description only; the root description (`ROOT_DESCRIPTION`) names it.
-const lineageFilter = <A extends Parameters<typeof isLineage>[0]>() =>
-  Schema.filter((doc: A): doc is A & PlanDocumentLineage => isLineage(doc), {
-    message: () => LINEAGE_MESSAGE,
-    jsonSchema: { description: ROOT_DESCRIPTION },
-  });
+const lineageFilter = <
+  S extends Schema.Constraint & { readonly Type: Parameters<typeof isLineage>[0] },
+>() =>
+  Schema.refine<S, S["Type"] & PlanDocumentLineage>(
+    (doc): doc is S["Type"] & PlanDocumentLineage => isLineage(doc),
+    { message: LINEAGE_MESSAGE, jsonSchema: { description: ROOT_DESCRIPTION } },
+  );
 
 interface QuestionBearing {
   readonly preamble: {
@@ -150,8 +153,9 @@ const PlanDocumentFileStruct = Schema.Struct({
  * the lineage and question checks. Unknown keys are rejected.
  */
 export const PlanDocumentFileSchema = PlanDocumentFileStruct.pipe(
-  lineageFilter<typeof PlanDocumentFileStruct.Type>(),
-  Schema.filter(firstPlanQuestionViolation, {
+  lineageFilter<typeof PlanDocumentFileStruct>(),
+).check(
+  Schema.makeFilter((doc) => violationIssue(firstPlanQuestionViolation(doc)), {
     jsonSchema: { description: ROOT_DESCRIPTION },
   }),
 );
@@ -163,6 +167,7 @@ export type AuthoredPlanDocument = PlanDocumentFile;
 
 export const decodePlanDocumentFile = Schema.decodeUnknownResult(PlanDocumentFileSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });
 export const encodePlanDocumentFile = Schema.encodeSync(PlanDocumentFileSchema);
 

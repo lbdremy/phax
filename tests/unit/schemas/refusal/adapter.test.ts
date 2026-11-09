@@ -1,4 +1,4 @@
-import { Result, ParseResult, Schema } from "effect";
+import { Result, Schema, SchemaIssue, SchemaTransformation } from "effect";
 import type { ParseOptions } from "effect/SchemaAST";
 import { describe, expect, it } from "vitest";
 import { firstRefusal, refusalsOf } from "../../../../src/schemas/refusal/adapter.js";
@@ -12,11 +12,11 @@ import type { Refusal } from "../../../../src/schemas/refusal/model.js";
 // The decode failure of `input`. Thrown at load, not inside a test, when the
 // schema accepts the input, so an `it.fails` test can never pass on it.
 function refused<A, I>(
-  schema: Schema.Schema<A, I, never>,
+  schema: Schema.Codec<A, I>,
   input: unknown,
   options?: ParseOptions,
-): ParseResult.ParseError {
-  const decoded = Schema.decodeUnknownResult(schema, options)(input);
+): Schema.SchemaError {
+  const decoded = Schema.decodeUnknownResult(schema, { ...options, reportInput: true })(input);
   if (Result.isSuccess(decoded)) throw new Error(`expected a refusal of ${JSON.stringify(input)}`);
   return decoded.left;
 }
@@ -25,7 +25,7 @@ class Phase extends Schema.Class<Phase>("Phase")({ id: Schema.String }) {}
 
 const cases: ReadonlyArray<{
   readonly name: string;
-  readonly error: ParseResult.ParseError;
+  readonly error: Schema.SchemaError;
   readonly refusals: ReadonlyArray<Refusal>;
 }> = [
   {
@@ -68,7 +68,7 @@ const cases: ReadonlyArray<{
   {
     // move: Effect 3 `Expected readonly [string, number], actual {"a":1}`.
     name: "a tuple given an object",
-    error: refused(Schema.Tuple(Schema.String, Schema.Number), { a: 1 }),
+    error: refused(Schema.Tuple([Schema.String, Schema.Number]), { a: 1 }),
     refusals: [
       { kind: "invalid-type", path: [], expected: "a tuple", actual: { a: 1 }, message: null },
     ],
@@ -83,7 +83,7 @@ const cases: ReadonlyArray<{
     // move: Effect 3 prints two issues, `Expected "a", actual "c"` and
     // `Expected "b", actual "c"`; phax merges them into one, without a prefix.
     name: "a literal union",
-    error: refused(Schema.Literal("a", "b"), "c"),
+    error: refused(Schema.Literals(["a", "b"]), "c"),
     refusals: [
       { kind: "invalid-value", path: [], expected: '"a" | "b"', actual: "c", message: null },
     ],
@@ -92,7 +92,7 @@ const cases: ReadonlyArray<{
     // move: Effect 3 prints `Expected { readonly a: string }, actual 1` and
     // `Expected null, actual 1`.
     name: "a union of a struct and null given a number",
-    error: refused(Schema.Union(Schema.Struct({ a: Schema.String }), Schema.Null), 1),
+    error: refused(Schema.Union([Schema.Struct({ a: Schema.String }), Schema.Null]), 1),
     refusals: [
       {
         kind: "invalid-type",
@@ -108,7 +108,7 @@ const cases: ReadonlyArray<{
     // `Expected { readonly b: number }, actual 1`; both members are `an object`.
     name: "a union of two struct shapes given a number",
     error: refused(
-      Schema.Union(Schema.Struct({ a: Schema.String }), Schema.Struct({ b: Schema.Number })),
+      Schema.Union([Schema.Struct({ a: Schema.String }), Schema.Struct({ b: Schema.Number })]),
       1,
     ),
     refusals: [{ kind: "invalid-type", path: [], expected: "an object", actual: 1, message: null }],
@@ -117,18 +117,22 @@ const cases: ReadonlyArray<{
     // move: Effect 3 prints the deeper `a: Expected string, actual 1` and the
     // shallow `Expected null, actual {"a":1}`; only the deeper one stays.
     name: "a union where one member got deeper",
-    error: refused(Schema.Union(Schema.Struct({ a: Schema.String }), Schema.Null), { a: 1 }),
+    error: refused(Schema.Union([Schema.Struct({ a: Schema.String }), Schema.Null]), { a: 1 }),
     refusals: [{ kind: "invalid-type", path: ["a"], expected: "string", actual: 1, message: null }],
   },
   {
     // move: Effect 3 `Expected { readonly a: string }, actual null`.
     name: "a struct behind a transformation given null",
     error: refused(
-      Schema.transform(Schema.Struct({ a: Schema.String }), Schema.Struct({ b: Schema.String }), {
-        strict: true,
-        decode: ({ a }) => ({ b: a }),
-        encode: ({ b }) => ({ a: b }),
-      }),
+      Schema.Struct({ a: Schema.String }).pipe(
+        Schema.decodeTo(
+          Schema.Struct({ b: Schema.String }),
+          SchemaTransformation.transform({
+            decode: ({ a }) => ({ b: a }),
+            encode: ({ b }) => ({ a: b }),
+          }),
+        ),
+      ),
       null,
     ),
     refusals: [
@@ -146,19 +150,19 @@ const cases: ReadonlyArray<{
   {
     // move: Effect 3 `Expected the verdict, actual "no"`, the description as the label.
     name: "a literal annotated with a description",
-    error: refused(Schema.Literal("ok").annotations({ description: "the verdict" }), "no"),
+    error: refused(Schema.Literal("ok").annotate({ description: "the verdict" }), "no"),
     refusals: [{ kind: "invalid-value", path: [], expected: '"ok"', actual: "no", message: null }],
   },
   {
     // Effect 3: `Expected PhaseId, actual 1`.
     name: "a string with an identifier annotation",
-    error: refused(Schema.String.annotations({ identifier: "PhaseId" }), 1),
+    error: refused(Schema.String.annotate({ identifier: "PhaseId" }), 1),
     refusals: [{ kind: "invalid-type", path: [], expected: "PhaseId", actual: 1, message: null }],
   },
   {
     // Effect 3: `Expected a string matching the pattern ^[a-z]+$, actual "A1"`.
     name: "a pattern filter",
-    error: refused(Schema.String.pipe(Schema.pattern(/^[a-z]+$/)), "A1"),
+    error: refused(Schema.String.check(Schema.isPattern(/^[a-z]+$/)), "A1"),
     refusals: [
       {
         kind: "filter",
@@ -172,7 +176,7 @@ const cases: ReadonlyArray<{
   {
     // A minimum of one keeps phax's Effect 3 words, `a non empty string` (operator, 2026-11-09).
     name: "a minLength filter",
-    error: refused(Schema.String.pipe(Schema.minLength(1)), ""),
+    error: refused(Schema.String.check(Schema.isMinLength(1)), ""),
     refusals: [
       { kind: "filter", path: [], expected: "a non empty string", actual: "", message: null },
     ],
@@ -180,7 +184,7 @@ const cases: ReadonlyArray<{
   {
     // Effect 3: `Expected a string at least 2 character(s) long, actual "a"`.
     name: "a minLength filter above one",
-    error: refused(Schema.String.pipe(Schema.minLength(2)), "a"),
+    error: refused(Schema.String.check(Schema.isMinLength(2)), "a"),
     refusals: [
       {
         kind: "filter",
@@ -195,9 +199,7 @@ const cases: ReadonlyArray<{
     // Effect 3: `a kebab-case slug`, the message alone.
     name: "a filter with a message annotation",
     error: refused(
-      Schema.String.pipe(
-        Schema.pattern(/^[a-z]+(-[a-z]+)*$/, { message: () => "a kebab-case slug" }),
-      ),
+      Schema.String.check(Schema.isPattern(/^[a-z]+(-[a-z]+)*$/, { message: "a kebab-case slug" })),
       "Not A Slug",
     ),
     refusals: [
@@ -245,7 +247,7 @@ describe("refusalsOf", () => {
       { errors: "all" },
     );
     expect(refusalsOf(error).map(({ path }) => path)).toEqual(
-      ParseResult.ArrayFormatter.formatErrorSync(error).map(({ path }) => path),
+      SchemaIssue.makeFormatterStandardSchemaV1()(error.issue).issues.map(({ path }) => path),
     );
   });
 });

@@ -7,6 +7,7 @@ import {
   SpecArbitratedQuestionSchema,
   authoringArbitratedViolation,
   firstQuestionViolation,
+  violationIssue,
 } from "./questions.js";
 import { NonEmptyString } from "./strictString.js";
 
@@ -18,13 +19,13 @@ import { NonEmptyString } from "./strictString.js";
 // empty list or an explicit variant (`before: null`, `docsPage.kind: "none"`),
 // never a missing key.
 
-const RequirementPatternSchema = Schema.Literal(
+const RequirementPatternSchema = Schema.Literals([
   "ubiquitous",
   "event",
   "state",
   "unwanted",
   "optional",
-);
+]);
 
 const GroundEntrySchema = Schema.Struct({
   path: NonEmptyString,
@@ -56,15 +57,14 @@ export const SURFACE_SUMMARY_PLACEHOLDER =
 // `$ref`-plus-`pattern` pair in the exported JSON Schema would have its
 // pattern ignored by draft-07 validators.
 const SurfaceElementSchema = Schema.Struct({
-  surface: Schema.String.pipe(Schema.pattern(/^(cli|config|file|api|package|internal): /)),
-  summary: Schema.String.pipe(
-    Schema.pattern(/^[^\n\r\u0085\u2028\u2029]+$/),
-    Schema.annotations({
+  surface: Schema.String.check(Schema.isPattern(/^(cli|config|file|api|package|internal): /)),
+  summary: Schema.String.check(Schema.isPattern(/^[^\n\r\u0085\u2028\u2029]+$/)).pipe(
+    Schema.annotate({
       description:
         "One sentence, in the consumer's words: what whoever consumes this element can now do or sees differently. Never where it lives or how it is built.",
     }),
   ),
-  binding: Schema.Literal("normative", "indicative"),
+  binding: Schema.Literals(["normative", "indicative"]),
   before: Schema.NullOr(Schema.String),
   after: NonEmptyString,
 });
@@ -86,7 +86,7 @@ const PlanningNoteSchema = Schema.Struct({
   constraints: Schema.Array(NonEmptyString),
 });
 
-const DocsPageSchema = Schema.Union(
+const DocsPageSchema = Schema.Union([
   Schema.Struct({
     kind: Schema.Literal("page"),
     page: NonEmptyString,
@@ -97,7 +97,7 @@ const DocsPageSchema = Schema.Union(
     kind: Schema.Literal("none"),
     why: NonEmptyString,
   }),
-);
+]);
 
 const specDocumentFields = {
   kind: Schema.Literal("spec"),
@@ -203,8 +203,8 @@ const TRACEABILITY_DESCRIPTION = `Checked by phax's parser, not by this JSON Sch
 export const SpecDocumentFileSchema = Schema.Struct({
   $schema: answerSchemaUrlField("spec-document"),
   ...specDocumentFields,
-}).pipe(
-  Schema.filter(firstTraceabilityViolation, {
+}).check(
+  Schema.makeFilter((doc) => violationIssue(firstTraceabilityViolation(doc)), {
     jsonSchema: { description: TRACEABILITY_DESCRIPTION },
   }),
 );
@@ -216,6 +216,7 @@ export type AuthoredSpecDocument = SpecDocumentFile;
 
 export const decodeSpecDocumentFile = Schema.decodeUnknownResult(SpecDocumentFileSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });
 export const encodeSpecDocumentFile = Schema.encodeSync(SpecDocumentFileSchema);
 

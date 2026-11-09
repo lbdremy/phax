@@ -71,11 +71,20 @@ export type ClaudeApiRetryEvent = Schema.Schema.Type<typeof ClaudeApiRetryEventS
 
 export const decodeClaudeResultOutcomeEvent = Schema.decodeUnknownResult(
   ClaudeResultOutcomeEventSchema,
+  { reportInput: true },
 );
-export const decodeClaudeInitEvent = Schema.decodeUnknownResult(ClaudeInitEventSchema);
-export const decodeClaudeApiRetryEvent = Schema.decodeUnknownResult(ClaudeApiRetryEventSchema);
-const decodeClaudeApiErrorMessage = Schema.decodeUnknownResult(ClaudeApiErrorMessageSchema);
-const decodeClaudeRateLimitEvent = Schema.decodeUnknownResult(ClaudeRateLimitEventSchema);
+export const decodeClaudeInitEvent = Schema.decodeUnknownResult(ClaudeInitEventSchema, {
+  reportInput: true,
+});
+export const decodeClaudeApiRetryEvent = Schema.decodeUnknownResult(ClaudeApiRetryEventSchema, {
+  reportInput: true,
+});
+const decodeClaudeApiErrorMessage = Schema.decodeUnknownResult(ClaudeApiErrorMessageSchema, {
+  reportInput: true,
+});
+const decodeClaudeRateLimitEvent = Schema.decodeUnknownResult(ClaudeRateLimitEventSchema, {
+  reportInput: true,
+});
 
 /** The events of one Claude Code stream that decide how its session ended. */
 interface ClaudeOutcomeEvents {

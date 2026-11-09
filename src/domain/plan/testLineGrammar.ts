@@ -49,7 +49,10 @@ export function renderTestLine(line: TestLine | TestLineToLift): string {
   return `${line.guarantee}${DASH}${coordinates}`;
 }
 
-const decodeTestLine = Schema.decodeUnknownResult(TestLineSchema, { onExcessProperty: "error" });
+const decodeTestLine = Schema.decodeUnknownResult(TestLineSchema, {
+  onExcessProperty: "error",
+  reportInput: true,
+});
 
 const COORDINATES_START = new RegExp(
   `^(?:${TEST_SIZES.join("|")})${DOT}(?:${TEST_TECHNIQUES.join("|")})${DOT}`,
