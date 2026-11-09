@@ -20,6 +20,8 @@ export function portOrDefault(reading: PortReading): number {
   return Either.getOrElse(reading, () => 8080);
 }
 
+export const defaultPort: number = Either.getOrThrow(readPort("8080"));
+
 export function nextPort(reading: PortReading): PortReading {
   return Either.map(reading, (port) => port + 1);
 }

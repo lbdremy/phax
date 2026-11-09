@@ -44,11 +44,11 @@ describe("effect4 codemod report", () => {
   it("names the uncovered use that blocks a binding's covered uses", () => {
     const result = rewriteFiles({ root: repoRoot, files: [blockedPath] });
     const text = readRepoFile(blockedPath);
-    const blocker = { v3Symbol: "Either.getOrThrow", line: lineOf(text, "export const value") };
+    const blocker = { v3Symbol: "Either.getOrNull", line: lineOf(text, "export const value") };
     const isLeft = result.leftovers.find((leftover) => leftover.v3Symbol === "Either.isLeft");
     expect(isLeft?.blockedBy).toEqual(blocker);
-    const getOrThrow = result.leftovers.find((l) => l.v3Symbol === "Either.getOrThrow");
-    expect(getOrThrow?.blockedBy).toBeNull();
+    const getOrNull = result.leftovers.find((l) => l.v3Symbol === "Either.getOrNull");
+    expect(getOrNull?.blockedBy).toBeNull();
   });
 
   it("reports no leftover for a symbol whose v4 name is unchanged, in its v4 call shape", () => {

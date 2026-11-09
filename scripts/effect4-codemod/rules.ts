@@ -59,6 +59,10 @@ export const RULES: ReadonlyArray<Rule> = [
       { v3Symbol: "effect/Either", line: 689, target: "effect/Result", form: "module" },
       rename("Either.Either", 10395, "Result.Result"),
       rename("Either.getOrElse", 10433, "Result.getOrElse"),
+      // On a failure v4 throws the failure value itself where v3 threw an `Error`; phax only
+      // unwraps values that cannot fail (a constant, a test's expected success), so no caller
+      // sees the difference (operator decision 2026-11-09, reviewing #195).
+      rename("Either.getOrThrow", 10435, "Result.getOrThrow"),
       rename("Either.isLeft", 10445, "Result.isFailure"),
       rename("Either.isRight", 10447, "Result.isSuccess"),
       rename("Either.left", 10449, "Result.fail"),
