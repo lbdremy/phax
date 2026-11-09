@@ -30,7 +30,9 @@ function project(files: Readonly<Record<string, string>>): string {
     realpathSync(join(repoRoot, "node_modules/typescript")),
     join(root, "node_modules/typescript"),
   );
-  symlinkSync("../typescript/bin/tsc", join(root, "node_modules/.bin/tsc"));
+  // An absolute target: the ~/.phax guard resolves a relative one against the cwd, which is
+  // inside ~/.phax when the repository is a phax worktree.
+  symlinkSync(join(root, "node_modules/typescript/bin/tsc"), join(root, "node_modules/.bin/tsc"));
   return root;
 }
 
