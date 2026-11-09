@@ -6,17 +6,18 @@
 // it as the format's 0.26.0 release.
 import { Schema } from "effect";
 
-const SchemaUrlSchema = Schema.String.pipe(
-  Schema.pattern(
+const SchemaUrlSchema = Schema.String.check(
+  Schema.isPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/run-status\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
-  Schema.annotations({
+).pipe(
+  Schema.annotate({
     description:
       "The run-status format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): https://docs.phax.run/schemas/run-status/<X.Y.Z>.json",
   }),
 );
 
-const RunStateSchema = Schema.Union(
+const RunStateSchema = Schema.Union([
   Schema.Literal("created"),
   Schema.Literal("running"),
   Schema.Literal("failed"),
@@ -27,16 +28,18 @@ const RunStateSchema = Schema.Union(
   Schema.Literal("interrupted"),
   Schema.Literal("rate_limited"),
   Schema.Literal("awaiting_review"),
+]);
+
+const HoldPhasesSchema = Schema.NonEmptyArray(
+  Schema.String.check(Schema.isPattern(/^phase-\d{2}$/)),
 );
 
-const HoldPhasesSchema = Schema.NonEmptyArray(Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/)));
-
-const RunHoldSchema = Schema.Union(
+const RunHoldSchema = Schema.Union([
   Schema.Struct({ selection: Schema.Literal("none") }),
   Schema.Struct({ selection: Schema.Literal("all"), phases: HoldPhasesSchema }),
   Schema.Struct({ selection: Schema.Literal("listed"), phases: HoldPhasesSchema }),
   Schema.Struct({ selection: Schema.Literal("oracle"), phases: HoldPhasesSchema }),
-);
+]);
 
 export const RunStatusV0_26_0Schema = Schema.Struct({
   $schema: SchemaUrlSchema,
@@ -58,4 +61,6 @@ export const RunStatusV0_26_0Schema = Schema.Struct({
 
 export type RunStatusV0_26_0 = Schema.Schema.Type<typeof RunStatusV0_26_0Schema>;
 
-export const decodeRunStatusV0_26_0 = Schema.decodeUnknownResult(RunStatusV0_26_0Schema);
+export const decodeRunStatusV0_26_0 = Schema.decodeUnknownResult(RunStatusV0_26_0Schema, {
+  reportInput: true,
+});

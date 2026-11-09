@@ -4,7 +4,7 @@
 // schemas package re-exports its schema and type.
 import { Schema } from "effect";
 
-const RunStateSchema = Schema.Union(
+const RunStateSchema = Schema.Union([
   Schema.Literal("created"),
   Schema.Literal("running"),
   Schema.Literal("failed"),
@@ -14,7 +14,7 @@ const RunStateSchema = Schema.Union(
   Schema.Literal("archived"),
   Schema.Literal("interrupted"),
   Schema.Literal("rate_limited"),
-);
+]);
 
 const RegistryEntrySchema = Schema.Struct({
   namespace: Schema.NonEmptyString,
@@ -36,4 +36,6 @@ export const RegistryPreSchemaSchema = Schema.Struct({
 
 export type RegistryPreSchema = Schema.Schema.Type<typeof RegistryPreSchemaSchema>;
 
-export const decodeRegistryPreSchema = Schema.decodeUnknownResult(RegistryPreSchemaSchema);
+export const decodeRegistryPreSchema = Schema.decodeUnknownResult(RegistryPreSchemaSchema, {
+  reportInput: true,
+});

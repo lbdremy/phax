@@ -10,24 +10,33 @@
 // strictString.ts cannot move it.
 import { Schema } from "effect";
 
-const SchemaUrlSchema = Schema.String.pipe(
-  Schema.pattern(
+// phax's own refusal text for a refused value, computed from it. The annotation key is the
+// one src/schemas/refusal/adapter.ts reads, written out here because a frozen module imports
+// only effect.
+const refusalMessage = (message: (actual: unknown) => string) => ({
+  phaxRefusalMessage: message,
+});
+
+const SchemaUrlSchema = Schema.String.check(
+  Schema.isPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/phax-plan\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
-  Schema.annotations({
+).pipe(
+  Schema.annotate({
     description:
       "The phax-plan format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): https://docs.phax.run/schemas/phax-plan/<X.Y.Z>.json",
   }),
 );
 
-const NonEmptyString = Schema.String.pipe(
-  Schema.pattern(/^[\s\S]+$/, {
+const NonEmptyString = Schema.String.check(
+  Schema.isPattern(/^[\s\S]+$/, {
     identifier: "NonEmptyString",
-    message: (issue) => `Expected a non empty string, actual ${JSON.stringify(issue.actual)}`,
+    // The pattern refuses the empty string alone, so the refused value is always "".
+    message: 'Expected a non empty string, actual ""',
   }),
 );
 
-const EffortSchema = Schema.Literal(
+const EffortSchema = Schema.Literals([
   "none",
   "off",
   "low",
@@ -37,9 +46,9 @@ const EffortSchema = Schema.Literal(
   "max",
   "ultracode",
   "ultra",
-);
+]);
 
-const PhaseIdSchema = Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/));
+const PhaseIdSchema = Schema.String.check(Schema.isPattern(/^phase-\d{2}$/));
 
 // ── test lines
 
@@ -52,16 +61,18 @@ const ONE_LINE = new RegExp(`^${ONE_LINE_CHAR}*$`);
 const ONE_LINE_TRIMMED = new RegExp(`^${ONE_LINE_EDGE}(?:${ONE_LINE_CHAR}*${ONE_LINE_EDGE})?$`);
 
 const oneLineText = (coordinate: string) =>
-  Schema.String.pipe(
-    Schema.pattern(ONE_LINE_TRIMMED, {
-      message: (issue) =>
-        typeof issue.actual === "string" && !ONE_LINE.test(issue.actual)
+  Schema.String.check(
+    Schema.isPattern(
+      ONE_LINE_TRIMMED,
+      refusalMessage((actual) =>
+        typeof actual === "string" && !ONE_LINE.test(actual)
           ? `a ${coordinate} is one line: no line break, U+2028, U+2029, U+0085 or other control character`
           : `a ${coordinate} is non-empty and trimmed: no leading or trailing whitespace`,
-    }),
+      ),
+    ),
   );
 
-const GuaranteeSchema = oneLineText("guarantee").annotations({
+const GuaranteeSchema = oneLineText("guarantee").annotate({
   description: "What the test guarantees: one non-empty, trimmed line.",
 });
 
@@ -80,8 +91,8 @@ function oracleViolation(oracle: string): string | undefined {
   return undefined;
 }
 
-const OracleSchema = oneLineText("oracle").pipe(
-  Schema.filter((oracle) => oracleViolation(oracle) ?? true, {
+const OracleSchema = oneLineText("oracle").check(
+  Schema.makeFilter((oracle) => oracleViolation(oracle) ?? true, {
     jsonSchema: {
       description: `What the test compares against: one non-empty, trimmed line, ${ORACLE_RULES} (these three checked by phax, not by this JSON Schema).`,
     },
@@ -90,15 +101,16 @@ const OracleSchema = oneLineText("oracle").pipe(
 
 const LOOPS: ReadonlyArray<string> = ["oracle", "in-phase"];
 
-const CriterionSchema = Schema.String.pipe(
+const CriterionSchema = Schema.String.check(
   // eslint-disable-next-line no-control-regex
-  Schema.pattern(/^[^\s`\x00-\x1F\x7F-\x9F]+$/, {
-    message: () =>
+  Schema.isPattern(/^[^\s`\x00-\x1F\x7F-\x9F]+$/, {
+    message:
       "a criterion is a run of non-whitespace characters holding no backtick and no control character",
   }),
-  Schema.filter(
+  Schema.makeFilter(
     (criterion) =>
-      !LOOPS.includes(criterion) || "a criterion is neither 'oracle' nor 'in-phase', the loop values",
+      !LOOPS.includes(criterion) ||
+      "a criterion is neither 'oracle' nor 'in-phase', the loop values",
     {
       jsonSchema: {
         description:
@@ -110,8 +122,8 @@ const CriterionSchema = Schema.String.pipe(
 
 const TestLineSchema = Schema.Struct({
   guarantee: GuaranteeSchema,
-  size: Schema.Literal("small", "medium", "large"),
-  technique: Schema.Literal(
+  size: Schema.Literals(["small", "medium", "large"]),
+  technique: Schema.Literals([
     "example",
     "table",
     "property",
@@ -120,11 +132,11 @@ const TestLineSchema = Schema.Struct({
     "fuzz",
     "contract",
     "smoke",
-  ),
+  ]),
   oracle: OracleSchema,
-  loop: Schema.Literal("oracle", "in-phase"),
+  loop: Schema.Literals(["oracle", "in-phase"]),
   criterion: Schema.NullOr(CriterionSchema),
-}).annotations({
+}).annotate({
   description:
     "One test line of a phase's test strategy, rendered as `- <guarantee> — <size> · <technique> · <oracle> · <loop>[ · <criterion>]`, one per line under the phase's `### Test strategy` heading. `criterion` is an acceptance criterion id from the source spec's JSON sidecar, or null.",
 });
@@ -140,7 +152,7 @@ const PhaseSchema = Schema.Struct({
   plannedFilesToCreate: Schema.Array(Schema.String),
   plannedFilesToEdit: Schema.Array(Schema.String),
   optionalFilesToEdit: Schema.Array(Schema.String),
-  mode: Schema.Literal("headless", "interactive"),
+  mode: Schema.Literals(["headless", "interactive"]),
   oracle: Schema.NullOr(
     Schema.Struct({
       dischargedBy: PhaseIdSchema,
@@ -169,4 +181,5 @@ export type PhaxPlanV0_32_0 = Schema.Schema.Type<typeof PhaxPlanV0_32_0Schema>;
 
 export const decodePhaxPlanV0_32_0 = Schema.decodeUnknownResult(PhaxPlanV0_32_0Schema, {
   onExcessProperty: "error",
+  reportInput: true,
 });

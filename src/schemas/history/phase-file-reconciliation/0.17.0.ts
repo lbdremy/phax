@@ -6,11 +6,12 @@
 // format's 0.17.0 release.
 import { Schema } from "effect";
 
-const SchemaUrlSchema = Schema.String.pipe(
-  Schema.pattern(
+const SchemaUrlSchema = Schema.String.check(
+  Schema.isPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/phase-file-reconciliation\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
-  Schema.annotations({
+).pipe(
+  Schema.annotate({
     description:
       "The phase-file-reconciliation format and the phax release that wrote this file: https://docs.phax.run/schemas/phase-file-reconciliation/<X.Y.Z>.json",
   }),
@@ -39,4 +40,5 @@ export type PhaseFileReconciliationV0_17_0 = Schema.Schema.Type<
 
 export const decodePhaseFileReconciliationV0_17_0 = Schema.decodeUnknownResult(
   PhaseFileReconciliationV0_17_0Schema,
+  { reportInput: true },
 );

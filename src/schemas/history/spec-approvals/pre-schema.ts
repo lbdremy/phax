@@ -8,17 +8,17 @@ import { Schema } from "effect";
 const SpecApprovalRecordSchema = Schema.Struct({
   specFingerprint: Schema.NonEmptyString,
   approvedAt: Schema.NonEmptyString,
-  baseline: Schema.NonEmptyString.pipe(Schema.pattern(/^[0-9a-f]{40}$/)),
+  baseline: Schema.NonEmptyString.check(Schema.isPattern(/^[0-9a-f]{40}$/)),
 });
 
 export const SpecApprovalsPreSchemaSchema = Schema.Struct({
   version: Schema.Literal(1),
-  records: Schema.Record({ key: Schema.String, value: SpecApprovalRecordSchema }),
+  records: Schema.Record(Schema.String, SpecApprovalRecordSchema),
 });
 
 export type SpecApprovalsPreSchema = Schema.Schema.Type<typeof SpecApprovalsPreSchemaSchema>;
 
 export const decodeSpecApprovalsPreSchema = Schema.decodeUnknownResult(
   SpecApprovalsPreSchemaSchema,
-  { onExcessProperty: "error" },
+  { onExcessProperty: "error", reportInput: true },
 );

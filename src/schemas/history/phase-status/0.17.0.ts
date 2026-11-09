@@ -4,17 +4,18 @@
 // it; the schemas package lists it as the format's 0.17.0 release.
 import { Schema } from "effect";
 
-const SchemaUrlSchema = Schema.String.pipe(
-  Schema.pattern(
+const SchemaUrlSchema = Schema.String.check(
+  Schema.isPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/phase-status\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
-  Schema.annotations({
+).pipe(
+  Schema.annotate({
     description:
       "The phase-status format and the phax release that wrote this file: https://docs.phax.run/schemas/phase-status/<X.Y.Z>.json",
   }),
 );
 
-const PhaseStateSchema = Schema.Union(
+const PhaseStateSchema = Schema.Union([
   Schema.Literal("pending"),
   Schema.Literal("setting_up_worktree"),
   Schema.Literal("running"),
@@ -30,9 +31,9 @@ const PhaseStateSchema = Schema.Union(
   Schema.Literal("handoff_failed"),
   Schema.Literal("skipped"),
   Schema.Literal("rate_limited"),
-);
+]);
 
-const EffortSchema = Schema.Union(
+const EffortSchema = Schema.Union([
   Schema.Literal("none"),
   Schema.Literal("off"),
   Schema.Literal("low"),
@@ -42,7 +43,7 @@ const EffortSchema = Schema.Union(
   Schema.Literal("max"),
   Schema.Literal("ultracode"),
   Schema.Literal("ultra"),
-);
+]);
 
 function isSafeBranchName(s: string): boolean {
   if (s.length === 0 || s[0] === "-") return false;
@@ -54,15 +55,14 @@ function isSafeBranchName(s: string): boolean {
   return true;
 }
 
-const BranchNameSchema = Schema.String.pipe(
-  Schema.minLength(1),
-  Schema.maxLength(255),
-  Schema.filter(isSafeBranchName, {
-    message: () => "branch name must not start with '-' or contain whitespace/control characters",
+const BranchNameSchema = Schema.String.check(
+  Schema.isMinLength(1),
+  Schema.isMaxLength(255),
+  Schema.makeFilter(isSafeBranchName, {
+    message: "branch name must not start with '-' or contain whitespace/control characters",
     jsonSchema: { pattern: "^[^\\x00-\\x20\\x7f-][^\\x00-\\x20\\x7f]*$" },
   }),
-  Schema.brand("BranchName"),
-);
+).pipe(Schema.brand("BranchName"));
 
 export const PhaseStatusV0_17_0Schema = Schema.Struct({
   $schema: SchemaUrlSchema,
@@ -81,4 +81,6 @@ export const PhaseStatusV0_17_0Schema = Schema.Struct({
 
 export type PhaseStatusV0_17_0 = Schema.Schema.Type<typeof PhaseStatusV0_17_0Schema>;
 
-export const decodePhaseStatusV0_17_0 = Schema.decodeUnknownResult(PhaseStatusV0_17_0Schema);
+export const decodePhaseStatusV0_17_0 = Schema.decodeUnknownResult(PhaseStatusV0_17_0Schema, {
+  reportInput: true,
+});

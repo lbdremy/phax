@@ -5,7 +5,7 @@
 // schema and type.
 import { Schema } from "effect";
 
-const EffortSchema = Schema.Literal(
+const EffortSchema = Schema.Literals([
   "none",
   "off",
   "low",
@@ -15,10 +15,10 @@ const EffortSchema = Schema.Literal(
   "max",
   "ultracode",
   "ultra",
-);
+]);
 
 const ExtractedPhaseFields = {
-  id: Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/)),
+  id: Schema.String.check(Schema.isPattern(/^phase-\d{2}$/)),
   model: Schema.NonEmptyString,
   effort: EffortSchema,
   planMarkdownAnchor: Schema.NonEmptyString,
@@ -61,10 +61,11 @@ export const PlanDocumentPreSchemaSchema = Schema.Struct({
     technicalArbitrations: Schema.Array(Schema.NonEmptyString),
   }),
   phases: Schema.NonEmptyArray(PlanDocumentPhaseSchema),
-}).annotations({ title: "phax plan document (experimental)" });
+}).annotate({ title: "phax plan document (experimental)" });
 
 export type PlanDocumentPreSchema = Schema.Schema.Type<typeof PlanDocumentPreSchemaSchema>;
 
 export const decodePlanDocumentPreSchema = Schema.decodeUnknownResult(PlanDocumentPreSchemaSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });

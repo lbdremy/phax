@@ -6,11 +6,12 @@
 // format's 0.19.0 release.
 import { Schema } from "effect";
 
-const SchemaUrlSchema = Schema.String.pipe(
-  Schema.pattern(
+const SchemaUrlSchema = Schema.String.check(
+  Schema.isPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/plan-approval-record\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
-  Schema.annotations({
+).pipe(
+  Schema.annotate({
     description:
       "The plan-approval-record format and the phax release that wrote this file: https://docs.phax.run/schemas/plan-approval-record/<X.Y.Z>.json",
   }),
@@ -26,7 +27,7 @@ export const PlanApprovalRecordV0_19_0Schema = Schema.Struct({
   artifact: Schema.NonEmptyString,
   planFingerprint: Schema.NonEmptyString,
   approvedAt: Schema.NonEmptyString,
-  baseline: Schema.NonEmptyString.pipe(Schema.pattern(/^[0-9a-f]{40}$/)),
+  baseline: Schema.NonEmptyString.check(Schema.isPattern(/^[0-9a-f]{40}$/)),
   sourceSpec: Schema.NullOr(SourceSpecBindingSchema),
 });
 
@@ -34,5 +35,5 @@ export type PlanApprovalRecordV0_19_0 = Schema.Schema.Type<typeof PlanApprovalRe
 
 export const decodePlanApprovalRecordV0_19_0 = Schema.decodeUnknownResult(
   PlanApprovalRecordV0_19_0Schema,
-  { onExcessProperty: "error" },
+  { onExcessProperty: "error", reportInput: true },
 );

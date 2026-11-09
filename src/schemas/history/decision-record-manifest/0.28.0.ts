@@ -8,28 +8,29 @@
 // package lists it as the format's 0.28.0 release.
 import { Schema } from "effect";
 
-const SchemaUrlSchema = Schema.String.pipe(
-  Schema.pattern(
+const SchemaUrlSchema = Schema.String.check(
+  Schema.isPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/decision-record-manifest\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
-  Schema.annotations({
+).pipe(
+  Schema.annotate({
     description:
       "The decision-record-manifest format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): https://docs.phax.run/schemas/decision-record-manifest/<X.Y.Z>.json",
   }),
 );
 
-const ProviderIdSchema = Schema.Union(
+const ProviderIdSchema = Schema.Union([
   Schema.Literal("claude-code"),
   Schema.Literal("codex-cli"),
   Schema.Literal("mistral-vibe"),
-);
+]);
 
-const RecordShapeSchema = Schema.Union(Schema.Literal("full"), Schema.Literal("skeleton"));
+const RecordShapeSchema = Schema.Union([Schema.Literal("full"), Schema.Literal("skeleton")]);
 
-const TokenUsageSchema = Schema.Union(
+const TokenUsageSchema = Schema.Union([
   Schema.Struct({
     available: Schema.Literal(true),
-    usage: Schema.Union(
+    usage: Schema.Union([
       Schema.Struct({
         provider: Schema.Literal("claude-code"),
         inputTokens: Schema.Number,
@@ -55,21 +56,20 @@ const TokenUsageSchema = Schema.Union(
         toolCallsFailed: Schema.Number,
         toolCallsSucceeded: Schema.Number,
       }),
-    ),
+    ]),
   }),
   Schema.Struct({ available: Schema.Literal(false) }),
+]);
+
+const FingerprintSchema = Schema.String.check(Schema.isPattern(/^[0-9a-f]{64}$/)).pipe(
+  Schema.annotate({ description: "The sha256 hex of the source's text." }),
 );
 
-const FingerprintSchema = Schema.String.pipe(
-  Schema.pattern(/^[0-9a-f]{64}$/),
-  Schema.annotations({ description: "The sha256 hex of the source's text." }),
-);
-
-const DoctrineSourceSchema = Schema.Union(
+const DoctrineSourceSchema = Schema.Union([
   Schema.Struct({
     kind: Schema.Literal("skill"),
     name: Schema.NonEmptyString,
-    source: Schema.Literal("bundled", "project"),
+    source: Schema.Literals(["bundled", "project"]),
     fingerprint: FingerprintSchema,
   }),
   Schema.Struct({
@@ -77,19 +77,18 @@ const DoctrineSourceSchema = Schema.Union(
     path: Schema.NonEmptyString,
     fingerprint: FingerprintSchema,
   }),
-);
+]);
 
-const CountSchema = Schema.Int.pipe(Schema.nonNegative());
+const CountSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0));
 
 const decisionRecordManifestFields = {
   kind: Schema.Literal("decision"),
-  decisionId: Schema.String.pipe(
-    Schema.pattern(/^[^/\s]+\/\d{2,}$/),
-    Schema.annotations({ description: "`<stamp>-<slug>/<NN>`, the Decision-Id trailer." }),
+  decisionId: Schema.String.check(Schema.isPattern(/^[^/\s]+\/\d{2,}$/)).pipe(
+    Schema.annotate({ description: "`<stamp>-<slug>/<NN>`, the Decision-Id trailer." }),
   ),
   artifact: Schema.NonEmptyString,
-  artifactKind: Schema.Literal("spec", "plan"),
-  session: Schema.Literal("new", "resumed-authoring"),
+  artifactKind: Schema.Literals(["spec", "plan"]),
+  session: Schema.Literals(["new", "resumed-authoring"]),
   doctrine: Schema.Array(DoctrineSourceSchema),
   questions: Schema.Array(Schema.NonEmptyString),
   arbitrated: CountSchema,
@@ -116,7 +115,7 @@ const InteractiveCommittedFields = {
 const InteractiveUncommittedFields = {
   ...decisionRecordManifestFields,
   mode: Schema.Literal("interactive"),
-  outcome: Schema.Literal("declined", "undecided", "failed"),
+  outcome: Schema.Literals(["declined", "undecided", "failed"]),
   commit: Schema.Null,
   ...usageField,
 };
@@ -139,12 +138,12 @@ const VerdictsFailedFields = {
   ...usageField,
 };
 
-export const DecisionRecordManifestV0_28_0Schema = Schema.Union(
+export const DecisionRecordManifestV0_28_0Schema = Schema.Union([
   Schema.Struct({ $schema: SchemaUrlSchema, ...InteractiveCommittedFields }),
   Schema.Struct({ $schema: SchemaUrlSchema, ...InteractiveUncommittedFields }),
   Schema.Struct({ $schema: SchemaUrlSchema, ...VerdictsCommittedFields }),
   Schema.Struct({ $schema: SchemaUrlSchema, ...VerdictsFailedFields }),
-);
+]);
 
 export type DecisionRecordManifestV0_28_0 = Schema.Schema.Type<
   typeof DecisionRecordManifestV0_28_0Schema
@@ -152,5 +151,5 @@ export type DecisionRecordManifestV0_28_0 = Schema.Schema.Type<
 
 export const decodeDecisionRecordManifestV0_28_0 = Schema.decodeUnknownResult(
   DecisionRecordManifestV0_28_0Schema,
-  { onExcessProperty: "error" },
+  { onExcessProperty: "error", reportInput: true },
 );

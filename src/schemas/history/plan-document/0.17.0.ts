@@ -4,17 +4,18 @@
 // it; the schemas package lists it as the format's 0.17.0 release.
 import { Schema } from "effect";
 
-const SchemaUrlSchema = Schema.String.pipe(
-  Schema.pattern(
+const SchemaUrlSchema = Schema.String.check(
+  Schema.isPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/plan-document\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
-  Schema.annotations({
+).pipe(
+  Schema.annotate({
     description:
       "The plan-document format and the phax release that wrote this file: https://docs.phax.run/schemas/plan-document/<X.Y.Z>.json",
   }),
 );
 
-const EffortSchema = Schema.Literal(
+const EffortSchema = Schema.Literals([
   "none",
   "off",
   "low",
@@ -24,10 +25,10 @@ const EffortSchema = Schema.Literal(
   "max",
   "ultracode",
   "ultra",
-);
+]);
 
 const ExtractedPhaseFields = {
-  id: Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/)),
+  id: Schema.String.check(Schema.isPattern(/^phase-\d{2}$/)),
   model: Schema.NonEmptyString,
   effort: EffortSchema,
   planMarkdownAnchor: Schema.NonEmptyString,
@@ -76,4 +77,5 @@ export type PlanDocumentV0_17_0 = Schema.Schema.Type<typeof PlanDocumentV0_17_0S
 
 export const decodePlanDocumentV0_17_0 = Schema.decodeUnknownResult(PlanDocumentV0_17_0Schema, {
   onExcessProperty: "error",
+  reportInput: true,
 });

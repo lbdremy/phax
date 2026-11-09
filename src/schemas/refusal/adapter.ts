@@ -1,4 +1,4 @@
-import { Predicate, Schema, SchemaAST, SchemaIssue } from "effect";
+import { Predicate, Result, Schema, SchemaAST, SchemaIssue } from "effect";
 import type { Refusal, RefusalPath } from "./model.js";
 
 /**
@@ -256,11 +256,55 @@ function isTransformationFailure(issue: SchemaIssue.Issue): boolean {
 
 function unionRefusals(issue: SchemaIssue.AnyOf, path: RefusalPath): ReadonlyArray<Refusal> {
   const input = inputOf(issue);
+  // The tag refusals come first, as the members of the refusal list, ahead of the members' own.
+  const tree = searchTree(issue.ast);
+  const tagged = tagRefusals(tree, input, path) ?? [];
+  const tags = tagged.map(({ refusal }) => refusal);
+  // Effect 4 sets aside a member whose literal tag the value misses, where Effect 3 still
+  // tried it when the tag was not the one it registered the member under. Such a member
+  // refuses on its own, so its refusals stand where Effect 3's did.
+  // A nested union that was tried reads its own members; the others are this union's to read.
+  const tried = new Set(
+    issue.issues.flatMap((member) => {
+      const ast = astOf(member);
+      return member instanceof SchemaIssue.AnyOf && ast !== undefined
+        ? [ast, ...unionMembers(ast)]
+        : [ast];
+    }),
+  );
+  const setAside = triedMembers(tree, input).filter(
+    (member) => SchemaAST.isObjects(member) && !tried.has(member),
+  );
+  const members: ReadonlyArray<{
+    readonly ast: SchemaAST.AST | undefined;
+    readonly issue: SchemaIssue.Issue | undefined;
+  }> = [
+    ...issue.issues.map((member) => ({ ast: astOf(member), issue: member })),
+    ...setAside.map((ast) => ({ ast, issue: undefined })),
+  ].toSorted((a, b) => unionIndex(issue.ast, a.ast) - unionIndex(issue.ast, b.ast));
   // No member took the value: the union's own refusal, or its tags'.
-  if (issue.issues.length === 0) {
-    return tagRefusals(issue.ast, input, path) ?? [wholeUnionRefusal(issue.ast, path, input)];
+  if (members.length === 0) {
+    return tags.length > 0 ? tags : [wholeUnionRefusal(issue.ast, path, input)];
   }
-  const refused = issue.issues.map((member) => walk(member, path, undefined));
+  // What each entry accepts at each key: a tag's registered literals, a member's property types.
+  // A member that is itself a union stands for each of its own members, as Effect 3's
+  // flattened union had them.
+  const accepted: ReadonlyArray<ReadonlyArray<Accepts>> = [
+    ...tagged.map(({ key, literals }) => [
+      new Map([[key, (value: unknown) => literals.some((l) => l.literal === value)]]),
+    ]),
+    ...members.map((member) =>
+      member.issue === undefined ? acceptsOf(member.ast!) : propertiesOf(member.issue),
+    ),
+  ];
+  const refused = [
+    ...tags.map((tag) => [tag]),
+    ...members.map((member) =>
+      member.issue === undefined
+        ? decodeSetAside(member.ast!, input, path)
+        : walk(member.issue, path, undefined),
+    ),
+  ];
   const isShallow = (refusals: ReadonlyArray<Refusal>): boolean =>
     refusals.length === 1 &&
     samePath(refusals[0]!.path, path) &&
@@ -274,10 +318,9 @@ function unionRefusals(issue: SchemaIssue.AnyOf, path: RefusalPath): ReadonlyArr
   // (`outcome: Expected "failed"`) then gives way to the chosen member's
   // (`arbitrated: is missing`). When no member is left, every deeper member's refusals
   // stay, in the members' order.
-  const deeper = issue.issues.flatMap((member, i) =>
-    isShallow(refused[i]!) ? [] : [{ member, refusals: refused[i]! }],
+  const deeper = refused.flatMap((refusals, i) =>
+    isShallow(refusals) ? [] : [{ properties: accepted[i]!, refusals }],
   );
-  const properties = deeper.map(({ member }) => propertiesOf(member));
   const shapeMisses = deeper.map(({ refusals }) =>
     refusals.filter(
       (r) =>
@@ -286,19 +329,70 @@ function unionRefusals(issue: SchemaIssue.AnyOf, path: RefusalPath): ReadonlyArr
         samePrefix(r.path, path),
     ),
   );
-  const accepts = (other: number, r: Refusal): boolean => {
-    const type = properties[other]!.get(r.path[path.length]!);
-    if (type === undefined) return false;
-    return (
-      r.kind === "unexpected" ||
-      (r.kind === "invalid-value" && Schema.is(Schema.make(type))(r.actual))
-    );
+  const acceptsAt = (properties: Accepts, r: Refusal): boolean => {
+    const check = properties.get(r.path[path.length]!);
+    if (check === undefined) return false;
+    return r.kind === "unexpected" || (r.kind === "invalid-value" && check(r.actual));
   };
   const notChosen = (self: number): boolean =>
     shapeMisses[self]!.length > 0 &&
-    deeper.some((_, other) => other !== self && shapeMisses[self]!.every((r) => accepts(other, r)));
+    deeper.some(
+      (entry, other) =>
+        other !== self &&
+        entry.properties.some((properties) =>
+          shapeMisses[self]!.every((r) => acceptsAt(properties, r)),
+        ),
+    );
   const chosen = deeper.filter((_, i) => !notChosen(i));
-  return (chosen.length > 0 ? chosen : deeper).flatMap(({ refusals }) => refusals);
+  const kept = (chosen.length > 0 ? chosen : deeper).flatMap(({ refusals }) => refusals);
+  // A nested union met the same tags at the same path: each tag refusal once.
+  return kept.filter(
+    (refusal, i) =>
+      !tags.some((tag) => sameRefusal(tag, refusal)) ||
+      kept.findIndex((other) => sameRefusal(other, refusal)) === i,
+  );
+}
+
+// The node an issue is about, when it names one.
+function astOf(issue: SchemaIssue.Issue): SchemaAST.AST | undefined {
+  return issue instanceof SchemaIssue.Composite ||
+    issue instanceof SchemaIssue.AnyOf ||
+    issue instanceof SchemaIssue.Encoding ||
+    issue instanceof SchemaIssue.InvalidType ||
+    issue instanceof SchemaIssue.OneOf
+    ? issue.ast
+    : undefined;
+}
+
+// A member's place in the union, so the members read in the order the union declares them.
+function unionIndex(union: SchemaAST.Union, member: SchemaAST.AST | undefined): number {
+  const index =
+    member === undefined
+      ? -1
+      : union.types.findIndex((type) => type === member || unionMembers(type).includes(member));
+  return index < 0 ? Number.MAX_SAFE_INTEGER : index;
+}
+
+// The refusals of a member Effect 4 set aside, from decoding the value against it alone.
+function decodeSetAside(
+  member: SchemaAST.AST,
+  input: unknown,
+  path: RefusalPath,
+): ReadonlyArray<Refusal> {
+  const decoded = Schema.decodeUnknownResult(Schema.make<Schema.Codec<unknown, unknown>>(member), {
+    onExcessProperty: "error",
+    reportInput: true,
+  })(input);
+  return Result.isFailure(decoded) ? walk(decoded.failure.issue, path, undefined) : [];
+}
+
+function sameRefusal(a: Refusal, b: Refusal): boolean {
+  const other = new Map(Object.entries(b));
+  return (
+    samePath(a.path, b.path) &&
+    Object.keys(a).length === other.size &&
+    Object.entries(a).every(([key, value]) => key === "path" || Object.is(other.get(key), value))
+  );
 }
 
 // The union's one refusal when no member got past the union's own path: every
@@ -336,59 +430,146 @@ function memberTypeLabels(ast: SchemaAST.AST): ReadonlyArray<string> {
     : [describeType(ast).expected];
 }
 
-// A union of objects told apart by tags (keys whose type is a literal in each member
-// declaring them), given an object no member's tags select: the tags it misses, each
-// naming the literals the members declare there. Undefined when the union has no tags
-// or the value is not an object.
-function tagRefusals(
-  ast: SchemaAST.Union,
-  input: unknown,
-  path: RefusalPath,
-): ReadonlyArray<Refusal> | undefined {
-  if (!Predicate.isReadonlyObject(input)) return undefined;
-  const tags = new Map<PropertyKey, Array<SchemaAST.Literal>>();
-  for (const member of ast.types) {
-    const core = lookThrough(member);
-    if (!SchemaAST.isObjects(core)) return undefined;
-    for (const signature of core.propertySignatures) {
-      const type = lookThrough(signature.type);
-      if (!SchemaAST.isLiteral(type) || SchemaAST.isOptional(signature.type)) continue;
-      const literals = tags.get(signature.name) ?? [];
-      if (!literals.some((l) => l.literal === type.literal)) literals.push(type);
-      tags.set(signature.name, literals);
+// The union's members, a nested union's flattened (`NullOr` of a union of structs).
+function unionMembers(ast: SchemaAST.AST): ReadonlyArray<SchemaAST.AST> {
+  const core = lookThrough(ast);
+  return SchemaAST.isUnion(core) ? core.types.flatMap(unionMembers) : [core];
+}
+
+// A union of objects told apart by tags, given an object whose tag no member declares
+// (or that lacks it): the tags it misses, each naming the literals registered there.
+// Undefined when the union has no tags or the value is not an object.
+//
+// The tags are those of Effect 3's search tree, which a decoded value's refusal line
+// was told from: each object member registers under its first tag (a non-optional
+// literal property, in property order) whose value no earlier member took, or under
+// its last tag when every one was taken. So a tag a member shares with an earlier
+// one names no literal of its own, and a member whose literal is a union of literals
+// registers none. Effect 4's candidate selection differs, so the tree is rebuilt here.
+// A tag's literal. `null` is one: Effect 3's `Schema.Null` was the literal null.
+interface TagLiteral {
+  readonly literal: SchemaAST.LiteralValue | null;
+}
+
+interface SearchTreeKey {
+  readonly literals: Array<TagLiteral>;
+  readonly buckets: Map<string, Array<SchemaAST.AST>>;
+}
+
+interface SearchTree {
+  /** By tag key, in registration order: the literals registered there and the members under each. */
+  readonly keys: ReadonlyMap<PropertyKey, SearchTreeKey>;
+  /** The members that register no tag, tried on every value. */
+  readonly otherwise: Array<SchemaAST.AST>;
+}
+
+function searchTree(ast: SchemaAST.Union): SearchTree {
+  const keys = new Map<PropertyKey, SearchTreeKey>();
+  const otherwise: Array<SchemaAST.AST> = [];
+  for (const core of unionMembers(ast)) {
+    const own: Array<readonly [PropertyKey, TagLiteral]> = [];
+    if (SchemaAST.isObjects(core)) {
+      for (const signature of core.propertySignatures) {
+        const type = lookThrough(signature.type);
+        if (SchemaAST.isOptional(signature.type)) continue;
+        if (SchemaAST.isLiteral(type)) own.push([signature.name, type]);
+        else if (SchemaAST.isNull(type)) own.push([signature.name, { literal: null }]);
+      }
+    }
+    if (own.length === 0) {
+      otherwise.push(core);
+      continue;
+    }
+    for (const [j, [key, literal]] of own.entries()) {
+      const entry: SearchTreeKey = keys.get(key) ?? { literals: [], buckets: new Map() };
+      keys.set(key, entry);
+      const hash = String(literal.literal);
+      const bucket = entry.buckets.get(hash);
+      if (bucket !== undefined && j < own.length - 1) continue;
+      entry.literals.push(literal);
+      if (bucket === undefined) {
+        entry.buckets.set(hash, [core]);
+        break;
+      }
+      bucket.push(core);
     }
   }
-  if (tags.size === 0) return undefined;
-  const refusals: Array<Refusal> = [];
-  for (const [key, literals] of tags) {
+  return { keys, otherwise };
+}
+
+// The members Effect 3 tried on a value: those under the bucket each tag key of the
+// value selects, in the keys' order, then the members that register no tag.
+function triedMembers(tree: SearchTree, input: unknown): ReadonlyArray<SchemaAST.AST> {
+  const selected: Array<SchemaAST.AST> = [];
+  if (Predicate.isReadonlyObject(input)) {
+    for (const [key, { buckets }] of tree.keys) {
+      if (Object.hasOwn(input, key)) selected.push(...(buckets.get(String(input[key])) ?? []));
+    }
+  }
+  return [...new Set([...selected, ...tree.otherwise])];
+}
+
+function tagRefusals(
+  tree: SearchTree,
+  input: unknown,
+  path: RefusalPath,
+): ReadonlyArray<TagRefusal> | undefined {
+  if (!Predicate.isReadonlyObject(input)) return undefined;
+  const refusals: Array<TagRefusal> = [];
+  for (const [key, { literals }] of tree.keys) {
     if (!Object.hasOwn(input, key)) {
-      refusals.push({ kind: "missing", path: [...path, key] });
+      refusals.push({ refusal: { kind: "missing", path: [...path, key] }, key, literals });
       continue;
     }
     const value = input[key];
-    if (literals.some((l) => l.literal === value)) continue;
-    const parts = literals.map((l) => literalText(l.literal));
+    if (literals.some((l) => String(l.literal) === String(value))) continue;
+    const parts = dedupe(literals.map((l) => literalText(l.literal)));
     refusals.push({
-      kind: "invalid-value",
-      path: [...path, key],
-      expected: unionText(parts, true),
-      actual: value,
-      message: null,
+      refusal: {
+        kind: "invalid-value",
+        path: [...path, key],
+        expected: unionText(parts, true),
+        actual: value,
+        message: null,
+      },
+      key,
+      literals,
     });
   }
   return refusals.length > 0 ? refusals : undefined;
 }
 
-// A struct member's property types by key, seen through the nodes that do not decide
-// the kind. Empty for any other member.
-function propertiesOf(member: SchemaIssue.Issue): ReadonlyMap<PropertyKey, SchemaAST.AST> {
-  const ast =
-    member instanceof SchemaIssue.Composite || member instanceof SchemaIssue.Encoding
-      ? member.ast
-      : undefined;
-  const core = ast === undefined ? undefined : lookThrough(ast);
-  if (core === undefined || !SchemaAST.isObjects(core)) return new Map();
-  return new Map(core.propertySignatures.map((p) => [p.name, p.type] as const));
+// A tag refusal, with the key and the literals registered there.
+interface TagRefusal {
+  readonly refusal: Refusal;
+  readonly key: PropertyKey;
+  readonly literals: ReadonlyArray<TagLiteral>;
+}
+
+// What an object's properties accept, by key.
+type Accepts = ReadonlyMap<PropertyKey, (value: unknown) => boolean>;
+
+// What a struct member's properties accept, seen through the nodes that do not decide
+// the kind: one entry for a struct, one per struct for a union, none for any other member.
+function propertiesOf(member: SchemaIssue.Issue): ReadonlyArray<Accepts> {
+  if (member instanceof SchemaIssue.AnyOf) {
+    return unionMembers(member.ast).flatMap(acceptsOf);
+  }
+  return member instanceof SchemaIssue.Composite || member instanceof SchemaIssue.Encoding
+    ? acceptsOf(member.ast)
+    : [];
+}
+
+function acceptsOf(ast: SchemaAST.AST): ReadonlyArray<Accepts> {
+  const core = lookThrough(ast);
+  if (!SchemaAST.isObjects(core)) return [];
+  return [
+    new Map(
+      core.propertySignatures.map(
+        (p) => [p.name, (value: unknown) => Schema.is(Schema.make(p.type))(value)] as const,
+      ),
+    ),
+  ];
 }
 
 function samePrefix(path: RefusalPath, prefix: RefusalPath): boolean {
@@ -530,7 +711,7 @@ function leafLabel(ast: SchemaAST.AST): string {
   return KEYWORDS.find(([is]) => is(ast))?.[1] ?? "unknown";
 }
 
-function literalText(literal: SchemaAST.LiteralValue | symbol): string {
+function literalText(literal: SchemaAST.LiteralValue | symbol | null): string {
   if (typeof literal === "string") return JSON.stringify(literal);
   if (typeof literal === "bigint") return `${String(literal)}n`;
   return String(literal);

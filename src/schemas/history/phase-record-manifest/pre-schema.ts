@@ -5,22 +5,22 @@
 // schema and type.
 import { Schema } from "effect";
 
-const ProviderIdSchema = Schema.Union(
+const ProviderIdSchema = Schema.Union([
   Schema.Literal("claude-code"),
   Schema.Literal("codex-cli"),
   Schema.Literal("mistral-vibe"),
-);
+]);
 
-const SurfaceSchema = Schema.Literal("local", "structural", "product");
+const SurfaceSchema = Schema.Literals(["local", "structural", "product"]);
 
-const RecordShapeSchema = Schema.Union(Schema.Literal("full"), Schema.Literal("skeleton"));
+const RecordShapeSchema = Schema.Union([Schema.Literal("full"), Schema.Literal("skeleton")]);
 
-const RecordPhaseOutcomeSchema = Schema.Union(
+const RecordPhaseOutcomeSchema = Schema.Union([
   Schema.Literal("committed"),
   Schema.Literal("failed"),
   Schema.Literal("abandoned"),
   Schema.Literal("interrupted"),
-);
+]);
 
 const ClaudeTokenUsageSchema = Schema.Struct({
   provider: Schema.Literal("claude-code"),
@@ -50,16 +50,16 @@ const VibeTokenUsageSchema = Schema.Struct({
   toolCallsSucceeded: Schema.Number,
 });
 
-const ProviderTokenUsageSchema = Schema.Union(
+const ProviderTokenUsageSchema = Schema.Union([
   ClaudeTokenUsageSchema,
   CodexTokenUsageSchema,
   VibeTokenUsageSchema,
-);
+]);
 
-const TokenUsageSchema = Schema.Union(
+const TokenUsageSchema = Schema.Union([
   Schema.Struct({ available: Schema.Literal(true), usage: ProviderTokenUsageSchema }),
   Schema.Struct({ available: Schema.Literal(false) }),
-);
+]);
 
 export const PhaseRecordManifestPreSchemaSchema = Schema.Struct({
   version: Schema.Literal(2),
@@ -81,5 +81,5 @@ export type PhaseRecordManifestPreSchema = Schema.Schema.Type<
 
 export const decodePhaseRecordManifestPreSchema = Schema.decodeUnknownResult(
   PhaseRecordManifestPreSchemaSchema,
-  { onExcessProperty: "error" },
+  { onExcessProperty: "error", reportInput: true },
 );

@@ -4,7 +4,7 @@
 // schemas package re-exports its schema and type.
 import { Schema } from "effect";
 
-const EffortSchema = Schema.Literal(
+const EffortSchema = Schema.Literals([
   "none",
   "off",
   "low",
@@ -14,10 +14,10 @@ const EffortSchema = Schema.Literal(
   "max",
   "ultracode",
   "ultra",
-);
+]);
 
 const PhaseSchema = Schema.Struct({
-  id: Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/)),
+  id: Schema.String.check(Schema.isPattern(/^phase-\d{2}$/)),
   title: Schema.NonEmptyString,
   model: Schema.NonEmptyString,
   effort: EffortSchema,
@@ -46,4 +46,5 @@ export type PhaxPlanPreSchema = Schema.Schema.Type<typeof PhaxPlanPreSchemaSchem
 
 export const decodePhaxPlanPreSchema = Schema.decodeUnknownResult(PhaxPlanPreSchemaSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });
