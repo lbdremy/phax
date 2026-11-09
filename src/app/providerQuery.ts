@@ -1,4 +1,4 @@
-import { Effect, Either, type ParseResult } from "effect";
+import { Effect, Result, type ParseResult } from "effect";
 import { formatParseError } from "../schemas/formatError.js";
 import { Shell } from "../ports/shell.js";
 
@@ -44,17 +44,17 @@ export function runProviderQuery<T, E>(
   command: string,
   cwd: string,
   requestBody: unknown,
-  decode: (input: unknown) => Either.Either<T, ParseResult.ParseError>,
+  decode: (input: unknown) => Result.Result<T, ParseResult.ParseError>,
   makeError: (failure: ProviderQueryFailure) => E,
   options: ProviderQueryOptions = {},
-): Effect.Effect<Either.Either<T, E>, never, Shell> {
+): Effect.Effect<Result.Result<T, E>, never, Shell> {
   return Effect.gen(function* () {
     const shell = yield* Shell;
     const tokens = parseCommandTokens(command);
     if (tokens === undefined) {
-      return Either.left(makeError({ message: `${providerLabel} command is empty: "${command}"` }));
+      return Result.fail(makeError({ message: `${providerLabel} command is empty: "${command}"` }));
     }
-    const ran = yield* Effect.either(
+    const ran = yield* Effect.result(
       shell.run({
         command: tokens,
         cwd,
@@ -63,13 +63,13 @@ export function runProviderQuery<T, E>(
       }),
     );
 
-    if (Either.isLeft(ran)) {
-      return Either.left(makeError({ message: `${providerLabel} ${ran.left.message}` }));
+    if (Result.isFailure(ran)) {
+      return Result.fail(makeError({ message: `${providerLabel} ${ran.left.message}` }));
     }
 
     const { exitCode, stdout, stderr } = ran.right;
     if (exitCode !== 0) {
-      return Either.left(
+      return Result.fail(
         makeError({
           message: `${providerLabel} exited with code ${exitCode}`,
           exitCode,
@@ -82,7 +82,7 @@ export function runProviderQuery<T, E>(
     try {
       parsed = JSON.parse(stdout) as unknown;
     } catch (err) {
-      return Either.left(
+      return Result.fail(
         makeError({
           message: `${providerLabel} returned invalid JSON: ${
             err instanceof Error ? err.message : String(err)
@@ -92,8 +92,8 @@ export function runProviderQuery<T, E>(
     }
 
     const decoded = decode(parsed);
-    if (Either.isLeft(decoded)) {
-      return Either.left(
+    if (Result.isFailure(decoded)) {
+      return Result.fail(
         makeError({
           message: `${providerLabel} response failed schema validation:\n${formatParseError(
             decoded.left,
@@ -102,6 +102,6 @@ export function runProviderQuery<T, E>(
       );
     }
 
-    return Either.right(decoded.right);
+    return Result.succeed(decoded.right);
   });
 }

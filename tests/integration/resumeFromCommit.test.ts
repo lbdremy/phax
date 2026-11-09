@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -37,7 +37,7 @@ const HANDOFF_CONTENT = [
   "Ready to proceed.",
 ].join("\n");
 
-const shortName = Either.getOrThrow(decodeShortName("my-run"));
+const shortName = Result.getOrThrow(decodeShortName("my-run"));
 
 const rawPlan = {
   version: 1,
@@ -198,7 +198,7 @@ describe("executePlan — resume from commit-paused (passed+interrupted)", () =>
   });
 
   it("re-runs commit → handoff → cleanup for a passed phase, no agent re-run and no gate re-run", async () => {
-    const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
     const config = makeConfig(stateRoot);
 
     const setupLayers = Layer.mergeAll(
@@ -275,7 +275,7 @@ describe("executePlan — resume from commit-paused (passed+interrupted)", () =>
     );
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -293,7 +293,7 @@ describe("executePlan — resume from commit-paused (passed+interrupted)", () =>
       ),
     );
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
 
     // Phase-01 agent body must NOT be re-invoked — only phase-02 body runs.
     expect(fakeBackend.impl.runCalls).toHaveLength(1);
@@ -333,7 +333,7 @@ describe("executePlan — resume from commit-paused (passed+interrupted)", () =>
   });
 
   it("pauses as no-changes (skipped) when the user committed by hand before resuming", async () => {
-    const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
     const config = makeConfig(stateRoot);
 
     const setupLayers = Layer.mergeAll(
@@ -377,7 +377,7 @@ describe("executePlan — resume from commit-paused (passed+interrupted)", () =>
     );
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -396,8 +396,8 @@ describe("executePlan — resume from commit-paused (passed+interrupted)", () =>
     );
 
     // The run pauses again — PhaseHadNoChangesError is the clean-pause sentinel.
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left).toBeInstanceOf(PhaseHadNoChangesError);
     }
 

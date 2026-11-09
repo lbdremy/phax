@@ -7,7 +7,7 @@
 // A failed session is a declared error with today's lines and code; a failed commit lists the
 // artifact and its sidecar it left written.
 import { join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import * as Schema from "effect/Schema";
 import { authorArtifact, recordPushWarning, recordWarning } from "../../app/authorArtifact.js";
 import { type CompletionFlags, createArtifact } from "../../app/createArtifact.js";
@@ -84,8 +84,7 @@ const SlugArg = reject(
   ),
 );
 
-const optional = <S extends Schema.Schema.Any>(schema: S) =>
-  Schema.optionalWith(schema, { exact: true });
+const optional = <S extends Schema.Schema.Any>(schema: S) => Schema.optionalKey(schema);
 
 const headlessFields = {
   headless: optional(
@@ -256,7 +255,7 @@ function author(context: NewContext) {
     const flagEffort = flags.effort as Effort | undefined;
 
     const configResult = loadConfig(process.cwd());
-    if (Either.isLeft(configResult)) {
+    if (Result.isFailure(configResult)) {
       return yield* Effect.fail(
         sessionCommandRefusal(1, `Config error: ${configResult.left.message}`),
       );
@@ -281,12 +280,12 @@ function author(context: NewContext) {
       makeNodeGitLayer(),
       NodeTerminalLayer,
     );
-    const routed = yield* Effect.either(
+    const routed = yield* Effect.result(
       Effect.all({ routing: loadModelRouting(), providerConfig: loadProviderConfig() }).pipe(
         Effect.provide(fsGitLayer),
       ),
     );
-    if (Either.isLeft(routed)) {
+    if (Result.isFailure(routed)) {
       return yield* Effect.fail(
         sessionCommandRefusal(1, `Failed to load routing config: ${routed.left.message}`),
       );
@@ -305,7 +304,7 @@ function author(context: NewContext) {
       context.githubLayer ?? NodeGitHubLayer,
     );
     const warn = (text: string): void => Effect.runSync(context.progress(text));
-    const authored = yield* Effect.either(
+    const authored = yield* Effect.result(
       Effect.gen(function* () {
         const fs = yield* FileSystem;
         const skillPath = join(defaultBundleRoot(), SKILL_SOURCE_DIR_FOR_KIND[kind], "SKILL.md");
@@ -338,7 +337,7 @@ function author(context: NewContext) {
         });
       }).pipe(Effect.provide(layer)),
     );
-    if (Either.isLeft(authored)) {
+    if (Result.isFailure(authored)) {
       const retry = retryOf(context, brief.origin.kind === "file" ? brief.origin.path : "-");
       return yield* Effect.fail(
         yield* sessionFailure(

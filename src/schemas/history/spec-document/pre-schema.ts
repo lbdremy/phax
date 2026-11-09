@@ -192,6 +192,6 @@ export const SpecDocumentPreSchemaSchema = SpecDocumentStruct.pipe(
 
 export type SpecDocumentPreSchema = Schema.Schema.Type<typeof SpecDocumentPreSchemaSchema>;
 
-export const decodeSpecDocumentPreSchema = Schema.decodeUnknownEither(SpecDocumentPreSchemaSchema, {
+export const decodeSpecDocumentPreSchema = Schema.decodeUnknownResult(SpecDocumentPreSchemaSchema, {
   onExcessProperty: "error",
 });

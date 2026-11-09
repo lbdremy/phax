@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -44,7 +44,7 @@ const SHORT_NAME = "refunds";
 const BRANCH = "phax/refunds";
 const ORACLES = "./oracles";
 const ORACLE_FILES = ["tests/refunds.test.ts", "tests/prune.test.ts"];
-const shortName = Either.getOrThrow(decodeShortName(SHORT_NAME));
+const shortName = Result.getOrThrow(decodeShortName(SHORT_NAME));
 
 const HANDOFF_CONTENT = [
   "## What was delivered",
@@ -318,7 +318,7 @@ describe("acceptance phases in a run", () => {
     );
     const execute = (startIndex = 0, options: { readonly skipAcceptance?: boolean } = {}) =>
       Effect.runPromise(
-        Effect.either(
+        Effect.result(
           executePlan({
             phaxVersion: "0.0.0-test",
             output: processOutput,
@@ -339,7 +339,7 @@ describe("acceptance phases in a run", () => {
       );
     const reset = (phaseId: string) =>
       Effect.runPromise(
-        Effect.either(
+        Effect.result(
           resetPhase({
             namespace: NAMESPACE,
             shortName,
@@ -390,7 +390,7 @@ describe("acceptance phases in a run", () => {
 
     const result = await h.execute();
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     expect(h.providerCalls.map((c) => c.cwd)).toEqual([
       worktreeOf("phase-02"),
       worktreeOf("phase-03"),
@@ -456,7 +456,7 @@ describe("acceptance phases in a run", () => {
       { status: "modified", path: "tests/prune.test.ts" },
     ]);
 
-    expect(Either.isRight(await h.execute())).toBe(true);
+    expect(Result.isSuccess(await h.execute())).toBe(true);
 
     const [authored] = h.providerCalls;
     expect(Object.keys(authored!.request).toSorted()).toEqual(
@@ -481,7 +481,7 @@ describe("acceptance phases in a run", () => {
       { status: "modified", path: "tests/prune.test.ts" },
     ]);
 
-    expect(Either.isRight(await h.execute())).toBe(true);
+    expect(Result.isSuccess(await h.execute())).toBe(true);
 
     const passed = h.providerCalls[1]!;
     expect(passed.request["$schema"]).toBe(
@@ -509,7 +509,7 @@ describe("acceptance phases in a run", () => {
 
     const result = await h.execute();
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     const body = await readFile(join(h.runPath, "pr-body.md"), "utf8");
     expect(body).toContain("**Verified surfaces** acceptance, local, structural");
   });
@@ -519,7 +519,7 @@ describe("acceptance phases in a run", () => {
 
     const result = await h.execute();
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     expect(h.providerCalls.map((c) => basename(c.cwd))).toEqual(["phase-02", "phase-04"]);
     for (const phase of ["phase-01", "phase-03", "phase-05"]) {
       const steps = (await h.readJson(phase, "gate-attribution.json"))["steps"] as {
@@ -534,7 +534,7 @@ describe("acceptance phases in a run", () => {
 
     const result = await h.execute();
 
-    if (Either.isRight(result)) throw new Error("expected the run to stop");
+    if (Result.isSuccess(result)) throw new Error("expected the run to stop");
     expect(result.left).toBeInstanceOf(GateStepRefusedError);
     expect(result.left).toMatchObject({
       command: ORACLES,
@@ -554,7 +554,7 @@ describe("acceptance phases in a run", () => {
     await h.noteSession("phase-02");
     const resumed = await h.execute(1);
 
-    expect(Either.isRight(resumed)).toBe(true);
+    expect(Result.isSuccess(resumed)).toBe(true);
     expect(h.providerCalls.map((c) => basename(c.cwd))).toEqual([
       "phase-02",
       "phase-02",
@@ -572,7 +572,7 @@ describe("acceptance phases in a run", () => {
 
     const result = await h.execute();
 
-    if (Either.isRight(result)) throw new Error("expected the run to stop");
+    if (Result.isSuccess(result)) throw new Error("expected the run to stop");
     expect(result.left).toBeInstanceOf(GateAttemptsExhaustedError);
     expect(result.left).toMatchObject({ failure: { failedStep: "acceptance" } });
     expect(await h.readJson("phase-03", "status.json")).toMatchObject({ state: "gates_exhausted" });
@@ -589,7 +589,9 @@ describe("acceptance phases in a run", () => {
     await h.noteSession("phase-03");
     const resumed = await h.execute(2);
 
-    expect(Either.isLeft(resumed) && resumed.left instanceof GateAttemptsExhaustedError).toBe(true);
+    expect(Result.isFailure(resumed) && resumed.left instanceof GateAttemptsExhaustedError).toBe(
+      true,
+    );
     expect(new Set(discharges().map((c) => c.request["acceptanceCommit"]))).toEqual(
       new Set([phase02["commitHash"]]),
     );
@@ -597,7 +599,7 @@ describe("acceptance phases in a run", () => {
     // The committed oracle phase is not reset, before or after its discharge.
     const statusBefore = await readFile(join(h.runPath, "phase-02", "status.json"), "utf8");
     const refusedReset = await h.reset("phase-02");
-    if (Either.isRight(refusedReset)) throw new Error("expected the reset to be refused");
+    if (Result.isSuccess(refusedReset)) throw new Error("expected the reset to be refused");
     expect(refusedReset.left).toBeInstanceOf(ResetPhaseError);
     expect(refusedReset.left).toMatchObject({ reason: "phase_blocked_by_passing" });
     expect(refusedReset.left.message).toBe(
@@ -605,15 +607,15 @@ describe("acceptance phases in a run", () => {
     );
     expect(await readFile(join(h.runPath, "phase-02", "status.json"), "utf8")).toBe(statusBefore);
 
-    expect(Either.isRight(await h.reset("phase-03"))).toBe(true);
+    expect(Result.isSuccess(await h.reset("phase-03"))).toBe(true);
     const afterDischargeReset = await h.reset("phase-02");
-    if (Either.isRight(afterDischargeReset)) throw new Error("expected the reset to be refused");
+    if (Result.isSuccess(afterDischargeReset)) throw new Error("expected the reset to be refused");
     expect(afterDischargeReset.left).toMatchObject({ reason: "not_resettable" });
     expect(await readFile(join(h.runPath, "phase-02", "status.json"), "utf8")).toBe(statusBefore);
     h.harness.answer = () => passing;
     const rerun = await h.execute(2);
 
-    expect(Either.isRight(rerun)).toBe(true);
+    expect(Result.isSuccess(rerun)).toBe(true);
     expect(discharges().at(-1)?.request["acceptanceCommit"]).toBe(phase02["commitHash"]);
   });
 
@@ -625,7 +627,7 @@ describe("acceptance phases in a run", () => {
       });
       if (publish) h.fakeGit.impl.addExistingRemote("origin");
       const first = await h.execute();
-      if (Either.isRight(first)) throw new Error("expected the run to stop");
+      if (Result.isSuccess(first)) throw new Error("expected the run to stop");
       expect(first.left).toBeInstanceOf(GateAttemptsExhaustedError);
       await h.noteSession("phase-03");
       return h;
@@ -637,7 +639,9 @@ describe("acceptance phases in a run", () => {
       // Without the skip, the provider is asked again for the same commit.
       const callsBefore = h.providerCalls.length;
       const again = await h.execute(2);
-      expect(Either.isLeft(again) && again.left instanceof GateAttemptsExhaustedError).toBe(true);
+      expect(Result.isFailure(again) && again.left instanceof GateAttemptsExhaustedError).toBe(
+        true,
+      );
       expect(h.providerCalls).toHaveLength(callsBefore + 2);
       expect(h.providerCalls.at(-1)?.request["verdict"]).toBe("passed");
       await h.noteSession("phase-03");
@@ -646,7 +650,7 @@ describe("acceptance phases in a run", () => {
       const requestsBeforeSkip = await oracleRequests(h, "phase-03");
       const resumed = await h.execute(2, { skipAcceptance: true });
 
-      expect(Either.isRight(resumed)).toBe(true);
+      expect(Result.isSuccess(resumed)).toBe(true);
       expect(h.providerCalls).toHaveLength(callsBeforeSkip);
       expect(await oracleRequests(h, "phase-03")).toEqual(requestsBeforeSkip);
       // phase-03 is the final phase: committed, then kept open for review.
@@ -670,7 +674,7 @@ describe("acceptance phases in a run", () => {
 
       const resumed = await h.execute(2, { skipAcceptance: true });
 
-      expect(Either.isRight(resumed)).toBe(true);
+      expect(Result.isSuccess(resumed)).toBe(true);
       expect(h.fixPrompts()).toHaveLength(fixesBefore + 1);
       expect(h.providerCalls).toHaveLength(callsBefore);
       expect(await h.readJson("phase-03", "status.json")).toMatchObject({ state: "review_open" });
@@ -687,14 +691,14 @@ describe("acceptance phases in a run", () => {
         answer: (request) => (request["verdict"] === "authored" ? unmarked : passing),
       });
       const first = await h.execute();
-      if (Either.isRight(first)) throw new Error("expected the run to stop");
+      if (Result.isSuccess(first)) throw new Error("expected the run to stop");
       expect(first.left).toBeInstanceOf(GateAttemptsExhaustedError);
       await h.noteSession("phase-02");
       const callsBefore = h.providerCalls.length;
 
       const resumed = await h.execute(1, { skipAcceptance: true });
 
-      expect(Either.isRight(resumed)).toBe(true);
+      expect(Result.isSuccess(resumed)).toBe(true);
       const steps = (await h.readJson("phase-02", "gate-attribution.json"))["steps"];
       expect((steps as GateAttribution["steps"]).at(-1)).toEqual({
         command: ORACLES,
@@ -716,7 +720,7 @@ describe("acceptance phases in a run", () => {
           request["verdict"] === "passed" && request["phase"] === "phase-02" ? unmarked : passing,
       });
       const first = await h.execute();
-      if (Either.isRight(first)) throw new Error("expected the run to stop");
+      if (Result.isSuccess(first)) throw new Error("expected the run to stop");
       expect(first.left).toBeInstanceOf(GateAttemptsExhaustedError);
       h.harness.answer = () => passing;
       await h.noteSession("phase-02");
@@ -724,7 +728,7 @@ describe("acceptance phases in a run", () => {
 
       const resumed = await h.execute(1, { skipAcceptance: true });
 
-      expect(Either.isRight(resumed)).toBe(true);
+      expect(Result.isSuccess(resumed)).toBe(true);
       expect(h.providerCalls.slice(callsBefore).map((c) => basename(c.cwd))).toEqual([
         "phase-03",
         "phase-04",
@@ -741,7 +745,7 @@ describe("acceptance phases in a run", () => {
 
     const first = await h.execute();
 
-    if (Either.isRight(first)) throw new Error("expected the run to pause");
+    if (Result.isSuccess(first)) throw new Error("expected the run to pause");
     expect(first.left).toBeInstanceOf(PhaseHadNoChangesError);
     const phase02 = await h.readJson("phase-02", "status.json");
     expect(phase02).toMatchObject({ state: "skipped" });
@@ -750,7 +754,7 @@ describe("acceptance phases in a run", () => {
 
     const resumed = await h.execute(2);
 
-    if (Either.isRight(resumed)) throw new Error("expected the discharge to be refused");
+    if (Result.isSuccess(resumed)) throw new Error("expected the discharge to be refused");
     expect(resumed.left).toBeInstanceOf(AcceptanceCommitMissingError);
     expect(resumed.left).toMatchObject({ acceptancePhase: "phase-02", passingPhase: "phase-03" });
     expect(resumed.left.message).toBe(
@@ -775,7 +779,7 @@ describe("acceptance phases in a run", () => {
 
     const result = await h.execute();
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     expect(h.providerCalls).toEqual([]);
     expect(h.shellCalls.some((c) => c.command[0] === ORACLES)).toBe(false);
     for (const phase of ["phase-01", "phase-02"]) {

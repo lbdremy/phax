@@ -41,4 +41,4 @@ export interface PromptOps {
   outro(message: string): Effect.Effect<void, PromptError>;
 }
 
-export class Prompt extends Context.Tag("phax/Prompt")<Prompt, PromptOps>() {}
+export class Prompt extends Context.Service<Prompt, PromptOps>()("phax/Prompt") {}

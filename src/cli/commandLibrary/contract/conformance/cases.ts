@@ -49,7 +49,7 @@ class Unlisted extends Data.TaggedError("Unlisted")<{
 class Gone extends Data.TaggedError("Gone")<{ readonly id: string }> {}
 
 const Str = Schema.String;
-const Switch = Schema.optionalWith(Schema.Boolean, { exact: true });
+const Switch = Schema.optionalKey(Schema.Boolean);
 const Todos = Schema.Struct({ todos: Schema.Array(Schema.String) });
 
 // ---------------------------------------------------------------- the commands
@@ -1165,11 +1165,10 @@ const groupCases: ReadonlyArray<Case> = [
           ),
           flags: reject(
             Schema.Struct({
-              mode: Schema.optionalWith(
+              mode: Schema.optionalKey(
                 Schema.Literal("a", "b").annotations({
                   description: "The mode",
                 }),
-                { exact: true },
               ),
               level: Schema.optionalWith(Str.annotations({ description: "How loud" }), {
                 default: () => "low",
@@ -2202,7 +2201,7 @@ const inspectionGainCases: ReadonlyArray<Case> = [
 // ---------------------------------------------------------------- the gains of phax's lifecycle commands
 
 /** Gain (a short alias): `prune`, whose `--yes` is also `-y`. */
-const Yes = Schema.optionalWith(Schema.Boolean, { exact: true }).annotations({
+const Yes = Schema.optionalKey(Schema.Boolean).annotations({
   description: "Proceed without asking",
   [AliasAnnotationId]: "y",
 });
@@ -2321,7 +2320,7 @@ const lifecycleGainCases: ReadonlyArray<Case> = [
         const helpless = recording("helpless", {
           flags: reject(
             Schema.Struct({
-              hard: Schema.optionalWith(Schema.Boolean, { exact: true }).annotations({
+              hard: Schema.optionalKey(Schema.Boolean).annotations({
                 [AliasAnnotationId]: "h",
               }),
             }),
@@ -2611,9 +2610,7 @@ const lifecycleGainCases: ReadonlyArray<Case> = [
 // ---------------------------------------------------------------- the gains of phax's run and session commands
 
 /** Gain (an option with an optional value): `run`, whose `--hold` is bare or takes a selection. */
-const Hold = Schema.optionalWith(Schema.Union(Schema.Literal(true), Schema.String), {
-  exact: true,
-}).annotations({
+const Hold = Schema.optionalKey(Schema.Union(Schema.Literal(true), Schema.String)).annotations({
   identifier: "selection",
   description: "Hold the run at a phase",
   [OptionalValueAnnotationId]: true,
@@ -2877,7 +2874,7 @@ const guardedRun = () =>
     flags: reject(Schema.Struct({ dryRun: Switch })),
   });
 
-const Verbose = Schema.optionalWith(Schema.Boolean, { exact: true }).annotations({
+const Verbose = Schema.optionalKey(Schema.Boolean).annotations({
   description: "Say more",
 });
 

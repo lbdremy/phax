@@ -48,7 +48,7 @@ export const InteractiveHandoffV0_26_0Schema = Schema.Struct({
 
 export type InteractiveHandoffV0_26_0 = Schema.Schema.Type<typeof InteractiveHandoffV0_26_0Schema>;
 
-export const decodeInteractiveHandoffV0_26_0 = Schema.decodeUnknownEither(
+export const decodeInteractiveHandoffV0_26_0 = Schema.decodeUnknownResult(
   InteractiveHandoffV0_26_0Schema,
   { onExcessProperty: "error" },
 );

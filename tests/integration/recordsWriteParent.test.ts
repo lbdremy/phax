@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { commitRecordTree } from "../../src/app/recordPlumbing.js";
 import { describeRecordWriteBranch, readRecordsBranch } from "../../src/app/recordsBranch.js";
 import { RECORDS_BRANCH_NAME, writeRecord } from "../../src/app/writeRecord.js";
@@ -365,14 +365,14 @@ describe("record write compare-and-swap retry", () => {
     const world = racingGit(3);
 
     const outcome = await Effect.runPromise(
-      Effect.either(Effect.provide(commitRecordTree(commit), world.layer)),
+      Effect.result(Effect.provide(commitRecordTree(commit), world.layer)),
     );
 
     expect(world.attempts()).toBe(3);
-    expect(Either.isLeft(outcome)).toBe(true);
-    if (Either.isLeft(outcome)) expect(outcome.left).toMatchObject({ _tag: "GitError" });
-    if (Either.isLeft(outcome)) expect(outcome.left).toHaveProperty("command");
-    if (Either.isLeft(outcome) && "command" in outcome.left) {
+    expect(Result.isFailure(outcome)).toBe(true);
+    if (Result.isFailure(outcome)) expect(outcome.left).toMatchObject({ _tag: "GitError" });
+    if (Result.isFailure(outcome)) expect(outcome.left).toHaveProperty("command");
+    if (Result.isFailure(outcome) && "command" in outcome.left) {
       expect(outcome.left.command).toContain("update-ref");
       expect(outcome.left.message).toMatch(
         /^the records branch kept moving under other writers in .+; record not written after 3 attempts$/,
@@ -385,10 +385,10 @@ describe("record write compare-and-swap retry", () => {
     world.fake.impl.failNextWriteTreeCommit("fatal: unable to write the object\n");
 
     const outcome = await Effect.runPromise(
-      Effect.either(Effect.provide(commitRecordTree(commit), world.layer)),
+      Effect.result(Effect.provide(commitRecordTree(commit), world.layer)),
     );
 
     expect(world.attempts()).toBe(1);
-    expect(Either.isLeft(outcome)).toBe(true);
+    expect(Result.isFailure(outcome)).toBe(true);
   });
 });

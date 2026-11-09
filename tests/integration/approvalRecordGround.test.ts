@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { transitionArtifactBy } from "../../src/app/artifactStatus.js";
 import { computeStalenessForPlan } from "../../src/app/planStaleness.js";
@@ -56,13 +56,13 @@ function layer() {
 async function transition(path: string, target: ArtifactStatus): Promise<void> {
   const opts = { repoRoot: repoDir, nowIso: NOW, commit: true, by: "machine:roadmap-loop" };
   const result = await Effect.runPromise(
-    Effect.either(
+    Effect.result(
       transitionArtifactBy(path, target, opts).pipe(
         Effect.provide(Layer.merge(layer(), makeFakeTerminal(false).layer)),
       ),
     ),
   );
-  if (Either.isLeft(result)) throw new Error(`transition failed: ${String(result.left)}`);
+  if (Result.isFailure(result)) throw new Error(`transition failed: ${String(result.left)}`);
 }
 
 async function stalenessOfP(footprint: readonly string[]): Promise<PlanStalenessVerdict> {

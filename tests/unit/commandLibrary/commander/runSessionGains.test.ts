@@ -33,9 +33,7 @@ const lines = (written: ReadonlyArray<string>): ReadonlyArray<unknown> =>
     .filter((each) => each !== "")
     .map((each): unknown => JSON.parse(each));
 
-const Hold = Schema.optionalWith(Schema.Union(Schema.Literal(true), Schema.String), {
-  exact: true,
-}).annotations({
+const Hold = Schema.optionalKey(Schema.Union(Schema.Literal(true), Schema.String)).annotations({
   identifier: "selection",
   description: "Pause the run for review at the selected phases",
   [OptionalValueAnnotationId]: true,
@@ -92,9 +90,7 @@ describe("an option with an optional value", () => {
   it("is no optional value without its annotation", () => {
     const [shape] = flagShapes(
       Schema.Struct({
-        hold: Schema.optionalWith(Schema.Union(Schema.Literal(true), Schema.String), {
-          exact: true,
-        }),
+        hold: Schema.optionalKey(Schema.Union(Schema.Literal(true), Schema.String)),
       }),
     );
     expect(shape?.valueOptional).toBe(false);
@@ -112,7 +108,7 @@ function resume() {
       args: reject(Schema.Tuple(Schema.String)),
       flags: reject(
         Schema.Struct({
-          skipAcceptance: Schema.optionalWith(Schema.Boolean, { exact: true }),
+          skipAcceptance: Schema.optionalKey(Schema.Boolean),
         }),
       ),
     },
@@ -174,9 +170,7 @@ describe("a retired option", () => {
       name: "resume",
       summary: "Resume a run",
       input: {
-        flags: reject(
-          Schema.Struct({ skipOracle: Schema.optionalWith(Schema.Boolean, { exact: true }) }),
-        ),
+        flags: reject(Schema.Struct({ skipOracle: Schema.optionalKey(Schema.Boolean) })),
       },
       exits: {},
       retiredOptions: { "skip-oracle": SKIP_ORACLE },

@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import { mkdtempSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Effect, Either, Schema } from "effect";
+import { Effect, Result, Schema } from "effect";
 import { Backend, type AgentRunOptions } from "../../src/ports/backend.js";
 import type { ClaudeSessionId } from "../../src/domain/branded.js";
 import { resolveReviewSecurityPolicy } from "../../src/domain/security/resolveReviewPolicy.js";
@@ -91,11 +91,11 @@ const askFor = (answer: unknown): string =>
 
 function expectDecodes(format: AnswerFormatId, structured: { readonly value: unknown } | null) {
   expect(structured, "the result carries structured_output").not.toBeNull();
-  const decoded = Schema.decodeUnknownEither(
+  const decoded = Schema.decodeUnknownResult(
     ANSWER_FORMATS[format].schema as Schema.Schema<unknown, unknown>,
     { onExcessProperty: "error" },
   )(structured?.value);
-  expect(Either.isRight(decoded) ? "" : String(decoded.left)).toBe("");
+  expect(Result.isSuccess(decoded) ? "" : String(decoded.left)).toBe("");
 }
 
 function expectBounds(structured: { readonly value: unknown } | null) {

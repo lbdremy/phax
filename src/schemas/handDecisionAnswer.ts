@@ -84,12 +84,12 @@ export type HandDecisionAnswer = SpecHandDecisionAnswer | PlanHandDecisionAnswer
 /** One decided verdict of a hand decision answer. */
 export type HandDecision = HandDecisionAnswer["decisions"][number];
 
-export const decodeSpecHandDecisionAnswerFile = Schema.decodeUnknownEither(
+export const decodeSpecHandDecisionAnswerFile = Schema.decodeUnknownResult(
   SpecHandDecisionAnswerFileSchema,
   { onExcessProperty: "error" },
 );
 
-export const decodePlanHandDecisionAnswerFile = Schema.decodeUnknownEither(
+export const decodePlanHandDecisionAnswerFile = Schema.decodeUnknownResult(
   PlanHandDecisionAnswerFileSchema,
   { onExcessProperty: "error" },
 );

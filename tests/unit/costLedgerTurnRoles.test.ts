@@ -5,7 +5,7 @@
 // cumulatively; a first turn is priced like any complete entry; the stream
 // scanner lists both roles and their `-retry` streams. Every stream, session
 // id, usage and price is made up.
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { ledgerEntryFor, runStreamsInOrder } from "../../src/domain/cost/ledger.js";
 import type { ModelListPrice } from "../../src/domain/routing/prices.js";
@@ -261,7 +261,7 @@ describe("reading a cost ledger", () => {
         entries: [entry, { ...entry, role: "first-turn" as const }],
       }),
     );
-    expect(Either.getOrThrow(read).entries.map((e) => e.role)).toEqual([
+    expect(Result.getOrThrow(read).entries.map((e) => e.role)).toEqual([
       "closing-turn",
       "first-turn",
     ]);
@@ -273,7 +273,7 @@ describe("reading a cost ledger", () => {
       $schema: schemaUrl("cost-ledger", "0.25.0"),
       entries: [older],
     });
-    expect(Either.getOrThrow(read)).toEqual({ entries: [older] });
+    expect(Result.getOrThrow(read)).toEqual({ entries: [older] });
   });
 
   it("refuses a first-turn role in a ledger stamped 0.25.0", () => {
@@ -281,6 +281,6 @@ describe("reading a cost ledger", () => {
       $schema: schemaUrl("cost-ledger", "0.25.0"),
       entries: [{ ...entry, role: "first-turn" }],
     });
-    expect(Either.isLeft(read)).toBe(true);
+    expect(Result.isFailure(read)).toBe(true);
   });
 });

@@ -233,7 +233,7 @@ function harnessIn(world: DecideRepo, opts: HarnessOptions) {
   );
   const run = (overrides: Partial<DecideVerdictsInput> = {}) =>
     Effect.runPromise(
-      Effect.either(
+      Effect.result(
         decideVerdicts({
           path: SPEC_PATH,
           verdicts: { kind: "file", path: "verdicts.json" },

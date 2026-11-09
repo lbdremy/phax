@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 import { prune, type PruneInput } from "../../src/app/prune.js";
 import { LockConflictError, PruneRefusedError } from "../../src/domain/errors.js";
@@ -72,7 +72,7 @@ function makeEnv(answers: Parameters<typeof makeFakePrompt>[0] = []) {
 
   const run = (input: Partial<PruneInput> & Pick<PruneInput, "selection">) =>
     Effect.runPromise(
-      Effect.either(
+      Effect.result(
         prune({
           namespace: ns,
           stateRoot,
@@ -108,9 +108,9 @@ function makeEnv(answers: Parameters<typeof makeFakePrompt>[0] = []) {
 
 const names = (...refs: string[]) => ({ kind: "names" as const, refs });
 
-function applied(result: Either.Either<PruneResult, unknown>) {
-  expect(Either.isRight(result)).toBe(true);
-  const value = Either.getOrThrow(result);
+function applied(result: Result.Result<PruneResult, unknown>) {
+  expect(Result.isSuccess(result)).toBe(true);
+  const value = Result.getOrThrow(result);
   if (value.kind !== "applied") throw new Error(`expected applied, got ${value.kind}`);
   return value;
 }
@@ -205,8 +205,8 @@ describe("prune: whole-command refusals delete nothing", () => {
 
     const result = await env.run({ selection: names("old-idea", ref) });
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left).toBeInstanceOf(PruneRefusedError);
       const error = result.left as PruneRefusedError;
       expect(error.refusals.map((r) => r.kind)).toEqual([kind]);
@@ -224,8 +224,8 @@ describe("prune: whole-command refusals delete nothing", () => {
 
     const result = await env.run({ selection: names("ghost", "live") });
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left.message.split("\n")).toEqual([
         'run "phax.ghost" not found',
         'run "phax.live" is review_open, not archived — archive it first: phax archive live',
@@ -246,8 +246,8 @@ describe("prune: whole-command refusals delete nothing", () => {
 
     const result = await env.run({ selection: { kind: "all" } });
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left).toBeInstanceOf(LockConflictError);
       const error = result.left as LockConflictError;
       expect(error.message).toContain("phax.locked-one");
@@ -355,7 +355,7 @@ describe("prune: confirmation", () => {
 
     const result = await env.run({ selection: names("old-idea"), confirmation: "dry-run" });
 
-    expect(Either.getOrThrow(result).kind).toBe("previewed");
+    expect(Result.getOrThrow(result).kind).toBe("previewed");
     expect(env.previews).toHaveLength(1);
     expect(env.previews[0]?.runs[0]).toMatchObject({
       outcome: "would-prune",
@@ -384,7 +384,7 @@ describe("prune: confirmation", () => {
 
     const result = await env.run({ selection: names("old-idea"), confirmation: "prompt" });
 
-    expect(Either.getOrThrow(result).kind).toBe("declined");
+    expect(Result.getOrThrow(result).kind).toBe("declined");
     expect(env.asksAtPreview).toEqual([0]);
     expect(deletionCalls(env)).toEqual([]);
     expect(env.registryRuns()).toHaveLength(1);
@@ -396,7 +396,7 @@ describe("prune: confirmation", () => {
 
     const result = await env.run({ selection: names("old-idea"), confirmation: "prompt" });
 
-    expect(Either.getOrThrow(result).kind).toBe("declined");
+    expect(Result.getOrThrow(result).kind).toBe("declined");
     expect(deletionCalls(env)).toEqual([]);
   });
 
@@ -419,7 +419,7 @@ describe("prune: confirmation", () => {
 
       const result = await env.run({ selection: names("old-idea"), confirmation: "missing" });
 
-      expect(Either.getOrThrow(result).kind).toBe("confirmation-missing");
+      expect(Result.getOrThrow(result).kind).toBe("confirmation-missing");
       expect(env.previews).toHaveLength(1);
       expect(env.prompt.impl.asks).toEqual([]);
       expect(deletionCalls(env)).toEqual([]);
@@ -432,7 +432,7 @@ describe("prune: confirmation", () => {
 
     const result = await env.run({ selection: { kind: "all" }, confirmation: "prompt" });
 
-    expect(Either.getOrThrow(result)).toEqual({ kind: "nothing-to-prune" });
+    expect(Result.getOrThrow(result)).toEqual({ kind: "nothing-to-prune" });
     expect(env.previews).toEqual([]);
     expect(env.prompt.impl.asks).toEqual([]);
   });

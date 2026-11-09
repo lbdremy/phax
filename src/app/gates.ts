@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { basename, join } from "node:path";
 import type { GateStep, ResolvedConfig } from "../schemas/phaxConfig.js";
 import { GateFailedError, GateStepRefusedError } from "../domain/errors.js";
@@ -248,7 +248,7 @@ export function runGates(
           );
         }
         const read = readGateReport(parsed);
-        if (Either.isLeft(read)) return yield* unread(read.left);
+        if (Result.isFailure(read)) return yield* unread(read.left);
 
         // A readable report is saved first, whatever the verdict, as the step
         // printed it: never re-serialized, trimmed or re-stamped.
@@ -386,7 +386,7 @@ export function runGates(
       yield* fs.writeAtomic(acceptanceRequestPath, acceptanceStep.request);
       logLines.push(`$ ${rawCommand}`);
       logLines.push(`stdin: ${basename(acceptanceRequestPath)}`);
-      const spawned = yield* Effect.either(
+      const spawned = yield* Effect.result(
         shell.run({
           command: parseCommandTokens(rawCommand),
           cwd,
@@ -394,7 +394,7 @@ export function runGates(
           timeoutMs: acceptanceStep.timeoutMs,
         }),
       );
-      if (Either.isLeft(spawned)) {
+      if (Result.isFailure(spawned)) {
         // The provider could not be spawned or outran the cap: there is no
         // report to judge, so the step is broken.
         const error = spawned.left;
@@ -442,7 +442,7 @@ export function recordGateProfileInRunStatus(
     }
 
     const decoded = readRunStatusFile(statusPath, parsed);
-    if (Either.isRight(decoded)) {
+    if (Result.isSuccess(decoded)) {
       const updated = {
         ...decoded.right,
         gateProfileId: profileId,

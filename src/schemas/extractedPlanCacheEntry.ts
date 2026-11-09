@@ -14,7 +14,7 @@ export const ExtractedPlanCacheEntrySchema = Schema.Struct({
 
 export type ExtractedPlanCacheEntry = Schema.Schema.Type<typeof ExtractedPlanCacheEntrySchema>;
 
-export const decodeExtractedPlanCacheEntry = Schema.decodeUnknownEither(
+export const decodeExtractedPlanCacheEntry = Schema.decodeUnknownResult(
   ExtractedPlanCacheEntrySchema,
   { onExcessProperty: "error" },
 );

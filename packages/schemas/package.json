@@ -20,7 +20,7 @@
     "./json/*": "./json/*"
   },
   "dependencies": {
-    "effect": "^3.14.0"
+    "effect": "^4.1.2"
   },
   "engines": {
     "node": ">=20"

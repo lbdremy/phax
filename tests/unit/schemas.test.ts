@@ -1,4 +1,4 @@
-import { Either, JSONSchema } from "effect";
+import { Result, JSONSchema } from "effect";
 import { describe, expect, it } from "vitest";
 import { decodePhaxConfig } from "../../src/schemas/phaxConfig.js";
 import { decodePhaxPlanFile, PhaxPlanFileSchema } from "../../src/schemas/phaxPlan.js";
@@ -16,7 +16,7 @@ const validConfig = {
 
 describe("decodePhaxConfig", () => {
   it("accepts a minimal valid config", () => {
-    expect(Either.isRight(decodePhaxConfig(validConfig))).toBe(true);
+    expect(Result.isSuccess(decodePhaxConfig(validConfig))).toBe(true);
   });
 
   it("accepts a full config with all optional fields", () => {
@@ -33,30 +33,30 @@ describe("decodePhaxConfig", () => {
       },
       workspaces: [{ id: "frontend", name: "Frontend", path: "./packages/ui" }],
     };
-    expect(Either.isRight(decodePhaxConfig(full))).toBe(true);
+    expect(Result.isSuccess(decodePhaxConfig(full))).toBe(true);
   });
 
   it("rejects a config with version != 1", () => {
-    expect(Either.isLeft(decodePhaxConfig({ ...validConfig, version: 2 }))).toBe(true);
+    expect(Result.isFailure(decodePhaxConfig({ ...validConfig, version: 2 }))).toBe(true);
   });
 
   it("rejects a config with an empty gate profile command array", () => {
     const bad = { ...validConfig, gateProfiles: { fast: [] } };
-    expect(Either.isLeft(decodePhaxConfig(bad))).toBe(true);
+    expect(Result.isFailure(decodePhaxConfig(bad))).toBe(true);
   });
 
   it("rejects a config with excess properties", () => {
-    expect(Either.isLeft(decodePhaxConfig({ ...validConfig, unknown: "field" }))).toBe(true);
+    expect(Result.isFailure(decodePhaxConfig({ ...validConfig, unknown: "field" }))).toBe(true);
   });
 
   it("rejects a config missing the required name field", () => {
     const { name: _, ...noName } = validConfig;
-    expect(Either.isLeft(decodePhaxConfig(noName))).toBe(true);
+    expect(Result.isFailure(decodePhaxConfig(noName))).toBe(true);
   });
 
   it("rejects a config with a leftover project struct as an excess property", () => {
     const bad = { ...validConfig, project: { name: "x", type: "single-package" } };
-    expect(Either.isLeft(decodePhaxConfig(bad))).toBe(true);
+    expect(Result.isFailure(decodePhaxConfig(bad))).toBe(true);
   });
 
   it("rejects a config with maxFixAttempts out of range", () => {
@@ -64,7 +64,7 @@ describe("decodePhaxConfig", () => {
       ...validConfig,
       agent: { maxFixAttempts: 11 },
     };
-    expect(Either.isLeft(decodePhaxConfig(bad))).toBe(true);
+    expect(Result.isFailure(decodePhaxConfig(bad))).toBe(true);
   });
 
   it("accepts agent.extractPlan with model and effort", () => {
@@ -74,7 +74,7 @@ describe("decodePhaxConfig", () => {
         extractPlan: { model: "claude-haiku-4-5-20251001", effort: "low" },
       },
     };
-    expect(Either.isRight(decodePhaxConfig(cfg))).toBe(true);
+    expect(Result.isSuccess(decodePhaxConfig(cfg))).toBe(true);
   });
 
   it("accepts agent.extractPlan with only model", () => {
@@ -82,7 +82,7 @@ describe("decodePhaxConfig", () => {
       ...validConfig,
       agent: { extractPlan: { model: "claude-sonnet-4-6" } },
     };
-    expect(Either.isRight(decodePhaxConfig(cfg))).toBe(true);
+    expect(Result.isSuccess(decodePhaxConfig(cfg))).toBe(true);
   });
 
   it("accepts agent.extractPlan with only effort", () => {
@@ -90,7 +90,7 @@ describe("decodePhaxConfig", () => {
       ...validConfig,
       agent: { extractPlan: { effort: "medium" } },
     };
-    expect(Either.isRight(decodePhaxConfig(cfg))).toBe(true);
+    expect(Result.isSuccess(decodePhaxConfig(cfg))).toBe(true);
   });
 
   it("accepts agent.extractPlan as an empty object", () => {
@@ -98,7 +98,7 @@ describe("decodePhaxConfig", () => {
       ...validConfig,
       agent: { extractPlan: {} },
     };
-    expect(Either.isRight(decodePhaxConfig(cfg))).toBe(true);
+    expect(Result.isSuccess(decodePhaxConfig(cfg))).toBe(true);
   });
 
   it("rejects agent.extractPlan with invalid effort", () => {
@@ -106,7 +106,7 @@ describe("decodePhaxConfig", () => {
       ...validConfig,
       agent: { extractPlan: { effort: "extreme" } },
     };
-    expect(Either.isLeft(decodePhaxConfig(cfg))).toBe(true);
+    expect(Result.isFailure(decodePhaxConfig(cfg))).toBe(true);
   });
 
   it("rejects agent.extractPlan with excess properties", () => {
@@ -114,37 +114,37 @@ describe("decodePhaxConfig", () => {
       ...validConfig,
       agent: { extractPlan: { unknown: "field" } },
     };
-    expect(Either.isLeft(decodePhaxConfig(cfg))).toBe(true);
+    expect(Result.isFailure(decodePhaxConfig(cfg))).toBe(true);
   });
 
   it("accepts fileReconciliation with mode report_only", () => {
     const cfg = { ...validConfig, fileReconciliation: { mode: "report_only" } };
-    expect(Either.isRight(decodePhaxConfig(cfg))).toBe(true);
+    expect(Result.isSuccess(decodePhaxConfig(cfg))).toBe(true);
   });
 
   it("accepts fileReconciliation with mode warn", () => {
     const cfg = { ...validConfig, fileReconciliation: { mode: "warn" } };
-    expect(Either.isRight(decodePhaxConfig(cfg))).toBe(true);
+    expect(Result.isSuccess(decodePhaxConfig(cfg))).toBe(true);
   });
 
   it("rejects fileReconciliation with an unknown mode", () => {
     const cfg = { ...validConfig, fileReconciliation: { mode: "fail_on_missing" } };
-    expect(Either.isLeft(decodePhaxConfig(cfg))).toBe(true);
+    expect(Result.isFailure(decodePhaxConfig(cfg))).toBe(true);
   });
 
   it("rejects fileReconciliation with excess properties", () => {
     const cfg = { ...validConfig, fileReconciliation: { mode: "warn", extra: true } };
-    expect(Either.isLeft(decodePhaxConfig(cfg))).toBe(true);
+    expect(Result.isFailure(decodePhaxConfig(cfg))).toBe(true);
   });
 
   it("accepts a config with no fileReconciliation field", () => {
-    expect(Either.isRight(decodePhaxConfig(validConfig))).toBe(true);
+    expect(Result.isSuccess(decodePhaxConfig(validConfig))).toBe(true);
   });
 
   it("rejects non-object input", () => {
-    expect(Either.isLeft(decodePhaxConfig("not-an-object"))).toBe(true);
-    expect(Either.isLeft(decodePhaxConfig(null))).toBe(true);
-    expect(Either.isLeft(decodePhaxConfig(42))).toBe(true);
+    expect(Result.isFailure(decodePhaxConfig("not-an-object"))).toBe(true);
+    expect(Result.isFailure(decodePhaxConfig(null))).toBe(true);
+    expect(Result.isFailure(decodePhaxConfig(42))).toBe(true);
   });
 });
 
@@ -178,7 +178,7 @@ describe("decodePhaxPlanFile — mode, acceptance and testLines", () => {
   const withPhase = (phase: object) => ({ ...validPlan, phases: [phase] });
 
   it("carries mode, acceptance then testLines directly after optionalFilesToEdit, in the schema and the decoded phase", () => {
-    const decoded = Either.getOrThrow(decodePhaxPlanFile(validPlan));
+    const decoded = Result.getOrThrow(decodePhaxPlanFile(validPlan));
     expect(Object.keys(decoded.phases[0]!).slice(-5)).toEqual([
       "optionalFilesToEdit",
       "mode",
@@ -212,7 +212,9 @@ describe("decodePhaxPlanFile — mode, acceptance and testLines", () => {
       criterion: null,
     };
     expect(
-      Either.isRight(decodePhaxPlanFile(withPhase({ ...validPlan.phases[0], testLines: [line] }))),
+      Result.isSuccess(
+        decodePhaxPlanFile(withPhase({ ...validPlan.phases[0], testLines: [line] })),
+      ),
     ).toBe(true);
     const { testLines: _lines, ...noLines } = validPlan.phases[0];
     for (const phase of [
@@ -220,7 +222,7 @@ describe("decodePhaxPlanFile — mode, acceptance and testLines", () => {
       { ...validPlan.phases[0], testLines: [{ ...line, size: "huge" }] },
       { ...validPlan.phases[0], testLines: [{ ...line, extra: true }] },
     ]) {
-      expect(Either.isLeft(decodePhaxPlanFile(withPhase(phase)))).toBe(true);
+      expect(Result.isFailure(decodePhaxPlanFile(withPhase(phase)))).toBe(true);
     }
   });
 
@@ -230,7 +232,7 @@ describe("decodePhaxPlanFile — mode, acceptance and testLines", () => {
       { ...validPlan.phases[0], acceptance: { passedBy: "phase-02", files: ["tests/a.test.ts"] } },
       { ...validPlan.phases[0], acceptance: { passedBy: "phase-02", files: [] } },
     ]) {
-      expect(Either.isRight(decodePhaxPlanFile(withPhase(phase)))).toBe(true);
+      expect(Result.isSuccess(decodePhaxPlanFile(withPhase(phase)))).toBe(true);
     }
   });
 
@@ -238,7 +240,7 @@ describe("decodePhaxPlanFile — mode, acceptance and testLines", () => {
     const { mode: _mode, ...noMode } = validPlan.phases[0];
     const { acceptance: _acceptance, ...noAcceptance } = validPlan.phases[0];
     for (const phase of [{ ...validPlan.phases[0], mode: "review" }, noMode, noAcceptance]) {
-      expect(Either.isLeft(decodePhaxPlanFile(withPhase(phase)))).toBe(true);
+      expect(Result.isFailure(decodePhaxPlanFile(withPhase(phase)))).toBe(true);
     }
   });
 
@@ -251,7 +253,7 @@ describe("decodePhaxPlanFile — mode, acceptance and testLines", () => {
       { dischargedBy: "phase-03", files: [] },
     ]) {
       expect(
-        Either.isLeft(decodePhaxPlanFile(withPhase({ ...validPlan.phases[0], acceptance }))),
+        Result.isFailure(decodePhaxPlanFile(withPhase({ ...validPlan.phases[0], acceptance }))),
       ).toBe(true);
     }
   });
@@ -259,12 +261,12 @@ describe("decodePhaxPlanFile — mode, acceptance and testLines", () => {
 
 describe("decodePhaxPlanFile", () => {
   it("accepts a valid plan", () => {
-    expect(Either.isRight(decodePhaxPlanFile(validPlan))).toBe(true);
+    expect(Result.isSuccess(decodePhaxPlanFile(validPlan))).toBe(true);
   });
 
   it("rejects a plan with no phases", () => {
     const bad = { ...validPlan, phases: [] };
-    expect(Either.isLeft(decodePhaxPlanFile(bad))).toBe(true);
+    expect(Result.isFailure(decodePhaxPlanFile(bad))).toBe(true);
   });
 
   it("rejects a phase with invalid effort", () => {
@@ -272,48 +274,48 @@ describe("decodePhaxPlanFile", () => {
       ...validPlan,
       phases: [{ ...validPlan.phases[0]!, effort: "extreme" }],
     };
-    expect(Either.isLeft(decodePhaxPlanFile(bad))).toBe(true);
+    expect(Result.isFailure(decodePhaxPlanFile(bad))).toBe(true);
   });
 
   it("rejects a plan missing a required field", () => {
     const { run: _, ...noRun } = validPlan;
-    expect(Either.isLeft(decodePhaxPlanFile(noRun))).toBe(true);
+    expect(Result.isFailure(decodePhaxPlanFile(noRun))).toBe(true);
   });
 
   it("rejects excess properties", () => {
     const bad = { ...validPlan, extra: "field" };
-    expect(Either.isLeft(decodePhaxPlanFile(bad))).toBe(true);
+    expect(Result.isFailure(decodePhaxPlanFile(bad))).toBe(true);
   });
 
   it("rejects a plan that carries version, the pre-schema key", () => {
-    expect(Either.isLeft(decodePhaxPlanFile({ ...validPlan, version: 1 }))).toBe(true);
+    expect(Result.isFailure(decodePhaxPlanFile({ ...validPlan, version: 1 }))).toBe(true);
   });
 
   it("rejects a $schema naming another format", () => {
     const bad = { ...validPlan, $schema: schemaUrl("run-status", "0.17.0") };
-    expect(Either.isLeft(decodePhaxPlanFile(bad))).toBe(true);
+    expect(Result.isFailure(decodePhaxPlanFile(bad))).toBe(true);
   });
 
   it("rejects a phase missing plannedFilesToCreate", () => {
     const { plannedFilesToCreate: _, ...noCreate } = validPlan.phases[0];
     const bad = { ...validPlan, phases: [noCreate] };
-    expect(Either.isLeft(decodePhaxPlanFile(bad))).toBe(true);
+    expect(Result.isFailure(decodePhaxPlanFile(bad))).toBe(true);
   });
 
   it("rejects a phase missing plannedFilesToEdit", () => {
     const { plannedFilesToEdit: _, ...noEdit } = validPlan.phases[0];
     const bad = { ...validPlan, phases: [noEdit] };
-    expect(Either.isLeft(decodePhaxPlanFile(bad))).toBe(true);
+    expect(Result.isFailure(decodePhaxPlanFile(bad))).toBe(true);
   });
 
   it("rejects a phase missing optionalFilesToEdit", () => {
     const { optionalFilesToEdit: _, ...noOptional } = validPlan.phases[0];
     const bad = { ...validPlan, phases: [noOptional] };
-    expect(Either.isLeft(decodePhaxPlanFile(bad))).toBe(true);
+    expect(Result.isFailure(decodePhaxPlanFile(bad))).toBe(true);
   });
 
   it("accepts a phase with empty planned-file arrays", () => {
-    expect(Either.isRight(decodePhaxPlanFile(validPlan))).toBe(true);
+    expect(Result.isSuccess(decodePhaxPlanFile(validPlan))).toBe(true);
   });
 
   it("accepts a phase with populated planned-file arrays and round-trips", () => {
@@ -329,8 +331,8 @@ describe("decodePhaxPlanFile", () => {
       ],
     };
     const decoded = decodePhaxPlanFile(withFiles);
-    expect(Either.isRight(decoded)).toBe(true);
-    if (Either.isLeft(decoded)) throw new Error("unexpected Left");
+    expect(Result.isSuccess(decoded)).toBe(true);
+    if (Result.isFailure(decoded)) throw new Error("unexpected Left");
     expect(decoded.right.phases[0]!.plannedFilesToCreate).toEqual(["src/new.ts"]);
     expect(decoded.right.phases[0]!.plannedFilesToEdit).toEqual(["src/existing.ts"]);
     expect(decoded.right.phases[0]!.optionalFilesToEdit).toEqual(["docs/readme.md"]);
@@ -353,33 +355,33 @@ describe("decodeRunStatusFile", () => {
   };
 
   it("accepts a valid run status", () => {
-    expect(Either.isRight(decodeRunStatusFile(validRunStatus))).toBe(true);
+    expect(Result.isSuccess(decodeRunStatusFile(validRunStatus))).toBe(true);
   });
 
   it("rejects a run status missing namespace", () => {
     const { namespace: _, ...noNamespace } = validRunStatus;
-    expect(Either.isLeft(decodeRunStatusFile(noNamespace))).toBe(true);
+    expect(Result.isFailure(decodeRunStatusFile(noNamespace))).toBe(true);
   });
 
   it("accepts an optional gateProfileId", () => {
-    expect(Either.isRight(decodeRunStatusFile({ ...validRunStatus, gateProfileId: "fast" }))).toBe(
-      true,
-    );
+    expect(
+      Result.isSuccess(decodeRunStatusFile({ ...validRunStatus, gateProfileId: "fast" })),
+    ).toBe(true);
   });
 
   it("rejects an invalid state", () => {
     const bad = { ...validRunStatus, state: "invalid-state" };
-    expect(Either.isLeft(decodeRunStatusFile(bad))).toBe(true);
+    expect(Result.isFailure(decodeRunStatusFile(bad))).toBe(true);
   });
 
   it("rejects missing required fields", () => {
     const { shortName: _, ...noShortName } = validRunStatus;
-    expect(Either.isLeft(decodeRunStatusFile(noShortName))).toBe(true);
+    expect(Result.isFailure(decodeRunStatusFile(noShortName))).toBe(true);
   });
 
   it("rejects a run status without $schema: the bridge reads those through the frozen decoder", () => {
     const { $schema: _, ...preSchema } = validRunStatus;
-    expect(Either.isLeft(decodeRunStatusFile({ version: 1, ...preSchema }))).toBe(true);
+    expect(Result.isFailure(decodeRunStatusFile({ version: 1, ...preSchema }))).toBe(true);
   });
 });
 
@@ -400,7 +402,7 @@ describe("decodePhaseStatusFile", () => {
   };
 
   it("accepts a valid phase status", () => {
-    expect(Either.isRight(decodePhaseStatusFile(validPhaseStatus))).toBe(true);
+    expect(Result.isSuccess(decodePhaseStatusFile(validPhaseStatus))).toBe(true);
   });
 
   it("accepts optional worktreePath and claudeSessionId", () => {
@@ -410,22 +412,22 @@ describe("decodePhaseStatusFile", () => {
       claudeSessionId: "sess-abc",
       commitHash: "abc123",
     };
-    expect(Either.isRight(decodePhaseStatusFile(withOptionals))).toBe(true);
+    expect(Result.isSuccess(decodePhaseStatusFile(withOptionals))).toBe(true);
   });
 
   it("rejects an invalid phase state", () => {
     const bad = { ...validPhaseStatus, state: "not-a-state" };
-    expect(Either.isLeft(decodePhaseStatusFile(bad))).toBe(true);
+    expect(Result.isFailure(decodePhaseStatusFile(bad))).toBe(true);
   });
 
   it("rejects an invalid effort", () => {
     const bad = { ...validPhaseStatus, effort: "extreme" };
-    expect(Either.isLeft(decodePhaseStatusFile(bad))).toBe(true);
+    expect(Result.isFailure(decodePhaseStatusFile(bad))).toBe(true);
   });
 
   it("rejects a phase status without $schema: the bridge reads those through the frozen decoder", () => {
     const { $schema: _, ...preSchema } = validPhaseStatus;
-    expect(Either.isLeft(decodePhaseStatusFile({ version: 1, ...preSchema }))).toBe(true);
+    expect(Result.isFailure(decodePhaseStatusFile({ version: 1, ...preSchema }))).toBe(true);
   });
 });
 
@@ -446,16 +448,16 @@ describe("decodeRegistryFile", () => {
 
   it("accepts a valid registry with namespace on each entry", () => {
     const registry = { $schema, runs: [validEntry] };
-    expect(Either.isRight(decodeRegistryFile(registry))).toBe(true);
+    expect(Result.isSuccess(decodeRegistryFile(registry))).toBe(true);
   });
 
   it("rejects a registry entry missing namespace", () => {
     const { namespace: _, ...noNamespace } = validEntry;
     const registry = { $schema, runs: [noNamespace] };
-    expect(Either.isLeft(decodeRegistryFile(registry))).toBe(true);
+    expect(Result.isFailure(decodeRegistryFile(registry))).toBe(true);
   });
 
   it("rejects a registry without $schema: the bridge reads those through the frozen decoder", () => {
-    expect(Either.isLeft(decodeRegistryFile({ version: 1, runs: [validEntry] }))).toBe(true);
+    expect(Result.isFailure(decodeRegistryFile({ version: 1, runs: [validEntry] }))).toBe(true);
   });
 });

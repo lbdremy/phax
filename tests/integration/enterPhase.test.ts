@@ -2,7 +2,7 @@ import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { Either } from "effect";
+import { Result } from "effect";
 import { decodeShortName } from "../../src/domain/branded.js";
 import { resolvePhaseInfo } from "../../src/app/resolveRunInfo.js";
 import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
@@ -27,7 +27,7 @@ vi.mock("../../src/app/loadRouting.js", async (importOriginal) => {
 });
 
 const now = new Date().toISOString();
-const SHORT_NAME = Either.getOrThrow(decodeShortName("my-run"));
+const SHORT_NAME = Result.getOrThrow(decodeShortName("my-run"));
 
 async function buildFakeRunFolder(
   stateRoot: string,
@@ -170,8 +170,8 @@ describe("resolvePhaseInfo", () => {
     ]);
 
     const result = resolvePhaseInfo("test", SHORT_NAME, "phase-01", stateRoot);
-    expect(Either.isRight(result)).toBe(true);
-    const info = Either.getOrThrow(result);
+    expect(Result.isSuccess(result)).toBe(true);
+    const info = Result.getOrThrow(result);
     expect(info.phaseStatus.phaseId).toBe("phase-01");
     expect(info.phaseStatus.state).toBe("rate_limited");
     expect(info.phaseStatus.claudeSessionId).toBe("sess-abc");
@@ -184,15 +184,15 @@ describe("resolvePhaseInfo", () => {
     await buildFakeRunFolder(stateRoot, [{ id: "phase-01", index: 0, state: "committed" }]);
 
     const result = resolvePhaseInfo("test", SHORT_NAME, "phase-99", stateRoot);
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left).toContain("phase-99");
     }
   });
 
   it("returns Left when run folder does not exist", async () => {
     const result = resolvePhaseInfo("test", SHORT_NAME, "phase-01", stateRoot);
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 });
 
@@ -204,7 +204,7 @@ describe("runEnterPhase", () => {
 
     const { loadConfig } = await import("../../src/app/loadConfig.js");
     vi.mocked(loadConfig).mockReturnValue(
-      Either.right({
+      Result.succeed({
         stateRoot,
         namespace: "test",
         repoRoot: stateRoot,

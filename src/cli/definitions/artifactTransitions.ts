@@ -35,12 +35,11 @@ const PathArg = reject(
 
 const ByFlag = reject(
   Schema.Struct({
-    by: Schema.optionalWith(
+    by: Schema.optionalKey(
       Schema.String.annotations({
         identifier: "arbiter",
         description: "operator or machine:<grant>; required without a terminal",
       }),
-      { exact: true },
     ),
   }),
 );

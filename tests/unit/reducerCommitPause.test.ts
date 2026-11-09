@@ -1,12 +1,12 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { decodePhaseId, decodeRunId } from "../../src/domain/branded.js";
 import { interpret } from "../../src/domain/reducer.js";
 import type { CommitFailed } from "../../src/domain/events.js";
 import type { PhaxState } from "../../src/domain/state.js";
 
-function unwrap<T>(e: Either.Either<T, unknown>): T {
-  if (Either.isLeft(e)) throw new Error("decode failed");
+function unwrap<T>(e: Result.Result<T, unknown>): T {
+  if (Result.isFailure(e)) throw new Error("decode failed");
   return e.right;
 }
 

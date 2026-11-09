@@ -8,7 +8,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { closeStop } from "../../src/app/closeStop.js";
 import { dispatch } from "../../src/app/dispatcher.js";
@@ -282,7 +282,7 @@ async function startStopped(
       r.backend.onBuild = build;
     },
   });
-  if (Either.isRight(result)) throw new Error("the run did not stop");
+  if (Result.isSuccess(result)) throw new Error("the run did not stop");
   expect(result.left).toBeInstanceOf(AwaitingReviewStopError);
   return run;
 }
@@ -293,8 +293,8 @@ const headOf = (run: HeldRun, phaseId: string): string =>
 const writeIn = (run: HeldRun, phaseId: string, path: string, content: string): void =>
   writeFileSync(join(tree(run, phaseId), path), content);
 
-function refusedClose(result: Either.Either<unknown, unknown>): StopCloseRefusedError {
-  if (Either.isRight(result)) throw new Error("the close was not refused");
+function refusedClose(result: Result.Result<unknown, unknown>): StopCloseRefusedError {
+  if (Result.isSuccess(result)) throw new Error("the close was not refused");
   expect(result.left).toBeInstanceOf(StopCloseRefusedError);
   return result.left as StopCloseRefusedError;
 }
@@ -328,7 +328,7 @@ describe("a held oracle phase", { timeout: 60_000 }, () => {
     writeIn(run, "phase-02", ACCEPTANCE_FILE, CORRECTED_TEST);
     const result = await resumeHeldRun(run);
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     const phase01 = readPhaseStatus(run, "phase-01");
     const phase02 = readPhaseStatus(run, "phase-02");
     expect(phase02["base"]).toBe(phase01["commitHash"]);
@@ -380,7 +380,7 @@ describe("a held oracle phase", { timeout: 60_000 }, () => {
     writeIn(run, "phase-02", SOURCE, CORRECTED_SOURCE);
     const result = await resumeHeldRun(run);
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     expect(verdicts()).toEqual(["authored:phase-02", "passed:phase-03"]);
     expect(requests()[1]?.["acceptanceCommit"]).toBe(c2);
     expect(readPhaseStatus(run, "phase-02")["stop"]).toMatchObject({
@@ -465,7 +465,7 @@ describe("a declared review between the pair", { timeout: 60_000 }, () => {
     writeIn(run, "phase-03", ACCEPTANCE_FILE, CORRECTED_TEST);
     const result = await resumeHeldRun(run);
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     const phase02 = readPhaseStatus(run, "phase-02");
     const phase03 = readPhaseStatus(run, "phase-03");
     expect(verdicts()).toEqual(["authored:phase-02", "authored:phase-03", "passed:phase-04"]);
@@ -493,15 +493,15 @@ describe("a declared review between the pair", { timeout: 60_000 }, () => {
     writeIn(run, "phase-03", ACCEPTANCE_FILE, CORRECTED_TEST);
     writeFileSync(failFlag(), "passed");
     const result = await resumeHeldRun(run);
-    if (Either.isRight(result)) throw new Error("expected the discharge to fail");
+    if (Result.isSuccess(result)) throw new Error("expected the discharge to fail");
     expect(result.left).toBeInstanceOf(GateAttemptsExhaustedError);
     const before = readFileSync(join(run.runPath, "phase-03", "status.json"), "utf8");
 
     const reset = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         resetPhase({
           namespace: NAMESPACE,
-          shortName: Either.getOrThrow(decodeShortName(SHORT)),
+          shortName: Result.getOrThrow(decodeShortName(SHORT)),
           phaseId: "phase-03",
           stateRoot: world.stateRoot,
           repoRoot: world.repoRoot,
@@ -519,7 +519,7 @@ describe("a declared review between the pair", { timeout: 60_000 }, () => {
       ),
     );
 
-    if (Either.isRight(reset)) throw new Error("expected the reset to be refused");
+    if (Result.isSuccess(reset)) throw new Error("expected the reset to be refused");
     expect(reset.left).toBeInstanceOf(ResetPhaseError);
     const state = String(readPhaseStatus(run, "phase-04")["state"]);
     expect(state).toBe("gates_exhausted");
@@ -542,7 +542,7 @@ describe("a held discharge closes on its configured steps", { timeout: 60_000 },
 
     const result = await resumeHeldRun(run);
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     expect(verdicts()).toEqual(["authored:phase-02", "passed:phase-03"]);
     expect(run.closed[0]?.report).toMatchObject({
       cause: "held",
@@ -558,7 +558,7 @@ describe("a held discharge closes on its configured steps", { timeout: 60_000 },
     writeIn(run, "phase-03", ACCEPTANCE_FILE, CORRECTED_TEST);
     const result = await resumeHeldRun(run);
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     expect(verdicts()).toEqual(["authored:phase-02", "passed:phase-03"]);
     const closed = run.closed[0]!;
     expect(closed.report).toMatchObject({
@@ -629,7 +629,7 @@ describe("an authored close interrupted after its review commit", { timeout: 60_
     const phase = run.plan.phases[1]!;
     const phaseFolder = join(run.runPath, "phase-02");
     return Effect.runPromise(
-      Effect.either(
+      Effect.result(
         Effect.gen(function* () {
           yield* dispatch(
             {
@@ -688,7 +688,7 @@ describe("an authored close interrupted after its review commit", { timeout: 60_
 
     const result = await resumeHeldRun(run);
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     expect(run.closed[0]?.report).toMatchObject({
       cause: "held",
       handoffSource: "earlier-close",
@@ -762,7 +762,7 @@ describe("a held acceptance phase closed with a correction", { timeout: 60_000 }
         },
       },
     );
-    if (Either.isRight(result)) throw new Error("the run did not stop");
+    if (Result.isSuccess(result)) throw new Error("the run did not stop");
     expect(result.left).toBeInstanceOf(AwaitingReviewStopError);
     expect(readRunStatus(run)).toMatchObject({
       $schema: stamp("run-status"),
@@ -771,7 +771,7 @@ describe("a held acceptance phase closed with a correction", { timeout: 60_000 }
 
     // The correction changes the acceptance file: the close's gate passes the authored step.
     writeIn(run, "phase-03", ACCEPTANCE_FILE, CORRECTED_TEST);
-    expect(Either.isRight(await resumeHeldRun(run))).toBe(true);
+    expect(Result.isSuccess(await resumeHeldRun(run))).toBe(true);
     expect(verdicts()).toEqual(["authored:phase-03", "authored:phase-03", "passed:phase-04"]);
 
     const status = readPhaseStatus(run, "phase-03");

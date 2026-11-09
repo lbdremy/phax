@@ -154,12 +154,11 @@ export const PlansEstimateOutput = Schema.Union(
 );
 
 const PlansEstimateFlags = Schema.Struct({
-  noProbe: Schema.optionalWith(
+  noProbe: Schema.optionalKey(
     Schema.Boolean.annotations({
       description:
         "Use the last rate-limit sample in the cost ledgers instead of a one-message Claude Code probe",
     }),
-    { exact: true },
   ),
 });
 

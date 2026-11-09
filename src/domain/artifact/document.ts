@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { ArtifactValidationError } from "../errors.js";
 import { isApprovalRecordPath } from "./approvalRecordFile.js";
 import { decodeArtifactFrontmatter, type FrontmatterProblem } from "./frontmatter.js";
@@ -75,10 +75,10 @@ export function frontmatterProblemMessage(
 export function validateArtifact(
   repoRelPath: string,
   md: string,
-): Either.Either<{ kind: ArtifactKind; status: ArtifactStatus }, ArtifactValidationError> {
+): Result.Result<{ kind: ArtifactKind; status: ArtifactStatus }, ArtifactValidationError> {
   const classification = classifyArtifactPath(repoRelPath);
   if (classification === null) {
-    return Either.left(
+    return Result.fail(
       new ArtifactValidationError({
         path: repoRelPath,
         message: `${repoRelPath} is not a recognized artifact path (expected docs/specs/, docs/specs/archive/, docs/plans/, or docs/plans/archive/)`,
@@ -88,7 +88,7 @@ export function validateArtifact(
 
   const fileName = repoRelPath.slice(repoRelPath.lastIndexOf("/") + 1);
   if (parseArtifactName(classification.kind, fileName) === null) {
-    return Either.left(
+    return Result.fail(
       new ArtifactValidationError({
         path: repoRelPath,
         message: `${repoRelPath}: name does not match ${artifactNameGrammar(classification.kind)}`,
@@ -97,8 +97,8 @@ export function validateArtifact(
   }
 
   const decoded = decodeArtifactFrontmatter(classification.kind, md);
-  if (Either.isLeft(decoded)) {
-    return Either.left(
+  if (Result.isFailure(decoded)) {
+    return Result.fail(
       new ArtifactValidationError({
         path: repoRelPath,
         message: frontmatterProblemMessage(repoRelPath, classification.kind, decoded.left),
@@ -109,7 +109,7 @@ export function validateArtifact(
 
   const terminal = isTerminalStatus(status);
   if (terminal && !classification.inArchive) {
-    return Either.left(
+    return Result.fail(
       new ArtifactValidationError({
         path: repoRelPath,
         message: `${repoRelPath} has terminal status "${status}" but is not inside an archive/ directory`,
@@ -117,7 +117,7 @@ export function validateArtifact(
     );
   }
   if (!terminal && classification.inArchive) {
-    return Either.left(
+    return Result.fail(
       new ArtifactValidationError({
         path: repoRelPath,
         message: `${repoRelPath} has non-terminal status "${status}" but is inside an archive/ directory`,
@@ -125,5 +125,5 @@ export function validateArtifact(
     );
   }
 
-  return Either.right({ kind: classification.kind, status });
+  return Result.succeed({ kind: classification.kind, status });
 }

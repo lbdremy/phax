@@ -45,7 +45,7 @@ export type InteractiveHandoffFile = Schema.Schema.Type<typeof InteractiveHandof
 /** An interactive handoff, without `$schema`. */
 export type InteractiveHandoff = Omit<InteractiveHandoffFile, "$schema">;
 
-export const decodeInteractiveHandoffFile = Schema.decodeUnknownEither(
+export const decodeInteractiveHandoffFile = Schema.decodeUnknownResult(
   InteractiveHandoffFileSchema,
   { onExcessProperty: "error" },
 );

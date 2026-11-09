@@ -9,7 +9,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { createRunFolder } from "../../../src/app/runFolder.js";
 import { loadConfig } from "../../../src/app/loadConfig.js";
 import { setRunStatus } from "../../../src/app/registry.js";
@@ -203,10 +203,10 @@ export async function makeRunCommandsRepo(): Promise<RunCommandsRepo> {
   git("commit", "-q", "-m", "seed");
 
   // The resumable run, made as `phax run` makes a run folder, then left interrupted.
-  const config = Either.getOrThrow(loadConfig(repoDir));
-  const extracted = Either.getOrThrow(extractPlanDeterministic(RESUMABLE_PLAN));
-  const { plan } = Either.getOrThrow(finalizeExtractedPlan(extracted, RESUMABLE_PLAN));
-  const shortName = Either.getOrThrow(decodeShortName(plan.run.shortName));
+  const config = Result.getOrThrow(loadConfig(repoDir));
+  const extracted = Result.getOrThrow(extractPlanDeterministic(RESUMABLE_PLAN));
+  const { plan } = Result.getOrThrow(finalizeExtractedPlan(extracted, RESUMABLE_PLAN));
+  const shortName = Result.getOrThrow(decodeShortName(plan.run.shortName));
   const setupLayers = Layer.mergeAll(
     makeFakeGit().layer,
     makeFakeShell().layer,

@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { AgentSessionFailedError } from "../domain/errors.js";
 import type { SessionFailureFiles } from "../domain/session/failureError.js";
 import type { SessionFailure } from "../domain/session/outcome.js";
@@ -130,12 +130,12 @@ export function prepareCodeReviewSession(
     // recorded session never needs the binding.
     let existingSession: CodeReviewSession | undefined;
     if (!opts.newSession) {
-      const sessionReadResult = yield* Effect.either(fs.readText(sessionRecordPath));
-      if (Either.isRight(sessionReadResult)) {
+      const sessionReadResult = yield* Effect.result(fs.readText(sessionRecordPath));
+      if (Result.isSuccess(sessionReadResult)) {
         try {
           const sessionJson = JSON.parse(sessionReadResult.right);
           const sessionDecodeResult = decodeCodeReviewSession(sessionJson);
-          if (Either.isRight(sessionDecodeResult)) {
+          if (Result.isSuccess(sessionDecodeResult)) {
             existingSession = sessionDecodeResult.right;
           }
         } catch {
@@ -194,9 +194,9 @@ export function prepareCodeReviewSession(
 
     // New session branch: the final phase's binding says which provider starts it.
     const bindingPath = join(info.runPath, info.finalPhaseId, "agent-binding.json");
-    const bindingReadResult = yield* Effect.either(fs.readText(bindingPath));
+    const bindingReadResult = yield* Effect.result(fs.readText(bindingPath));
 
-    if (Either.isLeft(bindingReadResult)) {
+    if (Result.isFailure(bindingReadResult)) {
       yield* telemetry.recordEvent(
         makeStepCompletedTelemetryEvent({
           runId,
@@ -230,7 +230,7 @@ export function prepareCodeReviewSession(
     }
 
     const bindingDecodeResult = decodePhaseAgentBinding(bindingJson);
-    if (Either.isLeft(bindingDecodeResult)) {
+    if (Result.isFailure(bindingDecodeResult)) {
       yield* telemetry.recordEvent(
         makeStepCompletedTelemetryEvent({
           runId,
@@ -349,14 +349,14 @@ export function loadCodeReviewWorklist(
     const fs = yield* FileSystem;
 
     const reconciliationPath = join(info.runPath, GLOBAL_RECONCILIATION_FILENAME);
-    const reconciliationReadResult = yield* Effect.either(fs.readText(reconciliationPath));
+    const reconciliationReadResult = yield* Effect.result(fs.readText(reconciliationPath));
     let attentionPoints: BuildCodeReviewPromptInput["attentionPoints"] = [];
 
-    if (Either.isRight(reconciliationReadResult)) {
+    if (Result.isSuccess(reconciliationReadResult)) {
       try {
         const reconciliationJson = JSON.parse(reconciliationReadResult.right);
         const reconciliationDecodeResult = decodeGlobalFileReconciliation(reconciliationJson);
-        if (Either.isRight(reconciliationDecodeResult)) {
+        if (Result.isSuccess(reconciliationDecodeResult)) {
           attentionPoints = toCodeReviewAttentionPoints(reconciliationDecodeResult.right);
         }
       } catch {
@@ -365,16 +365,16 @@ export function loadCodeReviewWorklist(
     }
 
     const complianceJsonPath = join(info.runPath, COMPLIANCE_REVIEW_JSON_FILENAME);
-    const complianceReadResult = yield* Effect.either(fs.readText(complianceJsonPath));
+    const complianceReadResult = yield* Effect.result(fs.readText(complianceJsonPath));
 
     let complianceBlock: BuildCodeReviewPromptInput["compliance"];
     let complianceMissing = true;
 
-    if (Either.isRight(complianceReadResult)) {
+    if (Result.isSuccess(complianceReadResult)) {
       try {
         const complianceJson = JSON.parse(complianceReadResult.right);
         const complianceDecodeResult = readComplianceReviewFile(complianceJsonPath, complianceJson);
-        if (Either.isRight(complianceDecodeResult)) {
+        if (Result.isSuccess(complianceDecodeResult)) {
           // Only the fields every shape carries: the ledgers are not read here.
           const { review } = complianceDecodeResult.right;
           complianceBlock = {
@@ -418,9 +418,9 @@ export function loadCodeReviewWorklist(
 }
 
 /** A headless session's final answer, decoded: the review, or why phax refuses it. */
-function decodeReviewAnswer(result: AgentRunResult): Either.Either<CodeReview, string> {
+function decodeReviewAnswer(result: AgentRunResult): Result.Result<CodeReview, string> {
   const parsed = answerJson(result);
-  if (Either.isLeft(parsed)) return Either.left(parsed.left);
+  if (Result.isFailure(parsed)) return Result.fail(parsed.left);
   return readCodeReviewAnswer(parsed.right);
 }
 
@@ -538,7 +538,7 @@ export function reviewCodeHeadless(
     ): Effect.Effect<HeadlessCodeReviewResult | AgentRunResult, FsError | GitError, R> =>
       Effect.gen(function* () {
         const before = yield* git.snapshotWorktree(info.worktreePath);
-        const agentResult = yield* Effect.either(session);
+        const agentResult = yield* Effect.result(session);
         const after = yield* git.snapshotWorktree(info.worktreePath);
         if (after !== before) {
           const changed = yield* git.changedPathsBetween(info.worktreePath, before, after);
@@ -548,7 +548,7 @@ export function reviewCodeHeadless(
             return fail(`the session changed the worktree (put back): ${paths.join(", ")}`);
           }
         }
-        if (Either.isLeft(agentResult)) {
+        if (Result.isFailure(agentResult)) {
           const sessionError =
             agentResult.left instanceof AgentSessionFailedError ? agentResult.left : null;
           return {
@@ -575,7 +575,7 @@ export function reviewCodeHeadless(
 
     let ran = firstRun;
     let answer = decodeReviewAnswer(firstRun);
-    if (Either.isLeft(answer)) {
+    if (Result.isFailure(answer)) {
       const firstRefusal = answer.left;
       opts.output.warn(codeReviewRetryWarning(firstRefusal));
       const retryPath = join(info.runPath, CODE_REVIEW_RETRY_STREAM_FILENAME);
@@ -591,7 +591,7 @@ export function reviewCodeHeadless(
       if ("kind" in retryRun) return retryRun;
       ran = retryRun;
       answer = decodeReviewAnswer(retryRun);
-      if (Either.isLeft(answer)) {
+      if (Result.isFailure(answer)) {
         return fail(codeReviewRefusedTwiceMessage(firstRefusal, answer.left));
       }
     }
@@ -616,10 +616,10 @@ export function reviewCodeHeadless(
       ? yield* fs.readText(reviewPath)
       : undefined;
     yield* fs.writeAtomic(reviewPath, codeReviewFileText(review));
-    const sessionWrite = yield* Effect.either(
+    const sessionWrite = yield* Effect.result(
       fs.writeAtomic(sessionPath, JSON.stringify(encodeCodeReviewSession(session), null, 2)),
     );
-    if (Either.isLeft(sessionWrite)) {
+    if (Result.isFailure(sessionWrite)) {
       yield* previousReview === undefined
         ? fs.remove(reviewPath)
         : fs.writeAtomic(reviewPath, previousReview);
@@ -698,7 +698,7 @@ export function reviewCodeAndRecord(
 > {
   return Effect.gen(function* () {
     const review = yield* reviewCodeHeadless(info, config, resolution, security, opts).pipe(
-      Effect.catchAll((error) =>
+      Effect.catch((error) =>
         Effect.succeed({
           kind: "failed",
           reason: `the review could not be kept: ${error.message}`,

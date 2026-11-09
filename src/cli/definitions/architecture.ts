@@ -3,7 +3,7 @@
 // no provider configured the answer is `{ kind: "no-provider", bounds }`, the verdict code 1: the
 // line telling the agent to read the code, then the bounds with their parts unresolved. A
 // provider that fails or is refused is a declared error with today's `✗ …` sentence and exit 1.
-import { Data, Effect, Either } from "effect";
+import { Data, Effect, Result } from "effect";
 import * as Schema from "effect/Schema";
 import { pullArchitecture } from "../../app/architectureProvider.js";
 import { loadConfig, locateWorkingTree } from "../../app/loadConfig.js";
@@ -79,7 +79,7 @@ function makeArchitectureCommand(cwdOf: () => string) {
           );
         }
         const configResult = loadConfig(tree.mainRoot);
-        if (Either.isLeft(configResult)) return yield* Effect.fail(configResult.left);
+        if (Result.isFailure(configResult)) return yield* Effect.fail(configResult.left);
         const { architecture, assignments } = configResult.right;
         const bounds = assignments === undefined ? null : assignments;
         if (architecture === undefined) {

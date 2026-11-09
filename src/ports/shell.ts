@@ -39,4 +39,4 @@ export interface ShellOps {
   run(options: ShellRunOptions): Effect.Effect<ShellRunResult, ShellError>;
 }
 
-export class Shell extends Context.Tag("phax/Shell")<Shell, ShellOps>() {}
+export class Shell extends Context.Service<Shell, ShellOps>()("phax/Shell") {}

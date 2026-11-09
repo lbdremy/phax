@@ -11,7 +11,7 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { Either } from "effect";
+import { Result } from "effect";
 import { parseBriefReport, parseGateReport } from "../../packages/schemas/src/index.js";
 import {
   currentSchemaUrl,
@@ -69,7 +69,7 @@ function reportOf(stdout: string) {
   const printed: unknown = JSON.parse(stdout);
   expect(parseGateReport(printed).ok).toBe(true);
   const result = readGateReport(printed);
-  if (Either.isLeft(result)) throw new Error(describeReportError(result.left));
+  if (Result.isFailure(result)) throw new Error(describeReportError(result.left));
   if (result.right.outcome !== "checked") throw new Error("expected a checked report");
   return result.right;
 }
@@ -251,7 +251,7 @@ describe("examples/hello-world brief provider", () => {
     const printed: unknown = JSON.parse(stdout);
     expect(parseBriefReport(printed).ok).toBe(true);
     const result = readBriefReport(printed);
-    if (Either.isLeft(result)) throw new Error(describeReportError(result.left));
+    if (Result.isFailure(result)) throw new Error(describeReportError(result.left));
     expect(result.right.$schema).toBe(currentSchemaUrl("brief-report"));
     return result.right;
   }
@@ -335,8 +335,8 @@ describe("examples/hello-world phax.json", () => {
   it("decodes with decodePhaxConfig and has brief, planAuditor and a report step", () => {
     const raw = JSON.parse(readFileSync(join(exampleDir, "phax.json"), "utf8"));
     const result = decodePhaxConfig(raw);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
       const config = result.right;
       expect(config.brief).toEqual({ command: "node ./brief.mjs", push: "findings-and-rules" });
       expect(config.planAuditor?.command).toBe("node ./audit-plan.mjs");
@@ -357,11 +357,11 @@ describe("examples/hello-world plan auditor", () => {
   function helloWorldProjection(): { phases: readonly { id: string; files: readonly string[] }[] } {
     const planMd = readFileSync(join(exampleDir, "plan.md"), "utf8");
     const extracted = extractPlanDeterministic(planMd);
-    if (Either.isLeft(extracted)) {
+    if (Result.isFailure(extracted)) {
       throw new Error(`examples/hello-world/plan.md no longer parses: ${extracted.left.message}`);
     }
     const finalized = finalizeExtractedPlan(extracted.right, planMd);
-    if (Either.isLeft(finalized)) {
+    if (Result.isFailure(finalized)) {
       throw new Error(
         `examples/hello-world/plan.md no longer finalizes: ${finalized.left.message}`,
       );
@@ -376,8 +376,8 @@ describe("examples/hello-world plan auditor", () => {
     const { stdout, status } = runScript(auditPlanScript, JSON.stringify(projection), exampleDir);
     expect(status).toBe(0);
     const result = decodePlanAuditResponse(JSON.parse(stdout));
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
       expect(result.right.findings).toEqual([]);
     }
   });
@@ -391,8 +391,8 @@ describe("examples/hello-world plan auditor", () => {
     const { stdout, status } = runScript(auditPlanScript, JSON.stringify(withoutTests), exampleDir);
     expect(status).toBe(0);
     const result = decodePlanAuditResponse(JSON.parse(stdout));
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
       expect(result.right.findings).toHaveLength(1);
       const finding = result.right.findings[0]!;
       expect(finding.phases).toEqual(["phase-01"]);

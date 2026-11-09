@@ -18,7 +18,7 @@ function make(binding: { readonly required?: boolean } = {}) {
     name: "audit",
     summary: "audit",
     input: {
-      flags: reject(Schema.Struct({ format: Schema.optionalWith(Schema.String, { exact: true }) })),
+      flags: reject(Schema.Struct({ format: Schema.optionalKey(Schema.String) })),
       stdin: reject(Request, { flag: "request", ...binding }),
     },
     output: strip(Schema.String),
@@ -258,9 +258,7 @@ describe("a stdin flag whose value is required", () => {
       name: "decide",
       summary: "decide",
       input: {
-        flags: reject(
-          Schema.Struct({ dryRun: Schema.optionalWith(Schema.Boolean, { exact: true }) }),
-        ),
+        flags: reject(Schema.Struct({ dryRun: Schema.optionalKey(Schema.Boolean) })),
         stdin: reject(Request, { flag: "verdicts", required: true, valueRequired: true }),
       },
       output: strip(Schema.String),

@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { type Git, type GitError } from "../ports/git.js";
 import type {
@@ -167,7 +167,7 @@ function completeInWorktree(
     }
     const specMd = yield* fs.readText(specPath);
     const specValidated = validateArtifact(specPath, specMd);
-    if (Either.isLeft(specValidated)) {
+    if (Result.isFailure(specValidated)) {
       return yield* Effect.fail(specValidated.left);
     }
     const specStatus = specValidated.right.status;
@@ -181,8 +181,8 @@ function completeInWorktree(
 
     // The chain gate is evaluated by transitionArtifact itself; a live dependent
     // surfaces as SpecRetirementBlockedError, which becomes a kept-spec report.
-    const specResult = yield* Effect.either(transitionArtifact(specPath, "Completed", opts));
-    if (Either.isLeft(specResult)) {
+    const specResult = yield* Effect.result(transitionArtifact(specPath, "Completed", opts));
+    if (Result.isFailure(specResult)) {
       if (specResult.left instanceof SpecRetirementBlockedError) {
         return {
           transitions,

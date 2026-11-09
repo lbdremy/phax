@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { dirname, join } from "node:path";
 import type { RunId } from "../domain/branded.js";
 import type { PhaxCommand } from "../domain/effects.js";
@@ -51,7 +51,7 @@ function persistState(
         return;
       }
       const decoded = readRunStatusFile(path, parsed);
-      if (Either.isRight(decoded)) {
+      if (Result.isSuccess(decoded)) {
         const updated = { ...decoded.right, ...cmd.patch.run, updatedAt: now };
         yield* fs.writeAtomic(
           path,
@@ -70,7 +70,7 @@ function persistState(
         return;
       }
       const decoded = readPhaseStatusFile(path, parsed);
-      if (Either.isRight(decoded)) {
+      if (Result.isSuccess(decoded)) {
         const updated = { ...decoded.right, ...cmd.patch.phase, updatedAt: now };
         yield* fs.writeAtomic(
           path,
@@ -147,7 +147,7 @@ function restoreReviewStop(
       catch: () => new FsError({ message: `${source}: not valid JSON` }),
     });
     const decoded = readReviewStopFile(source, parsed);
-    if (Either.isLeft(decoded)) {
+    if (Result.isFailure(decoded)) {
       return yield* Effect.fail(new FsError({ message: decoded.left.message }));
     }
     yield* writeReviewStop(ctx, { ...decoded.right, lastClose });
@@ -184,7 +184,7 @@ function stoppedPhaseWorktree(
     const raw = yield* fs.readText(path);
     const parsed = yield* Effect.try(() => JSON.parse(raw) as unknown);
     const decoded = readPhaseStatusFile(path, parsed);
-    return Either.isRight(decoded) ? decoded.right.worktreePath : undefined;
+    return Result.isSuccess(decoded) ? decoded.right.worktreePath : undefined;
   }).pipe(Effect.orElseSucceed(() => undefined));
 }
 

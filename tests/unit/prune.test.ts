@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import type { BranchName } from "../../src/domain/branded.js";
 import {
@@ -41,8 +41,8 @@ const b = (name: string) => name as BranchName;
 describe("parsePruneSelection", () => {
   it("refuses neither form, naming both accepted forms", () => {
     const result = parsePruneSelection([], false);
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left).toContain("phax prune <short-name>...");
       expect(result.left).toContain("phax prune --all");
     }
@@ -50,8 +50,8 @@ describe("parsePruneSelection", () => {
 
   it("refuses both forms, naming both accepted forms", () => {
     const result = parsePruneSelection(["old-idea"], true);
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left).toContain("phax prune <short-name>...");
       expect(result.left).toContain("phax prune --all");
     }
@@ -59,12 +59,12 @@ describe("parsePruneSelection", () => {
 
   it("selects names, deduplicated in order", () => {
     expect(parsePruneSelection(["a", "b", "a"], false)).toEqual(
-      Either.right({ kind: "names", refs: ["a", "b"] }),
+      Result.succeed({ kind: "names", refs: ["a", "b"] }),
     );
   });
 
   it("selects all", () => {
-    expect(parsePruneSelection([], true)).toEqual(Either.right({ kind: "all" }));
+    expect(parsePruneSelection([], true)).toEqual(Result.succeed({ kind: "all" }));
   });
 });
 
@@ -80,14 +80,14 @@ describe("selectPruneRuns", () => {
   it("refuses an unknown name as not-found", () => {
     const result = selectPruneRuns(entries, ns, { kind: "names", refs: ["ghost"] });
     expect(result).toEqual(
-      Either.left([{ kind: "not-found", ref: "ghost", qualifiedName: "phax.ghost" }]),
+      Result.fail([{ kind: "not-found", ref: "ghost", qualifiedName: "phax.ghost" }]),
     );
   });
 
   it("refuses a non-archived run with its state", () => {
     const result = selectPruneRuns(entries, ns, { kind: "names", refs: ["live"] });
     expect(result).toEqual(
-      Either.left([
+      Result.fail([
         {
           kind: "not-archived",
           ref: "live",
@@ -105,7 +105,7 @@ describe("selectPruneRuns", () => {
       refs: ["louloupapers.other"],
     });
     expect(result).toEqual(
-      Either.left([
+      Result.fail([
         {
           kind: "other-namespace",
           ref: "louloupapers.other",
@@ -118,15 +118,15 @@ describe("selectPruneRuns", () => {
 
   it("refuses an invalid ref", () => {
     const result = selectPruneRuns(entries, ns, { kind: "names", refs: ["Bad Name"] });
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) expect(result.left[0].kind).toBe("invalid");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) expect(result.left[0].kind).toBe("invalid");
   });
 
   it("resolves a ref qualified with the current namespace the same as the short form", () => {
     const short = selectPruneRuns(entries, ns, { kind: "names", refs: ["old-idea"] });
     const qualified = selectPruneRuns(entries, ns, { kind: "names", refs: ["phax.old-idea"] });
     expect(qualified).toEqual(short);
-    expect(qualified).toEqual(Either.right([entries[0]]));
+    expect(qualified).toEqual(Result.succeed([entries[0]]));
   });
 
   it("selects one run once when named both short and qualified", () => {
@@ -134,7 +134,7 @@ describe("selectPruneRuns", () => {
       kind: "names",
       refs: ["old-idea", "phax.old-idea"],
     });
-    expect(result).toEqual(Either.right([entries[0]]));
+    expect(result).toEqual(Result.succeed([entries[0]]));
   });
 
   it("collects every refusal together", () => {
@@ -142,8 +142,8 @@ describe("selectPruneRuns", () => {
       kind: "names",
       refs: ["old-idea", "ghost", "live", "louloupapers.other"],
     });
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left.map((r) => r.kind)).toEqual([
         "not-found",
         "not-archived",
@@ -154,12 +154,12 @@ describe("selectPruneRuns", () => {
 
   it("all selects the namespace's archived entries in registry order", () => {
     const result = selectPruneRuns(entries, ns, { kind: "all" });
-    expect(result).toEqual(Either.right([entries[0], entries[3]]));
+    expect(result).toEqual(Result.succeed([entries[0], entries[3]]));
   });
 
   it("all with nothing archived selects nothing", () => {
     const result = selectPruneRuns([entries[1]!], ns, { kind: "all" });
-    expect(result).toEqual(Either.right([]));
+    expect(result).toEqual(Result.succeed([]));
   });
 });
 

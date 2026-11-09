@@ -1,4 +1,4 @@
-import { Either, type ParseResult, Schema } from "effect";
+import { Result, type ParseResult, Schema } from "effect";
 import { formatFirstViolation } from "./formatError.js";
 
 const TokenCountSchema = Schema.Number.pipe(Schema.finite(), Schema.nonNegative());
@@ -65,31 +65,31 @@ interface VibeExportRefusal {
   readonly detail: string;
 }
 
-const decodeVibeExport = Schema.decodeUnknownEither(VibeExportSchema);
-const decodeVibeOutcomeExport = Schema.decodeUnknownEither(VibeOutcomeExportSchema);
+const decodeVibeExport = Schema.decodeUnknownResult(VibeExportSchema);
+const decodeVibeOutcomeExport = Schema.decodeUnknownResult(VibeOutcomeExportSchema);
 
 function decodeExportText<A>(
-  decode: (input: unknown) => Either.Either<A, ParseResult.ParseError>,
+  decode: (input: unknown) => Result.Result<A, ParseResult.ParseError>,
   text: string,
-): Either.Either<A, VibeExportRefusal> {
+): Result.Result<A, VibeExportRefusal> {
   let parsed: unknown;
   try {
     parsed = JSON.parse(text) as unknown;
   } catch (error) {
-    return Either.left({
+    return Result.fail({
       reason: "not-json",
       detail: error instanceof Error ? error.message : String(error),
     });
   }
   const decoded = decode(parsed);
-  if (Either.isLeft(decoded)) {
-    return Either.left({ reason: "not-an-export", detail: formatFirstViolation(decoded.left) });
+  if (Result.isFailure(decoded)) {
+    return Result.fail({ reason: "not-an-export", detail: formatFirstViolation(decoded.left) });
   }
-  return Either.right(decoded.right);
+  return Result.succeed(decoded.right);
 }
 
 /** Reads an `export.json`'s text. Never throws: a refusal names what was wrong. */
-export function decodeVibeExportText(text: string): Either.Either<VibeExport, VibeExportRefusal> {
+export function decodeVibeExportText(text: string): Result.Result<VibeExport, VibeExportRefusal> {
   return decodeExportText(decodeVibeExport, text);
 }
 
@@ -99,6 +99,6 @@ export function decodeVibeExportText(text: string): Either.Either<VibeExport, Vi
  */
 export function decodeVibeOutcomeText(
   text: string,
-): Either.Either<VibeOutcomeExport, VibeExportRefusal> {
+): Result.Result<VibeOutcomeExport, VibeExportRefusal> {
   return decodeExportText(decodeVibeOutcomeExport, text);
 }

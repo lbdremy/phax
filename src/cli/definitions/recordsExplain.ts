@@ -51,8 +51,7 @@ const Text = Schema.NullOr(Schema.String);
 const NamedText = Schema.Struct({ name: Schema.String, text: Schema.String });
 
 /** The artifacts a flag asked for, by flag, as text. A flag not given has no key. */
-const optional = <S extends Schema.Schema.Any>(schema: S) =>
-  Schema.optionalWith(schema, { exact: true });
+const optional = <S extends Schema.Schema.Any>(schema: S) => Schema.optionalKey(schema);
 
 const PhaseRequested = Schema.Struct({
   prompt: optional(Text),

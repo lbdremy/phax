@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import type { Shell } from "../ports/shell.js";
 import {
   encodeBriefRecordFile,
@@ -31,10 +31,10 @@ export type BriefOutcome =
  * `$schema`, or the one-line reason it was refused, naming the brief-report
  * URL this phax reads.
  */
-export function readPrintedBriefReport(answer: unknown): Either.Either<BriefReport, string> {
-  return Either.match(readBriefReport(answer), {
-    onLeft: (error) => Either.left(describeReportError(error)),
-    onRight: ({ $schema: _schema, ...report }) => Either.right(report),
+export function readPrintedBriefReport(answer: unknown): Result.Result<BriefReport, string> {
+  return Result.match(readBriefReport(answer), {
+    onFailure: (error) => Result.fail(describeReportError(error)),
+    onSuccess: ({ $schema: _schema, ...report }) => Result.succeed(report),
   });
 }
 
@@ -66,15 +66,15 @@ export function queryBrief(input: {
       input.command,
       input.cwd,
       input.request,
-      (raw: unknown) => Either.right(raw),
+      (raw: unknown) => Result.succeed(raw),
       (failure) => failure,
       { timeoutMs: input.timeoutMs ?? BRIEF_TIMEOUT_MS },
     );
-    if (Either.isLeft(ran)) {
+    if (Result.isFailure(ran)) {
       return { kind: "failed", reason: failureReason(ran.left) } as const;
     }
     const decoded = readPrintedBriefReport(ran.right);
-    if (Either.isLeft(decoded)) return { kind: "failed", reason: decoded.left } as const;
+    if (Result.isFailure(decoded)) return { kind: "failed", reason: decoded.left } as const;
     return { kind: "answered", answer: ran.right, decoded: decoded.right } as const;
   });
 }

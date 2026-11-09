@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { join } from "node:path";
 import { assembleRecord } from "../domain/records/assemble.js";
 import { verifiedSurfaces as computeVerifiedSurfaces } from "../domain/gate/verifiedSurfaces.js";
@@ -190,7 +190,7 @@ function computeVerifiedSurfacesForPhase(
       return [];
     }
     const decoded = readGateAttributionFile(attributionPath, json);
-    if (Either.isLeft(decoded)) return [];
+    if (Result.isFailure(decoded)) return [];
     return computeVerifiedSurfaces(decoded.right);
   });
 }

@@ -11,7 +11,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { authorArtifact, type AuthorArtifactInput } from "../../src/app/authorArtifact.js";
 import { seedPaths, writeSeed } from "../../src/app/interactiveFiles.js";
@@ -262,7 +262,7 @@ describe("a headless spec authoring session answered through structured_output",
       output: { warn: (message) => warnings.push(message) },
     };
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         authorArtifact(input).pipe(
           Effect.provide(
             Layer.mergeAll(
@@ -288,7 +288,7 @@ describe("a headless spec authoring session answered through structured_output",
 
     const { result, warnings, specs, sidecars } = await author();
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     expect(warnings[0]).toContain("spec document refused");
     expect(warnings[0]).toContain("the session's final message is not JSON");
     expect(cli.invocations()).toHaveLength(2);
@@ -311,7 +311,7 @@ describe("a headless spec authoring session answered through structured_output",
 
     const { result, warnings, specs, sidecars } = await author();
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     expect(warnings[0]).toContain("spec document refused");
     expect(warnings[0]).toContain("9.9");
     expect(cli.invocations()).toHaveLength(2);

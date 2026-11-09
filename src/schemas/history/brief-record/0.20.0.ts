@@ -98,6 +98,6 @@ export const BriefRecordV0_20_0Schema = Schema.Struct({
 
 export type BriefRecordV0_20_0 = Schema.Schema.Type<typeof BriefRecordV0_20_0Schema>;
 
-export const decodeBriefRecordV0_20_0 = Schema.decodeUnknownEither(BriefRecordV0_20_0Schema, {
+export const decodeBriefRecordV0_20_0 = Schema.decodeUnknownResult(BriefRecordV0_20_0Schema, {
   onExcessProperty: "error",
 });

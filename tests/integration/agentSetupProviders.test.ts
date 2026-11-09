@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 import { providerSetup } from "../../src/app/providerSetup.js";
 import { PROVIDER_CONFIG_PATH, MODEL_ROUTING_PATH } from "../../src/app/loadRouting.js";
@@ -33,13 +33,13 @@ describe("providerSetup integration", () => {
     setupProbes(fakeShell.impl, { claude: true, vibe: true, codex: false });
 
     const result = await Effect.runPromise(
-      Effect.either(providerSetup({ write: false, prune: false, withRouting: false })).pipe(
+      Effect.result(providerSetup({ write: false, prune: false, withRouting: false })).pipe(
         Effect.provide(makeLayer(fakeFs, fakeShell)),
       ),
     );
 
-    expect(Either.isRight(result)).toBe(true);
-    const { plan, written, backupPath } = Either.getOrThrow(result);
+    expect(Result.isSuccess(result)).toBe(true);
+    const { plan, written, backupPath } = Result.getOrThrow(result);
 
     expect(plan.enabled).toContain("mistral-vibe");
     expect(written).toBe(false);
@@ -53,12 +53,12 @@ describe("providerSetup integration", () => {
     setupProbes(fakeShell.impl, { claude: true, vibe: true, codex: false });
 
     const result = await Effect.runPromise(
-      Effect.either(providerSetup({ write: true, prune: false, withRouting: false })).pipe(
+      Effect.result(providerSetup({ write: true, prune: false, withRouting: false })).pipe(
         Effect.provide(makeLayer(fakeFs, fakeShell)),
       ),
     );
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
 
     const rawFile = fakeFs.impl.getFile(PROVIDER_CONFIG_PATH);
     expect(rawFile).toBeDefined();
@@ -76,13 +76,13 @@ describe("providerSetup integration", () => {
     setupProbes(fakeShell.impl, { claude: false, vibe: false, codex: false });
 
     const result = await Effect.runPromise(
-      Effect.either(providerSetup({ write: true, prune: true, withRouting: false })).pipe(
+      Effect.result(providerSetup({ write: true, prune: true, withRouting: false })).pipe(
         Effect.provide(makeLayer(fakeFs, fakeShell)),
       ),
     );
 
-    expect(Either.isRight(result)).toBe(true);
-    const { plan } = Either.getOrThrow(result);
+    expect(Result.isSuccess(result)).toBe(true);
+    const { plan } = Result.getOrThrow(result);
 
     expect(plan.disabled).toContain("claude-code");
 
@@ -100,13 +100,13 @@ describe("providerSetup integration", () => {
     fakeShell.impl.setDefaultResponse({ exitCode: 0, stdout: "1.0", stderr: "" });
 
     const result = await Effect.runPromise(
-      Effect.either(providerSetup({ write: true, prune: false, withRouting: true })).pipe(
+      Effect.result(providerSetup({ write: true, prune: false, withRouting: true })).pipe(
         Effect.provide(makeLayer(fakeFs, fakeShell)),
       ),
     );
 
-    expect(Either.isRight(result)).toBe(true);
-    const { routingScaffolded } = Either.getOrThrow(result);
+    expect(Result.isSuccess(result)).toBe(true);
+    const { routingScaffolded } = Result.getOrThrow(result);
     expect(routingScaffolded).toBe(true);
     expect(fakeFs.impl.getFile(MODEL_ROUTING_PATH)).toBeDefined();
   });
@@ -120,13 +120,13 @@ describe("providerSetup integration", () => {
     fakeFs.impl.setFile(MODEL_ROUTING_PATH, existingRouting);
 
     const result = await Effect.runPromise(
-      Effect.either(providerSetup({ write: true, prune: false, withRouting: true })).pipe(
+      Effect.result(providerSetup({ write: true, prune: false, withRouting: true })).pipe(
         Effect.provide(makeLayer(fakeFs, fakeShell)),
       ),
     );
 
-    expect(Either.isRight(result)).toBe(true);
-    const { routingScaffolded } = Either.getOrThrow(result);
+    expect(Result.isSuccess(result)).toBe(true);
+    const { routingScaffolded } = Result.getOrThrow(result);
     expect(routingScaffolded).toBe(false);
     expect(fakeFs.impl.getFile(MODEL_ROUTING_PATH)).toBe(existingRouting);
   });
@@ -140,13 +140,13 @@ describe("providerSetup integration", () => {
     fakeFs.impl.setFile(PROVIDER_CONFIG_PATH, existingContent);
 
     const result = await Effect.runPromise(
-      Effect.either(providerSetup({ write: true, prune: false, withRouting: false })).pipe(
+      Effect.result(providerSetup({ write: true, prune: false, withRouting: false })).pipe(
         Effect.provide(makeLayer(fakeFs, fakeShell)),
       ),
     );
 
-    expect(Either.isRight(result)).toBe(true);
-    const { backupPath } = Either.getOrThrow(result);
+    expect(Result.isSuccess(result)).toBe(true);
+    const { backupPath } = Result.getOrThrow(result);
     expect(backupPath).toBeDefined();
     expect(backupPath!.startsWith(`${PROVIDER_CONFIG_PATH}.phax-backup-`)).toBe(true);
     expect(fakeFs.impl.getFile(backupPath!)).toBe(existingContent);

@@ -1,7 +1,7 @@
 // The gate report at decode level: the §6 checked and refused examples, and
 // the malformed cases of spec guarantee-reports §8, each refused with the id,
 // the file or the key path it names. Every document is made up.
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { decodeGateReportFile } from "../../../src/schemas/gateReport.js";
 import { currentSchemaUrl } from "../../../src/schemas/persisted.js";
@@ -64,27 +64,28 @@ function withFirstFinding(first: Doc): Doc {
 /** The one line a refused document gives. */
 function issue(input: unknown): string {
   const decoded = decodeGateReportFile(input);
-  if (Either.isRight(decoded)) throw new Error(`expected a refusal, got ${JSON.stringify(input)}`);
+  if (Result.isSuccess(decoded))
+    throw new Error(`expected a refusal, got ${JSON.stringify(input)}`);
   return describeReportIssue(decoded.left);
 }
 
 describe("gate report: the two outcomes", () => {
   it("decodes the §6 checked example as written", () => {
-    expect(decodeGateReportFile(checked())).toEqual(Either.right(checked()));
+    expect(decodeGateReportFile(checked())).toEqual(Result.succeed(checked()));
   });
 
   it("decodes the §6 refused example as written", () => {
-    expect(decodeGateReportFile(refused())).toEqual(Either.right(refused()));
+    expect(decodeGateReportFile(refused())).toEqual(Result.succeed(refused()));
   });
 
   it("decodes a passing report: empty findings and review", () => {
     const passing = { ...checked(), findings: [], review: [] };
-    expect(decodeGateReportFile(passing)).toEqual(Either.right(passing));
+    expect(decodeGateReportFile(passing)).toEqual(Result.succeed(passing));
   });
 
   it("decodes null lines, null guide and empty related", () => {
     const decoded = decodeGateReportFile({ ...checked(), findings: [farewellFinding()] });
-    expect(Either.isRight(decoded)).toBe(true);
+    expect(Result.isSuccess(decoded)).toBe(true);
   });
 });
 
@@ -117,7 +118,7 @@ describe("gate report: duplicate ids and disordered lines are malformed", () => 
     const decoded = decodeGateReportFile(
       withFirstFinding({ ...greetFinding(), location: { file: "src/greet.ts", lines: [4, 4] } }),
     );
-    expect(Either.isRight(decoded)).toBe(true);
+    expect(Result.isSuccess(decoded)).toBe(true);
   });
 });
 

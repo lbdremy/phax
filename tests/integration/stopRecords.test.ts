@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { closeStop } from "../../src/app/closeStop.js";
 import { dispatch } from "../../src/app/dispatcher.js";
@@ -102,8 +102,8 @@ afterEach(() => {
   for (const other of others) other.cleanup();
 });
 
-function failedWith<E>(result: Either.Either<unknown, unknown>, type: new (...a: never[]) => E): E {
-  if (Either.isRight(result)) throw new Error("the run did not stop");
+function failedWith<E>(result: Result.Result<unknown, unknown>, type: new (...a: never[]) => E): E {
+  if (Result.isSuccess(result)) throw new Error("the run did not stop");
   expect(result.left).toBeInstanceOf(type);
   return result.left as E;
 }
@@ -299,7 +299,7 @@ describe(
 
       const finished = await resumeHeldRun(run);
 
-      expect(Either.isRight(finished)).toBe(true);
+      expect(Result.isSuccess(finished)).toBe(true);
       expect(await recordsOf(run, "phase-03")).toHaveLength(1);
       const declaredCommit = readPhaseStatus(run, "phase-03")["commitHash"];
       expect(manifestOf(run, "phase-03")).toEqual({
@@ -353,7 +353,7 @@ describe(
 
       const finished = await resumeHeldRun(run);
 
-      expect(Either.isRight(finished)).toBe(true);
+      expect(Result.isSuccess(finished)).toBe(true);
       expect(manifestOf(run, "phase-03")).toMatchObject({
         model: resolutionOf(run, "phase-03").concreteModel,
         effort: "medium",
@@ -373,8 +373,8 @@ describe(
       });
       failedTurn.backend.transcripts.set("X1", X1_TRANSCRIPT);
 
-      expect(Either.isRight(await resumeHeldRun(withX1))).toBe(true);
-      expect(Either.isRight(await resumeHeldRun(failedTurn))).toBe(true);
+      expect(Result.isSuccess(await resumeHeldRun(withX1))).toBe(true);
+      expect(Result.isSuccess(await resumeHeldRun(failedTurn))).toBe(true);
 
       expect(manifestOf(withX1, "phase-03")).toMatchObject({
         stop: {
@@ -407,7 +407,7 @@ describe(
       const run = await declaredAtPhase03();
       // No transcript in the provider store: X1's rollout was deleted.
 
-      expect(Either.isRight(await resumeHeldRun(run))).toBe(true);
+      expect(Result.isSuccess(await resumeHeldRun(run))).toBe(true);
 
       expect(manifestOf(run, "phase-03")).toMatchObject({
         stop: {
@@ -509,7 +509,7 @@ describe("a declared phase's record through interrupts and refusals", { timeout:
     });
 
     setCleanup(run, ["touch .cleanup-marker"]);
-    expect(Either.isRight(await resumeHeldRun(run))).toBe(true);
+    expect(Result.isSuccess(await resumeHeldRun(run))).toBe(true);
     expect(await recordsOf(run, "phase-03")).toHaveLength(1);
   });
 
@@ -536,7 +536,7 @@ describe("a declared phase's record through interrupts and refusals", { timeout:
     );
 
     setTranscript(run, false);
-    expect(Either.isRight(await resumeHeldRun(run))).toBe(true);
+    expect(Result.isSuccess(await resumeHeldRun(run))).toBe(true);
 
     expect(await recordsOf(run, "phase-03")).toHaveLength(1);
     expect(manifestOf(run, "phase-03")).toMatchObject({

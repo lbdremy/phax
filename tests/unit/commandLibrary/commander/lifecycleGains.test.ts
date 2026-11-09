@@ -37,7 +37,7 @@ const lines = (written: ReadonlyArray<string>): ReadonlyArray<unknown> =>
     .filter((each) => each !== "")
     .map((each): unknown => JSON.parse(each));
 
-const Yes = Schema.optionalWith(Schema.Boolean, { exact: true }).annotations({
+const Yes = Schema.optionalKey(Schema.Boolean).annotations({
   description: "Proceed without confirmation",
   [AliasAnnotationId]: "y",
 });

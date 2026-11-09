@@ -13,7 +13,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { Effect, Either, Layer, Option } from "effect";
+import { Effect, Result, Layer, Option } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { inspectArtifact } from "../../src/app/artifactStatus.js";
 import { type DecideArtifactInput, decideArtifact } from "../../src/app/decideArtifact.js";
@@ -354,7 +354,7 @@ function harness(opts: HarnessOptions = {}) {
   );
   const run = (overrides: Partial<DecideArtifactInput> = {}) =>
     Effect.runPromise(
-      Effect.either(
+      Effect.result(
         decideArtifact({
           path: SPEC,
           question: null,
@@ -399,8 +399,8 @@ function sidecarJson(path = SPEC_JSON): Record<string, unknown> {
 
 /** The run failed with this exit code, before or after the session, leaving tree and HEAD as they were. */
 function expectRefused(result: RunResult, exitCode: number, head: string): string {
-  expect(Either.isLeft(result)).toBe(true);
-  if (Either.isRight(result)) return "";
+  expect(Result.isFailure(result)).toBe(true);
+  if (Result.isSuccess(result)) return "";
   expect(exitCodeForAuthoringError(result.left)).toBe(exitCode);
   expect(headSha()).toBe(head);
   expect(porcelain()).toBe("");
@@ -448,8 +448,8 @@ describe("decide — an interactive session lands the revised document", { timeo
 
     const result = await h.run();
 
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isLeft(result)) return;
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isFailure(result)) return;
     expect(result.right).toMatchObject({
       kind: "committed",
       path: SPEC,
@@ -558,7 +558,7 @@ describe("decide — an interactive session lands the revised document", { timeo
 
     const result = await h.run();
 
-    expect(Either.getOrThrow(result)).toMatchObject({ kind: "undecided", session: "new" });
+    expect(Result.getOrThrow(result)).toMatchObject({ kind: "undecided", session: "new" });
     expect(h.lines[0]).toContain("— interactive, new session");
     const args = h.session.invocations[0]?.args ?? [];
     expect(args[0]).toBe("--session-id");
@@ -577,7 +577,7 @@ describe("decide — an interactive session lands the revised document", { timeo
 
     const result = await h.run();
 
-    expect(Either.getOrThrow(result)).toMatchObject({ session: "new" });
+    expect(Result.getOrThrow(result)).toMatchObject({ session: "new" });
     expect(h.session.invocations[0]?.args[0]).toBe("--session-id");
   });
 
@@ -589,7 +589,7 @@ describe("decide — an interactive session lands the revised document", { timeo
 
     const result = await h.run();
 
-    expect(Either.getOrThrow(result)).toMatchObject({ session: "new" });
+    expect(Result.getOrThrow(result)).toMatchObject({ session: "new" });
     expect(h.session.invocations[0]?.args[0]).toBe("--session-id");
     expect(h.session.invocations[0]?.cwd).toBe(repoDir);
     expect(h.backend.resumeCalls[0]?.options.cwd).toBe(repoDir);
@@ -604,7 +604,7 @@ describe("decide — an interactive session lands the revised document", { timeo
 
     const result = await second.run();
 
-    expect(Either.getOrThrow(result)).toMatchObject({ decisionId: `${AUTHORING_ID}/02` });
+    expect(Result.getOrThrow(result)).toMatchObject({ decisionId: `${AUTHORING_ID}/02` });
     expect(existsSync(join(decisionFolder("02"), "prompt.md"))).toBe(true);
   });
 
@@ -624,7 +624,7 @@ describe("decide — an interactive session lands the revised document", { timeo
 
     const result = await h.run();
 
-    expect(Either.getOrThrow(result)).toMatchObject({ kind: "committed", decided: ["Q1"] });
+    expect(Result.getOrThrow(result)).toMatchObject({ kind: "committed", decided: ["Q1"] });
     const sidecar = sidecarJson() as unknown as SpecDocument;
     expect(sidecar.arbitratedQuestions[0]?.verdict).toMatchObject({
       kind: "decided",
@@ -703,8 +703,8 @@ describe("decide — preconditions refuse before the session", { timeout: 30_000
 
     const result = await h.run();
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(exitCodeForAuthoringError(result.left)).toBe(12);
       expect(result.left.message).toContain(`${SPEC_JSON} has uncommitted changes`);
     }
@@ -720,8 +720,8 @@ describe("decide — preconditions refuse before the session", { timeout: 30_000
 
     const result = await h.run();
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(exitCodeForAuthoringError(result.left)).toBe(12);
       expect(result.left.message).toContain(
         `${SPEC} has uncommitted changes — commit or discard them first`,
@@ -796,8 +796,8 @@ describe("decide — preconditions refuse before the session", { timeout: 30_000
 
     const result = await h.run();
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left).toMatchObject({ _tag: "DecideRefusedError", reason: "operator" });
       expect(exitCodeForAuthoringError(result.left)).toBe(12);
     }
@@ -846,7 +846,7 @@ describe("decide — framing first; re-arbitrating one question", { timeout: 30_
     const second = harness({ answers: [answer(specDocument([Q2, Q3], [reArbitrated]))] });
     const result = await second.run({ question: "Q1" });
 
-    expect(Either.getOrThrow(result)).toMatchObject({ kind: "committed", decided: ["Q1"] });
+    expect(Result.getOrThrow(result)).toMatchObject({ kind: "committed", decided: ["Q1"] });
     expect(second.lines[0]).toContain("then Q1 —");
     const reprompt = readFileSync(join(decisionFolder("02"), "prompt.md"), "utf8");
     expect(reprompt).toContain("Current verdict (decided, by the operator (Grace Hopper)");
@@ -873,7 +873,7 @@ describe("decide — nothing to decide", { timeout: 30_000 }, () => {
 
     const result = await h.run();
 
-    expect(result).toEqual(Either.right({ kind: "nothing", path: SPEC }));
+    expect(result).toEqual(Result.succeed({ kind: "nothing", path: SPEC }));
     expectNoSession(h);
     expect(headSha()).toBe(head);
   });
@@ -899,7 +899,7 @@ describe("decide — doctrine", { timeout: 30_000 }, () => {
 
     const result = await h.run({ doctrinePath: "docs/doctrine/spec.md" });
 
-    expect(Either.getOrThrow(result)).toMatchObject({ kind: "committed" });
+    expect(Result.getOrThrow(result)).toMatchObject({ kind: "committed" });
     const prompt = readFileSync(join(decisionFolder(), "prompt.md"), "utf8");
     const skillAt = prompt.indexOf("Adopt it (project wording)");
     expect(skillAt).toBeGreaterThan(0);
@@ -935,8 +935,8 @@ describe("decide — doctrine", { timeout: 30_000 }, () => {
     ]) {
       const h = harness();
       const result = await h.run({ doctrinePath });
-      expect(Either.isLeft(result), doctrinePath).toBe(true);
-      if (Either.isLeft(result)) {
+      expect(Result.isFailure(result), doctrinePath).toBe(true);
+      if (Result.isFailure(result)) {
         expect(result.left).toMatchObject({ _tag: "DecideRefusedError", reason: "doctrine" });
         expect(exitCodeForAuthoringError(result.left)).toBe(12);
         expect(result.left.message).toContain(doctrinePath);
@@ -1001,7 +1001,7 @@ describe("decide — invalid decisions land nothing", { timeout: 30_000 }, () =>
       const message = expectRefused(result, 5, headSha());
       expect(message).toContain("revised document rejected twice");
       if (c.path !== "") expect(message).toContain(`retry: ${c.path}`);
-      if (Either.isLeft(result)) expect(result.left).toMatchObject({ path: c.path });
+      if (Result.isFailure(result)) expect(result.left).toMatchObject({ path: c.path });
       expect(h.warnings[0]).toContain("revised document refused");
       expect(existsSync(join(decisionFolder(), "retry-prompt.md"))).toBe(true);
       expect(h.backend.resumeCalls[1]?.options.outputJsonlPath).toBe(
@@ -1019,7 +1019,7 @@ describe("decide — invalid decisions land nothing", { timeout: 30_000 }, () =>
 
     const result = await h.run();
 
-    expect(Either.getOrThrow(result)).toMatchObject({ kind: "committed", decided: ["Q1"] });
+    expect(Result.getOrThrow(result)).toMatchObject({ kind: "committed", decided: ["Q1"] });
     expect(h.backend.resumeCalls[1]?.sessionId).toBe("sess-handback");
     expect(h.backend.resumeCalls[1]?.prompt).toContain(
       "Refusal: the session's final message is not JSON",
@@ -1166,8 +1166,8 @@ describe("decide — limits, concurrent edits, commit failures", { timeout: 30_0
 
     const result = await h.run();
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left).toMatchObject({ _tag: "DecideRefusedError", reason: "changed" });
       expect(exitCodeForAuthoringError(result.left)).toBe(12);
     }
@@ -1187,8 +1187,8 @@ describe("decide — limits, concurrent edits, commit failures", { timeout: 30_0
 
     const result = await h.run();
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left).toMatchObject({ _tag: "ArtifactCommitFailedError" });
       expect(exitCodeForAuthoringError(result.left)).toBe(12);
     }
@@ -1214,7 +1214,7 @@ describe("decide — a plan stays executable", { timeout: 30_000 }, () => {
 
     const result = await h.run({ path: PLAN });
 
-    expect(Either.getOrThrow(result)).toMatchObject({
+    expect(Result.getOrThrow(result)).toMatchObject({
       kind: "committed",
       paths: [PLAN, PLAN_JSON],
       // `<stamp>-<slug>`, as authoring names the plan's session folder.
@@ -1292,7 +1292,7 @@ describe("decide — questions are named by their ids", { timeout: 30_000 }, () 
 
     const result = await h.run({ question: "q-scope" });
 
-    expect(Either.getOrThrow(result)).toMatchObject({ kind: "committed", decided: ["q-scope"] });
+    expect(Result.getOrThrow(result)).toMatchObject({ kind: "committed", decided: ["q-scope"] });
     const md = readRepoFile(SPEC);
     expect(md).toContain("### q-keep — What about q-keep?");
     expect(md).toContain("### q-scope — What about q-scope?");
@@ -1363,7 +1363,7 @@ describe(
       );
 
       const declined = harness({ answers: [answer(revised)], confirm: [false] });
-      expect(Either.getOrThrow(await declined.run())).toMatchObject({ kind: "declined" });
+      expect(Result.getOrThrow(await declined.run())).toMatchObject({ kind: "declined" });
       expect(declined.lines).toContain(
         "Q4         arbitrated  oracle — departs: revises §5 R-check, AC-1",
       );
@@ -1376,11 +1376,11 @@ describe(
       expect(porcelain()).toBe("");
 
       const cancelled = harness({ answers: [answer(revised)], confirm: [FAKE_PROMPT_CANCEL] });
-      expect(Either.getOrThrow(await cancelled.run())).toMatchObject({ kind: "declined" });
+      expect(Result.getOrThrow(await cancelled.run())).toMatchObject({ kind: "declined" });
       expect(headSha()).toBe(head);
 
       const accepted = harness({ answers: [answer(revised)], confirm: [true] });
-      expect(Either.getOrThrow(await accepted.run())).toMatchObject({ kind: "committed" });
+      expect(Result.getOrThrow(await accepted.run())).toMatchObject({ kind: "committed" });
       const sidecar = sidecarJson() as unknown as SpecDocument;
       expect(sidecar.arbitratedQuestions[0]?.verdict).toMatchObject({
         chosen: "oracle",
@@ -1485,7 +1485,7 @@ describe("decide — the decision record", { timeout: 30_000 }, () => {
 
     const result = await h.run({ records: RECORDS_ON });
 
-    const committed = Either.getOrThrow(result);
+    const committed = Result.getOrThrow(result);
     if (committed.kind !== "committed") throw new Error("expected committed");
     expect(committed.record).toMatchObject({
       kind: "written",
@@ -1593,7 +1593,7 @@ describe("decide — the decision record", { timeout: 30_000 }, () => {
 
     const result = await h.run({ records: RECORDS_ON });
 
-    expect(Either.getOrThrow(result)).toMatchObject({
+    expect(Result.getOrThrow(result)).toMatchObject({
       kind: "declined",
       record: { kind: "written" },
     });
@@ -1616,7 +1616,7 @@ describe("decide — the decision record", { timeout: 30_000 }, () => {
 
     const result = await h.run({ records: RECORDS_ON });
 
-    expect(Either.getOrThrow(result)).toMatchObject({ kind: "undecided" });
+    expect(Result.getOrThrow(result)).toMatchObject({ kind: "undecided" });
     expect(recordManifest()).toMatchObject({ outcome: "undecided", commit: null, arbitrated: 0 });
   });
 
@@ -1632,7 +1632,7 @@ describe("decide — the decision record", { timeout: 30_000 }, () => {
     const edited = harness({ answers: [answer(specDocument([Q2], [arbitrated(Q1)]))] });
     edited.backend.setOnResumeAgent(() => writeRepoFile(SPEC, `${md}\nEdited meanwhile.\n`));
     const result = await edited.run({ records: RECORDS_ON });
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
     expect(recordManifest("02")).toMatchObject({ outcome: "failed", commit: null, arbitrated: 1 });
   });
 
@@ -1657,7 +1657,7 @@ describe("decide — the decision record", { timeout: 30_000 }, () => {
     expectRefused(result, 8, headSha());
 
     // The refusal rides on the error, after the cause, saying it follows the failed session.
-    const error = Either.isLeft(result) ? result.left : undefined;
+    const error = Result.isFailure(result) ? result.left : undefined;
     expect(error).toBeInstanceOf(FailureWithFollowUpsError);
     expect(error instanceof FailureWithFollowUpsError && error.cause).toBeInstanceOf(
       UsageLimitError,

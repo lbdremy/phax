@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { makeNodeBackendLayer } from "../../src/infra/providers/dispatcher.js";
 import { DEFAULT_PROVIDER_CONFIG } from "../../src/domain/routing/defaults.js";
@@ -76,7 +76,7 @@ function request(provider: ProviderId) {
 function runWithProvider(options: AgentRunOptions) {
   return Effect.flatMap(Backend, (backend) => backend.runAgent("test prompt", options)).pipe(
     Effect.provide(makeNodeBackendLayer(DEFAULT_PROVIDER_CONFIG)),
-    Effect.either,
+    Effect.result,
     Effect.runPromise,
   );
 }
@@ -91,7 +91,7 @@ describe("provider dispatcher", () => {
 
     const result = await runWithProvider(baseOptions);
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     expect(claude.runClaudeAgent).toHaveBeenCalledWith(
       "test prompt",
       baseOptions,
@@ -155,7 +155,7 @@ describe("provider dispatcher", () => {
 
     const result = await runWithProvider(options);
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     // Vibe takes no store root: nothing reads its home.
     expect(vibe.runVibeAgent).toHaveBeenCalledWith(
       "test prompt",
@@ -197,7 +197,7 @@ describe("provider dispatcher", () => {
 
     const result = await runWithProvider(options);
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     expect(codex.runCodexAgent).toHaveBeenCalledWith(
       "test prompt",
       options,
@@ -237,8 +237,8 @@ describe("provider dispatcher", () => {
       provider: "some-future-cli" as ProviderId,
     });
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left).toBeInstanceOf(AgentInvocationError);
       expect((result.left as AgentInvocationError).message).toContain("not yet wired");
     }

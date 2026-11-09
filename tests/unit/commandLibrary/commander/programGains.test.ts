@@ -18,7 +18,7 @@ import {
 import { call } from "./support/memoryIo.js";
 
 const ShortName = Schema.String.annotations({ identifier: "short-name" });
-const Switch = Schema.optionalWith(Schema.Boolean, { exact: true });
+const Switch = Schema.optionalKey(Schema.Boolean);
 
 function makeProgram(guard?: (call: GuardedCall) => GuardRefusal | undefined) {
   const ran: unknown[] = [];

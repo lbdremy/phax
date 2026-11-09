@@ -6,6 +6,6 @@ export const TelemetryConfigSchema = Schema.Struct({
 
 export type TelemetryConfig = Schema.Schema.Type<typeof TelemetryConfigSchema>;
 
-export const decodeTelemetryConfig = Schema.decodeUnknownEither(TelemetryConfigSchema, {
+export const decodeTelemetryConfig = Schema.decodeUnknownResult(TelemetryConfigSchema, {
   onExcessProperty: "error",
 });

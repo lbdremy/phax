@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { NodeGitLayer } from "../../../src/infra/git.js";
 import { Git } from "../../../src/ports/git.js";
 import { decodeBranchName } from "../../../src/domain/branded.js";
@@ -117,7 +117,7 @@ export async function buildJsonContractsRepo(): Promise<JsonContractsRepo> {
     path: RUN_ID + "/" + PHASE_ID + "/" + name,
     content: encoder.encode(content),
   }));
-  const branch = Either.getOrThrow(decodeBranchName("phax/records/v1"));
+  const branch = Result.getOrThrow(decodeBranchName("phax/records/v1"));
   const message = [
     "records(" + PHASE_ID + "): committed",
     "",

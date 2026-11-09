@@ -26,7 +26,7 @@ export const SpecApprovalRecordV0_19_0Schema = Schema.Struct({
 
 export type SpecApprovalRecordV0_19_0 = Schema.Schema.Type<typeof SpecApprovalRecordV0_19_0Schema>;
 
-export const decodeSpecApprovalRecordV0_19_0 = Schema.decodeUnknownEither(
+export const decodeSpecApprovalRecordV0_19_0 = Schema.decodeUnknownResult(
   SpecApprovalRecordV0_19_0Schema,
   { onExcessProperty: "error" },
 );

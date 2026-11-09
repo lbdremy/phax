@@ -1,4 +1,4 @@
-import { Either, Schema, type Types } from "effect";
+import { Result, Schema, type Types } from "effect";
 import { answerSchemaUrlField } from "./answerStamp.js";
 import { formatFirstViolation, formatViolationAt } from "./formatError.js";
 import {
@@ -214,7 +214,7 @@ export type SpecDocumentFile = Schema.Schema.Type<typeof SpecDocumentFileSchema>
 /** The document an authoring session returns: the sidecar's own shape, `$schema` included. */
 export type AuthoredSpecDocument = SpecDocumentFile;
 
-export const decodeSpecDocumentFile = Schema.decodeUnknownEither(SpecDocumentFileSchema, {
+export const decodeSpecDocumentFile = Schema.decodeUnknownResult(SpecDocumentFileSchema, {
   onExcessProperty: "error",
 });
 export const encodeSpecDocumentFile = Schema.encodeSync(SpecDocumentFileSchema);
@@ -227,7 +227,7 @@ export const encodeSpecDocumentFile = Schema.encodeSync(SpecDocumentFileSchema);
  */
 export function decodeAuthoredSpecDocument(
   input: unknown,
-): Either.Either<AuthoredSpecDocument, string> {
+): Result.Result<AuthoredSpecDocument, string> {
   if (
     typeof input === "object" &&
     input !== null &&
@@ -236,7 +236,7 @@ export function decodeAuthoredSpecDocument(
     const arbitrated = (input as { readonly arbitratedQuestions: ReadonlyArray<unknown> })
       .arbitratedQuestions;
     const violation = authoringArbitratedViolation(arbitrated, []);
-    if (violation !== undefined) return Either.left(formatViolationAt(violation));
+    if (violation !== undefined) return Result.fail(formatViolationAt(violation));
   }
-  return Either.mapLeft(decodeSpecDocumentFile(input), formatFirstViolation);
+  return Result.mapError(decodeSpecDocumentFile(input), formatFirstViolation);
 }

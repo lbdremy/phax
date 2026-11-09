@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { answerJsonSchema } from "../../../src/schemas/answerSchemas.js";
 import { decodeAuthoredPlanDocument } from "../../../src/schemas/planDocument.js";
@@ -80,7 +80,7 @@ const line = (overrides: Json = {}): Json => ({
 
 function refusal(input: unknown): string {
   const result = decodeAuthoredPlanDocument(input);
-  if (Either.isRight(result)) throw new Error("expected the document to be refused");
+  if (Result.isSuccess(result)) throw new Error("expected the document to be refused");
   return result.left;
 }
 
@@ -108,7 +108,7 @@ describe("the techniques and loops of a test line (ac-boundary, ac-loop)", () =>
 
   it("decodes a boundary line, and renders and reads it back unchanged", () => {
     const boundary = line();
-    expect(Either.isRight(decodeAuthoredPlanDocument(withPhase02Lines([boundary])))).toBe(true);
+    expect(Result.isSuccess(decodeAuthoredPlanDocument(withPhase02Lines([boundary])))).toBe(true);
     expect(parseTestLine(renderTestLine(boundary as never))).toEqual(boundary);
   });
 
@@ -142,6 +142,6 @@ describe("the reserved criterion words (ac-criterion)", () => {
 
   it("accepts an ordinary criterion id", () => {
     const decoded = decodeAuthoredPlanDocument(withPhase02Lines([line({ criterion: "ac-loop" })]));
-    expect(Either.isRight(decoded)).toBe(true);
+    expect(Result.isSuccess(decoded)).toBe(true);
   });
 });

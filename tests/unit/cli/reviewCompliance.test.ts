@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import type { OutputPort } from "../../../src/ports/output.js";
 import { phaxCall } from "../../helpers/runnerCall.js";
 import type { RunReviewInfo } from "../../../src/domain/runReviewInfo.js";
@@ -152,7 +152,7 @@ describe("runReviewCompliance", () => {
 
   it("returns 1 when compliance review is not enabled", async () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
-    loadConfig.mockReturnValue(Either.right(makeConfig(false)));
+    loadConfig.mockReturnValue(Result.succeed(makeConfig(false)));
 
     const { out, errors } = makeOutput();
     const code = await runReviewCompliance(FAKE_SHORT_NAME, {}, out);
@@ -162,7 +162,7 @@ describe("runReviewCompliance", () => {
 
   it("does not call resolveRunRef when compliance is disabled", async () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
-    loadConfig.mockReturnValue(Either.right(makeConfig(false)));
+    loadConfig.mockReturnValue(Result.succeed(makeConfig(false)));
 
     const { resolveRunRef } = vi.mocked(await import("../../../src/app/resolveRunRef.js"));
 
@@ -173,11 +173,11 @@ describe("runReviewCompliance", () => {
 
   it("regression: accepts qualified namespace.shortName without Invalid short name error", async () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
-    loadConfig.mockReturnValue(Either.right(makeConfig(true)));
+    loadConfig.mockReturnValue(Result.succeed(makeConfig(true)));
 
     const { resolveRunRef } = vi.mocked(await import("../../../src/app/resolveRunRef.js"));
     resolveRunRef.mockReturnValue(
-      Either.right({
+      Result.succeed({
         namespace: "louloupapers",
         shortName: "article-series-taxonomy",
         info: makeInfo("article-series-taxonomy"),
@@ -210,11 +210,11 @@ describe("runReviewCompliance", () => {
 
   it("returns 1 and renders refusal message when resolveRunRef fails", async () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
-    loadConfig.mockReturnValue(Either.right(makeConfig(true)));
+    loadConfig.mockReturnValue(Result.succeed(makeConfig(true)));
 
     const { resolveRunRef } = vi.mocked(await import("../../../src/app/resolveRunRef.js"));
     resolveRunRef.mockReturnValue(
-      Either.left({ variant: "not-found" as const, message: "Run not found in registry." }),
+      Result.fail({ variant: "not-found" as const, message: "Run not found in registry." }),
     );
 
     const { out, errors } = makeOutput();
@@ -225,11 +225,11 @@ describe("runReviewCompliance", () => {
 
   it("logs Target: when crossProject is true", async () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
-    loadConfig.mockReturnValue(Either.right(makeConfig(true)));
+    loadConfig.mockReturnValue(Result.succeed(makeConfig(true)));
 
     const { resolveRunRef } = vi.mocked(await import("../../../src/app/resolveRunRef.js"));
     resolveRunRef.mockReturnValue(
-      Either.right({
+      Result.succeed({
         namespace: "other-ns",
         shortName: FAKE_SHORT_NAME,
         info: { ...makeInfo(), namespace: "other-ns" },
@@ -255,11 +255,11 @@ describe("runReviewCompliance", () => {
 
   it("exits 0 and prints the warning when the review was generated but its entry was not committed", async () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
-    loadConfig.mockReturnValue(Either.right(makeConfig(true)));
+    loadConfig.mockReturnValue(Result.succeed(makeConfig(true)));
 
     const { resolveRunRef } = vi.mocked(await import("../../../src/app/resolveRunRef.js"));
     resolveRunRef.mockReturnValue(
-      Either.right({
+      Result.succeed({
         namespace: "louloupapers",
         shortName: FAKE_SHORT_NAME,
         info: makeInfo(),
@@ -297,11 +297,11 @@ describe("runReviewCompliance", () => {
 
   it("prints one line naming the entry when it was committed and pushed", async () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
-    loadConfig.mockReturnValue(Either.right(makeConfig(true)));
+    loadConfig.mockReturnValue(Result.succeed(makeConfig(true)));
 
     const { resolveRunRef } = vi.mocked(await import("../../../src/app/resolveRunRef.js"));
     resolveRunRef.mockReturnValue(
-      Either.right({
+      Result.succeed({
         namespace: "louloupapers",
         shortName: FAKE_SHORT_NAME,
         info: makeInfo(),
@@ -350,11 +350,11 @@ describe("runReviewCompliance", () => {
     } = {},
   ) {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
-    loadConfig.mockReturnValue(Either.right(makeConfig(true)));
+    loadConfig.mockReturnValue(Result.succeed(makeConfig(true)));
     const { resolveRunRef } = vi.mocked(await import("../../../src/app/resolveRunRef.js"));
     const crossProject = options.crossProject ?? false;
     resolveRunRef.mockReturnValue(
-      Either.right({
+      Result.succeed({
         namespace: crossProject ? "other-ns" : "louloupapers",
         shortName: FAKE_SHORT_NAME,
         info: makeInfo(),

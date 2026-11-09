@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 import { runGatesWithFixLoop } from "../../src/app/fixLoop.js";
 import { serializeGateRequest } from "../../src/app/gates.js";
@@ -317,15 +317,15 @@ describe("runGatesWithFixLoop", () => {
       const base = await seedBase(fakeGit);
 
       const result = await Effect.runPromise(
-        Effect.either(
+        Effect.result(
           runGatesWithFixLoop({ ...baseOpts, protectedPaths: { list, base } }).pipe(
             Effect.provide(layer),
           ),
         ),
       );
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
         const err = result.left as GateAttemptsExhaustedError;
         expect(err.failure.failedStep).toBe("protected-paths");
         expect(err.failure.protectedChanges).toEqual([
@@ -376,14 +376,14 @@ describe("runGatesWithFixLoop", () => {
       const base = await seedBase(fakeGit);
 
       const result = await Effect.runPromise(
-        Effect.either(
+        Effect.result(
           runGatesWithFixLoop({ ...baseOpts, protectedPaths: { list, base } }).pipe(
             Effect.provide(layer),
           ),
         ),
       );
 
-      if (Either.isRight(result)) throw new Error("the gate was expected to stay red");
+      if (Result.isSuccess(result)) throw new Error("the gate was expected to stay red");
       expect((result.left as GateAttemptsExhaustedError).failure).toMatchObject({
         failedStep: "configured",
         command: "pnpm test",
@@ -478,11 +478,11 @@ describe("runGatesWithFixLoop", () => {
     fakeShell.impl.setDefaultResponse({ exitCode: 1, stdout: "", stderr: "always fails" });
 
     const result = await Effect.runPromise(
-      Effect.either(runGatesWithFixLoop(baseOpts).pipe(Effect.provide(layer))),
+      Effect.result(runGatesWithFixLoop(baseOpts).pipe(Effect.provide(layer))),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left).toBeInstanceOf(GateAttemptsExhaustedError);
       const err = result.left as GateAttemptsExhaustedError;
       expect(err.failure).toEqual({
@@ -837,10 +837,10 @@ describe("runGatesWithFixLoop", () => {
       fakeShell.impl.setDefaultResponse({ exitCode: 1, stdout: "", stderr: "test failure" });
 
       const result = await Effect.runPromise(
-        Effect.either(runGatesWithFixLoop(codexOpts).pipe(Effect.provide(layer))),
+        Effect.result(runGatesWithFixLoop(codexOpts).pipe(Effect.provide(layer))),
       );
 
-      expect(Either.isLeft(result) ? result.left : null).toBeInstanceOf(AgentSessionFailedError);
+      expect(Result.isFailure(result) ? result.left : null).toBeInstanceOf(AgentSessionFailedError);
       const report = telemetry.errors().find((e) => e.type === "adapter.agent_failed");
       expect(report).toMatchObject({
         adapter: "codex-cli",
@@ -890,12 +890,12 @@ describe("runGatesWithFixLoop", () => {
       fakeShell.impl.setDefaultResponse({ exitCode: 1, stdout: "", stderr: "still fails" });
 
       const result = await Effect.runPromise(
-        Effect.either(runGatesWithFixLoop(baseOpts).pipe(Effect.provide(layer))),
+        Effect.result(runGatesWithFixLoop(baseOpts).pipe(Effect.provide(layer))),
       );
 
       // maxFixAttempts=1: gate 03 fails → one fix → gate 04 fails → exhausted.
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
         expect(result.left).toBeInstanceOf(GateAttemptsExhaustedError);
         expect((result.left as GateAttemptsExhaustedError).attempt).toBe(4);
       }
@@ -1273,13 +1273,13 @@ describe("runGatesWithFixLoop", () => {
       );
 
       const result = await Effect.runPromise(
-        Effect.either(
+        Effect.result(
           runGatesWithFixLoop({ ...baseOpts, acceptanceStep }).pipe(Effect.provide(layer)),
         ),
       );
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) expect(result.left).toBeInstanceOf(GateStepRefusedError);
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) expect(result.left).toBeInstanceOf(GateStepRefusedError);
       expect(fakeBackend.impl.resumeCalls).toHaveLength(0);
     });
 
@@ -1295,13 +1295,13 @@ describe("runGatesWithFixLoop", () => {
       });
 
       const result = await Effect.runPromise(
-        Effect.either(
+        Effect.result(
           runGatesWithFixLoop({ ...baseOpts, acceptanceStep }).pipe(Effect.provide(layer)),
         ),
       );
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
         expect(result.left).toBeInstanceOf(GateAttemptsExhaustedError);
         expect((result.left as GateAttemptsExhaustedError).failure).toMatchObject({
           failedStep: "acceptance",

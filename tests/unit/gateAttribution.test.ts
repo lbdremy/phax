@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Either } from "effect";
+import { Result } from "effect";
 import {
   decodeGateAttributionFile,
   encodeGateAttributionFile,
@@ -26,8 +26,8 @@ describe("GateAttributionFileSchema", () => {
     expect(Object.keys(encoded)[0]).toBe("$schema");
     const decoded = decodeGateAttributionFile(encoded);
 
-    expect(Either.isRight(decoded)).toBe(true);
-    if (Either.isRight(decoded)) {
+    expect(Result.isSuccess(decoded)).toBe(true);
+    if (Result.isSuccess(decoded)) {
       expect(decoded.right).toEqual(stamped(record));
     }
   });
@@ -37,14 +37,16 @@ describe("GateAttributionFileSchema", () => {
       stamped({ phase: "phase-01", steps: [], protectedPaths: null }),
     );
 
-    expect(Either.isRight(decoded)).toBe(true);
-    if (Either.isRight(decoded)) {
+    expect(Result.isSuccess(decoded)).toBe(true);
+    if (Result.isSuccess(decoded)) {
       expect(decoded.right.steps).toEqual([]);
     }
   });
 
   it("rejects a document without $schema", () => {
-    expect(Either.isLeft(decodeGateAttributionFile({ phase: "phase-01", steps: [] }))).toBe(true);
+    expect(Result.isFailure(decodeGateAttributionFile({ phase: "phase-01", steps: [] }))).toBe(
+      true,
+    );
   });
 
   it("rejects a step whose surface is outside local | structural | product", () => {
@@ -56,7 +58,7 @@ describe("GateAttributionFileSchema", () => {
       }),
     );
 
-    expect(Either.isLeft(decoded)).toBe(true);
+    expect(Result.isFailure(decoded)).toBe(true);
   });
 
   it("decodes a step a refused gate report stopped", () => {
@@ -70,7 +72,7 @@ describe("GateAttributionFileSchema", () => {
     };
 
     expect(decodeGateAttributionFile(encodeGateAttributionFile(stamped(record)))).toEqual(
-      Either.right(stamped(record)),
+      Result.succeed(stamped(record)),
     );
   });
 
@@ -85,7 +87,7 @@ describe("GateAttributionFileSchema", () => {
     };
 
     expect(decodeGateAttributionFile(encodeGateAttributionFile(stamped(record)))).toEqual(
-      Either.right(stamped(record)),
+      Result.succeed(stamped(record)),
     );
   });
 
@@ -98,7 +100,7 @@ describe("GateAttributionFileSchema", () => {
       }),
     );
 
-    expect(Either.isLeft(decoded)).toBe(true);
+    expect(Result.isFailure(decoded)).toBe(true);
   });
 
   it("rejects a configured step whose result is skipped", () => {
@@ -110,7 +112,7 @@ describe("GateAttributionFileSchema", () => {
       }),
     );
 
-    expect(Either.isLeft(decoded)).toBe(true);
+    expect(Result.isFailure(decoded)).toBe(true);
   });
 
   it("round-trips an oracle step the operator skipped, after a configured step", () => {
@@ -126,12 +128,12 @@ describe("GateAttributionFileSchema", () => {
     const encoded = encodeGateAttributionFile(stamped(record));
 
     expect(encoded.$schema).toMatch(/\/gate-attribution\//);
-    expect(decodeGateAttributionFile(encoded)).toEqual(Either.right(stamped(record)));
+    expect(decodeGateAttributionFile(encoded)).toEqual(Result.succeed(stamped(record)));
   });
 
   it("rejects a missing phase", () => {
     const decoded = decodeGateAttributionFile(stamped({ steps: [], protectedPaths: null }));
 
-    expect(Either.isLeft(decoded)).toBe(true);
+    expect(Result.isFailure(decoded)).toBe(true);
   });
 });

@@ -65,11 +65,11 @@ export const PhaseStatusPreSchemaSchema = Schema.Struct({
   createdAt: Schema.NonEmptyString,
   updatedAt: Schema.NonEmptyString,
   branchName: BranchNameSchema,
-  worktreePath: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
-  claudeSessionId: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
-  commitHash: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
+  worktreePath: Schema.optionalKey(Schema.NonEmptyString),
+  claudeSessionId: Schema.optionalKey(Schema.NonEmptyString),
+  commitHash: Schema.optionalKey(Schema.NonEmptyString),
 });
 
 export type PhaseStatusPreSchema = Schema.Schema.Type<typeof PhaseStatusPreSchemaSchema>;
 
-export const decodePhaseStatusPreSchema = Schema.decodeUnknownEither(PhaseStatusPreSchemaSchema);
+export const decodePhaseStatusPreSchema = Schema.decodeUnknownResult(PhaseStatusPreSchemaSchema);

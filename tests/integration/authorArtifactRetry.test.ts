@@ -1,6 +1,6 @@
 // Acceptance criteria carry a `then` key (given/when/then) — data, never awaited.
 /* eslint-disable unicorn/no-thenable */
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 import { authorArtifact, type AuthorArtifactInput } from "../../src/app/authorArtifact.js";
 import { exitCodeForAuthoringError } from "../../src/cli/commands/runLayers.js";
@@ -187,7 +187,7 @@ function setup(first: string | undefined, retry?: string) {
     ...overrides,
   });
   const run = (overrides: Partial<AuthorArtifactInput> = {}) =>
-    Effect.runPromise(Effect.either(authorArtifact(input(overrides)).pipe(Effect.provide(layer))));
+    Effect.runPromise(Effect.result(authorArtifact(input(overrides)).pipe(Effect.provide(layer))));
 
   /** The authoring record's manifest, read back from the records branch. */
   const recordManifest = async (): Promise<Record<string, unknown>> => {
@@ -226,8 +226,8 @@ describe("authorArtifact — a refused document is retried once in the same sess
 
     const result = await s.run();
 
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isLeft(result)) return;
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isFailure(result)) return;
 
     // Resumed exactly once, on the first session's id, with a prompt naming the refusal.
     expect(s.backend.runCalls).toHaveLength(1);
@@ -271,7 +271,7 @@ describe("authorArtifact — a refused document is retried once in the same sess
 
     const result = await s.run();
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     const prompt = s.backend.resumeCalls[0]?.prompt ?? "";
     const warning = s.events.find((event) => event.startsWith("warn: ")) ?? "";
     for (const text of [prompt, warning]) {
@@ -287,8 +287,8 @@ describe("authorArtifact — a refused document is retried once in the same sess
 
     const result = await s.run();
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isRight(result)) return;
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isSuccess(result)) return;
     expect(result.left).toBeInstanceOf(AuthoringDocumentError);
     expect(exitCodeForAuthoringError(result.left)).toBe(5);
     expect(result.left.message).toMatch(
@@ -312,7 +312,7 @@ describe("authorArtifact — a refused document is retried once in the same sess
 
     const result = await s.run();
 
-    expect(Either.isLeft(result) && result.left instanceof AuthoringDocumentError).toBe(true);
+    expect(Result.isFailure(result) && result.left instanceof AuthoringDocumentError).toBe(true);
     expect(s.backend.resumeCalls).toHaveLength(1);
     expect(s.backend.runCalls).toHaveLength(1);
   });
@@ -330,7 +330,7 @@ describe("authorArtifact — only a refused document is retried", () => {
 
       const result = await s.run();
 
-      expect(Either.isLeft(result) && result.left instanceof errorClass).toBe(true);
+      expect(Result.isFailure(result) && result.left instanceof errorClass).toBe(true);
       expect(s.backend.resumeCalls).toHaveLength(0);
       expect(s.events.some((event) => event.startsWith("warn: spec document refused"))).toBe(false);
       expect((await s.recordManifest())["retry"]).toBe("none");
@@ -342,7 +342,7 @@ describe("authorArtifact — only a refused document is retried", () => {
 
     const result = await s.run();
 
-    expect(Either.isLeft(result) && result.left instanceof AgentInvocationError).toBe(true);
+    expect(Result.isFailure(result) && result.left instanceof AgentInvocationError).toBe(true);
     expect(s.backend.resumeCalls).toHaveLength(0);
     expect((await s.recordManifest())["retry"]).toBe("none");
   });
@@ -353,7 +353,7 @@ describe("authorArtifact — only a refused document is retried", () => {
 
     const result = await s.run();
 
-    expect(Either.isLeft(result) && result.left instanceof ArtifactCommitFailedError).toBe(true);
+    expect(Result.isFailure(result) && result.left instanceof ArtifactCommitFailedError).toBe(true);
     expect(s.backend.resumeCalls).toHaveLength(0);
     expect((await s.recordManifest())["retry"]).toBe("none");
   });
@@ -364,7 +364,7 @@ describe("authorArtifact — only a refused document is retried", () => {
 
     const result = await s.run();
 
-    expect(Either.isLeft(result) && result.left instanceof RateLimitError).toBe(true);
+    expect(Result.isFailure(result) && result.left instanceof RateLimitError).toBe(true);
     expect(s.backend.resumeCalls).toHaveLength(1);
     expect(s.artifactCommits()).toHaveLength(0);
     const manifest = await s.recordManifest();
@@ -404,7 +404,7 @@ describe("authorArtifact — the first answer's transcript survives the retry", 
 
     const result = await s.run();
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     expect(s.backend.resumeCalls).toHaveLength(0);
     expect(s.fs.getFile(`${SESSION_FOLDER}/retry-prompt.md`)).toBeUndefined();
     expect(s.fs.getFile(`${SESSION_FOLDER}/retry-output.jsonl`)).toBeUndefined();

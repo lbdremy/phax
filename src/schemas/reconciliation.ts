@@ -35,7 +35,7 @@ export type PhaseFileReconciliationFile = Schema.Schema.Type<
   typeof PhaseFileReconciliationFileSchema
 >;
 
-export const decodePhaseFileReconciliationFile = Schema.decodeUnknownEither(
+export const decodePhaseFileReconciliationFile = Schema.decodeUnknownResult(
   PhaseFileReconciliationFileSchema,
 );
 export const encodePhaseFileReconciliationFile = Schema.encodeSync(

@@ -13,7 +13,7 @@ import {
 
 const swallowError = (
   eff: Effect.Effect<void, unknown, never>,
-): Effect.Effect<void, never, never> => Effect.catchAll(eff, () => Effect.void);
+): Effect.Effect<void, never, never> => Effect.catch(eff, () => Effect.void);
 
 export const makeJsonFileTelemetryOps = (
   path: string,

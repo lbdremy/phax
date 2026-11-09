@@ -1,4 +1,4 @@
-import { Either, Schema } from "effect";
+import { Result, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   OTHER_OPTION_ID,
@@ -300,18 +300,18 @@ describe("firstQuestionViolation", () => {
 });
 
 describe("question and option ids", () => {
-  const decode = Schema.decodeUnknownEither(OpenQuestionSchema);
+  const decode = Schema.decodeUnknownResult(OpenQuestionSchema);
 
   it("accepts ids without whitespace", () => {
-    expect(Either.isRight(decode(question("q-keep", "ten is enough")))).toBe(true);
+    expect(Result.isSuccess(decode(question("q-keep", "ten is enough")))).toBe(true);
   });
 
   it("refuses a question id or an option id holding whitespace, which the §9 format cannot read back", () => {
     const base = question("q-keep", "ten is enough");
-    expect(Either.isLeft(decode({ ...base, id: "Q 1" }))).toBe(true);
+    expect(Result.isFailure(decode({ ...base, id: "Q 1" }))).toBe(true);
     const [first, ...rest] = base.options;
     expect(
-      Either.isLeft(decode({ ...base, options: [{ ...first, id: "keep ten" }, ...rest] })),
+      Result.isFailure(decode({ ...base, options: [{ ...first, id: "keep ten" }, ...rest] })),
     ).toBe(true);
   });
 });

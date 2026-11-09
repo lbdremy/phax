@@ -15,4 +15,4 @@ export interface SessionOps {
   }): Effect.Effect<number, SessionError>;
 }
 
-export class Session extends Context.Tag("phax/Session")<Session, SessionOps>() {}
+export class Session extends Context.Service<Session, SessionOps>()("phax/Session") {}

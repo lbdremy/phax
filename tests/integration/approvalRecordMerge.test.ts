@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   type ArtifactTransitionResult,
@@ -112,9 +112,9 @@ async function transition(
   );
   const opts = { repoRoot: root, nowIso: NOW, commit: true, by: "machine:roadmap-loop" };
   const result = await Effect.runPromise(
-    Effect.either(transitionArtifactBy(path, target, opts).pipe(Effect.provide(layer))),
+    Effect.result(transitionArtifactBy(path, target, opts).pipe(Effect.provide(layer))),
   );
-  if (Either.isLeft(result)) throw new Error(`transition failed: ${String(result.left)}`);
+  if (Result.isFailure(result)) throw new Error(`transition failed: ${String(result.left)}`);
   return result.right;
 }
 
@@ -260,7 +260,7 @@ describe("A run's PR merges after an approval on main", () => {
       if (approveFirst) await transition(PLAN_A, "Approved");
 
       const completion = await Effect.runPromise(
-        Effect.either(
+        Effect.result(
           completeRunArtifacts({
             worktreePath: worktree,
             planRepoRelPath: PLAN_B,
@@ -268,8 +268,8 @@ describe("A run's PR merges after an approval on main", () => {
           }).pipe(Effect.provide(Layer.merge(NodeFileSystemLayer, NodeGitLayer))),
         ),
       );
-      expect(Either.isRight(completion)).toBe(true);
-      if (!Either.isRight(completion)) return;
+      expect(Result.isSuccess(completion)).toBe(true);
+      if (!Result.isSuccess(completion)) return;
       expect(completion.right.transitions.map((t) => t.kind)).toEqual(["plan", "spec"]);
       expect(repoHas(recordOf("plan", PLAN_B), worktree)).toBe(false);
       expect(repoHas(recordOf("spec", RUN_SPEC), worktree)).toBe(false);
@@ -398,7 +398,7 @@ describe("Plan approval writes its own record file", () => {
     };
     const { version: _version, ...fields } = planDocument;
     const decoded = decodePlanDocumentFile(withSchemaUrl("plan-document", fields));
-    if (Either.isLeft(decoded)) throw new Error("fixture plan document must decode");
+    if (Result.isFailure(decoded)) throw new Error("fixture plan document must decode");
     const sidecar = PLAN_A.replace(/\.md$/, ".json");
     writeRepoFile(
       PLAN_A,

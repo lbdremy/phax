@@ -142,7 +142,7 @@ export const gained = defineProgram({
   version: "1.0.0",
   exits: { refused: 64, defect: 70 },
   usage: { flag: "usage", format: "usage-format", jsonSchema: "program" },
-  options: reject(Schema.Struct({ verbose: Schema.optionalWith(Schema.Boolean, { exact: true }) })),
+  options: reject(Schema.Struct({ verbose: Schema.optionalKey(Schema.Boolean) })),
   commands: [
     renameTodo,
     defineGroup({

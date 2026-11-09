@@ -4,7 +4,7 @@
  * all call `locatePlanSections`; none of them re-implements it. Pure: no model,
  * no I/O.
  */
-import { Either } from "effect";
+import { Result } from "effect";
 import { fromMarkdown } from "mdast-util-from-markdown";
 import { toString } from "mdast-util-to-string";
 import type { Heading, RootContent } from "mdast";
@@ -100,7 +100,7 @@ function sliceBefore(
 export function locatePlanSections(
   planMd: string,
   phases: readonly LocatablePhase[],
-): Either.Either<PlanSections, readonly string[]> {
+): Result.Result<PlanSections, readonly string[]> {
   const body = planBody(planMd);
   const { headings, breaks } = rootBlocks(body);
   const taken = new Set<RootHeading>();
@@ -121,7 +121,7 @@ export function locatePlanSections(
     located.push({ id: phase.id, heading });
   }
 
-  if (missing.length > 0) return Either.left(missing);
+  if (missing.length > 0) return Result.fail(missing);
 
   const ordered = located.toSorted((a, b) => a.heading.offset - b.heading.offset);
   const sections = new Map<string, string>();
@@ -130,7 +130,7 @@ export function locatePlanSections(
     sections.set(id, sliceBefore(body, heading.offset, end, breaks));
   });
   const preambleEnd = ordered[0]?.heading.offset ?? body.length;
-  return Either.right({ preamble: sliceBefore(body, 0, preambleEnd, breaks), sections });
+  return Result.succeed({ preamble: sliceBefore(body, 0, preambleEnd, breaks), sections });
 }
 
 /**

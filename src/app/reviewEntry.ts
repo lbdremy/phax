@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import type { RunReviewInfo } from "../domain/runReviewInfo.js";
 import type { ResolvedConfig } from "../schemas/phaxConfig.js";
 import type { ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
@@ -166,7 +166,7 @@ export function reviewRecordTargetFor(input: {
       };
     }
     const loaded = loadConfig(tree.mainRoot);
-    if (Either.isLeft(loaded)) {
+    if (Result.isFailure(loaded)) {
       return {
         kind: "unresolved",
         reason: `the run's project config at ${tree.mainRoot} could not be loaded (${loaded.left.message})`,

@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import {
   type DocumentSidecar,
   type PersistedReadError,
@@ -97,19 +97,19 @@ function readSidecarJson(
   kind: ArtifactKind,
   sidecarJson: string,
   sidecarPath: string,
-): Either.Either<DocumentSidecar, { readonly kind: "invalid"; readonly message: string }> {
+): Result.Result<DocumentSidecar, { readonly kind: "invalid"; readonly message: string }> {
   let parsed: unknown;
   try {
     parsed = JSON.parse(sidecarJson);
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
-    return Either.left({ kind: "invalid", message: `not JSON (${detail})` });
+    return Result.fail({ kind: "invalid", message: `not JSON (${detail})` });
   }
-  const decoded: Either.Either<DocumentSidecar, PersistedReadError> =
+  const decoded: Result.Result<DocumentSidecar, PersistedReadError> =
     kind === "spec"
       ? readDocumentSidecar("spec", sidecarPath, parsed)
       : readDocumentSidecar("plan", sidecarPath, parsed);
-  return Either.mapLeft(decoded, (error) => ({ kind: "invalid", message: error.message }));
+  return Result.mapError(decoded, (error) => ({ kind: "invalid", message: error.message }));
 }
 
 /** The body phax renders for a document at the current shape. */
@@ -154,7 +154,7 @@ export interface SidecarInspection {
  */
 export function inspectSidecar(input: SidecarInput): SidecarInspection {
   const read = readSidecarJson(input.kind, input.sidecarJson, input.sidecarPath ?? "sidecar");
-  if (Either.isLeft(read)) return { agreement: read.left, sidecar: null };
+  if (Result.isFailure(read)) return { agreement: read.left, sidecar: null };
   const sidecar = read.right;
   if (sidecar.shape !== "current") {
     const format = sidecar.kind === "spec" ? "spec-document" : "plan-document";

@@ -3,7 +3,7 @@
 // when the branch was pushed without opening one. It reports no written file: publication.json is
 // phax's own state. Its failures are declared errors with exit 1, the `Target:` line of another
 // project's run first on stdout, as it was printed before the publication began.
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import * as Schema from "effect/Schema";
 import { publishRun } from "../../app/publishRun.js";
 import { recordsClonePath } from "../../app/recordsSync.js";
@@ -71,7 +71,7 @@ export function makePublishPrCommand(deps: PublishPrDeps = {}) {
           );
         }
         const verbose = program["verbose"];
-        const published = yield* Effect.either(
+        const published = yield* Effect.result(
           publishRun(info, config.publish, {
             repoRoot: config.repoRoot,
             phaxVersion: readPackageVersion(),
@@ -92,7 +92,7 @@ export function makePublishPrCommand(deps: PublishPrDeps = {}) {
             ),
           ),
         );
-        if (Either.isLeft(published)) {
+        if (Result.isFailure(published)) {
           return yield* Effect.fail(
             new ReviewFailedError({
               message: `Unexpected error during publication: ${published.left.message}`,

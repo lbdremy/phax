@@ -133,7 +133,7 @@ export const PhaxPlanFileSchema = Schema.Struct({
 
 export type PhaxPlanFile = Schema.Schema.Type<typeof PhaxPlanFileSchema>;
 
-export const decodePhaxPlanFile = Schema.decodeUnknownEither(PhaxPlanFileSchema, {
+export const decodePhaxPlanFile = Schema.decodeUnknownResult(PhaxPlanFileSchema, {
   onExcessProperty: "error",
 });
 export const encodePhaxPlanFile = Schema.encodeSync(PhaxPlanFileSchema);

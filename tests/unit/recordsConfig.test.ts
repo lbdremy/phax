@@ -1,4 +1,4 @@
-import { Either, Schema } from "effect";
+import { Result, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   RecordsConfigSchema,
@@ -8,13 +8,13 @@ import {
 } from "../../src/schemas/recordsConfig.js";
 import { decodePhaxConfig } from "../../src/schemas/phaxConfig.js";
 
-const decodeRecordsConfig = Schema.decodeUnknownEither(RecordsConfigSchema, {
+const decodeRecordsConfig = Schema.decodeUnknownResult(RecordsConfigSchema, {
   onExcessProperty: "error",
 });
-const decodeRecordsDestination = Schema.decodeUnknownEither(RecordsDestinationSchema, {
+const decodeRecordsDestination = Schema.decodeUnknownResult(RecordsDestinationSchema, {
   onExcessProperty: "error",
 });
-const decodeRecordsRemote = Schema.decodeUnknownEither(RecordsRemoteSchema);
+const decodeRecordsRemote = Schema.decodeUnknownResult(RecordsRemoteSchema);
 
 const minimalValidPhaxConfig = {
   version: 1,
@@ -24,36 +24,40 @@ const minimalValidPhaxConfig = {
 
 describe("RecordsRemoteSchema", () => {
   it("accepts an https:// remote", () => {
-    expect(Either.isRight(decodeRecordsRemote("https://example.com/acme/records.git"))).toBe(true);
+    expect(Result.isSuccess(decodeRecordsRemote("https://example.com/acme/records.git"))).toBe(
+      true,
+    );
   });
 
   it("accepts an ssh:// remote", () => {
-    expect(Either.isRight(decodeRecordsRemote("ssh://git@example.com/acme/records.git"))).toBe(
+    expect(Result.isSuccess(decodeRecordsRemote("ssh://git@example.com/acme/records.git"))).toBe(
       true,
     );
   });
 
   it("accepts a git@host:path remote", () => {
-    expect(Either.isRight(decodeRecordsRemote("git@github.com:acme/phax-records.git"))).toBe(true);
+    expect(Result.isSuccess(decodeRecordsRemote("git@github.com:acme/phax-records.git"))).toBe(
+      true,
+    );
   });
 
   it("rejects an ext:: transport (remote code execution at clone time)", () => {
     const result = decodeRecordsRemote("ext::sh -c 'echo pwned'");
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 
   it("rejects a bare filesystem path", () => {
-    expect(Either.isLeft(decodeRecordsRemote("/var/records/repo.git"))).toBe(true);
+    expect(Result.isFailure(decodeRecordsRemote("/var/records/repo.git"))).toBe(true);
   });
 
   it("rejects an empty string", () => {
-    expect(Either.isLeft(decodeRecordsRemote(""))).toBe(true);
+    expect(Result.isFailure(decodeRecordsRemote(""))).toBe(true);
   });
 
   it("names the field and the accepted forms in the rejection message", () => {
     const result = decodeRecordsRemote("ext::sh -c 'x'");
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       const message = String(result.left);
       expect(message).toContain("records.destination.remote");
       expect(message).toContain("https://");
@@ -66,7 +70,7 @@ describe("RecordsRemoteSchema", () => {
 describe("RecordsDestinationSchema", () => {
   it("decodes the in-repo variant", () => {
     const result = decodeRecordsDestination({ kind: "in-repo" });
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
   });
 
   it("decodes the repo variant with a remote", () => {
@@ -74,11 +78,11 @@ describe("RecordsDestinationSchema", () => {
       kind: "repo",
       remote: "git@github.com:acme/phax-records.git",
     });
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
   });
 
   it("rejects the repo variant without a remote", () => {
-    expect(Either.isLeft(decodeRecordsDestination({ kind: "repo" }))).toBe(true);
+    expect(Result.isFailure(decodeRecordsDestination({ kind: "repo" }))).toBe(true);
   });
 
   it("rejects a struct carrying both kind: in-repo and a remote", () => {
@@ -86,11 +90,11 @@ describe("RecordsDestinationSchema", () => {
       kind: "in-repo",
       remote: "git@github.com:acme/phax-records.git",
     });
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 
   it("rejects an unknown kind", () => {
-    expect(Either.isLeft(decodeRecordsDestination({ kind: "s3" }))).toBe(true);
+    expect(Result.isFailure(decodeRecordsDestination({ kind: "s3" }))).toBe(true);
   });
 });
 
@@ -101,7 +105,7 @@ describe("RecordsConfigSchema", () => {
       destination: { kind: "in-repo" },
       autoPush: true,
     });
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
   });
 
   it("decodes a full repo records config", () => {
@@ -110,12 +114,12 @@ describe("RecordsConfigSchema", () => {
       destination: { kind: "repo", remote: "git@github.com:acme/phax-records.git" },
       autoPush: false,
     });
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
   });
 
   it("rejects a records config missing a required field", () => {
     expect(
-      Either.isLeft(decodeRecordsConfig({ transcript: true, destination: { kind: "in-repo" } })),
+      Result.isFailure(decodeRecordsConfig({ transcript: true, destination: { kind: "in-repo" } })),
     ).toBe(true);
   });
 
@@ -126,7 +130,7 @@ describe("RecordsConfigSchema", () => {
       autoPush: true,
       bogus: "value",
     });
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 });
 
@@ -167,16 +171,16 @@ describe("PhaxConfigSchema with records block", () => {
       ...minimalValidPhaxConfig,
       records: { transcript: true, destination: { kind: "in-repo" }, autoPush: true },
     });
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
       expect(result.right.records?.transcript).toBe(true);
     }
   });
 
   it("decodes phax.json without a records block", () => {
     const result = decodePhaxConfig(minimalValidPhaxConfig);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
       expect(result.right.records).toBeUndefined();
     }
   });
@@ -190,6 +194,6 @@ describe("PhaxConfigSchema with records block", () => {
         autoPush: true,
       },
     });
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 });

@@ -183,7 +183,7 @@ export type PhaseRecordManifestV0_26_0 = Schema.Schema.Type<
   typeof PhaseRecordManifestV0_26_0Schema
 >;
 
-export const decodePhaseRecordManifestV0_26_0 = Schema.decodeUnknownEither(
+export const decodePhaseRecordManifestV0_26_0 = Schema.decodeUnknownResult(
   PhaseRecordManifestV0_26_0Schema,
   { onExcessProperty: "error" },
 );

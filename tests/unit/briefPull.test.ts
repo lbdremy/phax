@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Either } from "effect";
+import { Result } from "effect";
 import {
   BRIEFS_CLOSED_MARKER,
   PULLED_BRIEFS_DIR,
@@ -17,7 +17,7 @@ function resolveFrom(cwd: string, ...paths: [string, ...string[]]) {
 describe("resolveTreePaths", () => {
   it("resolves against the cwd and makes the paths root-relative", () => {
     expect(resolveFrom(`${root}/src/core`, "billing/tax.ts")).toEqual(
-      Either.right(["src/core/billing/tax.ts"]),
+      Result.succeed(["src/core/billing/tax.ts"]),
     );
   });
 
@@ -30,41 +30,41 @@ describe("resolveTreePaths", () => {
         "./billing/tax.ts",
         `${root}/src/core/billing/invoice.ts`,
       ),
-    ).toEqual(Either.right(["src/core/billing/tax.ts", "src/core/billing/invoice.ts"]));
+    ).toEqual(Result.succeed(["src/core/billing/tax.ts", "src/core/billing/invoice.ts"]));
   });
 
   it("never checks existence", () => {
     expect(resolveFrom(root, "src/not/yet/created.ts")).toEqual(
-      Either.right(["src/not/yet/created.ts"]),
+      Result.succeed(["src/not/yet/created.ts"]),
     );
   });
 
   it("accepts an absolute path inside the root", () => {
     expect(resolveFrom(`${root}/docs`, `${root}/src/greet.ts`)).toEqual(
-      Either.right(["src/greet.ts"]),
+      Result.succeed(["src/greet.ts"]),
     );
   });
 
   it("refuses a path that climbs out of the root", () => {
     expect(resolveFrom(root, "src/a.ts", "../elsewhere.ts")).toEqual(
-      Either.left({ refused: "../elsewhere.ts is outside the working tree" }),
+      Result.fail({ refused: "../elsewhere.ts is outside the working tree" }),
     );
   });
 
   it("refuses an absolute path outside the root", () => {
     expect(resolveFrom(root, "/etc/hosts")).toEqual(
-      Either.left({ refused: "/etc/hosts is outside the working tree" }),
+      Result.fail({ refused: "/etc/hosts is outside the working tree" }),
     );
   });
 
   it("refuses the root itself", () => {
     expect(resolveFrom(`${root}/src`, "..")).toEqual(
-      Either.left({ refused: ".. is the working tree itself" }),
+      Result.fail({ refused: ".. is the working tree itself" }),
     );
   });
 
   it("keeps a name that merely starts with two dots", () => {
-    expect(resolveFrom(root, "..notes.ts")).toEqual(Either.right(["..notes.ts"]));
+    expect(resolveFrom(root, "..notes.ts")).toEqual(Result.succeed(["..notes.ts"]));
   });
 });
 

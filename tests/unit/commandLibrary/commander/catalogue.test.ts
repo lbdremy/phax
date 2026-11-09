@@ -27,7 +27,7 @@ const full = defineCommand({
     args: reject(Schema.Tuple(Schema.String, Schema.optionalElement(Schema.String))),
     flags: reject(
       Schema.Struct({
-        dryRun: Schema.optionalWith(Schema.Boolean, { exact: true }),
+        dryRun: Schema.optionalKey(Schema.Boolean),
         limit: Schema.NumberFromString,
       }),
     ),

@@ -14,7 +14,7 @@ import type {
 } from "../domain/security/protectedPaths.js";
 import type { ChangedPath } from "../domain/interactive/worktreeChange.js";
 import { decodeBranchName } from "../domain/branded.js";
-import { Either } from "effect";
+import { Result } from "effect";
 import {
   isPortcelainClean,
   parseBranchOutput,
@@ -543,7 +543,7 @@ function gitRunAllowFail(
     Effect.flatMap(() =>
       gitRun(args, cwd, opts).pipe(
         Effect.map((r) => ({ ...r, exitCode: 0 })),
-        Effect.catchAll((err) =>
+        Effect.catch((err) =>
           Effect.succeed({ stdout: "", stderr: err.stderr ?? "", exitCode: err.exitCode ?? 1 }),
         ),
       ),
@@ -842,7 +842,7 @@ export const NodeGitLayer = Layer.succeed(Git, {
       Effect.flatMap(({ stdout }) => {
         const name = parseBranchOutput(stdout);
         const result = decodeBranchName(name);
-        if (Either.isLeft(result)) {
+        if (Result.isFailure(result)) {
           return Effect.fail(
             new GitError({
               message: `Could not parse branch name: "${name}"`,

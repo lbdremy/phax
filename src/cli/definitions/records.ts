@@ -152,11 +152,10 @@ export function makeRecordsInitCommand(
     input: {
       flags: reject(
         Schema.Struct({
-          force: Schema.optionalWith(
+          force: Schema.optionalKey(
             Schema.Boolean.annotations({
               description: "Reconfigure records even if already configured",
             }),
-            { exact: true },
           ),
         }),
       ),
@@ -338,12 +337,11 @@ const recordsSyncCommand = defineCommand({
   input: {
     flags: reject(
       Schema.Struct({
-        replay: Schema.optionalWith(
+        replay: Schema.optionalKey(
           Schema.Boolean.annotations({
             description:
               "Replay local-only records onto the remote tip when the records branch has diverged",
           }),
-          { exact: true },
         ),
       }),
     ),
@@ -653,12 +651,11 @@ const recordsListCommand = defineCommand({
   input: {
     flags: reject(
       Schema.Struct({
-        run: Schema.optionalWith(
+        run: Schema.optionalKey(
           Schema.String.annotations({
             identifier: "id",
             description: "Only show records for this run id",
           }),
-          { exact: true },
         ),
       }),
     ),

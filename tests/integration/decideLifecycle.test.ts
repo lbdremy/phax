@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { transitionArtifactBy } from "../../src/app/artifactStatus.js";
 import { type DecideArtifactInput, decideArtifact } from "../../src/app/decideArtifact.js";
@@ -329,7 +329,7 @@ function decide(answers: readonly string[], overrides: Partial<DecideArtifactInp
     makeFakeGitHub().layer,
   );
   const run = Effect.runPromise(
-    Effect.either(
+    Effect.result(
       decideArtifact({
         path: SPEC,
         question: null,
@@ -363,7 +363,7 @@ async function landDecide(
   overrides: Partial<DecideArtifactInput> = {},
 ) {
   const { result, lines } = await decide(answers, overrides);
-  if (Either.isLeft(result)) throw new Error(`decide failed: ${result.left.message}`);
+  if (Result.isFailure(result)) throw new Error(`decide failed: ${result.left.message}`);
   expect(result.right.kind).toBe("committed");
   return { result: result.right, lines };
 }
@@ -375,7 +375,7 @@ function transition(path: string, target: ArtifactStatus, by: string) {
     makeFakeTerminal(false).layer,
   );
   return Effect.runPromise(
-    Effect.either(
+    Effect.result(
       transitionArtifactBy(path, target, { repoRoot: repoDir, nowIso: NOW, commit: true, by }).pipe(
         Effect.provide(layer),
       ),
@@ -385,15 +385,15 @@ function transition(path: string, target: ArtifactStatus, by: string) {
 
 async function transitioned(path: string, target: ArtifactStatus, by = "operator"): Promise<void> {
   const result = await transition(path, target, by);
-  if (Either.isLeft(result)) throw new Error(`${target} failed: ${result.left.message}`);
+  if (Result.isFailure(result)) throw new Error(`${target} failed: ${result.left.message}`);
 }
 
 /** Approve refused by the lock, naming exactly `open`; nothing written. */
 async function expectLocked(path: string, open: readonly string[]): Promise<void> {
   const head = headSha();
   const result = await transition(path, "Approved", "operator");
-  expect(Either.isLeft(result)).toBe(true);
-  if (Either.isLeft(result)) {
+  expect(Result.isFailure(result)).toBe(true);
+  if (Result.isFailure(result)) {
     expect(result.left).toBeInstanceOf(ArtifactOpenQuestionsError);
     expect(exitCodeForError(result.left)).toBe(12);
     expect(result.left.message).toBe(
@@ -492,7 +492,7 @@ describe("decide after reopen", { timeout: 30_000 }, () => {
     const [kept] = sidecar.arbitratedQuestions;
     expect(kept?.verdict).toMatchObject({ chosen: "Q1-b", by: { name: OPERATOR }, at: NOW });
     expect(kept?.history).toEqual([q1.verdict]);
-    expect(Either.isRight(await transition(SPEC, "Approved", "operator"))).toBe(true);
+    expect(Result.isSuccess(await transition(SPEC, "Approved", "operator"))).toBe(true);
   });
 });
 
@@ -554,7 +554,7 @@ describe("decide on a lifted spec after migration", { timeout: 30_000 }, () => {
     commitAll();
 
     const migrated = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         migrateDocuments({
           repoRoot: repoDir,
           stateRoot,
@@ -572,7 +572,7 @@ describe("decide on a lifted spec after migration", { timeout: 30_000 }, () => {
         ),
       ),
     );
-    expect(Either.isRight(migrated)).toBe(true);
+    expect(Result.isSuccess(migrated)).toBe(true);
     await expectLocked(SPEC, ["Q2", "Q3"]);
 
     const sidecar = JSON.parse(readRepoFile(SPEC_JSON)) as SpecDocument & { $schema: string };
@@ -589,7 +589,7 @@ describe("decide on a lifted spec after migration", { timeout: 30_000 }, () => {
     const body = readRepoFile(SPEC);
     expect(body).toContain("Decision: Q1-a — lifted, unattributed, 2026-09-28");
     expect(body).toContain("Decision: Q4-a — lifted, unattributed, 2026-09-30");
-    expect(Either.isRight(await transition(SPEC, "Approved", "operator"))).toBe(true);
+    expect(Result.isSuccess(await transition(SPEC, "Approved", "operator"))).toBe(true);
   });
 });
 

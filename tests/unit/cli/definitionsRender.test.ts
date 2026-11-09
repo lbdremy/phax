@@ -2,7 +2,7 @@
 // alone, and through the runner a declared failure keeps today's sentence and code, a note is
 // today's line without --json and a note line with it, and `ls --complete` writes its
 // completion lines and nothing else. The use cases are mocked; the runner runs over memory.
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { runner } from "../../../src/cli/commandLibrary/commander/index.js";
 import type { Io } from "../../../src/cli/commandLibrary/contract/index.js";
@@ -31,7 +31,7 @@ vi.mock("../../../src/app/registry.js", () => ({
 }));
 
 vi.mock("../../../src/app/resolveRunInfo.js", () => ({
-  resolveRun: vi.fn(() => Either.left("not found")),
+  resolveRun: vi.fn(() => Result.fail("not found")),
   findCurrentPhase: vi.fn(() => undefined),
   readPullRequestUrl: vi.fn(() => undefined),
 }));
@@ -248,7 +248,7 @@ const CONFIG = {
   records: { enabled: false },
 } as unknown as ResolvedConfig;
 
-async function configIs(config: Either.Either<ResolvedConfig, ConfigValidationError>) {
+async function configIs(config: Result.Result<ResolvedConfig, ConfigValidationError>) {
   const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
   loadConfig.mockReturnValue(config);
 }
@@ -273,7 +273,7 @@ beforeEach(() => {
 
 describe("phax ls --complete", () => {
   it("writes one short-name:state line per run and nothing else, with and without --json", async () => {
-    await configIs(Either.right(CONFIG));
+    await configIs(Result.succeed(CONFIG));
     const { readRegistry } = vi.mocked(await import("../../../src/app/registry.js"));
     readRegistry.mockReturnValue(
       Effect.succeed({ runs: [entry("alpha", "review_open"), entry("beta", "failed")] }) as never,
@@ -291,7 +291,7 @@ describe("phax ls --complete", () => {
 
 describe("a declared failure", () => {
   it("writes today's sentence and code without --json, and one error line with it", async () => {
-    await configIs(Either.left(new ConfigValidationError({ message: "bad phax.json" })));
+    await configIs(Result.fail(new ConfigValidationError({ message: "bad phax.json" })));
 
     for (const [argv, code] of [
       [["plans", "lint", "plan.md"], 2],
@@ -316,7 +316,7 @@ describe("a declared failure", () => {
   });
 
   it("keeps the overview's one line for a plan it cannot lay out, exit 1", async () => {
-    await configIs(Either.right(CONFIG));
+    await configIs(Result.succeed(CONFIG));
     const { planOverview } = vi.mocked(await import("../../../src/app/planOverview.js"));
     const line = "plan.md: the plan does not parse — run phax plans lint plan.md";
     planOverview.mockReturnValue(Effect.fail({ kind: "unparsable", line }) as never);
@@ -331,7 +331,7 @@ describe("a declared failure", () => {
 
 describe("plans lint's verdict", () => {
   it("exits 1 when a finding is an error, in both modes, and 0 on warnings alone", async () => {
-    await configIs(Either.right(CONFIG));
+    await configIs(Result.succeed(CONFIG));
     const { lintPlan } = vi.mocked(await import("../../../src/app/lintPlan.js"));
     const finding = { check: "models", phase: "phase-01", message: "nope" } as const;
     lintPlan.mockReturnValue(
@@ -349,7 +349,7 @@ describe("plans lint's verdict", () => {
 
 describe("the notes", () => {
   it("writes the overview's architecture failure as today's line, and as a note under --json", async () => {
-    await configIs(Either.right(CONFIG));
+    await configIs(Result.succeed(CONFIG));
     const overview: PlanOverview = {
       plan: "plan.md",
       name: "widget",

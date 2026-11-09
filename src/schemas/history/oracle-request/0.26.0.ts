@@ -67,6 +67,6 @@ export const OracleRequestV0_26_0Schema = Schema.Union(
 
 export type OracleRequestV0_26_0 = Schema.Schema.Type<typeof OracleRequestV0_26_0Schema>;
 
-export const decodeOracleRequestV0_26_0 = Schema.decodeUnknownEither(OracleRequestV0_26_0Schema, {
+export const decodeOracleRequestV0_26_0 = Schema.decodeUnknownResult(OracleRequestV0_26_0Schema, {
   onExcessProperty: "error",
 });

@@ -89,6 +89,6 @@ export const CodeReviewV0_29_0Schema = Schema.Struct({
 
 export type CodeReviewV0_29_0 = Schema.Schema.Type<typeof CodeReviewV0_29_0Schema>;
 
-export const decodeCodeReviewV0_29_0 = Schema.decodeUnknownEither(CodeReviewV0_29_0Schema, {
+export const decodeCodeReviewV0_29_0 = Schema.decodeUnknownResult(CodeReviewV0_29_0Schema, {
   onExcessProperty: "error",
 });

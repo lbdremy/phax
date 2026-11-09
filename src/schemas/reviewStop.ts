@@ -200,7 +200,7 @@ export type ReviewStop = DeclaredReviewStop | HeldReviewStop;
 export type ReviewStopCommand = Schema.Schema.Type<typeof CommandSchema>;
 export type LastClose = Schema.Schema.Type<typeof LastCloseSchema>;
 
-export const decodeReviewStopFile = Schema.decodeUnknownEither(ReviewStopFileSchema, {
+export const decodeReviewStopFile = Schema.decodeUnknownResult(ReviewStopFileSchema, {
   onExcessProperty: "error",
 });
 

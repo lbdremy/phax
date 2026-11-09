@@ -7,7 +7,7 @@
 // with exit 1 (7 for a held run lock), its `Target:` line first on stdout as it was printed before
 // the work began; a failure of the hand-over itself comes after the `Target:` line was said.
 import { join } from "node:path";
-import { Data, Effect, Either, Layer } from "effect";
+import { Data, Effect, Result, Layer } from "effect";
 import * as Schema from "effect/Schema";
 import { readAgentBinding } from "../../app/agentBinding.js";
 import { enterPhase } from "../../app/enterPhase.js";
@@ -128,10 +128,10 @@ export function resolveTarget(ref: string, config?: ResolvedConfig | undefined) 
   return Effect.suspend(() => {
     const loaded = config === undefined ? loadConfig(process.cwd()) : undefined;
     const project =
-      loaded === undefined ? config : Either.isRight(loaded) ? loaded.right : undefined;
+      loaded === undefined ? config : Result.isSuccess(loaded) ? loaded.right : undefined;
     const stateRoot = effectiveStateRoot(project);
     const resolved = resolveRunRef(ref, project, stateRoot);
-    if (Either.isLeft(resolved)) {
+    if (Result.isFailure(resolved)) {
       return Effect.fail(new HandoverRefusedError({ message: resolved.left.message }));
     }
     const { namespace, shortName, info, crossProject } = resolved.right;
@@ -215,7 +215,7 @@ export function makeEnterCommand(deps: EnterDeps = {}) {
         const binding = yield* Effect.promise(() =>
           readAgentBinding(join(info.runPath, info.finalPhaseId)),
         );
-        if (Either.isLeft(binding)) {
+        if (Result.isFailure(binding)) {
           return yield* Effect.fail(
             failedFor(target, `No agent binding found for run "${qualifiedName}": ${binding.left}`),
           );
@@ -285,12 +285,11 @@ export function makeEnterPhaseCommand(deps: EnterPhaseDeps = {}) {
       ),
       flags: reject(
         Schema.Struct({
-          newSession: Schema.optionalWith(
+          newSession: Schema.optionalKey(
             Schema.Boolean.annotations({
               description:
                 "At a stopped phase, run a new read-only first turn and continue its session",
             }),
-            { exact: true },
           ),
         }),
       ),

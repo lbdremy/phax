@@ -105,6 +105,6 @@ export type CostLedgerRole = CostLedgerEntry["role"];
 /** One reading of a subscription window. */
 export type RateLimitSample = Schema.Schema.Type<typeof RateLimitSampleSchema>;
 
-export const decodeCostLedgerFile = Schema.decodeUnknownEither(CostLedgerFileSchema, {
+export const decodeCostLedgerFile = Schema.decodeUnknownResult(CostLedgerFileSchema, {
   onExcessProperty: "error",
 });

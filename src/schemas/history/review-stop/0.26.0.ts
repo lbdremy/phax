@@ -193,6 +193,6 @@ export const ReviewStopV0_26_0Schema = Schema.Union(
 
 export type ReviewStopV0_26_0 = Schema.Schema.Type<typeof ReviewStopV0_26_0Schema>;
 
-export const decodeReviewStopV0_26_0 = Schema.decodeUnknownEither(ReviewStopV0_26_0Schema, {
+export const decodeReviewStopV0_26_0 = Schema.decodeUnknownResult(ReviewStopV0_26_0Schema, {
   onExcessProperty: "error",
 });

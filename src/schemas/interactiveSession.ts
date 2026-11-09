@@ -145,7 +145,7 @@ export type InteractiveSessionFile = Schema.Schema.Type<typeof InteractiveSessio
 /** An interactive session document, without `$schema`. */
 export type InteractiveSession = Omit<InteractiveSessionFile, "$schema">;
 
-export const decodeInteractiveSessionFile = Schema.decodeUnknownEither(
+export const decodeInteractiveSessionFile = Schema.decodeUnknownResult(
   InteractiveSessionFileSchema,
   { onExcessProperty: "error" },
 );

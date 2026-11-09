@@ -3,7 +3,7 @@
 // under src/schemas/history/; it is the legacy schema below, which the decoder
 // falls back to and lifts. `plans overlap --landed`, adjust-plan and
 // review-code read it from live and archived runs.
-import { Either, Schema } from "effect";
+import { Result, Schema } from "effect";
 
 const ActualActionSchema = Schema.Union(
   Schema.Literal("added"),
@@ -76,8 +76,8 @@ const LegacyGlobalFileReconciliationSchema = Schema.Struct({
 export type GlobalFileEntry = Schema.Schema.Type<typeof GlobalFileEntrySchema>;
 export type GlobalFileReconciliation = Schema.Schema.Type<typeof GlobalFileReconciliationSchema>;
 
-const decodeCurrent = Schema.decodeUnknownEither(GlobalFileReconciliationSchema);
-const decodeLegacy = Schema.decodeUnknownEither(LegacyGlobalFileReconciliationSchema);
+const decodeCurrent = Schema.decodeUnknownResult(GlobalFileReconciliationSchema);
+const decodeLegacy = Schema.decodeUnknownResult(LegacyGlobalFileReconciliationSchema);
 
 type LegacyEntry = Schema.Schema.Type<typeof LegacyGlobalFileEntrySchema>;
 
@@ -92,11 +92,11 @@ function lifted(entry: LegacyEntry): GlobalFileEntry {
  */
 export function decodeGlobalFileReconciliation(input: unknown) {
   const current = decodeCurrent(input);
-  if (Either.isRight(current)) return current;
+  if (Result.isSuccess(current)) return current;
   const legacy = decodeLegacy(input);
-  if (Either.isLeft(legacy)) return current;
+  if (Result.isFailure(legacy)) return current;
   const { files, unplanned, missing, attentionPoints } = legacy.right;
-  return Either.right<GlobalFileReconciliation>({
+  return Result.succeed<GlobalFileReconciliation>({
     files: files.map(lifted),
     unplanned: unplanned.map(lifted),
     missing: missing.map(lifted),

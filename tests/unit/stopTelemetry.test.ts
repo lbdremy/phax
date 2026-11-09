@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   tracedCloseGate,
@@ -21,7 +21,7 @@ const ctx = { runId: "invoice-export-1", phaseId: "phase-03" };
 
 function traced<A, E>(effect: Effect.Effect<A, E, SystemTelemetry>) {
   const { impl, layer } = makeInMemoryTelemetryLayer();
-  const result = Effect.runSync(Effect.either(effect.pipe(Effect.provide(layer))));
+  const result = Effect.runSync(Effect.result(effect.pipe(Effect.provide(layer))));
   return {
     result,
     events: impl.getSemanticTraceSnapshot(),
@@ -37,7 +37,7 @@ describe("tracedTurnCall", () => {
         Effect.succeed("answer"),
       ),
     );
-    expect(result).toEqual(Either.right("answer"));
+    expect(result).toEqual(Result.succeed("answer"));
     expect(events.map((e) => e["type"])).toEqual([
       "adapter.call.started",
       "adapter.call.succeeded",
@@ -54,7 +54,7 @@ describe("tracedTurnCall", () => {
         Effect.fail(failure),
       ),
     );
-    expect(result).toEqual(Either.left(failure));
+    expect(result).toEqual(Result.fail(failure));
     expect(events.map((e) => e["type"])).toEqual(["adapter.call.started"]);
     expect(errors).toEqual(["adapter.agent_failed"]);
   });
@@ -74,7 +74,7 @@ describe("tracedTurnCall on a failed session", () => {
     );
     const { impl, layer } = makeInMemoryTelemetryLayer();
     Effect.runSync(
-      Effect.either(
+      Effect.result(
         tracedTurnCall(
           { ...ctx, provider: "codex-cli", operation: "agent.resume" },
           Effect.fail(failure),
@@ -106,7 +106,7 @@ describe("tracedStep", () => {
     const { result, events } = traced(
       tracedStep({ ...ctx, step: "closing-turn" }, Effect.fail("interrupted"), () => true),
     );
-    expect(result).toEqual(Either.left("interrupted"));
+    expect(result).toEqual(Result.fail("interrupted"));
     expect(events.at(-1)).toMatchObject({ step: "closing-turn", result: "failure" });
   });
 });
@@ -155,7 +155,7 @@ describe("tracedCloseGate", () => {
       failedStep: "configured",
     });
     const { result, events, errors } = traced(tracedCloseGate(ctx, Effect.fail(failure)));
-    expect(result).toEqual(Either.left(failure));
+    expect(result).toEqual(Result.fail(failure));
     expect(events).toEqual([
       { type: "step.started", operationId: "phase-03", step: "gate.run" },
       { type: "step.completed", operationId: "phase-03", step: "gate.run", result: "failure" },
@@ -215,7 +215,7 @@ describe("tracedReviewCommit", () => {
   it("records a failed commit and reports the git failure", () => {
     const failure = new GitError({ message: "pre-commit hook failed", command: "git commit" });
     const { result, events, errors } = traced(tracedReviewCommit(ctx, Effect.fail(failure)));
-    expect(result).toEqual(Either.left(failure));
+    expect(result).toEqual(Result.fail(failure));
     expect(events).toEqual([
       {
         type: "adapter.call.failed",

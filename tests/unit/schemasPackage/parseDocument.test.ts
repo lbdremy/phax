@@ -277,7 +277,7 @@ describe("parseDocument", () => {
 // shape that carries $schema, so identification by $schema alone is proven
 // before any real format has one.
 function toyShape<A, I>(schema: Schema.Schema<A, I>): Shape<A> {
-  return { schema, decode: Schema.decodeUnknownEither(schema, { onExcessProperty: "error" }) };
+  return { schema, decode: Schema.decodeUnknownResult(schema, { onExcessProperty: "error" }) };
 }
 const PreSchemaToy = Schema.Struct({ a: Schema.String });
 const Toy = Schema.Struct({ $schema: Schema.String, a: Schema.String });

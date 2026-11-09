@@ -100,7 +100,7 @@ export type ArtifactStatusFile = Schema.Schema.Type<typeof ArtifactStatusFileSch
 /** An artifact status without `$schema`. */
 export type ArtifactStatusDocument = Omit<ArtifactStatusFile, "$schema">;
 
-export const decodeArtifactStatusFile = Schema.decodeUnknownEither(ArtifactStatusFileSchema, {
+export const decodeArtifactStatusFile = Schema.decodeUnknownResult(ArtifactStatusFileSchema, {
   onExcessProperty: "error",
 });
 

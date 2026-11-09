@@ -1,4 +1,4 @@
-import { Either, Schema } from "effect";
+import { Result, Schema } from "effect";
 
 /**
  * What phax reads from `vibe -p --output streaming` (Vibe 3). Each line is a
@@ -24,9 +24,9 @@ const VibeTextBlockSchema = Schema.Struct({
   text: Schema.String,
 });
 
-const decodeVibeEntryHeader = Schema.decodeUnknownEither(VibeEntryHeaderSchema);
-const decodeVibeMessage = Schema.decodeUnknownEither(VibeMessageSchema);
-const decodeVibeTextBlock = Schema.decodeUnknownEither(VibeTextBlockSchema);
+const decodeVibeEntryHeader = Schema.decodeUnknownResult(VibeEntryHeaderSchema);
+const decodeVibeMessage = Schema.decodeUnknownResult(VibeMessageSchema);
+const decodeVibeTextBlock = Schema.decodeUnknownResult(VibeTextBlockSchema);
 
 function parseJsonLine(line: string): unknown {
   if (!line.trim()) return undefined;
@@ -43,7 +43,7 @@ function parseJsonLine(line: string): unknown {
  */
 function textOfBlock(block: unknown): string | undefined {
   const decoded = decodeVibeTextBlock(block);
-  return Either.isRight(decoded) ? decoded.right.text : undefined;
+  return Result.isSuccess(decoded) ? decoded.right.text : undefined;
 }
 
 /**
@@ -59,7 +59,7 @@ export function findVibeResultEvent(lines: readonly string[]): { finalText: stri
     const parsed = parseJsonLine(lines[i] ?? "");
     if (parsed === undefined) continue;
     const message = decodeVibeMessage(parsed);
-    if (Either.isLeft(message) || message.right.role !== "assistant") continue;
+    if (Result.isFailure(message) || message.right.role !== "assistant") continue;
     const texts = message.right.content.flatMap((block) => {
       const text = textOfBlock(block);
       return text === undefined ? [] : [text];
@@ -85,7 +85,7 @@ export function findVibeStreamHead(lines: readonly string[]): VibeStreamHead | u
     const parsed = parseJsonLine(line);
     if (parsed === undefined) continue;
     const header = decodeVibeEntryHeader(parsed);
-    if (Either.isRight(header)) {
+    if (Result.isSuccess(header)) {
       return { sessionId: header.right.sessionId, createdAt: header.right.createdAt };
     }
   }

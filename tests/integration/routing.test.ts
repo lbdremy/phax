@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -35,7 +35,7 @@ const HANDOFF_CONTENT = [
   "Ready to proceed.",
 ].join("\n");
 
-const shortName = Either.getOrThrow(decodeShortName("routing-test"));
+const shortName = Result.getOrThrow(decodeShortName("routing-test"));
 
 // Single-phase plan with claude-sonnet-4-6 + high effort.
 // claude-sonnet high → mistral's high alias → first provider in priority wins.
@@ -109,7 +109,7 @@ describe("executePlan routing — mistral-vibe priority", () => {
   });
 
   it("resolves claude-sonnet-4-6/high to mistral-vibe with the phax alias", async () => {
-    const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
 
     const config: ResolvedConfig = {
       raw: {
@@ -213,7 +213,7 @@ describe("executePlan routing — mistral-vibe priority", () => {
     };
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -233,7 +233,7 @@ describe("executePlan routing — mistral-vibe priority", () => {
       ),
     );
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
 
     // The fake backend should have been called with mistral-vibe as provider
     // and the phax alias as model.

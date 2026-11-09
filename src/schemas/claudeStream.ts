@@ -5,7 +5,7 @@
 // JSON, or no event this module reads, is skipped, as `scanClaudeOutcomeEvents`
 // skips one. A missing token count is 0. The cost ledger's domain receives only
 // these facts, never raw lines.
-import { Either, Schema } from "effect";
+import { Result, Schema } from "effect";
 
 const Tokens = Schema.optionalWith(Schema.NonNegativeInt, { default: () => 0 });
 
@@ -66,10 +66,10 @@ const ResultEventSchema = Schema.Struct({
   }),
 });
 
-const decodeInitEvent = Schema.decodeUnknownEither(InitEventSchema);
-const decodeAssistantEvent = Schema.decodeUnknownEither(AssistantEventSchema);
-const decodeRateLimitEvent = Schema.decodeUnknownEither(RateLimitEventSchema);
-const decodeResultEvent = Schema.decodeUnknownEither(ResultEventSchema);
+const decodeInitEvent = Schema.decodeUnknownResult(InitEventSchema);
+const decodeAssistantEvent = Schema.decodeUnknownResult(AssistantEventSchema);
+const decodeRateLimitEvent = Schema.decodeUnknownResult(RateLimitEventSchema);
+const decodeResultEvent = Schema.decodeUnknownResult(ResultEventSchema);
 
 /** One assistant message's usage; `cacheWrite1hTokens` is part of `cacheWriteTokens`. */
 export interface StreamMessageUsage {
@@ -168,7 +168,7 @@ export function parseClaudeStream(lines: readonly string[]): ClaudeStreamFacts {
 
     if (type === "system") {
       const decoded = decodeInitEvent(parsed);
-      if (init === null && Either.isRight(decoded)) {
+      if (init === null && Result.isSuccess(decoded)) {
         init = {
           sessionId: decoded.right.session_id,
           version: parseVersion(decoded.right.claude_code_version),
@@ -177,7 +177,7 @@ export function parseClaudeStream(lines: readonly string[]): ClaudeStreamFacts {
       }
     } else if (type === "assistant") {
       const decoded = decodeAssistantEvent(parsed);
-      if (Either.isRight(decoded)) {
+      if (Result.isSuccess(decoded)) {
         const { id, model, usage } = decoded.right.message;
         events.push({
           kind: "message",
@@ -194,7 +194,7 @@ export function parseClaudeStream(lines: readonly string[]): ClaudeStreamFacts {
       }
     } else if (type === "rate_limit_event") {
       const decoded = decodeRateLimitEvent(parsed);
-      if (Either.isLeft(decoded)) {
+      if (Result.isFailure(decoded)) {
         undecodedRateLimitEvents += 1;
         continue;
       }
@@ -218,7 +218,7 @@ export function parseClaudeStream(lines: readonly string[]): ClaudeStreamFacts {
       if (readings.length > 0) events.push({ kind: "rate-limit", readings });
     } else if (type === "result") {
       const decoded = decodeResultEvent(parsed);
-      if (Either.isRight(decoded)) {
+      if (Result.isSuccess(decoded)) {
         const modelUsage: Record<string, StreamModelUsage> = {};
         for (const [model, usage] of Object.entries(decoded.right.modelUsage)) {
           modelUsage[model] = {

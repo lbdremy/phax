@@ -3,7 +3,7 @@
 // folder its registry entry points at. `phax prune` removes the registry entry, so a
 // pruned run with no surviving entry cannot be told apart from an unknown one; the
 // refusal names that ambiguity instead of guessing.
-import { Data, Effect, Either } from "effect";
+import { Data, Effect, Result } from "effect";
 import { join } from "node:path";
 import { FileSystem } from "../ports/fs.js";
 import { parseRunRef, runKey } from "../domain/runRef.js";
@@ -33,7 +33,7 @@ export function resolveLandedRun(
 ): Effect.Effect<ResolvedLandedRun, LandedRunResolutionError, FileSystem> {
   return Effect.gen(function* () {
     const ref = parseRunRef(input.landed);
-    if (Either.isLeft(ref)) {
+    if (Result.isFailure(ref)) {
       return yield* Effect.fail(new LandedRunResolutionError({ message: ref.left }));
     }
     const namespace = ref.right.namespace ?? input.namespace;

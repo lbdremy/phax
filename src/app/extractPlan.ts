@@ -1,4 +1,4 @@
-import { Effect, Either, Schema } from "effect";
+import { Effect, Result, Schema } from "effect";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
@@ -20,7 +20,7 @@ import {
 import { formatParseError } from "../schemas/formatError.js";
 import { answerJson } from "../domain/session/structuredAnswer.js";
 
-const decodeExtractedPlan = Schema.decodeUnknownEither(ExtractedPhaxPlanSchema, {
+const decodeExtractedPlan = Schema.decodeUnknownResult(ExtractedPhaxPlanSchema, {
   onExcessProperty: "error",
 });
 
@@ -86,11 +86,11 @@ export function extractPlanLlm(
           cwd: dir,
           answerSchema: { call: "plan-extraction", schema: jsonSchema },
         }),
-      (dir) => fs.remove(dir).pipe(Effect.orElse(() => Effect.void)),
+      (dir) => fs.remove(dir).pipe(Effect.catch(() => Effect.void)),
     );
 
     const parsed = answerJson(runResult);
-    if (Either.isLeft(parsed)) {
+    if (Result.isFailure(parsed)) {
       return yield* Effect.fail(
         new PlanValidationError({
           message: `Claude returned non-JSON output. Raw response: ${runResult.finalText.slice(0, 300)}`,
@@ -99,7 +99,7 @@ export function extractPlanLlm(
     }
 
     const answer = readPlanExtractionAnswer(parsed.right);
-    if (Either.isLeft(answer)) {
+    if (Result.isFailure(answer)) {
       return yield* Effect.fail(
         new PlanValidationError({
           message: `Extracted JSON failed schema validation: ${answer.left}`,
@@ -116,10 +116,10 @@ export function extractPlanLlm(
 
     // mode and acceptance are phax's own reading of the header lines, never the model's.
     const kinded = withPhaseKinds(answer.right.plan, planMd);
-    if (Either.isLeft(kinded)) return yield* Effect.fail(kinded.left);
+    if (Result.isFailure(kinded)) return yield* Effect.fail(kinded.left);
 
     const decoded = decodeExtractedPlan({ version: 1, ...kinded.right });
-    if (Either.isLeft(decoded)) {
+    if (Result.isFailure(decoded)) {
       return yield* Effect.fail(
         new PlanValidationError({
           message: `Extracted plan failed schema validation:\n${formatParseError(decoded.left)}`,

@@ -28,7 +28,7 @@ function fakeGh(script: string): void {
 
 function realRepoWebUrl(): Promise<Either.Either<string, GitHubError>> {
   return Effect.runPromise(
-    Effect.either(
+    Effect.result(
       Effect.flatMap(GitHub, (gh: GitHubOps) => gh.repoWebUrl(binDir)).pipe(
         Effect.provide(NodeGitHubLayer),
       ),
@@ -61,12 +61,12 @@ const implementations = [
     answers: (url: string) => {
       const { impl } = makeFakeGitHub();
       impl.setWebUrl(url);
-      return Effect.runPromise(Effect.either(impl.repoWebUrl(binDir)));
+      return Effect.runPromise(Effect.result(impl.repoWebUrl(binDir)));
     },
     fails: () => {
       const { impl } = makeFakeGitHub();
       impl.failNextRepoWebUrl("no git remotes found");
-      return Effect.runPromise(Effect.either(impl.repoWebUrl(binDir)));
+      return Effect.runPromise(Effect.result(impl.repoWebUrl(binDir)));
     },
   },
 ];

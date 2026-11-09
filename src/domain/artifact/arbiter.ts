@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { GRANT_PATTERN, type ApprovedBy } from "../../schemas/approvedBy.js";
 
 /** Who performs an approval: a machine and its grant, the operator, or no one recorded. */
@@ -15,16 +15,16 @@ export type ArbiterDeclaration =
 const BY_FORMS = "`--by operator` or `--by machine:<grant>`";
 
 /** Parses a raw `--by` value. A refusal is the message to print. */
-export function parseArbiterDeclaration(raw: string): Either.Either<ArbiterDeclaration, string> {
-  if (raw === "operator") return Either.right({ kind: "operator" });
+export function parseArbiterDeclaration(raw: string): Result.Result<ArbiterDeclaration, string> {
+  if (raw === "operator") return Result.succeed({ kind: "operator" });
   if (raw.startsWith("machine:")) {
     const grant = raw.slice("machine:".length);
-    if (GRANT_PATTERN.test(grant)) return Either.right({ kind: "machine", grant });
-    return Either.left(
+    if (GRANT_PATTERN.test(grant)) return Result.succeed({ kind: "machine", grant });
+    return Result.fail(
       `--by ${raw}: a grant is a kebab-case slug matching ${GRANT_PATTERN.source}`,
     );
   }
-  return Either.left(`--by ${raw} is not an arbiter — pass ${BY_FORMS}`);
+  return Result.fail(`--by ${raw} is not an arbiter — pass ${BY_FORMS}`);
 }
 
 export interface ArbiterFacts {
@@ -47,18 +47,19 @@ export function needsOperatorName(
  * declared, or by default from a terminal, named by the committing git identity. Without
  * a terminal nothing is assumed. A refusal is the message to print.
  */
-export function resolveArbiter(facts: ArbiterFacts): Either.Either<ResolvedArbiter, string> {
+export function resolveArbiter(facts: ArbiterFacts): Result.Result<ResolvedArbiter, string> {
   const { declared, stdinIsTerminal, committerName } = facts;
-  if (declared?.kind === "machine") return Either.right({ kind: "machine", grant: declared.grant });
+  if (declared?.kind === "machine")
+    return Result.succeed({ kind: "machine", grant: declared.grant });
   if (!needsOperatorName(declared, stdinIsTerminal)) {
-    return Either.left(`no terminal and no --by — pass ${BY_FORMS}`);
+    return Result.fail(`no terminal and no --by — pass ${BY_FORMS}`);
   }
   if (committerName === null || committerName.length === 0) {
-    return Either.left(
+    return Result.fail(
       'the operator is named as git commits, by GIT_COMMITTER_NAME or git user.name, and neither is set — set it with `git config user.name "<name>"`',
     );
   }
-  return Either.right({ kind: "operator", name: committerName });
+  return Result.succeed({ kind: "operator", name: committerName });
 }
 
 /** `machine (<grant>)`, `operator (<name>)` or `unattributed`. */

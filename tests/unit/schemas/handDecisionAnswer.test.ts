@@ -2,7 +2,7 @@
 // plan-hand-decision-answer each decode their own kind, every key is required,
 // and unknown keys, a lifted verdict, a spec verdict naming a phase and a plan
 // verdict without one are refused. Every document is made up.
-import { Either, ParseResult } from "effect";
+import { Result, ParseResult } from "effect";
 import { describe, expect, it } from "vitest";
 import { answerJsonSchema } from "../../../src/schemas/answerSchemas.js";
 import {
@@ -51,11 +51,11 @@ function planAnswer(): Doc {
   };
 }
 
-type Decode = (input: unknown) => Either.Either<unknown, ParseResult.ParseError>;
+type Decode = (input: unknown) => Result.Result<unknown, ParseResult.ParseError>;
 
 function firstIssue(decode: Decode, input: unknown): { path: string; message: string } {
   const decoded = decode(input);
-  if (Either.isRight(decoded)) throw new Error("expected a refusal");
+  if (Result.isSuccess(decoded)) throw new Error("expected a refusal");
   const [issue] = ParseResult.ArrayFormatter.formatErrorSync(decoded.left);
   return { path: (issue?.path ?? []).join("."), message: issue?.message ?? "" };
 }
@@ -67,8 +67,8 @@ const KINDS = [
 
 describe.each(KINDS)("$kind-hand-decision-answer", ({ kind, decode, answer }) => {
   it("decodes its kind's answer, and one that decided nothing", () => {
-    expect(Either.isRight(decode(answer()))).toBe(true);
-    expect(Either.isRight(decode({ ...answer(), decisions: [] }))).toBe(true);
+    expect(Result.isSuccess(decode(answer()))).toBe(true);
+    expect(Result.isSuccess(decode({ ...answer(), decisions: [] }))).toBe(true);
   });
 
   it("refuses the other kind's answer, at $schema", () => {
@@ -78,7 +78,7 @@ describe.each(KINDS)("$kind-hand-decision-answer", ({ kind, decode, answer }) =>
 
   it("the bridge decodes with the kind's format, drops $schema and keeps every other key", () => {
     const decoded = decodeCurrentHandDecisionAnswer(answer(), kind);
-    if (Either.isLeft(decoded)) throw new Error(decoded.left.message);
+    if (Result.isFailure(decoded)) throw new Error(decoded.left.message);
     const { $schema: _schema, ...rest } = answer();
     expect(decoded.right).toEqual(rest);
   });
@@ -94,7 +94,7 @@ describe.each(KINDS)("$kind-hand-decision-answer", ({ kind, decode, answer }) =>
 
   it.each(["$schema", "kind", "decisions", "markdown"])("refuses an answer without %s", (key) => {
     const { [key]: _dropped, ...rest } = answer();
-    expect(Either.isLeft(decode(rest))).toBe(true);
+    expect(Result.isFailure(decode(rest))).toBe(true);
   });
 
   it("refuses a lifted verdict", () => {
@@ -155,9 +155,9 @@ describe("hand-decision-answer, frozen at 0.25.0", () => {
 
   it("still reads either member of its root union", () => {
     for (const answer of [specAnswer(), planAnswer()]) {
-      expect(Either.isRight(decodeHandDecisionAnswerV0_25_0({ ...answer, $schema: retired }))).toBe(
-        true,
-      );
+      expect(
+        Result.isSuccess(decodeHandDecisionAnswerV0_25_0({ ...answer, $schema: retired })),
+      ).toBe(true);
     }
   });
 

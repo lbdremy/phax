@@ -3,7 +3,7 @@
 // removed (`stale`: the holder's process is gone, `expired`: the lock outlived its lifetime,
 // `forced`, or `none`: there was no lock); the text is a view of that answer. A lock held by a
 // live process is a declared error, as is a configuration that does not load.
-import { Data, Effect, Either } from "effect";
+import { Data, Effect, Result } from "effect";
 import * as Schema from "effect/Schema";
 import { resolveRunRef } from "../../app/resolveRunRef.js";
 import { runKey } from "../../domain/runRef.js";
@@ -63,9 +63,8 @@ export const unlockCommand = defineCommand({
     args: reject(Schema.Tuple(ShortNameArg)),
     flags: reject(
       Schema.Struct({
-        force: Schema.optionalWith(
+        force: Schema.optionalKey(
           Schema.Boolean.annotations({ description: "Remove the lock regardless of staleness" }),
-          { exact: true },
         ),
       }),
     ),
@@ -79,7 +78,7 @@ export const unlockCommand = defineCommand({
         ),
       );
       const resolved = resolveRunRef(input.args[0], config, config.stateRoot);
-      if (Either.isLeft(resolved)) {
+      if (Result.isFailure(resolved)) {
         return yield* Effect.fail(new UnlockRunRefError({ message: resolved.left.message }));
       }
       const { namespace, shortName } = resolved.right;

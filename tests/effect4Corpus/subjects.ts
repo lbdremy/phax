@@ -15,7 +15,7 @@
 // package's first issue.
 // `encode/<id>` is a round trip for a format phax writes: the document decoded with
 // phax's file decoder, encoded with its writer, the encoded JSON answered.
-import { Either, Option, ParseResult, Schema } from "effect";
+import { Result, Option, ParseResult, Schema } from "effect";
 import { firstRefusal, refusalsOf } from "../../src/schemas/refusal/adapter.js";
 import { refusalMessage, refusalPath } from "../../src/schemas/refusal/render.js";
 import {
@@ -276,14 +276,14 @@ function refused(refusal: string): Expected {
 }
 
 function fromParse<A>(
-  result: Either.Either<A, ParseResult.ParseError>,
+  result: Result.Result<A, ParseResult.ParseError>,
   render: (error: ParseResult.ParseError) => string,
 ): Expected {
-  return Either.isLeft(result) ? refused(render(result.left)) : accepted(result.right);
+  return Result.isFailure(result) ? refused(render(result.left)) : accepted(result.right);
 }
 
-function fromLines<A>(result: Either.Either<A, string>): Expected {
-  return Either.isLeft(result) ? refused(result.left) : accepted(result.right);
+function fromLines<A>(result: Result.Result<A, string>): Expected {
+  return Result.isFailure(result) ? refused(result.left) : accepted(result.right);
 }
 
 type Subject = (input: unknown) => Expected;
@@ -376,9 +376,9 @@ const SUBJECTS = new Map<string, Subject>([
 ]);
 
 function vibeExport<A>(
-  result: Either.Either<A, { readonly reason: string; readonly detail: string }>,
+  result: Result.Result<A, { readonly reason: string; readonly detail: string }>,
 ): Expected {
-  return Either.isLeft(result)
+  return Result.isFailure(result)
     ? refused(`(${result.left.reason}): ${result.left.detail}`)
     : accepted(result.right);
 }
@@ -471,7 +471,7 @@ function renderFrozen(render: Render, raw: unknown, error: ParseResult.ParseErro
 
 function frozen<A>(
   module: string,
-  decode: (input: unknown) => Either.Either<A, ParseResult.ParseError>,
+  decode: (input: unknown) => Result.Result<A, ParseResult.ParseError>,
   render: Render,
 ): readonly [string, Subject] {
   return [
@@ -555,12 +555,12 @@ const FROZEN_SUBJECTS = new Map<string, Subject>([
 // the format's `encode…File` writer, and the encoded JSON is the answer. An encode
 // input must decode, so a decode failure throws instead of answering a refusal.
 function roundTrip<A>(
-  decode: (input: unknown) => Either.Either<A, ParseResult.ParseError>,
+  decode: (input: unknown) => Result.Result<A, ParseResult.ParseError>,
   encode: (value: A) => unknown,
 ): Subject {
   return (raw) => {
     const decoded = decode(raw);
-    if (Either.isLeft(decoded)) {
+    if (Result.isFailure(decoded)) {
       throw new Error(
         `corpus: an encode input must decode: ${refusalsOf(decoded.left).map(refusalMessage).join("; ")}`,
       );

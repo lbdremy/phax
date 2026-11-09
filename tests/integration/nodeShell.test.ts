@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { NodeShellLayer } from "../../src/infra/shell.js";
 import { Shell } from "../../src/ports/shell.js";
@@ -20,7 +20,7 @@ const runEither = (command: readonly [string, ...string[]], timeoutMs: number) =
   Effect.runPromise(
     Effect.gen(function* () {
       const shell = yield* Shell;
-      return yield* Effect.either(shell.run({ command, cwd: process.cwd(), timeoutMs }));
+      return yield* Effect.result(shell.run({ command, cwd: process.cwd(), timeoutMs }));
     }).pipe(Effect.provide(NodeShellLayer)),
   );
 
@@ -59,8 +59,8 @@ describe("NodeShellLayer timeout", () => {
   it("fails a command that outlives its cap, naming the expiry", async () => {
     const result = await runEither([process.execPath, "-e", "setInterval(() => {}, 1000)"], 250);
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left.message).toContain("timed out after 250ms");
     }
   });
@@ -72,7 +72,7 @@ describe("NodeShellLayer timeout", () => {
       250,
     );
 
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
     // The SIGKILL grace is 5s; the caller must not have waited for it.
     expect(Date.now() - started).toBeLessThan(3_000);
   });

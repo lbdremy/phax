@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 import type { BranchName, PhaseId, RunId, WorktreePath } from "../../../src/domain/branded.js";
 import type { PhaxEventBase } from "../../../src/domain/events.js";
@@ -88,7 +88,7 @@ describe("shell adapter failure via runGatesWithFixLoop", () => {
     );
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         runGatesWithFixLoop({
           steps: [{ command: "pnpm test", surface: "local", firing: "every-phase", output: "log" }],
           cwd: "/fake/worktrees/phase-01",
@@ -113,8 +113,8 @@ describe("shell adapter failure via runGatesWithFixLoop", () => {
       ),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left).toBeInstanceOf(GateAttemptsExhaustedError);
     }
 
@@ -143,14 +143,14 @@ describe("git adapter failure via adaptWorktreeCreate", () => {
     const branch = "my-run/phase-01" as BranchName;
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         adaptWorktreeCreate(branch, worktreePath, "/repos/myproject", base).pipe(
           Effect.provide(layer),
         ),
       ),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
 
     const errors = telImpl.errors();
     expect(errors.length).toBeGreaterThanOrEqual(1);
@@ -178,7 +178,7 @@ describe("claude adapter failure via FakeBackend + reportAgentFailure", () => {
         const backend = yield* Backend;
         const telemetry = yield* SystemTelemetry;
 
-        const result = yield* Effect.either(
+        const result = yield* Effect.result(
           backend.runAgent("prompt", {
             provider: "claude-code",
             model: "m",
@@ -188,7 +188,7 @@ describe("claude adapter failure via FakeBackend + reportAgentFailure", () => {
           }),
         );
 
-        if (Either.isLeft(result)) {
+        if (Result.isFailure(result)) {
           const e = result.left;
           if (e instanceof AgentInvocationError) {
             yield* telemetry.recordError(

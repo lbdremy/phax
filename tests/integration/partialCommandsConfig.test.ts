@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Either } from "effect";
+import { Result } from "effect";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { loadConfig } from "../../src/app/loadConfig.js";
 import { isolateGit } from "../helpers/isolateGit.js";
@@ -69,8 +69,8 @@ function writeOverlay(overlay: object): void {
 }
 
 function message(result: ReturnType<typeof loadConfig>): string {
-  expect(Either.isLeft(result)).toBe(true);
-  return Either.isLeft(result) ? result.left.message : "";
+  expect(Result.isFailure(result)).toBe(true);
+  return Result.isFailure(result) ? result.left.message : "";
 }
 
 function partialOf(steps: readonly unknown[] | undefined, index: number): unknown {
@@ -90,8 +90,8 @@ describe("partial on a gate step: accepted", () => {
     const overlayPartial = { files: "pnpm exec vitest run <files>" };
     writeOverlay({ gateProfiles: { overlay: [step("pnpm test", { partial: overlayPartial })] } });
     const result = loadConfig(repoDir);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
       const profiles = result.right.raw.gateProfiles;
       expect(partialOf(profiles["standard"], 3)).toEqual(BOTH);
       expect(partialOf(profiles["overlay"], 0)).toEqual(overlayPartial);
@@ -175,8 +175,8 @@ describe("partial on a gate step: compound and nested constructs", () => {
   it("accepts a plain pipe in a diff command", () => {
     writeProject(standardSteps(step("pnpm lint", { partial: { diff: "ls | xargs wc -l" } })));
     const result = loadConfig(repoDir);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
       expect(partialOf(result.right.raw.gateProfiles["standard"], 3)).toEqual({
         diff: "ls | xargs wc -l",
       });
@@ -189,8 +189,8 @@ describe("partial on a gate step: compound and nested constructs", () => {
       standardSteps(step("pnpm lint", { partial: { files: "pnpm exec oxlint <files>" } })),
     );
     const result = loadConfig(repoDir);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
       expect(partialOf(result.right.raw.gateProfiles["standard"], 3)).toEqual({
         files: "pnpm exec oxlint <files>",
       });

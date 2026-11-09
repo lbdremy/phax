@@ -13,7 +13,7 @@
 // architectural guard's direct-I/O allowlist says so.
 import { existsSync, readFileSync } from "node:fs";
 import { join, relative, resolve, sep } from "node:path";
-import { Effect, Either, type Layer } from "effect";
+import { Effect, Result, type Layer } from "effect";
 import * as Schema from "effect/Schema";
 import { checkPlanRunnable } from "../../app/artifactStatus.js";
 import { buildDryRunReport } from "../../app/dryRun.js";
@@ -105,8 +105,7 @@ export interface RunDeps {
   readonly shellLayer?: Layer.Layer<Shell>;
 }
 
-const optional = <S extends Schema.Schema.Any>(schema: S) =>
-  Schema.optionalWith(schema, { exact: true });
+const optional = <S extends Schema.Schema.Any>(schema: S) => Schema.optionalKey(schema);
 
 const RunFlags = reject(
   Schema.Struct({
@@ -144,9 +143,7 @@ const RunFlags = reject(
         description: "Allow phases to edit the .claude/skills files the plan declares",
       }),
     ),
-    hold: Schema.optionalWith(Schema.Union(Schema.Literal(true), Schema.String), {
-      exact: true,
-    }).annotations({
+    hold: Schema.optionalKey(Schema.Union(Schema.Literal(true), Schema.String)).annotations({
       identifier: "selection",
       description:
         "Stop for review once these headless phases commit: no value for every phase but the final one, acceptance, or phase ids such as phase-02,phase-04",
@@ -189,7 +186,7 @@ function readRegistrySync(stateRoot: string) {
     const path = join(stateRoot, "registry.json");
     const raw = JSON.parse(readFileSync(path, "utf8")) as unknown;
     const decoded = readRegistryFile(path, raw);
-    return Either.isRight(decoded) ? decoded.right : { runs: [] };
+    return Result.isSuccess(decoded) ? decoded.right : { runs: [] };
   } catch {
     return { runs: [] };
   }
@@ -265,7 +262,7 @@ function runRunCommand(call: RunCall, deps: RunDeps): Effect.Effect<RunAnswer, R
     let holdRequest: HoldRequest = { kind: "none" };
     if (flags.hold !== undefined) {
       const parsedHold = parseHoldValue(flags.hold);
-      if (Either.isLeft(parsedHold)) return yield* refuse(1, parsedHold.left);
+      if (Result.isFailure(parsedHold)) return yield* refuse(1, parsedHold.left);
       holdRequest = parsedHold.right;
     }
 
@@ -273,11 +270,11 @@ function runRunCommand(call: RunCall, deps: RunDeps): Effect.Effect<RunAnswer, R
     const planMdPath = resolve(cwd, flags.plan);
 
     const configResult = loadConfig(cwd);
-    if (Either.isLeft(configResult)) return yield* refuse(2, configErrorText(configResult.left));
+    if (Result.isFailure(configResult)) return yield* refuse(2, configErrorText(configResult.left));
     const config = configResult.right;
 
     const telemetryConfigResult = loadTelemetryConfig();
-    if (Either.isLeft(telemetryConfigResult)) {
+    if (Result.isFailure(telemetryConfigResult)) {
       return yield* refuse(2, configErrorText(telemetryConfigResult.left));
     }
     const telemetryEnabled = telemetryConfigResult.right.enabled;
@@ -326,7 +323,7 @@ function runRunCommand(call: RunCall, deps: RunDeps): Effect.Effect<RunAnswer, R
       // root before handing it over — otherwise the location guard never fires.
       const planRepoRel = relative(config.repoRoot, planMdPath).split(sep).join("/");
       const runnable = checkPlanRunnable(planMdForGate, planRepoRel);
-      if (Either.isLeft(runnable)) {
+      if (Result.isFailure(runnable)) {
         return yield* refuse(exitCodeForError(runnable.left), runnable.left.message);
       }
     }
@@ -353,10 +350,10 @@ function runRunCommand(call: RunCall, deps: RunDeps): Effect.Effect<RunAnswer, R
           "extract-plan" as unknown as RunId,
         )
       : NoopSystemTelemetryLayer;
-    const extracted = yield* Effect.either(
+    const extracted = yield* Effect.result(
       provideRunLayers(extractEffect, config, extractTelemetryLayer, DEFAULT_PROVIDER_CONFIG, deps),
     );
-    if (Either.isLeft(extracted)) {
+    if (Result.isFailure(extracted)) {
       const err = extracted.left;
       if (err instanceof RateLimitError || err instanceof UsageLimitError) {
         return yield* refuse(exitCodeForError(err), [
@@ -388,7 +385,7 @@ function runRunCommand(call: RunCall, deps: RunDeps): Effect.Effect<RunAnswer, R
     const planRepoRel = relative(config.repoRoot, planMdPath).split(sep).join("/");
     if (classifyArtifactPath(planRepoRel) !== null) {
       const footprint = buildFootprint(planInputFromPhaxPlan(plan, planRepoRel, planRepoRel));
-      const stalenessResult = yield* Effect.either(
+      const stalenessResult = yield* Effect.result(
         computeStalenessForPlan(planRepoRel, planMd, Array.from(footprint.all), {
           repoRoot: config.repoRoot,
         }).pipe(
@@ -396,7 +393,7 @@ function runRunCommand(call: RunCall, deps: RunDeps): Effect.Effect<RunAnswer, R
           Effect.provide(makeNodeGitLayer()),
         ),
       );
-      if (Either.isLeft(stalenessResult)) {
+      if (Result.isFailure(stalenessResult)) {
         const err = stalenessResult.left;
         return yield* refuse(
           exitCodeForError(err),
@@ -417,7 +414,7 @@ function runRunCommand(call: RunCall, deps: RunDeps): Effect.Effect<RunAnswer, R
       );
     }
     const shortNameResult = decodeShortName(plan.run.shortName);
-    if (Either.isLeft(shortNameResult)) {
+    if (Result.isFailure(shortNameResult)) {
       return yield* refuse(
         2,
         `Invalid short name "${plan.run.shortName}" in plan: must match ^[a-z][a-z0-9-]*$ (1–64 chars)`,
@@ -447,7 +444,7 @@ function runRunCommand(call: RunCall, deps: RunDeps): Effect.Effect<RunAnswer, R
     // Run every run-independent preflight before the run is named or any state is
     // written: a refused run must not leave a run folder, registry entry, branch
     // or telemetry file holding the slug.
-    const preflightResult = yield* Effect.either(
+    const preflightResult = yield* Effect.result(
       freshRunPreflight({
         plan,
         planMd,
@@ -465,7 +462,7 @@ function runRunCommand(call: RunCall, deps: RunDeps): Effect.Effect<RunAnswer, R
         Effect.provide(deps.shellLayer ?? NodeShellLayer),
       ),
     );
-    if (Either.isLeft(preflightResult)) {
+    if (Result.isFailure(preflightResult)) {
       const err = preflightResult.left;
       if (err instanceof SkillEditConsentError || err instanceof SkillEditProtectedError) {
         return yield* refuse(exitCodeForError(err), err.message);
@@ -542,11 +539,11 @@ function runRunCommand(call: RunCall, deps: RunDeps): Effect.Effect<RunAnswer, R
         ),
       ),
     );
-    const result = yield* Effect.either(
+    const result = yield* Effect.result(
       provideRunLayers(program, config, telemetryLayer, providerConfig, deps),
     ).pipe(Effect.ensuring(Effect.sync(clearRunInterruptContext)));
 
-    if (Either.isLeft(result)) {
+    if (Result.isFailure(result)) {
       const { cause: err, followUps } = splitFollowUps(result.left);
       if (err instanceof AwaitingReviewStopError) {
         const answer: RunAnswer = {

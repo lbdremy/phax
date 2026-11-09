@@ -1,4 +1,4 @@
-import { Either, ParseResult, Schema } from "effect";
+import { Result, ParseResult, Schema } from "effect";
 import type { ParseOptions } from "effect/SchemaAST";
 import { describe, expect, it } from "vitest";
 import { firstRefusal, refusalsOf } from "../../../../src/schemas/refusal/adapter.js";
@@ -16,8 +16,8 @@ function refused<A, I>(
   input: unknown,
   options?: ParseOptions,
 ): ParseResult.ParseError {
-  const decoded = Schema.decodeUnknownEither(schema, options)(input);
-  if (Either.isRight(decoded)) throw new Error(`expected a refusal of ${JSON.stringify(input)}`);
+  const decoded = Schema.decodeUnknownResult(schema, options)(input);
+  if (Result.isSuccess(decoded)) throw new Error(`expected a refusal of ${JSON.stringify(input)}`);
   return decoded.left;
 }
 

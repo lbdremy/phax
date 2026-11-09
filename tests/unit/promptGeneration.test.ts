@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { buildPhasePrompt } from "../../src/app/promptGeneration.js";
 import { locatePlanSections } from "../../src/domain/plan/sections.js";
@@ -87,7 +87,7 @@ const PLAN_MD = [
 ].join("\n");
 
 const located = locatePlanSections(PLAN_MD, samplePlan.phases);
-if (Either.isLeft(located)) throw new Error(`fixture plan.md is unlocatable: ${located.left}`);
+if (Result.isFailure(located)) throw new Error(`fixture plan.md is unlocatable: ${located.left}`);
 const planSections = located.right;
 
 const phase03 = phases[2]!;

@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { join } from "node:path";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { isPhaseTerminal } from "../domain/state.js";
@@ -49,13 +49,13 @@ function readPostureOf(
       return { kind: "unreadable", file, violation: "not valid JSON" } as const;
     }
     const decoded = readSecurityPosture(raw);
-    if (Either.isLeft(decoded)) {
+    if (Result.isFailure(decoded)) {
       const first = formatParseError(decoded.left).split("\n")[0]?.trim() ?? "does not decode";
       return { kind: "unreadable", file, violation: first } as const;
     }
     return { kind: "read", posture: decoded.right } as const;
   }).pipe(
-    Effect.catchAll((error) =>
+    Effect.catch((error) =>
       Effect.succeed({
         kind: "unreadable",
         file: join(runPath, phaseId, "security.json"),

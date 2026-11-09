@@ -20,7 +20,7 @@ export function readBundledReviewSkillForRun(
   if (!config.codeReview.enabled) return Effect.succeed(undefined);
   const path = join(defaultBundleRoot(), PHAX_REVIEW_SKILL, "SKILL.md");
   return Effect.flatMap(FileSystem, (fs) => fs.readText(path)).pipe(
-    Effect.catchAll((error) =>
+    Effect.catch((error) =>
       Effect.sync(() => {
         out.warn(
           `[phax] Warning: code review not run: could not read the bundled phax-review skill at ${path} (${error.message})`,

@@ -6,7 +6,7 @@
  * whether records are on or off, and the folder closes to later pulls. Fake
  * git, shell and backend; real filesystem in a temp dir. Every value is made up.
  */
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -50,7 +50,7 @@ const HANDOFF_CONTENT = [
   "Ready to proceed.",
 ].join("\n");
 
-const shortName = Either.getOrThrow(decodeShortName("my-run"));
+const shortName = Result.getOrThrow(decodeShortName("my-run"));
 const BRIEF_COMMAND = "node ./brief.mjs";
 const BROKEN_COMMAND = "node ./broken.mjs";
 const BRIEF: BriefConfig = { command: BRIEF_COMMAND, push: "findings" };
@@ -213,7 +213,7 @@ function makeFakes(opts: { readonly gateExitCode?: number } = {}) {
 type Fakes = ReturnType<typeof makeFakes>;
 
 async function startRun(config: ResolvedConfig, layers: Fakes["layers"]) {
-  const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+  const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
   const { runPath, runId } = await Effect.runPromise(
     createRunFolder(shortName, planMdFor(plan), plan, config, undefined, true).pipe(
       Effect.provide(layers),
@@ -221,7 +221,7 @@ async function startRun(config: ResolvedConfig, layers: Fakes["layers"]) {
   );
   const execute = (withLayers: Fakes["layers"]) =>
     Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -279,8 +279,8 @@ describe("the brief grant", () => {
     fakeBackend.impl.addRunResponse(session("sess-01"));
     fakeBackend.impl.addResumeResponse(session("sess-01-handoff"));
     const { phaseFolder, execute } = await startRun(makeConfig({ brief, secure: true }), layers);
-    expect(Either.isRight(await execute(layers))).toBe(true);
-    const posture = Either.getOrThrow(
+    expect(Result.isSuccess(await execute(layers))).toBe(true);
+    const posture = Result.getOrThrow(
       decodeSecurityPosture(await readJson(join(phaseFolder, "security.json"))),
     );
     return { posture, agentCommands: fakeBackend.impl.runCalls[0]?.options.agentCommands };
@@ -318,7 +318,7 @@ describe("brief reports are recorded as printed", () => {
       inSession = pull(layers);
     });
     const { phaseFolder, execute } = await startRun(makeConfig({ brief: BRIEF }), layers);
-    expect(Either.isLeft(await execute(layers))).toBe(true);
+    expect(Result.isFailure(await execute(layers))).toBe(true);
     expect((await inSession) as { kind: string }).toMatchObject({ kind: "answered" });
 
     const printed = JSON.stringify(ANSWER, null, 2).split("\n").join("\n    ");
@@ -346,8 +346,8 @@ describe("pulled briefs reach the phase folder", () => {
     const { phaseFolder, execute } = await startRun(config, first.layers);
     const paused = await execute(first.layers);
     await inSession;
-    expect(Either.isLeft(paused)).toBe(true);
-    if (Either.isLeft(paused)) expect(paused.left).toBeInstanceOf(GateAttemptsExhaustedError);
+    expect(Result.isFailure(paused)).toBe(true);
+    if (Result.isFailure(paused)) expect(paused.left).toBeInstanceOf(GateAttemptsExhaustedError);
 
     // A paused phase collects nothing; its pulls keep accumulating.
     expect(await briefFiles(phaseFolder)).toEqual(["brief-00.json"]);
@@ -364,7 +364,7 @@ describe("pulled briefs reach the phase folder", () => {
     const second = makeFakes();
     second.fakeGit.impl.enqueueWorktreeIsClean(worktree(), false);
     second.fakeBackend.impl.addResumeResponse(session("sess-handoff"));
-    expect(Either.isRight(await execute(second.layers))).toBe(true);
+    expect(Result.isSuccess(await execute(second.layers))).toBe(true);
 
     expect(await briefFiles(phaseFolder)).toEqual([
       "brief-00.json",
@@ -416,7 +416,7 @@ describe("pulled briefs reach the phase folder", () => {
     const { phaseFolder, execute } = await startRun(makeConfig({ brief: BRIEF }), layers);
     const result = await execute(layers);
 
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
     expect(await briefFiles(phaseFolder)).toEqual(["brief-00.json", "brief-01.json"]);
     expect(existsSync(join(briefsDir(), "closed"))).toBe(true);
   });
@@ -433,7 +433,7 @@ describe("pulled briefs reach the phase folder", () => {
     });
     const config = makeConfig({ brief: BRIEF, records: false });
     const { phaseFolder, execute } = await startRun(config, layers);
-    expect(Either.isRight(await execute(layers))).toBe(true);
+    expect(Result.isSuccess(await execute(layers))).toBe(true);
 
     expect(await briefFiles(phaseFolder)).toEqual([
       "brief-00.json",
@@ -452,7 +452,7 @@ describe("pulled briefs reach the phase folder", () => {
     fakeBackend.impl.addResumeResponse(session("sess-01-handoff"));
     fakeBackend.impl.setOnRunAgent(() => writePulledRecord("brief-01.json"));
     const { phaseFolder, execute } = await startRun(makeConfig({ brief: undefined }), layers);
-    expect(Either.isRight(await execute(layers))).toBe(true);
+    expect(Result.isSuccess(await execute(layers))).toBe(true);
 
     expect(await briefFiles(phaseFolder)).toEqual([]);
     expect(existsSync(join(briefsDir(), "closed"))).toBe(false);

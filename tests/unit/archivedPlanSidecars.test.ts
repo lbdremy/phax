@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { readDocumentSidecar } from "../../src/schemas/persisted.js";
 import { compareReleases, parseSchemaUrl } from "../../src/schemas/schemaUrl.js";
@@ -53,7 +53,7 @@ describe("archived plan sidecars", () => {
   // its lift is the document, or refused at a phase of the file and a line.
   it.each(sidecars.map((s) => [s.name, s] as const))("%s reads", (_name, archived) => {
     const read = readDocumentSidecar("plan", archived.name, archived.json);
-    if (Either.isLeft(read)) throw new Error(read.left.message);
+    if (Result.isFailure(read)) throw new Error(read.left.message);
     const sidecar = read.right;
     expect(sidecar.kind).toBe("plan");
     if (sidecar.shape === "current" || sidecar.lift.kind === "lifted") return;
@@ -69,7 +69,7 @@ describe("archived plan sidecars", () => {
     expect(older.length).toBeGreaterThan(0);
     for (const archived of older) {
       const read = readDocumentSidecar("plan", archived.name, archived.json);
-      if (Either.isLeft(read)) throw new Error(read.left.message);
+      if (Result.isFailure(read)) throw new Error(read.left.message);
       expect(read.right.shape, archived.name).toBe("0.25.0");
       expect(read.right.shape !== "current" && read.right.lift.kind, archived.name).toBe("refused");
     }
@@ -79,7 +79,7 @@ describe("archived plan sidecars", () => {
     const archived = sidecars.find((s) => s.name === "2610241631-surface-summary-plan.json");
     if (archived === undefined) throw new Error("the surface-summary sidecar is archived");
     const read = readDocumentSidecar("plan", archived.name, archived.json);
-    if (Either.isLeft(read)) throw new Error(read.left.message);
+    if (Result.isFailure(read)) throw new Error(read.left.message);
     expect(read.right.shape).toBe("0.26.0");
     const lift = read.right.shape === "current" ? null : read.right.lift;
     expect(lift?.kind).toBe("lifted");

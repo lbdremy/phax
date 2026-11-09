@@ -1,4 +1,4 @@
-import { Effect, Either, Exit, Layer } from "effect";
+import { Effect, Result, Exit, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 import { decodeRunId } from "../../../src/domain/branded.js";
 import {
@@ -14,7 +14,7 @@ import {
 } from "../../../src/infra/telemetry/inMemory.js";
 import { SystemTelemetry } from "../../../src/ports/systemTelemetry.js";
 
-const runId = Either.getOrThrow(decodeRunId("test-run-001"));
+const runId = Result.getOrThrow(decodeRunId("test-run-001"));
 
 const runWith = <A>(
   layer: Layer.Layer<SystemTelemetry>,

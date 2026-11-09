@@ -87,5 +87,5 @@ export const GateAttributionFileSchema = Schema.Struct({
 
 export type GateAttributionFile = Schema.Schema.Type<typeof GateAttributionFileSchema>;
 
-export const decodeGateAttributionFile = Schema.decodeUnknownEither(GateAttributionFileSchema);
+export const decodeGateAttributionFile = Schema.decodeUnknownResult(GateAttributionFileSchema);
 export const encodeGateAttributionFile = Schema.encodeSync(GateAttributionFileSchema);

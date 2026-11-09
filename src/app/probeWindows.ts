@@ -37,7 +37,7 @@ export function probeWindows(nowIso: string): Effect.Effect<WindowsReading, neve
                   stderr: result.stderr,
                 },
         ),
-        Effect.catchAll((error) =>
+        Effect.catch((error) =>
           Effect.succeed<ProbeOutcome>({ kind: "failed-to-start", reason: error.message }),
         ),
       );

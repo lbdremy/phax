@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { NodeGitLayer } from "../../src/infra/git.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
@@ -153,7 +153,7 @@ describe("writeReviewRecord (real git)", () => {
       runId: RUN_ID,
       review: "compliance-review",
     });
-    expect(Either.isRight(decodeReviewRecordManifestFile(manifest))).toBe(true);
+    expect(Result.isSuccess(decodeReviewRecordManifestFile(manifest))).toBe(true);
 
     expect(git(["log", "-1", "--format=%B", status.commitSha], repoDir).trim()).toBe(
       [

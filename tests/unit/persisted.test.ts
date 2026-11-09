@@ -1,7 +1,7 @@
 import { readdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Either, Schema } from "effect";
+import { Result, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   currentSchemaUrl,
@@ -84,8 +84,8 @@ function spec(
   readonly calls: { current: number; preSchema: number };
 } {
   const calls = { current: 0, preSchema: 0 };
-  const decodeCurrent = Schema.decodeUnknownEither(ToyCurrent);
-  const decodePreSchema = Schema.decodeUnknownEither(ToyPreSchema);
+  const decodeCurrent = Schema.decodeUnknownResult(ToyCurrent);
+  const decodePreSchema = Schema.decodeUnknownResult(ToyPreSchema);
   return {
     format: "registry",
     label: "toy document",
@@ -99,14 +99,15 @@ function spec(
       return decodePreSchema(input);
     },
     fromCurrent: (value) => ({ name: value.name, from: "current" }),
-    fromPreSchema: (value) => Either.right({ name: value.name, from: "pre-schema" }),
+    fromPreSchema: (value) => Result.succeed({ name: value.name, from: "pre-schema" }),
     ...overrides,
     calls,
   };
 }
 
-function left<A>(result: Either.Either<A, PersistedReadError>): PersistedReadError {
-  if (Either.isRight(result)) throw new Error(`expected a refusal, got ${JSON.stringify(result)}`);
+function left<A>(result: Result.Result<A, PersistedReadError>): PersistedReadError {
+  if (Result.isSuccess(result))
+    throw new Error(`expected a refusal, got ${JSON.stringify(result)}`);
   return result.left;
 }
 
@@ -136,7 +137,7 @@ function withTestLines(phase: Record<string, unknown>) {
 
 /** `readPhaxPlanFile`'s plan, whatever shape it read: the lift the display readers take. */
 const readPhaxPlan = (file: string, input: unknown) =>
-  Either.map(readPhaxPlanFile(file, input), (read) => read.plan);
+  Result.map(readPhaxPlanFile(file, input), (read) => read.plan);
 
 /** A plan document with every test line in `loop`. */
 function withLoops(doc: Doc, loop: string): Doc {
@@ -168,8 +169,8 @@ const phaseManifestStampedAt = (doc: Doc, release: string): Doc =>
 const decisionManifestStampedAt = (doc: Doc, release: string): Doc =>
   withKey(doc, "$schema", schemaUrl("decision-record-manifest", release));
 
-function right<A>(result: Either.Either<A, PersistedReadError>): A {
-  if (Either.isLeft(result)) throw new Error(`expected a value, got ${result.left.message}`);
+function right<A>(result: Result.Result<A, PersistedReadError>): A {
+  if (Result.isFailure(result)) throw new Error(`expected a value, got ${result.left.message}`);
   return result.right;
 }
 
@@ -212,7 +213,7 @@ describe("readPersisted", () => {
 
   it("refuses a pre-schema document whose step reports a missing fact, naming the file and the fact", () => {
     const missing: MissingFact = { fact: "the run's branch" };
-    const toy = spec({ fromPreSchema: () => Either.left(missing) });
+    const toy = spec({ fromPreSchema: () => Result.fail(missing) });
     const error = left(readPersisted({ version: 1, name: "gamma" }, toy));
     expect(error.message).toBe(
       `${FILE}: toy document written before $schema lacks the run's branch, which phax needs — not supported`,
@@ -238,7 +239,7 @@ describe("readPersisted", () => {
 describe("readSchemaBornPersisted", () => {
   function bornSpec() {
     const calls = { current: 0 };
-    const decodeCurrent = Schema.decodeUnknownEither(ToyCurrent);
+    const decodeCurrent = Schema.decodeUnknownResult(ToyCurrent);
     return {
       format: "plan-approval-record" as const,
       label: "toy record",
@@ -347,7 +348,7 @@ describe("format readers", () => {
 
   it("readRegistryFile does not rescue a $schema registry with the pre-schema decoder", () => {
     const doc = withKey(preSchemaDocuments.registry, "$schema", "not a url");
-    expect(Either.isLeft(readRegistryFile("registry.json", doc))).toBe(true);
+    expect(Result.isFailure(readRegistryFile("registry.json", doc))).toBe(true);
   });
 
   it("readRegistryFile refuses a registry in no known shape, naming the file", () => {
@@ -357,7 +358,7 @@ describe("format readers", () => {
     expect(error.message).toMatch(new RegExp(`^${file}: run registry without \\$schema`));
   });
 
-  type StatusReader = (file: string, input: unknown) => Either.Either<object, PersistedReadError>;
+  type StatusReader = (file: string, input: unknown) => Result.Result<object, PersistedReadError>;
   it.each<readonly ["run-status", StatusReader, string]>([
     ["run-status", readRunStatusFile, "run status"],
   ])("%s: reads both shapes to the same in-memory value", (id, read, label) => {
@@ -433,7 +434,7 @@ describe("format readers", () => {
     });
   });
 
-  type StrictReader = (file: string, input: unknown) => Either.Either<object, PersistedReadError>;
+  type StrictReader = (file: string, input: unknown) => Result.Result<object, PersistedReadError>;
   type StrictFormat =
     | "phax-plan"
     | "plan-approvals"
@@ -1227,7 +1228,7 @@ describe("format readers", () => {
     );
   });
 
-  type TimelineReader = (file: string, input: unknown) => Either.Either<object, PersistedReadError>;
+  type TimelineReader = (file: string, input: unknown) => Result.Result<object, PersistedReadError>;
   type TimelineFormat = "gate-attribution" | "phase-file-reconciliation";
   it.each<readonly [TimelineFormat, TimelineReader, string, string, string]>([
     [
@@ -1306,7 +1307,7 @@ describe("documents from another release", () => {
     if (above !== null) expect(release > PHAX_RELEASE).toBe(above);
   });
 
-  type AnyReader = (file: string, input: unknown) => Either.Either<object, PersistedReadError>;
+  type AnyReader = (file: string, input: unknown) => Result.Result<object, PersistedReadError>;
   const readers: ReadonlyArray<readonly [FormatId, AnyReader, string]> = [
     ["registry", readRegistryFile, "run registry"],
     ["run-status", readRunStatusFile, "run status"],
@@ -1440,8 +1441,9 @@ const briefReportAt = (release: string) => ({
   findings: [{ ...reportFinding, due: null }],
 });
 
-function reportRefusal(result: Either.Either<unknown, ReportError>): ReportError {
-  if (Either.isRight(result)) throw new Error(`expected a refusal, got ${JSON.stringify(result)}`);
+function reportRefusal(result: Result.Result<unknown, ReportError>): ReportError {
+  if (Result.isSuccess(result))
+    throw new Error(`expected a refusal, got ${JSON.stringify(result)}`);
   return result.left;
 }
 
@@ -1450,7 +1452,7 @@ const BRIEF_REPORT_URL = "https://docs.phax.run/schemas/brief-report/0.21.0.json
 
 interface ReportReaderCase {
   readonly format: "gate-report" | "brief-report";
-  readonly read: (input: unknown, bounds?: AnswerBounds) => Either.Either<unknown, ReportError>;
+  readonly read: (input: unknown, bounds?: AnswerBounds) => Result.Result<unknown, ReportError>;
   readonly at: (release: string) => Readonly<Record<string, unknown>>;
   readonly url: string;
   /**
@@ -1485,12 +1487,12 @@ const REPORT_READERS: ReadonlyArray<ReportReaderCase> = [
 
 describe.each(REPORT_READERS)("$format reader", ({ format, read, at, url, others }) => {
   it("reads a document at its current stamp whole, $schema included", () => {
-    expect(read(at("0.21.0"), BORN)).toEqual(Either.right(at("0.21.0")));
+    expect(read(at("0.21.0"), BORN)).toEqual(Result.succeed(at("0.21.0")));
   });
 
   it("reads with the current stamp and the running version by default", () => {
     expect(currentSchemaUrl(format)).toBe(url);
-    expect(read(at(CURRENT_STAMPS[format]))).toEqual(Either.right(at(CURRENT_STAMPS[format])));
+    expect(read(at(CURRENT_STAMPS[format]))).toEqual(Result.succeed(at(CURRENT_STAMPS[format])));
   });
 
   it.each(others)(
@@ -1580,7 +1582,7 @@ describe.each(REPORT_READERS)("$format reader", ({ format, read, at, url, others
 // A file another release wrote in the same shape stays readable: the stamp
 // names the shape, not the build, so neither a cut nor an opening refuses it.
 describe("files stamped by an earlier release in the current shape", () => {
-  type Reader = (file: string, input: unknown) => Either.Either<object, PersistedReadError>;
+  type Reader = (file: string, input: unknown) => Result.Result<object, PersistedReadError>;
   it.each<readonly [FormatId, Reader, string]>([
     ["registry", readRegistryFile, "0.20.0"],
     ["run-status", readRunStatusFile, "0.20.0"],
@@ -1588,7 +1590,7 @@ describe("files stamped by an earlier release in the current shape", () => {
     ["run-status", readRunStatusFile, "0.19.0"],
   ])("reads a %s stamped %s", (id, read, release) => {
     const document = withKey(validDocuments[id], "$schema", schemaUrl(id, release));
-    expect(Either.isRight(read(`${id}.json`, document))).toBe(true);
+    expect(Result.isSuccess(read(`${id}.json`, document))).toBe(true);
   });
 });
 
@@ -1741,7 +1743,7 @@ describe("brief request and record files", () => {
     expect(record.outcome.kind === "answered" && record.outcome.answer).toHaveProperty("$schema");
   });
 
-  type BriefReader = (file: string, input: unknown) => Either.Either<object, PersistedReadError>;
+  type BriefReader = (file: string, input: unknown) => Result.Result<object, PersistedReadError>;
   it.each<readonly [string, BriefReader, string, Readonly<Record<string, unknown>>]>([
     [requestFile, readBriefRequestFile, "brief request", validDocuments["brief-request"]],
     [recordFile, readBriefRecordFile, "brief record", validDocuments["brief-record"]],

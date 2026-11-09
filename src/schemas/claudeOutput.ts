@@ -1,4 +1,4 @@
-import { Either, Schema } from "effect";
+import { Result, Schema } from "effect";
 
 /**
  * What the session outcome reader takes from a Claude Code stream: the last
@@ -69,13 +69,13 @@ const ClaudeRateLimitEventSchema = Schema.Struct({
 export type ClaudeResultOutcomeEvent = Schema.Schema.Type<typeof ClaudeResultOutcomeEventSchema>;
 export type ClaudeApiRetryEvent = Schema.Schema.Type<typeof ClaudeApiRetryEventSchema>;
 
-export const decodeClaudeResultOutcomeEvent = Schema.decodeUnknownEither(
+export const decodeClaudeResultOutcomeEvent = Schema.decodeUnknownResult(
   ClaudeResultOutcomeEventSchema,
 );
-export const decodeClaudeInitEvent = Schema.decodeUnknownEither(ClaudeInitEventSchema);
-export const decodeClaudeApiRetryEvent = Schema.decodeUnknownEither(ClaudeApiRetryEventSchema);
-const decodeClaudeApiErrorMessage = Schema.decodeUnknownEither(ClaudeApiErrorMessageSchema);
-const decodeClaudeRateLimitEvent = Schema.decodeUnknownEither(ClaudeRateLimitEventSchema);
+export const decodeClaudeInitEvent = Schema.decodeUnknownResult(ClaudeInitEventSchema);
+export const decodeClaudeApiRetryEvent = Schema.decodeUnknownResult(ClaudeApiRetryEventSchema);
+const decodeClaudeApiErrorMessage = Schema.decodeUnknownResult(ClaudeApiErrorMessageSchema);
+const decodeClaudeRateLimitEvent = Schema.decodeUnknownResult(ClaudeRateLimitEventSchema);
 
 /** The events of one Claude Code stream that decide how its session ended. */
 interface ClaudeOutcomeEvents {
@@ -111,29 +111,29 @@ export function scanClaudeOutcomeEvents(lines: readonly string[]): ClaudeOutcome
     }
     if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) continue;
     const decodedRetry = decodeClaudeApiRetryEvent(parsed);
-    if (Either.isRight(decodedRetry)) {
+    if (Result.isSuccess(decodedRetry)) {
       trailingApiRetry = decodedRetry.right;
       continue;
     }
     // Any other event means the session went on past the retry.
     trailingApiRetry = undefined;
     const decodedResult = decodeClaudeResultOutcomeEvent(parsed);
-    if (Either.isRight(decodedResult)) {
+    if (Result.isSuccess(decodedResult)) {
       result = decodedResult.right;
       continue;
     }
     const decodedInit = decodeClaudeInitEvent(parsed);
-    if (Either.isRight(decodedInit)) {
+    if (Result.isSuccess(decodedInit)) {
       initSessionId ??= decodedInit.right.session_id;
       continue;
     }
     const decodedApiError = decodeClaudeApiErrorMessage(parsed);
-    if (Either.isRight(decodedApiError)) {
+    if (Result.isSuccess(decodedApiError)) {
       apiErrorCategory = decodedApiError.right.error;
       continue;
     }
     const decodedRateLimit = decodeClaudeRateLimitEvent(parsed);
-    if (Either.isRight(decodedRateLimit)) {
+    if (Result.isSuccess(decodedRateLimit)) {
       const info = decodedRateLimit.right.rate_limit_info;
       if (info.status === "rejected" && typeof info.resetsAt === "number") {
         rejectedResetsAt = info.resetsAt;

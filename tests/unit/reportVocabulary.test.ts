@@ -6,7 +6,7 @@
 // searched. Also holds the README side of §5.47. Every document is made up.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   JSON_SCHEMA_FORMATS,
@@ -50,7 +50,7 @@ function readmeSection(heading: string): string {
 
 const GUIDE = { summary: "keep I/O in the module's caller", read: "guides/no-node-import.md" };
 
-const checkedReport = Either.getOrThrow(
+const checkedReport = Result.getOrThrow(
   decodeGateReportFile({
     $schema: "https://docs.phax.run/schemas/gate-report/0.21.0.json",
     outcome: "checked",
@@ -81,7 +81,7 @@ const checkedReport = Either.getOrThrow(
   }),
 );
 
-const briefReport = Either.getOrThrow(
+const briefReport = Result.getOrThrow(
   decodeBriefReportFile({
     $schema: "https://docs.phax.run/schemas/brief-report/0.21.0.json",
     rules: [

@@ -5,7 +5,7 @@
 // git; the windows from one Claude Code probe that never sees the plan, or,
 // without the probe, from the ledgers' last rate-limit sample with no Backend
 // call at all. No Claude Code credential is read on any path.
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { join } from "node:path";
 import { classifyArtifactPath, validateArtifact } from "../domain/artifact/document.js";
 import {
@@ -97,7 +97,7 @@ export function readEstimatePlan(
 
     if (classifyArtifactPath(repoRelPath) !== null) {
       const validated = validateArtifact(repoRelPath, planMd);
-      if (Either.isLeft(validated)) return yield* Effect.fail(validated.left);
+      if (Result.isFailure(validated)) return yield* Effect.fail(validated.left);
     }
 
     const unparseable = (reason: string) =>
@@ -107,9 +107,9 @@ export function readEstimatePlan(
       });
     // A departing test line is left out and never blocks the estimate.
     const extracted = readPlanDeterministic(planMd);
-    if (Either.isLeft(extracted)) return yield* Effect.fail(unparseable(extracted.left.message));
+    if (Result.isFailure(extracted)) return yield* Effect.fail(unparseable(extracted.left.message));
     const finalized = finalizeExtractedPlan(extracted.right.plan, planMd);
-    if (Either.isLeft(finalized)) return yield* Effect.fail(unparseable(finalized.left.message));
+    if (Result.isFailure(finalized)) return yield* Effect.fail(unparseable(finalized.left.message));
 
     const phases: SizedPlanPhase[] = [];
     for (const phase of finalized.right.plan.phases) {

@@ -1,10 +1,10 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { FAKE_PROMPT_CANCEL, makeFakePrompt } from "../../src/infra/fakes/prompt.js";
 import { Prompt, PromptCancelled, PromptError } from "../../src/ports/prompt.js";
 
 function runEither<A, E>(eff: Effect.Effect<A, E>) {
-  return Effect.runPromise(Effect.either(eff));
+  return Effect.runPromise(Effect.result(eff));
 }
 
 describe("makeFakePrompt", () => {
@@ -66,8 +66,8 @@ describe("makeFakePrompt", () => {
   it("fails with PromptCancelled when FAKE_PROMPT_CANCEL is scripted", async () => {
     const { impl } = makeFakePrompt([FAKE_PROMPT_CANCEL]);
     const result = await runEither(impl.text({ message: "will cancel" }));
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left).toBeInstanceOf(PromptCancelled);
     }
   });
@@ -75,8 +75,8 @@ describe("makeFakePrompt", () => {
   it("fails with PromptError when queue is exhausted", async () => {
     const { impl } = makeFakePrompt([]);
     const result = await runEither(impl.text({ message: "empty" }));
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left).toBeInstanceOf(PromptError);
     }
   });
@@ -89,8 +89,8 @@ describe("makeFakePrompt", () => {
         validate: (v) => (v === "bad-value" ? "invalid" : undefined),
       }),
     );
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left).toBeInstanceOf(PromptError);
       expect((result.left as PromptError).message).toBe("invalid");
     }

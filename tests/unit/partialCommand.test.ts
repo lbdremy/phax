@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   describePartialRefusal,
@@ -12,12 +12,12 @@ import type { GateStep } from "../../src/schemas/phaxConfig.js";
 
 function refusalOf(command: string, variant: PartialVariant): PartialCommandRefusal | undefined {
   const parsed = parsePartialCommand(command, variant);
-  return Either.isLeft(parsed) ? parsed.left : undefined;
+  return Result.isFailure(parsed) ? parsed.left : undefined;
 }
 
 function prefixesOf(command: string, variant: PartialVariant): readonly string[] {
   const parsed = parsePartialCommand(command, variant);
-  if (Either.isLeft(parsed)) throw new Error(`refused: ${JSON.stringify(parsed.left)}`);
+  if (Result.isFailure(parsed)) throw new Error(`refused: ${JSON.stringify(parsed.left)}`);
   return parsed.right.segments.map((segment) => segment.prefix);
 }
 
@@ -177,7 +177,7 @@ describe("parsePartialCommand accepted forms", () => {
 
   it("normalizes segment text", () => {
     const parsed = parsePartialCommand(" ls   -l |  xargs   wc ", "diff");
-    expect(Either.isRight(parsed) && parsed.right.segments).toEqual([
+    expect(Result.isSuccess(parsed) && parsed.right.segments).toEqual([
       { text: "ls -l", prefix: "ls -l" },
       { text: "xargs wc", prefix: "xargs wc" },
     ]);
@@ -186,7 +186,7 @@ describe("parsePartialCommand accepted forms", () => {
   it("never yields a prefix holding <, > or |, and each is a whole-word prefix of its segment", () => {
     for (const [, variant, command] of accepted) {
       const parsed = parsePartialCommand(command, variant);
-      if (Either.isLeft(parsed)) throw new Error(command);
+      if (Result.isFailure(parsed)) throw new Error(command);
       for (const { text, prefix } of parsed.right.segments) {
         expect(prefix).not.toMatch(/[<>|]/);
         const words = text.split(" ");

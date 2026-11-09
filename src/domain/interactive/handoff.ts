@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import type { InteractiveHandoff } from "../../schemas/interactiveHandoff.js";
 
 // The interactive handoff: what a stop leaves for the phases after it. One
@@ -99,7 +99,7 @@ function listEntries(lines: readonly string[]): string[] {
  */
 export function validateInteractiveHandoff(
   markdown: string,
-): Either.Either<string, readonly string[]> {
+): Result.Result<string, readonly string[]> {
   const { sections, unknown } = splitSections(markdown);
   const defects: string[] = [];
 
@@ -148,7 +148,7 @@ export function validateInteractiveHandoff(
     });
   }
 
-  return defects.length === 0 ? Either.right(markdown) : Either.left(defects);
+  return defects.length === 0 ? Result.succeed(markdown) : Result.fail(defects);
 }
 
 /** What a valid interactive handoff says about its corrections and their guards. */

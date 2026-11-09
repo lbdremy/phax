@@ -94,7 +94,7 @@ export type PlanOverviewFile = Schema.Schema.Type<typeof PlanOverviewFileSchema>
 /** A plan overview without `$schema`. */
 export type PlanOverviewDocument = Omit<PlanOverviewFile, "$schema">;
 
-export const decodePlanOverviewFile = Schema.decodeUnknownEither(PlanOverviewFileSchema, {
+export const decodePlanOverviewFile = Schema.decodeUnknownResult(PlanOverviewFileSchema, {
   onExcessProperty: "error",
 });
 

@@ -2,7 +2,7 @@ import { mkdtempSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, basename } from "node:path";
 import { execSync } from "node:child_process";
-import { Either } from "effect";
+import { Result } from "effect";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { initProject, writeConfigSchemaFile } from "../../src/app/initProject.js";
 import { decodePhaxConfig } from "../../src/schemas/phaxConfig.js";
@@ -31,7 +31,7 @@ describe("initProject", () => {
 
     const raw = JSON.parse(readFileSync(result.configPath, "utf8"));
     const decoded = decodePhaxConfig(raw);
-    expect(Either.isRight(decoded)).toBe(true);
+    expect(Result.isSuccess(decoded)).toBe(true);
   });
 
   it("writes $schema and name as basename(cwd)", () => {

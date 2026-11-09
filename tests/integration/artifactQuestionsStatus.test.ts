@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { transitionArtifactBy } from "../../src/app/artifactStatus.js";
 import { phaxCall } from "../helpers/runnerCall.js";
@@ -184,7 +184,7 @@ function planBase(): PlanDocument {
       expectedHandoff: "Nothing.",
     })),
   });
-  if (Either.isLeft(doc)) throw new Error(doc.left.message);
+  if (Result.isFailure(doc)) throw new Error(doc.left.message);
   return doc.right;
 }
 
@@ -228,7 +228,7 @@ async function approveByMachine(path: string): Promise<void> {
     makeFakeTerminal(false).layer,
   );
   const result = await Effect.runPromise(
-    Effect.either(
+    Effect.result(
       transitionArtifactBy(path, "Approved", {
         repoRoot: repoDir,
         nowIso: "2026-10-21T09:28:11.427Z",
@@ -237,7 +237,7 @@ async function approveByMachine(path: string): Promise<void> {
       }).pipe(Effect.provide(layer)),
     ),
   );
-  if (Either.isLeft(result)) throw new Error(result.left.message);
+  if (Result.isFailure(result)) throw new Error(result.left.message);
 }
 
 // `phax artifact status <path>` as printed, run from the repository; it always exits 0 here.

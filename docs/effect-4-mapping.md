@@ -8,18 +8,17 @@ is read from `docs/vendor/effect-migration/effect@4.1.2/migration/v3-to-v4.md` a
 `pnpm codemod:effect4 --check` prints the current list. It goes with the codemod and the reference
 when the migration's last plan removes them.
 
-The counts below come from one trial run of the codemod on this branch (with the
-`Either.getOrThrow` rule, still on Effect 3), discarded afterwards: **650 files would change, 5,201
-rewrites; 1,206 uses are left to the phases.** The type-error counts it printed (0 → 1,902 in
-`src`, 0 → 2,613 in tests) only say
-that Effect 3 has no `Result` or `Context.Service`; the counts that matter are the ones the first
-Effect 4 phase records.
+The counts below come from the first Effect 4 run of the codemod (phase-01 of the migration run), on
+effect 4.1.2: **654 files changed, 5,219 rewrites; 1,308 uses are left to the phases.** The
+type-error counts it printed are, for `src`, 5,827 before and 4,996 after, and for the test suite,
+4,628 before and 4,489 after. The counts after are the ones the ratchet holds
+(`scripts/effect4-codemod/type-error-counts.json`) and later phases are measured against.
 
 ## 1. What the codemod rewrites
 
 | Rule                   | Effect 3                                              | Effect 4                                | `v3-to-v4.md` | Rewrites |
 | ---------------------- | ----------------------------------------------------- | --------------------------------------- | ------------- | -------- |
-| `either-to-result`     | `effect/Either` (the import)                          | `effect/Result`                         | 689           | 4,425 (490 files) |
+| `either-to-result`     | `effect/Either` (the import)                          | `effect/Result`                         | 689           | 4,437 (494 files) |
 |                        | `Either.Either<A, E>`                                 | `Result.Result<A, E>`                   | 10395         |          |
 |                        | `Either.right(a)`                                     | `Result.succeed(a)`                     | 10459         |          |
 |                        | `Either.left(e)`                                      | `Result.fail(e)`                        | 10449         |          |
@@ -29,7 +28,7 @@ Effect 4 phase records.
 |                        | `Either.getOrThrow`                                   | `Result.getOrThrow`                     | 10435         |          |
 |                        | `Either.match(x, { onLeft, onRight })`                | `Result.match(x, { onFailure, onSuccess })` | 10457     |          |
 | `effect-either`        | `Effect.either`                                       | `Effect.result`                         | 10057         | 394 (179 files) |
-| `schema-decode-either` | `Schema.decodeEither`, `Schema.decodeUnknownEither`   | `Schema.decodeUnknownResult`            | 14950, 14954  | 204 (150 files) |
+| `schema-decode-either` | `Schema.decodeEither`, `Schema.decodeUnknownEither`   | `Schema.decodeUnknownResult`            | 14950, 14954  | 210 (154 files) |
 |                        | `Schema.encodeEither`, `Schema.encodeUnknownEither`   | `Schema.encodeUnknownResult`            | 14970, 14974  |          |
 |                        | `ParseResult.decodeUnknownEither`                     | `Schema.decodeUnknownResult`            | 13130         |          |
 | `context-tag`          | `Context.Tag("id")<Self, Shape>()`                    | `Context.Service<Self, Shape>()("id")`  | 9639          | 11 (11 files) |
@@ -39,7 +38,7 @@ Effect 4 phase records.
 | `catch-all`            | `Effect.catchAll` / `Effect.orElse`                   | `Effect.catch`                          | 10003 / 10189 | 43 (24 files) |
 | `parse-result-issues`  | `effect/ParseResult`, `Missing`, `ParseIssue`, `Type`, `Unexpected` | `effect/SchemaIssue`, `MissingKey`, `Issue`, `InvalidType`, `UnexpectedKey` | 720, 13088–13120 | 0 (see below) |
 
-Real rewrites from the trial run:
+Real rewrites from the first run:
 
 ```ts
 // context-tag
@@ -79,7 +78,7 @@ Where the codemod departs from the reference, and why:
 A rule only fires on the call shape it knows. Any other shape (`Schema.optionalWith` with
 `default`, a type-guard `Schema.filter`, a multi-argument pipe) is left untouched and reported.
 
-## 2. What the codemod leaves to the phases (1,206 uses)
+## 2. What the codemod leaves to the phases (1,308 uses)
 
 Each leftover is reported under the topic skill that owns its module
 (`.claude/skills/effect4-*`), with the reference line a phase reads before changing it.
@@ -87,13 +86,13 @@ Each leftover is reported under the topic skill that owns its module
 | Skill              | Uses  | In `src` / `tests` / `packages` |
 | ------------------ | ----- | ------------------------------- |
 | `effect4-errors`   | 484   | 278 / 206 / 0                   |
-| `effect4-schema`   | 690   | 619 / 56 / 15                   |
+| `effect4-schema`   | 792   | 702 / 76 / 14                   |
 | `effect4-core`     | 31    | 24 / 7 / 0                      |
 | `effect4-services` | 1     | 0 / 1 / 0                       |
 
 ### Blocked uses: a covered symbol held back by an uncovered neighbour
 
-453 leftovers are symbols the codemod covers (`Either.isLeft`, `Either.right`, …) in a file that
+474 leftovers are symbols the codemod covers (`Either.isLeft`, `Either.right`, …) in a file that
 also uses an `Either` member no rule covers. The codemod cannot rename the `Either` import while
 something still needs it, so it leaves the whole file's `Either` uses and names the blocker. Once a
 phase migrates the blocker, re-running `pnpm codemod:effect4` rewrites the rest.
@@ -105,7 +104,7 @@ phase migrates the blocker, re-running `pnpm codemod:effect4` rewrites the rest.
 | `Either.Left`           | 47             | → `Result.Failure`, and `.left` becomes `.failure` on the value (10407)                 |
 | `Either.getOrNull`      | 28             | no entry in the reference                                                               |
 | `Either.getOrUndefined`, `getOrThrowWith` | 7 | → `Result.getOrUndefined`, `getOrThrowWith` (10439, 10437); no rule yet        |
-| `ParseResult.ParseError` | 1              | no stated target (13090); the schema phase's                                            |
+| `ParseResult.ParseError` | 22             | no stated target (13090); the schema phase's                                            |
 
 ### `effect4-errors`: `Either`, `Exit`, `Cause`, `Effect.catch*`
 

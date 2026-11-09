@@ -39,6 +39,6 @@ export const FirstReadingV0_26_0Schema = Schema.Struct({
 
 export type FirstReadingV0_26_0 = Schema.Schema.Type<typeof FirstReadingV0_26_0Schema>;
 
-export const decodeFirstReadingV0_26_0 = Schema.decodeUnknownEither(FirstReadingV0_26_0Schema, {
+export const decodeFirstReadingV0_26_0 = Schema.decodeUnknownResult(FirstReadingV0_26_0Schema, {
   onExcessProperty: "error",
 });

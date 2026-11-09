@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NodeGitLayer } from "../../src/infra/git.js";
 import { Git, GitError } from "../../src/ports/git.js";
@@ -21,7 +21,7 @@ function git(args: readonly string[]): void {
 
 function committerName(repo: string = repoDir) {
   return Effect.runPromise(
-    Effect.either(
+    Effect.result(
       Effect.flatMap(Git, (ops) => ops.committerName(repo)).pipe(Effect.provide(NodeGitLayer)),
     ),
   );
@@ -48,39 +48,39 @@ afterEach(() => {
 describe("Git committerName (Node adapter)", () => {
   it("returns the user.name configured in the repository", async () => {
     git(["config", "--local", "user.name", "Ada Lovelace"]);
-    expect(await committerName()).toEqual(Either.right("Ada Lovelace"));
+    expect(await committerName()).toEqual(Result.succeed("Ada Lovelace"));
   });
 
   it("returns GIT_COMMITTER_NAME over user.name, as git commits under it", async () => {
     git(["config", "--local", "user.name", "Ada Lovelace"]);
     vi.stubEnv("GIT_COMMITTER_NAME", "Grace Hopper");
-    expect(await committerName()).toEqual(Either.right("Grace Hopper"));
+    expect(await committerName()).toEqual(Result.succeed("Grace Hopper"));
   });
 
   it("returns GIT_COMMITTER_NAME when user.name is unset", async () => {
     vi.stubEnv("GIT_COMMITTER_NAME", "Grace Hopper");
-    expect(await committerName()).toEqual(Either.right("Grace Hopper"));
+    expect(await committerName()).toEqual(Result.succeed("Grace Hopper"));
   });
 
   it("falls back to user.name when GIT_COMMITTER_NAME is empty", async () => {
     git(["config", "--local", "user.name", "Ada Lovelace"]);
     vi.stubEnv("GIT_COMMITTER_NAME", "");
-    expect(await committerName()).toEqual(Either.right("Ada Lovelace"));
+    expect(await committerName()).toEqual(Result.succeed("Ada Lovelace"));
   });
 
   it("returns null when user.name is unset", async () => {
-    expect(await committerName()).toEqual(Either.right(null));
+    expect(await committerName()).toEqual(Result.succeed(null));
   });
 
   it("returns null when user.name is set but empty", async () => {
     git(["config", "--local", "user.name", ""]);
-    expect(await committerName()).toEqual(Either.right(null));
+    expect(await committerName()).toEqual(Result.succeed(null));
   });
 
   it("fails with a GitError when git cannot read the repository's config", async () => {
     writeFileSync(join(repoDir, ".git", "config"), "[user\n\tname = Ada Lovelace\n");
     const result = await committerName();
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) expect(result.left).toBeInstanceOf(GitError);
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) expect(result.left).toBeInstanceOf(GitError);
   });
 });

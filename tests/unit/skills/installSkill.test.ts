@@ -1,7 +1,7 @@
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { NodeFileSystemLayer } from "../../../src/infra/fs.js";
 import { installSkill } from "../../../src/app/skills/installSkill.js";
@@ -27,8 +27,8 @@ function makeInput(overrides: Partial<InstallSkillInput> = {}): InstallSkillInpu
   };
 }
 
-function run<A, E>(effect: Effect.Effect<A, E, never>): Promise<Either.Either<A, E>> {
-  return Effect.runPromise(Effect.either(effect));
+function run<A, E>(effect: Effect.Effect<A, E, never>): Promise<Result.Result<A, E>> {
+  return Effect.runPromise(Effect.result(effect));
 }
 
 function provide<A, E>(
@@ -58,8 +58,8 @@ afterEach(() => {
 describe("installSkill", () => {
   it("creates the skill dir and returns status=created when destination is empty", async () => {
     const result = await run(provide(installSkill(makeInput())));
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
       expect(result.right.status).toBe("created");
       expect(result.right.skillName).toBe("phax-planning");
       expect(result.right.target).toBe("claude");
@@ -74,8 +74,8 @@ describe("installSkill", () => {
   it("returns status=already-present on a second identical run (idempotent)", async () => {
     await run(provide(installSkill(makeInput())));
     const result = await run(provide(installSkill(makeInput())));
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
       expect(result.right.status).toBe("already-present");
     }
   });
@@ -83,15 +83,15 @@ describe("installSkill", () => {
   it("returns status=updated when destination SKILL.md differs from bundle", async () => {
     // First install
     const first = await run(provide(installSkill(makeInput())));
-    expect(Either.isRight(first)).toBe(true);
-    if (!Either.isRight(first)) return;
+    expect(Result.isSuccess(first)).toBe(true);
+    if (!Result.isSuccess(first)) return;
 
     // Modify the destination file to simulate drift
     writeFileSync(join(first.right.destination, "SKILL.md"), "stale content");
 
     const result = await run(provide(installSkill(makeInput())));
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
       expect(result.right.status).toBe("updated");
       // File is rewritten with the bundled content
       const written = readFileSync(join(result.right.destination, "SKILL.md"), "utf8");
@@ -104,8 +104,8 @@ describe("installSkill", () => {
     mkdirSync(emptyBundleRoot, { recursive: true });
 
     const result = await run(provide(installSkill(makeInput({ bundleRoot: emptyBundleRoot }))));
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left).toBeInstanceOf(SkillInstallError);
       expect(result.left.message).toContain("Bundled skill file missing");
     }
@@ -113,8 +113,8 @@ describe("installSkill", () => {
 
   it("fails with SkillInstallError for an unknown skill name", async () => {
     const result = await run(provide(installSkill(makeInput({ skillName: "nonexistent-skill" }))));
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left).toBeInstanceOf(SkillInstallError);
       expect(result.left.message).toContain("Unknown skill");
     }
@@ -122,8 +122,8 @@ describe("installSkill", () => {
 
   it("resolves destination correctly for user scope", async () => {
     const result = await run(provide(installSkill(makeInput({ scope: "user" }))));
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
       expect(result.right.destination).toContain(homeDir);
       expect(result.right.destination).toContain(".claude/skills/phax-planning");
     }
@@ -133,8 +133,8 @@ describe("installSkill", () => {
     const result = await run(
       provide(installSkill(makeInput({ target: "codex", scope: "project" }))),
     );
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
       expect(result.right.destination).toContain(".agents/skills/phax-planning");
     }
   });

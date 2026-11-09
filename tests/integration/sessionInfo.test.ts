@@ -2,7 +2,7 @@ import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { Either } from "effect";
+import { Result } from "effect";
 import { findCurrentPhase } from "../../src/app/resolveRunInfo.js";
 import type { PhaseStatus } from "../../src/schemas/status.js";
 import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
@@ -129,7 +129,7 @@ describe("runSessionInfo", () => {
 
     const { loadConfig } = await import("../../src/app/loadConfig.js");
     vi.mocked(loadConfig).mockReturnValue(
-      Either.right({
+      Result.succeed({
         stateRoot,
         namespace: "test",
         repoRoot: stateRoot,

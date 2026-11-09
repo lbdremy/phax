@@ -8,4 +8,4 @@ export const PackageJsonSchema = Schema.Struct({
 
 export type PackageJson = Schema.Schema.Type<typeof PackageJsonSchema>;
 
-export const decodePackageJson = Schema.decodeUnknownEither(PackageJsonSchema);
+export const decodePackageJson = Schema.decodeUnknownResult(PackageJsonSchema);

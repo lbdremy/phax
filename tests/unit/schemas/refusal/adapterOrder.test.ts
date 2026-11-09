@@ -1,4 +1,4 @@
-import { Effect, Either, ParseResult, Schema } from "effect";
+import { Effect, Result, ParseResult, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import { decodeCodeReviewV0_29_0 } from "../../../../src/schemas/history/code-review/0.29.0.js";
 import { decodeRunStatusV0_26_0 } from "../../../../src/schemas/history/run-status/0.26.0.js";
@@ -17,8 +17,8 @@ type Exception =
   | { readonly collapse: RefusalPath; readonly into: Pick<Refusal, "kind"> & { expected: string } }
   | { readonly drop: RefusalPath };
 
-function refused(result: Either.Either<unknown, ParseResult.ParseError>): ParseResult.ParseError {
-  if (Either.isRight(result)) throw new Error("expected a refusal");
+function refused(result: Result.Result<unknown, ParseResult.ParseError>): ParseResult.ParseError {
+  if (Result.isSuccess(result)) throw new Error("expected a refusal");
   return result.left;
 }
 
@@ -111,7 +111,7 @@ const typicalPlanDocument = {
 describe("refusalsOf on phax's real decoders", () => {
   it("decodes the typical plan document the cases below mutate", () => {
     expect(
-      Either.isRight(Schema.decodeUnknownEither(PlanDocumentFileSchema)(typicalPlanDocument)),
+      Result.isSuccess(Schema.decodeUnknownResult(PlanDocumentFileSchema)(typicalPlanDocument)),
     ).toBe(true);
   });
 
@@ -157,7 +157,7 @@ describe("refusalsOf on phax's real decoders", () => {
     const [phase] = typicalPlanDocument.phases;
     const [line] = phase!.testStrategy;
     const error = refused(
-      Schema.decodeUnknownEither(PlanDocumentFileSchema, {
+      Schema.decodeUnknownResult(PlanDocumentFileSchema, {
         errors: "all",
         onExcessProperty: "error",
       })({
@@ -229,7 +229,7 @@ describe("refusalsOf on a Forbidden issue", () => {
       decode: (s) => Effect.as(Effect.sleep("1 millis"), s),
       encode: ParseResult.succeed,
     });
-    const error = refused(Schema.decodeUnknownEither(Async)("x"));
+    const error = refused(Schema.decodeUnknownResult(Async)("x"));
     expect(error.issue).toBeInstanceOf(ParseResult.Forbidden);
     expect(refusalsOf(error)).toEqual([
       {

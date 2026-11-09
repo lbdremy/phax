@@ -9,7 +9,7 @@
  * Gate: set PHAX_E2E_RUN=1 to run.
  */
 
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { access, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -43,7 +43,7 @@ const HANDOFF_CONTENT = [
 
 const shouldRun = process.env["PHAX_E2E_RUN"] === "1";
 
-const shortName = Either.getOrThrow(decodeShortName("my-run"));
+const shortName = Result.getOrThrow(decodeShortName("my-run"));
 
 const rawPlan = {
   version: 1,
@@ -78,7 +78,7 @@ describe.skipIf(!shouldRun)("E2E gate-exhaustion resume", () => {
   });
 
   it("pauses in gates_exhausted then gate-first resumes and commits without a fresh agent invocation", async () => {
-    const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
     const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
 
     const config: ResolvedConfig = {
@@ -162,7 +162,7 @@ describe.skipIf(!shouldRun)("E2E gate-exhaustion resume", () => {
     );
 
     const firstResult = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -181,8 +181,8 @@ describe.skipIf(!shouldRun)("E2E gate-exhaustion resume", () => {
     );
 
     // The run must pause with GateAttemptsExhaustedError (resumable, not fatal).
-    expect(Either.isLeft(firstResult)).toBe(true);
-    if (Either.isLeft(firstResult)) {
+    expect(Result.isFailure(firstResult)).toBe(true);
+    if (Result.isFailure(firstResult)) {
       expect(firstResult.left).toBeInstanceOf(GateAttemptsExhaustedError);
     }
 
@@ -260,7 +260,7 @@ describe.skipIf(!shouldRun)("E2E gate-exhaustion resume", () => {
     );
 
     const resumeResult = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -279,7 +279,7 @@ describe.skipIf(!shouldRun)("E2E gate-exhaustion resume", () => {
     );
 
     // The resumed run must succeed.
-    expect(Either.isRight(resumeResult)).toBe(true);
+    expect(Result.isSuccess(resumeResult)).toBe(true);
 
     // No implementation-agent call on gate-first resume.
     expect(fakeBackend2.impl.runCalls).toHaveLength(0);

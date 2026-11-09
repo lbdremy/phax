@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   completeRunArtifacts,
@@ -98,8 +98,8 @@ function headCount(): number {
 
 function run(
   input: Parameters<typeof completeRunArtifacts>[0],
-): Promise<Either.Either<RunCompletionReport, unknown>> {
-  return Effect.runPromise(Effect.either(completeRunArtifacts(input).pipe(Effect.provide(LAYER))));
+): Promise<Result.Result<RunCompletionReport, unknown>> {
+  return Effect.runPromise(Effect.result(completeRunArtifacts(input).pipe(Effect.provide(LAYER))));
 }
 
 beforeEach(() => {
@@ -130,8 +130,8 @@ describe("completeRunArtifacts", () => {
 
     const result = await run({ worktreePath: repoDir, planRepoRelPath: PLAN_PATH, nowIso: NOW });
 
-    expect(Either.isRight(result)).toBe(true);
-    if (!Either.isRight(result)) return;
+    expect(Result.isSuccess(result)).toBe(true);
+    if (!Result.isSuccess(result)) return;
     const [plan] = result.right.transitions;
     expect(plan).toMatchObject({ kind: "plan", path: PLAN_ARCHIVE, alreadyComplete: false });
     expect(plan?.commit?.hash).toBeDefined();
@@ -154,8 +154,8 @@ describe("completeRunArtifacts", () => {
 
     const result = await run({ worktreePath: repoDir, planRepoRelPath: PLAN_PATH, nowIso: NOW });
 
-    expect(Either.isRight(result)).toBe(true);
-    if (!Either.isRight(result)) return;
+    expect(Result.isSuccess(result)).toBe(true);
+    if (!Result.isSuccess(result)) return;
     expect(result.right.transitions[0]?.commit?.hash).toBeDefined();
     expect(readRepoFile(PLAN_ARCHIVE)).toContain("status: Completed");
     expect(git(["status", "--porcelain"]).trim()).toBe("");
@@ -171,8 +171,8 @@ describe("completeRunArtifacts", () => {
 
     const result = await run({ worktreePath: repoDir, planRepoRelPath: PLAN_PATH, nowIso: NOW });
 
-    expect(Either.isRight(result)).toBe(true);
-    if (!Either.isRight(result)) return;
+    expect(Result.isSuccess(result)).toBe(true);
+    if (!Result.isSuccess(result)) return;
     const [plan] = result.right.transitions;
     expect(readRepoFile(archivedSidecar)).toBe("{}\n");
     expect(readRepoFile(sidecar)).toBeUndefined();
@@ -191,8 +191,8 @@ describe("completeRunArtifacts", () => {
 
     const result = await run({ worktreePath: repoDir, planRepoRelPath: PLAN_PATH, nowIso: NOW });
 
-    expect(Either.isRight(result)).toBe(true);
-    if (!Either.isRight(result)) return;
+    expect(Result.isSuccess(result)).toBe(true);
+    if (!Result.isSuccess(result)) return;
     const { transitions, keptSpec } = result.right;
     expect(keptSpec).toBeUndefined();
     expect(transitions).toHaveLength(2);
@@ -225,8 +225,8 @@ describe("completeRunArtifacts", () => {
 
     const result = await run({ worktreePath: repoDir, planRepoRelPath: PLAN_PATH, nowIso: NOW });
 
-    expect(Either.isRight(result)).toBe(true);
-    if (!Either.isRight(result)) return;
+    expect(Result.isSuccess(result)).toBe(true);
+    if (!Result.isSuccess(result)) return;
     const { transitions, keptSpec } = result.right;
     expect(transitions).toHaveLength(1);
     expect(transitions[0]).toMatchObject({ kind: "plan", alreadyComplete: false });
@@ -252,8 +252,8 @@ describe("completeRunArtifacts", () => {
 
     const result = await run({ worktreePath: repoDir, planRepoRelPath: PLAN_PATH, nowIso: NOW });
 
-    expect(Either.isRight(result)).toBe(true);
-    if (!Either.isRight(result)) return;
+    expect(Result.isSuccess(result)).toBe(true);
+    if (!Result.isSuccess(result)) return;
     const { transitions, keptSpec } = result.right;
     expect(transitions).toHaveLength(1);
     expect(transitions[0]).toMatchObject({
@@ -283,12 +283,12 @@ describe("completeRunArtifacts", () => {
     commitAll();
 
     const first = await run({ worktreePath: repoDir, planRepoRelPath: PLAN_PATH, nowIso: NOW });
-    expect(Either.isRight(first)).toBe(true);
+    expect(Result.isSuccess(first)).toBe(true);
     const commitsAfterFirst = headCount();
 
     const second = await run({ worktreePath: repoDir, planRepoRelPath: PLAN_PATH, nowIso: NOW });
-    expect(Either.isRight(second)).toBe(true);
-    if (!Either.isRight(second)) return;
+    expect(Result.isSuccess(second)).toBe(true);
+    if (!Result.isSuccess(second)) return;
     expect(headCount()).toBe(commitsAfterFirst);
     expect(second.right).toEqual({
       transitions: [{ kind: "plan", path: PLAN_ARCHIVE, alreadyComplete: true }],
@@ -305,12 +305,12 @@ describe("completeRunArtifacts", () => {
     commitAll();
 
     const first = await run({ worktreePath: repoDir, planRepoRelPath: PLAN_PATH, nowIso: NOW });
-    expect(Either.isRight(first)).toBe(true);
+    expect(Result.isSuccess(first)).toBe(true);
     const commitsAfterFirst = headCount();
 
     const second = await run({ worktreePath: repoDir, planRepoRelPath: PLAN_PATH, nowIso: NOW });
-    expect(Either.isRight(second)).toBe(true);
-    if (!Either.isRight(second)) return;
+    expect(Result.isSuccess(second)).toBe(true);
+    if (!Result.isSuccess(second)) return;
     expect(headCount()).toBe(commitsAfterFirst);
     expect(second.right.transitions).toEqual([
       { kind: "plan", path: PLAN_ARCHIVE, alreadyComplete: true },
@@ -326,8 +326,8 @@ describe("completeRunArtifacts", () => {
 
     const result = await run({ worktreePath: repoDir, planRepoRelPath: PLAN_PATH, nowIso: NOW });
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (!Either.isLeft(result)) return;
+    expect(Result.isFailure(result)).toBe(true);
+    if (!Result.isFailure(result)) return;
     expect(result.left).toBeInstanceOf(InvalidArtifactTransitionError);
     expect(headCount()).toBe(before);
     expect(readRepoFile(PLAN_PATH)).toContain("status: Draft");
@@ -341,8 +341,8 @@ describe("completeRunArtifacts", () => {
 
     const result = await run({ worktreePath: repoDir, planRepoRelPath: loosePath, nowIso: NOW });
 
-    expect(Either.isRight(result)).toBe(true);
-    if (!Either.isRight(result)) return;
+    expect(Result.isSuccess(result)).toBe(true);
+    if (!Result.isSuccess(result)) return;
     expect(result.right).toEqual({ transitions: [] });
     expect(headCount()).toBe(before);
   });
@@ -359,7 +359,7 @@ describe("completeRunArtifacts", () => {
 
     const result = await run({ worktreePath: repoDir, planRepoRelPath: probePlan, nowIso: NOW });
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     expect(readRepoFile(probeArchive)).toContain("status: Completed");
     // The rooting kept the write inside the worktree — the process cwd never saw it.
     expect(existsSync(cwdProbe)).toBe(false);
@@ -498,7 +498,7 @@ describe("completeRunArtifacts — surface summaries", () => {
 
     const result = await run({ worktreePath: repoDir, planRepoRelPath: PLAN_PATH, nowIso: NOW });
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     expect(readRepoFile(SPEC_ARCHIVE)).toContain("status: Completed");
     expect(readRepoFile(SPEC_ARCHIVED_SIDECAR)).toBe(sidecar);
     expect(readRepoFile(SPEC_SIDECAR)).toBeUndefined();
@@ -513,8 +513,8 @@ describe("completeRunArtifacts — surface summaries", () => {
 
     const result = await run({ worktreePath: repoDir, planRepoRelPath: PLAN_PATH, nowIso: NOW });
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (!Either.isLeft(result)) return;
+    expect(Result.isFailure(result)).toBe(true);
+    if (!Result.isFailure(result)) return;
     expect(result.left).toBeInstanceOf(SurfaceSummariesUnwrittenError);
     expect((result.left as SurfaceSummariesUnwrittenError).surfaces).toEqual([
       "cli: `phax rotate <run>`",

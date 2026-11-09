@@ -225,9 +225,7 @@ describe("a command group", () => {
       name: "loud",
       summary: "declares --json",
       input: {
-        flags: reject(
-          Schema.Struct({ json: Schema.optionalWith(Schema.Boolean, { exact: true }) }),
-        ),
+        flags: reject(Schema.Struct({ json: Schema.optionalKey(Schema.Boolean) })),
       },
       exits: {},
       run: () => Effect.void,

@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { decodeAdjustPlanSession } from "../../src/schemas/adjustPlanSession.js";
 
@@ -16,8 +16,8 @@ const valid = {
 describe("decodeAdjustPlanSession", () => {
   it("decodes a fully-valid record", () => {
     const result = decodeAdjustPlanSession(valid);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
       expect(result.right.planPath).toBe("docs/plans/2609101240-foo-plan.md");
       expect(result.right.provider).toBe("claude-code");
       expect(result.right.version).toBe(1);
@@ -27,28 +27,30 @@ describe("decodeAdjustPlanSession", () => {
   it("fails when a required field is missing", () => {
     const { sessionId: _, ...missing } = valid;
     const result = decodeAdjustPlanSession(missing);
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 
   it("fails when an unknown key is present", () => {
     const result = decodeAdjustPlanSession({ ...valid, unknownKey: "oops" });
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 
   it("fails when provider is an unknown string", () => {
     const result = decodeAdjustPlanSession({ ...valid, provider: "openai" });
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 
   it("accepts mistral-vibe and codex-cli providers", () => {
-    expect(Either.isRight(decodeAdjustPlanSession({ ...valid, provider: "mistral-vibe" }))).toBe(
+    expect(Result.isSuccess(decodeAdjustPlanSession({ ...valid, provider: "mistral-vibe" }))).toBe(
       true,
     );
-    expect(Either.isRight(decodeAdjustPlanSession({ ...valid, provider: "codex-cli" }))).toBe(true);
+    expect(Result.isSuccess(decodeAdjustPlanSession({ ...valid, provider: "codex-cli" }))).toBe(
+      true,
+    );
   });
 
   it("fails when planPath is empty", () => {
     const result = decodeAdjustPlanSession({ ...valid, planPath: "" });
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 });

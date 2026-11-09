@@ -5,7 +5,7 @@
 // by line, as it was printed. Without `--yes` or `--dry-run` the call may ask a person, so `--json`
 // is refused for it; without `--json` a declined confirmation and a missing terminal are declared
 // errors with today's sentences. Exit 3 when an applied prune kept a run; 7 for a locked run.
-import { Data, Effect, Either, Layer } from "effect";
+import { Data, Effect, Result, Layer } from "effect";
 import * as Schema from "effect/Schema";
 import { prune } from "../../app/prune.js";
 import {
@@ -265,24 +265,21 @@ function makePruneCommand(layers: PruneLayers) {
       ),
       flags: reject(
         Schema.Struct({
-          all: Schema.optionalWith(
+          all: Schema.optionalKey(
             Schema.Boolean.annotations({
               description: "Prune every archived run of the current namespace",
             }),
-            { exact: true },
           ),
-          force: Schema.optionalWith(
+          force: Schema.optionalKey(
             Schema.Boolean.annotations({
               description:
                 "Also prune runs whose branches hold unpreserved commits (discards those commits)",
             }),
-            { exact: true },
           ),
-          dryRun: Schema.optionalWith(
+          dryRun: Schema.optionalKey(
             Schema.Boolean.annotations({ description: "Print the preview and delete nothing" }),
-            { exact: true },
           ),
-          yes: Schema.optionalWith(Schema.Boolean, { exact: true }).annotations({
+          yes: Schema.optionalKey(Schema.Boolean).annotations({
             description: "Proceed without confirmation (required without a TTY)",
             [AliasAnnotationId]: "y",
           }),
@@ -303,7 +300,7 @@ function makePruneCommand(layers: PruneLayers) {
           Effect.mapError((error) => new PruneConfigError({ message: configErrorText(error) })),
         );
         const selection = parsePruneSelection(input.args, input.flags.all === true);
-        if (Either.isLeft(selection)) {
+        if (Result.isFailure(selection)) {
           return yield* Effect.fail(
             new PruneSelectionError({ message: `✗ prune refused: ${selection.left}` }),
           );

@@ -1,4 +1,4 @@
-import { Array as Arr, Either, Schema, type Types } from "effect";
+import { Array as Arr, Result, Schema, type Types } from "effect";
 import { answerSchemaUrlField } from "./answerStamp.js";
 import { formatPlanDocumentViolation, formatViolationAt } from "./formatError.js";
 import { ExtractedPhaseFields, ExtractedRunSchema, type ExtractedPhaxPlan } from "./phaxPlan.js";
@@ -161,7 +161,7 @@ export type PlanDocumentFile = Schema.Schema.Type<typeof PlanDocumentFileSchema>
 /** The document an authoring session returns: the sidecar's own shape, `$schema` included. */
 export type AuthoredPlanDocument = PlanDocumentFile;
 
-export const decodePlanDocumentFile = Schema.decodeUnknownEither(PlanDocumentFileSchema, {
+export const decodePlanDocumentFile = Schema.decodeUnknownResult(PlanDocumentFileSchema, {
   onExcessProperty: "error",
 });
 export const encodePlanDocumentFile = Schema.encodeSync(PlanDocumentFileSchema);
@@ -175,7 +175,7 @@ export const encodePlanDocumentFile = Schema.encodeSync(PlanDocumentFileSchema);
  */
 export function decodeAuthoredPlanDocument(
   input: unknown,
-): Either.Either<AuthoredPlanDocument, string> {
+): Result.Result<AuthoredPlanDocument, string> {
   const preamble =
     typeof input === "object" && input !== null
       ? (input as { readonly preamble?: unknown }).preamble
@@ -184,10 +184,10 @@ export function decodeAuthoredPlanDocument(
     const arbitrated = (preamble as { readonly arbitratedQuestions?: unknown }).arbitratedQuestions;
     if (Array.isArray(arbitrated)) {
       const violation = authoringArbitratedViolation(arbitrated, ["preamble"]);
-      if (violation !== undefined) return Either.left(formatViolationAt(violation));
+      if (violation !== undefined) return Result.fail(formatViolationAt(violation));
     }
   }
-  return Either.mapLeft(decodePlanDocumentFile(input), (error) =>
+  return Result.mapError(decodePlanDocumentFile(input), (error) =>
     formatPlanDocumentViolation(input, error),
   );
 }

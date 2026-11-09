@@ -70,21 +70,21 @@ const runStatusFields = {
   createdAt: Schema.NonEmptyString,
   updatedAt: Schema.NonEmptyString,
   phasesCount: Schema.Number,
-  currentPhaseIndex: Schema.optionalWith(Schema.Number, { exact: true }),
-  gateProfileId: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
+  currentPhaseIndex: Schema.optionalKey(Schema.Number),
+  gateProfileId: Schema.optionalKey(Schema.NonEmptyString),
   // Why the run last stopped (e.g. "rate_limited"); surfaced by `session-info`.
-  stoppedReason: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
+  stoppedReason: Schema.optionalKey(Schema.NonEmptyString),
   // Human-readable description of the last error that stopped the run.
-  lastError: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
+  lastError: Schema.optionalKey(Schema.NonEmptyString),
   // Repo-relative POSIX path of the plan that produced this run, recorded at run
   // creation so `phax resume` can re-supply it to the run-completion step (spec
   // 27) without re-deriving it. Optional: runs created before this field, and
   // loose plans with no lifecycle artifact, resume with completion skipped.
-  planRepoRelPath: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
+  planRepoRelPath: Schema.optionalKey(Schema.NonEmptyString),
   // Skill edit consent given at `phax run --allow-skill-edits`, recorded so
   // `phax resume` inherits it. Optional like `planRepoRelPath`: existing
   // run-status.json files must still decode, and absent means no consent.
-  allowSkillEdits: Schema.optionalWith(Schema.Boolean, { exact: true }),
+  allowSkillEdits: Schema.optionalKey(Schema.Boolean),
   // The hold resolved when the run was named (`phax run --hold`; the CLI word
   // `acceptance` holds the acceptance phases) and never
   // changed, so every `phax resume` holds exactly these phases. Required: the
@@ -103,7 +103,7 @@ export const RunStatusFileSchema = Schema.Struct({
 
 export type RunStatusFile = Schema.Schema.Type<typeof RunStatusFileSchema>;
 
-export const decodeRunStatusFile = Schema.decodeUnknownEither(RunStatusFileSchema);
+export const decodeRunStatusFile = Schema.decodeUnknownResult(RunStatusFileSchema);
 export const encodeRunStatus = Schema.encodeSync(RunStatusFileSchema);
 
 /** A commit's full object name: 40 hex digits (SHA-1) or 64 (SHA-256). */
@@ -195,9 +195,9 @@ const phaseStatusFields = {
     description:
       "The full object name of the commit this phase's branch was created from, noted when phax created the branch.",
   }),
-  worktreePath: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
-  claudeSessionId: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
-  commitHash: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
+  worktreePath: Schema.optionalKey(Schema.NonEmptyString),
+  claudeSessionId: Schema.optionalKey(Schema.NonEmptyString),
+  commitHash: Schema.optionalKey(Schema.NonEmptyString),
   // Copied from the plan phase when the status is first written.
   mode: PhaseModeSchema,
   stop: PhaseStopSchema,
@@ -217,5 +217,5 @@ export const PhaseStatusFileSchema = Schema.Struct({
 
 export type PhaseStatusFile = Schema.Schema.Type<typeof PhaseStatusFileSchema>;
 
-export const decodePhaseStatusFile = Schema.decodeUnknownEither(PhaseStatusFileSchema);
+export const decodePhaseStatusFile = Schema.decodeUnknownResult(PhaseStatusFileSchema);
 export const encodePhaseStatus = Schema.encodeSync(PhaseStatusFileSchema);

@@ -67,6 +67,6 @@ export const ModelRoutingSchema = Schema.Struct({
 
 export type ModelRouting = Schema.Schema.Type<typeof ModelRoutingSchema>;
 
-export const decodeModelRouting = Schema.decodeUnknownEither(ModelRoutingSchema, {
+export const decodeModelRouting = Schema.decodeUnknownResult(ModelRoutingSchema, {
   onExcessProperty: "error",
 });

@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { FileSystem } from "../ports/fs.js";
 import { archivePathFor, isRepoSpecPath } from "../domain/artifact/document.js";
 import { readPlanFrontmatter } from "../domain/artifact/lineage.js";
@@ -99,8 +99,8 @@ export function readSpecCriteria(opts: {
         reason: "unreadable",
         message: sidecarUnreadableMessage(sidecar, reason),
       }) as const;
-    const text = yield* fs.readText(join(repoRoot, sidecar)).pipe(Effect.either);
-    if (Either.isLeft(text)) return unreadable(text.left.message);
+    const text = yield* fs.readText(join(repoRoot, sidecar)).pipe(Effect.result);
+    if (Result.isFailure(text)) return unreadable(text.left.message);
     let parsed: unknown;
     try {
       parsed = JSON.parse(text.right);
@@ -108,7 +108,7 @@ export function readSpecCriteria(opts: {
       return unreadable(e instanceof Error ? e.message : String(e));
     }
     const read = readDocumentSidecar("spec", sidecar, parsed);
-    if (Either.isLeft(read)) return unreadable(read.left.message);
+    if (Result.isFailure(read)) return unreadable(read.left.message);
     return {
       kind: "criteria",
       spec,

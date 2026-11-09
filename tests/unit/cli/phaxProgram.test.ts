@@ -69,9 +69,7 @@ describe("phaxProgram", () => {
       version: phaxProgram.version,
       exits: phaxProgram.exits,
       commands: [],
-      options: reject(
-        Schema.Struct({ json: Schema.optionalWith(Schema.Boolean, { exact: true }) }),
-      ),
+      options: reject(Schema.Struct({ json: Schema.optionalKey(Schema.Boolean) })),
     });
     const result = await call(variant, { argv: ["--json-schema"] });
     expect(result.code).toBe(70);
@@ -84,9 +82,7 @@ describe("phaxProgram", () => {
       name: "lint",
       summary: "Lint a plan",
       input: {
-        flags: reject(
-          Schema.Struct({ json: Schema.optionalWith(Schema.Boolean, { exact: true }) }),
-        ),
+        flags: reject(Schema.Struct({ json: Schema.optionalKey(Schema.Boolean) })),
       },
       output: strip(Schema.String),
       exits: {},

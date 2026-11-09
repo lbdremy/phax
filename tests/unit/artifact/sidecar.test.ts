@@ -1,6 +1,6 @@
 // Acceptance criteria carry a `then` key (given/when/then) — data, never awaited.
 /* eslint-disable unicorn/no-thenable */
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { archivePathFor } from "../../../src/domain/artifact/document.js";
 import {
@@ -144,13 +144,13 @@ const CURRENT_PLAN_DOCUMENT = {
 
 function specBody(): string {
   const decoded = decodeSpecDocumentFile(JSON.parse(stampedJson("spec-document")));
-  if (Either.isLeft(decoded)) throw new Error("fixture spec document must decode");
+  if (Result.isFailure(decoded)) throw new Error("fixture spec document must decode");
   return renderSpecBody(decoded.right);
 }
 
 function planBody(): string {
   const decoded = decodePlanDocumentFile(JSON.parse(stampedJson("plan-document")));
-  if (Either.isLeft(decoded)) throw new Error("fixture plan document must decode");
+  if (Result.isFailure(decoded)) throw new Error("fixture plan document must decode");
   return renderPlanBody(decoded.right);
 }
 

@@ -167,6 +167,6 @@ export const PhaxPlanV0_32_0Schema = Schema.Struct({
 
 export type PhaxPlanV0_32_0 = Schema.Schema.Type<typeof PhaxPlanV0_32_0Schema>;
 
-export const decodePhaxPlanV0_32_0 = Schema.decodeUnknownEither(PhaxPlanV0_32_0Schema, {
+export const decodePhaxPlanV0_32_0 = Schema.decodeUnknownResult(PhaxPlanV0_32_0Schema, {
   onExcessProperty: "error",
 });

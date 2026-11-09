@@ -175,7 +175,7 @@ export const PhaxPlanExtractionV0_32_0Schema = Schema.Struct({
 
 export type PhaxPlanExtractionV0_32_0 = Schema.Schema.Type<typeof PhaxPlanExtractionV0_32_0Schema>;
 
-export const decodePhaxPlanExtractionV0_32_0 = Schema.decodeUnknownEither(
+export const decodePhaxPlanExtractionV0_32_0 = Schema.decodeUnknownResult(
   PhaxPlanExtractionV0_32_0Schema,
   { onExcessProperty: "error" },
 );

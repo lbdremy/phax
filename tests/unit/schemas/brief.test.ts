@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Either } from "effect";
+import { Result } from "effect";
 import { decodeBriefRecordFile, decodeBriefRequestFile } from "../../../src/schemas/brief.js";
 import { currentSchemaUrl } from "../../../src/schemas/persisted.js";
 
@@ -52,21 +52,21 @@ function answer(): Record<string, unknown> {
   };
 }
 
-function decodes(decode: (input: unknown) => Either.Either<unknown, unknown>, input: unknown) {
-  return Either.isRight(decode(input));
+function decodes(decode: (input: unknown) => Result.Result<unknown, unknown>, input: unknown) {
+  return Result.isSuccess(decode(input));
 }
 
 describe("the brief-request document", () => {
   it("decodes the in-phase variant, with null files and with a list", () => {
     const decoded = decodeBriefRequestFile(phaseRequest());
-    expect(Either.isRight(decoded) && decoded.right).toEqual(phaseRequest());
+    expect(Result.isSuccess(decoded) && decoded.right).toEqual(phaseRequest());
     const named = { ...phaseRequest(), files: ["src/billing/tax.ts", "src/billing/invoice.ts"] };
     expect(decodes(decodeBriefRequestFile, named)).toBe(true);
   });
 
   it("decodes the outside variant: $schema and files only", () => {
     const decoded = decodeBriefRequestFile(outsideRequest());
-    expect(Either.isRight(decoded) && decoded.right).toEqual(outsideRequest());
+    expect(Result.isSuccess(decoded) && decoded.right).toEqual(outsideRequest());
   });
 
   it("rejects an extra key in either variant", () => {
@@ -116,7 +116,7 @@ describe("the brief-record document", () => {
 
   it("decodes a pushed record with an answered outcome, keeping the answer as printed", () => {
     const decoded = decodeBriefRecordFile(pushed);
-    expect(Either.isRight(decoded) && decoded.right).toEqual(pushed);
+    expect(Result.isSuccess(decoded) && decoded.right).toEqual(pushed);
   });
 
   it("decodes a pulled record with a failed outcome", () => {

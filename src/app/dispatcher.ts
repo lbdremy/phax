@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { join } from "node:path";
 import type { Disposition } from "../domain/disposition.js";
 import type { PhaxCommandType, StatePatch } from "../domain/effects.js";
@@ -42,7 +42,7 @@ function readPhaxState(ctx: DispatcherContext): Effect.Effect<PhaxState, FsError
     const runRaw = yield* fs.readText(runStatusPath);
     const runParsed = JSON.parse(runRaw) as unknown;
     const runDecoded = readRunStatusFile(runStatusPath, runParsed);
-    if (Either.isLeft(runDecoded)) {
+    if (Result.isFailure(runDecoded)) {
       return yield* Effect.fail(new FsError({ message: runDecoded.left.message }));
     }
 
@@ -54,7 +54,7 @@ function readPhaxState(ctx: DispatcherContext): Effect.Effect<PhaxState, FsError
         const phaseRaw = yield* fs.readText(phasePath);
         const phaseParsed = JSON.parse(phaseRaw) as unknown;
         const phaseDecoded = readPhaseStatusFile(phasePath, phaseParsed);
-        if (Either.isLeft(phaseDecoded)) {
+        if (Result.isFailure(phaseDecoded)) {
           return yield* Effect.fail(new FsError({ message: phaseDecoded.left.message }));
         }
         phase = phaseDecoded.right;

@@ -2,7 +2,7 @@ import { readFileSync, existsSync, lstatSync, realpathSync } from "node:fs";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { homedir } from "node:os";
 import { execFileSync, execSync } from "node:child_process";
-import { Either } from "effect";
+import { Result } from "effect";
 import { ConfigValidationError } from "../domain/errors.js";
 import { decodeNamespace } from "../domain/branded.js";
 import { mergeConfigLayers } from "../domain/config/mergeLayers.js";
@@ -37,7 +37,7 @@ function validateNameField(raw: unknown): ConfigValidationError | undefined {
     return new ConfigValidationError({ message: MISSING_NAME_MESSAGE, path: "name" });
   }
   const result = decodeNamespace(name);
-  if (Either.isLeft(result)) {
+  if (Result.isFailure(result)) {
     return new ConfigValidationError({ message: MISSING_NAME_MESSAGE, path: "name" });
   }
   return undefined;
@@ -90,7 +90,7 @@ function expandTilde(p: string): string {
 }
 
 function validateWorkspacePaths(
-  config: ReturnType<typeof decodePhaxConfig> extends Either.Either<infer A, infer _> ? A : never,
+  config: ReturnType<typeof decodePhaxConfig> extends Result.Result<infer A, infer _> ? A : never,
   gitRoot: string,
 ): ConfigValidationError | undefined {
   if (!config.workspaces) return undefined;
@@ -107,7 +107,7 @@ function validateWorkspacePaths(
 }
 
 function validateUniqueWorkspaceIds(
-  config: ReturnType<typeof decodePhaxConfig> extends Either.Either<infer A, infer _> ? A : never,
+  config: ReturnType<typeof decodePhaxConfig> extends Result.Result<infer A, infer _> ? A : never,
 ): ConfigValidationError | undefined {
   if (!config.workspaces || config.workspaces.length === 0) return undefined;
   const ids = config.workspaces.map((ws) => ws.id);
@@ -127,7 +127,7 @@ function validateUniqueWorkspaceIds(
 // `still failing` matches a step by its command in the previous attempt, so
 // a profile may list each command once (top-level and workspace profiles).
 function validateUniqueGateCommands(
-  config: ReturnType<typeof decodePhaxConfig> extends Either.Either<infer A, infer _> ? A : never,
+  config: ReturnType<typeof decodePhaxConfig> extends Result.Result<infer A, infer _> ? A : never,
 ): ConfigValidationError | undefined {
   const profileSets: { readonly prefix: string; readonly profiles: typeof config.gateProfiles }[] =
     [
@@ -160,13 +160,13 @@ const PROJECT_ONLY_KEYS = ["assignments", "protectedPaths"] as const;
 function readSubmodulePaths(
   gitRoot: string,
   configPath: string,
-): Either.Either<readonly string[], ConfigValidationError> {
+): Result.Result<readonly string[], ConfigValidationError> {
   const file = join(gitRoot, ".gitmodules");
-  if (!existsSync(file)) return Either.right([]);
+  if (!existsSync(file)) return Result.succeed([]);
   try {
-    return Either.right(parseGitmodulesPaths(readFileSync(file, "utf8")));
+    return Result.succeed(parseGitmodulesPaths(readFileSync(file, "utf8")));
   } catch (err) {
-    return Either.left(
+    return Result.fail(
       new ConfigValidationError({
         message: `Failed to read "${file}": ${String(err)}`,
         path: configPath,
@@ -201,7 +201,7 @@ function protectedPathsError(
     if (problem !== undefined) return refuse(`protectedPaths[${index}]: ${problem}`);
   }
   const submodules = readSubmodulePaths(gitRoot, configPath);
-  if (Either.isLeft(submodules)) return submodules.left;
+  if (Result.isFailure(submodules)) return submodules.left;
   const conflict = submoduleConflict(declared as readonly string[], submodules.right);
   if (conflict !== undefined) {
     return refuse(
@@ -249,7 +249,7 @@ function partialCommandsError(raw: unknown, configPath: string): ConfigValidatio
           const command = partial[variant];
           if (typeof command !== "string") continue;
           const parsed = parsePartialCommand(command, variant);
-          if (Either.isLeft(parsed)) {
+          if (Result.isFailure(parsed)) {
             return refuse(`${path}.${variant}: ${describePartialRefusal(parsed.left)}`);
           }
         }
@@ -322,15 +322,15 @@ function localUserConfigPath(projectConfigPath: string): string {
 
 function readUserOverlay(
   filePath: string,
-): Either.Either<PhaxUserOverlay | undefined, ConfigValidationError> {
+): Result.Result<PhaxUserOverlay | undefined, ConfigValidationError> {
   if (!existsSync(filePath)) {
-    return Either.right(undefined);
+    return Result.succeed(undefined);
   }
   let raw: unknown;
   try {
     raw = JSON.parse(readFileSync(filePath, "utf8"));
   } catch (err) {
-    return Either.left(
+    return Result.fail(
       new ConfigValidationError({
         message: `Failed to read or parse "${filePath}": ${String(err)}`,
         path: filePath,
@@ -338,13 +338,13 @@ function readUserOverlay(
     );
   }
   const retiredKey = retiredOraclesKeyError(raw, filePath);
-  if (retiredKey) return Either.left(retiredKey);
+  if (retiredKey) return Result.fail(retiredKey);
   // Refused before the decode, so the refusal names the remedy rather than an
   // unknown key: the bounds and the protected files are the repository's, not a
   // workstation's.
   for (const key of PROJECT_ONLY_KEYS) {
     if (typeof raw === "object" && raw !== null && Object.hasOwn(raw, key)) {
-      return Either.left(
+      return Result.fail(
         new ConfigValidationError({
           message: `"${key}" is accepted only in phax.json`,
           path: filePath,
@@ -353,17 +353,17 @@ function readUserOverlay(
     }
   }
   const partialRefusal = partialCommandsError(raw, filePath);
-  if (partialRefusal) return Either.left(partialRefusal);
+  if (partialRefusal) return Result.fail(partialRefusal);
   const decoded = decodePhaxUserOverlay(raw);
-  if (Either.isLeft(decoded)) {
-    return Either.left(
+  if (Result.isFailure(decoded)) {
+    return Result.fail(
       new ConfigValidationError({
         message: `Invalid user config at "${filePath}":\n${formatConfigParseError(raw, decoded.left)}`,
         path: filePath,
       }),
     );
   }
-  return Either.right(decoded.right);
+  return Result.succeed(decoded.right);
 }
 
 export interface ConfigSources {
@@ -453,10 +453,10 @@ export type LoadConfigError = ConfigValidationError;
 
 export function loadConfig(
   cwd: string = process.cwd(),
-): Either.Either<ResolvedConfig, LoadConfigError> {
+): Result.Result<ResolvedConfig, LoadConfigError> {
   const gitRoot = findGitRoot(cwd);
   if (!gitRoot) {
-    return Either.left(
+    return Result.fail(
       new ConfigValidationError({
         message: "Not inside a git repository",
       }),
@@ -465,7 +465,7 @@ export function loadConfig(
 
   const configPath = findPhaxConfig(cwd, gitRoot);
   if (!configPath) {
-    return Either.left(
+    return Result.fail(
       new ConfigValidationError({
         message: `Could not find phax.json starting from "${cwd}" up to git root "${gitRoot}"`,
       }),
@@ -476,7 +476,7 @@ export function loadConfig(
   try {
     raw = JSON.parse(readFileSync(configPath, "utf8"));
   } catch (err) {
-    return Either.left(
+    return Result.fail(
       new ConfigValidationError({
         message: `Failed to read or parse "${configPath}": ${String(err)}`,
         path: configPath,
@@ -485,20 +485,20 @@ export function loadConfig(
   }
 
   const retiredKey = retiredOraclesKeyError(raw, configPath);
-  if (retiredKey) return Either.left(retiredKey);
+  if (retiredKey) return Result.fail(retiredKey);
 
   const nameError = validateNameField(raw);
-  if (nameError) return Either.left(nameError);
+  if (nameError) return Result.fail(nameError);
 
   const protectedPathsRefusal = protectedPathsError(raw, configPath, gitRoot);
-  if (protectedPathsRefusal) return Either.left(protectedPathsRefusal);
+  if (protectedPathsRefusal) return Result.fail(protectedPathsRefusal);
 
   const partialRefusal = partialCommandsError(raw, configPath);
-  if (partialRefusal) return Either.left(partialRefusal);
+  if (partialRefusal) return Result.fail(partialRefusal);
 
   const decoded = decodePhaxConfig(raw);
-  if (Either.isLeft(decoded)) {
-    return Either.left(
+  if (Result.isFailure(decoded)) {
+    return Result.fail(
       new ConfigValidationError({
         message: `Invalid phax.json at "${configPath}":\n${formatConfigParseError(raw, decoded.left)}`,
         path: configPath,
@@ -510,12 +510,12 @@ export function loadConfig(
 
   const globalUserPath = join(homedir(), ".phax", "config.json");
   const globalUserResult = readUserOverlay(globalUserPath);
-  if (Either.isLeft(globalUserResult)) return Either.left(globalUserResult.left);
+  if (Result.isFailure(globalUserResult)) return Result.fail(globalUserResult.left);
   const globalUser = globalUserResult.right;
 
   const localUserPath = localUserConfigPath(configPath);
   const localUserResult = readUserOverlay(localUserPath);
-  if (Either.isLeft(localUserResult)) return Either.left(localUserResult.left);
+  if (Result.isFailure(localUserResult)) return Result.fail(localUserResult.left);
   const localUser = localUserResult.right;
 
   const config = mergeConfigLayers({
@@ -525,13 +525,13 @@ export function loadConfig(
   });
 
   const dupError = validateUniqueWorkspaceIds(config);
-  if (dupError) return Either.left(dupError);
+  if (dupError) return Result.fail(dupError);
 
   const gateCommandError = validateUniqueGateCommands(config);
-  if (gateCommandError) return Either.left(gateCommandError);
+  if (gateCommandError) return Result.fail(gateCommandError);
 
   const pathError = validateWorkspacePaths(config, gitRoot);
-  if (pathError) return Either.left(pathError);
+  if (pathError) return Result.fail(pathError);
 
   const root: string = gitRoot;
   function resolvePathList(paths: readonly string[] | undefined): readonly string[] {
@@ -584,5 +584,5 @@ export function loadConfig(
     ...(protectedPaths !== null ? { protectedPaths } : {}),
   };
 
-  return Either.right(resolved);
+  return Result.succeed(resolved);
 }

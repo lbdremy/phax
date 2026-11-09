@@ -227,14 +227,13 @@ const AgentResolveOutput = Schema.Struct({
   selected: Schema.Struct({
     provider: ProviderIdSchema,
     family: ModelFamilySchema,
-    thinking: Schema.optionalWith(ThinkingLevelSchema, { exact: true }),
+    thinking: Schema.optionalKey(ThinkingLevelSchema),
     concreteModel: Schema.String,
   }),
   relationship: RelationshipSchema,
   reason: Schema.String,
-  skippedForSecurity: Schema.optionalWith(
+  skippedForSecurity: Schema.optionalKey(
     Schema.Array(Schema.Struct({ provider: ProviderIdSchema, reason: Schema.String })),
-    { exact: true },
   ),
 });
 
@@ -369,17 +368,15 @@ function makeAgentSetupMistralVibeCommand(layers: AgentLayers) {
     input: {
       flags: reject(
         Schema.Struct({
-          dryRun: Schema.optionalWith(
+          dryRun: Schema.optionalKey(
             Schema.Boolean.annotations({
               description: "Preview what would be appended without writing anything",
             }),
-            { exact: true },
           ),
-          installModelAliases: Schema.optionalWith(
+          installModelAliases: Schema.optionalKey(
             Schema.Boolean.annotations({
               description: "Actually append the missing aliases and write the backup",
             }),
-            { exact: true },
           ),
         }),
       ),
@@ -476,24 +473,21 @@ function makeAgentSetupProvidersCommand(layers: AgentLayers) {
     input: {
       flags: reject(
         Schema.Struct({
-          write: Schema.optionalWith(
+          write: Schema.optionalKey(
             Schema.Boolean.annotations({
               description: "Persist the reconciled config (writes a timestamped backup first)",
             }),
-            { exact: true },
           ),
-          prune: Schema.optionalWith(
+          prune: Schema.optionalKey(
             Schema.Boolean.annotations({
               description: "Also disable providers whose executable is unavailable",
             }),
-            { exact: true },
           ),
-          withRouting: Schema.optionalWith(
+          withRouting: Schema.optionalKey(
             Schema.Boolean.annotations({
               description:
                 "Scaffold ~/.phax/model-routing.json from defaults when absent (never overwrites)",
             }),
-            { exact: true },
           ),
         }),
       ),

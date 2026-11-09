@@ -3,7 +3,7 @@ import { readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
@@ -53,7 +53,7 @@ describe("configureRecords", () => {
     visibility: "public" | "private" | "unknown",
     opts: { force?: boolean } = {},
   ): Promise<
-    Either.Either<
+    Result.Result<
       ConfigureRecordsResult,
       FsError | GitError | GitHubError | PromptError | PromptCancelled
     >
@@ -68,7 +68,7 @@ describe("configureRecords", () => {
       fakePrompt.layer,
     );
     return Effect.runPromise(
-      Effect.either(
+      Effect.result(
         configureRecords({
           configPath,
           repoRoot,
@@ -89,8 +89,8 @@ describe("configureRecords", () => {
 
     const result = await run(fakePrompt, "private");
 
-    expect(Either.isRight(result)).toBe(true);
-    if (!Either.isRight(result)) return;
+    expect(Result.isSuccess(result)).toBe(true);
+    if (!Result.isSuccess(result)) return;
     expect(result.right.kind).toBe("configured");
     if (result.right.kind !== "configured") return;
     expect(result.right.records.transcript).toBe(false);
@@ -110,8 +110,8 @@ describe("configureRecords", () => {
 
     const result = await run(fakePrompt, "public");
 
-    expect(Either.isRight(result)).toBe(true);
-    if (!Either.isRight(result)) return;
+    expect(Result.isSuccess(result)).toBe(true);
+    if (!Result.isSuccess(result)) return;
     expect(result.right.kind).toBe("configured");
     if (result.right.kind !== "configured") return;
     expect(result.right.records.destination).toEqual({
@@ -130,7 +130,7 @@ describe("configureRecords", () => {
 
     const result = await run(fakePrompt, "private");
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     expect(fakePrompt.impl.asks.some((a) => a.toLowerCase().includes("public"))).toBe(true);
   });
 
@@ -141,15 +141,15 @@ describe("configureRecords", () => {
     const fakePrompt = makeFakePrompt([]);
 
     const refused = await run(fakePrompt, "private");
-    expect(Either.isRight(refused)).toBe(true);
-    if (!Either.isRight(refused)) return;
+    expect(Result.isSuccess(refused)).toBe(true);
+    if (!Result.isSuccess(refused)) return;
     expect(refused.right.kind).toBe("already_configured");
     expect(fakePrompt.impl.asks).toEqual([]);
 
     const forcedPrompt = makeFakePrompt([true, true]);
     const forced = await run(forcedPrompt, "private", { force: true });
-    expect(Either.isRight(forced)).toBe(true);
-    if (!Either.isRight(forced)) return;
+    expect(Result.isSuccess(forced)).toBe(true);
+    if (!Result.isSuccess(forced)) return;
     expect(forced.right.kind).toBe("configured");
   });
 
@@ -162,7 +162,7 @@ describe("configureRecords", () => {
 
     const result = await run(fakePrompt, "public");
 
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
     const written = JSON.parse(await readFile(configPath, "utf8"));
     expect(written.records).toBeUndefined();
   });
@@ -173,8 +173,8 @@ describe("configureRecords", () => {
 
     const result = await run(fakePrompt, "private");
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (!Either.isLeft(result)) return;
+    expect(Result.isFailure(result)).toBe(true);
+    if (!Result.isFailure(result)) return;
     expect(result.left).toBeInstanceOf(PromptCancelled);
     const written = JSON.parse(await readFile(configPath, "utf8"));
     expect(written.records).toBeUndefined();

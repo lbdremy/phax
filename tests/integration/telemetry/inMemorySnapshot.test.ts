@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { decodeRunId } from "../../../src/domain/branded.js";
 import {
@@ -10,7 +10,7 @@ import {
 import { makeInMemoryTelemetryLayer } from "../../../src/infra/telemetry/inMemory.js";
 import { SystemTelemetry } from "../../../src/ports/systemTelemetry.js";
 
-const runId = Either.getOrThrow(decodeRunId("snapshot-run-001"));
+const runId = Result.getOrThrow(decodeRunId("snapshot-run-001"));
 
 /**
  * Scripted workflow: state transition → adapter call started →

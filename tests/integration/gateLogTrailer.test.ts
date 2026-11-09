@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -41,7 +41,7 @@ const GATE_COMMAND = "gate-check";
 const PASS: FakeShellResponse = { exitCode: 0, stdout: "", stderr: "" };
 const FAIL: FakeShellResponse = { exitCode: 1, stdout: "", stderr: "red" };
 
-const shortName = Either.getOrThrow(decodeShortName("my-run"));
+const shortName = Result.getOrThrow(decodeShortName("my-run"));
 
 const rawPlan = {
   version: 1,
@@ -228,7 +228,7 @@ describe("executePlan — the Gate-Log trailer", () => {
     backend: ReturnType<typeof makeFakeBackend>;
     seed?: (runPath: string, runId: string) => Promise<unknown>;
   }) {
-    const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
     const fakeGit = makeFakeGit();
     fakeGit.impl.setRepoIsClean(true);
     fakeGit.impl.enqueueWorktreeIsClean(worktreePath, false);
@@ -245,7 +245,7 @@ describe("executePlan — the Gate-Log trailer", () => {
     );
     await opts.seed?.(runPath, runId);
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -283,7 +283,7 @@ describe("executePlan — the Gate-Log trailer", () => {
       backend,
     });
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     expect(commits).toHaveLength(1);
     expect(gateLogTrailer(commits[0]?.body)).toBe("Gate-Log: phase-01/checks-attempt-03.log");
     expect(commits.some((c) => c.body.includes("checks-attempt-01.log"))).toBe(false);
@@ -312,7 +312,7 @@ describe("executePlan — the Gate-Log trailer", () => {
         }),
     });
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     expect(backend.impl.runCalls).toHaveLength(0);
     expect(gateLogTrailer(commits[0]?.body)).toBe("Gate-Log: phase-01/checks-attempt-07.log");
   });
@@ -338,7 +338,7 @@ describe("executePlan — the Gate-Log trailer", () => {
         }),
     });
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     expect(gateLogTrailer(commits[0]?.body)).toBe("Gate-Log: phase-01/checks-attempt-02.log");
     expect(shell.calls.some((c) => c.command.join(" ") === GATE_COMMAND)).toBe(false);
     const attemptFiles = (await readdir(phaseFolder)).filter((name) =>
@@ -366,7 +366,7 @@ describe("executePlan — the Gate-Log trailer", () => {
         }),
     });
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     expect(commits).toHaveLength(1);
     expect(gateLogTrailer(commits[0]?.body)).toBe("Gate-Log: none");
     expect(runStatus.state).toBe("review_open");

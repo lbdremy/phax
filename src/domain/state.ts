@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { InvalidTransitionError } from "./errors.js";
 
 export type RunState =
@@ -78,17 +78,17 @@ export type PhaxState =
 
 export type PhaxStateName = PhaxState["run"];
 
-type RunTransition = Either.Either<RunState, InvalidTransitionError>;
-type PhaseTransition = Either.Either<PhaseState, InvalidTransitionError>;
+type RunTransition = Result.Result<RunState, InvalidTransitionError>;
+type PhaseTransition = Result.Result<PhaseState, InvalidTransitionError>;
 
 function runTransition(from: RunState, to: RunState, allowed: RunState[]): RunTransition {
-  if (allowed.includes(from)) return Either.right(to);
-  return Either.left(new InvalidTransitionError({ from, to, entity: "run" }));
+  if (allowed.includes(from)) return Result.succeed(to);
+  return Result.fail(new InvalidTransitionError({ from, to, entity: "run" }));
 }
 
 function phaseTransition(from: PhaseState, to: PhaseState, allowed: PhaseState[]): PhaseTransition {
-  if (allowed.includes(from)) return Either.right(to);
-  return Either.left(new InvalidTransitionError({ from, to, entity: "phase" }));
+  if (allowed.includes(from)) return Result.succeed(to);
+  return Result.fail(new InvalidTransitionError({ from, to, entity: "phase" }));
 }
 
 // Run transitions

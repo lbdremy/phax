@@ -1,4 +1,4 @@
-import { Cause, Data, Effect, Either, Option } from "effect";
+import { Cause, Data, Effect, Result, Option } from "effect";
 import * as ParseResult from "effect/ParseResult";
 import * as Schema from "effect/Schema";
 import * as SchemaAST from "effect/SchemaAST";
@@ -245,8 +245,8 @@ function decode(
   value: unknown,
   names: ReadonlyArray<string> = [],
 ): Effect.Effect<unknown, Refusal> {
-  const decoded = Schema.decodeUnknownEither(synchronous(source.contract), policyOf(source))(value);
-  if (Either.isRight(decoded)) return Effect.succeed(decoded.right);
+  const decoded = Schema.decodeUnknownResult(synchronous(source.contract), policyOf(source))(value);
+  if (Result.isSuccess(decoded)) return Effect.succeed(decoded.right);
   const failure = decoded.left;
   const excess = source.undeclared === "reject" ? excessKeys(source.contract, value) : [];
   const why =
@@ -713,8 +713,8 @@ function failureText(error: ParseResult.ParseError): string {
 /** Encodes `run`'s value with the output contract and its policy, with Effect 3's
  *  `Schema.encodeUnknownEither`: the output's encoded form. A failure is a defect. */
 function encode(output: Source<Schema.Schema.Any>, value: unknown): Effect.Effect<unknown, Defect> {
-  const encoded = Schema.encodeUnknownEither(synchronous(output.contract), policyOf(output))(value);
-  return Either.isLeft(encoded)
+  const encoded = Schema.encodeUnknownResult(synchronous(output.contract), policyOf(output))(value);
+  return Result.isFailure(encoded)
     ? Effect.fail(new Defect({ text: defectText(failureText(encoded.left)) }))
     : Effect.succeed(encoded.right);
 }
@@ -725,11 +725,11 @@ function reduced(
   output: Source<Schema.Schema.Any>,
   encoded: unknown,
 ): Effect.Effect<unknown, Defect> {
-  const decoded = Schema.decodeUnknownEither(
+  const decoded = Schema.decodeUnknownResult(
     synchronous(output.contract),
     policyOf(output),
   )(encoded);
-  return Either.isLeft(decoded)
+  return Result.isFailure(decoded)
     ? Effect.fail(new Defect({ text: defectText(failureText(decoded.left)) }))
     : Effect.succeed(decoded.right);
 }

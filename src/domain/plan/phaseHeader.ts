@@ -13,7 +13,7 @@
 import { fromMarkdown } from "mdast-util-from-markdown";
 import { toString } from "mdast-util-to-string";
 import type { Heading, Paragraph, Parent, RootContent } from "mdast";
-import { Either } from "effect";
+import { Result } from "effect";
 import type { PhaseAcceptance, PhaseMode } from "../../schemas/phaxPlan.js";
 import type { ExtractionPlan } from "../../schemas/planExtraction.js";
 import { splitFrontmatter } from "../artifact/frontmatter.js";
@@ -324,14 +324,14 @@ type KindedPhase = Omit<AnswerPhase, "testLines" | "commit"> &
 export function withPhaseKinds(
   answer: ExtractionPlan,
   planMd: string,
-): Either.Either<
+): Result.Result<
   Omit<ExtractionPlan, "phases"> & { readonly phases: readonly KindedPhase[] },
   PlanValidationError
 > {
   const headers = readPhaseHeaders(planMd);
   const missing = answer.phases.filter((p) => !headers.some((h) => h.phase === p.id));
   if (missing.length > 0) {
-    return Either.left(
+    return Result.fail(
       new PlanValidationError({
         message: `The extraction model returned ${missing.map((p) => p.id).join(", ")}, which plan.md has no \`## phase-NN\` heading for.`,
       }),
@@ -343,5 +343,5 @@ export function withPhaseKinds(
     const { testLines, commit, ...fields } = phase;
     return { ...fields, mode: kinds.mode, acceptance: kinds.acceptance, testLines, commit };
   });
-  return Either.right({ ...answer, phases });
+  return Result.succeed({ ...answer, phases });
 }

@@ -376,6 +376,6 @@ export const SpecDocumentV0_25_0Schema = SpecDocumentStruct.pipe(
 
 export type SpecDocumentV0_25_0 = Schema.Schema.Type<typeof SpecDocumentV0_25_0Schema>;
 
-export const decodeSpecDocumentV0_25_0 = Schema.decodeUnknownEither(SpecDocumentV0_25_0Schema, {
+export const decodeSpecDocumentV0_25_0 = Schema.decodeUnknownResult(SpecDocumentV0_25_0Schema, {
   onExcessProperty: "error",
 });

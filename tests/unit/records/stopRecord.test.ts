@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import type { ClosedStopSession } from "../../../src/domain/interactive/transcripts.js";
 import {
@@ -170,7 +170,7 @@ describe("recordStopFromPersisted", () => {
     ],
   ])("gives %s from its status and its sessions", (_name, stop, sessions, expected) => {
     const doc = sessionDoc(sessions, entries(sessions));
-    expect(Either.getOrThrow(recordStopFromPersisted(stop, doc))).toStrictEqual(expected);
+    expect(Result.getOrThrow(recordStopFromPersisted(stop, doc))).toStrictEqual(expected);
   });
 
   it("names the sessions oldest first, each once, with their transcripts", () => {
@@ -181,30 +181,30 @@ describe("recordStopFromPersisted", () => {
       transcript: { status: "captured", sha256: SHA_X1 },
     };
     const doc = { ...sessionDoc([X1, X2], entries([X2, X1])), history: [recorded(X1)] };
-    const stop = Either.getOrThrow(recordStopFromPersisted(declaredUnchanged, doc));
+    const stop = Result.getOrThrow(recordStopFromPersisted(declaredUnchanged, doc));
     expect(stop.sessions).toEqual([X1, X2]);
   });
 
   it("gives no session when the phase has no interactive-session.json", () => {
-    const stop = Either.getOrThrow(recordStopFromPersisted(declaredUnchanged, null));
+    const stop = Result.getOrThrow(recordStopFromPersisted(declaredUnchanged, null));
     expect(stop.sessions).toEqual([]);
   });
 
   it("refuses a document whose transcripts is null: its close never captured them", () => {
     const result = recordStopFromPersisted(heldCorrected, sessionDoc([X0], null));
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 
   it("refuses a recorded session with no transcript entry", () => {
     const result = recordStopFromPersisted(heldCorrected, sessionDoc([X0], []));
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 
   it("refuses a stop that is not closed", () => {
     const doc = sessionDoc([X0], entries([X0]));
-    expect(Either.isLeft(recordStopFromPersisted(null, doc))).toBe(true);
-    expect(Either.isLeft(recordStopFromPersisted({ cause: "held", status: "waiting" }, doc))).toBe(
-      true,
-    );
+    expect(Result.isFailure(recordStopFromPersisted(null, doc))).toBe(true);
+    expect(
+      Result.isFailure(recordStopFromPersisted({ cause: "held", status: "waiting" }, doc)),
+    ).toBe(true);
   });
 });

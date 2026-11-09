@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import {
   existsSync,
   mkdirSync,
@@ -171,7 +171,7 @@ export function failSession(
  */
 export function answerSessionId(
   answer: Extract<SessionOutcome, { kind: "answer" }>,
-): Either.Either<ClaudeSessionId, SessionFailure> {
+): Result.Result<ClaudeSessionId, SessionFailure> {
   const failure = (message: string): SessionFailure => ({
     provider: answer.provider,
     kind: "provider-error",
@@ -180,9 +180,9 @@ export function answerSessionId(
     resetAt: null,
   });
   if (answer.sessionId === null) {
-    return Either.left(failure(`${answer.provider} reported no session id for the turn`));
+    return Result.fail(failure(`${answer.provider} reported no session id for the turn`));
   }
-  return Either.mapLeft(decodeClaudeSessionId(answer.sessionId), () =>
+  return Result.mapError(decodeClaudeSessionId(answer.sessionId), () =>
     failure(`${answer.provider} reported an invalid session id: "${answer.sessionId}"`),
   );
 }

@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NodeGitLayer } from "../../src/infra/git.js";
 import { Git } from "../../src/ports/git.js";
@@ -21,7 +21,7 @@ function git(args: readonly string[]): void {
 
 function authorIdentity() {
   return Effect.runPromise(
-    Effect.either(
+    Effect.result(
       Effect.flatMap(Git, (ops) => ops.authorIdentity(repoDir)).pipe(Effect.provide(NodeGitLayer)),
     ),
   );
@@ -123,11 +123,11 @@ describe("Git authorIdentity (Node adapter)", () => {
       git(["config", "--local", "author.email", fields["authorEmail"]]);
     }
     for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value);
-    expect(await authorIdentity()).toEqual(Either.right(expected));
+    expect(await authorIdentity()).toEqual(Result.succeed(expected));
   });
 
   it("fails with a GitError when git cannot read the repository's config", async () => {
     writeFileSync(join(repoDir, ".git", "config"), "[user\n\tname = Ada Example\n");
-    expect(Either.isLeft(await authorIdentity())).toBe(true);
+    expect(Result.isFailure(await authorIdentity())).toBe(true);
   });
 });

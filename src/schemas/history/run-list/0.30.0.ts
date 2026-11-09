@@ -252,6 +252,6 @@ export const RunListV0_30_0Schema = Schema.Struct({
 
 export type RunListV0_30_0 = Schema.Schema.Type<typeof RunListV0_30_0Schema>;
 
-export const decodeRunListV0_30_0 = Schema.decodeUnknownEither(RunListV0_30_0Schema, {
+export const decodeRunListV0_30_0 = Schema.decodeUnknownResult(RunListV0_30_0Schema, {
   onExcessProperty: "error",
 });

@@ -1,4 +1,4 @@
-import { Either, type ParseResult } from "effect";
+import { Result, type ParseResult } from "effect";
 import { describe, expect, it } from "vitest";
 import { FORMAT_DEFINITIONS } from "../../../packages/schemas/build/jsonSchemas.js";
 import { CURRENT_SHAPES, PACKAGE_VERSION } from "../../../packages/schemas/src/generated/index.js";
@@ -37,7 +37,7 @@ import {
   type Doc,
 } from "./documents.js";
 
-type Decode = (input: unknown) => Either.Either<unknown, ParseResult.ParseError>;
+type Decode = (input: unknown) => Result.Result<unknown, ParseResult.ParseError>;
 
 interface RunDirectoryFormat {
   readonly id: PreSchemaFormatId;
@@ -111,7 +111,7 @@ describe.each(FORMATS)("$id", (format) => {
 
   it("parses the document phax writes as its current shape, with phax's value", () => {
     const phax = format.phax(document);
-    if (Either.isLeft(phax)) throw new Error("document rejected by phax");
+    if (Result.isFailure(phax)) throw new Error("document rejected by phax");
     expect(format.parse(document)).toEqual({ ok: true, shape: current, value: phax.right });
   });
 
@@ -203,7 +203,7 @@ describe.each([
   it("rejects an unknown key, as phax's strict decoder does", () => {
     const result = parse(withKey(written, "extra", true));
     expect(result.ok).toBe(false);
-    expect(Either.isLeft(decodeFile[id](withKey(written, "extra", true)))).toBe(true);
+    expect(Result.isFailure(decodeFile[id](withKey(written, "extra", true)))).toBe(true);
   });
 
   it("rejects a document that carries both $schema and version", () => {

@@ -366,7 +366,7 @@ export function publishRun(
       );
     }
 
-    const branchExistsResult = yield* Effect.either(
+    const branchExistsResult = yield* Effect.result(
       git.branchExists(info.finalPhaseBranch, opts.repoRoot),
     );
     if (Either.isLeft(branchExistsResult)) {
@@ -384,7 +384,7 @@ export function publishRun(
       );
     }
 
-    const remoteExistsResult = yield* Effect.either(
+    const remoteExistsResult = yield* Effect.result(
       git.remoteExists(publish.remote, opts.repoRoot),
     );
     if (Either.isLeft(remoteExistsResult)) {
@@ -402,7 +402,7 @@ export function publishRun(
       );
     }
 
-    const ghAvailableResult = yield* Effect.either(github.isAvailable());
+    const ghAvailableResult = yield* Effect.result(github.isAvailable());
     if (Either.isLeft(ghAvailableResult)) {
       return yield* fail(
         `gh availability check failed: ${ghAvailableResult.left.message}`,
@@ -418,7 +418,7 @@ export function publishRun(
       );
     }
 
-    const ghAuthedResult = yield* Effect.either(github.isAuthenticated(opts.repoRoot));
+    const ghAuthedResult = yield* Effect.result(github.isAuthenticated(opts.repoRoot));
     if (Either.isLeft(ghAuthedResult)) {
       return yield* fail(
         `gh authentication check failed: ${ghAuthedResult.left.message}`,
@@ -434,7 +434,7 @@ export function publishRun(
       );
     }
 
-    const ghRepoResult = yield* Effect.either(github.repoRecognized(opts.repoRoot));
+    const ghRepoResult = yield* Effect.result(github.repoRecognized(opts.repoRoot));
     if (Either.isLeft(ghRepoResult)) {
       return yield* fail(
         `gh repo check failed: ${ghRepoResult.left.message}`,
@@ -462,7 +462,7 @@ export function publishRun(
           operation: "pushBranch",
         }),
       );
-      const pushResult = yield* Effect.either(
+      const pushResult = yield* Effect.result(
         git.pushBranch(info.finalPhaseBranch, publish.remote, opts.repoRoot),
       );
       if (Either.isLeft(pushResult)) {
@@ -517,7 +517,7 @@ export function publishRun(
 
     let baseBranch = publish.baseBranch;
     if (baseBranch === undefined) {
-      const baseResult = yield* Effect.either(github.defaultBaseBranch(opts.repoRoot));
+      const baseResult = yield* Effect.result(github.defaultBaseBranch(opts.repoRoot));
       if (Either.isLeft(baseResult)) {
         return yield* fail(
           `Could not resolve default base branch: ${baseResult.left.message}`,
@@ -532,7 +532,7 @@ export function publishRun(
 
     yield* logVerbose(opts.output, verbose, "Creating GitHub pull request…");
 
-    const existingResult = yield* Effect.either(
+    const existingResult = yield* Effect.result(
       github.findPullRequestForBranch(info.finalPhaseBranch, opts.repoRoot),
     );
     if (Either.isLeft(existingResult)) {
@@ -567,7 +567,7 @@ export function publishRun(
       return { kind: "published", record, prUrl: existingUrl } satisfies PublicationResult;
     }
 
-    const loadResult = yield* Effect.either(loadReviewHandoffInputs(info));
+    const loadResult = yield* Effect.result(loadReviewHandoffInputs(info));
     if (Either.isLeft(loadResult)) {
       return yield* fail(
         `Could not load review handoff inputs: ${loadResult.left.message}`,
@@ -578,7 +578,7 @@ export function publishRun(
     }
     const { global, phaseContents, sourceSpecOutcomeMd, reviewNoteGroups } = loadResult.right;
 
-    const planResult = yield* Effect.either(loadRecordedPlanPath(info.runPath));
+    const planResult = yield* Effect.result(loadRecordedPlanPath(info.runPath));
     if (Either.isLeft(planResult)) {
       return yield* fail(
         `Could not load run status: ${planResult.left.message}`,
@@ -662,7 +662,7 @@ export function publishRun(
       }),
     );
 
-    const createResult = yield* Effect.either(
+    const createResult = yield* Effect.result(
       github.createPullRequest({
         branch: info.finalPhaseBranch,
         base: baseBranch,

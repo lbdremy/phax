@@ -41,6 +41,6 @@ export type ProviderConfig = Schema.Schema.Type<typeof ProviderConfigSchema>;
 export type CatalogEntry = Schema.Schema.Type<typeof CatalogEntrySchema>;
 export type ProviderFamilyEntry = Schema.Schema.Type<typeof ProviderFamilyEntrySchema>;
 
-export const decodeProviderConfig = Schema.decodeUnknownEither(ProviderConfigSchema, {
+export const decodeProviderConfig = Schema.decodeUnknownResult(ProviderConfigSchema, {
   onExcessProperty: "error",
 });

@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { createRunFolder } from "../../src/app/runFolder.js";
 import { createPhaseFolder } from "../../src/app/phaseFolder.js";
@@ -96,7 +96,7 @@ const plan: PhaxPlan = {
 describe("createRunFolder", () => {
   it("creates plan.md, phax-plan.json, phax.json, and run-status.json", async () => {
     const { impl, layer } = makeFakeFileSystem();
-    const shortName = Either.getOrThrow(decodeShortName("my-run"));
+    const shortName = Result.getOrThrow(decodeShortName("my-run"));
 
     await Effect.runPromise(
       createRunFolder(shortName, "# My Plan", plan, resolvedConfig).pipe(Effect.provide(layer)),
@@ -118,7 +118,7 @@ describe("createRunFolder", () => {
     ],
   ])("records %s in run-status.json", async (_label, hold, expected) => {
     const { impl, layer } = makeFakeFileSystem();
-    const shortName = Either.getOrThrow(decodeShortName("my-run"));
+    const shortName = Result.getOrThrow(decodeShortName("my-run"));
 
     await Effect.runPromise(
       createRunFolder(shortName, "# Plan", plan, resolvedConfig, undefined, undefined, hold).pipe(
@@ -128,12 +128,12 @@ describe("createRunFolder", () => {
 
     const raw = impl.getFile(`${stateRoot}/runs/test-project.my-run/run-status.json`);
     const decoded = decodeRunStatusFile(JSON.parse(raw!));
-    expect(Either.isRight(decoded) && decoded.right.hold).toEqual(expected);
+    expect(Result.isSuccess(decoded) && decoded.right.hold).toEqual(expected);
   });
 
   it("writes a valid run-status.json with state: created", async () => {
     const { impl, layer } = makeFakeFileSystem();
-    const shortName = Either.getOrThrow(decodeShortName("my-run"));
+    const shortName = Result.getOrThrow(decodeShortName("my-run"));
 
     await Effect.runPromise(
       createRunFolder(shortName, "# Plan", plan, resolvedConfig).pipe(Effect.provide(layer)),
@@ -146,8 +146,8 @@ describe("createRunFolder", () => {
     expect(written["$schema"]).toBe(schemaUrl("run-status", CURRENT_STAMPS["run-status"]));
     expect(written).not.toHaveProperty("version");
     const decoded = decodeRunStatusFile(written);
-    expect(Either.isRight(decoded)).toBe(true);
-    if (Either.isRight(decoded)) {
+    expect(Result.isSuccess(decoded)).toBe(true);
+    if (Result.isSuccess(decoded)) {
       expect(decoded.right.state).toBe("created");
       expect(decoded.right.shortName).toBe("my-run");
       expect(decoded.right.phasesCount).toBe(2);
@@ -156,7 +156,7 @@ describe("createRunFolder", () => {
 
   it("writes the plan JSON with correct phase count", async () => {
     const { impl, layer } = makeFakeFileSystem();
-    const shortName = Either.getOrThrow(decodeShortName("my-run"));
+    const shortName = Result.getOrThrow(decodeShortName("my-run"));
 
     await Effect.runPromise(
       createRunFolder(shortName, "# Plan", plan, resolvedConfig).pipe(Effect.provide(layer)),
@@ -168,8 +168,8 @@ describe("createRunFolder", () => {
     expect(written["$schema"]).toBe(schemaUrl("phax-plan", CURRENT_STAMPS["phax-plan"]));
     expect(written).not.toHaveProperty("version");
     const decoded = decodePhaxPlanFile(written);
-    expect(Either.isRight(decoded)).toBe(true);
-    if (Either.isRight(decoded)) {
+    expect(Result.isSuccess(decoded)).toBe(true);
+    if (Result.isSuccess(decoded)) {
       const { $schema: _schema, ...recorded } = decoded.right;
       expect(recorded).toEqual(plan);
     }
@@ -177,7 +177,7 @@ describe("createRunFolder", () => {
 
   it("creates a registry entry for the run", async () => {
     const { impl, layer } = makeFakeFileSystem();
-    const shortName = Either.getOrThrow(decodeShortName("my-run"));
+    const shortName = Result.getOrThrow(decodeShortName("my-run"));
 
     await Effect.runPromise(
       createRunFolder(shortName, "# Plan", plan, resolvedConfig).pipe(Effect.provide(layer)),
@@ -186,8 +186,8 @@ describe("createRunFolder", () => {
     const regRaw = impl.getFile(`${stateRoot}/registry.json`);
     expect(regRaw).toBeDefined();
     const decoded = decodeRegistryFile(JSON.parse(regRaw!));
-    expect(Either.isRight(decoded)).toBe(true);
-    if (Either.isRight(decoded)) {
+    expect(Result.isSuccess(decoded)).toBe(true);
+    if (Result.isSuccess(decoded)) {
       const entry = decoded.right.runs.find((r) => r.shortName === "my-run");
       expect(entry).toBeDefined();
       expect(entry?.state).toBe("created");
@@ -196,7 +196,7 @@ describe("createRunFolder", () => {
 
   it("returns the runPath and a non-empty runId", async () => {
     const { layer } = makeFakeFileSystem();
-    const shortName = Either.getOrThrow(decodeShortName("my-run"));
+    const shortName = Result.getOrThrow(decodeShortName("my-run"));
 
     const result = await Effect.runPromise(
       createRunFolder(shortName, "# Plan", plan, resolvedConfig).pipe(Effect.provide(layer)),
@@ -231,8 +231,8 @@ describe("createPhaseFolder", () => {
     expect(written["$schema"]).toBe(schemaUrl("phase-status", CURRENT_STAMPS["phase-status"]));
     expect(written).not.toHaveProperty("version");
     const decoded = decodePhaseStatusFile(written);
-    expect(Either.isRight(decoded)).toBe(true);
-    if (Either.isRight(decoded)) {
+    expect(Result.isSuccess(decoded)).toBe(true);
+    if (Result.isSuccess(decoded)) {
       expect(decoded.right.state).toBe("pending");
       expect(decoded.right.phaseId).toBe("phase-01");
       expect(decoded.right.phaseIndex).toBe(0);

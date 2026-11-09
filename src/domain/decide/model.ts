@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import type { ModelRouting } from "../../schemas/modelRouting.js";
 import type { CatalogEntry, ProviderConfig } from "../../schemas/providerConfig.js";
 import {
@@ -36,22 +36,22 @@ function claudeEntries(): readonly CatalogEntry[] {
 export function resolveDecideModel(
   flagModel: string | undefined,
   flagEffort: string | undefined,
-): Either.Either<DecideModel, string> {
+): Result.Result<DecideModel, string> {
   const model = flagModel ?? DEFAULT_DECIDE_MODEL;
   const effort = flagEffort ?? DEFAULT_DECIDE_EFFORT;
   const entries = claudeEntries();
   const entry = entries.find((e) => e.id === model);
   if (entry === undefined) {
-    return Either.left(
+    return Result.fail(
       `--model ${model} is not a Claude Code model — decide runs on Claude Code only (its models: ${entries.map((e) => e.id).join(", ")})`,
     );
   }
   if (!(entry.efforts as readonly string[]).includes(effort)) {
-    return Either.left(
+    return Result.fail(
       `--effort ${effort} is not an effort ${model} offers on Claude Code — decide runs on Claude Code only (its efforts: ${entry.efforts.join(", ")})`,
     );
   }
-  return Either.right({
+  return Result.succeed({
     model,
     effort,
     modelSource: flagModel === undefined ? "catalog default" : "flag",
@@ -94,14 +94,14 @@ export function resolveVerdictsModel(
   flagEffort: string | undefined,
   routing: ModelRouting,
   providerConfig: ProviderConfig,
-): Either.Either<VerdictsModel, string> {
+): Result.Result<VerdictsModel, string> {
   const model = flagModel ?? DEFAULT_VERDICTS_MODEL;
   const effort = flagEffort ?? DEFAULT_VERDICTS_EFFORT;
   if (!isEffort(effort)) {
-    return Either.left(`--effort ${effort} is not an effort — use ${EFFORTS.join(", ")}`);
+    return Result.fail(`--effort ${effort} is not an effort — use ${EFFORTS.join(", ")}`);
   }
   const { selected, relationship } = resolveModel({ model, effort }, routing, providerConfig);
-  return Either.right({
+  return Result.succeed({
     model,
     effort,
     modelSource: flagModel === undefined ? "built-in default" : "flag",

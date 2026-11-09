@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { argShapes, fullName } from "../../../src/cli/commandLibrary/contract/index.js";
 import { phaxProgram } from "../../../src/cli/definitions/program.js";
 import { phaxCall } from "../../helpers/runnerCall.js";
@@ -85,7 +85,7 @@ const GONE_PLAN_WARNING =
 async function setupConfig(repoRoot?: string) {
   const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
   loadConfig.mockReturnValue(
-    Either.right(repoRoot === undefined ? makeConfig() : { ...makeConfig(), repoRoot }),
+    Result.succeed(repoRoot === undefined ? makeConfig() : { ...makeConfig(), repoRoot }),
   );
 }
 
@@ -232,7 +232,7 @@ describe("runPlansLint", () => {
   it("exits 2 on an invalid config, as every command does, never lint's 1", async () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
     loadConfig.mockReturnValue(
-      Either.left(
+      Result.fail(
         new ConfigValidationError({
           message: '"assignments" is accepted only in phax.json',
           path: "/fake-repo/phax.local.json",
@@ -343,7 +343,7 @@ describe("runPlansLint", () => {
 
   it("passes the plan's path relative to the repo root as repoRelPath", async () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
-    loadConfig.mockReturnValue(Either.right({ ...makeConfig(), repoRoot: process.cwd() }));
+    loadConfig.mockReturnValue(Result.succeed({ ...makeConfig(), repoRoot: process.cwd() }));
     const lintPlan = await mockLint({ plan: "docs/plans/2609101260-foo-plan.md", findings: [] });
 
     await phaxCall(["plans", "lint", "docs/plans/2609101260-foo-plan.md"]);
@@ -411,7 +411,7 @@ describe("runPlansOverview", () => {
   it("exits 2 on an invalid config and reads nothing", async () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
     loadConfig.mockReturnValue(
-      Either.left(
+      Result.fail(
         new ConfigValidationError({ message: "bad phax.json", path: "/fake-repo/phax.json" }),
       ),
     );

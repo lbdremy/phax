@@ -67,6 +67,6 @@ type WithoutSchema<T> = T extends unknown ? Omit<T, "$schema"> : never;
 /** A gate report, without `$schema`: checked or refused. */
 export type GateReport = WithoutSchema<GateReportFile>;
 
-export const decodeGateReportFile = Schema.decodeUnknownEither(GateReportFileSchema, {
+export const decodeGateReportFile = Schema.decodeUnknownResult(GateReportFileSchema, {
   onExcessProperty: "error",
 });

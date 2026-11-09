@@ -1,11 +1,11 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { decodeRunId } from "../../../src/domain/branded.js";
 import { makeModelResolvedTelemetryEvent } from "../../../src/domain/telemetry/events.js";
 import { projectEvent } from "../../../src/domain/telemetry/snapshot.js";
 import { decodeSemanticTelemetryEvent } from "../../../src/schemas/telemetryEvents.js";
 
-const runId = Either.getOrThrow(decodeRunId("test-run-001"));
+const runId = Result.getOrThrow(decodeRunId("test-run-001"));
 
 const baseFields = {
   runId,
@@ -27,25 +27,25 @@ describe("makeModelResolvedTelemetryEvent", () => {
 
   it("produces a value the schema accepts", () => {
     const event = makeModelResolvedTelemetryEvent(baseFields);
-    expect(Either.isRight(decodeSemanticTelemetryEvent(event))).toBe(true);
+    expect(Result.isSuccess(decodeSemanticTelemetryEvent(event))).toBe(true);
   });
 
   it("preserves optional operationId when provided", () => {
     const event = makeModelResolvedTelemetryEvent({ ...baseFields, operationId: "phase-01" });
     expect(event.operationId).toBe("phase-01");
-    expect(Either.isRight(decodeSemanticTelemetryEvent(event))).toBe(true);
+    expect(Result.isSuccess(decodeSemanticTelemetryEvent(event))).toBe(true);
   });
 
   it("accepts event without optional selectedThinking", () => {
     const { selectedThinking: _t, ...fields } = baseFields;
     const event = makeModelResolvedTelemetryEvent(fields);
     expect(event.selectedThinking).toBeUndefined();
-    expect(Either.isRight(decodeSemanticTelemetryEvent(event))).toBe(true);
+    expect(Result.isSuccess(decodeSemanticTelemetryEvent(event))).toBe(true);
   });
 
   it("schema rejects invalid relationship value", () => {
     const event = { ...makeModelResolvedTelemetryEvent(baseFields), relationship: "bad_value" };
-    expect(Either.isLeft(decodeSemanticTelemetryEvent(event))).toBe(true);
+    expect(Result.isFailure(decodeSemanticTelemetryEvent(event))).toBe(true);
   });
 
   it("schema rejects invalid provider id", () => {
@@ -53,12 +53,12 @@ describe("makeModelResolvedTelemetryEvent", () => {
       ...makeModelResolvedTelemetryEvent(baseFields),
       selectedProvider: "unknown-provider",
     };
-    expect(Either.isLeft(decodeSemanticTelemetryEvent(event))).toBe(true);
+    expect(Result.isFailure(decodeSemanticTelemetryEvent(event))).toBe(true);
   });
 
   it("schema accepts the new upgrade relation", () => {
     const event = makeModelResolvedTelemetryEvent({ ...baseFields, relationship: "upgrade" });
-    expect(Either.isRight(decodeSemanticTelemetryEvent(event))).toBe(true);
+    expect(Result.isSuccess(decodeSemanticTelemetryEvent(event))).toBe(true);
   });
 });
 

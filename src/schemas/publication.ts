@@ -20,12 +20,12 @@ export const PublicationSchema = Schema.Struct({
   provider: Schema.Literal("github"),
   remote: Schema.NonEmptyString,
   branch: Schema.NonEmptyString,
-  baseBranch: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
+  baseBranch: Schema.optionalKey(Schema.NonEmptyString),
   pushStatus: PushStatusSchema,
   prStatus: PrStatusSchema,
-  pullRequestUrl: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
+  pullRequestUrl: Schema.optionalKey(Schema.NonEmptyString),
   createdAt: Schema.NonEmptyString,
-  failureReason: Schema.optionalWith(Schema.String, { exact: true }),
+  failureReason: Schema.optionalKey(Schema.String),
 });
 
 export type Publication = Schema.Schema.Type<typeof PublicationSchema>;
@@ -36,5 +36,5 @@ type AssertPublicationRecord = Publication extends PublicationRecord ? true : ne
 const assertPublicationRecord: AssertPublicationRecord = true as const;
 void assertPublicationRecord;
 
-export const decodePublication = Schema.decodeUnknownEither(PublicationSchema);
+export const decodePublication = Schema.decodeUnknownResult(PublicationSchema);
 export const encodePublication = Schema.encodeSync(PublicationSchema);

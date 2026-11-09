@@ -26,7 +26,7 @@
  * `phax/records/v1` or any branch outside the selected runs' expected
  * branches, and never contacts a remote.
  */
-import { Data, Effect, Either } from "effect";
+import { Data, Effect, Result } from "effect";
 import { join } from "node:path";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
@@ -126,7 +126,7 @@ export function prune(
     // 1. Select, then refuse the whole command before deleting anything.
     const registry = yield* readRegistry(stateRoot);
     const selected = selectPruneRuns(registry.runs, namespace, input.selection);
-    if (Either.isLeft(selected)) {
+    if (Result.isFailure(selected)) {
       return yield* Effect.fail(
         new PruneRefusedError({
           message: selected.left.map(describePruneRefusal).join("\n"),

@@ -148,7 +148,7 @@ export function reviewCompliance(
      */
     const fail = (reason: string, pairIntact = true) =>
       Effect.map(
-        Effect.either(fs.exists(jsonArtifactPath)),
+        Effect.result(fs.exists(jsonArtifactPath)),
         (exists) =>
           ({
             kind: "failed",
@@ -158,7 +158,7 @@ export function reviewCompliance(
       );
 
     const reconciliationPath = join(info.runPath, GLOBAL_RECONCILIATION_FILENAME);
-    const reconciliationExistsResult = yield* Effect.either(fs.exists(reconciliationPath));
+    const reconciliationExistsResult = yield* Effect.result(fs.exists(reconciliationPath));
     if (Either.isLeft(reconciliationExistsResult) || !reconciliationExistsResult.right) {
       return yield* fail(
         Either.isLeft(reconciliationExistsResult)
@@ -167,7 +167,7 @@ export function reviewCompliance(
       );
     }
 
-    const reconciliationReadResult = yield* Effect.either(fs.readText(reconciliationPath));
+    const reconciliationReadResult = yield* Effect.result(fs.readText(reconciliationPath));
     if (Either.isLeft(reconciliationReadResult)) {
       return yield* fail(
         `Could not read global reconciliation: ${reconciliationReadResult.left.message}`,
@@ -175,7 +175,7 @@ export function reviewCompliance(
     }
 
     const planPath = join(info.runPath, PLAN_FILENAME);
-    const planExistsResult = yield* Effect.either(fs.exists(planPath));
+    const planExistsResult = yield* Effect.result(fs.exists(planPath));
     if (Either.isLeft(planExistsResult) || !planExistsResult.right) {
       return yield* fail(
         Either.isLeft(planExistsResult)
@@ -184,7 +184,7 @@ export function reviewCompliance(
       );
     }
 
-    const planReadResult = yield* Effect.either(fs.readText(planPath));
+    const planReadResult = yield* Effect.result(fs.readText(planPath));
     if (Either.isLeft(planReadResult)) {
       return yield* fail(`Could not read plan.md: ${planReadResult.left.message}`);
     }
@@ -192,7 +192,7 @@ export function reviewCompliance(
     const phaseHandoffs: Array<{ phaseId: string; handoffMd: string }> = [];
     for (const phase of info.planPhases) {
       const handoffPath = join(info.runPath, phase.id, "phase-handoff.md");
-      const handoffResult = yield* Effect.either(fs.readText(handoffPath));
+      const handoffResult = yield* Effect.result(fs.readText(handoffPath));
       phaseHandoffs.push({
         phaseId: phase.id,
         handoffMd: Either.isRight(handoffResult)
@@ -262,7 +262,7 @@ export function reviewCompliance(
     const session = <E extends Error, R>(
       run: Effect.Effect<AgentRunResult, E, R>,
     ): Effect.Effect<ComplianceReviewResult | AgentRunResult, never, R> =>
-      Effect.flatMap(Effect.either(run), (outcome) => {
+      Effect.flatMap(Effect.result(run), (outcome) => {
         if (Either.isRight(outcome)) {
           return Effect.succeed<ComplianceReviewResult | AgentRunResult>(outcome.right);
         }
@@ -326,11 +326,11 @@ export function reviewCompliance(
         ? yield* fs.readText(jsonArtifactPath)
         : undefined;
       yield* fs.writeAtomic(jsonArtifactPath, complianceReviewFileText(review));
-      const mdWrite = yield* Effect.either(
+      const mdWrite = yield* Effect.result(
         fs.writeAtomic(mdArtifactPath, renderComplianceReviewMarkdown(info.runId, review)),
       );
       if (Either.isLeft(mdWrite)) {
-        const undo = yield* Effect.either(
+        const undo = yield* Effect.result(
           previousJson === undefined
             ? fs.remove(jsonArtifactPath)
             : fs.writeAtomic(jsonArtifactPath, previousJson),
@@ -352,7 +352,7 @@ export function reviewCompliance(
         error instanceof FsError ? { reason: error.message, pairIntact: true } : error,
       ),
     );
-    const kept = yield* Effect.either(keepPair);
+    const kept = yield* Effect.result(keepPair);
     if (Either.isLeft(kept)) {
       return yield* fail(`the review could not be kept: ${kept.left.reason}`, kept.left.pairIntact);
     }

@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { execFile as nodeExecFile } from "node:child_process";
 import { GitHub, GitHubError } from "../ports/github.js";
 import type { BranchName } from "../domain/branded.js";
@@ -55,7 +55,7 @@ function ghRunAllowFail(
 > {
   return ghRun(args, cwd).pipe(
     Effect.map((r) => ({ ...r, exitCode: 0, message: null })),
-    Effect.catchAll((err) =>
+    Effect.catch((err) =>
       Effect.succeed({
         stdout: "",
         stderr: err.stderr ?? "",
@@ -114,14 +114,14 @@ export const NodeGitHubLayer = Layer.succeed(GitHub, {
       ),
       Effect.flatMap((parsed) =>
         decodeGithubRepoView(parsed).pipe(
-          Either.match({
-            onLeft: (err) =>
+          Result.match({
+            onFailure: (err) =>
               Effect.fail(
                 refuse(
                   `${command} answered an unexpected shape: ${onOneLine(formatParseError(err))}`,
                 ),
               ),
-            onRight: (view) => Effect.succeed(view.url),
+            onSuccess: (view) => Effect.succeed(view.url),
           }),
         ),
       ),
@@ -137,7 +137,7 @@ export const NodeGitHubLayer = Layer.succeed(GitHub, {
         const trimmed = stdout.trim();
         return trimmed.length > 0 ? trimmed : null;
       }),
-      Effect.catchAll(() => Effect.succeed(null)),
+      Effect.catch(() => Effect.succeed(null)),
     ),
 
   createPullRequest: ({ branch, base, title, bodyFile, repo }) =>

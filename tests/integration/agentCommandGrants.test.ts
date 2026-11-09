@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -39,9 +39,9 @@ const HANDOFF_CONTENT = [
 
 const GATE_COMMAND = "pnpm test";
 
-const shortName = Either.getOrThrow(decodeShortName("grants-run"));
+const shortName = Result.getOrThrow(decodeShortName("grants-run"));
 
-const plan: PhaxPlan = Either.getOrThrow(
+const plan: PhaxPlan = Result.getOrThrow(
   liftFixturePhaxPlanToCurrent("phax-plan.json", {
     version: 1,
     run: {
@@ -171,7 +171,7 @@ describe("executePlan — agent command grants in secure mode", () => {
     );
     const execute = (id: RunId) =>
       Effect.runPromise(
-        Effect.either(
+        Effect.result(
           executePlan({
             phaxVersion: "0.0.0-test",
             output: processOutput,
@@ -190,7 +190,7 @@ describe("executePlan — agent command grants in secure mode", () => {
         ),
       );
     const readPosture = async () =>
-      Either.getOrThrow(
+      Result.getOrThrow(
         decodeSecurityPosture(
           JSON.parse(await readFile(join(runPath, "phase-01", "security.json"), "utf8")),
         ),
@@ -204,7 +204,7 @@ describe("executePlan — agent command grants in secure mode", () => {
 
     // Fresh start.
     const fresh = await execute(runId);
-    expect(Either.isLeft(fresh)).toBe(true);
+    expect(Result.isFailure(fresh)).toBe(true);
     expect(await phaseState()).toBe("gates_exhausted");
     expect((await readPosture()).mode).toBe("secure");
     expect((await readPosture()).agentCommands).toEqual(EXPECTED_RECORDS);
@@ -289,7 +289,7 @@ describe("executePlan — agent command grants in secure mode", () => {
       ),
     );
     await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -314,7 +314,7 @@ describe("executePlan — agent command grants in secure mode", () => {
     for (const call of fakeBackend.impl.resumeCalls) {
       expect(call.options.agentCommands).toEqual(granted);
     }
-    const posture = Either.getOrThrow(
+    const posture = Result.getOrThrow(
       decodeSecurityPosture(
         JSON.parse(await readFile(join(runPath, "phase-01", "security.json"), "utf8")),
       ),

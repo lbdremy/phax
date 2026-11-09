@@ -403,7 +403,7 @@ function traced() {
     exits: { refused: 2, defect: 70 },
     options: reject(
       Schema.Struct({
-        verbose: Schema.optionalWith(Schema.Boolean, { exact: true }),
+        verbose: Schema.optionalKey(Schema.Boolean),
         trace: Schema.optionalWith(Schema.Literal("off", "on"), { default: () => "off" }),
       }),
     ),
@@ -471,11 +471,10 @@ describe("a negated switch", () => {
       input: {
         flags: reject(
           Schema.Struct({
-            noProbe: Schema.optionalWith(
+            noProbe: Schema.optionalKey(
               Schema.Boolean.annotations({ description: "Skip the probe" }),
-              { exact: true },
             ),
-            dryRun: Schema.optionalWith(Schema.Boolean, { exact: true }),
+            dryRun: Schema.optionalKey(Schema.Boolean),
           }),
         ),
       },

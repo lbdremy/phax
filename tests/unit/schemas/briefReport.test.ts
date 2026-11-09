@@ -1,7 +1,7 @@
 // The brief report at decode level: the §6 example, and the malformed cases
 // of spec guarantee-reports §8, each refused with the id, the file or the key
 // path it names. A brief report has no outcome. Every document is made up.
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { decodeBriefReportFile } from "../../../src/schemas/briefReport.js";
 import { currentSchemaUrl } from "../../../src/schemas/persisted.js";
@@ -58,18 +58,19 @@ function report(): Doc {
 /** The one line a refused document gives. */
 function issue(input: unknown): string {
   const decoded = decodeBriefReportFile(input);
-  if (Either.isRight(decoded)) throw new Error(`expected a refusal, got ${JSON.stringify(input)}`);
+  if (Result.isSuccess(decoded))
+    throw new Error(`expected a refusal, got ${JSON.stringify(input)}`);
   return describeReportIssue(decoded.left);
 }
 
 describe("brief report: what it carries", () => {
   it("decodes the §6 example as written", () => {
-    expect(decodeBriefReportFile(report())).toEqual(Either.right(report()));
+    expect(decodeBriefReportFile(report())).toEqual(Result.succeed(report()));
   });
 
   it("decodes a report with nothing to report", () => {
     const empty = { $schema: currentSchemaUrl("brief-report"), rules: [], findings: [] };
-    expect(decodeBriefReportFile(empty)).toEqual(Either.right(empty));
+    expect(decodeBriefReportFile(empty)).toEqual(Result.succeed(empty));
   });
 
   it("decodes a null due, for a request without phase facts", () => {
@@ -77,7 +78,7 @@ describe("brief report: what it carries", () => {
       ...report(),
       findings: [{ ...greetFinding(), due: null }],
     });
-    expect(Either.isRight(decoded)).toBe(true);
+    expect(Result.isSuccess(decoded)).toBe(true);
   });
 
   it("refuses a due outside this-phase, later and null", () => {

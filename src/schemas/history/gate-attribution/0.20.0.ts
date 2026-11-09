@@ -31,6 +31,6 @@ export const GateAttributionV0_20_0Schema = Schema.Struct({
 
 export type GateAttributionV0_20_0 = Schema.Schema.Type<typeof GateAttributionV0_20_0Schema>;
 
-export const decodeGateAttributionV0_20_0 = Schema.decodeUnknownEither(
+export const decodeGateAttributionV0_20_0 = Schema.decodeUnknownResult(
   GateAttributionV0_20_0Schema,
 );
