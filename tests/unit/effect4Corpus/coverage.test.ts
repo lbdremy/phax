@@ -160,6 +160,128 @@ function readFormatFile(id: string): FormatCaseFile | undefined {
   return "format" in file ? file : undefined;
 }
 
+const CONSTRAINT_KEYWORDS = ["pattern", "minLength", "maxLength", "minItems", "enum", "const"];
+
+interface Constraint {
+  readonly path: string;
+  readonly keyword: string;
+}
+
+/**
+ * Every distinct constraint of a snapshot, in the notation above: pattern, minLength,
+ * maxLength, minItems, enum and const at the node's own path, `required` at each listed
+ * key's own path. Sorted, each (path, keyword) once.
+ */
+function constraintPaths(schema: JsonObject): Constraint[] {
+  const defs = isRecord(schema["$defs"]) ? schema["$defs"] : {};
+  const found = new Map<string, Constraint>();
+  const add = (path: string, keyword: string): void => {
+    found.set(`${path}\u0000${keyword}`, { path, keyword });
+  };
+  const walk = (node: JsonObject, prefix: string, refs: ReadonlyArray<string>): void => {
+    const ref = node["$ref"];
+    if (typeof ref === "string") {
+      const name = ref.replace("#/$defs/", "");
+      const target = defs[name];
+      if (!refs.includes(name) && isRecord(target)) walk(target, prefix, [...refs, name]);
+    }
+    for (const key of ["anyOf", "oneOf", "allOf"]) {
+      for (const branch of asNodes(node[key])) walk(branch, prefix, refs);
+    }
+    for (const keyword of CONSTRAINT_KEYWORDS) {
+      if (node[keyword] !== undefined && prefix !== "") add(prefix, keyword);
+    }
+    if (Array.isArray(node["required"])) {
+      for (const key of node["required"]) {
+        if (typeof key === "string") add(child(prefix, key), "required");
+      }
+    }
+    const properties = node["properties"];
+    if (isRecord(properties)) {
+      for (const [key, sub] of Object.entries(properties)) {
+        for (const subNode of asNodes(sub)) walk(subNode, child(prefix, key), refs);
+      }
+    }
+    const records: unknown[] = [];
+    const additional = node["additionalProperties"];
+    if (isRecord(additional)) records.push(additional);
+    const patterned = node["patternProperties"];
+    if (isRecord(patterned)) records.push(...Object.values(patterned));
+    for (const sub of records) {
+      for (const subNode of asNodes(sub)) walk(subNode, child(prefix, "*"), refs);
+    }
+    if (node["items"] !== undefined) {
+      for (const subNode of asNodes(node["items"])) walk(subNode, `${prefix}[]`, refs);
+    }
+  };
+  walk(schema, "", []);
+  return [...found.values()].toSorted(
+    (a, b) => a.path.localeCompare(b.path) || a.keyword.localeCompare(b.keyword),
+  );
+}
+
+function constraintCaseName(c: Constraint): string {
+  return `constraint ${c.path} ${c.keyword}`;
+}
+
+/** Names of the cases that phax refuses. */
+function refusedNames(cases: ReadonlyArray<{ name: string; expected: unknown }>): Set<string> {
+  const names = new Set<string>();
+  for (const c of cases) {
+    if (isRecord(c.expected) && c.expected["ok"] === false) names.add(c.name);
+  }
+  return names;
+}
+
+/**
+ * The formats phax writes: one of its `src/schemas` modules exports a `Schema.encode*`
+ * writer of the format's file. Left out, because phax only reads them or writes them
+ * without a Schema encoder:
+ * - gate-report, brief-report: provider output phax reads as printed ("there is no encoder").
+ * - hand-decision-answer, spec-hand-decision-answer, plan-hand-decision-answer: a decide
+ *   session's answer, read only.
+ * - decide-verdicts: the person's verdicts, read only.
+ * - architecture-report: the provider's report, read only.
+ * - architecture-request: written on the provider's stdin without a Schema encoder.
+ * - cost-ledger: written with `withSchemaUrl`, no Schema encoder.
+ * - oracle-request: frozen at 0.26.0, replaced by acceptance-request; phax no longer writes it.
+ */
+const WRITTEN_FORMATS = [
+  "registry",
+  "run-status",
+  "phase-status",
+  "phax-plan",
+  "compliance-review",
+  "plan-approvals",
+  "spec-approvals",
+  "phase-record-manifest",
+  "authoring-record-manifest",
+  "gate-attribution",
+  "phase-file-reconciliation",
+  "spec-document",
+  "plan-document",
+  "plan-approval-record",
+  "spec-approval-record",
+  "gate-request",
+  "brief-request",
+  "brief-record",
+  "decision-record-manifest",
+  "first-reading",
+  "interactive-handoff",
+  "interactive-session",
+  "review-stop",
+  "run-list",
+  "review-record-manifest",
+  "code-review",
+  "phax-plan-extraction",
+  "acceptance-request",
+  "artifact-status",
+  "plan-overview",
+  "plan-lint",
+];
+
+const encodeRoot = `${repoRoot}tests/effect4Corpus/cases/encode/`;
+
 const ids = formatIds();
 const modules = frozenModules();
 
@@ -260,6 +382,59 @@ describe("behaviour corpus coverage", () => {
       const cases = file?.shapes[module.slice(slash + 1)] ?? [];
       expect(cases.some((c) => c.expected?.ok === true)).toBe(true);
       expect(cases.some((c) => c.expected?.ok === false)).toBe(true);
+    });
+  }
+
+  for (const id of ids) {
+    it.fails(`${id} has a refused current case per constraint of its latest snapshot`, () => {
+      const file = readFormatFile(id);
+      if (file === undefined) throw new Error(`no case file for ${id}`);
+      const release = latestRelease(id);
+      const refused = refusedNames(file.current);
+      const missing = constraintPaths(readSnapshot(id, release))
+        .map(constraintCaseName)
+        .filter((name) => !refused.has(name));
+      expect(missing, `${id} ${release}: constraints without a refused current case`).toEqual([]);
+    });
+  }
+
+  for (const module of modules) {
+    it.fails(`${module} has a refused case per constraint of its snapshot`, () => {
+      const slash = module.indexOf("/");
+      const id = module.slice(0, slash);
+      const shape = module.slice(slash + 1);
+      const snapshotPath = `${snapshotsRoot}${id}/${shape}.schema.json`;
+      if (!existsSync(snapshotPath)) throw new Error(`${module}: no snapshot at ${snapshotPath}`);
+      const parsed: unknown = JSON.parse(readFileSync(snapshotPath, "utf8"));
+      if (!isRecord(parsed)) throw new Error(`${module}: snapshot is not an object`);
+      const file = readFormatFile(id);
+      const refused = refusedNames(file?.shapes[shape] ?? []);
+      const missing = constraintPaths(parsed)
+        .map(constraintCaseName)
+        .filter((name) => !refused.has(name));
+      expect(missing, `${module}: constraints without a refused case`).toEqual([]);
+    });
+  }
+
+  for (const id of WRITTEN_FORMATS) {
+    it.fails(`${id} has encode cases that set every property path of its latest snapshot`, () => {
+      expect(ids, `${id} is not a format id`).toContain(id);
+      const path = `${encodeRoot}${id}.json`;
+      if (!existsSync(path)) throw new Error(`no encode case file for ${id}`);
+      const file = parseCorpusFile(readFileSync(path, "utf8"), path);
+      if (!("subject" in file)) throw new Error(`${path}: not a subject case file`);
+      expect(file.subject).toBe(`encode/${id}`);
+      expect(file.cases.length).toBeGreaterThan(0);
+      const set = new Set<string>();
+      for (const c of file.cases) {
+        expect(c.expected?.ok, `${c.name}: encoded value must be accepted`).toBe(true);
+        if (c.expected?.ok === true) {
+          for (const p of documentPaths(c.expected.value)) set.add(p);
+        }
+      }
+      const release = latestRelease(id);
+      const unset = schemaPaths(readSnapshot(id, release)).filter((p) => !set.has(p));
+      expect(unset, `${id} ${release}: paths no encoded case sets`).toEqual([]);
     });
   }
 });
