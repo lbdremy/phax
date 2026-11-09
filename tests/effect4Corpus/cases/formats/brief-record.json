@@ -1011,6 +1011,1534 @@
           }
         }
       }
+    },
+    {
+      "name": "constraint $schema pattern",
+      "input": {
+        "$schema": "",
+        "moment": "pulled",
+        "request": {
+          "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+          "phase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "terminal": false,
+          "phases": [
+            {
+              "id": "phase-01",
+              "files": [
+                "src/example.ts",
+                "tests/example.test.ts"
+              ]
+            },
+            {
+              "id": "phase-02",
+              "files": [
+                "src/other.ts"
+              ]
+            }
+          ],
+          "files": [
+            "src/example.ts",
+            "src/missing.ts"
+          ]
+        },
+        "outcome": {
+          "kind": "answered",
+          "answer": {
+            "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json",
+            "rules": [
+              {
+                "rule": "a module under src/ imports no node: module",
+                "files": [
+                  "src/example.ts",
+                  "src/missing.ts"
+                ],
+                "guide": {
+                  "summary": "keep I/O in the caller",
+                  "read": "guides/example.md"
+                }
+              }
+            ],
+            "findings": [
+              {
+                "id": "example-no-io src/example.ts node:fs",
+                "rule": "a module under src/ imports no node: module",
+                "location": {
+                  "file": "src/example.ts",
+                  "lines": null
+                },
+                "message": "imports node:fs",
+                "related": [],
+                "guide": null,
+                "due": "this-phase"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: expected https://docs.phax.run/schemas/<format-id>/<X.Y.Z>.json, got \"\""
+      }
+    },
+    {
+      "name": "constraint $schema required",
+      "input": {
+        "moment": "pulled",
+        "request": {
+          "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+          "phase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "terminal": false,
+          "phases": [
+            {
+              "id": "phase-01",
+              "files": [
+                "src/example.ts",
+                "tests/example.test.ts"
+              ]
+            },
+            {
+              "id": "phase-02",
+              "files": [
+                "src/other.ts"
+              ]
+            }
+          ],
+          "files": [
+            "src/example.ts",
+            "src/missing.ts"
+          ]
+        },
+        "outcome": {
+          "kind": "answered",
+          "answer": {
+            "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json",
+            "rules": [
+              {
+                "rule": "a module under src/ imports no node: module",
+                "files": [
+                  "src/example.ts",
+                  "src/missing.ts"
+                ],
+                "guide": {
+                  "summary": "keep I/O in the caller",
+                  "read": "guides/example.md"
+                }
+              }
+            ],
+            "findings": [
+              {
+                "id": "example-no-io src/example.ts node:fs",
+                "rule": "a module under src/ imports no node: module",
+                "location": {
+                  "file": "src/example.ts",
+                  "lines": null
+                },
+                "message": "imports node:fs",
+                "related": [],
+                "guide": null,
+                "due": "this-phase"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: brief record has no $schema — every brief record is written with one"
+      }
+    },
+    {
+      "name": "constraint moment enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-record/0.21.0.json",
+        "moment": "bogus-value",
+        "request": {
+          "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+          "phase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "terminal": false,
+          "phases": [
+            {
+              "id": "phase-01",
+              "files": [
+                "src/example.ts",
+                "tests/example.test.ts"
+              ]
+            },
+            {
+              "id": "phase-02",
+              "files": [
+                "src/other.ts"
+              ]
+            }
+          ],
+          "files": [
+            "src/example.ts",
+            "src/missing.ts"
+          ]
+        },
+        "outcome": {
+          "kind": "answered",
+          "answer": {
+            "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json",
+            "rules": [
+              {
+                "rule": "a module under src/ imports no node: module",
+                "files": [
+                  "src/example.ts",
+                  "src/missing.ts"
+                ],
+                "guide": {
+                  "summary": "keep I/O in the caller",
+                  "read": "guides/example.md"
+                }
+              }
+            ],
+            "findings": [
+              {
+                "id": "example-no-io src/example.ts node:fs",
+                "rule": "a module under src/ imports no node: module",
+                "location": {
+                  "file": "src/example.ts",
+                  "lines": null
+                },
+                "message": "imports node:fs",
+                "related": [],
+                "guide": null,
+                "due": "this-phase"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "moment: Expected \"pushed\" | \"pulled\", actual \"bogus-value\""
+      }
+    },
+    {
+      "name": "constraint moment required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-record/0.21.0.json",
+        "request": {
+          "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+          "phase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "terminal": false,
+          "phases": [
+            {
+              "id": "phase-01",
+              "files": [
+                "src/example.ts",
+                "tests/example.test.ts"
+              ]
+            },
+            {
+              "id": "phase-02",
+              "files": [
+                "src/other.ts"
+              ]
+            }
+          ],
+          "files": [
+            "src/example.ts",
+            "src/missing.ts"
+          ]
+        },
+        "outcome": {
+          "kind": "answered",
+          "answer": {
+            "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json",
+            "rules": [
+              {
+                "rule": "a module under src/ imports no node: module",
+                "files": [
+                  "src/example.ts",
+                  "src/missing.ts"
+                ],
+                "guide": {
+                  "summary": "keep I/O in the caller",
+                  "read": "guides/example.md"
+                }
+              }
+            ],
+            "findings": [
+              {
+                "id": "example-no-io src/example.ts node:fs",
+                "rule": "a module under src/ imports no node: module",
+                "location": {
+                  "file": "src/example.ts",
+                  "lines": null
+                },
+                "message": "imports node:fs",
+                "related": [],
+                "guide": null,
+                "due": "this-phase"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "moment: is missing"
+      }
+    },
+    {
+      "name": "constraint outcome required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-record/0.21.0.json",
+        "moment": "pulled",
+        "request": {
+          "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+          "phase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "terminal": false,
+          "phases": [
+            {
+              "id": "phase-01",
+              "files": [
+                "src/example.ts",
+                "tests/example.test.ts"
+              ]
+            },
+            {
+              "id": "phase-02",
+              "files": [
+                "src/other.ts"
+              ]
+            }
+          ],
+          "files": [
+            "src/example.ts",
+            "src/missing.ts"
+          ]
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "outcome: is missing"
+      }
+    },
+    {
+      "name": "constraint outcome.answer required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-record/0.21.0.json",
+        "moment": "pulled",
+        "request": {
+          "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+          "phase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "terminal": false,
+          "phases": [
+            {
+              "id": "phase-01",
+              "files": [
+                "src/example.ts",
+                "tests/example.test.ts"
+              ]
+            },
+            {
+              "id": "phase-02",
+              "files": [
+                "src/other.ts"
+              ]
+            }
+          ],
+          "files": [
+            "src/example.ts",
+            "src/missing.ts"
+          ]
+        },
+        "outcome": {
+          "kind": "answered"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "outcome.answer: is missing"
+      }
+    },
+    {
+      "name": "constraint outcome.kind enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-record/0.21.0.json",
+        "moment": "pulled",
+        "request": {
+          "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+          "phase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "terminal": false,
+          "phases": [
+            {
+              "id": "phase-01",
+              "files": [
+                "src/example.ts",
+                "tests/example.test.ts"
+              ]
+            },
+            {
+              "id": "phase-02",
+              "files": [
+                "src/other.ts"
+              ]
+            }
+          ],
+          "files": [
+            "src/example.ts",
+            "src/missing.ts"
+          ]
+        },
+        "outcome": {
+          "kind": "bogus-value",
+          "answer": {
+            "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json",
+            "rules": [
+              {
+                "rule": "a module under src/ imports no node: module",
+                "files": [
+                  "src/example.ts",
+                  "src/missing.ts"
+                ],
+                "guide": {
+                  "summary": "keep I/O in the caller",
+                  "read": "guides/example.md"
+                }
+              }
+            ],
+            "findings": [
+              {
+                "id": "example-no-io src/example.ts node:fs",
+                "rule": "a module under src/ imports no node: module",
+                "location": {
+                  "file": "src/example.ts",
+                  "lines": null
+                },
+                "message": "imports node:fs",
+                "related": [],
+                "guide": null,
+                "due": "this-phase"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "outcome.kind: Expected \"answered\" | \"failed\", actual \"bogus-value\""
+      }
+    },
+    {
+      "name": "constraint outcome.kind required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-record/0.21.0.json",
+        "moment": "pulled",
+        "request": {
+          "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+          "phase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "terminal": false,
+          "phases": [
+            {
+              "id": "phase-01",
+              "files": [
+                "src/example.ts",
+                "tests/example.test.ts"
+              ]
+            },
+            {
+              "id": "phase-02",
+              "files": [
+                "src/other.ts"
+              ]
+            }
+          ],
+          "files": [
+            "src/example.ts",
+            "src/missing.ts"
+          ]
+        },
+        "outcome": {
+          "answer": {
+            "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json",
+            "rules": [
+              {
+                "rule": "a module under src/ imports no node: module",
+                "files": [
+                  "src/example.ts",
+                  "src/missing.ts"
+                ],
+                "guide": {
+                  "summary": "keep I/O in the caller",
+                  "read": "guides/example.md"
+                }
+              }
+            ],
+            "findings": [
+              {
+                "id": "example-no-io src/example.ts node:fs",
+                "rule": "a module under src/ imports no node: module",
+                "location": {
+                  "file": "src/example.ts",
+                  "lines": null
+                },
+                "message": "imports node:fs",
+                "related": [],
+                "guide": null,
+                "due": "this-phase"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "outcome.kind: is missing"
+      }
+    },
+    {
+      "name": "constraint outcome.reason minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-record/0.21.0.json",
+        "moment": "pulled",
+        "request": {
+          "$schema": "https://docs.phax.run/schemas/brief-request/0.21.0.json",
+          "phase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "terminal": false,
+          "phases": [
+            {
+              "id": "phase-01",
+              "files": [
+                "src/example.ts"
+              ]
+            }
+          ],
+          "files": [
+            "src/example.ts"
+          ]
+        },
+        "outcome": {
+          "kind": "failed",
+          "reason": ""
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "outcome.reason: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint outcome.reason required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-record/0.21.0.json",
+        "moment": "pulled",
+        "request": {
+          "$schema": "https://docs.phax.run/schemas/brief-request/0.21.0.json",
+          "phase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "terminal": false,
+          "phases": [
+            {
+              "id": "phase-01",
+              "files": [
+                "src/example.ts"
+              ]
+            }
+          ],
+          "files": [
+            "src/example.ts"
+          ]
+        },
+        "outcome": {
+          "kind": "failed"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "outcome.reason: is missing"
+      }
+    },
+    {
+      "name": "constraint request required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-record/0.21.0.json",
+        "moment": "pulled",
+        "outcome": {
+          "kind": "answered",
+          "answer": {
+            "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json",
+            "rules": [
+              {
+                "rule": "a module under src/ imports no node: module",
+                "files": [
+                  "src/example.ts",
+                  "src/missing.ts"
+                ],
+                "guide": {
+                  "summary": "keep I/O in the caller",
+                  "read": "guides/example.md"
+                }
+              }
+            ],
+            "findings": [
+              {
+                "id": "example-no-io src/example.ts node:fs",
+                "rule": "a module under src/ imports no node: module",
+                "location": {
+                  "file": "src/example.ts",
+                  "lines": null
+                },
+                "message": "imports node:fs",
+                "related": [],
+                "guide": null,
+                "due": "this-phase"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "request: is missing"
+      }
+    },
+    {
+      "name": "constraint request.$schema pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-record/0.21.0.json",
+        "moment": "pulled",
+        "request": {
+          "$schema": "",
+          "phase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "terminal": false,
+          "phases": [
+            {
+              "id": "phase-01",
+              "files": [
+                "src/example.ts",
+                "tests/example.test.ts"
+              ]
+            },
+            {
+              "id": "phase-02",
+              "files": [
+                "src/other.ts"
+              ]
+            }
+          ],
+          "files": [
+            "src/example.ts",
+            "src/missing.ts"
+          ]
+        },
+        "outcome": {
+          "kind": "answered",
+          "answer": {
+            "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json",
+            "rules": [
+              {
+                "rule": "a module under src/ imports no node: module",
+                "files": [
+                  "src/example.ts",
+                  "src/missing.ts"
+                ],
+                "guide": {
+                  "summary": "keep I/O in the caller",
+                  "read": "guides/example.md"
+                }
+              }
+            ],
+            "findings": [
+              {
+                "id": "example-no-io src/example.ts node:fs",
+                "rule": "a module under src/ imports no node: module",
+                "location": {
+                  "file": "src/example.ts",
+                  "lines": null
+                },
+                "message": "imports node:fs",
+                "related": [],
+                "guide": null,
+                "due": "this-phase"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "request.$schema: Expected a string matching the pattern ^https:\\/\\/docs\\.phax\\.run\\/schemas\\/brief-request\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$, actual \"\""
+      }
+    },
+    {
+      "name": "constraint request.$schema required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-record/0.21.0.json",
+        "moment": "pulled",
+        "request": {
+          "phase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "terminal": false,
+          "phases": [
+            {
+              "id": "phase-01",
+              "files": [
+                "src/example.ts",
+                "tests/example.test.ts"
+              ]
+            },
+            {
+              "id": "phase-02",
+              "files": [
+                "src/other.ts"
+              ]
+            }
+          ],
+          "files": [
+            "src/example.ts",
+            "src/missing.ts"
+          ]
+        },
+        "outcome": {
+          "kind": "answered",
+          "answer": {
+            "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json",
+            "rules": [
+              {
+                "rule": "a module under src/ imports no node: module",
+                "files": [
+                  "src/example.ts",
+                  "src/missing.ts"
+                ],
+                "guide": {
+                  "summary": "keep I/O in the caller",
+                  "read": "guides/example.md"
+                }
+              }
+            ],
+            "findings": [
+              {
+                "id": "example-no-io src/example.ts node:fs",
+                "rule": "a module under src/ imports no node: module",
+                "location": {
+                  "file": "src/example.ts",
+                  "lines": null
+                },
+                "message": "imports node:fs",
+                "related": [],
+                "guide": null,
+                "due": "this-phase"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "request.$schema: is missing"
+      }
+    },
+    {
+      "name": "constraint request.base pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-record/0.21.0.json",
+        "moment": "pulled",
+        "request": {
+          "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+          "phase": "phase-02",
+          "base": "",
+          "terminal": false,
+          "phases": [
+            {
+              "id": "phase-01",
+              "files": [
+                "src/example.ts",
+                "tests/example.test.ts"
+              ]
+            },
+            {
+              "id": "phase-02",
+              "files": [
+                "src/other.ts"
+              ]
+            }
+          ],
+          "files": [
+            "src/example.ts",
+            "src/missing.ts"
+          ]
+        },
+        "outcome": {
+          "kind": "answered",
+          "answer": {
+            "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json",
+            "rules": [
+              {
+                "rule": "a module under src/ imports no node: module",
+                "files": [
+                  "src/example.ts",
+                  "src/missing.ts"
+                ],
+                "guide": {
+                  "summary": "keep I/O in the caller",
+                  "read": "guides/example.md"
+                }
+              }
+            ],
+            "findings": [
+              {
+                "id": "example-no-io src/example.ts node:fs",
+                "rule": "a module under src/ imports no node: module",
+                "location": {
+                  "file": "src/example.ts",
+                  "lines": null
+                },
+                "message": "imports node:fs",
+                "related": [],
+                "guide": null,
+                "due": "this-phase"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "request.base: Expected a string matching the pattern ^[0-9a-f]{40}([0-9a-f]{24})?$, actual \"\""
+      }
+    },
+    {
+      "name": "constraint request.base required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-record/0.21.0.json",
+        "moment": "pulled",
+        "request": {
+          "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+          "phase": "phase-02",
+          "terminal": false,
+          "phases": [
+            {
+              "id": "phase-01",
+              "files": [
+                "src/example.ts",
+                "tests/example.test.ts"
+              ]
+            },
+            {
+              "id": "phase-02",
+              "files": [
+                "src/other.ts"
+              ]
+            }
+          ],
+          "files": [
+            "src/example.ts",
+            "src/missing.ts"
+          ]
+        },
+        "outcome": {
+          "kind": "answered",
+          "answer": {
+            "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json",
+            "rules": [
+              {
+                "rule": "a module under src/ imports no node: module",
+                "files": [
+                  "src/example.ts",
+                  "src/missing.ts"
+                ],
+                "guide": {
+                  "summary": "keep I/O in the caller",
+                  "read": "guides/example.md"
+                }
+              }
+            ],
+            "findings": [
+              {
+                "id": "example-no-io src/example.ts node:fs",
+                "rule": "a module under src/ imports no node: module",
+                "location": {
+                  "file": "src/example.ts",
+                  "lines": null
+                },
+                "message": "imports node:fs",
+                "related": [],
+                "guide": null,
+                "due": "this-phase"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "request.base: is missing"
+      }
+    },
+    {
+      "name": "constraint request.files minItems",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-record/0.21.0.json",
+        "moment": "pulled",
+        "request": {
+          "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+          "phase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "terminal": false,
+          "phases": [
+            {
+              "id": "phase-01",
+              "files": [
+                "src/example.ts",
+                "tests/example.test.ts"
+              ]
+            },
+            {
+              "id": "phase-02",
+              "files": [
+                "src/other.ts"
+              ]
+            }
+          ],
+          "files": []
+        },
+        "outcome": {
+          "kind": "answered",
+          "answer": {
+            "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json",
+            "rules": [
+              {
+                "rule": "a module under src/ imports no node: module",
+                "files": [
+                  "src/example.ts",
+                  "src/missing.ts"
+                ],
+                "guide": {
+                  "summary": "keep I/O in the caller",
+                  "read": "guides/example.md"
+                }
+              }
+            ],
+            "findings": [
+              {
+                "id": "example-no-io src/example.ts node:fs",
+                "rule": "a module under src/ imports no node: module",
+                "location": {
+                  "file": "src/example.ts",
+                  "lines": null
+                },
+                "message": "imports node:fs",
+                "related": [],
+                "guide": null,
+                "due": "this-phase"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "request.files.0: is missing"
+      }
+    },
+    {
+      "name": "constraint request.files required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-record/0.21.0.json",
+        "moment": "pulled",
+        "request": {
+          "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+          "phase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "terminal": false,
+          "phases": [
+            {
+              "id": "phase-01",
+              "files": [
+                "src/example.ts",
+                "tests/example.test.ts"
+              ]
+            },
+            {
+              "id": "phase-02",
+              "files": [
+                "src/other.ts"
+              ]
+            }
+          ]
+        },
+        "outcome": {
+          "kind": "answered",
+          "answer": {
+            "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json",
+            "rules": [
+              {
+                "rule": "a module under src/ imports no node: module",
+                "files": [
+                  "src/example.ts",
+                  "src/missing.ts"
+                ],
+                "guide": {
+                  "summary": "keep I/O in the caller",
+                  "read": "guides/example.md"
+                }
+              }
+            ],
+            "findings": [
+              {
+                "id": "example-no-io src/example.ts node:fs",
+                "rule": "a module under src/ imports no node: module",
+                "location": {
+                  "file": "src/example.ts",
+                  "lines": null
+                },
+                "message": "imports node:fs",
+                "related": [],
+                "guide": null,
+                "due": "this-phase"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "request.files: is missing"
+      }
+    },
+    {
+      "name": "constraint request.files[] minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-record/0.21.0.json",
+        "moment": "pulled",
+        "request": {
+          "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+          "phase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "terminal": false,
+          "phases": [
+            {
+              "id": "phase-01",
+              "files": [
+                "src/example.ts",
+                "tests/example.test.ts"
+              ]
+            },
+            {
+              "id": "phase-02",
+              "files": [
+                "src/other.ts"
+              ]
+            }
+          ],
+          "files": [
+            "",
+            "src/missing.ts"
+          ]
+        },
+        "outcome": {
+          "kind": "answered",
+          "answer": {
+            "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json",
+            "rules": [
+              {
+                "rule": "a module under src/ imports no node: module",
+                "files": [
+                  "src/example.ts",
+                  "src/missing.ts"
+                ],
+                "guide": {
+                  "summary": "keep I/O in the caller",
+                  "read": "guides/example.md"
+                }
+              }
+            ],
+            "findings": [
+              {
+                "id": "example-no-io src/example.ts node:fs",
+                "rule": "a module under src/ imports no node: module",
+                "location": {
+                  "file": "src/example.ts",
+                  "lines": null
+                },
+                "message": "imports node:fs",
+                "related": [],
+                "guide": null,
+                "due": "this-phase"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "request.files.0: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint request.phase pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-record/0.21.0.json",
+        "moment": "pulled",
+        "request": {
+          "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+          "phase": "",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "terminal": false,
+          "phases": [
+            {
+              "id": "phase-01",
+              "files": [
+                "src/example.ts",
+                "tests/example.test.ts"
+              ]
+            },
+            {
+              "id": "phase-02",
+              "files": [
+                "src/other.ts"
+              ]
+            }
+          ],
+          "files": [
+            "src/example.ts",
+            "src/missing.ts"
+          ]
+        },
+        "outcome": {
+          "kind": "answered",
+          "answer": {
+            "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json",
+            "rules": [
+              {
+                "rule": "a module under src/ imports no node: module",
+                "files": [
+                  "src/example.ts",
+                  "src/missing.ts"
+                ],
+                "guide": {
+                  "summary": "keep I/O in the caller",
+                  "read": "guides/example.md"
+                }
+              }
+            ],
+            "findings": [
+              {
+                "id": "example-no-io src/example.ts node:fs",
+                "rule": "a module under src/ imports no node: module",
+                "location": {
+                  "file": "src/example.ts",
+                  "lines": null
+                },
+                "message": "imports node:fs",
+                "related": [],
+                "guide": null,
+                "due": "this-phase"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "request.phase: Expected a string matching the pattern ^phase-\\d{2}$, actual \"\""
+      }
+    },
+    {
+      "name": "constraint request.phase required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-record/0.21.0.json",
+        "moment": "pulled",
+        "request": {
+          "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "terminal": false,
+          "phases": [
+            {
+              "id": "phase-01",
+              "files": [
+                "src/example.ts",
+                "tests/example.test.ts"
+              ]
+            },
+            {
+              "id": "phase-02",
+              "files": [
+                "src/other.ts"
+              ]
+            }
+          ],
+          "files": [
+            "src/example.ts",
+            "src/missing.ts"
+          ]
+        },
+        "outcome": {
+          "kind": "answered",
+          "answer": {
+            "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json",
+            "rules": [
+              {
+                "rule": "a module under src/ imports no node: module",
+                "files": [
+                  "src/example.ts",
+                  "src/missing.ts"
+                ],
+                "guide": {
+                  "summary": "keep I/O in the caller",
+                  "read": "guides/example.md"
+                }
+              }
+            ],
+            "findings": [
+              {
+                "id": "example-no-io src/example.ts node:fs",
+                "rule": "a module under src/ imports no node: module",
+                "location": {
+                  "file": "src/example.ts",
+                  "lines": null
+                },
+                "message": "imports node:fs",
+                "related": [],
+                "guide": null,
+                "due": "this-phase"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "request.phase: is missing"
+      }
+    },
+    {
+      "name": "constraint request.phases required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-record/0.21.0.json",
+        "moment": "pulled",
+        "request": {
+          "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+          "phase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "terminal": false,
+          "files": [
+            "src/example.ts",
+            "src/missing.ts"
+          ]
+        },
+        "outcome": {
+          "kind": "answered",
+          "answer": {
+            "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json",
+            "rules": [
+              {
+                "rule": "a module under src/ imports no node: module",
+                "files": [
+                  "src/example.ts",
+                  "src/missing.ts"
+                ],
+                "guide": {
+                  "summary": "keep I/O in the caller",
+                  "read": "guides/example.md"
+                }
+              }
+            ],
+            "findings": [
+              {
+                "id": "example-no-io src/example.ts node:fs",
+                "rule": "a module under src/ imports no node: module",
+                "location": {
+                  "file": "src/example.ts",
+                  "lines": null
+                },
+                "message": "imports node:fs",
+                "related": [],
+                "guide": null,
+                "due": "this-phase"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "request.phases: is missing"
+      }
+    },
+    {
+      "name": "constraint request.phases[].files required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-record/0.21.0.json",
+        "moment": "pulled",
+        "request": {
+          "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+          "phase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "terminal": false,
+          "phases": [
+            {
+              "id": "phase-01"
+            },
+            {
+              "id": "phase-02",
+              "files": [
+                "src/other.ts"
+              ]
+            }
+          ],
+          "files": [
+            "src/example.ts",
+            "src/missing.ts"
+          ]
+        },
+        "outcome": {
+          "kind": "answered",
+          "answer": {
+            "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json",
+            "rules": [
+              {
+                "rule": "a module under src/ imports no node: module",
+                "files": [
+                  "src/example.ts",
+                  "src/missing.ts"
+                ],
+                "guide": {
+                  "summary": "keep I/O in the caller",
+                  "read": "guides/example.md"
+                }
+              }
+            ],
+            "findings": [
+              {
+                "id": "example-no-io src/example.ts node:fs",
+                "rule": "a module under src/ imports no node: module",
+                "location": {
+                  "file": "src/example.ts",
+                  "lines": null
+                },
+                "message": "imports node:fs",
+                "related": [],
+                "guide": null,
+                "due": "this-phase"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "request.phases.0.files: is missing"
+      }
+    },
+    {
+      "name": "constraint request.phases[].id pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-record/0.21.0.json",
+        "moment": "pulled",
+        "request": {
+          "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+          "phase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "terminal": false,
+          "phases": [
+            {
+              "id": "",
+              "files": [
+                "src/example.ts",
+                "tests/example.test.ts"
+              ]
+            },
+            {
+              "id": "phase-02",
+              "files": [
+                "src/other.ts"
+              ]
+            }
+          ],
+          "files": [
+            "src/example.ts",
+            "src/missing.ts"
+          ]
+        },
+        "outcome": {
+          "kind": "answered",
+          "answer": {
+            "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json",
+            "rules": [
+              {
+                "rule": "a module under src/ imports no node: module",
+                "files": [
+                  "src/example.ts",
+                  "src/missing.ts"
+                ],
+                "guide": {
+                  "summary": "keep I/O in the caller",
+                  "read": "guides/example.md"
+                }
+              }
+            ],
+            "findings": [
+              {
+                "id": "example-no-io src/example.ts node:fs",
+                "rule": "a module under src/ imports no node: module",
+                "location": {
+                  "file": "src/example.ts",
+                  "lines": null
+                },
+                "message": "imports node:fs",
+                "related": [],
+                "guide": null,
+                "due": "this-phase"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "request.phases.0.id: Expected a string matching the pattern ^phase-\\d{2}$, actual \"\""
+      }
+    },
+    {
+      "name": "constraint request.phases[].id required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-record/0.21.0.json",
+        "moment": "pulled",
+        "request": {
+          "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+          "phase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "terminal": false,
+          "phases": [
+            {
+              "files": [
+                "src/example.ts",
+                "tests/example.test.ts"
+              ]
+            },
+            {
+              "id": "phase-02",
+              "files": [
+                "src/other.ts"
+              ]
+            }
+          ],
+          "files": [
+            "src/example.ts",
+            "src/missing.ts"
+          ]
+        },
+        "outcome": {
+          "kind": "answered",
+          "answer": {
+            "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json",
+            "rules": [
+              {
+                "rule": "a module under src/ imports no node: module",
+                "files": [
+                  "src/example.ts",
+                  "src/missing.ts"
+                ],
+                "guide": {
+                  "summary": "keep I/O in the caller",
+                  "read": "guides/example.md"
+                }
+              }
+            ],
+            "findings": [
+              {
+                "id": "example-no-io src/example.ts node:fs",
+                "rule": "a module under src/ imports no node: module",
+                "location": {
+                  "file": "src/example.ts",
+                  "lines": null
+                },
+                "message": "imports node:fs",
+                "related": [],
+                "guide": null,
+                "due": "this-phase"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "request.phases.0.id: is missing"
+      }
+    },
+    {
+      "name": "constraint request.terminal required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-record/0.21.0.json",
+        "moment": "pulled",
+        "request": {
+          "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+          "phase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "phases": [
+            {
+              "id": "phase-01",
+              "files": [
+                "src/example.ts",
+                "tests/example.test.ts"
+              ]
+            },
+            {
+              "id": "phase-02",
+              "files": [
+                "src/other.ts"
+              ]
+            }
+          ],
+          "files": [
+            "src/example.ts",
+            "src/missing.ts"
+          ]
+        },
+        "outcome": {
+          "kind": "answered",
+          "answer": {
+            "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json",
+            "rules": [
+              {
+                "rule": "a module under src/ imports no node: module",
+                "files": [
+                  "src/example.ts",
+                  "src/missing.ts"
+                ],
+                "guide": {
+                  "summary": "keep I/O in the caller",
+                  "read": "guides/example.md"
+                }
+              }
+            ],
+            "findings": [
+              {
+                "id": "example-no-io src/example.ts node:fs",
+                "rule": "a module under src/ imports no node: module",
+                "location": {
+                  "file": "src/example.ts",
+                  "lines": null
+                },
+                "message": "imports node:fs",
+                "related": [],
+                "guide": null,
+                "due": "this-phase"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "request.terminal: is missing"
+      }
     }
   ],
   "shapes": {
@@ -1359,6 +2887,801 @@
         "expected": {
           "ok": false,
           "refusal": "request.phase: Expected a string matching the pattern ^phase-\\d{2}$, actual \"\""
+        }
+      },
+      {
+        "name": "constraint $schema pattern",
+        "input": {
+          "$schema": "",
+          "moment": "pulled",
+          "request": {
+            "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+            "phase": "phase-02",
+            "base": "0123456789abcdef0123456789abcdef01234567",
+            "terminal": false,
+            "phases": [
+              {
+                "id": "phase-01",
+                "files": [
+                  "src/example.ts"
+                ]
+              }
+            ],
+            "files": [
+              "src/example.ts"
+            ]
+          },
+          "outcome": {
+            "kind": "answered",
+            "answer": {
+              "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "$schema: Expected a string matching the pattern ^https:\\/\\/docs\\.phax\\.run\\/schemas\\/brief-record\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$, actual \"\""
+        }
+      },
+      {
+        "name": "constraint $schema required",
+        "input": {
+          "moment": "pulled",
+          "request": {
+            "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+            "phase": "phase-02",
+            "base": "0123456789abcdef0123456789abcdef01234567",
+            "terminal": false,
+            "phases": [
+              {
+                "id": "phase-01",
+                "files": [
+                  "src/example.ts"
+                ]
+              }
+            ],
+            "files": [
+              "src/example.ts"
+            ]
+          },
+          "outcome": {
+            "kind": "answered",
+            "answer": {
+              "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "$schema: is missing"
+        }
+      },
+      {
+        "name": "constraint moment enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/brief-record/0.20.0.json",
+          "moment": "bogus-value",
+          "request": {
+            "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+            "phase": "phase-02",
+            "base": "0123456789abcdef0123456789abcdef01234567",
+            "terminal": false,
+            "phases": [
+              {
+                "id": "phase-01",
+                "files": [
+                  "src/example.ts"
+                ]
+              }
+            ],
+            "files": [
+              "src/example.ts"
+            ]
+          },
+          "outcome": {
+            "kind": "answered",
+            "answer": {
+              "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "moment: Expected \"pushed\" | \"pulled\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint moment required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/brief-record/0.20.0.json",
+          "request": {
+            "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+            "phase": "phase-02",
+            "base": "0123456789abcdef0123456789abcdef01234567",
+            "terminal": false,
+            "phases": [
+              {
+                "id": "phase-01",
+                "files": [
+                  "src/example.ts"
+                ]
+              }
+            ],
+            "files": [
+              "src/example.ts"
+            ]
+          },
+          "outcome": {
+            "kind": "answered",
+            "answer": {
+              "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "moment: is missing"
+        }
+      },
+      {
+        "name": "constraint outcome required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/brief-record/0.20.0.json",
+          "moment": "pulled",
+          "request": {
+            "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+            "phase": "phase-02",
+            "base": "0123456789abcdef0123456789abcdef01234567",
+            "terminal": false,
+            "phases": [
+              {
+                "id": "phase-01",
+                "files": [
+                  "src/example.ts"
+                ]
+              }
+            ],
+            "files": [
+              "src/example.ts"
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "outcome: is missing"
+        }
+      },
+      {
+        "name": "constraint outcome.answer required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/brief-record/0.20.0.json",
+          "moment": "pulled",
+          "request": {
+            "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+            "phase": "phase-02",
+            "base": "0123456789abcdef0123456789abcdef01234567",
+            "terminal": false,
+            "phases": [
+              {
+                "id": "phase-01",
+                "files": [
+                  "src/example.ts"
+                ]
+              }
+            ],
+            "files": [
+              "src/example.ts"
+            ]
+          },
+          "outcome": {
+            "kind": "answered"
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "outcome.answer: is missing"
+        }
+      },
+      {
+        "name": "constraint outcome.kind enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/brief-record/0.20.0.json",
+          "moment": "pulled",
+          "request": {
+            "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+            "phase": "phase-02",
+            "base": "0123456789abcdef0123456789abcdef01234567",
+            "terminal": false,
+            "phases": [
+              {
+                "id": "phase-01",
+                "files": [
+                  "src/example.ts"
+                ]
+              }
+            ],
+            "files": [
+              "src/example.ts"
+            ]
+          },
+          "outcome": {
+            "kind": "bogus-value",
+            "answer": {
+              "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "outcome.kind: Expected \"answered\" | \"failed\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint outcome.kind required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/brief-record/0.20.0.json",
+          "moment": "pulled",
+          "request": {
+            "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+            "phase": "phase-02",
+            "base": "0123456789abcdef0123456789abcdef01234567",
+            "terminal": false,
+            "phases": [
+              {
+                "id": "phase-01",
+                "files": [
+                  "src/example.ts"
+                ]
+              }
+            ],
+            "files": [
+              "src/example.ts"
+            ]
+          },
+          "outcome": {
+            "answer": {
+              "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "outcome.kind: is missing"
+        }
+      },
+      {
+        "name": "constraint outcome.reason minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/brief-record/0.20.0.json",
+          "moment": "pulled",
+          "request": {
+            "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+            "phase": "phase-02",
+            "base": "0123456789abcdef0123456789abcdef01234567",
+            "terminal": false,
+            "phases": [
+              {
+                "id": "phase-01",
+                "files": [
+                  "src/example.ts"
+                ]
+              }
+            ],
+            "files": [
+              "src/example.ts"
+            ]
+          },
+          "outcome": {
+            "kind": "failed",
+            "reason": ""
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "outcome.reason: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint outcome.reason required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/brief-record/0.20.0.json",
+          "moment": "pulled",
+          "request": {
+            "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+            "phase": "phase-02",
+            "base": "0123456789abcdef0123456789abcdef01234567",
+            "terminal": false,
+            "phases": [
+              {
+                "id": "phase-01",
+                "files": [
+                  "src/example.ts"
+                ]
+              }
+            ],
+            "files": [
+              "src/example.ts"
+            ]
+          },
+          "outcome": {
+            "kind": "failed"
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "outcome.reason: is missing"
+        }
+      },
+      {
+        "name": "constraint request required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/brief-record/0.20.0.json",
+          "moment": "pulled",
+          "outcome": {
+            "kind": "answered",
+            "answer": {
+              "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "request: is missing"
+        }
+      },
+      {
+        "name": "constraint request.$schema pattern",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/brief-record/0.20.0.json",
+          "moment": "pulled",
+          "request": {
+            "$schema": "",
+            "phase": "phase-02",
+            "base": "0123456789abcdef0123456789abcdef01234567",
+            "terminal": false,
+            "phases": [
+              {
+                "id": "phase-01",
+                "files": [
+                  "src/example.ts"
+                ]
+              }
+            ],
+            "files": [
+              "src/example.ts"
+            ]
+          },
+          "outcome": {
+            "kind": "answered",
+            "answer": {
+              "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "request.$schema: Expected a string matching the pattern ^https:\\/\\/docs\\.phax\\.run\\/schemas\\/brief-request\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$, actual \"\""
+        }
+      },
+      {
+        "name": "constraint request.$schema required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/brief-record/0.20.0.json",
+          "moment": "pulled",
+          "request": {
+            "phase": "phase-02",
+            "base": "0123456789abcdef0123456789abcdef01234567",
+            "terminal": false,
+            "phases": [
+              {
+                "id": "phase-01",
+                "files": [
+                  "src/example.ts"
+                ]
+              }
+            ],
+            "files": [
+              "src/example.ts"
+            ]
+          },
+          "outcome": {
+            "kind": "answered",
+            "answer": {
+              "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "request.$schema: is missing"
+        }
+      },
+      {
+        "name": "constraint request.base pattern",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/brief-record/0.20.0.json",
+          "moment": "pulled",
+          "request": {
+            "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+            "phase": "phase-02",
+            "base": "",
+            "terminal": false,
+            "phases": [
+              {
+                "id": "phase-01",
+                "files": [
+                  "src/example.ts"
+                ]
+              }
+            ],
+            "files": [
+              "src/example.ts"
+            ]
+          },
+          "outcome": {
+            "kind": "answered",
+            "answer": {
+              "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "request.base: Expected a string matching the pattern ^[0-9a-f]{40}([0-9a-f]{24})?$, actual \"\""
+        }
+      },
+      {
+        "name": "constraint request.base required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/brief-record/0.20.0.json",
+          "moment": "pulled",
+          "request": {
+            "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+            "phase": "phase-02",
+            "terminal": false,
+            "phases": [
+              {
+                "id": "phase-01",
+                "files": [
+                  "src/example.ts"
+                ]
+              }
+            ],
+            "files": [
+              "src/example.ts"
+            ]
+          },
+          "outcome": {
+            "kind": "answered",
+            "answer": {
+              "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "request.base: is missing"
+        }
+      },
+      {
+        "name": "constraint request.files minItems",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/brief-record/0.20.0.json",
+          "moment": "pulled",
+          "request": {
+            "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+            "phase": "phase-02",
+            "base": "0123456789abcdef0123456789abcdef01234567",
+            "terminal": false,
+            "phases": [
+              {
+                "id": "phase-01",
+                "files": [
+                  "src/example.ts"
+                ]
+              }
+            ],
+            "files": []
+          },
+          "outcome": {
+            "kind": "answered",
+            "answer": {
+              "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "request.files.0: is missing"
+        }
+      },
+      {
+        "name": "constraint request.files required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/brief-record/0.20.0.json",
+          "moment": "pulled",
+          "request": {
+            "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+            "phase": "phase-02",
+            "base": "0123456789abcdef0123456789abcdef01234567",
+            "terminal": false,
+            "phases": [
+              {
+                "id": "phase-01",
+                "files": [
+                  "src/example.ts"
+                ]
+              }
+            ]
+          },
+          "outcome": {
+            "kind": "answered",
+            "answer": {
+              "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "request.files: is missing"
+        }
+      },
+      {
+        "name": "constraint request.files[] minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/brief-record/0.20.0.json",
+          "moment": "pulled",
+          "request": {
+            "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+            "phase": "phase-02",
+            "base": "0123456789abcdef0123456789abcdef01234567",
+            "terminal": false,
+            "phases": [
+              {
+                "id": "phase-01",
+                "files": [
+                  "src/example.ts"
+                ]
+              }
+            ],
+            "files": [
+              ""
+            ]
+          },
+          "outcome": {
+            "kind": "answered",
+            "answer": {
+              "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "request.files.0: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint request.phase pattern",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/brief-record/0.20.0.json",
+          "moment": "pulled",
+          "request": {
+            "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+            "phase": "",
+            "base": "0123456789abcdef0123456789abcdef01234567",
+            "terminal": false,
+            "phases": [
+              {
+                "id": "phase-01",
+                "files": [
+                  "src/example.ts"
+                ]
+              }
+            ],
+            "files": [
+              "src/example.ts"
+            ]
+          },
+          "outcome": {
+            "kind": "answered",
+            "answer": {
+              "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "request.phase: Expected a string matching the pattern ^phase-\\d{2}$, actual \"\""
+        }
+      },
+      {
+        "name": "constraint request.phase required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/brief-record/0.20.0.json",
+          "moment": "pulled",
+          "request": {
+            "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+            "base": "0123456789abcdef0123456789abcdef01234567",
+            "terminal": false,
+            "phases": [
+              {
+                "id": "phase-01",
+                "files": [
+                  "src/example.ts"
+                ]
+              }
+            ],
+            "files": [
+              "src/example.ts"
+            ]
+          },
+          "outcome": {
+            "kind": "answered",
+            "answer": {
+              "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "request.phase: is missing"
+        }
+      },
+      {
+        "name": "constraint request.phases required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/brief-record/0.20.0.json",
+          "moment": "pulled",
+          "request": {
+            "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+            "phase": "phase-02",
+            "base": "0123456789abcdef0123456789abcdef01234567",
+            "terminal": false,
+            "files": [
+              "src/example.ts"
+            ]
+          },
+          "outcome": {
+            "kind": "answered",
+            "answer": {
+              "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "request.phases: is missing"
+        }
+      },
+      {
+        "name": "constraint request.phases[].files required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/brief-record/0.20.0.json",
+          "moment": "pulled",
+          "request": {
+            "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+            "phase": "phase-02",
+            "base": "0123456789abcdef0123456789abcdef01234567",
+            "terminal": false,
+            "phases": [
+              {
+                "id": "phase-01"
+              }
+            ],
+            "files": [
+              "src/example.ts"
+            ]
+          },
+          "outcome": {
+            "kind": "answered",
+            "answer": {
+              "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "request.phases.0.files: is missing"
+        }
+      },
+      {
+        "name": "constraint request.phases[].id pattern",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/brief-record/0.20.0.json",
+          "moment": "pulled",
+          "request": {
+            "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+            "phase": "phase-02",
+            "base": "0123456789abcdef0123456789abcdef01234567",
+            "terminal": false,
+            "phases": [
+              {
+                "id": "",
+                "files": [
+                  "src/example.ts"
+                ]
+              }
+            ],
+            "files": [
+              "src/example.ts"
+            ]
+          },
+          "outcome": {
+            "kind": "answered",
+            "answer": {
+              "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "request.phases.0.id: Expected a string matching the pattern ^phase-\\d{2}$, actual \"\""
+        }
+      },
+      {
+        "name": "constraint request.phases[].id required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/brief-record/0.20.0.json",
+          "moment": "pulled",
+          "request": {
+            "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+            "phase": "phase-02",
+            "base": "0123456789abcdef0123456789abcdef01234567",
+            "terminal": false,
+            "phases": [
+              {
+                "files": [
+                  "src/example.ts"
+                ]
+              }
+            ],
+            "files": [
+              "src/example.ts"
+            ]
+          },
+          "outcome": {
+            "kind": "answered",
+            "answer": {
+              "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "request.phases.0.id: is missing"
+        }
+      },
+      {
+        "name": "constraint request.terminal required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/brief-record/0.20.0.json",
+          "moment": "pulled",
+          "request": {
+            "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+            "phase": "phase-02",
+            "base": "0123456789abcdef0123456789abcdef01234567",
+            "phases": [
+              {
+                "id": "phase-01",
+                "files": [
+                  "src/example.ts"
+                ]
+              }
+            ],
+            "files": [
+              "src/example.ts"
+            ]
+          },
+          "outcome": {
+            "kind": "answered",
+            "answer": {
+              "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "request.terminal: is missing"
         }
       }
     ]

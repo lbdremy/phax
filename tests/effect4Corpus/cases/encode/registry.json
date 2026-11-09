@@ -1,0 +1,160 @@
+{
+  "subject": "encode/registry",
+  "cases": [
+    {
+      "name": "accepts a typical document",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/registry/0.26.0.json",
+        "runs": [
+          {
+            "namespace": "example",
+            "shortName": "example-run",
+            "runId": "run-0001",
+            "state": "running",
+            "branch": "phax/example-run",
+            "projectName": "example-repo",
+            "phasesCount": 2,
+            "createdAt": "2026-01-01T09:00:00.000Z",
+            "updatedAt": "2026-01-01T09:30:00.000Z"
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/registry/0.26.0.json",
+          "runs": [
+            {
+              "branch": "phax/example-run",
+              "createdAt": "2026-01-01T09:00:00.000Z",
+              "namespace": "example",
+              "phasesCount": 2,
+              "projectName": "example-repo",
+              "runId": "run-0001",
+              "shortName": "example-run",
+              "state": "running",
+              "updatedAt": "2026-01-01T09:30:00.000Z"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "accepts a document setting every field",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/registry/0.26.0.json",
+        "runs": [
+          {
+            "namespace": "example",
+            "shortName": "example-run",
+            "runId": "run-0001",
+            "state": "running",
+            "branch": "phax/example-run",
+            "projectName": "example-repo",
+            "phasesCount": 2,
+            "createdAt": "2026-01-01T09:00:00.000Z",
+            "updatedAt": "2026-01-01T09:30:00.000Z",
+            "archivePath": "text-8"
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/registry/0.26.0.json",
+          "runs": [
+            {
+              "archivePath": "text-8",
+              "branch": "phax/example-run",
+              "createdAt": "2026-01-01T09:00:00.000Z",
+              "namespace": "example",
+              "phasesCount": 2,
+              "projectName": "example-repo",
+              "runId": "run-0001",
+              "shortName": "example-run",
+              "state": "running",
+              "updatedAt": "2026-01-01T09:30:00.000Z"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "accepts a document with only its required fields",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/registry/0.26.0.json",
+        "runs": [
+          {
+            "namespace": "example",
+            "shortName": "example-run",
+            "runId": "run-0001",
+            "state": "running",
+            "branch": "phax/example-run",
+            "projectName": "example-repo",
+            "phasesCount": 2,
+            "createdAt": "2026-01-01T09:00:00.000Z",
+            "updatedAt": "2026-01-01T09:30:00.000Z"
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/registry/0.26.0.json",
+          "runs": [
+            {
+              "branch": "phax/example-run",
+              "createdAt": "2026-01-01T09:00:00.000Z",
+              "namespace": "example",
+              "phasesCount": 2,
+              "projectName": "example-repo",
+              "runId": "run-0001",
+              "shortName": "example-run",
+              "state": "running",
+              "updatedAt": "2026-01-01T09:30:00.000Z"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "accepts an unexpected key without reading it",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/registry/0.26.0.json",
+        "runs": [
+          {
+            "namespace": "example",
+            "shortName": "example-run",
+            "runId": "run-0001",
+            "state": "running",
+            "branch": "phax/example-run",
+            "projectName": "example-repo",
+            "phasesCount": 2,
+            "createdAt": "2026-01-01T09:00:00.000Z",
+            "updatedAt": "2026-01-01T09:30:00.000Z"
+          }
+        ],
+        "unexpectedKey": 1
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/registry/0.26.0.json",
+          "runs": [
+            {
+              "branch": "phax/example-run",
+              "createdAt": "2026-01-01T09:00:00.000Z",
+              "namespace": "example",
+              "phasesCount": 2,
+              "projectName": "example-repo",
+              "runId": "run-0001",
+              "shortName": "example-run",
+              "state": "running",
+              "updatedAt": "2026-01-01T09:30:00.000Z"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

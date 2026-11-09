@@ -1,0 +1,821 @@
+{
+  "subject": "encode/spec-document",
+  "cases": [
+    {
+      "name": "accepts a typical document",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/spec-document/0.32.0.json",
+        "kind": "spec",
+        "title": "Example spec",
+        "ground": [
+          {
+            "path": "src/example.ts",
+            "note": "the module the spec changes"
+          }
+        ],
+        "context": "An example context.",
+        "problem": "An example problem.",
+        "productGoal": {
+          "statement": "An example goal.",
+          "guidingRule": "Keep it small."
+        },
+        "terminology": [
+          {
+            "term": "example",
+            "definition": "a made-up thing"
+          }
+        ],
+        "requirements": [
+          {
+            "id": "req-one",
+            "title": "One",
+            "pattern": "ubiquitous",
+            "statement": "The tool shall work."
+          }
+        ],
+        "surface": [
+          {
+            "surface": "cli: example",
+            "summary": "An operator can run the example.",
+            "binding": "normative",
+            "before": null,
+            "after": "example --flag"
+          }
+        ],
+        "nonGoals": [
+          "Anything else."
+        ],
+        "acceptanceCriteria": [
+          {
+            "id": "ac-one",
+            "name": "It works",
+            "given": "a repository",
+            "when": "the tool runs",
+            "then": "it works",
+            "refs": [
+              "req-one"
+            ]
+          }
+        ],
+        "openQuestions": [
+          {
+            "id": "q-one",
+            "question": "Which option?",
+            "options": [
+              {
+                "id": "a",
+                "label": "Option A",
+                "abandons": "option B's speed"
+              },
+              {
+                "id": "b",
+                "label": "Option B",
+                "abandons": "option A's safety"
+              }
+            ],
+            "recommendation": "a",
+            "rationale": "Safety first."
+          }
+        ],
+        "arbitratedQuestions": [],
+        "planningNote": {
+          "settled": [
+            "One phase."
+          ],
+          "open": [],
+          "constraints": []
+        },
+        "docsPage": {
+          "kind": "none",
+          "why": "Nothing user-facing."
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/spec-document/0.32.0.json",
+          "acceptanceCriteria": [
+            {
+              "given": "a repository",
+              "id": "ac-one",
+              "name": "It works",
+              "refs": [
+                "req-one"
+              ],
+              "then": "it works",
+              "when": "the tool runs"
+            }
+          ],
+          "arbitratedQuestions": [],
+          "context": "An example context.",
+          "docsPage": {
+            "kind": "none",
+            "why": "Nothing user-facing."
+          },
+          "ground": [
+            {
+              "note": "the module the spec changes",
+              "path": "src/example.ts"
+            }
+          ],
+          "kind": "spec",
+          "nonGoals": [
+            "Anything else."
+          ],
+          "openQuestions": [
+            {
+              "id": "q-one",
+              "options": [
+                {
+                  "abandons": "option B's speed",
+                  "id": "a",
+                  "label": "Option A"
+                },
+                {
+                  "abandons": "option A's safety",
+                  "id": "b",
+                  "label": "Option B"
+                }
+              ],
+              "question": "Which option?",
+              "rationale": "Safety first.",
+              "recommendation": "a"
+            }
+          ],
+          "planningNote": {
+            "constraints": [],
+            "open": [],
+            "settled": [
+              "One phase."
+            ]
+          },
+          "problem": "An example problem.",
+          "productGoal": {
+            "guidingRule": "Keep it small.",
+            "statement": "An example goal."
+          },
+          "requirements": [
+            {
+              "id": "req-one",
+              "pattern": "ubiquitous",
+              "statement": "The tool shall work.",
+              "title": "One"
+            }
+          ],
+          "surface": [
+            {
+              "after": "example --flag",
+              "before": null,
+              "binding": "normative",
+              "summary": "An operator can run the example.",
+              "surface": "cli: example"
+            }
+          ],
+          "terminology": [
+            {
+              "definition": "a made-up thing",
+              "term": "example"
+            }
+          ],
+          "title": "Example spec"
+        }
+      }
+    },
+    {
+      "name": "accepts a document setting every field",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/spec-document/0.32.0.json",
+        "kind": "spec",
+        "title": "Example spec",
+        "ground": [
+          {
+            "path": "src/example.ts",
+            "note": "the module the spec changes"
+          }
+        ],
+        "context": "An example context.",
+        "problem": "An example problem.",
+        "productGoal": {
+          "statement": "An example goal.",
+          "guidingRule": "Keep it small."
+        },
+        "terminology": [
+          {
+            "term": "example",
+            "definition": "a made-up thing"
+          }
+        ],
+        "requirements": [
+          {
+            "id": "req-one",
+            "title": "One",
+            "pattern": "ubiquitous",
+            "statement": "The tool shall work."
+          }
+        ],
+        "surface": [
+          {
+            "surface": "cli: example",
+            "summary": "An operator can run the example.",
+            "binding": "normative",
+            "before": null,
+            "after": "example --flag"
+          }
+        ],
+        "nonGoals": [
+          "Anything else."
+        ],
+        "acceptanceCriteria": [
+          {
+            "id": "ac-one",
+            "name": "It works",
+            "given": "a repository",
+            "when": "the tool runs",
+            "then": "it works",
+            "refs": [
+              "req-one"
+            ]
+          }
+        ],
+        "openQuestions": [
+          {
+            "id": "q-one",
+            "question": "Which option?",
+            "options": [
+              {
+                "id": "a",
+                "label": "Option A",
+                "abandons": "option B's speed"
+              },
+              {
+                "id": "b",
+                "label": "Option B",
+                "abandons": "option A's safety"
+              }
+            ],
+            "recommendation": "a",
+            "rationale": "Safety first."
+          }
+        ],
+        "arbitratedQuestions": [
+          {
+            "id": "text-33",
+            "question": "text-34",
+            "options": [
+              {
+                "id": "text-35",
+                "label": "text-36",
+                "abandons": "text-37"
+              },
+              {
+                "id": "text-38",
+                "label": "text-39",
+                "abandons": "text-40"
+              }
+            ],
+            "recommendation": "text-35",
+            "rationale": "text-42",
+            "verdict": {
+              "kind": "decided",
+              "chosen": "text-35",
+              "abandoned": [
+                "text-38"
+              ],
+              "why": "text-45",
+              "advocate": "text-46",
+              "principles": [
+                "text-47"
+              ],
+              "reversibility": "cheap",
+              "by": {
+                "kind": "operator",
+                "name": "text-48"
+              },
+              "at": "2026-01-02T03:04:05.000Z",
+              "revised": [
+                "text-50"
+              ]
+            },
+            "history": [
+              {
+                "kind": "decided",
+                "chosen": "text-35",
+                "abandoned": [
+                  "text-38"
+                ],
+                "why": "text-53",
+                "advocate": "text-54",
+                "principles": [
+                  "text-55"
+                ],
+                "reversibility": "cheap",
+                "by": {
+                  "kind": "operator",
+                  "name": "text-56"
+                },
+                "at": "2026-01-02T03:04:05.000Z",
+                "revised": [
+                  "text-58"
+                ]
+              }
+            ]
+          }
+        ],
+        "planningNote": {
+          "settled": [
+            "One phase."
+          ],
+          "open": [
+            "text-60"
+          ],
+          "constraints": [
+            "text-61"
+          ]
+        },
+        "docsPage": {
+          "kind": "page",
+          "page": "text-62",
+          "reader": "text-63",
+          "example": "text-64"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/spec-document/0.32.0.json",
+          "acceptanceCriteria": [
+            {
+              "given": "a repository",
+              "id": "ac-one",
+              "name": "It works",
+              "refs": [
+                "req-one"
+              ],
+              "then": "it works",
+              "when": "the tool runs"
+            }
+          ],
+          "arbitratedQuestions": [
+            {
+              "history": [
+                {
+                  "abandoned": [
+                    "text-38"
+                  ],
+                  "advocate": "text-54",
+                  "at": "2026-01-02T03:04:05.000Z",
+                  "by": {
+                    "kind": "operator",
+                    "name": "text-56"
+                  },
+                  "chosen": "text-35",
+                  "kind": "decided",
+                  "principles": [
+                    "text-55"
+                  ],
+                  "reversibility": "cheap",
+                  "revised": [
+                    "text-58"
+                  ],
+                  "why": "text-53"
+                }
+              ],
+              "id": "text-33",
+              "options": [
+                {
+                  "abandons": "text-37",
+                  "id": "text-35",
+                  "label": "text-36"
+                },
+                {
+                  "abandons": "text-40",
+                  "id": "text-38",
+                  "label": "text-39"
+                }
+              ],
+              "question": "text-34",
+              "rationale": "text-42",
+              "recommendation": "text-35",
+              "verdict": {
+                "abandoned": [
+                  "text-38"
+                ],
+                "advocate": "text-46",
+                "at": "2026-01-02T03:04:05.000Z",
+                "by": {
+                  "kind": "operator",
+                  "name": "text-48"
+                },
+                "chosen": "text-35",
+                "kind": "decided",
+                "principles": [
+                  "text-47"
+                ],
+                "reversibility": "cheap",
+                "revised": [
+                  "text-50"
+                ],
+                "why": "text-45"
+              }
+            }
+          ],
+          "context": "An example context.",
+          "docsPage": {
+            "example": "text-64",
+            "kind": "page",
+            "page": "text-62",
+            "reader": "text-63"
+          },
+          "ground": [
+            {
+              "note": "the module the spec changes",
+              "path": "src/example.ts"
+            }
+          ],
+          "kind": "spec",
+          "nonGoals": [
+            "Anything else."
+          ],
+          "openQuestions": [
+            {
+              "id": "q-one",
+              "options": [
+                {
+                  "abandons": "option B's speed",
+                  "id": "a",
+                  "label": "Option A"
+                },
+                {
+                  "abandons": "option A's safety",
+                  "id": "b",
+                  "label": "Option B"
+                }
+              ],
+              "question": "Which option?",
+              "rationale": "Safety first.",
+              "recommendation": "a"
+            }
+          ],
+          "planningNote": {
+            "constraints": [
+              "text-61"
+            ],
+            "open": [
+              "text-60"
+            ],
+            "settled": [
+              "One phase."
+            ]
+          },
+          "problem": "An example problem.",
+          "productGoal": {
+            "guidingRule": "Keep it small.",
+            "statement": "An example goal."
+          },
+          "requirements": [
+            {
+              "id": "req-one",
+              "pattern": "ubiquitous",
+              "statement": "The tool shall work.",
+              "title": "One"
+            }
+          ],
+          "surface": [
+            {
+              "after": "example --flag",
+              "before": null,
+              "binding": "normative",
+              "summary": "An operator can run the example.",
+              "surface": "cli: example"
+            }
+          ],
+          "terminology": [
+            {
+              "definition": "a made-up thing",
+              "term": "example"
+            }
+          ],
+          "title": "Example spec"
+        }
+      }
+    },
+    {
+      "name": "accepts a document with only its required fields",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/spec-document/0.32.0.json",
+        "kind": "spec",
+        "title": "Example spec",
+        "ground": [
+          {
+            "path": "src/example.ts",
+            "note": "the module the spec changes"
+          }
+        ],
+        "context": "An example context.",
+        "problem": "An example problem.",
+        "productGoal": {
+          "statement": "An example goal.",
+          "guidingRule": "Keep it small."
+        },
+        "terminology": [
+          {
+            "term": "example",
+            "definition": "a made-up thing"
+          }
+        ],
+        "requirements": [
+          {
+            "id": "req-one",
+            "title": "One",
+            "pattern": "ubiquitous",
+            "statement": "The tool shall work."
+          }
+        ],
+        "surface": [
+          {
+            "surface": "cli: example",
+            "summary": "An operator can run the example.",
+            "binding": "normative",
+            "before": null,
+            "after": "example --flag"
+          }
+        ],
+        "nonGoals": [
+          "Anything else."
+        ],
+        "acceptanceCriteria": [
+          {
+            "id": "ac-one",
+            "name": "It works",
+            "given": "a repository",
+            "when": "the tool runs",
+            "then": "it works",
+            "refs": [
+              "req-one"
+            ]
+          }
+        ],
+        "openQuestions": [
+          {
+            "id": "q-one",
+            "question": "Which option?",
+            "options": [
+              {
+                "id": "a",
+                "label": "Option A",
+                "abandons": "option B's speed"
+              },
+              {
+                "id": "b",
+                "label": "Option B",
+                "abandons": "option A's safety"
+              }
+            ],
+            "recommendation": "a",
+            "rationale": "Safety first."
+          }
+        ],
+        "arbitratedQuestions": [
+          {
+            "id": "text-33",
+            "question": "text-34",
+            "options": [
+              {
+                "id": "text-35",
+                "label": "text-36",
+                "abandons": "text-37"
+              },
+              {
+                "id": "text-38",
+                "label": "text-39",
+                "abandons": "text-40"
+              }
+            ],
+            "recommendation": "text-35",
+            "rationale": "text-42",
+            "verdict": {
+              "kind": "decided",
+              "chosen": "text-35",
+              "abandoned": [
+                "text-38"
+              ],
+              "why": "text-45",
+              "advocate": "text-46",
+              "principles": [
+                "text-47"
+              ],
+              "reversibility": "cheap",
+              "by": {
+                "kind": "operator",
+                "name": "text-48"
+              },
+              "at": "2026-01-02T03:04:05.000Z",
+              "revised": [
+                "text-50"
+              ]
+            },
+            "history": [
+              {
+                "kind": "decided",
+                "chosen": "text-35",
+                "abandoned": [
+                  "text-38"
+                ],
+                "why": "text-53",
+                "advocate": "text-54",
+                "principles": [
+                  "text-55"
+                ],
+                "reversibility": "cheap",
+                "by": {
+                  "kind": "operator",
+                  "name": "text-56"
+                },
+                "at": "2026-01-02T03:04:05.000Z",
+                "revised": [
+                  "text-58"
+                ]
+              }
+            ]
+          }
+        ],
+        "planningNote": {
+          "settled": [
+            "One phase."
+          ],
+          "open": [
+            "text-60"
+          ],
+          "constraints": [
+            "text-61"
+          ]
+        },
+        "docsPage": {
+          "kind": "page",
+          "page": "text-62",
+          "reader": "text-63",
+          "example": "text-64"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/spec-document/0.32.0.json",
+          "acceptanceCriteria": [
+            {
+              "given": "a repository",
+              "id": "ac-one",
+              "name": "It works",
+              "refs": [
+                "req-one"
+              ],
+              "then": "it works",
+              "when": "the tool runs"
+            }
+          ],
+          "arbitratedQuestions": [
+            {
+              "history": [
+                {
+                  "abandoned": [
+                    "text-38"
+                  ],
+                  "advocate": "text-54",
+                  "at": "2026-01-02T03:04:05.000Z",
+                  "by": {
+                    "kind": "operator",
+                    "name": "text-56"
+                  },
+                  "chosen": "text-35",
+                  "kind": "decided",
+                  "principles": [
+                    "text-55"
+                  ],
+                  "reversibility": "cheap",
+                  "revised": [
+                    "text-58"
+                  ],
+                  "why": "text-53"
+                }
+              ],
+              "id": "text-33",
+              "options": [
+                {
+                  "abandons": "text-37",
+                  "id": "text-35",
+                  "label": "text-36"
+                },
+                {
+                  "abandons": "text-40",
+                  "id": "text-38",
+                  "label": "text-39"
+                }
+              ],
+              "question": "text-34",
+              "rationale": "text-42",
+              "recommendation": "text-35",
+              "verdict": {
+                "abandoned": [
+                  "text-38"
+                ],
+                "advocate": "text-46",
+                "at": "2026-01-02T03:04:05.000Z",
+                "by": {
+                  "kind": "operator",
+                  "name": "text-48"
+                },
+                "chosen": "text-35",
+                "kind": "decided",
+                "principles": [
+                  "text-47"
+                ],
+                "reversibility": "cheap",
+                "revised": [
+                  "text-50"
+                ],
+                "why": "text-45"
+              }
+            }
+          ],
+          "context": "An example context.",
+          "docsPage": {
+            "example": "text-64",
+            "kind": "page",
+            "page": "text-62",
+            "reader": "text-63"
+          },
+          "ground": [
+            {
+              "note": "the module the spec changes",
+              "path": "src/example.ts"
+            }
+          ],
+          "kind": "spec",
+          "nonGoals": [
+            "Anything else."
+          ],
+          "openQuestions": [
+            {
+              "id": "q-one",
+              "options": [
+                {
+                  "abandons": "option B's speed",
+                  "id": "a",
+                  "label": "Option A"
+                },
+                {
+                  "abandons": "option A's safety",
+                  "id": "b",
+                  "label": "Option B"
+                }
+              ],
+              "question": "Which option?",
+              "rationale": "Safety first.",
+              "recommendation": "a"
+            }
+          ],
+          "planningNote": {
+            "constraints": [
+              "text-61"
+            ],
+            "open": [
+              "text-60"
+            ],
+            "settled": [
+              "One phase."
+            ]
+          },
+          "problem": "An example problem.",
+          "productGoal": {
+            "guidingRule": "Keep it small.",
+            "statement": "An example goal."
+          },
+          "requirements": [
+            {
+              "id": "req-one",
+              "pattern": "ubiquitous",
+              "statement": "The tool shall work.",
+              "title": "One"
+            }
+          ],
+          "surface": [
+            {
+              "after": "example --flag",
+              "before": null,
+              "binding": "normative",
+              "summary": "An operator can run the example.",
+              "surface": "cli: example"
+            }
+          ],
+          "terminology": [
+            {
+              "definition": "a made-up thing",
+              "term": "example"
+            }
+          ],
+          "title": "Example spec"
+        }
+      }
+    }
+  ]
+}

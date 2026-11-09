@@ -198,6 +198,106 @@
         "ok": false,
         "refusal": "runId: Expected a non empty string, actual \"\""
       }
+    },
+    {
+      "name": "constraint $schema pattern",
+      "input": {
+        "$schema": "",
+        "kind": "review",
+        "runId": "2610270900-example",
+        "review": "compliance-review"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: expected https://docs.phax.run/schemas/<format-id>/<X.Y.Z>.json, got \"\""
+      }
+    },
+    {
+      "name": "constraint $schema required",
+      "input": {
+        "kind": "review",
+        "runId": "2610270900-example",
+        "review": "compliance-review"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: review record manifest has no $schema — every review record manifest is written with one"
+      }
+    },
+    {
+      "name": "constraint kind enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/review-record-manifest/0.29.0.json",
+        "kind": "bogus-value",
+        "runId": "2610270900-example",
+        "review": "compliance-review"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "kind: Expected \"review\", actual \"bogus-value\""
+      }
+    },
+    {
+      "name": "constraint kind required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/review-record-manifest/0.29.0.json",
+        "runId": "2610270900-example",
+        "review": "compliance-review"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "kind: is missing"
+      }
+    },
+    {
+      "name": "constraint review enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/review-record-manifest/0.29.0.json",
+        "kind": "review",
+        "runId": "2610270900-example",
+        "review": "bogus-value"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "review: Expected \"compliance-review\" | \"code-review\", actual \"bogus-value\""
+      }
+    },
+    {
+      "name": "constraint review required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/review-record-manifest/0.29.0.json",
+        "kind": "review",
+        "runId": "2610270900-example"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "review: is missing"
+      }
+    },
+    {
+      "name": "constraint runId minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/review-record-manifest/0.29.0.json",
+        "kind": "review",
+        "runId": "",
+        "review": "compliance-review"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "runId: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint runId required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/review-record-manifest/0.29.0.json",
+        "kind": "review",
+        "review": "compliance-review"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "runId: is missing"
+      }
     }
   ],
   "shapes": {}

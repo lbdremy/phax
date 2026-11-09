@@ -353,6 +353,275 @@
           ]
         }
       }
+    },
+    {
+      "name": "constraint $schema const",
+      "input": {
+        "$schema": "bogus-value",
+        "pattern": [
+          "Each export row is built by one pure function over the invoice."
+        ],
+        "copiedBy": [
+          {
+            "phase": "phase-02",
+            "what": "the credit-note rows copy the row builder"
+          }
+        ],
+        "toCheck": [
+          "Whether the credit-note rows should round per line or per invoice."
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: expected https://docs.phax.run/schemas/<format-id>/<X.Y.Z>.json, got \"bogus-value\""
+      }
+    },
+    {
+      "name": "constraint $schema enum",
+      "input": {
+        "$schema": "bogus-value",
+        "pattern": [
+          "Each export row is built by one pure function over the invoice."
+        ],
+        "copiedBy": [
+          {
+            "phase": "phase-02",
+            "what": "the credit-note rows copy the row builder"
+          }
+        ],
+        "toCheck": [
+          "Whether the credit-note rows should round per line or per invoice."
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: expected https://docs.phax.run/schemas/<format-id>/<X.Y.Z>.json, got \"bogus-value\""
+      }
+    },
+    {
+      "name": "constraint $schema required",
+      "input": {
+        "pattern": [
+          "Each export row is built by one pure function over the invoice."
+        ],
+        "copiedBy": [
+          {
+            "phase": "phase-02",
+            "what": "the credit-note rows copy the row builder"
+          }
+        ],
+        "toCheck": [
+          "Whether the credit-note rows should round per line or per invoice."
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: first reading has no $schema — every first reading is written with one"
+      }
+    },
+    {
+      "name": "constraint copiedBy required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/first-reading/0.32.0.json",
+        "pattern": [
+          "Each export row is built by one pure function over the invoice."
+        ],
+        "toCheck": [
+          "Whether the credit-note rows should round per line or per invoice."
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "copiedBy: is missing"
+      }
+    },
+    {
+      "name": "constraint copiedBy[].phase pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/first-reading/0.32.0.json",
+        "pattern": [
+          "Each export row is built by one pure function over the invoice."
+        ],
+        "copiedBy": [
+          {
+            "phase": "",
+            "what": "the credit-note rows copy the row builder"
+          }
+        ],
+        "toCheck": [
+          "Whether the credit-note rows should round per line or per invoice."
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "copiedBy.0.phase: Expected a string matching the pattern ^phase-\\d{2}$, actual \"\""
+      }
+    },
+    {
+      "name": "constraint copiedBy[].phase required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/first-reading/0.32.0.json",
+        "pattern": [
+          "Each export row is built by one pure function over the invoice."
+        ],
+        "copiedBy": [
+          {
+            "what": "the credit-note rows copy the row builder"
+          }
+        ],
+        "toCheck": [
+          "Whether the credit-note rows should round per line or per invoice."
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "copiedBy.0.phase: is missing"
+      }
+    },
+    {
+      "name": "constraint copiedBy[].what pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/first-reading/0.32.0.json",
+        "pattern": [
+          "Each export row is built by one pure function over the invoice."
+        ],
+        "copiedBy": [
+          {
+            "phase": "phase-02",
+            "what": ""
+          }
+        ],
+        "toCheck": [
+          "Whether the credit-note rows should round per line or per invoice."
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "copiedBy.0.what: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint copiedBy[].what required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/first-reading/0.32.0.json",
+        "pattern": [
+          "Each export row is built by one pure function over the invoice."
+        ],
+        "copiedBy": [
+          {
+            "phase": "phase-02"
+          }
+        ],
+        "toCheck": [
+          "Whether the credit-note rows should round per line or per invoice."
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "copiedBy.0.what: is missing"
+      }
+    },
+    {
+      "name": "constraint pattern minItems",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/first-reading/0.32.0.json",
+        "pattern": [],
+        "copiedBy": [
+          {
+            "phase": "phase-02",
+            "what": "the credit-note rows copy the row builder"
+          }
+        ],
+        "toCheck": [
+          "Whether the credit-note rows should round per line or per invoice."
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "pattern.0: is missing"
+      }
+    },
+    {
+      "name": "constraint pattern required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/first-reading/0.32.0.json",
+        "copiedBy": [
+          {
+            "phase": "phase-02",
+            "what": "the credit-note rows copy the row builder"
+          }
+        ],
+        "toCheck": [
+          "Whether the credit-note rows should round per line or per invoice."
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "pattern: is missing"
+      }
+    },
+    {
+      "name": "constraint pattern[] pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/first-reading/0.32.0.json",
+        "pattern": [
+          ""
+        ],
+        "copiedBy": [
+          {
+            "phase": "phase-02",
+            "what": "the credit-note rows copy the row builder"
+          }
+        ],
+        "toCheck": [
+          "Whether the credit-note rows should round per line or per invoice."
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "pattern.0: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint toCheck required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/first-reading/0.32.0.json",
+        "pattern": [
+          "Each export row is built by one pure function over the invoice."
+        ],
+        "copiedBy": [
+          {
+            "phase": "phase-02",
+            "what": "the credit-note rows copy the row builder"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "toCheck: is missing"
+      }
+    },
+    {
+      "name": "constraint toCheck[] pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/first-reading/0.32.0.json",
+        "pattern": [
+          "Each export row is built by one pure function over the invoice."
+        ],
+        "copiedBy": [
+          {
+            "phase": "phase-02",
+            "what": "the credit-note rows copy the row builder"
+          }
+        ],
+        "toCheck": [
+          ""
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "toCheck.0: Expected a non empty string, actual \"\""
+      }
     }
   ],
   "shapes": {
@@ -511,6 +780,253 @@
         "expected": {
           "ok": false,
           "refusal": "pattern.0: is missing"
+        }
+      },
+      {
+        "name": "constraint $schema pattern",
+        "input": {
+          "$schema": "",
+          "pattern": [
+            "Each export row is built by one pure function over the invoice."
+          ],
+          "copiedBy": [
+            {
+              "phase": "phase-02",
+              "what": "the credit-note rows copy the row builder"
+            }
+          ],
+          "toCheck": [
+            "Whether the credit-note rows should round per line or per invoice."
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "$schema: Expected a string matching the pattern ^https:\\/\\/docs\\.phax\\.run\\/schemas\\/first-reading\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$, actual \"\""
+        }
+      },
+      {
+        "name": "constraint $schema required",
+        "input": {
+          "pattern": [
+            "Each export row is built by one pure function over the invoice."
+          ],
+          "copiedBy": [
+            {
+              "phase": "phase-02",
+              "what": "the credit-note rows copy the row builder"
+            }
+          ],
+          "toCheck": [
+            "Whether the credit-note rows should round per line or per invoice."
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "$schema: is missing"
+        }
+      },
+      {
+        "name": "constraint copiedBy required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/first-reading/0.26.0.json",
+          "pattern": [
+            "Each export row is built by one pure function over the invoice."
+          ],
+          "toCheck": [
+            "Whether the credit-note rows should round per line or per invoice."
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "copiedBy: is missing"
+        }
+      },
+      {
+        "name": "constraint copiedBy[].phase pattern",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/first-reading/0.26.0.json",
+          "pattern": [
+            "Each export row is built by one pure function over the invoice."
+          ],
+          "copiedBy": [
+            {
+              "phase": "",
+              "what": "the credit-note rows copy the row builder"
+            }
+          ],
+          "toCheck": [
+            "Whether the credit-note rows should round per line or per invoice."
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "copiedBy.0.phase: Expected a string matching the pattern ^phase-\\d{2}$, actual \"\""
+        }
+      },
+      {
+        "name": "constraint copiedBy[].phase required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/first-reading/0.26.0.json",
+          "pattern": [
+            "Each export row is built by one pure function over the invoice."
+          ],
+          "copiedBy": [
+            {
+              "what": "the credit-note rows copy the row builder"
+            }
+          ],
+          "toCheck": [
+            "Whether the credit-note rows should round per line or per invoice."
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "copiedBy.0.phase: is missing"
+        }
+      },
+      {
+        "name": "constraint copiedBy[].what minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/first-reading/0.26.0.json",
+          "pattern": [
+            "Each export row is built by one pure function over the invoice."
+          ],
+          "copiedBy": [
+            {
+              "phase": "phase-02",
+              "what": ""
+            }
+          ],
+          "toCheck": [
+            "Whether the credit-note rows should round per line or per invoice."
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "copiedBy.0.what: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint copiedBy[].what required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/first-reading/0.26.0.json",
+          "pattern": [
+            "Each export row is built by one pure function over the invoice."
+          ],
+          "copiedBy": [
+            {
+              "phase": "phase-02"
+            }
+          ],
+          "toCheck": [
+            "Whether the credit-note rows should round per line or per invoice."
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "copiedBy.0.what: is missing"
+        }
+      },
+      {
+        "name": "constraint pattern minItems",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/first-reading/0.26.0.json",
+          "pattern": [],
+          "copiedBy": [
+            {
+              "phase": "phase-02",
+              "what": "the credit-note rows copy the row builder"
+            }
+          ],
+          "toCheck": [
+            "Whether the credit-note rows should round per line or per invoice."
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "pattern.0: is missing"
+        }
+      },
+      {
+        "name": "constraint pattern required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/first-reading/0.26.0.json",
+          "copiedBy": [
+            {
+              "phase": "phase-02",
+              "what": "the credit-note rows copy the row builder"
+            }
+          ],
+          "toCheck": [
+            "Whether the credit-note rows should round per line or per invoice."
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "pattern: is missing"
+        }
+      },
+      {
+        "name": "constraint pattern[] minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/first-reading/0.26.0.json",
+          "pattern": [
+            ""
+          ],
+          "copiedBy": [
+            {
+              "phase": "phase-02",
+              "what": "the credit-note rows copy the row builder"
+            }
+          ],
+          "toCheck": [
+            "Whether the credit-note rows should round per line or per invoice."
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "pattern.0: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint toCheck required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/first-reading/0.26.0.json",
+          "pattern": [
+            "Each export row is built by one pure function over the invoice."
+          ],
+          "copiedBy": [
+            {
+              "phase": "phase-02",
+              "what": "the credit-note rows copy the row builder"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "toCheck: is missing"
+        }
+      },
+      {
+        "name": "constraint toCheck[] minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/first-reading/0.26.0.json",
+          "pattern": [
+            "Each export row is built by one pure function over the invoice."
+          ],
+          "copiedBy": [
+            {
+              "phase": "phase-02",
+              "what": "the credit-note rows copy the row builder"
+            }
+          ],
+          "toCheck": [
+            ""
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "toCheck.0: Expected a non empty string, actual \"\""
         }
       }
     ]

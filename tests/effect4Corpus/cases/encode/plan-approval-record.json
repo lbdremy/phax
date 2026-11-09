@@ -1,0 +1,113 @@
+{
+  "subject": "encode/plan-approval-record",
+  "cases": [
+    {
+      "name": "accepts a typical document",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+        "artifact": "docs/plans/example.md",
+        "planFingerprint": "plan-fingerprint-0001",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "sourceSpec": {
+          "path": "docs/specs/example.md",
+          "fingerprint": "spec-fingerprint-0001"
+        },
+        "approvedBy": {
+          "kind": "machine",
+          "grant": "roadmap-loop"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "approvedBy": {
+            "grant": "roadmap-loop",
+            "kind": "machine"
+          },
+          "artifact": "docs/plans/example.md",
+          "baseline": "0123456789abcdef0123456789abcdef01234567",
+          "planFingerprint": "plan-fingerprint-0001",
+          "sourceSpec": {
+            "fingerprint": "spec-fingerprint-0001",
+            "path": "docs/specs/example.md"
+          }
+        }
+      }
+    },
+    {
+      "name": "accepts a document setting every field",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+        "artifact": "docs/plans/example.md",
+        "planFingerprint": "plan-fingerprint-0001",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "sourceSpec": {
+          "path": "docs/specs/example.md",
+          "fingerprint": "spec-fingerprint-0001"
+        },
+        "approvedBy": {
+          "kind": "operator",
+          "name": "text-7"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "approvedBy": {
+            "kind": "operator",
+            "name": "text-7"
+          },
+          "artifact": "docs/plans/example.md",
+          "baseline": "0123456789abcdef0123456789abcdef01234567",
+          "planFingerprint": "plan-fingerprint-0001",
+          "sourceSpec": {
+            "fingerprint": "spec-fingerprint-0001",
+            "path": "docs/specs/example.md"
+          }
+        }
+      }
+    },
+    {
+      "name": "accepts a document with only its required fields",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+        "artifact": "docs/plans/example.md",
+        "planFingerprint": "plan-fingerprint-0001",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "sourceSpec": {
+          "path": "docs/specs/example.md",
+          "fingerprint": "spec-fingerprint-0001"
+        },
+        "approvedBy": {
+          "kind": "machine",
+          "grant": "roadmap-loop"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "approvedBy": {
+            "grant": "roadmap-loop",
+            "kind": "machine"
+          },
+          "artifact": "docs/plans/example.md",
+          "baseline": "0123456789abcdef0123456789abcdef01234567",
+          "planFingerprint": "plan-fingerprint-0001",
+          "sourceSpec": {
+            "fingerprint": "spec-fingerprint-0001",
+            "path": "docs/specs/example.md"
+          }
+        }
+      }
+    }
+  ]
+}

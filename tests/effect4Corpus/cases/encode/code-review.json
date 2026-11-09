@@ -1,0 +1,113 @@
+{
+  "subject": "encode/code-review",
+  "cases": [
+    {
+      "name": "accepts a typical document",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/code-review/0.32.0.json",
+        "findings": [
+          {
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": null,
+            "suggestion": "Refuse an empty name."
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/code-review/0.32.0.json",
+          "findings": [
+            {
+              "criterion": null,
+              "escape": "unexplored-input",
+              "file": "src/example.ts",
+              "lens": "edge",
+              "line": 12,
+              "message": "An empty name is accepted.",
+              "severity": "bug",
+              "suggestion": "Refuse an empty name."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "accepts a document setting every field",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/code-review/0.32.0.json",
+        "findings": [
+          {
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": null,
+            "suggestion": "Refuse an empty name."
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/code-review/0.32.0.json",
+          "findings": [
+            {
+              "criterion": null,
+              "escape": "unexplored-input",
+              "file": "src/example.ts",
+              "lens": "edge",
+              "line": 12,
+              "message": "An empty name is accepted.",
+              "severity": "bug",
+              "suggestion": "Refuse an empty name."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "accepts a document with only its required fields",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/code-review/0.32.0.json",
+        "findings": [
+          {
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": null,
+            "suggestion": "Refuse an empty name."
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/code-review/0.32.0.json",
+          "findings": [
+            {
+              "criterion": null,
+              "escape": "unexplored-input",
+              "file": "src/example.ts",
+              "lens": "edge",
+              "line": 12,
+              "message": "An empty name is accepted.",
+              "severity": "bug",
+              "suggestion": "Refuse an empty name."
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

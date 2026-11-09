@@ -1,0 +1,113 @@
+{
+  "subject": "encode/first-reading",
+  "cases": [
+    {
+      "name": "accepts a typical document",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/first-reading/0.32.0.json",
+        "pattern": [
+          "Each export row is built by one pure function over the invoice."
+        ],
+        "copiedBy": [
+          {
+            "phase": "phase-02",
+            "what": "the credit-note rows copy the row builder"
+          }
+        ],
+        "toCheck": [
+          "Whether the credit-note rows should round per line or per invoice."
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/first-reading/0.32.0.json",
+          "copiedBy": [
+            {
+              "phase": "phase-02",
+              "what": "the credit-note rows copy the row builder"
+            }
+          ],
+          "pattern": [
+            "Each export row is built by one pure function over the invoice."
+          ],
+          "toCheck": [
+            "Whether the credit-note rows should round per line or per invoice."
+          ]
+        }
+      }
+    },
+    {
+      "name": "accepts a document setting every field",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/first-reading/0.32.0.json",
+        "pattern": [
+          "Each export row is built by one pure function over the invoice."
+        ],
+        "copiedBy": [
+          {
+            "phase": "phase-02",
+            "what": "the credit-note rows copy the row builder"
+          }
+        ],
+        "toCheck": [
+          "Whether the credit-note rows should round per line or per invoice."
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/first-reading/0.32.0.json",
+          "copiedBy": [
+            {
+              "phase": "phase-02",
+              "what": "the credit-note rows copy the row builder"
+            }
+          ],
+          "pattern": [
+            "Each export row is built by one pure function over the invoice."
+          ],
+          "toCheck": [
+            "Whether the credit-note rows should round per line or per invoice."
+          ]
+        }
+      }
+    },
+    {
+      "name": "accepts a document with only its required fields",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/first-reading/0.32.0.json",
+        "pattern": [
+          "Each export row is built by one pure function over the invoice."
+        ],
+        "copiedBy": [
+          {
+            "phase": "phase-02",
+            "what": "the credit-note rows copy the row builder"
+          }
+        ],
+        "toCheck": [
+          "Whether the credit-note rows should round per line or per invoice."
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/first-reading/0.32.0.json",
+          "copiedBy": [
+            {
+              "phase": "phase-02",
+              "what": "the credit-note rows copy the row builder"
+            }
+          ],
+          "pattern": [
+            "Each export row is built by one pure function over the invoice."
+          ],
+          "toCheck": [
+            "Whether the credit-note rows should round per line or per invoice."
+          ]
+        }
+      }
+    }
+  ]
+}

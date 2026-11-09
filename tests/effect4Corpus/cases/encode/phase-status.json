@@ -1,0 +1,192 @@
+{
+  "subject": "encode/phase-status",
+  "cases": [
+    {
+      "name": "accepts a typical document",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+        "phaseId": "phase-01",
+        "phaseIndex": 0,
+        "state": "running",
+        "model": "example-model",
+        "effort": "high",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "branchName": "phax/example-run--phase-01",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "worktreePath": "/work/example-repo/worktrees/phase-01",
+        "mode": "headless",
+        "stop": null
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "branchName": "phax/example-run--phase-01",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "effort": "high",
+          "mode": "headless",
+          "model": "example-model",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "stop": null,
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "worktreePath": "/work/example-repo/worktrees/phase-01"
+        }
+      }
+    },
+    {
+      "name": "accepts a document setting every field",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+        "phaseId": "phase-01",
+        "phaseIndex": 0,
+        "state": "running",
+        "model": "example-model",
+        "effort": "high",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "branchName": "phax/example-run--phase-01",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "worktreePath": "/work/example-repo/worktrees/phase-01",
+        "claudeSessionId": "text-8",
+        "commitHash": "text-9",
+        "mode": "headless",
+        "stop": {
+          "cause": "held",
+          "status": "closed",
+          "outcome": "corrected",
+          "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+          "acceptanceStep": "authored",
+          "closedBy": {
+            "name": "text-11",
+            "email": "text-12"
+          }
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "branchName": "phax/example-run--phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "effort": "high",
+          "mode": "headless",
+          "model": "example-model",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "stop": {
+            "acceptanceStep": "authored",
+            "cause": "held",
+            "closedBy": {
+              "email": "text-12",
+              "name": "text-11"
+            },
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "status": "closed"
+          },
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "worktreePath": "/work/example-repo/worktrees/phase-01"
+        }
+      }
+    },
+    {
+      "name": "accepts a document with only its required fields",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+        "phaseId": "phase-01",
+        "phaseIndex": 0,
+        "state": "running",
+        "model": "example-model",
+        "effort": "high",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "branchName": "phax/example-run--phase-01",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "mode": "headless",
+        "stop": {
+          "cause": "held",
+          "status": "closed",
+          "outcome": "corrected",
+          "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+          "acceptanceStep": "authored",
+          "closedBy": {
+            "name": "text-8",
+            "email": "text-9"
+          }
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "branchName": "phax/example-run--phase-01",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "effort": "high",
+          "mode": "headless",
+          "model": "example-model",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "stop": {
+            "acceptanceStep": "authored",
+            "cause": "held",
+            "closedBy": {
+              "email": "text-9",
+              "name": "text-8"
+            },
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "status": "closed"
+          },
+          "updatedAt": "2026-01-01T09:30:00.000Z"
+        }
+      }
+    },
+    {
+      "name": "accepts an unexpected key without reading it",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+        "phaseId": "phase-01",
+        "phaseIndex": 0,
+        "state": "running",
+        "model": "example-model",
+        "effort": "high",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "branchName": "phax/example-run--phase-01",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "worktreePath": "/work/example-repo/worktrees/phase-01",
+        "mode": "headless",
+        "stop": null,
+        "unexpectedKey": 1
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "branchName": "phax/example-run--phase-01",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "effort": "high",
+          "mode": "headless",
+          "model": "example-model",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "stop": null,
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "worktreePath": "/work/example-repo/worktrees/phase-01"
+        }
+      }
+    }
+  ]
+}

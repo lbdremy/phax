@@ -1,0 +1,87 @@
+{
+  "subject": "encode/acceptance-request",
+  "cases": [
+    {
+      "name": "accepts a typical document",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/acceptance-request/0.33.0.json",
+        "verdict": "authored",
+        "phase": "phase-02",
+        "acceptancePhase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "files": [
+          "tests/prune.test.ts"
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/acceptance-request/0.33.0.json",
+          "acceptancePhase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "files": [
+            "tests/prune.test.ts"
+          ],
+          "phase": "phase-02",
+          "verdict": "authored"
+        }
+      }
+    },
+    {
+      "name": "accepts a document setting every field",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/acceptance-request/0.33.0.json",
+        "verdict": "passed",
+        "phase": "phase-02",
+        "acceptancePhase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "acceptanceCommit": "0123456789abcdef0123456789abcdef01234567",
+        "files": [
+          "tests/prune.test.ts"
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/acceptance-request/0.33.0.json",
+          "acceptanceCommit": "0123456789abcdef0123456789abcdef01234567",
+          "acceptancePhase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "files": [
+            "tests/prune.test.ts"
+          ],
+          "phase": "phase-02",
+          "verdict": "passed"
+        }
+      }
+    },
+    {
+      "name": "accepts a document with only its required fields",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/acceptance-request/0.33.0.json",
+        "verdict": "passed",
+        "phase": "phase-02",
+        "acceptancePhase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "acceptanceCommit": "0123456789abcdef0123456789abcdef01234567",
+        "files": [
+          "tests/prune.test.ts"
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/acceptance-request/0.33.0.json",
+          "acceptanceCommit": "0123456789abcdef0123456789abcdef01234567",
+          "acceptancePhase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "files": [
+            "tests/prune.test.ts"
+          ],
+          "phase": "phase-02",
+          "verdict": "passed"
+        }
+      }
+    }
+  ]
+}

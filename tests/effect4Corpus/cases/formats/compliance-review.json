@@ -806,6 +806,1437 @@
           "verdict": "conformant-with-deviations"
         }
       }
+    },
+    {
+      "name": "constraint $schema const",
+      "input": {
+        "$schema": "bogus-value",
+        "verdict": "conformant-with-deviations",
+        "summary": "The run delivers the plan, with one deviation.",
+        "perPhase": [
+          {
+            "phaseId": "phase-01",
+            "verdict": "conformant-with-deviations",
+            "findings": [
+              {
+                "dimension": "files",
+                "severity": "deviation",
+                "message": "README.md was touched"
+              }
+            ]
+          }
+        ],
+        "unplannedChanges": [
+          {
+            "phaseId": "phase-01",
+            "path": "README.md",
+            "note": "The plan did not list it"
+          }
+        ],
+        "unmetPromises": [
+          {
+            "phaseId": "phase-01",
+            "promise": "A test for the example",
+            "note": "No such test exists"
+          }
+        ],
+        "attentionPoints": [
+          "README.md changed"
+        ],
+        "pointers": [
+          "src/example.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: expected https://docs.phax.run/schemas/<format-id>/<X.Y.Z>.json, got \"bogus-value\""
+      }
+    },
+    {
+      "name": "constraint $schema enum",
+      "input": {
+        "$schema": "bogus-value",
+        "verdict": "conformant-with-deviations",
+        "summary": "The run delivers the plan, with one deviation.",
+        "perPhase": [
+          {
+            "phaseId": "phase-01",
+            "verdict": "conformant-with-deviations",
+            "findings": [
+              {
+                "dimension": "files",
+                "severity": "deviation",
+                "message": "README.md was touched"
+              }
+            ]
+          }
+        ],
+        "unplannedChanges": [
+          {
+            "phaseId": "phase-01",
+            "path": "README.md",
+            "note": "The plan did not list it"
+          }
+        ],
+        "unmetPromises": [
+          {
+            "phaseId": "phase-01",
+            "promise": "A test for the example",
+            "note": "No such test exists"
+          }
+        ],
+        "attentionPoints": [
+          "README.md changed"
+        ],
+        "pointers": [
+          "src/example.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: expected https://docs.phax.run/schemas/<format-id>/<X.Y.Z>.json, got \"bogus-value\""
+      }
+    },
+    {
+      "name": "constraint $schema required",
+      "input": {
+        "verdict": "conformant-with-deviations",
+        "summary": "The run delivers the plan, with one deviation.",
+        "perPhase": [
+          {
+            "phaseId": "phase-01",
+            "verdict": "conformant-with-deviations",
+            "findings": [
+              {
+                "dimension": "files",
+                "severity": "deviation",
+                "message": "README.md was touched"
+              }
+            ]
+          }
+        ],
+        "unplannedChanges": [
+          {
+            "phaseId": "phase-01",
+            "path": "README.md",
+            "note": "The plan did not list it"
+          }
+        ],
+        "unmetPromises": [
+          {
+            "phaseId": "phase-01",
+            "promise": "A test for the example",
+            "note": "No such test exists"
+          }
+        ],
+        "attentionPoints": [
+          "README.md changed"
+        ],
+        "pointers": [
+          "src/example.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "unplannedChanges: compliance review older than phax 0.17.0, the first supported release — not supported (is unexpected, expected: \"version\" | \"verdict\" | \"summary\" | \"perPhase\" | \"attentionPoints\" | \"pointers\")"
+      }
+    },
+    {
+      "name": "constraint attentionPoints required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/compliance-review/0.32.0.json",
+        "verdict": "conformant-with-deviations",
+        "summary": "The run delivers the plan, with one deviation.",
+        "perPhase": [
+          {
+            "phaseId": "phase-01",
+            "verdict": "conformant-with-deviations",
+            "findings": [
+              {
+                "dimension": "files",
+                "severity": "deviation",
+                "message": "README.md was touched"
+              }
+            ]
+          }
+        ],
+        "unplannedChanges": [
+          {
+            "phaseId": "phase-01",
+            "path": "README.md",
+            "note": "The plan did not list it"
+          }
+        ],
+        "unmetPromises": [
+          {
+            "phaseId": "phase-01",
+            "promise": "A test for the example",
+            "note": "No such test exists"
+          }
+        ],
+        "pointers": [
+          "src/example.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "attentionPoints: is missing"
+      }
+    },
+    {
+      "name": "constraint perPhase required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/compliance-review/0.32.0.json",
+        "verdict": "conformant-with-deviations",
+        "summary": "The run delivers the plan, with one deviation.",
+        "unplannedChanges": [
+          {
+            "phaseId": "phase-01",
+            "path": "README.md",
+            "note": "The plan did not list it"
+          }
+        ],
+        "unmetPromises": [
+          {
+            "phaseId": "phase-01",
+            "promise": "A test for the example",
+            "note": "No such test exists"
+          }
+        ],
+        "attentionPoints": [
+          "README.md changed"
+        ],
+        "pointers": [
+          "src/example.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "perPhase: is missing"
+      }
+    },
+    {
+      "name": "constraint perPhase[].findings required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/compliance-review/0.32.0.json",
+        "verdict": "conformant-with-deviations",
+        "summary": "The run delivers the plan, with one deviation.",
+        "perPhase": [
+          {
+            "phaseId": "phase-01",
+            "verdict": "conformant-with-deviations"
+          }
+        ],
+        "unplannedChanges": [
+          {
+            "phaseId": "phase-01",
+            "path": "README.md",
+            "note": "The plan did not list it"
+          }
+        ],
+        "unmetPromises": [
+          {
+            "phaseId": "phase-01",
+            "promise": "A test for the example",
+            "note": "No such test exists"
+          }
+        ],
+        "attentionPoints": [
+          "README.md changed"
+        ],
+        "pointers": [
+          "src/example.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "perPhase.0.findings: is missing"
+      }
+    },
+    {
+      "name": "constraint perPhase[].findings[].dimension enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/compliance-review/0.32.0.json",
+        "verdict": "conformant-with-deviations",
+        "summary": "The run delivers the plan, with one deviation.",
+        "perPhase": [
+          {
+            "phaseId": "phase-01",
+            "verdict": "conformant-with-deviations",
+            "findings": [
+              {
+                "dimension": "bogus-value",
+                "severity": "deviation",
+                "message": "README.md was touched"
+              }
+            ]
+          }
+        ],
+        "unplannedChanges": [
+          {
+            "phaseId": "phase-01",
+            "path": "README.md",
+            "note": "The plan did not list it"
+          }
+        ],
+        "unmetPromises": [
+          {
+            "phaseId": "phase-01",
+            "promise": "A test for the example",
+            "note": "No such test exists"
+          }
+        ],
+        "attentionPoints": [
+          "README.md changed"
+        ],
+        "pointers": [
+          "src/example.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "perPhase.0.findings.0.dimension: Expected \"objective\" | \"excluded-scope\" | \"files\" | \"tests\" | \"boundaries\" | \"commit\" | \"handoff\", actual \"bogus-value\""
+      }
+    },
+    {
+      "name": "constraint perPhase[].findings[].dimension required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/compliance-review/0.32.0.json",
+        "verdict": "conformant-with-deviations",
+        "summary": "The run delivers the plan, with one deviation.",
+        "perPhase": [
+          {
+            "phaseId": "phase-01",
+            "verdict": "conformant-with-deviations",
+            "findings": [
+              {
+                "severity": "deviation",
+                "message": "README.md was touched"
+              }
+            ]
+          }
+        ],
+        "unplannedChanges": [
+          {
+            "phaseId": "phase-01",
+            "path": "README.md",
+            "note": "The plan did not list it"
+          }
+        ],
+        "unmetPromises": [
+          {
+            "phaseId": "phase-01",
+            "promise": "A test for the example",
+            "note": "No such test exists"
+          }
+        ],
+        "attentionPoints": [
+          "README.md changed"
+        ],
+        "pointers": [
+          "src/example.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "perPhase.0.findings.0.dimension: is missing"
+      }
+    },
+    {
+      "name": "constraint perPhase[].findings[].message required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/compliance-review/0.32.0.json",
+        "verdict": "conformant-with-deviations",
+        "summary": "The run delivers the plan, with one deviation.",
+        "perPhase": [
+          {
+            "phaseId": "phase-01",
+            "verdict": "conformant-with-deviations",
+            "findings": [
+              {
+                "dimension": "files",
+                "severity": "deviation"
+              }
+            ]
+          }
+        ],
+        "unplannedChanges": [
+          {
+            "phaseId": "phase-01",
+            "path": "README.md",
+            "note": "The plan did not list it"
+          }
+        ],
+        "unmetPromises": [
+          {
+            "phaseId": "phase-01",
+            "promise": "A test for the example",
+            "note": "No such test exists"
+          }
+        ],
+        "attentionPoints": [
+          "README.md changed"
+        ],
+        "pointers": [
+          "src/example.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "perPhase.0.findings.0.message: is missing"
+      }
+    },
+    {
+      "name": "constraint perPhase[].findings[].severity enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/compliance-review/0.32.0.json",
+        "verdict": "conformant-with-deviations",
+        "summary": "The run delivers the plan, with one deviation.",
+        "perPhase": [
+          {
+            "phaseId": "phase-01",
+            "verdict": "conformant-with-deviations",
+            "findings": [
+              {
+                "dimension": "files",
+                "severity": "bogus-value",
+                "message": "README.md was touched"
+              }
+            ]
+          }
+        ],
+        "unplannedChanges": [
+          {
+            "phaseId": "phase-01",
+            "path": "README.md",
+            "note": "The plan did not list it"
+          }
+        ],
+        "unmetPromises": [
+          {
+            "phaseId": "phase-01",
+            "promise": "A test for the example",
+            "note": "No such test exists"
+          }
+        ],
+        "attentionPoints": [
+          "README.md changed"
+        ],
+        "pointers": [
+          "src/example.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "perPhase.0.findings.0.severity: Expected \"info\" | \"deviation\" | \"concern\", actual \"bogus-value\""
+      }
+    },
+    {
+      "name": "constraint perPhase[].findings[].severity required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/compliance-review/0.32.0.json",
+        "verdict": "conformant-with-deviations",
+        "summary": "The run delivers the plan, with one deviation.",
+        "perPhase": [
+          {
+            "phaseId": "phase-01",
+            "verdict": "conformant-with-deviations",
+            "findings": [
+              {
+                "dimension": "files",
+                "message": "README.md was touched"
+              }
+            ]
+          }
+        ],
+        "unplannedChanges": [
+          {
+            "phaseId": "phase-01",
+            "path": "README.md",
+            "note": "The plan did not list it"
+          }
+        ],
+        "unmetPromises": [
+          {
+            "phaseId": "phase-01",
+            "promise": "A test for the example",
+            "note": "No such test exists"
+          }
+        ],
+        "attentionPoints": [
+          "README.md changed"
+        ],
+        "pointers": [
+          "src/example.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "perPhase.0.findings.0.severity: is missing"
+      }
+    },
+    {
+      "name": "constraint perPhase[].phaseId pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/compliance-review/0.32.0.json",
+        "verdict": "conformant-with-deviations",
+        "summary": "The run delivers the plan, with one deviation.",
+        "perPhase": [
+          {
+            "phaseId": "",
+            "verdict": "conformant-with-deviations",
+            "findings": [
+              {
+                "dimension": "files",
+                "severity": "deviation",
+                "message": "README.md was touched"
+              }
+            ]
+          }
+        ],
+        "unplannedChanges": [
+          {
+            "phaseId": "phase-01",
+            "path": "README.md",
+            "note": "The plan did not list it"
+          }
+        ],
+        "unmetPromises": [
+          {
+            "phaseId": "phase-01",
+            "promise": "A test for the example",
+            "note": "No such test exists"
+          }
+        ],
+        "attentionPoints": [
+          "README.md changed"
+        ],
+        "pointers": [
+          "src/example.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "perPhase.0.phaseId: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint perPhase[].phaseId required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/compliance-review/0.32.0.json",
+        "verdict": "conformant-with-deviations",
+        "summary": "The run delivers the plan, with one deviation.",
+        "perPhase": [
+          {
+            "verdict": "conformant-with-deviations",
+            "findings": [
+              {
+                "dimension": "files",
+                "severity": "deviation",
+                "message": "README.md was touched"
+              }
+            ]
+          }
+        ],
+        "unplannedChanges": [
+          {
+            "phaseId": "phase-01",
+            "path": "README.md",
+            "note": "The plan did not list it"
+          }
+        ],
+        "unmetPromises": [
+          {
+            "phaseId": "phase-01",
+            "promise": "A test for the example",
+            "note": "No such test exists"
+          }
+        ],
+        "attentionPoints": [
+          "README.md changed"
+        ],
+        "pointers": [
+          "src/example.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "perPhase.0.phaseId: is missing"
+      }
+    },
+    {
+      "name": "constraint perPhase[].verdict enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/compliance-review/0.32.0.json",
+        "verdict": "conformant-with-deviations",
+        "summary": "The run delivers the plan, with one deviation.",
+        "perPhase": [
+          {
+            "phaseId": "phase-01",
+            "verdict": "bogus-value",
+            "findings": [
+              {
+                "dimension": "files",
+                "severity": "deviation",
+                "message": "README.md was touched"
+              }
+            ]
+          }
+        ],
+        "unplannedChanges": [
+          {
+            "phaseId": "phase-01",
+            "path": "README.md",
+            "note": "The plan did not list it"
+          }
+        ],
+        "unmetPromises": [
+          {
+            "phaseId": "phase-01",
+            "promise": "A test for the example",
+            "note": "No such test exists"
+          }
+        ],
+        "attentionPoints": [
+          "README.md changed"
+        ],
+        "pointers": [
+          "src/example.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "perPhase.0.verdict: Expected \"conformant\" | \"conformant-with-deviations\" | \"divergent\", actual \"bogus-value\""
+      }
+    },
+    {
+      "name": "constraint perPhase[].verdict required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/compliance-review/0.32.0.json",
+        "verdict": "conformant-with-deviations",
+        "summary": "The run delivers the plan, with one deviation.",
+        "perPhase": [
+          {
+            "phaseId": "phase-01",
+            "findings": [
+              {
+                "dimension": "files",
+                "severity": "deviation",
+                "message": "README.md was touched"
+              }
+            ]
+          }
+        ],
+        "unplannedChanges": [
+          {
+            "phaseId": "phase-01",
+            "path": "README.md",
+            "note": "The plan did not list it"
+          }
+        ],
+        "unmetPromises": [
+          {
+            "phaseId": "phase-01",
+            "promise": "A test for the example",
+            "note": "No such test exists"
+          }
+        ],
+        "attentionPoints": [
+          "README.md changed"
+        ],
+        "pointers": [
+          "src/example.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "perPhase.0.verdict: is missing"
+      }
+    },
+    {
+      "name": "constraint pointers required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/compliance-review/0.32.0.json",
+        "verdict": "conformant-with-deviations",
+        "summary": "The run delivers the plan, with one deviation.",
+        "perPhase": [
+          {
+            "phaseId": "phase-01",
+            "verdict": "conformant-with-deviations",
+            "findings": [
+              {
+                "dimension": "files",
+                "severity": "deviation",
+                "message": "README.md was touched"
+              }
+            ]
+          }
+        ],
+        "unplannedChanges": [
+          {
+            "phaseId": "phase-01",
+            "path": "README.md",
+            "note": "The plan did not list it"
+          }
+        ],
+        "unmetPromises": [
+          {
+            "phaseId": "phase-01",
+            "promise": "A test for the example",
+            "note": "No such test exists"
+          }
+        ],
+        "attentionPoints": [
+          "README.md changed"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "pointers: is missing"
+      }
+    },
+    {
+      "name": "constraint summary required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/compliance-review/0.32.0.json",
+        "verdict": "conformant-with-deviations",
+        "perPhase": [
+          {
+            "phaseId": "phase-01",
+            "verdict": "conformant-with-deviations",
+            "findings": [
+              {
+                "dimension": "files",
+                "severity": "deviation",
+                "message": "README.md was touched"
+              }
+            ]
+          }
+        ],
+        "unplannedChanges": [
+          {
+            "phaseId": "phase-01",
+            "path": "README.md",
+            "note": "The plan did not list it"
+          }
+        ],
+        "unmetPromises": [
+          {
+            "phaseId": "phase-01",
+            "promise": "A test for the example",
+            "note": "No such test exists"
+          }
+        ],
+        "attentionPoints": [
+          "README.md changed"
+        ],
+        "pointers": [
+          "src/example.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "summary: is missing"
+      }
+    },
+    {
+      "name": "constraint unmetPromises required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/compliance-review/0.32.0.json",
+        "verdict": "conformant-with-deviations",
+        "summary": "The run delivers the plan, with one deviation.",
+        "perPhase": [
+          {
+            "phaseId": "phase-01",
+            "verdict": "conformant-with-deviations",
+            "findings": [
+              {
+                "dimension": "files",
+                "severity": "deviation",
+                "message": "README.md was touched"
+              }
+            ]
+          }
+        ],
+        "unplannedChanges": [
+          {
+            "phaseId": "phase-01",
+            "path": "README.md",
+            "note": "The plan did not list it"
+          }
+        ],
+        "attentionPoints": [
+          "README.md changed"
+        ],
+        "pointers": [
+          "src/example.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "unmetPromises: is missing"
+      }
+    },
+    {
+      "name": "constraint unmetPromises[].note pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/compliance-review/0.32.0.json",
+        "verdict": "conformant-with-deviations",
+        "summary": "The run delivers the plan, with one deviation.",
+        "perPhase": [
+          {
+            "phaseId": "phase-01",
+            "verdict": "conformant-with-deviations",
+            "findings": [
+              {
+                "dimension": "files",
+                "severity": "deviation",
+                "message": "README.md was touched"
+              }
+            ]
+          }
+        ],
+        "unplannedChanges": [
+          {
+            "phaseId": "phase-01",
+            "path": "README.md",
+            "note": "The plan did not list it"
+          }
+        ],
+        "unmetPromises": [
+          {
+            "phaseId": "phase-01",
+            "promise": "A test for the example",
+            "note": ""
+          }
+        ],
+        "attentionPoints": [
+          "README.md changed"
+        ],
+        "pointers": [
+          "src/example.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "unmetPromises.0.note: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint unmetPromises[].note required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/compliance-review/0.32.0.json",
+        "verdict": "conformant-with-deviations",
+        "summary": "The run delivers the plan, with one deviation.",
+        "perPhase": [
+          {
+            "phaseId": "phase-01",
+            "verdict": "conformant-with-deviations",
+            "findings": [
+              {
+                "dimension": "files",
+                "severity": "deviation",
+                "message": "README.md was touched"
+              }
+            ]
+          }
+        ],
+        "unplannedChanges": [
+          {
+            "phaseId": "phase-01",
+            "path": "README.md",
+            "note": "The plan did not list it"
+          }
+        ],
+        "unmetPromises": [
+          {
+            "phaseId": "phase-01",
+            "promise": "A test for the example"
+          }
+        ],
+        "attentionPoints": [
+          "README.md changed"
+        ],
+        "pointers": [
+          "src/example.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "unmetPromises.0.note: is missing"
+      }
+    },
+    {
+      "name": "constraint unmetPromises[].phaseId pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/compliance-review/0.32.0.json",
+        "verdict": "conformant-with-deviations",
+        "summary": "The run delivers the plan, with one deviation.",
+        "perPhase": [
+          {
+            "phaseId": "phase-01",
+            "verdict": "conformant-with-deviations",
+            "findings": [
+              {
+                "dimension": "files",
+                "severity": "deviation",
+                "message": "README.md was touched"
+              }
+            ]
+          }
+        ],
+        "unplannedChanges": [
+          {
+            "phaseId": "phase-01",
+            "path": "README.md",
+            "note": "The plan did not list it"
+          }
+        ],
+        "unmetPromises": [
+          {
+            "phaseId": "",
+            "promise": "A test for the example",
+            "note": "No such test exists"
+          }
+        ],
+        "attentionPoints": [
+          "README.md changed"
+        ],
+        "pointers": [
+          "src/example.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "unmetPromises.0.phaseId: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint unmetPromises[].phaseId required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/compliance-review/0.32.0.json",
+        "verdict": "conformant-with-deviations",
+        "summary": "The run delivers the plan, with one deviation.",
+        "perPhase": [
+          {
+            "phaseId": "phase-01",
+            "verdict": "conformant-with-deviations",
+            "findings": [
+              {
+                "dimension": "files",
+                "severity": "deviation",
+                "message": "README.md was touched"
+              }
+            ]
+          }
+        ],
+        "unplannedChanges": [
+          {
+            "phaseId": "phase-01",
+            "path": "README.md",
+            "note": "The plan did not list it"
+          }
+        ],
+        "unmetPromises": [
+          {
+            "promise": "A test for the example",
+            "note": "No such test exists"
+          }
+        ],
+        "attentionPoints": [
+          "README.md changed"
+        ],
+        "pointers": [
+          "src/example.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "unmetPromises.0.phaseId: is missing"
+      }
+    },
+    {
+      "name": "constraint unmetPromises[].promise pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/compliance-review/0.32.0.json",
+        "verdict": "conformant-with-deviations",
+        "summary": "The run delivers the plan, with one deviation.",
+        "perPhase": [
+          {
+            "phaseId": "phase-01",
+            "verdict": "conformant-with-deviations",
+            "findings": [
+              {
+                "dimension": "files",
+                "severity": "deviation",
+                "message": "README.md was touched"
+              }
+            ]
+          }
+        ],
+        "unplannedChanges": [
+          {
+            "phaseId": "phase-01",
+            "path": "README.md",
+            "note": "The plan did not list it"
+          }
+        ],
+        "unmetPromises": [
+          {
+            "phaseId": "phase-01",
+            "promise": "",
+            "note": "No such test exists"
+          }
+        ],
+        "attentionPoints": [
+          "README.md changed"
+        ],
+        "pointers": [
+          "src/example.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "unmetPromises.0.promise: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint unmetPromises[].promise required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/compliance-review/0.32.0.json",
+        "verdict": "conformant-with-deviations",
+        "summary": "The run delivers the plan, with one deviation.",
+        "perPhase": [
+          {
+            "phaseId": "phase-01",
+            "verdict": "conformant-with-deviations",
+            "findings": [
+              {
+                "dimension": "files",
+                "severity": "deviation",
+                "message": "README.md was touched"
+              }
+            ]
+          }
+        ],
+        "unplannedChanges": [
+          {
+            "phaseId": "phase-01",
+            "path": "README.md",
+            "note": "The plan did not list it"
+          }
+        ],
+        "unmetPromises": [
+          {
+            "phaseId": "phase-01",
+            "note": "No such test exists"
+          }
+        ],
+        "attentionPoints": [
+          "README.md changed"
+        ],
+        "pointers": [
+          "src/example.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "unmetPromises.0.promise: is missing"
+      }
+    },
+    {
+      "name": "constraint unplannedChanges required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/compliance-review/0.32.0.json",
+        "verdict": "conformant-with-deviations",
+        "summary": "The run delivers the plan, with one deviation.",
+        "perPhase": [
+          {
+            "phaseId": "phase-01",
+            "verdict": "conformant-with-deviations",
+            "findings": [
+              {
+                "dimension": "files",
+                "severity": "deviation",
+                "message": "README.md was touched"
+              }
+            ]
+          }
+        ],
+        "unmetPromises": [
+          {
+            "phaseId": "phase-01",
+            "promise": "A test for the example",
+            "note": "No such test exists"
+          }
+        ],
+        "attentionPoints": [
+          "README.md changed"
+        ],
+        "pointers": [
+          "src/example.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "unplannedChanges: is missing"
+      }
+    },
+    {
+      "name": "constraint unplannedChanges[].note pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/compliance-review/0.32.0.json",
+        "verdict": "conformant-with-deviations",
+        "summary": "The run delivers the plan, with one deviation.",
+        "perPhase": [
+          {
+            "phaseId": "phase-01",
+            "verdict": "conformant-with-deviations",
+            "findings": [
+              {
+                "dimension": "files",
+                "severity": "deviation",
+                "message": "README.md was touched"
+              }
+            ]
+          }
+        ],
+        "unplannedChanges": [
+          {
+            "phaseId": "phase-01",
+            "path": "README.md",
+            "note": ""
+          }
+        ],
+        "unmetPromises": [
+          {
+            "phaseId": "phase-01",
+            "promise": "A test for the example",
+            "note": "No such test exists"
+          }
+        ],
+        "attentionPoints": [
+          "README.md changed"
+        ],
+        "pointers": [
+          "src/example.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "unplannedChanges.0.note: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint unplannedChanges[].note required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/compliance-review/0.32.0.json",
+        "verdict": "conformant-with-deviations",
+        "summary": "The run delivers the plan, with one deviation.",
+        "perPhase": [
+          {
+            "phaseId": "phase-01",
+            "verdict": "conformant-with-deviations",
+            "findings": [
+              {
+                "dimension": "files",
+                "severity": "deviation",
+                "message": "README.md was touched"
+              }
+            ]
+          }
+        ],
+        "unplannedChanges": [
+          {
+            "phaseId": "phase-01",
+            "path": "README.md"
+          }
+        ],
+        "unmetPromises": [
+          {
+            "phaseId": "phase-01",
+            "promise": "A test for the example",
+            "note": "No such test exists"
+          }
+        ],
+        "attentionPoints": [
+          "README.md changed"
+        ],
+        "pointers": [
+          "src/example.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "unplannedChanges.0.note: is missing"
+      }
+    },
+    {
+      "name": "constraint unplannedChanges[].path pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/compliance-review/0.32.0.json",
+        "verdict": "conformant-with-deviations",
+        "summary": "The run delivers the plan, with one deviation.",
+        "perPhase": [
+          {
+            "phaseId": "phase-01",
+            "verdict": "conformant-with-deviations",
+            "findings": [
+              {
+                "dimension": "files",
+                "severity": "deviation",
+                "message": "README.md was touched"
+              }
+            ]
+          }
+        ],
+        "unplannedChanges": [
+          {
+            "phaseId": "phase-01",
+            "path": "",
+            "note": "The plan did not list it"
+          }
+        ],
+        "unmetPromises": [
+          {
+            "phaseId": "phase-01",
+            "promise": "A test for the example",
+            "note": "No such test exists"
+          }
+        ],
+        "attentionPoints": [
+          "README.md changed"
+        ],
+        "pointers": [
+          "src/example.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "unplannedChanges.0.path: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint unplannedChanges[].path required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/compliance-review/0.32.0.json",
+        "verdict": "conformant-with-deviations",
+        "summary": "The run delivers the plan, with one deviation.",
+        "perPhase": [
+          {
+            "phaseId": "phase-01",
+            "verdict": "conformant-with-deviations",
+            "findings": [
+              {
+                "dimension": "files",
+                "severity": "deviation",
+                "message": "README.md was touched"
+              }
+            ]
+          }
+        ],
+        "unplannedChanges": [
+          {
+            "phaseId": "phase-01",
+            "note": "The plan did not list it"
+          }
+        ],
+        "unmetPromises": [
+          {
+            "phaseId": "phase-01",
+            "promise": "A test for the example",
+            "note": "No such test exists"
+          }
+        ],
+        "attentionPoints": [
+          "README.md changed"
+        ],
+        "pointers": [
+          "src/example.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "unplannedChanges.0.path: is missing"
+      }
+    },
+    {
+      "name": "constraint unplannedChanges[].phaseId pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/compliance-review/0.32.0.json",
+        "verdict": "conformant-with-deviations",
+        "summary": "The run delivers the plan, with one deviation.",
+        "perPhase": [
+          {
+            "phaseId": "phase-01",
+            "verdict": "conformant-with-deviations",
+            "findings": [
+              {
+                "dimension": "files",
+                "severity": "deviation",
+                "message": "README.md was touched"
+              }
+            ]
+          }
+        ],
+        "unplannedChanges": [
+          {
+            "phaseId": "",
+            "path": "README.md",
+            "note": "The plan did not list it"
+          }
+        ],
+        "unmetPromises": [
+          {
+            "phaseId": "phase-01",
+            "promise": "A test for the example",
+            "note": "No such test exists"
+          }
+        ],
+        "attentionPoints": [
+          "README.md changed"
+        ],
+        "pointers": [
+          "src/example.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "unplannedChanges.0.phaseId: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint unplannedChanges[].phaseId required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/compliance-review/0.32.0.json",
+        "verdict": "conformant-with-deviations",
+        "summary": "The run delivers the plan, with one deviation.",
+        "perPhase": [
+          {
+            "phaseId": "phase-01",
+            "verdict": "conformant-with-deviations",
+            "findings": [
+              {
+                "dimension": "files",
+                "severity": "deviation",
+                "message": "README.md was touched"
+              }
+            ]
+          }
+        ],
+        "unplannedChanges": [
+          {
+            "path": "README.md",
+            "note": "The plan did not list it"
+          }
+        ],
+        "unmetPromises": [
+          {
+            "phaseId": "phase-01",
+            "promise": "A test for the example",
+            "note": "No such test exists"
+          }
+        ],
+        "attentionPoints": [
+          "README.md changed"
+        ],
+        "pointers": [
+          "src/example.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "unplannedChanges.0.phaseId: is missing"
+      }
+    },
+    {
+      "name": "constraint verdict enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/compliance-review/0.32.0.json",
+        "verdict": "bogus-value",
+        "summary": "The run delivers the plan, with one deviation.",
+        "perPhase": [
+          {
+            "phaseId": "phase-01",
+            "verdict": "conformant-with-deviations",
+            "findings": [
+              {
+                "dimension": "files",
+                "severity": "deviation",
+                "message": "README.md was touched"
+              }
+            ]
+          }
+        ],
+        "unplannedChanges": [
+          {
+            "phaseId": "phase-01",
+            "path": "README.md",
+            "note": "The plan did not list it"
+          }
+        ],
+        "unmetPromises": [
+          {
+            "phaseId": "phase-01",
+            "promise": "A test for the example",
+            "note": "No such test exists"
+          }
+        ],
+        "attentionPoints": [
+          "README.md changed"
+        ],
+        "pointers": [
+          "src/example.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "verdict: Expected \"conformant\" | \"conformant-with-deviations\" | \"divergent\", actual \"bogus-value\""
+      }
+    },
+    {
+      "name": "constraint verdict required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/compliance-review/0.32.0.json",
+        "summary": "The run delivers the plan, with one deviation.",
+        "perPhase": [
+          {
+            "phaseId": "phase-01",
+            "verdict": "conformant-with-deviations",
+            "findings": [
+              {
+                "dimension": "files",
+                "severity": "deviation",
+                "message": "README.md was touched"
+              }
+            ]
+          }
+        ],
+        "unplannedChanges": [
+          {
+            "phaseId": "phase-01",
+            "path": "README.md",
+            "note": "The plan did not list it"
+          }
+        ],
+        "unmetPromises": [
+          {
+            "phaseId": "phase-01",
+            "promise": "A test for the example",
+            "note": "No such test exists"
+          }
+        ],
+        "attentionPoints": [
+          "README.md changed"
+        ],
+        "pointers": [
+          "src/example.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "verdict: is missing"
+      }
     }
   ],
   "shapes": {
@@ -1126,6 +2557,530 @@
           "ok": false,
           "refusal": "perPhase[0].phaseId: Expected a non empty string, actual \"\""
         }
+      },
+      {
+        "name": "constraint attentionPoints required",
+        "input": {
+          "version": 1,
+          "verdict": "conformant-with-deviations",
+          "summary": "The run delivers the plan, with one deviation.",
+          "perPhase": [
+            {
+              "phaseId": "phase-01",
+              "verdict": "conformant-with-deviations",
+              "findings": [
+                {
+                  "dimension": "files",
+                  "severity": "deviation",
+                  "message": "README.md was touched"
+                }
+              ]
+            }
+          ],
+          "pointers": [
+            "src/example.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "attentionPoints: is missing"
+        }
+      },
+      {
+        "name": "constraint perPhase required",
+        "input": {
+          "version": 1,
+          "verdict": "conformant-with-deviations",
+          "summary": "The run delivers the plan, with one deviation.",
+          "attentionPoints": [
+            "README.md changed"
+          ],
+          "pointers": [
+            "src/example.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "perPhase: is missing"
+        }
+      },
+      {
+        "name": "constraint perPhase[].findings required",
+        "input": {
+          "version": 1,
+          "verdict": "conformant-with-deviations",
+          "summary": "The run delivers the plan, with one deviation.",
+          "perPhase": [
+            {
+              "phaseId": "phase-01",
+              "verdict": "conformant-with-deviations"
+            }
+          ],
+          "attentionPoints": [
+            "README.md changed"
+          ],
+          "pointers": [
+            "src/example.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "perPhase[0].findings: is missing"
+        }
+      },
+      {
+        "name": "constraint perPhase[].findings[].dimension enum",
+        "input": {
+          "version": 1,
+          "verdict": "conformant-with-deviations",
+          "summary": "The run delivers the plan, with one deviation.",
+          "perPhase": [
+            {
+              "phaseId": "phase-01",
+              "verdict": "conformant-with-deviations",
+              "findings": [
+                {
+                  "dimension": "bogus-value",
+                  "severity": "deviation",
+                  "message": "README.md was touched"
+                }
+              ]
+            }
+          ],
+          "attentionPoints": [
+            "README.md changed"
+          ],
+          "pointers": [
+            "src/example.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "perPhase[0].findings[0].dimension: Expected \"objective\" | \"excluded-scope\" | \"files\" | \"tests\" | \"boundaries\" | \"commit\" | \"handoff\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint perPhase[].findings[].dimension required",
+        "input": {
+          "version": 1,
+          "verdict": "conformant-with-deviations",
+          "summary": "The run delivers the plan, with one deviation.",
+          "perPhase": [
+            {
+              "phaseId": "phase-01",
+              "verdict": "conformant-with-deviations",
+              "findings": [
+                {
+                  "severity": "deviation",
+                  "message": "README.md was touched"
+                }
+              ]
+            }
+          ],
+          "attentionPoints": [
+            "README.md changed"
+          ],
+          "pointers": [
+            "src/example.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "perPhase[0].findings[0].dimension: is missing"
+        }
+      },
+      {
+        "name": "constraint perPhase[].findings[].message required",
+        "input": {
+          "version": 1,
+          "verdict": "conformant-with-deviations",
+          "summary": "The run delivers the plan, with one deviation.",
+          "perPhase": [
+            {
+              "phaseId": "phase-01",
+              "verdict": "conformant-with-deviations",
+              "findings": [
+                {
+                  "dimension": "files",
+                  "severity": "deviation"
+                }
+              ]
+            }
+          ],
+          "attentionPoints": [
+            "README.md changed"
+          ],
+          "pointers": [
+            "src/example.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "perPhase[0].findings[0].message: is missing"
+        }
+      },
+      {
+        "name": "constraint perPhase[].findings[].severity enum",
+        "input": {
+          "version": 1,
+          "verdict": "conformant-with-deviations",
+          "summary": "The run delivers the plan, with one deviation.",
+          "perPhase": [
+            {
+              "phaseId": "phase-01",
+              "verdict": "conformant-with-deviations",
+              "findings": [
+                {
+                  "dimension": "files",
+                  "severity": "bogus-value",
+                  "message": "README.md was touched"
+                }
+              ]
+            }
+          ],
+          "attentionPoints": [
+            "README.md changed"
+          ],
+          "pointers": [
+            "src/example.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "perPhase[0].findings[0].severity: Expected \"info\" | \"deviation\" | \"concern\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint perPhase[].findings[].severity required",
+        "input": {
+          "version": 1,
+          "verdict": "conformant-with-deviations",
+          "summary": "The run delivers the plan, with one deviation.",
+          "perPhase": [
+            {
+              "phaseId": "phase-01",
+              "verdict": "conformant-with-deviations",
+              "findings": [
+                {
+                  "dimension": "files",
+                  "message": "README.md was touched"
+                }
+              ]
+            }
+          ],
+          "attentionPoints": [
+            "README.md changed"
+          ],
+          "pointers": [
+            "src/example.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "perPhase[0].findings[0].severity: is missing"
+        }
+      },
+      {
+        "name": "constraint perPhase[].phaseId minLength",
+        "input": {
+          "version": 1,
+          "verdict": "conformant-with-deviations",
+          "summary": "The run delivers the plan, with one deviation.",
+          "perPhase": [
+            {
+              "phaseId": "",
+              "verdict": "conformant-with-deviations",
+              "findings": [
+                {
+                  "dimension": "files",
+                  "severity": "deviation",
+                  "message": "README.md was touched"
+                }
+              ]
+            }
+          ],
+          "attentionPoints": [
+            "README.md changed"
+          ],
+          "pointers": [
+            "src/example.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "perPhase[0].phaseId: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint perPhase[].phaseId required",
+        "input": {
+          "version": 1,
+          "verdict": "conformant-with-deviations",
+          "summary": "The run delivers the plan, with one deviation.",
+          "perPhase": [
+            {
+              "verdict": "conformant-with-deviations",
+              "findings": [
+                {
+                  "dimension": "files",
+                  "severity": "deviation",
+                  "message": "README.md was touched"
+                }
+              ]
+            }
+          ],
+          "attentionPoints": [
+            "README.md changed"
+          ],
+          "pointers": [
+            "src/example.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "perPhase[0].phaseId: is missing"
+        }
+      },
+      {
+        "name": "constraint perPhase[].verdict enum",
+        "input": {
+          "version": 1,
+          "verdict": "conformant-with-deviations",
+          "summary": "The run delivers the plan, with one deviation.",
+          "perPhase": [
+            {
+              "phaseId": "phase-01",
+              "verdict": "bogus-value",
+              "findings": [
+                {
+                  "dimension": "files",
+                  "severity": "deviation",
+                  "message": "README.md was touched"
+                }
+              ]
+            }
+          ],
+          "attentionPoints": [
+            "README.md changed"
+          ],
+          "pointers": [
+            "src/example.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "perPhase[0].verdict: Expected \"conformant\" | \"conformant-with-deviations\" | \"divergent\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint perPhase[].verdict required",
+        "input": {
+          "version": 1,
+          "verdict": "conformant-with-deviations",
+          "summary": "The run delivers the plan, with one deviation.",
+          "perPhase": [
+            {
+              "phaseId": "phase-01",
+              "findings": [
+                {
+                  "dimension": "files",
+                  "severity": "deviation",
+                  "message": "README.md was touched"
+                }
+              ]
+            }
+          ],
+          "attentionPoints": [
+            "README.md changed"
+          ],
+          "pointers": [
+            "src/example.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "perPhase[0].verdict: is missing"
+        }
+      },
+      {
+        "name": "constraint pointers required",
+        "input": {
+          "version": 1,
+          "verdict": "conformant-with-deviations",
+          "summary": "The run delivers the plan, with one deviation.",
+          "perPhase": [
+            {
+              "phaseId": "phase-01",
+              "verdict": "conformant-with-deviations",
+              "findings": [
+                {
+                  "dimension": "files",
+                  "severity": "deviation",
+                  "message": "README.md was touched"
+                }
+              ]
+            }
+          ],
+          "attentionPoints": [
+            "README.md changed"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "pointers: is missing"
+        }
+      },
+      {
+        "name": "constraint summary required",
+        "input": {
+          "version": 1,
+          "verdict": "conformant-with-deviations",
+          "perPhase": [
+            {
+              "phaseId": "phase-01",
+              "verdict": "conformant-with-deviations",
+              "findings": [
+                {
+                  "dimension": "files",
+                  "severity": "deviation",
+                  "message": "README.md was touched"
+                }
+              ]
+            }
+          ],
+          "attentionPoints": [
+            "README.md changed"
+          ],
+          "pointers": [
+            "src/example.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "summary: is missing"
+        }
+      },
+      {
+        "name": "constraint verdict enum",
+        "input": {
+          "version": 1,
+          "verdict": "bogus-value",
+          "summary": "The run delivers the plan, with one deviation.",
+          "perPhase": [
+            {
+              "phaseId": "phase-01",
+              "verdict": "conformant-with-deviations",
+              "findings": [
+                {
+                  "dimension": "files",
+                  "severity": "deviation",
+                  "message": "README.md was touched"
+                }
+              ]
+            }
+          ],
+          "attentionPoints": [
+            "README.md changed"
+          ],
+          "pointers": [
+            "src/example.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "verdict: Expected \"conformant\" | \"conformant-with-deviations\" | \"divergent\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint verdict required",
+        "input": {
+          "version": 1,
+          "summary": "The run delivers the plan, with one deviation.",
+          "perPhase": [
+            {
+              "phaseId": "phase-01",
+              "verdict": "conformant-with-deviations",
+              "findings": [
+                {
+                  "dimension": "files",
+                  "severity": "deviation",
+                  "message": "README.md was touched"
+                }
+              ]
+            }
+          ],
+          "attentionPoints": [
+            "README.md changed"
+          ],
+          "pointers": [
+            "src/example.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "verdict: is missing"
+        }
+      },
+      {
+        "name": "constraint version enum",
+        "input": {
+          "version": "bogus-value",
+          "verdict": "conformant-with-deviations",
+          "summary": "The run delivers the plan, with one deviation.",
+          "perPhase": [
+            {
+              "phaseId": "phase-01",
+              "verdict": "conformant-with-deviations",
+              "findings": [
+                {
+                  "dimension": "files",
+                  "severity": "deviation",
+                  "message": "README.md was touched"
+                }
+              ]
+            }
+          ],
+          "attentionPoints": [
+            "README.md changed"
+          ],
+          "pointers": [
+            "src/example.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "version: Expected 1, actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint version required",
+        "input": {
+          "verdict": "conformant-with-deviations",
+          "summary": "The run delivers the plan, with one deviation.",
+          "perPhase": [
+            {
+              "phaseId": "phase-01",
+              "verdict": "conformant-with-deviations",
+              "findings": [
+                {
+                  "dimension": "files",
+                  "severity": "deviation",
+                  "message": "README.md was touched"
+                }
+              ]
+            }
+          ],
+          "attentionPoints": [
+            "README.md changed"
+          ],
+          "pointers": [
+            "src/example.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "version: is missing"
+        }
       }
     ],
     "0.17.0": [
@@ -1390,6 +3345,530 @@
         "expected": {
           "ok": false,
           "refusal": "perPhase[0].phaseId: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint $schema pattern",
+        "input": {
+          "$schema": "",
+          "verdict": "conformant-with-deviations",
+          "summary": "The run delivers the plan, with one deviation.",
+          "perPhase": [
+            {
+              "phaseId": "phase-01",
+              "verdict": "conformant-with-deviations",
+              "findings": [
+                {
+                  "dimension": "files",
+                  "severity": "deviation",
+                  "message": "README.md was touched"
+                }
+              ]
+            }
+          ],
+          "attentionPoints": [
+            "README.md changed"
+          ],
+          "pointers": [
+            "src/example.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "$schema: Expected a string matching the pattern ^https:\\/\\/docs\\.phax\\.run\\/schemas\\/compliance-review\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$, actual \"\""
+        }
+      },
+      {
+        "name": "constraint $schema required",
+        "input": {
+          "verdict": "conformant-with-deviations",
+          "summary": "The run delivers the plan, with one deviation.",
+          "perPhase": [
+            {
+              "phaseId": "phase-01",
+              "verdict": "conformant-with-deviations",
+              "findings": [
+                {
+                  "dimension": "files",
+                  "severity": "deviation",
+                  "message": "README.md was touched"
+                }
+              ]
+            }
+          ],
+          "attentionPoints": [
+            "README.md changed"
+          ],
+          "pointers": [
+            "src/example.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "$schema: is missing"
+        }
+      },
+      {
+        "name": "constraint attentionPoints required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/compliance-review/0.17.0.json",
+          "verdict": "conformant-with-deviations",
+          "summary": "The run delivers the plan, with one deviation.",
+          "perPhase": [
+            {
+              "phaseId": "phase-01",
+              "verdict": "conformant-with-deviations",
+              "findings": [
+                {
+                  "dimension": "files",
+                  "severity": "deviation",
+                  "message": "README.md was touched"
+                }
+              ]
+            }
+          ],
+          "pointers": [
+            "src/example.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "attentionPoints: is missing"
+        }
+      },
+      {
+        "name": "constraint perPhase required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/compliance-review/0.17.0.json",
+          "verdict": "conformant-with-deviations",
+          "summary": "The run delivers the plan, with one deviation.",
+          "attentionPoints": [
+            "README.md changed"
+          ],
+          "pointers": [
+            "src/example.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "perPhase: is missing"
+        }
+      },
+      {
+        "name": "constraint perPhase[].findings required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/compliance-review/0.17.0.json",
+          "verdict": "conformant-with-deviations",
+          "summary": "The run delivers the plan, with one deviation.",
+          "perPhase": [
+            {
+              "phaseId": "phase-01",
+              "verdict": "conformant-with-deviations"
+            }
+          ],
+          "attentionPoints": [
+            "README.md changed"
+          ],
+          "pointers": [
+            "src/example.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "perPhase[0].findings: is missing"
+        }
+      },
+      {
+        "name": "constraint perPhase[].findings[].dimension enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/compliance-review/0.17.0.json",
+          "verdict": "conformant-with-deviations",
+          "summary": "The run delivers the plan, with one deviation.",
+          "perPhase": [
+            {
+              "phaseId": "phase-01",
+              "verdict": "conformant-with-deviations",
+              "findings": [
+                {
+                  "dimension": "bogus-value",
+                  "severity": "deviation",
+                  "message": "README.md was touched"
+                }
+              ]
+            }
+          ],
+          "attentionPoints": [
+            "README.md changed"
+          ],
+          "pointers": [
+            "src/example.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "perPhase[0].findings[0].dimension: Expected \"objective\" | \"excluded-scope\" | \"files\" | \"tests\" | \"boundaries\" | \"commit\" | \"handoff\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint perPhase[].findings[].dimension required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/compliance-review/0.17.0.json",
+          "verdict": "conformant-with-deviations",
+          "summary": "The run delivers the plan, with one deviation.",
+          "perPhase": [
+            {
+              "phaseId": "phase-01",
+              "verdict": "conformant-with-deviations",
+              "findings": [
+                {
+                  "severity": "deviation",
+                  "message": "README.md was touched"
+                }
+              ]
+            }
+          ],
+          "attentionPoints": [
+            "README.md changed"
+          ],
+          "pointers": [
+            "src/example.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "perPhase[0].findings[0].dimension: is missing"
+        }
+      },
+      {
+        "name": "constraint perPhase[].findings[].message required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/compliance-review/0.17.0.json",
+          "verdict": "conformant-with-deviations",
+          "summary": "The run delivers the plan, with one deviation.",
+          "perPhase": [
+            {
+              "phaseId": "phase-01",
+              "verdict": "conformant-with-deviations",
+              "findings": [
+                {
+                  "dimension": "files",
+                  "severity": "deviation"
+                }
+              ]
+            }
+          ],
+          "attentionPoints": [
+            "README.md changed"
+          ],
+          "pointers": [
+            "src/example.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "perPhase[0].findings[0].message: is missing"
+        }
+      },
+      {
+        "name": "constraint perPhase[].findings[].severity enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/compliance-review/0.17.0.json",
+          "verdict": "conformant-with-deviations",
+          "summary": "The run delivers the plan, with one deviation.",
+          "perPhase": [
+            {
+              "phaseId": "phase-01",
+              "verdict": "conformant-with-deviations",
+              "findings": [
+                {
+                  "dimension": "files",
+                  "severity": "bogus-value",
+                  "message": "README.md was touched"
+                }
+              ]
+            }
+          ],
+          "attentionPoints": [
+            "README.md changed"
+          ],
+          "pointers": [
+            "src/example.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "perPhase[0].findings[0].severity: Expected \"info\" | \"deviation\" | \"concern\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint perPhase[].findings[].severity required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/compliance-review/0.17.0.json",
+          "verdict": "conformant-with-deviations",
+          "summary": "The run delivers the plan, with one deviation.",
+          "perPhase": [
+            {
+              "phaseId": "phase-01",
+              "verdict": "conformant-with-deviations",
+              "findings": [
+                {
+                  "dimension": "files",
+                  "message": "README.md was touched"
+                }
+              ]
+            }
+          ],
+          "attentionPoints": [
+            "README.md changed"
+          ],
+          "pointers": [
+            "src/example.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "perPhase[0].findings[0].severity: is missing"
+        }
+      },
+      {
+        "name": "constraint perPhase[].phaseId minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/compliance-review/0.17.0.json",
+          "verdict": "conformant-with-deviations",
+          "summary": "The run delivers the plan, with one deviation.",
+          "perPhase": [
+            {
+              "phaseId": "",
+              "verdict": "conformant-with-deviations",
+              "findings": [
+                {
+                  "dimension": "files",
+                  "severity": "deviation",
+                  "message": "README.md was touched"
+                }
+              ]
+            }
+          ],
+          "attentionPoints": [
+            "README.md changed"
+          ],
+          "pointers": [
+            "src/example.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "perPhase[0].phaseId: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint perPhase[].phaseId required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/compliance-review/0.17.0.json",
+          "verdict": "conformant-with-deviations",
+          "summary": "The run delivers the plan, with one deviation.",
+          "perPhase": [
+            {
+              "verdict": "conformant-with-deviations",
+              "findings": [
+                {
+                  "dimension": "files",
+                  "severity": "deviation",
+                  "message": "README.md was touched"
+                }
+              ]
+            }
+          ],
+          "attentionPoints": [
+            "README.md changed"
+          ],
+          "pointers": [
+            "src/example.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "perPhase[0].phaseId: is missing"
+        }
+      },
+      {
+        "name": "constraint perPhase[].verdict enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/compliance-review/0.17.0.json",
+          "verdict": "conformant-with-deviations",
+          "summary": "The run delivers the plan, with one deviation.",
+          "perPhase": [
+            {
+              "phaseId": "phase-01",
+              "verdict": "bogus-value",
+              "findings": [
+                {
+                  "dimension": "files",
+                  "severity": "deviation",
+                  "message": "README.md was touched"
+                }
+              ]
+            }
+          ],
+          "attentionPoints": [
+            "README.md changed"
+          ],
+          "pointers": [
+            "src/example.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "perPhase[0].verdict: Expected \"conformant\" | \"conformant-with-deviations\" | \"divergent\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint perPhase[].verdict required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/compliance-review/0.17.0.json",
+          "verdict": "conformant-with-deviations",
+          "summary": "The run delivers the plan, with one deviation.",
+          "perPhase": [
+            {
+              "phaseId": "phase-01",
+              "findings": [
+                {
+                  "dimension": "files",
+                  "severity": "deviation",
+                  "message": "README.md was touched"
+                }
+              ]
+            }
+          ],
+          "attentionPoints": [
+            "README.md changed"
+          ],
+          "pointers": [
+            "src/example.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "perPhase[0].verdict: is missing"
+        }
+      },
+      {
+        "name": "constraint pointers required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/compliance-review/0.17.0.json",
+          "verdict": "conformant-with-deviations",
+          "summary": "The run delivers the plan, with one deviation.",
+          "perPhase": [
+            {
+              "phaseId": "phase-01",
+              "verdict": "conformant-with-deviations",
+              "findings": [
+                {
+                  "dimension": "files",
+                  "severity": "deviation",
+                  "message": "README.md was touched"
+                }
+              ]
+            }
+          ],
+          "attentionPoints": [
+            "README.md changed"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "pointers: is missing"
+        }
+      },
+      {
+        "name": "constraint summary required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/compliance-review/0.17.0.json",
+          "verdict": "conformant-with-deviations",
+          "perPhase": [
+            {
+              "phaseId": "phase-01",
+              "verdict": "conformant-with-deviations",
+              "findings": [
+                {
+                  "dimension": "files",
+                  "severity": "deviation",
+                  "message": "README.md was touched"
+                }
+              ]
+            }
+          ],
+          "attentionPoints": [
+            "README.md changed"
+          ],
+          "pointers": [
+            "src/example.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "summary: is missing"
+        }
+      },
+      {
+        "name": "constraint verdict enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/compliance-review/0.17.0.json",
+          "verdict": "bogus-value",
+          "summary": "The run delivers the plan, with one deviation.",
+          "perPhase": [
+            {
+              "phaseId": "phase-01",
+              "verdict": "conformant-with-deviations",
+              "findings": [
+                {
+                  "dimension": "files",
+                  "severity": "deviation",
+                  "message": "README.md was touched"
+                }
+              ]
+            }
+          ],
+          "attentionPoints": [
+            "README.md changed"
+          ],
+          "pointers": [
+            "src/example.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "verdict: Expected \"conformant\" | \"conformant-with-deviations\" | \"divergent\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint verdict required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/compliance-review/0.17.0.json",
+          "summary": "The run delivers the plan, with one deviation.",
+          "perPhase": [
+            {
+              "phaseId": "phase-01",
+              "verdict": "conformant-with-deviations",
+              "findings": [
+                {
+                  "dimension": "files",
+                  "severity": "deviation",
+                  "message": "README.md was touched"
+                }
+              ]
+            }
+          ],
+          "attentionPoints": [
+            "README.md changed"
+          ],
+          "pointers": [
+            "src/example.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "verdict: is missing"
         }
       }
     ]

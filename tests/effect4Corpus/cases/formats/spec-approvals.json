@@ -232,6 +232,165 @@
         "ok": false,
         "refusal": "unexpectedKey: is unexpected, expected: \"$schema\" | \"records\""
       }
+    },
+    {
+      "name": "constraint $schema pattern",
+      "input": {
+        "$schema": "",
+        "records": {
+          "docs/specs/example.md": {
+            "specFingerprint": "spec-fingerprint-0001",
+            "approvedAt": "2026-01-01T09:00:00.000Z",
+            "baseline": "0123456789abcdef0123456789abcdef01234567"
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: expected https://docs.phax.run/schemas/<format-id>/<X.Y.Z>.json, got \"\""
+      }
+    },
+    {
+      "name": "constraint $schema required",
+      "input": {
+        "records": {
+          "docs/specs/example.md": {
+            "specFingerprint": "spec-fingerprint-0001",
+            "approvedAt": "2026-01-01T09:00:00.000Z",
+            "baseline": "0123456789abcdef0123456789abcdef01234567"
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "version: spec approvals ledger older than phax 0.17.0, the first supported release — not supported (is missing)"
+      }
+    },
+    {
+      "name": "constraint records required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/spec-approvals/0.17.0.json"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "records: is missing"
+      }
+    },
+    {
+      "name": "constraint records.*.approvedAt minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/spec-approvals/0.17.0.json",
+        "records": {
+          "docs/specs/example.md": {
+            "specFingerprint": "spec-fingerprint-0001",
+            "approvedAt": "",
+            "baseline": "0123456789abcdef0123456789abcdef01234567"
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "records.docs/specs/example.md.approvedAt: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint records.*.approvedAt required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/spec-approvals/0.17.0.json",
+        "records": {
+          "docs/specs/example.md": {
+            "specFingerprint": "spec-fingerprint-0001",
+            "baseline": "0123456789abcdef0123456789abcdef01234567"
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "records.docs/specs/example.md.approvedAt: is missing"
+      }
+    },
+    {
+      "name": "constraint records.*.baseline minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/spec-approvals/0.17.0.json",
+        "records": {
+          "docs/specs/example.md": {
+            "specFingerprint": "spec-fingerprint-0001",
+            "approvedAt": "2026-01-01T09:00:00.000Z",
+            "baseline": ""
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "records.docs/specs/example.md.baseline: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint records.*.baseline pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/spec-approvals/0.17.0.json",
+        "records": {
+          "docs/specs/example.md": {
+            "specFingerprint": "spec-fingerprint-0001",
+            "approvedAt": "2026-01-01T09:00:00.000Z",
+            "baseline": ""
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "records.docs/specs/example.md.baseline: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint records.*.baseline required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/spec-approvals/0.17.0.json",
+        "records": {
+          "docs/specs/example.md": {
+            "specFingerprint": "spec-fingerprint-0001",
+            "approvedAt": "2026-01-01T09:00:00.000Z"
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "records.docs/specs/example.md.baseline: is missing"
+      }
+    },
+    {
+      "name": "constraint records.*.specFingerprint minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/spec-approvals/0.17.0.json",
+        "records": {
+          "docs/specs/example.md": {
+            "specFingerprint": "",
+            "approvedAt": "2026-01-01T09:00:00.000Z",
+            "baseline": "0123456789abcdef0123456789abcdef01234567"
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "records.docs/specs/example.md.specFingerprint: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint records.*.specFingerprint required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/spec-approvals/0.17.0.json",
+        "records": {
+          "docs/specs/example.md": {
+            "approvedAt": "2026-01-01T09:00:00.000Z",
+            "baseline": "0123456789abcdef0123456789abcdef01234567"
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "records.docs/specs/example.md.specFingerprint: is missing"
+      }
     }
   ],
   "shapes": {
@@ -380,6 +539,165 @@
         "expected": {
           "ok": false,
           "refusal": "version: Expected 1, actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint records required",
+        "input": {
+          "version": 1
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "records: is missing"
+        }
+      },
+      {
+        "name": "constraint records.*.approvedAt minLength",
+        "input": {
+          "version": 1,
+          "records": {
+            "docs/specs/example.md": {
+              "specFingerprint": "spec-fingerprint-0001",
+              "approvedAt": "",
+              "baseline": "0123456789abcdef0123456789abcdef01234567"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "records.docs/specs/example.md.approvedAt: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint records.*.approvedAt required",
+        "input": {
+          "version": 1,
+          "records": {
+            "docs/specs/example.md": {
+              "specFingerprint": "spec-fingerprint-0001",
+              "baseline": "0123456789abcdef0123456789abcdef01234567"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "records.docs/specs/example.md.approvedAt: is missing"
+        }
+      },
+      {
+        "name": "constraint records.*.baseline minLength",
+        "input": {
+          "version": 1,
+          "records": {
+            "docs/specs/example.md": {
+              "specFingerprint": "spec-fingerprint-0001",
+              "approvedAt": "2026-01-01T09:00:00.000Z",
+              "baseline": ""
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "records.docs/specs/example.md.baseline: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint records.*.baseline pattern",
+        "input": {
+          "version": 1,
+          "records": {
+            "docs/specs/example.md": {
+              "specFingerprint": "spec-fingerprint-0001",
+              "approvedAt": "2026-01-01T09:00:00.000Z",
+              "baseline": ""
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "records.docs/specs/example.md.baseline: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint records.*.baseline required",
+        "input": {
+          "version": 1,
+          "records": {
+            "docs/specs/example.md": {
+              "specFingerprint": "spec-fingerprint-0001",
+              "approvedAt": "2026-01-01T09:00:00.000Z"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "records.docs/specs/example.md.baseline: is missing"
+        }
+      },
+      {
+        "name": "constraint records.*.specFingerprint minLength",
+        "input": {
+          "version": 1,
+          "records": {
+            "docs/specs/example.md": {
+              "specFingerprint": "",
+              "approvedAt": "2026-01-01T09:00:00.000Z",
+              "baseline": "0123456789abcdef0123456789abcdef01234567"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "records.docs/specs/example.md.specFingerprint: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint records.*.specFingerprint required",
+        "input": {
+          "version": 1,
+          "records": {
+            "docs/specs/example.md": {
+              "approvedAt": "2026-01-01T09:00:00.000Z",
+              "baseline": "0123456789abcdef0123456789abcdef01234567"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "records.docs/specs/example.md.specFingerprint: is missing"
+        }
+      },
+      {
+        "name": "constraint version enum",
+        "input": {
+          "version": "bogus-value",
+          "records": {
+            "docs/specs/example.md": {
+              "specFingerprint": "spec-fingerprint-0001",
+              "approvedAt": "2026-01-01T09:00:00.000Z",
+              "baseline": "0123456789abcdef0123456789abcdef01234567"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "version: Expected 1, actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint version required",
+        "input": {
+          "records": {
+            "docs/specs/example.md": {
+              "specFingerprint": "spec-fingerprint-0001",
+              "approvedAt": "2026-01-01T09:00:00.000Z",
+              "baseline": "0123456789abcdef0123456789abcdef01234567"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "version: is missing"
         }
       }
     ]

@@ -386,7 +386,7 @@ describe("behaviour corpus coverage", () => {
   }
 
   for (const id of ids) {
-    it.fails(`${id} has a refused current case per constraint of its latest snapshot`, () => {
+    it(`${id} has a refused current case per constraint of its latest snapshot`, () => {
       const file = readFormatFile(id);
       if (file === undefined) throw new Error(`no case file for ${id}`);
       const release = latestRelease(id);
@@ -399,7 +399,7 @@ describe("behaviour corpus coverage", () => {
   }
 
   for (const module of modules) {
-    it.fails(`${module} has a refused case per constraint of its snapshot`, () => {
+    it(`${module} has a refused case per constraint of its snapshot`, () => {
       const slash = module.indexOf("/");
       const id = module.slice(0, slash);
       const shape = module.slice(slash + 1);
@@ -417,7 +417,7 @@ describe("behaviour corpus coverage", () => {
   }
 
   for (const id of WRITTEN_FORMATS) {
-    it.fails(`${id} has encode cases that set every property path of its latest snapshot`, () => {
+    it(`${id} has encode cases that set every property path of its latest snapshot`, () => {
       expect(ids, `${id} is not a format id`).toContain(id);
       const path = `${encodeRoot}${id}.json`;
       if (!existsSync(path)) throw new Error(`no encode case file for ${id}`);

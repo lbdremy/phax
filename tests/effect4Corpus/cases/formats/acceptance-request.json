@@ -266,6 +266,252 @@
         "ok": false,
         "refusal": "phase: Expected a string matching the pattern ^phase-\\d{2}$, actual \"\""
       }
+    },
+    {
+      "name": "constraint $schema pattern",
+      "input": {
+        "$schema": "",
+        "verdict": "authored",
+        "phase": "phase-02",
+        "acceptancePhase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "files": [
+          "tests/prune.test.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: expected https://docs.phax.run/schemas/<format-id>/<X.Y.Z>.json, got \"\""
+      }
+    },
+    {
+      "name": "constraint $schema required",
+      "input": {
+        "verdict": "authored",
+        "phase": "phase-02",
+        "acceptancePhase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "files": [
+          "tests/prune.test.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: acceptance request has no $schema — every acceptance request is written with one"
+      }
+    },
+    {
+      "name": "constraint acceptanceCommit pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/acceptance-request/0.33.0.json",
+        "verdict": "passed",
+        "phase": "phase-02",
+        "acceptancePhase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "acceptanceCommit": "",
+        "files": [
+          "tests/prune.test.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "acceptanceCommit: Expected a string matching the pattern ^[0-9a-f]{40}([0-9a-f]{24})?$, actual \"\""
+      }
+    },
+    {
+      "name": "constraint acceptanceCommit required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/acceptance-request/0.33.0.json",
+        "verdict": "passed",
+        "phase": "phase-02",
+        "acceptancePhase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "files": [
+          "tests/prune.test.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "acceptanceCommit: is missing"
+      }
+    },
+    {
+      "name": "constraint acceptancePhase pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/acceptance-request/0.33.0.json",
+        "verdict": "authored",
+        "phase": "phase-02",
+        "acceptancePhase": "",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "files": [
+          "tests/prune.test.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "acceptancePhase: Expected a string matching the pattern ^phase-\\d{2}$, actual \"\""
+      }
+    },
+    {
+      "name": "constraint acceptancePhase required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/acceptance-request/0.33.0.json",
+        "verdict": "authored",
+        "phase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "files": [
+          "tests/prune.test.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "acceptancePhase: is missing"
+      }
+    },
+    {
+      "name": "constraint base pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/acceptance-request/0.33.0.json",
+        "verdict": "authored",
+        "phase": "phase-02",
+        "acceptancePhase": "phase-02",
+        "base": "",
+        "files": [
+          "tests/prune.test.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "base: Expected a string matching the pattern ^[0-9a-f]{40}([0-9a-f]{24})?$, actual \"\""
+      }
+    },
+    {
+      "name": "constraint base required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/acceptance-request/0.33.0.json",
+        "verdict": "authored",
+        "phase": "phase-02",
+        "acceptancePhase": "phase-02",
+        "files": [
+          "tests/prune.test.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "base: is missing"
+      }
+    },
+    {
+      "name": "constraint files minItems",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/acceptance-request/0.33.0.json",
+        "verdict": "authored",
+        "phase": "phase-02",
+        "acceptancePhase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "files": []
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "files.0: is missing"
+      }
+    },
+    {
+      "name": "constraint files required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/acceptance-request/0.33.0.json",
+        "verdict": "authored",
+        "phase": "phase-02",
+        "acceptancePhase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "files: is missing"
+      }
+    },
+    {
+      "name": "constraint files[] minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/acceptance-request/0.33.0.json",
+        "verdict": "authored",
+        "phase": "phase-02",
+        "acceptancePhase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "files": [
+          ""
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "files.0: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint phase pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/acceptance-request/0.33.0.json",
+        "verdict": "authored",
+        "phase": "",
+        "acceptancePhase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "files": [
+          "tests/prune.test.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "phase: Expected a string matching the pattern ^phase-\\d{2}$, actual \"\""
+      }
+    },
+    {
+      "name": "constraint phase required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/acceptance-request/0.33.0.json",
+        "verdict": "authored",
+        "acceptancePhase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "files": [
+          "tests/prune.test.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "phase: is missing"
+      }
+    },
+    {
+      "name": "constraint verdict enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/acceptance-request/0.33.0.json",
+        "verdict": "bogus-value",
+        "phase": "phase-02",
+        "acceptancePhase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "files": [
+          "tests/prune.test.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "verdict: Expected \"authored\" | \"passed\", actual \"bogus-value\""
+      }
+    },
+    {
+      "name": "constraint verdict required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/acceptance-request/0.33.0.json",
+        "phase": "phase-02",
+        "acceptancePhase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "files": [
+          "tests/prune.test.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "verdict: is missing"
+      }
     }
   ],
   "shapes": {}

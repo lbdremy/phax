@@ -1,0 +1,1273 @@
+{
+  "subject": "encode/review-stop",
+  "cases": [
+    {
+      "name": "accepts a typical document",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/review-stop/0.30.0.json",
+        "run": "example.invoice-export",
+        "cause": "declared",
+        "state": "awaiting_review",
+        "phase": {
+          "id": "phase-03",
+          "title": "Export the credit notes",
+          "mode": "interactive",
+          "position": 3,
+          "of": 4
+        },
+        "firstReading": "/example/runs/invoice-export/phase-03/first-reading.md",
+        "worktree": "/example/worktrees/invoice-export/phase-03",
+        "seed": "/example/worktrees/invoice-export/phase-03/.phax-context/review-seed.md",
+        "session": {
+          "provider": "claude-code",
+          "sessionId": "4f6c1a52-0000-4000-8000-000000000001",
+          "origin": "first-turn",
+          "interactiveResume": "verified"
+        },
+        "commands": {
+          "continue": {
+            "cwd": "/example/worktrees/invoice-export/phase-03",
+            "argv": [
+              "claude",
+              "--resume",
+              "4f6c1a52-0000-4000-8000-000000000001"
+            ],
+            "env": {}
+          },
+          "freshStart": {
+            "cwd": "/example/worktrees/invoice-export/phase-03",
+            "argv": [
+              "claude"
+            ],
+            "env": {}
+          },
+          "enterPhase": {
+            "cwd": "/example/repo",
+            "argv": [
+              "phax",
+              "enter-phase",
+              "invoice-export",
+              "phase-03"
+            ],
+            "env": {}
+          },
+          "close": {
+            "cwd": "/example/repo",
+            "argv": [
+              "phax",
+              "resume",
+              "invoice-export"
+            ],
+            "env": {}
+          },
+          "reset": {
+            "cwd": "/example/repo",
+            "argv": [
+              "phax",
+              "reset-phase",
+              "invoice-export",
+              "phase-03"
+            ],
+            "env": {}
+          }
+        },
+        "lastClose": null,
+        "closeBase": null
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/review-stop/0.30.0.json",
+          "cause": "declared",
+          "closeBase": null,
+          "commands": {
+            "close": {
+              "argv": [
+                "phax",
+                "resume",
+                "invoice-export"
+              ],
+              "cwd": "/example/repo",
+              "env": {}
+            },
+            "continue": {
+              "argv": [
+                "claude",
+                "--resume",
+                "4f6c1a52-0000-4000-8000-000000000001"
+              ],
+              "cwd": "/example/worktrees/invoice-export/phase-03",
+              "env": {}
+            },
+            "enterPhase": {
+              "argv": [
+                "phax",
+                "enter-phase",
+                "invoice-export",
+                "phase-03"
+              ],
+              "cwd": "/example/repo",
+              "env": {}
+            },
+            "freshStart": {
+              "argv": [
+                "claude"
+              ],
+              "cwd": "/example/worktrees/invoice-export/phase-03",
+              "env": {}
+            },
+            "reset": {
+              "argv": [
+                "phax",
+                "reset-phase",
+                "invoice-export",
+                "phase-03"
+              ],
+              "cwd": "/example/repo",
+              "env": {}
+            }
+          },
+          "firstReading": "/example/runs/invoice-export/phase-03/first-reading.md",
+          "lastClose": null,
+          "phase": {
+            "id": "phase-03",
+            "mode": "interactive",
+            "of": 4,
+            "position": 3,
+            "title": "Export the credit notes"
+          },
+          "run": "example.invoice-export",
+          "seed": "/example/worktrees/invoice-export/phase-03/.phax-context/review-seed.md",
+          "session": {
+            "interactiveResume": "verified",
+            "origin": "first-turn",
+            "provider": "claude-code",
+            "sessionId": "4f6c1a52-0000-4000-8000-000000000001"
+          },
+          "state": "awaiting_review",
+          "worktree": "/example/worktrees/invoice-export/phase-03"
+        }
+      }
+    },
+    {
+      "name": "accepts a document setting every field",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/review-stop/0.30.0.json",
+        "run": "example.invoice-export",
+        "cause": "held",
+        "state": "awaiting_review",
+        "phase": {
+          "id": "phase-03",
+          "title": "Export the credit notes",
+          "mode": "headless",
+          "position": 3,
+          "of": 4
+        },
+        "phaseCommit": "0123456789abcdef0123456789abcdef01234567",
+        "worktree": "/example/worktrees/invoice-export/phase-03",
+        "seed": "/example/worktrees/invoice-export/phase-03/.phax-context/review-seed.md",
+        "session": {
+          "provider": "claude-code",
+          "sessionId": "4f6c1a52-0000-4000-8000-000000000001",
+          "origin": "builder",
+          "interactiveResume": "verified"
+        },
+        "commands": {
+          "continue": {
+            "cwd": "/example/worktrees/invoice-export/phase-03",
+            "argv": [
+              "claude"
+            ],
+            "env": {
+              "key": "text-10"
+            }
+          },
+          "freshStart": {
+            "cwd": "/example/worktrees/invoice-export/phase-03",
+            "argv": [
+              "claude"
+            ],
+            "env": {
+              "key": "text-13"
+            }
+          },
+          "enterPhase": {
+            "cwd": "/example/repo",
+            "argv": [
+              "phax"
+            ],
+            "env": {
+              "key": "text-16"
+            }
+          },
+          "close": {
+            "cwd": "/example/repo",
+            "argv": [
+              "phax"
+            ],
+            "env": {
+              "key": "text-19"
+            }
+          },
+          "reset": {
+            "cwd": "/example/repo",
+            "argv": [
+              "phax"
+            ],
+            "env": {
+              "key": "text-22"
+            }
+          }
+        },
+        "lastClose": {
+          "result": "worktree-changed",
+          "at": "text-23",
+          "exitCode": 1,
+          "paths": [
+            "text-24"
+          ]
+        },
+        "closeBase": null
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/review-stop/0.30.0.json",
+          "cause": "held",
+          "closeBase": null,
+          "commands": {
+            "close": {
+              "argv": [
+                "phax"
+              ],
+              "cwd": "/example/repo",
+              "env": {
+                "key": "text-19"
+              }
+            },
+            "continue": {
+              "argv": [
+                "claude"
+              ],
+              "cwd": "/example/worktrees/invoice-export/phase-03",
+              "env": {
+                "key": "text-10"
+              }
+            },
+            "enterPhase": {
+              "argv": [
+                "phax"
+              ],
+              "cwd": "/example/repo",
+              "env": {
+                "key": "text-16"
+              }
+            },
+            "freshStart": {
+              "argv": [
+                "claude"
+              ],
+              "cwd": "/example/worktrees/invoice-export/phase-03",
+              "env": {
+                "key": "text-13"
+              }
+            },
+            "reset": {
+              "argv": [
+                "phax"
+              ],
+              "cwd": "/example/repo",
+              "env": {
+                "key": "text-22"
+              }
+            }
+          },
+          "lastClose": {
+            "at": "text-23",
+            "exitCode": 1,
+            "paths": [
+              "text-24"
+            ],
+            "result": "worktree-changed"
+          },
+          "phase": {
+            "id": "phase-03",
+            "mode": "headless",
+            "of": 4,
+            "position": 3,
+            "title": "Export the credit notes"
+          },
+          "phaseCommit": "0123456789abcdef0123456789abcdef01234567",
+          "run": "example.invoice-export",
+          "seed": "/example/worktrees/invoice-export/phase-03/.phax-context/review-seed.md",
+          "session": {
+            "interactiveResume": "verified",
+            "origin": "builder",
+            "provider": "claude-code",
+            "sessionId": "4f6c1a52-0000-4000-8000-000000000001"
+          },
+          "state": "awaiting_review",
+          "worktree": "/example/worktrees/invoice-export/phase-03"
+        }
+      }
+    },
+    {
+      "name": "accepts a document setting every field, variant 2",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/review-stop/0.30.0.json",
+        "run": "example.invoice-export",
+        "cause": "declared",
+        "state": "awaiting_review",
+        "phase": {
+          "id": "phase-03",
+          "title": "Export the credit notes",
+          "mode": "interactive",
+          "position": 3,
+          "of": 4
+        },
+        "firstReading": "/example/runs/invoice-export/phase-03/first-reading.md",
+        "worktree": "/example/worktrees/invoice-export/phase-03",
+        "seed": "/example/worktrees/invoice-export/phase-03/.phax-context/review-seed.md",
+        "session": {
+          "provider": "claude-code",
+          "sessionId": "4f6c1a52-0000-4000-8000-000000000001",
+          "origin": "first-turn",
+          "interactiveResume": "verified"
+        },
+        "commands": {
+          "continue": {
+            "cwd": "/example/worktrees/invoice-export/phase-03",
+            "argv": [
+              "claude"
+            ],
+            "env": {
+              "key": "text-10"
+            }
+          },
+          "freshStart": {
+            "cwd": "/example/worktrees/invoice-export/phase-03",
+            "argv": [
+              "claude"
+            ],
+            "env": {
+              "key": "text-13"
+            }
+          },
+          "enterPhase": {
+            "cwd": "/example/repo",
+            "argv": [
+              "phax"
+            ],
+            "env": {
+              "key": "text-16"
+            }
+          },
+          "close": {
+            "cwd": "/example/repo",
+            "argv": [
+              "phax"
+            ],
+            "env": {
+              "key": "text-19"
+            }
+          },
+          "reset": {
+            "cwd": "/example/repo",
+            "argv": [
+              "phax"
+            ],
+            "env": {
+              "key": "text-22"
+            }
+          }
+        },
+        "lastClose": {
+          "result": "handoff-invalid",
+          "at": "text-23",
+          "exitCode": 1,
+          "defects": [
+            "text-24"
+          ]
+        },
+        "closeBase": null
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/review-stop/0.30.0.json",
+          "cause": "declared",
+          "closeBase": null,
+          "commands": {
+            "close": {
+              "argv": [
+                "phax"
+              ],
+              "cwd": "/example/repo",
+              "env": {
+                "key": "text-19"
+              }
+            },
+            "continue": {
+              "argv": [
+                "claude"
+              ],
+              "cwd": "/example/worktrees/invoice-export/phase-03",
+              "env": {
+                "key": "text-10"
+              }
+            },
+            "enterPhase": {
+              "argv": [
+                "phax"
+              ],
+              "cwd": "/example/repo",
+              "env": {
+                "key": "text-16"
+              }
+            },
+            "freshStart": {
+              "argv": [
+                "claude"
+              ],
+              "cwd": "/example/worktrees/invoice-export/phase-03",
+              "env": {
+                "key": "text-13"
+              }
+            },
+            "reset": {
+              "argv": [
+                "phax"
+              ],
+              "cwd": "/example/repo",
+              "env": {
+                "key": "text-22"
+              }
+            }
+          },
+          "firstReading": "/example/runs/invoice-export/phase-03/first-reading.md",
+          "lastClose": {
+            "at": "text-23",
+            "defects": [
+              "text-24"
+            ],
+            "exitCode": 1,
+            "result": "handoff-invalid"
+          },
+          "phase": {
+            "id": "phase-03",
+            "mode": "interactive",
+            "of": 4,
+            "position": 3,
+            "title": "Export the credit notes"
+          },
+          "run": "example.invoice-export",
+          "seed": "/example/worktrees/invoice-export/phase-03/.phax-context/review-seed.md",
+          "session": {
+            "interactiveResume": "verified",
+            "origin": "first-turn",
+            "provider": "claude-code",
+            "sessionId": "4f6c1a52-0000-4000-8000-000000000001"
+          },
+          "state": "awaiting_review",
+          "worktree": "/example/worktrees/invoice-export/phase-03"
+        }
+      }
+    },
+    {
+      "name": "accepts a document setting every field, variant 3",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/review-stop/0.30.0.json",
+        "run": "example.invoice-export",
+        "cause": "declared",
+        "state": "awaiting_review",
+        "phase": {
+          "id": "phase-03",
+          "title": "Export the credit notes",
+          "mode": "interactive",
+          "position": 3,
+          "of": 4
+        },
+        "firstReading": "/example/runs/invoice-export/phase-03/first-reading.md",
+        "worktree": "/example/worktrees/invoice-export/phase-03",
+        "seed": "/example/worktrees/invoice-export/phase-03/.phax-context/review-seed.md",
+        "session": {
+          "provider": "claude-code",
+          "sessionId": "4f6c1a52-0000-4000-8000-000000000001",
+          "origin": "first-turn",
+          "interactiveResume": "verified"
+        },
+        "commands": {
+          "continue": {
+            "cwd": "/example/worktrees/invoice-export/phase-03",
+            "argv": [
+              "claude"
+            ],
+            "env": {
+              "key": "text-10"
+            }
+          },
+          "freshStart": {
+            "cwd": "/example/worktrees/invoice-export/phase-03",
+            "argv": [
+              "claude"
+            ],
+            "env": {
+              "key": "text-13"
+            }
+          },
+          "enterPhase": {
+            "cwd": "/example/repo",
+            "argv": [
+              "phax"
+            ],
+            "env": {
+              "key": "text-16"
+            }
+          },
+          "close": {
+            "cwd": "/example/repo",
+            "argv": [
+              "phax"
+            ],
+            "env": {
+              "key": "text-19"
+            }
+          },
+          "reset": {
+            "cwd": "/example/repo",
+            "argv": [
+              "phax"
+            ],
+            "env": {
+              "key": "text-22"
+            }
+          }
+        },
+        "lastClose": {
+          "result": "close-error",
+          "at": "text-23",
+          "exitCode": 5,
+          "step": "closing-turn",
+          "detail": "text-24"
+        },
+        "closeBase": null
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/review-stop/0.30.0.json",
+          "cause": "declared",
+          "closeBase": null,
+          "commands": {
+            "close": {
+              "argv": [
+                "phax"
+              ],
+              "cwd": "/example/repo",
+              "env": {
+                "key": "text-19"
+              }
+            },
+            "continue": {
+              "argv": [
+                "claude"
+              ],
+              "cwd": "/example/worktrees/invoice-export/phase-03",
+              "env": {
+                "key": "text-10"
+              }
+            },
+            "enterPhase": {
+              "argv": [
+                "phax"
+              ],
+              "cwd": "/example/repo",
+              "env": {
+                "key": "text-16"
+              }
+            },
+            "freshStart": {
+              "argv": [
+                "claude"
+              ],
+              "cwd": "/example/worktrees/invoice-export/phase-03",
+              "env": {
+                "key": "text-13"
+              }
+            },
+            "reset": {
+              "argv": [
+                "phax"
+              ],
+              "cwd": "/example/repo",
+              "env": {
+                "key": "text-22"
+              }
+            }
+          },
+          "firstReading": "/example/runs/invoice-export/phase-03/first-reading.md",
+          "lastClose": {
+            "at": "text-23",
+            "detail": "text-24",
+            "exitCode": 5,
+            "result": "close-error",
+            "step": "closing-turn"
+          },
+          "phase": {
+            "id": "phase-03",
+            "mode": "interactive",
+            "of": 4,
+            "position": 3,
+            "title": "Export the credit notes"
+          },
+          "run": "example.invoice-export",
+          "seed": "/example/worktrees/invoice-export/phase-03/.phax-context/review-seed.md",
+          "session": {
+            "interactiveResume": "verified",
+            "origin": "first-turn",
+            "provider": "claude-code",
+            "sessionId": "4f6c1a52-0000-4000-8000-000000000001"
+          },
+          "state": "awaiting_review",
+          "worktree": "/example/worktrees/invoice-export/phase-03"
+        }
+      }
+    },
+    {
+      "name": "accepts a document setting every field, variant 4",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/review-stop/0.30.0.json",
+        "run": "example.invoice-export",
+        "cause": "declared",
+        "state": "awaiting_review",
+        "phase": {
+          "id": "phase-03",
+          "title": "Export the credit notes",
+          "mode": "interactive",
+          "position": 3,
+          "of": 4
+        },
+        "firstReading": "/example/runs/invoice-export/phase-03/first-reading.md",
+        "worktree": "/example/worktrees/invoice-export/phase-03",
+        "seed": "/example/worktrees/invoice-export/phase-03/.phax-context/review-seed.md",
+        "session": {
+          "provider": "claude-code",
+          "sessionId": "4f6c1a52-0000-4000-8000-000000000001",
+          "origin": "first-turn",
+          "interactiveResume": "verified"
+        },
+        "commands": {
+          "continue": {
+            "cwd": "/example/worktrees/invoice-export/phase-03",
+            "argv": [
+              "claude"
+            ],
+            "env": {
+              "key": "text-10"
+            }
+          },
+          "freshStart": {
+            "cwd": "/example/worktrees/invoice-export/phase-03",
+            "argv": [
+              "claude"
+            ],
+            "env": {
+              "key": "text-13"
+            }
+          },
+          "enterPhase": {
+            "cwd": "/example/repo",
+            "argv": [
+              "phax"
+            ],
+            "env": {
+              "key": "text-16"
+            }
+          },
+          "close": {
+            "cwd": "/example/repo",
+            "argv": [
+              "phax"
+            ],
+            "env": {
+              "key": "text-19"
+            }
+          },
+          "reset": {
+            "cwd": "/example/repo",
+            "argv": [
+              "phax"
+            ],
+            "env": {
+              "key": "text-22"
+            }
+          }
+        },
+        "lastClose": {
+          "result": "gate-failed",
+          "at": "text-23",
+          "exitCode": 4,
+          "log": "text-24"
+        },
+        "closeBase": null
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/review-stop/0.30.0.json",
+          "cause": "declared",
+          "closeBase": null,
+          "commands": {
+            "close": {
+              "argv": [
+                "phax"
+              ],
+              "cwd": "/example/repo",
+              "env": {
+                "key": "text-19"
+              }
+            },
+            "continue": {
+              "argv": [
+                "claude"
+              ],
+              "cwd": "/example/worktrees/invoice-export/phase-03",
+              "env": {
+                "key": "text-10"
+              }
+            },
+            "enterPhase": {
+              "argv": [
+                "phax"
+              ],
+              "cwd": "/example/repo",
+              "env": {
+                "key": "text-16"
+              }
+            },
+            "freshStart": {
+              "argv": [
+                "claude"
+              ],
+              "cwd": "/example/worktrees/invoice-export/phase-03",
+              "env": {
+                "key": "text-13"
+              }
+            },
+            "reset": {
+              "argv": [
+                "phax"
+              ],
+              "cwd": "/example/repo",
+              "env": {
+                "key": "text-22"
+              }
+            }
+          },
+          "firstReading": "/example/runs/invoice-export/phase-03/first-reading.md",
+          "lastClose": {
+            "at": "text-23",
+            "exitCode": 4,
+            "log": "text-24",
+            "result": "gate-failed"
+          },
+          "phase": {
+            "id": "phase-03",
+            "mode": "interactive",
+            "of": 4,
+            "position": 3,
+            "title": "Export the credit notes"
+          },
+          "run": "example.invoice-export",
+          "seed": "/example/worktrees/invoice-export/phase-03/.phax-context/review-seed.md",
+          "session": {
+            "interactiveResume": "verified",
+            "origin": "first-turn",
+            "provider": "claude-code",
+            "sessionId": "4f6c1a52-0000-4000-8000-000000000001"
+          },
+          "state": "awaiting_review",
+          "worktree": "/example/worktrees/invoice-export/phase-03"
+        }
+      }
+    },
+    {
+      "name": "accepts a document setting every field, variant 5",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/review-stop/0.30.0.json",
+        "run": "example.invoice-export",
+        "cause": "declared",
+        "state": "awaiting_review",
+        "phase": {
+          "id": "phase-03",
+          "title": "Export the credit notes",
+          "mode": "interactive",
+          "position": 3,
+          "of": 4
+        },
+        "firstReading": "/example/runs/invoice-export/phase-03/first-reading.md",
+        "worktree": "/example/worktrees/invoice-export/phase-03",
+        "seed": "/example/worktrees/invoice-export/phase-03/.phax-context/review-seed.md",
+        "session": {
+          "provider": "claude-code",
+          "sessionId": "4f6c1a52-0000-4000-8000-000000000001",
+          "origin": "first-turn",
+          "interactiveResume": "verified"
+        },
+        "commands": {
+          "continue": {
+            "cwd": "/example/worktrees/invoice-export/phase-03",
+            "argv": [
+              "claude"
+            ],
+            "env": {
+              "key": "text-10"
+            }
+          },
+          "freshStart": {
+            "cwd": "/example/worktrees/invoice-export/phase-03",
+            "argv": [
+              "claude"
+            ],
+            "env": {
+              "key": "text-13"
+            }
+          },
+          "enterPhase": {
+            "cwd": "/example/repo",
+            "argv": [
+              "phax"
+            ],
+            "env": {
+              "key": "text-16"
+            }
+          },
+          "close": {
+            "cwd": "/example/repo",
+            "argv": [
+              "phax"
+            ],
+            "env": {
+              "key": "text-19"
+            }
+          },
+          "reset": {
+            "cwd": "/example/repo",
+            "argv": [
+              "phax"
+            ],
+            "env": {
+              "key": "text-22"
+            }
+          }
+        },
+        "lastClose": {
+          "result": "closing-answer-invalid",
+          "at": "text-23",
+          "exitCode": 5,
+          "reason": "text-24"
+        },
+        "closeBase": null
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/review-stop/0.30.0.json",
+          "cause": "declared",
+          "closeBase": null,
+          "commands": {
+            "close": {
+              "argv": [
+                "phax"
+              ],
+              "cwd": "/example/repo",
+              "env": {
+                "key": "text-19"
+              }
+            },
+            "continue": {
+              "argv": [
+                "claude"
+              ],
+              "cwd": "/example/worktrees/invoice-export/phase-03",
+              "env": {
+                "key": "text-10"
+              }
+            },
+            "enterPhase": {
+              "argv": [
+                "phax"
+              ],
+              "cwd": "/example/repo",
+              "env": {
+                "key": "text-16"
+              }
+            },
+            "freshStart": {
+              "argv": [
+                "claude"
+              ],
+              "cwd": "/example/worktrees/invoice-export/phase-03",
+              "env": {
+                "key": "text-13"
+              }
+            },
+            "reset": {
+              "argv": [
+                "phax"
+              ],
+              "cwd": "/example/repo",
+              "env": {
+                "key": "text-22"
+              }
+            }
+          },
+          "firstReading": "/example/runs/invoice-export/phase-03/first-reading.md",
+          "lastClose": {
+            "at": "text-23",
+            "exitCode": 5,
+            "reason": "text-24",
+            "result": "closing-answer-invalid"
+          },
+          "phase": {
+            "id": "phase-03",
+            "mode": "interactive",
+            "of": 4,
+            "position": 3,
+            "title": "Export the credit notes"
+          },
+          "run": "example.invoice-export",
+          "seed": "/example/worktrees/invoice-export/phase-03/.phax-context/review-seed.md",
+          "session": {
+            "interactiveResume": "verified",
+            "origin": "first-turn",
+            "provider": "claude-code",
+            "sessionId": "4f6c1a52-0000-4000-8000-000000000001"
+          },
+          "state": "awaiting_review",
+          "worktree": "/example/worktrees/invoice-export/phase-03"
+        }
+      }
+    },
+    {
+      "name": "accepts a document setting every field, variant 6",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/review-stop/0.30.0.json",
+        "run": "example.invoice-export",
+        "cause": "declared",
+        "state": "awaiting_review",
+        "phase": {
+          "id": "phase-03",
+          "title": "Export the credit notes",
+          "mode": "interactive",
+          "position": 3,
+          "of": 4
+        },
+        "firstReading": "/example/runs/invoice-export/phase-03/first-reading.md",
+        "worktree": "/example/worktrees/invoice-export/phase-03",
+        "seed": "/example/worktrees/invoice-export/phase-03/.phax-context/review-seed.md",
+        "session": {
+          "provider": "claude-code",
+          "sessionId": "4f6c1a52-0000-4000-8000-000000000001",
+          "origin": "first-turn",
+          "interactiveResume": "verified"
+        },
+        "commands": {
+          "continue": {
+            "cwd": "/example/worktrees/invoice-export/phase-03",
+            "argv": [
+              "claude"
+            ],
+            "env": {
+              "key": "text-10"
+            }
+          },
+          "freshStart": {
+            "cwd": "/example/worktrees/invoice-export/phase-03",
+            "argv": [
+              "claude"
+            ],
+            "env": {
+              "key": "text-13"
+            }
+          },
+          "enterPhase": {
+            "cwd": "/example/repo",
+            "argv": [
+              "phax"
+            ],
+            "env": {
+              "key": "text-16"
+            }
+          },
+          "close": {
+            "cwd": "/example/repo",
+            "argv": [
+              "phax"
+            ],
+            "env": {
+              "key": "text-19"
+            }
+          },
+          "reset": {
+            "cwd": "/example/repo",
+            "argv": [
+              "phax"
+            ],
+            "env": {
+              "key": "text-22"
+            }
+          }
+        },
+        "lastClose": {
+          "result": "limit",
+          "at": "text-23",
+          "exitCode": 8,
+          "resetAt": "text-24"
+        },
+        "closeBase": null
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/review-stop/0.30.0.json",
+          "cause": "declared",
+          "closeBase": null,
+          "commands": {
+            "close": {
+              "argv": [
+                "phax"
+              ],
+              "cwd": "/example/repo",
+              "env": {
+                "key": "text-19"
+              }
+            },
+            "continue": {
+              "argv": [
+                "claude"
+              ],
+              "cwd": "/example/worktrees/invoice-export/phase-03",
+              "env": {
+                "key": "text-10"
+              }
+            },
+            "enterPhase": {
+              "argv": [
+                "phax"
+              ],
+              "cwd": "/example/repo",
+              "env": {
+                "key": "text-16"
+              }
+            },
+            "freshStart": {
+              "argv": [
+                "claude"
+              ],
+              "cwd": "/example/worktrees/invoice-export/phase-03",
+              "env": {
+                "key": "text-13"
+              }
+            },
+            "reset": {
+              "argv": [
+                "phax"
+              ],
+              "cwd": "/example/repo",
+              "env": {
+                "key": "text-22"
+              }
+            }
+          },
+          "firstReading": "/example/runs/invoice-export/phase-03/first-reading.md",
+          "lastClose": {
+            "at": "text-23",
+            "exitCode": 8,
+            "resetAt": "text-24",
+            "result": "limit"
+          },
+          "phase": {
+            "id": "phase-03",
+            "mode": "interactive",
+            "of": 4,
+            "position": 3,
+            "title": "Export the credit notes"
+          },
+          "run": "example.invoice-export",
+          "seed": "/example/worktrees/invoice-export/phase-03/.phax-context/review-seed.md",
+          "session": {
+            "interactiveResume": "verified",
+            "origin": "first-turn",
+            "provider": "claude-code",
+            "sessionId": "4f6c1a52-0000-4000-8000-000000000001"
+          },
+          "state": "awaiting_review",
+          "worktree": "/example/worktrees/invoice-export/phase-03"
+        }
+      }
+    },
+    {
+      "name": "accepts a document with only its required fields",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/review-stop/0.30.0.json",
+        "run": "example.invoice-export",
+        "cause": "declared",
+        "state": "awaiting_review",
+        "phase": {
+          "id": "phase-03",
+          "title": "Export the credit notes",
+          "mode": "interactive",
+          "position": 3,
+          "of": 4
+        },
+        "firstReading": "/example/runs/invoice-export/phase-03/first-reading.md",
+        "worktree": "/example/worktrees/invoice-export/phase-03",
+        "seed": "/example/worktrees/invoice-export/phase-03/.phax-context/review-seed.md",
+        "session": {
+          "provider": "claude-code",
+          "sessionId": "4f6c1a52-0000-4000-8000-000000000001",
+          "origin": "first-turn",
+          "interactiveResume": "verified"
+        },
+        "commands": {
+          "continue": {
+            "cwd": "/example/worktrees/invoice-export/phase-03",
+            "argv": [
+              "claude"
+            ],
+            "env": {
+              "key": "text-10"
+            }
+          },
+          "freshStart": {
+            "cwd": "/example/worktrees/invoice-export/phase-03",
+            "argv": [
+              "claude"
+            ],
+            "env": {
+              "key": "text-13"
+            }
+          },
+          "enterPhase": {
+            "cwd": "/example/repo",
+            "argv": [
+              "phax"
+            ],
+            "env": {
+              "key": "text-16"
+            }
+          },
+          "close": {
+            "cwd": "/example/repo",
+            "argv": [
+              "phax"
+            ],
+            "env": {
+              "key": "text-19"
+            }
+          },
+          "reset": {
+            "cwd": "/example/repo",
+            "argv": [
+              "phax"
+            ],
+            "env": {
+              "key": "text-22"
+            }
+          }
+        },
+        "lastClose": {
+          "result": "worktree-changed",
+          "at": "text-23",
+          "exitCode": 1,
+          "paths": [
+            "text-24"
+          ]
+        },
+        "closeBase": null
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/review-stop/0.30.0.json",
+          "cause": "declared",
+          "closeBase": null,
+          "commands": {
+            "close": {
+              "argv": [
+                "phax"
+              ],
+              "cwd": "/example/repo",
+              "env": {
+                "key": "text-19"
+              }
+            },
+            "continue": {
+              "argv": [
+                "claude"
+              ],
+              "cwd": "/example/worktrees/invoice-export/phase-03",
+              "env": {
+                "key": "text-10"
+              }
+            },
+            "enterPhase": {
+              "argv": [
+                "phax"
+              ],
+              "cwd": "/example/repo",
+              "env": {
+                "key": "text-16"
+              }
+            },
+            "freshStart": {
+              "argv": [
+                "claude"
+              ],
+              "cwd": "/example/worktrees/invoice-export/phase-03",
+              "env": {
+                "key": "text-13"
+              }
+            },
+            "reset": {
+              "argv": [
+                "phax"
+              ],
+              "cwd": "/example/repo",
+              "env": {
+                "key": "text-22"
+              }
+            }
+          },
+          "firstReading": "/example/runs/invoice-export/phase-03/first-reading.md",
+          "lastClose": {
+            "at": "text-23",
+            "exitCode": 1,
+            "paths": [
+              "text-24"
+            ],
+            "result": "worktree-changed"
+          },
+          "phase": {
+            "id": "phase-03",
+            "mode": "interactive",
+            "of": 4,
+            "position": 3,
+            "title": "Export the credit notes"
+          },
+          "run": "example.invoice-export",
+          "seed": "/example/worktrees/invoice-export/phase-03/.phax-context/review-seed.md",
+          "session": {
+            "interactiveResume": "verified",
+            "origin": "first-turn",
+            "provider": "claude-code",
+            "sessionId": "4f6c1a52-0000-4000-8000-000000000001"
+          },
+          "state": "awaiting_review",
+          "worktree": "/example/worktrees/invoice-export/phase-03"
+        }
+      }
+    }
+  ]
+}

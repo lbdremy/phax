@@ -275,6 +275,182 @@
         "ok": false,
         "refusal": "findings.0.severity: Expected \"error\" | \"warning\", actual \"bogus-value\""
       }
+    },
+    {
+      "name": "constraint $schema pattern",
+      "input": {
+        "$schema": "",
+        "plan": "docs/plans/2611011300-garden-sync-plan.md",
+        "findings": [
+          {
+            "severity": "error",
+            "check": "structure",
+            "phase": "phase-02",
+            "message": "phase-02 has no gate"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: expected https://docs.phax.run/schemas/<format-id>/<X.Y.Z>.json, got \"\""
+      }
+    },
+    {
+      "name": "constraint $schema required",
+      "input": {
+        "plan": "docs/plans/2611011300-garden-sync-plan.md",
+        "findings": [
+          {
+            "severity": "error",
+            "check": "structure",
+            "phase": "phase-02",
+            "message": "phase-02 has no gate"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: plan lint has no $schema — every plan lint is written with one"
+      }
+    },
+    {
+      "name": "constraint findings required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/plan-lint/0.34.0.json",
+        "plan": "docs/plans/2611011300-garden-sync-plan.md"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings: is missing"
+      }
+    },
+    {
+      "name": "constraint findings[].check enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/plan-lint/0.34.0.json",
+        "plan": "docs/plans/2611011300-garden-sync-plan.md",
+        "findings": [
+          {
+            "severity": "error",
+            "check": "bogus-value",
+            "phase": "phase-02",
+            "message": "phase-02 has no gate"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.check: Expected \"structure\" | \"files\" | \"commands\" | \"models\" | \"interactive\" | \"acceptance\" | \"tests\" | \"advisory\", actual \"bogus-value\""
+      }
+    },
+    {
+      "name": "constraint findings[].check required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/plan-lint/0.34.0.json",
+        "plan": "docs/plans/2611011300-garden-sync-plan.md",
+        "findings": [
+          {
+            "severity": "error",
+            "phase": "phase-02",
+            "message": "phase-02 has no gate"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.check: is missing"
+      }
+    },
+    {
+      "name": "constraint findings[].message required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/plan-lint/0.34.0.json",
+        "plan": "docs/plans/2611011300-garden-sync-plan.md",
+        "findings": [
+          {
+            "severity": "error",
+            "check": "structure",
+            "phase": "phase-02"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.message: is missing"
+      }
+    },
+    {
+      "name": "constraint findings[].phase required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/plan-lint/0.34.0.json",
+        "plan": "docs/plans/2611011300-garden-sync-plan.md",
+        "findings": [
+          {
+            "severity": "error",
+            "check": "structure",
+            "message": "phase-02 has no gate"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.phase: is missing"
+      }
+    },
+    {
+      "name": "constraint findings[].severity enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/plan-lint/0.34.0.json",
+        "plan": "docs/plans/2611011300-garden-sync-plan.md",
+        "findings": [
+          {
+            "severity": "bogus-value",
+            "check": "structure",
+            "phase": "phase-02",
+            "message": "phase-02 has no gate"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.severity: Expected \"error\" | \"warning\", actual \"bogus-value\""
+      }
+    },
+    {
+      "name": "constraint findings[].severity required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/plan-lint/0.34.0.json",
+        "plan": "docs/plans/2611011300-garden-sync-plan.md",
+        "findings": [
+          {
+            "check": "structure",
+            "phase": "phase-02",
+            "message": "phase-02 has no gate"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.severity: is missing"
+      }
+    },
+    {
+      "name": "constraint plan required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/plan-lint/0.34.0.json",
+        "findings": [
+          {
+            "severity": "error",
+            "check": "structure",
+            "phase": "phase-02",
+            "message": "phase-02 has no gate"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "plan: is missing"
+      }
     }
   ],
   "shapes": {}

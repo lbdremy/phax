@@ -1,0 +1,166 @@
+{
+  "subject": "encode/run-status",
+  "cases": [
+    {
+      "name": "accepts a typical document",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/run-status/0.33.0.json",
+        "namespace": "example",
+        "shortName": "example-run",
+        "runId": "run-0001",
+        "state": "running",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "phasesCount": 2,
+        "currentPhaseIndex": 0,
+        "gateProfileId": "standard",
+        "hold": {
+          "selection": "none"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.33.0.json",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "hold": {
+            "selection": "none"
+          },
+          "namespace": "example",
+          "phasesCount": 2,
+          "runId": "run-0001",
+          "shortName": "example-run",
+          "state": "running",
+          "updatedAt": "2026-01-01T09:30:00.000Z"
+        }
+      }
+    },
+    {
+      "name": "accepts a document setting every field",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/run-status/0.33.0.json",
+        "namespace": "example",
+        "shortName": "example-run",
+        "runId": "run-0001",
+        "state": "running",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "phasesCount": 2,
+        "currentPhaseIndex": 0,
+        "gateProfileId": "standard",
+        "stoppedReason": "text-7",
+        "lastError": "text-8",
+        "planRepoRelPath": "text-9",
+        "allowSkillEdits": true,
+        "hold": {
+          "selection": "all",
+          "phases": [
+            "phase-01"
+          ]
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.33.0.json",
+          "allowSkillEdits": true,
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "hold": {
+            "phases": [
+              "phase-01"
+            ],
+            "selection": "all"
+          },
+          "lastError": "text-8",
+          "namespace": "example",
+          "phasesCount": 2,
+          "planRepoRelPath": "text-9",
+          "runId": "run-0001",
+          "shortName": "example-run",
+          "state": "running",
+          "stoppedReason": "text-7",
+          "updatedAt": "2026-01-01T09:30:00.000Z"
+        }
+      }
+    },
+    {
+      "name": "accepts a document with only its required fields",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/run-status/0.33.0.json",
+        "namespace": "example",
+        "shortName": "example-run",
+        "runId": "run-0001",
+        "state": "running",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "phasesCount": 2,
+        "hold": {
+          "selection": "all",
+          "phases": [
+            "phase-01"
+          ]
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.33.0.json",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "hold": {
+            "phases": [
+              "phase-01"
+            ],
+            "selection": "all"
+          },
+          "namespace": "example",
+          "phasesCount": 2,
+          "runId": "run-0001",
+          "shortName": "example-run",
+          "state": "running",
+          "updatedAt": "2026-01-01T09:30:00.000Z"
+        }
+      }
+    },
+    {
+      "name": "accepts an unexpected key without reading it",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/run-status/0.33.0.json",
+        "namespace": "example",
+        "shortName": "example-run",
+        "runId": "run-0001",
+        "state": "running",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "phasesCount": 2,
+        "currentPhaseIndex": 0,
+        "gateProfileId": "standard",
+        "hold": {
+          "selection": "none"
+        },
+        "unexpectedKey": 1
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.33.0.json",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "hold": {
+            "selection": "none"
+          },
+          "namespace": "example",
+          "phasesCount": 2,
+          "runId": "run-0001",
+          "shortName": "example-run",
+          "state": "running",
+          "updatedAt": "2026-01-01T09:30:00.000Z"
+        }
+      }
+    }
+  ]
+}

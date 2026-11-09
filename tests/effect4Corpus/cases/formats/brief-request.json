@@ -438,6 +438,423 @@
         "ok": false,
         "refusal": "phase: Expected a string matching the pattern ^phase-\\d{2}$, actual \"\""
       }
+    },
+    {
+      "name": "constraint $schema pattern",
+      "input": {
+        "$schema": "",
+        "phase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "terminal": false,
+        "phases": [
+          {
+            "id": "phase-01",
+            "files": [
+              "src/example.ts",
+              "tests/example.test.ts"
+            ]
+          },
+          {
+            "id": "phase-02",
+            "files": [
+              "src/other.ts"
+            ]
+          }
+        ],
+        "files": [
+          "src/example.ts",
+          "src/missing.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: expected https://docs.phax.run/schemas/<format-id>/<X.Y.Z>.json, got \"\""
+      }
+    },
+    {
+      "name": "constraint $schema required",
+      "input": {
+        "phase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "terminal": false,
+        "phases": [
+          {
+            "id": "phase-01",
+            "files": [
+              "src/example.ts",
+              "tests/example.test.ts"
+            ]
+          },
+          {
+            "id": "phase-02",
+            "files": [
+              "src/other.ts"
+            ]
+          }
+        ],
+        "files": [
+          "src/example.ts",
+          "src/missing.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: brief request has no $schema — every brief request is written with one"
+      }
+    },
+    {
+      "name": "constraint base pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+        "phase": "phase-02",
+        "base": "",
+        "terminal": false,
+        "phases": [
+          {
+            "id": "phase-01",
+            "files": [
+              "src/example.ts",
+              "tests/example.test.ts"
+            ]
+          },
+          {
+            "id": "phase-02",
+            "files": [
+              "src/other.ts"
+            ]
+          }
+        ],
+        "files": [
+          "src/example.ts",
+          "src/missing.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "base: Expected a string matching the pattern ^[0-9a-f]{40}([0-9a-f]{24})?$, actual \"\""
+      }
+    },
+    {
+      "name": "constraint base required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+        "phase": "phase-02",
+        "terminal": false,
+        "phases": [
+          {
+            "id": "phase-01",
+            "files": [
+              "src/example.ts",
+              "tests/example.test.ts"
+            ]
+          },
+          {
+            "id": "phase-02",
+            "files": [
+              "src/other.ts"
+            ]
+          }
+        ],
+        "files": [
+          "src/example.ts",
+          "src/missing.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "base: is missing"
+      }
+    },
+    {
+      "name": "constraint files minItems",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+        "phase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "terminal": false,
+        "phases": [
+          {
+            "id": "phase-01",
+            "files": [
+              "src/example.ts",
+              "tests/example.test.ts"
+            ]
+          },
+          {
+            "id": "phase-02",
+            "files": [
+              "src/other.ts"
+            ]
+          }
+        ],
+        "files": []
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "files.0: is missing"
+      }
+    },
+    {
+      "name": "constraint files required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+        "phase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "terminal": false,
+        "phases": [
+          {
+            "id": "phase-01",
+            "files": [
+              "src/example.ts",
+              "tests/example.test.ts"
+            ]
+          },
+          {
+            "id": "phase-02",
+            "files": [
+              "src/other.ts"
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "files: is missing"
+      }
+    },
+    {
+      "name": "constraint files[] minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+        "phase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "terminal": false,
+        "phases": [
+          {
+            "id": "phase-01",
+            "files": [
+              "src/example.ts",
+              "tests/example.test.ts"
+            ]
+          },
+          {
+            "id": "phase-02",
+            "files": [
+              "src/other.ts"
+            ]
+          }
+        ],
+        "files": [
+          "",
+          "src/missing.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "files.0: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint phase pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+        "phase": "",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "terminal": false,
+        "phases": [
+          {
+            "id": "phase-01",
+            "files": [
+              "src/example.ts",
+              "tests/example.test.ts"
+            ]
+          },
+          {
+            "id": "phase-02",
+            "files": [
+              "src/other.ts"
+            ]
+          }
+        ],
+        "files": [
+          "src/example.ts",
+          "src/missing.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "phase: Expected a string matching the pattern ^phase-\\d{2}$, actual \"\""
+      }
+    },
+    {
+      "name": "constraint phase required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "terminal": false,
+        "phases": [
+          {
+            "id": "phase-01",
+            "files": [
+              "src/example.ts",
+              "tests/example.test.ts"
+            ]
+          },
+          {
+            "id": "phase-02",
+            "files": [
+              "src/other.ts"
+            ]
+          }
+        ],
+        "files": [
+          "src/example.ts",
+          "src/missing.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "phase: is missing"
+      }
+    },
+    {
+      "name": "constraint phases required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+        "phase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "terminal": false,
+        "files": [
+          "src/example.ts",
+          "src/missing.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "phases: is missing"
+      }
+    },
+    {
+      "name": "constraint phases[].files required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+        "phase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "terminal": false,
+        "phases": [
+          {
+            "id": "phase-01"
+          },
+          {
+            "id": "phase-02",
+            "files": [
+              "src/other.ts"
+            ]
+          }
+        ],
+        "files": [
+          "src/example.ts",
+          "src/missing.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "phases.0.files: is missing"
+      }
+    },
+    {
+      "name": "constraint phases[].id pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+        "phase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "terminal": false,
+        "phases": [
+          {
+            "id": "",
+            "files": [
+              "src/example.ts",
+              "tests/example.test.ts"
+            ]
+          },
+          {
+            "id": "phase-02",
+            "files": [
+              "src/other.ts"
+            ]
+          }
+        ],
+        "files": [
+          "src/example.ts",
+          "src/missing.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "phases.0.id: Expected a string matching the pattern ^phase-\\d{2}$, actual \"\""
+      }
+    },
+    {
+      "name": "constraint phases[].id required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+        "phase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "terminal": false,
+        "phases": [
+          {
+            "files": [
+              "src/example.ts",
+              "tests/example.test.ts"
+            ]
+          },
+          {
+            "id": "phase-02",
+            "files": [
+              "src/other.ts"
+            ]
+          }
+        ],
+        "files": [
+          "src/example.ts",
+          "src/missing.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "phases.0.id: is missing"
+      }
+    },
+    {
+      "name": "constraint terminal required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+        "phase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "phases": [
+          {
+            "id": "phase-01",
+            "files": [
+              "src/example.ts",
+              "tests/example.test.ts"
+            ]
+          },
+          {
+            "id": "phase-02",
+            "files": [
+              "src/other.ts"
+            ]
+          }
+        ],
+        "files": [
+          "src/example.ts",
+          "src/missing.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "terminal: is missing"
+      }
     }
   ],
   "shapes": {}
