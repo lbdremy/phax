@@ -18,7 +18,7 @@ import { bulletList } from "../authoring/markdown.js";
 import { renderDecisionLogEntry, renderVerdictDecision } from "../authoring/renderQuestions.js";
 import type { DecideScope, RevisionRefusal } from "./revision.js";
 import { firstRefusal } from "../../schemas/refusal/adapter.js";
-import { refusalMessage } from "../../schemas/refusal/render.js";
+import { refusalMessage, UNDESCRIBED_REFUSAL } from "../../schemas/refusal/render.js";
 
 // The pure core of `phax artifact decide` for a hand-authored spec or plan,
 // which has no sidecar for the session to revise. The session answers in its
@@ -125,7 +125,7 @@ export interface HandDecideContext {
 
 function firstParseIssue(error: ParseResult.ParseError): RevisionRefusal {
   const first = firstRefusal(error);
-  if (first === undefined) return { path: "", message: error.message };
+  if (first === undefined) return { path: "", message: UNDESCRIBED_REFUSAL };
   return refusal(first.path, refusalMessage(first));
 }
 

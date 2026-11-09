@@ -16,7 +16,7 @@
 // `encode/<id>` is a round trip for a format phax writes: the document decoded with
 // phax's file decoder, encoded with its writer, the encoded JSON answered.
 import { Either, Option, ParseResult, Schema } from "effect";
-import { firstRefusal } from "../../src/schemas/refusal/adapter.js";
+import { firstRefusal, refusalsOf } from "../../src/schemas/refusal/adapter.js";
 import { refusalMessage, refusalPath } from "../../src/schemas/refusal/render.js";
 import {
   parseAcceptanceRequest,
@@ -562,7 +562,7 @@ function roundTrip<A>(
     const decoded = decode(raw);
     if (Either.isLeft(decoded)) {
       throw new Error(
-        `corpus: an encode input must decode: ${ParseResult.TreeFormatter.formatErrorSync(decoded.left)}`,
+        `corpus: an encode input must decode: ${refusalsOf(decoded.left).map(refusalMessage).join("; ")}`,
       );
     }
     return accepted(encode(decoded.right));

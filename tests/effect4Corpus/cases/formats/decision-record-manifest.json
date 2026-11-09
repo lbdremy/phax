@@ -759,7 +759,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        "refusal": "unexpectedKey: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
       }
     },
     {
@@ -804,7 +804,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        "refusal": "decisionId: Expected string, actual 42"
       }
     },
     {
@@ -894,7 +894,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        "refusal": "decisionId: Expected a string matching the pattern ^[^/\\s]+\\/\\d{2,}$, actual \"\""
       }
     },
     {
@@ -1302,7 +1302,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        "refusal": "arbitrated: is missing"
       }
     },
     {
@@ -1347,7 +1347,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        "refusal": "artifact: Expected a non empty string, actual \"\""
       }
     },
     {
@@ -1391,7 +1391,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        "refusal": "artifact: is missing"
       }
     },
     {
@@ -1436,7 +1436,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        "refusal": "artifactKind: Expected \"spec\" | \"plan\", actual \"bogus-value\""
       }
     },
     {
@@ -1480,7 +1480,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        "refusal": "artifactKind: is missing"
       }
     },
     {
@@ -1525,7 +1525,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        "refusal": "commit: Expected null, actual \"\""
       }
     },
     {
@@ -1569,7 +1569,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        "refusal": "commit: is missing"
       }
     },
     {
@@ -1614,7 +1614,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        "refusal": "decisionId: Expected a string matching the pattern ^[^/\\s]+\\/\\d{2,}$, actual \"\""
       }
     },
     {
@@ -1658,7 +1658,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        "refusal": "decisionId: is missing"
       }
     },
     {
@@ -1702,7 +1702,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        "refusal": "departed: is missing"
       }
     },
     {
@@ -1734,7 +1734,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        "refusal": "doctrine: is missing"
       }
     },
     {
@@ -1779,7 +1779,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        "refusal": "doctrine.0.fingerprint: Expected a string matching the pattern ^[0-9a-f]{64}$, actual \"\""
       }
     },
     {
@@ -1823,7 +1823,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        "refusal": "doctrine.0.fingerprint: is missing"
       }
     },
     {
@@ -1868,7 +1868,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        "refusal": "doctrine.0.kind: Expected \"skill\" | \"file\", actual \"bogus-value\""
       }
     },
     {
@@ -1912,7 +1912,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        "refusal": "doctrine.0.kind: is missing"
       }
     },
     {
@@ -1957,7 +1957,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        "refusal": "doctrine.0.name: Expected a non empty string, actual \"\""
       }
     },
     {
@@ -2001,7 +2001,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        "refusal": "doctrine.0.name: is missing"
       }
     },
     {
@@ -2046,7 +2046,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        "refusal": "doctrine.1.path: Expected a non empty string, actual \"\""
       }
     },
     {
@@ -2090,7 +2090,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        "refusal": "doctrine.1.path: is missing"
       }
     },
     {
@@ -2135,7 +2135,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        "refusal": "doctrine.0.source: Expected \"bundled\" | \"project\", actual \"bogus-value\""
       }
     },
     {
@@ -2179,7 +2179,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        "refusal": "doctrine.0.source: is missing"
       }
     },
     {
@@ -2224,7 +2224,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        "refusal": "effort: Expected a non empty string, actual \"\""
       }
     },
     {
@@ -2268,7 +2268,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        "refusal": "effort: is missing"
       }
     },
     {
@@ -2317,7 +2317,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+        "refusal": "failure: Expected \"network\" | \"rate-limit\" | \"usage-limit\" | \"not-authenticated\" | \"provider-error\" | \"max-turns\" | \"killed\" | \"unknown\" | \"answer-refused\" | \"artifact-changed\" | \"commit-failed\", actual \"bogus-value\""
       }
     },
     {
@@ -2365,7 +2365,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+        "refusal": "failure: is missing"
       }
     },
     {
@@ -2588,7 +2588,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        "refusal": "model: Expected a non empty string, actual \"\""
       }
     },
     {
@@ -2632,7 +2632,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        "refusal": "model: is missing"
       }
     },
     {
@@ -2766,7 +2766,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        "refusal": "provider: Expected \"claude-code\" | \"codex-cli\" | \"mistral-vibe\", actual \"bogus-value\""
       }
     },
     {
@@ -2810,7 +2810,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        "refusal": "provider: is missing"
       }
     },
     {
@@ -2851,7 +2851,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        "refusal": "questions: is missing"
       }
     },
     {
@@ -2896,7 +2896,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        "refusal": "questions.0: Expected a non empty string, actual \"\""
       }
     },
     {
@@ -2945,7 +2945,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+        "refusal": "requestedModel: Expected a non empty string, actual \"\""
       }
     },
     {
@@ -2993,7 +2993,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "failure: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+        "refusal": "requestedModel: is missing"
       }
     },
     {
@@ -3038,7 +3038,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        "refusal": "session: Expected \"new\" | \"resumed-authoring\", actual \"bogus-value\""
       }
     },
     {
@@ -3082,7 +3082,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        "refusal": "session: is missing"
       }
     },
     {
@@ -3127,7 +3127,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        "refusal": "shape: Expected \"full\" | \"skeleton\", actual \"bogus-value\""
       }
     },
     {
@@ -3171,7 +3171,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        "refusal": "shape: is missing"
       }
     },
     {
@@ -3216,7 +3216,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        "refusal": "sourceSha: Expected a non empty string, actual \"\""
       }
     },
     {
@@ -3260,7 +3260,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        "refusal": "sourceSha: is missing"
       }
     },
     {
@@ -3302,7 +3302,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        "refusal": "usage: is missing"
       }
     },
     {
@@ -3347,7 +3347,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        "refusal": "usage.available: Expected true | false, actual \"bogus-value\""
       }
     },
     {
@@ -3390,7 +3390,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        "refusal": "usage.available: is missing"
       }
     },
     {
@@ -3431,7 +3431,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+        "refusal": "usage.usage: is missing"
       }
     },
     {
@@ -3479,7 +3479,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+        "refusal": "usage.usage.cacheCreationInputTokens: is missing"
       }
     },
     {
@@ -3524,7 +3524,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        "refusal": "usage.usage.cachedInputTokens: is missing"
       }
     },
     {
@@ -3572,7 +3572,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+        "refusal": "usage.usage.cacheReadInputTokens: is missing"
       }
     },
     {
@@ -3617,7 +3617,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        "refusal": "usage.usage.costUsd: is missing"
       }
     },
     {
@@ -3665,7 +3665,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+        "refusal": "usage.usage.inputTokens: is missing"
       }
     },
     {
@@ -3713,7 +3713,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+        "refusal": "usage.usage.outputTokens: is missing"
       }
     },
     {
@@ -3762,7 +3762,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+        "refusal": "usage.usage.provider: Expected \"claude-code\" | \"codex-cli\" | \"mistral-vibe\", actual \"bogus-value\""
       }
     },
     {
@@ -3810,7 +3810,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+        "refusal": "usage.usage.provider: is missing"
       }
     },
     {
@@ -3855,7 +3855,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "outcome: Expected \"failed\", actual \"committed\""
+        "refusal": "usage.usage.reasoningOutputTokens: is missing"
       }
     },
     {
@@ -3903,7 +3903,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+        "refusal": "usage.usage.totalCostUsd: is missing"
       }
     }
   ],
@@ -7852,7 +7852,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "unexpectedKey: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"requestedModel\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
         }
       },
       {
@@ -7902,7 +7902,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "decisionId: Expected string, actual 42"
         }
       },
       {
@@ -8002,7 +8002,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "decisionId: Expected a string matching the pattern ^[^/\\s]+\\/\\d{2,}$, actual \"\""
         }
       },
       {
@@ -8052,7 +8052,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "$schema: Expected a string matching the pattern ^https:\\/\\/docs\\.phax\\.run\\/schemas\\/decision-record-manifest\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$, actual \"\""
         }
       },
       {
@@ -8101,7 +8101,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "$schema: is missing"
         }
       },
       {
@@ -8150,7 +8150,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "arbitrated: is missing"
         }
       },
       {
@@ -8200,7 +8200,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "artifact: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -8249,7 +8249,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "artifact: is missing"
         }
       },
       {
@@ -8299,7 +8299,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "artifactKind: Expected \"spec\" | \"plan\", actual \"bogus-value\""
         }
       },
       {
@@ -8348,7 +8348,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "artifactKind: is missing"
         }
       },
       {
@@ -8398,7 +8398,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "commit: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -8447,7 +8447,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "commit: is missing"
         }
       },
       {
@@ -8497,7 +8497,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "decisionId: Expected a string matching the pattern ^[^/\\s]+\\/\\d{2,}$, actual \"\""
         }
       },
       {
@@ -8546,7 +8546,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "decisionId: is missing"
         }
       },
       {
@@ -8595,7 +8595,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "departed: is missing"
         }
       },
       {
@@ -8637,7 +8637,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "doctrine: is missing"
         }
       },
       {
@@ -8687,7 +8687,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "doctrine[0].fingerprint: Expected a string matching the pattern ^[0-9a-f]{64}$, actual \"\""
         }
       },
       {
@@ -8736,7 +8736,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "doctrine[0].fingerprint: is missing"
         }
       },
       {
@@ -8786,7 +8786,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "doctrine[0].kind: Expected \"skill\" | \"file\", actual \"bogus-value\""
         }
       },
       {
@@ -8835,7 +8835,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "doctrine[0].kind: is missing"
         }
       },
       {
@@ -8885,7 +8885,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "doctrine[0].name: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -8934,7 +8934,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "doctrine[0].name: is missing"
         }
       },
       {
@@ -8980,7 +8980,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "doctrine[0].path: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -9025,7 +9025,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "doctrine[0].path: is missing"
         }
       },
       {
@@ -9075,7 +9075,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "doctrine[0].source: Expected \"bundled\" | \"project\", actual \"bogus-value\""
         }
       },
       {
@@ -9124,7 +9124,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "doctrine[0].source: is missing"
         }
       },
       {
@@ -9174,7 +9174,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "effort: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -9223,7 +9223,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "effort: is missing"
         }
       },
       {
@@ -9471,7 +9471,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "model: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -9520,7 +9520,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "model: is missing"
         }
       },
       {
@@ -9669,7 +9669,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "provider: Expected \"claude-code\" | \"codex-cli\" | \"mistral-vibe\", actual \"bogus-value\""
         }
       },
       {
@@ -9718,7 +9718,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "provider: is missing"
         }
       },
       {
@@ -9765,7 +9765,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "questions: is missing"
         }
       },
       {
@@ -9815,7 +9815,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "questions[0]: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -9865,7 +9865,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "requestedModel: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -9914,7 +9914,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "requestedModel: is missing"
         }
       },
       {
@@ -9964,7 +9964,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "session: Expected \"new\" | \"resumed-authoring\", actual \"bogus-value\""
         }
       },
       {
@@ -10013,7 +10013,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "session: is missing"
         }
       },
       {
@@ -10063,7 +10063,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "shape: Expected \"full\" | \"skeleton\", actual \"bogus-value\""
         }
       },
       {
@@ -10112,7 +10112,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "shape: is missing"
         }
       },
       {
@@ -10162,7 +10162,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "sourceSha: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -10211,7 +10211,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "sourceSha: is missing"
         }
       },
       {
@@ -10248,7 +10248,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "usage: is missing"
         }
       },
       {
@@ -10298,7 +10298,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "usage.available: Expected true | false, actual \"bogus-value\""
         }
       },
       {
@@ -10347,7 +10347,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "usage.available: is missing"
         }
       },
       {
@@ -10387,7 +10387,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "usage.usage: is missing"
         }
       },
       {
@@ -10432,7 +10432,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "usage.usage.cacheCreationInputTokens: is missing"
         }
       },
       {
@@ -10477,7 +10477,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "usage.usage.cachedInputTokens: is missing"
         }
       },
       {
@@ -10522,7 +10522,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "usage.usage.cacheReadInputTokens: is missing"
         }
       },
       {
@@ -10571,7 +10571,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "usage.usage.inputTokens: is missing"
         }
       },
       {
@@ -10620,7 +10620,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "usage.usage.outputTokens: is missing"
         }
       },
       {
@@ -10670,7 +10670,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "usage.usage.provider: Expected \"claude-code\" | \"codex-cli\" | \"mistral-vibe\", actual \"bogus-value\""
         }
       },
       {
@@ -10719,7 +10719,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "usage.usage.provider: is missing"
         }
       },
       {
@@ -10764,7 +10764,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "usage.usage.reasoningOutputTokens: is missing"
         }
       },
       {
@@ -10813,7 +10813,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "usage.usage.sessionCostUsd: is missing"
         }
       },
       {
@@ -10862,7 +10862,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "usage.usage.toolCallsAgreed: is missing"
         }
       },
       {
@@ -10911,7 +10911,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "usage.usage.toolCallsFailed: is missing"
         }
       },
       {
@@ -10960,7 +10960,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "usage.usage.toolCallsRejected: is missing"
         }
       },
       {
@@ -11009,7 +11009,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "usage.usage.toolCallsSucceeded: is missing"
         }
       },
       {
@@ -11054,7 +11054,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "usage.usage.totalCostUsd: is missing"
         }
       }
     ],
@@ -11500,7 +11500,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "unexpectedKey: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"requestedModel\" | \"mode\" | \"outcome\" | \"commit\" | \"failure\" | \"usage\""
         }
       },
       {
@@ -11549,7 +11549,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "decisionId: Expected string, actual 42"
         }
       },
       {
@@ -11647,7 +11647,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "decisionId: Expected a string matching the pattern ^[^/\\s]+\\/\\d{2,}$, actual \"\""
         }
       },
       {
@@ -11696,7 +11696,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "$schema: Expected a string matching the pattern ^https:\\/\\/docs\\.phax\\.run\\/schemas\\/decision-record-manifest\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$, actual \"\""
         }
       },
       {
@@ -11744,7 +11744,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "$schema: is missing"
         }
       },
       {
@@ -11792,7 +11792,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "arbitrated: is missing"
         }
       },
       {
@@ -11841,7 +11841,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "artifact: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -11889,7 +11889,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "artifact: is missing"
         }
       },
       {
@@ -11938,7 +11938,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "artifactKind: Expected \"spec\" | \"plan\", actual \"bogus-value\""
         }
       },
       {
@@ -11986,7 +11986,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "artifactKind: is missing"
         }
       },
       {
@@ -12031,7 +12031,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "commit: Expected null, actual \"\""
         }
       },
       {
@@ -12128,7 +12128,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "decisionId: Expected a string matching the pattern ^[^/\\s]+\\/\\d{2,}$, actual \"\""
         }
       },
       {
@@ -12176,7 +12176,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "decisionId: is missing"
         }
       },
       {
@@ -12224,7 +12224,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "departed: is missing"
         }
       },
       {
@@ -12265,7 +12265,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "doctrine: is missing"
         }
       },
       {
@@ -12314,7 +12314,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "doctrine[0].fingerprint: Expected a string matching the pattern ^[0-9a-f]{64}$, actual \"\""
         }
       },
       {
@@ -12362,7 +12362,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "doctrine[0].fingerprint: is missing"
         }
       },
       {
@@ -12411,7 +12411,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "doctrine[0].kind: Expected \"skill\" | \"file\", actual \"bogus-value\""
         }
       },
       {
@@ -12459,7 +12459,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "doctrine[0].kind: is missing"
         }
       },
       {
@@ -12508,7 +12508,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "doctrine[0].name: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -12556,7 +12556,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "doctrine[0].name: is missing"
         }
       },
       {
@@ -12601,7 +12601,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "doctrine[0].path: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -12645,7 +12645,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "doctrine[0].path: is missing"
         }
       },
       {
@@ -12694,7 +12694,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "doctrine[0].source: Expected \"bundled\" | \"project\", actual \"bogus-value\""
         }
       },
       {
@@ -12742,7 +12742,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "doctrine[0].source: is missing"
         }
       },
       {
@@ -12791,7 +12791,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "effort: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -12839,7 +12839,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "effort: is missing"
         }
       },
       {
@@ -12888,7 +12888,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "failure: Expected \"network\" | \"rate-limit\" | \"usage-limit\" | \"provider-error\" | \"max-turns\" | \"killed\" | \"unknown\" | \"answer-refused\" | \"artifact-changed\" | \"commit-failed\", actual \"bogus-value\""
         }
       },
       {
@@ -12936,7 +12936,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "failure: is missing"
         }
       },
       {
@@ -13179,7 +13179,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "model: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -13227,7 +13227,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "model: is missing"
         }
       },
       {
@@ -13373,7 +13373,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "provider: Expected \"claude-code\" | \"codex-cli\" | \"mistral-vibe\", actual \"bogus-value\""
         }
       },
       {
@@ -13421,7 +13421,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "provider: is missing"
         }
       },
       {
@@ -13467,7 +13467,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "questions: is missing"
         }
       },
       {
@@ -13516,7 +13516,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "questions[0]: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -13565,7 +13565,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "requestedModel: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -13613,7 +13613,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "failure: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "requestedModel: is missing"
         }
       },
       {
@@ -13662,7 +13662,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "session: Expected \"new\" | \"resumed-authoring\", actual \"bogus-value\""
         }
       },
       {
@@ -13710,7 +13710,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "session: is missing"
         }
       },
       {
@@ -13759,7 +13759,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "shape: Expected \"full\" | \"skeleton\", actual \"bogus-value\""
         }
       },
       {
@@ -13807,7 +13807,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "shape: is missing"
         }
       },
       {
@@ -13856,7 +13856,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "sourceSha: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -13904,7 +13904,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "sourceSha: is missing"
         }
       },
       {
@@ -13942,7 +13942,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "usage: is missing"
         }
       },
       {
@@ -13991,7 +13991,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "usage.available: Expected true | false, actual \"bogus-value\""
         }
       },
       {
@@ -14039,7 +14039,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "usage.available: is missing"
         }
       },
       {
@@ -14080,7 +14080,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "usage.usage: is missing"
         }
       },
       {
@@ -14128,7 +14128,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "usage.usage.cacheCreationInputTokens: is missing"
         }
       },
       {
@@ -14172,7 +14172,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "usage.usage.cachedInputTokens: is missing"
         }
       },
       {
@@ -14220,7 +14220,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "usage.usage.cacheReadInputTokens: is missing"
         }
       },
       {
@@ -14265,7 +14265,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "usage.usage.costUsd: is missing"
         }
       },
       {
@@ -14313,7 +14313,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "usage.usage.inputTokens: is missing"
         }
       },
       {
@@ -14361,7 +14361,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "usage.usage.outputTokens: is missing"
         }
       },
       {
@@ -14410,7 +14410,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "usage.usage.provider: Expected \"claude-code\" | \"codex-cli\" | \"mistral-vibe\", actual \"bogus-value\""
         }
       },
       {
@@ -14458,7 +14458,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "usage.usage.provider: is missing"
         }
       },
       {
@@ -14502,7 +14502,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "outcome: Expected \"failed\", actual \"committed\""
+          "refusal": "usage.usage.reasoningOutputTokens: is missing"
         }
       },
       {
@@ -14550,7 +14550,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "requestedModel: is unexpected, expected: \"$schema\" | \"kind\" | \"decisionId\" | \"artifact\" | \"artifactKind\" | \"session\" | \"doctrine\" | \"questions\" | \"arbitrated\" | \"departed\" | \"sourceSha\" | \"shape\" | \"provider\" | \"model\" | \"effort\" | \"mode\" | \"outcome\" | \"commit\" | \"usage\""
+          "refusal": "usage.usage.totalCostUsd: is missing"
         }
       }
     ]

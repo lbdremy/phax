@@ -174,9 +174,28 @@ describe("the source", () => {
     const offenders = trees
       .filter((path) => !path.endsWith(join("schemas", "refusal", "adapter.ts")))
       .filter((path) =>
-        /ArrayFormatter|issueMessage|LITERAL_MISMATCH_RE/.test(readFileSync(path, "utf8")),
+        /ArrayFormatter|TreeFormatter|issueMessage|LITERAL_MISMATCH_RE/.test(
+          readFileSync(path, "utf8"),
+        ),
       )
       .map((path) => relative(root, path));
     expect(offenders).toEqual([]);
+  });
+
+  // The files that turn a decode failure into a line a person reads. A ParseError's own
+  // `.message` is Effect's tree text, so none of them reads a `.message` off the failure:
+  // every line comes from the refusal model (UNDESCRIBED_REFUSAL when there is none).
+  it.each([
+    "src/schemas/formatError.ts",
+    "src/schemas/report.ts",
+    "src/domain/decide/handAuthored.ts",
+    "src/domain/decide/revision.ts",
+    "src/cli/commandLibrary/commander/run.ts",
+    "src/cli/commandLibrary/commander/json.ts",
+    "packages/schemas/src/parsed.ts",
+  ])("%s reads no message off a decode failure", (file) => {
+    const root = join(import.meta.dirname, "../../../..");
+    const text = readFileSync(join(root, file), "utf8");
+    expect(text.match(/\b(?:err|error|failure|left)\.message\b/g) ?? []).toEqual([]);
   });
 });

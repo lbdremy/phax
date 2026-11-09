@@ -1,7 +1,7 @@
 import type { ParseResult } from "effect";
 import { firstRefusal, refusalsOf } from "./refusal/adapter.js";
 import type { Refusal } from "./refusal/model.js";
-import { refusalMessage, refusalPath } from "./refusal/render.js";
+import { refusalMessage, refusalPath, UNDESCRIBED_REFUSAL } from "./refusal/render.js";
 
 export function formatParseError(err: ParseResult.ParseError): string {
   return refusalsOf(err)
@@ -118,7 +118,7 @@ function violationLine(refusal: Refusal): string {
 // printed verbatim, e.g. an authored spec or plan document.
 export function formatFirstViolation(err: ParseResult.ParseError): string {
   const first = firstRefusal(err);
-  return first === undefined ? err.message : violationLine(first);
+  return first === undefined ? UNDESCRIBED_REFUSAL : violationLine(first);
 }
 
 /**
@@ -138,7 +138,7 @@ export function formatAnswerViolations(err: ParseResult.ParseError): string {
       (path.length === 1 && (path[0] === "$schema" || kind === "missing" || kind === "unexpected")),
   );
   if (ownKeys.length === 0) {
-    return refusals[0] === undefined ? err.message : violationLine(refusals[0]);
+    return refusals[0] === undefined ? UNDESCRIBED_REFUSAL : violationLine(refusals[0]);
   }
   const stamp = ownKeys.filter(({ path }) => path[0] === "$schema");
   const others = ownKeys.filter(({ path }) => path[0] !== "$schema");

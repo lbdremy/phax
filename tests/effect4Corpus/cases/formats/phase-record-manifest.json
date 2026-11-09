@@ -2534,7 +2534,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+        "refusal": "stop.closedBy: is missing"
       }
     },
     {
@@ -2594,7 +2594,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+        "refusal": "stop.closedBy.email: Expected a non empty string, actual \"\""
       }
     },
     {
@@ -2653,7 +2653,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+        "refusal": "stop.closedBy.email: is missing"
       }
     },
     {
@@ -2713,7 +2713,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+        "refusal": "stop.closedBy.name: Expected a non empty string, actual \"\""
       }
     },
     {
@@ -2772,7 +2772,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+        "refusal": "stop.closedBy.name: is missing"
       }
     },
     {
@@ -2951,7 +2951,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+        "refusal": "stop.reviewCommit: Expected a string matching the pattern ^[0-9a-f]{40}([0-9a-f]{24})?$, actual \"\""
       }
     },
     {
@@ -3010,7 +3010,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+        "refusal": "stop.reviewCommit: is missing"
       }
     },
     {
@@ -3056,7 +3056,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+        "refusal": "stop.sessions: is missing"
       }
     },
     {
@@ -3116,7 +3116,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+        "refusal": "stop.sessions.0.effort: Expected a non empty string, actual \"\""
       }
     },
     {
@@ -3175,7 +3175,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+        "refusal": "stop.sessions.0.effort: is missing"
       }
     },
     {
@@ -3235,7 +3235,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+        "refusal": "stop.sessions.0.model: Expected a non empty string, actual \"\""
       }
     },
     {
@@ -3294,7 +3294,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+        "refusal": "stop.sessions.0.model: is missing"
       }
     },
     {
@@ -3354,7 +3354,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+        "refusal": "stop.sessions.0.origin: Expected \"first-turn\" | \"new-session\" | \"builder\", actual \"bogus-value\""
       }
     },
     {
@@ -3413,7 +3413,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+        "refusal": "stop.sessions.0.origin: is missing"
       }
     },
     {
@@ -3473,7 +3473,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+        "refusal": "stop.sessions.0.provider: Expected \"claude-code\" | \"codex-cli\" | \"mistral-vibe\", actual \"bogus-value\""
       }
     },
     {
@@ -3532,7 +3532,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+        "refusal": "stop.sessions.0.provider: is missing"
       }
     },
     {
@@ -3592,7 +3592,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+        "refusal": "stop.sessions.0.sessionId: Expected a string matching the pattern ^[A-Za-z0-9][A-Za-z0-9._-]*$, actual \"\""
       }
     },
     {
@@ -3651,7 +3651,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+        "refusal": "stop.sessions.0.sessionId: is missing"
       }
     },
     {
@@ -3706,7 +3706,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+        "refusal": "stop.sessions.0.transcript: is missing"
       }
     },
     {
@@ -3766,7 +3766,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+        "refusal": "stop.sessions.0.transcript.detail: Expected a non empty string, actual \"\""
       }
     },
     {
@@ -3825,7 +3825,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+        "refusal": "stop.sessions.0.transcript.detail: is missing"
       }
     },
     {
@@ -3885,7 +3885,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+        "refusal": "stop.sessions.0.transcript.reason: Expected \"not-found\" | \"unreadable\", actual \"bogus-value\""
       }
     },
     {
@@ -3944,7 +3944,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+        "refusal": "stop.sessions.0.transcript.reason: is missing"
       }
     },
     {
@@ -4002,7 +4002,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+        "refusal": "stop.sessions.0.transcript.sha256: Expected a string matching the pattern ^[0-9a-f]{64}$, actual \"\""
       }
     },
     {
@@ -4059,7 +4059,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+        "refusal": "stop.sessions.0.transcript.sha256: is missing"
       }
     },
     {
@@ -4119,7 +4119,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+        "refusal": "stop.sessions.0.transcript.status: Expected \"captured\" | \"missing\", actual \"bogus-value\""
       }
     },
     {
@@ -4178,7 +4178,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+        "refusal": "stop.sessions.0.transcript.status: is missing"
       }
     },
     {
@@ -10574,7 +10574,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.closedBy: is missing"
         }
       },
       {
@@ -10636,7 +10636,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.closedBy.email: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -10697,7 +10697,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.closedBy.email: is missing"
         }
       },
       {
@@ -10759,7 +10759,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.closedBy.name: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -10820,7 +10820,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.closedBy.name: is missing"
         }
       },
       {
@@ -11005,7 +11005,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.reviewCommit: Expected a string matching the pattern ^[0-9a-f]{40}([0-9a-f]{24})?$, actual \"\""
         }
       },
       {
@@ -11066,7 +11066,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.reviewCommit: is missing"
         }
       },
       {
@@ -11114,7 +11114,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions: is missing"
         }
       },
       {
@@ -11176,7 +11176,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].effort: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -11237,7 +11237,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].effort: is missing"
         }
       },
       {
@@ -11299,7 +11299,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].model: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -11360,7 +11360,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].model: is missing"
         }
       },
       {
@@ -11422,7 +11422,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].origin: Expected \"first-turn\" | \"new-session\" | \"builder\", actual \"bogus-value\""
         }
       },
       {
@@ -11483,7 +11483,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].origin: is missing"
         }
       },
       {
@@ -11545,7 +11545,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].provider: Expected \"claude-code\" | \"codex-cli\" | \"mistral-vibe\", actual \"bogus-value\""
         }
       },
       {
@@ -11606,7 +11606,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].provider: is missing"
         }
       },
       {
@@ -11668,7 +11668,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].sessionId: Expected a string matching the pattern ^[A-Za-z0-9][A-Za-z0-9._-]*$, actual \"\""
         }
       },
       {
@@ -11729,7 +11729,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].sessionId: is missing"
         }
       },
       {
@@ -11786,7 +11786,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].transcript: is missing"
         }
       },
       {
@@ -11848,7 +11848,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].transcript.detail: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -11909,7 +11909,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].transcript.detail: is missing"
         }
       },
       {
@@ -11971,7 +11971,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].transcript.reason: Expected \"not-found\" | \"unreadable\", actual \"bogus-value\""
         }
       },
       {
@@ -12032,7 +12032,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].transcript.reason: is missing"
         }
       },
       {
@@ -12090,7 +12090,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].transcript.sha256: Expected a string matching the pattern ^[0-9a-f]{64}$, actual \"\""
         }
       },
       {
@@ -12147,7 +12147,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].transcript.sha256: is missing"
         }
       },
       {
@@ -12209,7 +12209,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].transcript.status: Expected \"captured\" | \"missing\", actual \"bogus-value\""
         }
       },
       {
@@ -12270,7 +12270,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].transcript.status: is missing"
         }
       },
       {
@@ -15854,7 +15854,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.closedBy: is missing"
         }
       },
       {
@@ -15914,7 +15914,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.closedBy.email: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -15973,7 +15973,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.closedBy.email: is missing"
         }
       },
       {
@@ -16033,7 +16033,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.closedBy.name: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -16092,7 +16092,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.closedBy.name: is missing"
         }
       },
       {
@@ -16271,7 +16271,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.reviewCommit: Expected a string matching the pattern ^[0-9a-f]{40}([0-9a-f]{24})?$, actual \"\""
         }
       },
       {
@@ -16330,7 +16330,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.reviewCommit: is missing"
         }
       },
       {
@@ -16376,7 +16376,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions: is missing"
         }
       },
       {
@@ -16436,7 +16436,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].effort: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -16495,7 +16495,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].effort: is missing"
         }
       },
       {
@@ -16555,7 +16555,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].model: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -16614,7 +16614,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].model: is missing"
         }
       },
       {
@@ -16674,7 +16674,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].origin: Expected \"first-turn\" | \"new-session\" | \"builder\", actual \"bogus-value\""
         }
       },
       {
@@ -16733,7 +16733,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].origin: is missing"
         }
       },
       {
@@ -16793,7 +16793,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].provider: Expected \"claude-code\" | \"codex-cli\" | \"mistral-vibe\", actual \"bogus-value\""
         }
       },
       {
@@ -16852,7 +16852,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].provider: is missing"
         }
       },
       {
@@ -16912,7 +16912,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].sessionId: Expected a string matching the pattern ^[A-Za-z0-9][A-Za-z0-9._-]*$, actual \"\""
         }
       },
       {
@@ -16971,7 +16971,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].sessionId: is missing"
         }
       },
       {
@@ -17026,7 +17026,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].transcript: is missing"
         }
       },
       {
@@ -17086,7 +17086,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].transcript.detail: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -17145,7 +17145,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].transcript.detail: is missing"
         }
       },
       {
@@ -17205,7 +17205,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].transcript.reason: Expected \"not-found\" | \"unreadable\", actual \"bogus-value\""
         }
       },
       {
@@ -17264,7 +17264,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].transcript.reason: is missing"
         }
       },
       {
@@ -17321,7 +17321,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].transcript.sha256: Expected a string matching the pattern ^[0-9a-f]{64}$, actual \"\""
         }
       },
       {
@@ -17377,7 +17377,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].transcript.sha256: is missing"
         }
       },
       {
@@ -17437,7 +17437,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].transcript.status: Expected \"captured\" | \"missing\", actual \"bogus-value\""
         }
       },
       {
@@ -17496,7 +17496,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].transcript.status: is missing"
         }
       },
       {
@@ -20835,7 +20835,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.closedBy: is missing"
         }
       },
       {
@@ -20895,7 +20895,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.closedBy.email: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -20954,7 +20954,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.closedBy.email: is missing"
         }
       },
       {
@@ -21014,7 +21014,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.closedBy.name: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -21073,7 +21073,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.closedBy.name: is missing"
         }
       },
       {
@@ -21252,7 +21252,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.reviewCommit: Expected a string matching the pattern ^[0-9a-f]{40}([0-9a-f]{24})?$, actual \"\""
         }
       },
       {
@@ -21311,7 +21311,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.reviewCommit: is missing"
         }
       },
       {
@@ -21357,7 +21357,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions: is missing"
         }
       },
       {
@@ -21417,7 +21417,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].effort: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -21476,7 +21476,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].effort: is missing"
         }
       },
       {
@@ -21536,7 +21536,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].model: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -21595,7 +21595,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].model: is missing"
         }
       },
       {
@@ -21655,7 +21655,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].origin: Expected \"first-turn\" | \"new-session\" | \"builder\", actual \"bogus-value\""
         }
       },
       {
@@ -21714,7 +21714,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].origin: is missing"
         }
       },
       {
@@ -21774,7 +21774,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].provider: Expected \"claude-code\" | \"codex-cli\" | \"mistral-vibe\", actual \"bogus-value\""
         }
       },
       {
@@ -21833,7 +21833,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].provider: is missing"
         }
       },
       {
@@ -21893,7 +21893,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].sessionId: Expected a string matching the pattern ^[A-Za-z0-9][A-Za-z0-9._-]*$, actual \"\""
         }
       },
       {
@@ -21952,7 +21952,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].sessionId: is missing"
         }
       },
       {
@@ -22007,7 +22007,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].transcript: is missing"
         }
       },
       {
@@ -22067,7 +22067,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].transcript.detail: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -22126,7 +22126,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].transcript.detail: is missing"
         }
       },
       {
@@ -22186,7 +22186,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].transcript.reason: Expected \"not-found\" | \"unreadable\", actual \"bogus-value\""
         }
       },
       {
@@ -22245,7 +22245,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].transcript.reason: is missing"
         }
       },
       {
@@ -22302,7 +22302,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].transcript.sha256: Expected a string matching the pattern ^[0-9a-f]{64}$, actual \"\""
         }
       },
       {
@@ -22358,7 +22358,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].transcript.sha256: is missing"
         }
       },
       {
@@ -22418,7 +22418,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].transcript.status: Expected \"captured\" | \"missing\", actual \"bogus-value\""
         }
       },
       {
@@ -22477,7 +22477,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: Expected \"unchanged\", actual \"corrected\""
+          "refusal": "stop.sessions[0].transcript.status: is missing"
         }
       },
       {

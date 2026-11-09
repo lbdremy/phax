@@ -2,8 +2,8 @@ import { Cause, Data, Effect, Either, Option } from "effect";
 import * as ParseResult from "effect/ParseResult";
 import * as Schema from "effect/Schema";
 import * as SchemaAST from "effect/SchemaAST";
-import { firstRefusal } from "../../../schemas/refusal/adapter.js";
-import { refusalMessage } from "../../../schemas/refusal/render.js";
+import { firstRefusal, refusalsOf } from "../../../schemas/refusal/adapter.js";
+import { refusalMessage, UNDESCRIBED_REFUSAL } from "../../../schemas/refusal/render.js";
 import {
   catalogue,
   commandContract,
@@ -700,12 +700,22 @@ function describe(cause: Cause.Cause<unknown>): string {
   return defectText(Cause.pretty(cause));
 }
 
+/** A failed encode or decode of an output as one line, in phax's words: each refusal
+ *  as `<path>: <message>`, joined by `; `. */
+function failureText(error: ParseResult.ParseError): string {
+  const lines = refusalsOf(error).map((one) => {
+    const path = one.path.map(String).join(".");
+    return path.length === 0 ? refusalMessage(one) : `${path}: ${refusalMessage(one)}`;
+  });
+  return lines.length === 0 ? UNDESCRIBED_REFUSAL : lines.join("; ");
+}
+
 /** Encodes `run`'s value with the output contract and its policy, with Effect 3's
  *  `Schema.encodeUnknownEither`: the output's encoded form. A failure is a defect. */
 function encode(output: Source<Schema.Schema.Any>, value: unknown): Effect.Effect<unknown, Defect> {
   const encoded = Schema.encodeUnknownEither(synchronous(output.contract), policyOf(output))(value);
   return Either.isLeft(encoded)
-    ? Effect.fail(new Defect({ text: defectText(encoded.left.message) }))
+    ? Effect.fail(new Defect({ text: defectText(failureText(encoded.left)) }))
     : Effect.succeed(encoded.right);
 }
 
@@ -720,7 +730,7 @@ function reduced(
     policyOf(output),
   )(encoded);
   return Either.isLeft(decoded)
-    ? Effect.fail(new Defect({ text: defectText(decoded.left.message) }))
+    ? Effect.fail(new Defect({ text: defectText(failureText(decoded.left)) }))
     : Effect.succeed(decoded.right);
 }
 

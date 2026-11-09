@@ -14,7 +14,7 @@
 // When the verdict fails on failed recorded tests alone, the files holding them run once
 // more, and a recorded test that passes on that rerun counts as passed (a flaky notice).
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { isAbsolute, join, relative } from "node:path";
 
@@ -314,6 +314,28 @@ export function vitestRunner(
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
+}
+
+// A `.fails` modifier (`it.fails`, `test.fails`, `describe.fails`, chained or not): vitest
+// reports such a test as passed when its body throws, so a recorded test turned into one
+// would keep passing while it no longer holds.
+const FAILS_MARKER = /\b(?:it|test|describe)(?:\.\w+)*\.fails\b/g;
+
+/**
+ * The recorded test files whose working-tree copy holds more `.fails` modifiers than the
+ * copy at HEAD: a recorded test may have been inverted there. A file HEAD does not hold
+ * counts as having none.
+ */
+export function failsMarkersAdded(root: string, base: TestRecord): Array<string> {
+  const count = (text: string): number => text.match(FAILS_MARKER)?.length ?? 0;
+  return Object.keys(base)
+    .toSorted(byCodeUnit)
+    .filter((file) => {
+      const path = join(root, file);
+      if (!existsSync(path)) return false;
+      const atHead = git(root, ["show", `HEAD:${file}`]);
+      return count(readFileSync(path, "utf8")) > count(atHead.ok ? atHead.stdout : "");
+    });
 }
 
 export type TestCheck = {

@@ -18,7 +18,7 @@ import {
 } from "../artifact/sidecar.js";
 import type { ArtifactKind } from "../artifact/status.js";
 import { firstRefusal } from "../../schemas/refusal/adapter.js";
-import { refusalMessage } from "../../schemas/refusal/render.js";
+import { refusalMessage, UNDESCRIBED_REFUSAL } from "../../schemas/refusal/render.js";
 
 // The pure core of `phax artifact decide` for a headless-authored spec or
 // plan: which questions a session takes, how its revised document is read,
@@ -283,7 +283,7 @@ export function stampSessionVerdicts(json: unknown, context: DecideContext): unk
 
 export function firstParseIssue(error: ParseResult.ParseError): RevisionRefusal {
   const first = firstRefusal(error);
-  if (first === undefined) return { path: "", message: error.message };
+  if (first === undefined) return { path: "", message: UNDESCRIBED_REFUSAL };
   return refusal(first.path, refusalMessage(first));
 }
 

@@ -9812,7 +9812,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "runs.0.stop.lastClose.exitCode: Expected 1, actual 5"
+        "refusal": "runs.0.stop.lastClose.detail: Expected a non empty string, actual \"\""
       }
     },
     {
@@ -9914,7 +9914,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "runs.0.stop.lastClose.exitCode: Expected 1, actual 5"
+        "refusal": "runs.0.stop.lastClose.detail: is missing"
       }
     },
     {
@@ -10223,7 +10223,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "runs.0.stop.lastClose.exitCode: Expected 1, actual 4"
+        "refusal": "runs.0.stop.lastClose.log: Expected a non empty string, actual \"\""
       }
     },
     {
@@ -10324,7 +10324,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "runs.0.stop.lastClose.exitCode: Expected 1, actual 4"
+        "refusal": "runs.0.stop.lastClose.log: is missing"
       }
     },
     {
@@ -10629,7 +10629,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "runs.0.stop.lastClose.exitCode: Expected 1, actual 5"
+        "refusal": "runs.0.stop.lastClose.reason: Expected a non empty string, actual \"\""
       }
     },
     {
@@ -10730,7 +10730,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "runs.0.stop.lastClose.exitCode: Expected 1, actual 5"
+        "refusal": "runs.0.stop.lastClose.reason: is missing"
       }
     },
     {
@@ -10831,7 +10831,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "runs.0.stop.lastClose.exitCode: Expected 1, actual 8"
+        "refusal": "runs.0.stop.lastClose.resetAt: is missing"
       }
     },
     {
@@ -11141,7 +11141,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "runs.0.stop.lastClose.exitCode: Expected 1, actual 5"
+        "refusal": "runs.0.stop.lastClose.step: Expected \"closing-turn\", actual \"bogus-value\""
       }
     },
     {
@@ -11243,7 +11243,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "runs.0.stop.lastClose.exitCode: Expected 1, actual 5"
+        "refusal": "runs.0.stop.lastClose.step: is missing"
       }
     },
     {
@@ -21921,7 +21921,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "runs.0.stop.lastClose.exitCode: Expected 1, actual 5"
+          "refusal": "runs.0.stop.lastClose.detail: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -22022,7 +22022,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "runs.0.stop.lastClose.exitCode: Expected 1, actual 5"
+          "refusal": "runs.0.stop.lastClose.detail: is missing"
         }
       },
       {
@@ -22328,7 +22328,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "runs.0.stop.lastClose.exitCode: Expected 1, actual 4"
+          "refusal": "runs.0.stop.lastClose.log: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -22428,7 +22428,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "runs.0.stop.lastClose.exitCode: Expected 1, actual 4"
+          "refusal": "runs.0.stop.lastClose.log: is missing"
         }
       },
       {
@@ -22936,7 +22936,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "runs.0.stop.lastClose.exitCode: Expected 1, actual 5"
+          "refusal": "runs.0.stop.lastClose.step: Expected \"closing-turn\", actual \"bogus-value\""
         }
       },
       {
@@ -23037,7 +23037,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "runs.0.stop.lastClose.exitCode: Expected 1, actual 5"
+          "refusal": "runs.0.stop.lastClose.step: is missing"
         }
       },
       {
@@ -26485,7 +26485,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "runs.0.stop.lastClose.exitCode: Expected 1, actual 5"
+          "refusal": "runs.0.stop.lastClose.reason: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -26585,7 +26585,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "runs.0.stop.lastClose.exitCode: Expected 1, actual 5"
+          "refusal": "runs.0.stop.lastClose.reason: is missing"
         }
       },
       {
@@ -26685,7 +26685,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "runs.0.stop.lastClose.exitCode: Expected 1, actual 8"
+          "refusal": "runs.0.stop.lastClose.resetAt: is missing"
         }
       }
     ],
@@ -34142,7 +34142,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "runs.0.stop.lastClose.exitCode: Expected 1, actual 5"
+          "refusal": "runs.0.stop.lastClose.detail: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -34243,7 +34243,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "runs.0.stop.lastClose.exitCode: Expected 1, actual 5"
+          "refusal": "runs.0.stop.lastClose.detail: is missing"
         }
       },
       {
@@ -34549,7 +34549,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "runs.0.stop.lastClose.exitCode: Expected 1, actual 4"
+          "refusal": "runs.0.stop.lastClose.log: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -34649,7 +34649,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "runs.0.stop.lastClose.exitCode: Expected 1, actual 4"
+          "refusal": "runs.0.stop.lastClose.log: is missing"
         }
       },
       {
@@ -35157,7 +35157,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "runs.0.stop.lastClose.exitCode: Expected 1, actual 5"
+          "refusal": "runs.0.stop.lastClose.step: Expected \"closing-turn\", actual \"bogus-value\""
         }
       },
       {
@@ -35258,7 +35258,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "runs.0.stop.lastClose.exitCode: Expected 1, actual 5"
+          "refusal": "runs.0.stop.lastClose.step: is missing"
         }
       },
       {
@@ -38706,7 +38706,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "runs.0.stop.lastClose.exitCode: Expected 1, actual 5"
+          "refusal": "runs.0.stop.lastClose.reason: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -38806,7 +38806,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "runs.0.stop.lastClose.exitCode: Expected 1, actual 5"
+          "refusal": "runs.0.stop.lastClose.reason: is missing"
         }
       },
       {
@@ -38906,7 +38906,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "runs.0.stop.lastClose.exitCode: Expected 1, actual 8"
+          "refusal": "runs.0.stop.lastClose.resetAt: is missing"
         }
       }
     ]

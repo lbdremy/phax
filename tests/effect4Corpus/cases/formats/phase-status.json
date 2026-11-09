@@ -1133,7 +1133,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "stop.outcome: is unexpected, expected: \"cause\" | \"status\""
+        "refusal": "stop.acceptanceStep: Expected \"authored\" | \"none\", actual \"bogus-value\""
       }
     },
     {
@@ -1166,7 +1166,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "stop.outcome: is unexpected, expected: \"cause\" | \"status\""
+        "refusal": "stop.acceptanceStep: is missing"
       }
     },
     {
@@ -1263,7 +1263,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "stop.outcome: is unexpected, expected: \"cause\" | \"status\""
+        "refusal": "stop.closedBy: is missing"
       }
     },
     {
@@ -1297,7 +1297,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "stop.outcome: is unexpected, expected: \"cause\" | \"status\""
+        "refusal": "stop.closedBy.email: Expected a non empty string, actual \"\""
       }
     },
     {
@@ -1330,7 +1330,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "stop.outcome: is unexpected, expected: \"cause\" | \"status\""
+        "refusal": "stop.closedBy.email: is missing"
       }
     },
     {
@@ -1364,7 +1364,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "stop.outcome: is unexpected, expected: \"cause\" | \"status\""
+        "refusal": "stop.closedBy.name: Expected a non empty string, actual \"\""
       }
     },
     {
@@ -1397,7 +1397,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "stop.outcome: is unexpected, expected: \"cause\" | \"status\""
+        "refusal": "stop.closedBy.name: is missing"
       }
     },
     {
@@ -1498,7 +1498,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "stop.outcome: is unexpected, expected: \"cause\" | \"status\""
+        "refusal": "stop.reviewCommit: Expected a string matching the pattern ^[0-9a-f]{40}([0-9a-f]{24})?$, actual \"\""
       }
     },
     {
@@ -1531,7 +1531,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "stop.outcome: is unexpected, expected: \"cause\" | \"status\""
+        "refusal": "stop.reviewCommit: is missing"
       }
     },
     {
@@ -4826,7 +4826,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: is unexpected, expected: \"cause\" | \"status\""
+          "refusal": "stop.closedBy: is missing"
         }
       },
       {
@@ -4860,7 +4860,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: is unexpected, expected: \"cause\" | \"status\""
+          "refusal": "stop.closedBy.email: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -4893,7 +4893,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: is unexpected, expected: \"cause\" | \"status\""
+          "refusal": "stop.closedBy.email: is missing"
         }
       },
       {
@@ -4927,7 +4927,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: is unexpected, expected: \"cause\" | \"status\""
+          "refusal": "stop.closedBy.name: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -4960,7 +4960,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: is unexpected, expected: \"cause\" | \"status\""
+          "refusal": "stop.closedBy.name: is missing"
         }
       },
       {
@@ -4994,7 +4994,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: is unexpected, expected: \"cause\" | \"status\""
+          "refusal": "stop.oracleStep: Expected \"authored\" | \"none\", actual \"bogus-value\""
         }
       },
       {
@@ -5027,7 +5027,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: is unexpected, expected: \"cause\" | \"status\""
+          "refusal": "stop.oracleStep: is missing"
         }
       },
       {
@@ -5128,7 +5128,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: is unexpected, expected: \"cause\" | \"status\""
+          "refusal": "stop.reviewCommit: Expected a string matching the pattern ^[0-9a-f]{40}([0-9a-f]{24})?$, actual \"\""
         }
       },
       {
@@ -5161,7 +5161,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "stop.outcome: is unexpected, expected: \"cause\" | \"status\""
+          "refusal": "stop.reviewCommit: is missing"
         }
       },
       {
