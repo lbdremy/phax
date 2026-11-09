@@ -61,11 +61,8 @@ All three are already in `security.agentCommands` in phax.json, so the plan need
 - The package ships a frozen copy of its JSON Schemas. In phase-01, before the install, the base's Effect 3 rendering of `packages/schemas/json/` is captured into `packages/schemas/shipped-json.json` (file name to exact content). From phase-08 on, the build writes `json/` from that file for every format without a `next` snapshot, and renders from the generator only for a format that has one. `scripts/schemas-check.ts --write` refreshes an entry when it records a `next`.
   This is the only way to keep the shipped files byte-identical (§5.19). Shipping the latest released snapshots instead cannot work: `record-manifest.schema.json` has no snapshot, and a snapshot can lag its shipped file in annotations, because snapshots ignore annotations.
   Loss accepted: a committed generated artifact beside the snapshots, which the build ships verbatim.
-- The history lock is refreshed in two commits, each naming the Effect 4 migration:
-  - phase-01: the codemod rewrites `src/schemas/history/` mechanically, since it targets all of src;
-  - phase-04: the hand migration of the decoders.
-  phase-04 migrates every v3 symbol under `src/schemas/history/`, of every topic, which the effect4-schema skill allows for that path. Later codemod re-runs then find nothing there, and no third refresh happens. The codemod is deterministic per file, so phase-02 and phase-03 leave history bytes untouched.
-  Loss accepted: the brief's single refresh becomes two. Avoiding that would mean restoring the codemod's history rewrites in phase-01, which needs a git command the sessions are not granted.
+- The history lock is refreshed once, in phase-04 (§5.17). The codemod rewrites `src/schemas/history/` mechanically in phase-01, and phase-04 migrates every v3 symbol left there, of every topic, which the effect4-schema skill allows for that path. phase-04's commit re-pins every frozen decoder whose bytes differ from its lock entry, the codemod's rewrites included, and names the Effect 4 migration. Between phase-01 and phase-04 the lock is stale, which no gate sees: the frozen-history test cannot load before the schema topic, so it is not in the test ratchet's record until phase-04 brings it in. Later codemod re-runs find nothing under that path.
+  Loss accepted: for three phases the lock disagrees with the decoders it pins.
 - One review stop: phase-03, an interactive phase right after phase-02. The corpus replays the words, but nothing mechanical checks the Effect 4 idiom phase-02 chooses, or the absence of silencing `as` and `any` (ac-no-silencing is a diff search, not a gate). phase-04 repeats that idiom on 63 frozen decoders and phase-08 repeats it on the package and generator. No other stop is declared; the operator can hold any phase with `phax run --hold`.
   Loss accepted: the run stops once and waits for a person.
 - No acceptance phase, although an acceptance provider is configured. The acceptance tests of this migration already exist and are frozen: the behaviour corpus, its replay and package tests, and the protected test contract, all written before any source moved. The test ratchet also refuses a recorded test file that adds `.fails` markers.
@@ -130,10 +127,7 @@ phax and @lbdremy/phax-schemas depend on effect 4.1.2 and on no other Effect pac
   - State the four type-error counts: src before and after, tests before and after, exactly as the codemod printed them.
   - In §2, update the leftover totals per skill and the blocked-use table from this run's `left to phases` list.
   - Keep the document's structure and its other text.
-- Step 7: refresh the history lock (§5.17).
-  - The codemod rewrote files under `src/schemas/history/`. For every such file whose bytes changed, recompute its entry in `packages/schemas/history.lock.json` as the sha256 hex of its bytes. Do this with a one-off `pnpm exec tsx` script that calls `sha256` from `packages/schemas/build/generated.ts`.
-  - Keep the keys sorted and the rendering of `renderLock` (two-space JSON plus a newline).
-  - Add no entry and remove none. `scripts/schemas-check.ts --write` cannot do this, because `refreshLock` never re-pins an existing entry, and it would also try to record snapshots. Do not run `--write`.
+- Step 7: leave the history lock alone (§5.17). The codemod rewrote files under `src/schemas/history/`, and `packages/schemas/history.lock.json` now differs from them. The frozen-history test cannot load on this tree, so it is not in the first record and nothing gates on the lock. phase-04 refreshes it once, after the hand migration.
 - Step 8: run `pnpm codemod:effect4 --ratchet`. With no record at HEAD, it writes `scripts/effect4-codemod/type-error-counts.json` and `scripts/effect4-codemod/passing-tests.json` as the first record (§5.22). The phase's gate runs it again and records the same.
 - Never edit the paths the preamble lists as protected or read-only, the corpus case files, or `packages/schemas/snapshots/**`.
 
@@ -150,7 +144,6 @@ phax and @lbdremy/phax-schemas depend on effect 4.1.2 and on no other Effect pac
 - `packages/schemas/package.json`
 - `knip.json`
 - `.oxfmtrc.json`
-- `packages/schemas/history.lock.json`
 - `docs/effect-4-mapping.md`
 
 ### Optional files that may be edited
@@ -166,7 +159,6 @@ Producer of the ratchet base for every later phase: `scripts/effect4-codemod/typ
 - exactly one effect version, 4.1.2, is installed, both manifests name ^4.1.2, and no platform package or packageExtensions entry remains — medium · smoke · pnpm-lock.yaml and both package.json files · in-phase · ac-deps
 - the codemod's printed type-error counts and per-rule rewrite counts are recorded in docs/effect-4-mapping.md §1, and type-error-counts.json holds the counts after — medium · smoke · the codemod's printed output against docs/effect-4-mapping.md and type-error-counts.json · in-phase · ac-codemod-measure
 - the ratchet records the first type-error counts and the first set of passing tests — medium · smoke · type-error-counts.json and passing-tests.json written by pnpm codemod:effect4 --ratchet · in-phase · ac-green
-- every frozen decoder the codemod rewrote has a lock entry equal to the sha256 of its new bytes, and no entry was added or removed — small · example · sha256 of each file under src/schemas/history against packages/schemas/history.lock.json · in-phase · ac-lock
 - shipped-json.json holds the Effect 3 rendering of every shipped JSON Schema byte for byte — small · example · packages/schemas/json/ as rendered on Effect 3 before the install · in-phase · ac-json-schema
 
 ### Implementation order
@@ -210,7 +202,7 @@ Move phax and @lbdremy/phax-schemas to effect ^4.1.2. Remove @effect/platform, @
 
 The counts travel as data, not in this body. scripts/effect4-codemod/type-error-counts.json holds the type-error counts after, written by pnpm codemod:effect4 --ratchet. docs/effect-4-mapping.md §1 holds the type-error counts of src and of the test suite before and after, and each rule's rewrites.
 
-The codemod rewrote frozen decoders under src/schemas/history/. This commit refreshes packages/schemas/history.lock.json for them, as the Effect 4 migration's refresh.
+The codemod rewrote frozen decoders under src/schemas/history/; their lock entries are refreshed once, in the commit that finishes their migration.
 
 The ratchet records the first type-error counts and the first set of passing tests. packages/schemas/shipped-json.json captures the JSON Schemas the package ships, rendered on Effect 3 before the install, as their byte reference.
 
@@ -411,7 +403,7 @@ Every frozen decoder under src/schemas/history/ runs on Effect 4 and accepts and
 - Repeat the idioms phase-02 set, as corrected at the phase-03 review (read both handoffs). Each frozen module is a self-contained released shape: change how it is written, never what it decodes. Do not merge two decoders, do not make one import a current schema it did not import, and do not add or remove a module (§5.18).
 - Migrate any blocker first, then re-run `pnpm exec tsx scripts/effect4-codemod/main.ts` so its covered uses are rewritten mechanically. `src/schemas/history` is excluded from oxfmt, so write it in the files' existing style.
 - Re-pin the lock (§5.17).
-  - For every file under `src/schemas/history/` whose bytes changed in this phase, set its entry in `packages/schemas/history.lock.json` to the sha256 hex of its new bytes, with a one-off `pnpm exec tsx` script that calls `sha256` from `packages/schemas/build/generated.ts`.
+  - For every file under `src/schemas/history/` whose bytes differ from its entry (this phase's changes and the codemod's rewrites of phase-01), set its entry in `packages/schemas/history.lock.json` to the sha256 hex of its new bytes, with a one-off `pnpm exec tsx` script that calls `sha256` from `packages/schemas/build/generated.ts`.
   - Keep the keys sorted and the `renderLock` rendering. Add no entry and remove none.
   - Do not run `scripts/schemas-check.ts --write`: it refuses to re-pin and would record snapshots.
 - Prove replay. Run `node node_modules/vitest/vitest.mjs run tests/unit/effect4Corpus tests/unit/schemasPackage/frozenHistory.test.ts`:
@@ -483,7 +475,7 @@ The `effect-migration` gate profile in phax.json (`pnpm format`, `pnpm codemod:e
 
 Migrate every frozen decoder under src/schemas/history/ to Effect 4, following the effect4-schema skill and the idiom reviewed after the schema topic. Each one still accepts and refuses what it did on Effect 3, with the same decoded value or refusal line, as the behaviour corpus replays.
 
-This commit refreshes packages/schemas/history.lock.json for the rewritten decoders, as the Effect 4 migration's refresh. No decoder is added or removed.
+This commit refreshes packages/schemas/history.lock.json once for every rewritten decoder, the codemod's rewrites of phase-01 included, as the Effect 4 migration's refresh. No decoder is added or removed.
 
 ---
 
