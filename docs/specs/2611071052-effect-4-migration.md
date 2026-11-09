@@ -1,11 +1,8 @@
 ---
-status: Approved
+status: Draft
 date: 2026-11-07
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
-approved:
-  date: 2026-11-07
-  baseline: cee87b0
 ---
 # Effect 4 migration
 
