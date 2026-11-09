@@ -84,7 +84,7 @@ WHEN the codemod finishes THE codemod SHALL list every v3 symbol still present, 
 
 ### 5.7 Codemod effect is measured and recorded
 
-WHEN the codemod finishes THE codemod SHALL print the type-error counts of src and of the test suite before and after its rewrites, and the commit that applies it SHALL carry those four numbers and the rewrite count of each rule in its body.
+WHEN the codemod finishes THE codemod SHALL print the type-error counts of src and of the test suite before and after its rewrites, and the commit that applies it SHALL carry those four numbers and the rewrite count of each rule as committed data (the ratchet's counts file and the migration's mapping document), its body naming where they are.
 
 ### 5.8 Reference readable without network
 
@@ -327,7 +327,7 @@ Given a fixture containing ParseResult.ArrayFormatter, which no rule rewrites, w
 
 ### Counts printed and committed
 
-Given the codemod run on the Effect 3 tree with effect 4 installed, when it finishes and its commit is created, then it prints before and after type-error counts for src and tests, and the commit body carries those four numbers and one rewrite count per rule. (refs §5.7)
+Given the codemod run on the Effect 3 tree with effect 4 installed, when it finishes and its commit is created, then it prints before and after type-error counts for src and tests, and its commit carries those four numbers and one rewrite count per rule in the files its body names. (refs §5.7)
 
 ### Phase sessions read the reference without network
 
@@ -486,6 +486,7 @@ Settled:
 - phax owns its refusal format (operator, 2026-11-08): a phax-owned refusal value, one adapter from Effect's issues and one renderer that reads only that value, shared by @lbdremy/phax-schemas. It lands on Effect 3, before Effect 4 is installed, so the schema phase ports one adapter and moves no message.
 - The test contract is protected (operator, 2026-11-09): from the second groundwork plan's merge to the migration's end, phax.json's protectedPaths hold the snapshot files, the released JSON Schema snapshots, the CLI contract fixtures and the happy-path tests with no Effect code. Test files that use Effect stay editable, and tests-unchanged holds them at review.
 - Baseline: the spike measured 1,502 src errors and 2,910 test errors; the codemod's report replaces these with the real counts.
+- A phase's commit body is written from the plan before the run, so numbers measured during the run travel as data in the commit's files, never in its body (operator, 2026-11-09).
 
 Left open:
 
