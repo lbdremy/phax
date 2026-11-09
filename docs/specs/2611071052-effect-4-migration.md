@@ -114,9 +114,9 @@ Every command shall print the same text, give the same --json answer and exit wi
 
 The migration shall change no expected value in any test (text, JSON, exit code, decoded value or refusal line).
 
-### 5.15 Refusal lines keep their wording
+### 5.15 Refusal lines are phax's own
 
-WHEN a decode refuses an input THE system SHALL produce the same refusal line, path and message, as on Effect 3, including the `is missing`, `is unexpected` and `Expected X, actual Y` messages that phax's formatters match on.
+WHEN a decode refuses an input THE system SHALL render the refusal line from phax's own refusal model (a path, a kind, an expected label and the actual value), which one adapter builds from the installed Effect's issues, with the line the behaviour corpus holds, including the `is missing`, `is unexpected` and `Expected X, actual Y` messages; a whole type SHALL be named by its kind (`an object`, `an array`, `a tuple`, `one of …`), never by Effect's description of it, and no formatter in src or packages/schemas SHALL match on Effect's message text.
 
 ### 5.16 Frozen decoders keep their behaviour
 
@@ -144,7 +144,7 @@ WHEN the release carrying the migration is cut THE release SHALL carry a docs/up
 
 ### 5.22 Every phase ends no worse
 
-WHILE the migration is partial THE gates of each phase after the one that installs Effect 4 and applies the codemod SHALL hold the type-error counts of src and of the test suite at or below the counts the previous phase recorded; the phase that installs Effect 4 and applies the codemod records the first counts, and the last phase SHALL run the full standard profile.
+WHILE the migration is partial THE gates of each phase after the one that installs Effect 4 and applies the codemod SHALL hold the type-error counts of src and of the test suite at or below the counts the previous phase recorded, and SHALL fail when a test that passed at the phase's base fails, is skipped or no longer exists; the phase that installs Effect 4 and applies the codemod records the first counts and the first set of passing tests, and the last phase SHALL run the full standard profile.
 
 ### 5.23 Project guidance speaks Effect 4
 
@@ -359,7 +359,7 @@ Given the migration's diff of tests/, when changed lines holding expected text, 
 
 ### Refusal lines replay exactly
 
-Given the behaviour corpus's refused inputs for config layers, spec and plan documents, provider answers and every persisted format, when they are decoded on the migrated tree, then each refusal line equals the one captured on Effect 3, including `$schema: is missing; version: is unexpected` and `acceptanceCriteria[2].refs[0]: is missing`. (refs §5.15)
+Given the behaviour corpus's refused inputs for config layers, spec and plan documents, provider answers and every persisted format, with one refused case per constrained leaf of each format's latest snapshot and of each frozen decoder's shape, when they are decoded on the migrated tree, then each refusal line equals the one the corpus holds, including `$schema: is missing; version: is unexpected` and `acceptanceCriteria[2].refs[0]: is missing`, and no formatter in src or packages/schemas reads Effect's message text. (refs §5.15)
 
 ### Frozen decoders replay exactly
 
@@ -387,7 +387,7 @@ Given the release that ships the migration, when docs/upgrading.md and packages/
 
 ### Each phase ends no worse, the last one full
 
-Given a migration run, when each phase's gates run, then the phase that installs Effect 4 and applies the codemod records the first counts, no later phase passes with a count higher than the previous phase recorded, and the last phase passes the full standard profile. (refs §5.22)
+Given a migration run, when each phase's gates run, then the phase that installs Effect 4 and applies the codemod records the first counts and the first set of passing tests, no later phase passes with a count higher than the previous phase recorded or with a recorded test no longer passing, and the last phase passes the full standard profile. (refs §5.22)
 
 ### Guidance names Effect 4
 
@@ -479,10 +479,12 @@ Settled:
 
 - Hybrid: the codemod does the mechanical rewrites, and no phase hand-applies a rename a codemod rule covers.
 - The codemod is phax's own, under scripts/, written against an AST library, limited to the measured root causes and judged by type-error counts before and after.
-- Starting rule table, from the spike, each rule to be cross-checked against v3-to-v4.md and the registry codemod's rule list: effect/Either to the Import Map's target; Effect.either; Schema.decodeUnknownEither, decodeEither and encodeEither to their Exit counterparts; Context.Tag service classes to Context.Service; piped Schema filters to .check(...); Schema.optionalWith; Effect.catchAll and Effect.orElse to Effect.catch; ParseResult imports and types that have a SchemaIssue counterpart.
+- Starting rule table, from the spike, each rule to be cross-checked against v3-to-v4.md and the registry codemod's rule list: effect/Either to the Import Map's target; Effect.either; Schema.decodeUnknownEither, decodeEither, encodeUnknownEither and encodeEither to Schema.decodeUnknownResult and encodeUnknownResult, not to the reference's Exit counterparts, since the same pass turns every Either consumer into a Result consumer (operator, 2026-11-08); Either.getOrThrow to Result.getOrThrow (operator, 2026-11-09); Context.Tag service classes to Context.Service; piped Schema filters to .check(...); Schema.optionalWith; Effect.catchAll and Effect.orElse to Effect.catch; ParseResult imports and types that have a SchemaIssue counterpart.
 - Left to topic phases: formatError's formatters, the JSON Schema generator and snapshots, frozen decoder behaviour, layers and runtime wiring, and anything the codemod reports.
 - Phases follow skills, not sub-agents. The lookup discipline (reference, then guide, then installed source; no compatibility layer; no any or as to silence an error; no invented API) holds in every phase.
-- Order as the spec sees it: capture the behaviour corpus on Effect 3, then dependencies, then the codemod, then the topics with their tests, then the package and JSON Schemas, then docs and guidance last.
+- Order as the spec sees it: capture the behaviour corpus on Effect 3, give refusals phax's own model on Effect 3, then dependencies, then the codemod, then the topics with their tests, the schema topic first, since modules build schemas when they load and no test runs until it is done (operator, 2026-11-09), then the package and JSON Schemas, then docs and guidance last.
+- phax owns its refusal format (operator, 2026-11-08): a phax-owned refusal value, one adapter from Effect's issues and one renderer that reads only that value, shared by @lbdremy/phax-schemas. It lands on Effect 3, before Effect 4 is installed, so the schema phase ports one adapter and moves no message.
+- The test contract is protected (operator, 2026-11-09): from the second groundwork plan's merge to the migration's end, phax.json's protectedPaths hold the snapshot files, the released JSON Schema snapshots, the CLI contract fixtures and the happy-path tests with no Effect code. Test files that use Effect stay editable, and tests-unchanged holds them at review.
 - Baseline: the spike measured 1,502 src errors and 2,910 test errors; the codemod's report replaces these with the real counts.
 
 Left open:
