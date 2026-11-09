@@ -62,7 +62,11 @@ describe("phax.json", () => {
       "tsconfig.json",
       "tsconfig.test.json",
       "vitest.config.ts",
-      "**/__snapshots__/**",
+      "tests/e2e/__snapshots__/**",
+      "tests/integration/__snapshots__/**",
+      "tests/integration/telemetry/__snapshots__/**",
+      "tests/unit/__snapshots__/**",
+      "tests/unit/reconciliation/__snapshots__/**",
       "packages/schemas/snapshots/**",
       "tests/fixtures/help/**",
       "tests/fixtures/usage/**",
@@ -74,6 +78,9 @@ describe("phax.json", () => {
       "tests/unit/generateModelCatalog.test.ts",
       "tests/unit/reconciliation/global.test.ts",
     ]);
+    // No entry starts with `**/`: such a glob reaches below every path, so every symlink
+    // `pnpm install` rewrites under node_modules would read as a protected change.
+    expect(protectedPaths.filter((glob) => glob.startsWith("**/"))).toEqual([]);
     // Every migration phase rewrites the ratchet's two records, so neither is protected.
     expect(protectedPaths.join("\n")).not.toContain("type-error-counts");
     expect(protectedPaths.join("\n")).not.toContain("passing-tests.json");
