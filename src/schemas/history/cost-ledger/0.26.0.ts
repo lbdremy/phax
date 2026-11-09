@@ -7,8 +7,17 @@
 // schemas package lists it as the format's 0.26.0 release.
 import { Schema } from "effect";
 
+// `Schema.isPattern` whose JSON Schema is the RegExp's source, whatever its
+// flags: Effect 4 exports a pattern only for a RegExp with the `u` flag.
+function isExportedPattern(regExp: RegExp, annotations?: Schema.Annotations.Filter) {
+  return Schema.isPattern(regExp, {
+    toJsonSchema: () => ({ pattern: regExp.source }),
+    ...annotations,
+  });
+}
+
 const SchemaUrlSchema = Schema.String.check(
-  Schema.isPattern(
+  isExportedPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/cost-ledger\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
 ).pipe(
@@ -18,12 +27,12 @@ const SchemaUrlSchema = Schema.String.check(
   }),
 );
 
-const PhaseIdSchema = Schema.String.check(Schema.isPattern(/^phase-\d{2}$/)).pipe(
+const PhaseIdSchema = Schema.String.check(isExportedPattern(/^phase-\d{2}$/)).pipe(
   Schema.annotate({ description: "The phase the invocation ran for." }),
 );
 
 const InstantSchema = Schema.String.check(
-  Schema.isPattern(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/),
+  isExportedPattern(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/),
 ).pipe(Schema.annotate({ description: "An ISO-8601 UTC instant." }));
 
 const TokensSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0));

@@ -1,4 +1,5 @@
 import { Brand, Result, Schema } from "effect";
+import { isExportedPattern } from "../schemas/strictString.js";
 
 type ParseError = Schema.SchemaError;
 
@@ -6,7 +7,7 @@ export type Namespace = string & Brand.Brand<"Namespace">;
 const NamespaceSchema = Schema.String.check(
   Schema.isMinLength(1),
   Schema.isMaxLength(64),
-  Schema.isPattern(/^[a-z][a-z0-9-]*$/),
+  isExportedPattern(/^[a-z][a-z0-9-]*$/),
 ).pipe(Schema.brand("Namespace"));
 export const decodeNamespace = (u: unknown): Result.Result<Namespace, ParseError> =>
   Schema.decodeUnknownResult(NamespaceSchema, { reportInput: true })(u);
@@ -15,7 +16,7 @@ export type ShortName = string & Brand.Brand<"ShortName">;
 const ShortNameSchema = Schema.String.check(
   Schema.isMinLength(1),
   Schema.isMaxLength(64),
-  Schema.isPattern(/^[a-z][a-z0-9-]*$/),
+  isExportedPattern(/^[a-z][a-z0-9-]*$/),
 ).pipe(Schema.brand("ShortName"));
 export const decodeShortName = (u: unknown): Result.Result<ShortName, ParseError> =>
   Schema.decodeUnknownResult(ShortNameSchema, { reportInput: true })(u);
@@ -44,7 +45,7 @@ export const decodeRunId = (u: unknown): Result.Result<RunId, ParseError> =>
   Schema.decodeUnknownResult(RunIdSchema, { reportInput: true })(u);
 
 export type PhaseId = string & Brand.Brand<"PhaseId">;
-const PhaseIdSchema = Schema.String.check(Schema.isPattern(/^phase-\d{2}$/)).pipe(
+const PhaseIdSchema = Schema.String.check(isExportedPattern(/^phase-\d{2}$/)).pipe(
   Schema.brand("PhaseId"),
 );
 export const decodePhaseId = (u: unknown): Result.Result<PhaseId, ParseError> =>
@@ -69,7 +70,7 @@ export const BranchNameSchema = Schema.String.check(
   Schema.isMaxLength(255),
   Schema.makeFilter(isSafeBranchName, {
     message: "branch name must not start with '-' or contain whitespace/control characters",
-    jsonSchema: { pattern: "^[^\\x00-\\x20\\x7f-][^\\x00-\\x20\\x7f]*$" },
+    toJsonSchema: () => ({ pattern: "^[^\\x00-\\x20\\x7f-][^\\x00-\\x20\\x7f]*$" }),
   }),
 ).pipe(Schema.brand("BranchName"));
 export const decodeBranchName = (u: unknown): Result.Result<BranchName, ParseError> =>

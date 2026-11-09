@@ -7,8 +7,17 @@
 // checks, so a later change to src/schemas/questions.ts cannot move it.
 import { Schema } from "effect";
 
+// `Schema.isPattern` whose JSON Schema is the RegExp's source, whatever its
+// flags: Effect 4 exports a pattern only for a RegExp with the `u` flag.
+function isExportedPattern(regExp: RegExp, annotations?: Schema.Annotations.Filter) {
+  return Schema.isPattern(regExp, {
+    toJsonSchema: () => ({ pattern: regExp.source }),
+    ...annotations,
+  });
+}
+
 const SchemaUrlSchema = Schema.String.check(
-  Schema.isPattern(
+  isExportedPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/spec-document\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
 ).pipe(
@@ -21,7 +30,7 @@ const SchemaUrlSchema = Schema.String.check(
 // A question or option id: a run of characters without whitespace, so the §9
 // format's `### <id> — …`, `- <id> — …`, Recommendation and Decision lines
 // read it back.
-const QuestionIdSchema = Schema.String.check(Schema.isPattern(/^\S+$/)).pipe(
+const QuestionIdSchema = Schema.String.check(isExportedPattern(/^\S+$/)).pipe(
   Schema.annotate({ description: "An id: a run of characters without whitespace." }),
 );
 
@@ -41,12 +50,12 @@ const OpenQuestionSchema = Schema.Struct({
 
 type OpenQuestion = Schema.Schema.Type<typeof OpenQuestionSchema>;
 
-const DateSchema = Schema.String.check(Schema.isPattern(/^\d{4}-\d{2}-\d{2}$/)).pipe(
+const DateSchema = Schema.String.check(isExportedPattern(/^\d{4}-\d{2}-\d{2}$/)).pipe(
   Schema.annotate({ description: "A date, YYYY-MM-DD." }),
 );
 
 const TimestampSchema = Schema.String.check(
-  Schema.isPattern(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/),
+  isExportedPattern(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/),
 ).pipe(Schema.annotate({ description: "An ISO-8601 UTC timestamp." }));
 
 /**
@@ -253,7 +262,7 @@ const RequirementSchema = Schema.Struct({
 });
 
 const SurfaceElementSchema = Schema.Struct({
-  surface: Schema.String.check(Schema.isPattern(/^(cli|config|file|api|package|internal): /)),
+  surface: Schema.String.check(isExportedPattern(/^(cli|config|file|api|package|internal): /)),
   binding: Schema.Literals(["normative", "indicative"]),
   before: Schema.NullOr(Schema.String),
   after: Schema.NonEmptyString,
@@ -373,7 +382,7 @@ const TRACEABILITY_DESCRIPTION = `Checked by phax's parser, not by this JSON Sch
 
 export const SpecDocumentV0_25_0Schema = SpecDocumentStruct.check(
   Schema.makeFilter((doc) => violationIssue(firstTraceabilityViolation(doc)), {
-    jsonSchema: { description: TRACEABILITY_DESCRIPTION },
+    toJsonSchema: () => ({ description: TRACEABILITY_DESCRIPTION }),
   }),
 );
 

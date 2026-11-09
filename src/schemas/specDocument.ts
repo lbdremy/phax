@@ -9,7 +9,7 @@ import {
   firstQuestionViolation,
   violationIssue,
 } from "./questions.js";
-import { NonEmptyString } from "./strictString.js";
+import { NonEmptyString, isExportedPattern } from "./strictString.js";
 
 // The spec document: a spec's JSON sidecar, and the JSON a headless spec
 // authoring session returns (the same published shape), from which phax
@@ -57,8 +57,8 @@ export const SURFACE_SUMMARY_PLACEHOLDER =
 // `$ref`-plus-`pattern` pair in the exported JSON Schema would have its
 // pattern ignored by draft-07 validators.
 const SurfaceElementSchema = Schema.Struct({
-  surface: Schema.String.check(Schema.isPattern(/^(cli|config|file|api|package|internal): /)),
-  summary: Schema.String.check(Schema.isPattern(/^[^\n\r\u0085\u2028\u2029]+$/)).pipe(
+  surface: Schema.String.check(isExportedPattern(/^(cli|config|file|api|package|internal): /)),
+  summary: Schema.String.check(isExportedPattern(/^[^\n\r\u0085\u2028\u2029]+$/)).pipe(
     Schema.annotate({
       description:
         "One sentence, in the consumer's words: what whoever consumes this element can now do or sees differently. Never where it lives or how it is built.",
@@ -205,7 +205,8 @@ export const SpecDocumentFileSchema = Schema.Struct({
   ...specDocumentFields,
 }).check(
   Schema.makeFilter((doc) => violationIssue(firstTraceabilityViolation(doc)), {
-    jsonSchema: { description: TRACEABILITY_DESCRIPTION },
+    description: TRACEABILITY_DESCRIPTION,
+    toJsonSchema: () => ({}),
   }),
 );
 

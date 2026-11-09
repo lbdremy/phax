@@ -8,8 +8,17 @@
 // change to src/schemas/testLine.ts cannot move it.
 import { Schema } from "effect";
 
+// `Schema.isPattern` whose JSON Schema is the RegExp's source, whatever its
+// flags: Effect 4 exports a pattern only for a RegExp with the `u` flag.
+function isExportedPattern(regExp: RegExp, annotations?: Schema.Annotations.Filter) {
+  return Schema.isPattern(regExp, {
+    toJsonSchema: () => ({ pattern: regExp.source }),
+    ...annotations,
+  });
+}
+
 const SchemaUrlSchema = Schema.String.check(
-  Schema.isPattern(
+  isExportedPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/phax-plan\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
 ).pipe(
@@ -31,7 +40,7 @@ const EffortSchema = Schema.Literals([
   "ultra",
 ]);
 
-const PhaseIdSchema = Schema.String.check(Schema.isPattern(/^phase-\d{2}$/));
+const PhaseIdSchema = Schema.String.check(isExportedPattern(/^phase-\d{2}$/));
 
 // No line break and no control character: C0, DEL, C1 (U+0085 among them),
 // U+2028 and U+2029.
@@ -42,10 +51,10 @@ const TRIMMED = /^(?!\s)[\s\S]*\S$/;
 
 const oneLineText = (coordinate: string) =>
   Schema.String.check(
-    Schema.isPattern(ONE_LINE, {
+    isExportedPattern(ONE_LINE, {
       message: `a ${coordinate} is one line: no line break, U+2028, U+2029, U+0085 or other control character`,
     }),
-    Schema.isPattern(TRIMMED, {
+    isExportedPattern(TRIMMED, {
       message: `a ${coordinate} is non-empty and trimmed: no leading or trailing whitespace`,
     }),
   );
@@ -56,14 +65,14 @@ const GuaranteeSchema = oneLineText("guarantee").annotate({
 
 const OracleSchema = oneLineText("oracle")
   .check(
-    Schema.isPattern(/^(?![\s\S]* — )/, {
+    isExportedPattern(/^(?![\s\S]* — )/, {
       message: "an oracle never contains ' — ' (a space, an em dash, a space)",
     }),
-    Schema.isPattern(/^(?!— )/, {
+    isExportedPattern(/^(?!— )/, {
       message:
         "an oracle never starts with '— ' (an em dash and a space): it would read back as another line",
     }),
-    Schema.isPattern(/^(?![\s\S]* ·$)/, {
+    isExportedPattern(/^(?![\s\S]* ·$)/, {
       message:
         "an oracle never ends with ' ·' (a space and a middle dot): it would read back as another line",
     }),
@@ -77,11 +86,11 @@ const OracleSchema = oneLineText("oracle")
 
 const CriterionSchema = Schema.String.check(
   // eslint-disable-next-line no-control-regex
-  Schema.isPattern(/^[^\s`\x00-\x1F\x7F-\x9F]+$/, {
+  isExportedPattern(/^[^\s`\x00-\x1F\x7F-\x9F]+$/, {
     message:
       "a criterion is a run of non-whitespace characters holding no backtick and no control character",
   }),
-  Schema.isPattern(/^(?!(?:oracle|in-phase)$)/, {
+  isExportedPattern(/^(?!(?:oracle|in-phase)$)/, {
     message: "a criterion is neither 'oracle' nor 'in-phase', the loop values",
   }),
 ).pipe(

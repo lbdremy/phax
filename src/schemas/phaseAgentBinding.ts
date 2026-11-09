@@ -1,5 +1,6 @@
 import { Schema } from "effect";
 import { ProviderIdSchema } from "./providerId.js";
+import { isExportedPattern } from "./strictString.js";
 
 const AdapterSchema = Schema.Union([
   Schema.Literal("claude"),
@@ -20,7 +21,7 @@ export const PhaseAgentBindingSchema = Schema.Struct({
   version: Schema.Literal(1),
   shortName: Schema.NonEmptyString,
   runId: Schema.NonEmptyString,
-  phaseId: Schema.NonEmptyString.check(Schema.isPattern(/^phase-\d{2}$/)),
+  phaseId: Schema.NonEmptyString.check(isExportedPattern(/^phase-\d{2}$/)),
   phaseIndex: Schema.Number,
   phaseName: Schema.NonEmptyString,
   provider: ProviderIdSchema,

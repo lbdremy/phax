@@ -1,11 +1,12 @@
 import { Schema, type Types } from "effect";
 import { ApprovedBySchema } from "./approvedBy.js";
 import { schemaUrlField } from "./schemaUrl.js";
+import { isExportedPattern } from "./strictString.js";
 
 export const SpecApprovalRecordSchema = Schema.Struct({
   specFingerprint: Schema.NonEmptyString,
   approvedAt: Schema.NonEmptyString,
-  baseline: Schema.NonEmptyString.check(Schema.isPattern(/^[0-9a-f]{40}$/)),
+  baseline: Schema.NonEmptyString.check(isExportedPattern(/^[0-9a-f]{40}$/)),
 });
 
 export type SpecApprovalRecord = Schema.Schema.Type<typeof SpecApprovalRecordSchema>;

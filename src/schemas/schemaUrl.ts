@@ -5,6 +5,7 @@
  * imports only `effect`, so the schemas package can carry it.
  */
 import { JsonSchema, Schema } from "effect";
+import { isExportedPattern } from "./strictString.js";
 
 export const SCHEMA_URL_BASE = "https://docs.phax.run/schemas";
 
@@ -172,7 +173,7 @@ export function schemaUrl(formatId: FormatId, release: string): string {
 export function schemaUrlField(formatId: FormatId) {
   const prefix = `${SCHEMA_URL_BASE}/${formatId}/`.replaceAll(".", "\\.");
   return Schema.String.check(
-    Schema.isPattern(new RegExp(`^${prefix}${RELEASE_TRIPLE}\\.json$`)),
+    isExportedPattern(new RegExp(`^${prefix}${RELEASE_TRIPLE}\\.json$`)),
   ).pipe(
     Schema.annotate({
       description: `The ${formatId} format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): ${SCHEMA_URL_BASE}/${formatId}/<X.Y.Z>.json`,
@@ -196,17 +197,91 @@ export function parseSchemaUrl(value: unknown): { formatId: string; release: str
 }
 
 /**
+ * How a decoder treats a key its schema does not name: `error` rejects it,
+ * `ignore` accepts and drops it. The JSON Schema follows suit.
+ */
+export type Excess = "error" | "ignore";
+
+const DEFINITIONS_REF = "#/definitions/";
+const DEFS_REF = "#/$defs/";
+
+function isJsonObject(value: unknown): value is Readonly<Record<string, unknown>> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * A draft-07 node in the form phax publishes: a `$ref` names its definition
+ * under `$defs`, and a non-empty array whose every element has one schema is
+ * `items` with `minItems`, not a tuple of one element and the same rest.
+ * Both are the same contract as Effect's form, written as every released
+ * snapshot writes it.
+ */
+function published(node: unknown): unknown {
+  if (Array.isArray(node)) return node.map(published);
+  if (!isJsonObject(node)) return node;
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(node)) {
+    out[key] =
+      key === "$ref" && typeof value === "string" && value.startsWith(DEFINITIONS_REF)
+        ? `${DEFS_REF}${value.slice(DEFINITIONS_REF.length)}`
+        : published(value);
+  }
+  const { items, additionalItems, minItems } = out;
+  if (
+    Array.isArray(items) &&
+    items.length === minItems &&
+    additionalItems !== undefined &&
+    items.every((item) => JSON.stringify(item) === JSON.stringify(additionalItems))
+  ) {
+    const { additionalItems: _rest, ...array } = out;
+    return { ...array, items: additionalItems };
+  }
+  return out;
+}
+
+/** The root schema and the `$defs` its `$ref`s name, in phax's published draft-07 form. */
+export interface Draft07Document {
+  readonly schema: Readonly<Record<string, unknown>>;
+  readonly defs: Readonly<Record<string, unknown>>;
+}
+
+/**
+ * The annotation keys copied onto their node's JSON Schema, for a keyword
+ * Effect would otherwise place under `allOf` or not state: a `$schema`'s
+ * `const` (an answer's stamp) and an object's `anyOf` (the config partial's
+ * at-least-one key).
+ */
+const NODE_KEYWORDS: ReadonlySet<string> = new Set(["const", "anyOf"]);
+
+/**
+ * `Schema.toJsonSchemaDocument` with the excess strategy, converted to
+ * draft-07 (`JsonSchema.toDocumentDraft07`), in phax's published form.
+ */
+export function draft07Document(schema: Schema.Top, excess: Excess): Draft07Document {
+  const document = JsonSchema.toDocumentDraft07(
+    Schema.toJsonSchemaDocument(schema, {
+      onExcessProperty: excess,
+      includeAnnotationKey: (key) => NODE_KEYWORDS.has(key),
+    }),
+  );
+  const root = published(document.schema);
+  const defs = published(document.definitions);
+  return {
+    schema: isJsonObject(root) ? root : {},
+    defs: isJsonObject(defs) ? defs : {},
+  };
+}
+
+/**
  * A schema's JSON Schema as a Draft-07 document: the meta-schema, the root
- * schema, and its definitions when there are any.
+ * schema, and its `$defs` when there are any.
  */
 export function draft07JsonSchema(schema: Schema.Top): object {
-  const document = JsonSchema.toDocumentDraft07(
-    Schema.toJsonSchemaDocument(schema, { onExcessProperty: "error" }),
-  );
+  const document = draft07Document(schema, "error");
   return {
     $schema: JsonSchema.META_SCHEMA_URI_DRAFT_07,
     ...document.schema,
-    ...(Object.keys(document.definitions).length > 0 ? { definitions: document.definitions } : {}),
+    ...(Object.keys(document.defs).length > 0 ? { $defs: document.defs } : {}),
   };
 }
 

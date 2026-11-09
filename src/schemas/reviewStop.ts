@@ -6,8 +6,9 @@ import { Schema } from "effect";
 import { ProviderIdSchema } from "./providerId.js";
 import { schemaUrlField } from "./schemaUrl.js";
 import { FullCommitShaSchema } from "./status.js";
+import { isExportedPattern } from "./strictString.js";
 
-const PhaseIdSchema = Schema.String.check(Schema.isPattern(/^phase-\d{2}$/));
+const PhaseIdSchema = Schema.String.check(isExportedPattern(/^phase-\d{2}$/));
 
 const InstantSchema = Schema.NonEmptyString.annotate({ description: "An ISO-8601 instant." });
 

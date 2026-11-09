@@ -7,11 +7,16 @@
 // `next` while it exists, else the highest release. A release-named snapshot
 // that is not the current shape must have a frozen decoder in the format's
 // `releases`. Snapshots are compared as parsed JSON, so reformatting one
-// changes nothing. A comparison with the latest released snapshot ignores the
-// annotation keywords `description`, `title` and `examples`, so a wording-only
-// change is not a new shape and moves no stamp; `next` is still held equal to
-// the generated schema, annotations included. A hidden entry (its name starts with `.`, like .DS_Store)
-// is ignored everywhere; any other unexpected file or directory is a finding.
+// changes nothing. A comparison with the latest released snapshot is the
+// equivalence judge (./equivalence.ts): equal once the annotation keywords
+// `description`, `title` and `examples` are dropped, so a wording-only change
+// is not a new shape and moves no stamp, or, given the format's corpus
+// documents, no document judged differently, so a rendering that changed only
+// in form (Effect 4's generator) is not one either. `next` is still held equal
+// to the generated schema, annotations included, and is redundant only when it
+// has the latest released snapshot's very shape. A hidden entry (its name
+// starts with `.`, like .DS_Store) is ignored everywhere; any other
+// unexpected file or directory is a finding.
 import { isDeepStrictEqual } from "node:util";
 import {
   FORMAT_IDS,
@@ -20,6 +25,7 @@ import {
   isRelease,
   type FormatId,
 } from "../../../src/schemas/schemaUrl.js";
+import { judgeEquivalence } from "./equivalence.js";
 import { WRITE_COMMAND } from "./generated.js";
 
 export const SNAPSHOTS_DIR = "packages/schemas/snapshots";
@@ -144,6 +150,12 @@ export interface SnapshotsInput {
   readonly snapshots: ReadonlyMap<string, ReadonlyMap<string, string>>;
   /** The names of the files directly under `SNAPSHOTS_DIR`, outside every format directory. */
   readonly snapshotRootFiles: ReadonlyArray<string>;
+  /**
+   * Format id → the documents a generated schema is judged by against a
+   * released snapshot (`judgeEquivalence`): the format's corpus inputs. A
+   * format without documents is judged by its shape alone.
+   */
+  readonly documents?: ReadonlyMap<string, ReadonlyArray<unknown>>;
 }
 
 function parseJson(content: string): { ok: true; value: unknown } | { ok: false } {
@@ -161,76 +173,33 @@ function sameJson(a: string | undefined, b: string): boolean {
   return left.ok && right.ok && isDeepStrictEqual(left.value, right.value);
 }
 
-/** The annotation keywords a released-snapshot comparison ignores. */
-const ANNOTATIONS: ReadonlySet<string> = new Set(["description", "title", "examples"]);
-/** Keywords whose value is one subschema. */
-const SUBSCHEMA = new Set([
-  "items",
-  "additionalProperties",
-  "not",
-  "if",
-  "then",
-  "else",
-  "contains",
-  "propertyNames",
-  "unevaluatedItems",
-  "unevaluatedProperties",
-]);
-/** Keywords whose value maps names to subschemas. */
-const SUBSCHEMA_MAP = new Set([
-  "properties",
-  "patternProperties",
-  "$defs",
-  "definitions",
-  "dependentSchemas",
-]);
-/** Keywords whose value is an array of subschemas. */
-const SUBSCHEMA_ARRAY = new Set(["allOf", "anyOf", "oneOf", "prefixItems"]);
-
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 /**
- * A JSON Schema without its `description`, `title` and `examples` keywords,
- * at every (sub)schema position this walker knows. Every other keyword
- * (`enum`, `const`, `default`, `required`, …) is copied verbatim, and names
- * under `properties` and the like are kept, so a property named
- * `description` survives. A subschema under a keyword not listed here keeps
- * its annotations: compared strictly, never missed.
+ * True when `generated` states the contract of the released snapshot `released`:
+ * both parse and `judgeEquivalence` finds them equal annotations aside, or
+ * finds no document of a non-empty list judged differently.
  */
-export function withoutAnnotations(schema: unknown): unknown {
-  if (!isObject(schema)) return schema;
-  const result: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(schema)) {
-    if (ANNOTATIONS.has(key)) continue;
-    if (SUBSCHEMA.has(key)) {
-      result[key] = Array.isArray(value)
-        ? value.map(withoutAnnotations)
-        : withoutAnnotations(value);
-    } else if (SUBSCHEMA_MAP.has(key) && isObject(value)) {
-      result[key] = Object.fromEntries(
-        Object.entries(value).map(([name, sub]) => [name, withoutAnnotations(sub)]),
-      );
-    } else if (SUBSCHEMA_ARRAY.has(key) && Array.isArray(value)) {
-      result[key] = value.map(withoutAnnotations);
-    } else {
-      result[key] = value;
-    }
-  }
-  return result;
-}
-
-/** Both parse and record the same shape: deep-equal once annotations are dropped. */
-function sameShape(a: string | undefined, b: string): boolean {
-  if (a === undefined) return false;
-  const left = parseJson(a);
-  const right = parseJson(b);
+function equivalentToReleased(
+  released: string | undefined,
+  generated: string,
+  documents: ReadonlyArray<unknown>,
+): boolean {
+  if (released === undefined) return false;
+  const left = parseJson(released);
+  const right = parseJson(generated);
   return (
     left.ok &&
     right.ok &&
-    isDeepStrictEqual(withoutAnnotations(left.value), withoutAnnotations(right.value))
+    judgeEquivalence({ released: left.value, generated: right.value, documents }).equivalent
   );
+}
+
+/** Both parse and record the same shape: equal once annotations are dropped, whatever the documents. */
+function sameShape(a: string | undefined, b: string): boolean {
+  return equivalentToReleased(a, b, []);
+}
+
+function documentsOf(input: SnapshotsInput, id: string): ReadonlyArray<unknown> {
+  return input.documents?.get(id) ?? [];
 }
 
 interface FormatSnapshots {
@@ -287,8 +256,9 @@ export function checkSnapshots(input: SnapshotsInput): string[] {
       continue;
     }
     const latestContent = latest === undefined ? undefined : byName.get(latest);
+    const documents = documentsOf(input, format.id);
     if (next === undefined) {
-      if (!sameShape(latestContent, generated)) {
+      if (!equivalentToReleased(latestContent, generated, documents)) {
         const latestPath = snapshotPath(format.id, latest ?? PRE_SCHEMA);
         findings.push(
           `✗ ${format.id}: the generated schema differs from the latest released snapshot ${latestPath} ` +
@@ -328,11 +298,14 @@ export function checkSnapshots(input: SnapshotsInput): string[] {
 
 /**
  * What `--write` does to the snapshots. A format with no snapshot gets its
- * current shape's (`pre-schema`, else `next`); one whose generated schema
- * differs from its latest released snapshot gets `next` (re)written; one
- * whose generated schema equals it, annotations aside, loses any `next`. A released snapshot is
- * never written once it exists, nor removed. Stray directories and files, and
- * formats that failed to render, are left alone.
+ * current shape's (`pre-schema`, else `next`). One without `next` gets it
+ * when its generated schema is not equivalent to its latest released snapshot
+ * (`equivalentToReleased`, by the corpus documents). One with `next` loses it
+ * only when its generated schema has the released snapshot's very shape,
+ * annotations aside, and else has it rewritten to the generated schema when
+ * they differ: a recorded shape change stays until the shape returns. A
+ * released snapshot is never written once it exists, nor removed. Stray
+ * directories and files, and formats that failed to render, are left alone.
  */
 export function planSnapshotWrites(input: SnapshotsInput): {
   readonly writes: ReadonlyMap<string, string>;
@@ -348,8 +321,13 @@ export function planSnapshotWrites(input: SnapshotsInput): {
     if (latest === undefined && next === undefined) {
       const name = format.currentShape === PRE_SCHEMA ? PRE_SCHEMA : NEXT;
       writes.set(snapshotPath(format.id, name), generated);
+    } else if (next === undefined) {
+      const released = latest === undefined ? undefined : byName.get(latest);
+      if (!equivalentToReleased(released, generated, documentsOf(input, format.id))) {
+        writes.set(nextPath, generated);
+      }
     } else if (latest !== undefined && sameShape(byName.get(latest), generated)) {
-      if (next !== undefined) removals.push(nextPath);
+      removals.push(nextPath);
     } else if (!sameJson(next, generated)) {
       writes.set(nextPath, generated);
     }

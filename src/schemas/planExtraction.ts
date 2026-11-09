@@ -42,8 +42,8 @@ export const PlanExtractionAnswerSchema = Schema.Struct({
   Schema.makeFilter(
     (answer) => (answer.plan === null) !== (answer.incomplete === null) || EXACTLY_ONE,
     {
-      jsonSchema: {},
       description: "Exactly one of plan and incomplete is null.",
+      toJsonSchema: () => ({}),
     },
   ),
 );

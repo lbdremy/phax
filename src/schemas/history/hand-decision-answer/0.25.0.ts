@@ -10,8 +10,17 @@
 // src/schemas/questions.ts cannot move it.
 import { Schema } from "effect";
 
+// `Schema.isPattern` whose JSON Schema is the RegExp's source, whatever its
+// flags: Effect 4 exports a pattern only for a RegExp with the `u` flag.
+function isExportedPattern(regExp: RegExp, annotations?: Schema.Annotations.Filter) {
+  return Schema.isPattern(regExp, {
+    toJsonSchema: () => ({ pattern: regExp.source }),
+    ...annotations,
+  });
+}
+
 const SchemaUrlSchema = Schema.String.check(
-  Schema.isPattern(
+  isExportedPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/hand-decision-answer\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
 ).pipe(
@@ -22,7 +31,7 @@ const SchemaUrlSchema = Schema.String.check(
 );
 
 const TimestampSchema = Schema.String.check(
-  Schema.isPattern(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/),
+  isExportedPattern(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/),
 ).pipe(Schema.annotate({ description: "An ISO-8601 UTC timestamp." }));
 
 const decidedVerdictFields = {
@@ -44,11 +53,11 @@ const SpecDecidedVerdictSchema = Schema.Struct(decidedVerdictFields);
 /** A plan question decided by the operator: a spec's decided verdict, plus the phase it bears on. */
 const PlanDecidedVerdictSchema = Schema.Struct({
   ...decidedVerdictFields,
-  phase: Schema.String.check(Schema.isPattern(/^phase-\d{2}$/)),
+  phase: Schema.String.check(isExportedPattern(/^phase-\d{2}$/)),
 });
 
 // A question id, as the §9 format reads it back: no whitespace.
-const QuestionIdSchema = Schema.String.check(Schema.isPattern(/^\S+$/)).pipe(
+const QuestionIdSchema = Schema.String.check(isExportedPattern(/^\S+$/)).pipe(
   Schema.annotate({ description: "A question id of the artifact: no whitespace." }),
 );
 

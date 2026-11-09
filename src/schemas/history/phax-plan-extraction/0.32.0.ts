@@ -11,6 +11,15 @@
 // strictString.ts or phaxPlan.ts cannot move it.
 import { Schema } from "effect";
 
+// `Schema.isPattern` whose JSON Schema is the RegExp's source, whatever its
+// flags: Effect 4 exports a pattern only for a RegExp with the `u` flag.
+function isExportedPattern(regExp: RegExp, annotations?: Schema.Annotations.Filter) {
+  return Schema.isPattern(regExp, {
+    toJsonSchema: () => ({ pattern: regExp.source }),
+    ...annotations,
+  });
+}
+
 // phax's own refusal text for a refused value, computed from it. The annotation key is the
 // one src/schemas/refusal/adapter.ts reads, written out here because a frozen module imports
 // only effect.
@@ -21,12 +30,12 @@ const refusalMessage = (message: (actual: unknown) => string) => ({
 const SCHEMA_URL = "https://docs.phax.run/schemas/phax-plan-extraction/0.32.0.json";
 
 const SchemaUrlSchema = Schema.Literal(SCHEMA_URL).annotate({
-  jsonSchema: { const: SCHEMA_URL },
   description: `The phax-plan-extraction format's shape, exactly: ${SCHEMA_URL}`,
+  const: SCHEMA_URL,
 });
 
 const NonEmptyString = Schema.String.check(
-  Schema.isPattern(/^[\s\S]+$/, {
+  isExportedPattern(/^[\s\S]+$/, {
     identifier: "NonEmptyString",
     // The pattern refuses the empty string alone, so the refused value is always "".
     message: 'Expected a non empty string, actual ""',
@@ -45,7 +54,7 @@ const EffortSchema = Schema.Literals([
   "ultra",
 ]);
 
-const PhaseIdSchema = Schema.String.check(Schema.isPattern(/^phase-\d{2}$/));
+const PhaseIdSchema = Schema.String.check(isExportedPattern(/^phase-\d{2}$/));
 
 // ── test lines
 
@@ -59,7 +68,7 @@ const ONE_LINE_TRIMMED = new RegExp(`^${ONE_LINE_EDGE}(?:${ONE_LINE_CHAR}*${ONE_
 
 const oneLineText = (coordinate: string) =>
   Schema.String.check(
-    Schema.isPattern(
+    isExportedPattern(
       ONE_LINE_TRIMMED,
       refusalMessage((actual) =>
         typeof actual === "string" && !ONE_LINE.test(actual)
@@ -90,9 +99,9 @@ function oracleViolation(oracle: string): string | undefined {
 
 const OracleSchema = oneLineText("oracle").check(
   Schema.makeFilter((oracle) => oracleViolation(oracle) ?? true, {
-    jsonSchema: {
+    toJsonSchema: () => ({
       description: `What the test compares against: one non-empty, trimmed line, ${ORACLE_RULES} (these three checked by phax, not by this JSON Schema).`,
-    },
+    }),
   }),
 );
 
@@ -100,7 +109,7 @@ const LOOPS: ReadonlyArray<string> = ["oracle", "in-phase"];
 
 const CriterionSchema = Schema.String.check(
   // eslint-disable-next-line no-control-regex
-  Schema.isPattern(/^[^\s`\x00-\x1F\x7F-\x9F]+$/, {
+  isExportedPattern(/^[^\s`\x00-\x1F\x7F-\x9F]+$/, {
     message:
       "a criterion is a run of non-whitespace characters holding no backtick and no control character",
   }),
@@ -109,10 +118,10 @@ const CriterionSchema = Schema.String.check(
       !LOOPS.includes(criterion) ||
       "a criterion is neither 'oracle' nor 'in-phase', the loop values",
     {
-      jsonSchema: {
+      toJsonSchema: () => ({
         description:
           "An acceptance criterion id from the source spec's JSON sidecar: a run of non-whitespace characters, no backtick, neither 'oracle' nor 'in-phase' (that last checked by phax, not by this JSON Schema).",
-      },
+      }),
     },
   ),
 );
@@ -181,7 +190,7 @@ export const PhaxPlanExtractionV0_32_0Schema = Schema.Struct({
   Schema.makeFilter(
     (answer) => (answer.plan === null) !== (answer.incomplete === null) || EXACTLY_ONE,
     {
-      jsonSchema: {},
+      toJsonSchema: () => ({}),
       description: "Exactly one of plan and incomplete is null.",
     },
   ),

@@ -6,8 +6,17 @@
 // format's 0.17.0 release.
 import { Schema } from "effect";
 
+// `Schema.isPattern` whose JSON Schema is the RegExp's source, whatever its
+// flags: Effect 4 exports a pattern only for a RegExp with the `u` flag.
+function isExportedPattern(regExp: RegExp, annotations?: Schema.Annotations.Filter) {
+  return Schema.isPattern(regExp, {
+    toJsonSchema: () => ({ pattern: regExp.source }),
+    ...annotations,
+  });
+}
+
 const SchemaUrlSchema = Schema.String.check(
-  Schema.isPattern(
+  isExportedPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/spec-document\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
 ).pipe(
@@ -43,7 +52,7 @@ const RequirementSchema = Schema.Struct({
 });
 
 const SurfaceElementSchema = Schema.Struct({
-  surface: Schema.String.check(Schema.isPattern(/^(cli|config|file|api|package|internal): /)),
+  surface: Schema.String.check(isExportedPattern(/^(cli|config|file|api|package|internal): /)),
   binding: Schema.Literals(["normative", "indicative"]),
   before: Schema.NullOr(Schema.String),
   after: Schema.NonEmptyString,
@@ -203,7 +212,7 @@ const TRACEABILITY_DESCRIPTION =
 
 export const SpecDocumentV0_17_0Schema = SpecDocumentStruct.check(
   Schema.makeFilter((doc) => violationIssue(firstTraceabilityViolation(doc)), {
-    jsonSchema: { description: TRACEABILITY_DESCRIPTION },
+    toJsonSchema: () => ({ description: TRACEABILITY_DESCRIPTION }),
   }),
 );
 

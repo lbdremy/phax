@@ -1,9 +1,10 @@
 import { Schema } from "effect";
+import { isExportedPattern } from "./strictString.js";
 
 // An https:// URL holding no whitespace: the web URL a host reports for a
 // repository, as phax links to it.
 const RepoWebUrlSchema = Schema.String.check(
-  Schema.isPattern(/^https:\/\/\S+$/, {
+  isExportedPattern(/^https:\/\/\S+$/, {
     message: "url must be an https:// URL with no whitespace",
   }),
 );

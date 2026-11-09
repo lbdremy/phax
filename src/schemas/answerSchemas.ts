@@ -1,8 +1,8 @@
 // The answer formats: each provider answer phax asks for as a structured value,
 // with the one schema it is decoded by. `answerJsonSchema(format)` renders that
-// schema once, exactly as packages/schemas publishes it
-// (packages/schemas/json/<format>.schema.json), and is what the prompts state
-// and what the provider flags hand over. No answer schema imports this module:
+// schema once, as the schemas check renders the format and judges it against
+// its released snapshot (packages/schemas/build/jsonSchemas.ts), and is what the
+// prompts state and what the provider flags hand over. No answer schema imports this module:
 // it imports them (the stamp they need lives in answerStamp.ts).
 import { CodeReviewFileSchema } from "./codeReview.js";
 import { ComplianceReviewFileSchema } from "./complianceReview.js";
@@ -42,9 +42,9 @@ export const ANSWER_FORMATS = {
 export type AnswerFormatId = keyof typeof ANSWER_FORMATS;
 
 /**
- * The published JSON Schema of an answer format: the object
- * packages/schemas/json/<format>.schema.json holds. Every answer's decoder
- * refuses a key it does not name.
+ * The JSON Schema of an answer format, as the build renders it for the format
+ * (the schemas check holds it equivalent to the released snapshot). Every
+ * answer's decoder refuses a key it does not name.
  */
 export function answerJsonSchema(format: AnswerFormatId): Record<string, unknown> {
   const { label, schema } = ANSWER_FORMATS[format];

@@ -1,5 +1,5 @@
 import { Schema } from "effect";
-import { NonEmptyString } from "./strictString.js";
+import { NonEmptyString, isExportedPattern } from "./strictString.js";
 
 // The questions a spec or plan document carries, in two states: open, or
 // arbitrated with a verdict and the history of its earlier verdicts. A
@@ -12,7 +12,7 @@ import { NonEmptyString } from "./strictString.js";
 // A question or option id: a run of characters without whitespace, so the §9
 // format's `### <id> — …`, `- <id> — …`, Recommendation and Decision lines
 // read it back.
-const QuestionIdSchema = Schema.String.check(Schema.isPattern(/^\S+$/)).pipe(
+const QuestionIdSchema = Schema.String.check(isExportedPattern(/^\S+$/)).pipe(
   Schema.annotate({ description: "An id: a run of characters without whitespace." }),
 );
 
@@ -32,12 +32,12 @@ export const OpenQuestionSchema = Schema.Struct({
 
 export type OpenQuestion = Schema.Schema.Type<typeof OpenQuestionSchema>;
 
-const DateSchema = Schema.String.check(Schema.isPattern(/^\d{4}-\d{2}-\d{2}$/)).pipe(
+const DateSchema = Schema.String.check(isExportedPattern(/^\d{4}-\d{2}-\d{2}$/)).pipe(
   Schema.annotate({ description: "A date, YYYY-MM-DD." }),
 );
 
 const TimestampSchema = Schema.String.check(
-  Schema.isPattern(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/),
+  isExportedPattern(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/),
 ).pipe(Schema.annotate({ description: "An ISO-8601 UTC timestamp." }));
 
 /**
@@ -75,7 +75,7 @@ export const SpecDecidedVerdictSchema = Schema.Struct(decidedVerdictFields);
 /** A plan question decided by the operator: a spec's decided verdict, plus the phase it bears on. */
 export const PlanDecidedVerdictSchema = Schema.Struct({
   ...decidedVerdictFields,
-  phase: Schema.String.check(Schema.isPattern(/^phase-\d{2}$/)),
+  phase: Schema.String.check(isExportedPattern(/^phase-\d{2}$/)),
 });
 
 export const SpecVerdictSchema = Schema.Union([SpecDecidedVerdictSchema, LiftedVerdictSchema]);

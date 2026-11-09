@@ -8,8 +8,17 @@
 // package lists it as the format's 0.33.0 release.
 import { Schema } from "effect";
 
+// `Schema.isPattern` whose JSON Schema is the RegExp's source, whatever its
+// flags: Effect 4 exports a pattern only for a RegExp with the `u` flag.
+function isExportedPattern(regExp: RegExp, annotations?: Schema.Annotations.Filter) {
+  return Schema.isPattern(regExp, {
+    toJsonSchema: () => ({ pattern: regExp.source }),
+    ...annotations,
+  });
+}
+
 const SchemaUrlSchema = Schema.String.check(
-  Schema.isPattern(
+  isExportedPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/phase-record-manifest\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
 ).pipe(
@@ -70,7 +79,7 @@ const TokenUsageSchema = Schema.Union([
   Schema.Struct({ available: Schema.Literal(false) }),
 ]);
 
-const PhaseIdSchema = Schema.String.check(Schema.isPattern(/^phase-\d{2}$/));
+const PhaseIdSchema = Schema.String.check(isExportedPattern(/^phase-\d{2}$/));
 
 const RecordAcceptanceRoleSchema = Schema.NullOr(
   Schema.Union([
@@ -84,7 +93,7 @@ const RecordedSurfaceSchema = Schema.Literals(["local", "structural", "product",
 const PhaseModeSchema = Schema.Literals(["headless", "interactive"]);
 
 const FullCommitShaSchema = Schema.String.check(
-  Schema.isPattern(/^[0-9a-f]{40}([0-9a-f]{24})?$/),
+  isExportedPattern(/^[0-9a-f]{40}([0-9a-f]{24})?$/),
 ).pipe(
   Schema.annotate({
     description: "A commit's full object name: 40 lowercase hex digits (SHA-1) or 64 (SHA-256).",
@@ -92,7 +101,7 @@ const FullCommitShaSchema = Schema.String.check(
 );
 
 const SafeSessionIdSchema = Schema.String.check(
-  Schema.isPattern(/^[A-Za-z0-9][A-Za-z0-9._-]*$/),
+  isExportedPattern(/^[A-Za-z0-9][A-Za-z0-9._-]*$/),
 ).pipe(
   Schema.annotate({
     identifier: "SafeSessionId",
@@ -111,7 +120,7 @@ const RecordClosedBySchema = Schema.Struct({
 const RecordTranscriptSchema = Schema.Union([
   Schema.Struct({
     status: Schema.Literal("captured"),
-    sha256: Schema.String.check(Schema.isPattern(/^[0-9a-f]{64}$/)).pipe(
+    sha256: Schema.String.check(isExportedPattern(/^[0-9a-f]{64}$/)).pipe(
       Schema.annotate({ description: "The sha256 of the transcript copy's bytes." }),
     ),
   }),

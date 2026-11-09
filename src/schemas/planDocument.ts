@@ -109,7 +109,7 @@ const lineageFilter = <
 >() =>
   Schema.refine<S, S["Type"] & PlanDocumentLineage>(
     (doc): doc is S["Type"] & PlanDocumentLineage => isLineage(doc),
-    { message: LINEAGE_MESSAGE, jsonSchema: { description: ROOT_DESCRIPTION } },
+    { message: LINEAGE_MESSAGE, description: ROOT_DESCRIPTION, toJsonSchema: () => ({}) },
   );
 
 interface QuestionBearing {
@@ -121,8 +121,10 @@ interface QuestionBearing {
 }
 
 // Every check this module runs that JSON Schema does not express, in one root
-// description (Effect keeps only the last root filter's): the lineage pairing,
-// the question checks, and an authoring answer's empty arbitrated questions.
+// description, which the lineage filter carries: the lineage pairing, the
+// question checks, and an authoring answer's empty arbitrated questions. A
+// second root description would land under `allOf`, outside a provider's
+// strict structured output.
 const ROOT_DESCRIPTION = `Checked by phax's parser, not by this JSON Schema: ${LINEAGE_MESSAGE}; in the preamble, ${QUESTION_CHECKS_DESCRIPTION}, and a decided verdict's \`phase\` names one of the plan's phases; and an authoring session's answer leaves every question open, so its preamble.arbitratedQuestions is [].`;
 
 // The shared question checks, plus a decided verdict's phase.
@@ -156,7 +158,7 @@ export const PlanDocumentFileSchema = PlanDocumentFileStruct.pipe(
   lineageFilter<typeof PlanDocumentFileStruct>(),
 ).check(
   Schema.makeFilter((doc) => violationIssue(firstPlanQuestionViolation(doc)), {
-    jsonSchema: { description: ROOT_DESCRIPTION },
+    toJsonSchema: () => ({}),
   }),
 );
 

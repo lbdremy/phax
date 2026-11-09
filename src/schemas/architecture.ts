@@ -6,6 +6,7 @@
 // is, then its parts.
 import { Schema } from "effect";
 import { schemaUrlField } from "./schemaUrl.js";
+import { isExportedPattern } from "./strictString.js";
 
 // ── architecture request
 
@@ -65,10 +66,9 @@ export const GLOB_DIALECT =
 /** One glob in phax's dialect: a report part's globs and a phax.json globs bound share it. */
 export const ArchitectureGlobSchema = Schema.NonEmptyString.check(
   Schema.makeFilter((glob) => architectureGlobProblem(glob), {
-    jsonSchema: {
-      description:
-        "Checked by phax's parser: no leading /, backslash, brace, backtick or control character, no empty, . or .. segment, and ** only as a whole segment.",
-    },
+    description:
+      "Checked by phax's parser: no leading /, backslash, brace, backtick or control character, no empty, . or .. segment, and ** only as a whole segment.",
+    toJsonSchema: () => ({}),
   }),
 );
 
@@ -84,7 +84,7 @@ function firstRepeatedPartId(parts: ReadonlyArray<{ readonly id: string }>): str
 /** One part of the code an architecture report describes. */
 /** A part id: a kebab-case slug, as a report declares it and a phax.json bound names it. */
 export const ArchitecturePartIdSchema = Schema.NonEmptyString.check(
-  Schema.isPattern(/^[a-z0-9]+(-[a-z0-9]+)*$/, {
+  isExportedPattern(/^[a-z0-9]+(-[a-z0-9]+)*$/, {
     message: "a kebab-case slug: lowercase letters and digits, single hyphens between",
   }),
 );
@@ -124,10 +124,9 @@ export const ArchitectureReportFileSchema = Schema.Struct({
           : `part id ${JSON.stringify(repeated)} is used twice`;
       },
       {
-        jsonSchema: {
-          description:
-            "The parts of the code the report describes, possibly empty. No two parts share an id (checked by phax's parser). A part names no model or effort: the repository's owner binds those in phax.json.",
-        },
+        description:
+          "The parts of the code the report describes, possibly empty. No two parts share an id (checked by phax's parser). A part names no model or effort: the repository's owner binds those in phax.json.",
+        toJsonSchema: () => ({}),
       },
     ),
   ),

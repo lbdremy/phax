@@ -13,6 +13,7 @@
 // beside `effect` for one message that names the value's fault.
 import { Schema } from "effect";
 import { refusalMessage } from "./refusal/adapter.js";
+import { isExportedPattern } from "./strictString.js";
 
 export const TestSizeSchema = Schema.Literals(["small", "medium", "large"]);
 export const TestTechniqueSchema = Schema.Literals([
@@ -52,7 +53,7 @@ const ONE_LINE_TRIMMED = new RegExp(`^${ONE_LINE_EDGE}(?:${ONE_LINE_CHAR}*${ONE_
 // One pattern for both halves; its message names the half the value breaks.
 const oneLineText = (coordinate: string) =>
   Schema.String.check(
-    Schema.isPattern(
+    isExportedPattern(
       ONE_LINE_TRIMMED,
       refusalMessage((actual) =>
         typeof actual === "string" && !ONE_LINE.test(actual)
@@ -88,9 +89,8 @@ function oracleViolation(oracle: string): string | undefined {
 // The filter's JSON Schema description is the one the field renders with.
 const OracleSchema = oneLineText("oracle").check(
   Schema.makeFilter((oracle) => oracleViolation(oracle) ?? true, {
-    jsonSchema: {
-      description: `What the test compares against: one non-empty, trimmed line, ${ORACLE_RULES} (these three checked by phax, not by this JSON Schema).`,
-    },
+    description: `What the test compares against: one non-empty, trimmed line, ${ORACLE_RULES} (these three checked by phax, not by this JSON Schema).`,
+    toJsonSchema: () => ({}),
   }),
 );
 
@@ -102,7 +102,7 @@ export const RESERVED_CRITERIA: ReadonlyArray<string> = [...TEST_LOOPS, "oracle"
 
 const CriterionSchema = Schema.String.check(
   // eslint-disable-next-line no-control-regex
-  Schema.isPattern(/^[^\s`\x00-\x1F\x7F-\x9F]+$/, {
+  isExportedPattern(/^[^\s`\x00-\x1F\x7F-\x9F]+$/, {
     message:
       "a criterion is a run of non-whitespace characters holding no backtick and no control character",
   }),
@@ -111,10 +111,9 @@ const CriterionSchema = Schema.String.check(
       !RESERVED_CRITERIA.includes(criterion) ||
       "a criterion is neither 'acceptance', 'in-phase' nor 'oracle'",
     {
-      jsonSchema: {
-        description:
-          "An acceptance criterion id from the source spec's JSON sidecar: a run of non-whitespace characters, no backtick, neither 'acceptance', 'in-phase' nor 'oracle' (that last checked by phax, not by this JSON Schema).",
-      },
+      description:
+        "An acceptance criterion id from the source spec's JSON sidecar: a run of non-whitespace characters, no backtick, neither 'acceptance', 'in-phase' nor 'oracle' (that last checked by phax, not by this JSON Schema).",
+      toJsonSchema: () => ({}),
     },
   ),
 );

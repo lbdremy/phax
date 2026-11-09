@@ -215,7 +215,9 @@ describe("annotations in the snapshot gate", () => {
         notes.nested === undefined ? {} : { description: notes.nested },
       ),
     });
-    const member = Schema.Number.annotate(
+    // Effect 4 renders Schema.Number through a JSON encoding that drops its
+    // annotations; Schema.Finite renders as a plain JSON number.
+    const member = Schema.Finite.annotate(
       notes.member === undefined ? {} : { description: notes.member, examples: [1, 2] },
     );
     return render(

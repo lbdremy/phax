@@ -7,8 +7,17 @@
 // schemas package lists it as the format's 0.26.0 release.
 import { Schema } from "effect";
 
+// `Schema.isPattern` whose JSON Schema is the RegExp's source, whatever its
+// flags: Effect 4 exports a pattern only for a RegExp with the `u` flag.
+function isExportedPattern(regExp: RegExp, annotations?: Schema.Annotations.Filter) {
+  return Schema.isPattern(regExp, {
+    toJsonSchema: () => ({ pattern: regExp.source }),
+    ...annotations,
+  });
+}
+
 const RunListSchemaUrlSchema = Schema.String.check(
-  Schema.isPattern(
+  isExportedPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/run-list\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
 ).pipe(
@@ -19,7 +28,7 @@ const RunListSchemaUrlSchema = Schema.String.check(
 );
 
 const ReviewStopSchemaUrlSchema = Schema.String.check(
-  Schema.isPattern(
+  isExportedPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/review-stop\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
 ).pipe(
@@ -36,7 +45,7 @@ const ProviderIdSchema = Schema.Union([
 ]);
 
 const FullCommitShaSchema = Schema.String.check(
-  Schema.isPattern(/^[0-9a-f]{40}([0-9a-f]{24})?$/),
+  isExportedPattern(/^[0-9a-f]{40}([0-9a-f]{24})?$/),
 ).pipe(
   Schema.annotate({
     description: "A commit's full object name: 40 lowercase hex digits (SHA-1) or 64 (SHA-256).",
@@ -56,7 +65,7 @@ const RunStateSchema = Schema.Union([
   Schema.Literal("awaiting_review"),
 ]);
 
-const PhaseIdSchema = Schema.String.check(Schema.isPattern(/^phase-\d{2}$/));
+const PhaseIdSchema = Schema.String.check(isExportedPattern(/^phase-\d{2}$/));
 
 const InstantSchema = Schema.NonEmptyString.annotate({ description: "An ISO-8601 instant." });
 
