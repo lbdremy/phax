@@ -3678,7 +3678,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "run.shortName: Expected a non empty string, actual \"\""
+          "refusal": "run.shortName: Expected a string at least 1 character(s) long, actual \"\""
         }
       }
     ],
@@ -4775,7 +4775,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "run.shortName: Expected a non empty string, actual \"\""
+          "refusal": "run.shortName: Expected a string at least 1 character(s) long, actual \"\""
         }
       }
     ],
@@ -6111,7 +6111,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "run.shortName: Expected a non empty string, actual \"\""
+          "refusal": "run.shortName: Expected a string at least 1 character(s) long, actual \"\""
         }
       }
     ],
@@ -7510,7 +7510,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "run.shortName: Expected a non empty string, actual \"\""
+          "refusal": "run.shortName: Expected a string at least 1 character(s) long, actual \"\""
         }
       }
     ],
@@ -8990,7 +8990,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "run.shortName: Expected a non empty string, actual \"\""
+          "refusal": "run.shortName: Expected a string at least 1 character(s) long, actual \"\""
         }
       }
     ],

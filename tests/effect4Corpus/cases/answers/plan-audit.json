@@ -123,7 +123,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "  findings.0.message: Expected a non empty string, actual \"\""
+        "refusal": "  findings.0.message: Expected a string at least 1 character(s) long, actual \"\""
       }
     },
     {
@@ -140,7 +140,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "  findings.0.phases.0: Expected a non empty string, actual \"\""
+        "refusal": "  findings.0.phases.0: Expected a string at least 1 character(s) long, actual \"\""
       }
     },
     {

@@ -561,7 +561,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "  gateProfiles.standard.0.surface: Expected \"local\", actual \"remote\"\n  gateProfiles.standard.0.surface: Expected \"structural\", actual \"remote\"\n  gateProfiles.standard.0.surface: Expected \"product\", actual \"remote\""
+        "refusal": "  gateProfiles.standard.0.surface: Expected \"local\" | \"structural\" | \"product\", actual \"remote\""
       }
     },
     {
@@ -581,7 +581,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "  gateProfiles.standard.0.firing: Expected \"every-phase\", actual \"always\"\n  gateProfiles.standard.0.firing: Expected \"terminal\", actual \"always\""
+        "refusal": "  gateProfiles.standard.0.firing: Expected \"every-phase\" | \"terminal\", actual \"always\""
       }
     },
     {
@@ -672,7 +672,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "  agent.maxFixAttempts: Expected a number between 1 and 10, actual 11\n  agent.maxFixAttempts: Expected undefined, actual 11\n  agent: Expected undefined, actual {\"maxFixAttempts\":11}"
+        "refusal": "  agent.maxFixAttempts: Expected a number between 1 and 10, actual 11"
       }
     },
     {
@@ -695,7 +695,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "  agent.maxFixAttempts: Expected an integer, actual 2.5\n  agent.maxFixAttempts: Expected undefined, actual 2.5\n  agent: Expected undefined, actual {\"maxFixAttempts\":2.5}"
+        "refusal": "  agent.maxFixAttempts: Expected an integer, actual 2.5"
       }
     },
     {
@@ -729,7 +729,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "  gateProfiles.standard.0.command: Expected a non empty string, actual \"\""
+        "refusal": "  gateProfiles.standard.0.command: Expected a string at least 1 character(s) long, actual \"\""
       }
     },
     {
@@ -773,7 +773,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "  protectedPaths.0: \"/etc/passwd\" starts with /\n  protectedPaths: Expected undefined, actual [\"/etc/passwd\"]"
+        "refusal": "  protectedPaths.0: \"/etc/passwd\" starts with /"
       }
     },
     {
@@ -794,7 +794,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "  protectedPaths.0: is missing\n  protectedPaths: Expected undefined, actual []"
+        "refusal": "  protectedPaths.0: is missing"
       }
     },
     {
@@ -938,7 +938,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "  records.destination.remote: records.destination.remote must be an https://, ssh://, or git@host:path URL\n  records: Expected undefined, actual {\"transcript\":false,\"destination\":{\"kind\":\"repo\",\"remote\":\"http://example.com/r.git\"},\"autoPush\":false}"
+        "refusal": "  records.destination.remote: records.destination.remote must be an https://, ssh://, or git@host:path URL"
       }
     },
     {
@@ -961,7 +961,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "  security.profile: Expected \"secure\", actual \"lax\"\n  security.profile: Expected \"unsafe\", actual \"lax\"\n  security.profile: Expected \"isolated\", actual \"lax\"\n  security.profile: Expected undefined, actual \"lax\"\n  security: Expected undefined, actual {\"profile\":\"lax\"}"
+        "refusal": "  security.profile: Expected one of \"secure\" | \"unsafe\" | \"isolated\" | undefined, actual \"lax\""
       }
     },
     {
@@ -987,7 +987,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "  workspaces.0.path: is missing\n  workspaces: Expected undefined, actual [{\"id\":\"site\",\"name\":\"Site\"}]"
+        "refusal": "  workspaces.0.path: is missing"
       }
     },
     {
@@ -1009,7 +1009,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "  colour: is unexpected, expected: \"$schema\" | \"version\" | \"name\" | \"state\" | \"agent\" | \"commands\" | \"fileReconciliation\" | \"security\" | \"publish\" | \"brief\" | \"planAuditor\" | \"architecture\" | \"acceptance\" | \"review\" | \"authoring\" | \"gateProfiles\" | \"workspaces\" | \"records\" | \"assignments\" | \"protectedPaths\"\n  version: Expected 1, actual 2\n  name: Expected a non empty string, actual \"\"\n  gateProfiles.standard.0.surface: Expected \"local\", actual \"remote\"\n  gateProfiles.standard.0.surface: Expected \"structural\", actual \"remote\"\n  gateProfiles.standard.0.surface: Expected \"product\", actual \"remote\"\n  gate step \"pnpm test\": output must be \"log\" or \"gate-report\""
+        "refusal": "  colour: is unexpected, expected: \"$schema\" | \"version\" | \"name\" | \"state\" | \"agent\" | \"commands\" | \"fileReconciliation\" | \"security\" | \"publish\" | \"brief\" | \"planAuditor\" | \"architecture\" | \"acceptance\" | \"review\" | \"authoring\" | \"gateProfiles\" | \"workspaces\" | \"records\" | \"assignments\" | \"protectedPaths\"\n  version: Expected 1, actual 2\n  name: Expected a string at least 1 character(s) long, actual \"\"\n  gateProfiles.standard.0.surface: Expected \"local\" | \"structural\" | \"product\", actual \"remote\"\n  gate step \"pnpm test\": output must be \"log\" or \"gate-report\""
       }
     },
     {

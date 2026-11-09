@@ -327,7 +327,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "  providers.claude-code.families.claude-opus.models.0.status: Expected \"active\", actual \"retired\"\n  providers.claude-code.families.claude-opus.models.0.status: Expected \"deprecated\", actual \"retired\"\n  providers.claude-code.families: Expected undefined, actual {\"claude-opus\":{\"models\":[{\"id\":\"claude-opus-5-5\",\"efforts\":[\"high\"],\"status\":\"retired\"}]}}"
+        "refusal": "  providers.claude-code.families.claude-opus.models.0.status: Expected \"active\" | \"deprecated\", actual \"retired\""
       }
     },
     {
@@ -355,7 +355,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "  providers.claude-code.families.claude-opus.models.0.efforts.0: Expected \"none\", actual \"extreme\"\n  providers.claude-code.families.claude-opus.models.0.efforts.0: Expected \"off\", actual \"extreme\"\n  providers.claude-code.families.claude-opus.models.0.efforts.0: Expected \"low\", actual \"extreme\"\n  providers.claude-code.families.claude-opus.models.0.efforts.0: Expected \"medium\", actual \"extreme\"\n  providers.claude-code.families.claude-opus.models.0.efforts.0: Expected \"high\", actual \"extreme\"\n  providers.claude-code.families.claude-opus.models.0.efforts.0: Expected \"xhigh\", actual \"extreme\"\n  providers.claude-code.families.claude-opus.models.0.efforts.0: Expected \"max\", actual \"extreme\"\n  providers.claude-code.families.claude-opus.models.0.efforts.0: Expected \"ultracode\", actual \"extreme\"\n  providers.claude-code.families.claude-opus.models.0.efforts.0: Expected \"ultra\", actual \"extreme\"\n  providers.claude-code.families: Expected undefined, actual {\"claude-opus\":{\"models\":[{\"id\":\"claude-opus-5-5\",\"efforts\":[\"extreme\"],\"status\":\"active\"}]}}"
+        "refusal": "  providers.claude-code.families.claude-opus.models.0.efforts.0: Expected \"none\" | \"off\" | \"low\" | \"medium\" | \"high\" | \"xhigh\" | \"max\" | \"ultracode\" | \"ultra\", actual \"extreme\""
       }
     },
     {
@@ -400,7 +400,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "  providers.claude-code.executable: Expected a non empty string, actual \"\""
+        "refusal": "  providers.claude-code.executable: Expected a string at least 1 character(s) long, actual \"\""
       }
     },
     {
@@ -426,7 +426,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "  providers.claude-code.families.claude-opus.models.0.efforts.0: is missing\n  providers.claude-code.families: Expected undefined, actual {\"claude-opus\":{\"models\":[{\"id\":\"claude-opus-5-5\",\"efforts\":[],\"status\":\"active\"}]}}"
+        "refusal": "  providers.claude-code.families.claude-opus.models.0.efforts.0: is missing"
       }
     },
     {
@@ -446,7 +446,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "  providers.claude-code.families.claude-opus.models.0: is missing\n  providers.claude-code.families: Expected undefined, actual {\"claude-opus\":{\"models\":[]}}"
+        "refusal": "  providers.claude-code.families.claude-opus.models.0: is missing"
       }
     }
   ]

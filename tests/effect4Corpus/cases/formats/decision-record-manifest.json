@@ -1765,7 +1765,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "decisionId: Expected `<stamp>-<slug>/<NN>`, the Decision-Id trailer., actual \"\""
+          "refusal": "decisionId: Expected a string matching the pattern ^[^/\\s]+\\/\\d{2,}$, actual \"\""
         }
       }
     ],

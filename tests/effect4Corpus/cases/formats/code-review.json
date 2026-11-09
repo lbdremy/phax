@@ -540,7 +540,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "findings[0].file: Expected The path the finding is about, as the reviewer gave it., actual \"\""
+          "refusal": "findings[0].file: Expected a string at least 1 character(s) long, actual \"\""
         }
       }
     ]
