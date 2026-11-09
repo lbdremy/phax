@@ -7,11 +7,12 @@
 // lists it as the format's 0.26.0 release.
 import { Schema } from "effect";
 
-const SchemaUrlSchema = Schema.String.pipe(
-  Schema.pattern(
+const SchemaUrlSchema = Schema.String.check(
+  Schema.isPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/gate-attribution\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
-  Schema.annotations({
+).pipe(
+  Schema.annotate({
     description:
       "The gate-attribution format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): https://docs.phax.run/schemas/gate-attribution/<X.Y.Z>.json",
   }),
@@ -19,17 +20,17 @@ const SchemaUrlSchema = Schema.String.pipe(
 
 const ConfiguredStepResultSchema = Schema.Struct({
   command: Schema.NonEmptyString,
-  surface: Schema.Literal("local", "structural", "product"),
-  result: Schema.Literal("pass", "fail", "refused"),
+  surface: Schema.Literals(["local", "structural", "product"]),
+  result: Schema.Literals(["pass", "fail", "refused"]),
 });
 
 const OracleStepResultSchema = Schema.Struct({
   command: Schema.NonEmptyString,
   surface: Schema.Literal("oracle"),
-  result: Schema.Literal("pass", "fail", "refused", "skipped"),
+  result: Schema.Literals(["pass", "fail", "refused", "skipped"]),
 });
 
-const GateStepResultSchema = Schema.Union(ConfiguredStepResultSchema, OracleStepResultSchema);
+const GateStepResultSchema = Schema.Union([ConfiguredStepResultSchema, OracleStepResultSchema]);
 
 export const GateAttributionV0_26_0Schema = Schema.Struct({
   $schema: SchemaUrlSchema,
@@ -41,4 +42,5 @@ export type GateAttributionV0_26_0 = Schema.Schema.Type<typeof GateAttributionV0
 
 export const decodeGateAttributionV0_26_0 = Schema.decodeUnknownResult(
   GateAttributionV0_26_0Schema,
+  { reportInput: true },
 );

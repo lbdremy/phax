@@ -9,21 +9,22 @@
 // cannot move it.
 import { Schema } from "effect";
 
-const ComplianceReviewSchemaUrlSchema = Schema.String.pipe(
-  Schema.pattern(
+const ComplianceReviewSchemaUrlSchema = Schema.String.check(
+  Schema.isPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/compliance-review\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
-  Schema.annotations({
+).pipe(
+  Schema.annotate({
     description:
       "The compliance-review format and the phax release that wrote this file: https://docs.phax.run/schemas/compliance-review/<X.Y.Z>.json",
   }),
 );
 
-const VerdictSchema = Schema.Literal("conformant", "conformant-with-deviations", "divergent");
+const VerdictSchema = Schema.Literals(["conformant", "conformant-with-deviations", "divergent"]);
 
-const SeveritySchema = Schema.Literal("info", "deviation", "concern");
+const SeveritySchema = Schema.Literals(["info", "deviation", "concern"]);
 
-const DimensionSchema = Schema.Literal(
+const DimensionSchema = Schema.Literals([
   "objective",
   "excluded-scope",
   "files",
@@ -31,7 +32,7 @@ const DimensionSchema = Schema.Literal(
   "boundaries",
   "commit",
   "handoff",
-);
+]);
 
 const FindingSchema = Schema.Struct({
   dimension: DimensionSchema,
@@ -59,5 +60,5 @@ export type ComplianceReviewV0_17_0 = Schema.Schema.Type<typeof ComplianceReview
 
 export const decodeComplianceReviewV0_17_0 = Schema.decodeUnknownResult(
   ComplianceReviewV0_17_0Schema,
-  { onExcessProperty: "error" },
+  { onExcessProperty: "error", reportInput: true },
 );

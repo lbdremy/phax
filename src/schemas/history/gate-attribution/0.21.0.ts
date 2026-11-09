@@ -6,22 +6,23 @@
 // 0.21.0 release.
 import { Schema } from "effect";
 
-const SchemaUrlSchema = Schema.String.pipe(
-  Schema.pattern(
+const SchemaUrlSchema = Schema.String.check(
+  Schema.isPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/gate-attribution\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
-  Schema.annotations({
+).pipe(
+  Schema.annotate({
     description:
       "The gate-attribution format and the phax release that wrote this file: https://docs.phax.run/schemas/gate-attribution/<X.Y.Z>.json",
   }),
 );
 
-const SurfaceSchema = Schema.Literal("local", "structural", "product");
+const SurfaceSchema = Schema.Literals(["local", "structural", "product"]);
 
 const GateStepResultSchema = Schema.Struct({
   command: Schema.NonEmptyString,
   surface: SurfaceSchema,
-  result: Schema.Literal("pass", "fail", "refused"),
+  result: Schema.Literals(["pass", "fail", "refused"]),
 });
 
 export const GateAttributionV0_21_0Schema = Schema.Struct({
@@ -34,4 +35,5 @@ export type GateAttributionV0_21_0 = Schema.Schema.Type<typeof GateAttributionV0
 
 export const decodeGateAttributionV0_21_0 = Schema.decodeUnknownResult(
   GateAttributionV0_21_0Schema,
+  { reportInput: true },
 );

@@ -6,17 +6,18 @@
 // the format's 0.26.0 release.
 import { Schema } from "effect";
 
-const SchemaUrlSchema = Schema.String.pipe(
-  Schema.pattern(
+const SchemaUrlSchema = Schema.String.check(
+  Schema.isPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/phax-plan\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
-  Schema.annotations({
+).pipe(
+  Schema.annotate({
     description:
       "The phax-plan format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): https://docs.phax.run/schemas/phax-plan/<X.Y.Z>.json",
   }),
 );
 
-const EffortSchema = Schema.Literal(
+const EffortSchema = Schema.Literals([
   "none",
   "off",
   "low",
@@ -26,9 +27,9 @@ const EffortSchema = Schema.Literal(
   "max",
   "ultracode",
   "ultra",
-);
+]);
 
-const PhaseIdSchema = Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/));
+const PhaseIdSchema = Schema.String.check(Schema.isPattern(/^phase-\d{2}$/));
 
 const PhaseSchema = Schema.Struct({
   id: PhaseIdSchema,
@@ -39,7 +40,7 @@ const PhaseSchema = Schema.Struct({
   plannedFilesToCreate: Schema.Array(Schema.String),
   plannedFilesToEdit: Schema.Array(Schema.String),
   optionalFilesToEdit: Schema.Array(Schema.String),
-  mode: Schema.Literal("headless", "interactive"),
+  mode: Schema.Literals(["headless", "interactive"]),
   oracle: Schema.NullOr(
     Schema.Struct({
       dischargedBy: PhaseIdSchema,
@@ -67,4 +68,5 @@ export type PhaxPlanV0_26_0 = Schema.Schema.Type<typeof PhaxPlanV0_26_0Schema>;
 
 export const decodePhaxPlanV0_26_0 = Schema.decodeUnknownResult(PhaxPlanV0_26_0Schema, {
   onExcessProperty: "error",
+  reportInput: true,
 });

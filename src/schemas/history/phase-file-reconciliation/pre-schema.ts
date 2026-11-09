@@ -27,4 +27,5 @@ export type PhaseFileReconciliationPreSchema = Schema.Schema.Type<
 
 export const decodePhaseFileReconciliationPreSchema = Schema.decodeUnknownResult(
   PhaseFileReconciliationPreSchemaSchema,
+  { reportInput: true },
 );

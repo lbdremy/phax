@@ -6,17 +6,18 @@
 // it as the format's 0.26.0 release.
 import { Schema } from "effect";
 
-const SchemaUrlSchema = Schema.String.pipe(
-  Schema.pattern(
+const SchemaUrlSchema = Schema.String.check(
+  Schema.isPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/phase-status\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
-  Schema.annotations({
+).pipe(
+  Schema.annotate({
     description:
       "The phase-status format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): https://docs.phax.run/schemas/phase-status/<X.Y.Z>.json",
   }),
 );
 
-const PhaseStateSchema = Schema.Union(
+const PhaseStateSchema = Schema.Union([
   Schema.Literal("pending"),
   Schema.Literal("setting_up_worktree"),
   Schema.Literal("running"),
@@ -33,9 +34,9 @@ const PhaseStateSchema = Schema.Union(
   Schema.Literal("skipped"),
   Schema.Literal("rate_limited"),
   Schema.Literal("awaiting_review"),
-);
+]);
 
-const EffortSchema = Schema.Union(
+const EffortSchema = Schema.Union([
   Schema.Literal("none"),
   Schema.Literal("off"),
   Schema.Literal("low"),
@@ -45,7 +46,7 @@ const EffortSchema = Schema.Union(
   Schema.Literal("max"),
   Schema.Literal("ultracode"),
   Schema.Literal("ultra"),
-);
+]);
 
 function isSafeBranchName(s: string): boolean {
   if (s.length === 0 || s[0] === "-") return false;
@@ -57,36 +58,36 @@ function isSafeBranchName(s: string): boolean {
   return true;
 }
 
-const BranchNameSchema = Schema.String.pipe(
-  Schema.minLength(1),
-  Schema.maxLength(255),
-  Schema.filter(isSafeBranchName, {
-    message: () => "branch name must not start with '-' or contain whitespace/control characters",
+const BranchNameSchema = Schema.String.check(
+  Schema.isMinLength(1),
+  Schema.isMaxLength(255),
+  Schema.makeFilter(isSafeBranchName, {
+    message: "branch name must not start with '-' or contain whitespace/control characters",
     jsonSchema: { pattern: "^[^\\x00-\\x20\\x7f-][^\\x00-\\x20\\x7f]*$" },
   }),
-  Schema.brand("BranchName"),
-);
+).pipe(Schema.brand("BranchName"));
 
-const FullCommitShaSchema = Schema.String.pipe(
-  Schema.pattern(/^[0-9a-f]{40}([0-9a-f]{24})?$/),
-  Schema.annotations({
+const FullCommitShaSchema = Schema.String.check(
+  Schema.isPattern(/^[0-9a-f]{40}([0-9a-f]{24})?$/),
+).pipe(
+  Schema.annotate({
     description: "A commit's full object name: 40 lowercase hex digits (SHA-1) or 64 (SHA-256).",
   }),
 );
 
-const PhaseModeSchema = Schema.Literal("headless", "interactive");
+const PhaseModeSchema = Schema.Literals(["headless", "interactive"]);
 
 const ClosedBySchema = Schema.Struct({
   name: Schema.NonEmptyString,
   email: Schema.NonEmptyString,
 })
-  .annotations({
+  .annotate({
     description:
       "The git identity of the checkout that closed the stop, read from its configuration and never from a commit.",
   })
-  .annotations({ jsonSchema: { additionalProperties: false } });
+  .annotate({ jsonSchema: { additionalProperties: false } });
 
-const OracleStepSchema = Schema.Literal("authored", "none").annotations({
+const OracleStepSchema = Schema.Literals(["authored", "none"]).annotate({
   description:
     "Whether the close's gate ended with the `authored` oracle step, which passed, since the close committed.",
 });
@@ -94,28 +95,28 @@ const OracleStepSchema = Schema.Literal("authored", "none").annotations({
 const strictStop = { jsonSchema: { additionalProperties: false } } as const;
 
 const PhaseStopSchema = Schema.NullOr(
-  Schema.Union(
+  Schema.Union([
     Schema.Struct({
       cause: Schema.Literal("declared"),
       status: Schema.Literal("waiting"),
-    }).annotations(strictStop),
+    }).annotate(strictStop),
     Schema.Struct({
       cause: Schema.Literal("declared"),
       status: Schema.Literal("closed"),
       outcome: Schema.Literal("corrected"),
       oracleStep: OracleStepSchema,
       closedBy: ClosedBySchema,
-    }).annotations(strictStop),
+    }).annotate(strictStop),
     Schema.Struct({
       cause: Schema.Literal("declared"),
       status: Schema.Literal("closed"),
       outcome: Schema.Literal("unchanged"),
       closedBy: ClosedBySchema,
-    }).annotations(strictStop),
+    }).annotate(strictStop),
     Schema.Struct({
       cause: Schema.Literal("held"),
       status: Schema.Literal("waiting"),
-    }).annotations(strictStop),
+    }).annotate(strictStop),
     Schema.Struct({
       cause: Schema.Literal("held"),
       status: Schema.Literal("closed"),
@@ -123,14 +124,14 @@ const PhaseStopSchema = Schema.NullOr(
       reviewCommit: FullCommitShaSchema,
       oracleStep: OracleStepSchema,
       closedBy: ClosedBySchema,
-    }).annotations(strictStop),
+    }).annotate(strictStop),
     Schema.Struct({
       cause: Schema.Literal("held"),
       status: Schema.Literal("closed"),
       outcome: Schema.Literal("unchanged"),
       closedBy: ClosedBySchema,
-    }).annotations(strictStop),
-  ).annotations({ parseOptions: { onExcessProperty: "error" } }),
+    }).annotate(strictStop),
+  ]).annotate({ parseOptions: { onExcessProperty: "error" } }),
 );
 
 export const PhaseStatusV0_26_0Schema = Schema.Struct({
@@ -143,7 +144,7 @@ export const PhaseStatusV0_26_0Schema = Schema.Struct({
   createdAt: Schema.NonEmptyString,
   updatedAt: Schema.NonEmptyString,
   branchName: BranchNameSchema,
-  base: FullCommitShaSchema.annotations({
+  base: FullCommitShaSchema.annotate({
     description:
       "The full object name of the commit this phase's branch was created from, noted when phax created the branch.",
   }),
@@ -156,4 +157,6 @@ export const PhaseStatusV0_26_0Schema = Schema.Struct({
 
 export type PhaseStatusV0_26_0 = Schema.Schema.Type<typeof PhaseStatusV0_26_0Schema>;
 
-export const decodePhaseStatusV0_26_0 = Schema.decodeUnknownResult(PhaseStatusV0_26_0Schema);
+export const decodePhaseStatusV0_26_0 = Schema.decodeUnknownResult(PhaseStatusV0_26_0Schema, {
+  reportInput: true,
+});

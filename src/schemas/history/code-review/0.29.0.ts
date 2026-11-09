@@ -8,21 +8,28 @@
 // cannot move it.
 import { Schema } from "effect";
 
-const CodeReviewSchemaUrlSchema = Schema.String.pipe(
-  Schema.pattern(
+const CodeReviewSchemaUrlSchema = Schema.String.check(
+  Schema.isPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/code-review\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
-  Schema.annotations({
+).pipe(
+  Schema.annotate({
     description:
       "The code-review format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): https://docs.phax.run/schemas/code-review/<X.Y.Z>.json",
   }),
 );
 
-const notOneOf =
-  (noun: string, ids: readonly string[]) => (issue: { readonly actual: unknown }) => ({
-    message: `${JSON.stringify(issue.actual)} is not ${noun} (expected one of ${ids.join(", ")})`,
-    override: true,
-  });
+// phax's own refusal text for a refused value, computed from it. The annotation key is the
+// one src/schemas/refusal/adapter.ts reads, written out here because a frozen module imports
+// only effect.
+const refusalOverride = (message: (actual: unknown) => string) => ({
+  phaxRefusalOverride: message,
+});
+
+const notOneOf = (noun: string, ids: readonly string[]) =>
+  refusalOverride(
+    (actual) => `${JSON.stringify(actual)} is not ${noun} (expected one of ${ids.join(", ")})`,
+  );
 
 const SEVERITY_IDS = ["bug", "deviation", "concern", "info"] as const;
 const LENS_IDS = [
@@ -45,37 +52,29 @@ const ESCAPE_IDS = [
   "untestable",
 ] as const;
 
-const SeveritySchema = Schema.Literal(...SEVERITY_IDS).annotations({
-  message: notOneOf("a severity", SEVERITY_IDS),
-});
+const SeveritySchema = Schema.Literals(SEVERITY_IDS).annotate(notOneOf("a severity", SEVERITY_IDS));
 
-const LensSchema = Schema.Literal(...LENS_IDS).annotations({
-  message: notOneOf("a lens", LENS_IDS),
-});
+const LensSchema = Schema.Literals(LENS_IDS).annotate(notOneOf("a lens", LENS_IDS));
 
-const EscapeSchema = Schema.Literal(...ESCAPE_IDS).annotations({
-  message: notOneOf("an escape", ESCAPE_IDS),
-});
+const EscapeSchema = Schema.Literals(ESCAPE_IDS).annotate(notOneOf("an escape", ESCAPE_IDS));
 
 const FindingSchema = Schema.Struct({
   severity: SeveritySchema,
-  file: Schema.NonEmptyString.annotations({
+  file: Schema.NonEmptyString.annotate({
     description: "The path the finding is about, as the reviewer gave it.",
   }),
-  line: Schema.Int.pipe(
-    Schema.positive(),
-    Schema.annotations({
+  line: Schema.Int.check(Schema.isGreaterThan(0)).pipe(
+    Schema.annotate({
       description: "The 1-based line the finding is about.",
-      message: (issue) => ({
-        message: `must be a positive integer, actual ${JSON.stringify(issue.actual)}`,
-        override: true,
-      }),
+      ...refusalOverride(
+        (actual) => `must be a positive integer, actual ${JSON.stringify(actual)}`,
+      ),
     }),
   ),
   message: Schema.NonEmptyString,
   lens: LensSchema,
   escape: EscapeSchema,
-  criterion: Schema.NullOr(Schema.NonEmptyString).annotations({
+  criterion: Schema.NullOr(Schema.NonEmptyString).annotate({
     description: "The acceptance criterion id the finding is about, or null.",
   }),
   suggestion: Schema.NonEmptyString,
@@ -91,4 +90,5 @@ export type CodeReviewV0_29_0 = Schema.Schema.Type<typeof CodeReviewV0_29_0Schem
 
 export const decodeCodeReviewV0_29_0 = Schema.decodeUnknownResult(CodeReviewV0_29_0Schema, {
   onExcessProperty: "error",
+  reportInput: true,
 });

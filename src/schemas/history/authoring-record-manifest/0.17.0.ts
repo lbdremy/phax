@@ -5,23 +5,24 @@
 // format's 0.17.0 release.
 import { Schema } from "effect";
 
-const SchemaUrlSchema = Schema.String.pipe(
-  Schema.pattern(
+const SchemaUrlSchema = Schema.String.check(
+  Schema.isPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/authoring-record-manifest\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
-  Schema.annotations({
+).pipe(
+  Schema.annotate({
     description:
       "The authoring-record-manifest format and the phax release that wrote this file: https://docs.phax.run/schemas/authoring-record-manifest/<X.Y.Z>.json",
   }),
 );
 
-const ProviderIdSchema = Schema.Union(
+const ProviderIdSchema = Schema.Union([
   Schema.Literal("claude-code"),
   Schema.Literal("codex-cli"),
   Schema.Literal("mistral-vibe"),
-);
+]);
 
-const RecordShapeSchema = Schema.Union(Schema.Literal("full"), Schema.Literal("skeleton"));
+const RecordShapeSchema = Schema.Union([Schema.Literal("full"), Schema.Literal("skeleton")]);
 
 const ClaudeTokenUsageSchema = Schema.Struct({
   provider: Schema.Literal("claude-code"),
@@ -51,18 +52,18 @@ const VibeTokenUsageSchema = Schema.Struct({
   toolCallsSucceeded: Schema.Number,
 });
 
-const ProviderTokenUsageSchema = Schema.Union(
+const ProviderTokenUsageSchema = Schema.Union([
   ClaudeTokenUsageSchema,
   CodexTokenUsageSchema,
   VibeTokenUsageSchema,
-);
+]);
 
-const TokenUsageSchema = Schema.Union(
+const TokenUsageSchema = Schema.Union([
   Schema.Struct({ available: Schema.Literal(true), usage: ProviderTokenUsageSchema }),
   Schema.Struct({ available: Schema.Literal(false) }),
-);
+]);
 
-const AuthoringRecordOutcomeSchema = Schema.Literal("committed", "failed");
+const AuthoringRecordOutcomeSchema = Schema.Literals(["committed", "failed"]);
 
 export const AuthoringRecordManifestV0_17_0Schema = Schema.Struct({
   $schema: SchemaUrlSchema,
@@ -70,7 +71,7 @@ export const AuthoringRecordManifestV0_17_0Schema = Schema.Struct({
   authoringId: Schema.NonEmptyString,
   /** Repo-relative path of the artifact the session authored (or would have). */
   artifact: Schema.NonEmptyString,
-  artifactKind: Schema.Literal("spec", "plan"),
+  artifactKind: Schema.Literals(["spec", "plan"]),
   shape: RecordShapeSchema,
   sourceSha: Schema.optional(Schema.NonEmptyString),
   provider: ProviderIdSchema,
@@ -86,5 +87,5 @@ export type AuthoringRecordManifestV0_17_0 = Schema.Schema.Type<
 
 export const decodeAuthoringRecordManifestV0_17_0 = Schema.decodeUnknownResult(
   AuthoringRecordManifestV0_17_0Schema,
-  { onExcessProperty: "error" },
+  { onExcessProperty: "error", reportInput: true },
 );

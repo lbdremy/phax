@@ -8,31 +8,32 @@
 // cannot move it.
 import { Schema } from "effect";
 
-const FirstReadingSchemaUrlSchema = Schema.String.pipe(
-  Schema.pattern(
+const FirstReadingSchemaUrlSchema = Schema.String.check(
+  Schema.isPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/first-reading\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
-  Schema.annotations({
+).pipe(
+  Schema.annotate({
     description:
       "The first-reading format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): https://docs.phax.run/schemas/first-reading/<X.Y.Z>.json",
   }),
 );
 
-const PhaseIdSchema = Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/));
+const PhaseIdSchema = Schema.String.check(Schema.isPattern(/^phase-\d{2}$/));
 
 /** A 0.26.0 `first-reading` document. Exactly these keys; any other is refused. */
 export const FirstReadingV0_26_0Schema = Schema.Struct({
   $schema: FirstReadingSchemaUrlSchema,
-  pattern: Schema.NonEmptyArray(Schema.NonEmptyString).annotations({
+  pattern: Schema.NonEmptyArray(Schema.NonEmptyString).annotate({
     description: "The pattern the phase introduces, one statement per item.",
   }),
   copiedBy: Schema.Array(
     Schema.Struct({
-      phase: PhaseIdSchema.annotations({ description: "The phase that copied the pattern." }),
-      what: Schema.NonEmptyString.annotations({ description: "What it copied." }),
+      phase: PhaseIdSchema.annotate({ description: "The phase that copied the pattern." }),
+      what: Schema.NonEmptyString.annotate({ description: "What it copied." }),
     }),
   ),
-  toCheck: Schema.Array(Schema.NonEmptyString).annotations({
+  toCheck: Schema.Array(Schema.NonEmptyString).annotate({
     description: "What the person should check first.",
   }),
 });
@@ -41,4 +42,5 @@ export type FirstReadingV0_26_0 = Schema.Schema.Type<typeof FirstReadingV0_26_0S
 
 export const decodeFirstReadingV0_26_0 = Schema.decodeUnknownResult(FirstReadingV0_26_0Schema, {
   onExcessProperty: "error",
+  reportInput: true,
 });

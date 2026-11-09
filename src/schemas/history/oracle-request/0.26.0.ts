@@ -10,63 +10,66 @@
 // patterns, so a later change to src/schemas/status.ts cannot move it.
 import { Schema } from "effect";
 
-const SchemaUrlSchema = Schema.String.pipe(
-  Schema.pattern(
+const SchemaUrlSchema = Schema.String.check(
+  Schema.isPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/oracle-request\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
-  Schema.annotations({
+).pipe(
+  Schema.annotate({
     description:
       "The oracle-request format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): https://docs.phax.run/schemas/oracle-request/<X.Y.Z>.json",
   }),
 );
 
-const PhaseIdSchema = Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/));
+const PhaseIdSchema = Schema.String.check(Schema.isPattern(/^phase-\d{2}$/));
 
-const FullCommitShaSchema = Schema.String.pipe(
-  Schema.pattern(/^[0-9a-f]{40}([0-9a-f]{24})?$/),
-  Schema.annotations({
+const FullCommitShaSchema = Schema.String.check(
+  Schema.isPattern(/^[0-9a-f]{40}([0-9a-f]{24})?$/),
+).pipe(
+  Schema.annotate({
     description: "A commit's full object name: 40 lowercase hex digits (SHA-1) or 64 (SHA-256).",
   }),
 );
 
-const filesSchema = Schema.NonEmptyArray(Schema.NonEmptyString).annotations({
+const filesSchema = Schema.NonEmptyArray(Schema.NonEmptyString).annotate({
   description:
     "The oracle files the pair declares, working-tree-root-relative paths in declaration order.",
 });
 
-export const OracleRequestV0_26_0Schema = Schema.Union(
+export const OracleRequestV0_26_0Schema = Schema.Union([
   Schema.Struct({
     $schema: SchemaUrlSchema,
-    verdict: Schema.Literal("authored").annotations({
+    verdict: Schema.Literal("authored").annotate({
       description: "Which judgment the provider gives: the oracle phase's tests are authored.",
     }),
-    phase: PhaseIdSchema.annotations({ description: "The gated phase." }),
-    oraclePhase: PhaseIdSchema.annotations({ description: "The pair's oracle phase." }),
-    base: FullCommitShaSchema.annotations({
+    phase: PhaseIdSchema.annotate({ description: "The gated phase." }),
+    oraclePhase: PhaseIdSchema.annotate({ description: "The pair's oracle phase." }),
+    base: FullCommitShaSchema.annotate({
       description: "The full object name of the commit the oracle phase's branch was created from.",
     }),
     files: filesSchema,
   }),
   Schema.Struct({
     $schema: SchemaUrlSchema,
-    verdict: Schema.Literal("discharged").annotations({
+    verdict: Schema.Literal("discharged").annotate({
       description:
         "Which judgment the provider gives: the discharging phase left no oracle marker.",
     }),
-    phase: PhaseIdSchema.annotations({ description: "The gated phase, the pair's discharger." }),
-    oraclePhase: PhaseIdSchema.annotations({ description: "The pair's oracle phase." }),
-    base: FullCommitShaSchema.annotations({
+    phase: PhaseIdSchema.annotate({ description: "The gated phase, the pair's discharger." }),
+    oraclePhase: PhaseIdSchema.annotate({ description: "The pair's oracle phase." }),
+    base: FullCommitShaSchema.annotate({
       description: "The full object name of the commit the oracle phase's branch was created from.",
     }),
-    oracleCommit: FullCommitShaSchema.annotations({
+    oracleCommit: FullCommitShaSchema.annotate({
       description: "The full object name of the oracle phase's commit, the one to judge against.",
     }),
     files: filesSchema,
   }),
-);
+]);
 
 export type OracleRequestV0_26_0 = Schema.Schema.Type<typeof OracleRequestV0_26_0Schema>;
 
 export const decodeOracleRequestV0_26_0 = Schema.decodeUnknownResult(OracleRequestV0_26_0Schema, {
   onExcessProperty: "error",
+  reportInput: true,
 });

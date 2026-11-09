@@ -5,17 +5,18 @@
 // it as the format's 0.17.0 release.
 import { Schema } from "effect";
 
-const SchemaUrlSchema = Schema.String.pipe(
-  Schema.pattern(
+const SchemaUrlSchema = Schema.String.check(
+  Schema.isPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/run-status\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
-  Schema.annotations({
+).pipe(
+  Schema.annotate({
     description:
       "The run-status format and the phax release that wrote this file: https://docs.phax.run/schemas/run-status/<X.Y.Z>.json",
   }),
 );
 
-const RunStateSchema = Schema.Union(
+const RunStateSchema = Schema.Union([
   Schema.Literal("created"),
   Schema.Literal("running"),
   Schema.Literal("failed"),
@@ -25,7 +26,7 @@ const RunStateSchema = Schema.Union(
   Schema.Literal("archived"),
   Schema.Literal("interrupted"),
   Schema.Literal("rate_limited"),
-);
+]);
 
 export const RunStatusV0_17_0Schema = Schema.Struct({
   $schema: SchemaUrlSchema,
@@ -46,4 +47,6 @@ export const RunStatusV0_17_0Schema = Schema.Struct({
 
 export type RunStatusV0_17_0 = Schema.Schema.Type<typeof RunStatusV0_17_0Schema>;
 
-export const decodeRunStatusV0_17_0 = Schema.decodeUnknownResult(RunStatusV0_17_0Schema);
+export const decodeRunStatusV0_17_0 = Schema.decodeUnknownResult(RunStatusV0_17_0Schema, {
+  reportInput: true,
+});

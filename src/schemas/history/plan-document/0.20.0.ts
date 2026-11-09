@@ -5,17 +5,18 @@
 // package lists it as the format's 0.20.0 release.
 import { Schema } from "effect";
 
-const SchemaUrlSchema = Schema.String.pipe(
-  Schema.pattern(
+const SchemaUrlSchema = Schema.String.check(
+  Schema.isPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/plan-document\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
-  Schema.annotations({
+).pipe(
+  Schema.annotate({
     description:
       "The plan-document format and the phax release that wrote this file: https://docs.phax.run/schemas/plan-document/<X.Y.Z>.json",
   }),
 );
 
-const EffortSchema = Schema.Literal(
+const EffortSchema = Schema.Literals([
   "none",
   "off",
   "low",
@@ -25,10 +26,10 @@ const EffortSchema = Schema.Literal(
   "max",
   "ultracode",
   "ultra",
-);
+]);
 
 const ExtractedPhaseFields = {
-  id: Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/)),
+  id: Schema.String.check(Schema.isPattern(/^phase-\d{2}$/)),
   model: Schema.NonEmptyString,
   effort: EffortSchema,
   planMarkdownAnchor: Schema.NonEmptyString,
@@ -64,7 +65,7 @@ const PlanDocumentStruct = Schema.Struct({
   $schema: SchemaUrlSchema,
   kind: Schema.Literal("plan"),
   sourceSpec: Schema.NullOr(Schema.NonEmptyString),
-  completesSpec: Schema.NullOr(Schema.Boolean).annotations({
+  completesSpec: Schema.NullOr(Schema.Boolean).annotate({
     description:
       "Whether this plan's run completes its source spec: true when it is the spec's last plan, false when more plans of the spec follow. A boolean beside a sourceSpec path; null beside sourceSpec: null.",
   }),
@@ -86,12 +87,12 @@ type PlanDocumentLineage =
 
 // The lineage check: a boolean `completesSpec` beside a `sourceSpec` path,
 // null beside `sourceSpec: null`.
-export const PlanDocumentV0_20_0Schema = PlanDocumentStruct.pipe(
-  Schema.filter(
+export const PlanDocumentV0_20_0Schema = PlanDocumentStruct.check(
+  Schema.makeFilter(
     (doc: PlanDocumentStructType): doc is PlanDocumentStructType & PlanDocumentLineage =>
       (doc.sourceSpec === null) === (doc.completesSpec === null),
     {
-      message: () =>
+      message:
         "completesSpec is a boolean beside a sourceSpec path and null beside sourceSpec: null",
       jsonSchema: {
         allOf: [
@@ -116,4 +117,5 @@ export type PlanDocumentV0_20_0 = Schema.Schema.Type<typeof PlanDocumentV0_20_0S
 
 export const decodePlanDocumentV0_20_0 = Schema.decodeUnknownResult(PlanDocumentV0_20_0Schema, {
   onExcessProperty: "error",
+  reportInput: true,
 });

@@ -5,17 +5,18 @@
 // lists it as the format's 0.17.0 release.
 import { Schema } from "effect";
 
-const SchemaUrlSchema = Schema.String.pipe(
-  Schema.pattern(
+const SchemaUrlSchema = Schema.String.check(
+  Schema.isPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/registry\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
-  Schema.annotations({
+).pipe(
+  Schema.annotate({
     description:
       "The registry format and the phax release that wrote this file: https://docs.phax.run/schemas/registry/<X.Y.Z>.json",
   }),
 );
 
-const RunStateSchema = Schema.Union(
+const RunStateSchema = Schema.Union([
   Schema.Literal("created"),
   Schema.Literal("running"),
   Schema.Literal("failed"),
@@ -25,7 +26,7 @@ const RunStateSchema = Schema.Union(
   Schema.Literal("archived"),
   Schema.Literal("interrupted"),
   Schema.Literal("rate_limited"),
-);
+]);
 
 const RegistryEntryV0_17_0Schema = Schema.Struct({
   namespace: Schema.NonEmptyString,
@@ -47,4 +48,6 @@ export const RegistryV0_17_0Schema = Schema.Struct({
 
 export type RegistryV0_17_0 = Schema.Schema.Type<typeof RegistryV0_17_0Schema>;
 
-export const decodeRegistryV0_17_0 = Schema.decodeUnknownResult(RegistryV0_17_0Schema);
+export const decodeRegistryV0_17_0 = Schema.decodeUnknownResult(RegistryV0_17_0Schema, {
+  reportInput: true,
+});

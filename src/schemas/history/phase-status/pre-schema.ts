@@ -5,7 +5,7 @@
 // schema and type.
 import { Schema } from "effect";
 
-const PhaseStateSchema = Schema.Union(
+const PhaseStateSchema = Schema.Union([
   Schema.Literal("pending"),
   Schema.Literal("setting_up_worktree"),
   Schema.Literal("running"),
@@ -21,9 +21,9 @@ const PhaseStateSchema = Schema.Union(
   Schema.Literal("handoff_failed"),
   Schema.Literal("skipped"),
   Schema.Literal("rate_limited"),
-);
+]);
 
-const EffortSchema = Schema.Union(
+const EffortSchema = Schema.Union([
   Schema.Literal("none"),
   Schema.Literal("off"),
   Schema.Literal("low"),
@@ -33,7 +33,7 @@ const EffortSchema = Schema.Union(
   Schema.Literal("max"),
   Schema.Literal("ultracode"),
   Schema.Literal("ultra"),
-);
+]);
 
 function isSafeBranchName(s: string): boolean {
   if (s.length === 0 || s[0] === "-") return false;
@@ -45,15 +45,14 @@ function isSafeBranchName(s: string): boolean {
   return true;
 }
 
-const BranchNameSchema = Schema.String.pipe(
-  Schema.minLength(1),
-  Schema.maxLength(255),
-  Schema.filter(isSafeBranchName, {
-    message: () => "branch name must not start with '-' or contain whitespace/control characters",
+const BranchNameSchema = Schema.String.check(
+  Schema.isMinLength(1),
+  Schema.isMaxLength(255),
+  Schema.makeFilter(isSafeBranchName, {
+    message: "branch name must not start with '-' or contain whitespace/control characters",
     jsonSchema: { pattern: "^[^\\x00-\\x20\\x7f-][^\\x00-\\x20\\x7f]*$" },
   }),
-  Schema.brand("BranchName"),
-);
+).pipe(Schema.brand("BranchName"));
 
 export const PhaseStatusPreSchemaSchema = Schema.Struct({
   version: Schema.Literal(1),
@@ -72,4 +71,6 @@ export const PhaseStatusPreSchemaSchema = Schema.Struct({
 
 export type PhaseStatusPreSchema = Schema.Schema.Type<typeof PhaseStatusPreSchemaSchema>;
 
-export const decodePhaseStatusPreSchema = Schema.decodeUnknownResult(PhaseStatusPreSchemaSchema);
+export const decodePhaseStatusPreSchema = Schema.decodeUnknownResult(PhaseStatusPreSchemaSchema, {
+  reportInput: true,
+});

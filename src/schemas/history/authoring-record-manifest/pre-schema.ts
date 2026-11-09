@@ -5,13 +5,13 @@
 // schema and type.
 import { Schema } from "effect";
 
-const ProviderIdSchema = Schema.Union(
+const ProviderIdSchema = Schema.Union([
   Schema.Literal("claude-code"),
   Schema.Literal("codex-cli"),
   Schema.Literal("mistral-vibe"),
-);
+]);
 
-const RecordShapeSchema = Schema.Union(Schema.Literal("full"), Schema.Literal("skeleton"));
+const RecordShapeSchema = Schema.Union([Schema.Literal("full"), Schema.Literal("skeleton")]);
 
 const ClaudeTokenUsageSchema = Schema.Struct({
   provider: Schema.Literal("claude-code"),
@@ -41,18 +41,18 @@ const VibeTokenUsageSchema = Schema.Struct({
   toolCallsSucceeded: Schema.Number,
 });
 
-const ProviderTokenUsageSchema = Schema.Union(
+const ProviderTokenUsageSchema = Schema.Union([
   ClaudeTokenUsageSchema,
   CodexTokenUsageSchema,
   VibeTokenUsageSchema,
-);
+]);
 
-const TokenUsageSchema = Schema.Union(
+const TokenUsageSchema = Schema.Union([
   Schema.Struct({ available: Schema.Literal(true), usage: ProviderTokenUsageSchema }),
   Schema.Struct({ available: Schema.Literal(false) }),
-);
+]);
 
-const AuthoringRecordOutcomeSchema = Schema.Literal("committed", "failed");
+const AuthoringRecordOutcomeSchema = Schema.Literals(["committed", "failed"]);
 
 export const AuthoringRecordManifestPreSchemaSchema = Schema.Struct({
   version: Schema.Literal(1),
@@ -60,7 +60,7 @@ export const AuthoringRecordManifestPreSchemaSchema = Schema.Struct({
   authoringId: Schema.NonEmptyString,
   /** Repo-relative path of the artifact the session authored (or would have). */
   artifact: Schema.NonEmptyString,
-  artifactKind: Schema.Literal("spec", "plan"),
+  artifactKind: Schema.Literals(["spec", "plan"]),
   shape: RecordShapeSchema,
   sourceSha: Schema.optional(Schema.NonEmptyString),
   provider: ProviderIdSchema,
@@ -76,5 +76,5 @@ export type AuthoringRecordManifestPreSchema = Schema.Schema.Type<
 
 export const decodeAuthoringRecordManifestPreSchema = Schema.decodeUnknownResult(
   AuthoringRecordManifestPreSchemaSchema,
-  { onExcessProperty: "error" },
+  { onExcessProperty: "error", reportInput: true },
 );
