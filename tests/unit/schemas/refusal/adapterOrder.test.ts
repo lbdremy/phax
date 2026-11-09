@@ -143,10 +143,10 @@ describe("refusalsOf on phax's real decoders", () => {
         collapse: ["gateProfiles", "standard", 0, "surface"],
         into: { kind: "invalid-value", expected: '"local" | "structural" | "product"' },
       },
-      // The optional `output`: two literals and `undefined`, a keyword.
+      // The optional `output`: two literals and `undefined`, which reads as one more literal.
       {
         collapse: ["gateProfiles", "standard", 0, "output"],
-        into: { kind: "invalid-type", expected: 'one of "log" | "gate-report" | undefined' },
+        into: { kind: "invalid-value", expected: '"log" | "gate-report" | undefined' },
       },
       // The optional `records`'s `Expected undefined`: its object member got deeper.
       { drop: ["records"] },

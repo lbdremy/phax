@@ -39,9 +39,9 @@ describe("a value of the wrong shape", () => {
     );
   });
 
-  it("names a filter from its constraint data, not Effect's description", () => {
+  it("names an empty string's refusal in phax's words", () => {
     expect(formatParseError(refused(Config, { name: "", steps: [] }))).toBe(
-      '  name: Expected a string at least 1 character(s) long, actual ""',
+      '  name: Expected a non empty string, actual ""',
     );
   });
 

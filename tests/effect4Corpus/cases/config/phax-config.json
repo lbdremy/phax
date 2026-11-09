@@ -729,7 +729,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "  gateProfiles.standard.0.command: Expected a string at least 1 character(s) long, actual \"\""
+        "refusal": "  gateProfiles.standard.0.command: Expected a non empty string, actual \"\""
       }
     },
     {
@@ -961,7 +961,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "  security.profile: Expected one of \"secure\" | \"unsafe\" | \"isolated\" | undefined, actual \"lax\""
+        "refusal": "  security.profile: Expected \"secure\" | \"unsafe\" | \"isolated\" | undefined, actual \"lax\""
       }
     },
     {
@@ -1009,7 +1009,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "  colour: is unexpected, expected: \"$schema\" | \"version\" | \"name\" | \"state\" | \"agent\" | \"commands\" | \"fileReconciliation\" | \"security\" | \"publish\" | \"brief\" | \"planAuditor\" | \"architecture\" | \"acceptance\" | \"review\" | \"authoring\" | \"gateProfiles\" | \"workspaces\" | \"records\" | \"assignments\" | \"protectedPaths\"\n  version: Expected 1, actual 2\n  name: Expected a string at least 1 character(s) long, actual \"\"\n  gateProfiles.standard.0.surface: Expected \"local\" | \"structural\" | \"product\", actual \"remote\"\n  gate step \"pnpm test\": output must be \"log\" or \"gate-report\""
+        "refusal": "  colour: is unexpected, expected: \"$schema\" | \"version\" | \"name\" | \"state\" | \"agent\" | \"commands\" | \"fileReconciliation\" | \"security\" | \"publish\" | \"brief\" | \"planAuditor\" | \"architecture\" | \"acceptance\" | \"review\" | \"authoring\" | \"gateProfiles\" | \"workspaces\" | \"records\" | \"assignments\" | \"protectedPaths\"\n  version: Expected 1, actual 2\n  name: Expected a non empty string, actual \"\"\n  gateProfiles.standard.0.surface: Expected \"local\" | \"structural\" | \"product\", actual \"remote\"\n  gate step \"pnpm test\": output must be \"log\" or \"gate-report\""
       }
     },
     {
