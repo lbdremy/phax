@@ -8,9 +8,10 @@ is read from `docs/vendor/effect-migration/effect@4.1.2/migration/v3-to-v4.md` a
 `pnpm codemod:effect4 --check` prints the current list. It goes with the codemod and the reference
 when the migration's last plan removes them.
 
-The counts below come from one trial run of the codemod on this branch (commit `b897913c`, still on
-Effect 3), discarded afterwards: **613 files would change, 4,213 rewrites; 2,097 uses are left to
-the phases.** The type-error counts it printed (0 → 1,901 in `src`, 0 → 3,394 in tests) only say
+The counts below come from one trial run of the codemod on this branch (with the
+`Either.getOrThrow` rule, still on Effect 3), discarded afterwards: **650 files would change, 5,201
+rewrites; 1,206 uses are left to the phases.** The type-error counts it printed (0 → 1,902 in
+`src`, 0 → 2,613 in tests) only say
 that Effect 3 has no `Result` or `Context.Service`; the counts that matter are the ones the first
 Effect 4 phase records.
 
@@ -18,13 +19,14 @@ Effect 4 phase records.
 
 | Rule                   | Effect 3                                              | Effect 4                                | `v3-to-v4.md` | Rewrites |
 | ---------------------- | ----------------------------------------------------- | --------------------------------------- | ------------- | -------- |
-| `either-to-result`     | `effect/Either` (the import)                          | `effect/Result`                         | 689           | 3,437 (393 files) |
+| `either-to-result`     | `effect/Either` (the import)                          | `effect/Result`                         | 689           | 4,425 (490 files) |
 |                        | `Either.Either<A, E>`                                 | `Result.Result<A, E>`                   | 10395         |          |
 |                        | `Either.right(a)`                                     | `Result.succeed(a)`                     | 10459         |          |
 |                        | `Either.left(e)`                                      | `Result.fail(e)`                        | 10449         |          |
 |                        | `Either.isRight` / `Either.isLeft`                    | `Result.isSuccess` / `Result.isFailure` | 10447 / 10445 |          |
 |                        | `Either.map` / `Either.mapLeft`                       | `Result.map` / `Result.mapError`        | 10453 / 10455 |          |
 |                        | `Either.getOrElse`                                    | `Result.getOrElse`                      | 10433         |          |
+|                        | `Either.getOrThrow`                                   | `Result.getOrThrow`                     | 10435         |          |
 |                        | `Either.match(x, { onLeft, onRight })`                | `Result.match(x, { onFailure, onSuccess })` | 10457     |          |
 | `effect-either`        | `Effect.either`                                       | `Effect.result`                         | 10057         | 394 (179 files) |
 | `schema-decode-either` | `Schema.decodeEither`, `Schema.decodeUnknownEither`   | `Schema.decodeUnknownResult`            | 14950, 14954  | 204 (150 files) |
@@ -59,6 +61,11 @@ Real rewrites from the trial run:
 
 Where the codemod departs from the reference, and why:
 
+- **`Either.getOrThrow` → `Result.getOrThrow` is a rename, though it throws differently.** On a
+  failure, v4 throws the failure value itself where v3 threw an `Error`. phax only unwraps values
+  that cannot fail (three constant branch names in `src`, expected successes in tests), and no test
+  asserts the thrown error, so no caller sees the difference (operator decision 2026-11-09).
+
 - **`decode*Either` → `decodeUnknownResult`, not `decode*Exit`.** The reference maps them to the
   `Exit` decoders, but the same pass turns every `Either` consumer into a `Result` consumer, and an
   `Exit` is not a `Result`. effect@4.1.2 ships `Schema.decodeUnknownResult` and
@@ -72,39 +79,38 @@ Where the codemod departs from the reference, and why:
 A rule only fires on the call shape it knows. Any other shape (`Schema.optionalWith` with
 `default`, a type-guard `Schema.filter`, a multi-argument pipe) is left untouched and reported.
 
-## 2. What the codemod leaves to the phases (2,097 uses)
+## 2. What the codemod leaves to the phases (1,206 uses)
 
 Each leftover is reported under the topic skill that owns its module
 (`.claude/skills/effect4-*`), with the reference line a phase reads before changing it.
 
 | Skill              | Uses  | In `src` / `tests` / `packages` |
 | ------------------ | ----- | ------------------------------- |
-| `effect4-errors`   | 1,375 | 283 / 1,092 / 0                 |
+| `effect4-errors`   | 484   | 278 / 206 / 0                   |
 | `effect4-schema`   | 690   | 619 / 56 / 15                   |
 | `effect4-core`     | 31    | 24 / 7 / 0                      |
 | `effect4-services` | 1     | 0 / 1 / 0                       |
 
 ### Blocked uses: a covered symbol held back by an uncovered neighbour
 
-1,045 leftovers are symbols the codemod covers (`Either.isLeft`, `Either.right`, …) in a file that
+453 leftovers are symbols the codemod covers (`Either.isLeft`, `Either.right`, …) in a file that
 also uses an `Either` member no rule covers. The codemod cannot rename the `Either` import while
 something still needs it, so it leaves the whole file's `Either` uses and names the blocker. Once a
 phase migrates the blocker, re-running `pnpm codemod:effect4` rewrites the rest.
 
 | Blocker                 | Uses it blocks | Why no rule covers it (reference line)                                                  |
 | ----------------------- | -------------- | --------------------------------------------------------------------------------------- |
-| `Either.getOrThrow`     | 738            | → `Result.getOrThrow`, but v4 throws the raw failure value, not an `Error` (10435)       |
 | `Either.flatMap`        | 233            | the reference says `TODO: needs guidance` (10423)                                       |
-| `Either.Left`           | 35             | → `Result.Failure`, and `.left` becomes `.failure` on the value (10407)                 |
+| `Either.flip`           | 137            | → `Result.flip` (10425); no rule yet                                                    |
+| `Either.Left`           | 47             | → `Result.Failure`, and `.left` becomes `.failure` on the value (10407)                 |
 | `Either.getOrNull`      | 28             | no entry in the reference                                                               |
-| `Either.getOrUndefined`, `getOrThrowWith`, `flip` | 10 | → `Result.getOrUndefined`, `getOrThrowWith`, `flip` (10439, 10437, 10425) |
+| `Either.getOrUndefined`, `getOrThrowWith` | 7 | → `Result.getOrUndefined`, `getOrThrowWith` (10439, 10437); no rule yet        |
 | `ParseResult.ParseError` | 1              | no stated target (13090); the schema phase's                                            |
 
 ### `effect4-errors`: `Either`, `Exit`, `Cause`, `Effect.catch*`
 
 | Effect 3                     | Effect 4                       | Line  | Uses |
 | ---------------------------- | ------------------------------ | ----- | ---- |
-| `Either.getOrThrow`          | `Result.getOrThrow`            | 10435 | 299  |
 | `Either.flatMap`             | (no stated target)             | 10423 | 6    |
 | `Either.getOrNull`           | (no entry)                     | –     | 5    |
 | `Effect.catchAllCause`       | `Effect.catchCause`            | 10005 | 5    |
@@ -114,7 +120,7 @@ phase migrates the blocker, re-running `pnpm codemod:effect4` rewrites the rest.
 | `Either.Left`                | `Result.Failure`               | 10407 | 3    |
 | `Either.getOrUndefined`      | `Result.getOrUndefined`        | 10439 | 2    |
 | `Either.getOrThrowWith`      | `Result.getOrThrowWith`        | 10437 | 1    |
-| blocked covered `Either.*`   | as in §1                       |       | 1,044 |
+| blocked covered `Either.*`   | as in §1                       |       | 452  |
 
 Not in the report but the same phase's work: member accesses on the values these types give
 (`.left` / `.right` → `.failure` / `.success`, `_tag: "Left"` / `"Right"` expectations in tests).
