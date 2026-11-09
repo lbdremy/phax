@@ -18,7 +18,6 @@ import { FileSystem } from "../../ports/fs.js";
 import { Git } from "../../ports/git.js";
 import { GitHub } from "../../ports/github.js";
 import { Lock } from "../../ports/lock.js";
-import type { ProviderStoreRoots } from "../../ports/providerStores.js";
 import { Shell } from "../../ports/shell.js";
 import type { OutputPort } from "../../ports/output.js";
 import { NoopSystemTelemetryLayer, SystemTelemetry } from "../../ports/systemTelemetry.js";
@@ -125,9 +124,7 @@ export function makeGlobalTelemetryJournalLayerOrNoop(): Layer.Layer<SystemTelem
  * (vibe has none: its turns are read from their stream and export). Every command that runs a provider or writes a record
  * builds its backend through this.
  */
-export function makeProviderBackendLayer(
-  providerConfig: ProviderConfig,
-): Layer.Layer<Backend | ProviderStoreRoots> {
+export function makeProviderBackendLayer(providerConfig: ProviderConfig): Layer.Layer<Backend> {
   return makeNodeBackendLayer(providerConfig).pipe(Layer.provideMerge(ProviderStoreRootsLive));
 }
 

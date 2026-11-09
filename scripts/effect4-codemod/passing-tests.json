@@ -2035,6 +2035,7 @@
     "examples/vitest-acceptance, requests it cannot read > refuses 'stdin that is not JSON' with a reason and a remedy",
     "examples/vitest-acceptance, requests it cannot read > refuses an acceptanceCommit that is not a commit of the repository",
     "examples/vitest-acceptance, stability > prints identical stdout for the same request twice",
+    "phax's own acceptance declaration > declares the example as the acceptance command and the example answers there",
     "the example stays outside the CLI > is named and imported by no file under src/",
     "the example stays outside the CLI > is not part of phax's command spec",
     "the example stays outside the CLI > npm/package.json ships no examples folder",

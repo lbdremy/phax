@@ -374,7 +374,7 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
     github.layer,
     makeFakeSystemTelemetry().layer,
   );
-  const run = <A, E>(effect: Effect.Effect<A, E, Layer.Layer.Success<typeof layer>>) =>
+  const run = <A, E>(effect: Effect.Effect<A, E, Layer.Success<typeof layer>>) =>
     Effect.runPromise(Effect.result(Effect.provide(effect, layer)));
 
   // Inputs the test hands phax, never files phax wrote.
