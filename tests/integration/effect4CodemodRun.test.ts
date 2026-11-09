@@ -34,6 +34,9 @@ describe("codemod:effect4 write run", () => {
     let out = "";
     const status = run(["--root", root], {
       measure: () => measured.shift() ?? { src: -1, tests: -1 },
+      runTests: () => {
+        throw new Error("a write run never runs the suites");
+      },
       stdout: (text) => {
         out += text;
       },
