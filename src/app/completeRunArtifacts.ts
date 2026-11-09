@@ -168,9 +168,9 @@ function completeInWorktree(
     const specMd = yield* fs.readText(specPath);
     const specValidated = validateArtifact(specPath, specMd);
     if (Result.isFailure(specValidated)) {
-      return yield* Effect.fail(specValidated.left);
+      return yield* Effect.fail(specValidated.failure);
     }
-    const specStatus = specValidated.right.status;
+    const specStatus = specValidated.success.status;
     if (specStatus === "Completed") {
       transitions.push({ kind: "spec", path: specPath, alreadyComplete: true });
       return { transitions };
@@ -183,18 +183,18 @@ function completeInWorktree(
     // surfaces as SpecRetirementBlockedError, which becomes a kept-spec report.
     const specResult = yield* Effect.result(transitionArtifact(specPath, "Completed", opts));
     if (Result.isFailure(specResult)) {
-      if (specResult.left instanceof SpecRetirementBlockedError) {
+      if (specResult.failure instanceof SpecRetirementBlockedError) {
         return {
           transitions,
-          keptSpec: { reason: "blocked", path: specPath, blockedBy: specResult.left.dependents },
+          keptSpec: { reason: "blocked", path: specPath, blockedBy: specResult.failure.dependents },
         };
       }
-      return yield* Effect.fail(specResult.left);
+      return yield* Effect.fail(specResult.failure);
     }
     transitions.push({
       kind: "spec",
-      path: specResult.right.path,
-      ...(specResult.right.commit !== undefined ? { commit: specResult.right.commit } : {}),
+      path: specResult.success.path,
+      ...(specResult.success.commit !== undefined ? { commit: specResult.success.commit } : {}),
       alreadyComplete: false,
     });
     return { transitions };

@@ -574,8 +574,8 @@ export async function resumeHeldRun(run: HeldRun): Promise<Result.Result<unknown
     Result.getOrThrow(decodeShortName(SHORT)),
     run.world.stateRoot,
   );
-  if (Result.isFailure(decision)) throw new Error(decision.left.message);
-  return executeHeldRun(run, decision.right.nextPhaseIndex);
+  if (Result.isFailure(decision)) throw new Error(decision.failure.message);
+  return executeHeldRun(run, decision.success.nextPhaseIndex);
 }
 
 // ── Reading ────────────────────────────────────────────────────────────────

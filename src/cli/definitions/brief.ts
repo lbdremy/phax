@@ -76,8 +76,8 @@ function makeBriefCommand(cwdOf: () => string) {
           );
         }
         const configResult = loadConfig(tree.mainRoot);
-        if (Result.isFailure(configResult)) return yield* Effect.fail(configResult.left);
-        const { brief } = configResult.right;
+        if (Result.isFailure(configResult)) return yield* Effect.fail(configResult.failure);
+        const { brief } = configResult.success;
         if (brief === undefined) {
           return yield* Effect.fail(
             new NoBriefProviderError({

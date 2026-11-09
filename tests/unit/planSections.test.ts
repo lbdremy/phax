@@ -48,8 +48,8 @@ const PHASES: readonly LocatablePhase[] = [
 
 function located(planMd: string, phases: readonly LocatablePhase[] = PHASES) {
   const result = locatePlanSections(planMd, phases);
-  if (Result.isFailure(result)) throw new Error(`unlocatable: ${result.left.join(", ")}`);
-  return result.right;
+  if (Result.isFailure(result)) throw new Error(`unlocatable: ${result.failure.join(", ")}`);
+  return result.success;
 }
 
 describe("locatePlanSections", () => {

@@ -62,7 +62,7 @@ async function transition(path: string, target: ArtifactStatus): Promise<void> {
       ),
     ),
   );
-  if (Result.isFailure(result)) throw new Error(`transition failed: ${String(result.left)}`);
+  if (Result.isFailure(result)) throw new Error(`transition failed: ${String(result.failure)}`);
 }
 
 async function stalenessOfP(footprint: readonly string[]): Promise<PlanStalenessVerdict> {

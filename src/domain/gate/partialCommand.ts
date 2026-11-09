@@ -130,10 +130,10 @@ export function partialAllowPrefixes(steps: readonly GateStep[]): readonly strin
       const parsed = parsePartialCommand(command, variant);
       if (Result.isFailure(parsed)) {
         throw new Error(
-          `partial.${variant} of "${step.command}" was not refused at load: ${describePartialRefusal(parsed.left)}`,
+          `partial.${variant} of "${step.command}" was not refused at load: ${describePartialRefusal(parsed.failure)}`,
         );
       }
-      for (const segment of parsed.right.segments) {
+      for (const segment of parsed.success.segments) {
         if (!prefixes.includes(segment.prefix)) prefixes.push(segment.prefix);
       }
     }

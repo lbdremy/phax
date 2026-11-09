@@ -33,7 +33,7 @@ export function exposeMessage<E extends { readonly _tag: string; readonly messag
 export function configured(): Effect.Effect<ResolvedConfig, ConfigValidationError> {
   return Effect.suspend(() => {
     const config = loadConfig(process.cwd());
-    return Result.isFailure(config) ? Effect.fail(config.left) : Effect.succeed(config.right);
+    return Result.isFailure(config) ? Effect.fail(config.failure) : Effect.succeed(config.success);
   });
 }
 

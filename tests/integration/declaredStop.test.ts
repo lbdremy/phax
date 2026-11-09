@@ -124,8 +124,8 @@ const readJson = (path: string): Record<string, unknown> =>
 function readSession(): InteractiveSession {
   const path = join(phaseFolder, "interactive-session.json");
   const decoded = readInteractiveSessionFile(path, readJson(path));
-  if (Result.isFailure(decoded)) throw new Error(decoded.left.message);
-  return decoded.right;
+  if (Result.isFailure(decoded)) throw new Error(decoded.failure.message);
+  return decoded.success;
 }
 
 beforeEach(() => {

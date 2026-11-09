@@ -201,7 +201,7 @@ export function pushRecordsBranch(
         kind: "failed",
         remote,
         path,
-        message: pushResult.left.stderr ?? pushResult.left.message,
+        message: pushResult.failure.stderr ?? pushResult.failure.message,
         branch,
       } as const;
     }

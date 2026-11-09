@@ -55,9 +55,9 @@ export function resolveDoctrine(
     if (Result.isFailure(assembled)) {
       return yield* new DecideRefusedError({
         reason: "doctrine",
-        message: `Decide refused: ${assembled.left}`,
+        message: `Decide refused: ${assembled.failure}`,
       });
     }
-    return assembled.right;
+    return assembled.success;
   });
 }

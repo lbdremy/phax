@@ -63,10 +63,10 @@ export function createPhaseFolder(
       });
       const decoded = readPhaseStatusFile(statusPath, parsed);
       if (Result.isFailure(decoded)) {
-        return yield* Effect.fail(new FsError({ message: decoded.left.message }));
+        return yield* Effect.fail(new FsError({ message: decoded.failure.message }));
       }
       yield* writePhaseStatus(statusPath, {
-        ...decoded.right,
+        ...decoded.success,
         branchName: prepared.branch,
         base: prepared.base,
         updatedAt: nowIso(),

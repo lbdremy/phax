@@ -29,7 +29,7 @@ function verdictsFile(extra: Doc = {}): Doc {
 function firstIssue(input: unknown): { path: string; message: string } {
   const decoded = decodeDecideVerdictsFile(input);
   if (Result.isSuccess(decoded)) throw new Error("expected a refusal");
-  const [issue] = SchemaIssue.makeFormatterStandardSchemaV1()(decoded.left.issue).issues;
+  const [issue] = SchemaIssue.makeFormatterStandardSchemaV1()(decoded.failure.issue).issues;
   return { path: (issue?.path ?? []).join("."), message: issue?.message ?? "" };
 }
 

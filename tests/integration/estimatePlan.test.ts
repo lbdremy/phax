@@ -236,7 +236,9 @@ function estimate(layer: ReturnType<typeof setup>["layer"], probe: boolean, plan
 
 /** The typed error an exit failed with, or undefined when it succeeded or died. */
 function failureOf<A, E>(exit: Exit.Exit<A, E>): E | undefined {
-  return Exit.isFailure(exit) ? Option.getOrUndefined(Cause.failureOption(exit.cause)) : undefined;
+  return Exit.isFailure(exit)
+    ? Option.getOrUndefined(Cause.findErrorOption(exit.cause))
+    : undefined;
 }
 
 function credentialPaths(paths: readonly string[]): string[] {

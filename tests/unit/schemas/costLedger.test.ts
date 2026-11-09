@@ -74,8 +74,8 @@ describe("cost-ledger", () => {
     const read = readCostLedgerFile("cost-ledger.json", ledger([handoffEntry()]));
     expect(Result.isSuccess(read)).toBe(true);
     if (Result.isSuccess(read)) {
-      expect(Object.keys(read.right)).toEqual(["entries"]);
-      expect(read.right.entries[0]?.role).toBe("handoff");
+      expect(Object.keys(read.success)).toEqual(["entries"]);
+      expect(read.success.entries[0]?.role).toBe("handoff");
     }
   });
 
@@ -126,7 +126,7 @@ describe("cost-ledger", () => {
     expect(accepts(unstamped)).toBe(false);
     const read = readCostLedgerFile("cost-ledger.json", unstamped);
     expect(Result.isFailure(read)).toBe(true);
-    if (Result.isFailure(read)) expect(read.left.message).toContain("has no $schema");
+    if (Result.isFailure(read)) expect(read.failure.message).toContain("has no $schema");
   });
 
   it("refuses through the bridge a ledger stamped newer than this phax", () => {
@@ -136,6 +136,6 @@ describe("cost-ledger", () => {
     };
     const read = readCostLedgerFile("cost-ledger.json", newer);
     expect(Result.isFailure(read)).toBe(true);
-    if (Result.isFailure(read)) expect(read.left.message).toContain("newer than this phax");
+    if (Result.isFailure(read)) expect(read.failure.message).toContain("newer than this phax");
   });
 });

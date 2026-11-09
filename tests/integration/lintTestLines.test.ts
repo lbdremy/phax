@@ -250,8 +250,8 @@ describe("lint's test-line rules (acceptance)", () => {
       expect(hasLintErrors(report.findings)).toBe(false);
 
       const reading = readPlanDeterministic(plan);
-      if (Result.isFailure(reading)) throw new Error(reading.left.message);
-      expect(reading.right.plan.phases[0].testLines).toEqual([
+      if (Result.isFailure(reading)) throw new Error(reading.failure.message);
+      expect(reading.success.plan.phases[0].testLines).toEqual([
         {
           guarantee: "every (state, transition) pair is accepted or refused as the table says",
           size: "small",

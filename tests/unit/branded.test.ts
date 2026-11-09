@@ -26,7 +26,7 @@ describe("decodeNamespace", () => {
   it("preserves the value on success", () => {
     const result = decodeNamespace("my-project");
     if (Result.isSuccess(result)) {
-      expect(result.right).toBe("my-project");
+      expect(result.success).toBe("my-project");
     }
   });
 
@@ -80,7 +80,7 @@ describe("decodeShortName", () => {
   it("preserves the value on success", () => {
     const result = decodeShortName("my-run");
     if (Result.isSuccess(result)) {
-      expect(result.right).toBe("my-run");
+      expect(result.success).toBe("my-run");
     }
   });
 

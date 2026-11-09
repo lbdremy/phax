@@ -49,7 +49,7 @@ export function preparePhaseBranch(
         }),
       );
     }
-    const phaseBranch = branchResult.right;
+    const phaseBranch = branchResult.success;
 
     const exists = yield* git.branchExists(phaseBranch, repoRoot);
     if (exists) return { kind: "existing", branch: phaseBranch };
@@ -112,7 +112,7 @@ export function prepareRunBranch(
         }),
       );
     }
-    const branch = branchResult.right;
+    const branch = branchResult.success;
 
     const exists = yield* git.branchExists(branch, repoRoot);
     if (!exists) {
@@ -204,7 +204,7 @@ export function createPhaseWorktree(
         }),
       );
     }
-    const worktreePath = pathResult.right;
+    const worktreePath = pathResult.success;
 
     // Idempotent: when resuming a rate-limited phase the worktree already
     // exists. Reuse it — `git worktree add` would fail on an occupied path,

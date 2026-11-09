@@ -65,7 +65,7 @@ describe.each(FORMATS)("$id, born with $schema", ({ id, label, parse, phax, toLa
     expect(Object.keys(document)).toEqual(keys);
     const decoded = phax(document);
     if (Result.isFailure(decoded)) throw new Error("document rejected by phax");
-    expect(parse(document)).toEqual({ ok: true, shape: current, value: decoded.right });
+    expect(parse(document)).toEqual({ ok: true, shape: current, value: decoded.success });
   });
 
   it("is identified by parseDocument from its $schema", () => {

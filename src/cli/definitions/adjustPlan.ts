@@ -101,10 +101,10 @@ export function makeAdjustPlanCommand(deps: AdjustPlanDeps = {}) {
         const loaded = loadConfig(process.cwd());
         if (Result.isFailure(loaded)) {
           return yield* Effect.fail(
-            new HandoverRefusedError({ message: `Config error: ${loaded.left.message}` }),
+            new HandoverRefusedError({ message: `Config error: ${loaded.failure.message}` }),
           );
         }
-        const config = loaded.right;
+        const config = loaded.success;
         if (flags.effort !== undefined && !isValidEffort(flags.effort)) {
           return yield* Effect.fail(
             new HandoverRefusedError({
@@ -141,7 +141,10 @@ export function makeAdjustPlanCommand(deps: AdjustPlanDeps = {}) {
         );
         if (Result.isFailure(binding)) {
           return yield* Effect.fail(
-            failedFor(target, `No agent binding found for run "${qualifiedName}": ${binding.left}`),
+            failedFor(
+              target,
+              `No agent binding found for run "${qualifiedName}": ${binding.failure}`,
+            ),
           );
         }
 
@@ -150,7 +153,7 @@ export function makeAdjustPlanCommand(deps: AdjustPlanDeps = {}) {
           planMarkdown,
           runPath: info.runPath,
           runKey: qualifiedName,
-          provider: binding.right.provider,
+          provider: binding.success.provider,
           cwd: process.cwd(),
           extract: {
             model: config.extractPlanModel,

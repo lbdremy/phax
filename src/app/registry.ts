@@ -35,12 +35,12 @@ export function readRegistry(
     if (Result.isFailure(decoded)) {
       return yield* Effect.fail(
         new RegistryCorruptionError({
-          message: decoded.left.message,
+          message: decoded.failure.message,
           registryPath: path,
         }),
       );
     }
-    return decoded.right;
+    return decoded.success;
   });
 }
 

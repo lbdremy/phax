@@ -83,7 +83,9 @@ const runFailedTraced = (run: HeldRun): boolean =>
 describe("a declared close that fails after its commit", { timeout: 60_000 }, () => {
   it("leaves the run resumable, never failed, and the next resume finishes it from the landed commit", async () => {
     const { run, result } = await startHeldRun(world, { selection: "none" }, { records: true });
-    expect(Result.isFailure(result) && result.left instanceof AwaitingReviewStopError).toBe(true);
+    expect(Result.isFailure(result) && result.failure instanceof AwaitingReviewStopError).toBe(
+      true,
+    );
     const branch = `phax/${SHORT}--phase-03`;
     const base = gitIn(world.repoRoot, "rev-parse", branch);
     // The first write of phase-03's status as committed (StopCommitted's) fails once.

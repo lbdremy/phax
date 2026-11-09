@@ -128,7 +128,7 @@ describe("createRunFolder", () => {
 
     const raw = impl.getFile(`${stateRoot}/runs/test-project.my-run/run-status.json`);
     const decoded = decodeRunStatusFile(JSON.parse(raw!));
-    expect(Result.isSuccess(decoded) && decoded.right.hold).toEqual(expected);
+    expect(Result.isSuccess(decoded) && decoded.success.hold).toEqual(expected);
   });
 
   it("writes a valid run-status.json with state: created", async () => {
@@ -148,9 +148,9 @@ describe("createRunFolder", () => {
     const decoded = decodeRunStatusFile(written);
     expect(Result.isSuccess(decoded)).toBe(true);
     if (Result.isSuccess(decoded)) {
-      expect(decoded.right.state).toBe("created");
-      expect(decoded.right.shortName).toBe("my-run");
-      expect(decoded.right.phasesCount).toBe(2);
+      expect(decoded.success.state).toBe("created");
+      expect(decoded.success.shortName).toBe("my-run");
+      expect(decoded.success.phasesCount).toBe(2);
     }
   });
 
@@ -170,7 +170,7 @@ describe("createRunFolder", () => {
     const decoded = decodePhaxPlanFile(written);
     expect(Result.isSuccess(decoded)).toBe(true);
     if (Result.isSuccess(decoded)) {
-      const { $schema: _schema, ...recorded } = decoded.right;
+      const { $schema: _schema, ...recorded } = decoded.success;
       expect(recorded).toEqual(plan);
     }
   });
@@ -188,7 +188,7 @@ describe("createRunFolder", () => {
     const decoded = decodeRegistryFile(JSON.parse(regRaw!));
     expect(Result.isSuccess(decoded)).toBe(true);
     if (Result.isSuccess(decoded)) {
-      const entry = decoded.right.runs.find((r) => r.shortName === "my-run");
+      const entry = decoded.success.runs.find((r) => r.shortName === "my-run");
       expect(entry).toBeDefined();
       expect(entry?.state).toBe("created");
     }
@@ -233,13 +233,13 @@ describe("createPhaseFolder", () => {
     const decoded = decodePhaseStatusFile(written);
     expect(Result.isSuccess(decoded)).toBe(true);
     if (Result.isSuccess(decoded)) {
-      expect(decoded.right.state).toBe("pending");
-      expect(decoded.right.phaseId).toBe("phase-01");
-      expect(decoded.right.phaseIndex).toBe(0);
-      expect(decoded.right.model).toBe("claude-sonnet-4-6");
-      expect(decoded.right.effort).toBe("low");
-      expect(decoded.right.branchName).toBe("feature/my-run--phase-01");
-      expect(decoded.right.base).toBe(CREATED.base);
+      expect(decoded.success.state).toBe("pending");
+      expect(decoded.success.phaseId).toBe("phase-01");
+      expect(decoded.success.phaseIndex).toBe(0);
+      expect(decoded.success.model).toBe("claude-sonnet-4-6");
+      expect(decoded.success.effort).toBe("low");
+      expect(decoded.success.branchName).toBe("feature/my-run--phase-01");
+      expect(decoded.success.base).toBe(CREATED.base);
     }
   });
 

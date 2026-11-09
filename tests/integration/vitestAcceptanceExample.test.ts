@@ -88,8 +88,8 @@ function answerOf(stdout: string): GateReport {
   expect(parseGateReport(printed).ok).toBe(true);
   expect((printed as { $schema: string }).$schema).toBe(currentSchemaUrl("gate-report"));
   const result = readGateReport(printed);
-  if (Result.isFailure(result)) throw new Error(describeReportError(result.left));
-  return result.right;
+  if (Result.isFailure(result)) throw new Error(describeReportError(result.failure));
+  return result.success;
 }
 
 function checkedFindings(report: GateReport) {
@@ -659,7 +659,7 @@ describe("phax's own acceptance declaration", () => {
   it("declares the example as the acceptance command and the example answers there", () => {
     const decoded = decodePhaxConfig(JSON.parse(readFileSync(join(repoRoot, "phax.json"), "utf8")));
     if (Result.isFailure(decoded)) throw new Error("phax.json does not decode");
-    const command = decoded.right.acceptance?.command;
+    const command = decoded.success.acceptance?.command;
     expect(command).toBe("node examples/vitest-acceptance/main.mjs");
 
     const [file, ...args] = (command ?? "").split(/\s+/);

@@ -196,7 +196,7 @@ describe("analyzePlanOverlap", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left.message).toContain("/repo/plans/missing.md");
+      expect(result.failure.message).toContain("/repo/plans/missing.md");
     }
   });
 
@@ -240,7 +240,7 @@ describe("analyzePlanOverlap", () => {
     );
     expect(Result.isFailure(singleResult)).toBe(true);
     if (Result.isFailure(singleResult)) {
-      expect(singleResult.left.message).toContain("two or more");
+      expect(singleResult.failure.message).toContain("two or more");
     }
 
     // Same path twice → still treated as one unique path
@@ -252,7 +252,7 @@ describe("analyzePlanOverlap", () => {
     );
     expect(Result.isFailure(dupeResult)).toBe(true);
     if (Result.isFailure(dupeResult)) {
-      expect(dupeResult.left.message).toContain("two or more");
+      expect(dupeResult.failure.message).toContain("two or more");
     }
   });
 

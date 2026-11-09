@@ -43,8 +43,8 @@ describe("parsePruneSelection", () => {
     const result = parsePruneSelection([], false);
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toContain("phax prune <short-name>...");
-      expect(result.left).toContain("phax prune --all");
+      expect(result.failure).toContain("phax prune <short-name>...");
+      expect(result.failure).toContain("phax prune --all");
     }
   });
 
@@ -52,8 +52,8 @@ describe("parsePruneSelection", () => {
     const result = parsePruneSelection(["old-idea"], true);
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toContain("phax prune <short-name>...");
-      expect(result.left).toContain("phax prune --all");
+      expect(result.failure).toContain("phax prune <short-name>...");
+      expect(result.failure).toContain("phax prune --all");
     }
   });
 
@@ -119,7 +119,7 @@ describe("selectPruneRuns", () => {
   it("refuses an invalid ref", () => {
     const result = selectPruneRuns(entries, ns, { kind: "names", refs: ["Bad Name"] });
     expect(Result.isFailure(result)).toBe(true);
-    if (Result.isFailure(result)) expect(result.left[0].kind).toBe("invalid");
+    if (Result.isFailure(result)) expect(result.failure[0].kind).toBe("invalid");
   });
 
   it("resolves a ref qualified with the current namespace the same as the short form", () => {
@@ -144,7 +144,7 @@ describe("selectPruneRuns", () => {
     });
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left.map((r) => r.kind)).toEqual([
+      expect(result.failure.map((r) => r.kind)).toEqual([
         "not-found",
         "not-archived",
         "other-namespace",

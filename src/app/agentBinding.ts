@@ -42,7 +42,7 @@ export async function patchAgentBindingSession(
     const decoded = decodePhaseAgentBinding(JSON.parse(text) as unknown);
     if (Result.isSuccess(decoded)) {
       const updated: PhaseAgentBinding = {
-        ...decoded.right,
+        ...decoded.success,
         sessionId: patch.sessionId,
         status: patch.status,
       };
@@ -62,7 +62,7 @@ export async function patchAgentBindingStatus(
     const text = await readFile(filePath, "utf8");
     const decoded = decodePhaseAgentBinding(JSON.parse(text) as unknown);
     if (Result.isSuccess(decoded)) {
-      const updated: PhaseAgentBinding = { ...decoded.right, status };
+      const updated: PhaseAgentBinding = { ...decoded.success, status };
       await writeAtomic(filePath, JSON.stringify(encodePhaseAgentBinding(updated), null, 2));
     }
   } catch {
@@ -78,9 +78,9 @@ export async function readAgentBinding(
     const text = await readFile(filePath, "utf8");
     const decoded = decodePhaseAgentBinding(JSON.parse(text) as unknown);
     if (Result.isSuccess(decoded)) {
-      return Result.succeed(decoded.right);
+      return Result.succeed(decoded.success);
     }
-    return Result.fail(`Failed to decode agent-binding.json: ${String(decoded.left)}`);
+    return Result.fail(`Failed to decode agent-binding.json: ${String(decoded.failure)}`);
   } catch (err) {
     return Result.fail(
       `Cannot read agent-binding.json: ${err instanceof Error ? err.message : String(err)}`,

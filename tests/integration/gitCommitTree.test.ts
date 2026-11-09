@@ -136,7 +136,7 @@ describe("NodeGitLayer.commitTree", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result))
-      expect(String((result.left as Error).message)).toContain("lint failed");
+      expect(String((result.failure as Error).message)).toContain("lint failed");
     expect(git("rev-parse", "HEAD").trim()).toBe(head);
     expect(realIndex()).toBe(index);
   });
@@ -150,8 +150,8 @@ describe("NodeGitLayer.commitTree", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(GitError);
-      expect((result.left as GitError).message).toContain("src/invoiceRow.ts");
+      expect(result.failure).toBeInstanceOf(GitError);
+      expect((result.failure as GitError).message).toContain("src/invoiceRow.ts");
     }
     expect(git("rev-parse", "HEAD").trim()).toBe(head);
     expect(git("rev-parse", "refs/heads/main").trim()).toBe(head);

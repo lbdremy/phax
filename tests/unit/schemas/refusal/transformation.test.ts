@@ -24,7 +24,7 @@ const NumberFromString = Schema.String.pipe(
 function refused<A, I>(schema: Schema.Codec<A, I>, input: unknown): Schema.SchemaError {
   const decoded = Schema.decodeUnknownResult(schema, { reportInput: true })(input);
   if (Result.isSuccess(decoded)) throw new Error(`expected a refusal of ${JSON.stringify(input)}`);
-  return decoded.left;
+  return decoded.failure;
 }
 
 describe("a transformation that fails to decode", () => {

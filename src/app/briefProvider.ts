@@ -71,11 +71,11 @@ export function queryBrief(input: {
       { timeoutMs: input.timeoutMs ?? BRIEF_TIMEOUT_MS },
     );
     if (Result.isFailure(ran)) {
-      return { kind: "failed", reason: failureReason(ran.left) } as const;
+      return { kind: "failed", reason: failureReason(ran.failure) } as const;
     }
-    const decoded = readPrintedBriefReport(ran.right);
-    if (Result.isFailure(decoded)) return { kind: "failed", reason: decoded.left } as const;
-    return { kind: "answered", answer: ran.right, decoded: decoded.right } as const;
+    const decoded = readPrintedBriefReport(ran.success);
+    if (Result.isFailure(decoded)) return { kind: "failed", reason: decoded.failure } as const;
+    return { kind: "answered", answer: ran.success, decoded: decoded.success } as const;
   });
 }
 

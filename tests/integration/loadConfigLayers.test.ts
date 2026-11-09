@@ -53,8 +53,8 @@ describe("loadConfig with no user config files", () => {
     const result = loadConfig(repoDir);
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.maxFixAttempts).toBe(1);
-      expect(result.right.namespace).toBe("test");
+      expect(result.success.maxFixAttempts).toBe(1);
+      expect(result.success.namespace).toBe("test");
     }
   });
 
@@ -63,7 +63,7 @@ describe("loadConfig with no user config files", () => {
     const result = loadConfig(repoDir);
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.stateRoot).toBe(join(tempHome, ".phax"));
+      expect(result.success.stateRoot).toBe(join(tempHome, ".phax"));
     }
   });
 });
@@ -75,7 +75,7 @@ describe("loadConfig phax.local.json scalar override", () => {
     const result = loadConfig(repoDir);
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.maxFixAttempts).toBe(5);
+      expect(result.success.maxFixAttempts).toBe(5);
     }
   });
 
@@ -85,7 +85,7 @@ describe("loadConfig phax.local.json scalar override", () => {
     const result = loadConfig(repoDir);
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.fileReconciliationMode).toBe("warn");
+      expect(result.success.fileReconciliationMode).toBe("warn");
     }
   });
 
@@ -95,7 +95,7 @@ describe("loadConfig phax.local.json scalar override", () => {
     const result = loadConfig(repoDir);
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.stateRoot).toBe(join(tempHome, "custom-root"));
+      expect(result.success.stateRoot).toBe(join(tempHome, "custom-root"));
     }
   });
 });
@@ -107,7 +107,7 @@ describe("loadConfig ~/.phax/config.json scalar override", () => {
     const result = loadConfig(repoDir);
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.maxFixAttempts).toBe(4);
+      expect(result.success.maxFixAttempts).toBe(4);
     }
   });
 
@@ -118,7 +118,7 @@ describe("loadConfig ~/.phax/config.json scalar override", () => {
     const result = loadConfig(repoDir);
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.maxFixAttempts).toBe(7);
+      expect(result.success.maxFixAttempts).toBe(7);
     }
   });
 
@@ -129,7 +129,7 @@ describe("loadConfig ~/.phax/config.json scalar override", () => {
     const result = loadConfig(repoDir);
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.stateRoot).toBe(join(tempHome, "local-root"));
+      expect(result.success.stateRoot).toBe(join(tempHome, "local-root"));
     }
   });
 });
@@ -145,7 +145,7 @@ describe("loadConfig allowlist union across layers", () => {
     const result = loadConfig(repoDir);
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      const paths = result.right.security.filesystem.allowWrite;
+      const paths = result.success.security.filesystem.allowWrite;
       expect(paths).toContain("/tmp/project-path");
       expect(paths).toContain("/tmp/global-path");
       expect(paths).toContain("/tmp/local-path");
@@ -161,7 +161,7 @@ describe("loadConfig allowlist union across layers", () => {
     const result = loadConfig(repoDir);
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      const paths = result.right.security.filesystem.allowWrite;
+      const paths = result.success.security.filesystem.allowWrite;
       expect(paths.filter((p) => p === "/tmp/shared")).toHaveLength(1);
     }
   });
@@ -175,7 +175,7 @@ describe("loadConfig allowlist union across layers", () => {
     const result = loadConfig(repoDir);
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      const paths = result.right.security.filesystem.allowWrite;
+      const paths = result.success.security.filesystem.allowWrite;
       expect(paths).toContain("/tmp/project-path");
       expect(paths).toContain("/tmp/extra-path");
     }
@@ -191,7 +191,7 @@ describe("loadConfig allowlist union across layers", () => {
     const result = loadConfig(repoDir);
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      const cmds = result.right.security.agentCommands;
+      const cmds = result.success.security.agentCommands;
       expect(cmds).toContain("pnpm test");
       expect(cmds).toContain("make build");
       expect(cmds).toContain("cargo check");
@@ -219,13 +219,13 @@ describe("loadConfig assignments", () => {
     writeProjectConfig({ ...baseConfig, assignments });
     writeLocalUserConfig({ agent: { maxFixAttempts: 2 } });
     const result = loadConfig(repoDir);
-    expect(Result.isSuccess(result) && result.right.assignments).toEqual(assignments);
+    expect(Result.isSuccess(result) && result.success.assignments).toEqual(assignments);
   });
 
   it("leaves assignments unset when phax.json declares none", () => {
     writeProjectConfig(baseConfig);
     const result = loadConfig(repoDir);
-    expect(Result.isSuccess(result) && result.right.assignments).toBeUndefined();
+    expect(Result.isSuccess(result) && result.success.assignments).toBeUndefined();
   });
 
   it.each([
@@ -245,8 +245,8 @@ describe("loadConfig assignments", () => {
     const result = loadConfig(repoDir);
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left.message).toBe('"assignments" is accepted only in phax.json');
-      expect(result.left.path).toBe(path());
+      expect(result.failure.message).toBe('"assignments" is accepted only in phax.json');
+      expect(result.failure.path).toBe(path());
     }
   });
 
@@ -254,7 +254,7 @@ describe("loadConfig assignments", () => {
     writeProjectConfig(baseConfig);
     writeLocalUserConfig({ assignments: [] });
     const result = loadConfig(repoDir);
-    expect(Result.isFailure(result) && result.left.message).toBe(
+    expect(Result.isFailure(result) && result.failure.message).toBe(
       '"assignments" is accepted only in phax.json',
     );
   });
@@ -267,8 +267,8 @@ describe("loadConfig assignments", () => {
     const result = loadConfig(repoDir);
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left.path).toBe(join(repoDir, "phax.json"));
-      expect(result.left.message).toContain("  assignments[1].globs: must not be empty");
+      expect(result.failure.path).toBe(join(repoDir, "phax.json"));
+      expect(result.failure.message).toContain("  assignments[1].globs: must not be empty");
     }
   });
 });
@@ -281,7 +281,7 @@ describe("loadConfig invalid user file error handling", () => {
     const result = loadConfig(repoDir);
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left.path).toBe(join(tempHome, ".phax", "config.json"));
+      expect(result.failure.path).toBe(join(tempHome, ".phax", "config.json"));
     }
   });
 
@@ -291,7 +291,7 @@ describe("loadConfig invalid user file error handling", () => {
     const result = loadConfig(repoDir);
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left.path).toBe(join(repoDir, "phax.local.json"));
+      expect(result.failure.path).toBe(join(repoDir, "phax.local.json"));
     }
   });
 
@@ -301,7 +301,7 @@ describe("loadConfig invalid user file error handling", () => {
     const result = loadConfig(repoDir);
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left.path).toBe(join(tempHome, ".phax", "config.json"));
+      expect(result.failure.path).toBe(join(tempHome, ".phax", "config.json"));
     }
   });
 
@@ -311,7 +311,7 @@ describe("loadConfig invalid user file error handling", () => {
     const result = loadConfig(repoDir);
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left.path).toBe(join(repoDir, "phax.local.json"));
+      expect(result.failure.path).toBe(join(repoDir, "phax.local.json"));
     }
   });
 
@@ -332,8 +332,8 @@ describe("loadConfig invalid user file error handling", () => {
     const result = loadConfig(repoDir);
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left.path).toBe(join(repoDir, "phax.local.json"));
-      expect(result.left.message).toContain(
+      expect(result.failure.path).toBe(join(repoDir, "phax.local.json"));
+      expect(result.failure.message).toContain(
         'gate step "node ./audit.mjs": output must be "log" or "gate-report"',
       );
     }
@@ -354,8 +354,8 @@ describe("loadConfig invalid user file error handling", () => {
     const result = loadConfig(repoDir);
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left.path).toBe("gateProfiles.fast");
-      expect(result.left.message).toBe(
+      expect(result.failure.path).toBe("gateProfiles.fast");
+      expect(result.failure.message).toBe(
         'gateProfiles.fast lists the command "pnpm lint" twice (steps 1 and 3)',
       );
     }
@@ -367,9 +367,9 @@ describe("loadConfig invalid user file error handling", () => {
     const result = loadConfig(repoDir);
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left.path).toBe(join(repoDir, "phax.local.json"));
-      expect(result.left.message).toContain(join(repoDir, "phax.local.json"));
-      expect(result.left.message).toContain(
+      expect(result.failure.path).toBe(join(repoDir, "phax.local.json"));
+      expect(result.failure.message).toContain(join(repoDir, "phax.local.json"));
+      expect(result.failure.message).toContain(
         'brief.push must be "findings" or "findings-and-rules"',
       );
     }
@@ -382,28 +382,28 @@ describe("the acceptance provider key across the three layers (ac-provider-old)"
   it("merges acceptance with local over global over project", () => {
     writeProjectConfig({ ...baseConfig, acceptance: { command: "project-acceptance" } });
     const projectOnly = loadConfig(repoDir);
-    expect(Result.isSuccess(projectOnly) && projectOnly.right.acceptance).toEqual({
+    expect(Result.isSuccess(projectOnly) && projectOnly.success.acceptance).toEqual({
       command: "project-acceptance",
     });
 
     writeGlobalUserConfig({ acceptance: { command: "global-acceptance" } });
     const withGlobal = loadConfig(repoDir);
-    expect(Result.isSuccess(withGlobal) && withGlobal.right.acceptance).toEqual({
+    expect(Result.isSuccess(withGlobal) && withGlobal.success.acceptance).toEqual({
       command: "global-acceptance",
     });
 
     writeLocalUserConfig({ acceptance: { command: "local-acceptance" } });
     const withLocal = loadConfig(repoDir);
-    expect(Result.isSuccess(withLocal) && withLocal.right.acceptance).toEqual({
+    expect(Result.isSuccess(withLocal) && withLocal.success.acceptance).toEqual({
       command: "local-acceptance",
     });
-    expect(Result.isSuccess(withLocal) && "oracles" in withLocal.right).toBe(false);
+    expect(Result.isSuccess(withLocal) && "oracles" in withLocal.success).toBe(false);
   });
 
   it("leaves acceptance unset when no layer declares it", () => {
     writeProjectConfig(baseConfig);
     const result = loadConfig(repoDir);
-    expect(Result.isSuccess(result) && result.right.acceptance).toBeUndefined();
+    expect(Result.isSuccess(result) && result.success.acceptance).toBeUndefined();
   });
 
   it.each([
@@ -434,8 +434,10 @@ describe("the acceptance provider key across the three layers (ac-provider-old)"
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
       const path = expectedPath();
-      expect(result.left.path).toBe(path);
-      expect(result.left.message).toBe(`${path}: "oracles" is no longer read: write "acceptance"`);
+      expect(result.failure.path).toBe(path);
+      expect(result.failure.message).toBe(
+        `${path}: "oracles" is no longer read: write "acceptance"`,
+      );
     }
   });
 
@@ -444,7 +446,7 @@ describe("the acceptance provider key across the three layers (ac-provider-old)"
     const result = loadConfig(repoDir);
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left.message).toBe(
+      expect(result.failure.message).toBe(
         `${join(repoDir, "phax.json")}: "oracles" is no longer read: write "acceptance"`,
       );
     }
@@ -455,6 +457,6 @@ describe("the acceptance provider key across the three layers (ac-provider-old)"
     writeGlobalUserConfig({ acceptance: { command: "global-acceptance" } });
     writeLocalUserConfig({ oracles: { command: COMMAND } });
     const result = loadConfig(repoDir);
-    expect(Result.isFailure(result) && result.left.path).toBe(join(repoDir, "phax.local.json"));
+    expect(Result.isFailure(result) && result.failure.path).toBe(join(repoDir, "phax.local.json"));
   });
 });

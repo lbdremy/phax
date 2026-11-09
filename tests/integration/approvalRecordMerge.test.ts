@@ -114,8 +114,8 @@ async function transition(
   const result = await Effect.runPromise(
     Effect.result(transitionArtifactBy(path, target, opts).pipe(Effect.provide(layer))),
   );
-  if (Result.isFailure(result)) throw new Error(`transition failed: ${String(result.left)}`);
-  return result.right;
+  if (Result.isFailure(result)) throw new Error(`transition failed: ${String(result.failure)}`);
+  return result.success;
 }
 
 function newBranchFromMain(branch: string): void {
@@ -270,7 +270,7 @@ describe("A run's PR merges after an approval on main", () => {
       );
       expect(Result.isSuccess(completion)).toBe(true);
       if (!Result.isSuccess(completion)) return;
-      expect(completion.right.transitions.map((t) => t.kind)).toEqual(["plan", "spec"]);
+      expect(completion.success.transitions.map((t) => t.kind)).toEqual(["plan", "spec"]);
       expect(repoHas(recordOf("plan", PLAN_B), worktree)).toBe(false);
       expect(repoHas(recordOf("spec", RUN_SPEC), worktree)).toBe(false);
 
@@ -402,7 +402,7 @@ describe("Plan approval writes its own record file", () => {
     const sidecar = PLAN_A.replace(/\.md$/, ".json");
     writeRepoFile(
       PLAN_A,
-      `---\nstatus: Draft\nsource-spec: null\n---\n${renderPlanBody(decoded.right)}`,
+      `---\nstatus: Draft\nsource-spec: null\n---\n${renderPlanBody(decoded.success)}`,
     );
     writeRepoFile(sidecar, JSON.stringify(withSchemaUrl("plan-document", fields), null, 2));
     commitAll();

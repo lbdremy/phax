@@ -186,7 +186,7 @@ describe("resolvePhaseInfo", () => {
     const result = resolvePhaseInfo("test", SHORT_NAME, "phase-99", stateRoot);
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toContain("phase-99");
+      expect(result.failure).toContain("phase-99");
     }
   });
 

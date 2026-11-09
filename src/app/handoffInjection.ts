@@ -136,13 +136,13 @@ export function readReviewCorrections(
       });
       const decoded = readPhaseFileReconciliationFile(reconPath, parsed);
       if (Result.isFailure(decoded)) {
-        return yield* Effect.fail(new FsError({ message: decoded.left.message }));
+        return yield* Effect.fail(new FsError({ message: decoded.failure.message }));
       }
       stops.push({
         phaseId: phase.id,
         cause: stop.cause,
         handoff,
-        changedFiles: decoded.right.reviewCorrections,
+        changedFiles: decoded.success.reviewCorrections,
       });
     }
     return stops;

@@ -456,7 +456,7 @@ describe("runValidate", () => {
       const refused = loadConfig(repoDir);
       expect(Result.isFailure(refused)).toBe(true);
       if (Result.isFailure(refused)) {
-        expect(exitCodeForError(refused.left)).toBe(2);
+        expect(exitCodeForError(refused.failure)).toBe(2);
       }
 
       const { code, errLines: errors } = await phaxCall(["validate"]);
@@ -483,7 +483,7 @@ describe("runValidate", () => {
       const refused = loadConfig(repoDir);
       expect(Result.isFailure(refused)).toBe(true);
       if (Result.isFailure(refused)) {
-        expect(exitCodeForError(refused.left)).toBe(2);
+        expect(exitCodeForError(refused.failure)).toBe(2);
       }
 
       const { code, errLines: errors } = await phaxCall(["validate"]);

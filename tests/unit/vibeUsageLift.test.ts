@@ -174,9 +174,9 @@ describe("a record stamped below 0.30.0 reads through its frozen decoder (phax)"
     "%s at %s: %s usage",
     (_label, format, stamp, frozen, usageKey, _provider, usage, lifted) => {
       const value = read(format, frozen(stamp, usage));
-      if (Result.isFailure(value)) throw new Error(value.left.message);
-      expect(value.right).toEqual(expectedValue(format, usageKey, lifted));
-      expect(value.right).not.toHaveProperty("$schema");
+      if (Result.isFailure(value)) throw new Error(value.failure.message);
+      expect(value.success).toEqual(expectedValue(format, usageKey, lifted));
+      expect(value.success).not.toHaveProperty("$schema");
     },
   );
 
@@ -186,8 +186,8 @@ describe("a record stamped below 0.30.0 reads through its frozen decoder (phax)"
         FILE,
         withKey(preSchemaDocuments[id], "usage", FROZEN_VIBE),
       );
-      if (Result.isFailure(value)) throw new Error(value.left.message);
-      expect(value.right).toMatchObject({ usage: UNAVAILABLE });
+      if (Result.isFailure(value)) throw new Error(value.failure.message);
+      expect(value.success).toMatchObject({ usage: UNAVAILABLE });
     }
   });
 
@@ -222,8 +222,8 @@ describe("a record stamped below 0.30.0 reads through its frozen decoder (phax)"
       ["interactive-session", session, "builderUsage"],
     ] as const) {
       const value = read(format, frozen("0.30.0", current));
-      if (Result.isFailure(value)) throw new Error(value.left.message);
-      expect(value.right, format).toMatchObject({ [usageKey]: current });
+      if (Result.isFailure(value)) throw new Error(value.failure.message);
+      expect(value.success, format).toMatchObject({ [usageKey]: current });
     }
   });
 });

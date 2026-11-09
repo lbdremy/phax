@@ -535,8 +535,8 @@ describe("acceptance phases in a run", () => {
     const result = await h.execute();
 
     if (Result.isSuccess(result)) throw new Error("expected the run to stop");
-    expect(result.left).toBeInstanceOf(GateStepRefusedError);
-    expect(result.left).toMatchObject({
+    expect(result.failure).toBeInstanceOf(GateStepRefusedError);
+    expect(result.failure).toMatchObject({
       command: ORACLES,
       reason: REASON,
       remedy: REMEDY,
@@ -573,8 +573,8 @@ describe("acceptance phases in a run", () => {
     const result = await h.execute();
 
     if (Result.isSuccess(result)) throw new Error("expected the run to stop");
-    expect(result.left).toBeInstanceOf(GateAttemptsExhaustedError);
-    expect(result.left).toMatchObject({ failure: { failedStep: "acceptance" } });
+    expect(result.failure).toBeInstanceOf(GateAttemptsExhaustedError);
+    expect(result.failure).toMatchObject({ failure: { failedStep: "acceptance" } });
     expect(await h.readJson("phase-03", "status.json")).toMatchObject({ state: "gates_exhausted" });
     const instructions = await readFile(join(h.runPath, "resume-instructions.md"), "utf8");
     expect(instructions).toContain("the acceptance step failed after exhausting all fix attempts");
@@ -589,7 +589,7 @@ describe("acceptance phases in a run", () => {
     await h.noteSession("phase-03");
     const resumed = await h.execute(2);
 
-    expect(Result.isFailure(resumed) && resumed.left instanceof GateAttemptsExhaustedError).toBe(
+    expect(Result.isFailure(resumed) && resumed.failure instanceof GateAttemptsExhaustedError).toBe(
       true,
     );
     expect(new Set(discharges().map((c) => c.request["acceptanceCommit"]))).toEqual(
@@ -600,9 +600,9 @@ describe("acceptance phases in a run", () => {
     const statusBefore = await readFile(join(h.runPath, "phase-02", "status.json"), "utf8");
     const refusedReset = await h.reset("phase-02");
     if (Result.isSuccess(refusedReset)) throw new Error("expected the reset to be refused");
-    expect(refusedReset.left).toBeInstanceOf(ResetPhaseError);
-    expect(refusedReset.left).toMatchObject({ reason: "phase_blocked_by_passing" });
-    expect(refusedReset.left.message).toBe(
+    expect(refusedReset.failure).toBeInstanceOf(ResetPhaseError);
+    expect(refusedReset.failure).toMatchObject({ reason: "phase_blocked_by_passing" });
+    expect(refusedReset.failure.message).toBe(
       `Cannot reset "phase-02" of run "refunds": its passing phase "phase-03" is gates_exhausted, and a committed acceptance phase is not reset. To correct the acceptance test, edit it in phase-03 (\`phax enter-phase refunds phase-03\`), then run \`phax resume refunds --yes --skip-acceptance\`: the configured gate still runs.`,
     );
     expect(await readFile(join(h.runPath, "phase-02", "status.json"), "utf8")).toBe(statusBefore);
@@ -610,7 +610,7 @@ describe("acceptance phases in a run", () => {
     expect(Result.isSuccess(await h.reset("phase-03"))).toBe(true);
     const afterDischargeReset = await h.reset("phase-02");
     if (Result.isSuccess(afterDischargeReset)) throw new Error("expected the reset to be refused");
-    expect(afterDischargeReset.left).toMatchObject({ reason: "not_resettable" });
+    expect(afterDischargeReset.failure).toMatchObject({ reason: "not_resettable" });
     expect(await readFile(join(h.runPath, "phase-02", "status.json"), "utf8")).toBe(statusBefore);
     h.harness.answer = () => passing;
     const rerun = await h.execute(2);
@@ -628,7 +628,7 @@ describe("acceptance phases in a run", () => {
       if (publish) h.fakeGit.impl.addExistingRemote("origin");
       const first = await h.execute();
       if (Result.isSuccess(first)) throw new Error("expected the run to stop");
-      expect(first.left).toBeInstanceOf(GateAttemptsExhaustedError);
+      expect(first.failure).toBeInstanceOf(GateAttemptsExhaustedError);
       await h.noteSession("phase-03");
       return h;
     }
@@ -639,7 +639,7 @@ describe("acceptance phases in a run", () => {
       // Without the skip, the provider is asked again for the same commit.
       const callsBefore = h.providerCalls.length;
       const again = await h.execute(2);
-      expect(Result.isFailure(again) && again.left instanceof GateAttemptsExhaustedError).toBe(
+      expect(Result.isFailure(again) && again.failure instanceof GateAttemptsExhaustedError).toBe(
         true,
       );
       expect(h.providerCalls).toHaveLength(callsBefore + 2);
@@ -692,7 +692,7 @@ describe("acceptance phases in a run", () => {
       });
       const first = await h.execute();
       if (Result.isSuccess(first)) throw new Error("expected the run to stop");
-      expect(first.left).toBeInstanceOf(GateAttemptsExhaustedError);
+      expect(first.failure).toBeInstanceOf(GateAttemptsExhaustedError);
       await h.noteSession("phase-02");
       const callsBefore = h.providerCalls.length;
 
@@ -721,7 +721,7 @@ describe("acceptance phases in a run", () => {
       });
       const first = await h.execute();
       if (Result.isSuccess(first)) throw new Error("expected the run to stop");
-      expect(first.left).toBeInstanceOf(GateAttemptsExhaustedError);
+      expect(first.failure).toBeInstanceOf(GateAttemptsExhaustedError);
       h.harness.answer = () => passing;
       await h.noteSession("phase-02");
       const callsBefore = h.providerCalls.length;
@@ -746,7 +746,7 @@ describe("acceptance phases in a run", () => {
     const first = await h.execute();
 
     if (Result.isSuccess(first)) throw new Error("expected the run to pause");
-    expect(first.left).toBeInstanceOf(PhaseHadNoChangesError);
+    expect(first.failure).toBeInstanceOf(PhaseHadNoChangesError);
     const phase02 = await h.readJson("phase-02", "status.json");
     expect(phase02).toMatchObject({ state: "skipped" });
     expect(phase02["commitHash"]).toBeUndefined();
@@ -755,15 +755,18 @@ describe("acceptance phases in a run", () => {
     const resumed = await h.execute(2);
 
     if (Result.isSuccess(resumed)) throw new Error("expected the discharge to be refused");
-    expect(resumed.left).toBeInstanceOf(AcceptanceCommitMissingError);
-    expect(resumed.left).toMatchObject({ acceptancePhase: "phase-02", passingPhase: "phase-03" });
-    expect(resumed.left.message).toBe(
+    expect(resumed.failure).toBeInstanceOf(AcceptanceCommitMissingError);
+    expect(resumed.failure).toMatchObject({
+      acceptancePhase: "phase-02",
+      passingPhase: "phase-03",
+    });
+    expect(resumed.failure.message).toBe(
       [
         `Cannot run passing phase "phase-03" of run "refunds": its acceptance phase "phase-02" is skipped and noted no commit, so there are no acceptance tests to pass.`,
         "No resume gives a skipped acceptance phase a commit: archive the run (phax archive refunds --force) and run a corrected plan whose acceptance phase writes its acceptance tests.",
       ].join("\n"),
     );
-    expect(exitCodeForError(resumed.left)).toBe(11);
+    expect(exitCodeForError(resumed.failure)).toBe(11);
     // Nothing of phase-03 ran: no agent turn, no gate, no oracle request.
     expect(h.fakeBackend.impl.runCalls.length).toBe(agentRuns);
     expect(h.providerCalls.map((c) => c.request["verdict"])).toEqual(["authored"]);

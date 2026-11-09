@@ -221,9 +221,11 @@ export function makeResetPhaseCommand(layers: ResetPhaseLayers = {}) {
         );
         const resolved = resolveRunRef(shortNameArg, config, config.stateRoot);
         if (Result.isFailure(resolved)) {
-          return yield* Effect.fail(new ResetPhaseRunRefError({ message: resolved.left.message }));
+          return yield* Effect.fail(
+            new ResetPhaseRunRefError({ message: resolved.failure.message }),
+          );
         }
-        const { namespace, shortName: shortNameStr, crossProject } = resolved.right;
+        const { namespace, shortName: shortNameStr, crossProject } = resolved.success;
         const qualifiedName = runKey(namespace, shortNameStr);
         // Safe: resolveRunRef already validated the shortName via parseRunRef.
         const decoded = decodeShortName(shortNameStr);
@@ -236,7 +238,7 @@ export function makeResetPhaseCommand(layers: ResetPhaseLayers = {}) {
             }),
           );
         }
-        const shortName = decoded.right;
+        const shortName = decoded.success;
         const options = {
           namespace,
           shortName,

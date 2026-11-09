@@ -195,7 +195,7 @@ describe(
 
       expect(Result.isFailure(result)).toBe(true);
       if (Result.isFailure(result)) {
-        expect(result.left.message).toContain(
+        expect(result.failure.message).toContain(
           `${LIVE} has an invalid sidecar (${LIVE_SIDECAR}: surface[1].summary: is missing)`,
         );
       }
@@ -231,9 +231,9 @@ describe("a live 0.25.0 sidecar waits for migrate-documents", { timeout: 30_000 
 
       expect(Result.isFailure(result)).toBe(true);
       if (Result.isFailure(result)) {
-        expect(result.left).toBeInstanceOf(DocumentMigrationRequiredError);
-        expect(exitCodeForError(result.left)).toBe(12);
-        expect(result.left.message).toBe(`Approval refused: ${refusal}`);
+        expect(result.failure).toBeInstanceOf(DocumentMigrationRequiredError);
+        expect(exitCodeForError(result.failure)).toBe(12);
+        expect(result.failure.message).toBe(`Approval refused: ${refusal}`);
       }
       expect(headSha()).toBe(head);
       expect(git(["status", "--porcelain"]).trim()).toBe("");

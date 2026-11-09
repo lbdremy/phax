@@ -363,9 +363,9 @@ async function landDecide(
   overrides: Partial<DecideArtifactInput> = {},
 ) {
   const { result, lines } = await decide(answers, overrides);
-  if (Result.isFailure(result)) throw new Error(`decide failed: ${result.left.message}`);
-  expect(result.right.kind).toBe("committed");
-  return { result: result.right, lines };
+  if (Result.isFailure(result)) throw new Error(`decide failed: ${result.failure.message}`);
+  expect(result.success.kind).toBe("committed");
+  return { result: result.success, lines };
 }
 
 function transition(path: string, target: ArtifactStatus, by: string) {
@@ -385,7 +385,7 @@ function transition(path: string, target: ArtifactStatus, by: string) {
 
 async function transitioned(path: string, target: ArtifactStatus, by = "operator"): Promise<void> {
   const result = await transition(path, target, by);
-  if (Result.isFailure(result)) throw new Error(`${target} failed: ${result.left.message}`);
+  if (Result.isFailure(result)) throw new Error(`${target} failed: ${result.failure.message}`);
 }
 
 /** Approve refused by the lock, naming exactly `open`; nothing written. */
@@ -394,9 +394,9 @@ async function expectLocked(path: string, open: readonly string[]): Promise<void
   const result = await transition(path, "Approved", "operator");
   expect(Result.isFailure(result)).toBe(true);
   if (Result.isFailure(result)) {
-    expect(result.left).toBeInstanceOf(ArtifactOpenQuestionsError);
-    expect(exitCodeForError(result.left)).toBe(12);
-    expect(result.left.message).toBe(
+    expect(result.failure).toBeInstanceOf(ArtifactOpenQuestionsError);
+    expect(exitCodeForError(result.failure)).toBe(12);
+    expect(result.failure.message).toBe(
       `Approval refused: ${path} has open questions — ${open.join(", ")}. Answer them with \`phax artifact decide ${path}\`.`,
     );
   }

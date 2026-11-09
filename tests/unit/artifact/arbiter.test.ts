@@ -11,7 +11,7 @@ import { GRANT_PATTERN } from "../../../src/schemas/approvedBy.js";
 
 function refusal<A>(result: Result.Result<A, string>): string {
   if (Result.isSuccess(result)) throw new Error("expected a refusal");
-  return result.left;
+  return result.failure;
 }
 
 describe("parseArbiterDeclaration", () => {

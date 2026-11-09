@@ -39,15 +39,15 @@ describe("finalizeExtractedPlan", () => {
   it("keeps the extraction contract's version out of the in-memory plan", () => {
     const result = finalizeExtractedPlan(makeExtracted(), PLAN_MD_ONE_PHASE);
     if (Result.isFailure(result)) throw new Error("unexpected Left");
-    expect(result.right.plan).not.toHaveProperty("version");
-    expect(Object.keys(result.right.plan)).toEqual(["run", "phases"]);
+    expect(result.success.plan).not.toHaveProperty("version");
+    expect(Object.keys(result.success.plan)).toEqual(["run", "phases"]);
   });
 
   it("derives phase titles from headings", () => {
     const result = finalizeExtractedPlan(makeExtracted(), PLAN_MD_ONE_PHASE);
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.plan.phases[0]!.title).toBe("Alpha phase");
+      expect(result.success.plan.phases[0]!.title).toBe("Alpha phase");
     }
   });
 
@@ -58,8 +58,8 @@ describe("finalizeExtractedPlan", () => {
     const result = finalizeExtractedPlan(extracted, PLAN_MD_ONE_PHASE);
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.plan.run.shortName).toBe("my-fancy-run");
-      expect(result.right.plan.run.branch).toBe("phax/my-fancy-run");
+      expect(result.success.plan.run.shortName).toBe("my-fancy-run");
+      expect(result.success.plan.run.branch).toBe("phax/my-fancy-run");
     }
   });
 
@@ -70,8 +70,8 @@ describe("finalizeExtractedPlan", () => {
     const result = finalizeExtractedPlan(extracted, PLAN_MD_ONE_PHASE);
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.plan.run.shortName).toBe("fallback-title");
-      expect(result.right.plan.run.branch).toBe("phax/fallback-title");
+      expect(result.success.plan.run.shortName).toBe("fallback-title");
+      expect(result.success.plan.run.branch).toBe("phax/fallback-title");
     }
   });
 
@@ -96,8 +96,8 @@ describe("finalizeExtractedPlan", () => {
     const result = finalizeExtractedPlan(extracted, PLAN_MD_ONE_PHASE);
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(PlanValidationError);
-      expect(result.left.message).toContain("phase-02");
+      expect(result.failure).toBeInstanceOf(PlanValidationError);
+      expect(result.failure.message).toContain("phase-02");
     }
   });
 
@@ -142,8 +142,8 @@ describe("finalizeExtractedPlan", () => {
     const result = finalizeExtractedPlan(extracted, planMd);
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.detectedAnchors).toEqual(["phase-01", "phase-02"]);
-      expect(result.right.warnings).toHaveLength(0);
+      expect(result.success.detectedAnchors).toEqual(["phase-01", "phase-02"]);
+      expect(result.success.warnings).toHaveLength(0);
     }
   });
 
@@ -175,8 +175,8 @@ describe("finalizeExtractedPlan", () => {
     const result = finalizeExtractedPlan(extracted, planMd);
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.warnings.length).toBeGreaterThan(0);
-      expect(result.right.warnings[0]).toContain("2 detected phase anchor");
+      expect(result.success.warnings.length).toBeGreaterThan(0);
+      expect(result.success.warnings[0]).toContain("2 detected phase anchor");
     }
   });
 
@@ -206,7 +206,7 @@ describe("finalizeExtractedPlan", () => {
     const result = finalizeExtractedPlan(extracted, planMd);
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.plan.phases[0]!.title).toBe('Guard "all I/O goes through a port"');
+      expect(result.success.plan.phases[0]!.title).toBe('Guard "all I/O goes through a port"');
     }
   });
 });

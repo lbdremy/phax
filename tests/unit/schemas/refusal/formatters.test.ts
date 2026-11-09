@@ -27,7 +27,7 @@ function refused<A, I>(schema: Schema.Codec<A, I>, input: unknown): never {
     reportInput: true,
   })(input);
   if (Result.isSuccess(decoded)) throw new Error("expected a refusal");
-  return decoded.left as never;
+  return decoded.failure as never;
 }
 
 describe("a value of the wrong shape", () => {

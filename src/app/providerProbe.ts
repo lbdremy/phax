@@ -9,7 +9,7 @@ const probeOne = (provider: string, executable: string) =>
     const result = yield* Effect.result(
       shell.run({ command: [executable, "--version"], cwd: process.cwd() }),
     );
-    const available = Result.isSuccess(result) && result.right.exitCode === 0;
+    const available = Result.isSuccess(result) && result.success.exitCode === 0;
     return { provider, available } satisfies ProviderProbeResult;
   });
 

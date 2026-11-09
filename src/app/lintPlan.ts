@@ -115,7 +115,7 @@ export function lintPlan(
 
     if (classifyArtifactPath(repoRelPath) !== null) {
       const validated = validateArtifact(repoRelPath, planMd);
-      if (Result.isFailure(validated)) return yield* Effect.fail(validated.left);
+      if (Result.isFailure(validated)) return yield* Effect.fail(validated.failure);
       const planSlug = parseArtifactName("plan", fileNameOf(repoRelPath))?.slug;
       if (planSlug !== undefined) {
         findings.push(...lineageFindings(planSlug, sourceSpecSlug(planMd)));
@@ -134,13 +134,13 @@ export function lintPlan(
       return { plan: reportPath, findings };
     }
 
-    const finalized = finalizeExtractedPlan(extracted.right.plan, planMd);
+    const finalized = finalizeExtractedPlan(extracted.success.plan, planMd);
     if (Result.isFailure(finalized)) {
       findings.push({
         severity: "error",
         check: "structure",
         phase: null,
-        message: finalized.left.message,
+        message: finalized.failure.message,
       });
       findings.push(
         ...interactiveFindings({ headers, phases: null }),
@@ -150,7 +150,7 @@ export function lintPlan(
       return { plan: reportPath, findings };
     }
 
-    const { plan, warnings } = finalized.right;
+    const { plan, warnings } = finalized.success;
     findings.push(
       ...interactiveFindings({ headers, phases: plan.phases }),
       ...acceptanceFindings({ ...acceptanceInput, phases: plan.phases }),
@@ -158,12 +158,12 @@ export function lintPlan(
     );
     // The rules on the kept lines, numbered by their source items.
     const criteria = yield* readSourceSpecCriteria({ planMd, repoRoot: config.repoRoot });
-    const itemsOf = new Map(extracted.right.lineItems.map((l) => [l.phase, l.items]));
+    const itemsOf = new Map(extracted.success.lineItems.map((l) => [l.phase, l.items]));
     const retiredHeaders = new Set(
       headers.filter((h) => h.hasOraclePhaseLine || h.hasOracleFilesLine).map((h) => h.phase),
     );
     const retiredLoops = new Set(
-      extracted.right.departures
+      extracted.success.departures
         .filter(({ departure }) => departure.kind === "retired-loop")
         .map(({ phase }) => phase),
     );
@@ -225,8 +225,8 @@ export function lintPlan(
       );
       findings.push(
         ...(Result.isSuccess(audited)
-          ? advisoryFindings(audited.right)
-          : [auditorFailureFinding(audited.left)]),
+          ? advisoryFindings(audited.success)
+          : [auditorFailureFinding(audited.failure)]),
       );
     }
 

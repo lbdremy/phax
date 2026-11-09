@@ -177,9 +177,9 @@ describe("a spec still holding the summary placeholder", { timeout: 30_000 }, ()
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(SurfaceSummariesUnwrittenError);
-      expect(exitCodeForError(result.left)).toBe(12);
-      expect(result.left.message.split("\n")).toEqual([
+      expect(result.failure).toBeInstanceOf(SurfaceSummariesUnwrittenError);
+      expect(exitCodeForError(result.failure)).toBe(12);
+      expect(result.failure.message.split("\n")).toEqual([
         `Approval refused: ${LIVE} has 2 surface summaries still to write`,
         `  ${ROTATE_ONE}`,
         `  ${RECONCILE}`,
@@ -205,9 +205,9 @@ describe("a spec still holding the summary placeholder", { timeout: 30_000 }, ()
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(SurfaceSummariesUnwrittenError);
-      expect(exitCodeForError(result.left)).toBe(12);
-      expect(result.left.message.split("\n")).toEqual([
+      expect(result.failure).toBeInstanceOf(SurfaceSummariesUnwrittenError);
+      expect(exitCodeForError(result.failure)).toBe(12);
+      expect(result.failure.message.split("\n")).toEqual([
         `Completion refused: ${LIVE} has 1 surface summary still to write`,
         `  ${ROTATE_ONE}`,
         `  Write each one in ${LIVE_SIDECAR} and on its §6 \`Summary:\` line, then rerun.`,

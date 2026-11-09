@@ -56,8 +56,8 @@ beforeEach(() => {
   mkdirSync(subDir, { recursive: true });
 
   const configResult = loadConfig(repoDir);
-  if (Result.isFailure(configResult)) throw new Error(configResult.left.message);
-  config = configResult.right;
+  if (Result.isFailure(configResult)) throw new Error(configResult.failure.message);
+  config = configResult.success;
 });
 
 afterEach(() => {
@@ -89,7 +89,7 @@ describe("repo-rooted FileSystem layer, invoked from a nested subdirectory", () 
     const result = await readViaLayer(rooted, PLAN_REL);
 
     expect(Result.isSuccess(result)).toBe(true);
-    if (Result.isSuccess(result)) expect(result.right).toBe(PLAN_MD);
+    if (Result.isSuccess(result)) expect(result.success).toBe(PLAN_MD);
   });
 
   it("passes an absolute path argument through unchanged under the rooted layer", async () => {
@@ -99,7 +99,7 @@ describe("repo-rooted FileSystem layer, invoked from a nested subdirectory", () 
     const result = await readViaLayer(rooted, join(repoDir, PLAN_REL));
 
     expect(Result.isSuccess(result)).toBe(true);
-    if (Result.isSuccess(result)) expect(result.right).toBe(PLAN_MD);
+    if (Result.isSuccess(result)) expect(result.success).toBe(PLAN_MD);
   });
 
   it("the identity layer from a subdirectory cannot see the repo-relative artifact", async () => {
@@ -137,7 +137,7 @@ describe("repo-rooted FileSystem layer, invoked from a nested subdirectory", () 
     );
     expect(Result.isSuccess(rootedReport)).toBe(true);
     if (Result.isSuccess(rootedReport)) {
-      expect(rootedReport.right.report.map((e) => e.path)).toEqual([PLAN_REL]);
+      expect(rootedReport.success.report.map((e) => e.path)).toEqual([PLAN_REL]);
     }
 
     // Identity layer from the same subdirectory: docs/plans is invisible, so the
@@ -153,7 +153,7 @@ describe("repo-rooted FileSystem layer, invoked from a nested subdirectory", () 
     );
     expect(Result.isSuccess(identityReport)).toBe(true);
     if (Result.isSuccess(identityReport)) {
-      expect(identityReport.right).toEqual({ report: [], orphanRecords: [] });
+      expect(identityReport.success).toEqual({ report: [], orphanRecords: [] });
     }
   });
 });

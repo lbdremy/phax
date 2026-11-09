@@ -132,10 +132,10 @@ describe("resolveRunRef", () => {
 
       expect(Result.isSuccess(result)).toBe(true);
       if (Result.isFailure(result)) throw new Error("expected success");
-      expect(result.right.namespace).toBe("myns");
-      expect(result.right.shortName).toBe("fixbug");
-      expect(result.right.info.namespace).toBe("myns");
-      expect(result.right.crossProject).toBe(false);
+      expect(result.success.namespace).toBe("myns");
+      expect(result.success.shortName).toBe("fixbug");
+      expect(result.success.info.namespace).toBe("myns");
+      expect(result.success.crossProject).toBe(false);
     });
 
     it("ignores a same-short-name run belonging to a different namespace", () => {
@@ -146,8 +146,8 @@ describe("resolveRunRef", () => {
 
       expect(Result.isFailure(result)).toBe(true);
       if (Result.isSuccess(result)) throw new Error("expected refusal");
-      expect(result.left.variant).toBe("not-found");
-      expect(result.left.message).toContain("myns");
+      expect(result.failure.variant).toBe("not-found");
+      expect(result.failure.message).toContain("myns");
     });
 
     it("returns not-found when no run folder exists", () => {
@@ -156,8 +156,8 @@ describe("resolveRunRef", () => {
 
       expect(Result.isFailure(result)).toBe(true);
       if (Result.isSuccess(result)) throw new Error("expected refusal");
-      expect(result.left.variant).toBe("not-found");
-      expect(result.left.message).toContain("myns.missing");
+      expect(result.failure.variant).toBe("not-found");
+      expect(result.failure.message).toContain("myns.missing");
     });
 
     it("returns unresolvable-qualified with the decode reason when the registry entry exists but run-status.json fails to decode", () => {
@@ -180,13 +180,13 @@ describe("resolveRunRef", () => {
 
       expect(Result.isFailure(result)).toBe(true);
       if (Result.isSuccess(result)) throw new Error("expected refusal");
-      expect(result.left.variant).toBe("unresolvable-qualified");
-      expect(result.left.message).toContain("myns.fixbug");
-      expect(result.left.message).toContain("could not be read");
-      expect(result.left.message).toContain(
+      expect(result.failure.variant).toBe("unresolvable-qualified");
+      expect(result.failure.message).toContain("myns.fixbug");
+      expect(result.failure.message).toContain("could not be read");
+      expect(result.failure.message).toContain(
         `${join(stateRoot, "runs", "myns.fixbug", "run-status.json")}: run status without $schema is not in the pre-schema shape`,
       );
-      expect(result.left.message).toContain("namespace");
+      expect(result.failure.message).toContain("namespace");
     });
 
     it("returns unresolvable-qualified when the registry entry exists but the run folder is gone", () => {
@@ -200,8 +200,8 @@ describe("resolveRunRef", () => {
 
       expect(Result.isFailure(result)).toBe(true);
       if (Result.isSuccess(result)) throw new Error("expected refusal");
-      expect(result.left.variant).toBe("unresolvable-qualified");
-      expect(result.left.message).toContain("No run-status.json");
+      expect(result.failure.variant).toBe("unresolvable-qualified");
+      expect(result.failure.message).toContain("No run-status.json");
     });
   });
 
@@ -220,10 +220,10 @@ describe("resolveRunRef", () => {
 
       expect(Result.isFailure(result)).toBe(true);
       if (Result.isSuccess(result)) throw new Error("expected refusal");
-      expect(result.left.variant).toBe("ambiguous-outside-project");
-      expect(result.left.candidates).toContain("ns-a.fixbug");
-      expect(result.left.candidates).toContain("ns-b.fixbug");
-      expect(result.left.message).toContain("ns-a.fixbug");
+      expect(result.failure.variant).toBe("ambiguous-outside-project");
+      expect(result.failure.candidates).toContain("ns-a.fixbug");
+      expect(result.failure.candidates).toContain("ns-b.fixbug");
+      expect(result.failure.message).toContain("ns-a.fixbug");
     });
 
     it("refuses with no-project message when no candidates found", () => {
@@ -231,9 +231,9 @@ describe("resolveRunRef", () => {
 
       expect(Result.isFailure(result)).toBe(true);
       if (Result.isSuccess(result)) throw new Error("expected refusal");
-      expect(result.left.variant).toBe("ambiguous-outside-project");
-      expect(result.left.candidates).toHaveLength(0);
-      expect(result.left.message).toContain("No PHAX project is active");
+      expect(result.failure.variant).toBe("ambiguous-outside-project");
+      expect(result.failure.candidates).toHaveLength(0);
+      expect(result.failure.message).toContain("No PHAX project is active");
     });
   });
 
@@ -250,9 +250,9 @@ describe("resolveRunRef", () => {
 
       expect(Result.isSuccess(result)).toBe(true);
       if (Result.isFailure(result)) throw new Error("expected success");
-      expect(result.right.namespace).toBe("myns");
-      expect(result.right.shortName).toBe("fixbug");
-      expect(result.right.crossProject).toBe(false);
+      expect(result.success.namespace).toBe("myns");
+      expect(result.success.shortName).toBe("fixbug");
+      expect(result.success.crossProject).toBe(false);
     });
 
     it("resolves cross-project qualified reference and sets crossProject=true", () => {
@@ -267,8 +267,8 @@ describe("resolveRunRef", () => {
 
       expect(Result.isSuccess(result)).toBe(true);
       if (Result.isFailure(result)) throw new Error("expected success");
-      expect(result.right.namespace).toBe("otherns");
-      expect(result.right.crossProject).toBe(true);
+      expect(result.success.namespace).toBe("otherns");
+      expect(result.success.crossProject).toBe(true);
     });
 
     it("resolves qualified reference outside a project (no config)", () => {
@@ -282,8 +282,8 @@ describe("resolveRunRef", () => {
 
       expect(Result.isSuccess(result)).toBe(true);
       if (Result.isFailure(result)) throw new Error("expected success");
-      expect(result.right.namespace).toBe("myns");
-      expect(result.right.crossProject).toBe(false);
+      expect(result.success.namespace).toBe("myns");
+      expect(result.success.crossProject).toBe(false);
     });
 
     it("returns not-found when registry has no entry for (namespace, shortName)", () => {
@@ -297,8 +297,8 @@ describe("resolveRunRef", () => {
 
       expect(Result.isFailure(result)).toBe(true);
       if (Result.isSuccess(result)) throw new Error("expected refusal");
-      expect(result.left.variant).toBe("not-found");
-      expect(result.left.message).toContain("myns.fixbug");
+      expect(result.failure.variant).toBe("not-found");
+      expect(result.failure.message).toContain("myns.fixbug");
     });
 
     it("returns unresolvable-qualified when registry entry exists but files are missing", () => {
@@ -311,9 +311,9 @@ describe("resolveRunRef", () => {
 
       expect(Result.isFailure(result)).toBe(true);
       if (Result.isSuccess(result)) throw new Error("expected refusal");
-      expect(result.left.variant).toBe("unresolvable-qualified");
-      expect(result.left.message).toContain("myns.fixbug");
-      expect(result.left.message).toContain("Reason: No run-status.json");
+      expect(result.failure.variant).toBe("unresolvable-qualified");
+      expect(result.failure.message).toContain("myns.fixbug");
+      expect(result.failure.message).toContain("Reason: No run-status.json");
     });
   });
 
@@ -322,14 +322,14 @@ describe("resolveRunRef", () => {
       const result = resolveRunRef("", makeConfig("myns", stateRoot), stateRoot);
       expect(Result.isFailure(result)).toBe(true);
       if (Result.isSuccess(result)) throw new Error("expected refusal");
-      expect(result.left.variant).toBe("not-found");
+      expect(result.failure.variant).toBe("not-found");
     });
 
     it("returns not-found for input with multiple dots", () => {
       const result = resolveRunRef("a.b.c", makeConfig("myns", stateRoot), stateRoot);
       expect(Result.isFailure(result)).toBe(true);
       if (Result.isSuccess(result)) throw new Error("expected refusal");
-      expect(result.left.variant).toBe("not-found");
+      expect(result.failure.variant).toBe("not-found");
     });
   });
 });

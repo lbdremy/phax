@@ -268,15 +268,15 @@ async function close(options: CloseOptions = {}) {
 type HeldReport = Extract<CloseReport, { readonly cause: "held" }>;
 
 const report = (result: Result.Result<CloseReport, unknown>): HeldReport => {
-  if (Result.isFailure(result)) throw new Error(`close refused: ${String(result.left)}`);
-  if (result.right.cause !== "held") throw new Error("the close was not a held stop's");
-  return result.right;
+  if (Result.isFailure(result)) throw new Error(`close refused: ${String(result.failure)}`);
+  if (result.success.cause !== "held") throw new Error("the close was not a held stop's");
+  return result.success;
 };
 
 const refusal = (result: Result.Result<CloseReport, unknown>): StopCloseRefusedError => {
   if (Result.isSuccess(result)) throw new Error("the close was not refused");
-  expect(result.left).toBeInstanceOf(StopCloseRefusedError);
-  return result.left as StopCloseRefusedError;
+  expect(result.failure).toBeInstanceOf(StopCloseRefusedError);
+  return result.failure as StopCloseRefusedError;
 };
 
 function lastCloseOf<R extends RefusedClose["result"]>(

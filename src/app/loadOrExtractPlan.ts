@@ -53,16 +53,16 @@ export function loadOrExtractPlan(
     // Attempt deterministic extraction first: pure, instant, no cache access.
     const deterministicResult = extractPlanDeterministic(planMd);
     if (Result.isSuccess(deterministicResult)) {
-      const finalized = finalizeExtractedPlan(deterministicResult.right, planMd);
+      const finalized = finalizeExtractedPlan(deterministicResult.success, planMd);
       if (Result.isFailure(finalized)) {
-        return yield* Effect.fail(finalized.left);
+        return yield* Effect.fail(finalized.failure);
       }
-      const { plan, warnings, detectedAnchors } = finalized.right;
+      const { plan, warnings, detectedAnchors } = finalized.success;
       return { plan, warnings, detectedAnchors, fromCache: false };
     }
 
     // Deterministic parse failed; record the reason so it surfaces as a warning.
-    const fallbackWarning = `Deterministic extraction failed (${deterministicResult.left.message}); fell back to LLM.`;
+    const fallbackWarning = `Deterministic extraction failed (${deterministicResult.failure.message}); fell back to LLM.`;
 
     const key = planCacheKey(planMd, opts.model, opts.effort);
 
@@ -71,9 +71,9 @@ export function loadOrExtractPlan(
       if (Option.isSome(cached)) {
         const finalized = finalizeExtractedPlan(cached.value, planMd);
         if (Result.isFailure(finalized)) {
-          return yield* Effect.fail(finalized.left);
+          return yield* Effect.fail(finalized.failure);
         }
-        const { plan, warnings, detectedAnchors } = finalized.right;
+        const { plan, warnings, detectedAnchors } = finalized.success;
         return { plan, warnings: [...warnings, fallbackWarning], detectedAnchors, fromCache: true };
       }
     }
@@ -100,10 +100,10 @@ export function loadOrExtractPlan(
 
     const finalized = finalizeExtractedPlan(extracted, planMd);
     if (Result.isFailure(finalized)) {
-      return yield* Effect.fail(finalized.left);
+      return yield* Effect.fail(finalized.failure);
     }
 
-    const { plan, warnings, detectedAnchors } = finalized.right;
+    const { plan, warnings, detectedAnchors } = finalized.success;
     return { plan, warnings: [...warnings, fallbackWarning], detectedAnchors, fromCache: false };
   });
 }

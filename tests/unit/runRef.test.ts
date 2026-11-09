@@ -27,7 +27,7 @@ describe("parseRunRef", () => {
     const result = parseRunRef("fixbug");
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right).toEqual({ namespace: undefined, shortName: "fixbug" });
+      expect(result.success).toEqual({ namespace: undefined, shortName: "fixbug" });
     }
   });
 
@@ -35,7 +35,7 @@ describe("parseRunRef", () => {
     const result = parseRunRef("louloupapers.fixbug");
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right).toEqual({ namespace: "louloupapers", shortName: "fixbug" });
+      expect(result.success).toEqual({ namespace: "louloupapers", shortName: "fixbug" });
     }
   });
 
@@ -47,7 +47,7 @@ describe("parseRunRef", () => {
     const result = parseRunRef("a.b.c");
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toMatch(/more than one dot/);
+      expect(result.failure).toMatch(/more than one dot/);
     }
   });
 
@@ -60,7 +60,7 @@ describe("parseRunRef", () => {
     const result = parseRunRef(".bar");
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toMatch(/empty namespace/);
+      expect(result.failure).toMatch(/empty namespace/);
     }
   });
 
@@ -68,7 +68,7 @@ describe("parseRunRef", () => {
     const result = parseRunRef("foo.");
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toMatch(/empty short-name/);
+      expect(result.failure).toMatch(/empty short-name/);
     }
   });
 
@@ -144,7 +144,7 @@ describe("parseRunKey", () => {
     const result = parseRunKey(key);
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right).toEqual({ namespace: "myproject", shortName: "fixbug" });
+      expect(result.success).toEqual({ namespace: "myproject", shortName: "fixbug" });
     }
   });
 
@@ -152,7 +152,7 @@ describe("parseRunKey", () => {
     const result = parseRunKey("fixbug");
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toMatch(/unqualified/);
+      expect(result.failure).toMatch(/unqualified/);
     }
   });
 

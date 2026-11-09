@@ -205,16 +205,16 @@ function chooseWriterSession(
     }
     const kept = decodeAuthoringSession(json);
     if (Result.isFailure(kept)) return fresh;
-    if (kept.right.provider !== provider) return fresh;
-    if (resolve(kept.right.cwd) !== resolve(input.repoRoot)) return fresh;
-    const id = decodeClaudeSessionId(kept.right.retrySessionId ?? kept.right.sessionId);
+    if (kept.success.provider !== provider) return fresh;
+    if (resolve(kept.success.cwd) !== resolve(input.repoRoot)) return fresh;
+    const id = decodeClaudeSessionId(kept.success.retrySessionId ?? kept.success.sessionId);
     if (Result.isFailure(id)) return fresh;
     return {
       kind: "resume",
-      id: id.right,
+      id: id.success,
       keptIds: [
-        kept.right.sessionId,
-        ...(kept.right.retrySessionId === null ? [] : [kept.right.retrySessionId]),
+        kept.success.sessionId,
+        ...(kept.success.retrySessionId === null ? [] : [kept.success.retrySessionId]),
       ],
     };
   });
@@ -248,7 +248,7 @@ function checkAnswer(
   ctx: CheckContext,
 ): Result.Result<AcceptedTranscription, RevisionRefusal> {
   const answer = answerJson(result);
-  if (Result.isFailure(answer)) return Result.fail({ path: "", message: answer.left });
+  if (Result.isFailure(answer)) return Result.fail({ path: "", message: answer.failure });
   const { snapshot, bound, doctrine, operator, atIso } = ctx;
   const { authored } = snapshot;
   const common = { bound, operator, atIso, principleIds: doctrine.principleIds };
@@ -257,10 +257,10 @@ function checkAnswer(
     const checked = checkTranscription({
       ...common,
       original: authored.document,
-      answer: answer.right,
+      answer: answer.success,
     });
-    if (Result.isFailure(checked)) return Result.fail(checked.left);
-    const { document, verdicts } = checked.right;
+    if (Result.isFailure(checked)) return Result.fail(checked.failure);
+    const { document, verdicts } = checked.success;
     const rendered = renderRevisedArtifact(snapshot.md, document);
     return Result.succeed({
       verdicts,
@@ -279,11 +279,11 @@ function checkAnswer(
     kind: snapshot.kind,
     md: snapshot.md,
     parsed: authored.parsed,
-    answer: answer.right,
+    answer: answer.success,
     phaseIds: snapshot.kind === "plan" ? planPhaseIds(snapshot.md) : [],
   });
-  if (Result.isFailure(checked)) return Result.fail(checked.left);
-  const { answer: decoded, md, verdicts } = checked.right;
+  if (Result.isFailure(checked)) return Result.fail(checked.failure);
+  const { answer: decoded, md, verdicts } = checked.success;
   return Result.succeed({
     verdicts,
     md,
@@ -341,9 +341,9 @@ function runWriter(
         : yield* backend.resumeAgentSession(session.id, prompt, firstOptions);
     observed.sessionIds.push(first.sessionId);
     const firstAnswer = checkAnswer(first, ctx);
-    if (Result.isSuccess(firstAnswer)) return firstAnswer.right;
+    if (Result.isSuccess(firstAnswer)) return firstAnswer.success;
 
-    const firstRefusal = describeRevisionRefusal(firstAnswer.left);
+    const firstRefusal = describeRevisionRefusal(firstAnswer.failure);
     const retryPrompt = buildDecideRetryPrompt(variant, firstRefusal);
     yield* fs.writeAtomic(join(folder, DECIDE_RETRY_PROMPT_FILENAME), retryPrompt);
     warn(
@@ -356,11 +356,11 @@ function runWriter(
     });
     observed.sessionIds.push(retried.sessionId);
     const retryAnswer = checkAnswer(retried, ctx);
-    if (Result.isSuccess(retryAnswer)) return retryAnswer.right;
+    if (Result.isSuccess(retryAnswer)) return retryAnswer.success;
     return yield* Effect.fail(
       new DecideDocumentError({
-        path: retryAnswer.left.path,
-        message: `revised document rejected twice — first answer: ${firstRefusal}; retry: ${describeRevisionRefusal(retryAnswer.left)}`,
+        path: retryAnswer.failure.path,
+        message: `revised document rejected twice — first answer: ${firstRefusal}; retry: ${describeRevisionRefusal(retryAnswer.failure)}`,
       }),
     );
   });
@@ -483,7 +483,7 @@ export function decideVerdicts(
               );
     const file = parseVerdictsFile(text);
     if (Result.isFailure(file)) {
-      const { path: at, message } = file.left;
+      const { path: at, message } = file.failure;
       return yield* refused(
         "verdicts-file",
         `${label} is not a valid verdicts file — ${at.length > 0 ? `${at}: ` : ""}${message}`,
@@ -495,13 +495,13 @@ export function decideVerdicts(
         : snapshot.authored.parsed === null
           ? []
           : questionFactsOfHand(snapshot.authored.parsed);
-    const bound = bindVerdicts({ file: file.right, artifactPath: path, questions: facts, label });
-    if (Result.isFailure(bound)) return yield* refused("verdicts-binding", bound.left);
+    const bound = bindVerdicts({ file: file.success, artifactPath: path, questions: facts, label });
+    if (Result.isFailure(bound)) return yield* refused("verdicts-binding", bound.failure);
 
     // Only the operator gives verdicts: a machine, or a value that does not
     // parse, is refused with the same remedy.
     const declared = input.by === undefined ? null : parseArbiterDeclaration(input.by);
-    if (declared !== null && (Result.isFailure(declared) || declared.right.kind !== "operator")) {
+    if (declared !== null && (Result.isFailure(declared) || declared.success.kind !== "operator")) {
       return yield* refused(
         Result.isFailure(declared) ? "by" : "by-machine",
         `--by ${input.by ?? ""} — a verdict always comes from the operator; pass ${BY_OPERATOR}`,
@@ -519,11 +519,11 @@ export function decideVerdicts(
       stdinIsTerminal,
       committerName: yield* git.committerName(input.repoRoot),
     });
-    if (Result.isFailure(arbiter)) return yield* refused("operator", arbiter.left);
-    if (arbiter.right.kind !== "operator") {
+    if (Result.isFailure(arbiter)) return yield* refused("operator", arbiter.failure);
+    if (arbiter.success.kind !== "operator") {
       return yield* refused("operator", "decide is the operator's gesture");
     }
-    const operator = { name: arbiter.right.name };
+    const operator = { name: arbiter.success.name };
 
     const model = resolveVerdictsModel(
       input.model,
@@ -531,8 +531,8 @@ export function decideVerdicts(
       input.routing,
       input.providerConfig,
     );
-    if (Result.isFailure(model)) return yield* refused("model", model.left);
-    const routed = model.right;
+    if (Result.isFailure(model)) return yield* refused("model", model.failure);
+    const routed = model.success;
     const doctrine = yield* resolveDoctrine({
       kind,
       bundledSkillText: input.bundledSkills[kind],
@@ -545,13 +545,13 @@ export function decideVerdicts(
     const index = yield* nextDecisionIndex(join(input.stateRoot, "decide", snapshot.id));
     const decisionId = `${snapshot.id}/${index}`;
     const folder = join(input.stateRoot, "decide", snapshot.id, index);
-    const ids = bound.right.verdicts.map((v) => v.question);
+    const ids = bound.success.verdicts.map((v) => v.question);
     const effort = routed.thinking ?? routed.effort;
     const prompt = buildVerdictsPrompt({
       kind,
       artifactPath: path,
       doctrine,
-      bound: bound.right,
+      bound: bound.success,
       authoring:
         snapshot.authored.variant === "headless"
           ? { variant: "headless", document: snapshot.authored.document }
@@ -580,7 +580,7 @@ export function decideVerdicts(
     const observed: ObservedWriter = { retried: false, sessionIds: [], accepted: null };
     const ended = yield* Effect.result(
       concludeVerdicts(input, {
-        ctx: { snapshot, bound: bound.right, doctrine, operator, atIso: input.nowIso },
+        ctx: { snapshot, bound: bound.success, doctrine, operator, atIso: input.nowIso },
         session,
         folder,
         decisionId,
@@ -592,8 +592,8 @@ export function decideVerdicts(
     );
     const accepted = observed.accepted;
     const end: VerdictsRecordEnd = Result.isFailure(ended)
-      ? { outcome: "failed", commit: null, failure: decisionFailureOf(ended.left) }
-      : { outcome: "committed", commit: ended.right.commit.hash };
+      ? { outcome: "failed", commit: null, failure: decisionFailureOf(ended.failure) }
+      : { outcome: "committed", commit: ended.success.commit.hash };
     const record = yield* writeDecisionRecord({
       mode: "verdicts",
       repoRoot: input.repoRoot,
@@ -637,13 +637,13 @@ export function decideVerdicts(
     if (Result.isFailure(ended)) {
       // The cause prints first: the record's warnings ride on the error.
       return yield* Effect.fail(
-        failWithFollowUps(ended.left, [
-          decisionRecordWarning(record, isSessionFailureCause(ended.left)),
+        failWithFollowUps(ended.failure, [
+          decisionRecordWarning(record, isSessionFailureCause(ended.failure)),
           decisionRecordPushWarning(recordPush),
         ]),
       );
     }
-    const landed = ended.right;
+    const landed = ended.success;
     return {
       kind: "committed",
       path,
@@ -657,7 +657,7 @@ export function decideVerdicts(
       modelSource: routed.modelSource,
       effortSource: routed.effortSource,
       verdicts: landed.verdicts,
-      open: bound.right.open,
+      open: bound.success.open,
       diff: landed.diff,
       commit: landed.commit,
       decisionId,
@@ -788,7 +788,7 @@ function concludeVerdicts(
       return yield* Effect.fail(
         new ArtifactCommitFailedError({
           paths,
-          cause: committed.left.message,
+          cause: committed.failure.message,
           commitMessage: { subject, body },
         }),
       );

@@ -69,7 +69,7 @@ describe("the review record manifest", () => {
     expect(isReviewRecordManifest({})).toBe(false);
     for (const review of REVIEWS) {
       const read = readRecordManifestFile("record.json", file(review));
-      expect(Result.isSuccess(read) && read.right).toEqual(manifest(review));
+      expect(Result.isSuccess(read) && read.success).toEqual(manifest(review));
       expect(Result.isSuccess(decodeRecordManifestFile(file(review)))).toBe(true);
     }
   });

@@ -194,12 +194,12 @@ function parseAuthoredDocument(
   result: AgentRunResult,
 ): Result.Result<AuthoredDocument, string> {
   const parsed = answerJson(result);
-  if (Result.isFailure(parsed)) return Result.fail(parsed.left);
+  if (Result.isFailure(parsed)) return Result.fail(parsed.failure);
 
   if (kind === "spec") {
-    return Result.map(decodeAuthoredSpecDocument(parsed.right), (doc) => ({ kind, doc }));
+    return Result.map(decodeAuthoredSpecDocument(parsed.success), (doc) => ({ kind, doc }));
   }
-  return Result.map(decodeAuthoredPlanDocument(parsed.right), (doc) => ({ kind, doc }));
+  return Result.map(decodeAuthoredPlanDocument(parsed.success), (doc) => ({ kind, doc }));
 }
 
 /** What the record needs to know of the session once the agent has returned. */
@@ -271,11 +271,11 @@ function retryRefusedDocument(
         new AuthoringDocumentError({
           kind: input.kind,
           slug: input.slug,
-          message: refusedTwiceMessage(input.kind, firstRefusal, parsed.left),
+          message: refusedTwiceMessage(input.kind, firstRefusal, parsed.failure),
         }),
       );
     }
-    return parsed.right;
+    return parsed.success;
   });
 }
 
@@ -360,13 +360,13 @@ function runAuthoringSession(
 
     const firstAnswer = parseAuthoredDocument(input.kind, agentResult);
     const accepted = Result.isSuccess(firstAnswer)
-      ? firstAnswer.right
+      ? firstAnswer.success
       : yield* retryRefusedDocument(
           input,
           session,
           agentResult.sessionId,
           options,
-          firstAnswer.left,
+          firstAnswer.failure,
         );
 
     // `--spec` and `--last`/`--not-last` are authoritative for a plan's lineage:
@@ -425,7 +425,7 @@ function runAuthoringSession(
       return yield* Effect.fail(
         new ArtifactCommitFailedError({
           paths,
-          cause: committed.left.message,
+          cause: committed.failure.message,
           commitMessage: { subject, body },
         }),
       );
@@ -524,7 +524,7 @@ export function authorArtifact(
       artifact: target.path,
       binding,
       observed,
-      sourceSha: Result.isSuccess(outcome) ? outcome.right.commit.hash : undefined,
+      sourceSha: Result.isSuccess(outcome) ? outcome.success.commit.hash : undefined,
     });
     // A written record is shared like publish shares phase records.
     const recordPush: AuthoringRecordPush =
@@ -539,13 +539,13 @@ export function authorArtifact(
     if (Result.isFailure(outcome)) {
       // The cause prints first: the record's warnings ride on the error.
       return yield* Effect.fail(
-        failWithFollowUps(outcome.left, [
-          recordWarning(record, isSessionFailureCause(outcome.left)),
+        failWithFollowUps(outcome.failure, [
+          recordWarning(record, isSessionFailureCause(outcome.failure)),
           recordPushWarning(recordPush),
         ]),
       );
     }
-    return { ...outcome.right, record, recordPush };
+    return { ...outcome.success, record, recordPush };
   });
 }
 

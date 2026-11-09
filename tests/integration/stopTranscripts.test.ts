@@ -258,14 +258,14 @@ function layersOf(backend: BackendOps, variant: Variant, telemetry = makeInMemor
 }
 
 const success = (result: Result.Result<CloseReport, unknown>): CloseReport => {
-  if (Result.isFailure(result)) throw new Error(`close refused: ${String(result.left)}`);
-  return result.right;
+  if (Result.isFailure(result)) throw new Error(`close refused: ${String(result.failure)}`);
+  return result.success;
 };
 
 const refusalOf = (result: Result.Result<CloseReport, unknown>): StopCloseRefusedError => {
   if (Result.isSuccess(result)) throw new Error("the close was not refused");
-  expect(result.left).toBeInstanceOf(StopCloseRefusedError);
-  return result.left as StopCloseRefusedError;
+  expect(result.failure).toBeInstanceOf(StopCloseRefusedError);
+  return result.failure as StopCloseRefusedError;
 };
 
 const modeOf = (path: string): number => statSync(path).mode & 0o777;

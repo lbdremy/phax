@@ -41,8 +41,8 @@ describe("bindVerdicts: an artifact key that leaves the repository", () => {
     (artifact) => {
       const bound = bind({ artifact, verdicts });
       if (Result.isSuccess(bound)) throw new Error("expected a refusal");
-      expect(bound.left).toContain(artifact);
-      expect(bound.left).toContain(SPEC_PATH);
+      expect(bound.failure).toContain(artifact);
+      expect(bound.failure).toContain(SPEC_PATH);
     },
   );
 
@@ -134,8 +134,8 @@ describe("writeHandDecisions: several re-arbitrated questions", () => {
       parsed,
       reArbitrated: ["Q3", "Q4"],
     });
-    if (Result.isFailure(written)) throw new Error(written.left);
-    const lines = written.right.split("\n");
+    if (Result.isFailure(written)) throw new Error(written.failure);
+    const lines = written.success.split("\n");
 
     expect(lines).toContain("Decision: json — by operator (Ada Lovelace), 2026-10-25");
     expect(lines).toContain("Decision: by-run — by operator (Ada Lovelace), 2026-10-25");
@@ -144,7 +144,7 @@ describe("writeHandDecisions: several re-arbitrated questions", () => {
     expect(lines).not.toContain("Decision: text — lifted, unattributed, 2026-09-28");
     expect(lines).not.toContain("Decision: by-date — lifted, unattributed, 2026-09-29");
 
-    const reparsed = parseHandAuthoredQuestions("spec", written.right);
+    const reparsed = parseHandAuthoredQuestions("spec", written.success);
     if (reparsed.kind !== "parsed") throw new Error("the written Markdown does not parse");
     expect(reparsed.arbitrated.map((q) => [q.id, q.chosen])).toEqual([
       ["Q3", "json"],

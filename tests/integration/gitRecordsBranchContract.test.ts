@@ -258,7 +258,7 @@ describe.each([
       );
 
       expect(Result.isFailure(stale)).toBe(true);
-      if (Result.isFailure(stale)) expect(stale.left.command).toContain("update-ref");
+      if (Result.isFailure(stale)) expect(stale.failure.command).toContain("update-ref");
       expect(await world.run((g) => g.resolveRef(world.repo, BRANCH_REF))).toBe(c2);
     });
 

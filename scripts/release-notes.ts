@@ -138,8 +138,8 @@ function readCandidate(repoRoot: string, path: string): CompletedPlan | null {
   let shortName = slugifyShortName(title);
   if (sidecar !== null) {
     const read = readDocumentSidecar("plan", sidecar.path, sidecar.json);
-    if (Result.isFailure(read)) throw new Error(read.left.message);
-    const { run } = read.right.shape === "current" ? read.right.document : read.right.older;
+    if (Result.isFailure(read)) throw new Error(read.failure.message);
+    const { run } = read.success.shape === "current" ? read.success.document : read.success.older;
     shortName = slugifyShortName(run.shortName) || slugifyShortName(run.title) || "run";
   }
   return {
@@ -184,8 +184,8 @@ function readSpec(
     spec = { path, title, guidingRule: null, surface: [] };
   } else {
     const read = readDocumentSidecar("spec", sidecar.path, sidecar.json);
-    if (Result.isFailure(read)) throw new Error(read.left.message);
-    const { document } = read.right;
+    if (Result.isFailure(read)) throw new Error(read.failure.message);
+    const { document } = read.success;
     spec = {
       path,
       title: document.title,

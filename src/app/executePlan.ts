@@ -294,10 +294,10 @@ function readClosedStop(
     const stop = recordStopFromPersisted(status.stop, session);
     if (Result.isFailure(stop)) {
       return yield* Effect.fail(
-        new FsError({ message: `Cannot record the stop of ${phaseId}: ${stop.left}` }),
+        new FsError({ message: `Cannot record the stop of ${phaseId}: ${stop.failure}` }),
       );
     }
-    return stop.right;
+    return stop.success;
   });
 }
 
@@ -992,12 +992,17 @@ export function executePlan(
       if (Result.isFailure(infoResult)) {
         return yield* Effect.fail(
           new RegistryCorruptionError({
-            message: `Failed to resolve run "${shortName}" for its review corrections: ${infoResult.left}`,
+            message: `Failed to resolve run "${shortName}" for its review corrections: ${infoResult.failure}`,
             registryPath: join(config.stateRoot, "registry.json"),
           }),
         );
       }
-      return yield* readReviewCorrections(runPath, plan.phases, i, infoResult.right.phaseStatuses);
+      return yield* readReviewCorrections(
+        runPath,
+        plan.phases,
+        i,
+        infoResult.success.phaseStatuses,
+      );
     });
   }
 
@@ -1014,7 +1019,7 @@ export function executePlan(
       if (Result.isFailure(binding)) {
         return yield* Effect.fail(
           new RegistryCorruptionError({
-            message: `Cannot resume phase "${phaseId}" of run "${shortName}": agent-binding.json is missing or unreadable (${binding.left}).`,
+            message: `Cannot resume phase "${phaseId}" of run "${shortName}": agent-binding.json is missing or unreadable (${binding.failure}).`,
             registryPath: join(phaseFolderPath, "agent-binding.json"),
           }),
         );
@@ -1037,9 +1042,9 @@ export function executePlan(
           ? { kind: "none" }
           : { kind: "recorded", usage: session.builderUsage };
       return {
-        provider: binding.right.provider,
-        model: binding.right.model,
-        effort: binding.right.effort,
+        provider: binding.success.provider,
+        model: binding.success.model,
+        effort: binding.success.effort,
         usage,
         sourceSha: commit,
         closedStop: closed ? yield* readClosedStop(phaseFolderPath, phaseId) : undefined,
@@ -1111,12 +1116,12 @@ export function executePlan(
           return yield* Effect.fail(
             new WorktreeCreationError({
               message: `Invalid worktree path "${worktreePath}"`,
-              branch: phaseBranch.right,
+              branch: phaseBranch.success,
               path: worktreePath,
             }),
           );
         }
-        worktree = decoded.right;
+        worktree = decoded.success;
       }
       let assignment: PostHandoffInputs["assignment"] = null;
       if (config.records.enabled) {
@@ -1124,17 +1129,17 @@ export function executePlan(
         if (Result.isFailure(binding)) {
           return yield* Effect.fail(
             new RegistryCorruptionError({
-              message: `Cannot resume phase "${phaseId}" of run "${shortName}": agent-binding.json is missing or unreadable (${binding.left}).`,
+              message: `Cannot resume phase "${phaseId}" of run "${shortName}": agent-binding.json is missing or unreadable (${binding.failure}).`,
               registryPath: join(phaseFolderPath, "agent-binding.json"),
             }),
           );
         }
-        const { provider, model, effort } = binding.right;
+        const { provider, model, effort } = binding.success;
         assignment = { provider, model, effort };
       }
       // A back-reference only, as the committed path's HEAD lookup is.
       const { commitHash } = yield* readPhaseStatus(phaseFolderPath);
-      return { branch: phaseBranch.right, worktree, assignment, sourceSha: commitHash };
+      return { branch: phaseBranch.success, worktree, assignment, sourceSha: commitHash };
     });
   }
 
@@ -1206,7 +1211,7 @@ export function executePlan(
           }),
         );
       }
-      branch = branchResult.right;
+      branch = branchResult.success;
     }
 
     // `previousPhaseBranch` tracks the ref each new phase branches off.
@@ -1227,7 +1232,7 @@ export function executePlan(
             }),
           );
         }
-        previousPhaseBranch = prevBranchResult.right;
+        previousPhaseBranch = prevBranchResult.success;
       }
     }
 
@@ -1269,7 +1274,7 @@ export function executePlan(
     if (resumePhase !== undefined) {
       const infoResult = resolveRun(namespace, shortName, config.stateRoot);
       if (Result.isSuccess(infoResult)) {
-        const phaseStatus = infoResult.right.phaseStatuses.find(
+        const phaseStatus = infoResult.success.phaseStatuses.find(
           (p) => p.phaseId === resumePhase.id,
         );
         const owesHeldStop =
@@ -1399,12 +1404,12 @@ export function executePlan(
           return yield* Effect.fail(
             new WorktreeCreationError({
               message: `Invalid worktree path "${worktreePath}"`,
-              branch: phaseBranch.right,
+              branch: phaseBranch.success,
               path: worktreePath,
             }),
           );
         }
-        return { branch: phaseBranch.right, worktree: worktree.right };
+        return { branch: phaseBranch.success, worktree: worktree.success };
       });
     }
 
@@ -1434,9 +1439,9 @@ export function executePlan(
         }
         const binding = yield* Effect.promise(() => readAgentBinding(phaseFolderPath));
         if (Result.isFailure(binding)) {
-          return yield* Effect.fail(new FsError({ message: binding.left }));
+          return yield* Effect.fail(new FsError({ message: binding.failure }));
         }
-        const { provider, model, effort, sessionId } = binding.right;
+        const { provider, model, effort, sessionId } = binding.success;
         const posture = yield* readPhasePosture(phaseFolderPath);
         return yield* stopAtHeldPhase({
           runId,
@@ -1709,7 +1714,7 @@ export function executePlan(
 
         const preparedStopBranch = yield* preparePhaseBranch(
           branch,
-          phaseIdResult.right,
+          phaseIdResult.success,
           previousPhaseBranch,
           config.repoRoot,
         );
@@ -1729,7 +1734,7 @@ export function executePlan(
         const stopWorktree = yield* createPhaseWorktree(
           namespace,
           shortName,
-          phaseIdResult.right,
+          phaseIdResult.success,
           preparedStopBranch.branch,
           config.stateRoot,
           config.repoRoot,
@@ -2065,7 +2070,7 @@ export function executePlan(
             }),
           );
         }
-        phaseBranch = phaseBranchResult.right;
+        phaseBranch = phaseBranchResult.success;
         phaseFolderPath = join(runPath, phase.id);
         const worktreePathResult = decodeWorktreePath(resumeWorktreePath);
         if (Result.isFailure(worktreePathResult)) {
@@ -2077,7 +2082,7 @@ export function executePlan(
             }),
           );
         }
-        worktreePath = worktreePathResult.right;
+        worktreePath = worktreePathResult.success;
         phaseBase = yield* readPhaseBase(phaseFolderPath);
         // Only these two re-entries run the agent again; a commit, cleanup or
         // completion re-entry runs none, so it needs no fresh copy.
@@ -2113,12 +2118,12 @@ export function executePlan(
         if (Result.isFailure(bindingEither)) {
           return yield* Effect.fail(
             new RegistryCorruptionError({
-              message: `Cannot resume phase "${phase.id}" of run "${shortName}": agent-binding.json is missing or unreadable (${bindingEither.left}).`,
+              message: `Cannot resume phase "${phase.id}" of run "${shortName}": agent-binding.json is missing or unreadable (${bindingEither.failure}).`,
               registryPath: join(phaseFolderPath, "agent-binding.json"),
             }),
           );
         }
-        const binding = bindingEither.right;
+        const binding = bindingEither.success;
         const resumeFrozenResult = computeFrozenAgentCommands({
           configCommands: securityPolicy.agentCommands,
           gateCommands: gateCommandStrings,
@@ -2145,7 +2150,7 @@ export function executePlan(
         // worktrees simultaneously.
         const preparedBranch = yield* preparePhaseBranch(
           branch,
-          phaseIdResult.right,
+          phaseIdResult.success,
           previousPhaseBranch,
           config.repoRoot,
         );
@@ -2180,7 +2185,7 @@ export function executePlan(
         worktreePath = yield* createPhaseWorktree(
           namespace,
           shortName,
-          phaseIdResult.right,
+          phaseIdResult.success,
           phaseBranch,
           config.stateRoot,
           config.repoRoot,
@@ -2526,7 +2531,7 @@ export function executePlan(
           const reconRaw = yield* fs.readText(reconPath);
           const reconDecoded = readPhaseFileReconciliationFile(reconPath, JSON.parse(reconRaw));
           reconciliation = Result.isSuccess(reconDecoded)
-            ? reconDecoded.right
+            ? reconDecoded.success
             : {
                 createdAsPlanned: [],
                 editedAsPlanned: [],
@@ -2751,12 +2756,12 @@ export function executePlan(
         if (Result.isFailure(infoResult)) {
           return yield* Effect.fail(
             new RegistryCorruptionError({
-              message: `Failed to resolve run "${shortName}" for final review: ${infoResult.left}`,
+              message: `Failed to resolve run "${shortName}" for final review: ${infoResult.failure}`,
               registryPath: join(config.stateRoot, "registry.json"),
             }),
           );
         }
-        finalReviewStatuses = infoResult.right.phaseStatuses;
+        finalReviewStatuses = infoResult.success.phaseStatuses;
         // Run completion (spec 27): apply the plan's Approved → Completed
         // transition on the run branch — riding the source spec along where the
         // chain gate allows — BEFORE review opens, so the reviewer sees the
@@ -2804,7 +2809,7 @@ export function executePlan(
           if (sourceSpecOutcome !== undefined) {
             const fs = yield* FileSystem;
             yield* fs.writeAtomic(
-              join(infoResult.right.runPath, SOURCE_SPEC_OUTCOME_FILENAME),
+              join(infoResult.success.runPath, SOURCE_SPEC_OUTCOME_FILENAME),
               `${sourceSpecOutcome}\n`,
             );
           }
@@ -2817,7 +2822,7 @@ export function executePlan(
           {
             ...eventBase(phase.id),
             type: "FinalReviewOpened",
-            info: infoResult.right,
+            info: infoResult.success,
           },
           ctx,
         );
@@ -2830,7 +2835,7 @@ export function executePlan(
         if (config.complianceReview?.enabled) {
           const reviewPolicy = resolveSecurityPolicy({
             mode: securityMode,
-            worktreePath: infoResult.right.worktreePath,
+            worktreePath: infoResult.success.worktreePath,
             config: config.security,
           });
           const reviewResolution = resolveModel(
@@ -2842,7 +2847,7 @@ export function executePlan(
           // The entry is committed here, before publish: publish's own records
           // push carries it, so no push is made now.
           yield* reviewComplianceAndRecord(
-            infoResult.right,
+            infoResult.success,
             config.complianceReview,
             reviewResolution,
             { mode: securityMode, config: config.security },
@@ -2885,7 +2890,7 @@ export function executePlan(
           } else {
             const codeReviewPolicy = resolveSecurityPolicy({
               mode: securityMode,
-              worktreePath: infoResult.right.worktreePath,
+              worktreePath: infoResult.success.worktreePath,
               config: config.security,
             });
             const codeReviewResolution = resolveModel(
@@ -2896,7 +2901,7 @@ export function executePlan(
             );
             const retryCommand = `phax review-code ${shortName} --headless`;
             yield* reviewCodeAndRecord(
-              infoResult.right,
+              infoResult.success,
               config.codeReview,
               codeReviewResolution,
               { mode: securityMode, config: config.security },
@@ -2938,7 +2943,7 @@ export function executePlan(
         // Publication failure is non-fatal — the run stays in review_open and
         // failure details are recorded in publication.json / final-report.md.
         if (config.publish?.auto) {
-          const publicationResult = yield* publishRun(infoResult.right, config.publish, {
+          const publicationResult = yield* publishRun(infoResult.success, config.publish, {
             repoRoot: config.repoRoot,
             phaxVersion: opts.phaxVersion,
             records: config.records,
@@ -3012,7 +3017,7 @@ export function executePlan(
         // writes a `failed` record for it, so a phase with a stop writes none.
         if (currentPhaseFolderPath !== undefined) {
           const status = yield* Effect.result(readPhaseStatus(currentPhaseFolderPath));
-          if (Result.isSuccess(status) && status.right.stop !== null) return;
+          if (Result.isSuccess(status) && status.success.stop !== null) return;
         }
         if (
           config.brief !== undefined &&

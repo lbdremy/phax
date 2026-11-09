@@ -62,9 +62,9 @@ export function pullArchitecture(input: {
         paths: [first, ...rest],
       });
       if (Result.isFailure(resolved)) {
-        return { kind: "refused", message: onOneLine(resolved.left.refused) } as const;
+        return { kind: "refused", message: onOneLine(resolved.failure.refused) } as const;
       }
-      files = resolved.right;
+      files = resolved.success;
     }
 
     const request = withSchemaUrl("architecture-request", architectureRequest(files));
@@ -78,16 +78,16 @@ export function pullArchitecture(input: {
       { timeoutMs: input.timeoutMs ?? ARCHITECTURE_TIMEOUT_MS },
     );
     if (Result.isFailure(ran)) {
-      return { kind: "failed", reason: onOneLine(failureReason(ran.left)) } as const;
+      return { kind: "failed", reason: onOneLine(failureReason(ran.failure)) } as const;
     }
-    const report = readArchitectureReport(ran.right);
+    const report = readArchitectureReport(ran.success);
     if (Result.isFailure(report)) {
       return {
         kind: "failed",
-        reason: onOneLine(`architecture provider: ${describeReportError(report.left)}`),
+        reason: onOneLine(`architecture provider: ${describeReportError(report.failure)}`),
       } as const;
     }
-    const { body, parts } = report.right;
+    const { body, parts } = report.success;
     return { kind: "answered", report: { body, parts } } as const;
   });
 }

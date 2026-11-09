@@ -401,10 +401,10 @@ function sidecarJson(path = SPEC_JSON): Record<string, unknown> {
 function expectRefused(result: RunResult, exitCode: number, head: string): string {
   expect(Result.isFailure(result)).toBe(true);
   if (Result.isSuccess(result)) return "";
-  expect(exitCodeForAuthoringError(result.left)).toBe(exitCode);
+  expect(exitCodeForAuthoringError(result.failure)).toBe(exitCode);
   expect(headSha()).toBe(head);
   expect(porcelain()).toBe("");
-  return result.left.message;
+  return result.failure.message;
 }
 
 function expectNoSession(h: Harness): void {
@@ -450,7 +450,7 @@ describe("decide — an interactive session lands the revised document", { timeo
 
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isFailure(result)) return;
-    expect(result.right).toMatchObject({
+    expect(result.success).toMatchObject({
       kind: "committed",
       path: SPEC,
       paths: [SPEC, SPEC_JSON],
@@ -705,8 +705,8 @@ describe("decide — preconditions refuse before the session", { timeout: 30_000
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(exitCodeForAuthoringError(result.left)).toBe(12);
-      expect(result.left.message).toContain(`${SPEC_JSON} has uncommitted changes`);
+      expect(exitCodeForAuthoringError(result.failure)).toBe(12);
+      expect(result.failure.message).toContain(`${SPEC_JSON} has uncommitted changes`);
     }
     expect(headSha()).toBe(head);
     expectNoSession(h);
@@ -722,8 +722,8 @@ describe("decide — preconditions refuse before the session", { timeout: 30_000
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(exitCodeForAuthoringError(result.left)).toBe(12);
-      expect(result.left.message).toContain(
+      expect(exitCodeForAuthoringError(result.failure)).toBe(12);
+      expect(result.failure.message).toContain(
         `${SPEC} has uncommitted changes — commit or discard them first`,
       );
     }
@@ -798,8 +798,8 @@ describe("decide — preconditions refuse before the session", { timeout: 30_000
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toMatchObject({ _tag: "DecideRefusedError", reason: "operator" });
-      expect(exitCodeForAuthoringError(result.left)).toBe(12);
+      expect(result.failure).toMatchObject({ _tag: "DecideRefusedError", reason: "operator" });
+      expect(exitCodeForAuthoringError(result.failure)).toBe(12);
     }
     expectNoSession(h);
   });
@@ -937,9 +937,9 @@ describe("decide — doctrine", { timeout: 30_000 }, () => {
       const result = await h.run({ doctrinePath });
       expect(Result.isFailure(result), doctrinePath).toBe(true);
       if (Result.isFailure(result)) {
-        expect(result.left).toMatchObject({ _tag: "DecideRefusedError", reason: "doctrine" });
-        expect(exitCodeForAuthoringError(result.left)).toBe(12);
-        expect(result.left.message).toContain(doctrinePath);
+        expect(result.failure).toMatchObject({ _tag: "DecideRefusedError", reason: "doctrine" });
+        expect(exitCodeForAuthoringError(result.failure)).toBe(12);
+        expect(result.failure.message).toContain(doctrinePath);
       }
       expectNoSession(h);
     }
@@ -1001,7 +1001,7 @@ describe("decide — invalid decisions land nothing", { timeout: 30_000 }, () =>
       const message = expectRefused(result, 5, headSha());
       expect(message).toContain("revised document rejected twice");
       if (c.path !== "") expect(message).toContain(`retry: ${c.path}`);
-      if (Result.isFailure(result)) expect(result.left).toMatchObject({ path: c.path });
+      if (Result.isFailure(result)) expect(result.failure).toMatchObject({ path: c.path });
       expect(h.warnings[0]).toContain("revised document refused");
       expect(existsSync(join(decisionFolder(), "retry-prompt.md"))).toBe(true);
       expect(h.backend.resumeCalls[1]?.options.outputJsonlPath).toBe(
@@ -1168,8 +1168,8 @@ describe("decide — limits, concurrent edits, commit failures", { timeout: 30_0
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toMatchObject({ _tag: "DecideRefusedError", reason: "changed" });
-      expect(exitCodeForAuthoringError(result.left)).toBe(12);
+      expect(result.failure).toMatchObject({ _tag: "DecideRefusedError", reason: "changed" });
+      expect(exitCodeForAuthoringError(result.failure)).toBe(12);
     }
     expect(readRepoFile(SPEC)).toBe(`${md}\nEdited meanwhile.\n`);
     expect(headSha()).toBe(head);
@@ -1189,8 +1189,8 @@ describe("decide — limits, concurrent edits, commit failures", { timeout: 30_0
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toMatchObject({ _tag: "ArtifactCommitFailedError" });
-      expect(exitCodeForAuthoringError(result.left)).toBe(12);
+      expect(result.failure).toMatchObject({ _tag: "ArtifactCommitFailedError" });
+      expect(exitCodeForAuthoringError(result.failure)).toBe(12);
     }
     expect(headSha()).toBe(head);
     expect(readRepoFile(SPEC)).toContain("## 9b. Arbitrated questions");
@@ -1657,7 +1657,7 @@ describe("decide — the decision record", { timeout: 30_000 }, () => {
     expectRefused(result, 8, headSha());
 
     // The refusal rides on the error, after the cause, saying it follows the failed session.
-    const error = Result.isFailure(result) ? result.left : undefined;
+    const error = Result.isFailure(result) ? result.failure : undefined;
     expect(error).toBeInstanceOf(FailureWithFollowUpsError);
     expect(error instanceof FailureWithFollowUpsError && error.cause).toBeInstanceOf(
       UsageLimitError,

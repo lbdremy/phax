@@ -133,7 +133,7 @@ beforeEach(async () => {
   writeCurrentSpec(PLAN_PRUNE, "Plan prune");
   commitAll();
   const approved = await transition(PLAN_PRUNE, "Approved", "machine:roadmap-loop");
-  if (Result.isFailure(approved)) throw new Error(approved.left.message);
+  if (Result.isFailure(approved)) throw new Error(approved.failure.message);
 
   // One live sidecar stamped 0.17.0, its body the frozen rendering.
   const older = spec("Log rotation");
@@ -164,9 +164,9 @@ describe("approve and reopen wait for migrate-documents", { timeout: 30_000 }, (
 
       expect(Result.isFailure(result)).toBe(true);
       if (Result.isFailure(result)) {
-        expect(result.left).toBeInstanceOf(DocumentMigrationRequiredError);
-        expect(exitCodeForError(result.left)).toBe(12);
-        expect(result.left.message).toBe(
+        expect(result.failure).toBeInstanceOf(DocumentMigrationRequiredError);
+        expect(exitCodeForError(result.failure)).toBe(12);
+        expect(result.failure.message).toBe(
           `${refused}: ${LOG_ROTATION_SIDECAR} is stamped spec-document 0.17.0 — run \`phax artifact migrate-documents\` first`,
         );
       }
@@ -177,7 +177,9 @@ describe("approve and reopen wait for migrate-documents", { timeout: 30_000 }, (
 
   it("refuses whatever --by says: an unresolvable arbiter is never reached", async () => {
     const result = await transition(CACHE_KEYS, "Approved", undefined);
-    expect(Result.isFailure(result) && result.left).toBeInstanceOf(DocumentMigrationRequiredError);
+    expect(Result.isFailure(result) && result.failure).toBeInstanceOf(
+      DocumentMigrationRequiredError,
+    );
   });
 
   it("names every unmigrated sidecar", async () => {
@@ -189,7 +191,7 @@ describe("approve and reopen wait for migrate-documents", { timeout: 30_000 }, (
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left.message.split("\n")).toEqual([
+      expect(result.failure.message.split("\n")).toEqual([
         "Approval refused: 2 live sidecars are stamped below their current shape — run `phax artifact migrate-documents` first",
         "  docs/specs/2609251400-plan-prune.json is stamped spec-document written before $schema",
         `  ${LOG_ROTATION_SIDECAR} is stamped spec-document 0.17.0`,

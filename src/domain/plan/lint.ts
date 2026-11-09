@@ -94,7 +94,7 @@ export function unlocatableFindings(
   phases: readonly LocatablePhase[],
 ): readonly LintFinding[] {
   const located = locatePlanSections(planMd, phases);
-  return Result.isFailure(located) ? located.left.map(missingSectionFinding) : [];
+  return Result.isFailure(located) ? located.failure.map(missingSectionFinding) : [];
 }
 
 /**

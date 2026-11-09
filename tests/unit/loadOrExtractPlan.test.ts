@@ -126,9 +126,9 @@ describe("loadOrExtractPlan — deterministic-first wiring", () => {
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
     expect(backend.completeCalls).toHaveLength(0);
-    expect(result.right.fromCache).toBe(false);
-    expect(result.right.plan.phases[0]!.id).toBe("phase-01");
-    expect(result.right.warnings.some((w) => /fell back to LLM/.test(w))).toBe(false);
+    expect(result.success.fromCache).toBe(false);
+    expect(result.success.plan.phases[0]!.id).toBe("phase-01");
+    expect(result.success.warnings.some((w) => /fell back to LLM/.test(w))).toBe(false);
   });
 
   it("falls back to the LLM for a non-conforming plan and surfaces the fallback warning", async () => {
@@ -144,7 +144,7 @@ describe("loadOrExtractPlan — deterministic-first wiring", () => {
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
     expect(backend.completeCalls).toHaveLength(1);
-    const fallbackWarning = result.right.warnings.find((w) => w.includes("fell back to LLM"));
+    const fallbackWarning = result.success.warnings.find((w) => w.includes("fell back to LLM"));
     expect(fallbackWarning).toBeDefined();
     expect(fallbackWarning).toMatch(/Deterministic extraction failed/);
     expect(fallbackWarning).toMatch(/fell back to LLM/);
@@ -164,7 +164,7 @@ describe("loadOrExtractPlan — deterministic-first wiring", () => {
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
     expect(backend.completeCalls).toHaveLength(0);
-    expect(result.right.plan.phases[0]!.id).toBe("phase-01");
+    expect(result.success.plan.phases[0]!.id).toBe("phase-01");
   });
 
   it("--no-extract fails for a non-conforming plan with no cache", async () => {
@@ -180,7 +180,7 @@ describe("loadOrExtractPlan — deterministic-first wiring", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (!Result.isFailure(result)) return;
-    expect(result.left.message).toMatch(/no-extract|no cached/i);
+    expect(result.failure.message).toMatch(/no-extract|no cached/i);
     expect(backend.completeCalls).toHaveLength(0);
   });
 });

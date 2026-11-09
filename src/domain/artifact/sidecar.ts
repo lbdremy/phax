@@ -154,8 +154,8 @@ export interface SidecarInspection {
  */
 export function inspectSidecar(input: SidecarInput): SidecarInspection {
   const read = readSidecarJson(input.kind, input.sidecarJson, input.sidecarPath ?? "sidecar");
-  if (Result.isFailure(read)) return { agreement: read.left, sidecar: null };
-  const sidecar = read.right;
+  if (Result.isFailure(read)) return { agreement: read.failure, sidecar: null };
+  const sidecar = read.success;
   if (sidecar.shape !== "current") {
     const format = sidecar.kind === "spec" ? "spec-document" : "plan-document";
     return { agreement: { kind: "unmigrated", format, shape: sidecar.shape }, sidecar };

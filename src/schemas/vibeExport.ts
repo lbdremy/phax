@@ -85,9 +85,9 @@ function decodeExportText<A>(
   }
   const decoded = decode(parsed);
   if (Result.isFailure(decoded)) {
-    return Result.fail({ reason: "not-an-export", detail: formatFirstViolation(decoded.left) });
+    return Result.fail({ reason: "not-an-export", detail: formatFirstViolation(decoded.failure) });
   }
-  return Result.succeed(decoded.right);
+  return Result.succeed(decoded.success);
 }
 
 /** Reads an `export.json`'s text. Never throws: a refusal names what was wrong. */

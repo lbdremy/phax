@@ -113,8 +113,8 @@ export function reviewConfigured() {
 export function reviewResolved(ref: string, config: ResolvedConfig, stateRoot: string) {
   const resolved = resolveRunRef(ref, config, stateRoot);
   return Result.isFailure(resolved)
-    ? Effect.fail(new ReviewRunRefError({ message: resolved.left.message }))
-    : Effect.succeed(resolved.right);
+    ? Effect.fail(new ReviewRunRefError({ message: resolved.failure.message }))
+    : Effect.succeed(resolved.success);
 }
 
 /** The refusal of a run that is not in review_open, naming the command. */
@@ -378,9 +378,9 @@ export function makeReviewComplianceCommand(deps: ReviewDeps = {}) {
           ),
         );
         if (Result.isFailure(routingResult)) {
-          return yield* fail(`Failed to load routing config: ${routingResult.left.message}`);
+          return yield* fail(`Failed to load routing config: ${routingResult.failure.message}`);
         }
-        const { routing, providerConfig } = routingResult.right;
+        const { routing, providerConfig } = routingResult.success;
         const resolution = resolveModel(
           { model: config.complianceReview.model, effort: config.complianceReview.effort },
           routing,
@@ -410,10 +410,12 @@ export function makeReviewComplianceCommand(deps: ReviewDeps = {}) {
           ).pipe(Effect.provide(layer)),
         );
         if (Result.isFailure(result)) {
-          return yield* fail(`Unexpected error during compliance review: ${result.left.message}`);
+          return yield* fail(
+            `Unexpected error during compliance review: ${result.failure.message}`,
+          );
         }
 
-        const outcome = result.right;
+        const outcome = result.success;
         const review = outcome.review;
         // The command as the operator typed the run: the run key when it belongs to another
         // project. The failure line and the records warnings both name it.
@@ -580,9 +582,9 @@ function runHeadless(call: HeadlessCall, deps: ReviewDeps) {
       ),
     );
     if (Result.isFailure(routingResult)) {
-      return yield* fail(`Failed to load routing config: ${routingResult.left.message}`);
+      return yield* fail(`Failed to load routing config: ${routingResult.failure.message}`);
     }
-    const { routing, providerConfig } = routingResult.right;
+    const { routing, providerConfig } = routingResult.success;
     const resolution = resolveModel(
       { model: effectiveConfig.model, effort: effectiveConfig.effort },
       routing,
@@ -617,9 +619,9 @@ function runHeadless(call: HeadlessCall, deps: ReviewDeps) {
       ),
     );
     if (Result.isFailure(reviewed)) {
-      return yield* fail(`Unexpected error during code review: ${reviewed.left.message}`);
+      return yield* fail(`Unexpected error during code review: ${reviewed.failure.message}`);
     }
-    const outcome = reviewed.right;
+    const outcome = reviewed.success;
     const review = outcome.review;
     if (review.kind === "failed") {
       if (review.sessionFailure != null) {
@@ -685,10 +687,10 @@ function runInteractive(
     );
     if (Result.isFailure(prepared)) {
       return yield* fail(
-        `Unexpected error during review-code preparation: ${prepared.left.message}`,
+        `Unexpected error during review-code preparation: ${prepared.failure.message}`,
       );
     }
-    const result = prepared.right;
+    const result = prepared.success;
     if (result.kind === "unsupported" || result.kind === "refused") {
       return yield* fail(result.message);
     }
@@ -711,7 +713,7 @@ function runInteractive(
     if (Result.isFailure(exit)) {
       return yield* Effect.fail(
         new ReviewLaunchError({
-          message: `Failed to launch ${invocation.executable}: ${exit.left.message}`,
+          message: `Failed to launch ${invocation.executable}: ${exit.failure.message}`,
           qualifiedName,
           crossProject,
         }),
@@ -722,7 +724,7 @@ function runInteractive(
       crossProject,
       executable: invocation.executable,
       cwd: invocation.cwd,
-      exit: exit.right,
+      exit: exit.success,
     };
     return answer;
   });

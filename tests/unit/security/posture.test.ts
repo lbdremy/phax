@@ -115,9 +115,9 @@ describe("SecurityPostureSchema", () => {
       const result = decodeSecurityPosture(baseSecurePosture);
       expect(Result.isSuccess(result)).toBe(true);
       if (Result.isSuccess(result)) {
-        expect(result.right.mode).toBe("secure");
-        expect(result.right.provider).toBe("claude-code");
-        expect(result.right.sandboxEnabled).toBe(true);
+        expect(result.success.mode).toBe("secure");
+        expect(result.success.provider).toBe("claude-code");
+        expect(result.success.sandboxEnabled).toBe(true);
       }
     });
 
@@ -125,8 +125,8 @@ describe("SecurityPostureSchema", () => {
       const result = decodeSecurityPosture(unsafePosture);
       expect(Result.isSuccess(result)).toBe(true);
       if (Result.isSuccess(result)) {
-        expect(result.right.mode).toBe("unsafe");
-        expect(result.right.sandboxEnabled).toBe(false);
+        expect(result.success.mode).toBe("unsafe");
+        expect(result.success.sandboxEnabled).toBe(false);
       }
     });
 
@@ -135,7 +135,7 @@ describe("SecurityPostureSchema", () => {
       const result = decodeSecurityPosture(isolated);
       expect(Result.isSuccess(result)).toBe(true);
       if (Result.isSuccess(result)) {
-        expect(result.right.mode).toBe("isolated");
+        expect(result.success.mode).toBe("isolated");
       }
     });
 
@@ -143,8 +143,8 @@ describe("SecurityPostureSchema", () => {
       const result = decodeSecurityPosture(downgradedVibePosture);
       expect(Result.isSuccess(result)).toBe(true);
       if (Result.isSuccess(result)) {
-        expect(result.right.downgraded).toBe(true);
-        expect(result.right.marks).toEqual(["partial-filesystem", "mcp-unenforced"]);
+        expect(result.success.downgraded).toBe(true);
+        expect(result.success.marks).toEqual(["partial-filesystem", "mcp-unenforced"]);
       }
     });
 
@@ -152,8 +152,8 @@ describe("SecurityPostureSchema", () => {
       const result = decodeSecurityPosture(withSkippedProviders);
       expect(Result.isSuccess(result)).toBe(true);
       if (Result.isSuccess(result)) {
-        expect(result.right.providerSkippedForSecurity).toHaveLength(1);
-        expect(result.right.providerSkippedForSecurity[0]?.provider).toBe("mistral-vibe");
+        expect(result.success.providerSkippedForSecurity).toHaveLength(1);
+        expect(result.success.providerSkippedForSecurity[0]?.provider).toBe("mistral-vibe");
       }
     });
 
@@ -243,7 +243,7 @@ describe("SecurityPostureSchema", () => {
       const decoded = decodeSecurityPosture(encoded);
       expect(Result.isSuccess(decoded)).toBe(true);
       if (Result.isSuccess(decoded)) {
-        expect(decoded.right).toEqual(baseSecurePosture);
+        expect(decoded.success).toEqual(baseSecurePosture);
       }
     });
 
@@ -252,7 +252,7 @@ describe("SecurityPostureSchema", () => {
       const decoded = decodeSecurityPosture(encoded);
       expect(Result.isSuccess(decoded)).toBe(true);
       if (Result.isSuccess(decoded)) {
-        expect(decoded.right).toEqual(unsafePosture);
+        expect(decoded.success).toEqual(unsafePosture);
       }
     });
 
@@ -261,7 +261,7 @@ describe("SecurityPostureSchema", () => {
       const decoded = decodeSecurityPosture(encoded);
       expect(Result.isSuccess(decoded)).toBe(true);
       if (Result.isSuccess(decoded)) {
-        expect(decoded.right).toEqual(downgradedVibePosture);
+        expect(decoded.success).toEqual(downgradedVibePosture);
       }
     });
 
@@ -270,7 +270,7 @@ describe("SecurityPostureSchema", () => {
       const decoded = decodeSecurityPosture(encoded);
       expect(Result.isSuccess(decoded)).toBe(true);
       if (Result.isSuccess(decoded)) {
-        expect(decoded.right).toEqual(withSkippedProviders);
+        expect(decoded.success).toEqual(withSkippedProviders);
       }
     });
   });
@@ -301,13 +301,13 @@ describe("SecurityPostureSchema", () => {
       const result = decodeSecurityPosture(posture);
       expect(Result.isSuccess(result)).toBe(true);
       if (Result.isSuccess(result)) {
-        expect(result.right.agentCommands).toHaveLength(2);
-        expect(result.right.agentCommands[0]?.command).toBe("deno fmt");
-        expect(result.right.agentCommands[0]?.source).toBe("config");
-        expect(result.right.agentCommands[0]?.explicit).toBe(true);
-        expect(result.right.agentCommands[0]?.requiredByPlan).toBe(true);
-        expect(result.right.agentCommands[0]?.enforcement).toBe("prefix");
-        expect(result.right.agentCommands[0]?.degraded).toBe(false);
+        expect(result.success.agentCommands).toHaveLength(2);
+        expect(result.success.agentCommands[0]?.command).toBe("deno fmt");
+        expect(result.success.agentCommands[0]?.source).toBe("config");
+        expect(result.success.agentCommands[0]?.explicit).toBe(true);
+        expect(result.success.agentCommands[0]?.requiredByPlan).toBe(true);
+        expect(result.success.agentCommands[0]?.enforcement).toBe("prefix");
+        expect(result.success.agentCommands[0]?.degraded).toBe(false);
       }
     });
 
@@ -329,8 +329,8 @@ describe("SecurityPostureSchema", () => {
       const result = decodeSecurityPosture(posture);
       expect(Result.isSuccess(result)).toBe(true);
       if (Result.isSuccess(result)) {
-        expect(result.right.agentCommands[0]?.degraded).toBe(true);
-        expect(result.right.agentCommands[0]?.enforcement).toBe("none");
+        expect(result.success.agentCommands[0]?.degraded).toBe(true);
+        expect(result.success.agentCommands[0]?.enforcement).toBe("none");
       }
     });
 
@@ -389,7 +389,7 @@ describe("SecurityPostureSchema", () => {
       const result = decodeSecurityPosture(postureWithSource(source));
       expect(Result.isSuccess(result)).toBe(true);
       if (Result.isSuccess(result)) {
-        expect(result.right.agentCommands[0]?.source).toBe(source);
+        expect(result.success.agentCommands[0]?.source).toBe(source);
       }
     });
 
@@ -416,7 +416,7 @@ describe("SecurityPostureSchema", () => {
       const decoded = decodeSecurityPosture(encoded);
       expect(Result.isSuccess(decoded)).toBe(true);
       if (Result.isSuccess(decoded)) {
-        expect(decoded.right).toEqual(posture);
+        expect(decoded.success).toEqual(posture);
       }
     });
   });
@@ -430,7 +430,7 @@ describe("SecurityPostureSchema", () => {
       const decoded = decodeSecurityPosture(encodeSecurityPosture(posture));
       expect(Result.isSuccess(decoded)).toBe(true);
       if (Result.isSuccess(decoded)) {
-        expect(decoded.right.skillEditGrants).toEqual([".claude/skills/foo/SKILL.md"]);
+        expect(decoded.success.skillEditGrants).toEqual([".claude/skills/foo/SKILL.md"]);
       }
     });
 
@@ -454,7 +454,7 @@ describe("SecurityPostureSchema", () => {
       const result = decodeSecurityPosture(posture);
       expect(Result.isSuccess(result)).toBe(true);
       if (Result.isSuccess(result)) {
-        expect(result.right.marks).toContain("command-precision");
+        expect(result.success.marks).toContain("command-precision");
       }
     });
 
@@ -466,7 +466,7 @@ describe("SecurityPostureSchema", () => {
       const result = decodeSecurityPosture(posture);
       expect(Result.isSuccess(result)).toBe(true);
       if (Result.isSuccess(result)) {
-        expect(result.right.marks).toHaveLength(3);
+        expect(result.success.marks).toHaveLength(3);
       }
     });
 
@@ -489,7 +489,7 @@ describe("SecurityPostureSchema", () => {
       const decoded = decodeSecurityPosture(encoded);
       expect(Result.isSuccess(decoded)).toBe(true);
       if (Result.isSuccess(decoded)) {
-        expect(decoded.right.marks).toContain("command-precision");
+        expect(decoded.success.marks).toContain("command-precision");
       }
     });
   });
@@ -532,7 +532,7 @@ describe("SecurityPostureSchema", () => {
     it("round-trips a closed stop", () => {
       const posture = { ...baseSecurePosture, stop: closedStop };
       const decoded = decodeSecurityPosture(encodeSecurityPosture(posture));
-      expect(Result.isSuccess(decoded) && decoded.right.stop).toEqual(closedStop);
+      expect(Result.isSuccess(decoded) && decoded.success.stop).toEqual(closedStop);
     });
 
     // oxlint-disable-next-line no-unused-vars
@@ -583,13 +583,13 @@ describe("SecurityPostureSchema", () => {
       const read = readSecurityPosture(v1);
       expect(Result.isSuccess(read)).toBe(true);
       if (Result.isSuccess(read)) {
-        expect(read.right).toEqual({ ...baseSecurePosture, stop: null, protectedPaths: null });
+        expect(read.success).toEqual({ ...baseSecurePosture, stop: null, protectedPaths: null });
       }
     });
 
     it("readSecurityPosture lifts a version-2 file with protectedPaths null, keeping its stop", () => {
       const read = readSecurityPosture({ ...v2, stop: closedStop });
-      expect(Result.isSuccess(read) && read.right).toEqual({
+      expect(Result.isSuccess(read) && read.success).toEqual({
         ...baseSecurePosture,
         stop: closedStop,
         protectedPaths: null,
@@ -602,7 +602,7 @@ describe("SecurityPostureSchema", () => {
         protectedPaths: { globs: ["**/steme.baseline.json", "phax.json"], enforcement: "enforced" },
       } as const;
       const read = readSecurityPosture(encodeSecurityPosture(posture));
-      expect(Result.isSuccess(read) && read.right).toEqual(posture);
+      expect(Result.isSuccess(read) && read.success).toEqual(posture);
     });
 
     it("keeps the keys in order, protectedPaths before providerSkippedForSecurity", () => {
@@ -615,7 +615,7 @@ describe("SecurityPostureSchema", () => {
     it("readSecurityPosture reads a version-3 file as decodeSecurityPosture does", () => {
       const posture = { ...baseSecurePosture, stop: closedStop };
       const read = readSecurityPosture(encodeSecurityPosture(posture));
-      expect(Result.isSuccess(read) && read.right).toEqual(posture);
+      expect(Result.isSuccess(read) && read.success).toEqual(posture);
     });
   });
 });

@@ -28,7 +28,7 @@ describe("GateAttributionFileSchema", () => {
 
     expect(Result.isSuccess(decoded)).toBe(true);
     if (Result.isSuccess(decoded)) {
-      expect(decoded.right).toEqual(stamped(record));
+      expect(decoded.success).toEqual(stamped(record));
     }
   });
 
@@ -39,7 +39,7 @@ describe("GateAttributionFileSchema", () => {
 
     expect(Result.isSuccess(decoded)).toBe(true);
     if (Result.isSuccess(decoded)) {
-      expect(decoded.right.steps).toEqual([]);
+      expect(decoded.success.steps).toEqual([]);
     }
   });
 

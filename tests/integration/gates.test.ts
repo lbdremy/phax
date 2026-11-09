@@ -150,8 +150,8 @@ describe("runGates", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(GateFailedError);
-      const err = result.left as GateFailedError;
+      expect(result.failure).toBeInstanceOf(GateFailedError);
+      const err = result.failure as GateFailedError;
       expect(err.exitCode).toBe(1);
       expect(err.command).toBe("pnpm test");
       expect(err.logPath).toBe(logPath);
@@ -363,8 +363,8 @@ describe("runGates", () => {
       expect(raw).toBe(fakeFs.impl.getFile(attributionPath));
       const decoded = readGateAttributionFile(stepRecordPath, JSON.parse(raw!) as unknown);
       if (Result.isFailure(decoded)) throw new Error("the step record does not decode");
-      expect(decoded.right.phase).toBe(phaseId);
-      return decoded.right.steps.map((step) => [step.command, step.result]);
+      expect(decoded.success.phase).toBe(phaseId);
+      return decoded.success.steps.map((step) => [step.command, step.result]);
     }
 
     it("lists the steps of an attempt that passes", async () => {
@@ -445,7 +445,7 @@ describe("runGates", () => {
       const attribution = JSON.parse(fakeFs.impl.getFile(attributionPath)!) as GateAttribution;
       return {
         result,
-        error: Result.isFailure(result) ? (result.left as GateFailedError) : undefined,
+        error: Result.isFailure(result) ? (result.failure as GateFailedError) : undefined,
         log: fakeFs.impl.getFile(logPath)!,
         saved: savedReports(fakeFs),
         results: attribution.steps.map((step) => step.result),
@@ -553,7 +553,7 @@ describe("runGates", () => {
           });
           const result = await Effect.runPromise(Effect.result(effect));
           if (Result.isSuccess(result)) throw new Error("the gate passed");
-          const err = result.left as GateFailedError;
+          const err = result.failure as GateFailedError;
           return {
             message: err.message,
             command: err.command,
@@ -884,7 +884,7 @@ describe("runGates with a declaring step (Node shell)", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect((result.left as GateFailedError).reportFindings).toEqual({
+      expect((result.failure as GateFailedError).reportFindings).toEqual({
         step: 1,
         findings: [finding],
       });
@@ -1048,15 +1048,15 @@ function reportStep(command: string): GateStep {
 /** The gate's failure; fails the test when the gate passed. */
 function failure(result: Result.Result<unknown, unknown>): GateFailedError {
   if (Result.isSuccess(result)) throw new Error("expected the gate to fail");
-  expect(result.left).toBeInstanceOf(GateFailedError);
-  return result.left as GateFailedError;
+  expect(result.failure).toBeInstanceOf(GateFailedError);
+  return result.failure as GateFailedError;
 }
 
 /** The gate's refusal; fails the test when the gate did not refuse. */
 function refusedWith(result: Result.Result<unknown, unknown>): GateStepRefusedError {
   if (Result.isSuccess(result)) throw new Error("expected the gate to refuse");
-  expect(result.left).toBeInstanceOf(GateStepRefusedError);
-  return result.left as GateStepRefusedError;
+  expect(result.failure).toBeInstanceOf(GateStepRefusedError);
+  return result.failure as GateStepRefusedError;
 }
 
 /** The paths of every gate report the fake filesystem holds. */
@@ -1768,10 +1768,10 @@ describe("runGates with an acceptance step (Node shell)", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(GateFailedError);
-      if (result.left instanceof GateFailedError) {
-        expect(result.left.command).toBe("node ./oracles.mjs finding");
-        expect(result.left.reportFindings).toEqual({ step: 3, findings: [markerFinding] });
+      expect(result.failure).toBeInstanceOf(GateFailedError);
+      if (result.failure instanceof GateFailedError) {
+        expect(result.failure.command).toBe("node ./oracles.mjs finding");
+        expect(result.failure.reportFindings).toEqual({ step: 3, findings: [markerFinding] });
       }
     }
     expect(readAttribution(ws).steps.at(-1)).toEqual({
@@ -1788,10 +1788,10 @@ describe("runGates with an acceptance step (Node shell)", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(GateStepRefusedError);
-      if (result.left instanceof GateStepRefusedError) {
-        expect(result.left.reason).toBe("the oracle files are not test files");
-        expect(result.left.remedy).toBe("list test files under **Oracle files:**");
+      expect(result.failure).toBeInstanceOf(GateStepRefusedError);
+      if (result.failure instanceof GateStepRefusedError) {
+        expect(result.failure.reason).toBe("the oracle files are not test files");
+        expect(result.failure.remedy).toBe("list test files under **Oracle files:**");
       }
     }
     expect(readAttribution(ws).steps.at(-1)).toEqual({
@@ -1828,8 +1828,9 @@ describe("runGates with an acceptance step (Node shell)", () => {
 
       expect(Result.isFailure(result)).toBe(true);
       if (Result.isFailure(result)) {
-        expect(result.left).toBeInstanceOf(GateFailedError);
-        if (result.left instanceof GateFailedError) expect(result.left.reportFindings).toBeNull();
+        expect(result.failure).toBeInstanceOf(GateFailedError);
+        if (result.failure instanceof GateFailedError)
+          expect(result.failure.reportFindings).toBeNull();
       }
       const recorded = readAttribution(ws).steps;
       expect(recorded).toHaveLength(3);

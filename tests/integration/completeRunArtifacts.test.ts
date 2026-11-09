@@ -132,7 +132,7 @@ describe("completeRunArtifacts", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
-    const [plan] = result.right.transitions;
+    const [plan] = result.success.transitions;
     expect(plan).toMatchObject({ kind: "plan", path: PLAN_ARCHIVE, alreadyComplete: false });
     expect(plan?.commit?.hash).toBeDefined();
 
@@ -156,7 +156,7 @@ describe("completeRunArtifacts", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
-    expect(result.right.transitions[0]?.commit?.hash).toBeDefined();
+    expect(result.success.transitions[0]?.commit?.hash).toBeDefined();
     expect(readRepoFile(PLAN_ARCHIVE)).toContain("status: Completed");
     expect(git(["status", "--porcelain"]).trim()).toBe("");
   });
@@ -173,7 +173,7 @@ describe("completeRunArtifacts", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
-    const [plan] = result.right.transitions;
+    const [plan] = result.success.transitions;
     expect(readRepoFile(archivedSidecar)).toBe("{}\n");
     expect(readRepoFile(sidecar)).toBeUndefined();
     const diff = git(["show", "--name-status", plan?.commit?.hash as string]);
@@ -193,7 +193,7 @@ describe("completeRunArtifacts", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
-    const { transitions, keptSpec } = result.right;
+    const { transitions, keptSpec } = result.success;
     expect(keptSpec).toBeUndefined();
     expect(transitions).toHaveLength(2);
     const plan = transitions.find((t) => t.kind === "plan");
@@ -227,7 +227,7 @@ describe("completeRunArtifacts", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
-    const { transitions, keptSpec } = result.right;
+    const { transitions, keptSpec } = result.success;
     expect(transitions).toHaveLength(1);
     expect(transitions[0]).toMatchObject({ kind: "plan", alreadyComplete: false });
     expect(keptSpec).toEqual({
@@ -254,7 +254,7 @@ describe("completeRunArtifacts", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
-    const { transitions, keptSpec } = result.right;
+    const { transitions, keptSpec } = result.success;
     expect(transitions).toHaveLength(1);
     expect(transitions[0]).toMatchObject({
       kind: "plan",
@@ -290,7 +290,7 @@ describe("completeRunArtifacts", () => {
     expect(Result.isSuccess(second)).toBe(true);
     if (!Result.isSuccess(second)) return;
     expect(headCount()).toBe(commitsAfterFirst);
-    expect(second.right).toEqual({
+    expect(second.success).toEqual({
       transitions: [{ kind: "plan", path: PLAN_ARCHIVE, alreadyComplete: true }],
       keptSpec: { reason: "not-completing", path: SPEC_PATH },
     });
@@ -312,7 +312,7 @@ describe("completeRunArtifacts", () => {
     expect(Result.isSuccess(second)).toBe(true);
     if (!Result.isSuccess(second)) return;
     expect(headCount()).toBe(commitsAfterFirst);
-    expect(second.right.transitions).toEqual([
+    expect(second.success.transitions).toEqual([
       { kind: "plan", path: PLAN_ARCHIVE, alreadyComplete: true },
       { kind: "spec", path: SPEC_ARCHIVE, alreadyComplete: true },
     ]);
@@ -328,7 +328,7 @@ describe("completeRunArtifacts", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (!Result.isFailure(result)) return;
-    expect(result.left).toBeInstanceOf(InvalidArtifactTransitionError);
+    expect(result.failure).toBeInstanceOf(InvalidArtifactTransitionError);
     expect(headCount()).toBe(before);
     expect(readRepoFile(PLAN_PATH)).toContain("status: Draft");
   });
@@ -343,7 +343,7 @@ describe("completeRunArtifacts", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
-    expect(result.right).toEqual({ transitions: [] });
+    expect(result.success).toEqual({ transitions: [] });
     expect(headCount()).toBe(before);
   });
 
@@ -515,8 +515,8 @@ describe("completeRunArtifacts — surface summaries", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (!Result.isFailure(result)) return;
-    expect(result.left).toBeInstanceOf(SurfaceSummariesUnwrittenError);
-    expect((result.left as SurfaceSummariesUnwrittenError).surfaces).toEqual([
+    expect(result.failure).toBeInstanceOf(SurfaceSummariesUnwrittenError);
+    expect((result.failure as SurfaceSummariesUnwrittenError).surfaces).toEqual([
       "cli: `phax rotate <run>`",
     ]);
     // The plan archived first; the spec and its sidecar stay put, unchanged.

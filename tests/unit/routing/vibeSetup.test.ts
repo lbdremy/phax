@@ -52,7 +52,7 @@ describe("extractBaseModel", () => {
     const result = extractBaseModel(BASE_CONFIG, "mistral-medium-3.5");
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right).toEqual(EXPECTED_BASE);
+      expect(result.success).toEqual(EXPECTED_BASE);
     }
   });
 
@@ -60,7 +60,7 @@ describe("extractBaseModel", () => {
     const result = extractBaseModel(BASE_CONFIG, "nonexistent-model");
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toContain("not found");
+      expect(result.failure).toContain("not found");
     }
   });
 
@@ -92,7 +92,7 @@ auto_compact_threshold = 0.9
     const result = extractBaseModel(config, "mistral-medium-3.5");
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right).toEqual(EXPECTED_BASE);
+      expect(result.success).toEqual(EXPECTED_BASE);
     }
   });
 });

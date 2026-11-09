@@ -70,7 +70,7 @@ function writeOverlay(overlay: object): void {
 
 function message(result: ReturnType<typeof loadConfig>): string {
   expect(Result.isFailure(result)).toBe(true);
-  return Result.isFailure(result) ? result.left.message : "";
+  return Result.isFailure(result) ? result.failure.message : "";
 }
 
 function partialOf(steps: readonly unknown[] | undefined, index: number): unknown {
@@ -92,7 +92,7 @@ describe("partial on a gate step: accepted", () => {
     const result = loadConfig(repoDir);
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      const profiles = result.right.raw.gateProfiles;
+      const profiles = result.success.raw.gateProfiles;
       expect(partialOf(profiles["standard"], 3)).toEqual(BOTH);
       expect(partialOf(profiles["overlay"], 0)).toEqual(overlayPartial);
     }
@@ -177,7 +177,7 @@ describe("partial on a gate step: compound and nested constructs", () => {
     const result = loadConfig(repoDir);
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(partialOf(result.right.raw.gateProfiles["standard"], 3)).toEqual({
+      expect(partialOf(result.success.raw.gateProfiles["standard"], 3)).toEqual({
         diff: "ls | xargs wc -l",
       });
     }
@@ -191,7 +191,7 @@ describe("partial on a gate step: compound and nested constructs", () => {
     const result = loadConfig(repoDir);
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(partialOf(result.right.raw.gateProfiles["standard"], 3)).toEqual({
+      expect(partialOf(result.success.raw.gateProfiles["standard"], 3)).toEqual({
         files: "pnpm exec oxlint <files>",
       });
     }

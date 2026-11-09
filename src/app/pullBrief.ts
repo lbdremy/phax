@@ -50,23 +50,23 @@ function readPhaseRequest(
     const fs = yield* FileSystem;
     const path = join(root, PHASE_BRIEF_REQUEST_FILE);
     const present = yield* Effect.result(fs.exists(path));
-    if (Result.isFailure(present)) return notARequest(present.left.message);
-    if (!present.right) return undefined;
+    if (Result.isFailure(present)) return notARequest(present.failure.message);
+    if (!present.success) return undefined;
     const text = yield* Effect.result(fs.readText(path));
-    if (Result.isFailure(text)) return notARequest(text.left.message);
+    if (Result.isFailure(text)) return notARequest(text.failure.message);
     let parsed: unknown;
     try {
-      parsed = JSON.parse(text.right) as unknown;
+      parsed = JSON.parse(text.success) as unknown;
     } catch {
       return notARequest("not valid JSON");
     }
     const read = readBriefRequestFile(PHASE_BRIEF_REQUEST_FILE, parsed);
     if (Result.isFailure(read)) {
-      const prefix = `${read.left.file}: `;
-      const { message } = read.left;
+      const prefix = `${read.failure.file}: `;
+      const { message } = read.failure;
       return notARequest(message.startsWith(prefix) ? message.slice(prefix.length) : message);
     }
-    const request = read.right;
+    const request = read.success;
     if (!("phase" in request)) return notARequest("it carries no phase facts");
     if (request.files !== null) return notARequest("its files is not null");
     return request;
@@ -180,11 +180,11 @@ export function pullBrief(input: {
         root: input.root,
         paths: [first, ...rest],
       });
-      if (Result.isFailure(files)) return refused(files.left.refused);
+      if (Result.isFailure(files)) return refused(files.failure.refused);
       request = stampBriefRequest(
         phase === undefined
-          ? outsideBriefRequest(files.right)
-          : phaseBriefRequest(phase, files.right),
+          ? outsideBriefRequest(files.success)
+          : phaseBriefRequest(phase, files.success),
       );
     }
 

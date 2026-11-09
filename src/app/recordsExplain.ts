@@ -146,7 +146,7 @@ function lastAcceptanceStep(
   }
   const read = readGateAttributionFile("gate-attribution.json", parsed);
   if (Result.isFailure(read)) return null;
-  const step = read.right.steps.findLast(
+  const step = read.success.steps.findLast(
     (s): s is AcceptanceStepResult => s.surface === "acceptance",
   );
   return step === undefined ? null : { command: step.command, result: step.result };
@@ -433,8 +433,8 @@ function decisionCommitOf(file: string, bytes: Uint8Array): string | null | unde
     return undefined;
   }
   const decoded = readRecordManifestFile(file, json);
-  return Result.isSuccess(decoded) && isDecisionRecordManifest(decoded.right)
-    ? decoded.right.commit
+  return Result.isSuccess(decoded) && isDecisionRecordManifest(decoded.success)
+    ? decoded.success.commit
     : undefined;
 }
 
@@ -489,10 +489,10 @@ function loadRecord(
     );
     if (Result.isFailure(decoded)) {
       return yield* Effect.fail(
-        new GitError({ message: decoded.left.message, command: "records explain" }),
+        new GitError({ message: decoded.failure.message, command: "records explain" }),
       );
     }
-    const manifest = decoded.right;
+    const manifest = decoded.success;
 
     const artifacts = new Map<string, Uint8Array>();
     for (const entry of relevant) {
@@ -698,8 +698,8 @@ export function explainRecord(
     const prefix = `${key}/`;
     if (address.kind === "phase") {
       const record = explainPhaseRecord(loaded, address, recordCommitSha, foundVia, prefix);
-      if (Result.isFailure(record)) return yield* Effect.fail(record.left);
-      return { kind: "found", record: record.right } as const;
+      if (Result.isFailure(record)) return yield* Effect.fail(record.failure);
+      return { kind: "found", record: record.success } as const;
     }
     if (address.kind === "decision") {
       const record = explainDecisionRecord(
@@ -709,8 +709,8 @@ export function explainRecord(
         foundVia,
         prefix,
       );
-      if (Result.isFailure(record)) return yield* Effect.fail(record.left);
-      return { kind: "found-decision", record: record.right } as const;
+      if (Result.isFailure(record)) return yield* Effect.fail(record.failure);
+      return { kind: "found-decision", record: record.success } as const;
     }
     const record = explainAuthoringRecord(
       loaded,
@@ -719,7 +719,7 @@ export function explainRecord(
       foundVia,
       prefix,
     );
-    if (Result.isFailure(record)) return yield* Effect.fail(record.left);
-    return { kind: "found-authoring", record: record.right } as const;
+    if (Result.isFailure(record)) return yield* Effect.fail(record.failure);
+    return { kind: "found-authoring", record: record.success } as const;
   });
 }

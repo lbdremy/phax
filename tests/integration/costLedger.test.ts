@@ -241,8 +241,8 @@ function playStream(phaseFolderPath: string, outputJsonlPath: string): void {
 async function readLedger(runPath: string): Promise<ReadonlyArray<CostLedgerEntry>> {
   const text = await readFile(join(runPath, COST_LEDGER_FILE), "utf8");
   const read = readCostLedgerFile(COST_LEDGER_FILE, JSON.parse(text));
-  if (Result.isFailure(read)) throw new Error(read.left.message);
-  return read.right.entries;
+  if (Result.isFailure(read)) throw new Error(read.failure.message);
+  return read.success.entries;
 }
 
 describe("cost ledger at run time", () => {
@@ -490,7 +490,7 @@ describe("cost ledger at run time", () => {
         });
       },
     });
-    expect(Result.isFailure(outcome) && outcome.left instanceof UsageLimitError).toBe(true);
+    expect(Result.isFailure(outcome) && outcome.failure instanceof UsageLimitError).toBe(true);
     const runStatus = JSON.parse(await readFile(join(runPath, "run-status.json"), "utf8")) as {
       state: string;
     };
@@ -641,7 +641,7 @@ describe("withInvocationCost", () => {
         Effect.provide(Layer.merge(NodeFileSystemLayer, NoopSystemTelemetryLayer)),
       ),
     );
-    expect(Exit.isInterrupted(outcome)).toBe(true);
+    expect(Exit.hasInterrupts(outcome)).toBe(true);
     const entries = await readLedger(runPath);
     expect(entries.map((entry) => entry.completeness)).toEqual(["partial"]);
   });

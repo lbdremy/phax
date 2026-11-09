@@ -187,13 +187,13 @@ async function run(
 }
 
 const overviewOf = ({ result }: Run): PlanOverview => {
-  if (Result.isFailure(result)) throw new Error(`expected an overview, got ${result.left.line}`);
-  return result.right;
+  if (Result.isFailure(result)) throw new Error(`expected an overview, got ${result.failure.line}`);
+  return result.success;
 };
 
 const failureOf = ({ result }: Run): PlanOverviewFailure => {
   if (Result.isSuccess(result)) throw new Error("expected a failure");
-  return result.left;
+  return result.failure;
 };
 
 const TWO_PHASES = [

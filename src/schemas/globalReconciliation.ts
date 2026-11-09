@@ -99,7 +99,7 @@ export function decodeGlobalFileReconciliation(input: unknown) {
   if (Result.isSuccess(current)) return current;
   const legacy = decodeLegacy(input);
   if (Result.isFailure(legacy)) return current;
-  const { files, unplanned, missing, attentionPoints } = legacy.right;
+  const { files, unplanned, missing, attentionPoints } = legacy.success;
   return Result.succeed<GlobalFileReconciliation>({
     files: files.map(lifted),
     unplanned: unplanned.map(lifted),

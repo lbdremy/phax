@@ -303,8 +303,8 @@ function readJson(fakeFs: Fs, path: string): object {
 
 function readStop(fakeFs: Fs, path: string) {
   const decoded = readReviewStopFile(path, readJson(fakeFs, path));
-  if (Result.isFailure(decoded)) throw new Error(decoded.left.message);
-  return decoded.right;
+  if (Result.isFailure(decoded)) throw new Error(decoded.failure.message);
+  return decoded.success;
 }
 
 describe("dispatch — review-stop.json lifecycle", () => {

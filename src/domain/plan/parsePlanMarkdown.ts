@@ -1,4 +1,4 @@
-import { Either, Schema } from "effect";
+import { Result, Schema } from "effect";
 import { fromMarkdown } from "mdast-util-from-markdown";
 import { toString } from "mdast-util-to-string";
 import type { Heading, List, Paragraph, Root, RootContent } from "mdast";
@@ -115,10 +115,10 @@ function extractPlannedList(
   block: RootContent[],
   headingTitle: string,
   phaseId: string,
-): Either.Either<readonly string[], PlanValidationError> {
+): Result.Result<readonly string[], PlanValidationError> {
   const section = findH3Section(block, headingTitle);
   if (!section) {
-    return Either.left(
+    return Result.fail(
       new PlanValidationError({
         message: `${phaseId}: missing "### ${headingTitle}" section`,
       }),
@@ -126,13 +126,13 @@ function extractPlannedList(
   }
   const list = section.body.find(isList);
   if (!list) {
-    return Either.left(
+    return Result.fail(
       new PlanValidationError({
         message: `${phaseId}: "${headingTitle}" section has no list`,
       }),
     );
   }
-  return Either.right(normalizeItems(listItemTexts(list)));
+  return Result.succeed(normalizeItems(listItemTexts(list)));
 }
 
 // Strip a leading/trailing backtick wrap: `foo` → foo. Also handles the case
@@ -148,10 +148,10 @@ function unwrapBackticks(s: string): string {
 function extractCommitSubject(
   block: RootContent[],
   phaseId: string,
-): Either.Either<string, PlanValidationError> {
+): Result.Result<string, PlanValidationError> {
   const section = findH3Section(block, "Commit subject");
   if (!section) {
-    return Either.left(
+    return Result.fail(
       new PlanValidationError({
         message: `${phaseId}: missing "### Commit subject" section`,
       }),
@@ -159,7 +159,7 @@ function extractCommitSubject(
   }
   const paragraph = section.body.find(isParagraph);
   if (!paragraph) {
-    return Either.left(
+    return Result.fail(
       new PlanValidationError({
         message: `${phaseId}: "Commit subject" section has no paragraph`,
       }),
@@ -167,9 +167,9 @@ function extractCommitSubject(
   }
   const subject = unwrapBackticks(toString(paragraph)).replace(/\s+/g, " ").trim();
   if (subject.length === 0) {
-    return Either.left(new PlanValidationError({ message: `${phaseId}: empty commit subject` }));
+    return Result.fail(new PlanValidationError({ message: `${phaseId}: empty commit subject` }));
   }
-  return Either.right(subject);
+  return Result.succeed(subject);
 }
 
 // Extract the commit body as a verbatim slice of the plan.md source, preserving
@@ -180,10 +180,10 @@ function extractCommitBody(
   planMd: string,
   block: RootContent[],
   phaseId: string,
-): Either.Either<string, PlanValidationError> {
+): Result.Result<string, PlanValidationError> {
   const section = findH3Section(block, "Commit body");
   if (!section || section.body.length === 0) {
-    return Either.left(
+    return Result.fail(
       new PlanValidationError({
         message: `${phaseId}: missing "### Commit body" section`,
       }),
@@ -194,7 +194,7 @@ function extractCommitBody(
   const startOffset = first.position?.start.offset;
   const endOffset = last.position?.end.offset;
   if (startOffset === undefined || endOffset === undefined) {
-    return Either.left(
+    return Result.fail(
       new PlanValidationError({
         message: `${phaseId}: could not read commit body source`,
       }),
@@ -202,14 +202,14 @@ function extractCommitBody(
   }
   const body = planMd.slice(startOffset, endOffset).trim();
   if (body.length === 0) {
-    return Either.left(new PlanValidationError({ message: `${phaseId}: empty commit body` }));
+    return Result.fail(new PlanValidationError({ message: `${phaseId}: empty commit body` }));
   }
-  return Either.right(body);
+  return Result.succeed(body);
 }
 
 function extractRequiredCommands(
   block: RootContent[],
-): Either.Either<readonly string[], PlanValidationError> {
+): Result.Result<readonly string[], PlanValidationError> {
   // Find the h2 whose text is exactly "Required commands".
   for (let i = 0; i < block.length; i++) {
     const node = block[i]!;
@@ -218,17 +218,17 @@ function extractRequiredCommands(
         const inner = block[j]!;
         if (isH2(inner)) break;
         if (isList(inner)) {
-          return Either.right(normalizeItems(listItemTexts(inner)));
+          return Result.succeed(normalizeItems(listItemTexts(inner)));
         }
       }
-      return Either.left(
+      return Result.fail(
         new PlanValidationError({
           message: `"Required commands" section has no list`,
         }),
       );
     }
   }
-  return Either.left(
+  return Result.fail(
     new PlanValidationError({ message: `missing "## Required commands" section` }),
   );
 }
@@ -395,10 +395,10 @@ function walkPlan(planMd: string): PlanWalkResult {
   const preamble = collectPreamble(root);
   const requiredCommandsE = extractRequiredCommands(preamble);
   let requiredCommands: readonly string[] = [];
-  if (Either.isLeft(requiredCommandsE)) {
-    errors.push({ phase: null, message: requiredCommandsE.left.message });
+  if (Result.isFailure(requiredCommandsE)) {
+    errors.push({ phase: null, message: requiredCommandsE.failure.message });
   } else {
-    requiredCommands = requiredCommandsE.right;
+    requiredCommands = requiredCommandsE.success;
   }
 
   const phaseBlocks = collectPhaseBlocks(root);
@@ -442,49 +442,49 @@ function walkPlan(planMd: string): PlanWalkResult {
         phaseOk = false;
       } else {
         const effortE = decodeEffort(rawEffort);
-        if (Either.isLeft(effortE)) {
+        if (Result.isFailure(effortE)) {
           errors.push({ phase: id, message: `${id}: invalid effort "${rawEffort}"` });
           phaseOk = false;
         } else {
-          decodedEffort = effortE.right;
+          decodedEffort = effortE.success;
         }
       }
     }
 
     const createE = extractPlannedList(pb.body, "Planned files to create", id);
-    if (Either.isLeft(createE)) {
-      errors.push({ phase: id, message: createE.left.message });
+    if (Result.isFailure(createE)) {
+      errors.push({ phase: id, message: createE.failure.message });
       phaseOk = false;
     }
     const editE = extractPlannedList(pb.body, "Planned files to edit", id);
-    if (Either.isLeft(editE)) {
-      errors.push({ phase: id, message: editE.left.message });
+    if (Result.isFailure(editE)) {
+      errors.push({ phase: id, message: editE.failure.message });
       phaseOk = false;
     }
     const optionalE = extractPlannedList(pb.body, "Optional files that may be edited", id);
-    if (Either.isLeft(optionalE)) {
-      errors.push({ phase: id, message: optionalE.left.message });
+    if (Result.isFailure(optionalE)) {
+      errors.push({ phase: id, message: optionalE.failure.message });
       phaseOk = false;
     }
 
     const subjectE = extractCommitSubject(pb.body, id);
-    if (Either.isLeft(subjectE)) {
-      errors.push({ phase: id, message: subjectE.left.message });
+    if (Result.isFailure(subjectE)) {
+      errors.push({ phase: id, message: subjectE.failure.message });
       phaseOk = false;
     }
     const bodyE = extractCommitBody(body, pb.body, id);
-    if (Either.isLeft(bodyE)) {
-      errors.push({ phase: id, message: bodyE.left.message });
+    if (Result.isFailure(bodyE)) {
+      errors.push({ phase: id, message: bodyE.failure.message });
       phaseOk = false;
     }
 
     if (
       phaseOk &&
-      Either.isRight(createE) &&
-      Either.isRight(editE) &&
-      Either.isRight(optionalE) &&
-      Either.isRight(subjectE) &&
-      Either.isRight(bodyE)
+      Result.isSuccess(createE) &&
+      Result.isSuccess(editE) &&
+      Result.isSuccess(optionalE) &&
+      Result.isSuccess(subjectE) &&
+      Result.isSuccess(bodyE)
     ) {
       // A declaration line never adds a structure error here: its defects are
       // the `interactive` and `acceptance` checks' errors, and it reads as
@@ -503,13 +503,13 @@ function walkPlan(planMd: string): PlanWalkResult {
         model,
         effort: decodedEffort,
         planMarkdownAnchor: anchor,
-        plannedFilesToCreate: createE.right,
-        plannedFilesToEdit: editE.right,
-        optionalFilesToEdit: optionalE.right,
+        plannedFilesToCreate: createE.success,
+        plannedFilesToEdit: editE.success,
+        optionalFilesToEdit: optionalE.success,
         mode: kinds.mode,
         acceptance: kinds.acceptance,
         testLines: strategy.lines.map(({ line }) => line),
-        commit: { subject: subjectE.right, body: bodyE.right },
+        commit: { subject: subjectE.success, body: bodyE.success },
       });
     }
   }
@@ -576,22 +576,22 @@ export interface DeterministicPlanReading {
  */
 export function readPlanDeterministic(
   planMd: string,
-): Either.Either<DeterministicPlanReading, PlanValidationError> {
+): Result.Result<DeterministicPlanReading, PlanValidationError> {
   const { errors, candidate, strategies } = walkPlan(planMd);
   if (errors.length > 0 || !candidate) {
-    return Either.left(new PlanValidationError({ message: errors[0]!.message }));
+    return Result.fail(new PlanValidationError({ message: errors[0]!.message }));
   }
 
   const decoded = decodeExtracted(candidate);
-  if (Either.isLeft(decoded)) {
-    return Either.left(
+  if (Result.isFailure(decoded)) {
+    return Result.fail(
       new PlanValidationError({
-        message: `deterministic extraction produced invalid ExtractedPhaxPlan: ${decoded.left.message}`,
+        message: `deterministic extraction produced invalid ExtractedPhaxPlan: ${decoded.failure.message}`,
       }),
     );
   }
-  return Either.right({
-    plan: decoded.right,
+  return Result.succeed({
+    plan: decoded.success,
     departures: strategies.flatMap((s) =>
       s.departures.map((departure) => ({ phase: s.phase, departure })),
     ),
@@ -607,12 +607,12 @@ export function readPlanDeterministic(
  */
 export function extractPlanDeterministic(
   planMd: string,
-): Either.Either<ExtractedPhaxPlan, PlanValidationError> {
-  return Either.flatMap(readPlanDeterministic(planMd), ({ plan, departures }) => {
+): Result.Result<ExtractedPhaxPlan, PlanValidationError> {
+  return Result.flatMap(readPlanDeterministic(planMd), ({ plan, departures }) => {
     const [first] = departures;
     return first === undefined
-      ? Either.right(plan)
-      : Either.left(
+      ? Result.succeed(plan)
+      : Result.fail(
           new PlanValidationError({
             message: `${first.phase}: ${departureMessage(first.departure)}`,
           }),

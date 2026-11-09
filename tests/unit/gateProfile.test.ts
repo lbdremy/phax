@@ -147,7 +147,7 @@ describe("gate profile decode (attributed steps)", () => {
     });
     expect(Result.isFailure(decoded)).toBe(true);
     if (Result.isFailure(decoded)) {
-      const message = decoded.left.toString();
+      const message = decoded.failure.toString();
       // The decode-error path names the offending profile so the operator can
       // find the flat entry that must be migrated.
       expect(message).toContain("gateProfiles");
@@ -194,7 +194,7 @@ describe("gate profile decode (attributed steps)", () => {
     });
     expect(Result.isSuccess(decoded)).toBe(true);
     if (Result.isSuccess(decoded)) {
-      expect(decoded.right.gateProfiles["full"]?.[0]?.output).toBe("log");
+      expect(decoded.success.gateProfiles["full"]?.[0]?.output).toBe("log");
     }
   });
 
@@ -214,8 +214,8 @@ describe("gate profile decode (attributed steps)", () => {
     });
     expect(Result.isSuccess(decoded)).toBe(true);
     if (Result.isSuccess(decoded)) {
-      expect(decoded.right.gateProfiles["full"]?.[0]?.output).toBe("gate-report");
-      expect(decoded.right.gateProfiles["full"]?.[0]?.input).toBeUndefined();
+      expect(decoded.success.gateProfiles["full"]?.[0]?.output).toBe("gate-report");
+      expect(decoded.success.gateProfiles["full"]?.[0]?.input).toBeUndefined();
     }
   });
 

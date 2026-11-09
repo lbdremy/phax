@@ -204,8 +204,8 @@ describe("a refused gate report", () => {
     const result = await execute(runId);
 
     if (Result.isSuccess(result)) throw new Error("expected the run to stop");
-    expect(result.left).toBeInstanceOf(GateStepRefusedError);
-    expect(result.left).toMatchObject({
+    expect(result.failure).toBeInstanceOf(GateStepRefusedError);
+    expect(result.failure).toMatchObject({
       command: AUDIT,
       reason: REASON,
       remedy: REMEDY,
@@ -247,7 +247,7 @@ describe("a refused gate report", () => {
     const resumed = await execute(runId);
 
     if (Result.isSuccess(resumed)) throw new Error("expected the resumed gate to stay red");
-    expect(resumed.left).toBeInstanceOf(GateAttemptsExhaustedError);
+    expect(resumed.failure).toBeInstanceOf(GateAttemptsExhaustedError);
     // No fresh agent turn: the gate ran first, then each of the 3 fix
     // attempts followed a failure and re-ran it.
     expect(fakeBackend.impl.runCalls).toHaveLength(1);

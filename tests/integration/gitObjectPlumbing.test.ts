@@ -13,7 +13,7 @@ import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js"
 const RECORDS_BRANCH = ((): BranchName => {
   const decoded = decodeBranchName("phax/records/v1");
   if (Result.isFailure(decoded)) throw new Error("phax/records/v1 must be a valid branch name");
-  return decoded.right;
+  return decoded.success;
 })();
 
 function git(args: readonly string[], cwd: string): string {

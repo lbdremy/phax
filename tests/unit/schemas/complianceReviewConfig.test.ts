@@ -31,9 +31,9 @@ describe("ComplianceReviewConfigSchema", () => {
     });
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.enabled).toBe(true);
-      expect(result.right.model).toBe("claude-opus-4-8");
-      expect(result.right.effort).toBe("high");
+      expect(result.success.enabled).toBe(true);
+      expect(result.success.model).toBe("claude-opus-4-8");
+      expect(result.success.effort).toBe("high");
     }
   });
 
@@ -41,9 +41,9 @@ describe("ComplianceReviewConfigSchema", () => {
     const result = decodeComplianceReviewConfig({ enabled: false });
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.enabled).toBe(false);
-      expect(result.right.model).toBeUndefined();
-      expect(result.right.effort).toBeUndefined();
+      expect(result.success.enabled).toBe(false);
+      expect(result.success.model).toBeUndefined();
+      expect(result.success.effort).toBeUndefined();
     }
   });
 
@@ -98,7 +98,7 @@ describe("PhaxConfigSchema with review.compliance block", () => {
     });
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.review?.compliance?.enabled).toBe(true);
+      expect(result.success.review?.compliance?.enabled).toBe(true);
     }
   });
 
@@ -106,7 +106,7 @@ describe("PhaxConfigSchema with review.compliance block", () => {
     const result = decodePhaxConfig(minimalValidPhaxConfig);
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.review).toBeUndefined();
+      expect(result.success.review).toBeUndefined();
     }
   });
 

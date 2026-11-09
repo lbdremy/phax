@@ -9,7 +9,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, expect } from "vitest";
 import {
   type DecideVerdictsInput,
@@ -262,11 +262,11 @@ function harnessIn(world: DecideRepo, opts: HarnessOptions) {
 }
 
 export type Harness = ReturnType<typeof harnessIn>;
-export type RunResult = Either.Either<DecideVerdictsResult, unknown>;
+export type RunResult = Result.Result<DecideVerdictsResult, unknown>;
 
 /** The committed result, or the run's error made readable. */
 export function committed(result: RunResult): DecideVerdictsResult {
-  return Either.getOrThrowWith(result, (error) => {
+  return Result.getOrThrowWith(result, (error) => {
     const { _tag, message } = error as { _tag?: string; message?: string };
     return new Error(
       `decide --verdicts failed: ${_tag ?? "error"}: ${message ?? JSON.stringify(error)}`,
@@ -281,9 +281,9 @@ export function expectFailure(
   exitCode: number,
   head: string,
 ): { readonly error: FailureFacts } {
-  expect(Either.isLeft(result)).toBe(true);
-  if (Either.isRight(result)) throw new Error("expected a failure");
-  const raw = result.left as {
+  expect(Result.isFailure(result)).toBe(true);
+  if (Result.isSuccess(result)) throw new Error("expected a failure");
+  const raw = result.failure as {
     _tag: string;
     message: string;
     reason?: string;

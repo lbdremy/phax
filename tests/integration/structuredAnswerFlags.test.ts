@@ -337,8 +337,8 @@ describe("a natively handed Claude Code call whose success carries an empty resu
     const { result, warnings, sidecars } = await author({});
 
     if (Result.isSuccess(result)) throw new Error("authoring did not fail");
-    expect(result.left).toBeInstanceOf(AgentSessionFailedError);
-    expect((result.left as AgentSessionFailedError).failure).toMatchObject({
+    expect(result.failure).toBeInstanceOf(AgentSessionFailedError);
+    expect((result.failure as AgentSessionFailedError).failure).toMatchObject({
       kind: "provider-error",
       message: "success: the result carried no result text",
     });

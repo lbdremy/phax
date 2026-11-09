@@ -139,7 +139,7 @@ describe("phax run — dirty tree at branch creation is still refused (spec Q2)"
     );
     expect(Result.isSuccess(preflight)).toBe(true);
     if (Result.isFailure(preflight)) return;
-    const { routing, providerConfig } = preflight.right;
+    const { routing, providerConfig } = preflight.success;
 
     // The tree turns dirty between the preflight and branch creation.
     fakeGit.impl.setRepoIsClean(false);
@@ -180,9 +180,9 @@ describe("phax run — dirty tree at branch creation is still refused (spec Q2)"
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(UnsafeGitStateError);
-      expect(result.left.message).toBe(DIRTY_MESSAGE);
-      expect(exitCodeForError(result.left)).toBe(3);
+      expect(result.failure).toBeInstanceOf(UnsafeGitStateError);
+      expect(result.failure.message).toBe(DIRTY_MESSAGE);
+      expect(exitCodeForError(result.failure)).toBe(3);
     }
     expect(fakeGit.impl.calls.filter((c) => c.method === "createBranch")).toEqual([]);
     expect(fakeBackend.impl.runCalls).toHaveLength(0);

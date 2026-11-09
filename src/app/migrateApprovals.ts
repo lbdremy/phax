@@ -153,11 +153,11 @@ function planLedger(
     }
     const decoded = spec.decode(ledgerPath, parsed);
     if (Result.isFailure(decoded)) {
-      return yield* Effect.fail(unreadableLedger(ledgerPath, decoded.left.message));
+      return yield* Effect.fail(unreadableLedger(ledgerPath, decoded.failure.message));
     }
 
     const records: PlannedRecord[] = [];
-    for (const [artifact, content] of decoded.right.toSorted(([a], [b]) => (a < b ? -1 : 1))) {
+    for (const [artifact, content] of decoded.success.toSorted(([a], [b]) => (a < b ? -1 : 1))) {
       // Null exactly when the key is not a live artifact path of the ledger's kind.
       const recordFile = approvalRecordPathFor(kind, artifact);
       if (recordFile === null) {
@@ -256,7 +256,7 @@ export function migrateApprovals(
       return yield* Effect.fail(
         new ArtifactCommitFailedError({
           paths,
-          cause: committed.left.message,
+          cause: committed.failure.message,
           commitMessage: { subject, body },
         }),
       );

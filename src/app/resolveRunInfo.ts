@@ -57,7 +57,7 @@ function tryReadJson(path: string): unknown {
  */
 export function readPullRequestUrl(runPath: string): string | undefined {
   const decoded = decodePublication(tryReadJson(join(runPath, "publication.json")));
-  return Result.isSuccess(decoded) ? decoded.right.pullRequestUrl : undefined;
+  return Result.isSuccess(decoded) ? decoded.success.pullRequestUrl : undefined;
 }
 
 /**
@@ -83,15 +83,15 @@ function loadRunReviewInfo(
   }
   const runStatusResult = readRunStatusFile(runStatusPath, rawRunStatus);
   if (Result.isFailure(runStatusResult)) {
-    return Result.fail(runStatusResult.left.message);
+    return Result.fail(runStatusResult.failure.message);
   }
-  const runStatus = runStatusResult.right;
+  const runStatus = runStatusResult.success;
 
   const planPath = join(runPath, "phax-plan.json");
   const planResult = readPhaxPlanFile(planPath, tryReadJson(planPath));
   // Display only: an older shape is read lifted, whatever the shape, without test lines.
   const plan: AnyShapePhaxPlan | undefined = Result.isSuccess(planResult)
-    ? planResult.right.plan
+    ? planResult.success.plan
     : undefined;
 
   const branch = plan?.run.branch ?? "(unknown)";
@@ -114,8 +114,8 @@ function loadRunReviewInfo(
     // without `base`) refuses the whole run: skipping it would make resume
     // take that phase as never started.
     const decoded = readPhaseStatusFile(statusPath, raw);
-    if (Result.isFailure(decoded)) return Result.fail(decoded.left.message);
-    phaseStatuses.push(decoded.right);
+    if (Result.isFailure(decoded)) return Result.fail(decoded.failure.message);
+    phaseStatuses.push(decoded.success);
   }
 
   const finalPhaseStatus = phaseStatuses.toSorted((a, b) => b.phaseIndex - a.phaseIndex)[0];
@@ -139,7 +139,7 @@ function loadRunReviewInfo(
       runState: runStatus.state,
       branch,
       runTitle,
-      finalPhaseBranch: finalPhaseBranchResult.right,
+      finalPhaseBranch: finalPhaseBranchResult.success,
       stateRoot,
       runPath,
       finalPhaseId: lastPlanPhase.id,
@@ -161,7 +161,7 @@ function loadRunReviewInfo(
   if (Result.isFailure(finalPhaseBranchResult)) {
     return Result.fail(`Cannot compute final phase branch for run at "${runPath}"`);
   }
-  const finalPhaseBranch = finalPhaseBranchResult.right;
+  const finalPhaseBranch = finalPhaseBranchResult.success;
 
   return Result.succeed({
     namespace: runStatus.namespace,
@@ -202,8 +202,8 @@ export function resolvePhaseInfo(
 ): Result.Result<PhaseInfo, string> {
   const runPath = join(stateRoot, "runs", runKey(namespace, shortName));
   const infoResult = loadRunReviewInfo(runPath, stateRoot);
-  if (Result.isFailure(infoResult)) return Result.fail(infoResult.left);
-  const info = infoResult.right;
+  if (Result.isFailure(infoResult)) return Result.fail(infoResult.failure);
+  const info = infoResult.success;
 
   const phaseStatus = info.phaseStatuses.find((p) => p.phaseId === phaseId);
   if (!phaseStatus) {

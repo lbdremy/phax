@@ -145,13 +145,13 @@ const CURRENT_PLAN_DOCUMENT = {
 function specBody(): string {
   const decoded = decodeSpecDocumentFile(JSON.parse(stampedJson("spec-document")));
   if (Result.isFailure(decoded)) throw new Error("fixture spec document must decode");
-  return renderSpecBody(decoded.right);
+  return renderSpecBody(decoded.success);
 }
 
 function planBody(): string {
   const decoded = decodePlanDocumentFile(JSON.parse(stampedJson("plan-document")));
   if (Result.isFailure(decoded)) throw new Error("fixture plan document must decode");
-  return renderPlanBody(decoded.right);
+  return renderPlanBody(decoded.success);
 }
 
 /** A sidecar as phax writes it now: `version` dropped, `$schema` first, at the current shape. */

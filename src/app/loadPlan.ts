@@ -49,13 +49,13 @@ export function loadPlan(
   if (Result.isFailure(decoded)) {
     return Result.fail(
       new PlanValidationError({
-        message: decoded.left.message,
+        message: decoded.failure.message,
         path: planPath,
       }),
     );
   }
 
-  const { shape, plan } = decoded.right;
+  const { shape, plan } = decoded.success;
   if (shape !== "current") {
     return Result.fail(
       new PlanValidationError({

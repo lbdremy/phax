@@ -81,10 +81,10 @@ function reconcileEntry(
   const shortNameResult = decodeShortName(entry.shortName);
   if (Result.isFailure(shortNameResult)) return { row: fallback, info: undefined };
 
-  const infoResult = resolveRun(entry.namespace, shortNameResult.right, stateRoot);
+  const infoResult = resolveRun(entry.namespace, shortNameResult.success, stateRoot);
   if (Result.isFailure(infoResult)) return { row: fallback, info: undefined };
 
-  const info = infoResult.right;
+  const info = infoResult.success;
   const total = info.planPhases.length || entry.phasesCount;
   const current = findCurrentPhase(info.phaseStatuses);
   const reached = current ?? info.phaseStatuses.toSorted((a, b) => b.phaseIndex - a.phaseIndex)[0];
@@ -130,7 +130,7 @@ function lockStateOf(
   if (Result.isFailure(shortName)) return Effect.succeed("none");
   return Effect.gen(function* () {
     const lock = yield* Lock;
-    return yield* lock.status(runKey(entry.namespace, shortName.right));
+    return yield* lock.status(runKey(entry.namespace, shortName.success));
   }).pipe(
     Effect.provide(lockLayer),
     Effect.map((status) =>
@@ -193,7 +193,7 @@ function listRuns(flags: LsFlags) {
           ...(clonePath !== undefined ? { recordsClonePath: clonePath } : {}),
         }).pipe(Effect.provide(NodeGitLayer)),
       );
-      if (Result.isSuccess(pending)) pendingCounts = pendingCountsByRunId(pending.right);
+      if (Result.isSuccess(pending)) pendingCounts = pendingCountsByRunId(pending.success);
     }
 
     const rows: LsRunRow[] = [];

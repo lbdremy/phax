@@ -424,7 +424,7 @@ describe.each<ProviderName>(["claude-code", "codex-cli", "mistral-vibe"])(
       { timeout: 60_000 },
       async () => {
         const observed = await runPhase(provider);
-        if (Result.isFailure(observed.result)) throw observed.result.left as Error;
+        if (Result.isFailure(observed.result)) throw observed.result.failure as Error;
 
         // Work turn, fix turn after the red attempt, handoff turn.
         expect(observed.argv).toHaveLength(3);
@@ -444,7 +444,7 @@ describe.each<ProviderName>(["claude-code", "codex-cli", "mistral-vibe"])(
       { timeout: 60_000 },
       async () => {
         const observed = await runPhase(provider);
-        if (Result.isFailure(observed.result)) throw observed.result.left as Error;
+        if (Result.isFailure(observed.result)) throw observed.result.failure as Error;
 
         // The records' values, spelled out: security.json at version 3 and
         // gate-attribution.json at 0.33.0, each with `protectedPaths: null`.
@@ -492,7 +492,7 @@ describe("a phase on claude-code in a project that declares protectedPaths", () 
     { timeout: 60_000 },
     async () => {
       const observed = await runPhase("claude-code", ["**/steme.baseline.json"]);
-      if (Result.isFailure(observed.result)) throw observed.result.left as Error;
+      if (Result.isFailure(observed.result)) throw observed.result.failure as Error;
 
       const posture = readJson(join(observed.phaseFolder, "security.json")) as {
         version: number;

@@ -75,7 +75,7 @@ describe("ac-auth", () => {
       });
 
       expect(Result.isFailure(result)).toBe(true);
-      const error = Result.isFailure(result) ? result.left : undefined;
+      const error = Result.isFailure(result) ? result.failure : undefined;
       expect(error).toBeInstanceOf(AgentSessionFailedError);
       const failed = error as AgentSessionFailedError;
       expect(failed.failure.kind).toBe("not-authenticated");

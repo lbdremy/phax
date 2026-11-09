@@ -51,7 +51,7 @@ const registryEntry = {
 };
 
 function message(result: Result.Result<unknown, { readonly message: string }>): string {
-  return Result.isFailure(result) ? result.left.message : "";
+  return Result.isFailure(result) ? result.failure.message : "";
 }
 
 describe("phase status readers", () => {

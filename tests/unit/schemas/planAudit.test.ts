@@ -12,7 +12,7 @@ describe("PlanAuditResponseSchema", () => {
     });
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.findings).toHaveLength(2);
+      expect(result.success.findings).toHaveLength(2);
     }
   });
 

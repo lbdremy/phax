@@ -107,7 +107,7 @@ function expectDecodes(format: (typeof FORMATS)[number], finalText: string) {
     ANSWER_FORMATS[format].schema as Schema.Codec<unknown, unknown>,
     { onExcessProperty: "error", reportInput: true },
   )(parsed);
-  expect(Result.isSuccess(decoded) ? "" : String(decoded.left)).toBe("");
+  expect(Result.isSuccess(decoded) ? "" : String(decoded.failure)).toBe("");
 }
 
 describe.skipIf(!shouldRun)("codex --output-schema (real provider)", () => {

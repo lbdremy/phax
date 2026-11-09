@@ -47,7 +47,7 @@ describe("writeAgentBinding + readAgentBinding", () => {
     const result = await readAgentBinding(phaseFolder);
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right).toEqual(validBinding);
+      expect(result.success).toEqual(validBinding);
     }
   });
 
@@ -101,11 +101,11 @@ describe("patchAgentBindingSession", () => {
     const result = await readAgentBinding(phaseFolder);
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.sessionId).toBe("sess-xyz");
-      expect(result.right.status).toBe("running");
+      expect(result.success.sessionId).toBe("sess-xyz");
+      expect(result.success.status).toBe("running");
       // Other fields unchanged
-      expect(result.right.provider).toBe("claude-code");
-      expect(result.right.model).toBe("claude-sonnet-4-6");
+      expect(result.success.provider).toBe("claude-code");
+      expect(result.success.model).toBe("claude-sonnet-4-6");
     }
   });
 
@@ -142,11 +142,11 @@ describe("patchAgentBindingStatus", () => {
     const result = await readAgentBinding(phaseFolder);
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.status).toBe("completed");
+      expect(result.success.status).toBe("completed");
       // sessionId and other fields unchanged
-      expect(result.right.sessionId).toBeNull();
-      expect(result.right.provider).toBe("claude-code");
-      expect(result.right.model).toBe("claude-sonnet-4-6");
+      expect(result.success.sessionId).toBeNull();
+      expect(result.success.provider).toBe("claude-code");
+      expect(result.success.model).toBe("claude-sonnet-4-6");
     }
   });
 
@@ -158,7 +158,7 @@ describe("patchAgentBindingStatus", () => {
       const result = await readAgentBinding(phaseFolder);
       expect(Result.isSuccess(result)).toBe(true);
       if (Result.isSuccess(result)) {
-        expect(result.right.status).toBe(status);
+        expect(result.success.status).toBe(status);
       }
     }
   });

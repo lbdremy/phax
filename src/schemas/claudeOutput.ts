@@ -121,29 +121,29 @@ export function scanClaudeOutcomeEvents(lines: readonly string[]): ClaudeOutcome
     if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) continue;
     const decodedRetry = decodeClaudeApiRetryEvent(parsed);
     if (Result.isSuccess(decodedRetry)) {
-      trailingApiRetry = decodedRetry.right;
+      trailingApiRetry = decodedRetry.success;
       continue;
     }
     // Any other event means the session went on past the retry.
     trailingApiRetry = undefined;
     const decodedResult = decodeClaudeResultOutcomeEvent(parsed);
     if (Result.isSuccess(decodedResult)) {
-      result = decodedResult.right;
+      result = decodedResult.success;
       continue;
     }
     const decodedInit = decodeClaudeInitEvent(parsed);
     if (Result.isSuccess(decodedInit)) {
-      initSessionId ??= decodedInit.right.session_id;
+      initSessionId ??= decodedInit.success.session_id;
       continue;
     }
     const decodedApiError = decodeClaudeApiErrorMessage(parsed);
     if (Result.isSuccess(decodedApiError)) {
-      apiErrorCategory = decodedApiError.right.error;
+      apiErrorCategory = decodedApiError.success.error;
       continue;
     }
     const decodedRateLimit = decodeClaudeRateLimitEvent(parsed);
     if (Result.isSuccess(decodedRateLimit)) {
-      const info = decodedRateLimit.right.rate_limit_info;
+      const info = decodedRateLimit.success.rate_limit_info;
       if (info.status === "rejected" && typeof info.resetsAt === "number") {
         rejectedResetsAt = info.resetsAt;
       }

@@ -61,9 +61,9 @@ export function readPhaseStatus(
     });
     const decoded = readPhaseStatusFile(statusPath, parsed);
     if (Result.isFailure(decoded)) {
-      return yield* Effect.fail(new FsError({ message: decoded.left.message }));
+      return yield* Effect.fail(new FsError({ message: decoded.failure.message }));
     }
-    return decoded.right;
+    return decoded.success;
   });
 }
 
@@ -87,7 +87,7 @@ export function recordPhaseWorktreeAndBranch(
     const decoded = readPhaseStatusFile(statusPath, parsed);
     if (Result.isSuccess(decoded)) {
       const updated = {
-        ...decoded.right,
+        ...decoded.success,
         worktreePath: worktreePath as string,
         branchName,
         updatedAt: new Date().toISOString(),

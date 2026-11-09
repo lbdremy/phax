@@ -163,7 +163,7 @@ function pascal(id: FormatId): string {
 /** The path of a decoder's first violation, joined with `.`. */
 function firstViolationPath(result: Result.Result<unknown, Schema.SchemaError>): string {
   if (Result.isSuccess(result)) throw new Error("expected the frozen decoder to reject");
-  const [first] = SchemaIssue.makeFormatterStandardSchemaV1()(result.left.issue).issues;
+  const [first] = SchemaIssue.makeFormatterStandardSchemaV1()(result.failure.issue).issues;
   return first === undefined ? "" : first.path.map(String).join(".");
 }
 

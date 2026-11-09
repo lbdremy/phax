@@ -61,10 +61,10 @@ export function planOverview(
     if (Result.isFailure(readPlan)) {
       return yield* Effect.fail({
         kind: "unreadable",
-        line: onOneLine(`${reportPath}: cannot be read (${readPlan.left.message})`),
+        line: onOneLine(`${reportPath}: cannot be read (${readPlan.failure.message})`),
       } satisfies PlanOverviewFailure);
     }
-    const planMd = readPlan.right;
+    const planMd = readPlan.success;
 
     const artifact = classifyArtifactPath(repoRelPath) !== null;
     if (artifact) {
@@ -72,7 +72,7 @@ export function planOverview(
       if (Result.isFailure(validated)) {
         return yield* Effect.fail({
           kind: "invalid-artifact",
-          line: onOneLine(`${reportPath}: ${validated.left.message}`),
+          line: onOneLine(`${reportPath}: ${validated.failure.message}`),
         } satisfies PlanOverviewFailure);
       }
     }
@@ -86,9 +86,9 @@ export function planOverview(
     };
     const extracted = extractPlanDeterministic(planMd);
     if (Result.isFailure(extracted)) return yield* Effect.fail(unparsable);
-    const finalized = finalizeExtractedPlan(extracted.right, planMd);
+    const finalized = finalizeExtractedPlan(extracted.success, planMd);
     if (Result.isFailure(finalized)) return yield* Effect.fail(unparsable);
-    const { plan } = finalized.right;
+    const { plan } = finalized.success;
 
     const criteria = yield* readSourceSpecCriteria({ planMd, repoRoot: config.repoRoot });
     const declaration = frontmatter.kind === "decoded" ? frontmatter.sourceSpec : null;

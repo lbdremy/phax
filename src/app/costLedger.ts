@@ -50,9 +50,9 @@ function readLedger(path: string): Effect.Effect<CostLedger, unknown, FileSystem
     });
     const read = readCostLedgerFile(path, parsed);
     if (Result.isFailure(read)) {
-      return yield* Effect.fail(new LedgerFailure(`${read.left.message} — left as it is`));
+      return yield* Effect.fail(new LedgerFailure(`${read.failure.message} — left as it is`));
     }
-    return read.right;
+    return read.success;
   });
 }
 
@@ -146,7 +146,7 @@ export function withInvocationCost<A, E, R>(
           const elapsedMs = (yield* Clock.currentTimeMillis) - startedAt;
           yield* recordEntry(opts, elapsedMs);
         }).pipe(
-          Effect.catchAllCause((cause) =>
+          Effect.catchCause((cause) =>
             Effect.gen(function* () {
               const telemetry = yield* SystemTelemetry;
               const message = failureMessage(cause);

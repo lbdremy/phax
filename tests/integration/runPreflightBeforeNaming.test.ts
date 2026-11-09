@@ -71,7 +71,7 @@ vi.mock("node:os", async (importOriginal) =>
 vi.mock("../../src/app/loadTelemetryConfig.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../src/app/loadTelemetryConfig.js")>();
   const effect = await import("effect");
-  return { ...actual, loadTelemetryConfig: vi.fn(() => effect.Either.right({ enabled: true })) };
+  return { ...actual, loadTelemetryConfig: vi.fn(() => effect.Result.succeed({ enabled: true })) };
 });
 // The routing loaders read ~/.phax; serve the built-in defaults instead.
 vi.mock("../../src/app/loadRouting.js", async (importOriginal) => {
@@ -430,7 +430,7 @@ describe("phax run — a preflight refusal precedes naming", () => {
     process.chdir(roots.repo);
     // Guard: every write below must land in the temporary state root.
     const config = loadConfig(roots.repo);
-    expect(Result.isSuccess(config) && config.right.stateRoot).toBe(roots.stateRoot);
+    expect(Result.isSuccess(config) && config.success.stateRoot).toBe(roots.stateRoot);
     return roots;
   }
 

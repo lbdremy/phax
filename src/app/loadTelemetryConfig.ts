@@ -44,11 +44,11 @@ export function loadTelemetryConfig(
   if (Result.isFailure(decoded)) {
     return Result.fail(
       new ConfigValidationError({
-        message: `Invalid telemetry.json at "${configPath}":\n${formatParseError(decoded.left)}`,
+        message: `Invalid telemetry.json at "${configPath}":\n${formatParseError(decoded.failure)}`,
         path: configPath,
       }),
     );
   }
 
-  return Result.succeed(decoded.right);
+  return Result.succeed(decoded.success);
 }

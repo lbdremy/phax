@@ -57,8 +57,8 @@ describe("resolveDecideModel", () => {
       const resolved = resolveDecideModel(model, undefined);
       expect(Result.isFailure(resolved), model).toBe(true);
       if (Result.isFailure(resolved)) {
-        expect(resolved.left).toContain(`--model ${model} is not a Claude Code model`);
-        expect(resolved.left).toContain("decide runs on Claude Code only");
+        expect(resolved.failure).toContain(`--model ${model} is not a Claude Code model`);
+        expect(resolved.failure).toContain("decide runs on Claude Code only");
       }
     }
   });
@@ -67,8 +67,8 @@ describe("resolveDecideModel", () => {
     const resolved = resolveDecideModel("claude-sonnet-4-6", "xhigh");
     expect(Result.isFailure(resolved)).toBe(true);
     if (Result.isFailure(resolved)) {
-      expect(resolved.left).toContain("--effort xhigh");
-      expect(resolved.left).toContain("low, medium, high, max");
+      expect(resolved.failure).toContain("--effort xhigh");
+      expect(resolved.failure).toContain("low, medium, high, max");
     }
   });
 });
@@ -194,8 +194,8 @@ describe("resolveVerdictsModel", () => {
       const resolved = resolveVerdictsModel(undefined, effort, ROUTING, DEFAULT_PROVIDER_CONFIG);
       expect(Result.isFailure(resolved), effort).toBe(true);
       if (Result.isFailure(resolved)) {
-        expect(resolved.left).toContain(`--effort ${effort}`);
-        expect(resolved.left).toContain("low, medium, high");
+        expect(resolved.failure).toContain(`--effort ${effort}`);
+        expect(resolved.failure).toContain("low, medium, high");
       }
     }
   });

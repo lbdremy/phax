@@ -19,7 +19,7 @@ export type SourceSpecDeclaration =
 export function readSourceSpec(md: string): SourceSpecDeclaration | null {
   const decoded = decodeArtifactFrontmatter("plan", md);
   if (Result.isFailure(decoded)) return null;
-  const frontmatter = decoded.right;
+  const frontmatter = decoded.success;
   if (frontmatter["source-spec"] === null) return { kind: "none" };
   return {
     kind: "spec",
@@ -57,7 +57,7 @@ function briefProblem(detail: string): string {
 export function readPlanFrontmatter(md: string): PlanFrontmatterReading {
   const decoded = decodeArtifactFrontmatter("plan", md);
   if (Result.isFailure(decoded)) {
-    const problem = decoded.left;
+    const problem = decoded.failure;
     switch (problem.kind) {
       case "missing-block":
         return { kind: "none" };
@@ -67,7 +67,7 @@ export function readPlanFrontmatter(md: string): PlanFrontmatterReading {
         return { kind: "undecodable", problem: briefProblem(problem.detail) };
     }
   }
-  const frontmatter = decoded.right;
+  const frontmatter = decoded.success;
   return {
     kind: "decoded",
     status: frontmatter.status,

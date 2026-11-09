@@ -284,7 +284,7 @@ describe("authorArtifact — spec", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isFailure(result)) return;
-    expect(result.right).toEqual({
+    expect(result.success).toEqual({
       path: SPEC_PATH,
       sidecarPath: SPEC_SIDECAR,
       commit: { hash: "a1b2c3d4".repeat(5), subject: "docs(specs): draft plan-prune" },
@@ -299,7 +299,7 @@ describe("authorArtifact — spec", () => {
     const md = fs.getFile(SPEC_PATH) ?? "";
     expect(md).toContain("status: Draft");
     expect(md).toContain("date: 2026-09-23");
-    expect(splitFrontmatter(md)?.body).toBe(renderSpecBody(doc.right));
+    expect(splitFrontmatter(md)?.body).toBe(renderSpecBody(doc.success));
 
     // The sidecar and the session's document.json: $schema first, no version.
     const sidecar = fs.getFile(SPEC_SIDECAR) ?? "";
@@ -462,15 +462,15 @@ describe("authorArtifact — plan", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isFailure(result)) return;
-    expect(result.right.path).toBe(PLAN_PATH);
-    expect(result.right.sidecarPath).toBe(PLAN_SIDECAR);
-    expect(result.right.commit.subject).toBe("docs(plans): draft plan-prune");
+    expect(result.success.path).toBe(PLAN_PATH);
+    expect(result.success.sidecarPath).toBe(PLAN_SIDECAR);
+    expect(result.success.commit.subject).toBe("docs(plans): draft plan-prune");
 
     const doc = decodeAuthoredPlanDocument(PLAN_DOCUMENT);
     if (Result.isFailure(doc)) throw new Error("fixture does not decode");
     const md = fs.getFile(PLAN_PATH) ?? "";
     expect(md).toContain(`source-spec: ${SOURCE_SPEC}\ncompletes-spec: true\n`);
-    expect(splitFrontmatter(md)?.body).toBe(renderPlanBody(doc.right));
+    expect(splitFrontmatter(md)?.body).toBe(renderPlanBody(doc.success));
     const sidecar = fs.getFile(PLAN_SIDECAR) ?? "";
     const written: Record<string, unknown> = JSON.parse(sidecar);
     expect(Object.keys(written)[0]).toBe("$schema");
@@ -487,11 +487,11 @@ describe("authorArtifact — plan", () => {
     const entry = decodeExtractedPlanCacheEntry(JSON.parse(entryText ?? ""));
     expect(Result.isSuccess(entry)).toBe(true);
     if (Result.isSuccess(entry)) {
-      expect(entry.right.extracted).toEqual(projectExtractedPlan(doc.right));
-      expect(entry.right.model).toBe("claude-sonnet-5");
-      expect(entry.right.effort).toBe("medium");
-      expect(entry.right.extractorVersion).toBe(EXTRACTOR_VERSION);
-      expect(entry.right.extractedAt).toBe(NOW);
+      expect(entry.success.extracted).toEqual(projectExtractedPlan(doc.success));
+      expect(entry.success.model).toBe("claude-sonnet-5");
+      expect(entry.success.effort).toBe("medium");
+      expect(entry.success.extractorVersion).toBe(EXTRACTOR_VERSION);
+      expect(entry.success.extractedAt).toBe(NOW);
     }
 
     const commit = git.calls.find((call) => call.method === "commitPaths");
@@ -693,10 +693,10 @@ describe("authorArtifact — failures land nothing", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isSuccess(result)) return;
-    expect(result.left).toBeInstanceOf(AuthoringDocumentError);
+    expect(result.failure).toBeInstanceOf(AuthoringDocumentError);
     const refusal =
       "the session's final message is not JSON (Unexpected token 'H' at position 0): Here is your spec: it is great.";
-    expect(result.left.message).toBe(
+    expect(result.failure.message).toBe(
       `spec document rejected twice — first answer: ${refusal}; retry: ${refusal}`,
     );
     expect(repoFiles(fs)).toEqual([]);
@@ -715,9 +715,9 @@ describe("authorArtifact — failures land nothing", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isSuccess(result)) return;
-    expect(result.left).toBeInstanceOf(AuthoringDocumentError);
-    expect(result.left.message).toContain("spec document rejected twice — ");
-    expect(result.left.message).toContain("acceptanceCriteria[0].refs[0]");
+    expect(result.failure).toBeInstanceOf(AuthoringDocumentError);
+    expect(result.failure.message).toContain("spec document rejected twice — ");
+    expect(result.failure.message).toContain("acceptanceCriteria[0].refs[0]");
     expect(repoFiles(fs)).toEqual([]);
     expect(fs.getFile(`${SESSION_FOLDER}/document.json`)).toBeUndefined();
     expect(git.calls.some((call) => call.method === "commitPaths")).toBe(false);
@@ -736,9 +736,9 @@ describe("authorArtifact — failures land nothing", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isSuccess(result)) return;
-    expect(result.left).toBeInstanceOf(AuthoringDocumentError);
-    expect(result.left.message).toContain("spec document rejected twice — ");
-    expect(result.left.message).toContain("surface[1].summary");
+    expect(result.failure).toBeInstanceOf(AuthoringDocumentError);
+    expect(result.failure.message).toContain("spec document rejected twice — ");
+    expect(result.failure.message).toContain("surface[1].summary");
     expect(repoFiles(fs)).toEqual([]);
     expect(fs.getFile(`${SESSION_FOLDER}/document.json`)).toBeUndefined();
     expect(git.calls.some((call) => call.method === "commitPaths")).toBe(false);
@@ -755,9 +755,9 @@ describe("authorArtifact — failures land nothing", () => {
 
       expect(Result.isFailure(result)).toBe(true);
       if (Result.isSuccess(result)) return;
-      expect(result.left).toBeInstanceOf(AuthoringDocumentError);
-      expect(result.left.message).toContain("plan document rejected twice — ");
-      expect(result.left.message).toContain("completesSpec");
+      expect(result.failure).toBeInstanceOf(AuthoringDocumentError);
+      expect(result.failure.message).toContain("plan document rejected twice — ");
+      expect(result.failure.message).toContain("completesSpec");
       expect(repoFiles(fs)).toEqual([SOURCE_SPEC]);
       expect(fs.getFile(`${SESSION_FOLDER}/document.json`)).toBeUndefined();
       expect(git.calls.some((call) => call.method === "commitPaths")).toBe(false);
@@ -801,12 +801,12 @@ describe("authorArtifact — failures land nothing", () => {
 
       expect(Result.isFailure(result)).toBe(true);
       if (Result.isSuccess(result)) return;
-      expect(result.left).toBeInstanceOf(AuthoringDocumentError);
+      expect(result.failure).toBeInstanceOf(AuthoringDocumentError);
       const path = kind === "spec" ? refusal : `preamble.${refusal}`;
-      expect(result.left.message).toBe(
+      expect(result.failure.message).toBe(
         `${kind} document rejected twice — first answer: ${path}; retry: ${path}`,
       );
-      expect(exitCodeForAuthoringError(result.left)).toBe(5);
+      expect(exitCodeForAuthoringError(result.failure)).toBe(5);
       expect(backend.resumeCalls).toHaveLength(1);
       expect(repoFiles(fs)).toEqual([SOURCE_SPEC]);
       expect(fs.getFile(`${SESSION_FOLDER}/document.json`)).toBeUndefined();
@@ -843,11 +843,13 @@ describe("authorArtifact — failures land nothing", () => {
 
       expect(Result.isFailure(result), name).toBe(true);
       if (Result.isSuccess(result)) return;
-      expect(result.left).toBeInstanceOf(AuthoringDocumentError);
-      expect(result.left.message).toContain(path);
-      expect(result.left.message).toContain(`${first.id}`);
-      expect(result.left.message).toContain('"other" is reserved and implicit on every question');
-      expect(exitCodeForAuthoringError(result.left)).toBe(5);
+      expect(result.failure).toBeInstanceOf(AuthoringDocumentError);
+      expect(result.failure.message).toContain(path);
+      expect(result.failure.message).toContain(`${first.id}`);
+      expect(result.failure.message).toContain(
+        '"other" is reserved and implicit on every question',
+      );
+      expect(exitCodeForAuthoringError(result.failure)).toBe(5);
       expect(backend.resumeCalls).toHaveLength(1);
       expect(repoFiles(fs)).toEqual([]);
       expect(git.calls.some((call) => call.method === "commitPaths")).toBe(false);
@@ -860,7 +862,7 @@ describe("authorArtifact — failures land nothing", () => {
     const result = await run(input());
 
     expect(Result.isFailure(result)).toBe(true);
-    if (Result.isFailure(result)) expect(result.left).toBeInstanceOf(AuthoringDocumentError);
+    if (Result.isFailure(result)) expect(result.failure).toBeInstanceOf(AuthoringDocumentError);
     expect(repoFiles(fs)).toEqual([]);
   });
 
@@ -872,8 +874,8 @@ describe("authorArtifact — failures land nothing", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(ArtifactCreationError);
-      expect(result.left.message).toContain(SPEC_PATH);
+      expect(result.failure).toBeInstanceOf(ArtifactCreationError);
+      expect(result.failure.message).toContain(SPEC_PATH);
     }
     expect(backend.runCalls.length).toBe(0);
     expect(fs.getFile(`${SESSION_FOLDER}/brief.md`)).toBeUndefined();
@@ -887,8 +889,8 @@ describe("authorArtifact — failures land nothing", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(ArtifactCreationError);
-      expect(result.left.message).toContain(SPEC_SIDECAR);
+      expect(result.failure).toBeInstanceOf(ArtifactCreationError);
+      expect(result.failure.message).toContain(SPEC_SIDECAR);
     }
     expect(backend.runCalls.length).toBe(0);
     expect(fs.getFile(SPEC_PATH)).toBeUndefined();
@@ -897,16 +899,18 @@ describe("authorArtifact — failures land nothing", () => {
   it("a bad slug or a missing --spec is refused before the session is spawned", async () => {
     const bad = setup(JSON.stringify(SPEC_DOCUMENT));
     const badSlug = await bad.run(input({ slug: "Plan_Prune" }));
-    expect(Result.isFailure(badSlug) && badSlug.left instanceof ArtifactCreationError).toBe(true);
+    expect(Result.isFailure(badSlug) && badSlug.failure instanceof ArtifactCreationError).toBe(
+      true,
+    );
     expect(bad.backend.runCalls.length).toBe(0);
 
     const missing = setup(JSON.stringify(PLAN_DOCUMENT));
     const missingSpec = await missing.run(
       input({ kind: "plan", sourceSpec: SOURCE_SPEC, completion: LAST }),
     );
-    expect(Result.isFailure(missingSpec) && missingSpec.left instanceof ArtifactCreationError).toBe(
-      true,
-    );
+    expect(
+      Result.isFailure(missingSpec) && missingSpec.failure instanceof ArtifactCreationError,
+    ).toBe(true);
     expect(missing.backend.runCalls.length).toBe(0);
   });
 
@@ -922,7 +926,9 @@ describe("authorArtifact — failures land nothing", () => {
 
       const result = await run(input(overrides));
 
-      expect(Result.isFailure(result) && result.left instanceof ArtifactCreationError).toBe(true);
+      expect(Result.isFailure(result) && result.failure instanceof ArtifactCreationError).toBe(
+        true,
+      );
       expect(backend.runCalls.length).toBe(0);
       expect(repoFiles(fs)).toEqual([SOURCE_SPEC]);
       expect(fs.getFile(`${SESSION_FOLDER}/brief.md`)).toBeUndefined();
@@ -936,7 +942,7 @@ describe("authorArtifact — failures land nothing", () => {
     const result = await run(input());
 
     expect(Result.isFailure(result)).toBe(true);
-    if (Result.isFailure(result)) expect(result.left).toBeInstanceOf(RateLimitError);
+    if (Result.isFailure(result)) expect(result.failure).toBeInstanceOf(RateLimitError);
     expect(repoFiles(fs)).toEqual([]);
   });
 
@@ -948,15 +954,15 @@ describe("authorArtifact — failures land nothing", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(ArtifactCommitFailedError);
-      if (result.left instanceof ArtifactCommitFailedError) {
-        expect(result.left.paths).toEqual([SPEC_PATH, SPEC_SIDECAR]);
-        expect(result.left.cause).toContain("pre-commit hook failed");
-        expect(result.left.commitMessage.subject).toBe("docs(specs): draft plan-prune");
-        expect(result.left.commitMessage.body).toMatch(/\nAuthoring-Id: 2609230835-plan-prune$/);
-        expect(result.left.message).toContain("-m 'docs(specs): draft plan-prune'");
-        expect(result.left.message).toContain("Authoring-Id: 2609230835-plan-prune'");
-        expect(result.left.message).toContain(
+      expect(result.failure).toBeInstanceOf(ArtifactCommitFailedError);
+      if (result.failure instanceof ArtifactCommitFailedError) {
+        expect(result.failure.paths).toEqual([SPEC_PATH, SPEC_SIDECAR]);
+        expect(result.failure.cause).toContain("pre-commit hook failed");
+        expect(result.failure.commitMessage.subject).toBe("docs(specs): draft plan-prune");
+        expect(result.failure.commitMessage.body).toMatch(/\nAuthoring-Id: 2609230835-plan-prune$/);
+        expect(result.failure.message).toContain("-m 'docs(specs): draft plan-prune'");
+        expect(result.failure.message).toContain("Authoring-Id: 2609230835-plan-prune'");
+        expect(result.failure.message).toContain(
           `Formatting the JSON sidecar (${SPEC_SIDECAR}) is safe`,
         );
       }
@@ -1002,7 +1008,7 @@ describe("authorArtifact — authoring record", () => {
     expect(commitIndex).toBeGreaterThanOrEqual(0);
     expect(recordIndex).toBeGreaterThan(commitIndex);
 
-    expect(result.right.record).toMatchObject({
+    expect(result.success.record).toMatchObject({
       kind: "written",
       key: "authoring/2609230835-plan-prune",
       shape: "full",
@@ -1016,7 +1022,7 @@ describe("authorArtifact — authoring record", () => {
     const result = await run(input({ records: RECORDS_IN_REPO }));
 
     expect(Result.isFailure(result)).toBe(true);
-    if (Result.isFailure(result)) expect(result.left).toBeInstanceOf(AuthoringDocumentError);
+    if (Result.isFailure(result)) expect(result.failure).toBeInstanceOf(AuthoringDocumentError);
     expect(git.calls.some((call) => call.method === "commitPaths")).toBe(false);
     const writes = recordWrites(git);
     expect(writes).toHaveLength(1);
@@ -1031,7 +1037,7 @@ describe("authorArtifact — authoring record", () => {
 
     const result = await run(input({ records: RECORDS_IN_REPO }));
 
-    expect(Result.isFailure(result) && result.left instanceof RateLimitError).toBe(true);
+    expect(Result.isFailure(result) && result.failure instanceof RateLimitError).toBe(true);
     const writes = recordWrites(git);
     expect(writes).toHaveLength(1);
     expect(writes[0]?.message).toMatch(/^records\(authoring\): failed\n/);
@@ -1055,7 +1061,7 @@ describe("authorArtifact — authoring record", () => {
     expect(warnings).toEqual([
       `spec document refused — ${NOT_JSON_REFUSAL}\n  resuming the session once to ask for the whole document again`,
     ]);
-    const error = Result.isFailure(result) ? result.left : undefined;
+    const error = Result.isFailure(result) ? result.failure : undefined;
     expect(error).toBeInstanceOf(FailureWithFollowUpsError);
     expect(error instanceof FailureWithFollowUpsError && error.cause).toBeInstanceOf(
       AuthoringDocumentError,
@@ -1080,7 +1086,7 @@ describe("authorArtifact — authoring record", () => {
 
     const result = await run(input());
 
-    expect(Result.isSuccess(result) && result.right.record.kind).toBe("records-off");
+    expect(Result.isSuccess(result) && result.success.record.kind).toBe("records-off");
     expect(recordWrites(git)).toHaveLength(0);
   });
 
@@ -1098,7 +1104,7 @@ describe("authorArtifact — authoring record", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.record).toEqual({ kind: "deferred-destination", destination: "repo" });
+      expect(result.success.record).toEqual({ kind: "deferred-destination", destination: "repo" });
     }
     expect(git.calls.some((call) => call.method === "commitPaths")).toBe(true);
     expect(recordWrites(git)).toHaveLength(0);
@@ -1132,12 +1138,12 @@ describe("authorArtifact — authoring record push", () => {
     const writeIndex = git.calls.findIndex((call) => call.method === "writeTreeCommit");
     const pushIndex = git.calls.findIndex((call) => call.method === "pushBranch");
     expect(pushIndex).toBeGreaterThan(writeIndex);
-    expect(result.right.recordPush).toEqual({
+    expect(result.success.recordPush).toEqual({
       kind: "pushed",
       remote: PUBLISH_REMOTE,
       path: REPO_ROOT,
     });
-    expect(recordPushWarning(result.right.recordPush)).toBeUndefined();
+    expect(recordPushWarning(result.success.recordPush)).toBeUndefined();
   });
 
   it("a dedicated repo destination pushes to origin at the records clone", async () => {
@@ -1162,7 +1168,9 @@ describe("authorArtifact — authoring record push", () => {
 
     const result = await run(input({ records: RECORDS_IN_REPO, publishRemote: PUBLISH_REMOTE }));
 
-    expect(Result.isSuccess(result) && result.right.recordPush).toEqual({ kind: "not-configured" });
+    expect(Result.isSuccess(result) && result.success.recordPush).toEqual({
+      kind: "not-configured",
+    });
     expect(recordPushes(git)).toHaveLength(0);
   });
 
@@ -1173,7 +1181,7 @@ describe("authorArtifact — authoring record push", () => {
       input({ records: { ...RECORDS_OFF, autoPush: true }, publishRemote: PUBLISH_REMOTE }),
     );
 
-    expect(Result.isSuccess(result) && result.right.recordPush).toEqual({ kind: "no-record" });
+    expect(Result.isSuccess(result) && result.success.recordPush).toEqual({ kind: "no-record" });
     expect(recordPushes(git)).toHaveLength(0);
   });
 
@@ -1182,7 +1190,7 @@ describe("authorArtifact — authoring record push", () => {
 
     const result = await run(input({ records: AUTO_PUSH_IN_REPO, publishRemote: PUBLISH_REMOTE }));
 
-    expect(Result.isFailure(result) && result.left instanceof AuthoringDocumentError).toBe(true);
+    expect(Result.isFailure(result) && result.failure instanceof AuthoringDocumentError).toBe(true);
     expect(recordWrites(git)).toHaveLength(1);
     expect(recordPushes(git)).toEqual([
       { method: "pushBranch", branch: "phax/records/v1", remote: PUBLISH_REMOTE, repo: REPO_ROOT },
@@ -1197,8 +1205,8 @@ describe("authorArtifact — authoring record push", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isFailure(result)) return;
-    expect(result.right.commit.subject).toBe("docs(specs): draft plan-prune");
-    expect(result.right.recordPush).toEqual({
+    expect(result.success.commit.subject).toBe("docs(specs): draft plan-prune");
+    expect(result.success.recordPush).toEqual({
       kind: "failed",
       remote: PUBLISH_REMOTE,
       path: REPO_ROOT,
@@ -1206,7 +1214,7 @@ describe("authorArtifact — authoring record push", () => {
       // The branch read after the refusal: a local record, nothing on the remote.
       branch: { state: "no-remote-branch", localTip: expect.any(String), remoteTip: null },
     });
-    expect(recordPushWarning(result.right.recordPush)).toBe(
+    expect(recordPushWarning(result.success.recordPush)).toBe(
       `authoring record not pushed to ${PUBLISH_REMOTE} (remote rejected) — it stays pending (\`phax records status\` lists it); share it with \`git -C ${REPO_ROOT} push ${PUBLISH_REMOTE} phax/records/v1\``,
     );
   });
@@ -1228,7 +1236,7 @@ describe("authorArtifact — authoring record push", () => {
     expect(warnings).toEqual([
       `spec document refused — ${NOT_JSON_REFUSAL}\n  resuming the session once to ask for the whole document again`,
     ]);
-    const error = Result.isFailure(result) ? result.left : undefined;
+    const error = Result.isFailure(result) ? result.failure : undefined;
     expect(error instanceof FailureWithFollowUpsError && error.followUps).toEqual([
       `authoring record not pushed to ${PUBLISH_REMOTE} (network unreachable) — it stays pending (\`phax records status\` lists it); share it with \`git -C ${REPO_ROOT} push ${PUBLISH_REMOTE} phax/records/v1\``,
     ]);
@@ -1252,7 +1260,7 @@ describe("authorArtifact — authoring record push", () => {
 });
 
 function code(result: Result.Result<unknown, unknown>): number {
-  return Result.isFailure(result) ? exitCodeForAuthoringError(result.left) : 0;
+  return Result.isFailure(result) ? exitCodeForAuthoringError(result.failure) : 0;
 }
 
 describe("authorArtifact — exit codes", () => {

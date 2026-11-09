@@ -121,7 +121,7 @@ date: 2026-11-01
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
 ---
-${renderSpecBody(decoded.right)}`;
+${renderSpecBody(decoded.success)}`;
 }
 
 const APPROVED_MD = `---

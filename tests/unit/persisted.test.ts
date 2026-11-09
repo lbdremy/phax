@@ -108,7 +108,7 @@ function spec(
 function left<A>(result: Result.Result<A, PersistedReadError>): PersistedReadError {
   if (Result.isSuccess(result))
     throw new Error(`expected a refusal, got ${JSON.stringify(result)}`);
-  return result.left;
+  return result.failure;
 }
 
 /**
@@ -170,8 +170,8 @@ const decisionManifestStampedAt = (doc: Doc, release: string): Doc =>
   withKey(doc, "$schema", schemaUrl("decision-record-manifest", release));
 
 function right<A>(result: Result.Result<A, PersistedReadError>): A {
-  if (Result.isFailure(result)) throw new Error(`expected a value, got ${result.left.message}`);
-  return result.right;
+  if (Result.isFailure(result)) throw new Error(`expected a value, got ${result.failure.message}`);
+  return result.success;
 }
 
 describe("readPersisted", () => {
@@ -1444,7 +1444,7 @@ const briefReportAt = (release: string) => ({
 function reportRefusal(result: Result.Result<unknown, ReportError>): ReportError {
   if (Result.isSuccess(result))
     throw new Error(`expected a refusal, got ${JSON.stringify(result)}`);
-  return result.left;
+  return result.failure;
 }
 
 const GATE_REPORT_URL = "https://docs.phax.run/schemas/gate-report/0.21.0.json";

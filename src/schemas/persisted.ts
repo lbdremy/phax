@@ -60,7 +60,7 @@
 // prints (`readArchitectureReport`). Each reads only stamps from its format's current stamp
 // up to the running version, refuses an older shape and any other format by
 // name, and names the URL it reads.
-import { Array as Arr, Either, type Schema } from "effect";
+import { Array as Arr, Result, type Schema } from "effect";
 import {
   departureMessage,
   readTestStrategyText,
@@ -268,7 +268,7 @@ export interface MissingFact {
   readonly fact: string;
 }
 
-type Decode<T> = (input: unknown) => Either.Either<T, Schema.SchemaError>;
+type Decode<T> = (input: unknown) => Result.Result<T, Schema.SchemaError>;
 
 /** How one persisted format is read: its two decoders and their steps to the in-memory value. */
 export interface PersistedSpec<Current, PreSchema, InMemory> {
@@ -278,7 +278,7 @@ export interface PersistedSpec<Current, PreSchema, InMemory> {
   readonly decodeCurrent: Decode<Current>;
   readonly decodePreSchema: Decode<PreSchema>;
   readonly fromCurrent: (value: Current) => InMemory;
-  readonly fromPreSchema: (value: PreSchema) => Either.Either<InMemory, MissingFact>;
+  readonly fromPreSchema: (value: PreSchema) => Result.Result<InMemory, MissingFact>;
   /** How the current decoder's first violation reads; `formatFirstViolation` when absent. */
   readonly formatViolation?: ViolationFormatter;
 }
@@ -307,33 +307,33 @@ function readError(file: string, format: FormatId, message: string): PersistedRe
 export function readPersisted<Current, PreSchema, InMemory>(
   input: unknown,
   spec: PersistedSpec<Current, PreSchema, InMemory>,
-): Either.Either<InMemory, PersistedReadError> {
+): Result.Result<InMemory, PersistedReadError> {
   const { file, format, label } = spec;
   if (!isDocumentObject(input)) {
-    return Either.left(readError(file, format, `a ${label} is a JSON object`));
+    return Result.fail(readError(file, format, `a ${label} is a JSON object`));
   }
   if (Object.hasOwn(input, "$schema")) return readCurrent(input, spec);
   const preSchema = spec.decodePreSchema(input);
-  if (Either.isLeft(preSchema)) {
-    return Either.left(
+  if (Result.isFailure(preSchema)) {
+    return Result.fail(
       readError(
         file,
         format,
-        `${label} without $schema is not in the pre-schema shape — older than the first release that writes $schema, or damaged (${formatFirstViolation(preSchema.left)})`,
+        `${label} without $schema is not in the pre-schema shape — older than the first release that writes $schema, or damaged (${formatFirstViolation(preSchema.failure)})`,
       ),
     );
   }
-  const stepped = spec.fromPreSchema(preSchema.right);
-  if (Either.isLeft(stepped)) {
-    return Either.left(
+  const stepped = spec.fromPreSchema(preSchema.success);
+  if (Result.isFailure(stepped)) {
+    return Result.fail(
       readError(
         file,
         format,
-        `${label} written before $schema lacks ${stepped.left.fact}, which phax needs — not supported`,
+        `${label} written before $schema lacks ${stepped.failure.fact}, which phax needs — not supported`,
       ),
     );
   }
-  return Either.right(stepped.right);
+  return Result.succeed(stepped.success);
 }
 
 /** Steps 2 and 3 of `readPersisted`, shared by both readers: a document with its own `$schema` key. */
@@ -347,7 +347,7 @@ function readCurrent<Current, InMemory>(
     readonly fromCurrent: (value: Current) => InMemory;
     readonly formatViolation?: ViolationFormatter;
   },
-): Either.Either<InMemory, PersistedReadError> {
+): Result.Result<InMemory, PersistedReadError> {
   const { file, format, label } = spec;
   const named = parseSchemaUrl(input["$schema"]);
   if (
@@ -355,7 +355,7 @@ function readCurrent<Current, InMemory>(
     named.formatId === format &&
     compareReleases(named.release, PHAX_RELEASE) > 0
   ) {
-    return Either.left(
+    return Result.fail(
       readError(
         file,
         format,
@@ -364,14 +364,14 @@ function readCurrent<Current, InMemory>(
     );
   }
   const current = spec.decodeCurrent(input);
-  if (Either.isLeft(current)) {
+  if (Result.isFailure(current)) {
     const message =
       spec.formatViolation === undefined
-        ? formatFirstViolation(current.left)
-        : spec.formatViolation(input, current.left);
-    return Either.left(readError(file, format, message));
+        ? formatFirstViolation(current.failure)
+        : spec.formatViolation(input, current.failure);
+    return Result.fail(readError(file, format, message));
   }
-  return Either.right(spec.fromCurrent(current.right));
+  return Result.succeed(spec.fromCurrent(current.success));
 }
 
 /** How a format born with `$schema` is read: its one decoder and its step to the in-memory value. */
@@ -393,18 +393,18 @@ export interface SchemaBornPersistedSpec<Current, InMemory> {
 export function readSchemaBornPersisted<Current, InMemory>(
   input: unknown,
   spec: SchemaBornPersistedSpec<Current, InMemory>,
-): Either.Either<InMemory, PersistedReadError> {
+): Result.Result<InMemory, PersistedReadError> {
   const { file, format, label } = spec;
   if (!isDocumentObject(input)) {
-    return Either.left(readError(file, format, `a ${label} is a JSON object`));
+    return Result.fail(readError(file, format, `a ${label} is a JSON object`));
   }
   if (Object.hasOwn(input, "$schema")) return readCurrent(input, spec);
-  return Either.left(
+  return Result.fail(
     readError(file, format, `${label} has no $schema — every ${label} is written with one`),
   );
 }
 
-type Reader<T> = (file: string, input: unknown) => Either.Either<T, PersistedReadError>;
+type Reader<T> = (file: string, input: unknown) => Result.Result<T, PersistedReadError>;
 
 /**
  * The `$schema` phax writes for `formatId`: its current stamp, which names the
@@ -435,11 +435,11 @@ export function withSchemaUrl<T extends object>(
 export const readRegistryFile: Reader<Registry> = (file, input) => {
   if (isDocumentObject(input) && isStampedBelowCurrent("registry", input)) {
     const older = decodeRegistryV0_17_0(input);
-    if (Either.isLeft(older)) {
-      return Either.left(readError(file, "registry", formatFirstViolation(older.left)));
+    if (Result.isFailure(older)) {
+      return Result.fail(readError(file, "registry", formatFirstViolation(older.failure)));
     }
-    const { $schema: _schema, ...registry } = older.right;
-    return Either.right(registry);
+    const { $schema: _schema, ...registry } = older.success;
+    return Result.succeed(registry);
   }
   return readPersisted(input, {
     format: "registry",
@@ -448,7 +448,7 @@ export const readRegistryFile: Reader<Registry> = (file, input) => {
     decodeCurrent: decodeRegistryFile,
     decodePreSchema: decodeRegistryPreSchema,
     fromCurrent: ({ $schema: _schema, ...registry }) => registry,
-    fromPreSchema: ({ version: _version, ...registry }) => Either.right(registry),
+    fromPreSchema: ({ version: _version, ...registry }) => Result.succeed(registry),
   });
 };
 
@@ -464,19 +464,19 @@ export const readRegistryFile: Reader<Registry> = (file, input) => {
 export const readRunStatusFile: Reader<RunStatus> = (file, input) => {
   if (isDocumentObject(input) && isStampedAtOrAbove("run-status", input, "0.26.0")) {
     const older = decodeRunStatusV0_26_0(input);
-    if (Either.isLeft(older)) {
-      return Either.left(readError(file, "run-status", formatFirstViolation(older.left)));
+    if (Result.isFailure(older)) {
+      return Result.fail(readError(file, "run-status", formatFirstViolation(older.failure)));
     }
-    const { $schema: _schema, hold, ...status } = older.right;
-    return Either.right({ ...status, hold: liftHoldSelection(hold) });
+    const { $schema: _schema, hold, ...status } = older.success;
+    return Result.succeed({ ...status, hold: liftHoldSelection(hold) });
   }
   if (isDocumentObject(input) && isStampedBelowCurrent("run-status", input)) {
     const older = decodeRunStatusV0_17_0(input);
-    if (Either.isLeft(older)) {
-      return Either.left(readError(file, "run-status", formatFirstViolation(older.left)));
+    if (Result.isFailure(older)) {
+      return Result.fail(readError(file, "run-status", formatFirstViolation(older.failure)));
     }
-    const { $schema: _schema, ...status } = older.right;
-    return Either.right({ ...status, hold: { selection: "none" } });
+    const { $schema: _schema, ...status } = older.success;
+    return Result.succeed({ ...status, hold: { selection: "none" } });
   }
   return readPersisted(input, {
     format: "run-status",
@@ -486,7 +486,7 @@ export const readRunStatusFile: Reader<RunStatus> = (file, input) => {
     decodePreSchema: decodeRunStatusPreSchema,
     fromCurrent: ({ $schema: _schema, ...status }) => status,
     fromPreSchema: ({ version: _version, ...status }) =>
-      Either.right({ ...status, hold: { selection: "none" } }),
+      Result.succeed({ ...status, hold: { selection: "none" } }),
   });
 };
 
@@ -503,30 +503,30 @@ export const readRunStatusFile: Reader<RunStatus> = (file, input) => {
  * with its waiting stop recorded, so one without it is refused.
  */
 export const readPhaseStatusFile: Reader<PhaseStatus> = (file, input) =>
-  Either.flatMap(readPhaseStatusShape(file, input), (status) =>
+  Result.flatMap(readPhaseStatusShape(file, input), (status) =>
     status.state === "awaiting_review" && status.stop?.status !== "waiting"
-      ? Either.left(
+      ? Result.fail(
           readError(file, "phase-status", "a phase awaiting review records no waiting stop"),
         )
-      : Either.right(status),
+      : Result.succeed(status),
   );
 
 const readPhaseStatusShape: Reader<PhaseStatus> = (file, input) => {
   if (isDocumentObject(input) && isStampedAtOrAbove("phase-status", input, "0.26.0")) {
     const older = decodePhaseStatusV0_26_0(input);
-    if (Either.isLeft(older)) {
-      return Either.left(readError(file, "phase-status", formatFirstViolation(older.left)));
+    if (Result.isFailure(older)) {
+      return Result.fail(readError(file, "phase-status", formatFirstViolation(older.failure)));
     }
-    const { $schema: _schema, stop, ...status } = older.right;
-    return Either.right({ ...status, stop: liftStopStep(stop) });
+    const { $schema: _schema, stop, ...status } = older.success;
+    return Result.succeed({ ...status, stop: liftStopStep(stop) });
   }
   if (isDocumentObject(input) && isStampedBelowCurrent("phase-status", input)) {
     const older = decodePhaseStatusV0_20_0(input);
-    if (Either.isLeft(older)) {
-      return Either.left(readError(file, "phase-status", formatFirstViolation(older.left)));
+    if (Result.isFailure(older)) {
+      return Result.fail(readError(file, "phase-status", formatFirstViolation(older.failure)));
     }
-    const { $schema: _schema, ...status } = older.right;
-    return Either.right({ ...status, mode: "headless", stop: null });
+    const { $schema: _schema, ...status } = older.success;
+    return Result.succeed({ ...status, mode: "headless", stop: null });
   }
   return readPersisted(input, {
     format: "phase-status",
@@ -535,7 +535,7 @@ const readPhaseStatusShape: Reader<PhaseStatus> = (file, input) => {
     decodeCurrent: decodePhaseStatusFile,
     decodePreSchema: decodePhaseStatusPreSchema,
     fromCurrent: ({ $schema: _schema, ...status }) => status,
-    fromPreSchema: () => Either.left({ fact: "base" }),
+    fromPreSchema: () => Result.fail({ fact: "base" }),
   });
 };
 
@@ -610,34 +610,34 @@ export const readPhaxPlanFile: Reader<PhaxPlanRead> = (file, input) => {
     const release = parseSchemaUrl(input["$schema"])?.release ?? "0.0.0";
     if (compareReleases(release, "0.32.0") >= 0) {
       const v0_32_0 = decodePhaxPlanV0_32_0(input);
-      if (Either.isLeft(v0_32_0)) {
-        return Either.left(readError(file, "phax-plan", formatFirstViolation(v0_32_0.left)));
+      if (Result.isFailure(v0_32_0)) {
+        return Result.fail(readError(file, "phax-plan", formatFirstViolation(v0_32_0.failure)));
       }
-      const { $schema: _schema, ...plan } = v0_32_0.right;
-      return Either.right({ shape: "0.32.0", plan: withoutTestLines(plan) });
+      const { $schema: _schema, ...plan } = v0_32_0.success;
+      return Result.succeed({ shape: "0.32.0", plan: withoutTestLines(plan) });
     }
     if (compareReleases(release, "0.28.0") >= 0) {
       const v0_28_0 = decodePhaxPlanV0_28_0(input);
-      if (Either.isLeft(v0_28_0)) {
-        return Either.left(readError(file, "phax-plan", formatFirstViolation(v0_28_0.left)));
+      if (Result.isFailure(v0_28_0)) {
+        return Result.fail(readError(file, "phax-plan", formatFirstViolation(v0_28_0.failure)));
       }
-      const { $schema: _schema, ...plan } = v0_28_0.right;
-      return Either.right({ shape: "0.28.0", plan: withoutTestLines(plan) });
+      const { $schema: _schema, ...plan } = v0_28_0.success;
+      return Result.succeed({ shape: "0.28.0", plan: withoutTestLines(plan) });
     }
     if (compareReleases(release, "0.26.0") >= 0) {
       const v0_26_0 = decodePhaxPlanV0_26_0(input);
-      if (Either.isLeft(v0_26_0)) {
-        return Either.left(readError(file, "phax-plan", formatFirstViolation(v0_26_0.left)));
+      if (Result.isFailure(v0_26_0)) {
+        return Result.fail(readError(file, "phax-plan", formatFirstViolation(v0_26_0.failure)));
       }
-      const { $schema: _schema, ...plan } = v0_26_0.right;
-      return Either.right({ shape: "0.26.0", plan: liftPhaxPlanWithoutTestLines(plan) });
+      const { $schema: _schema, ...plan } = v0_26_0.success;
+      return Result.succeed({ shape: "0.26.0", plan: liftPhaxPlanWithoutTestLines(plan) });
     }
     const older = decodePhaxPlanV0_17_0(input);
-    if (Either.isLeft(older)) {
-      return Either.left(readError(file, "phax-plan", formatFirstViolation(older.left)));
+    if (Result.isFailure(older)) {
+      return Result.fail(readError(file, "phax-plan", formatFirstViolation(older.failure)));
     }
-    const { $schema: _schema, run, phases } = older.right;
-    return Either.right({
+    const { $schema: _schema, run, phases } = older.success;
+    return Result.succeed({
       shape: "0.17.0",
       plan: { run, phases: liftPhaxPlanPhases(phases) },
     });
@@ -650,7 +650,7 @@ export const readPhaxPlanFile: Reader<PhaxPlanRead> = (file, input) => {
     decodePreSchema: decodePhaxPlanPreSchema,
     fromCurrent: ({ $schema: _schema, ...plan }) => ({ shape: "current", plan }),
     fromPreSchema: ({ run, phases }) =>
-      Either.right({ shape: "pre-schema", plan: { run, phases: liftPhaxPlanPhases(phases) } }),
+      Result.succeed({ shape: "pre-schema", plan: { run, phases: liftPhaxPlanPhases(phases) } }),
   });
 };
 
@@ -673,11 +673,11 @@ export type ComplianceReviewRead =
 export const readComplianceReviewFile: Reader<ComplianceReviewRead> = (file, input) => {
   if (isDocumentObject(input) && isStampedBelowCurrent("compliance-review", input)) {
     const older = decodeComplianceReviewV0_17_0(input);
-    if (Either.isLeft(older)) {
-      return Either.left(readError(file, "compliance-review", formatFirstViolation(older.left)));
+    if (Result.isFailure(older)) {
+      return Result.fail(readError(file, "compliance-review", formatFirstViolation(older.failure)));
     }
-    const { $schema: _schema, ...review } = older.right;
-    return Either.right({ shape: "0.17.0", review });
+    const { $schema: _schema, ...review } = older.success;
+    return Result.succeed({ shape: "0.17.0", review });
   }
   return readPersisted<ComplianceReviewFile, ComplianceReviewPreSchema, ComplianceReviewRead>(
     input,
@@ -689,7 +689,7 @@ export const readComplianceReviewFile: Reader<ComplianceReviewRead> = (file, inp
       decodePreSchema: decodeComplianceReviewPreSchema,
       fromCurrent: ({ $schema: _schema, ...review }) => ({ shape: "current", review }),
       fromPreSchema: ({ version: _version, ...review }) =>
-        Either.right({ shape: "pre-schema", review }),
+        Result.succeed({ shape: "pre-schema", review }),
     },
   );
 };
@@ -703,7 +703,7 @@ export const readPlanApprovalsFile: Reader<PlanApprovals> = (file, input) =>
     decodeCurrent: decodeApprovalRecordFile,
     decodePreSchema: decodePlanApprovalsPreSchema,
     fromCurrent: ({ $schema: _schema, ...ledger }) => ledger,
-    fromPreSchema: ({ version: _version, ...ledger }) => Either.right(ledger),
+    fromPreSchema: ({ version: _version, ...ledger }) => Result.succeed(ledger),
   });
 
 /** Reads `docs/specs/approvals.json`. The pre-schema ledger carries every fact phax needs. */
@@ -715,7 +715,7 @@ export const readSpecApprovalsFile: Reader<SpecApprovals> = (file, input) =>
     decodeCurrent: decodeSpecApprovalRecordFile,
     decodePreSchema: decodeSpecApprovalsPreSchema,
     fromCurrent: ({ $schema: _schema, ...ledger }) => ledger,
-    fromPreSchema: ({ version: _version, ...ledger }) => Either.right(ledger),
+    fromPreSchema: ({ version: _version, ...ledger }) => Result.succeed(ledger),
   });
 
 // An approval record stamped below its format's current stamp was written
@@ -727,11 +727,13 @@ export const readSpecApprovalsFile: Reader<SpecApprovals> = (file, input) =>
 export const readPlanRecordFile: Reader<PlanRecord> = (file, input) => {
   if (isDocumentObject(input) && isStampedBelowCurrent("plan-approval-record", input)) {
     const older = decodePlanApprovalRecordV0_19_0(input);
-    if (Either.isLeft(older)) {
-      return Either.left(readError(file, "plan-approval-record", formatFirstViolation(older.left)));
+    if (Result.isFailure(older)) {
+      return Result.fail(
+        readError(file, "plan-approval-record", formatFirstViolation(older.failure)),
+      );
     }
-    const { $schema: _schema, ...record } = older.right;
-    return Either.right({ ...record, approvedBy: { kind: "unattributed" } });
+    const { $schema: _schema, ...record } = older.success;
+    return Result.succeed({ ...record, approvedBy: { kind: "unattributed" } });
   }
   return readSchemaBornPersisted(input, {
     format: "plan-approval-record",
@@ -746,11 +748,13 @@ export const readPlanRecordFile: Reader<PlanRecord> = (file, input) => {
 export const readSpecRecordFile: Reader<SpecRecord> = (file, input) => {
   if (isDocumentObject(input) && isStampedBelowCurrent("spec-approval-record", input)) {
     const older = decodeSpecApprovalRecordV0_19_0(input);
-    if (Either.isLeft(older)) {
-      return Either.left(readError(file, "spec-approval-record", formatFirstViolation(older.left)));
+    if (Result.isFailure(older)) {
+      return Result.fail(
+        readError(file, "spec-approval-record", formatFirstViolation(older.failure)),
+      );
     }
-    const { $schema: _schema, ...record } = older.right;
-    return Either.right({ ...record, approvedBy: { kind: "unattributed" } });
+    const { $schema: _schema, ...record } = older.success;
+    return Result.succeed({ ...record, approvedBy: { kind: "unattributed" } });
   }
   return readSchemaBornPersisted(input, {
     format: "spec-approval-record",
@@ -1049,26 +1053,26 @@ export function liftPlanDocumentV0_26_0(older: PlanDocumentV0_26_0Value): PlanDo
 function readSpecDocumentSidecar(
   file: string,
   input: unknown,
-): Either.Either<SpecDocumentSidecar, PersistedReadError> {
+): Result.Result<SpecDocumentSidecar, PersistedReadError> {
   if (isDocumentObject(input) && isStampedBelowCurrent("spec-document", input)) {
     // `isStampedBelowCurrent` has parsed the stamp, so the release is there.
     const release = parseSchemaUrl(input["$schema"])?.release ?? "0.0.0";
     if (compareReleases(release, "0.27.0") >= 0) {
       const frozen = decodeSpecDocumentV0_27_0(input);
-      if (Either.isLeft(frozen)) {
-        return Either.left(readError(file, "spec-document", formatFirstViolation(frozen.left)));
+      if (Result.isFailure(frozen)) {
+        return Result.fail(readError(file, "spec-document", formatFirstViolation(frozen.failure)));
       }
       // The 0.27.0 document is the current in-memory one: nothing to lift.
-      const { $schema: _schema, ...value } = frozen.right;
-      return Either.right({ kind: "spec", shape: "0.27.0", document: value, older: value });
+      const { $schema: _schema, ...value } = frozen.success;
+      return Result.succeed({ kind: "spec", shape: "0.27.0", document: value, older: value });
     }
     if (compareReleases(release, "0.25.0") >= 0) {
       const frozen = decodeSpecDocumentV0_25_0(input);
-      if (Either.isLeft(frozen)) {
-        return Either.left(readError(file, "spec-document", formatFirstViolation(frozen.left)));
+      if (Result.isFailure(frozen)) {
+        return Result.fail(readError(file, "spec-document", formatFirstViolation(frozen.failure)));
       }
-      const { $schema: _schema, ...value } = frozen.right;
-      return Either.right({
+      const { $schema: _schema, ...value } = frozen.success;
+      return Result.succeed({
         kind: "spec",
         shape: "0.25.0",
         document: liftSpecDocumentV0_25_0(value),
@@ -1076,11 +1080,11 @@ function readSpecDocumentSidecar(
       });
     }
     const older = decodeSpecDocumentV0_17_0(input);
-    if (Either.isLeft(older)) {
-      return Either.left(readError(file, "spec-document", formatFirstViolation(older.left)));
+    if (Result.isFailure(older)) {
+      return Result.fail(readError(file, "spec-document", formatFirstViolation(older.failure)));
     }
-    const { $schema: _schema, ...value } = older.right;
-    return Either.right({
+    const { $schema: _schema, ...value } = older.success;
+    return Result.succeed({
       kind: "spec",
       shape: "0.17.0",
       document: liftSpecDocument(value),
@@ -1099,7 +1103,7 @@ function readSpecDocumentSidecar(
       document,
     }),
     fromPreSchema: ({ version: _version, ...value }) =>
-      Either.right({
+      Result.succeed({
         kind: "spec",
         shape: "pre-schema",
         document: liftSpecDocument(value),
@@ -1111,21 +1115,21 @@ function readSpecDocumentSidecar(
 function readPlanDocumentSidecar(
   file: string,
   input: unknown,
-): Either.Either<PlanDocumentSidecar, PersistedReadError> {
+): Result.Result<PlanDocumentSidecar, PersistedReadError> {
   if (isDocumentObject(input) && isStampedBelowCurrent("plan-document", input)) {
     // `isStampedBelowCurrent` has parsed the stamp, so the release is there.
     const release = parseSchemaUrl(input["$schema"])?.release ?? "0.0.0";
     if (compareReleases(release, "0.32.0") >= 0) {
       const frozen = decodePlanDocumentV0_32_0(input);
-      if (Either.isLeft(frozen)) {
-        return Either.left(
-          readError(file, "plan-document", formatPlanDocumentViolation(input, frozen.left)),
+      if (Result.isFailure(frozen)) {
+        return Result.fail(
+          readError(file, "plan-document", formatPlanDocumentViolation(input, frozen.failure)),
         );
       }
       // The 0.32.0 document differs from the current one by its test lines' loop
       // and its phases' `oracle` key.
-      const { $schema: _schema, ...value } = frozen.right;
-      return Either.right({
+      const { $schema: _schema, ...value } = frozen.success;
+      return Result.succeed({
         kind: "plan",
         shape: "0.32.0",
         lift: liftStructuredPlanDocument(value),
@@ -1134,14 +1138,14 @@ function readPlanDocumentSidecar(
     }
     if (compareReleases(release, "0.28.0") >= 0) {
       const frozen = decodePlanDocumentV0_28_0(input);
-      if (Either.isLeft(frozen)) {
-        return Either.left(
-          readError(file, "plan-document", formatPlanDocumentViolation(input, frozen.left)),
+      if (Result.isFailure(frozen)) {
+        return Result.fail(
+          readError(file, "plan-document", formatPlanDocumentViolation(input, frozen.failure)),
         );
       }
       // The 0.28.0 document is the 0.32.0 one under a release-pattern `$schema`.
-      const { $schema: _schema, ...value } = frozen.right;
-      return Either.right({
+      const { $schema: _schema, ...value } = frozen.success;
+      return Result.succeed({
         kind: "plan",
         shape: "0.28.0",
         lift: liftStructuredPlanDocument(value),
@@ -1150,11 +1154,11 @@ function readPlanDocumentSidecar(
     }
     if (compareReleases(release, "0.26.0") >= 0) {
       const frozen = decodePlanDocumentV0_26_0(input);
-      if (Either.isLeft(frozen)) {
-        return Either.left(readError(file, "plan-document", formatFirstViolation(frozen.left)));
+      if (Result.isFailure(frozen)) {
+        return Result.fail(readError(file, "plan-document", formatFirstViolation(frozen.failure)));
       }
-      const { $schema: _schema, ...value } = frozen.right;
-      return Either.right({
+      const { $schema: _schema, ...value } = frozen.success;
+      return Result.succeed({
         kind: "plan",
         shape: "0.26.0",
         lift: liftPlanDocumentV0_26_0(value),
@@ -1163,11 +1167,11 @@ function readPlanDocumentSidecar(
     }
     if (compareReleases(release, "0.25.0") >= 0) {
       const frozen = decodePlanDocumentV0_25_0(input);
-      if (Either.isLeft(frozen)) {
-        return Either.left(readError(file, "plan-document", formatFirstViolation(frozen.left)));
+      if (Result.isFailure(frozen)) {
+        return Result.fail(readError(file, "plan-document", formatFirstViolation(frozen.failure)));
       }
-      const { $schema: _schema, ...value } = frozen.right;
-      return Either.right({
+      const { $schema: _schema, ...value } = frozen.success;
+      return Result.succeed({
         kind: "plan",
         shape: "0.25.0",
         lift: liftPlanDocumentV0_26_0(planDocumentV0_25_0AsV0_26_0(value)),
@@ -1175,11 +1179,11 @@ function readPlanDocumentSidecar(
       });
     }
     const older = decodePlanDocumentV0_20_0(input);
-    if (Either.isLeft(older)) {
-      return Either.left(readError(file, "plan-document", formatFirstViolation(older.left)));
+    if (Result.isFailure(older)) {
+      return Result.fail(readError(file, "plan-document", formatFirstViolation(older.failure)));
     }
-    const { $schema: _schema, ...value } = older.right;
-    return Either.right({
+    const { $schema: _schema, ...value } = older.success;
+    return Result.succeed({
       kind: "plan",
       shape: "0.20.0",
       lift: liftPlanDocumentV0_26_0(planDocumentV0_20_0AsV0_26_0(value)),
@@ -1198,9 +1202,9 @@ function readPlanDocumentSidecar(
       document,
     }),
     fromPreSchema: ({ version: _version, sourceSpec, ...doc }) => {
-      if (sourceSpec !== null) return Either.left({ fact: "completesSpec" });
+      if (sourceSpec !== null) return Result.fail({ fact: "completesSpec" });
       const value: PlanDocumentV0_20_0Value = { ...doc, sourceSpec, completesSpec: null };
-      return Either.right({
+      return Result.succeed({
         kind: "plan",
         shape: "pre-schema",
         lift: liftPlanDocumentV0_26_0(planDocumentV0_20_0AsV0_26_0(value)),
@@ -1245,17 +1249,17 @@ export function readDocumentSidecar(
   kind: "spec",
   file: string,
   input: unknown,
-): Either.Either<SpecDocumentSidecar, PersistedReadError>;
+): Result.Result<SpecDocumentSidecar, PersistedReadError>;
 export function readDocumentSidecar(
   kind: "plan",
   file: string,
   input: unknown,
-): Either.Either<PlanDocumentSidecar, PersistedReadError>;
+): Result.Result<PlanDocumentSidecar, PersistedReadError>;
 export function readDocumentSidecar(
   kind: "spec" | "plan",
   file: string,
   input: unknown,
-): Either.Either<DocumentSidecar, PersistedReadError> {
+): Result.Result<DocumentSidecar, PersistedReadError> {
   return kind === "spec"
     ? readSpecDocumentSidecar(file, input)
     : readPlanDocumentSidecar(file, input);
@@ -1291,14 +1295,14 @@ export type CurrentDocument =
 export function decodeCurrentDocumentSidecar(
   kind: "spec" | "plan",
   input: unknown,
-): Either.Either<CurrentDocument, Schema.SchemaError> {
+): Result.Result<CurrentDocument, Schema.SchemaError> {
   if (kind === "spec") {
-    return Either.map(decodeSpecDocumentFile(input), ({ $schema: _schema, ...document }) => ({
+    return Result.map(decodeSpecDocumentFile(input), ({ $schema: _schema, ...document }) => ({
       kind: "spec" as const,
       document,
     }));
   }
-  return Either.map(decodePlanDocumentFile(input), ({ $schema: _schema, ...document }) => ({
+  return Result.map(decodePlanDocumentFile(input), ({ $schema: _schema, ...document }) => ({
     kind: "plan" as const,
     document,
   }));
@@ -1315,14 +1319,14 @@ export function decodeCurrentDocumentSidecar(
 export function decodeCurrentHandDecisionAnswer(
   input: unknown,
   kind: "spec" | "plan",
-): Either.Either<HandDecisionAnswer, Schema.SchemaError> {
+): Result.Result<HandDecisionAnswer, Schema.SchemaError> {
   if (kind === "spec") {
-    return Either.map(
+    return Result.map(
       decodeSpecHandDecisionAnswerFile(input),
       ({ $schema: _schema, ...answer }): HandDecisionAnswer => answer,
     );
   }
-  return Either.map(
+  return Result.map(
     decodePlanHandDecisionAnswerFile(input),
     ({ $schema: _schema, ...answer }): HandDecisionAnswer => answer,
   );
@@ -1336,13 +1340,13 @@ export function decodeCurrentHandDecisionAnswer(
  */
 export function decodeCurrentDecideVerdicts(
   input: unknown,
-): Either.Either<DecideVerdicts, Schema.SchemaError> {
-  return Either.map(decodeDecideVerdictsFile(input), ({ $schema: _schema, ...file }) => file);
+): Result.Result<DecideVerdicts, Schema.SchemaError> {
+  return Result.map(decodeDecideVerdictsFile(input), ({ $schema: _schema, ...file }) => file);
 }
 
 /** Reads a spec's JSON sidecar as the current in-memory document; see `readDocumentSidecar`. */
 export const readSpecDocumentFile: Reader<SpecDocument> = (file, input) =>
-  Either.map(readSpecDocumentSidecar(file, input), (sidecar) => sidecar.document);
+  Result.map(readSpecDocumentSidecar(file, input), (sidecar) => sidecar.document);
 
 /**
  * Reads a plan's JSON sidecar as the current in-memory document; see
@@ -1350,11 +1354,11 @@ export const readSpecDocumentFile: Reader<SpecDocument> = (file, input) =>
  * the sidecar, the phase and the departing line.
  */
 export const readPlanDocumentFile: Reader<PlanDocument> = (file, input) =>
-  Either.flatMap(readPlanDocumentSidecar(file, input), (sidecar) => {
-    if (sidecar.shape === "current") return Either.right(sidecar.document);
+  Result.flatMap(readPlanDocumentSidecar(file, input), (sidecar) => {
+    if (sidecar.shape === "current") return Result.succeed(sidecar.document);
     const { lift } = sidecar;
-    if (lift.kind === "lifted") return Either.right(lift.document);
-    return Either.left(
+    if (lift.kind === "lifted") return Result.succeed(lift.document);
+    return Result.fail(
       readError(
         file,
         "plan-document",
@@ -1382,19 +1386,19 @@ function isPassOrFail<S extends { readonly result: string }>(
 export const readGateAttributionFile: Reader<GateAttribution> = (file, input) => {
   if (isDocumentObject(input) && isStampedAtOrAbove("gate-attribution", input, "0.31.0")) {
     const older = decodeGateAttributionV0_31_0(input);
-    if (Either.isLeft(older)) {
-      return Either.left(readError(file, "gate-attribution", formatFirstViolation(older.left)));
+    if (Result.isFailure(older)) {
+      return Result.fail(readError(file, "gate-attribution", formatFirstViolation(older.failure)));
     }
-    const { $schema: _schema, steps, ...attribution } = older.right;
-    return Either.right({ ...attribution, steps: steps.map(liftGateStep) });
+    const { $schema: _schema, steps, ...attribution } = older.success;
+    return Result.succeed({ ...attribution, steps: steps.map(liftGateStep) });
   }
   if (isDocumentObject(input) && isStampedBelowCurrent("gate-attribution", input)) {
     const older = decodeGateAttributionV0_26_0(input);
-    if (Either.isLeft(older)) {
-      return Either.left(readError(file, "gate-attribution", formatFirstViolation(older.left)));
+    if (Result.isFailure(older)) {
+      return Result.fail(readError(file, "gate-attribution", formatFirstViolation(older.failure)));
     }
-    const { $schema: _schema, steps, ...attribution } = older.right;
-    return Either.right({ ...attribution, steps: steps.map(liftGateStep), protectedPaths: null });
+    const { $schema: _schema, steps, ...attribution } = older.success;
+    return Result.succeed({ ...attribution, steps: steps.map(liftGateStep), protectedPaths: null });
   }
   return readPersisted(input, {
     format: "gate-attribution",
@@ -1405,8 +1409,8 @@ export const readGateAttributionFile: Reader<GateAttribution> = (file, input) =>
     fromCurrent: ({ $schema: _schema, ...attribution }) => attribution,
     fromPreSchema: ({ phase, steps }) =>
       steps.every(isPassOrFail)
-        ? Either.right({ phase, steps, protectedPaths: null })
-        : Either.left({ fact: "a pass or fail result for every step" }),
+        ? Result.succeed({ phase, steps, protectedPaths: null })
+        : Result.fail({ fact: "a pass or fail result for every step" }),
   });
 };
 
@@ -1460,10 +1464,10 @@ function readReport<T>(
   decode: Decode<T>,
   input: unknown,
   bounds: AnswerBounds,
-): Either.Either<T, ReportError> {
+): Result.Result<T, ReportError> {
   const reads = schemaUrl(format, bounds.current);
   const malformedReport = (reason: string) =>
-    Either.left<ReportError>({ kind: "malformed", reads, reason });
+    Result.fail<ReportError>({ kind: "malformed", reads, reason });
   const article = /^[aeiou]/.test(format) ? "an" : "a";
   if (!isDocumentObject(input))
     return malformedReport(`${article} ${format} document is a JSON object`);
@@ -1479,22 +1483,22 @@ function readReport<T>(
   }
   const { release } = named;
   if (compareReleases(release, bounds.running) > 0) {
-    return Either.left({
+    return Result.fail({
       kind: "newer",
       reads,
       message: `${format} ${release} is newer than this phax (${bounds.running}) — upgrade phax to read it`,
     });
   }
   if (compareReleases(release, bounds.current) < 0) {
-    return Either.left({
+    return Result.fail({
       kind: "older",
       reads,
       message: `${format} ${release} is an older shape — this phax reads ${reads}`,
     });
   }
   const decoded = decode(input);
-  if (Either.isLeft(decoded)) return malformedReport(describeReportIssue(decoded.left));
-  return Either.right(decoded.right);
+  if (Result.isFailure(decoded)) return malformedReport(describeReportIssue(decoded.failure));
+  return Result.succeed(decoded.success);
 }
 
 /**
@@ -1504,7 +1508,7 @@ function readReport<T>(
 export function readGateReport(
   input: unknown,
   bounds: AnswerBounds = { current: CURRENT_STAMPS["gate-report"], running: PHAX_RELEASE },
-): Either.Either<GateReportFile, ReportError> {
+): Result.Result<GateReportFile, ReportError> {
   return readReport("gate-report", decodeGateReportFile, input, bounds);
 }
 
@@ -1515,7 +1519,7 @@ export function readGateReport(
 export function readBriefReport(
   input: unknown,
   bounds: AnswerBounds = { current: CURRENT_STAMPS["brief-report"], running: PHAX_RELEASE },
-): Either.Either<BriefReportFile, ReportError> {
+): Result.Result<BriefReportFile, ReportError> {
   return readReport("brief-report", decodeBriefReportFile, input, bounds);
 }
 
@@ -1526,7 +1530,7 @@ export function readBriefReport(
 export function readArchitectureReport(
   input: unknown,
   bounds: AnswerBounds = { current: CURRENT_STAMPS["architecture-report"], running: PHAX_RELEASE },
-): Either.Either<ArchitectureReportFile, ReportError> {
+): Result.Result<ArchitectureReportFile, ReportError> {
   return readReport("architecture-report", decodeArchitectureReportFile, input, bounds);
 }
 
@@ -1537,7 +1541,7 @@ export function readArchitectureReport(
 export function readFirstReadingAnswer(
   input: unknown,
   bounds: AnswerBounds = { current: CURRENT_STAMPS["first-reading"], running: PHAX_RELEASE },
-): Either.Either<FirstReadingFile, ReportError> {
+): Result.Result<FirstReadingFile, ReportError> {
   return readReport("first-reading", decodeFirstReadingFile, input, bounds);
 }
 
@@ -1549,7 +1553,7 @@ export function readFirstReadingAnswer(
 export function readInteractiveHandoffAnswer(
   input: unknown,
   bounds: AnswerBounds = { current: CURRENT_STAMPS["interactive-handoff"], running: PHAX_RELEASE },
-): Either.Either<InteractiveHandoffFile, ReportError> {
+): Result.Result<InteractiveHandoffFile, ReportError> {
   return readReport("interactive-handoff", decodeInteractiveHandoffFile, input, bounds);
 }
 
@@ -1593,11 +1597,13 @@ export const readBriefRecordFile: Reader<BriefRecord> = (file, input) =>
 export const readInteractiveSessionFile: Reader<InteractiveSession> = (file, input) => {
   if (isDocumentObject(input) && isStampedBelowCurrent("interactive-session", input)) {
     const older = decodeInteractiveSessionV0_26_0(input);
-    if (Either.isLeft(older)) {
-      return Either.left(readError(file, "interactive-session", formatFirstViolation(older.left)));
+    if (Result.isFailure(older)) {
+      return Result.fail(
+        readError(file, "interactive-session", formatFirstViolation(older.failure)),
+      );
     }
-    const { $schema: _schema, builderUsage, ...session } = older.right;
-    return Either.right({
+    const { $schema: _schema, builderUsage, ...session } = older.success;
+    return Result.succeed({
       ...session,
       builderUsage: builderUsage === null ? null : liftFrozenTokenUsage(builderUsage),
     });
@@ -1634,11 +1640,11 @@ export const readAcceptanceRequestFile: Reader<AcceptanceRequest> = (file, input
 export const readReviewStopFile: Reader<ReviewStop> = (file, input) => {
   if (isDocumentObject(input) && isStampedBelowCurrent("review-stop", input)) {
     const older = decodeReviewStopV0_26_0(input);
-    if (Either.isLeft(older)) {
-      return Either.left(readError(file, "review-stop", formatFirstViolation(older.left)));
+    if (Result.isFailure(older)) {
+      return Result.fail(readError(file, "review-stop", formatFirstViolation(older.failure)));
     }
-    const { $schema: _schema, ...stop } = older.right;
-    return Either.right(stop);
+    const { $schema: _schema, ...stop } = older.success;
+    return Result.succeed(stop);
   }
   return readSchemaBornPersisted(input, {
     format: "review-stop",
@@ -1662,11 +1668,11 @@ export const readCostLedgerFile: Reader<CostLedger> = (file, input) => {
       compareReleases(release, "0.26.0") >= 0
         ? decodeCostLedgerV0_26_0(input)
         : decodeCostLedgerV0_25_0(input);
-    if (Either.isLeft(older)) {
-      return Either.left(readError(file, "cost-ledger", formatFirstViolation(older.left)));
+    if (Result.isFailure(older)) {
+      return Result.fail(readError(file, "cost-ledger", formatFirstViolation(older.failure)));
     }
-    const { $schema: _schema, ...ledger } = older.right;
-    return Either.right(ledger);
+    const { $schema: _schema, ...ledger } = older.success;
+    return Result.succeed(ledger);
   }
   return readSchemaBornPersisted(input, {
     format: "cost-ledger",
@@ -1684,11 +1690,11 @@ export const readCostLedgerFile: Reader<CostLedger> = (file, input) => {
 export const readCodeReviewFile: Reader<CodeReview> = (file, input) => {
   if (isDocumentObject(input) && isStampedBelowCurrent("code-review", input)) {
     const older = decodeCodeReviewV0_29_0(input);
-    if (Either.isLeft(older)) {
-      return Either.left(readError(file, "code-review", formatFirstViolation(older.left)));
+    if (Result.isFailure(older)) {
+      return Result.fail(readError(file, "code-review", formatFirstViolation(older.failure)));
     }
-    const { $schema: _schema, ...review } = older.right;
-    return Either.right(review);
+    const { $schema: _schema, ...review } = older.success;
+    return Result.succeed(review);
   }
   return readSchemaBornPersisted(input, {
     format: "code-review",
@@ -1709,13 +1715,13 @@ export const readCodeReviewFile: Reader<CodeReview> = (file, input) => {
 export const readPhaseFileReconciliationFile: Reader<PhaseFileReconciliation> = (file, input) => {
   if (isDocumentObject(input) && isStampedBelowCurrent("phase-file-reconciliation", input)) {
     const older = decodePhaseFileReconciliationV0_17_0(input);
-    if (Either.isLeft(older)) {
-      return Either.left(
-        readError(file, "phase-file-reconciliation", formatFirstViolation(older.left)),
+    if (Result.isFailure(older)) {
+      return Result.fail(
+        readError(file, "phase-file-reconciliation", formatFirstViolation(older.failure)),
       );
     }
-    const { $schema: _schema, ...reconciliation } = older.right;
-    return Either.right({ ...reconciliation, reviewCorrections: [] });
+    const { $schema: _schema, ...reconciliation } = older.success;
+    return Result.succeed({ ...reconciliation, reviewCorrections: [] });
   }
   return readPersisted(input, {
     format: "phase-file-reconciliation",
@@ -1724,7 +1730,7 @@ export const readPhaseFileReconciliationFile: Reader<PhaseFileReconciliation> = 
     decodeCurrent: decodePhaseFileReconciliationFile,
     decodePreSchema: decodePhaseFileReconciliationPreSchema,
     fromCurrent: ({ $schema: _schema, ...reconciliation }) => reconciliation,
-    fromPreSchema: (reconciliation) => Either.right({ ...reconciliation, reviewCorrections: [] }),
+    fromPreSchema: (reconciliation) => Result.succeed({ ...reconciliation, reviewCorrections: [] }),
   });
 };
 
@@ -1744,22 +1750,22 @@ const readAuthoringRecordManifest: Reader<RecordManifest> = (file, input) => {
     const release = parseSchemaUrl(input["$schema"])?.release ?? "0.0.0";
     if (compareReleases(release, "0.23.0") >= 0) {
       const older = decodeAuthoringRecordManifestV0_23_0(input);
-      if (Either.isLeft(older)) {
-        return Either.left(
-          readError(file, "authoring-record-manifest", formatFirstViolation(older.left)),
+      if (Result.isFailure(older)) {
+        return Result.fail(
+          readError(file, "authoring-record-manifest", formatFirstViolation(older.failure)),
         );
       }
-      const { $schema: _schema, usage, ...manifest } = older.right;
-      return Either.right({ ...manifest, usage: liftFrozenTokenUsage(usage) });
+      const { $schema: _schema, usage, ...manifest } = older.success;
+      return Result.succeed({ ...manifest, usage: liftFrozenTokenUsage(usage) });
     }
     const older = decodeAuthoringRecordManifestV0_17_0(input);
-    if (Either.isLeft(older)) {
-      return Either.left(
-        readError(file, "authoring-record-manifest", formatFirstViolation(older.left)),
+    if (Result.isFailure(older)) {
+      return Result.fail(
+        readError(file, "authoring-record-manifest", formatFirstViolation(older.failure)),
       );
     }
-    const { $schema: _schema, usage, ...manifest } = older.right;
-    return Either.right({ ...manifest, usage: liftFrozenTokenUsage(usage), retry: "none" });
+    const { $schema: _schema, usage, ...manifest } = older.success;
+    return Result.succeed({ ...manifest, usage: liftFrozenTokenUsage(usage), retry: "none" });
   }
   return readPersisted(input, {
     format: "authoring-record-manifest",
@@ -1769,7 +1775,7 @@ const readAuthoringRecordManifest: Reader<RecordManifest> = (file, input) => {
     decodePreSchema: decodeAuthoringRecordManifestPreSchema,
     fromCurrent: fromRecordManifestFile,
     fromPreSchema: ({ version: _version, usage, ...manifest }) =>
-      Either.right({ ...manifest, usage: liftFrozenTokenUsage(usage), retry: "none" }),
+      Result.succeed({ ...manifest, usage: liftFrozenTokenUsage(usage), retry: "none" }),
   });
 };
 
@@ -1820,43 +1826,43 @@ function readPhaseRecordManifestAs(label: string): Reader<RecordManifest> {
       const release = parseSchemaUrl(input["$schema"])?.release ?? "0.0.0";
       if (compareReleases(release, "0.33.0") >= 0) {
         const older = decodePhaseRecordManifestV0_33_0(input);
-        if (Either.isLeft(older)) {
-          return Either.left(
-            readError(file, "phase-record-manifest", formatFirstViolation(older.left)),
+        if (Result.isFailure(older)) {
+          return Result.fail(
+            readError(file, "phase-record-manifest", formatFirstViolation(older.failure)),
           );
         }
-        const { $schema: _schema, ...manifest } = older.right;
-        return Either.right(withLoadedUserConfig(manifest));
+        const { $schema: _schema, ...manifest } = older.success;
+        return Result.succeed(withLoadedUserConfig(manifest));
       }
       if (compareReleases(release, "0.30.0") >= 0) {
         const older = decodePhaseRecordManifestV0_30_0(input);
-        if (Either.isLeft(older)) {
-          return Either.left(
-            readError(file, "phase-record-manifest", formatFirstViolation(older.left)),
+        if (Result.isFailure(older)) {
+          return Result.fail(
+            readError(file, "phase-record-manifest", formatFirstViolation(older.failure)),
           );
         }
-        return Either.right(liftOracleRecordManifest(older.right));
+        return Result.succeed(liftOracleRecordManifest(older.success));
       }
       if (compareReleases(release, "0.26.0") >= 0) {
         const older = decodePhaseRecordManifestV0_26_0(input);
-        if (Either.isLeft(older)) {
-          return Either.left(
-            readError(file, "phase-record-manifest", formatFirstViolation(older.left)),
+        if (Result.isFailure(older)) {
+          return Result.fail(
+            readError(file, "phase-record-manifest", formatFirstViolation(older.failure)),
           );
         }
-        const { usage, ...manifest } = older.right;
-        return Either.right(
+        const { usage, ...manifest } = older.success;
+        return Result.succeed(
           liftOracleRecordManifest({ ...manifest, usage: liftFrozenTokenUsage(usage) }),
         );
       }
       const older = decodePhaseRecordManifestV0_17_0(input);
-      if (Either.isLeft(older)) {
-        return Either.left(
-          readError(file, "phase-record-manifest", formatFirstViolation(older.left)),
+      if (Result.isFailure(older)) {
+        return Result.fail(
+          readError(file, "phase-record-manifest", formatFirstViolation(older.failure)),
         );
       }
-      const { $schema: _schema, usage, ...manifest } = older.right;
-      return Either.right(
+      const { $schema: _schema, usage, ...manifest } = older.success;
+      return Result.succeed(
         withLoadedUserConfig({
           ...manifest,
           usage: liftFrozenTokenUsage(usage),
@@ -1874,7 +1880,7 @@ function readPhaseRecordManifestAs(label: string): Reader<RecordManifest> {
       decodePreSchema: decodePhaseRecordManifestPreSchema,
       fromCurrent: fromRecordManifestFile,
       fromPreSchema: ({ version: _version, usage, ...manifest }) =>
-        Either.right(
+        Result.succeed(
           withLoadedUserConfig({
             ...manifest,
             usage: liftFrozenTokenUsage(usage),
@@ -1926,25 +1932,25 @@ const readDecisionRecordManifest: Reader<RecordManifest> = (file, input) => {
     const release = parseSchemaUrl(input["$schema"])?.release ?? "0.0.0";
     if (compareReleases(release, "0.30.0") >= 0) {
       const current = decodeDecisionRecordManifestV0_30_0(input);
-      if (Either.isLeft(current)) {
-        return Either.left(
-          readError(file, "decision-record-manifest", formatFirstViolation(current.left)),
+      if (Result.isFailure(current)) {
+        return Result.fail(
+          readError(file, "decision-record-manifest", formatFirstViolation(current.failure)),
         );
       }
-      const { $schema: _schema, ...manifest } = current.right;
-      return Either.right(manifest);
+      const { $schema: _schema, ...manifest } = current.success;
+      return Result.succeed(manifest);
     }
     const older =
       compareReleases(release, "0.28.0") >= 0
         ? decodeDecisionRecordManifestV0_28_0(input)
         : decodeDecisionRecordManifestV0_25_0(input);
-    if (Either.isLeft(older)) {
-      return Either.left(
-        readError(file, "decision-record-manifest", formatFirstViolation(older.left)),
+    if (Result.isFailure(older)) {
+      return Result.fail(
+        readError(file, "decision-record-manifest", formatFirstViolation(older.failure)),
       );
     }
-    const { $schema: _schema, ...manifest } = older.right;
-    return Either.right(liftFrozenDecisionManifest(manifest));
+    const { $schema: _schema, ...manifest } = older.success;
+    return Result.succeed(liftFrozenDecisionManifest(manifest));
   }
   return readSchemaBornPersisted(input, {
     format: "decision-record-manifest",

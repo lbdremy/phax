@@ -38,8 +38,8 @@ describe("archived spec sidecars", () => {
 
   it.each(ARCHIVED.map((a) => [a.file, a] as const))("%s reads", (_file, archived) => {
     const read = readDocumentSidecar("spec", archived.file, archived.json);
-    if (Result.isFailure(read)) throw new Error(read.left.message);
-    const sidecar = read.right;
+    if (Result.isFailure(read)) throw new Error(read.failure.message);
+    const sidecar = read.success;
     if (compareReleases(archived.release, "0.25.0") < 0) return;
     // Stamped 0.25.0 or later: read as the frozen 0.25.0 shape, or as the
     // current one when a later release stamped it so.
@@ -56,7 +56,7 @@ describe("archived spec sidecars", () => {
   it("reads at least one sidecar stamped 0.25.0 as shape 0.25.0", () => {
     const shapes = ARCHIVED.map((a) => {
       const read = readDocumentSidecar("spec", a.file, a.json);
-      return Result.isSuccess(read) ? read.right.shape : "unreadable";
+      return Result.isSuccess(read) ? read.success.shape : "unreadable";
     });
     expect(shapes).toContain("0.25.0");
   });

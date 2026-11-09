@@ -486,7 +486,7 @@ describe("collectReleaseNotes", { timeout: 30_000 }, () => {
           writePlan(repo, plan);
           repo.write(sidecar, "{}\n");
         }),
-        read.left.message,
+        read.failure.message,
       );
     });
 
@@ -511,7 +511,7 @@ describe("collectReleaseNotes", { timeout: 30_000 }, () => {
           writeSpec(repo, TABLE_SPEC);
           repo.write(sidecar, "{}\n");
         }),
-        read.left.message,
+        read.failure.message,
       );
     });
 

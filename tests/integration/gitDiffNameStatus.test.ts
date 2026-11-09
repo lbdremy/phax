@@ -121,8 +121,8 @@ describe("NodeGitLayer.diffNameStatus", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(GitError);
-      expect(result.left.command).toBe("git branch -d -- missing-branch");
+      expect(result.failure).toBeInstanceOf(GitError);
+      expect(result.failure.command).toBe("git branch -d -- missing-branch");
     }
   });
 

@@ -82,7 +82,7 @@ describe("encode → decode round-trip", () => {
     const decoded = decodePhaseAgentBinding(encoded);
     expect(Result.isSuccess(decoded)).toBe(true);
     if (Result.isSuccess(decoded)) {
-      expect(decoded.right).toEqual(validBinding);
+      expect(decoded.success).toEqual(validBinding);
     }
   });
 
@@ -97,7 +97,7 @@ describe("encode → decode round-trip", () => {
     const decoded = decodePhaseAgentBinding(encoded);
     expect(Result.isSuccess(decoded)).toBe(true);
     if (Result.isSuccess(decoded)) {
-      expect(decoded.right).toEqual(binding);
+      expect(decoded.success).toEqual(binding);
     }
   });
 });

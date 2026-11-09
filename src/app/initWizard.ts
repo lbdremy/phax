@@ -1,6 +1,6 @@
 import { basename, join } from "node:path";
 import { homedir } from "node:os";
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import { GitHub, type GitHubError } from "../ports/github.js";
@@ -58,7 +58,7 @@ export function runInitWizard(input: {
         return { kind: "already_initialized" as const, configPath };
       }
       const existingText = yield* Effect.catch(fs.readText(configPath), () => Effect.succeed("{}"));
-      const parsedConfig = Either.getOrNull(decodePhaxConfig(safeParseJson(existingText)));
+      const parsedConfig = Result.getOrNull(decodePhaxConfig(safeParseJson(existingText)));
       existingName = parsedConfig?.name;
 
       const reconfigure = yield* prompt.confirm({
@@ -73,7 +73,7 @@ export function runInitWizard(input: {
     const pkgText = yield* Effect.catch(fs.readText(join(cwd, "package.json")), () =>
       Effect.succeed("{}"),
     );
-    const pkg = Either.getOrElse(
+    const pkg = Result.getOrElse(
       decodePackageJson(safeParseJson(pkgText)),
       (): PackageJson => ({}),
     );
@@ -92,7 +92,7 @@ export function runInitWizard(input: {
         defaultValue: detectedName,
         validate: (value) => {
           const result = decodeNamespace(value);
-          return Either.isLeft(result)
+          return Result.isFailure(result)
             ? "Name must match ^[a-z][a-z0-9-]*$ (e.g. my-project)"
             : undefined;
         },

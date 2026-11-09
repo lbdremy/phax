@@ -141,7 +141,7 @@ function defaultOf(
       empty,
     );
     if (Result.isFailure(result)) return undefined;
-    decoded = result.right;
+    decoded = result.success;
   } catch {
     // A default that needs a service or an asynchronous read is not a default to show.
     return undefined;

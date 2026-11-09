@@ -86,15 +86,15 @@ export function decodeArtifactFrontmatter(
   if (split === null) return Result.fail({ kind: "missing-block" });
 
   const docE = parseYamlMapping(split.yamlText);
-  if (Result.isFailure(docE)) return Result.fail(docE.left);
+  if (Result.isFailure(docE)) return Result.fail(docE.failure);
 
-  const value: unknown = docE.right.toJS();
+  const value: unknown = docE.success.toJS();
   const decoded: Result.Result<SpecFrontmatter | PlanFrontmatter, Schema.SchemaError> =
     kind === "spec" ? decodeSpecFrontmatter(value) : decodePlanFrontmatter(value);
   if (Result.isFailure(decoded)) {
-    return Result.fail({ kind: "schema", detail: formatParseError(decoded.left) });
+    return Result.fail({ kind: "schema", detail: formatParseError(decoded.failure) });
   }
-  return Result.succeed(decoded.right);
+  return Result.succeed(decoded.success);
 }
 
 export function setFrontmatterKeys(
@@ -105,9 +105,9 @@ export function setFrontmatterKeys(
   if (split === null) return Result.fail({ kind: "missing-block" });
 
   const docE = parseYamlMapping(split.yamlText);
-  if (Result.isFailure(docE)) return Result.fail(docE.left);
+  if (Result.isFailure(docE)) return Result.fail(docE.failure);
 
-  const doc = docE.right;
+  const doc = docE.success;
   for (const edit of edits) {
     if (edit.key === "status") {
       doc.set("status", edit.value);
@@ -133,9 +133,9 @@ export function removeFrontmatterKeys(
   if (split === null) return Result.fail({ kind: "missing-block" });
 
   const docE = parseYamlMapping(split.yamlText);
-  if (Result.isFailure(docE)) return Result.fail(docE.left);
+  if (Result.isFailure(docE)) return Result.fail(docE.failure);
 
-  const doc = docE.right;
+  const doc = docE.success;
   for (const key of keys) {
     doc.delete(key);
   }
@@ -157,7 +157,7 @@ export function fingerprintSource(md: string): string {
   const docE = parseYamlMapping(split.yamlText);
   if (Result.isFailure(docE)) return md;
 
-  const doc = docE.right;
+  const doc = docE.success;
   doc.delete("status");
   doc.delete("approved");
 

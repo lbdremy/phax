@@ -176,14 +176,14 @@ async function close(options: { readonly resume?: boolean } = {}) {
 }
 
 const report = (result: Result.Result<CloseReport, unknown>): CloseReport => {
-  if (Result.isFailure(result)) throw new Error(`close refused: ${String(result.left)}`);
-  return result.right;
+  if (Result.isFailure(result)) throw new Error(`close refused: ${String(result.failure)}`);
+  return result.success;
 };
 
 const statusStop = () => {
   const decoded = decodePhaseStatusFile(readJson(join(phaseFolder(), "status.json")));
   if (Result.isFailure(decoded)) throw new Error("status.json does not decode");
-  return decoded.right.stop;
+  return decoded.success.stop;
 };
 
 describe("who closed a held stop", () => {
@@ -273,8 +273,8 @@ describe("who closed a held stop", () => {
     const result = await close();
 
     if (Result.isSuccess(result)) throw new Error("the close was not refused");
-    expect(result.left).toBeInstanceOf(StopCloseRefusedError);
-    const refused = result.left as StopCloseRefusedError;
+    expect(result.failure).toBeInstanceOf(StopCloseRefusedError);
+    const refused = result.failure as StopCloseRefusedError;
     expect(refused.lastClose).toMatchObject({ result: "close-error", exitCode: 1, step: "commit" });
     expect(refused.lastClose).toMatchObject({
       detail: expect.stringContaining("set user.name and user.email"),

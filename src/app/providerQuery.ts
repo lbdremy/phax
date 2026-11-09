@@ -64,10 +64,10 @@ export function runProviderQuery<T, E>(
     );
 
     if (Result.isFailure(ran)) {
-      return Result.fail(makeError({ message: `${providerLabel} ${ran.left.message}` }));
+      return Result.fail(makeError({ message: `${providerLabel} ${ran.failure.message}` }));
     }
 
-    const { exitCode, stdout, stderr } = ran.right;
+    const { exitCode, stdout, stderr } = ran.success;
     if (exitCode !== 0) {
       return Result.fail(
         makeError({
@@ -96,12 +96,12 @@ export function runProviderQuery<T, E>(
       return Result.fail(
         makeError({
           message: `${providerLabel} response failed schema validation:\n${formatParseError(
-            decoded.left,
+            decoded.failure,
           )}`,
         }),
       );
     }
 
-    return Result.succeed(decoded.right);
+    return Result.succeed(decoded.success);
   });
 }

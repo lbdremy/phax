@@ -21,8 +21,8 @@ function frozenSpecDocument(): unknown {
 
 function specMarkdown(sidecar: unknown): string {
   const doc = readSpecDocumentFile(SIDECAR_PATH, sidecar);
-  if (Result.isFailure(doc)) throw new Error(doc.left.message);
-  return FRONTMATTER + renderSpecBody(doc.right);
+  if (Result.isFailure(doc)) throw new Error(doc.failure.message);
+  return FRONTMATTER + renderSpecBody(doc.success);
 }
 
 describe("rerenderSpec", () => {
@@ -39,8 +39,8 @@ describe("rerenderSpec", () => {
     const result = rerenderSpec(MD_PATH, FRONTMATTER, SIDECAR_PATH, sidecar);
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right).toContain("\n## 9. Open questions\n");
-      expect(result.right).toContain("\n## 9b. Arbitrated questions\n");
+      expect(result.success).toContain("\n## 9. Open questions\n");
+      expect(result.success).toContain("\n## 9b. Arbitrated questions\n");
     }
   });
 
@@ -67,16 +67,16 @@ describe("rerenderSpec", () => {
     const result = rerenderSpec(MD_PATH, before, SIDECAR_PATH, edited);
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right).not.toBe(before);
-      expect(result.right.startsWith(FRONTMATTER)).toBe(true);
-      expect(result.right).toContain("An edited title");
+      expect(result.success).not.toBe(before);
+      expect(result.success.startsWith(FRONTMATTER)).toBe(true);
+      expect(result.success).toContain("An edited title");
     }
   });
 
   it("refuses an invalid sidecar, naming it", () => {
     const result = rerenderSpec(MD_PATH, FRONTMATTER, SIDECAR_PATH, { title: 1 });
     expect(Result.isFailure(result)).toBe(true);
-    if (Result.isFailure(result)) expect(result.left.startsWith(SIDECAR_PATH)).toBe(true);
+    if (Result.isFailure(result)) expect(result.failure.startsWith(SIDECAR_PATH)).toBe(true);
   });
 
   it("refuses a spec with no frontmatter", () => {

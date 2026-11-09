@@ -756,8 +756,8 @@ export function checkTranscription(input: {
     ),
     firstParseIssue,
   );
-  if (Result.isFailure(decoded)) return Result.fail(decoded.left);
-  const revised: SidecarDocument = decoded.right;
+  if (Result.isFailure(decoded)) return Result.fail(decoded.failure);
+  const revised: SidecarDocument = decoded.success;
   const violation = firstTranscriptionViolation({ original, revised, bound, principleIds });
   if (violation !== undefined) return Result.fail(violation);
 
@@ -830,8 +830,8 @@ export function checkHandTranscription(input: {
     decodeCurrentHandDecisionAnswer(stampHandAnswer(answer, named, operator, atIso), kind),
     (error: Schema.SchemaError) => firstParseIssue(error),
   );
-  if (Result.isFailure(decoded)) return Result.fail(decoded.left);
-  const handAnswer = decoded.right;
+  if (Result.isFailure(decoded)) return Result.fail(decoded.failure);
+  const handAnswer = decoded.success;
 
   for (const [i, { id, verdict }] of handAnswer.decisions.entries()) {
     const given = named.get(id);
@@ -879,7 +879,7 @@ export function checkHandTranscription(input: {
     parsed,
     reArbitrated: bound.verdicts.filter((v) => v.state === "arbitrated").map((v) => v.question),
   });
-  if (Result.isFailure(written)) return Result.fail(refusal(["markdown"], written.left));
+  if (Result.isFailure(written)) return Result.fail(refusal(["markdown"], written.failure));
 
   const verdicts = bound.verdicts.flatMap((given): TranscribedVerdict[] => {
     const decision = handAnswer.decisions.find(({ id }) => id === given.question);
@@ -896,5 +896,5 @@ export function checkHandTranscription(input: {
       },
     ];
   });
-  return Result.succeed({ answer: handAnswer, md: written.right, verdicts });
+  return Result.succeed({ answer: handAnswer, md: written.success, verdicts });
 }

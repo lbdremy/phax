@@ -381,11 +381,11 @@ export function inspectResume(
     return Effect.succeed(
       Result.fail({
         reason: "run_not_found",
-        message: `Run "${shortName}" not found: ${infoResult.left}`,
+        message: `Run "${shortName}" not found: ${infoResult.failure}`,
       }),
     );
   }
-  const info = infoResult.right;
+  const info = infoResult.success;
   return readRunHold(info.runPath).pipe(
     Effect.flatMap((hold) => inspectResumeOfRun(info, hold)),
     Effect.match({
@@ -449,8 +449,8 @@ export function readRunHold(runPath: string): Effect.Effect<RunHold, FsError, Fi
     });
     const decoded = readRunStatusFile(path, parsed);
     if (Result.isFailure(decoded)) {
-      return yield* Effect.fail(new FsError({ message: decoded.left.message }));
+      return yield* Effect.fail(new FsError({ message: decoded.failure.message }));
     }
-    return decoded.right.hold;
+    return decoded.success.hold;
   });
 }

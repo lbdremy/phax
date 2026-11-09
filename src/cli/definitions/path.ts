@@ -36,12 +36,12 @@ export const pathCommand = defineCommand({
   run: ({ input }) =>
     Effect.gen(function* () {
       const configResult = loadConfig(process.cwd());
-      const config = Result.isSuccess(configResult) ? configResult.right : undefined;
+      const config = Result.isSuccess(configResult) ? configResult.success : undefined;
       const resolved = resolveRunRef(input.args[0], config, effectiveStateRoot(config));
       if (Result.isFailure(resolved)) {
-        return yield* Effect.fail(new RunRefError({ message: resolved.left.message }));
+        return yield* Effect.fail(new RunRefError({ message: resolved.failure.message }));
       }
-      const { namespace, shortName, info, crossProject } = resolved.right;
+      const { namespace, shortName, info, crossProject } = resolved.success;
       const qualifiedName = runKey(namespace, shortName);
       if (!info.worktreePath) {
         return yield* Effect.fail(

@@ -112,7 +112,7 @@ describe("architecture report", () => {
 
   it("names the repeated id", () => {
     const decoded = decodeArchitectureReportFile(report([PART, PART]));
-    expect(Result.isFailure(decoded) && String(decoded.left)).toContain(
+    expect(Result.isFailure(decoded) && String(decoded.failure)).toContain(
       'part id "core-decide" is used twice',
     );
   });
@@ -132,7 +132,7 @@ describe("readArchitectureReport", () => {
     const read = readArchitectureReport({ body: "x", parts: [] });
     expect(Result.isFailure(read)).toBe(true);
     if (Result.isFailure(read)) {
-      expect(read.left.reads).toMatch(/architecture-report\/\d+\.\d+\.\d+\.json$/);
+      expect(read.failure.reads).toMatch(/architecture-report\/\d+\.\d+\.\d+\.json$/);
     }
   });
 
@@ -142,7 +142,7 @@ describe("readArchitectureReport", () => {
       body: "x",
     });
     expect(Result.isFailure(read)).toBe(true);
-    if (Result.isFailure(read)) expect(describeReportError(read.left)).toContain("parts");
+    if (Result.isFailure(read)) expect(describeReportError(read.failure)).toContain("parts");
   });
 
   it("refuses a report in another format", () => {

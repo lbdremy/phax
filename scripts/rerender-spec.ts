@@ -27,13 +27,13 @@ export function rerenderSpec(
   const split = splitFrontmatter(md);
   if (split === null) return Result.fail(`${mdPath}: no frontmatter block`);
   const read = readDocumentSidecar("spec", sidecarPath, sidecar);
-  if (Result.isFailure(read)) return Result.fail(read.left.message);
-  if (read.right.shape !== "current") {
+  if (Result.isFailure(read)) return Result.fail(read.failure.message);
+  if (read.success.shape !== "current") {
     return Result.fail(
-      `${sidecarPath}: stamped ${describeStampedShape("spec-document", read.right.shape)} — run \`phax artifact migrate-documents\` first`,
+      `${sidecarPath}: stamped ${describeStampedShape("spec-document", read.success.shape)} — run \`phax artifact migrate-documents\` first`,
     );
   }
-  return Result.succeed(`---\n${split.yamlText}\n---\n${renderSpecBody(read.right.document)}`);
+  return Result.succeed(`---\n${split.yamlText}\n---\n${renderSpecBody(read.success.document)}`);
 }
 
 const isMain = process.argv[1] === fileURLToPath(import.meta.url);
@@ -54,11 +54,11 @@ if (isMain) {
     JSON.parse(readFileSync(sidecarPath, "utf8")),
   );
   if (Result.isFailure(rendered)) {
-    console.error(rendered.left);
+    console.error(rendered.failure);
     process.exit(1);
   }
 
-  const next = rendered.right;
+  const next = rendered.success;
   if (flag === "--check") {
     console.log(next === md ? "unchanged" : "would change");
     process.exit(next === md ? 0 : 1);

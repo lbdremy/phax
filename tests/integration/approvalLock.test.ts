@@ -252,8 +252,8 @@ function expectRefused(result: Awaited<ReturnType<typeof approve>>, head: string
   expect(headSha()).toBe(head);
   expect(porcelain()).toBe("");
   if (Result.isSuccess(result)) return undefined;
-  expect(exitCodeForError(result.left)).toBe(12);
-  return result.left;
+  expect(exitCodeForError(result.failure)).toBe(12);
+  return result.failure;
 }
 
 beforeEach(() => {

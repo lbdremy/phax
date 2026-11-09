@@ -29,7 +29,7 @@ function readPhaseAttribution(
     }
 
     const decoded = readGateAttributionFile(path, parsed);
-    return Result.isSuccess(decoded) ? decoded.right : undefined;
+    return Result.isSuccess(decoded) ? decoded.success : undefined;
   });
 }
 
@@ -85,8 +85,8 @@ export function recordProtectedPaths(input: {
       );
     }
     const attribution: GateAttribution = {
-      phase: record.right.phase,
-      steps: record.right.steps,
+      phase: record.success.phase,
+      steps: record.success.steps,
       protectedPaths: protectedPathsResult(input.changes),
     };
     const document = JSON.stringify(

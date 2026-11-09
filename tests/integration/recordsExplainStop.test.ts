@@ -90,7 +90,7 @@ afterEach(() => {
 
 function stoppedAtReview(result: Result.Result<unknown, unknown>): void {
   if (Result.isSuccess(result)) throw new Error("the run did not stop");
-  expect(result.left).toBeInstanceOf(AwaitingReviewStopError);
+  expect(result.failure).toBeInstanceOf(AwaitingReviewStopError);
 }
 
 /** Runs `phax records explain <sha>` through the command runner over a memory Io, in-process, on

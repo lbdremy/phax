@@ -607,8 +607,8 @@ describe("phax prune", { timeout: 30_000 }, () => {
       registry.some((r) => r.namespace === roots.namespace && r.shortName === name) ||
       existsSync(join(runsDir, name));
     const base = decodeShortName("run-prune");
-    if (Result.isFailure(base)) throw new Error(base.left.message);
-    const shortName = nextAvailableShortName(base.right, isUsed);
+    if (Result.isFailure(base)) throw new Error(base.failure.message);
+    const shortName = nextAvailableShortName(base.success, isUsed);
     expect(shortName).toBe("run-prune");
 
     await Effect.runPromise(

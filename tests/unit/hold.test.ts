@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { parseHoldValue, resolveHold, type HoldRequest } from "../../src/domain/hold.js";
 
@@ -38,7 +38,7 @@ const FORMS = "give no value, acceptance, or phase ids such as phase-02,phase-04
 const refusal = (value: string) => `--hold '${value}' is not a hold selection: ${FORMS}`;
 const NAME_HINT = "(put the run's name before --hold, or write --hold=<selection>)";
 
-const refusalOf = (value: string) => Either.getOrThrow(Either.flip(parseHoldValue(value)));
+const refusalOf = (value: string) => Result.getOrThrow(Result.flip(parseHoldValue(value)));
 const resolve = (request: HoldRequest, phases: readonly Phase[] = INVOICE_EXPORT) =>
   resolveHold(request, phases);
 
@@ -53,7 +53,7 @@ describe("parseHoldValue", () => {
       { kind: "listed", phases: ["phase-02", "phase-04"] },
     ],
   ])("accepts %s", (_label, value, request) => {
-    expect(parseHoldValue(value)).toEqual(Either.right(request));
+    expect(parseHoldValue(value)).toEqual(Result.succeed(request));
   });
 
   it.each<readonly [string, string, string]>([
@@ -84,7 +84,7 @@ describe("parseHoldValue", () => {
     ["the empty string", "", refusal("")],
     ["a run name", "invoice-export", `${refusal("invoice-export")}\n${NAME_HINT}`],
   ])("refuses %s", (_label, value, message) => {
-    expect(parseHoldValue(value)).toEqual(Either.left(message));
+    expect(parseHoldValue(value)).toEqual(Result.fail(message));
   });
 
   it("adds the run-name hint only to a one-word value", () => {

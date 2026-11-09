@@ -33,8 +33,8 @@ function doctrine(): Doctrine {
     },
     file: null,
   });
-  if (Result.isFailure(assembled)) throw new Error(assembled.left);
-  return assembled.right;
+  if (Result.isFailure(assembled)) throw new Error(assembled.failure);
+  return assembled.success;
 }
 
 const SPEC_URL = currentSchemaUrl("spec-document");

@@ -18,7 +18,7 @@ function refused<A, I>(
 ): Schema.SchemaError {
   const decoded = Schema.decodeUnknownResult(schema, { ...options, reportInput: true })(input);
   if (Result.isSuccess(decoded)) throw new Error(`expected a refusal of ${JSON.stringify(input)}`);
-  return decoded.left;
+  return decoded.failure;
 }
 
 class Phase extends Schema.Class<Phase>("Phase")({ id: Schema.String }) {}

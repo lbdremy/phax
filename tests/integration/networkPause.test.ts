@@ -370,8 +370,8 @@ function execute(harness: Harness, startIndex: number) {
 /** `phax resume`: the start phase as the resume command decides it. */
 async function resume(harness: Harness) {
   const decision = await inspectResumeOnDisk(NAMESPACE, harness.shortName, world.stateRoot);
-  if (Result.isFailure(decision)) throw new Error(decision.left.message);
-  return execute(harness, decision.right.nextPhaseIndex);
+  if (Result.isFailure(decision)) throw new Error(decision.failure.message);
+  return execute(harness, decision.success.nextPhaseIndex);
 }
 
 const readJson = (path: string): Record<string, unknown> =>
@@ -390,7 +390,7 @@ const handledEvents = (h: Harness): string[] =>
 
 function leftOf(result: Result.Result<unknown, unknown>): unknown {
   if (Result.isSuccess(result)) throw new Error("the run did not fail");
-  return result.left;
+  return result.failure;
 }
 
 // ── A phase whose session loses the network ────────────────────────────────
@@ -514,7 +514,7 @@ describe("a phase whose handoff turn fails", { timeout: 60_000 }, () => {
 
     const resumed = await resume(harness);
 
-    expect(Result.isFailure(resumed) ? String(resumed.left) : null).toBeNull();
+    expect(Result.isFailure(resumed) ? String(resumed.failure) : null).toBeNull();
     expect(runStatus(harness)["state"]).toBe("review_open");
     // phase-01's work turn ran once, in the first process; its handoff ran twice.
     expect(harness.turns.filter((t) => t.kind === "run" && t.phase === "phase-01")).toHaveLength(1);
@@ -721,7 +721,7 @@ describe("a phase or handoff turn whose Claude Code result is empty", { timeout:
 
     const { harness, result } = await startRun(null, makeNodeBackendLayer(DEFAULT_PROVIDER_CONFIG));
 
-    expect(Result.isFailure(result) ? String(result.left) : null).toBeNull();
+    expect(Result.isFailure(result) ? String(result.failure) : null).toBeNull();
     expect(handledEvents(harness)).toContain("GatePassed");
     expect(phaseStatus(harness, "phase-01")["state"]).toBe("cleaned_up");
     expect(runStatus(harness)["state"]).toBe("review_open");
@@ -737,7 +737,7 @@ describe("a phase or handoff turn whose Claude Code result is empty", { timeout:
 
     const { harness, result } = await startRun(null, makeNodeBackendLayer(DEFAULT_PROVIDER_CONFIG));
 
-    expect(Result.isFailure(result) ? String(result.left) : null).toBeNull();
+    expect(Result.isFailure(result) ? String(result.failure) : null).toBeNull();
     expect(handledEvents(harness)).not.toContain("HandoffTurnFailed");
     expect(runStatus(harness)["stoppedReason"]).toBeUndefined();
     expect(runStatus(harness)["state"]).toBe("review_open");

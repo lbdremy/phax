@@ -133,10 +133,10 @@ export function prepareCodeReviewSession(
       const sessionReadResult = yield* Effect.result(fs.readText(sessionRecordPath));
       if (Result.isSuccess(sessionReadResult)) {
         try {
-          const sessionJson = JSON.parse(sessionReadResult.right);
+          const sessionJson = JSON.parse(sessionReadResult.success);
           const sessionDecodeResult = decodeCodeReviewSession(sessionJson);
           if (Result.isSuccess(sessionDecodeResult)) {
-            existingSession = sessionDecodeResult.right;
+            existingSession = sessionDecodeResult.success;
           }
         } catch {
           // Malformed JSON — treat as no record, fall through to new session
@@ -207,13 +207,13 @@ export function prepareCodeReviewSession(
       );
       return {
         kind: "refused",
-        message: `No agent binding found for run "${info.shortName}": ${bindingReadResult.left.message}`,
+        message: `No agent binding found for run "${info.shortName}": ${bindingReadResult.failure.message}`,
       } satisfies PrepareCodeReviewResult;
     }
 
     let bindingJson: unknown;
     try {
-      bindingJson = JSON.parse(bindingReadResult.right);
+      bindingJson = JSON.parse(bindingReadResult.success);
     } catch {
       yield* telemetry.recordEvent(
         makeStepCompletedTelemetryEvent({
@@ -241,11 +241,11 @@ export function prepareCodeReviewSession(
       );
       return {
         kind: "refused",
-        message: `Could not decode agent-binding.json for run "${info.shortName}": ${String(bindingDecodeResult.left)}`,
+        message: `Could not decode agent-binding.json for run "${info.shortName}": ${String(bindingDecodeResult.failure)}`,
       } satisfies PrepareCodeReviewResult;
     }
 
-    const provider = bindingDecodeResult.right.provider;
+    const provider = bindingDecodeResult.success.provider;
     const sessionId = randomUUID();
 
     const worklist = yield* loadCodeReviewWorklist(info, opts.bundledReviewSkill);
@@ -354,10 +354,10 @@ export function loadCodeReviewWorklist(
 
     if (Result.isSuccess(reconciliationReadResult)) {
       try {
-        const reconciliationJson = JSON.parse(reconciliationReadResult.right);
+        const reconciliationJson = JSON.parse(reconciliationReadResult.success);
         const reconciliationDecodeResult = decodeGlobalFileReconciliation(reconciliationJson);
         if (Result.isSuccess(reconciliationDecodeResult)) {
-          attentionPoints = toCodeReviewAttentionPoints(reconciliationDecodeResult.right);
+          attentionPoints = toCodeReviewAttentionPoints(reconciliationDecodeResult.success);
         }
       } catch {
         // Malformed JSON — treat as an empty worklist
@@ -372,11 +372,11 @@ export function loadCodeReviewWorklist(
 
     if (Result.isSuccess(complianceReadResult)) {
       try {
-        const complianceJson = JSON.parse(complianceReadResult.right);
+        const complianceJson = JSON.parse(complianceReadResult.success);
         const complianceDecodeResult = readComplianceReviewFile(complianceJsonPath, complianceJson);
         if (Result.isSuccess(complianceDecodeResult)) {
           // Only the fields every shape carries: the ledgers are not read here.
-          const { review } = complianceDecodeResult.right;
+          const { review } = complianceDecodeResult.success;
           complianceBlock = {
             attentionPoints: review.attentionPoints,
             pointers: review.pointers,
@@ -420,8 +420,8 @@ export function loadCodeReviewWorklist(
 /** A headless session's final answer, decoded: the review, or why phax refuses it. */
 function decodeReviewAnswer(result: AgentRunResult): Result.Result<CodeReview, string> {
   const parsed = answerJson(result);
-  if (Result.isFailure(parsed)) return Result.fail(parsed.left);
-  return readCodeReviewAnswer(parsed.right);
+  if (Result.isFailure(parsed)) return Result.fail(parsed.failure);
+  return readCodeReviewAnswer(parsed.success);
 }
 
 export type HeadlessCodeReviewResult =
@@ -550,9 +550,9 @@ export function reviewCodeHeadless(
         }
         if (Result.isFailure(agentResult)) {
           const sessionError =
-            agentResult.left instanceof AgentSessionFailedError ? agentResult.left : null;
+            agentResult.failure instanceof AgentSessionFailedError ? agentResult.failure : null;
           return {
-            ...fail(`the session failed: ${agentResult.left.message}`),
+            ...fail(`the session failed: ${agentResult.failure.message}`),
             sessionFailure: sessionError?.failure ?? null,
             sessionFailureFiles:
               sessionError === null
@@ -563,7 +563,7 @@ export function reviewCodeHeadless(
                   },
           } satisfies HeadlessCodeReviewResult;
         }
-        return agentResult.right;
+        return agentResult.success;
       });
 
     const firstRun = yield* guarded(
@@ -576,7 +576,7 @@ export function reviewCodeHeadless(
     let ran = firstRun;
     let answer = decodeReviewAnswer(firstRun);
     if (Result.isFailure(answer)) {
-      const firstRefusal = answer.left;
+      const firstRefusal = answer.failure;
       opts.output.warn(codeReviewRetryWarning(firstRefusal));
       const retryPath = join(info.runPath, CODE_REVIEW_RETRY_STREAM_FILENAME);
       const retryRun = yield* guarded(
@@ -592,11 +592,11 @@ export function reviewCodeHeadless(
       ran = retryRun;
       answer = decodeReviewAnswer(retryRun);
       if (Result.isFailure(answer)) {
-        return fail(codeReviewRefusedTwiceMessage(firstRefusal, answer.left));
+        return fail(codeReviewRefusedTwiceMessage(firstRefusal, answer.failure));
       }
     }
 
-    const review = answer.right;
+    const review = answer.success;
     const reviewPath = join(info.runPath, CODE_REVIEW_JSON_FILENAME);
     const sessionPath = join(info.runPath, CODE_REVIEW_SESSION_FILENAME);
     const session: CodeReviewSession = {
@@ -623,7 +623,7 @@ export function reviewCodeHeadless(
       yield* previousReview === undefined
         ? fs.remove(reviewPath)
         : fs.writeAtomic(reviewPath, previousReview);
-      return fail(`the review could not be kept: ${sessionWrite.left.message}`);
+      return fail(`the review could not be kept: ${sessionWrite.failure.message}`);
     }
 
     yield* telemetry.recordEvent(

@@ -179,14 +179,14 @@ function context(original: SidecarDocument, scope: DecideScope = ALL_OPEN): Deci
 
 function decode(json: unknown, ctx: DecideContext): SidecarDocument {
   const decoded = decodeRevisedDocument(json, ctx);
-  if (Result.isFailure(decoded)) throw new Error(describeRevisionRefusal(decoded.left));
-  return decoded.right;
+  if (Result.isFailure(decoded)) throw new Error(describeRevisionRefusal(decoded.failure));
+  return decoded.success;
 }
 
 function refusalOf(json: unknown, ctx: DecideContext): string {
   const decoded = decodeRevisedDocument(json, ctx);
   if (Result.isSuccess(decoded)) throw new Error("expected a refusal");
-  return describeRevisionRefusal(decoded.left);
+  return describeRevisionRefusal(decoded.failure);
 }
 
 // Q1 decided (as recommended) in a session on `spec()`.
@@ -227,8 +227,8 @@ describe("decideScope", () => {
     const scope = decideScope(questions, "Q9");
     expect(Result.isFailure(scope)).toBe(true);
     if (Result.isFailure(scope)) {
-      expect(scope.left).toContain("Q9");
-      expect(scope.left).toContain("Q1, Q2, Q0");
+      expect(scope.failure).toContain("Q9");
+      expect(scope.failure).toContain("Q1, Q2, Q0");
     }
   });
 });

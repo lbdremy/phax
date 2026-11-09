@@ -115,7 +115,7 @@ describe("shell adapter failure via runGatesWithFixLoop", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(GateAttemptsExhaustedError);
+      expect(result.failure).toBeInstanceOf(GateAttemptsExhaustedError);
     }
 
     const errors = telImpl.errors();
@@ -189,7 +189,7 @@ describe("claude adapter failure via FakeBackend + reportAgentFailure", () => {
         );
 
         if (Result.isFailure(result)) {
-          const e = result.left;
+          const e = result.failure;
           if (e instanceof AgentInvocationError) {
             yield* telemetry.recordError(
               reportAgentFailure(e, {

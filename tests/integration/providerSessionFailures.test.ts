@@ -99,7 +99,7 @@ async function runAgentFailure(provider: AgentRunOptions["provider"]): Promise<S
     ),
   );
   if (Result.isSuccess(result)) throw new Error("expected the session to fail");
-  return result.left as SessionError;
+  return result.failure as SessionError;
 }
 
 async function completeOutcome(provider: CompletionOptions["provider"]) {
@@ -339,8 +339,8 @@ describe("the Codex and Vibe adapters fail with the provider's own text", () => 
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(AgentSessionFailedError);
-      expect((result.left as AgentSessionFailedError).failure.kind).toBe("provider-error");
+      expect(result.failure).toBeInstanceOf(AgentSessionFailedError);
+      expect((result.failure as AgentSessionFailedError).failure.kind).toBe("provider-error");
     }
   });
 

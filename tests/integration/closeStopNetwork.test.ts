@@ -175,8 +175,8 @@ describe("a closing turn that loses the network", () => {
     const result = await closeWithNetworkFailure(run);
 
     if (Result.isSuccess(result)) throw new Error("the close was not refused");
-    expect(result.left).toBeInstanceOf(StopCloseRefusedError);
-    const error = result.left as StopCloseRefusedError;
+    expect(result.failure).toBeInstanceOf(StopCloseRefusedError);
+    const error = result.failure as StopCloseRefusedError;
     expect(exitCodeForError(error)).toBe(14);
     expect(error.lastClose).toMatchObject({
       result: "network",
@@ -207,7 +207,7 @@ describe("the terminal after a closing turn that lost the network", () => {
     const result = await closeWithNetworkFailure(run);
 
     if (Result.isSuccess(result)) throw new Error("the close was not refused");
-    const error = result.left as StopCloseRefusedError;
+    const error = result.failure as StopCloseRefusedError;
     const retry = resumeRetryCommand(run.shortName, "claude-code,codex-cli");
     expect(renderStopCloseRefusal(error, retry)).toEqual([
       `✗ claude-code session failed (network): ${PROVIDER_MESSAGE}`,
@@ -251,10 +251,10 @@ describe("review-stop and run-list documents at 0.26.0 and 0.30.0", () => {
 
     expect(Result.isSuccess(decodeReviewStopV0_26_0(stop))).toBe(true);
     const read = readReviewStopFile(path, JSON.parse(readFileSync(path, "utf8")));
-    if (Result.isFailure(read)) throw new Error(String(read.left));
-    expect(read.right).not.toHaveProperty("$schema");
-    expect(read.right.lastClose).toBeNull();
-    expect(read.right.run).toBe(stop["run"]);
+    if (Result.isFailure(read)) throw new Error(String(read.failure));
+    expect(read.success).not.toHaveProperty("$schema");
+    expect(read.success.lastClose).toBeNull();
+    expect(read.success.run).toBe(stop["run"]);
   });
 
   it("refuses a network close in a stop stamped 0.26.0", async () => {
@@ -280,8 +280,8 @@ describe("review-stop and run-list documents at 0.26.0 and 0.30.0", () => {
       },
     };
     const decoded = decodeReviewStopFile(stop);
-    if (Result.isFailure(decoded)) throw new Error(String(decoded.left));
-    expect(decoded.right.lastClose).toEqual(stop.lastClose);
+    if (Result.isFailure(decoded)) throw new Error(String(decoded.failure));
+    expect(decoded.success.lastClose).toEqual(stop.lastClose);
     const withStep = { ...stop, lastClose: { ...stop.lastClose, step: "closing-turn" } };
     expect(Result.isFailure(decodeReviewStopFile(withStep))).toBe(true);
   });

@@ -222,8 +222,8 @@ function readRecord(name: string) {
     name,
     JSON.parse(readFileSync(join(briefsDir(), name), "utf8")) as unknown,
   );
-  if (Result.isFailure(read)) throw new Error(read.left.message);
-  return read.right;
+  if (Result.isFailure(read)) throw new Error(read.failure.message);
+  return read.success;
 }
 
 describe("phax brief — inside a phase worktree", () => {

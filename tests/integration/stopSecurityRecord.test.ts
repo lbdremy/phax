@@ -69,7 +69,7 @@ afterEach(() => {
 
 function stoppedAtReview(result: Result.Result<unknown, unknown>): void {
   if (Result.isSuccess(result)) throw new Error("the run did not stop");
-  expect(result.left).toBeInstanceOf(AwaitingReviewStopError);
+  expect(result.failure).toBeInstanceOf(AwaitingReviewStopError);
 }
 
 const securityPath = (run: HeldRun, phaseId: string): string =>

@@ -84,13 +84,13 @@ describe("resolveRun + inspectResume after reset-phase", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.phaseStatuses).toHaveLength(0);
-      expect(result.right.finalPhaseId).toBe("phase-02");
-      expect(result.right.finalPhaseTitle).toBe("Second Phase");
-      expect(result.right.worktreePath).toBe("");
-      expect(result.right.claudeSessionId).toBeUndefined();
-      expect(result.right.runState).toBe("interrupted");
-      expect(result.right.planPhases).toHaveLength(2);
+      expect(result.success.phaseStatuses).toHaveLength(0);
+      expect(result.success.finalPhaseId).toBe("phase-02");
+      expect(result.success.finalPhaseTitle).toBe("Second Phase");
+      expect(result.success.worktreePath).toBe("");
+      expect(result.success.claudeSessionId).toBeUndefined();
+      expect(result.success.runState).toBe("interrupted");
+      expect(result.success.planPhases).toHaveLength(2);
     }
   });
 
@@ -103,8 +103,8 @@ describe("resolveRun + inspectResume after reset-phase", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.nextPhaseId).toBe("phase-01");
-      expect(result.right.nextPhaseIndex).toBe(0);
+      expect(result.success.nextPhaseId).toBe("phase-01");
+      expect(result.success.nextPhaseIndex).toBe(0);
     }
   });
 
@@ -120,8 +120,8 @@ describe("resolveRun + inspectResume after reset-phase", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.phaseStatuses).toHaveLength(0);
-      expect(result.right.finalPhaseId).toBe("phase-02");
+      expect(result.success.phaseStatuses).toHaveLength(0);
+      expect(result.success.finalPhaseId).toBe("phase-02");
     }
   });
 
@@ -156,10 +156,10 @@ describe("resolveRun + inspectResume after reset-phase", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.phaseStatuses).toHaveLength(1);
-      expect(result.right.finalPhaseId).toBe("phase-01");
-      expect(result.right.finalPhaseTitle).toBe("First Phase");
-      expect(result.right.worktreePath).toBe(
+      expect(result.success.phaseStatuses).toHaveLength(1);
+      expect(result.success.finalPhaseId).toBe("phase-01");
+      expect(result.success.finalPhaseTitle).toBe("First Phase");
+      expect(result.success.worktreePath).toBe(
         join(stateRoot, "worktrees", "test-project.my-run", "phase-01"),
       );
     }
@@ -182,7 +182,7 @@ describe("resolveRun + inspectResume after reset-phase", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toContain("No phase statuses found");
+      expect(result.failure).toContain("No phase statuses found");
     }
   });
 });

@@ -406,8 +406,8 @@ describe("phax enter-phase --new-session", () => {
 
     expect(Result.isFailure(outcome)).toBe(true);
     if (Result.isSuccess(outcome)) return;
-    expect(outcome.left).toMatchObject({ _tag: "LockConflictError" });
-    expect(exitCodeForError(outcome.left)).toBe(7);
+    expect(outcome.failure).toMatchObject({ _tag: "LockConflictError" });
+    expect(exitCodeForError(outcome.failure)).toBe(7);
     expect(backend.impl.runCalls).toHaveLength(0);
   });
 

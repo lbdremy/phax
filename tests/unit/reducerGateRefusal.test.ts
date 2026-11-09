@@ -8,7 +8,7 @@ import type { PhaxState } from "../../src/domain/state.js";
 
 function unwrap<T>(e: Result.Result<T, unknown>): T {
   if (Result.isFailure(e)) throw new Error("decode failed");
-  return e.right;
+  return e.success;
 }
 
 const runId = unwrap(decodeRunId("hello-world.greet"));

@@ -169,16 +169,16 @@ export function reviewRecordTargetFor(input: {
     if (Result.isFailure(loaded)) {
       return {
         kind: "unresolved",
-        reason: `the run's project config at ${tree.mainRoot} could not be loaded (${loaded.left.message})`,
+        reason: `the run's project config at ${tree.mainRoot} could not be loaded (${loaded.failure.message})`,
       };
     }
-    if (loaded.right.namespace !== input.namespace) {
+    if (loaded.success.namespace !== input.namespace) {
       return {
         kind: "unresolved",
-        reason: `the project at ${tree.mainRoot} is "${loaded.right.namespace}", not the run's "${input.namespace}"`,
+        reason: `the project at ${tree.mainRoot} is "${loaded.success.namespace}", not the run's "${input.namespace}"`,
       };
     }
-    project = loaded.right;
+    project = loaded.success;
   }
   return {
     kind: "project",

@@ -66,7 +66,7 @@ function issue(input: unknown): string {
   const decoded = decodeGateReportFile(input);
   if (Result.isSuccess(decoded))
     throw new Error(`expected a refusal, got ${JSON.stringify(input)}`);
-  return describeReportIssue(decoded.left);
+  return describeReportIssue(decoded.failure);
 }
 
 describe("gate report: the two outcomes", () => {

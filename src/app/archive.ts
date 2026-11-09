@@ -66,11 +66,11 @@ export function archive(
     const infoResult = yield* Effect.sync(() => resolveRun(namespace, shortName, stateRoot));
 
     const worktreePath =
-      Result.isSuccess(infoResult) && infoResult.right.worktreePath
-        ? (infoResult.right.worktreePath as WorktreePath)
+      Result.isSuccess(infoResult) && infoResult.success.worktreePath
+        ? (infoResult.success.worktreePath as WorktreePath)
         : undefined;
 
-    const runState = Result.isSuccess(infoResult) ? infoResult.right.runState : undefined;
+    const runState = Result.isSuccess(infoResult) ? infoResult.success.runState : undefined;
     const finished = runState === "review_open" || runState === "completed";
 
     // 3. Check final worktree cleanliness (finished runs without --force only).
@@ -94,7 +94,7 @@ export function archive(
     // Patch each phase binding to 'archived' before the folder is moved.
     // No-op when a phase has no binding (patchAgentBindingStatus catches internally).
     if (Result.isSuccess(infoResult)) {
-      for (const phaseStatus of infoResult.right.phaseStatuses) {
+      for (const phaseStatus of infoResult.success.phaseStatuses) {
         const phaseFolderPath = join(runPath, phaseStatus.phaseId);
         yield* Effect.promise(() => patchAgentBindingStatus(phaseFolderPath, "archived"));
       }

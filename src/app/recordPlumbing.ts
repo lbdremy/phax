@@ -224,7 +224,7 @@ export function commitRecordTree(input: CommitRecordTreeInput): Effect.Effect<
         .pipe(Effect.result);
       if (Result.isSuccess(written)) {
         return {
-          commitSha: written.right,
+          commitSha: written.success,
           branch: RECORDS_BRANCH_NAME,
           fileCount: files.length,
           branchState,
@@ -234,12 +234,12 @@ export function commitRecordTree(input: CommitRecordTreeInput): Effect.Effect<
           }),
         };
       }
-      if (!isStaleTipError(written.left)) return yield* Effect.fail(written.left);
+      if (!isStaleTipError(written.failure)) return yield* Effect.fail(written.failure);
       if (attempt >= MAX_WRITE_ATTEMPTS) {
         // Said in phax's words: the raw `cannot lock ref … expected …` names no cause.
         return yield* Effect.fail(
           new GitError({
-            ...written.left,
+            ...written.failure,
             message: `the records branch kept moving under other writers in ${input.repo}; record not written after ${MAX_WRITE_ATTEMPTS} attempts`,
           }),
         );

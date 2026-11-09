@@ -11,8 +11,8 @@ const phaxJson = fileURLToPath(new URL("../../../phax.json", import.meta.url));
 
 function decoded() {
   const result = decodePhaxConfig(JSON.parse(readFileSync(phaxJson, "utf8")));
-  if (Result.isFailure(result)) throw new Error(String(result.left));
-  return result.right;
+  if (Result.isFailure(result)) throw new Error(String(result.failure));
+  return result.success;
 }
 
 describe("phax.json", () => {

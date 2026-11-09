@@ -239,8 +239,8 @@ describe("provider dispatcher", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(AgentInvocationError);
-      expect((result.left as AgentInvocationError).message).toContain("not yet wired");
+      expect(result.failure).toBeInstanceOf(AgentInvocationError);
+      expect((result.failure as AgentInvocationError).message).toContain("not yet wired");
     }
   });
 });

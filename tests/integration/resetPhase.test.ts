@@ -212,7 +212,7 @@ describe("resetPhase", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isFailure(result)) throw new Error("unreachable");
-    const value = result.right;
+    const value = result.success;
     expect(value.phaseId).toBe("phase-02");
     expect(value.worktreeRemoved).toBe(true);
     expect(value.branchDeleted).toBe(true);
@@ -289,8 +289,8 @@ describe("resetPhase", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isSuccess(result)) throw new Error("unreachable");
-    expect(result.left).toBeInstanceOf(ResetPhaseError);
-    expect((result.left as ResetPhaseError).reason).toBe("phase_blocked_by_later_committed");
+    expect(result.failure).toBeInstanceOf(ResetPhaseError);
+    expect((result.failure as ResetPhaseError).reason).toBe("phase_blocked_by_later_committed");
 
     // No side effects on the registry / git fake.
     expect(fakeGit.impl.calls.some((c) => c.method === "removeWorktree")).toBe(false);
@@ -384,8 +384,8 @@ describe("resetPhase", () => {
 
       expect(Result.isFailure(result)).toBe(true);
       if (Result.isSuccess(result)) throw new Error("unreachable");
-      expect(result.left).toBeInstanceOf(ResetPhaseError);
-      const error = result.left as ResetPhaseError;
+      expect(result.failure).toBeInstanceOf(ResetPhaseError);
+      const error = result.failure as ResetPhaseError;
       expect(error.reason).toBe("phase_blocked_by_passing");
       expect(error.message).toBe(
         `Cannot reset "phase-02" of run "my-run": its passing phase "phase-03" is failed, and a committed acceptance phase is not reset. To correct the acceptance test, edit it in phase-03 (\`phax enter-phase my-run phase-03\`), then run \`phax resume my-run --yes --skip-acceptance\`: the configured gate still runs.`,
@@ -402,7 +402,7 @@ describe("resetPhase", () => {
       const result = await reset("phase-02", makeFakeGit());
 
       if (Result.isSuccess(result)) throw new Error("unreachable");
-      const error = result.left as ResetPhaseError;
+      const error = result.failure as ResetPhaseError;
       expect(error.reason).toBe("phase_blocked_by_passing");
       expect(error.message).toBe(
         `Cannot reset "phase-02" of run "my-run": its passing phase "phase-03" is review_open, and a committed acceptance phase is not reset.`,
@@ -417,7 +417,7 @@ describe("resetPhase", () => {
 
       expect(Result.isFailure(result)).toBe(true);
       if (Result.isFailure(result)) {
-        expect((result.left as ResetPhaseError).reason).toBe("phase_blocked_by_passing");
+        expect((result.failure as ResetPhaseError).reason).toBe("phase_blocked_by_passing");
       }
     });
 
@@ -432,7 +432,7 @@ describe("resetPhase", () => {
       // committed phase: a committed oracle phase is not reset.
       expect(Result.isFailure(second)).toBe(true);
       if (Result.isFailure(second)) {
-        expect((second.left as ResetPhaseError).reason).toBe("not_resettable");
+        expect((second.failure as ResetPhaseError).reason).toBe("not_resettable");
       }
     });
 
@@ -535,7 +535,7 @@ describe("resetPhase", () => {
       const result = await reset("phase-03");
 
       if (Result.isSuccess(result)) throw new Error("expected the reset to be refused");
-      expect(result.left).toMatchObject({
+      expect(result.failure).toMatchObject({
         reason: "phase_blocked_by_passing",
         message:
           "Cannot reset 'phase-03' of run 'my-run': its passing phase 'phase-04' is failed, and the passing phase judges this phase's commit. To correct the acceptance test, edit it in phase-04 (`phax enter-phase my-run phase-04`), then run `phax resume my-run --yes --skip-acceptance`: the configured gate still runs.",
@@ -549,7 +549,7 @@ describe("resetPhase", () => {
       const result = await reset("phase-03");
 
       if (Result.isSuccess(result)) throw new Error("expected the reset to be refused");
-      expect(result.left).toMatchObject({
+      expect(result.failure).toMatchObject({
         reason: "phase_blocked_by_passing",
         message:
           "Cannot reset 'phase-03' of run 'my-run': its passing phase 'phase-04' is review_open, and the passing phase judges this phase's commit.",
@@ -568,7 +568,7 @@ describe("resetPhase", () => {
 
         // Some other rule may refuse it, never the discharge rule.
         if (Result.isFailure(result)) {
-          expect((result.left as ResetPhaseError).reason).not.toBe("phase_blocked_by_passing");
+          expect((result.failure as ResetPhaseError).reason).not.toBe("phase_blocked_by_passing");
         }
       }
     });
@@ -610,8 +610,8 @@ describe("resetPhase", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isSuccess(result)) throw new Error("unreachable");
-    expect(result.left).toBeInstanceOf(ResetPhaseError);
-    expect((result.left as ResetPhaseError).reason).toBe("not_resettable");
+    expect(result.failure).toBeInstanceOf(ResetPhaseError);
+    expect((result.failure as ResetPhaseError).reason).toBe("not_resettable");
   });
 
   it("is tolerant of an already-missing worktree and branch", async () => {
@@ -655,7 +655,7 @@ describe("resetPhase", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isFailure(result)) throw new Error("unreachable");
-    expect(result.right.branchDeleted).toBe(false);
+    expect(result.success.branchDeleted).toBe(false);
     expect(fakeGit.impl.deletedBranches.length).toBe(0);
 
     // Run still flipped to interrupted; phase folder still archived.
@@ -830,7 +830,7 @@ describe("resetPhase", () => {
         ),
       );
 
-      expect(Result.isFailure(result) && result.left).toBeInstanceOf(LockConflictError);
+      expect(Result.isFailure(result) && result.failure).toBeInstanceOf(LockConflictError);
       expect(await snapshot(runPath)).toEqual(before);
       expect(fakeGit.impl.calls.filter((c) => c.method === "removeWorktree")).toEqual([]);
       expect(fakeGit.impl.deletedBranches).toHaveLength(0);
@@ -855,9 +855,9 @@ describe("resetPhase", () => {
 
       expect(Result.isFailure(result)).toBe(true);
       if (Result.isSuccess(result)) throw new Error("unreachable");
-      expect(result.left).toBeInstanceOf(ResetPhaseError);
-      expect((result.left as ResetPhaseError).reason).toBe("phase_not_at_stop");
-      expect(result.left.message).toBe(
+      expect(result.failure).toBeInstanceOf(ResetPhaseError);
+      expect((result.failure as ResetPhaseError).reason).toBe("phase_not_at_stop");
+      expect(result.failure.message).toBe(
         'Cannot reset "phase-02" of run "my-run": the run is awaiting review at "phase-03". Reset "phase-03" first (`phax reset-phase my-run phase-03`).',
       );
       expect(await snapshot(runPath)).toEqual(before);
@@ -888,8 +888,8 @@ describe("resetPhase", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isSuccess(result)) throw new Error("unreachable");
-    expect(result.left).toBeInstanceOf(ResetPhaseError);
-    expect((result.left as ResetPhaseError).reason).toBe("run_not_found");
+    expect(result.failure).toBeInstanceOf(ResetPhaseError);
+    expect((result.failure as ResetPhaseError).reason).toBe("run_not_found");
   });
 });
 
@@ -948,10 +948,10 @@ describe("previewResetPhase refuses what resetPhase refuses", () => {
 
     if (Result.isSuccess(previewed)) throw new Error("expected the preview to be refused");
     if (Result.isSuccess(reset)) throw new Error("expected the reset to be refused");
-    expect(previewed.left).toBeInstanceOf(ResetPhaseError);
-    expect(reset.left).toBeInstanceOf(ResetPhaseError);
-    const { reason, message } = reset.left as ResetPhaseError;
-    expect(previewed.left).toMatchObject({ reason, message });
+    expect(previewed.failure).toBeInstanceOf(ResetPhaseError);
+    expect(reset.failure).toBeInstanceOf(ResetPhaseError);
+    const { reason, message } = reset.failure as ResetPhaseError;
+    expect(previewed.failure).toMatchObject({ reason, message });
     expect(await snapshot(runPath)).toEqual(before);
     expect(fakeGit.impl.calls.some((c) => c.method === "removeWorktree")).toBe(false);
     expect(fakeGit.impl.deletedBranches).toEqual([]);

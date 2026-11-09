@@ -29,9 +29,9 @@ describe("decodeGlobalFileReconciliation", () => {
     const result = decodeGlobalFileReconciliation(VALID_RECONCILIATION);
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.files).toHaveLength(1);
-      expect(result.right.files[0]?.path).toBe("src/foo.ts");
-      expect(result.right.files[0]?.actualActions).toContain("added");
+      expect(result.success.files).toHaveLength(1);
+      expect(result.success.files[0]?.path).toBe("src/foo.ts");
+      expect(result.success.files[0]?.actualActions).toContain("added");
     }
   });
 

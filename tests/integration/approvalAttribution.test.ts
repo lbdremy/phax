@@ -160,8 +160,8 @@ function expectRefusedUntouched(
 ): void {
   expect(Result.isFailure(result)).toBe(true);
   if (Result.isFailure(result)) {
-    expect(exitCodeForError(result.left)).toBe(12);
-    expect(result.left.message).toContain(expected);
+    expect(exitCodeForError(result.failure)).toBe(12);
+    expect(result.failure.message).toContain(expected);
   }
   expect(headSha()).toBe(before);
   expect(porcelain()).toBe("");
@@ -209,7 +209,7 @@ describe("Approvals name their approver", { timeout: 30_000 }, () => {
 
       expect(Result.isSuccess(result)).toBe(true);
       if (Result.isSuccess(result)) {
-        expect(result.right.approvedBy).toEqual({ kind: "machine", grant: "roadmap-loop" });
+        expect(result.success.approvedBy).toEqual({ kind: "machine", grant: "roadmap-loop" });
       }
       const record = recordJson(kind, path);
       expect(record["$schema"]).toBe(currentSchemaUrl(`${kind}-approval-record`));
@@ -257,7 +257,8 @@ describe("Approvals name their approver", { timeout: 30_000 }, () => {
       const before = headSha();
       const result = await approve(path, undefined, false);
       expectRefusedUntouched(result, "--by operator", before);
-      if (Result.isFailure(result)) expect(result.left.message).toContain("--by machine:<grant>");
+      if (Result.isFailure(result))
+        expect(result.failure.message).toContain("--by machine:<grant>");
       expect(readRepoFile(path)).toContain("status: Draft");
     },
   );

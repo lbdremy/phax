@@ -318,7 +318,7 @@ describe("executePlan — resume from cleanup-paused (cleaning_up+interrupted)",
       ),
     );
 
-    if (Result.isFailure(result)) console.error("FAILED:", result.left);
+    if (Result.isFailure(result)) console.error("FAILED:", result.failure);
     expect(Result.isSuccess(result)).toBe(true);
 
     // Phase-01 agent body must NOT be re-invoked — only phase-02 body runs.
@@ -416,7 +416,7 @@ describe("executePlan — resume from cleanup-paused (cleaning_up+interrupted)",
     // The run pauses again — CleanupPausedError is the pause sentinel.
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(CleanupPausedError);
+      expect(result.failure).toBeInstanceOf(CleanupPausedError);
     }
 
     // Run remains interrupted (not failed) so it can be resumed again.

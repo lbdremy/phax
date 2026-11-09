@@ -92,16 +92,16 @@ export const archiveCommand = defineCommand({
       );
       const resolved = resolveRunRef(input.args[0], config, config.stateRoot);
       if (Result.isFailure(resolved)) {
-        return yield* Effect.fail(new ArchiveRunRefError({ message: resolved.left.message }));
+        return yield* Effect.fail(new ArchiveRunRefError({ message: resolved.failure.message }));
       }
-      const { namespace, shortName, crossProject } = resolved.right;
+      const { namespace, shortName, crossProject } = resolved.success;
       const qualifiedName = runKey(namespace, shortName);
       const decoded = decodeShortName(shortName);
       if (Result.isFailure(decoded)) {
         return yield* Effect.die(`Internal error: resolved shortName "${shortName}" is invalid.`);
       }
       const options = input.flags.force === true ? { force: true } : {};
-      yield* archive(namespace, decoded.right, config.stateRoot, config.repoRoot, options).pipe(
+      yield* archive(namespace, decoded.success, config.stateRoot, config.repoRoot, options).pipe(
         Effect.provide(
           Layer.mergeAll(
             makeRepoRootedFileSystemLayer(config),

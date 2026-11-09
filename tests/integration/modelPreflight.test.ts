@@ -146,8 +146,8 @@ describe("executePlan — model preflight", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(ModelPreflightError);
-      const err = result.left as ModelPreflightError;
+      expect(result.failure).toBeInstanceOf(ModelPreflightError);
+      const err = result.failure as ModelPreflightError;
       expect(err.failures).toHaveLength(1);
       expect(err.failures[0]?.phaseId).toBe("phase-01");
       expect(err.failures[0]?.model).toBe("completely-unknown-model-xyz");
@@ -212,8 +212,8 @@ describe("executePlan — model preflight", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(ModelPreflightError);
-      const err = result.left as ModelPreflightError;
+      expect(result.failure).toBeInstanceOf(ModelPreflightError);
+      const err = result.failure as ModelPreflightError;
       expect(err.failures[0]?.reasons[0]).toContain("ultracode");
       expect(err.failures[0]?.reasons[0]).toContain("not supported");
       // The structured failure carries the catalog-derived alternatives so a
@@ -282,7 +282,7 @@ describe("executePlan — model preflight", () => {
     // The run may fail for other reasons (no backend responses) but never
     // with a ModelPreflightError since the model is valid.
     if (Result.isFailure(result)) {
-      expect(result.left).not.toBeInstanceOf(ModelPreflightError);
+      expect(result.failure).not.toBeInstanceOf(ModelPreflightError);
     }
   });
 
@@ -350,8 +350,8 @@ describe("executePlan — model preflight", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(ModelPreflightError);
-      const err = result.left as ModelPreflightError;
+      expect(result.failure).toBeInstanceOf(ModelPreflightError);
+      const err = result.failure as ModelPreflightError;
       expect(err.failures).toHaveLength(2);
       const phaseIds = err.failures.map((f) => f.phaseId);
       expect(phaseIds).toContain("phase-01");

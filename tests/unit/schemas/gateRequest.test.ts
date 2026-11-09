@@ -25,7 +25,7 @@ function decodes(document: unknown): boolean {
 describe("the gate-request document", () => {
   it("decodes a valid document", () => {
     const decoded = decodeGateRequestFile(request());
-    expect(Result.isSuccess(decoded) && decoded.right).toEqual(request());
+    expect(Result.isSuccess(decoded) && decoded.success).toEqual(request());
   });
 
   it("decodes a SHA-256 base", () => {

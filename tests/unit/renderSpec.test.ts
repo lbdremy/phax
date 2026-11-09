@@ -12,8 +12,8 @@ import {
 
 function decoded(raw: unknown): SpecDocument {
   const result = decodeAuthoredSpecDocument(raw);
-  if (Result.isFailure(result)) throw new Error(`fixture does not decode: ${result.left}`);
-  const { $schema: _schema, ...document } = result.right;
+  if (Result.isFailure(result)) throw new Error(`fixture does not decode: ${result.failure}`);
+  const { $schema: _schema, ...document } = result.success;
   return document;
 }
 
@@ -173,8 +173,8 @@ function withArbitrated(): SpecDocument {
       ],
     }),
   );
-  if (Result.isFailure(file)) throw new Error(`fixture does not decode: ${file.left.message}`);
-  const { $schema: _schema, ...doc } = file.right;
+  if (Result.isFailure(file)) throw new Error(`fixture does not decode: ${file.failure.message}`);
+  const { $schema: _schema, ...doc } = file.success;
   return doc;
 }
 

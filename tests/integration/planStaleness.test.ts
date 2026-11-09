@@ -62,7 +62,7 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
 
     expect(Result.isSuccess(verdict)).toBe(true);
     if (Result.isSuccess(verdict)) {
-      expect(verdict.right.kind).toBe("missing-record");
+      expect(verdict.success.kind).toBe("missing-record");
     }
   });
 
@@ -87,9 +87,9 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
 
     expect(Result.isSuccess(verdict)).toBe(true);
     if (Result.isSuccess(verdict)) {
-      expect(verdict.right.kind).toBe("missing-record");
-      if (verdict.right.kind === "missing-record") {
-        expect(verdict.right.detail).toContain(baseline);
+      expect(verdict.success.kind).toBe("missing-record");
+      if (verdict.success.kind === "missing-record") {
+        expect(verdict.success.detail).toContain(baseline);
       }
     }
   });
@@ -123,7 +123,7 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
     );
 
     expect(Result.isSuccess(verdict)).toBe(true);
-    if (Result.isSuccess(verdict)) expect(verdict.right).toEqual({ kind: "fresh" });
+    if (Result.isSuccess(verdict)) expect(verdict.success).toEqual({ kind: "fresh" });
   });
 
   it("a declared spec's content edit reports spec-changed", async () => {
@@ -156,7 +156,7 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
 
     expect(Result.isSuccess(verdict)).toBe(true);
     if (Result.isSuccess(verdict)) {
-      expect(verdict.right).toEqual({
+      expect(verdict.success).toEqual({
         kind: "stale",
         evidence: [{ reason: "spec-changed", specPath: "docs/specs/2609101222-foo.md" }],
       });
@@ -224,7 +224,7 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
     );
 
     expect(Result.isSuccess(verdict)).toBe(true);
-    if (Result.isSuccess(verdict)) expect(verdict.right).toEqual({ kind: "fresh" });
+    if (Result.isSuccess(verdict)) expect(verdict.success).toEqual({ kind: "fresh" });
   });
 
   it("a footprint file listed in changedFilesSince reports ground-changed naming exactly that file", async () => {
@@ -252,7 +252,7 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
 
     expect(Result.isSuccess(verdict)).toBe(true);
     if (Result.isSuccess(verdict)) {
-      expect(verdict.right).toEqual({
+      expect(verdict.success).toEqual({
         kind: "stale",
         evidence: [
           { reason: "ground-changed", baseline: gitImpl.headCommitValue, files: ["src/foo.ts"] },
@@ -285,7 +285,7 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
     );
 
     expect(Result.isSuccess(verdict)).toBe(true);
-    if (Result.isSuccess(verdict)) expect(verdict.right).toEqual({ kind: "fresh" });
+    if (Result.isSuccess(verdict)) expect(verdict.success).toEqual({ kind: "fresh" });
   });
 
   it("editing the plan body after approval reports self-changed", async () => {
@@ -308,7 +308,7 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
 
     expect(Result.isSuccess(verdict)).toBe(true);
     if (Result.isSuccess(verdict)) {
-      expect(verdict.right).toEqual({ kind: "stale", evidence: [{ reason: "self-changed" }] });
+      expect(verdict.success).toEqual({ kind: "stale", evidence: [{ reason: "self-changed" }] });
     }
   });
 
@@ -345,7 +345,7 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
 
     expect(Result.isSuccess(verdict)).toBe(true);
     if (Result.isSuccess(verdict)) {
-      expect(verdict.right).toEqual({
+      expect(verdict.success).toEqual({
         kind: "stale",
         evidence: [
           { reason: "spec-changed", specPath: "docs/specs/2609101222-foo.md" },
@@ -393,7 +393,7 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
 
     expect(Result.isSuccess(verdict)).toBe(true);
     if (Result.isSuccess(verdict)) {
-      expect(verdict.right).toEqual({ kind: "fresh" });
+      expect(verdict.success).toEqual({ kind: "fresh" });
     }
   });
 
@@ -423,8 +423,8 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
 
     expect(Result.isFailure(verdict)).toBe(true);
     if (Result.isFailure(verdict)) {
-      expect(verdict.left).toBeInstanceOf(ArtifactValidationError);
-      expect((verdict.left as ArtifactValidationError).message).toContain(
+      expect(verdict.failure).toBeInstanceOf(ArtifactValidationError);
+      expect((verdict.failure as ArtifactValidationError).message).toContain(
         "docs/specs/2609101222-foo.md",
       );
     }
@@ -449,7 +449,7 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
       }).pipe(Effect.provide(layer)),
     );
     expect(Result.isSuccess(staleVerdict)).toBe(true);
-    if (Result.isSuccess(staleVerdict)) expect(staleVerdict.right.kind).toBe("stale");
+    if (Result.isSuccess(staleVerdict)) expect(staleVerdict.success.kind).toBe("stale");
 
     await run(
       transitionArtifact("docs/plans/2609101240-thing-plan.md", "Approved", {
@@ -465,7 +465,7 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
       }).pipe(Effect.provide(layer)),
     );
     expect(Result.isSuccess(freshVerdict)).toBe(true);
-    if (Result.isSuccess(freshVerdict)) expect(freshVerdict.right).toEqual({ kind: "fresh" });
+    if (Result.isSuccess(freshVerdict)) expect(freshVerdict.success).toEqual({ kind: "fresh" });
   });
 });
 
@@ -560,7 +560,7 @@ describe("computePlanStaleness (extraction wrapper)", () => {
     );
 
     expect(Result.isSuccess(verdict)).toBe(true);
-    if (Result.isSuccess(verdict)) expect(verdict.right).toEqual({ kind: "fresh" });
+    if (Result.isSuccess(verdict)) expect(verdict.success).toEqual({ kind: "fresh" });
     expect(backendImpl.runCalls).toHaveLength(0);
     expect(backendImpl.completeCalls).toHaveLength(0);
   });
@@ -799,8 +799,8 @@ describe("applyStalenessReport", () => {
 
     expect(Result.isSuccess(flipped)).toBe(true);
     if (Result.isSuccess(flipped)) {
-      expect(flipped.right.map((f) => f.path)).toEqual(["docs/plans/2609101241-stale-plan.md"]);
-      const rendered = renderStalenessApply(flipped.right);
+      expect(flipped.success.map((f) => f.path)).toEqual(["docs/plans/2609101241-stale-plan.md"]);
+      const rendered = renderStalenessApply(flipped.success);
       expect(rendered).toContain("docs/plans/2609101241-stale-plan.md: Approved -> Stale");
     }
 
@@ -840,8 +840,8 @@ describe("applyStalenessReport", () => {
 
     expect(Result.isSuccess(flipped)).toBe(true);
     if (Result.isSuccess(flipped)) {
-      expect(flipped.right.map((f) => f.path)).toEqual(["docs/plans/2609101240-thing-plan.md"]);
-      expect(flipped.right[0]?.verdict.kind).toBe("missing-record");
+      expect(flipped.success.map((f) => f.path)).toEqual(["docs/plans/2609101240-thing-plan.md"]);
+      expect(flipped.success[0]?.verdict.kind).toBe("missing-record");
     }
     expect(fsImpl.getFile("docs/plans/2609101240-thing-plan.md")).toContain("status: Stale");
   });
@@ -914,7 +914,7 @@ describe("per-artifact approval record files", () => {
         repoRoot: REPO_ROOT,
       }).pipe(Effect.provide(layer)),
     );
-    expect(Result.isSuccess(verdict) && verdict.right.kind).toBe("missing-record");
+    expect(Result.isSuccess(verdict) && verdict.success.kind).toBe("missing-record");
   });
 
   // Unreadable record files are refused and kept.
@@ -934,8 +934,8 @@ describe("per-artifact approval record files", () => {
     );
     expect(Result.isFailure(verdict)).toBe(true);
     if (Result.isFailure(verdict)) {
-      expect(verdict.left).toBeInstanceOf(ApprovalRecordUnreadableError);
-      expect(verdict.left.message).toContain(`${RECORD_A}: plan approval record has no $schema`);
+      expect(verdict.failure).toBeInstanceOf(ApprovalRecordUnreadableError);
+      expect(verdict.failure.message).toContain(`${RECORD_A}: plan approval record has no $schema`);
     }
 
     const { report } = await Effect.runPromise(
@@ -1064,8 +1064,8 @@ describe("old approval ledger refusal", () => {
     function expectRefused(result: Result.Result<unknown, unknown>): void {
       expect(Result.isFailure(result)).toBe(true);
       if (!Result.isFailure(result)) return;
-      expect(result.left).toBeInstanceOf(ApprovalLedgerMigrationRequiredError);
-      expect((result.left as ApprovalLedgerMigrationRequiredError).ledgerPath).toBe(ledgerPath);
+      expect(result.failure).toBeInstanceOf(ApprovalLedgerMigrationRequiredError);
+      expect((result.failure as ApprovalLedgerMigrationRequiredError).ledgerPath).toBe(ledgerPath);
     }
 
     it(`plansStalenessReport fails as a whole with only ${ledgerPath}, writing nothing`, async () => {

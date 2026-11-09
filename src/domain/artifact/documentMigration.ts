@@ -162,7 +162,7 @@ export function decideDocumentMigration(input: DocumentMigrationInput): Document
   if (Result.isFailure(validated)) {
     return refuse(
       path,
-      `cannot be read — ${validated.left.message}`,
+      `cannot be read — ${validated.failure.message}`,
       "Fix its frontmatter, then rerun.",
     );
   }
@@ -218,7 +218,7 @@ export function decideDocumentMigration(input: DocumentMigrationInput): Document
       kind,
       path,
       sidecarPath,
-      status: validated.right.status,
+      status: validated.success.status,
       format,
       fromShape: sidecar.shape,
       document,

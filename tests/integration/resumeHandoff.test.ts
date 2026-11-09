@@ -418,7 +418,7 @@ describe("executePlan — resume from handoff_failed", () => {
     // The run pauses again — HandoffPausedError is the clean-pause sentinel.
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(HandoffPausedError);
+      expect(result.failure).toBeInstanceOf(HandoffPausedError);
     }
 
     // Run remains interrupted (not failed) so it can be resumed again.
@@ -623,7 +623,7 @@ describe("executePlan — a limit inside a committed phase's handoff turn", () =
       cleanups: [],
       handoff: HANDOFF_CONTENT,
     });
-    expect(Result.isFailure(result) && result.left).toBeInstanceOf(UsageLimitError);
+    expect(Result.isFailure(result) && result.failure).toBeInstanceOf(UsageLimitError);
   }
 
   async function decide() {
@@ -638,19 +638,19 @@ describe("executePlan — a limit inside a committed phase's handoff turn", () =
     expect(existsSync(worktreeOf("phase-01"))).toBe(true);
 
     const decision = await decide();
-    if (Result.isFailure(decision)) throw new Error(decision.left.message);
-    expect(decision.right.nextPhaseId).toBe("phase-01");
+    if (Result.isFailure(decision)) throw new Error(decision.failure.message);
+    expect(decision.success.nextPhaseId).toBe("phase-01");
 
     const { result, fakeBackend, fakeGit } = await invoke({
-      startIndex: decision.right.nextPhaseIndex,
+      startIndex: decision.success.nextPhaseIndex,
       bodies: ["phase-02", "phase-03"],
       handoffTurns: 3,
       cleanups: ["phase-01", "phase-02"],
       handoff: RESUMED_HANDOFF,
     });
 
-    if (Result.isFailure(result)) throw result.left;
-    expect(result.right.completedPhaseCount).toBe(3);
+    if (Result.isFailure(result)) throw result.failure;
+    expect(result.success.completedPhaseCount).toBe(3);
     // Only the handoff turn of phase-01 ran again, in its own session.
     expect(fakeBackend.impl.resumeCalls[0]?.sessionId).toBe("sess-phase-01");
     expect(fakeBackend.impl.runCalls.map((c) => c.options.phaseFolderPath)).toEqual([
@@ -674,24 +674,24 @@ describe("executePlan — a limit inside a committed phase's handoff turn", () =
       cleanups: ["phase-01", "phase-02"],
       handoff: HANDOFF_CONTENT,
     });
-    expect(Result.isFailure(first) && first.left).toBeInstanceOf(UsageLimitError);
+    expect(Result.isFailure(first) && first.failure).toBeInstanceOf(UsageLimitError);
     expect((await readJson(join(runPath, "phase-03", "status.json")))["state"]).toBe("committed");
     expect(existsSync(runHandoffOf("phase-03"))).toBe(false);
 
     const decision = await decide();
-    if (Result.isFailure(decision)) throw new Error(decision.left.message);
-    expect(decision.right.nextPhaseId).toBe("phase-03");
+    if (Result.isFailure(decision)) throw new Error(decision.failure.message);
+    expect(decision.success.nextPhaseId).toBe("phase-03");
 
     const { result } = await invoke({
-      startIndex: decision.right.nextPhaseIndex,
+      startIndex: decision.success.nextPhaseIndex,
       bodies: [],
       handoffTurns: 1,
       cleanups: [],
       handoff: RESUMED_HANDOFF,
     });
 
-    if (Result.isFailure(result)) throw result.left;
-    expect(result.right.completedPhaseCount).toBe(3);
+    if (Result.isFailure(result)) throw result.failure;
+    expect(result.success.completedPhaseCount).toBe(3);
     expect(validateHandoffSections(await readFile(runHandoffOf("phase-03"), "utf8"))).toEqual([]);
     expect(existsSync(join(runPath, "review-handoff.md"))).toBe(true);
     expect((await readJson(join(runPath, "run-status.json")))["state"]).toBe("review_open");
@@ -708,22 +708,22 @@ describe("executePlan — a limit inside a committed phase's handoff turn", () =
       cleanups: [],
       handoff: RESUMED_HANDOFF,
     });
-    expect(Result.isFailure(second) && second.left).toBeInstanceOf(UsageLimitError);
+    expect(Result.isFailure(second) && second.failure).toBeInstanceOf(UsageLimitError);
     expect((await readJson(join(runPath, "phase-01", "status.json")))["state"]).toBe("committed");
     expect(existsSync(runHandoffOf("phase-01"))).toBe(false);
 
     const decision = await decide();
-    if (Result.isFailure(decision)) throw new Error(decision.left.message);
-    expect(decision.right.nextPhaseId).toBe("phase-01");
+    if (Result.isFailure(decision)) throw new Error(decision.failure.message);
+    expect(decision.success.nextPhaseId).toBe("phase-01");
 
     const { result } = await invoke({
-      startIndex: decision.right.nextPhaseIndex,
+      startIndex: decision.success.nextPhaseIndex,
       bodies: ["phase-02", "phase-03"],
       handoffTurns: 3,
       cleanups: ["phase-01", "phase-02"],
       handoff: RESUMED_HANDOFF,
     });
-    if (Result.isFailure(result)) throw result.left;
+    if (Result.isFailure(result)) throw result.failure;
     expect(validateHandoffSections(await readFile(runHandoffOf("phase-01"), "utf8"))).toEqual([]);
     expect((await readJson(join(runPath, "run-status.json")))["state"]).toBe("review_open");
   });
@@ -766,15 +766,15 @@ describe("executePlan — a limit inside a committed phase's handoff turn", () =
 
     const refused = await decide();
     if (Result.isSuccess(refused)) throw new Error("expected a refusal");
-    expect(refused.left.reason).toBe("handoff_unrecoverable");
-    expect(refused.left.message).toContain(
+    expect(refused.failure.reason).toBe("handoff_unrecoverable");
+    expect(refused.failure.message).toContain(
       `its worktree "${worktreeOf("phase-01")}" no longer exists`,
     );
     expect(await readFile(join(runPath, "run-status.json"), "utf8")).toBe(before.run);
     expect(await readFile(join(runPath, "phase-01", "status.json"), "utf8")).toBe(before.phase);
 
     // The remedy's git commands, run as the message names them.
-    const commands = [...refused.left.message.matchAll(/`(git [^`]+)`/g)].map((m) => m[1] ?? "");
+    const commands = [...refused.failure.message.matchAll(/`(git [^`]+)`/g)].map((m) => m[1] ?? "");
     expect(commands).toEqual([
       "git worktree prune",
       `git worktree add ${worktreeOf("phase-01")} ai/my-run--phase-01`,
@@ -786,17 +786,17 @@ describe("executePlan — a limit inside a committed phase's handoff turn", () =
 
     await mkdir(join(worktreeOf("phase-01"), ".phax-context"), { recursive: true });
     const decision = await decide();
-    if (Result.isFailure(decision)) throw new Error(decision.left.message);
-    expect(decision.right.nextPhaseId).toBe("phase-01");
+    if (Result.isFailure(decision)) throw new Error(decision.failure.message);
+    expect(decision.success.nextPhaseId).toBe("phase-01");
 
     const { result } = await invoke({
-      startIndex: decision.right.nextPhaseIndex,
+      startIndex: decision.success.nextPhaseIndex,
       bodies: ["phase-02", "phase-03"],
       handoffTurns: 3,
       cleanups: ["phase-01", "phase-02"],
       handoff: RESUMED_HANDOFF,
     });
-    if (Result.isFailure(result)) throw result.left;
+    if (Result.isFailure(result)) throw result.failure;
     expect(validateHandoffSections(await readFile(runHandoffOf("phase-01"), "utf8"))).toEqual([]);
   }
 
@@ -813,10 +813,10 @@ describe("executePlan — a limit inside a committed phase's handoff turn", () =
 
     const refused = await decide();
     if (Result.isSuccess(refused)) throw new Error("expected a refusal");
-    expect(refused.left.reason).toBe("handoff_unrecoverable");
-    expect(refused.left.message).toContain("no session id is recorded for it");
-    expect(refused.left.message).toContain(`Write ${runHandoffOf("phase-01")} by hand`);
-    expect(refused.left.message).not.toContain("git worktree add");
+    expect(refused.failure.reason).toBe("handoff_unrecoverable");
+    expect(refused.failure.message).toContain("no session id is recorded for it");
+    expect(refused.failure.message).toContain(`Write ${runHandoffOf("phase-01")} by hand`);
+    expect(refused.failure.message).not.toContain("git worktree add");
   });
 
   it("(e) a final phase with its worktree and session id gone also names git worktree add", async () => {
@@ -834,10 +834,10 @@ describe("executePlan — a limit inside a committed phase's handoff turn", () =
 
     const refused = await decide();
     if (Result.isSuccess(refused)) throw new Error("expected a refusal");
-    expect(refused.left.reason).toBe("handoff_unrecoverable");
-    expect(refused.left.message).toContain("no session id is recorded for it");
-    expect(refused.left.message).toContain(`Write ${runHandoffOf("phase-03")} by hand`);
-    expect(refused.left.message).toContain(
+    expect(refused.failure.reason).toBe("handoff_unrecoverable");
+    expect(refused.failure.message).toContain("no session id is recorded for it");
+    expect(refused.failure.message).toContain(`Write ${runHandoffOf("phase-03")} by hand`);
+    expect(refused.failure.message).toContain(
       `git worktree add ${worktreeOf("phase-03")} ai/my-run--phase-03`,
     );
   });
@@ -851,17 +851,17 @@ describe("executePlan — a limit inside a committed phase's handoff turn", () =
     config = { ...config, records: { ...config.records, enabled: true } };
 
     const decision = await decide();
-    if (Result.isFailure(decision)) throw new Error(decision.left.message);
-    expect(decision.right).toMatchObject({ nextPhaseId: "phase-01", owedStep: "post-handoff" });
+    if (Result.isFailure(decision)) throw new Error(decision.failure.message);
+    expect(decision.success).toMatchObject({ nextPhaseId: "phase-01", owedStep: "post-handoff" });
 
     const { result, fakeBackend, fakeGit } = await invoke({
-      startIndex: decision.right.nextPhaseIndex,
+      startIndex: decision.success.nextPhaseIndex,
       bodies: ["phase-02", "phase-03"],
       handoffTurns: 2,
       cleanups: ["phase-01", "phase-02"],
       handoff: HANDOFF_CONTENT,
     });
-    if (Result.isFailure(result)) throw result.left;
+    if (Result.isFailure(result)) throw result.failure;
     // phase-01 runs no agent turn: only the next phases' bodies and handoffs.
     expect(fakeBackend.impl.runCalls.map((c) => c.options.phaseFolderPath)).toEqual([
       join(runPath, "phase-02"),
@@ -873,7 +873,7 @@ describe("executePlan — a limit inside a committed phase's handoff turn", () =
     // Its record, then its cleanup, before phase-02 starts.
     expect(recordedPhases(fakeGit)).toEqual(["phase-01", "phase-02", "phase-03"]);
     expect((await readJson(join(runPath, "phase-01", "status.json")))["state"]).toBe("cleaned_up");
-    expect(result.right.completedPhaseCount).toBe(3);
+    expect(result.success.completedPhaseCount).toBe(3);
   });
 
   it("(f) with its worktree gone too, the phase is cleaned up, warning of the cleanup commands not run", async () => {
@@ -891,17 +891,17 @@ describe("executePlan — a limit inside a committed phase's handoff turn", () =
     const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
 
     const decision = await decide();
-    if (Result.isFailure(decision)) throw new Error(decision.left.message);
-    expect(decision.right).toMatchObject({ nextPhaseId: "phase-01", owedStep: "post-handoff" });
+    if (Result.isFailure(decision)) throw new Error(decision.failure.message);
+    expect(decision.success).toMatchObject({ nextPhaseId: "phase-01", owedStep: "post-handoff" });
 
     const { result, fakeGit } = await invoke({
-      startIndex: decision.right.nextPhaseIndex,
+      startIndex: decision.success.nextPhaseIndex,
       bodies: ["phase-02", "phase-03"],
       handoffTurns: 2,
       cleanups: ["phase-02"],
       handoff: HANDOFF_CONTENT,
     });
-    if (Result.isFailure(result)) throw result.left;
+    if (Result.isFailure(result)) throw result.failure;
     expect((await readJson(join(runPath, "phase-01", "status.json")))["state"]).toBe("cleaned_up");
     // Nothing checked or recreated the gone worktree.
     expect(

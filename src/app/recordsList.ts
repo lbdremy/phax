@@ -129,7 +129,7 @@ export function listRecords(
       }
       const decoded = readRecordManifestFile(`${sha}:${manifestEntry.path}`, json);
       if (Result.isFailure(decoded)) continue;
-      const manifest = decoded.right;
+      const manifest = decoded.success;
       if (isAuthoringRecordManifest(manifest)) {
         records.push({
           kind: "authoring",

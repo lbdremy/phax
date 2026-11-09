@@ -48,7 +48,7 @@ const VERDICT: Verdict = "conformant";
 
 function decoded<A, E>(value: Result.Result<A, E>, what: string): A {
   if (Result.isFailure(value)) throw new Error(`live run: ${what} does not decode`);
-  return value.right;
+  return value.success;
 }
 
 /** `running:pending`, as phax's semantic trace writes a state. */

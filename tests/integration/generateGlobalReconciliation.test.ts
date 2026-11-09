@@ -92,8 +92,8 @@ describe("generateGlobalReconciliation", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
-    expect(result.right.files.find((f) => f.path === "src/foo.ts")?.status).toBe("matched");
-    expect(result.right.unplanned.map((f) => f.path)).toEqual(["src/extra.ts"]);
+    expect(result.success.files.find((f) => f.path === "src/foo.ts")?.status).toBe("matched");
+    expect(result.success.unplanned.map((f) => f.path)).toEqual(["src/extra.ts"]);
   });
 
   it("reads a 0.17.0 reconciliation and a stop's review corrections", async () => {
@@ -129,13 +129,13 @@ describe("generateGlobalReconciliation", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
-    const credit = result.right.files.find((f) => f.path === "src/credit.ts");
+    const credit = result.success.files.find((f) => f.path === "src/credit.ts");
     expect(credit?.status).toBe("matched");
     expect(credit?.reviewCorrectedInPhases).toEqual(["phase-02"]);
-    const invoice = result.right.files.find((f) => f.path === "src/invoice.ts");
+    const invoice = result.success.files.find((f) => f.path === "src/invoice.ts");
     expect(invoice?.status).toBe("review-corrected");
     expect(invoice?.attention).toBe("ok");
-    expect(result.right.unplanned).toEqual([]);
+    expect(result.success.unplanned).toEqual([]);
   });
 
   it("happy path: aggregates phases and writes both global artifacts", async () => {
@@ -172,7 +172,7 @@ describe("generateGlobalReconciliation", () => {
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
 
-    const global = result.right;
+    const global = result.success;
     expect(global.files).toHaveLength(3); // foo.ts, bar.ts, extra.ts
 
     // bar.ts: planned only in phase-01, but also touched in phase-02 → extra-touch
@@ -225,8 +225,8 @@ describe("generateGlobalReconciliation", () => {
     expect(Result.isFailure(result)).toBe(true);
     if (!Result.isFailure(result)) return;
 
-    expect(result.left).toBeInstanceOf(ReviewHandoffArtifactMissingError);
-    const err = result.left as ReviewHandoffArtifactMissingError;
+    expect(result.failure).toBeInstanceOf(ReviewHandoffArtifactMissingError);
+    const err = result.failure as ReviewHandoffArtifactMissingError;
     expect(err.missingPhases).toContain("phase-02");
     expect(err.missingPaths).toContain(`${RUN_PATH}/phase-02/file-reconciliation.json`);
 
@@ -256,8 +256,8 @@ describe("generateGlobalReconciliation", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (!Result.isFailure(result)) return;
-    expect(result.left).toBeInstanceOf(ReviewHandoffArtifactMissingError);
-    const err = result.left as ReviewHandoffArtifactMissingError;
+    expect(result.failure).toBeInstanceOf(ReviewHandoffArtifactMissingError);
+    const err = result.failure as ReviewHandoffArtifactMissingError;
     expect(err.missingPhases).toContain("phase-01");
   });
 
@@ -285,7 +285,7 @@ describe("generateGlobalReconciliation", () => {
     if (!Result.isSuccess(result)) return;
 
     // Aggregation over phase-01 only
-    const global = result.right;
+    const global = result.success;
     expect(global.files).toHaveLength(1);
     expect(global.files[0]?.path).toBe("src/foo.ts");
 
@@ -336,13 +336,13 @@ describe("generateGlobalReconciliation", () => {
 
       expect(Result.isSuccess(result)).toBe(true);
       if (!Result.isSuccess(result)) return;
-      const header = result.right.files.find((f) => f.path === "src/header.ts");
+      const header = result.success.files.find((f) => f.path === "src/header.ts");
       expect(header?.status).toBe("review-corrected");
       expect(header?.reviewCorrectedInPhases).toEqual(["phase-02"]);
-      const row = result.right.files.find((f) => f.path === "src/row.ts");
+      const row = result.success.files.find((f) => f.path === "src/row.ts");
       expect(row?.status).toBe("matched");
       expect(row?.reviewCorrectedInPhases).toEqual(["phase-02"]);
-      expect(result.right.unplanned).toEqual([]);
+      expect(result.success.unplanned).toEqual([]);
     });
 
     it("counts a missing correction reconciliation as a missing reconciliation", async () => {
@@ -370,8 +370,8 @@ describe("generateGlobalReconciliation", () => {
       const refused = await run(false);
       expect(Result.isFailure(refused)).toBe(true);
       if (!Result.isFailure(refused)) return;
-      expect(refused.left).toBeInstanceOf(ReviewHandoffArtifactMissingError);
-      const error = refused.left as ReviewHandoffArtifactMissingError;
+      expect(refused.failure).toBeInstanceOf(ReviewHandoffArtifactMissingError);
+      const error = refused.failure as ReviewHandoffArtifactMissingError;
       expect(error.missingPhases).toEqual(["phase-02"]);
       expect(error.missingPaths).toEqual([`${RUN_PATH}/phase-02/correction-reconciliation.json`]);
 
@@ -465,7 +465,7 @@ describe("generateGlobalReconciliation", () => {
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
 
-    const global = result.right;
+    const global = result.success;
     expect(global.files).toHaveLength(0);
     expect(global.unplanned).toHaveLength(0);
     expect(global.missing).toHaveLength(0);

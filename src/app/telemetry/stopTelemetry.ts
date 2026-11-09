@@ -73,11 +73,11 @@ export function tracedStep<A, E, R>(
     const at = { runId: ctx.runId as RunId, operationId: ctx.phaseId, step: ctx.step };
     yield* telemetry.recordEvent(makeStepStartedTelemetryEvent(at));
     const outcome = yield* Effect.result(step);
-    const ok = Result.isSuccess(outcome) && succeeded(outcome.right);
+    const ok = Result.isSuccess(outcome) && succeeded(outcome.success);
     yield* telemetry.recordEvent(
       makeStepCompletedTelemetryEvent({ ...at, result: ok ? "success" : "failure" }),
     );
-    return yield* outcome;
+    return yield* Effect.fromResult(outcome);
   });
 }
 
@@ -120,9 +120,9 @@ export function tracedCloseGate<A, E, R>(
       yield* telemetry.recordEvent(
         makeGateEvaluatedTelemetryEvent({ ...at, gate: "checks", result: "accepted" }),
       );
-      return outcome.right;
+      return outcome.success;
     }
-    const error = outcome.left;
+    const error = outcome.failure;
     yield* telemetry.recordEvent(
       makeStepCompletedTelemetryEvent({ ...at, step: "gate.run", result: "failure" }),
     );
@@ -199,9 +199,9 @@ export function tracedReviewCommit<A, E, R>(
     const outcome = yield* Effect.result(commit);
     if (Result.isSuccess(outcome)) {
       yield* telemetry.recordEvent(makeAdapterCallSucceededTelemetryEvent(at));
-      return outcome.right;
+      return outcome.success;
     }
-    const error = outcome.left;
+    const error = outcome.failure;
     const reason = error instanceof Error ? error.message : String(error);
     yield* telemetry.recordEvent(
       makeAdapterCallFailedTelemetryEvent({

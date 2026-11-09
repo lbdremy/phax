@@ -120,8 +120,8 @@ async function planEnter(
     ),
   );
   return Result.isSuccess(planned)
-    ? planned.right
-    : { kind: "refused", message: planned.left.message };
+    ? planned.success
+    : { kind: "refused", message: planned.failure.message };
 }
 
 type Output = Schema.Schema.Type<typeof SessionInfoOutput>;
@@ -211,14 +211,14 @@ export const sessionInfoCommand = defineCommand({
   run: ({ input }) =>
     Effect.gen(function* () {
       const configResult = loadConfig(process.cwd());
-      const config = Result.isSuccess(configResult) ? configResult.right : undefined;
+      const config = Result.isSuccess(configResult) ? configResult.success : undefined;
       const stateRoot = effectiveStateRoot(config);
 
       const resolved = resolveRunRef(input.args[0], config, stateRoot);
       if (Result.isFailure(resolved)) {
-        return yield* Effect.fail(new RunRefError({ message: resolved.left.message }));
+        return yield* Effect.fail(new RunRefError({ message: resolved.failure.message }));
       }
-      const { namespace, shortName, info, crossProject } = resolved.right;
+      const { namespace, shortName, info, crossProject } = resolved.success;
       const qualifiedName = runKey(namespace, shortName);
       // Every path read here is absolute: a run of another project needs no project config.
       const target: Target = {
@@ -240,11 +240,11 @@ export const sessionInfoCommand = defineCommand({
       const stopResult = yield* Effect.result(
         readStopInfo(info).pipe(Effect.provide(target.fsLayer)),
       );
-      const stop = Result.isSuccess(stopResult) ? stopResult.right : null;
+      const stop = Result.isSuccess(stopResult) ? stopResult.success : null;
 
       const bindingResult = yield* Effect.promise(() => readAgentBinding(phaseFolderPath));
       const binding: PhaseAgentBinding | null = Result.isSuccess(bindingResult)
-        ? bindingResult.right
+        ? bindingResult.success
         : null;
 
       const entered = yield* Effect.promise(() => planEnter(target, info, finalPhaseId));

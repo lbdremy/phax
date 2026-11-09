@@ -96,8 +96,9 @@ function fixture(): SpecDocumentV0_25_0Value {
       example: "phax prune usage-cli",
     },
   });
-  if (Result.isFailure(result)) throw new Error(`fixture does not decode: ${result.left.message}`);
-  const { $schema: _schema, ...value } = result.right;
+  if (Result.isFailure(result))
+    throw new Error(`fixture does not decode: ${result.failure.message}`);
+  const { $schema: _schema, ...value } = result.success;
   return value;
 }
 

@@ -87,9 +87,9 @@ export function analyzePlanOverlap(
     const inputs: PlanInput[] = [];
     for (const result of results) {
       if (Result.isFailure(result)) {
-        failures.push(result.left.message);
+        failures.push(result.failure.message);
       } else {
-        inputs.push(result.right);
+        inputs.push(result.success);
       }
     }
 
@@ -127,7 +127,7 @@ export function analyzeReadjustmentImpact(
 
     let parsed: unknown;
     try {
-      parsed = JSON.parse(readResult.right) as unknown;
+      parsed = JSON.parse(readResult.success) as unknown;
     } catch {
       return yield* Effect.fail(
         new AnalyzePlanOverlapError({
@@ -140,12 +140,12 @@ export function analyzeReadjustmentImpact(
     if (Result.isFailure(decoded)) {
       return yield* Effect.fail(
         new AnalyzePlanOverlapError({
-          message: `Failed to decode global-file-reconciliation.json at "${reconciliationPath}": ${String(decoded.left)}`,
+          message: `Failed to decode global-file-reconciliation.json at "${reconciliationPath}": ${String(decoded.failure)}`,
         }),
       );
     }
 
-    const reconciliation = decoded.right;
+    const reconciliation = decoded.success;
     const added: string[] = [];
     const modified: string[] = [];
     const deletedOrRenamed: string[] = [];
@@ -187,9 +187,9 @@ export function analyzeReadjustmentImpact(
     const inputs: PlanInput[] = [];
     for (const result of results) {
       if (Result.isFailure(result)) {
-        failures.push(result.left.message);
+        failures.push(result.failure.message);
       } else {
-        inputs.push(result.right);
+        inputs.push(result.success);
       }
     }
 

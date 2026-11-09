@@ -341,22 +341,25 @@ function runDecide(call: DecideCall, deps: ArtifactDecideDeps) {
     const configResult = loadConfig(process.cwd());
     if (Result.isFailure(configResult)) {
       return yield* Effect.fail(
-        sessionCommandRefusal(1, `Config error: ${configResult.left.message}`),
+        sessionCommandRefusal(1, `Config error: ${configResult.failure.message}`),
       );
     }
-    const config = configResult.right;
+    const config = configResult.success;
     const repoRoot = config.repoRoot;
     const fsLayer = makeRootedNodeFileSystemLayer(repoRoot);
     const providerConfig = yield* Effect.result(loadProviderConfig().pipe(Effect.provide(fsLayer)));
     if (Result.isFailure(providerConfig)) {
       return yield* Effect.fail(
-        sessionCommandRefusal(1, `Failed to load routing config: ${providerConfig.left.message}`),
+        sessionCommandRefusal(
+          1,
+          `Failed to load routing config: ${providerConfig.failure.message}`,
+        ),
       );
     }
     const layer = Layer.mergeAll(
       fsLayer,
       makeNodeGitLayer(),
-      deps.backendLayer ?? makeProviderBackendLayer(providerConfig.right),
+      deps.backendLayer ?? makeProviderBackendLayer(providerConfig.success),
       deps.sessionLayer ?? makeNodeSessionLayer(),
       deps.promptLayer ?? makeClackPromptLayer(),
       deps.terminalLayer ?? NodeTerminalLayer,
@@ -422,15 +425,17 @@ function runDecide(call: DecideCall, deps: ArtifactDecideDeps) {
             label,
             by: flags.by,
             routing,
-            providerConfig: providerConfig.right,
+            providerConfig: providerConfig.success,
             bundledSkills: yield* bundledSkills,
           });
         }).pipe(Effect.provide(layer)),
       );
       if (Result.isFailure(decided)) {
-        return yield* Effect.fail(yield* sessionFailure(decided.left, causeLines(retry), repoRoot));
+        return yield* Effect.fail(
+          yield* sessionFailure(decided.failure, causeLines(retry), repoRoot),
+        );
       }
-      const result = decided.right;
+      const result = decided.success;
       const answer: VerdictsOutput = {
         ...verdictsReportJson(result),
         written: yield* writtenRecords(result.paths, repoRoot),
@@ -456,9 +461,11 @@ function runDecide(call: DecideCall, deps: ArtifactDecideDeps) {
       }).pipe(Effect.provide(layer)),
     );
     if (Result.isFailure(decided)) {
-      return yield* Effect.fail(yield* sessionFailure(decided.left, causeLines(retry), repoRoot));
+      return yield* Effect.fail(
+        yield* sessionFailure(decided.failure, causeLines(retry), repoRoot),
+      );
     }
-    const result = decided.right;
+    const result = decided.success;
     const answer: DecideOutput = {
       kind: result.kind,
       path: result.path,
@@ -504,7 +511,7 @@ function checkVerdicts(call: {
     }
     const config = loadConfig(process.cwd());
     if (Result.isFailure(config)) return;
-    const repoRoot = config.right.repoRoot;
+    const repoRoot = config.success.repoRoot;
     const path = repoPaths(call.pathArg, repoRoot).repoRelPath;
     const snapshot = yield* Effect.result(
       readArtifact({ path, repoRoot }).pipe(
@@ -512,7 +519,7 @@ function checkVerdicts(call: {
       ),
     );
     if (Result.isFailure(snapshot)) return;
-    const { authored } = snapshot.right;
+    const { authored } = snapshot.success;
     const questions =
       authored.variant === "headless"
         ? questionFactsOfDocument(authored.document)
@@ -522,7 +529,7 @@ function checkVerdicts(call: {
     const label = labelOf(document);
     const bound = bindVerdictsAt({ file, artifactPath: path, questions, label });
     if (Result.isSuccess(bound)) return;
-    const refusal = bound.left;
+    const refusal = bound.failure;
     return yield* Effect.fail(
       new Refused({
         source: "stdin",

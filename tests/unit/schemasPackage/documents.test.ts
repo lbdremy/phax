@@ -170,7 +170,7 @@ describe("the test documents", () => {
     const decoded = PHAX_DECODERS[id](validDocuments[id]);
     expect(
       Result.isSuccess(decoded),
-      JSON.stringify(Result.isFailure(decoded) && decoded.left),
+      JSON.stringify(Result.isFailure(decoded) && decoded.failure),
     ).toBe(true);
   });
 
@@ -180,7 +180,7 @@ describe("the test documents", () => {
       const decoded = FROZEN_DECODERS[id](preSchemaDocuments[id]);
       expect(
         Result.isSuccess(decoded),
-        JSON.stringify(Result.isFailure(decoded) && decoded.left),
+        JSON.stringify(Result.isFailure(decoded) && decoded.failure),
       ).toBe(true);
     },
   );

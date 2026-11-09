@@ -302,7 +302,7 @@ function makePruneCommand(layers: PruneLayers) {
         const selection = parsePruneSelection(input.args, input.flags.all === true);
         if (Result.isFailure(selection)) {
           return yield* Effect.fail(
-            new PruneSelectionError({ message: `✗ prune refused: ${selection.left}` }),
+            new PruneSelectionError({ message: `✗ prune refused: ${selection.failure}` }),
           );
         }
         const confirmation = confirmationMode({
@@ -315,7 +315,7 @@ function makePruneCommand(layers: PruneLayers) {
           namespace: config.namespace,
           stateRoot: config.stateRoot,
           repoRoot: config.repoRoot,
-          selection: selection.right,
+          selection: selection.success,
           force: input.flags.force === true,
           confirmation,
           onPreview: (plan) =>

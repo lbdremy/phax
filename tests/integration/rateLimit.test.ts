@@ -178,8 +178,8 @@ describe("executePlan — rate-limit detection and resume", () => {
     // The limit error is re-raised so the CLI still exits non-zero.
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(RateLimitError);
-      expect(exitCodeForError(result.left)).toBe(8);
+      expect(result.failure).toBeInstanceOf(RateLimitError);
+      expect(exitCodeForError(result.failure)).toBe(8);
     }
 
     const runStatus = JSON.parse(await readFile(join(runPath, "run-status.json"), "utf8")) as {
@@ -248,8 +248,8 @@ describe("executePlan — rate-limit detection and resume", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(UsageLimitError);
-      expect(exitCodeForError(result.left)).toBe(8);
+      expect(result.failure).toBeInstanceOf(UsageLimitError);
+      expect(exitCodeForError(result.failure)).toBe(8);
     }
     const instructions = await readFile(join(runPath, "resume-instructions.md"), "utf8");
     expect(instructions).toContain("Usage limit");
@@ -369,9 +369,9 @@ describe("executePlan — rate-limit detection and resume", () => {
     const decision = await inspectResumeOnDisk("test-project", shortName, stateRoot);
     expect(Result.isSuccess(decision)).toBe(true);
     if (Result.isFailure(decision)) throw new Error("expected resumable run");
-    expect(decision.right.fromState).toBe("rate_limited");
-    expect(decision.right.nextPhaseId).toBe("phase-02");
-    expect(decision.right.nextPhaseIndex).toBe(1);
+    expect(decision.success.fromState).toBe("rate_limited");
+    expect(decision.success.nextPhaseId).toBe("phase-02");
+    expect(decision.success.nextPhaseIndex).toBe(1);
 
     const fakeGit = makeFakeGit();
     fakeGit.impl.enqueueWorktreeIsClean(phase02WorktreePath, false);
@@ -420,7 +420,7 @@ describe("executePlan — rate-limit detection and resume", () => {
           allowDirty: true,
           runPath,
           runId,
-          startIndex: decision.right.nextPhaseIndex,
+          startIndex: decision.success.nextPhaseIndex,
         }).pipe(Effect.provide(resumeLayers)),
       ),
     );
@@ -516,7 +516,7 @@ describe("executePlan — rate-limit detection and resume", () => {
     const first = await Effect.runPromise(
       Effect.result(executePlan(executeOptions).pipe(Effect.provide(firstLayers))),
     );
-    expect(Result.isFailure(first) && first.left instanceof RateLimitError).toBe(true);
+    expect(Result.isFailure(first) && first.failure instanceof RateLimitError).toBe(true);
     expect(firstBackend.impl.resumeCalls.map((call) => call.options.outputJsonlPath)).toEqual([
       join(runPath, "phase-01", "fix-attempt-01.jsonl"),
       join(runPath, "phase-01", "fix-attempt-02.jsonl"),
@@ -540,7 +540,7 @@ describe("executePlan — rate-limit detection and resume", () => {
     // `phax resume` re-enters the rate-limited phase; the gate now passes.
     const decision = await inspectResumeOnDisk("test-project", shortName, stateRoot);
     if (Result.isFailure(decision)) throw new Error("expected resumable run");
-    expect(decision.right.nextPhaseId).toBe("phase-01");
+    expect(decision.success.nextPhaseId).toBe("phase-01");
 
     const phaseStatus = JSON.parse(await readFile(join(phaseFolder, "status.json"), "utf8")) as {
       worktreePath: string;
@@ -576,7 +576,7 @@ describe("executePlan — rate-limit detection and resume", () => {
 
     const resumed = await Effect.runPromise(
       Effect.result(
-        executePlan({ ...executeOptions, startIndex: decision.right.nextPhaseIndex }).pipe(
+        executePlan({ ...executeOptions, startIndex: decision.success.nextPhaseIndex }).pipe(
           Effect.provide(
             Layer.mergeAll(
               resumeGit.layer,
@@ -680,11 +680,11 @@ describe("executePlan — rate-limit detection and resume", () => {
     const first = await Effect.runPromise(
       Effect.result(executePlan(executeOptions).pipe(Effect.provide(firstLayers))),
     );
-    expect(Result.isFailure(first) && first.left).toBeInstanceOf(UsageLimitError);
+    expect(Result.isFailure(first) && first.failure).toBeInstanceOf(UsageLimitError);
 
     const decision = await inspectResumeOnDisk("test-project", shortName, stateRoot);
-    if (Result.isFailure(decision)) throw new Error(decision.left.message);
-    expect(decision.right.nextPhaseId).toBe("phase-02");
+    if (Result.isFailure(decision)) throw new Error(decision.failure.message);
+    expect(decision.success.nextPhaseId).toBe("phase-02");
 
     // The resume commits phase-02 and phase-03 only.
     const resumeGit = makeFakeGit();
@@ -705,14 +705,14 @@ describe("executePlan — rate-limit detection and resume", () => {
     }
     const resumed = await Effect.runPromise(
       Effect.result(
-        executePlan({ ...executeOptions, startIndex: decision.right.nextPhaseIndex }).pipe(
+        executePlan({ ...executeOptions, startIndex: decision.success.nextPhaseIndex }).pipe(
           Effect.provide(layersFor(resumeBackend, resumeGit)),
         ),
       ),
     );
 
-    if (Result.isFailure(resumed)) throw resumed.left;
+    if (Result.isFailure(resumed)) throw resumed.failure;
     expect(resumeGit.impl.calls.filter((c) => c.method === "commit")).toHaveLength(2);
-    expect(resumed.right.completedPhaseCount).toBe(3);
+    expect(resumed.success.completedPhaseCount).toBe(3);
   });
 });

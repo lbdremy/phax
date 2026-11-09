@@ -69,9 +69,9 @@ function reportOf(stdout: string) {
   const printed: unknown = JSON.parse(stdout);
   expect(parseGateReport(printed).ok).toBe(true);
   const result = readGateReport(printed);
-  if (Result.isFailure(result)) throw new Error(describeReportError(result.left));
-  if (result.right.outcome !== "checked") throw new Error("expected a checked report");
-  return result.right;
+  if (Result.isFailure(result)) throw new Error(describeReportError(result.failure));
+  if (result.success.outcome !== "checked") throw new Error("expected a checked report");
+  return result.success;
 }
 
 describe("examples/hello-world audit provider", () => {
@@ -251,9 +251,9 @@ describe("examples/hello-world brief provider", () => {
     const printed: unknown = JSON.parse(stdout);
     expect(parseBriefReport(printed).ok).toBe(true);
     const result = readBriefReport(printed);
-    if (Result.isFailure(result)) throw new Error(describeReportError(result.left));
-    expect(result.right.$schema).toBe(currentSchemaUrl("brief-report"));
-    return result.right;
+    if (Result.isFailure(result)) throw new Error(describeReportError(result.failure));
+    expect(result.success.$schema).toBe(currentSchemaUrl("brief-report"));
+    return result.success;
   }
 
   const guide = { summary: "keep I/O in the module's caller", read: "guides/no-node-import.md" };
@@ -337,7 +337,7 @@ describe("examples/hello-world phax.json", () => {
     const result = decodePhaxConfig(raw);
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      const config = result.right;
+      const config = result.success;
       expect(config.brief).toEqual({ command: "node ./brief.mjs", push: "findings-and-rules" });
       expect(config.planAuditor?.command).toBe("node ./audit-plan.mjs");
       const steps = config.gateProfiles?.["standard"] ?? [];
@@ -358,15 +358,17 @@ describe("examples/hello-world plan auditor", () => {
     const planMd = readFileSync(join(exampleDir, "plan.md"), "utf8");
     const extracted = extractPlanDeterministic(planMd);
     if (Result.isFailure(extracted)) {
-      throw new Error(`examples/hello-world/plan.md no longer parses: ${extracted.left.message}`);
-    }
-    const finalized = finalizeExtractedPlan(extracted.right, planMd);
-    if (Result.isFailure(finalized)) {
       throw new Error(
-        `examples/hello-world/plan.md no longer finalizes: ${finalized.left.message}`,
+        `examples/hello-world/plan.md no longer parses: ${extracted.failure.message}`,
       );
     }
-    return makePlanAuditRequest(finalized.right.plan.phases);
+    const finalized = finalizeExtractedPlan(extracted.success, planMd);
+    if (Result.isFailure(finalized)) {
+      throw new Error(
+        `examples/hello-world/plan.md no longer finalizes: ${finalized.failure.message}`,
+      );
+    }
+    return makePlanAuditRequest(finalized.success.plan.phases);
   }
 
   it("finds no findings on the example plan's own projection", () => {
@@ -378,7 +380,7 @@ describe("examples/hello-world plan auditor", () => {
     const result = decodePlanAuditResponse(JSON.parse(stdout));
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.findings).toEqual([]);
+      expect(result.success.findings).toEqual([]);
     }
   });
 
@@ -393,8 +395,8 @@ describe("examples/hello-world plan auditor", () => {
     const result = decodePlanAuditResponse(JSON.parse(stdout));
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.findings).toHaveLength(1);
-      const finding = result.right.findings[0]!;
+      expect(result.success.findings).toHaveLength(1);
+      const finding = result.success.findings[0]!;
       expect(finding.phases).toEqual(["phase-01"]);
       expect(finding.message).toContain("tests/greet.test.ts");
     }

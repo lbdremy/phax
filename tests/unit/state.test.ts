@@ -28,14 +28,14 @@ import { decodePhaseStatusFile } from "../../src/schemas/status.js";
 function assertRight<T>(result: Result.Result<T, unknown>, expected: T): void {
   expect(Result.isSuccess(result)).toBe(true);
   if (Result.isSuccess(result)) {
-    expect(result.right).toBe(expected);
+    expect(result.success).toBe(expected);
   }
 }
 
 function assertLeft(result: Result.Result<unknown, unknown>): void {
   expect(Result.isFailure(result)).toBe(true);
   if (Result.isFailure(result)) {
-    expect(result.left).toBeInstanceOf(InvalidTransitionError);
+    expect(result.failure).toBeInstanceOf(InvalidTransitionError);
   }
 }
 
@@ -157,8 +157,8 @@ describe("Run state transitions", () => {
   it("InvalidTransitionError message contains from/to states", () => {
     const result = startRun("running");
     if (Result.isFailure(result)) {
-      expect(result.left.message).toContain("running");
-      expect(result.left.message).toContain("running");
+      expect(result.failure.message).toContain("running");
+      expect(result.failure.message).toContain("running");
     }
   });
 });
@@ -275,7 +275,7 @@ describe("gates_exhausted phase state", () => {
     const result = decodePhaseStatusFile(raw);
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.state).toBe("gates_exhausted");
+      expect(result.success.state).toBe("gates_exhausted");
     }
   });
 });

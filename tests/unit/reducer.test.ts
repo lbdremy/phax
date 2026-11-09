@@ -18,7 +18,7 @@ import { reviewStop } from "../helpers/phaseStatusFixture.js";
 
 function unwrap<T>(e: Result.Result<T, unknown>): T {
   if (Result.isFailure(e)) throw new Error("decode failed");
-  return e.right;
+  return e.success;
 }
 
 const runId = unwrap(decodeRunId("run-1"));

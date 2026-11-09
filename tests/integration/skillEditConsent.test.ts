@@ -212,8 +212,8 @@ describe("executePlan — skill edit consent preflight", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(SkillEditConsentError);
-      const err = result.left as SkillEditConsentError;
+      expect(result.failure).toBeInstanceOf(SkillEditConsentError);
+      const err = result.failure as SkillEditConsentError;
       expect(err.phases).toEqual([{ phaseId: "phase-02", files: [SKILL_FILE] }]);
       expect(err.message).toBe(
         [
@@ -247,8 +247,8 @@ describe("executePlan — skill edit consent preflight", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(SkillEditProtectedError);
-      expect(result.left.message).toBe(
+      expect(result.failure).toBeInstanceOf(SkillEditProtectedError);
+      expect(result.failure.message).toBe(
         [
           "Security preflight failed: a skill edit grant names a protected path.",
           `  phase-02: ${SKILL_FILE} (protectedPaths[0] .claude/skills/**)`,
@@ -280,7 +280,7 @@ describe("executePlan — skill edit consent preflight", () => {
 
     const result = await run(plan, layer, runPath, runId, 1, true, [".claude/skills/**"]);
 
-    expect(Result.isFailure(result) && result.left).toBeInstanceOf(SkillEditProtectedError);
+    expect(Result.isFailure(result) && result.failure).toBeInstanceOf(SkillEditProtectedError);
     expect(fakeBackend.impl.runCalls).toHaveLength(0);
   });
 
@@ -295,7 +295,7 @@ describe("executePlan — skill edit consent preflight", () => {
 
     const result = await run(plan, layer, runPath, runId, 0, false, [".claude/skills/**"]);
 
-    expect(Result.isFailure(result) && result.left).toBeInstanceOf(SkillEditConsentError);
+    expect(Result.isFailure(result) && result.failure).toBeInstanceOf(SkillEditConsentError);
   });
 
   it("proceeds with consent and records it in run-status.json", async () => {
@@ -315,7 +315,7 @@ describe("executePlan — skill edit consent preflight", () => {
 
     const result = await run(plan, layer, runPath, runId, 0, true);
 
-    if (Result.isFailure(result)) expect(result.left).not.toBeInstanceOf(SkillEditConsentError);
+    if (Result.isFailure(result)) expect(result.failure).not.toBeInstanceOf(SkillEditConsentError);
     expect(fakeBackend.impl.runCalls.length).toBeGreaterThan(0);
   });
 
@@ -330,7 +330,7 @@ describe("executePlan — skill edit consent preflight", () => {
 
     const result = await run(plan, layer, runPath, runId, 0, true);
 
-    if (Result.isFailure(result)) expect(result.left).not.toBeInstanceOf(SkillEditConsentError);
+    if (Result.isFailure(result)) expect(result.failure).not.toBeInstanceOf(SkillEditConsentError);
     expect(fakeBackend.impl.runCalls.length).toBeGreaterThan(0);
   });
 
@@ -351,7 +351,7 @@ describe("executePlan — skill edit consent preflight", () => {
 
     const result = await run(plan, layer, runPath, runId, 1, await readRecordedConsent(runPath));
 
-    if (Result.isFailure(result)) expect(result.left).not.toBeInstanceOf(SkillEditConsentError);
+    if (Result.isFailure(result)) expect(result.failure).not.toBeInstanceOf(SkillEditConsentError);
     expect(fakeBackend.impl.runCalls.length).toBeGreaterThan(0);
   });
 
@@ -371,8 +371,8 @@ describe("executePlan — skill edit consent preflight", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(SkillEditConsentError);
-      expect(result.left.message).toContain("phase-02");
+      expect(result.failure).toBeInstanceOf(SkillEditConsentError);
+      expect(result.failure.message).toContain("phase-02");
     }
     expect(fakeBackend.impl.runCalls).toHaveLength(0);
   });

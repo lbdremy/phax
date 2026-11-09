@@ -283,7 +283,7 @@ async function startStopped(
     },
   });
   if (Result.isSuccess(result)) throw new Error("the run did not stop");
-  expect(result.left).toBeInstanceOf(AwaitingReviewStopError);
+  expect(result.failure).toBeInstanceOf(AwaitingReviewStopError);
   return run;
 }
 
@@ -295,8 +295,8 @@ const writeIn = (run: HeldRun, phaseId: string, path: string, content: string): 
 
 function refusedClose(result: Result.Result<unknown, unknown>): StopCloseRefusedError {
   if (Result.isSuccess(result)) throw new Error("the close was not refused");
-  expect(result.left).toBeInstanceOf(StopCloseRefusedError);
-  return result.left as StopCloseRefusedError;
+  expect(result.failure).toBeInstanceOf(StopCloseRefusedError);
+  return result.failure as StopCloseRefusedError;
 }
 
 const acceptanceRequestSchema = expect.stringMatching(
@@ -494,7 +494,7 @@ describe("a declared review between the pair", { timeout: 60_000 }, () => {
     writeFileSync(failFlag(), "passed");
     const result = await resumeHeldRun(run);
     if (Result.isSuccess(result)) throw new Error("expected the discharge to fail");
-    expect(result.left).toBeInstanceOf(GateAttemptsExhaustedError);
+    expect(result.failure).toBeInstanceOf(GateAttemptsExhaustedError);
     const before = readFileSync(join(run.runPath, "phase-03", "status.json"), "utf8");
 
     const reset = await Effect.runPromise(
@@ -520,11 +520,11 @@ describe("a declared review between the pair", { timeout: 60_000 }, () => {
     );
 
     if (Result.isSuccess(reset)) throw new Error("expected the reset to be refused");
-    expect(reset.left).toBeInstanceOf(ResetPhaseError);
+    expect(reset.failure).toBeInstanceOf(ResetPhaseError);
     const state = String(readPhaseStatus(run, "phase-04")["state"]);
     expect(state).toBe("gates_exhausted");
     // The discharge stopped at its gate: the refusal names the recovery.
-    expect(reset.left.message).toBe(
+    expect(reset.failure.message).toBe(
       `Cannot reset 'phase-03' of run '${SHORT}': its passing phase 'phase-04' is ${state}, and the passing phase judges this phase's commit. To correct the acceptance test, edit it in phase-04 (\`phax enter-phase ${SHORT} phase-04\`), then run \`phax resume ${SHORT} --yes --skip-acceptance\`: the configured gate still runs.`,
     );
     expect(readFileSync(join(run.runPath, "phase-03", "status.json"), "utf8")).toBe(before);
@@ -763,7 +763,7 @@ describe("a held acceptance phase closed with a correction", { timeout: 60_000 }
       },
     );
     if (Result.isSuccess(result)) throw new Error("the run did not stop");
-    expect(result.left).toBeInstanceOf(AwaitingReviewStopError);
+    expect(result.failure).toBeInstanceOf(AwaitingReviewStopError);
     expect(readRunStatus(run)).toMatchObject({
       $schema: stamp("run-status"),
       hold: { selection: "acceptance", phases: ["phase-03"] },

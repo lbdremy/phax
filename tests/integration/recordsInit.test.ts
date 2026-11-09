@@ -91,10 +91,10 @@ describe("configureRecords", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
-    expect(result.right.kind).toBe("configured");
-    if (result.right.kind !== "configured") return;
-    expect(result.right.records.transcript).toBe(false);
-    expect(result.right.records.destination).toEqual({ kind: "in-repo" });
+    expect(result.success.kind).toBe("configured");
+    if (result.success.kind !== "configured") return;
+    expect(result.success.records.transcript).toBe(false);
+    expect(result.success.records.destination).toEqual({ kind: "in-repo" });
 
     const written = JSON.parse(await readFile(configPath, "utf8"));
     expect(written.records.transcript).toBe(false);
@@ -112,9 +112,9 @@ describe("configureRecords", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
-    expect(result.right.kind).toBe("configured");
-    if (result.right.kind !== "configured") return;
-    expect(result.right.records.destination).toEqual({
+    expect(result.success.kind).toBe("configured");
+    if (result.success.kind !== "configured") return;
+    expect(result.success.records.destination).toEqual({
       kind: "repo",
       remote: "https://example.com/records.git",
     });
@@ -143,14 +143,14 @@ describe("configureRecords", () => {
     const refused = await run(fakePrompt, "private");
     expect(Result.isSuccess(refused)).toBe(true);
     if (!Result.isSuccess(refused)) return;
-    expect(refused.right.kind).toBe("already_configured");
+    expect(refused.success.kind).toBe("already_configured");
     expect(fakePrompt.impl.asks).toEqual([]);
 
     const forcedPrompt = makeFakePrompt([true, true]);
     const forced = await run(forcedPrompt, "private", { force: true });
     expect(Result.isSuccess(forced)).toBe(true);
     if (!Result.isSuccess(forced)) return;
-    expect(forced.right.kind).toBe("configured");
+    expect(forced.success.kind).toBe("configured");
   });
 
   it("a rejected remote URL fails before anything is written", async () => {
@@ -175,7 +175,7 @@ describe("configureRecords", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (!Result.isFailure(result)) return;
-    expect(result.left).toBeInstanceOf(PromptCancelled);
+    expect(result.failure).toBeInstanceOf(PromptCancelled);
     const written = JSON.parse(await readFile(configPath, "utf8"));
     expect(written.records).toBeUndefined();
   });

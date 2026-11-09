@@ -31,8 +31,8 @@ function archived(name: string): { readonly md: string; readonly sidecarText: st
 
 function frozenValue(sidecarText: string): PlanDocumentV0_26_0Value {
   const decoded = decodePlanDocumentV0_26_0(JSON.parse(sidecarText));
-  if (Result.isFailure(decoded)) throw new Error(decoded.left.message);
-  const { $schema: _schema, ...value } = decoded.right;
+  if (Result.isFailure(decoded)) throw new Error(decoded.failure.message);
+  const { $schema: _schema, ...value } = decoded.success;
   return value;
 }
 

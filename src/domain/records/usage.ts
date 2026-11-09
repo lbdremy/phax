@@ -178,5 +178,5 @@ function vibeUsageOf(exported: VibeExport): VibeTokenUsage {
  */
 export function extractVibeExportUsage(exportJsonText: string): VibeTokenUsage | undefined {
   const decoded = decodeVibeExportText(exportJsonText);
-  return Result.isFailure(decoded) ? undefined : vibeUsageOf(decoded.right);
+  return Result.isFailure(decoded) ? undefined : vibeUsageOf(decoded.success);
 }

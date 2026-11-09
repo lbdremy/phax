@@ -58,7 +58,7 @@ describe("report (integration)", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right).toContain("github.com");
+      expect(result.success).toContain("github.com");
     }
 
     const issueCalls = github.calls.filter((c) => c.method === "createIssue");
@@ -168,7 +168,7 @@ describe("report (integration)", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left.message).toContain("No telemetry journal files found");
+      expect(result.failure.message).toContain("No telemetry journal files found");
     }
   });
 
@@ -189,7 +189,7 @@ describe("report (integration)", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left.message).toContain("not logged in");
+      expect(result.failure.message).toContain("not logged in");
     }
   });
 });

@@ -347,7 +347,7 @@ describe("pulled briefs reach the phase folder", () => {
     const paused = await execute(first.layers);
     await inSession;
     expect(Result.isFailure(paused)).toBe(true);
-    if (Result.isFailure(paused)) expect(paused.left).toBeInstanceOf(GateAttemptsExhaustedError);
+    if (Result.isFailure(paused)) expect(paused.failure).toBeInstanceOf(GateAttemptsExhaustedError);
 
     // A paused phase collects nothing; its pulls keep accumulating.
     expect(await briefFiles(phaseFolder)).toEqual(["brief-00.json"]);

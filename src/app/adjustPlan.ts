@@ -120,10 +120,10 @@ export function prepareAdjustPlanSession(
       const sessionReadResult = yield* Effect.result(fs.readText(sessionRecordPath));
       if (Result.isSuccess(sessionReadResult)) {
         try {
-          const sessionJson = JSON.parse(sessionReadResult.right) as unknown;
+          const sessionJson = JSON.parse(sessionReadResult.success) as unknown;
           const decoded = decodeAdjustPlanSession(sessionJson);
           if (Result.isSuccess(decoded)) {
-            existingSession = decoded.right;
+            existingSession = decoded.success;
           }
         } catch {
           // Malformed JSON — treat as no record, fall through to new session
@@ -186,7 +186,7 @@ export function prepareAdjustPlanSession(
 
     let parsed: unknown;
     try {
-      parsed = JSON.parse(reconciliationReadResult.right) as unknown;
+      parsed = JSON.parse(reconciliationReadResult.success) as unknown;
     } catch {
       yield* telemetry.recordEvent(
         makeStepCompletedTelemetryEvent({ runId, operationId, step, result: "failure" }),
@@ -204,11 +204,11 @@ export function prepareAdjustPlanSession(
       );
       return {
         kind: "refused",
-        message: `Failed to decode global-file-reconciliation.json at "${reconciliationPath}": ${String(decodeResult.left)}`,
+        message: `Failed to decode global-file-reconciliation.json at "${reconciliationPath}": ${String(decodeResult.failure)}`,
       } satisfies PrepareAdjustResult;
     }
 
-    const reconciliation = decodeResult.right;
+    const reconciliation = decodeResult.success;
     const added: string[] = [];
     const modified: string[] = [];
     const deletedOrRenamed: string[] = [];
@@ -246,7 +246,7 @@ export function prepareAdjustPlanSession(
     );
 
     if (Result.isSuccess(targetPlanResult)) {
-      const { plan } = targetPlanResult.right;
+      const { plan } = targetPlanResult.success;
       const targetInput = planInputFromPhaxPlan(plan, opts.planPath, opts.planPath);
       const targetFootprint = buildFootprint(targetInput);
       const impactResult = computeReadjustmentImpact(landedFootprint, [targetFootprint]);

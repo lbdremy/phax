@@ -62,10 +62,10 @@ export function vibeSetup(
     const baseResult = extractBaseModel(originalContent, baseAlias);
     if (Result.isFailure(baseResult)) {
       return yield* Effect.fail(
-        new ConfigValidationError({ message: baseResult.left, path: VIBE_CONFIG_PATH }),
+        new ConfigValidationError({ message: baseResult.failure, path: VIBE_CONFIG_PATH }),
       );
     }
-    const base = baseResult.right;
+    const base = baseResult.success;
 
     const missing: PhaxAliasLevel[] = [];
     const present: PhaxAliasLevel[] = [];

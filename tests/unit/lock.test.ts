@@ -56,7 +56,7 @@ describe("Lock – qualified-key scoping", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left.message).toContain("is locked");
+      expect(result.failure.message).toContain("is locked");
     }
   });
 

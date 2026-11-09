@@ -336,20 +336,20 @@ describe("executePlan — happy-path 2-phase run", () => {
     const phase01Binding = await readAgentBinding(join(runPath, "phase-01"));
     expect(Result.isSuccess(phase01Binding)).toBe(true);
     if (Result.isSuccess(phase01Binding)) {
-      expect(phase01Binding.right.provider).toBe("claude-code");
-      expect(phase01Binding.right.adapter).toBe("claude");
-      expect(phase01Binding.right.model).toBe("claude-sonnet-4-6");
-      expect(phase01Binding.right.sessionId).toBe("sess-01");
-      expect(phase01Binding.right.status).toBe("completed");
-      expect(phase01Binding.right.phaseId).toBe("phase-01");
+      expect(phase01Binding.success.provider).toBe("claude-code");
+      expect(phase01Binding.success.adapter).toBe("claude");
+      expect(phase01Binding.success.model).toBe("claude-sonnet-4-6");
+      expect(phase01Binding.success.sessionId).toBe("sess-01");
+      expect(phase01Binding.success.status).toBe("completed");
+      expect(phase01Binding.success.phaseId).toBe("phase-01");
     }
 
     const phase02Binding = await readAgentBinding(join(runPath, "phase-02"));
     expect(Result.isSuccess(phase02Binding)).toBe(true);
     if (Result.isSuccess(phase02Binding)) {
-      expect(phase02Binding.right.sessionId).toBe("sess-02");
-      expect(phase02Binding.right.status).toBe("awaiting_manual_review");
-      expect(phase02Binding.right.phaseId).toBe("phase-02");
+      expect(phase02Binding.success.sessionId).toBe("sess-02");
+      expect(phase02Binding.success.status).toBe("awaiting_manual_review");
+      expect(phase02Binding.success.phaseId).toBe("phase-02");
     }
 
     // Cleanup must not remove intermediate-phase worktrees — they persist until archive.
@@ -470,9 +470,9 @@ describe("executePlan — happy-path 2-phase run", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.completedPhaseCount).toBe(2);
-      expect(result.right.finalPhaseId).toBe("phase-02");
-      expect(result.right.finalWorktreePath).toBe(phase02WorktreePath);
+      expect(result.success.completedPhaseCount).toBe(2);
+      expect(result.success.finalPhaseId).toBe("phase-02");
+      expect(result.success.finalWorktreePath).toBe(phase02WorktreePath);
     }
   });
 
@@ -596,15 +596,15 @@ describe("executePlan — happy-path 2-phase run", () => {
     const p1Binding = await readAgentBinding(join(runPath, "phase-01"));
     expect(Result.isSuccess(p1Binding)).toBe(true);
     if (Result.isSuccess(p1Binding)) {
-      expect(p1Binding.right.status).toBe("completed");
-      expect(p1Binding.right.sessionId).toBe("sess-p1");
+      expect(p1Binding.success.status).toBe("completed");
+      expect(p1Binding.success.sessionId).toBe("sess-p1");
     }
 
     const p2Binding = await readAgentBinding(join(runPath, "phase-02"));
     expect(Result.isSuccess(p2Binding)).toBe(true);
     if (Result.isSuccess(p2Binding)) {
-      expect(p2Binding.right.status).toBe("awaiting_manual_review");
-      expect(p2Binding.right.sessionId).toBe("sess-p2");
+      expect(p2Binding.success.status).toBe("awaiting_manual_review");
+      expect(p2Binding.success.sessionId).toBe("sess-p2");
     }
   });
 
@@ -696,9 +696,9 @@ describe("executePlan — happy-path 2-phase run", () => {
     const binding = await readAgentBinding(join(runPath, "phase-01"));
     expect(Result.isSuccess(binding)).toBe(true);
     if (Result.isSuccess(binding)) {
-      expect(binding.right.status).toBe("failed");
-      expect(binding.right.sessionId).toBeNull();
-      expect(binding.right.provider).toBe("claude-code");
+      expect(binding.success.status).toBe("failed");
+      expect(binding.success.sessionId).toBeNull();
+      expect(binding.success.provider).toBe("claude-code");
     }
   });
 });
@@ -996,8 +996,8 @@ describe("executePlan — binding status lifecycle", () => {
     const binding = await readAgentBinding(join(runPath, "phase-01"));
     expect(Result.isSuccess(binding)).toBe(true);
     if (Result.isSuccess(binding)) {
-      expect(binding.right.status).toBe("awaiting_manual_review");
-      expect(binding.right.sessionId).toBe("sess-01");
+      expect(binding.success.status).toBe("awaiting_manual_review");
+      expect(binding.success.sessionId).toBe("sess-01");
     }
   });
 
@@ -1051,7 +1051,7 @@ describe("executePlan — binding status lifecycle", () => {
     const binding = await readAgentBinding(join(runPath, "phase-01"));
     expect(Result.isSuccess(binding)).toBe(true);
     if (Result.isSuccess(binding)) {
-      expect(binding.right.status).toBe("failed");
+      expect(binding.success.status).toBe("failed");
     }
   });
 });
@@ -1487,7 +1487,7 @@ describe("executePlan — resume from gates_exhausted", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(GateAttemptsExhaustedError);
+      expect(result.failure).toBeInstanceOf(GateAttemptsExhaustedError);
     }
     // No implementation-agent call ever happens on a gate-first resume.
     expect(fakeBackend.impl.runCalls).toHaveLength(0);
@@ -1561,8 +1561,8 @@ describe("executePlan — resume from gates_exhausted", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(AgentSessionIdMissingError);
-      expect((result.left as AgentSessionIdMissingError).message).toContain("phax reset-phase");
+      expect(result.failure).toBeInstanceOf(AgentSessionIdMissingError);
+      expect((result.failure as AgentSessionIdMissingError).message).toContain("phax reset-phase");
     }
     // The implementation agent must not be started blindly when the session is lost.
     expect(fakeBackend.impl.runCalls).toHaveLength(0);
@@ -2085,8 +2085,8 @@ describe("executePlan — security preflight", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(SecurityPreflightError);
-      const err = result.left as SecurityPreflightError;
+      expect(result.failure).toBeInstanceOf(SecurityPreflightError);
+      const err = result.failure as SecurityPreflightError;
       expect(err.missing).toContain("deno fmt");
     }
 
@@ -2408,8 +2408,8 @@ describe("executePlan — records destination refusal", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(RecordsDestinationRefusedError);
-      expect(exitCodeForError(result.left)).not.toBe(0);
+      expect(result.failure).toBeInstanceOf(RecordsDestinationRefusedError);
+      expect(exitCodeForError(result.failure)).not.toBe(0);
     }
   });
 
@@ -2435,7 +2435,7 @@ describe("executePlan — records destination refusal", () => {
 
     // The record stands and the run is not failed by it.
     if (Result.isFailure(result))
-      expect(result.left).not.toBeInstanceOf(RecordsDestinationRefusedError);
+      expect(result.failure).not.toBeInstanceOf(RecordsDestinationRefusedError);
     const warning = warnings.find((line) => line.includes("unrelated"));
     expect(warning).toMatch(
       /^\[phax\] Warning: phase "phase-01" — record kept on the local records branch, which is unrelated to origin's \(local [0-9a-f]{7}, origin [0-9a-f]{7}\); run `phax records sync --replay`, then push\.$/,
@@ -2687,7 +2687,7 @@ describe("executePlan — phase start on the no-provider baseline", () => {
     const firstResume = await s.execute(runPath, runId, 1);
     expect(Result.isFailure(firstResume)).toBe(true);
     if (Result.isFailure(firstResume)) {
-      expect(firstResume.left).toBeInstanceOf(GateAttemptsExhaustedError);
+      expect(firstResume.failure).toBeInstanceOf(GateAttemptsExhaustedError);
     }
     expect(s.launches).toHaveLength(2);
     expect(

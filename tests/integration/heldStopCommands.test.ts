@@ -476,9 +476,9 @@ describe("phax archive and adjust-plan on a held run", () => {
 
     expect(Result.isFailure(outcome)).toBe(true);
     if (Result.isSuccess(outcome)) return;
-    expect(outcome.left).toBeInstanceOf(ArchiveRefusedError);
-    expect(outcome.left.message).toContain("awaiting_review");
-    expect(outcome.left.message).toContain("--force");
+    expect(outcome.failure).toBeInstanceOf(ArchiveRefusedError);
+    expect(outcome.failure.message).toContain("awaiting_review");
+    expect(outcome.failure.message).toContain("--force");
     expect(existsSync(stopPath())).toBe(true);
   });
 
