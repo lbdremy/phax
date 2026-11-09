@@ -219,11 +219,11 @@ const cases: ReadonlyArray<{
 ];
 
 describe("refusalsOf", () => {
-  it.fails.each(cases)("refuses $name", ({ error, refusals }) => {
+  it.each(cases)("refuses $name", ({ error, refusals }) => {
     expect(refusalsOf(error)).toEqual(refusals);
   });
 
-  it.fails("lists the refusals of every error at ArrayFormatter's paths, in its order", () => {
+  it("lists the refusals of every error at ArrayFormatter's paths, in its order", () => {
     const error = refused(
       Schema.Struct({ a: Schema.String, b: Schema.Number, c: Schema.Array(Schema.String) }),
       { b: "x", c: [1] },
@@ -236,7 +236,7 @@ describe("refusalsOf", () => {
 });
 
 describe("firstRefusal", () => {
-  it.fails.each(cases)("gives the first refusal of $name", ({ error, refusals }) => {
+  it.each(cases)("gives the first refusal of $name", ({ error, refusals }) => {
     expect(firstRefusal(error)).toEqual(refusals[0]);
   });
 });

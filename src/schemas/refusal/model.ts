@@ -8,21 +8,29 @@
 /** Where the refusal sits in the input: object keys and array indices, root first. */
 export type RefusalPath = ReadonlyArray<PropertyKey>;
 
-/** A required key is absent. Renders `is missing`. */
+/**
+ * A required key is absent. Renders `is missing`, or `message` alone when the
+ * key's schema carries phax's own `missingMessage` annotation.
+ */
 type MissingRefusal = {
   readonly kind: "missing";
   readonly path: RefusalPath;
+  /** phax's own `missingMessage` text. Absent, not undefined, when there is none. */
+  readonly message?: string;
 };
 
 /**
  * A key the shape does not declare, under a decode that refuses excess
  * properties. `expected` is the allowed keys' label: each key JSON-quoted,
- * joined by ` | ` (`"a" | "b"`). Renders `is unexpected, expected: <expected>`.
+ * joined by ` | ` (`"a" | "b"`). Renders `is unexpected, expected: <expected>`,
+ * or `message` alone when phax built the issue itself.
  */
 type UnexpectedRefusal = {
   readonly kind: "unexpected";
   readonly path: RefusalPath;
   readonly expected: string;
+  /** phax's own text, for an issue phax built outside any struct. Absent when there is none. */
+  readonly message?: string;
 };
 
 /**
