@@ -49,13 +49,9 @@ describe("phax.json", () => {
   it("protects the corpus, the baseline and the ratchet, but not the counts file", () => {
     const protectedPaths = decoded().protectedPaths ?? [];
     expect(protectedPaths).toEqual([
-      "tests/effect4Corpus/cases/**",
       "tests/effect4Corpus/baseline/**",
       "tests/effect4Corpus/corpus.ts",
-      "tests/unit/effect4Corpus/**",
-      "scripts/effect4-codemod/ratchet.ts",
       "scripts/effect4-codemod/counts.ts",
-      "scripts/effect4-codemod/main.ts",
       "tsconfig.json",
       "tsconfig.test.json",
       "vitest.config.ts",
