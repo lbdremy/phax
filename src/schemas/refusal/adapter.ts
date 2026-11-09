@@ -405,7 +405,7 @@ function wholeUnionRefusal(
   actual: unknown,
   refused: ReadonlyArray<ReadonlyArray<Refusal>> = [],
 ): Refusal {
-  const parts = dedupe(memberTypeLabels(ast));
+  const parts = dedupe(searchOrder(ast).map((member) => describeType(member).expected));
   const literal = ast.types.every(isLiteralAst);
   let message: string | null = null;
   for (const refusal of refused.flat()) {
@@ -423,11 +423,25 @@ function wholeUnionRefusal(
   };
 }
 
-function memberTypeLabels(ast: SchemaAST.AST): ReadonlyArray<string> {
+// The union's leaves (a nested union's flattened) in the order Effect 3 met them on a
+// value no member got past: the members its search tree registered under a tag first,
+// then the others, each group in the order the union declares them. A union reaches its
+// whole refusal with tags only for a value that is not an object, which Effect 3 refused
+// at the tagged members before it tried the rest.
+function searchOrder(ast: SchemaAST.Union): ReadonlyArray<SchemaAST.AST> {
+  const tagged = new Set(
+    [...searchTree(ast).keys.values()].flatMap(({ buckets }) => [...buckets.values()].flat()),
+  );
+  const leaves = unionLeaves(ast);
+  const isTagged = (leaf: SchemaAST.AST): boolean => tagged.has(lookThrough(leaf));
+  return [...leaves.filter(isTagged), ...leaves.filter((leaf) => !isTagged(leaf))];
+}
+
+// The union's members as declared, a nested union's flattened, each before its kind is
+// looked through, so its label keeps its own identifier.
+function unionLeaves(ast: SchemaAST.AST): ReadonlyArray<SchemaAST.AST> {
   const core = lookThrough(ast);
-  return SchemaAST.isUnion(core)
-    ? core.types.flatMap(memberTypeLabels)
-    : [describeType(ast).expected];
+  return SchemaAST.isUnion(core) ? core.types.flatMap(unionLeaves) : [ast];
 }
 
 // The union's members, a nested union's flattened (`NullOr` of a union of structs).

@@ -186,7 +186,7 @@ function readRegistrySync(stateRoot: string) {
     const path = join(stateRoot, "registry.json");
     const raw = JSON.parse(readFileSync(path, "utf8")) as unknown;
     const decoded = readRegistryFile(path, raw);
-    return Result.isSuccess(decoded) ? decoded.right : { runs: [] };
+    return Result.isSuccess(decoded) ? decoded.success : { runs: [] };
   } catch {
     return { runs: [] };
   }
@@ -262,22 +262,23 @@ function runRunCommand(call: RunCall, deps: RunDeps): Effect.Effect<RunAnswer, R
     let holdRequest: HoldRequest = { kind: "none" };
     if (flags.hold !== undefined) {
       const parsedHold = parseHoldValue(flags.hold);
-      if (Result.isFailure(parsedHold)) return yield* refuse(1, parsedHold.left);
-      holdRequest = parsedHold.right;
+      if (Result.isFailure(parsedHold)) return yield* refuse(1, parsedHold.failure);
+      holdRequest = parsedHold.success;
     }
 
     const cwd = process.cwd();
     const planMdPath = resolve(cwd, flags.plan);
 
     const configResult = loadConfig(cwd);
-    if (Result.isFailure(configResult)) return yield* refuse(2, configErrorText(configResult.left));
-    const config = configResult.right;
+    if (Result.isFailure(configResult))
+      return yield* refuse(2, configErrorText(configResult.failure));
+    const config = configResult.success;
 
     const telemetryConfigResult = loadTelemetryConfig();
     if (Result.isFailure(telemetryConfigResult)) {
-      return yield* refuse(2, configErrorText(telemetryConfigResult.left));
+      return yield* refuse(2, configErrorText(telemetryConfigResult.failure));
     }
-    const telemetryEnabled = telemetryConfigResult.right.enabled;
+    const telemetryEnabled = telemetryConfigResult.success.enabled;
 
     // Resolve effective security mode: CLI flag overrides config
     const effectiveSecurityMode = resolveSecurityMode(flags.security, config.security.profile);
@@ -324,7 +325,7 @@ function runRunCommand(call: RunCall, deps: RunDeps): Effect.Effect<RunAnswer, R
       const planRepoRel = relative(config.repoRoot, planMdPath).split(sep).join("/");
       const runnable = checkPlanRunnable(planMdForGate, planRepoRel);
       if (Result.isFailure(runnable)) {
-        return yield* refuse(exitCodeForError(runnable.left), runnable.left.message);
+        return yield* refuse(exitCodeForError(runnable.failure), runnable.failure.message);
       }
     }
 
@@ -354,7 +355,7 @@ function runRunCommand(call: RunCall, deps: RunDeps): Effect.Effect<RunAnswer, R
       provideRunLayers(extractEffect, config, extractTelemetryLayer, DEFAULT_PROVIDER_CONFIG, deps),
     );
     if (Result.isFailure(extracted)) {
-      const err = extracted.left;
+      const err = extracted.failure;
       if (err instanceof RateLimitError || err instanceof UsageLimitError) {
         return yield* refuse(exitCodeForError(err), [
           `Plan extraction paused: ${err.message}`,
@@ -373,7 +374,7 @@ function runRunCommand(call: RunCall, deps: RunDeps): Effect.Effect<RunAnswer, R
       );
     }
 
-    const { plan, warnings, fromCache } = extracted.right;
+    const { plan, warnings, fromCache } = extracted.success;
     if (fromCache) yield* call.say("using cached extraction");
     for (const w of warnings) yield* call.progress(`extract warning: ${w}`);
     const planMd = readFileSync(planMdPath, "utf8");
@@ -394,13 +395,13 @@ function runRunCommand(call: RunCall, deps: RunDeps): Effect.Effect<RunAnswer, R
         ),
       );
       if (Result.isFailure(stalenessResult)) {
-        const err = stalenessResult.left;
+        const err = stalenessResult.failure;
         return yield* refuse(
           exitCodeForError(err),
           `phax run refused: ${err instanceof Error ? err.message : String(err)}`,
         );
       }
-      const verdict = stalenessResult.right;
+      const verdict = stalenessResult.success;
       if (verdict.kind !== "fresh") {
         const staleError = new PlanStaleError({ path: planRepoRel, verdict });
         return yield* refuse(exitCodeForError(staleError), staleError.message);
@@ -463,7 +464,7 @@ function runRunCommand(call: RunCall, deps: RunDeps): Effect.Effect<RunAnswer, R
       ),
     );
     if (Result.isFailure(preflightResult)) {
-      const err = preflightResult.left;
+      const err = preflightResult.failure;
       if (err instanceof SkillEditConsentError || err instanceof SkillEditProtectedError) {
         return yield* refuse(exitCodeForError(err), err.message);
       }
@@ -472,19 +473,19 @@ function runRunCommand(call: RunCall, deps: RunDeps): Effect.Effect<RunAnswer, R
       }
       return yield* refuse(exitCodeForError(err), `phax run failed: ${err.message}`);
     }
-    const { routing, providerConfig, hold } = preflightResult.right;
+    const { routing, providerConfig, hold } = preflightResult.success;
 
     // The slug may already name an existing run (in this namespace); bump it so
     // we never clobber a prior run. Uniqueness is scoped to the namespace via the
     // registry (covering archived runs), plus a bare-folder check for the interim.
-    const shortName = ensureUniqueShortName(config.stateRoot, namespace, shortNameResult.right);
+    const shortName = ensureUniqueShortName(config.stateRoot, namespace, shortNameResult.success);
     const runPlan: PhaxPlan =
-      shortName === shortNameResult.right
+      shortName === shortNameResult.success
         ? plan
         : { ...plan, run: { ...plan.run, shortName, branch: `phax/${shortName}` } };
-    if (shortName !== shortNameResult.right) {
+    if (shortName !== shortNameResult.success) {
       yield* call.progress(
-        `Run "${runKey(namespace, shortNameResult.right)}" already exists; using "${runKey(namespace, shortName)}" instead.`,
+        `Run "${runKey(namespace, shortNameResult.success)}" already exists; using "${runKey(namespace, shortName)}" instead.`,
       );
     }
     const qualifiedName = runKey(namespace, shortName);
@@ -544,7 +545,7 @@ function runRunCommand(call: RunCall, deps: RunDeps): Effect.Effect<RunAnswer, R
     ).pipe(Effect.ensuring(Effect.sync(clearRunInterruptContext)));
 
     if (Result.isFailure(result)) {
-      const { cause: err, followUps } = splitFollowUps(result.left);
+      const { cause: err, followUps } = splitFollowUps(result.failure);
       if (err instanceof AwaitingReviewStopError) {
         const answer: RunAnswer = {
           qualifiedName,
@@ -580,7 +581,7 @@ function runRunCommand(call: RunCall, deps: RunDeps): Effect.Effect<RunAnswer, R
       );
     }
 
-    const execResult = result.right;
+    const execResult = result.success;
     const answer: RunAnswer = {
       qualifiedName,
       crossProject: false,

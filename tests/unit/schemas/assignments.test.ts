@@ -37,14 +37,14 @@ function configRefusal(assignments: unknown): string {
     assignments,
   };
   const decoded = decodePhaxConfig(raw);
-  return Result.isFailure(decoded) ? formatConfigParseError(raw, decoded.left) : "OK";
+  return Result.isFailure(decoded) ? formatConfigParseError(raw, decoded.failure) : "OK";
 }
 
 describe("AssignmentsSchema", () => {
   it("decodes the spec §6 example in list order", () => {
     const decoded = decodeAssignments(EXAMPLE);
     expect(Result.isSuccess(decoded)).toBe(true);
-    if (Result.isSuccess(decoded)) expect(decoded.right).toEqual(EXAMPLE);
+    if (Result.isSuccess(decoded)) expect(decoded.success).toEqual(EXAMPLE);
   });
 
   it("admits a range whose min equals its max", () => {
@@ -119,7 +119,7 @@ describe("phax.json assignments decode messages", () => {
       gateProfiles: { fast: [{ command: "pnpm test", surface: "nowhere", firing: "every-phase" }] },
     };
     const decoded = decodePhaxConfig(raw);
-    expect(Result.isFailure(decoded) && formatConfigParseError(raw, decoded.left)).toMatch(
+    expect(Result.isFailure(decoded) && formatConfigParseError(raw, decoded.failure)).toMatch(
       /^ {2}gateProfiles\.fast\.0\.surface: /,
     );
   });

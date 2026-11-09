@@ -323,7 +323,7 @@ describe("executePlan writes each phase's gate request", () => {
     const paused = await execute(first.layers);
 
     expect(Result.isFailure(paused)).toBe(true);
-    if (Result.isFailure(paused)) expect(paused.left).toBeInstanceOf(GateAttemptsExhaustedError);
+    if (Result.isFailure(paused)) expect(paused.failure).toBeInstanceOf(GateAttemptsExhaustedError);
     const attempt01 = await readRequest(runPath, "phase-01", "01");
     expect(await readRequest(runPath, "phase-01", "02")).toBe(attempt01);
 

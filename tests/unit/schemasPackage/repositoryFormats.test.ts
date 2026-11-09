@@ -111,7 +111,7 @@ describe.each(FORMATS)("$id", (format) => {
   it("parses the document phax writes as its current shape, with phax's value", () => {
     const phax = format.phax(document);
     if (Result.isFailure(phax)) throw new Error("document rejected by phax");
-    expect(format.parse(document)).toEqual({ ok: true, shape: current, value: phax.right });
+    expect(format.parse(document)).toEqual({ ok: true, shape: current, value: phax.success });
   });
 
   it("is identified by its $schema alone as its current shape (ac-identify-alone)", () => {
@@ -235,7 +235,7 @@ describe.each(RECORD_FORMATS)("$id, born with $schema", (format) => {
   it("parses the document phax writes as shape next, with phax's value", () => {
     const phax = format.phax(document);
     if (Result.isFailure(phax)) throw new Error("document rejected by phax");
-    expect(format.parse(document)).toEqual({ ok: true, shape: current, value: phax.right });
+    expect(format.parse(document)).toEqual({ ok: true, shape: current, value: phax.success });
     expect(parseDocument(document)).toMatchObject({ ok: true, format: format.id, shape: current });
   });
 

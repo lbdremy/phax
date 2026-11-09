@@ -326,7 +326,7 @@ describe("runGatesWithFixLoop", () => {
 
       expect(Result.isFailure(result)).toBe(true);
       if (Result.isFailure(result)) {
-        const err = result.left as GateAttemptsExhaustedError;
+        const err = result.failure as GateAttemptsExhaustedError;
         expect(err.failure.failedStep).toBe("protected-paths");
         expect(err.failure.protectedChanges).toEqual([
           {
@@ -384,7 +384,7 @@ describe("runGatesWithFixLoop", () => {
       );
 
       if (Result.isSuccess(result)) throw new Error("the gate was expected to stay red");
-      expect((result.left as GateAttemptsExhaustedError).failure).toMatchObject({
+      expect((result.failure as GateAttemptsExhaustedError).failure).toMatchObject({
         failedStep: "configured",
         command: "pnpm test",
         exitCode: 1,
@@ -483,8 +483,8 @@ describe("runGatesWithFixLoop", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(GateAttemptsExhaustedError);
-      const err = result.left as GateAttemptsExhaustedError;
+      expect(result.failure).toBeInstanceOf(GateAttemptsExhaustedError);
+      const err = result.failure as GateAttemptsExhaustedError;
       expect(err.failure).toEqual({
         failedStep: "configured",
         command: "pnpm test",
@@ -840,7 +840,9 @@ describe("runGatesWithFixLoop", () => {
         Effect.result(runGatesWithFixLoop(codexOpts).pipe(Effect.provide(layer))),
       );
 
-      expect(Result.isFailure(result) ? result.left : null).toBeInstanceOf(AgentSessionFailedError);
+      expect(Result.isFailure(result) ? result.failure : null).toBeInstanceOf(
+        AgentSessionFailedError,
+      );
       const report = telemetry.errors().find((e) => e.type === "adapter.agent_failed");
       expect(report).toMatchObject({
         adapter: "codex-cli",
@@ -896,8 +898,8 @@ describe("runGatesWithFixLoop", () => {
       // maxFixAttempts=1: gate 03 fails → one fix → gate 04 fails → exhausted.
       expect(Result.isFailure(result)).toBe(true);
       if (Result.isFailure(result)) {
-        expect(result.left).toBeInstanceOf(GateAttemptsExhaustedError);
-        expect((result.left as GateAttemptsExhaustedError).attempt).toBe(4);
+        expect(result.failure).toBeInstanceOf(GateAttemptsExhaustedError);
+        expect((result.failure as GateAttemptsExhaustedError).attempt).toBe(4);
       }
       expect(fakeBackend.impl.resumeCalls).toHaveLength(1);
       expect(fakeBackend.impl.resumeCalls[0]!.options.outputJsonlPath).toBe(
@@ -1279,7 +1281,7 @@ describe("runGatesWithFixLoop", () => {
       );
 
       expect(Result.isFailure(result)).toBe(true);
-      if (Result.isFailure(result)) expect(result.left).toBeInstanceOf(GateStepRefusedError);
+      if (Result.isFailure(result)) expect(result.failure).toBeInstanceOf(GateStepRefusedError);
       expect(fakeBackend.impl.resumeCalls).toHaveLength(0);
     });
 
@@ -1302,8 +1304,8 @@ describe("runGatesWithFixLoop", () => {
 
       expect(Result.isFailure(result)).toBe(true);
       if (Result.isFailure(result)) {
-        expect(result.left).toBeInstanceOf(GateAttemptsExhaustedError);
-        expect((result.left as GateAttemptsExhaustedError).failure).toMatchObject({
+        expect(result.failure).toBeInstanceOf(GateAttemptsExhaustedError);
+        expect((result.failure as GateAttemptsExhaustedError).failure).toMatchObject({
           failedStep: "acceptance",
           command: "./oracles",
         });

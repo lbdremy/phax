@@ -128,13 +128,13 @@ export function resolveTarget(ref: string, config?: ResolvedConfig | undefined) 
   return Effect.suspend(() => {
     const loaded = config === undefined ? loadConfig(process.cwd()) : undefined;
     const project =
-      loaded === undefined ? config : Result.isSuccess(loaded) ? loaded.right : undefined;
+      loaded === undefined ? config : Result.isSuccess(loaded) ? loaded.success : undefined;
     const stateRoot = effectiveStateRoot(project);
     const resolved = resolveRunRef(ref, project, stateRoot);
     if (Result.isFailure(resolved)) {
-      return Effect.fail(new HandoverRefusedError({ message: resolved.left.message }));
+      return Effect.fail(new HandoverRefusedError({ message: resolved.failure.message }));
     }
-    const { namespace, shortName, info, crossProject } = resolved.right;
+    const { namespace, shortName, info, crossProject } = resolved.success;
     const target: ResolvedTarget = {
       config: project,
       stateRoot,
@@ -217,11 +217,14 @@ export function makeEnterCommand(deps: EnterDeps = {}) {
         );
         if (Result.isFailure(binding)) {
           return yield* Effect.fail(
-            failedFor(target, `No agent binding found for run "${qualifiedName}": ${binding.left}`),
+            failedFor(
+              target,
+              `No agent binding found for run "${qualifiedName}": ${binding.failure}`,
+            ),
           );
         }
-        const invocation = getSessionAdapter(binding.right.provider).buildResumeInvocation(
-          binding.right,
+        const invocation = getSessionAdapter(binding.success.provider).buildResumeInvocation(
+          binding.success,
         );
         if ("unsupported" in invocation) {
           return yield* Effect.fail(failedFor(target, invocation.unsupported));

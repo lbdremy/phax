@@ -341,8 +341,8 @@ describe("withPhaseKinds", () => {
 
   it("adds each phase's mode and acceptance from its header lines, after optionalFilesToEdit and before the answer's testLines", () => {
     const result = withPhaseKinds(answer(["phase-01", "phase-02"]), twoPhases);
-    if (Result.isFailure(result)) throw new Error(result.left.message);
-    const [first, second] = result.right.phases;
+    if (Result.isFailure(result)) throw new Error(result.failure.message);
+    const [first, second] = result.success.phases;
     expect(first).toMatchObject({
       mode: "headless",
       acceptance: { passedBy: "phase-02", files: ["a.test.ts"] },
@@ -361,6 +361,6 @@ describe("withPhaseKinds", () => {
   it("fails naming an answer phase with no heading in plan.md", () => {
     const result = withPhaseKinds(answer(["phase-01", "phase-09"]), twoPhases);
     expect(Result.isFailure(result)).toBe(true);
-    if (Result.isFailure(result)) expect(result.left.message).toContain("phase-09");
+    if (Result.isFailure(result)) expect(result.failure.message).toContain("phase-09");
   });
 });

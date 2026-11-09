@@ -45,7 +45,7 @@ function parseJsonLine(line: string): unknown {
  */
 function textOfBlock(block: unknown): string | undefined {
   const decoded = decodeVibeTextBlock(block);
-  return Result.isSuccess(decoded) ? decoded.right.text : undefined;
+  return Result.isSuccess(decoded) ? decoded.success.text : undefined;
 }
 
 /**
@@ -61,8 +61,8 @@ export function findVibeResultEvent(lines: readonly string[]): { finalText: stri
     const parsed = parseJsonLine(lines[i] ?? "");
     if (parsed === undefined) continue;
     const message = decodeVibeMessage(parsed);
-    if (Result.isFailure(message) || message.right.role !== "assistant") continue;
-    const texts = message.right.content.flatMap((block) => {
+    if (Result.isFailure(message) || message.success.role !== "assistant") continue;
+    const texts = message.success.content.flatMap((block) => {
       const text = textOfBlock(block);
       return text === undefined ? [] : [text];
     });
@@ -88,7 +88,7 @@ export function findVibeStreamHead(lines: readonly string[]): VibeStreamHead | u
     if (parsed === undefined) continue;
     const header = decodeVibeEntryHeader(parsed);
     if (Result.isSuccess(header)) {
-      return { sessionId: header.right.sessionId, createdAt: header.right.createdAt };
+      return { sessionId: header.success.sessionId, createdAt: header.success.createdAt };
     }
   }
   return undefined;

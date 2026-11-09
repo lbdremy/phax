@@ -191,6 +191,6 @@ function computeVerifiedSurfacesForPhase(
     }
     const decoded = readGateAttributionFile(attributionPath, json);
     if (Result.isFailure(decoded)) return [];
-    return computeVerifiedSurfaces(decoded.right);
+    return computeVerifiedSurfaces(decoded.success);
   });
 }

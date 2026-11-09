@@ -298,7 +298,7 @@ describe("executePlan — resume from completion-paused (committed final phase)"
 
     const result = await runResume({ stateRoot, layers, runPath, runId });
 
-    if (Result.isFailure(result)) console.error("FAILED:", result.left);
+    if (Result.isFailure(result)) console.error("FAILED:", result.failure);
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
 
@@ -310,7 +310,7 @@ describe("executePlan — resume from completion-paused (committed final phase)"
     expect(gateCalls).toHaveLength(0);
 
     // The plan is completed on the branch and reported.
-    const planTransition = result.right.artifactCompletions?.transitions.find(
+    const planTransition = result.success.artifactCompletions?.transitions.find(
       (t) => t.kind === "plan",
     );
     expect(planTransition).toMatchObject({
@@ -370,7 +370,7 @@ describe("executePlan — resume from completion-paused (committed final phase)"
 
     const result = await runResume({ stateRoot, layers, runPath, runId });
 
-    if (Result.isFailure(result)) console.error("FAILED:", result.left);
+    if (Result.isFailure(result)) console.error("FAILED:", result.failure);
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
 
@@ -378,7 +378,7 @@ describe("executePlan — resume from completion-paused (committed final phase)"
     const commitCalls = fakeGit.impl.calls.filter((c) => c.method === "commitPaths");
     expect(commitCalls).toHaveLength(0);
     // The plan is reported as already complete.
-    expect(result.right.artifactCompletions?.transitions).toEqual([
+    expect(result.success.artifactCompletions?.transitions).toEqual([
       { kind: "plan", path: PLAN_ARCHIVE, alreadyComplete: true },
     ]);
 

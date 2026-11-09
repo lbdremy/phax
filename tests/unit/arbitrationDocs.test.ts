@@ -22,7 +22,7 @@ describe("docs/arbitration.md", () => {
     const decoded = decodeDecideVerdictsFile(parsed);
     expect(Result.isSuccess(decoded)).toBe(true);
     if (Result.isSuccess(decoded)) {
-      expect(decoded.right.$schema).toBe(currentSchemaUrl("decide-verdicts"));
+      expect(decoded.success.$schema).toBe(currentSchemaUrl("decide-verdicts"));
     }
   });
 

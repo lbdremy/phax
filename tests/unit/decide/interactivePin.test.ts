@@ -116,8 +116,8 @@ function doctrine(): Doctrine {
     },
     file: { path: "docs/doctrine.md", text: "- `X1` Prefer the cheaper option.\n" },
   });
-  if (Result.isFailure(assembled)) throw new Error(assembled.left);
-  return assembled.right;
+  if (Result.isFailure(assembled)) throw new Error(assembled.failure);
+  return assembled.success;
 }
 
 // A hand-authored spec: no sidecar, its questions in its §9 sections.
@@ -710,8 +710,8 @@ describe("interactive decide, as shipped", () => {
     const refused = resolveDecideModel("gpt-6-luna", undefined);
     expect(Result.isFailure(refused)).toBe(true);
     if (Result.isFailure(refused)) {
-      expect(refused.left).toContain("gpt-6-luna");
-      expect(refused.left).toContain("Claude Code");
+      expect(refused.failure).toContain("gpt-6-luna");
+      expect(refused.failure).toContain("Claude Code");
     }
   });
 

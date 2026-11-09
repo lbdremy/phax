@@ -40,7 +40,7 @@ function withPhase(findings: unknown[]) {
 function refusal(answer: unknown): string {
   const read = readComplianceReviewAnswer(answer);
   if (Result.isSuccess(read)) throw new Error("expected a refusal");
-  return read.left;
+  return read.failure;
 }
 
 describe("readComplianceReviewAnswer", () => {
@@ -48,11 +48,11 @@ describe("readComplianceReviewAnswer", () => {
     const read = readComplianceReviewAnswer(validAnswer);
     expect(Result.isSuccess(read)).toBe(true);
     if (Result.isSuccess(read)) {
-      expect(read.right.verdict).toBe("conformant");
-      expect(read.right).not.toHaveProperty("$schema");
-      expect(read.right.perPhase[0]?.phaseId).toBe("phase-01");
-      expect(read.right.unplannedChanges).toEqual([]);
-      expect(read.right.unmetPromises).toEqual([]);
+      expect(read.success.verdict).toBe("conformant");
+      expect(read.success).not.toHaveProperty("$schema");
+      expect(read.success.perPhase[0]?.phaseId).toBe("phase-01");
+      expect(read.success.unplannedChanges).toEqual([]);
+      expect(read.success.unmetPromises).toEqual([]);
     }
   });
 
@@ -64,10 +64,10 @@ describe("readComplianceReviewAnswer", () => {
     });
     expect(Result.isSuccess(read)).toBe(true);
     if (Result.isSuccess(read)) {
-      expect(read.right.unplannedChanges).toEqual([
+      expect(read.success.unplannedChanges).toEqual([
         { phaseId: "phase-01", path: "README.md", note: "Not in the plan" },
       ]);
-      expect(read.right.unmetPromises).toEqual([
+      expect(read.success.unmetPromises).toEqual([
         { phaseId: "phase-01", promise: "A unit test", note: "None found" },
       ]);
     }
@@ -212,9 +212,9 @@ describe("readComplianceReviewAnswer", () => {
     });
     expect(Result.isSuccess(several)).toBe(true);
     if (Result.isSuccess(several)) {
-      expect(several.right.perPhase).toHaveLength(2);
-      expect(several.right.attentionPoints).toHaveLength(1);
-      expect(several.right.pointers).toHaveLength(1);
+      expect(several.success.perPhase).toHaveLength(2);
+      expect(several.success.attentionPoints).toHaveLength(1);
+      expect(several.success.pointers).toHaveLength(1);
     }
   });
 });

@@ -65,13 +65,13 @@ function replayRecordedBrief(
       return unavailable(
         output,
         phaseId,
-        `${PUSHED_BRIEF_RECORD} is unreadable: ${raw.left.message}`,
+        `${PUSHED_BRIEF_RECORD} is unreadable: ${raw.failure.message}`,
         push,
       );
     }
     let parsed: unknown;
     try {
-      parsed = JSON.parse(raw.right) as unknown;
+      parsed = JSON.parse(raw.success) as unknown;
     } catch {
       return unavailable(
         output,
@@ -85,17 +85,17 @@ function replayRecordedBrief(
       return unavailable(
         output,
         phaseId,
-        `${PUSHED_BRIEF_RECORD} is unreadable: ${record.left.message}`,
+        `${PUSHED_BRIEF_RECORD} is unreadable: ${record.failure.message}`,
         push,
       );
     }
-    const { outcome } = record.right;
+    const { outcome } = record.success;
     if (outcome.kind === "failed") {
       return renderBriefSection({ kind: "failed", reason: outcome.reason }, push);
     }
     const report = readPrintedBriefReport(outcome.answer);
-    if (Result.isFailure(report)) return unavailable(output, phaseId, report.left, push);
-    return renderBriefSection({ kind: "answered", report: report.right }, push);
+    if (Result.isFailure(report)) return unavailable(output, phaseId, report.failure, push);
+    return renderBriefSection({ kind: "answered", report: report.success }, push);
   });
 }
 

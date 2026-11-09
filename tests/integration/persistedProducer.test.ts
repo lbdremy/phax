@@ -425,7 +425,7 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
   };
   for (const event of [runStarted, phaseStarted]) {
     const dispatched = await run(dispatch(event, ctx));
-    if (Result.isFailure(dispatched) || dispatched.right.disposition !== "Handled") {
+    if (Result.isFailure(dispatched) || dispatched.success.disposition !== "Handled") {
       throw new Error(`${event.type} was not handled`);
     }
   }
@@ -505,10 +505,10 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
       }),
     );
     if (Result.isFailure(authored)) {
-      throw new Error(`authoring ${format} failed: ${JSON.stringify(authored.left)}`);
+      throw new Error(`authoring ${format} failed: ${JSON.stringify(authored.failure)}`);
     }
-    expect(authored.right.record).toMatchObject({ kind: "written" });
-    authoringKinds.set(authored.right.authoringId, format);
+    expect(authored.success.record).toMatchObject({ kind: "written" });
+    authoringKinds.set(authored.success.authoringId, format);
   }
 
   // One gate run: request, attribution and report documents.
@@ -600,7 +600,7 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
       phase,
       worktreePath: WORKTREE as WorktreePath,
       phaseFolderPath: PHASE_FOLDER,
-      runId: created.right.runId,
+      runId: created.success.runId,
       fileReconciliationMode: "report_only",
       acceptanceTestFiles: [],
     }),
@@ -635,7 +635,7 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
     writeRecord({
       repoRoot: REPO_ROOT,
       phaseFolderPath: PHASE_FOLDER,
-      runId: created.right.runId,
+      runId: created.success.runId,
       phaseId: "phase-01",
       provider: "claude-code",
       model: "example-model",
@@ -650,7 +650,7 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
       sourceSha: "abc1234",
     }),
   );
-  if (Result.isFailure(recorded) || recorded.right.kind !== "written") {
+  if (Result.isFailure(recorded) || recorded.success.kind !== "written") {
     throw new Error("writeRecord wrote no record");
   }
 
@@ -683,7 +683,7 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
       sessionIds: [],
     }),
   );
-  if (Result.isFailure(decided) || decided.right.kind !== "written") {
+  if (Result.isFailure(decided) || decided.success.kind !== "written") {
     throw new Error("writeDecisionRecord wrote no record");
   }
 
@@ -711,7 +711,7 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
   const info: RunReviewInfo = {
     namespace: NAMESPACE,
     shortName: SHORT_NAME,
-    runId: created.right.runId,
+    runId: created.success.runId,
     runState: "review_open",
     branch: plan.run.branch,
     runTitle: plan.run.title,
@@ -738,7 +738,7 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
       { output: { log() {}, warn() {}, error() {} } },
     ),
   );
-  if (Result.isFailure(reviewed) || reviewed.right.kind !== "generated") {
+  if (Result.isFailure(reviewed) || reviewed.success.kind !== "generated") {
     throw new Error("reviewCompliance generated no review");
   }
 
@@ -748,12 +748,12 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
       repoRoot: REPO_ROOT,
       records: RECORDS_IN_REPO,
       publishRemote: "origin",
-      runId: created.right.runId,
+      runId: created.success.runId,
       runPath: RUN_PATH,
       review: "compliance-review",
     }),
   );
-  if (Result.isFailure(reviewEntry) || reviewEntry.right.kind !== "written") {
+  if (Result.isFailure(reviewEntry) || reviewEntry.success.kind !== "written") {
     throw new Error("writeReviewRecord wrote no entry");
   }
 
@@ -778,7 +778,7 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
       },
     ),
   );
-  if (Result.isFailure(codeReviewed) || codeReviewed.right.kind !== "accepted") {
+  if (Result.isFailure(codeReviewed) || codeReviewed.success.kind !== "accepted") {
     throw new Error("reviewCodeHeadless accepted no review");
   }
   const codeReviewEntry = await run(
@@ -786,12 +786,12 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
       repoRoot: REPO_ROOT,
       records: RECORDS_IN_REPO,
       publishRemote: "origin",
-      runId: created.right.runId,
+      runId: created.success.runId,
       runPath: RUN_PATH,
       review: "code-review",
     }),
   );
-  if (Result.isFailure(codeReviewEntry) || codeReviewEntry.right.kind !== "written") {
+  if (Result.isFailure(codeReviewEntry) || codeReviewEntry.success.kind !== "written") {
     throw new Error("writeReviewRecord wrote no code-review entry");
   }
 

@@ -552,7 +552,7 @@ describe("a failing pushed brief never blocks the phase", () => {
       const without = await runOnce(undefined, brief);
       expect(Result.isSuccess(withBrief.result)).toBe(Result.isSuccess(without.result));
       if (Result.isSuccess(withBrief.result) && Result.isSuccess(without.result)) {
-        expect(withBrief.result.right).toEqual(without.result.right);
+        expect(withBrief.result.success).toEqual(without.result.success);
       }
       expect(stateWithBrief).toBe(await runState(without.runPath));
     });
@@ -577,7 +577,7 @@ describe("re-entering a phase asks no new brief", () => {
     const { runPath, execute } = await startRun(singlePhaseRawPlan, BRIEF, first.layers);
     const paused = await execute(first.layers);
     expect(Result.isFailure(paused)).toBe(true);
-    if (Result.isFailure(paused)) expect(paused.left).toBeInstanceOf(GateAttemptsExhaustedError);
+    if (Result.isFailure(paused)) expect(paused.failure).toBeInstanceOf(GateAttemptsExhaustedError);
     expect(briefCalls(first.fakeShell)).toHaveLength(1);
 
     const recordPath = join(runPath, "phase-01", "brief-00.json");
@@ -620,7 +620,7 @@ describe("re-entering a phase asks no new brief", () => {
     const { runPath, execute } = await startRun(twoPhaseRawPlan, BRIEF, first.layers);
     const limited = await execute(first.layers);
     expect(Result.isFailure(limited)).toBe(true);
-    if (Result.isFailure(limited)) expect(limited.left).toBeInstanceOf(RateLimitError);
+    if (Result.isFailure(limited)) expect(limited.failure).toBeInstanceOf(RateLimitError);
     expect(briefCalls(first.fakeShell)).toHaveLength(2);
     const recordPath = join(runPath, "phase-02", "brief-00.json");
     const recordBytes = await readFile(recordPath, "utf8");

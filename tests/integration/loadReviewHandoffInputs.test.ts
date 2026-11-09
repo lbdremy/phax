@@ -116,7 +116,7 @@ describe("loadReviewHandoffInputs", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
-    expect(result.right.global.files.map((f) => [f.path, f.status])).toEqual([
+    expect(result.success.global.files.map((f) => [f.path, f.status])).toEqual([
       ["src/bar.ts", "matched"],
       ["src/foo.ts", "matched"],
     ]);
@@ -143,7 +143,7 @@ describe("loadReviewHandoffInputs", () => {
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
 
-    const { global, globalMd, phaseContents } = result.right;
+    const { global, globalMd, phaseContents } = result.success;
 
     expect(global.files).toHaveLength(2);
     expect(global.files.find((f) => f.path === "src/foo.ts")?.status).toBe("matched");
@@ -172,8 +172,8 @@ describe("loadReviewHandoffInputs", () => {
     expect(Result.isFailure(result)).toBe(true);
     if (!Result.isFailure(result)) return;
 
-    expect(result.left).toBeInstanceOf(ReviewHandoffArtifactMissingError);
-    const err = result.left as ReviewHandoffArtifactMissingError;
+    expect(result.failure).toBeInstanceOf(ReviewHandoffArtifactMissingError);
+    const err = result.failure as ReviewHandoffArtifactMissingError;
     expect(err.missingPhases).toContain("phase-02");
     expect(err.missingPaths).toContain(`${RUN_PATH}/phase-02/file-reconciliation.json`);
   });
@@ -191,7 +191,7 @@ describe("loadReviewHandoffInputs", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (!Result.isFailure(result)) return;
-    expect(result.left).toBeInstanceOf(ReviewHandoffArtifactMissingError);
+    expect(result.failure).toBeInstanceOf(ReviewHandoffArtifactMissingError);
   });
 
   it("uses placeholder content for missing markdown files (does not fail)", async () => {
@@ -206,7 +206,7 @@ describe("loadReviewHandoffInputs", () => {
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
 
-    const { phaseContents } = result.right;
+    const { phaseContents } = result.success;
     expect(phaseContents[0]?.fileReconciliationMd).toContain("PARTIAL");
     expect(phaseContents[0]?.phaseHandoffMd).toContain("PARTIAL");
   });
@@ -221,7 +221,7 @@ describe("loadReviewHandoffInputs", () => {
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
 
-    const { global, phaseContents } = result.right;
+    const { global, phaseContents } = result.success;
     expect(global.files).toHaveLength(0);
     expect(phaseContents).toHaveLength(0);
   });
@@ -276,8 +276,8 @@ describe("loadReviewNotes", () => {
     const fs = seedAttempts([{ owner: "maintainers", note: "whether the log reads well" }]);
     const result = await runWith(loadReviewNotes(info).pipe(Effect.provide(fs.layer)));
     if (Result.isFailure(result)) throw new Error("loadReviewNotes never fails");
-    expect(result.right).toContain("whether the log reads well");
-    expect(result.right).not.toContain("check the retry budget");
+    expect(result.success).toContain("whether the log reads well");
+    expect(result.success).not.toContain("check the retry budget");
   });
 });
 
@@ -295,7 +295,7 @@ describe("loadPhaseContents", () => {
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
 
-    const { phaseContents, missingPhases, missingPaths } = result.right;
+    const { phaseContents, missingPhases, missingPaths } = result.success;
     expect(phaseContents).toHaveLength(2);
     expect(phaseContents[0]?.fileReconciliationMd).toBe("## Rec 01");
     expect(phaseContents[1]?.phaseHandoffMd).toBe("## Handoff 02");
@@ -316,7 +316,7 @@ describe("loadPhaseContents", () => {
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
 
-    const { phaseContents, missingPhases, missingPaths } = result.right;
+    const { phaseContents, missingPhases, missingPaths } = result.success;
     expect(missingPhases).toContain("phase-01");
     expect(missingPaths).toContain(`${RUN_PATH}/phase-01/phase-handoff.md`);
     expect(phaseContents[0]?.phaseHandoffMd).toContain("PARTIAL");
@@ -364,7 +364,7 @@ describe("loadPhaseContents", () => {
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
 
-    const { phaseContents } = result.right;
+    const { phaseContents } = result.success;
     expect(phaseContents[0]?.phaseId).toBe("phase-01");
     expect(phaseContents[1]?.phaseId).toBe("phase-02");
   });

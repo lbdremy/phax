@@ -850,7 +850,7 @@ export const NodeGitLayer = Layer.succeed(Git, {
             }),
           );
         }
-        return Effect.succeed(result.right);
+        return Effect.succeed(result.success);
       }),
     ),
 

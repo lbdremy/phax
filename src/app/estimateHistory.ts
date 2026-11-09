@@ -63,7 +63,7 @@ function readJsonFile<T>(
       skipped.push({ path, reason: reasons.unreadable });
       return { kind: "skipped" } as const;
     }
-    const text = read.right;
+    const text = read.success;
     const reason = reasons.undecodable;
     let parsed: unknown;
     try {
@@ -77,7 +77,7 @@ function readJsonFile<T>(
       skipped.push({ path, reason });
       return { kind: "skipped" } as const;
     }
-    return { kind: "read", value: decoded.right } as const;
+    return { kind: "read", value: decoded.success } as const;
   });
 }
 

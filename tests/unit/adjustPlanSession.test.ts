@@ -18,9 +18,9 @@ describe("decodeAdjustPlanSession", () => {
     const result = decodeAdjustPlanSession(valid);
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.planPath).toBe("docs/plans/2609101240-foo-plan.md");
-      expect(result.right.provider).toBe("claude-code");
-      expect(result.right.version).toBe(1);
+      expect(result.success.planPath).toBe("docs/plans/2609101240-foo-plan.md");
+      expect(result.success.provider).toBe("claude-code");
+      expect(result.success.version).toBe(1);
     }
   });
 

@@ -331,7 +331,7 @@ async function runPhase(
       ),
     ),
   );
-  if (Result.isFailure(result)) throw result.left as Error;
+  if (Result.isFailure(result)) throw result.failure as Error;
 
   const worktree = join(world.stateRoot, "worktrees", `${NAMESPACE}.${SHORT}`, "phase-01");
   const realWorktree = join(world.realStateRoot, "worktrees", `${NAMESPACE}.${SHORT}`, "phase-01");

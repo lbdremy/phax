@@ -124,7 +124,7 @@ function resolveSourceSpec(
     if (Result.isFailure(validated)) {
       return yield* Effect.fail(
         new ArtifactCreationError({
-          message: `--spec ${sourceSpecPath} is not a valid spec: ${validated.left.message}`,
+          message: `--spec ${sourceSpecPath} is not a valid spec: ${validated.failure.message}`,
         }),
       );
     }
@@ -150,9 +150,9 @@ export function resolveArtifactTarget(
         notLast: input.completion.notLast,
       });
       if (Result.isFailure(resolved)) {
-        return yield* Effect.fail(new ArtifactCreationError({ message: resolved.left }));
+        return yield* Effect.fail(new ArtifactCreationError({ message: resolved.failure }));
       }
-      completesSpec = resolved.right;
+      completesSpec = resolved.success;
     }
 
     if (!isSlug(input.slug)) {

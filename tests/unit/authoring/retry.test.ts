@@ -12,7 +12,7 @@ import {
 function refusal(finalText: string): string {
   const parsed = parseFinalMessageJson(finalText);
   if (Result.isSuccess(parsed)) throw new Error(`expected a refusal for ${finalText}`);
-  return parsed.left;
+  return parsed.failure;
 }
 
 // A made-up document with a stray code expression after one of its values.

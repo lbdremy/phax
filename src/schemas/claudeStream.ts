@@ -180,15 +180,15 @@ export function parseClaudeStream(lines: readonly string[]): ClaudeStreamFacts {
       const decoded = decodeInitEvent(parsed);
       if (init === null && Result.isSuccess(decoded)) {
         init = {
-          sessionId: decoded.right.session_id,
-          version: parseVersion(decoded.right.claude_code_version),
-          apiKeySource: decoded.right.apiKeySource ?? null,
+          sessionId: decoded.success.session_id,
+          version: parseVersion(decoded.success.claude_code_version),
+          apiKeySource: decoded.success.apiKeySource ?? null,
         };
       }
     } else if (type === "assistant") {
       const decoded = decodeAssistantEvent(parsed);
       if (Result.isSuccess(decoded)) {
-        const { id, model, usage } = decoded.right.message;
+        const { id, model, usage } = decoded.success.message;
         events.push({
           kind: "message",
           id,
@@ -208,7 +208,7 @@ export function parseClaudeStream(lines: readonly string[]): ClaudeStreamFacts {
         undecodedRateLimitEvents += 1;
         continue;
       }
-      const windows = decoded.right.rate_limit_info.unifiedWindows;
+      const windows = decoded.success.rate_limit_info.unifiedWindows;
       if (windows === undefined) continue;
       const readings: StreamWindowReading[] = [];
       if (windows.five_hour !== undefined) {
@@ -230,7 +230,7 @@ export function parseClaudeStream(lines: readonly string[]): ClaudeStreamFacts {
       const decoded = decodeResultEvent(parsed);
       if (Result.isSuccess(decoded)) {
         const modelUsage: Record<string, StreamModelUsage> = {};
-        for (const [model, usage] of Object.entries(decoded.right.modelUsage)) {
+        for (const [model, usage] of Object.entries(decoded.success.modelUsage)) {
           modelUsage[model] = {
             inputTokens: usage.inputTokens,
             outputTokens: usage.outputTokens,
@@ -239,9 +239,9 @@ export function parseClaudeStream(lines: readonly string[]): ClaudeStreamFacts {
             costUsd: usage.costUSD,
           };
         }
-        resultDurationMs += decoded.right.duration_ms;
+        resultDurationMs += decoded.success.duration_ms;
         result = {
-          sessionId: decoded.right.session_id,
+          sessionId: decoded.success.session_id,
           facts: { durationMs: resultDurationMs, modelUsage },
         };
       }

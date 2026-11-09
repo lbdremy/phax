@@ -60,7 +60,7 @@ function issue(input: unknown): string {
   const decoded = decodeBriefReportFile(input);
   if (Result.isSuccess(decoded))
     throw new Error(`expected a refusal, got ${JSON.stringify(input)}`);
-  return describeReportIssue(decoded.left);
+  return describeReportIssue(decoded.failure);
 }
 
 describe("brief report: what it carries", () => {

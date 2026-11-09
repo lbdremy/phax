@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   checkPlanRunnable,
@@ -94,10 +94,10 @@ function recordOf(
   const text = fsImpl.getFile(recordPath(kind, artifactPath));
   if (text === undefined) return undefined;
   const parsed: unknown = JSON.parse(text);
-  const decoded: Either.Either<{ readonly artifact: string }, unknown> =
+  const decoded: Result.Result<{ readonly artifact: string }, unknown> =
     kind === "plan" ? decodePlanRecordFile(parsed) : decodeSpecRecordFile(parsed);
-  if (Either.isLeft(decoded)) throw new Error(`${artifactPath}: record does not decode`);
-  const { $schema: _schema, artifact, ...record } = decoded.right as Record<string, unknown>;
+  if (Result.isFailure(decoded)) throw new Error(`${artifactPath}: record does not decode`);
+  const { $schema: _schema, artifact, ...record } = decoded.success as Record<string, unknown>;
   expect(artifact).toBe(artifactPath);
   return record;
 }
@@ -130,9 +130,9 @@ describe("inspectArtifact", () => {
       inspectArtifact("docs/plans/2609101221-foo-plan.md").pipe(Effect.provide(layer)),
     );
 
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right).toEqual({
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success).toEqual({
         kind: "plan",
         status: "Approved",
         legalTargets: ["Approved", "Draft", "Stale", "Abandoned", "Completed"],
@@ -155,9 +155,9 @@ describe("inspectArtifact", () => {
       inspectArtifact("docs/specs/2609101221-foo.md").pipe(Effect.provide(layer)),
     );
 
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.orphanRecords).toEqual([
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success.orphanRecords).toEqual([
         {
           recordFile: "docs/specs/approvals/2609010000-gone.json",
           artifact: "docs/specs/2609010000-gone.md",
@@ -175,9 +175,9 @@ describe("inspectArtifact", () => {
       inspectArtifact("docs/plans/2609101221-foo-plan.md").pipe(Effect.provide(layer)),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(ArtifactValidationError);
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toBeInstanceOf(ArtifactValidationError);
     }
   });
 
@@ -187,10 +187,10 @@ describe("inspectArtifact", () => {
 
     const result = await run(inspectArtifact("docs/plans/foo-plan.md").pipe(Effect.provide(layer)));
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(ArtifactValidationError);
-      expect(result.left.message).toBe(
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toBeInstanceOf(ArtifactValidationError);
+      expect(result.failure.message).toBe(
         "docs/plans/foo-plan.md: name does not match <YYMMDDHHMM>-<slug>-plan.md",
       );
     }
@@ -205,9 +205,9 @@ describe("inspectArtifact", () => {
         inspectArtifact("docs/specs/2609101221-foo.md").pipe(Effect.provide(layer)),
       );
 
-      expect(Either.isRight(result)).toBe(true);
-      if (Either.isRight(result)) {
-        expect(result.right.approval).toEqual({ kind: "none" });
+      expect(Result.isSuccess(result)).toBe(true);
+      if (Result.isSuccess(result)) {
+        expect(result.success.approval).toEqual({ kind: "none" });
       }
     });
 
@@ -219,10 +219,15 @@ describe("inspectArtifact", () => {
         inspectArtifact("docs/specs/2609101221-foo.md").pipe(Effect.provide(layer)),
       );
 
-      expect(Either.isRight(result)).toBe(true);
-      if (Either.isRight(result)) {
-        expect(result.right.approval).toEqual({ kind: "unrecorded" });
-        expect(result.right.legalTargets).toEqual(["Approved", "Draft", "Abandoned", "Completed"]);
+      expect(Result.isSuccess(result)).toBe(true);
+      if (Result.isSuccess(result)) {
+        expect(result.success.approval).toEqual({ kind: "unrecorded" });
+        expect(result.success.legalTargets).toEqual([
+          "Approved",
+          "Draft",
+          "Abandoned",
+          "Completed",
+        ]);
       }
     });
 
@@ -240,9 +245,9 @@ describe("inspectArtifact", () => {
         inspectArtifact("docs/specs/2609101221-foo.md").pipe(Effect.provide(layer)),
       );
 
-      expect(Either.isRight(result)).toBe(true);
-      if (Either.isRight(result)) {
-        expect(result.right.approval).toEqual({
+      expect(Result.isSuccess(result)).toBe(true);
+      if (Result.isSuccess(result)) {
+        expect(result.success.approval).toEqual({
           kind: "recorded",
           date: "2026-08-10",
           baseline: gitImpl.headCommitValue.slice(0, 7),
@@ -274,8 +279,8 @@ describe("inspectArtifact", () => {
         approvedBy: { kind: "operator", name: "Ada Lovelace" },
         editedSinceApproval,
       });
-      expect(Either.getOrThrow(fresh).approval).toEqual(recorded(false));
-      expect(Either.getOrThrow(afterEdit).approval).toEqual(recorded(true));
+      expect(Result.getOrThrow(fresh).approval).toEqual(recorded(false));
+      expect(Result.getOrThrow(afterEdit).approval).toEqual(recorded(true));
     });
 
     it("reports approval:recorded/edited after a body edit post-approval", async () => {
@@ -298,9 +303,9 @@ describe("inspectArtifact", () => {
         inspectArtifact("docs/specs/2609101221-foo.md").pipe(Effect.provide(layer)),
       );
 
-      expect(Either.isRight(result)).toBe(true);
-      if (Either.isRight(result)) {
-        expect(result.right.approval).toEqual({
+      expect(Result.isSuccess(result)).toBe(true);
+      if (Result.isSuccess(result)) {
+        expect(result.success.approval).toEqual({
           kind: "recorded",
           date: "2026-08-10",
           baseline: gitImpl.headCommitValue.slice(0, 7),
@@ -323,9 +328,9 @@ describe("transitionArtifact", () => {
       ),
     );
 
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right).toEqual({
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success).toEqual({
         status: "Approved",
         previousStatus: "Draft",
         path: "docs/specs/2609101221-foo.md",
@@ -347,9 +352,9 @@ describe("transitionArtifact", () => {
       ),
     );
 
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right).toEqual({
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success).toEqual({
         status: "Completed",
         previousStatus: "Approved",
         path: "docs/specs/archive/2609101221-foo.md",
@@ -370,9 +375,9 @@ describe("transitionArtifact", () => {
       ),
     );
 
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right).toEqual({
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success).toEqual({
         status: "Abandoned",
         previousStatus: "Approved",
         path: "docs/plans/archive/2609101221-foo-plan.md",
@@ -388,9 +393,9 @@ describe("transitionArtifact", () => {
         DEFAULT_OPTS,
       ).pipe(Effect.provide(layer)),
     );
-    expect(Either.isLeft(further)).toBe(true);
-    if (Either.isLeft(further)) {
-      expect(further.left).toBeInstanceOf(InvalidArtifactTransitionError);
+    expect(Result.isFailure(further)).toBe(true);
+    if (Result.isFailure(further)) {
+      expect(further.failure).toBeInstanceOf(InvalidArtifactTransitionError);
     }
   });
 
@@ -405,10 +410,10 @@ describe("transitionArtifact", () => {
       ),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(ArtifactValidationError);
-      expect(result.left.message).toContain("already exists");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toBeInstanceOf(ArtifactValidationError);
+      expect(result.failure.message).toContain("already exists");
     }
     // Neither file is touched.
     expect(fsImpl.getFile("docs/plans/2609101221-foo-plan.md")).toBe(APPROVED_PLAN);
@@ -427,9 +432,9 @@ describe("transitionArtifact", () => {
       ),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(InvalidArtifactTransitionError);
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toBeInstanceOf(InvalidArtifactTransitionError);
     }
   });
 
@@ -443,9 +448,9 @@ describe("transitionArtifact", () => {
       ),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(ArtifactValidationError);
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toBeInstanceOf(ArtifactValidationError);
     }
     expect(fsImpl.getFile("docs/specs/2609101221-foo.md")).toBe(NO_STATUS_PLAN);
   });
@@ -467,11 +472,11 @@ describe("transitionArtifact", () => {
       ),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(ArtifactValidationError);
-      expect(result.left.message).toContain("completes-spec: is missing");
-      expect(exitCodeForError(result.left)).toBe(12);
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toBeInstanceOf(ArtifactValidationError);
+      expect(result.failure.message).toContain("completes-spec: is missing");
+      expect(exitCodeForError(result.failure)).toBe(12);
     }
     expect(fsImpl.getFile(plan)).toBe(keyless);
     expect(fsImpl.getFile(THING_RECORD)).toBeUndefined();
@@ -489,9 +494,9 @@ describe("transitionArtifact", () => {
         ),
       );
 
-      expect(Either.isRight(result)).toBe(true);
-      if (Either.isRight(result)) {
-        expect(result.right.approvedBaseline).toBe(gitImpl.headCommitValue);
+      expect(Result.isSuccess(result)).toBe(true);
+      if (Result.isSuccess(result)) {
+        expect(result.success.approvedBaseline).toBe(gitImpl.headCommitValue);
       }
 
       const updatedMd = fsImpl.getFile("docs/specs/2609101221-foo.md") as string;
@@ -527,7 +532,7 @@ describe("transitionArtifact", () => {
         }).pipe(Effect.provide(layer)),
       );
 
-      expect(Either.isRight(result)).toBe(true);
+      expect(Result.isSuccess(result)).toBe(true);
 
       const record = recordOf(fsImpl, "spec", "docs/specs/2609101221-foo.md");
       expect(record?.["baseline"]).toBe("1".repeat(40));
@@ -561,7 +566,7 @@ describe("transitionArtifact", () => {
         transitionArtifact(SPEC, "Approved", DEFAULT_OPTS).pipe(Effect.provide(layer)),
       );
 
-      expect(Either.isRight(result)).toBe(true);
+      expect(Result.isSuccess(result)).toBe(true);
       expect(recordOf(fsImpl, "spec", SPEC)?.["specFingerprint"]).toBe(
         artifactFingerprint(fsImpl.getFile(SPEC) as string),
       );
@@ -590,7 +595,7 @@ describe("transitionArtifact", () => {
         }).pipe(Effect.provide(layer)),
       );
 
-      expect(Either.isRight(result)).toBe(true);
+      expect(Result.isSuccess(result)).toBe(true);
       const commitCalls = gitImpl.calls.filter((c) => c.method === "commitPaths");
       expect(commitCalls).toHaveLength(1);
       if (commitCalls[0]?.method === "commitPaths") {
@@ -614,12 +619,12 @@ describe("transitionArtifact", () => {
         ),
       );
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        expect(result.left).toBeInstanceOf(SpecNotApprovedError);
-        if (result.left instanceof SpecNotApprovedError) {
-          expect(result.left.specPath).toBe("docs/specs/2609101222-foo.md");
-          expect(result.left.specStatus).toBe("Draft");
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
+        expect(result.failure).toBeInstanceOf(SpecNotApprovedError);
+        if (result.failure instanceof SpecNotApprovedError) {
+          expect(result.failure.specPath).toBe("docs/specs/2609101222-foo.md");
+          expect(result.failure.specStatus).toBe("Draft");
         }
       }
     });
@@ -638,11 +643,11 @@ describe("transitionArtifact", () => {
         ),
       );
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        expect(result.left).toBeInstanceOf(SpecApprovalUnrecordedError);
-        if (result.left instanceof SpecApprovalUnrecordedError) {
-          expect(result.left.specPath).toBe("docs/specs/2609101222-foo.md");
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
+        expect(result.failure).toBeInstanceOf(SpecApprovalUnrecordedError);
+        if (result.failure instanceof SpecApprovalUnrecordedError) {
+          expect(result.failure.specPath).toBe("docs/specs/2609101222-foo.md");
         }
       }
     });
@@ -675,11 +680,11 @@ describe("transitionArtifact", () => {
         ),
       );
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        expect(result.left).toBeInstanceOf(SpecEditedSinceApprovalError);
-        if (result.left instanceof SpecEditedSinceApprovalError) {
-          expect(result.left.specPath).toBe("docs/specs/2609101222-foo.md");
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
+        expect(result.failure).toBeInstanceOf(SpecEditedSinceApprovalError);
+        if (result.failure instanceof SpecEditedSinceApprovalError) {
+          expect(result.failure.specPath).toBe("docs/specs/2609101222-foo.md");
         }
       }
       // Nothing was written to the plan
@@ -707,7 +712,7 @@ describe("transitionArtifact", () => {
         ),
       );
 
-      expect(Either.isRight(result)).toBe(true);
+      expect(Result.isSuccess(result)).toBe(true);
     });
 
     it("refuses when the declared spec resolves at its archive path but is not Approved (terminal)", async () => {
@@ -724,11 +729,11 @@ describe("transitionArtifact", () => {
         ),
       );
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        expect(result.left).toBeInstanceOf(SpecNotApprovedError);
-        if (result.left instanceof SpecNotApprovedError) {
-          expect(result.left.specStatus).toBe("Completed");
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
+        expect(result.failure).toBeInstanceOf(SpecNotApprovedError);
+        if (result.failure instanceof SpecNotApprovedError) {
+          expect(result.failure.specStatus).toBe("Completed");
         }
       }
     });
@@ -746,10 +751,10 @@ describe("transitionArtifact", () => {
         ),
       );
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        expect(result.left).toBeInstanceOf(ArtifactValidationError);
-        expect(result.left.message).toContain("docs/specs/2609101299-missing.md");
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
+        expect(result.failure).toBeInstanceOf(ArtifactValidationError);
+        expect(result.failure.message).toContain("docs/specs/2609101299-missing.md");
       }
     });
   });
@@ -776,7 +781,7 @@ describe("transitionArtifact", () => {
           Effect.provide(layer),
         ),
       );
-      expect(Either.isRight(result)).toBe(true);
+      expect(Result.isSuccess(result)).toBe(true);
 
       const updatedMd = fsImpl.getFile("docs/plans/2609101240-thing-plan.md");
       expect(updatedMd).toBeDefined();
@@ -822,7 +827,7 @@ describe("transitionArtifact", () => {
         ),
       );
 
-      expect(Either.isRight(result)).toBe(true);
+      expect(Result.isSuccess(result)).toBe(true);
       const commitCalls = gitImpl.calls.filter((c) => c.method === "commitPaths");
       expect(commitCalls).toHaveLength(1);
       if (commitCalls[0]?.method === "commitPaths") {
@@ -842,7 +847,7 @@ describe("transitionArtifact", () => {
           Effect.provide(layer),
         ),
       );
-      expect(Either.isRight(result)).toBe(true);
+      expect(Result.isSuccess(result)).toBe(true);
 
       expect(
         recordOf(fsImpl, "plan", "docs/plans/2609101240-thing-plan.md")?.["sourceSpec"],
@@ -867,7 +872,7 @@ describe("transitionArtifact", () => {
           nowIso: secondNowIso,
         }).pipe(Effect.provide(layer)),
       );
-      expect(Either.isRight(result)).toBe(true);
+      expect(Result.isSuccess(result)).toBe(true);
 
       const record = recordOf(fsImpl, "plan", "docs/plans/2609101240-thing-plan.md");
       expect(record?.["baseline"]).toBe("1".repeat(40));
@@ -890,11 +895,11 @@ describe("transitionArtifact", () => {
         ),
       );
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        expect(result.left).toBeInstanceOf(SpecRetirementBlockedError);
-        if (result.left instanceof SpecRetirementBlockedError) {
-          expect(result.left.dependents).toEqual([
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
+        expect(result.failure).toBeInstanceOf(SpecRetirementBlockedError);
+        if (result.failure instanceof SpecRetirementBlockedError) {
+          expect(result.failure.dependents).toEqual([
             { path: "docs/plans/2609101250-thing-plan.md", status: "Approved" },
           ]);
         }
@@ -917,16 +922,16 @@ describe("transitionArtifact", () => {
           Effect.provide(layer),
         ),
       );
-      expect(Either.isRight(abandonResult)).toBe(true);
+      expect(Result.isSuccess(abandonResult)).toBe(true);
 
       const archiveResult = await run(
         transitionArtifact("docs/specs/2609101223-foo.md", "Completed", DEFAULT_OPTS).pipe(
           Effect.provide(layer),
         ),
       );
-      expect(Either.isRight(archiveResult)).toBe(true);
-      if (Either.isRight(archiveResult)) {
-        expect(archiveResult.right.path).toBe("docs/specs/archive/2609101223-foo.md");
+      expect(Result.isSuccess(archiveResult)).toBe(true);
+      if (Result.isSuccess(archiveResult)) {
+        expect(archiveResult.success.path).toBe("docs/specs/archive/2609101223-foo.md");
       }
       // The dependent stays exactly where the abandon step left it.
       expect(fsImpl.getFile("docs/plans/archive/2609101250-thing-plan.md")).toContain(
@@ -944,7 +949,7 @@ describe("transitionArtifact", () => {
         ),
       );
 
-      expect(Either.isRight(result)).toBe(true);
+      expect(Result.isSuccess(result)).toBe(true);
     });
   });
 
@@ -969,7 +974,7 @@ describe("transitionArtifact", () => {
 
       expect(fsImpl.getFile(THING_RECORD)).toBeUndefined();
       // The answer names the record it deleted, as a reopen's does.
-      expect(Either.isRight(abandoned) && abandoned.right.deletedRecord).toBe(THING_RECORD);
+      expect(Result.isSuccess(abandoned) && abandoned.success.deletedRecord).toBe(THING_RECORD);
       expect(
         fsImpl.getFile("docs/plans/archive/approvals/2609101240-thing-plan.json"),
       ).toBeUndefined();
@@ -1005,8 +1010,8 @@ describe("transitionArtifact", () => {
       fsImpl.setFile(THING_RECORD, "{}");
 
       const failures: unknown[] = [
-        Either.flip(await run(inspectArtifact(THING_RECORD).pipe(Effect.provide(layer)))),
-        Either.flip(
+        Result.flip(await run(inspectArtifact(THING_RECORD).pipe(Effect.provide(layer)))),
+        Result.flip(
           await run(
             transitionArtifact(THING_RECORD, "Approved", DEFAULT_OPTS).pipe(Effect.provide(layer)),
           ),
@@ -1014,8 +1019,8 @@ describe("transitionArtifact", () => {
       ];
       for (const failure of failures) {
         expect(failure).toMatchObject({
-          _tag: "Right",
-          right: expect.objectContaining({
+          _tag: "Success",
+          success: expect.objectContaining({
             _tag: "ArtifactValidationError",
             message: expect.stringContaining("is not a recognized artifact path"),
           }),
@@ -1035,7 +1040,7 @@ describe("transitionArtifact", () => {
         ),
       );
 
-      expect(Either.isRight(result)).toBe(true);
+      expect(Result.isSuccess(result)).toBe(true);
       expect(fsImpl.getFile(THING_RECORD)).toBe("{ not valid json");
     });
 
@@ -1055,7 +1060,7 @@ describe("transitionArtifact", () => {
         }).pipe(Effect.provide(layer)),
       );
 
-      expect(Either.isRight(result)).toBe(true);
+      expect(Result.isSuccess(result)).toBe(true);
       const commitCalls = gitImpl.calls.filter((c) => c.method === "commitPaths");
       expect(commitCalls).toHaveLength(1);
       if (commitCalls[0]?.method === "commitPaths") {
@@ -1078,7 +1083,7 @@ describe("transitionArtifact", () => {
             Effect.provide(layer),
           ),
         );
-        expect(Either.isRight(result)).toBe(true);
+        expect(Result.isSuccess(result)).toBe(true);
       }
       expect(fsImpl.getFile(OTHER)).toBe("{ not valid json");
     });
@@ -1132,10 +1137,10 @@ describe("transitionArtifact", () => {
           ),
         );
 
-        expect(Either.isLeft(result)).toBe(true);
-        if (Either.isLeft(result)) {
-          expect(result.left).toBeInstanceOf(ApprovalRecordUnreadableError);
-          expect(exitCodeForError(result.left)).toBe(12);
+        expect(Result.isFailure(result)).toBe(true);
+        if (Result.isFailure(result)) {
+          expect(result.failure).toBeInstanceOf(ApprovalRecordUnreadableError);
+          expect(exitCodeForError(result.failure)).toBe(12);
         }
         expect(fsImpl.getFile(THING_RECORD)).toBe(recordText);
         expect(fsImpl.getFile("docs/plans/2609101240-thing-plan.md")).toBe(plan);
@@ -1153,9 +1158,9 @@ describe("transitionArtifact", () => {
         ),
       );
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        expect(result.left).toBeInstanceOf(ApprovalRecordUnreadableError);
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
+        expect(result.failure).toBeInstanceOf(ApprovalRecordUnreadableError);
       }
       expect(fsImpl.getFile(FOO_RECORD)).toBe("{ not valid json");
       expect(fsImpl.getFile("docs/specs/2609101221-foo.md")).toBe(DRAFT_SPEC);
@@ -1177,9 +1182,9 @@ describe("transitionArtifact", () => {
           transitionArtifact(path, "Completed", DEFAULT_OPTS).pipe(Effect.provide(layer)),
         );
 
-        expect(Either.isLeft(result)).toBe(true);
-        if (Either.isLeft(result)) {
-          expect(result.left).toBeInstanceOf(ApprovalRecordUnreadableError);
+        expect(Result.isFailure(result)).toBe(true);
+        if (Result.isFailure(result)) {
+          expect(result.failure).toBeInstanceOf(ApprovalRecordUnreadableError);
         }
         expect(fsImpl.getFile(ownRecord)).toBe("{ not valid json");
         expect(fsImpl.getFile(path)).toBe(md);
@@ -1209,10 +1214,10 @@ describe("transitionArtifact", () => {
         ),
       );
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        expect(result.left).toBeInstanceOf(ApprovalRecordUnreadableError);
-        expect(result.left.message).toContain(
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
+        expect(result.failure).toBeInstanceOf(ApprovalRecordUnreadableError);
+        expect(result.failure.message).toContain(
           "records docs/plans/2609101299-other-plan.md, not docs/plans/2609101240-thing-plan.md",
         );
       }
@@ -1246,8 +1251,9 @@ describe("transitionArtifact", () => {
         ),
       );
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) expect(result.left).toBeInstanceOf(ApprovalRecordUnreadableError);
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result))
+        expect(result.failure).toBeInstanceOf(ApprovalRecordUnreadableError);
       expect(fsImpl.getFile(THING_RECORD)).toBeUndefined();
     });
   });
@@ -1277,7 +1283,7 @@ describe("transitionArtifact", () => {
           Effect.provide(layer),
         ),
       );
-      expect(Either.isRight(result)).toBe(true);
+      expect(Result.isSuccess(result)).toBe(true);
 
       // The reopened plan claims no approval, in the frontmatter or the sidecar.
       expect(fsImpl.getFile("docs/plans/2609101240-thing-plan.md")).not.toContain("approved:");
@@ -1362,9 +1368,9 @@ describe("transitionArtifact", () => {
         }).pipe(Effect.provide(layer)),
       );
 
-      expect(Either.isRight(result)).toBe(true);
-      if (Either.isRight(result)) {
-        expect(result.right.commit).toEqual({
+      expect(Result.isSuccess(result)).toBe(true);
+      if (Result.isSuccess(result)) {
+        expect(result.success.commit).toEqual({
           hash: gitImpl.headCommitValue,
           subject: "chore(plans): reopen thing",
         });
@@ -1393,9 +1399,9 @@ describe("transitionArtifact", () => {
         }).pipe(Effect.provide(layer)),
       );
 
-      expect(Either.isRight(result)).toBe(true);
-      if (Either.isRight(result)) {
-        expect(result.right.commit).toEqual({
+      expect(Result.isSuccess(result)).toBe(true);
+      if (Result.isSuccess(result)) {
+        expect(result.success.commit).toEqual({
           hash: gitImpl.headCommitValue,
           subject: "chore(plans): approve thing",
         });
@@ -1441,7 +1447,7 @@ describe("transitionArtifact", () => {
         }).pipe(Effect.provide(layer)),
       );
 
-      expect(Either.isRight(result)).toBe(true);
+      expect(Result.isSuccess(result)).toBe(true);
       const commitCalls = gitImpl.calls.filter((c) => c.method === "commitPaths");
       expect(commitCalls).toHaveLength(1);
       if (commitCalls[0]?.method === "commitPaths") {
@@ -1467,11 +1473,11 @@ describe("transitionArtifact", () => {
         }).pipe(Effect.provide(layer)),
       );
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        expect(result.left).toBeInstanceOf(ArtifactDirtyWriteSetError);
-        if (result.left instanceof ArtifactDirtyWriteSetError) {
-          expect(result.left.paths).toEqual(["docs/plans/2609101240-thing-plan.md"]);
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
+        expect(result.failure).toBeInstanceOf(ArtifactDirtyWriteSetError);
+        if (result.failure instanceof ArtifactDirtyWriteSetError) {
+          expect(result.failure.paths).toEqual(["docs/plans/2609101240-thing-plan.md"]);
         }
       }
       expect(fsImpl.getFile("docs/plans/2609101240-thing-plan.md")).toBe(source);
@@ -1491,9 +1497,9 @@ describe("transitionArtifact", () => {
         }).pipe(Effect.provide(layer)),
       );
 
-      expect(Either.isRight(result)).toBe(true);
-      if (Either.isRight(result)) {
-        expect(result.right.commit).toBeUndefined();
+      expect(Result.isSuccess(result)).toBe(true);
+      if (Result.isSuccess(result)) {
+        expect(result.success.commit).toBeUndefined();
       }
       expect(gitImpl.calls.some((c) => c.method === "dirtyPaths")).toBe(false);
       expect(gitImpl.calls.some((c) => c.method === "commitPaths")).toBe(false);
@@ -1510,9 +1516,9 @@ describe("transitionArtifact", () => {
         }).pipe(Effect.provide(layer)),
       );
 
-      expect(Either.isRight(result)).toBe(true);
-      if (Either.isRight(result)) {
-        expect(result.right.commit).toBeUndefined();
+      expect(Result.isSuccess(result)).toBe(true);
+      if (Result.isSuccess(result)) {
+        expect(result.success.commit).toBeUndefined();
       }
       expect(gitImpl.calls.some((c) => c.method === "commitPaths")).toBe(false);
     });
@@ -1531,20 +1537,23 @@ describe("transitionArtifact", () => {
         }).pipe(Effect.provide(layer)),
       );
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        expect(result.left).toBeInstanceOf(ArtifactCommitFailedError);
-        if (result.left instanceof ArtifactCommitFailedError) {
-          expect(result.left.paths).toEqual(["docs/plans/2609101240-thing-plan.md", THING_RECORD]);
-          expect(result.left.cause).toContain("unable to auto-detect email address");
-          expect(result.left.commitMessage).toEqual({
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
+        expect(result.failure).toBeInstanceOf(ArtifactCommitFailedError);
+        if (result.failure instanceof ArtifactCommitFailedError) {
+          expect(result.failure.paths).toEqual([
+            "docs/plans/2609101240-thing-plan.md",
+            THING_RECORD,
+          ]);
+          expect(result.failure.cause).toContain("unable to auto-detect email address");
+          expect(result.failure.commitMessage).toEqual({
             subject: "chore(plans): approve thing",
             body: "Transitions docs/plans/2609101240-thing-plan.md to Approved (approve).",
           });
-          expect(result.left.message).toContain(
+          expect(result.failure.message).toContain(
             "git commit -m 'chore(plans): approve thing' -m 'Transitions docs/plans/2609101240-thing-plan.md to Approved (approve).' --",
           );
-          expect(result.left.message).not.toContain("JSON sidecar");
+          expect(result.failure.message).not.toContain("JSON sidecar");
         }
       }
       // The transition's writes stayed in place despite the commit failure.
@@ -1628,14 +1637,14 @@ describe("headless-authored artifacts (JSON sidecar)", () => {
   function headlessSpecMd(status: string, bodyEdit: (body: string) => string = (b) => b): string {
     // SPEC_DOCUMENT is the 0.16.0 shape; the current sidecar is SIDECAR_JSON.
     const decoded = decodeSpecDocumentFile(JSON.parse(SIDECAR_JSON));
-    if (Either.isLeft(decoded)) throw new Error("fixture spec document must decode");
+    if (Result.isFailure(decoded)) throw new Error("fixture spec document must decode");
     return `---
 status: ${status}
 date: 2026-09-23
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
 ---
-${bodyEdit(renderSpecBody(decoded.right))}`;
+${bodyEdit(renderSpecBody(decoded.success))}`;
   }
 
   function headlessHarness(md: string, sidecarJson: string = SIDECAR_JSON) {
@@ -1649,13 +1658,13 @@ ${bodyEdit(renderSpecBody(decoded.right))}`;
     it("reports headless, in sync, when the body is the sidecar's rendering", async () => {
       const { layer } = headlessHarness(headlessSpecMd("Draft"));
       const result = await run(inspectArtifact(SPEC).pipe(Effect.provide(layer)));
-      expect(Either.isRight(result) && result.right.authoring).toEqual({
+      expect(Result.isSuccess(result) && result.success.authoring).toEqual({
         kind: "headless",
         sidecarPath: SIDECAR,
         agreement: "in-sync",
       });
       // A spec always reports its questions, even when it has none.
-      expect(Either.isRight(result) && result.right.questions).toEqual({
+      expect(Result.isSuccess(result) && result.success.questions).toEqual({
         kind: "summary",
         summary: { open: [], arbitrated: 0, lifted: 0 },
         arbitrated: [],
@@ -1669,7 +1678,7 @@ ${bodyEdit(renderSpecBody(decoded.right))}`;
       for (const md of [headlessSpecMd("Draft"), headlessSpecMd("Draft", edited)]) {
         const { layer } = headlessHarness(md, PRE_SCHEMA_SIDECAR_JSON);
         const result = await run(inspectArtifact(SPEC).pipe(Effect.provide(layer)));
-        expect(Either.isRight(result) && result.right.authoring).toEqual({
+        expect(Result.isSuccess(result) && result.success.authoring).toEqual({
           kind: "headless",
           sidecarPath: SIDECAR,
           agreement: { kind: "unmigrated", format: "spec-document", shape: "pre-schema" },
@@ -1680,7 +1689,7 @@ ${bodyEdit(renderSpecBody(decoded.right))}`;
     it("reports diverged after a body edit", async () => {
       const { layer } = headlessHarness(headlessSpecMd("Draft", edited));
       const result = await run(inspectArtifact(SPEC).pipe(Effect.provide(layer)));
-      expect(Either.isRight(result) && result.right.authoring).toEqual({
+      expect(Result.isSuccess(result) && result.success.authoring).toEqual({
         kind: "headless",
         sidecarPath: SIDECAR,
         agreement: "diverged",
@@ -1690,7 +1699,7 @@ ${bodyEdit(renderSpecBody(decoded.right))}`;
     it("reports an invalid sidecar with the reason", async () => {
       const { layer } = headlessHarness(headlessSpecMd("Draft"), "{ nope");
       const result = await run(inspectArtifact(SPEC).pipe(Effect.provide(layer)));
-      expect(Either.isRight(result) && result.right.authoring).toMatchObject({
+      expect(Result.isSuccess(result) && result.success.authoring).toMatchObject({
         kind: "headless",
         agreement: { kind: "invalid", message: expect.stringMatching(/^not JSON/) },
       });
@@ -1700,7 +1709,7 @@ ${bodyEdit(renderSpecBody(decoded.right))}`;
       const { fsImpl, layer } = makeHarness();
       fsImpl.setFile(SPEC, DRAFT_SPEC);
       const result = await run(inspectArtifact(SPEC).pipe(Effect.provide(layer)));
-      expect(Either.isRight(result) && result.right.authoring).toEqual({ kind: "interactive" });
+      expect(Result.isSuccess(result) && result.success.authoring).toEqual({ kind: "interactive" });
     });
   });
 
@@ -1716,18 +1725,18 @@ ${bodyEdit(renderSpecBody(decoded.right))}`;
         ),
       );
 
-      expect(Either.isRight(result)).toBe(true);
+      expect(Result.isSuccess(result)).toBe(true);
       const commitCalls = gitImpl.calls.filter((c) => c.method === "commitPaths");
       expect(commitCalls).toHaveLength(1);
       if (commitCalls[0]?.method === "commitPaths") {
         expect(commitCalls[0].paths).toEqual([SPEC, SIDECAR, SPEC_RECORD]);
       }
       // The sidecar rides in the commit's paths but is not rewritten, so it is not written.
-      expect(Either.isRight(result) && result.right.written).toEqual([SPEC, SPEC_RECORD]);
+      expect(Result.isSuccess(result) && result.success.written).toEqual([SPEC, SPEC_RECORD]);
       // The frontmatter stamp does not diverge the pair.
       expect(fsImpl.getFile(SIDECAR)).toBe(SIDECAR_JSON);
       const after = await run(inspectArtifact(SPEC).pipe(Effect.provide(layer)));
-      expect(Either.isRight(after) && after.right.authoring).toMatchObject({
+      expect(Result.isSuccess(after) && after.success.authoring).toMatchObject({
         agreement: "in-sync",
       });
     });
@@ -1743,7 +1752,7 @@ ${bodyEdit(renderSpecBody(decoded.right))}`;
         ),
       );
 
-      expect(Either.isRight(result)).toBe(true);
+      expect(Result.isSuccess(result)).toBe(true);
       expect(fsImpl.getFile(SPEC)).toBeUndefined();
       expect(fsImpl.getFile(SIDECAR)).toBeUndefined();
       expect(fsImpl.getFile(ARCHIVED_SPEC)).toContain("status: Completed");
@@ -1754,7 +1763,7 @@ ${bodyEdit(renderSpecBody(decoded.right))}`;
         // No record file exists, so none joins the write-set.
         expect(commitCalls[0].paths).toEqual([SPEC, SIDECAR, ARCHIVED_SPEC, ARCHIVED_SIDECAR]);
       }
-      expect(Either.isRight(result) && result.right.written).toEqual([
+      expect(Result.isSuccess(result) && result.success.written).toEqual([
         ARCHIVED_SPEC,
         ARCHIVED_SIDECAR,
       ]);
@@ -1770,15 +1779,15 @@ ${bodyEdit(renderSpecBody(decoded.right))}`;
         ),
       );
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        expect(result.left).toBeInstanceOf(ArtifactSidecarDivergedError);
-        expect(exitCodeForError(result.left)).toBe(12);
-        expect(result.left.message).toContain("differs from its sidecar's rendering");
-        expect(result.left.message).toContain(
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
+        expect(result.failure).toBeInstanceOf(ArtifactSidecarDivergedError);
+        expect(exitCodeForError(result.failure)).toBe(12);
+        expect(result.failure.message).toContain("differs from its sidecar's rendering");
+        expect(result.failure.message).toContain(
           "phax artifact new spec plan-prune --headless --brief <file|->",
         );
-        expect(result.left.message).toContain(
+        expect(result.failure.message).toContain(
           `delete ${SIDECAR} to demote the artifact to hand-authored`,
         );
       }
@@ -1797,11 +1806,11 @@ ${bodyEdit(renderSpecBody(decoded.right))}`;
         ),
       );
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        expect(result.left).toBeInstanceOf(DocumentMigrationRequiredError);
-        expect(exitCodeForError(result.left)).toBe(12);
-        expect(result.left.message).toBe(
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
+        expect(result.failure).toBeInstanceOf(DocumentMigrationRequiredError);
+        expect(exitCodeForError(result.failure)).toBe(12);
+        expect(result.failure.message).toBe(
           `Approval refused: ${SIDECAR} is stamped spec-document written before $schema — ` +
             "run `phax artifact migrate-documents` first",
         );
@@ -1819,7 +1828,7 @@ ${bodyEdit(renderSpecBody(decoded.right))}`;
         transitionArtifact(SPEC, "Abandoned", DEFAULT_OPTS).pipe(Effect.provide(layer)),
       );
 
-      expect(Either.isRight(result)).toBe(true);
+      expect(Result.isSuccess(result)).toBe(true);
       expect(fsImpl.getFile(ARCHIVED_SIDECAR)).toBe(PRE_SCHEMA_SIDECAR_JSON);
     });
 
@@ -1830,10 +1839,10 @@ ${bodyEdit(renderSpecBody(decoded.right))}`;
         transitionArtifact(SPEC, "Approved", DEFAULT_OPTS).pipe(Effect.provide(layer)),
       );
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        expect(result.left).toBeInstanceOf(ArtifactSidecarDivergedError);
-        expect(result.left.message).toContain("has an invalid sidecar (not JSON");
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
+        expect(result.failure).toBeInstanceOf(ArtifactSidecarDivergedError);
+        expect(result.failure.message).toContain("has an invalid sidecar (not JSON");
       }
     });
 
@@ -1844,7 +1853,7 @@ ${bodyEdit(renderSpecBody(decoded.right))}`;
         transitionArtifact(SPEC, "Abandoned", DEFAULT_OPTS).pipe(Effect.provide(layer)),
       );
 
-      expect(Either.isRight(result)).toBe(true);
+      expect(Result.isSuccess(result)).toBe(true);
       expect(fsImpl.getFile(ARCHIVED_SPEC)).toContain("status: Abandoned");
       expect(fsImpl.getFile(ARCHIVED_SIDECAR)).toBe(SIDECAR_JSON);
       expect(fsImpl.getFile(SIDECAR)).toBeUndefined();
@@ -1859,10 +1868,10 @@ ${bodyEdit(renderSpecBody(decoded.right))}`;
         transitionArtifact(SPEC, "Completed", DEFAULT_OPTS).pipe(Effect.provide(layer)),
       );
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        expect(result.left).toBeInstanceOf(ArtifactValidationError);
-        expect(result.left.message).toContain(`destination ${ARCHIVED_SIDECAR} already exists`);
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
+        expect(result.failure).toBeInstanceOf(ArtifactValidationError);
+        expect(result.failure.message).toContain(`destination ${ARCHIVED_SIDECAR} already exists`);
       }
       expect(fsImpl.getFile(SPEC)).toBe(source);
       expect(fsImpl.getFile(SIDECAR)).toBe(SIDECAR_JSON);
@@ -1874,8 +1883,8 @@ ${bodyEdit(renderSpecBody(decoded.right))}`;
 describe("checkPlanRunnable", () => {
   it("refuses a plan with no frontmatter block", () => {
     const result = checkPlanRunnable(NO_STATUS_PLAN, "docs/plans/2609101221-foo-plan.md");
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) expect(result.left.status).toBe("missing");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) expect(result.failure.status).toBe("missing");
   });
 
   it("refuses a plan with an invalid status value", () => {
@@ -1883,26 +1892,26 @@ describe("checkPlanRunnable", () => {
       planMd("NotAThing", "null"),
       "docs/plans/2609101221-foo-plan.md",
     );
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) expect(result.left.status).toBe("invalid");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) expect(result.failure.status).toBe("invalid");
   });
 
   it("refuses a Draft plan", () => {
     const result = checkPlanRunnable(planMd("Draft", "null"), "docs/plans/2609101221-foo-plan.md");
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left.status).toBe("Draft");
-      expect(result.left.message).toContain("Approve");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure.status).toBe("Draft");
+      expect(result.failure.message).toContain("Approve");
     }
   });
 
   it("refuses a Stale plan with wording distinct from Draft", () => {
     const result = checkPlanRunnable(planMd("Stale", "null"), "docs/plans/2609101221-foo-plan.md");
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left.status).toBe("Stale");
-      expect(result.left.message).toContain("Re-plan");
-      expect(result.left.message).not.toContain("Approve");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure.status).toBe("Stale");
+      expect(result.failure.message).toContain("Re-plan");
+      expect(result.failure.message).not.toContain("Approve");
     }
   });
 
@@ -1911,10 +1920,10 @@ describe("checkPlanRunnable", () => {
       planMd("Abandoned", "null"),
       "docs/plans/archive/2609101221-foo-plan.md",
     );
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left.status).toBe("Abandoned");
-      expect(result.left.message).toContain("retired");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure.status).toBe("Abandoned");
+      expect(result.failure.message).toContain("retired");
     }
   });
 
@@ -1923,29 +1932,29 @@ describe("checkPlanRunnable", () => {
       planMd("Completed", "null"),
       "docs/plans/archive/2609101221-foo-plan.md",
     );
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left.status).toBe("Completed");
-      expect(result.left.message).toContain("retired");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure.status).toBe("Completed");
+      expect(result.failure.message).toContain("retired");
     }
   });
 
   it("passes for an Approved plan", () => {
     const result = checkPlanRunnable(APPROVED_PLAN, "docs/plans/2609101221-foo-plan.md");
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
   });
 
   it("refuses an Approved plan sitting under docs/plans/archive/ (location disagreement)", () => {
     const result = checkPlanRunnable(APPROVED_PLAN, "docs/plans/archive/2609101221-foo-plan.md");
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left.message).toContain("disagrees with its location");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure.message).toContain("disagrees with its location");
     }
   });
 
   it("passes for an Approved plan at a non-artifact path", () => {
     const result = checkPlanRunnable(APPROVED_PLAN, "tests/fixtures/plan.md");
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
   });
 });
 
@@ -1964,11 +1973,11 @@ describe("old approval ledger refusal", () => {
         return { ...harness, before: new Map(harness.fsImpl.files) };
       }
 
-      function expectRefused(result: Either.Either<unknown, unknown>): void {
-        expect(Either.isLeft(result)).toBe(true);
-        if (!Either.isLeft(result)) return;
-        expect(result.left).toBeInstanceOf(ApprovalLedgerMigrationRequiredError);
-        const err = result.left as ApprovalLedgerMigrationRequiredError;
+      function expectRefused(result: Result.Result<unknown, unknown>): void {
+        expect(Result.isFailure(result)).toBe(true);
+        if (!Result.isFailure(result)) return;
+        expect(result.failure).toBeInstanceOf(ApprovalLedgerMigrationRequiredError);
+        const err = result.failure as ApprovalLedgerMigrationRequiredError;
         expect(err.ledgerPath).toBe(ledgerPath);
         expect(err.message).toContain(ledgerPath);
         expect(err.message).toContain("phax artifact migrate-approvals");

@@ -945,8 +945,8 @@ describe("records explain and list (real git)", () => {
       ),
     );
     if (Result.isSuccess(outcome)) throw new Error("expected a failure");
-    expect(outcome.left.message).toContain(`${runId}/${phaseId}/record.json`);
-    expect(outcome.left.message).toContain(
+    expect(outcome.failure.message).toContain(`${runId}/${phaseId}/record.json`);
+    expect(outcome.failure.message).toContain(
       "phase record manifest without $schema is not in the pre-schema shape — older than the first release that writes $schema, or damaged",
     );
 
@@ -1431,7 +1431,7 @@ describe("records explain and list (real git)", () => {
 
       expect(Result.isFailure(outcome)).toBe(true);
       if (Result.isFailure(outcome)) {
-        expect(outcome.left.message).toContain("an authoring manifest under a decision key");
+        expect(outcome.failure.message).toContain("an authoring manifest under a decision key");
       }
     });
 
@@ -1665,7 +1665,7 @@ describe("records explain and list (real git)", () => {
 
       expect(Result.isFailure(outcome)).toBe(true);
       if (Result.isFailure(outcome)) {
-        expect(outcome.left.message).toContain("a review manifest under a phase key");
+        expect(outcome.failure.message).toContain("a review manifest under a phase key");
       }
     });
   });

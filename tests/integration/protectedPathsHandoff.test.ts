@@ -72,8 +72,8 @@ const declare = (held: HeldRun): void => {
 
 function failedWith<E>(result: Result.Result<unknown, unknown>, type: new (...a: never[]) => E): E {
   if (Result.isSuccess(result)) throw new Error("the run did not pause");
-  expect(result.left).toBeInstanceOf(type);
-  return result.left as E;
+  expect(result.failure).toBeInstanceOf(type);
+  return result.failure as E;
 }
 
 const writeBaseline = (run: HeldRun, phaseId: string, content: string): void => {

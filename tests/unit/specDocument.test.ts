@@ -105,7 +105,7 @@ type Mutable = ReturnType<typeof validSpecDocument> & Record<string, unknown>;
 function rejection(doc: unknown): string {
   const result = decodeSpecDocument(doc);
   if (Result.isSuccess(result)) throw new Error("expected the document to be rejected");
-  return result.left;
+  return result.failure;
 }
 
 // The valid document with its first surface element's summary replaced.
@@ -314,7 +314,7 @@ function decidedVerdict() {
 function fileRejection(doc: unknown): string {
   const result = decodeSpecDocumentFile(doc);
   if (Result.isSuccess(result)) throw new Error("expected the sidecar to be rejected");
-  return formatFirstViolation(result.left);
+  return formatFirstViolation(result.failure);
 }
 
 describe("decodeSpecDocumentFile", () => {

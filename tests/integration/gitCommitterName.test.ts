@@ -81,6 +81,6 @@ describe("Git committerName (Node adapter)", () => {
     writeFileSync(join(repoDir, ".git", "config"), "[user\n\tname = Ada Lovelace\n");
     const result = await committerName();
     expect(Result.isFailure(result)).toBe(true);
-    if (Result.isFailure(result)) expect(result.left).toBeInstanceOf(GitError);
+    if (Result.isFailure(result)) expect(result.failure).toBeInstanceOf(GitError);
   });
 });

@@ -68,7 +68,7 @@ describe("PlanRecordFileSchema", () => {
   it("decodes a record with a source spec and round-trips through the encoder", () => {
     const decoded = decodePlanRecordFile(planFile);
     if (Result.isFailure(decoded)) throw new Error("record rejected");
-    expect(encodePlanRecordFile(decoded.right)).toEqual(planFile);
+    expect(encodePlanRecordFile(decoded.success)).toEqual(planFile);
   });
 
   it("decodes a record with a null source spec", () => {
@@ -78,7 +78,7 @@ describe("PlanRecordFileSchema", () => {
   it("keys the file exactly $schema, artifact, planFingerprint, approvedAt, baseline, sourceSpec, approvedBy", () => {
     const decoded = decodePlanRecordFile(planFile);
     if (Result.isFailure(decoded)) throw new Error("record rejected");
-    expect(Object.keys(encodePlanRecordFile(decoded.right))).toEqual([
+    expect(Object.keys(encodePlanRecordFile(decoded.success))).toEqual([
       "$schema",
       "artifact",
       "planFingerprint",
@@ -122,7 +122,7 @@ describe("SpecRecordFileSchema", () => {
   it("decodes a record and round-trips through the encoder, keys in order", () => {
     const decoded = decodeSpecRecordFile(specFile);
     if (Result.isFailure(decoded)) throw new Error("record rejected");
-    const encoded = encodeSpecRecordFile(decoded.right);
+    const encoded = encodeSpecRecordFile(decoded.success);
     expect(encoded).toEqual(specFile);
     expect(Object.keys(encoded)).toEqual([
       "$schema",
@@ -187,9 +187,9 @@ describe.each(READERS)("read%sRecordFile", (kind, read, file, record, path, form
   function message(input: unknown): string {
     const result = read(path, input);
     if (Result.isSuccess(result)) throw new Error("expected the reader to refuse");
-    expect(result.left).toMatchObject({ _tag: "PersistedReadError", file: path, format });
-    expect(result.left.message.startsWith(`${path}: `)).toBe(true);
-    return result.left.message;
+    expect(result.failure).toMatchObject({ _tag: "PersistedReadError", file: path, format });
+    expect(result.failure.message.startsWith(`${path}: `)).toBe(true);
+    return result.failure.message;
   }
 
   it("reads the file as the record without $schema", () => {

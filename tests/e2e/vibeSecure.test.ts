@@ -658,8 +658,8 @@ describe.skipIf(SKIP !== undefined)("Mistral Vibe 3 in secure mode (real CLI)", 
     async () => {
       const diffCommand = "git diff --name-only --diff-filter=d | xargs wc -l";
       const parsed = parsePartialCommand(diffCommand, "diff");
-      if (Result.isFailure(parsed)) throw new Error(`refused: ${parsed.left.kind}`);
-      const prefixes = parsed.right.segments.map((segment) => segment.prefix);
+      if (Result.isFailure(parsed)) throw new Error(`refused: ${parsed.failure.kind}`);
+      const prefixes = parsed.success.segments.map((segment) => segment.prefix);
 
       const cwd = mkdtempSync(join(tmpdir(), "phax-e2e-vibe-partial-"));
       scratch.push(cwd);
@@ -731,8 +731,8 @@ describe.skipIf(SKIP !== undefined)("Mistral Vibe 3 in secure mode (real CLI)", 
       const allowed = "git diff --name-only --diff-filter=d | xargs wc -l";
       const unlisted = `git diff --name-only --diff-filter=d | tee ${canary}`;
       const parsed = parsePartialCommand(allowed, "diff");
-      if (Result.isFailure(parsed)) throw new Error(`refused: ${parsed.left.kind}`);
-      const prefixes = parsed.right.segments.map((segment) => segment.prefix);
+      if (Result.isFailure(parsed)) throw new Error(`refused: ${parsed.failure.kind}`);
+      const prefixes = parsed.success.segments.map((segment) => segment.prefix);
 
       const cwd = mkdtempSync(join(tmpdir(), "phax-e2e-vibe-partial-neg-"));
       scratch.push(cwd);

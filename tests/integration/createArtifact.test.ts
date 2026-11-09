@@ -45,7 +45,7 @@ describe("createArtifact", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right).toEqual({
+      expect(result.success).toEqual({
         path: "docs/specs/2609091412-plan-prune.md",
         sourceSpec: null,
         completesSpec: null,
@@ -75,7 +75,11 @@ describe("createArtifact", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right).toEqual({ path: PLAN_PATH, sourceSpec: SPEC_PATH, completesSpec: true });
+      expect(result.success).toEqual({
+        path: PLAN_PATH,
+        sourceSpec: SPEC_PATH,
+        completesSpec: true,
+      });
     }
     const written = impl.getFile(PLAN_PATH) ?? "";
     expect(written).toBe(
@@ -100,7 +104,7 @@ describe("createArtifact", () => {
     );
 
     expect(Result.isSuccess(result)).toBe(true);
-    if (Result.isSuccess(result)) expect(result.right.completesSpec).toBe(false);
+    if (Result.isSuccess(result)) expect(result.success.completesSpec).toBe(false);
     const written = impl.getFile(PLAN_PATH) ?? "";
     expect(written).toContain(`source-spec: ${SPEC_PATH}\ncompletes-spec: false\n`);
     expect(Result.isSuccess(validateArtifact(PLAN_PATH, written))).toBe(true);
@@ -122,7 +126,7 @@ describe("createArtifact", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right).toEqual({
+      expect(result.success).toEqual({
         path: "docs/plans/2609101031-catalog-refresh-plan.md",
         sourceSpec: null,
         completesSpec: null,
@@ -178,8 +182,8 @@ describe("createArtifact", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(ArtifactCreationError);
-      expect(result.left.message).toContain(names);
+      expect(result.failure).toBeInstanceOf(ArtifactCreationError);
+      expect(result.failure.message).toContain(names);
     }
     expect([...impl.files.keys()]).toEqual([SPEC_PATH]);
   });
@@ -200,8 +204,8 @@ describe("createArtifact", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(ArtifactCreationError);
-      expect(result.left.message).toContain("Plan_Prune");
+      expect(result.failure).toBeInstanceOf(ArtifactCreationError);
+      expect(result.failure.message).toContain("Plan_Prune");
     }
     expect(impl.files.size).toBe(0);
   });
@@ -222,8 +226,8 @@ describe("createArtifact", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(ArtifactCreationError);
-      expect(result.left.message).toContain("2609091412-foo-plan.md");
+      expect(result.failure).toBeInstanceOf(ArtifactCreationError);
+      expect(result.failure.message).toContain("2609091412-foo-plan.md");
     }
     expect(impl.files.size).toBe(0);
   });
@@ -245,8 +249,8 @@ describe("createArtifact", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(ArtifactCreationError);
-      expect(result.left.message).toContain("2609091412-plan-prune.md");
+      expect(result.failure).toBeInstanceOf(ArtifactCreationError);
+      expect(result.failure.message).toContain("2609091412-plan-prune.md");
     }
     expect(impl.getFile(SPEC_PATH)).toBe(APPROVED_SPEC);
   });
@@ -267,7 +271,7 @@ describe("createArtifact", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(ArtifactCreationError);
+      expect(result.failure).toBeInstanceOf(ArtifactCreationError);
     }
     expect(impl.files.size).toBe(0);
   });
@@ -292,7 +296,7 @@ describe("createArtifact", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(ArtifactCreationError);
+      expect(result.failure).toBeInstanceOf(ArtifactCreationError);
     }
     expect(impl.files.size).toBe(1);
   });
@@ -315,7 +319,7 @@ describe("resolveArtifactTarget", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right).toEqual({
+      expect(result.success).toEqual({
         dir: "docs/plans",
         path: PLAN_PATH,
         sourceSpec: { path: SPEC_PATH, markdown: APPROVED_SPEC },
@@ -340,7 +344,7 @@ describe("resolveArtifactTarget", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right).toEqual({
+      expect(result.success).toEqual({
         dir: "docs/specs",
         path: "docs/specs/2609091412-plan-prune.md",
         sourceSpec: null,

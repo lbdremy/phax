@@ -248,8 +248,8 @@ function decode(
     ...policyOf(source),
     reportInput: true,
   })(value);
-  if (Result.isSuccess(decoded)) return Effect.succeed(decoded.right);
-  const failure = decoded.left;
+  if (Result.isSuccess(decoded)) return Effect.succeed(decoded.success);
+  const failure = decoded.failure;
   const excess = source.undeclared === "reject" ? excessKeys(source.contract, value) : [];
   const why =
     excess.length > 0 ? `undeclared ${excess.join(", ")}` : reasonOf(kind, failure, names);
@@ -711,8 +711,8 @@ function failureText(error: Schema.SchemaError): string {
 function encode(output: Source<Schema.Top>, value: unknown): Effect.Effect<unknown, Defect> {
   const encoded = Schema.encodeUnknownResult(synchronous(output.contract), policyOf(output))(value);
   return Result.isFailure(encoded)
-    ? Effect.fail(new Defect({ text: defectText(failureText(encoded.left)) }))
-    : Effect.succeed(encoded.right);
+    ? Effect.fail(new Defect({ text: defectText(failureText(encoded.failure)) }))
+    : Effect.succeed(encoded.success);
 }
 
 /** Decodes an encoded output back: the reduced value `render`, `notes` and the verdicts
@@ -723,8 +723,8 @@ function reduced(output: Source<Schema.Top>, encoded: unknown): Effect.Effect<un
     reportInput: true,
   })(encoded);
   return Result.isFailure(decoded)
-    ? Effect.fail(new Defect({ text: defectText(failureText(decoded.left)) }))
-    : Effect.succeed(decoded.right);
+    ? Effect.fail(new Defect({ text: defectText(failureText(decoded.failure)) }))
+    : Effect.succeed(decoded.success);
 }
 
 /** Gain carried for upstream (verdict codes): the first code, ascending, whose predicate holds
@@ -893,7 +893,7 @@ function present<R>(
         return presented.code;
       }),
     ),
-    Effect.catchAllCause((cause) => {
+    Effect.catchCause((cause) => {
       const failure = Cause.squash(cause);
       if (failure instanceof Refusal) {
         return refusedOut(io, program, json, failure);
@@ -976,7 +976,7 @@ function execute<R>(
       },
       onSuccess: (value: unknown) => present(program, io, ready, value, json),
     }),
-    Effect.catchAllCause((cause) => defectOut(io, program, json, describe(cause))),
+    Effect.catchCause((cause) => defectOut(io, program, json, describe(cause))),
   );
 }
 
@@ -1179,7 +1179,7 @@ function printContracts<R>(
   ).pipe(
     Effect.flatMap((text) => io.out(text)),
     Effect.as(0),
-    Effect.catchAllCause((cause) => defectOut(io, program, json, describe(cause))),
+    Effect.catchCause((cause) => defectOut(io, program, json, describe(cause))),
   );
 }
 
@@ -1275,7 +1275,7 @@ function checkThenExecute<R>(
     Effect.matchCauseEffect({
       onSuccess: () => execute(program, io, ready, json),
       onFailure: (cause) => {
-        const failure = Option.getOrUndefined(Cause.failureOption(cause));
+        const failure = Option.getOrUndefined(Cause.findErrorOption(cause));
         if (failure instanceof Refused) {
           return refusedOut(
             io,
@@ -1448,7 +1448,7 @@ function prepareThenRun<R>(
         );
       },
     }),
-    Effect.catchAllCause((cause) => defectOut(io, program, json, describe(cause))),
+    Effect.catchCause((cause) => defectOut(io, program, json, describe(cause))),
   );
 }
 

@@ -69,8 +69,8 @@ export function failure(path: string, message: string): ParseFailure {
  * its message in phax's words.
  */
 export function fromEither<T>(result: Result.Result<T, ParseResult.ParseError>): Parsed<T> {
-  if (Result.isSuccess(result)) return { ok: true, value: result.right };
-  const first = firstRefusal(result.left);
+  if (Result.isSuccess(result)) return { ok: true, value: result.success };
+  const first = firstRefusal(result.failure);
   return failure(
     first === undefined ? "" : refusalPath(first.path, "dotted"),
     first === undefined ? "invalid document" : refusalMessage(first),

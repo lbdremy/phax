@@ -69,19 +69,21 @@ describe("first-reading", () => {
   it("is read as a turn's answer under its own $schema only", () => {
     expect(accepted(readFirstReadingAnswer(stampedFirstReading(firstReading)))).toBe(true);
     const missing = readFirstReadingAnswer(firstReading);
-    expect(Result.isFailure(missing) && missing.left.kind).toBe("malformed");
+    expect(Result.isFailure(missing) && missing.failure.kind).toBe("malformed");
     const other = readFirstReadingAnswer(withSchemaUrl("interactive-handoff", firstReading));
-    expect(Result.isFailure(other) && JSON.stringify(other.left)).toContain("interactive-handoff");
+    expect(Result.isFailure(other) && JSON.stringify(other.failure)).toContain(
+      "interactive-handoff",
+    );
     const newer = readFirstReadingAnswer(
       { ...firstReading, $schema: schemaUrl("first-reading", "99.0.0") },
       { current: "0.26.0", running: "0.26.0" },
     );
-    expect(Result.isFailure(newer) && newer.left.kind).toBe("newer");
+    expect(Result.isFailure(newer) && newer.failure.kind).toBe("newer");
     const older = readFirstReadingAnswer(
       { ...firstReading, $schema: schemaUrl("first-reading", "0.25.0") },
       { current: "0.26.0", running: "0.26.0" },
     );
-    expect(Result.isFailure(older) && older.left.kind).toBe("older");
+    expect(Result.isFailure(older) && older.failure.kind).toBe("older");
   });
 });
 

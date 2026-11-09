@@ -108,7 +108,7 @@ describe("decodeArtifactFrontmatter", () => {
     const decoded = decodeArtifactFrontmatter("plan", md);
     expect(Result.isSuccess(decoded)).toBe(true);
     if (!Result.isSuccess(decoded)) return;
-    expect(decoded.right["source-spec"]).toBeNull();
+    expect(decoded.success["source-spec"]).toBeNull();
   });
 
   it("decodes a plan with approved absent as valid", () => {
@@ -116,7 +116,7 @@ describe("decodeArtifactFrontmatter", () => {
     const decoded = decodeArtifactFrontmatter("plan", md);
     expect(Result.isSuccess(decoded)).toBe(true);
     if (!Result.isSuccess(decoded)) return;
-    expect("approved" in decoded.right).toBe(false);
+    expect("approved" in decoded.success).toBe(false);
   });
 
   it("fails naming the offending key when an unknown key is present", () => {
@@ -124,10 +124,10 @@ describe("decodeArtifactFrontmatter", () => {
     const decoded = decodeArtifactFrontmatter("spec", md);
     expect(Result.isFailure(decoded)).toBe(true);
     if (!Result.isFailure(decoded)) return;
-    expect(decoded.left.kind).toBe("schema");
-    expect(decoded.left).toMatchObject({ kind: "schema" });
-    if (decoded.left.kind === "schema") {
-      expect(decoded.left.detail).toContain("staus");
+    expect(decoded.failure.kind).toBe("schema");
+    expect(decoded.failure).toMatchObject({ kind: "schema" });
+    if (decoded.failure.kind === "schema") {
+      expect(decoded.failure.detail).toContain("staus");
     }
   });
 
@@ -136,9 +136,9 @@ describe("decodeArtifactFrontmatter", () => {
     const decoded = decodeArtifactFrontmatter("plan", md);
     expect(Result.isFailure(decoded)).toBe(true);
     if (!Result.isFailure(decoded)) return;
-    expect(decoded.left.kind).toBe("schema");
-    if (decoded.left.kind === "schema") {
-      expect(decoded.left.detail).toContain("source-spec");
+    expect(decoded.failure.kind).toBe("schema");
+    if (decoded.failure.kind === "schema") {
+      expect(decoded.failure.detail).toContain("source-spec");
     }
   });
 
@@ -198,9 +198,9 @@ describe("decodeArtifactFrontmatter", () => {
     const md = `---\nstatus: Draft\nsource-spec: docs/specs/1-a.md\ncompletes-spec: true\nstaus: Draft\n---\n\n# Plan\n`;
     const decoded = decodeArtifactFrontmatter("plan", md);
     expect(Result.isFailure(decoded)).toBe(true);
-    if (!Result.isFailure(decoded) || decoded.left.kind !== "schema") return;
-    expect(decoded.left.detail).toContain("staus");
-    expect(decoded.left.detail).not.toContain("completes-spec:");
+    if (!Result.isFailure(decoded) || decoded.failure.kind !== "schema") return;
+    expect(decoded.failure.detail).toContain("staus");
+    expect(decoded.failure.detail).not.toContain("completes-spec:");
   });
 
   it("fails on a bad status value", () => {
@@ -208,7 +208,7 @@ describe("decodeArtifactFrontmatter", () => {
     const decoded = decodeArtifactFrontmatter("spec", md);
     expect(Result.isFailure(decoded)).toBe(true);
     if (!Result.isFailure(decoded)) return;
-    expect(decoded.left.kind).toBe("schema");
+    expect(decoded.failure.kind).toBe("schema");
   });
 
   it("fails with missing-block when there is no frontmatter", () => {
@@ -222,7 +222,7 @@ describe("decodeArtifactFrontmatter", () => {
     const decoded = decodeArtifactFrontmatter("spec", md);
     expect(Result.isFailure(decoded)).toBe(true);
     if (!Result.isFailure(decoded)) return;
-    expect(decoded.left.kind).toBe("yaml-syntax");
+    expect(decoded.failure.kind).toBe("yaml-syntax");
   });
 
   it("fails with yaml-syntax on malformed YAML", () => {
@@ -230,7 +230,7 @@ describe("decodeArtifactFrontmatter", () => {
     const decoded = decodeArtifactFrontmatter("spec", md);
     expect(Result.isFailure(decoded)).toBe(true);
     if (!Result.isFailure(decoded)) return;
-    expect(decoded.left.kind).toBe("yaml-syntax");
+    expect(decoded.failure.kind).toBe("yaml-syntax");
   });
 });
 
@@ -240,9 +240,9 @@ describe("setFrontmatterKeys", () => {
     const result = setFrontmatterKeys(md, [{ key: "status", value: "Approved" }]);
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
-    expect(result.right).toContain("status: Approved # a comment");
-    expect(result.right).toContain("source-spec: docs/specs/1-a.md");
-    expect(result.right.endsWith("\n# Plan\n\nBody.\n")).toBe(true);
+    expect(result.success).toContain("status: Approved # a comment");
+    expect(result.success).toContain("source-spec: docs/specs/1-a.md");
+    expect(result.success.endsWith("\n# Plan\n\nBody.\n")).toBe(true);
   });
 
   it("upserts approved, replacing a previous value in place", () => {
@@ -251,10 +251,10 @@ describe("setFrontmatterKeys", () => {
     ]);
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
-    const decoded = decodeArtifactFrontmatter("plan", result.right);
+    const decoded = decodeArtifactFrontmatter("plan", result.success);
     expect(Result.isSuccess(decoded)).toBe(true);
     if (!Result.isSuccess(decoded)) return;
-    expect(decoded.right).toMatchObject({
+    expect(decoded.success).toMatchObject({
       approved: { date: "2026-08-12", baseline: "abcdef1" },
     });
   });
@@ -265,11 +265,11 @@ describe("setFrontmatterKeys", () => {
     ]);
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
-    expect(result.right).toContain('baseline: "1234567"');
-    const decoded = decodeArtifactFrontmatter("plan", result.right);
+    expect(result.success).toContain('baseline: "1234567"');
+    const decoded = decodeArtifactFrontmatter("plan", result.success);
     expect(Result.isSuccess(decoded)).toBe(true);
     if (!Result.isSuccess(decoded)) return;
-    expect(decoded.right).toMatchObject({ approved: { baseline: "1234567" } });
+    expect(decoded.success).toMatchObject({ approved: { baseline: "1234567" } });
   });
 
   it("fails with missing-block when there is no frontmatter to rewrite", () => {
@@ -284,12 +284,12 @@ describe("removeFrontmatterKeys", () => {
     const result = removeFrontmatterKeys(PLAN_DOC, ["approved"]);
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
-    expect(result.right).not.toContain("approved:");
-    expect(result.right).toContain("status: Approved");
-    expect(result.right).toContain(
+    expect(result.success).not.toContain("approved:");
+    expect(result.success).toContain("status: Approved");
+    expect(result.success).toContain(
       "source-spec: docs/specs/2609101226-artifact-frontmatter-metadata.md",
     );
-    const bodyAfter = result.right.slice(result.right.indexOf("---\n", 3) + 4);
+    const bodyAfter = result.success.slice(result.success.indexOf("---\n", 3) + 4);
     const bodyBefore = PLAN_DOC.slice(PLAN_DOC.indexOf("---\n", 3) + 4);
     expect(bodyAfter).toBe(bodyBefore);
   });
@@ -299,7 +299,7 @@ describe("removeFrontmatterKeys", () => {
     const result = removeFrontmatterKeys(md, ["approved"]);
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
-    expect(result.right).toBe(md);
+    expect(result.success).toBe(md);
   });
 
   it("fails with missing-block when there is no frontmatter", () => {
@@ -313,7 +313,7 @@ describe("removeFrontmatterKeys", () => {
     const result = removeFrontmatterKeys(md, ["approved"]);
     expect(Result.isFailure(result)).toBe(true);
     if (!Result.isFailure(result)) return;
-    expect(result.left.kind).toBe("yaml-syntax");
+    expect(result.failure.kind).toBe("yaml-syntax");
   });
 });
 
@@ -337,7 +337,7 @@ describe("decodeArtifactFrontmatter (spec approved stamp)", () => {
     const decoded = decodeArtifactFrontmatter("spec", STAMPED_SPEC_DOC);
     expect(Result.isSuccess(decoded)).toBe(true);
     if (!Result.isSuccess(decoded)) return;
-    expect(decoded.right).toMatchObject({
+    expect(decoded.success).toMatchObject({
       status: "Approved",
       approved: { date: "2026-08-11", baseline: "4ae687b" },
     });
@@ -348,9 +348,9 @@ describe("decodeArtifactFrontmatter (spec approved stamp)", () => {
     const decoded = decodeArtifactFrontmatter("spec", md);
     expect(Result.isFailure(decoded)).toBe(true);
     if (!Result.isFailure(decoded)) return;
-    expect(decoded.left.kind).toBe("schema");
-    if (decoded.left.kind === "schema") {
-      expect(decoded.left.detail).toContain("extra");
+    expect(decoded.failure.kind).toBe("schema");
+    if (decoded.failure.kind === "schema") {
+      expect(decoded.failure.detail).toContain("extra");
     }
   });
 
@@ -358,7 +358,7 @@ describe("decodeArtifactFrontmatter (spec approved stamp)", () => {
     const decoded = decodeArtifactFrontmatter("spec", SPEC_DOC);
     expect(Result.isSuccess(decoded)).toBe(true);
     if (!Result.isSuccess(decoded)) return;
-    expect("approved" in decoded.right).toBe(false);
+    expect("approved" in decoded.success).toBe(false);
   });
 });
 

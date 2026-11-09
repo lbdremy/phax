@@ -129,7 +129,7 @@ describe("extractPlanDeterministic", () => {
     const result = extractPlanDeterministic(md);
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
-    expect(result.right).toEqual({
+    expect(result.success).toEqual({
       version: 1,
       run: {
         shortName: "Deterministic plan",
@@ -181,10 +181,10 @@ describe("extractPlanDeterministic", () => {
     const result = extractPlanDeterministic(md);
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
-    expect(result.right.run.requiredCommands).toEqual([]);
-    expect(result.right.phases[0]!.plannedFilesToCreate).toEqual([]);
-    expect(result.right.phases[0]!.plannedFilesToEdit).toEqual([]);
-    expect(result.right.phases[0]!.optionalFilesToEdit).toEqual([]);
+    expect(result.success.run.requiredCommands).toEqual([]);
+    expect(result.success.phases[0]!.plannedFilesToCreate).toEqual([]);
+    expect(result.success.phases[0]!.plannedFilesToEdit).toEqual([]);
+    expect(result.success.phases[0]!.optionalFilesToEdit).toEqual([]);
   });
 
   it("stores a backtick-wrapped commit subject unwrapped", () => {
@@ -194,7 +194,7 @@ describe("extractPlanDeterministic", () => {
     const result = extractPlanDeterministic(md);
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
-    expect(result.right.phases[0]!.commit.subject).toBe("feat(x): backtick subject");
+    expect(result.success.phases[0]!.commit.subject).toBe("feat(x): backtick subject");
   });
 
   it("preserves the author's line wrapping in a commit body paragraph verbatim", () => {
@@ -207,7 +207,7 @@ describe("extractPlanDeterministic", () => {
     const result = extractPlanDeterministic(md);
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
-    expect(result.right.phases[0]!.commit.body).toBe(wrapped);
+    expect(result.success.phases[0]!.commit.body).toBe(wrapped);
   });
 
   it("preserves blank-line paragraph breaks in a multi-paragraph commit body", () => {
@@ -222,7 +222,7 @@ describe("extractPlanDeterministic", () => {
     const result = extractPlanDeterministic(md);
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
-    expect(result.right.phases[0]!.commit.body).toBe(body);
+    expect(result.success.phases[0]!.commit.body).toBe(body);
   });
 
   it("preserves list structure in a commit body", () => {
@@ -231,7 +231,7 @@ describe("extractPlanDeterministic", () => {
     const result = extractPlanDeterministic(md);
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
-    expect(result.right.phases[0]!.commit.body).toBe(body);
+    expect(result.success.phases[0]!.commit.body).toBe(body);
   });
 
   it("parses em-dash, en-dash, and hyphen heading separators", () => {
@@ -304,8 +304,8 @@ describe("extractPlanDeterministic", () => {
     const result = extractPlanDeterministic(md);
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left.message).toMatch(/phase-01/);
-      expect(result.left.message).toMatch(/Recommended model/i);
+      expect(result.failure.message).toMatch(/phase-01/);
+      expect(result.failure.message).toMatch(/Recommended model/i);
     }
   });
 
@@ -343,7 +343,7 @@ describe("extractPlanDeterministic", () => {
     const result = extractPlanDeterministic(md);
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left.message).toMatch(/anchor/i);
+      expect(result.failure.message).toMatch(/anchor/i);
     }
   });
 
@@ -377,8 +377,8 @@ describe("extractPlanDeterministic", () => {
     const result = extractPlanDeterministic(md);
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left.message).toMatch(/phase-01/);
-      expect(result.left.message).toMatch(/Planned files to create/);
+      expect(result.failure.message).toMatch(/phase-01/);
+      expect(result.failure.message).toMatch(/Planned files to create/);
     }
   });
 
@@ -389,8 +389,8 @@ describe("extractPlanDeterministic", () => {
     const result = extractPlanDeterministic(md);
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left.message).toMatch(/phase-01/);
-      expect(result.left.message).toMatch(/effort/i);
+      expect(result.failure.message).toMatch(/phase-01/);
+      expect(result.failure.message).toMatch(/effort/i);
     }
   });
 
@@ -429,7 +429,7 @@ describe("extractPlanDeterministic", () => {
     expect(Result.isSuccess(headerResult)).toBe(true);
     expect(Result.isSuccess(frontmatterResult)).toBe(true);
     if (!Result.isSuccess(headerResult) || !Result.isSuccess(frontmatterResult)) return;
-    expect(frontmatterResult.right).toEqual(headerResult.right);
+    expect(frontmatterResult.success).toEqual(headerResult.success);
   });
 });
 
@@ -530,7 +530,7 @@ describe("collectPlanStructureErrors", () => {
     const result = extractPlanDeterministic(md);
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left.message).toBe(`phase-02: missing "### Planned files to edit" section`);
+      expect(result.failure.message).toBe(`phase-02: missing "### Planned files to edit" section`);
     }
   });
 
@@ -631,7 +631,7 @@ describe("an `**Assignment reason:**` line under the effort line", () => {
     expect(Result.isSuccess(withReason)).toBe(true);
     expect(withReason).toEqual(extractPlanDeterministic(plain));
     if (Result.isSuccess(withReason)) {
-      expect(withReason.right.phases[1]).toMatchObject({
+      expect(withReason.success.phases[1]).toMatchObject({
         model: "claude-haiku-5-5",
         effort: "low",
       });
@@ -642,8 +642,8 @@ describe("an `**Assignment reason:**` line under the effort line", () => {
 /** The phases a plan extracts to on the deterministic path. */
 function extractedPhases(md: string) {
   const result = extractPlanDeterministic(md);
-  if (Result.isFailure(result)) throw new Error(`plan does not extract: ${result.left.message}`);
-  return result.right.phases;
+  if (Result.isFailure(result)) throw new Error(`plan does not extract: ${result.failure.message}`);
+  return result.success.phases;
 }
 
 describe("mode and oracle, read from the header lines", () => {
@@ -856,8 +856,8 @@ describe("test lines, read from each phase's ### Test strategy", () => {
     const [strategy] = readPlanTestStrategies(md);
     expect({ lines: strategy!.lines, departures: strategy!.departures }).toEqual(grammar);
     const reading = readPlanDeterministic(md);
-    if (Result.isFailure(reading)) throw new Error(reading.left.message);
-    expect(reading.right.plan.phases[0].testLines).toEqual(grammar.lines.map((l) => l.line));
+    if (Result.isFailure(reading)) throw new Error(reading.failure.message);
+    expect(reading.success.plan.phases[0].testLines).toEqual(grammar.lines.map((l) => l.line));
   });
 
   it("leaves departing entries out of the plan, reports them, and keeps each kept line's source item number", () => {
@@ -871,18 +871,18 @@ describe("test lines, read from each phase's ### Test strategy", () => {
       ],
     });
     const reading = readPlanDeterministic(md);
-    if (Result.isFailure(reading)) throw new Error(reading.left.message);
-    expect(reading.right.plan.phases.map((p) => p.testLines)).toEqual([
+    if (Result.isFailure(reading)) throw new Error(reading.failure.message);
+    expect(reading.success.plan.phases.map((p) => p.testLines)).toEqual([
       [exporterLine],
       [exporterLine],
     ]);
-    expect(reading.right.departures).toEqual([
+    expect(reading.success.departures).toEqual([
       {
         phase: "phase-01",
         departure: { line: 1, text: "add unit tests for the exporter", kind: "format" },
       },
     ]);
-    expect(reading.right.lineItems).toEqual([
+    expect(reading.success.lineItems).toEqual([
       { phase: "phase-01", items: [2] },
       { phase: "phase-02", items: [1] },
     ]);
@@ -907,7 +907,7 @@ describe("test lines, read from each phase's ### Test strategy", () => {
     const result = extractPlanDeterministic(md);
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left.message).toBe(
+      expect(result.failure.message).toBe(
         'phase-02: test line 2 departs from the format: "add unit tests"',
       );
     }

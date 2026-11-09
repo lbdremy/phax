@@ -436,8 +436,8 @@ describe("a held stop closed by a turn that resumes its builder", { timeout: 30_
       ),
     );
 
-    if (Result.isFailure(result)) throw new Error(`close refused: ${String(result.left)}`);
-    expect(result.right).toMatchObject({ cause: "held", handoffSource: "closing-turn-resumed" });
+    if (Result.isFailure(result)) throw new Error(`close refused: ${String(result.failure)}`);
+    expect(result.success).toMatchObject({ cause: "held", handoffSource: "closing-turn-resumed" });
     const [call, ...more] = cli.invocations();
     expect(more).toEqual([]);
     expect(call!.argv).toContain("--resume");

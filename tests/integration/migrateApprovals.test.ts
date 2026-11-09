@@ -160,8 +160,8 @@ function migrate() {
 
 async function migrateOk(): Promise<ApprovalMigrationResult> {
   const result = await migrate();
-  if (Result.isFailure(result)) throw new Error(`migration failed: ${result.left.message}`);
-  return result.right;
+  if (Result.isFailure(result)) throw new Error(`migration failed: ${result.failure.message}`);
+  return result.success;
 }
 
 function seedArtifacts(): void {
@@ -182,15 +182,15 @@ function seedLedgers(planShape: Shape, specShape: Shape): void {
 function decodedPlanRecord(artifact: string): unknown {
   const file = recordOf("plan", artifact);
   const decoded = readPlanRecordFile(file, JSON.parse(readRepoFile(file)));
-  if (Result.isFailure(decoded)) throw new Error(decoded.left.message);
-  return decoded.right;
+  if (Result.isFailure(decoded)) throw new Error(decoded.failure.message);
+  return decoded.success;
 }
 
 function decodedSpecRecord(artifact: string): unknown {
   const file = recordOf("spec", artifact);
   const decoded = readSpecRecordFile(file, JSON.parse(readRepoFile(file)));
-  if (Result.isFailure(decoded)) throw new Error(decoded.left.message);
-  return decoded.right;
+  if (Result.isFailure(decoded)) throw new Error(decoded.failure.message);
+  return decoded.success;
 }
 
 beforeEach(() => {
@@ -436,7 +436,7 @@ describe("A gone artifact's entry migrates as an orphan", () => {
         nowIso: NOW,
       }).pipe(Effect.provide(Layer.merge(repoLayer(), backendLayer))),
     );
-    expect(Result.isSuccess(report) ? report.right.orphanRecords : null).toEqual([orphan]);
+    expect(Result.isSuccess(report) ? report.success.orphanRecords : null).toEqual([orphan]);
   });
 });
 
@@ -447,10 +447,10 @@ describe("Migration refusals write nothing", () => {
   ): unknown {
     expect(Result.isFailure(result)).toBe(true);
     if (!Result.isFailure(result)) return undefined;
-    expect(exitCodeForError(result.left)).toBe(12);
+    expect(exitCodeForError(result.failure)).toBe(12);
     expect(headSha()).toBe(before.head);
     expect(porcelain()).toBe(before.status);
-    return result.left;
+    return result.failure;
   }
 
   function snapshot() {
@@ -642,7 +642,7 @@ describe("Old formats stay readable and are never written", () => {
         Effect.provide(Layer.merge(repoLayer(), makeFakeTerminal(false).layer)),
       ),
     );
-    if (Result.isFailure(result)) throw new Error(`${path} → ${target}: ${result.left.message}`);
+    if (Result.isFailure(result)) throw new Error(`${path} → ${target}: ${result.failure.message}`);
     expectNoLedger();
   }
 
@@ -673,8 +673,8 @@ describe("Old formats stay readable and are never written", () => {
         Effect.provide(Layer.merge(NodeFileSystemLayer, NodeGitLayer)),
       ),
     );
-    if (Result.isFailure(completion)) throw new Error(completion.left.message);
-    expect(completion.right.transitions.length).toBeGreaterThan(0);
+    if (Result.isFailure(completion)) throw new Error(completion.failure.message);
+    expect(completion.success.transitions.length).toBeGreaterThan(0);
     expectNoLedger(worktree);
     expect(repoHas(recordOf("plan", PLAN_2), worktree)).toBe(false);
 

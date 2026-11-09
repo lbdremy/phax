@@ -207,8 +207,8 @@ describe("prune: whole-command refusals delete nothing", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(PruneRefusedError);
-      const error = result.left as PruneRefusedError;
+      expect(result.failure).toBeInstanceOf(PruneRefusedError);
+      const error = result.failure as PruneRefusedError;
       expect(error.refusals.map((r) => r.kind)).toEqual([kind]);
       expect(error.message.split("\n")).toHaveLength(1);
     }
@@ -226,7 +226,7 @@ describe("prune: whole-command refusals delete nothing", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left.message.split("\n")).toEqual([
+      expect(result.failure.message.split("\n")).toEqual([
         'run "phax.ghost" not found',
         'run "phax.live" is review_open, not archived — archive it first: phax archive live',
       ]);
@@ -248,8 +248,8 @@ describe("prune: whole-command refusals delete nothing", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(LockConflictError);
-      const error = result.left as LockConflictError;
+      expect(result.failure).toBeInstanceOf(LockConflictError);
+      const error = result.failure as LockConflictError;
       expect(error.message).toContain("phax.locked-one");
       expect(error.message).toContain("phax unlock locked-one");
       expect(error.shortName).toBe("phax.locked-one");

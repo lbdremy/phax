@@ -82,10 +82,10 @@ export const validateCommand = defineCommand({
       const loaded = loadConfig(cwd);
       if (Result.isFailure(loaded)) {
         return yield* Effect.fail(
-          new ConfigInvalidError({ message: loaded.left.message, path: loaded.left.path }),
+          new ConfigInvalidError({ message: loaded.failure.message, path: loaded.failure.path }),
         );
       }
-      const config = loaded.right;
+      const config = loaded.success;
       const sources = describeConfigSources(cwd);
 
       // The bounds are checked before the config is reported valid, so a bad bound never follows
@@ -94,9 +94,9 @@ export const validateCommand = defineCommand({
         const checked = yield* Effect.result(
           invalidBoundMessages(config).pipe(Effect.provide(makeRepoRootedFileSystemLayer(config))),
         );
-        const problems = Result.isSuccess(checked) ? checked.right : [checked.left.message];
+        const problems = Result.isSuccess(checked) ? checked.success : [checked.failure.message];
         if (problems.length > 0) {
-          const at = Result.isSuccess(checked) ? sources?.project : checked.left.path;
+          const at = Result.isSuccess(checked) ? sources?.project : checked.failure.path;
           return yield* Effect.fail(
             new BoundsInvalidError({ message: problems.join("\n"), problems, at }),
           );
@@ -141,16 +141,16 @@ export const validateCommand = defineCommand({
           // typed so the error names a path they wrote.
           return yield* Effect.fail(
             new PlanInvalidError({
-              message: planResult.left.message.split(resolvedPlanPath).join(typed),
-              path: planResult.left.path ? typed : undefined,
+              message: planResult.failure.message.split(resolvedPlanPath).join(typed),
+              path: planResult.failure.path ? typed : undefined,
               config: validated,
             }),
           );
         }
         plan = {
           path: typed,
-          shortName: planResult.right.run.shortName,
-          phases: planResult.right.phases.length,
+          shortName: planResult.success.run.shortName,
+          phases: planResult.success.phases.length,
         };
       }
 

@@ -60,7 +60,7 @@ describe("RecordsRemoteSchema", () => {
     const result = decodeRecordsRemote("ext::sh -c 'x'");
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      const message = String(result.left);
+      const message = String(result.failure);
       expect(message).toContain("records.destination.remote");
       expect(message).toContain("https://");
       expect(message).toContain("ssh://");
@@ -175,7 +175,7 @@ describe("PhaxConfigSchema with records block", () => {
     });
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.records?.transcript).toBe(true);
+      expect(result.success.records?.transcript).toBe(true);
     }
   });
 
@@ -183,7 +183,7 @@ describe("PhaxConfigSchema with records block", () => {
     const result = decodePhaxConfig(minimalValidPhaxConfig);
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.records).toBeUndefined();
+      expect(result.success.records).toBeUndefined();
     }
   });
 

@@ -56,8 +56,8 @@ afterEach(() => {
 
 function failedWith<E>(result: Result.Result<unknown, unknown>, type: new (...a: never[]) => E): E {
   if (Result.isSuccess(result)) throw new Error("the run did not stop");
-  expect(result.left).toBeInstanceOf(type);
-  return result.left as E;
+  expect(result.failure).toBeInstanceOf(type);
+  return result.failure as E;
 }
 
 function expectHeldStop(run: HeldRun, result: Result.Result<unknown, unknown>): void {

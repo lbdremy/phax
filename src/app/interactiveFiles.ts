@@ -96,9 +96,9 @@ export function readInteractiveSession(
     const parsed = yield* parseJson(path, yield* fs.readText(path));
     const decoded = readInteractiveSessionFile(path, parsed);
     if (Result.isFailure(decoded)) {
-      return yield* Effect.fail(new FsError({ message: decoded.left.message }));
+      return yield* Effect.fail(new FsError({ message: decoded.failure.message }));
     }
-    return decoded.right;
+    return decoded.success;
   });
 }
 
@@ -304,9 +304,9 @@ export function readReviewStop(
       const parsed = yield* parseJson(path, yield* fs.readText(path));
       const decoded = readReviewStopFile(path, parsed);
       if (Result.isFailure(decoded)) {
-        return yield* Effect.fail(new FsError({ message: decoded.left.message }));
+        return yield* Effect.fail(new FsError({ message: decoded.failure.message }));
       }
-      return { reviewStop: decoded.right, path };
+      return { reviewStop: decoded.success, path };
     }
     return null;
   });
@@ -382,10 +382,10 @@ export function readModelResolution(
     })(parsed);
     if (Result.isFailure(decoded)) {
       return yield* Effect.fail(
-        new FsError({ message: `${path}: ${formatParseError(decoded.left)}` }),
+        new FsError({ message: `${path}: ${formatParseError(decoded.failure)}` }),
       );
     }
-    const { provider, concreteModel, thinking } = decoded.right.selected;
+    const { provider, concreteModel, thinking } = decoded.success.selected;
     return { provider, model: concreteModel, effort: thinking };
   });
 }
@@ -409,10 +409,10 @@ export function readSecurityFile(
     const decoded = readSecurityPosture(parsed);
     if (Result.isFailure(decoded)) {
       return yield* Effect.fail(
-        new FsError({ message: `${path}: ${formatParseError(decoded.left)}` }),
+        new FsError({ message: `${path}: ${formatParseError(decoded.failure)}` }),
       );
     }
-    return decoded.right;
+    return decoded.success;
   });
 }
 

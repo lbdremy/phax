@@ -69,9 +69,9 @@ describe("decodeExtractedPlanCacheEntry", () => {
     const result = decodeExtractedPlanCacheEntry(makeEntry());
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.version).toBe(1);
-      expect(result.right.key).toBe("abc123");
-      expect(result.right.extracted.run.shortName).toBe("my-run");
+      expect(result.success.version).toBe(1);
+      expect(result.success.key).toBe("abc123");
+      expect(result.success.extracted.run.shortName).toBe("my-run");
     }
   });
 

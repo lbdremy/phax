@@ -333,9 +333,9 @@ describe("decodePhaxPlanFile", () => {
     const decoded = decodePhaxPlanFile(withFiles);
     expect(Result.isSuccess(decoded)).toBe(true);
     if (Result.isFailure(decoded)) throw new Error("unexpected Left");
-    expect(decoded.right.phases[0]!.plannedFilesToCreate).toEqual(["src/new.ts"]);
-    expect(decoded.right.phases[0]!.plannedFilesToEdit).toEqual(["src/existing.ts"]);
-    expect(decoded.right.phases[0]!.optionalFilesToEdit).toEqual(["docs/readme.md"]);
+    expect(decoded.success.phases[0]!.plannedFilesToCreate).toEqual(["src/new.ts"]);
+    expect(decoded.success.phases[0]!.plannedFilesToEdit).toEqual(["src/existing.ts"]);
+    expect(decoded.success.phases[0]!.optionalFilesToEdit).toEqual(["docs/readme.md"]);
   });
 });
 

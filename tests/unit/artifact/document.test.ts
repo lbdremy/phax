@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { ArtifactValidationError } from "../../../src/domain/errors.js";
 import {
@@ -98,20 +98,20 @@ describe("archivePathFor", () => {
 });
 
 function assertLeftValidation(
-  result: Either.Either<unknown, unknown>,
-): asserts result is Either.Left<ArtifactValidationError, never> {
-  expect(Either.isLeft(result)).toBe(true);
-  if (Either.isLeft(result)) {
-    expect(result.left).toBeInstanceOf(ArtifactValidationError);
+  result: Result.Result<unknown, unknown>,
+): asserts result is Result.Failure<never, ArtifactValidationError> {
+  expect(Result.isFailure(result)).toBe(true);
+  if (Result.isFailure(result)) {
+    expect(result.failure).toBeInstanceOf(ArtifactValidationError);
   }
 }
 
 describe("validateArtifact", () => {
   it("accepts a valid live spec", () => {
     const result = validateArtifact("docs/specs/2609101221-foo.md", SPEC_DOC);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right).toEqual({ kind: "spec", status: "Approved" });
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success).toEqual({ kind: "spec", status: "Approved" });
     }
   });
 
@@ -125,15 +125,15 @@ describe("validateArtifact", () => {
   ])("refuses the record path %s as not a recognized artifact path", (path) => {
     const result = validateArtifact(path, SPEC_DOC);
     assertLeftValidation(result);
-    expect(result.left.message).toContain(`${path} is not a recognized artifact path`);
+    expect(result.failure.message).toContain(`${path} is not a recognized artifact path`);
   });
 
   it("refuses an off-grammar spec name, naming the file and the grammar", () => {
     const result = validateArtifact("docs/specs/34-foo.md", SPEC_DOC);
     assertLeftValidation(result);
-    if (Either.isLeft(result)) {
-      expect(result.left.path).toBe("docs/specs/34-foo.md");
-      expect(result.left.message).toBe(
+    if (Result.isFailure(result)) {
+      expect(result.failure.path).toBe("docs/specs/34-foo.md");
+      expect(result.failure.message).toBe(
         "docs/specs/34-foo.md: name does not match <YYMMDDHHMM>-<slug>.md",
       );
     }
@@ -145,8 +145,8 @@ describe("validateArtifact", () => {
       planFm("Completed", "null"),
     );
     assertLeftValidation(result);
-    if (Either.isLeft(result)) {
-      expect(result.left.message).toBe(
+    if (Result.isFailure(result)) {
+      expect(result.failure.message).toBe(
         "docs/plans/archive/Plan_Prune.md: name does not match <YYMMDDHHMM>-<slug>-plan.md",
       );
     }
@@ -155,25 +155,25 @@ describe("validateArtifact", () => {
   it("refuses a spec-shaped name under docs/plans/ (missing -plan suffix)", () => {
     const result = validateArtifact("docs/plans/2609101221-foo.md", planFm("Draft", "null"));
     assertLeftValidation(result);
-    if (Either.isLeft(result)) {
-      expect(result.left.message).toContain("<YYMMDDHHMM>-<slug>-plan.md");
+    if (Result.isFailure(result)) {
+      expect(result.failure.message).toContain("<YYMMDDHHMM>-<slug>-plan.md");
     }
   });
 
   it("refuses a plan-shaped name under docs/specs/", () => {
     const result = validateArtifact("docs/specs/2609101221-foo-plan.md", SPEC_DOC);
     assertLeftValidation(result);
-    if (Either.isLeft(result)) {
-      expect(result.left.message).toContain("<YYMMDDHHMM>-<slug>.md");
+    if (Result.isFailure(result)) {
+      expect(result.failure.message).toContain("<YYMMDDHHMM>-<slug>.md");
     }
   });
 
   it("checks the name before the frontmatter", () => {
     const result = validateArtifact("docs/specs/34-foo.md", "# Doc\n\nNo metadata.\n");
     assertLeftValidation(result);
-    if (Either.isLeft(result)) {
-      expect(result.left.message).toContain("name does not match");
-      expect(result.left.message).not.toContain("frontmatter");
+    if (Result.isFailure(result)) {
+      expect(result.failure.message).toContain("name does not match");
+      expect(result.failure.message).not.toContain("frontmatter");
     }
   });
 
@@ -181,16 +181,16 @@ describe("validateArtifact", () => {
     const md = `# Some spec\n\nStatus: Approved\n\n## Overview\n`;
     const result = validateArtifact("docs/specs/2609101221-foo.md", md);
     assertLeftValidation(result);
-    if (Either.isLeft(result)) {
-      expect(result.left.message).toContain("no frontmatter block");
+    if (Result.isFailure(result)) {
+      expect(result.failure.message).toContain("no frontmatter block");
     }
   });
 
   it("rejects a missing frontmatter block", () => {
     const result = validateArtifact("docs/specs/2609101221-foo.md", "# Doc\n\nNo metadata.\n");
     assertLeftValidation(result);
-    if (Either.isLeft(result)) {
-      expect(result.left.message).toContain("no frontmatter block");
+    if (Result.isFailure(result)) {
+      expect(result.failure.message).toContain("no frontmatter block");
     }
   });
 
@@ -208,20 +208,20 @@ staus: typo
 `;
     const result = validateArtifact("docs/specs/2609101221-foo.md", md);
     assertLeftValidation(result);
-    if (Either.isLeft(result)) {
-      expect(result.left.message).toContain("staus");
-      expect(result.left.message).toContain("allowed for a spec: status, date, audience, scope");
+    if (Result.isFailure(result)) {
+      expect(result.failure.message).toContain("staus");
+      expect(result.failure.message).toContain("allowed for a spec: status, date, audience, scope");
     }
   });
 
   it("rejects an unknown status value for a spec, naming the allowed statuses", () => {
     const result = validateArtifact("docs/specs/2609101221-foo.md", specFm("Stale"));
     assertLeftValidation(result);
-    if (Either.isLeft(result)) {
-      expect(result.left.message).toContain("Draft");
-      expect(result.left.message).toContain("Approved");
-      expect(result.left.message).toContain("Abandoned");
-      expect(result.left.message).toContain("Completed");
+    if (Result.isFailure(result)) {
+      expect(result.failure.message).toContain("Draft");
+      expect(result.failure.message).toContain("Approved");
+      expect(result.failure.message).toContain("Abandoned");
+      expect(result.failure.message).toContain("Completed");
     }
   });
 
@@ -235,14 +235,14 @@ staus: typo
 
   it("accepts a terminal status inside archive/", () => {
     const result = validateArtifact("docs/specs/archive/2609101221-foo.md", specFm("Completed"));
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
   });
 
   it("accepts a Stale plan under docs/plans/", () => {
     const result = validateArtifact("docs/plans/2609101221-foo-plan.md", planFm("Stale", "null"));
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right).toEqual({ kind: "plan", status: "Stale" });
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success).toEqual({ kind: "plan", status: "Stale" });
     }
   });
 
@@ -256,8 +256,8 @@ status: Draft
 `;
     const result = validateArtifact("docs/plans/2609101221-foo-plan.md", md);
     assertLeftValidation(result);
-    if (Either.isLeft(result)) {
-      expect(result.left.message).toContain("source-spec");
+    if (Result.isFailure(result)) {
+      expect(result.failure.message).toContain("source-spec");
     }
   });
 
@@ -274,12 +274,12 @@ status: Completed
 
   it("accepts a spec (which has no source-spec key)", () => {
     const result = validateArtifact("docs/specs/2609101221-foo.md", SPEC_DOC);
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
   });
 
   it("accepts a plan with an explicit null source-spec", () => {
     const result = validateArtifact("docs/plans/2609101221-foo-plan.md", planFm("Draft", "null"));
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
   });
 
   it.each(["true", "false"])(
@@ -289,7 +289,7 @@ status: Completed
         "docs/plans/2609101221-foo-plan.md",
         planFm("Draft", "docs/specs/2609101222-foo.md", v),
       );
-      expect(Either.isRight(result)).toBe(true);
+      expect(Result.isSuccess(result)).toBe(true);
     },
   );
 
@@ -300,9 +300,9 @@ status: Completed
     const md = `---\nstatus: Draft\nsource-spec: docs/specs/2609101222-foo.md\n---\n# Some plan\n`;
     const result = validateArtifact("docs/plans/2609101221-foo-plan.md", md);
     assertLeftValidation(result);
-    if (Either.isLeft(result)) {
-      expect(result.left.message).toContain(ALLOWED_PLAN_KEYS);
-      expect(result.left.message).toContain("completes-spec: is missing");
+    if (Result.isFailure(result)) {
+      expect(result.failure.message).toContain(ALLOWED_PLAN_KEYS);
+      expect(result.failure.message).toContain("completes-spec: is missing");
     }
   });
 
@@ -312,9 +312,9 @@ status: Completed
       planFm("Draft", "docs/specs/2609101222-foo.md", "yes"),
     );
     assertLeftValidation(result);
-    if (Either.isLeft(result)) {
-      expect(result.left.message).toContain(ALLOWED_PLAN_KEYS);
-      expect(result.left.message).toContain("completes-spec: must be true or false");
+    if (Result.isFailure(result)) {
+      expect(result.failure.message).toContain(ALLOWED_PLAN_KEYS);
+      expect(result.failure.message).toContain("completes-spec: must be true or false");
     }
   });
 
@@ -322,9 +322,9 @@ status: Completed
     const md = `---\nstatus: Draft\nsource-spec: null\ncompletes-spec: false\n---\n# Some plan\n`;
     const result = validateArtifact("docs/plans/2609101221-foo-plan.md", md);
     assertLeftValidation(result);
-    if (Either.isLeft(result)) {
-      expect(result.left.message).toContain(ALLOWED_PLAN_KEYS);
-      expect(result.left.message).toContain(
+    if (Result.isFailure(result)) {
+      expect(result.failure.message).toContain(ALLOWED_PLAN_KEYS);
+      expect(result.failure.message).toContain(
         "completes-spec: is inconsistent with source-spec: null",
       );
     }
@@ -334,21 +334,21 @@ status: Completed
 describe("decodeSpecStatus / decodePlanStatus", () => {
   it("decodes every valid spec status", () => {
     for (const status of SPEC_STATUSES) {
-      expect(Either.isRight(decodeSpecStatus(status))).toBe(true);
+      expect(Result.isSuccess(decodeSpecStatus(status))).toBe(true);
     }
   });
 
   it("rejects a status outside the spec set", () => {
-    expect(Either.isLeft(decodeSpecStatus("Stale"))).toBe(true);
+    expect(Result.isFailure(decodeSpecStatus("Stale"))).toBe(true);
   });
 
   it("decodes every valid plan status", () => {
     for (const status of PLAN_STATUSES) {
-      expect(Either.isRight(decodePlanStatus(status))).toBe(true);
+      expect(Result.isSuccess(decodePlanStatus(status))).toBe(true);
     }
   });
 
   it("rejects a status outside the plan set", () => {
-    expect(Either.isLeft(decodePlanStatus("running"))).toBe(true);
+    expect(Result.isFailure(decodePlanStatus("running"))).toBe(true);
   });
 });

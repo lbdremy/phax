@@ -212,9 +212,9 @@ describe("decodePackageJson", () => {
     const result = decodePackageJson(raw);
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.name).toBe("@my-org/my-app");
-      expect(result.right.packageManager).toBe("pnpm@10.0.0");
-      expect(result.right.scripts?.["typecheck"]).toBe("tsc --noEmit");
+      expect(result.success.name).toBe("@my-org/my-app");
+      expect(result.success.packageManager).toBe("pnpm@10.0.0");
+      expect(result.success.scripts?.["typecheck"]).toBe("tsc --noEmit");
     }
   });
 

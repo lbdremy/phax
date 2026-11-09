@@ -69,8 +69,8 @@ describe("resolveRun — qualified key lookup", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isFailure(result)) throw new Error("expected success");
-    expect(result.right.namespace).toBe("my-project");
-    expect(result.right.shortName).toBe("fix-bug");
+    expect(result.success.namespace).toBe("my-project");
+    expect(result.success.shortName).toBe("fix-bug");
   });
 
   it("two runs with the same shortName in different namespaces resolve independently", () => {
@@ -87,9 +87,9 @@ describe("resolveRun — qualified key lookup", () => {
 
     if (Result.isFailure(resultA) || Result.isFailure(resultB))
       throw new Error("expected both to succeed");
-    expect(resultA.right.namespace).toBe("ns-a");
-    expect(resultB.right.namespace).toBe("ns-b");
-    expect(resultA.right.runPath).not.toBe(resultB.right.runPath);
+    expect(resultA.success.namespace).toBe("ns-a");
+    expect(resultB.success.namespace).toBe("ns-b");
+    expect(resultA.success.runPath).not.toBe(resultB.success.runPath);
   });
 
   it("returns Left when run folder does not exist for the given namespace", () => {
@@ -126,7 +126,7 @@ describe("resolveRun — a phase status phax cannot read", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isSuccess(result)) throw new Error("expected a refusal");
-    expect(result.left).toMatch(new RegExp(`^${statusPath()}: .*base`));
+    expect(result.failure).toMatch(new RegExp(`^${statusPath()}: .*base`));
   });
 
   it("still skips a phase folder without status.json", () => {
@@ -135,7 +135,7 @@ describe("resolveRun — a phase status phax cannot read", () => {
 
     const result = resolveRun("my-project", shortName, stateRoot);
 
-    if (Result.isFailure(result)) throw new Error(`expected success: ${result.left}`);
-    expect(result.right.phaseStatuses.map((p) => p.phaseId)).toEqual(["phase-01"]);
+    if (Result.isFailure(result)) throw new Error(`expected success: ${result.failure}`);
+    expect(result.success.phaseStatuses.map((p) => p.phaseId)).toEqual(["phase-01"]);
   });
 });

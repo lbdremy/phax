@@ -81,7 +81,7 @@ const line = (overrides: Json = {}): Json => ({
 function refusal(input: unknown): string {
   const result = decodeAuthoredPlanDocument(input);
   if (Result.isSuccess(result)) throw new Error("expected the document to be refused");
-  return result.left;
+  return result.failure;
 }
 
 describe("the techniques and loops of a test line (ac-boundary, ac-loop)", () => {

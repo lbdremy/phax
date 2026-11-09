@@ -129,12 +129,12 @@ export function prune(
     if (Result.isFailure(selected)) {
       return yield* Effect.fail(
         new PruneRefusedError({
-          message: selected.left.map(describePruneRefusal).join("\n"),
-          refusals: selected.left,
+          message: selected.failure.map(describePruneRefusal).join("\n"),
+          refusals: selected.failure,
         }),
       );
     }
-    const entries = selected.right;
+    const entries = selected.success;
     if (entries.length === 0) return { kind: "nothing-to-prune" } as const;
 
     const locked: { key: string; shortName: string; pid: number }[] = [];

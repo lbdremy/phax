@@ -191,7 +191,7 @@ export function runGatesWithFixLoop(
       const recordParsed = yield* Effect.try(() => JSON.parse(recordRaw) as unknown);
       const record = readGateAttributionFile(recordPath, recordParsed);
       if (Result.isFailure(record)) return none;
-      const index = record.right.steps.findIndex((step) =>
+      const index = record.success.steps.findIndex((step) =>
         sameCommand(step.command, failingCommand),
       );
       if (index === -1) return none;
@@ -200,8 +200,8 @@ export function runGatesWithFixLoop(
       const raw = yield* fs.readText(path);
       const parsed = yield* Effect.try(() => JSON.parse(raw) as unknown);
       const read = readGateReport(parsed);
-      if (Result.isFailure(read) || read.right.outcome !== "checked") return none;
-      return new Set(read.right.findings.map((finding) => finding.id));
+      if (Result.isFailure(read) || read.success.outcome !== "checked") return none;
+      return new Set(read.success.findings.map((finding) => finding.id));
     }).pipe(Effect.orElseSucceed(() => none));
   }
 
@@ -276,8 +276,8 @@ export function runGatesWithFixLoop(
       // or file error) is judged by nothing and goes up unchecked.
       const judged =
         Result.isSuccess(gateResult) ||
-        gateResult.left instanceof GateFailedError ||
-        gateResult.left instanceof GateStepRefusedError;
+        gateResult.failure instanceof GateFailedError ||
+        gateResult.failure instanceof GateStepRefusedError;
       const changes = judged ? yield* checkAttempt(attempt) : [];
 
       let failure: AttemptFailure;
@@ -305,14 +305,14 @@ export function runGatesWithFixLoop(
             attempt,
           };
           yield* dispatch(gatePassedEvent, dispatchCtx);
-          return gateResult.right;
+          return gateResult.success;
         }
         // Every step passed, yet the attempt changed protected paths: it fails
         // for the check alone. No command failed, so no error report.
         failure = {
           failedStep: "protected-paths",
           protectedChanges: changes,
-          logPath: gateResult.right.attemptLogPath,
+          logPath: gateResult.success.attemptLogPath,
         };
         yield* telemetry.recordEvent(
           makeStepCompletedTelemetryEvent({
@@ -332,7 +332,7 @@ export function runGatesWithFixLoop(
           }),
         );
       } else {
-        const error = gateResult.left;
+        const error = gateResult.failure;
         if (error instanceof GateStepRefusedError) {
           // A refusal goes to the operator: the gate is recorded as rejected and
           // the phase pauses, with no fix prompt and no fix attempt counted.

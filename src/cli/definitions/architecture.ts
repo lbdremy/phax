@@ -79,8 +79,8 @@ function makeArchitectureCommand(cwdOf: () => string) {
           );
         }
         const configResult = loadConfig(tree.mainRoot);
-        if (Result.isFailure(configResult)) return yield* Effect.fail(configResult.left);
-        const { architecture, assignments } = configResult.right;
+        if (Result.isFailure(configResult)) return yield* Effect.fail(configResult.failure);
+        const { architecture, assignments } = configResult.success;
         const bounds = assignments === undefined ? null : assignments;
         if (architecture === undefined) {
           return { kind: "no-provider" as const, bounds };

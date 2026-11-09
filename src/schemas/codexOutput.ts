@@ -114,13 +114,13 @@ export function scanCodexOutcomeEvents(lines: readonly string[]): CodexOutcomeEv
     if (parsed === undefined) continue;
     const started = decodeThreadStarted(parsed);
     if (Result.isSuccess(started)) {
-      threadId ??= started.right.thread_id;
+      threadId ??= started.success.thread_id;
       continue;
     }
     const item = decodeItemCompleted(parsed);
     if (Result.isSuccess(item)) {
       // A blank agent message is no answer.
-      if (item.right.item.text.trim().length > 0) agentMessage = item.right.item.text;
+      if (item.success.item.text.trim().length > 0) agentMessage = item.success.item.text;
       continue;
     }
     if (Result.isSuccess(decodeCodexTurnCompletedEvent(parsed))) {
@@ -129,11 +129,11 @@ export function scanCodexOutcomeEvents(lines: readonly string[]): CodexOutcomeEv
     }
     const failed = decodeCodexTurnFailedEvent(parsed);
     if (Result.isSuccess(failed)) {
-      turnEnd = { kind: "failed", message: failed.right.error?.message };
+      turnEnd = { kind: "failed", message: failed.success.error?.message };
       continue;
     }
     const error = decodeCodexErrorEvent(parsed);
-    if (Result.isSuccess(error)) errorMessage = error.right.message;
+    if (Result.isSuccess(error)) errorMessage = error.success.message;
   }
   return { threadId, agentMessage, turnEnd, errorMessage };
 }

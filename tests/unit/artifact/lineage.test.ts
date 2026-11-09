@@ -162,9 +162,9 @@ describe("stampApproved", () => {
     const updated = stampApproved(md, "2026-08-10T12:00:00.000Z", "abc1234");
     expect(Result.isSuccess(updated)).toBe(true);
     if (Result.isSuccess(updated)) {
-      expect(updated.right).toContain("approved:");
-      expect(updated.right).toContain("date: 2026-08-10");
-      expect(updated.right).toContain("baseline: abc1234");
+      expect(updated.success).toContain("approved:");
+      expect(updated.success).toContain("date: 2026-08-10");
+      expect(updated.success).toContain("baseline: abc1234");
     }
   });
 
@@ -176,9 +176,9 @@ describe("stampApproved", () => {
     const updated = stampApproved(md, "2026-08-10T12:00:00.000Z", "abc1234");
     expect(Result.isSuccess(updated)).toBe(true);
     if (Result.isSuccess(updated)) {
-      expect(updated.right).toContain("date: 2026-08-10");
-      expect(updated.right).not.toContain("2020-01-01");
-      expect((updated.right.match(/^approved:/gm) ?? []).length).toBe(1);
+      expect(updated.success).toContain("date: 2026-08-10");
+      expect(updated.success).not.toContain("2020-01-01");
+      expect((updated.success.match(/^approved:/gm) ?? []).length).toBe(1);
     }
   });
 
@@ -187,7 +187,7 @@ describe("stampApproved", () => {
     const updated = stampApproved(md, "2026-08-10T12:00:00.000Z", "abc1234");
     expect(Result.isSuccess(updated)).toBe(true);
     if (Result.isSuccess(updated)) {
-      const bodyAfter = updated.right.slice(updated.right.indexOf("---\n", 3) + 4);
+      const bodyAfter = updated.success.slice(updated.success.indexOf("---\n", 3) + 4);
       const bodyBefore = md.slice(md.indexOf("---\n", 3) + 4);
       expect(bodyAfter).toBe(bodyBefore);
     }
@@ -198,7 +198,7 @@ describe("stampApproved", () => {
     const stamped = stampApproved(md, "2026-08-10T12:00:00.000Z", "abc1234");
     expect(Result.isSuccess(stamped)).toBe(true);
     if (Result.isSuccess(stamped)) {
-      expect(fingerprintSource(stamped.right)).toBe(fingerprintSource(md));
+      expect(fingerprintSource(stamped.success)).toBe(fingerprintSource(md));
     }
   });
 
@@ -206,7 +206,7 @@ describe("stampApproved", () => {
     const result = stampApproved("# Plan\n\n## Overview\n", "2026-08-10T12:00:00.000Z", "abc1234");
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left.kind).toBe("missing-block");
+      expect(result.failure.kind).toBe("missing-block");
     }
   });
 });
@@ -217,17 +217,17 @@ describe("clearApproved", () => {
     const stamped = stampApproved(md, "2026-08-10T12:00:00.000Z", "abc1234");
     expect(Result.isSuccess(stamped)).toBe(true);
     if (!Result.isSuccess(stamped)) return;
-    const cleared = clearApproved(stamped.right);
+    const cleared = clearApproved(stamped.success);
     expect(Result.isSuccess(cleared)).toBe(true);
     if (!Result.isSuccess(cleared)) return;
-    expect(cleared.right).toBe(md);
+    expect(cleared.success).toBe(md);
   });
 
   it("is a no-op when no approved mapping is present", () => {
     const md = planFm({ sourceSpec: "null" });
     const cleared = clearApproved(md);
     expect(Result.isSuccess(cleared)).toBe(true);
-    if (Result.isSuccess(cleared)) expect(cleared.right).toBe(md);
+    if (Result.isSuccess(cleared)) expect(cleared.success).toBe(md);
   });
 
   it("is fingerprint-neutral: clearing never changes the approval fingerprint", () => {
@@ -235,17 +235,17 @@ describe("clearApproved", () => {
     const stamped = stampApproved(md, "2026-08-10T12:00:00.000Z", "abc1234");
     expect(Result.isSuccess(stamped)).toBe(true);
     if (!Result.isSuccess(stamped)) return;
-    const cleared = clearApproved(stamped.right);
+    const cleared = clearApproved(stamped.success);
     expect(Result.isSuccess(cleared)).toBe(true);
     if (!Result.isSuccess(cleared)) return;
-    expect(fingerprintSource(cleared.right)).toBe(fingerprintSource(md));
-    expect(fingerprintSource(cleared.right)).toBe(fingerprintSource(stamped.right));
+    expect(fingerprintSource(cleared.success)).toBe(fingerprintSource(md));
+    expect(fingerprintSource(cleared.success)).toBe(fingerprintSource(stamped.success));
   });
 
   it("fails with missing-block when there is no frontmatter", () => {
     const result = clearApproved("# Plan\n\n## Overview\n");
     expect(Result.isFailure(result)).toBe(true);
-    if (Result.isFailure(result)) expect(result.left.kind).toBe("missing-block");
+    if (Result.isFailure(result)) expect(result.failure.kind).toBe("missing-block");
   });
 });
 
@@ -266,17 +266,17 @@ describe("stampApproved on a spec", () => {
     const updated = stampApproved(SPEC_DOC, "2026-08-11T12:00:00.000Z", "abc1234");
     expect(Result.isSuccess(updated)).toBe(true);
     if (!Result.isSuccess(updated)) return;
-    expect(updated.right).toContain("date: 2026-08-11");
-    expect(updated.right).toContain("audience: implementation planning with Claude Code");
-    expect(updated.right).toContain("scope: functional behavior and consumption surface");
-    expect(updated.right).toContain("approved:");
+    expect(updated.success).toContain("date: 2026-08-11");
+    expect(updated.success).toContain("audience: implementation planning with Claude Code");
+    expect(updated.success).toContain("scope: functional behavior and consumption surface");
+    expect(updated.success).toContain("approved:");
   });
 
   it("leaves the body byte-identical when stamping a spec", () => {
     const updated = stampApproved(SPEC_DOC, "2026-08-11T12:00:00.000Z", "abc1234");
     expect(Result.isSuccess(updated)).toBe(true);
     if (!Result.isSuccess(updated)) return;
-    const bodyAfter = updated.right.slice(updated.right.indexOf("---\n", 3) + 4);
+    const bodyAfter = updated.success.slice(updated.success.indexOf("---\n", 3) + 4);
     const bodyBefore = SPEC_DOC.slice(SPEC_DOC.indexOf("---\n", 3) + 4);
     expect(bodyAfter).toBe(bodyBefore);
   });
@@ -566,7 +566,7 @@ describe("approval record sidecar schema", () => {
     const decoded = decodeApprovalRecordFile(sample);
     expect(Result.isSuccess(decoded)).toBe(true);
     if (Result.isSuccess(decoded)) {
-      expect(encodeApprovalRecordFile(decoded.right)).toEqual(sample);
+      expect(encodeApprovalRecordFile(decoded.success)).toEqual(sample);
     }
   });
 
@@ -867,7 +867,7 @@ describe("approval record store: no record", () => {
       putPlanApprovalRecord("docs/plans/nested/2609101222-foo-plan.md", planRecord, APPROVER),
     );
     expect(Result.isFailure(result)).toBe(true);
-    if (Result.isFailure(result)) expect(result.left).toBeInstanceOf(ArtifactValidationError);
+    if (Result.isFailure(result)) expect(result.failure).toBeInstanceOf(ArtifactValidationError);
   });
 });
 
@@ -913,8 +913,8 @@ describe("approval record store over an unreadable record file", () => {
     const { result } = failure({ [PLAN_RECORD]: text }, readPlanApprovalRecord(PLAN));
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(ApprovalRecordUnreadableError);
-      const error = result.left as ApprovalRecordUnreadableError;
+      expect(result.failure).toBeInstanceOf(ApprovalRecordUnreadableError);
+      const error = result.failure as ApprovalRecordUnreadableError;
       expect(error.recordPath).toBe(PLAN_RECORD);
       expect(error.message.startsWith(`${PLAN_RECORD}: `)).toBe(true);
       expect(error.message).toContain(expected);
@@ -939,7 +939,8 @@ describe("approval record store over an unreadable record file", () => {
       putSpecApprovalRecord(SPEC, specRecord, APPROVER),
     );
     expect(Result.isFailure(result)).toBe(true);
-    if (Result.isFailure(result)) expect(result.left).toBeInstanceOf(ApprovalRecordUnreadableError);
+    if (Result.isFailure(result))
+      expect(result.failure).toBeInstanceOf(ApprovalRecordUnreadableError);
     expect(fs.getFile(SPEC_RECORD)).toBe(text);
   });
 });
@@ -957,8 +958,8 @@ describe("approval record store over a copied record file", () => {
       const { result, fs } = failure({ [PLAN_RECORD]: copied }, effect);
       expect(Result.isFailure(result)).toBe(true);
       if (Result.isFailure(result)) {
-        expect(result.left).toBeInstanceOf(ApprovalRecordUnreadableError);
-        expect((result.left as ApprovalRecordUnreadableError).message).toBe(
+        expect(result.failure).toBeInstanceOf(ApprovalRecordUnreadableError);
+        expect((result.failure as ApprovalRecordUnreadableError).message).toBe(
           `${PLAN_RECORD}: records ${OTHER_PLAN}, not ${PLAN} — restore it from git, or delete it and re-approve`,
         );
       }
@@ -973,8 +974,8 @@ describe("approval record store over a copied record file", () => {
     );
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(ApprovalRecordUnreadableError);
-      expect((result.left as ApprovalRecordUnreadableError).recordPath).toBe(SPEC_RECORD);
+      expect(result.failure).toBeInstanceOf(ApprovalRecordUnreadableError);
+      expect((result.failure as ApprovalRecordUnreadableError).recordPath).toBe(SPEC_RECORD);
     }
   });
 });

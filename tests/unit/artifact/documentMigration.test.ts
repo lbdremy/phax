@@ -215,8 +215,8 @@ function decidePlan(md: string, sidecarJson: string): DocumentMigrationDecision 
 
 function liftedPlan(): PlanDocument {
   const read = readPlanDocumentFile(PLAN_SIDECAR, JSON.parse(PLAN_0_20_0_JSON));
-  if (Result.isFailure(read)) throw new Error(read.left.message);
-  return read.right;
+  if (Result.isFailure(read)) throw new Error(read.failure.message);
+  return read.success;
 }
 
 function migrated(decision: DocumentMigrationDecision): DocumentMigration {
@@ -250,9 +250,9 @@ describe("decideDocumentMigration — specs", () => {
     expect(sidecar["$schema"]).toBe(currentSchemaUrl("spec-document"));
     expect(m.sidecarText.endsWith("}\n")).toBe(true);
     const read = readSpecDocumentFile(SPEC_SIDECAR, sidecar);
-    if (Result.isFailure(read)) throw new Error(read.left.message);
-    expect(read.right.openQuestions.map((q) => q.id)).toEqual(["Q2"]);
-    const [q1] = read.right.arbitratedQuestions;
+    if (Result.isFailure(read)) throw new Error(read.failure.message);
+    expect(read.success.openQuestions.map((q) => q.id)).toEqual(["Q2"]);
+    const [q1] = read.success.arbitratedQuestions;
     expect(q1?.id).toBe("Q1");
     expect(q1?.verdict).toEqual({
       kind: "lifted",
@@ -265,7 +265,7 @@ describe("decideDocumentMigration — specs", () => {
     expect(q1?.history).toEqual([]);
 
     expect(m.md.startsWith(SPEC_FRONTMATTER)).toBe(true);
-    expect(m.md).toBe(SPEC_FRONTMATTER + renderSpecBody(read.right));
+    expect(m.md).toBe(SPEC_FRONTMATTER + renderSpecBody(read.success));
     expect(m.md).toContain("## 9b. Arbitrated questions");
     expect(m.bodyChanged).toBe(true);
   });
@@ -296,14 +296,14 @@ describe("decideDocumentMigration — specs", () => {
     const sidecar = JSON.parse(m.sidecarText) as Record<string, unknown>;
     expect(sidecar["$schema"]).toBe(currentSchemaUrl("spec-document"));
     const read = readSpecDocumentFile(SPEC_SIDECAR, sidecar);
-    if (Result.isFailure(read)) throw new Error(read.left.message);
-    expect(read.right.surface.map((element) => element.summary)).toEqual([
+    if (Result.isFailure(read)) throw new Error(read.failure.message);
+    expect(read.success.surface.map((element) => element.summary)).toEqual([
       SURFACE_SUMMARY_PLACEHOLDER,
       SURFACE_SUMMARY_PLACEHOLDER,
     ]);
-    expect(read.right.openQuestions).toEqual(SPEC_0_25_0.openQuestions);
+    expect(read.success.openQuestions).toEqual(SPEC_0_25_0.openQuestions);
     expect(m.md.startsWith(SPEC_FRONTMATTER)).toBe(true);
-    expect(m.md).toBe(SPEC_FRONTMATTER + renderSpecBody(read.right));
+    expect(m.md).toBe(SPEC_FRONTMATTER + renderSpecBody(read.success));
     expect(m.md).toContain(
       `### cli: \`phax rotate <run>\` — normative\n\nSummary: ${SURFACE_SUMMARY_PLACEHOLDER}\n\n`,
     );

@@ -150,7 +150,7 @@ describe("a plan with no Mode line, run without --hold", { timeout: 60_000 }, ()
     );
 
     // The same exit: the run ends without stopping, and never failed.
-    if (Result.isFailure(result)) throw new Error(`the run failed: ${String(result.left)}`);
+    if (Result.isFailure(result)) throw new Error(`the run failed: ${String(result.failure)}`);
 
     // No prompt carries corrections.
     for (const call of run.backend.calls) {

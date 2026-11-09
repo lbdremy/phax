@@ -87,8 +87,9 @@ const PLAN_MD = [
 ].join("\n");
 
 const located = locatePlanSections(PLAN_MD, samplePlan.phases);
-if (Result.isFailure(located)) throw new Error(`fixture plan.md is unlocatable: ${located.left}`);
-const planSections = located.right;
+if (Result.isFailure(located))
+  throw new Error(`fixture plan.md is unlocatable: ${located.failure}`);
+const planSections = located.success;
 
 const phase03 = phases[2]!;
 

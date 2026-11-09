@@ -348,8 +348,8 @@ function planWithQuestions(): PlanDocument {
       ],
     }),
   );
-  if (Result.isFailure(decoded)) throw new Error(decoded.left.message);
-  const { $schema: _schema, ...doc } = decoded.right;
+  if (Result.isFailure(decoded)) throw new Error(decoded.failure.message);
+  const { $schema: _schema, ...doc } = decoded.success;
   return doc;
 }
 
@@ -843,8 +843,8 @@ describe("lintPlan", () => {
 
       expect(Result.isFailure(result)).toBe(true);
       if (Result.isFailure(result)) {
-        expect(result.left).toBeInstanceOf(ArtifactValidationError);
-        expect((result.left as ArtifactValidationError).message).toBe(
+        expect(result.failure).toBeInstanceOf(ArtifactValidationError);
+        expect((result.failure as ArtifactValidationError).message).toBe(
           "docs/plans/Thing_Plan.md: name does not match <YYMMDDHHMM>-<slug>-plan.md",
         );
       }
@@ -857,7 +857,7 @@ describe("lintPlan", () => {
 
       expect(Result.isFailure(result)).toBe(true);
       if (Result.isFailure(result)) {
-        expect(result.left).toBeInstanceOf(ArtifactValidationError);
+        expect(result.failure).toBeInstanceOf(ArtifactValidationError);
       }
     });
 
@@ -929,8 +929,8 @@ describe("lintPlan", () => {
 
         expect(Result.isFailure(result)).toBe(true);
         if (Result.isFailure(result)) {
-          expect(result.left).toBeInstanceOf(ArtifactValidationError);
-          expect((result.left as ArtifactValidationError).message).toContain(detail);
+          expect(result.failure).toBeInstanceOf(ArtifactValidationError);
+          expect((result.failure as ArtifactValidationError).message).toContain(detail);
         }
       },
     );

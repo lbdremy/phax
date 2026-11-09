@@ -58,7 +58,7 @@ vi.mock("node:os", async (importOriginal) =>
 vi.mock("../../src/app/loadTelemetryConfig.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../src/app/loadTelemetryConfig.js")>();
   const effect = await import("effect");
-  return { ...actual, loadTelemetryConfig: vi.fn(() => effect.Either.right({ enabled: false })) };
+  return { ...actual, loadTelemetryConfig: vi.fn(() => effect.Result.succeed({ enabled: false })) };
 });
 // The routing loaders read ~/.phax; serve the built-in defaults instead.
 vi.mock("../../src/app/loadRouting.js", async (importOriginal) => {
@@ -394,7 +394,7 @@ describe("phax resume — re-checks the inputs that can change before any worktr
     process.chdir(r.repo);
     // Guard: every write below must land in the temporary state root.
     const config = loadConfig(r.repo);
-    expect(Result.isSuccess(config) && config.right.stateRoot).toBe(r.stateRoot);
+    expect(Result.isSuccess(config) && config.success.stateRoot).toBe(r.stateRoot);
     // The records clone only has to exist for the run preflight to pass.
     await mkdir(join(r.stateRoot, "records", r.namespace), { recursive: true });
 
@@ -453,7 +453,7 @@ describe("phax resume — re-checks the inputs that can change before any worktr
     roots = r;
     process.chdir(r.repo);
     const config = loadConfig(r.repo);
-    expect(Result.isSuccess(config) && config.right.stateRoot).toBe(r.stateRoot);
+    expect(Result.isSuccess(config) && config.success.stateRoot).toBe(r.stateRoot);
 
     const shortName = await pauseAfterPhase01(r);
 

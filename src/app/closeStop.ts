@@ -16,7 +16,7 @@
 // pair whose corrections change one of the pair's acceptance test files ends
 // its gate with the `authored` acceptance step, naming the stopped phase; a
 // held passing phase is never judged again, and only flags such a change.
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import type { ClaudeSessionId, PhaseId, RunId } from "../domain/branded.js";
@@ -531,14 +531,14 @@ function finishLandedCommit(
 /** A persisted document read and decoded, or null when it is absent or refused. */
 function readDocument<T>(
   path: string,
-  reader: (file: string, input: unknown) => Either.Either<T, unknown>,
+  reader: (file: string, input: unknown) => Result.Result<T, unknown>,
 ): Effect.Effect<T | null, never, FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     if (!(yield* fs.exists(path))) return null;
     const raw = yield* fs.readText(path);
     const parsed = yield* Effect.try(() => JSON.parse(raw) as unknown);
-    return Either.getOrNull(reader(path, parsed));
+    return Result.getOrNull(reader(path, parsed));
   }).pipe(Effect.orElseSucceed(() => null));
 }
 
@@ -722,8 +722,8 @@ function runCloseGate(
         }),
       ),
     );
-    if (Either.isRight(outcome)) return { log, steps: outcome.right.steps };
-    const error = outcome.left;
+    if (Result.isSuccess(outcome)) return { log, steps: outcome.success.steps };
+    const error = outcome.failure;
     if (error instanceof GateFailedError || error instanceof GateStepRefusedError) {
       return yield* refuse({ result: "gate-failed", exitCode: 4, log: error.logPath });
     }
@@ -756,11 +756,11 @@ const CLOSING_TURN_STREAM = /^closing-turn-(\d{2})\.jsonl$/;
 const handoffSchemaJson = (): string =>
   JSON.stringify(answerJsonSchema("interactive-handoff"), null, 2);
 
-function decodeHandoffAnswer(result: AgentRunResult): Either.Either<InteractiveHandoff, string> {
-  return Either.flatMap(answerJson(result), (parsed) =>
-    Either.match(readInteractiveHandoffAnswer(parsed), {
-      onLeft: (error) => Either.left(describeReportError(error)),
-      onRight: ({ $schema: _schema, ...answer }) => Either.right(answer),
+function decodeHandoffAnswer(result: AgentRunResult): Result.Result<InteractiveHandoff, string> {
+  return Result.flatMap(answerJson(result), (parsed) =>
+    Result.match(readInteractiveHandoffAnswer(parsed), {
+      onFailure: (error) => Result.fail(describeReportError(error)),
+      onSuccess: ({ $schema: _schema, ...answer }) => Result.succeed(answer),
     }),
   );
 }
@@ -844,16 +844,16 @@ function attemptClosingTurn(
         binding,
         "agent.resume",
       );
-      if (Either.isRight(resumed)) {
-        first = { result: resumed.right, binding, source: "closing-turn-resumed", label };
+      if (Result.isSuccess(resumed)) {
+        first = { result: resumed.success, binding, source: "closing-turn-resumed", label };
       } else if (
-        isLimit(resumed.left) ||
-        isNetworkFailure(resumed.left) ||
-        isStructuredRetriesError(resumed.left)
+        isLimit(resumed.failure) ||
+        isNetworkFailure(resumed.failure) ||
+        isStructuredRetriesError(resumed.failure)
       ) {
         // A limit, a lost network and a model that could not meet the schema
         // would fail the same way in a new session: no new session starts.
-        return refusedTurn(resumed.left);
+        return refusedTurn(resumed.failure);
       }
     }
 
@@ -864,10 +864,10 @@ function attemptClosingTurn(
       const newTurn = current === null ? ctx.turn : ctx.turn + 1;
       if (newTurn !== ctx.turn) {
         const advanced = yield* Effect.result(ctx.advanceTurn(newTurn));
-        if (Either.isLeft(advanced)) {
+        if (Result.isFailure(advanced)) {
           return {
             kind: "refused",
-            refusal: closeError("files", advanced.left),
+            refusal: closeError("files", advanced.failure),
             sessionFailure: null,
           };
         }
@@ -888,11 +888,11 @@ function attemptClosingTurn(
         ctx.phaseBinding,
         "agent.run",
       );
-      if (Either.isLeft(started)) {
-        return refusedTurn(started.left);
+      if (Result.isFailure(started)) {
+        return refusedTurn(started.failure);
       }
       first = {
-        result: started.right,
+        result: started.success,
         binding: ctx.phaseBinding,
         source: "closing-turn-new",
         label: newLabel,
@@ -900,10 +900,10 @@ function attemptClosingTurn(
     }
 
     const answer = decodeHandoffAnswer(first.result);
-    if (Either.isRight(answer)) {
+    if (Result.isSuccess(answer)) {
       return {
         kind: "answered",
-        handoff: renderInteractiveHandoff(answer.right),
+        handoff: renderInteractiveHandoff(answer.success),
         source: first.source,
       };
     }
@@ -912,21 +912,21 @@ function attemptClosingTurn(
     const retry = yield* costed(
       backend.resumeAgentSession(
         first.result.sessionId,
-        correctivePrompt(answer.left, schemaUrl),
+        correctivePrompt(answer.failure, schemaUrl),
         options(retryStream, first.binding),
       ),
       retryStream,
       first.binding,
       "agent.resume",
     );
-    if (Either.isLeft(retry)) {
-      return refusedTurn(retry.left);
+    if (Result.isFailure(retry)) {
+      return refusedTurn(retry.failure);
     }
-    const retried = decodeHandoffAnswer(retry.right);
-    if (Either.isRight(retried)) {
+    const retried = decodeHandoffAnswer(retry.success);
+    if (Result.isSuccess(retried)) {
       return {
         kind: "answered",
-        handoff: renderInteractiveHandoff(retried.right),
+        handoff: renderInteractiveHandoff(retried.success),
         source: first.source,
       };
     }
@@ -935,7 +935,7 @@ function attemptClosingTurn(
       refusal: {
         result: "closing-answer-invalid",
         exitCode: 5,
-        reason: `the first answer was refused (${answer.left}); the corrective answer was refused too (${retried.left})`,
+        reason: `the first answer was refused (${answer.failure}); the corrective answer was refused too (${retried.failure})`,
       },
       sessionFailure: null,
     };
@@ -1344,11 +1344,11 @@ function closeSteps(
     let source: HandoffSource;
     if (person !== null) {
       const valid = validateInteractiveHandoff(person.text);
-      if (Either.isLeft(valid)) {
+      if (Result.isFailure(valid)) {
         return yield* refuse({
           result: "handoff-invalid",
           exitCode: 1,
-          defects: nonEmpty(valid.left),
+          defects: nonEmpty(valid.failure),
         });
       }
       handoff = person.text;
@@ -1586,8 +1586,8 @@ export function closeStop(
     } as const;
 
     const closed = yield* Effect.result(closeSteps(input));
-    if (Either.isLeft(closed)) {
-      const lastClose = { ...closed.left.refusal, at: now() } as RefusedClose;
+    if (Result.isFailure(closed)) {
+      const lastClose = { ...closed.failure.refusal, at: now() } as RefusedClose;
       yield* dispatch({ ...base, type: "StopCloseRefused", lastClose }, ctx);
       return yield* Effect.fail(
         new StopCloseRefusedError({
@@ -1595,12 +1595,12 @@ export function closeStop(
           run: input.shortName,
           phase: input.phase.id,
           lastClose,
-          sessionFailure: closed.left.sessionFailure,
+          sessionFailure: closed.failure.sessionFailure,
         }),
       );
     }
 
-    const report = closed.right;
+    const report = closed.success;
     if (report.cause === "held" && report.outcome === "corrected") {
       // An acceptance test edit at a held passing phase: flagged, never refused.
       yield* traceUnjudgedAcceptanceEdits(

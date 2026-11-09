@@ -79,9 +79,9 @@ export const unlockCommand = defineCommand({
       );
       const resolved = resolveRunRef(input.args[0], config, config.stateRoot);
       if (Result.isFailure(resolved)) {
-        return yield* Effect.fail(new UnlockRunRefError({ message: resolved.left.message }));
+        return yield* Effect.fail(new UnlockRunRefError({ message: resolved.failure.message }));
       }
-      const { namespace, shortName } = resolved.right;
+      const { namespace, shortName } = resolved.success;
       const qualifiedName = runKey(namespace, shortName);
       const removing = (removed: UnlockOutput["removed"]): UnlockOutput => ({
         shortName,

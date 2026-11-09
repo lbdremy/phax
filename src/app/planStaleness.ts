@@ -230,16 +230,22 @@ function approvedPlansReport(
       const planMd = yield* fs.readText(planPath);
       const validated = validateArtifact(planPath, planMd);
       if (Result.isFailure(validated)) {
-        report.push({ path: planPath, result: { kind: "error", message: validated.left.message } });
+        report.push({
+          path: planPath,
+          result: { kind: "error", message: validated.failure.message },
+        });
         continue;
       }
-      if (validated.right.status !== "Approved") continue;
+      if (validated.success.status !== "Approved") continue;
 
       const verdict = yield* Effect.result(computePlanStaleness(planPath, opts));
       if (Result.isFailure(verdict)) {
-        report.push({ path: planPath, result: { kind: "error", message: verdict.left.message } });
+        report.push({
+          path: planPath,
+          result: { kind: "error", message: verdict.failure.message },
+        });
       } else {
-        report.push({ path: planPath, result: verdict.right });
+        report.push({ path: planPath, result: verdict.success });
       }
     }
 

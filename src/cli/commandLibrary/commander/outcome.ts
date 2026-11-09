@@ -58,12 +58,12 @@ export function defectText(why: string): string {
 }
 
 /** The declared error that ended a failed `run`: its tag, its fields and its code, when the
- *  command maps the tag. Read with Effect 3's `Cause.failureOption`. */
+ *  command maps the tag. Read with `Cause.findErrorOption`, the first typed error. */
 export function declaredOf(
   command: Command<unknown>,
   cause: Cause.Cause<unknown>,
 ): { readonly error: object; readonly tag: string; readonly code: ExitCode } | undefined {
-  const found = Cause.failureOption(cause);
+  const found = Cause.findErrorOption(cause);
   if (Option.isNone(found)) return undefined;
   const error = found.value;
   const tag = tagOf(error);

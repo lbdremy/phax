@@ -325,10 +325,10 @@ describe("decide — a hand-authored artifact decided in place", { timeout: 30_0
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toMatchObject({ _tag: "DecideRefusedError", reason: "hand-format" });
-      expect(exitCodeForAuthoringError(result.left)).toBe(12);
-      expect(result.left.message).toContain(`${BOLD_SPEC} line 11 departs from the §9 format`);
-      expect(result.left.message).toContain("**Q1 — Text or JSON lines?**");
+      expect(result.failure).toMatchObject({ _tag: "DecideRefusedError", reason: "hand-format" });
+      expect(exitCodeForAuthoringError(result.failure)).toBe(12);
+      expect(result.failure.message).toContain(`${BOLD_SPEC} line 11 departs from the §9 format`);
+      expect(result.failure.message).toContain("**Q1 — Text or JSON lines?**");
     }
     expect(h.session.invocations).toEqual([]);
     expect(headSha()).toBe(head);
@@ -348,9 +348,9 @@ describe("decide — a hand-authored artifact decided in place", { timeout: 30_0
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toMatchObject({ _tag: "DecideRefusedError", reason: "hand-format" });
-      expect(exitCodeForAuthoringError(result.left)).toBe(12);
-      expect(result.left.message).toContain("Q1 lists the reserved option id other");
+      expect(result.failure).toMatchObject({ _tag: "DecideRefusedError", reason: "hand-format" });
+      expect(exitCodeForAuthoringError(result.failure)).toBe(12);
+      expect(result.failure.message).toContain("Q1 lists the reserved option id other");
     }
     expect(h.session.invocations).toEqual([]);
     expect(h.backend.resumeCalls).toEqual([]);
@@ -433,8 +433,10 @@ describe("decide — a hand-authored artifact decided in place", { timeout: 30_0
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(exitCodeForAuthoringError(result.left)).toBe(5);
-      expect(result.left.message).toContain("retry: markdown: the open questions section differs");
+      expect(exitCodeForAuthoringError(result.failure)).toBe(5);
+      expect(result.failure.message).toContain(
+        "retry: markdown: the open questions section differs",
+      );
     }
     expect(headSha()).toBe(head);
     expect(readRepoFile(SPEC)).toBe(HAND_SPEC);

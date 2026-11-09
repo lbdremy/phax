@@ -184,8 +184,8 @@ function planBase(): PlanDocument {
       expectedHandoff: "Nothing.",
     })),
   });
-  if (Result.isFailure(doc)) throw new Error(doc.left.message);
-  return doc.right;
+  if (Result.isFailure(doc)) throw new Error(doc.failure.message);
+  return doc.success;
 }
 
 let repoDir: string;
@@ -237,7 +237,7 @@ async function approveByMachine(path: string): Promise<void> {
       }).pipe(Effect.provide(layer)),
     ),
   );
-  if (Result.isFailure(result)) throw new Error(result.left.message);
+  if (Result.isFailure(result)) throw new Error(result.failure.message);
 }
 
 // `phax artifact status <path>` as printed, run from the repository; it always exits 0 here.

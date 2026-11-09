@@ -140,7 +140,7 @@ describe("executePlan — setup command failure", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(SetupCommandFailedError);
+      expect(result.failure).toBeInstanceOf(SetupCommandFailedError);
     }
   });
 

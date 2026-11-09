@@ -124,7 +124,7 @@ function expectParity(parse: Parse, phax: Decode, input: unknown, verdict: Verdi
   const result = parse(input);
   expect(Result.isSuccess(decoded)).toBe(verdict === "accepted");
   expect(result.ok).toBe(verdict === "accepted");
-  if (result.ok && Result.isSuccess(decoded)) expect(result.value).toEqual(decoded.right);
+  if (result.ok && Result.isSuccess(decoded)) expect(result.value).toEqual(decoded.success);
 }
 
 interface FormatParity {
@@ -844,13 +844,13 @@ describe("parity: parseRecordManifest agrees with phax's union", () => {
     const result = parseRecordManifest(input);
     expect(result.ok).toBe(Result.isSuccess(decoded));
     if (result.ok && Result.isSuccess(decoded)) {
-      expect(result.value).toEqual(decoded.right);
+      expect(result.value).toEqual(decoded.success);
       expect(result.format).toBe(
-        isReviewRecordManifest(decoded.right)
+        isReviewRecordManifest(decoded.success)
           ? "review-record-manifest"
-          : isDecisionRecordManifest(decoded.right)
+          : isDecisionRecordManifest(decoded.success)
             ? "decision-record-manifest"
-            : isAuthoringRecordManifest(decoded.right)
+            : isAuthoringRecordManifest(decoded.success)
               ? "authoring-record-manifest"
               : "phase-record-manifest",
       );

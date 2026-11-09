@@ -43,7 +43,7 @@ function readPhaxState(ctx: DispatcherContext): Effect.Effect<PhaxState, FsError
     const runParsed = JSON.parse(runRaw) as unknown;
     const runDecoded = readRunStatusFile(runStatusPath, runParsed);
     if (Result.isFailure(runDecoded)) {
-      return yield* Effect.fail(new FsError({ message: runDecoded.left.message }));
+      return yield* Effect.fail(new FsError({ message: runDecoded.failure.message }));
     }
 
     let phase: PhaseStatus | undefined;
@@ -55,13 +55,13 @@ function readPhaxState(ctx: DispatcherContext): Effect.Effect<PhaxState, FsError
         const phaseParsed = JSON.parse(phaseRaw) as unknown;
         const phaseDecoded = readPhaseStatusFile(phasePath, phaseParsed);
         if (Result.isFailure(phaseDecoded)) {
-          return yield* Effect.fail(new FsError({ message: phaseDecoded.left.message }));
+          return yield* Effect.fail(new FsError({ message: phaseDecoded.failure.message }));
         }
-        phase = phaseDecoded.right;
+        phase = phaseDecoded.success;
       }
     }
 
-    return composePhaxState(runDecoded.right.state, runDecoded.right.lastError, phase);
+    return composePhaxState(runDecoded.success.state, runDecoded.success.lastError, phase);
   });
 }
 

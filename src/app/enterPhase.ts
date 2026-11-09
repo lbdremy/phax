@@ -176,13 +176,13 @@ function readPhaseFacts(
 ): Effect.Effect<PhaseFacts | { readonly refusal: string }, never, FileSystem> {
   return Effect.gen(function* () {
     const model = yield* Effect.result(readModelResolution(phaseFolder));
-    if (Result.isFailure(model)) return { refusal: unreadable(phase, model.left.message) };
+    if (Result.isFailure(model)) return { refusal: unreadable(phase, model.failure.message) };
     const posture = yield* Effect.result(readPhasePosture(phaseFolder));
-    if (Result.isFailure(posture)) return { refusal: unreadable(phase, posture.left.message) };
+    if (Result.isFailure(posture)) return { refusal: unreadable(phase, posture.failure.message) };
     return {
-      model: model.right,
-      effort: model.right.effort ?? phase.effort,
-      posture: posture.right,
+      model: model.success,
+      effort: model.success.effort ?? phase.effort,
+      posture: posture.success,
     };
   });
 }
@@ -281,17 +281,17 @@ function planHeadless(
     const bindingResult = yield* Effect.promise(() => readAgentBinding(phaseFolder));
     if (Result.isFailure(bindingResult)) {
       return refused(
-        `No agent binding found for phase "${input.phaseId}" of run "${qualifiedName(input)}": ${bindingResult.left}`,
+        `No agent binding found for phase "${input.phaseId}" of run "${qualifiedName(input)}": ${bindingResult.failure}`,
       );
     }
-    const binding = bindingResult.right;
+    const binding = bindingResult.success;
     if (!binding.sessionId) {
       return refused(
         `No session ID captured for this ${binding.provider} phase "${input.phaseId}"; cannot resume interactively.`,
       );
     }
     const posture = yield* Effect.result(readPhasePosture(phaseFolder));
-    if (Result.isFailure(posture)) return refused(unreadable(phase, posture.left.message));
+    if (Result.isFailure(posture)) return refused(unreadable(phase, posture.failure.message));
     const commands = sessionCommands(
       {
         phaseId: input.phaseId,
@@ -299,7 +299,7 @@ function planHeadless(
         model: binding.model,
         effort: binding.effort,
         cwd: binding.worktreePath,
-        posture: posture.right,
+        posture: posture.success,
         providerConfig: input.providerConfig,
       },
       binding.sessionId,
@@ -378,9 +378,9 @@ function runNewSessionTurn(
     if (Result.isFailure(shortName)) {
       return { refusal: refused(`"${input.shortName}" is not a valid run short name.`) };
     }
-    const again = resolveRun(input.namespace, shortName.right, input.stateRoot);
-    if (Result.isFailure(again)) return { refusal: refused(again.left) };
-    const fresh = again.right;
+    const again = resolveRun(input.namespace, shortName.success, input.stateRoot);
+    if (Result.isFailure(again)) return { refusal: refused(again.failure) };
+    const fresh = again.success;
     const phase = fresh.phaseStatuses.find((p) => p.phaseId === input.phaseId);
     if (phase === undefined) {
       return {

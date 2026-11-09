@@ -12,14 +12,14 @@ import {
 function refusalOf(text: string) {
   const decoded = decodeVibeExportText(text);
   if (Result.isSuccess(decoded)) throw new Error("expected a refusal");
-  return decoded.left;
+  return decoded.failure;
 }
 
 describe("decodeVibeExportText", () => {
   it("decodes the probe's exports with their config, ignoring limits, steps, journal_dir and timestamps", () => {
     const decoded = decodeVibeExportText(vibe3ExportText(VIBE3_EXPORT_LONG));
-    if (Result.isFailure(decoded)) throw new Error(decoded.left.detail);
-    expect(decoded.right).toEqual({
+    if (Result.isFailure(decoded)) throw new Error(decoded.failure.detail);
+    expect(decoded.success).toEqual({
       schema_version: 1,
       session_id: VIBE3_SESSION_ID,
       usage: {
@@ -136,8 +136,8 @@ describe("decodeVibeOutcomeText", () => {
 
   it("decodes a failure export whose session id, usage, cost, steps and config are null", () => {
     const decoded = decodeVibeOutcomeText(JSON.stringify(failureExport));
-    if (Result.isFailure(decoded)) throw new Error(decoded.left.detail);
-    expect(decoded.right).toEqual({
+    if (Result.isFailure(decoded)) throw new Error(decoded.failure.detail);
+    expect(decoded.success).toEqual({
       schema_version: 1,
       session_id: null,
       usage: null,
@@ -157,8 +157,8 @@ describe("decodeVibeOutcomeText", () => {
     const noError = decodeVibeOutcomeText(JSON.stringify({ ...failureExport, error: null }));
     if (Result.isFailure(noCode) || Result.isFailure(noError))
       throw new Error("expected both to decode");
-    expect(noCode.right.error).toEqual({ message: "boom", code: null });
-    expect(noError.right.error).toBeNull();
+    expect(noCode.success.error).toEqual({ message: "boom", code: null });
+    expect(noError.success.error).toBeNull();
   });
 
   it("decodes every export decodeVibeExportText decodes, with the same values", () => {
@@ -167,7 +167,7 @@ describe("decodeVibeOutcomeText", () => {
       const strict = decodeVibeExportText(text);
       const outcome = decodeVibeOutcomeText(text);
       if (Result.isFailure(strict) || Result.isFailure(outcome)) throw new Error("expected both");
-      expect(outcome.right).toEqual(strict.right);
+      expect(outcome.success).toEqual(strict.success);
     }
   });
 

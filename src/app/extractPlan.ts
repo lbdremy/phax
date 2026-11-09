@@ -99,35 +99,35 @@ export function extractPlanLlm(
       );
     }
 
-    const answer = readPlanExtractionAnswer(parsed.right);
+    const answer = readPlanExtractionAnswer(parsed.success);
     if (Result.isFailure(answer)) {
       return yield* Effect.fail(
         new PlanValidationError({
-          message: `Extracted JSON failed schema validation: ${answer.left}`,
+          message: `Extracted JSON failed schema validation: ${answer.failure}`,
         }),
       );
     }
-    if (answer.right.kind === "incomplete") {
+    if (answer.success.kind === "incomplete") {
       return yield* Effect.fail(
         new PlanValidationError({
-          message: `The extraction model found the plan incomplete: ${answer.right.reason}`,
+          message: `The extraction model found the plan incomplete: ${answer.success.reason}`,
         }),
       );
     }
 
     // mode and acceptance are phax's own reading of the header lines, never the model's.
-    const kinded = withPhaseKinds(answer.right.plan, planMd);
-    if (Result.isFailure(kinded)) return yield* Effect.fail(kinded.left);
+    const kinded = withPhaseKinds(answer.success.plan, planMd);
+    if (Result.isFailure(kinded)) return yield* Effect.fail(kinded.failure);
 
-    const decoded = decodeExtractedPlan({ version: 1, ...kinded.right });
+    const decoded = decodeExtractedPlan({ version: 1, ...kinded.success });
     if (Result.isFailure(decoded)) {
       return yield* Effect.fail(
         new PlanValidationError({
-          message: `Extracted plan failed schema validation:\n${formatParseError(decoded.left)}`,
+          message: `Extracted plan failed schema validation:\n${formatParseError(decoded.failure)}`,
         }),
       );
     }
 
-    return decoded.right;
+    return decoded.success;
   });
 }

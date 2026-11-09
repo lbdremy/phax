@@ -32,10 +32,10 @@ describe("PublishConfigSchema", () => {
     });
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.auto).toBe(true);
-      expect(result.right.remote).toBe("upstream");
-      expect(result.right.baseBranch).toBe("main");
-      expect(result.right.title).toBe("My PR");
+      expect(result.success.auto).toBe(true);
+      expect(result.success.remote).toBe("upstream");
+      expect(result.success.baseBranch).toBe("main");
+      expect(result.success.title).toBe("My PR");
     }
   });
 
@@ -107,7 +107,7 @@ describe("PhaxConfigSchema with publish block", () => {
     });
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.publish?.auto).toBe(true);
+      expect(result.success.publish?.auto).toBe(true);
     }
   });
 
@@ -115,7 +115,7 @@ describe("PhaxConfigSchema with publish block", () => {
     const result = decodePhaxConfig(minimalValidPhaxConfig);
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.publish).toBeUndefined();
+      expect(result.success.publish).toBeUndefined();
     }
   });
 

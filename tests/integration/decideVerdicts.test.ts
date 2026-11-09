@@ -795,8 +795,8 @@ describe("decide --verdicts — preconditions as interactive decide's", { timeou
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toMatchObject({ _tag: "DecideRefusedError", reason: "dirty" });
-      expect((result.left as { message: string }).message).toContain("has uncommitted changes");
+      expect(result.failure).toMatchObject({ _tag: "DecideRefusedError", reason: "dirty" });
+      expect((result.failure as { message: string }).message).toContain("has uncommitted changes");
     }
     expect(world.porcelain()).toBe(`M ${SPEC_PATH}`);
     expectNoWriter(world, h);
@@ -1223,7 +1223,7 @@ describe(
 
       expect(Result.isFailure(result)).toBe(true);
       if (Result.isFailure(result)) {
-        expect(result.left).toMatchObject({ _tag: "DecideRefusedError", reason: "changed" });
+        expect(result.failure).toMatchObject({ _tag: "DecideRefusedError", reason: "changed" });
       }
       expect(world.readRepoFile(SPEC_PATH)).toBe(`${md}\nEdited meanwhile.\n`);
       expect(world.headSha()).toBe(head);
@@ -1242,7 +1242,7 @@ describe(
 
       expect(Result.isFailure(result)).toBe(true);
       if (Result.isFailure(result)) {
-        expect(result.left).toMatchObject({ _tag: "ArtifactCommitFailedError" });
+        expect(result.failure).toMatchObject({ _tag: "ArtifactCommitFailedError" });
       }
       expect(world.headSha()).toBe(head);
       expect(world.readRepoFile(SPEC_PATH)).toContain("## 9b. Arbitrated questions");

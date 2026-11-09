@@ -222,7 +222,7 @@ describe("buildHeldReviewStop", () => {
   it("is a document the review-stop schema accepts once stamped, as the held variant", () => {
     const stop = buildHeldReviewStop({ ...heldInput, session: null });
     const decoded = decodeReviewStopFile({ $schema: schemaUrl("review-stop", "1.2.3"), ...stop });
-    if (Result.isFailure(decoded)) throw new Error(String(decoded.left));
-    expect(decoded.right.cause).toBe("held");
+    if (Result.isFailure(decoded)) throw new Error(String(decoded.failure));
+    expect(decoded.success.cause).toBe("held");
   });
 });

@@ -84,7 +84,7 @@ describe.each(FORMATS)("$id", (format) => {
     expect(format.parse(written)).toEqual({
       ok: true,
       shape: CURRENT_SHAPES[format.id],
-      value: phax.right,
+      value: phax.success,
     });
   });
 
@@ -280,7 +280,7 @@ describe("gate-request, born with $schema", () => {
     expect(Object.keys(document)).toEqual(["$schema", "phase", "base", "terminal", "phases"]);
     const phax = decodeGateRequestFile(document);
     if (Result.isFailure(phax)) throw new Error("document rejected by phax");
-    expect(parseGateRequest(document)).toEqual({ ok: true, shape: current, value: phax.right });
+    expect(parseGateRequest(document)).toEqual({ ok: true, shape: current, value: phax.success });
   });
 
   it("is identified by parseDocument from its $schema", () => {

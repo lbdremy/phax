@@ -56,8 +56,8 @@ describe("readPhaseBase", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(FsError);
-      expect(result.left.message).toContain(`${phaseFolderPath}/status.json`);
+      expect(result.failure).toBeInstanceOf(FsError);
+      expect(result.failure.message).toContain(`${phaseFolderPath}/status.json`);
     }
   });
 });
@@ -89,8 +89,8 @@ describe("readPhaseCommit", () => {
     const result = await read({ state: "committed", commitHash: "0123456" });
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left.message).toContain("phase-01");
-      expect(result.left.message).toContain("0123456");
+      expect(result.failure.message).toContain("phase-01");
+      expect(result.failure.message).toContain("0123456");
     }
   });
 });
@@ -138,8 +138,8 @@ describe("recordPhaseWorktreeAndBranch", () => {
     const decoded = decodePhaseStatusFile(JSON.parse(raw!));
     expect(Result.isSuccess(decoded)).toBe(true);
     if (Result.isSuccess(decoded)) {
-      expect(decoded.right.branchName).toBe("ai/my-run--phase-01");
-      expect(decoded.right.worktreePath).toBe("/fake/worktrees/my-run/phase-01");
+      expect(decoded.success.branchName).toBe("ai/my-run--phase-01");
+      expect(decoded.success.worktreePath).toBe("/fake/worktrees/my-run/phase-01");
     }
   });
 

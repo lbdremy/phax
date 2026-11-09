@@ -142,13 +142,13 @@ const decodeExtractedStrict = Schema.decodeUnknownResult(ExtractedPhaxPlanSchema
 function fileRejection(doc: unknown): string {
   const result = decodePlanDocumentFile(doc);
   if (Result.isSuccess(result)) throw new Error("expected the sidecar to be rejected");
-  return formatFirstViolation(result.left);
+  return formatFirstViolation(result.failure);
 }
 
 function rejection(doc: unknown): string {
   const result = decodePlanDocument(doc);
   if (Result.isSuccess(result)) throw new Error("expected the document to be rejected");
-  return result.left;
+  return result.failure;
 }
 
 describe("decodeAuthoredPlanDocument", () => {
@@ -493,7 +493,7 @@ describe("a phase's assignmentReason", () => {
       phases: [{ ...rest, oracle: acceptance }],
     });
     expect(Result.isFailure(result)).toBe(true);
-    if (Result.isFailure(result)) expect(String(result.left)).toContain("oracle");
+    if (Result.isFailure(result)) expect(String(result.failure)).toContain("oracle");
   });
 
   it("admits a reason and null, in the authoring answer and the sidecar", () => {
@@ -539,7 +539,7 @@ describe("a phase's assignmentReason", () => {
 function refusal(doc: unknown): string {
   const result = decodePlanDocument(doc);
   if (Result.isSuccess(result)) throw new Error("expected the document to be refused");
-  return result.left;
+  return result.failure;
 }
 
 describe("a phase's test lines", () => {
@@ -616,7 +616,7 @@ describe("a phase's test lines", () => {
   it("names the phase by its index when the input holds no string id there", () => {
     const result = decodePlanDocumentFile(withPhase02Lines([testLine("x", { size: "unit" })]));
     if (Result.isSuccess(result)) throw new Error("expected the document to be refused");
-    expect(formatPlanDocumentViolation({ phases: [{}, {}] }, result.left)).toMatch(
+    expect(formatPlanDocumentViolation({ phases: [{}, {}] }, result.failure)).toMatch(
       /^phases\[1\] test line 1 size: /,
     );
   });

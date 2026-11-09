@@ -248,7 +248,7 @@ export function runGates(
           );
         }
         const read = readGateReport(parsed);
-        if (Result.isFailure(read)) return yield* unread(read.left);
+        if (Result.isFailure(read)) return yield* unread(read.failure);
 
         // A readable report is saved first, whatever the verdict, as the step
         // printed it: never re-serialized, trimmed or re-stamped.
@@ -259,7 +259,7 @@ export function runGates(
         // notes to the agent.
         logLines[stdoutLine] = `report: ${basename(reportPath)}`;
 
-        const report = read.right;
+        const report = read.success;
         if (report.outcome === "refused") {
           // A refusal stops the gate for the operator, whatever the exit code:
           // no later step runs, and the fix loop makes no attempt.
@@ -397,7 +397,7 @@ export function runGates(
       if (Result.isFailure(spawned)) {
         // The provider could not be spawned or outran the cap: there is no
         // report to judge, so the step is broken.
-        const error = spawned.left;
+        const error = spawned.failure;
         logLines.push(`provider error: ${error.message}`);
         logLines.push("");
         stepResults.push({ command: rawCommand, surface: "acceptance", result: "fail" });
@@ -409,7 +409,7 @@ export function runGates(
           stderr: error.stderrExcerpt ?? "",
         });
       }
-      const result = spawned.right;
+      const result = spawned.success;
       yield* judgeReport({
         rawCommand,
         surface: "acceptance",
@@ -444,7 +444,7 @@ export function recordGateProfileInRunStatus(
     const decoded = readRunStatusFile(statusPath, parsed);
     if (Result.isSuccess(decoded)) {
       const updated = {
-        ...decoded.right,
+        ...decoded.success,
         gateProfileId: profileId,
         updatedAt: new Date().toISOString(),
       };

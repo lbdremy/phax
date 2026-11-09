@@ -139,11 +139,11 @@ function resetPhaseLocked(
       return yield* Effect.fail(
         new ResetPhaseError({
           reason: "run_not_found",
-          message: `Run "${opts.shortName}" not found: ${infoResult.left}`,
+          message: `Run "${opts.shortName}" not found: ${infoResult.failure}`,
         }),
       );
     }
-    const info = infoResult.right;
+    const info = infoResult.success;
 
     const target = selectTargetPhase(info.phaseStatuses, opts.phaseId);
     if (target === undefined) {
@@ -190,7 +190,7 @@ function resetPhaseLocked(
       const wtPathResult = decodeWorktreePath(target.worktreePath);
       if (Result.isSuccess(wtPathResult)) {
         const wtResult = yield* Effect.result(
-          git.removeWorktree(wtPathResult.right, true, opts.repoRoot),
+          git.removeWorktree(wtPathResult.success, true, opts.repoRoot),
         );
         worktreeRemoved = Result.isSuccess(wtResult);
       }
@@ -200,7 +200,7 @@ function resetPhaseLocked(
     let branchDeleted = false;
     const branchResult = decodeBranchName(target.branchName);
     if (Result.isSuccess(branchResult)) {
-      const branch = branchResult.right;
+      const branch = branchResult.success;
       const exists = yield* git
         .branchExists(branch, opts.repoRoot)
         .pipe(Effect.catch(() => Effect.succeed(false)));
@@ -246,11 +246,11 @@ export function previewResetPhase(
       return yield* Effect.fail(
         new ResetPhaseError({
           reason: "run_not_found",
-          message: `Run "${opts.shortName}" not found: ${infoResult.left}`,
+          message: `Run "${opts.shortName}" not found: ${infoResult.failure}`,
         }),
       );
     }
-    const info = infoResult.right;
+    const info = infoResult.success;
     const target = selectTargetPhase(info.phaseStatuses, opts.phaseId);
     if (target === undefined) {
       const msg =
@@ -321,7 +321,7 @@ function checkResettable(
         }),
       );
     }
-    const phaseId = phaseIdResult.right;
+    const phaseId = phaseIdResult.success;
     const refusal = resetPhaseRefusal({
       shortName: opts.shortName,
       runState: info.runState,
@@ -369,7 +369,7 @@ function readPlanPhases(
     const raw = yield* fs.readText(path);
     const parsed = yield* Effect.try(() => JSON.parse(raw) as unknown);
     const read = readPhaxPlanFile(path, parsed);
-    return Result.isFailure(read) ? undefined : read.right.plan.phases;
+    return Result.isFailure(read) ? undefined : read.success.plan.phases;
   }).pipe(Effect.orElseSucceed(() => undefined));
 }
 
@@ -391,7 +391,7 @@ function clearRunStatusLastError(runPath: string): Effect.Effect<void, FsError, 
     // Drop `lastError` from the bridge-read status and stamp `$schema`. We don't
     // go through a status encoder here — the architectural guard reserves those
     // for the dispatcher and effect runner.
-    const { lastError: _lastError, ...cleared } = decoded.right;
+    const { lastError: _lastError, ...cleared } = decoded.success;
     const updated: RunStatus = { ...cleared, updatedAt: new Date().toISOString() };
     yield* fs.writeAtomic(path, JSON.stringify(withSchemaUrl("run-status", updated), null, 2));
   });

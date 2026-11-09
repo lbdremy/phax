@@ -101,11 +101,11 @@ export function validateArtifact(
     return Result.fail(
       new ArtifactValidationError({
         path: repoRelPath,
-        message: frontmatterProblemMessage(repoRelPath, classification.kind, decoded.left),
+        message: frontmatterProblemMessage(repoRelPath, classification.kind, decoded.failure),
       }),
     );
   }
-  const status = decoded.right.status;
+  const status = decoded.success.status;
 
   const terminal = isTerminalStatus(status);
   if (terminal && !classification.inArchive) {

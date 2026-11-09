@@ -18,8 +18,8 @@ describe("decodeCodeReviewSession", () => {
     const result = decodeCodeReviewSession(valid);
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.shortName).toBe("my-run");
-      expect(result.right.provider).toBe("claude-code");
+      expect(result.success.shortName).toBe("my-run");
+      expect(result.success.provider).toBe("claude-code");
     }
   });
 

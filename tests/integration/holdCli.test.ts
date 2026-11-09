@@ -29,7 +29,7 @@ import { removeTempDir } from "../helpers/tempGit.js";
 vi.mock("../../src/app/loadTelemetryConfig.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../src/app/loadTelemetryConfig.js")>();
   const effect = await import("effect");
-  return { ...actual, loadTelemetryConfig: vi.fn(() => effect.Either.right({ enabled: false })) };
+  return { ...actual, loadTelemetryConfig: vi.fn(() => effect.Result.succeed({ enabled: false })) };
 });
 // The routing loaders read ~/.phax; serve the built-in defaults instead.
 vi.mock("../../src/app/loadRouting.js", async (importOriginal) => {

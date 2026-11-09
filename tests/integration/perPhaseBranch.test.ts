@@ -311,9 +311,9 @@ describe("the noted base — real git", () => {
     const result = await run(Effect.result(noteBase(phase01, 0, prepared)));
 
     if (Result.isSuccess(result)) throw new Error("expected a refusal");
-    expect(result.left).toBeInstanceOf(UnsafeGitStateError);
-    expect(result.left.message).toContain('"ai/my-run--phase-01"');
-    expect(result.left.message).toContain("git branch -D ai/my-run--phase-01");
+    expect(result.failure).toBeInstanceOf(UnsafeGitStateError);
+    expect(result.failure.message).toContain('"ai/my-run--phase-01"');
+    expect(result.failure.message).toContain("git branch -D ai/my-run--phase-01");
     expect(existsSync(join(runPath, "phase-01", "status.json"))).toBe(false);
   });
 });
@@ -451,7 +451,7 @@ describe("executePlan — per-phase branch regression", () => {
 
     expect(
       Result.isSuccess(result),
-      Result.isFailure(result) ? `executePlan failed: ${String(result.left)}` : "",
+      Result.isFailure(result) ? `executePlan failed: ${String(result.failure)}` : "",
     ).toBe(true);
 
     // (a) Exactly two addWorktree calls — one per phase, since no pre-created dirs.
@@ -661,7 +661,7 @@ describe("executePlan — per-phase branch regression", () => {
 
     expect(
       Result.isSuccess(result),
-      Result.isFailure(result) ? `executePlan resume failed: ${String(result.left)}` : "",
+      Result.isFailure(result) ? `executePlan resume failed: ${String(result.failure)}` : "",
     ).toBe(true);
 
     // On resume from startIndex=1, prepareRunBranch is NOT called (isClean not checked).

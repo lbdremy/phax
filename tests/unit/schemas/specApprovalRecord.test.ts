@@ -29,7 +29,7 @@ describe("SpecApprovalRecordFileSchema", () => {
     const decoded = decodeSpecApprovalRecordFile(sample);
     expect(Result.isSuccess(decoded)).toBe(true);
     if (Result.isSuccess(decoded)) {
-      expect(encodeSpecApprovalRecordFile(decoded.right)).toEqual(sample);
+      expect(encodeSpecApprovalRecordFile(decoded.success)).toEqual(sample);
     }
   });
 
@@ -149,7 +149,7 @@ describe("SpecRecordFileSchema: approvedBy", () => {
   ])("reads %s, approvedBy last when encoded", (_label, approvedBy) => {
     const decoded = decodeSpecRecordFile({ ...record, approvedBy });
     if (Result.isFailure(decoded)) throw new Error("record rejected");
-    const encoded = encodeSpecRecordFile(decoded.right);
+    const encoded = encodeSpecRecordFile(decoded.success);
     expect(encoded.approvedBy).toEqual(approvedBy);
     expect(Object.keys(encoded).at(-1)).toBe("approvedBy");
   });

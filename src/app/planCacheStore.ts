@@ -36,7 +36,7 @@ export function readCacheEntry(
     const decoded = decodeExtractedPlanCacheEntry(parsed);
     if (Result.isFailure(decoded)) return Option.none();
 
-    return Option.some(decoded.right.extracted);
+    return Option.some(decoded.success.extracted);
   });
 }
 

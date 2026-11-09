@@ -19,7 +19,7 @@ describe("mcpAllowlistPreflight", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      const err = result.left;
+      const err = result.failure;
       expect(err).toBeInstanceOf(SecurityPreflightError);
       expect(err.message).toContain('"nx-mcp"');
       expect(err.message).toContain('"shadcn"');
@@ -43,8 +43,8 @@ describe("mcpAllowlistPreflight", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left.missing).toEqual(["nx-mcp"]);
-      expect(result.left.message).not.toContain("/configs/mcp-real.json");
+      expect(result.failure.missing).toEqual(["nx-mcp"]);
+      expect(result.failure.message).not.toContain("/configs/mcp-real.json");
     }
   });
 

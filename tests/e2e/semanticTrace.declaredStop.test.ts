@@ -362,7 +362,7 @@ describe.skipIf(!shouldRun)("E2E semantic trace — declared interactive stop sn
 
     // phax run: phase-01 commits, phase-02 stops after its read-only first turn.
     const stopped = await execute(0, runId);
-    expect(Result.isFailure(stopped.result) && stopped.result.left).toBeInstanceOf(
+    expect(Result.isFailure(stopped.result) && stopped.result.failure).toBeInstanceOf(
       AwaitingReviewStopError,
     );
     expectNoUnstableFields(stopped.snapshot);
@@ -374,10 +374,10 @@ describe.skipIf(!shouldRun)("E2E semantic trace — declared interactive stop sn
       CORRECTED_EURO,
     );
     const decision = await inspectResumeOnDisk(NAMESPACE, shortName, stateRoot);
-    if (Result.isFailure(decision)) throw new Error(decision.left.message);
-    const closed = await execute(decision.right.nextPhaseIndex, runId);
+    if (Result.isFailure(decision)) throw new Error(decision.failure.message);
+    const closed = await execute(decision.success.nextPhaseIndex, runId);
     if (Result.isFailure(closed.result)) {
-      throw new Error(`the resume failed: ${String(closed.result.left)}`);
+      throw new Error(`the resume failed: ${String(closed.result.failure)}`);
     }
     expectNoUnstableFields(closed.snapshot);
     expect(stable(closed.snapshot)).toMatchSnapshot("declared-stop-resume-semantic-trace");

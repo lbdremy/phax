@@ -165,7 +165,7 @@ describe("writeAuthoringRecord (real git)", () => {
     const decoded = decodeAuthoringRecordManifestFile(written);
     expect(Result.isSuccess(decoded)).toBe(true);
     if (Result.isFailure(decoded)) return;
-    expect(decoded.right).toEqual({
+    expect(decoded.success).toEqual({
       $schema: currentSchemaUrl("authoring-record-manifest"),
       kind: "authoring",
       authoringId: AUTHORING_ID,

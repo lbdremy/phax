@@ -1,11 +1,11 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { decodeGithubRepoView } from "../../src/schemas/githubRepoView.js";
 
 describe("decodeGithubRepoView", () => {
   it("decodes an https url", () => {
     const decoded = decodeGithubRepoView({ url: "https://github.com/example/repo" });
-    expect(Either.getOrNull(decoded)).toEqual({ url: "https://github.com/example/repo" });
+    expect(Result.getOrNull(decoded)).toEqual({ url: "https://github.com/example/repo" });
   });
 
   it.each([
@@ -16,6 +16,6 @@ describe("decodeGithubRepoView", () => {
     ["an extra key", { url: "https://github.com/example/repo", name: "repo" }],
     ["a url that is not a string", { url: 42 }],
   ])("refuses %s", (_label, answer) => {
-    expect(Either.isLeft(decodeGithubRepoView(answer))).toBe(true);
+    expect(Result.isFailure(decodeGithubRepoView(answer))).toBe(true);
   });
 });

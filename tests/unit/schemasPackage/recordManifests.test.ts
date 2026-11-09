@@ -71,7 +71,7 @@ describe("the authoring record manifest", () => {
     expect(parseAuthoringRecordManifest(writtenAuthoring)).toEqual({
       ok: true,
       shape: AUTHORING_CURRENT,
-      value: phax.right,
+      value: phax.success,
     });
   });
 
@@ -124,7 +124,7 @@ describe("the decision record manifest", () => {
     expect(parseDecisionRecordManifest(writtenDecision)).toEqual({
       ok: true,
       shape: DECISION_CURRENT,
-      value: phax.right,
+      value: phax.success,
     });
   });
 
@@ -187,7 +187,7 @@ describe("the review record manifest", () => {
     expect(parseReviewRecordManifest(writtenReview)).toEqual({
       ok: true,
       shape: REVIEW_CURRENT,
-      value: phax.right,
+      value: phax.success,
     });
   });
 

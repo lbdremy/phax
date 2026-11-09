@@ -20,8 +20,8 @@ describe("PublicationSchema decode", () => {
     const result = decodePublication(validRecord);
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.prStatus).toBe("created");
-      expect(result.right.pullRequestUrl).toBe("https://github.com/org/repo/pull/42");
+      expect(result.success.prStatus).toBe("created");
+      expect(result.success.pullRequestUrl).toBe("https://github.com/org/repo/pull/42");
     }
   });
 
@@ -50,7 +50,7 @@ describe("PublicationSchema decode", () => {
     const result = decodePublication(failed);
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.failureReason).toBe("gh is not authenticated");
+      expect(result.success.failureReason).toBe("gh is not authenticated");
     }
   });
 
@@ -81,7 +81,7 @@ describe("PublicationSchema round-trip", () => {
     const decoded = decodePublication(encoded);
     expect(Result.isSuccess(decoded)).toBe(true);
     if (Result.isSuccess(decoded)) {
-      expect(decoded.right).toEqual(validRecord);
+      expect(decoded.success).toEqual(validRecord);
     }
   });
 
@@ -95,8 +95,8 @@ describe("PublicationSchema round-trip", () => {
     const decoded = decodePublication(encoded);
     expect(Result.isSuccess(decoded)).toBe(true);
     if (Result.isSuccess(decoded)) {
-      expect(decoded.right.baseBranch).toBe("main");
-      expect(decoded.right.failureReason).toBe("some error");
+      expect(decoded.success.baseBranch).toBe("main");
+      expect(decoded.success.failureReason).toBe("some error");
     }
   });
 });

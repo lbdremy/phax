@@ -19,7 +19,7 @@ type Exception =
 
 function refused(result: Result.Result<unknown, Schema.SchemaError>): Schema.SchemaError {
   if (Result.isSuccess(result)) throw new Error("expected a refusal");
-  return result.left;
+  return result.failure;
 }
 
 const same = (a: RefusalPath, b: RefusalPath): boolean =>

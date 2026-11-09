@@ -86,7 +86,7 @@ describe("ExtractedPhaxPlanSchema — requiredCommands", () => {
     });
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.run.requiredCommands).toEqual(["deno fmt", "deno lint"]);
+      expect(result.success.run.requiredCommands).toEqual(["deno fmt", "deno lint"]);
     }
   });
 
@@ -130,7 +130,7 @@ describe("PhaxPlanFileSchema — requiredCommands", () => {
     });
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.run.requiredCommands).toEqual(["pnpm test"]);
+      expect(result.success.run.requiredCommands).toEqual(["pnpm test"]);
     }
   });
 
@@ -208,7 +208,7 @@ describe("extractPlanLlm — mode and oracle come from the header lines", () => 
     const result = await extract(answer([baseAnswerPhase, secondAnswerPhase]));
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
-    const [first, second] = result.right.phases;
+    const [first, second] = result.success.phases;
     expect(first!.mode).toBe("interactive");
     expect(first!.acceptance).toEqual({
       passedBy: "phase-02",
@@ -230,9 +230,9 @@ describe("extractPlanLlm — mode and oracle come from the header lines", () => 
     const result = await extract(
       answer([{ ...baseAnswerPhase, testLines: [answerLine] }, secondAnswerPhase]),
     );
-    if (Result.isFailure(result)) throw new Error(result.left.message);
-    expect(result.right.phases[0].testLines).toEqual([answerLine]);
-    expect(result.right.phases[1]!.testLines).toEqual([]);
+    if (Result.isFailure(result)) throw new Error(result.failure.message);
+    expect(result.success.phases[0].testLines).toEqual([answerLine]);
+    expect(result.success.phases[1]!.testLines).toEqual([]);
   });
 
   it("refuses an answer whose test line has a size outside its set, by the strict decode", async () => {
@@ -244,8 +244,8 @@ describe("extractPlanLlm — mode and oracle come from the header lines", () => 
     );
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left.message).toMatch(/^Extracted JSON failed schema validation:/);
-      expect(result.left.message).toContain("testLines");
+      expect(result.failure.message).toMatch(/^Extracted JSON failed schema validation:/);
+      expect(result.failure.message).toContain("testLines");
     }
   });
 
@@ -296,7 +296,7 @@ describe("extractPlanLlm — mode and oracle come from the header lines", () => 
     );
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left.message).toBe(
+      expect(result.failure.message).toBe(
         "The extraction model found the plan incomplete: phase-02 has no commit subject",
       );
     }
@@ -322,10 +322,10 @@ describe("extractPlanLlm — mode and oracle come from the header lines", () => 
     );
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left.message).toMatch(
+      expect(result.failure.message).toMatch(
         /^Extracted JSON failed schema validation: \$schema: is missing/,
       );
-      expect(result.left.message).toContain("version: is unexpected");
+      expect(result.failure.message).toContain("version: is unexpected");
     }
     expect(backend.impl.completeCalls).toHaveLength(1);
   });
@@ -350,6 +350,6 @@ describe("extractPlanLlm — mode and oracle come from the header lines", () => 
       answer([baseAnswerPhase, { ...secondAnswerPhase, id: "phase-07" }]),
     );
     expect(Result.isFailure(result)).toBe(true);
-    if (Result.isFailure(result)) expect(result.left.message).toContain("phase-07");
+    if (Result.isFailure(result)) expect(result.failure.message).toContain("phase-07");
   });
 });

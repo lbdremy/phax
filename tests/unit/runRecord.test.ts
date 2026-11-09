@@ -137,7 +137,7 @@ describe("RunRecordManifestSchema", () => {
     const result = decodeRunRecordManifestFile({ ...baseManifest, outcome: "failed" });
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.sourceSha).toBeUndefined();
+      expect(result.success.sourceSha).toBeUndefined();
     }
   });
 
@@ -214,13 +214,13 @@ describe("RunRecordManifestSchema", () => {
     const { userConfig: _userConfig, ...withoutUserConfig } = baseManifest;
     const result = decodeRunRecordManifestFile(withoutUserConfig);
     expect(Result.isFailure(result)).toBe(true);
-    if (Result.isFailure(result)) expect(String(result.left)).toContain("userConfig");
+    if (Result.isFailure(result)) expect(String(result.failure)).toContain("userConfig");
   });
 
   it.each(["excluded", "loaded"] as const)("decodes userConfig %s as recorded", (userConfig) => {
     const result = decodeRunRecordManifestFile({ ...baseManifest, userConfig });
     expect(Result.isSuccess(result)).toBe(true);
-    if (Result.isSuccess(result)) expect(result.right.userConfig).toBe(userConfig);
+    if (Result.isSuccess(result)) expect(result.success.userConfig).toBe(userConfig);
   });
 
   it.each(["included", "", null, true, "Loaded"])("refuses the unknown userConfig %j", (value) => {
@@ -263,7 +263,7 @@ describe("RunRecordManifestSchema", () => {
     const decoded = decodeRunRecordManifestFile(encoded);
     expect(Result.isSuccess(decoded)).toBe(true);
     if (Result.isSuccess(decoded)) {
-      expect(decoded.right).toEqual(baseManifest);
+      expect(decoded.success).toEqual(baseManifest);
     }
   });
 });

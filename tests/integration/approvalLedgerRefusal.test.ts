@@ -115,8 +115,8 @@ function runEither<A, E>(effect: Effect.Effect<A, E, never>): Promise<Result.Res
 function expectRefused(result: Result.Result<unknown, unknown>, ledgerPath: string): void {
   expect(Result.isFailure(result)).toBe(true);
   if (!Result.isFailure(result)) return;
-  expect(result.left).toBeInstanceOf(ApprovalLedgerMigrationRequiredError);
-  const err = result.left as ApprovalLedgerMigrationRequiredError;
+  expect(result.failure).toBeInstanceOf(ApprovalLedgerMigrationRequiredError);
+  const err = result.failure as ApprovalLedgerMigrationRequiredError;
   expect(err.ledgerPath).toBe(ledgerPath);
   expect(err.message).toBe(
     `${ledgerPath} is an approval ledger from an older phax — run \`phax artifact migrate-approvals\` first`,

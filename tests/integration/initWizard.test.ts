@@ -52,8 +52,8 @@ describe("runInitWizard — non-interactive path", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
-    expect(result.right.kind).toBe("created");
-    if (result.right.kind !== "created") return;
+    expect(result.success.kind).toBe("created");
+    if (result.success.kind !== "created") return;
 
     const written = fakeFs.impl.getFile(CONFIG_PATH);
     expect(written).toBeDefined();
@@ -163,7 +163,7 @@ describe("runInitWizard — non-interactive path", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
-    expect(result.right.kind).toBe("already_initialized");
+    expect(result.success.kind).toBe("already_initialized");
     // file must not be overwritten
     expect(JSON.parse(fakeFs.impl.getFile(CONFIG_PATH)!)).toEqual({ sentinel: true });
   });
@@ -178,7 +178,7 @@ describe("runInitWizard — non-interactive path", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
-    expect(result.right.kind).toBe("created");
+    expect(result.success.kind).toBe("created");
     const config = JSON.parse(fakeFs.impl.getFile(CONFIG_PATH)!);
     expect(config.version).toBe(1);
   });
@@ -201,7 +201,7 @@ describe("runInitWizard — interactive path", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
-    expect(result.right.kind).toBe("created");
+    expect(result.success.kind).toBe("created");
 
     const config = JSON.parse(fakeFs.impl.getFile(CONFIG_PATH)!);
     expect(config.name).toBe("my-lib");
@@ -326,7 +326,7 @@ describe("runInitWizard — cancel", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (!Result.isFailure(result)) return;
-    expect(result.left).toBeInstanceOf(PromptCancelled);
+    expect(result.failure).toBeInstanceOf(PromptCancelled);
   });
 
   it("writes nothing to disk when cancelled", async () => {
@@ -359,7 +359,7 @@ describe("runInitWizard — existing config, interactive reconfigure", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
-    expect(result.right.kind).toBe("already_initialized");
+    expect(result.success.kind).toBe("already_initialized");
   });
 
   it("uses existing name as default when user confirms reconfiguration", async () => {
@@ -389,7 +389,7 @@ describe("runInitWizard — existing config, interactive reconfigure", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
-    expect(result.right.kind).toBe("created");
+    expect(result.success.kind).toBe("created");
     const config = JSON.parse(fakeFs.impl.getFile(CONFIG_PATH)!);
     expect(config.name).toBe("new-name");
   });

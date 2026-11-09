@@ -243,7 +243,7 @@ function computeApprovalInfo(
 ): Effect.Effect<ApprovalInfo, FsError | ApprovalRecordUnreadableError, FileSystem> {
   return Effect.gen(function* () {
     const decoded = decodeArtifactFrontmatter(kind, md);
-    const stamp = Result.isSuccess(decoded) ? decoded.right.approved : undefined;
+    const stamp = Result.isSuccess(decoded) ? decoded.success.approved : undefined;
 
     if (status !== "Approved" && stamp == null) {
       return { kind: "none" };
@@ -281,9 +281,9 @@ export function inspectArtifact(
     const md = yield* fs.readText(repoRelPath);
     const validated = validateArtifact(repoRelPath, md);
     if (Result.isFailure(validated)) {
-      return yield* Effect.fail(validated.left);
+      return yield* Effect.fail(validated.failure);
     }
-    const { kind, status } = validated.right;
+    const { kind, status } = validated.success;
     const legalTargets =
       kind === "spec"
         ? legalTargetsFrom("spec", status as never)
@@ -387,7 +387,7 @@ function findDependentPlans(
       const planMd = yield* fs.readText(planPath);
       const planValidated = validateArtifact(planPath, planMd);
       if (Result.isFailure(planValidated)) {
-        return yield* Effect.fail(planValidated.left);
+        return yield* Effect.fail(planValidated.failure);
       }
       const declaration = readSourceSpec(planMd);
       if (
@@ -395,7 +395,7 @@ function findDependentPlans(
         declaration.kind === "spec" &&
         specCandidates.has(declaration.path)
       ) {
-        dependents.push({ path: planPath, status: planValidated.right.status });
+        dependents.push({ path: planPath, status: planValidated.success.status });
       }
     }
 
@@ -448,15 +448,15 @@ function readLegalTransition(
     const md = yield* (yield* FileSystem).readText(repoRelPath);
     const validated = validateArtifact(repoRelPath, md);
     if (Result.isFailure(validated)) {
-      return yield* Effect.fail(validated.left);
+      return yield* Effect.fail(validated.failure);
     }
-    const { kind, status } = validated.right;
+    const { kind, status } = validated.success;
     const requested =
       kind === "spec"
         ? requestTransition("spec", status as never, target as never)
         : requestTransition("plan", status as never, target as never);
     if (Result.isFailure(requested)) {
-      return yield* Effect.fail(requested.left);
+      return yield* Effect.fail(requested.failure);
     }
     return { md, kind, status };
   });
@@ -604,11 +604,11 @@ export function transitionArtifact(
       return yield* Effect.fail(
         new ArtifactValidationError({
           path: repoRelPath,
-          message: frontmatterProblemMessage(repoRelPath, kind, statusRewrite.left),
+          message: frontmatterProblemMessage(repoRelPath, kind, statusRewrite.failure),
         }),
       );
     }
-    let updatedMd = statusRewrite.right;
+    let updatedMd = statusRewrite.success;
     let approvedBaseline: string | undefined;
 
     if (kind === "spec" && approver !== null) {
@@ -618,11 +618,11 @@ export function transitionArtifact(
         return yield* Effect.fail(
           new ArtifactValidationError({
             path: repoRelPath,
-            message: frontmatterProblemMessage(repoRelPath, kind, stamped.left),
+            message: frontmatterProblemMessage(repoRelPath, kind, stamped.failure),
           }),
         );
       }
-      updatedMd = stamped.right;
+      updatedMd = stamped.success;
       const specFingerprint = artifactFingerprint(updatedMd);
       yield* putSpecApprovalRecord(
         repoRelPath,
@@ -649,14 +649,14 @@ export function transitionArtifact(
         const specMd = yield* fs.readText(resolvedSpecPath);
         const specValidated = validateArtifact(resolvedSpecPath, specMd);
         if (Result.isFailure(specValidated)) {
-          return yield* Effect.fail(specValidated.left);
+          return yield* Effect.fail(specValidated.failure);
         }
-        if (specValidated.right.status !== "Approved") {
+        if (specValidated.success.status !== "Approved") {
           return yield* Effect.fail(
             new SpecNotApprovedError({
               planPath: repoRelPath,
               specPath: declaration.path,
-              specStatus: specValidated.right.status,
+              specStatus: specValidated.success.status,
             }),
           );
         }
@@ -693,11 +693,11 @@ export function transitionArtifact(
         return yield* Effect.fail(
           new ArtifactValidationError({
             path: repoRelPath,
-            message: frontmatterProblemMessage(repoRelPath, kind, stamped.left),
+            message: frontmatterProblemMessage(repoRelPath, kind, stamped.failure),
           }),
         );
       }
-      updatedMd = stamped.right;
+      updatedMd = stamped.success;
       const planFingerprint = artifactFingerprint(updatedMd);
       yield* putPlanApprovalRecord(
         repoRelPath,
@@ -718,11 +718,11 @@ export function transitionArtifact(
         return yield* Effect.fail(
           new ArtifactValidationError({
             path: repoRelPath,
-            message: frontmatterProblemMessage(repoRelPath, kind, cleared.left),
+            message: frontmatterProblemMessage(repoRelPath, kind, cleared.failure),
           }),
         );
       }
-      updatedMd = cleared.right;
+      updatedMd = cleared.success;
       if (kind === "plan") yield* removePlanApprovalRecord(repoRelPath);
       if (kind === "spec") yield* removeSpecApprovalRecord(repoRelPath);
     }
@@ -871,7 +871,7 @@ function finalizeTransition(
       return yield* Effect.fail(
         new ArtifactCommitFailedError({
           paths: writeSet,
-          cause: committed.left.message,
+          cause: committed.failure.message,
           commitMessage: { subject, body },
         }),
       );
@@ -888,7 +888,7 @@ export function checkPlanRunnable(
 ): Result.Result<void, PlanNotApprovedError> {
   const decoded = decodeArtifactFrontmatter("plan", planMd);
   if (Result.isFailure(decoded)) {
-    if (decoded.left.kind === "missing-block") {
+    if (decoded.failure.kind === "missing-block") {
       return Result.fail(
         new PlanNotApprovedError({
           path: planPath,
@@ -901,12 +901,12 @@ export function checkPlanRunnable(
       new PlanNotApprovedError({
         path: planPath,
         status: "invalid",
-        message: frontmatterProblemMessage(planPath, "plan", decoded.left),
+        message: frontmatterProblemMessage(planPath, "plan", decoded.failure),
       }),
     );
   }
 
-  const status = decoded.right.status as PlanStatus;
+  const status = decoded.success.status as PlanStatus;
 
   const refusal = refusalFor(planPath, status);
   if (refusal !== null) {

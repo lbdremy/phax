@@ -398,7 +398,7 @@ describe("executePlan — resume from commit-paused (passed+interrupted)", () =>
     // The run pauses again — PhaseHadNoChangesError is the clean-pause sentinel.
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(PhaseHadNoChangesError);
+      expect(result.failure).toBeInstanceOf(PhaseHadNoChangesError);
     }
 
     // Run remains interrupted (not failed) so it can be resumed again.

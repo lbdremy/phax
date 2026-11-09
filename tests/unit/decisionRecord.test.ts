@@ -58,7 +58,7 @@ describe("decision record manifest", () => {
     const decoded = decodeDecisionRecordManifestFile(FILE);
     expect(Result.isSuccess(decoded)).toBe(true);
     if (Result.isSuccess(decoded))
-      expect(encodeDecisionRecordManifest(decoded.right)).toEqual(FILE);
+      expect(encodeDecisionRecordManifest(decoded.success)).toEqual(FILE);
   });
 
   it.each(["declined", "undecided"] as const)(
@@ -146,7 +146,7 @@ describe("decision record manifest", () => {
   it("joins the record manifest union, told apart by its kind", () => {
     const decoded = decodeRecordManifestFile(FILE);
     expect(Result.isSuccess(decoded)).toBe(true);
-    if (Result.isSuccess(decoded)) expect(isDecisionRecordManifest(decoded.right)).toBe(true);
+    if (Result.isSuccess(decoded)) expect(isDecisionRecordManifest(decoded.success)).toBe(true);
   });
 
   describe("modes and their outcomes", () => {
@@ -247,6 +247,6 @@ describe("decision record manifest", () => {
     const { $schema: _schema, ...bare } = FILE;
     const unstamped = readRecordManifestFile("sha:decision/x/01/record.json", bare);
     expect(Result.isFailure(unstamped)).toBe(true);
-    if (Result.isFailure(unstamped)) expect(unstamped.left.message).toContain("has no $schema");
+    if (Result.isFailure(unstamped)) expect(unstamped.failure.message).toContain("has no $schema");
   });
 });

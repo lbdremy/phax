@@ -61,7 +61,7 @@ describe("NodeShellLayer timeout", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left.message).toContain("timed out after 250ms");
+      expect(result.failure.message).toContain("timed out after 250ms");
     }
   });
 

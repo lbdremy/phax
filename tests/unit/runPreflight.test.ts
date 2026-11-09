@@ -375,16 +375,16 @@ describe("runPreflights", () => {
     );
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(ModelPreflightError);
-      expect(result.left.message).toBe(
+      expect(result.failure).toBeInstanceOf(ModelPreflightError);
+      expect(result.failure.message).toBe(
         [
           "Model preflight failed: 1 phase(s) have invalid model configuration.",
           `\n  phase-01 (${GOOD_MODEL}/medium):`,
           "    - **Model reason:** is no longer read: write **Assignment reason:**",
         ].join("\n"),
       );
-      if (result.left instanceof ModelPreflightError) {
-        expect(result.left.failures[0]?.alternatives).toEqual([]);
+      if (result.failure instanceof ModelPreflightError) {
+        expect(result.failure.failures[0]?.alternatives).toEqual([]);
       }
     }
   });
@@ -395,9 +395,9 @@ describe("runPreflights", () => {
       makeInput({ plan, planMd: planMdWithHeader(["**Model reason:** old label"]) }),
     );
     expect(Result.isFailure(result)).toBe(true);
-    if (Result.isFailure(result) && result.left instanceof ModelPreflightError) {
-      expect(result.left.failures).toHaveLength(1);
-      expect(result.left.failures[0]!.reasons.at(-1)).toBe(
+    if (Result.isFailure(result) && result.failure instanceof ModelPreflightError) {
+      expect(result.failure.failures).toHaveLength(1);
+      expect(result.failure.failures[0]!.reasons.at(-1)).toBe(
         "**Model reason:** is no longer read: write **Assignment reason:**",
       );
     }
@@ -406,7 +406,7 @@ describe("runPreflights", () => {
   it("a malformed Mode line is refused by interactive-phases", async () => {
     const result = await run(makeInput({ planMd: planMdWithHeader(["**Mode:** review"]) }));
     expect(Result.isFailure(result)).toBe(true);
-    if (Result.isFailure(result)) expect(result.left).toBeInstanceOf(InteractivePreflightError);
+    if (Result.isFailure(result)) expect(result.failure).toBeInstanceOf(InteractivePreflightError);
   });
 
   it("interactive-phases passes an interactive phase between two headless phases", async () => {
@@ -427,8 +427,8 @@ describe("runPreflights", () => {
     const result = await run(makeInput({ plan, planMd: modePlanMd(plan) }));
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(InteractivePreflightError);
-      expect(result.left.message).toBe(
+      expect(result.failure).toBeInstanceOf(InteractivePreflightError);
+      expect(result.failure.message).toBe(
         [
           "Interactive preflight failed: 1 error(s).",
           "  phase-02  plans src/export/csv.ts to edit; an interactive phase plans no work",
@@ -455,8 +455,8 @@ describe("runPreflights", () => {
     });
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(AcceptancePreflightError);
-      expect(result.left.message).toContain(
+      expect(result.failure).toBeInstanceOf(AcceptancePreflightError);
+      expect(result.failure.message).toContain(
         "phase-01  acceptance test file a.ts is listed more than once on **Acceptance test files:**: list each acceptance test file once",
       );
     }
@@ -470,8 +470,8 @@ describe("runPreflights", () => {
     const result = await run(makeInput({ plan: oraclePlan, planMd }));
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(AcceptancePreflightError);
-      expect(result.left.message).toContain(
+      expect(result.failure).toBeInstanceOf(AcceptancePreflightError);
+      expect(result.failure.message).toContain(
         "phase-02  an interactive phase takes no acceptance role: it passes phase-01",
       );
     }
@@ -483,8 +483,8 @@ describe("runPreflights", () => {
       const result = await run(c.input);
       expect(Result.isFailure(result)).toBe(true);
       if (Result.isFailure(result)) {
-        expect(result.left).toBeInstanceOf(c.errorClass);
-        expect(result.left.message).toBe(c.message);
+        expect(result.failure).toBeInstanceOf(c.errorClass);
+        expect(result.failure.message).toBe(c.message);
       }
     },
   );
@@ -492,9 +492,9 @@ describe("runPreflights", () => {
   it("model refusal keeps its failure payload", async () => {
     const result = await run(REFUSALS["phase-models"].input);
     expect(Result.isFailure(result)).toBe(true);
-    if (Result.isFailure(result) && result.left instanceof ModelPreflightError) {
-      expect(result.left.failures.map((f) => f.phaseId)).toEqual(["phase-01"]);
-      expect(result.left.failures[0]?.model).toBe("completely-unknown-model-xyz");
+    if (Result.isFailure(result) && result.failure instanceof ModelPreflightError) {
+      expect(result.failure.failures.map((f) => f.phaseId)).toEqual(["phase-01"]);
+      expect(result.failure.failures[0]?.model).toBe("completely-unknown-model-xyz");
     }
   });
 
@@ -509,15 +509,15 @@ describe("runPreflights", () => {
     const result = await run(makeInput({ plan, planMd }));
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(PlanSectionsPreflightError);
-      if (result.left instanceof PlanSectionsPreflightError) {
-        expect(result.left.phases).toEqual(["phase-02", "phase-04"]);
-        expect(result.left.planPath).toBe(PLAN_PATH);
+      expect(result.failure).toBeInstanceOf(PlanSectionsPreflightError);
+      if (result.failure instanceof PlanSectionsPreflightError) {
+        expect(result.failure.phases).toEqual(["phase-02", "phase-04"]);
+        expect(result.failure.planPath).toBe(PLAN_PATH);
       }
-      expect(result.left.message.split("\n")[0]).toMatch(
+      expect(result.failure.message.split("\n")[0]).toMatch(
         /^Plan preflight failed: phase-02, phase-04 have no section in plan\.md \(/,
       );
-      expect(result.left.message).toContain(`phax plans lint ${PLAN_PATH}`);
+      expect(result.failure.message).toContain(`phax plans lint ${PLAN_PATH}`);
     }
   });
 
@@ -525,7 +525,7 @@ describe("runPreflights", () => {
     const planMd = planMdFor(makePlan([makePhase("phase-02")]));
     const result = await run(makeInput({ plan: twoPhasePlan, planMd, startIndex: 1 }));
     expect(Result.isFailure(result)).toBe(true);
-    if (Result.isFailure(result)) expect(result.left).toBeInstanceOf(PlanSectionsPreflightError);
+    if (Result.isFailure(result)) expect(result.failure).toBeInstanceOf(PlanSectionsPreflightError);
   });
 
   it("an environment refusal is reported before the plan defect", async () => {
@@ -536,13 +536,13 @@ describe("runPreflights", () => {
       }),
     );
     expect(Result.isFailure(result)).toBe(true);
-    if (Result.isFailure(result)) expect(result.left).toBeInstanceOf(ModelPreflightError);
+    if (Result.isFailure(result)) expect(result.failure).toBeInstanceOf(ModelPreflightError);
   });
 
   it("first failure wins: required commands before models", async () => {
     const result = await run(makeInput({ plan: makePlan([badModelPhase], ["pnpm lint"]) }));
     expect(Result.isFailure(result)).toBe(true);
-    if (Result.isFailure(result)) expect(result.left).toBeInstanceOf(SecurityPreflightError);
+    if (Result.isFailure(result)) expect(result.failure).toBeInstanceOf(SecurityPreflightError);
   });
 
   it("skill edit consent covers only phases from startIndex", async () => {
@@ -561,7 +561,7 @@ describe("runPreflights", () => {
     const result = await run(makeInput());
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.gateSteps).toEqual(makeConfig().raw.gateProfiles["standard"]);
+      expect(result.success.gateSteps).toEqual(makeConfig().raw.gateProfiles["standard"]);
     }
   });
 
@@ -569,7 +569,7 @@ describe("runPreflights", () => {
     const result = await run(makeInput({ plan: twoPhasePlan }));
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      const { preamble, sections } = result.right.planSections;
+      const { preamble, sections } = result.success.planSections;
       expect(preamble).toBe("# Foo\n\n## Required commands\n\n- (none)");
       expect([...sections.keys()]).toEqual(["phase-01", "phase-02"]);
       expect(sections.get("phase-02")).toBe(
@@ -588,8 +588,8 @@ describe("runPreflights: assignment-bounds", () => {
     );
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(AssignmentPreflightError);
-      expect(result.left.message).toBe(
+      expect(result.failure).toBeInstanceOf(AssignmentPreflightError);
+      expect(result.failure.message).toBe(
         [
           "Assignment preflight failed: 1 error(s) from the assignment bounds.",
           "",
@@ -598,9 +598,9 @@ describe("runPreflights: assignment-bounds", () => {
           `Check the plan with \`phax plans lint ${PLAN_PATH}\`.`,
         ].join("\n"),
       );
-      if (result.left instanceof AssignmentPreflightError) {
-        expect(result.left.findings.map((f) => f.phase)).toEqual([null]);
-        expect(result.left.planPath).toBe(PLAN_PATH);
+      if (result.failure instanceof AssignmentPreflightError) {
+        expect(result.failure.findings.map((f) => f.phase)).toEqual([null]);
+        expect(result.failure.planPath).toBe(PLAN_PATH);
       }
     }
   });
@@ -614,8 +614,8 @@ describe("runPreflights: assignment-bounds", () => {
     );
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(AssignmentPreflightError);
-      expect(result.left.message).toContain(
+      expect(result.failure).toBeInstanceOf(AssignmentPreflightError);
+      expect(result.failure.message).toContain(
         "\n  assignments[0].model: claude-opus-9 is not in the catalog\n",
       );
     }
@@ -637,7 +637,7 @@ describe("runPreflights: assignment-bounds", () => {
       undefined,
       shell,
     );
-    expect(Result.isFailure(result) && result.left).toBeInstanceOf(AssignmentPreflightError);
+    expect(Result.isFailure(result) && result.failure).toBeInstanceOf(AssignmentPreflightError);
     expect(shell.impl.calls).toHaveLength(1);
     expect(JSON.parse(shell.impl.calls[0]!.stdin!)).toMatchObject({ files: null });
   });
@@ -650,7 +650,7 @@ describe("runPreflights: assignment-bounds", () => {
         config: boundsConfig([DECIDE_GLOBS]),
       }),
     );
-    expect(Result.isFailure(without) && without.left).toBeInstanceOf(AssignmentPreflightError);
+    expect(Result.isFailure(without) && without.failure).toBeInstanceOf(AssignmentPreflightError);
     const stated = await run(
       makeInput({
         plan: refundPlan,
@@ -694,8 +694,8 @@ describe("checkCleanWorkingTree", () => {
     );
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(UnsafeGitStateError);
-      expect(result.left.message).toBe(
+      expect(result.failure).toBeInstanceOf(UnsafeGitStateError);
+      expect(result.failure.message).toBe(
         "Working tree is not clean. Commit or stash changes, or pass --allow-dirty.",
       );
     }
@@ -763,7 +763,7 @@ describe("freshRunPreflight", () => {
       fsWithBrokenRouting(),
     );
     expect(Result.isFailure(result)).toBe(true);
-    if (Result.isFailure(result)) expect(result.left).toBeInstanceOf(SkillEditConsentError);
+    if (Result.isFailure(result)) expect(result.failure).toBeInstanceOf(SkillEditConsentError);
   });
 
   it("a routing load failure beats a gate profile or required commands failure", async () => {
@@ -772,7 +772,7 @@ describe("freshRunPreflight", () => {
       fsWithBrokenRouting(),
     );
     expect(Result.isFailure(result)).toBe(true);
-    if (Result.isFailure(result)) expect(result.left).toBeInstanceOf(ConfigValidationError);
+    if (Result.isFailure(result)) expect(result.failure).toBeInstanceOf(ConfigValidationError);
   });
 
   it("required commands beats a models failure and a dirty tree", async () => {
@@ -785,8 +785,8 @@ describe("freshRunPreflight", () => {
     );
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(SecurityPreflightError);
-      expect(result.left.message).toBe(REFUSALS["required-commands"].message);
+      expect(result.failure).toBeInstanceOf(SecurityPreflightError);
+      expect(result.failure.message).toBe(REFUSALS["required-commands"].message);
     }
     expect(git.impl.calls).toEqual([]);
   });
@@ -797,8 +797,8 @@ describe("freshRunPreflight", () => {
     const result = await runFresh(makeFreshInput(), undefined, git);
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(UnsafeGitStateError);
-      expect(result.left.message).toBe(
+      expect(result.failure).toBeInstanceOf(UnsafeGitStateError);
+      expect(result.failure.message).toBe(
         "Working tree is not clean. Commit or stash changes, or pass --allow-dirty.",
       );
     }
@@ -817,8 +817,8 @@ describe("freshRunPreflight", () => {
     const result = await runFresh(makeFreshInput());
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.routing).toEqual(DEFAULT_MODEL_ROUTING);
-      expect(result.right.providerConfig).toEqual(DEFAULT_PROVIDER_CONFIG);
+      expect(result.success.routing).toEqual(DEFAULT_MODEL_ROUTING);
+      expect(result.success.providerConfig).toEqual(DEFAULT_PROVIDER_CONFIG);
     }
   });
 
@@ -826,7 +826,7 @@ describe("freshRunPreflight", () => {
     const result = await runFresh(makeFreshInput({ priorityOverride: ["codex-cli"] }));
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.routing.providerPriority).toEqual(["codex-cli"]);
+      expect(result.success.routing.providerPriority).toEqual(["codex-cli"]);
     }
   });
 });

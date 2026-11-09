@@ -72,7 +72,7 @@ describe("loadOrExtractPlan — title derivation from headings", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.plan.phases.map((p) => p.title)).toEqual(["Alpha phase", "Beta phase"]);
+      expect(result.success.plan.phases.map((p) => p.title)).toEqual(["Alpha phase", "Beta phase"]);
     }
   });
 
@@ -89,7 +89,7 @@ describe("loadOrExtractPlan — title derivation from headings", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.plan.phases[0]!.title).toBe('Guard "all I/O goes through a port"');
+      expect(result.success.plan.phases[0]!.title).toBe('Guard "all I/O goes through a port"');
     }
   });
 
@@ -108,8 +108,8 @@ describe("loadOrExtractPlan — title derivation from headings", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(PlanValidationError);
-      expect(result.left.message).toContain("phase-02");
+      expect(result.failure).toBeInstanceOf(PlanValidationError);
+      expect(result.failure.message).toContain("phase-02");
     }
   });
 });

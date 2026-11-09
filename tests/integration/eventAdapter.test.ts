@@ -153,7 +153,7 @@ describe("adaptAgentRun", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(AgentInvocationError);
+      expect(result.failure).toBeInstanceOf(AgentInvocationError);
     }
   });
 });
@@ -241,7 +241,7 @@ describe("adaptAgentResume", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(AgentInvocationError);
+      expect(result.failure).toBeInstanceOf(AgentInvocationError);
     }
   });
 });
@@ -389,8 +389,8 @@ describe("adaptCommit", () => {
     // Should fail with PhaseHadNoChangesError
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(PhaseHadNoChangesError);
-      const err = result.left as PhaseHadNoChangesError;
+      expect(result.failure).toBeInstanceOf(PhaseHadNoChangesError);
+      const err = result.failure as PhaseHadNoChangesError;
       expect(err.phaseId).toBe("phase-01");
     }
 

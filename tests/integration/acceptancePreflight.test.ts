@@ -66,7 +66,7 @@ describe("acceptance: extraction of the acceptance header lines", () => {
 
     // What createRunFolder writes as phax-plan.json.
     const written = JSON.parse(
-      JSON.stringify(encodePhaxPlanFile(withSchemaUrl("phax-plan", extracted.right.plan))),
+      JSON.stringify(encodePhaxPlanFile(withSchemaUrl("phax-plan", extracted.success.plan))),
     ) as { $schema: string; phases: { id: string; acceptance?: unknown }[] };
 
     expect(written.$schema).toBe("https://docs.phax.run/schemas/phax-plan/0.33.0.json");
@@ -83,7 +83,7 @@ describe("acceptance: extraction of the acceptance header lines", () => {
 
     expect(Result.isFailure(outcome)).toBe(true);
     if (Result.isFailure(outcome)) {
-      expect(outcome.left.message).toBe(
+      expect(outcome.failure.message).toBe(
         `${PLAN_MD_PATH}: phase-03 ${OLD_LOOP_MESSAGE} — run phax plans lint ${PLAN_MD_PATH}`,
       );
     }
@@ -183,8 +183,8 @@ describe("acceptance: the acceptance-phases run preflight", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toMatchObject({ _tag: "AcceptancePreflightError" });
-      expect(result.left.message).toBe(
+      expect(result.failure).toMatchObject({ _tag: "AcceptancePreflightError" });
+      expect(result.failure.message).toBe(
         [
           "Acceptance preflight failed: 2 error(s).",
           "  phase-03  **Oracle phase:** is no longer read: write **Acceptance phase:**",

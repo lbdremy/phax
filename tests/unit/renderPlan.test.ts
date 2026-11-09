@@ -17,8 +17,8 @@ import { currentSchemaUrl, withSchemaUrl } from "../../src/schemas/persisted.js"
 
 function decoded(raw: unknown): PlanDocument {
   const result = decodeAuthoredPlanDocument(raw);
-  if (Result.isFailure(result)) throw new Error(`fixture does not decode: ${result.left}`);
-  return result.right;
+  if (Result.isFailure(result)) throw new Error(`fixture does not decode: ${result.failure}`);
+  return result.success;
 }
 
 function fixture(): PlanDocument {
@@ -117,16 +117,16 @@ function fixture(): PlanDocument {
 function roundTrip(doc: PlanDocument, md: string) {
   const parsed = extractPlanDeterministic(md);
   if (Result.isFailure(parsed))
-    throw new Error(`rendered plan does not parse: ${parsed.left.message}`);
-  const fromMarkdown = finalizeExtractedPlan(parsed.right, md);
+    throw new Error(`rendered plan does not parse: ${parsed.failure.message}`);
+  const fromMarkdown = finalizeExtractedPlan(parsed.success, md);
   const fromDocument = finalizeExtractedPlan(projectExtractedPlan(doc), md);
   if (Result.isFailure(fromMarkdown) || Result.isFailure(fromDocument)) {
     throw new Error("finalize failed");
   }
   return {
-    parsed: parsed.right,
-    fromMarkdown: fromMarkdown.right,
-    fromDocument: fromDocument.right,
+    parsed: parsed.success,
+    fromMarkdown: fromMarkdown.success,
+    fromDocument: fromDocument.success,
   };
 }
 
@@ -439,8 +439,8 @@ function withQuestions(): PlanDocument {
   const file = decodePlanDocumentFile(
     withSchemaUrl("plan-document", { ...base, preamble: questionPreamble(base.preamble) }),
   );
-  if (Result.isFailure(file)) throw new Error(`fixture does not decode: ${file.left.message}`);
-  return file.right;
+  if (Result.isFailure(file)) throw new Error(`fixture does not decode: ${file.failure.message}`);
+  return file.success;
 }
 
 function questionPreamble(preamble: PlanDocument["preamble"]): unknown {

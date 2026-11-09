@@ -257,10 +257,10 @@ function author(context: NewContext) {
     const configResult = loadConfig(process.cwd());
     if (Result.isFailure(configResult)) {
       return yield* Effect.fail(
-        sessionCommandRefusal(1, `Config error: ${configResult.left.message}`),
+        sessionCommandRefusal(1, `Config error: ${configResult.failure.message}`),
       );
     }
-    const config = configResult.right;
+    const config = configResult.success;
     const repoRoot = config.repoRoot;
     const briefPath =
       brief.origin.kind === "file" ? repoPaths(brief.origin.path, repoRoot).repoRelPath : null;
@@ -287,10 +287,10 @@ function author(context: NewContext) {
     );
     if (Result.isFailure(routed)) {
       return yield* Effect.fail(
-        sessionCommandRefusal(1, `Failed to load routing config: ${routed.left.message}`),
+        sessionCommandRefusal(1, `Failed to load routing config: ${routed.failure.message}`),
       );
     }
-    const { routing, providerConfig } = routed.right;
+    const { routing, providerConfig } = routed.success;
     const resolution = resolveModel(
       { model: selection.model, effort: selection.effort },
       routing,
@@ -341,7 +341,7 @@ function author(context: NewContext) {
       const retry = retryOf(context, brief.origin.kind === "file" ? brief.origin.path : "-");
       return yield* Effect.fail(
         yield* sessionFailure(
-          authored.left,
+          authored.failure,
           (cause) =>
             isSessionFailureError(cause)
               ? renderSessionFailure(cause, retry)
@@ -350,7 +350,7 @@ function author(context: NewContext) {
         ),
       );
     }
-    const { path, sidecarPath, commit, record, recordPush } = authored.right;
+    const { path, sidecarPath, commit, record, recordPush } = authored.success;
     const output: NewOutput = {
       path,
       sidecarPath,

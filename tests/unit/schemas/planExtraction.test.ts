@@ -28,8 +28,8 @@ const plan = {
 
 function refusal(parsed: unknown): string {
   const read = readPlanExtractionAnswer(parsed);
-  if (Result.isSuccess(read)) throw new Error(`accepted: ${JSON.stringify(read.right)}`);
-  return read.left;
+  if (Result.isSuccess(read)) throw new Error(`accepted: ${JSON.stringify(read.success)}`);
+  return read.failure;
 }
 
 describe("readPlanExtractionAnswer", () => {

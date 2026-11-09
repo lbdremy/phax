@@ -26,7 +26,7 @@ function lines(input: unknown): ReadonlyArray<string> {
     reportInput: true,
   })(input);
   if (Result.isSuccess(decoded)) throw new Error(`expected a refusal of ${JSON.stringify(input)}`);
-  return refusalsOf(decoded.left).map(
+  return refusalsOf(decoded.failure).map(
     (r) => `${refusalPath(r.path, "dotted")}: ${refusalMessage(r)}`,
   );
 }

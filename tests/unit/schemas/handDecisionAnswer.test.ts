@@ -56,7 +56,7 @@ type Decode = (input: unknown) => Result.Result<unknown, Schema.SchemaError>;
 function firstIssue(decode: Decode, input: unknown): { path: string; message: string } {
   const decoded = decode(input);
   if (Result.isSuccess(decoded)) throw new Error("expected a refusal");
-  const [issue] = SchemaIssue.makeFormatterStandardSchemaV1()(decoded.left.issue).issues;
+  const [issue] = SchemaIssue.makeFormatterStandardSchemaV1()(decoded.failure.issue).issues;
   return { path: (issue?.path ?? []).join("."), message: issue?.message ?? "" };
 }
 
@@ -78,9 +78,9 @@ describe.each(KINDS)("$kind-hand-decision-answer", ({ kind, decode, answer }) =>
 
   it("the bridge decodes with the kind's format, drops $schema and keeps every other key", () => {
     const decoded = decodeCurrentHandDecisionAnswer(answer(), kind);
-    if (Result.isFailure(decoded)) throw new Error(decoded.left.message);
+    if (Result.isFailure(decoded)) throw new Error(decoded.failure.message);
     const { $schema: _schema, ...rest } = answer();
-    expect(decoded.right).toEqual(rest);
+    expect(decoded.success).toEqual(rest);
   });
 
   it("refuses an unknown key at the root and inside a verdict", () => {

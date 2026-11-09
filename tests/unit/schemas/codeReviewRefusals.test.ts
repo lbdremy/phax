@@ -23,7 +23,7 @@ const refusal = (overrides: Record<string, unknown>) => {
     $schema: schemaUrl("code-review", CURRENT_STAMPS["code-review"]),
     findings: [finding(overrides)],
   });
-  return Result.isFailure(read) ? read.left : undefined;
+  return Result.isFailure(read) ? read.failure : undefined;
 };
 
 describe("code-review answer refusals", () => {

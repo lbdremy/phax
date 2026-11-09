@@ -246,11 +246,11 @@ describe("serializeBriefRecord", () => {
 
     expect(Result.isSuccess(read)).toBe(true);
     if (Result.isSuccess(read)) {
-      expect(read.right.moment).toBe("pushed");
-      expect(read.right.request).toEqual(request);
-      expect(read.right.outcome).toEqual({ kind: "answered", answer: printed });
-      if (read.right.outcome.kind === "answered") {
-        expect(Object.keys(read.right.outcome.answer)).toEqual(["rules", "findings", "$schema"]);
+      expect(read.success.moment).toBe("pushed");
+      expect(read.success.request).toEqual(request);
+      expect(read.success.outcome).toEqual({ kind: "answered", answer: printed });
+      if (read.success.outcome.kind === "answered") {
+        expect(Object.keys(read.success.outcome.answer)).toEqual(["rules", "findings", "$schema"]);
       }
     }
   });
@@ -259,7 +259,7 @@ describe("serializeBriefRecord", () => {
     const text = serializeBriefRecord("pulled", request, { kind: "failed", reason: "boom" });
     expect(text.endsWith("\n")).toBe(false);
     const read = readBriefRecordFile("brief-01.json", JSON.parse(text));
-    expect(Result.isSuccess(read) && read.right.outcome).toEqual({
+    expect(Result.isSuccess(read) && read.success.outcome).toEqual({
       kind: "failed",
       reason: "boom",
     });

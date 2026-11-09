@@ -236,8 +236,8 @@ describe("loadOrExtractPlan — noExtract: true on a miss", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(PlanValidationError);
-      expect((result.left as PlanValidationError).message).toContain("--no-extract");
+      expect(result.failure).toBeInstanceOf(PlanValidationError);
+      expect((result.failure as PlanValidationError).message).toContain("--no-extract");
     }
     expect(fakeBackend.impl.completeCalls).toHaveLength(0);
   });
@@ -277,7 +277,7 @@ describe("loadOrExtractPlan — noExtract: true on a miss", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect((result.left as PlanValidationError).message).toContain("--no-extract");
+      expect((result.failure as PlanValidationError).message).toContain("--no-extract");
     }
     expect(fakeBackend.impl.completeCalls).toHaveLength(0);
   });
@@ -339,8 +339,8 @@ describe("loadOrExtractPlan — a departing test line", () => {
 
     expect(Result.isFailure(either)).toBe(true);
     if (Result.isFailure(either)) {
-      expect(either.left).toBeInstanceOf(PlanValidationError);
-      expect((either.left as PlanValidationError).message).toBe(
+      expect(either.failure).toBeInstanceOf(PlanValidationError);
+      expect((either.failure as PlanValidationError).message).toBe(
         `${PLAN_MD_PATH}: phase-01 test line 2 departs from the format: "add unit tests for the exporter" — run phax plans lint ${PLAN_MD_PATH}`,
       );
     }

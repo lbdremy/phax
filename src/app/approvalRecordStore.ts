@@ -70,18 +70,18 @@ function readRecordFile<R extends { readonly artifact: string }>(
     const decoded = read(recordPath, parsed);
     if (Result.isFailure(decoded)) {
       return yield* Effect.fail(
-        new ApprovalRecordUnreadableError({ message: decoded.left.message, recordPath }),
+        new ApprovalRecordUnreadableError({ message: decoded.failure.message, recordPath }),
       );
     }
-    if (decoded.right.artifact !== artifactPath) {
+    if (decoded.success.artifact !== artifactPath) {
       return yield* Effect.fail(
         new ApprovalRecordUnreadableError({
-          message: `${recordPath}: records ${decoded.right.artifact}, not ${artifactPath} — restore it from git, or delete it and re-approve`,
+          message: `${recordPath}: records ${decoded.success.artifact}, not ${artifactPath} — restore it from git, or delete it and re-approve`,
           recordPath,
         }),
       );
     }
-    return decoded.right;
+    return decoded.success;
   });
 }
 

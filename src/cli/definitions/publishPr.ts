@@ -95,13 +95,13 @@ export function makePublishPrCommand(deps: PublishPrDeps = {}) {
         if (Result.isFailure(published)) {
           return yield* Effect.fail(
             new ReviewFailedError({
-              message: `Unexpected error during publication: ${published.left.message}`,
+              message: `Unexpected error during publication: ${published.failure.message}`,
               qualifiedName,
               crossProject,
             }),
           );
         }
-        const publication = published.right;
+        const publication = published.success;
         if (publication.kind === "failed") {
           return yield* Effect.fail(
             new ReviewFailedError({

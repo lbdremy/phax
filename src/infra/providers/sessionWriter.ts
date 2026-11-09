@@ -34,7 +34,7 @@ export async function persistSessionId(
     const decoded = readPhaseStatusFile(statusPath, JSON.parse(text) as unknown);
     if (Result.isSuccess(decoded)) {
       const updated = {
-        ...decoded.right,
+        ...decoded.success,
         claudeSessionId: sessionId,
         updatedAt: new Date().toISOString(),
       };

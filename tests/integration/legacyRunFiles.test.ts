@@ -96,12 +96,12 @@ describe("a run status written before $schema", () => {
 
   it("is read by run info (loadRunReviewInfo)", () => {
     const result = resolveRun(NAMESPACE, Result.getOrThrow(decodeShortName(SHORT_NAME)), stateRoot);
-    if (Result.isFailure(result)) throw new Error(result.left);
-    expect(result.right.runId).toBe("run-0001");
-    expect(result.right.runState).toBe("running");
-    expect(result.right.gateProfileId).toBe("standard");
-    expect(result.right.phaseStatuses).toHaveLength(1);
-    expect(result.right.phaseStatuses[0]).toEqual(withoutKeys(phaseStatus, "$schema"));
+    if (Result.isFailure(result)) throw new Error(result.failure);
+    expect(result.success.runId).toBe("run-0001");
+    expect(result.success.runState).toBe("running");
+    expect(result.success.gateProfileId).toBe("standard");
+    expect(result.success.phaseStatuses).toHaveLength(1);
+    expect(result.success.phaseStatuses[0]).toEqual(withoutKeys(phaseStatus, "$schema"));
   });
 
   it("is read by the dispatcher, and one transition rewrites it with $schema first", async () => {
@@ -160,7 +160,7 @@ describe("a run status written before $schema", () => {
     writeFileSync(runStatusPath, JSON.stringify({ ...preSchemaRunStatus, version: 7 }));
     const result = resolveRun(NAMESPACE, Result.getOrThrow(decodeShortName(SHORT_NAME)), stateRoot);
     if (Result.isSuccess(result)) throw new Error("expected a failure");
-    expect(result.left.startsWith(`${runStatusPath}: run status without $schema`)).toBe(true);
+    expect(result.failure.startsWith(`${runStatusPath}: run status without $schema`)).toBe(true);
   });
 });
 
@@ -273,10 +273,10 @@ describe("a run whose phax-plan.json an earlier release stamped", () => {
 
       expect(Result.isFailure(result)).toBe(true);
       if (Result.isSuccess(result)) return;
-      expect(result.left).toBeInstanceOf(PlanValidationError);
-      expect(result.left.message).toContain(`${planPath}: phax-plan in the ${shape} shape`);
-      expect(result.left.message).toContain("an older phax wrote it");
-      expect(result.left.message).toContain(`\`phax archive ${qualified} --force\``);
+      expect(result.failure).toBeInstanceOf(PlanValidationError);
+      expect(result.failure.message).toContain(`${planPath}: phax-plan in the ${shape} shape`);
+      expect(result.failure.message).toContain("an older phax wrote it");
+      expect(result.failure.message).toContain(`\`phax archive ${qualified} --force\``);
     },
   );
 
@@ -285,9 +285,9 @@ describe("a run whose phax-plan.json an earlier release stamped", () => {
 
     const result = resolveRun(NAMESPACE, Result.getOrThrow(decodeShortName(SHORT_NAME)), stateRoot);
 
-    if (Result.isFailure(result)) throw new Error(result.left);
-    expect(result.right.planPhases.map((p) => p.id)).toEqual(["phase-01", "phase-02"]);
-    expect(result.right.planPhases.every((p) => !("testLines" in p))).toBe(true);
+    if (Result.isFailure(result)) throw new Error(result.failure);
+    expect(result.success.planPhases.map((p) => p.id)).toEqual(["phase-01", "phase-02"]);
+    expect(result.success.planPhases.every((p) => !("testLines" in p))).toBe(true);
   });
 
   it("is listed by phax ls, with the phases its plan names", async () => {

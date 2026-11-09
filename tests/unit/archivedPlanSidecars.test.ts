@@ -53,8 +53,8 @@ describe("archived plan sidecars", () => {
   // its lift is the document, or refused at a phase of the file and a line.
   it.each(sidecars.map((s) => [s.name, s] as const))("%s reads", (_name, archived) => {
     const read = readDocumentSidecar("plan", archived.name, archived.json);
-    if (Result.isFailure(read)) throw new Error(read.left.message);
-    const sidecar = read.right;
+    if (Result.isFailure(read)) throw new Error(read.failure.message);
+    const sidecar = read.success;
     expect(sidecar.kind).toBe("plan");
     if (sidecar.shape === "current" || sidecar.lift.kind === "lifted") return;
     const phaseIds = (archived.json["phases"] as Array<Record<string, unknown>>).map(
@@ -69,9 +69,11 @@ describe("archived plan sidecars", () => {
     expect(older.length).toBeGreaterThan(0);
     for (const archived of older) {
       const read = readDocumentSidecar("plan", archived.name, archived.json);
-      if (Result.isFailure(read)) throw new Error(read.left.message);
-      expect(read.right.shape, archived.name).toBe("0.25.0");
-      expect(read.right.shape !== "current" && read.right.lift.kind, archived.name).toBe("refused");
+      if (Result.isFailure(read)) throw new Error(read.failure.message);
+      expect(read.success.shape, archived.name).toBe("0.25.0");
+      expect(read.success.shape !== "current" && read.success.lift.kind, archived.name).toBe(
+        "refused",
+      );
     }
   });
 
@@ -79,9 +81,9 @@ describe("archived plan sidecars", () => {
     const archived = sidecars.find((s) => s.name === "2610241631-surface-summary-plan.json");
     if (archived === undefined) throw new Error("the surface-summary sidecar is archived");
     const read = readDocumentSidecar("plan", archived.name, archived.json);
-    if (Result.isFailure(read)) throw new Error(read.left.message);
-    expect(read.right.shape).toBe("0.26.0");
-    const lift = read.right.shape === "current" ? null : read.right.lift;
+    if (Result.isFailure(read)) throw new Error(read.failure.message);
+    expect(read.success.shape).toBe("0.26.0");
+    const lift = read.success.shape === "current" ? null : read.success.lift;
     expect(lift?.kind).toBe("lifted");
     if (lift?.kind !== "lifted") return;
     expect(lift.document.phases.every((phase) => phase.testStrategy.length > 0)).toBe(true);

@@ -30,7 +30,7 @@ describe("queryPlanAuditor", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.findings).toEqual([{ message: "m", phases: ["phase-01"] }]);
+      expect(result.success.findings).toEqual([{ message: "m", phases: ["phase-01"] }]);
     }
     expect(fakeShell.impl.calls).toHaveLength(1);
     expect(fakeShell.impl.calls[0]?.command).toEqual(["audit-plan"]);
@@ -47,10 +47,10 @@ describe("queryPlanAuditor", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(PlanAuditorError);
-      expect(result.left.exitCode).toBe(1);
-      expect(result.left.stderrExcerpt).toBe("boom");
-      expect(result.left.message).toContain("Plan auditor");
+      expect(result.failure).toBeInstanceOf(PlanAuditorError);
+      expect(result.failure.exitCode).toBe(1);
+      expect(result.failure.stderrExcerpt).toBe("boom");
+      expect(result.failure.message).toContain("Plan auditor");
     }
   });
 
@@ -64,8 +64,8 @@ describe("queryPlanAuditor", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(PlanAuditorError);
-      expect(result.left.message).toContain("invalid JSON");
+      expect(result.failure).toBeInstanceOf(PlanAuditorError);
+      expect(result.failure.message).toContain("invalid JSON");
     }
   });
 
@@ -83,7 +83,7 @@ describe("queryPlanAuditor", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left.message).toContain("schema validation");
+      expect(result.failure.message).toContain("schema validation");
     }
   });
 
@@ -96,8 +96,8 @@ describe("queryPlanAuditor", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(PlanAuditorError);
-      expect(result.left.message).toContain("empty");
+      expect(result.failure).toBeInstanceOf(PlanAuditorError);
+      expect(result.failure.message).toContain("empty");
     }
     expect(fakeShell.impl.calls).toHaveLength(0);
   });

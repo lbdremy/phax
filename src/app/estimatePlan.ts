@@ -97,7 +97,7 @@ export function readEstimatePlan(
 
     if (classifyArtifactPath(repoRelPath) !== null) {
       const validated = validateArtifact(repoRelPath, planMd);
-      if (Result.isFailure(validated)) return yield* Effect.fail(validated.left);
+      if (Result.isFailure(validated)) return yield* Effect.fail(validated.failure);
     }
 
     const unparseable = (reason: string) =>
@@ -107,12 +107,14 @@ export function readEstimatePlan(
       });
     // A departing test line is left out and never blocks the estimate.
     const extracted = readPlanDeterministic(planMd);
-    if (Result.isFailure(extracted)) return yield* Effect.fail(unparseable(extracted.left.message));
-    const finalized = finalizeExtractedPlan(extracted.right.plan, planMd);
-    if (Result.isFailure(finalized)) return yield* Effect.fail(unparseable(finalized.left.message));
+    if (Result.isFailure(extracted))
+      return yield* Effect.fail(unparseable(extracted.failure.message));
+    const finalized = finalizeExtractedPlan(extracted.success.plan, planMd);
+    if (Result.isFailure(finalized))
+      return yield* Effect.fail(unparseable(finalized.failure.message));
 
     const phases: SizedPlanPhase[] = [];
-    for (const phase of finalized.right.plan.phases) {
+    for (const phase of finalized.success.plan.phases) {
       phases.push({
         phase,
         editBytes: yield* sizeOf(config.repoRoot, phase.plannedFilesToEdit),

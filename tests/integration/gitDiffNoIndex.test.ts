@@ -46,11 +46,11 @@ describe("Git.diffNoIndex", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isFailure(result)) return;
-    expect(result.right).toContain("--- a/");
-    expect(result.right).toContain("+++ b/");
-    expect(result.right).toContain("-### Q1 — Keep?");
-    expect(result.right).toContain("+None.");
-    expect(result.right).not.toContain("\u001b[");
+    expect(result.success).toContain("--- a/");
+    expect(result.success).toContain("+++ b/");
+    expect(result.success).toContain("-### Q1 — Keep?");
+    expect(result.success).toContain("+None.");
+    expect(result.success).not.toContain("\u001b[");
   });
 
   it("names the label on both sides of the header, never the compared files", async () => {
@@ -66,20 +66,20 @@ describe("Git.diffNoIndex", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isFailure(result)) return;
-    const lines = result.right.split("\n");
+    const lines = result.success.split("\n");
     expect(lines[0]).toBe(`diff --git a/${LABEL} b/${LABEL}`);
     expect(lines).toContain(`--- a/${LABEL}`);
     expect(lines).toContain(`+++ b/${LABEL}`);
-    expect(result.right).not.toContain(repoDir);
-    expect(result.right).not.toContain("before.md");
-    expect(result.right).not.toContain("after.md");
+    expect(result.success).not.toContain(repoDir);
+    expect(result.success).not.toContain("before.md");
+    expect(result.success).not.toContain("after.md");
     expect(lines).toContain("-old");
     expect(lines).toContain("+new");
 
     const hunk = await diff(join(repoDir, "removed.md"), join(repoDir, "empty.md"));
     expect(Result.isSuccess(hunk)).toBe(true);
     if (Result.isFailure(hunk)) return;
-    expect(hunk.right.split("\n")).toContain("--- gone");
+    expect(hunk.success.split("\n")).toContain("--- gone");
   });
 
   it("ignores the user's external diff, textconv and color config", async () => {
@@ -104,10 +104,10 @@ describe("Git.diffNoIndex", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isFailure(result)) return;
-    expect(result.right).not.toContain("EXTERNAL");
-    expect(result.right).not.toContain("OLD");
-    expect(result.right).not.toContain("\u001b[");
-    expect(result.right.split("\n")).toEqual(expect.arrayContaining(["-old", "+new"]));
+    expect(result.success).not.toContain("EXTERNAL");
+    expect(result.success).not.toContain("OLD");
+    expect(result.success).not.toContain("\u001b[");
+    expect(result.success.split("\n")).toEqual(expect.arrayContaining(["-old", "+new"]));
   });
 
   it("returns an empty diff for identical files", async () => {

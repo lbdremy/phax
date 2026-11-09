@@ -60,7 +60,7 @@ describe("Terminal contract — a stdin that cannot be read", () => {
   it("fails the fake, given no stdin, with a StdinReadError", async () => {
     const result = await readStdin(makeFakeTerminal(false).layer);
     expect(Result.isFailure(result)).toBe(true);
-    if (Result.isFailure(result)) expect(result.left).toBeInstanceOf(StdinReadError);
+    if (Result.isFailure(result)) expect(result.failure).toBeInstanceOf(StdinReadError);
   });
 
   it("fails the node adapter, on a stream that errors, with a StdinReadError naming stdin", async () => {
@@ -72,9 +72,9 @@ describe("Terminal contract — a stdin that cannot be read", () => {
     const result = await readStdin(makeNodeTerminalLayer(broken));
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(StdinReadError);
-      expect(result.left.message).toContain("failed to read stdin");
-      expect(result.left.message).toContain("boom");
+      expect(result.failure).toBeInstanceOf(StdinReadError);
+      expect(result.failure.message).toContain("failed to read stdin");
+      expect(result.failure.message).toContain("boom");
     }
   });
 });

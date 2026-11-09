@@ -34,7 +34,7 @@ function readRegistrySync(stateRoot: string): Registry | undefined {
   try {
     const raw = JSON.parse(readFileSync(path, "utf8")) as unknown;
     const decoded = readRegistryFile(path, raw);
-    return Result.isSuccess(decoded) ? decoded.right : undefined;
+    return Result.isSuccess(decoded) ? decoded.success : undefined;
   } catch {
     return undefined;
   }
@@ -80,10 +80,10 @@ export function resolveRunRef(
 ): Result.Result<ResolveRunRefResult, ResolveRunRefRefusal> {
   const parseResult = parseRunRef(rawArg);
   if (Result.isFailure(parseResult)) {
-    return Result.fail({ variant: "not-found", message: parseResult.left });
+    return Result.fail({ variant: "not-found", message: parseResult.failure });
   }
 
-  const ref = parseResult.right;
+  const ref = parseResult.success;
 
   if (ref.namespace === undefined) {
     // Unqualified short name
@@ -111,11 +111,11 @@ export function resolveRunRef(
               variant: "not-found",
               message: `Run "${runKey(namespace, ref.shortName)}" not found.`,
             }
-          : unresolvableRefusal(namespace, ref.shortName, infoResult.left),
+          : unresolvableRefusal(namespace, ref.shortName, infoResult.failure),
       );
     }
 
-    const info = infoResult.right;
+    const info = infoResult.success;
     if (info.namespace !== namespace) {
       return Result.fail({
         variant: "not-found",
@@ -141,9 +141,9 @@ export function resolveRunRef(
 
   const infoResult = resolveRun(namespace, shortName as ShortName, stateRoot);
   if (Result.isFailure(infoResult)) {
-    return Result.fail(unresolvableRefusal(namespace, shortName, infoResult.left));
+    return Result.fail(unresolvableRefusal(namespace, shortName, infoResult.failure));
   }
 
   const crossProject = config !== undefined && config.namespace !== namespace;
-  return Result.succeed({ namespace, shortName, info: infoResult.right, crossProject });
+  return Result.succeed({ namespace, shortName, info: infoResult.success, crossProject });
 }

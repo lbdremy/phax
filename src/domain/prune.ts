@@ -83,11 +83,11 @@ export function selectPruneRuns(
   for (const ref of selection.refs) {
     const parsed = parseRunRef(ref);
     if (Result.isFailure(parsed)) {
-      refusals.push({ kind: "invalid", ref, message: parsed.left });
+      refusals.push({ kind: "invalid", ref, message: parsed.failure });
       continue;
     }
-    const { shortName } = parsed.right;
-    const refNamespace = parsed.right.namespace ?? namespace;
+    const { shortName } = parsed.success;
+    const refNamespace = parsed.success.namespace ?? namespace;
     const qualifiedName = runKey(refNamespace, shortName);
     if (refNamespace !== namespace) {
       refusals.push({ kind: "other-namespace", ref, qualifiedName, namespace: refNamespace });
@@ -140,7 +140,7 @@ export function expectedRunBranches(
   const names = [entry.branch, ...Array.from(phases).toSorted()];
   return names.flatMap((name) => {
     const decoded = decodeBranchName(name);
-    return Result.isSuccess(decoded) ? [decoded.right] : [];
+    return Result.isSuccess(decoded) ? [decoded.success] : [];
   });
 }
 

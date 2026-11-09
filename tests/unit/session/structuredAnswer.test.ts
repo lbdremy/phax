@@ -7,7 +7,7 @@ describe("answerJson", () => {
     const value = { $schema: "https://example.test/x.json", n: 1 };
     const parsed = answerJson({ finalText: "this is { not json", structured: { value } });
     expect(parsed).toEqual(Result.succeed(value));
-    if (Result.isSuccess(parsed)) expect(parsed.right).toBe(value);
+    if (Result.isSuccess(parsed)) expect(parsed.success).toBe(value);
   });
 
   it("returns a structured value that is itself not an object, for the decoder to refuse", () => {
@@ -36,7 +36,7 @@ describe("answerJson", () => {
     const parsed = answerJson({ finalText, structured: null });
     expect(Result.isFailure(parsed)).toBe(true);
     if (Result.isFailure(parsed)) {
-      expect(parsed.left).toContain("the session's final message is not JSON");
+      expect(parsed.failure).toContain("the session's final message is not JSON");
     }
   });
 });

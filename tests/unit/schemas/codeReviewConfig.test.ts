@@ -34,7 +34,7 @@ describe("review.code.enabled", () => {
       review: { code: { enabled: true } },
     });
     expect(Result.isSuccess(result)).toBe(true);
-    if (Result.isSuccess(result)) expect(result.right.review?.code?.enabled).toBe(true);
+    if (Result.isSuccess(result)) expect(result.success.review?.code?.enabled).toBe(true);
   });
 
   it.each(["true", 1, null])("refuses %j in phax.json", (value) => {
@@ -48,7 +48,7 @@ describe("review.code.enabled", () => {
   it("decodes in the user overlay", () => {
     const result = decodePhaxUserOverlay({ review: { code: { enabled: true } } });
     expect(Result.isSuccess(result)).toBe(true);
-    if (Result.isSuccess(result)) expect(result.right.review?.code?.enabled).toBe(true);
+    if (Result.isSuccess(result)) expect(result.success.review?.code?.enabled).toBe(true);
   });
 
   it.each(["true", 1, null])("refuses %j in the user overlay", (value) => {

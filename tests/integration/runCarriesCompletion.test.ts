@@ -242,12 +242,12 @@ describe("executePlan — run carries artifact completion (spec 27)", () => {
       ),
     );
 
-    if (Result.isFailure(result)) console.error("FAILED:", result.left);
+    if (Result.isFailure(result)) console.error("FAILED:", result.failure);
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
 
     // The report carries both transitions with their commits.
-    const report = result.right.artifactCompletions;
+    const report = result.success.artifactCompletions;
     expect(report).toBeDefined();
     const planTransition = report?.transitions.find((t) => t.kind === "plan");
     const specTransition = report?.transitions.find((t) => t.kind === "spec");
@@ -344,11 +344,11 @@ describe("executePlan — run carries artifact completion (spec 27)", () => {
       ),
     );
 
-    if (Result.isFailure(result)) console.error("FAILED:", result.left);
+    if (Result.isFailure(result)) console.error("FAILED:", result.failure);
     expect(Result.isSuccess(result)).toBe(true);
     if (!Result.isSuccess(result)) return;
 
-    const report = result.right.artifactCompletions;
+    const report = result.success.artifactCompletions;
     expect(report?.transitions).toHaveLength(1);
     expect(report?.transitions[0]).toMatchObject({ kind: "plan", path: PLAN_ARCHIVE });
     expect(report?.keptSpec).toEqual({ reason: "not-completing", path: SPEC_REL });
@@ -417,7 +417,7 @@ describe("executePlan — run carries artifact completion (spec 27)", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(ArtifactCompletionPausedError);
+      expect(result.failure).toBeInstanceOf(ArtifactCompletionPausedError);
     }
 
     // The run is interrupted, not review_open; the final phase stays committed.

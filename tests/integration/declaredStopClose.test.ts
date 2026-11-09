@@ -256,15 +256,15 @@ async function close(run: StoppedRun, options: CloseOptions = {}) {
 type DeclaredReport = Extract<CloseReport, { readonly cause: "declared" }>;
 
 const report = (result: Result.Result<CloseReport, unknown>): DeclaredReport => {
-  if (Result.isFailure(result)) throw new Error(`close refused: ${String(result.left)}`);
-  if (result.right.cause !== "declared") throw new Error("the close was not a declared stop's");
-  return result.right;
+  if (Result.isFailure(result)) throw new Error(`close refused: ${String(result.failure)}`);
+  if (result.success.cause !== "declared") throw new Error("the close was not a declared stop's");
+  return result.success;
 };
 
 const refusal = (result: Result.Result<CloseReport, unknown>): StopCloseRefusedError => {
   if (Result.isSuccess(result)) throw new Error("the close was not refused");
-  expect(result.left).toBeInstanceOf(StopCloseRefusedError);
-  return result.left as StopCloseRefusedError;
+  expect(result.failure).toBeInstanceOf(StopCloseRefusedError);
+  return result.failure as StopCloseRefusedError;
 };
 
 // The refusal's lastClose, narrowed to the variant `result` names.

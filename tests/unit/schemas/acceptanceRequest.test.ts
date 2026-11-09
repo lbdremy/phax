@@ -42,7 +42,7 @@ describe("AcceptanceRequestFileSchema", () => {
     );
     const decoded = decodeAcceptanceRequestFile(encoded);
     expect(Result.isSuccess(decoded)).toBe(true);
-    if (Result.isSuccess(decoded)) expect(decoded.right).toEqual(stamped(request));
+    if (Result.isSuccess(decoded)) expect(decoded.success).toEqual(stamped(request));
   });
 
   it("is stamped 0.33.0", () => {
@@ -51,7 +51,7 @@ describe("AcceptanceRequestFileSchema", () => {
 
   it("keeps the declaration order of files", () => {
     const decoded = decodeAcceptanceRequestFile(stamped({ ...authored, files: ["b.ts", "a.ts"] }));
-    expect(Result.isSuccess(decoded) && decoded.right.files).toEqual(["b.ts", "a.ts"]);
+    expect(Result.isSuccess(decoded) && decoded.success.files).toEqual(["b.ts", "a.ts"]);
   });
 
   it.each([
@@ -97,7 +97,7 @@ describe("AcceptanceRequestFileSchema", () => {
   ])("refuses %s", (_name, document, key) => {
     const decoded = decodeAcceptanceRequestFile(document);
     expect(Result.isFailure(decoded)).toBe(true);
-    if (Result.isFailure(decoded)) expect(String(decoded.left)).toContain(key);
+    if (Result.isFailure(decoded)) expect(String(decoded.failure)).toContain(key);
   });
 });
 

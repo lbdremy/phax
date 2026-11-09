@@ -22,7 +22,7 @@ describe("PlanAuditorConfigSchema", () => {
     const result = decodePlanAuditorConfig({ command: "audit-plan" });
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.command).toBe("audit-plan");
+      expect(result.success.command).toBe("audit-plan");
     }
   });
 
@@ -50,7 +50,7 @@ describe("PhaxConfigSchema planAuditor block", () => {
     });
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.planAuditor?.command).toBe("audit-plan");
+      expect(result.success.planAuditor?.command).toBe("audit-plan");
     }
   });
 
@@ -58,7 +58,7 @@ describe("PhaxConfigSchema planAuditor block", () => {
     const result = decodePhaxConfig(minimalValidPhaxConfig);
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.planAuditor).toBeUndefined();
+      expect(result.success.planAuditor).toBeUndefined();
     }
   });
 
@@ -92,7 +92,7 @@ describe("PhaxUserOverlaySchema planAuditor block", () => {
     const result = decodePhaxUserOverlay({ planAuditor: { command: "audit-plan" } });
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.planAuditor?.command).toBe("audit-plan");
+      expect(result.success.planAuditor?.command).toBe("audit-plan");
     }
   });
 
@@ -100,7 +100,7 @@ describe("PhaxUserOverlaySchema planAuditor block", () => {
     const result = decodePhaxUserOverlay({});
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.planAuditor).toBeUndefined();
+      expect(result.success.planAuditor).toBeUndefined();
     }
   });
 

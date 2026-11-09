@@ -184,7 +184,7 @@ describe.skipIf(!shouldRun)("E2E reset-phase → resume fresh re-execution", () 
 
     expect(Result.isFailure(firstResult)).toBe(true);
     if (Result.isFailure(firstResult)) {
-      expect(firstResult.left).toBeInstanceOf(GateAttemptsExhaustedError);
+      expect(firstResult.failure).toBeInstanceOf(GateAttemptsExhaustedError);
     }
 
     const phaseStatus1 = JSON.parse(
@@ -222,7 +222,7 @@ describe.skipIf(!shouldRun)("E2E reset-phase → resume fresh re-execution", () 
 
     expect(Result.isSuccess(resetResult)).toBe(true);
     if (Result.isSuccess(resetResult)) {
-      const r = resetResult.right;
+      const r = resetResult.success;
       expect(r.phaseId).toBe("phase-01");
       expect(r.archivedPath).toBeDefined();
       expect(r.branchDeleted).toBe(true);

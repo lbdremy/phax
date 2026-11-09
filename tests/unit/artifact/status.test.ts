@@ -14,14 +14,14 @@ import {
 function assertRight<T>(result: Result.Result<T, unknown>, expected: T): void {
   expect(Result.isSuccess(result)).toBe(true);
   if (Result.isSuccess(result)) {
-    expect(result.right).toBe(expected);
+    expect(result.success).toBe(expected);
   }
 }
 
 function assertLeft(result: Result.Result<unknown, unknown>): void {
   expect(Result.isFailure(result)).toBe(true);
   if (Result.isFailure(result)) {
-    expect(result.left).toBeInstanceOf(InvalidArtifactTransitionError);
+    expect(result.failure).toBeInstanceOf(InvalidArtifactTransitionError);
   }
 }
 
@@ -48,7 +48,7 @@ describe("spec transitions", () => {
       const result = requestTransition("spec", from, to);
       assertLeft(result);
       if (Result.isFailure(result)) {
-        expect(result.left.legalTargets).toEqual(legalTargetsFrom("spec", from));
+        expect(result.failure.legalTargets).toEqual(legalTargetsFrom("spec", from));
       }
     }
   });
@@ -66,7 +66,7 @@ describe("spec transitions", () => {
     (from) => {
       const result = requestTransition("spec", from, "Draft");
       assertLeft(result);
-      if (Result.isFailure(result)) expect(result.left.message).toContain(`from ${from}`);
+      if (Result.isFailure(result)) expect(result.failure.message).toContain(`from ${from}`);
     },
   );
 
@@ -113,7 +113,7 @@ describe("plan transitions", () => {
       const result = requestTransition("plan", from, to);
       assertLeft(result);
       if (Result.isFailure(result)) {
-        expect(result.left.legalTargets).toEqual(legalTargetsFrom("plan", from));
+        expect(result.failure.legalTargets).toEqual(legalTargetsFrom("plan", from));
       }
     }
   });
@@ -127,7 +127,7 @@ describe("plan transitions", () => {
     (from) => {
       const result = requestTransition("plan", from, "Draft");
       assertLeft(result);
-      if (Result.isFailure(result)) expect(result.left.message).toContain(`from ${from}`);
+      if (Result.isFailure(result)) expect(result.failure.message).toContain(`from ${from}`);
     },
   );
 

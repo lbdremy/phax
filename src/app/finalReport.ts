@@ -50,10 +50,10 @@ function readPostureOf(
     }
     const decoded = readSecurityPosture(raw);
     if (Result.isFailure(decoded)) {
-      const first = formatParseError(decoded.left).split("\n")[0]?.trim() ?? "does not decode";
+      const first = formatParseError(decoded.failure).split("\n")[0]?.trim() ?? "does not decode";
       return { kind: "unreadable", file, violation: first } as const;
     }
-    return { kind: "read", posture: decoded.right } as const;
+    return { kind: "read", posture: decoded.success } as const;
   }).pipe(
     Effect.catch((error) =>
       Effect.succeed({

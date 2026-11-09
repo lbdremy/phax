@@ -26,7 +26,7 @@ function refusalOf(
   raw: unknown,
 ): readonly string[] {
   const decoded = decode(raw);
-  return Result.isFailure(decoded) ? formatConfigParseError(raw, decoded.left).split("\n") : [];
+  return Result.isFailure(decoded) ? formatConfigParseError(raw, decoded.failure).split("\n") : [];
 }
 
 describe("BriefConfigSchema", () => {
@@ -58,7 +58,7 @@ describe("brief in phax.json", () => {
       ...minimalValidPhaxConfig,
       brief: { command: "node ./brief.mjs", push: "findings" },
     });
-    expect(Result.isSuccess(result) && result.right.brief).toEqual({
+    expect(Result.isSuccess(result) && result.success.brief).toEqual({
       command: "node ./brief.mjs",
       push: "findings",
     });
@@ -66,7 +66,7 @@ describe("brief in phax.json", () => {
 
   it("leaves brief undefined when absent", () => {
     const result = decodePhaxConfig(minimalValidPhaxConfig);
-    expect(Result.isSuccess(result) && result.right.brief).toBeUndefined();
+    expect(Result.isSuccess(result) && result.success.brief).toBeUndefined();
   });
 
   it("refuses an empty command and an extra key", () => {
@@ -116,7 +116,7 @@ describe("brief in the user overlay", () => {
     const result = decodePhaxUserOverlay({
       brief: { command: "node ./brief.mjs", push: "findings-and-rules" },
     });
-    expect(Result.isSuccess(result) && result.right.brief?.push).toBe("findings-and-rules");
+    expect(Result.isSuccess(result) && result.success.brief?.push).toBe("findings-and-rules");
   });
 
   it("refuses an empty command and an extra key", () => {

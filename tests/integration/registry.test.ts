@@ -101,8 +101,8 @@ describe("readRegistry", () => {
     );
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(RegistryCorruptionError);
-      expect(result.left.message).toMatch(/^\/fake-state\/registry\.json: .*\$schema/);
+      expect(result.failure).toBeInstanceOf(RegistryCorruptionError);
+      expect(result.failure.message).toMatch(/^\/fake-state\/registry\.json: .*\$schema/);
     }
   });
 
@@ -130,7 +130,7 @@ describe("readRegistry", () => {
     );
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(RegistryCorruptionError);
+      expect(result.failure).toBeInstanceOf(RegistryCorruptionError);
     }
   });
 
@@ -171,7 +171,7 @@ describe("readRegistry", () => {
     );
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(RegistryCorruptionError);
+      expect(result.failure).toBeInstanceOf(RegistryCorruptionError);
     }
   });
 });

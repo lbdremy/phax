@@ -370,11 +370,11 @@ describe("record write compare-and-swap retry", () => {
 
     expect(world.attempts()).toBe(3);
     expect(Result.isFailure(outcome)).toBe(true);
-    if (Result.isFailure(outcome)) expect(outcome.left).toMatchObject({ _tag: "GitError" });
-    if (Result.isFailure(outcome)) expect(outcome.left).toHaveProperty("command");
-    if (Result.isFailure(outcome) && "command" in outcome.left) {
-      expect(outcome.left.command).toContain("update-ref");
-      expect(outcome.left.message).toMatch(
+    if (Result.isFailure(outcome)) expect(outcome.failure).toMatchObject({ _tag: "GitError" });
+    if (Result.isFailure(outcome)) expect(outcome.failure).toHaveProperty("command");
+    if (Result.isFailure(outcome) && "command" in outcome.failure) {
+      expect(outcome.failure.command).toContain("update-ref");
+      expect(outcome.failure.message).toMatch(
         /^the records branch kept moving under other writers in .+; record not written after 3 attempts$/,
       );
     }

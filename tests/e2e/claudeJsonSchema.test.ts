@@ -95,7 +95,7 @@ function expectDecodes(format: AnswerFormatId, structured: { readonly value: unk
     ANSWER_FORMATS[format].schema as Schema.Codec<unknown, unknown>,
     { onExcessProperty: "error", reportInput: true },
   )(structured?.value);
-  expect(Result.isSuccess(decoded) ? "" : String(decoded.left)).toBe("");
+  expect(Result.isSuccess(decoded) ? "" : String(decoded.failure)).toBe("");
 }
 
 function expectBounds(structured: { readonly value: unknown } | null) {

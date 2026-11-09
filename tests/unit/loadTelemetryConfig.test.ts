@@ -25,7 +25,7 @@ describe("loadTelemetryConfig", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.enabled).toBe(true);
+      expect(result.success.enabled).toBe(true);
     }
 
     expect(existsSync(configPath)).toBe(true);
@@ -41,7 +41,7 @@ describe("loadTelemetryConfig", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.enabled).toBe(false);
+      expect(result.success.enabled).toBe(false);
     }
     // file unchanged
     expect(readFileSync(configPath, "utf8")).toBe(custom);
@@ -54,7 +54,7 @@ describe("loadTelemetryConfig", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.enabled).toBe(false);
+      expect(result.success.enabled).toBe(false);
     }
   });
 
@@ -65,7 +65,7 @@ describe("loadTelemetryConfig", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left.message).toContain("Invalid telemetry.json");
+      expect(result.failure.message).toContain("Invalid telemetry.json");
     }
   });
 
@@ -76,7 +76,7 @@ describe("loadTelemetryConfig", () => {
 
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left.message).toContain("Failed to read or parse");
+      expect(result.failure.message).toContain("Failed to read or parse");
     }
   });
 });

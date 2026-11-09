@@ -279,11 +279,11 @@ function fromParse<A>(
   result: Result.Result<A, Schema.SchemaError>,
   render: (error: Schema.SchemaError) => string,
 ): Expected {
-  return Result.isFailure(result) ? refused(render(result.left)) : accepted(result.right);
+  return Result.isFailure(result) ? refused(render(result.failure)) : accepted(result.success);
 }
 
 function fromLines<A>(result: Result.Result<A, string>): Expected {
-  return Result.isFailure(result) ? refused(result.left) : accepted(result.right);
+  return Result.isFailure(result) ? refused(result.failure) : accepted(result.success);
 }
 
 type Subject = (input: unknown) => Expected;
@@ -379,8 +379,8 @@ function vibeExport<A>(
   result: Result.Result<A, { readonly reason: string; readonly detail: string }>,
 ): Expected {
   return Result.isFailure(result)
-    ? refused(`(${result.left.reason}): ${result.left.detail}`)
-    : accepted(result.right);
+    ? refused(`(${result.failure.reason}): ${result.failure.detail}`)
+    : accepted(result.success);
 }
 
 // ---------------------------------------------------------------------------
@@ -562,10 +562,10 @@ function roundTrip<A>(
     const decoded = decode(raw);
     if (Result.isFailure(decoded)) {
       throw new Error(
-        `corpus: an encode input must decode: ${refusalsOf(decoded.left).map(refusalMessage).join("; ")}`,
+        `corpus: an encode input must decode: ${refusalsOf(decoded.failure).map(refusalMessage).join("; ")}`,
       );
     }
-    return accepted(encode(decoded.right));
+    return accepted(encode(decoded.success));
   };
 }
 

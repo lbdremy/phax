@@ -48,12 +48,12 @@ export function generateGlobalReconciliation(
         if (Result.isFailure(readResult)) return undefined;
         let parsed: unknown;
         try {
-          parsed = JSON.parse(readResult.right) as unknown;
+          parsed = JSON.parse(readResult.success) as unknown;
         } catch {
           return undefined;
         }
         const decoded = readPhaseFileReconciliationFile(jsonPath, parsed);
-        return Result.isFailure(decoded) ? undefined : decoded.right;
+        return Result.isFailure(decoded) ? undefined : decoded.success;
       });
 
     for (const { phaseId, stop } of opts.phases) {

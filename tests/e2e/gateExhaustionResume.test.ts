@@ -183,7 +183,7 @@ describe.skipIf(!shouldRun)("E2E gate-exhaustion resume", () => {
     // The run must pause with GateAttemptsExhaustedError (resumable, not fatal).
     expect(Result.isFailure(firstResult)).toBe(true);
     if (Result.isFailure(firstResult)) {
-      expect(firstResult.left).toBeInstanceOf(GateAttemptsExhaustedError);
+      expect(firstResult.failure).toBeInstanceOf(GateAttemptsExhaustedError);
     }
 
     // Run state: interrupted (resumable).

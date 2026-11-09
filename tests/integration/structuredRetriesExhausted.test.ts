@@ -193,7 +193,7 @@ describe("a headless authoring session that ends with exhausted structured-outpu
     const result = await author();
 
     if (Result.isSuccess(result)) throw new Error("authoring did not fail");
-    const error = result.left;
+    const error = result.failure;
     expect(error).toBeInstanceOf(AgentSessionFailedError);
     expect(exitCodeForAuthoringError(error)).toBe(5);
     const [line] = renderSessionFailure(error as AgentSessionFailedError, null);
@@ -363,8 +363,8 @@ describe("a resumed closing turn", () => {
     const result = await close(run, backend);
 
     if (Result.isSuccess(result)) throw new Error("the close was not refused");
-    expect(result.left).toBeInstanceOf(StopCloseRefusedError);
-    const error = result.left as StopCloseRefusedError;
+    expect(result.failure).toBeInstanceOf(StopCloseRefusedError);
+    const error = result.failure as StopCloseRefusedError;
     expect(exitCodeForError(error)).toBe(5);
     expect(error.lastClose).toMatchObject({
       result: "close-error",

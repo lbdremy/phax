@@ -15,7 +15,7 @@ describe("decodePhaxUserOverlay", () => {
     const result = decodePhaxUserOverlay({ state: { root: "~/.mystate" } });
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.state?.root).toBe("~/.mystate");
+      expect(result.success.state?.root).toBe("~/.mystate");
     }
   });
 
@@ -23,7 +23,7 @@ describe("decodePhaxUserOverlay", () => {
     const result = decodePhaxUserOverlay({ security: { profile: "unsafe" } });
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.security?.profile).toBe("unsafe");
+      expect(result.success.security?.profile).toBe("unsafe");
     }
   });
 
@@ -31,7 +31,7 @@ describe("decodePhaxUserOverlay", () => {
     const result = decodePhaxUserOverlay({ agent: { maxFixAttempts: 3 } });
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.agent?.maxFixAttempts).toBe(3);
+      expect(result.success.agent?.maxFixAttempts).toBe(3);
     }
   });
 
@@ -41,8 +41,8 @@ describe("decodePhaxUserOverlay", () => {
     });
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.agent?.extractPlan?.model).toBe("claude-sonnet-4-6");
-      expect(result.right.agent?.extractPlan?.effort).toBe("high");
+      expect(result.success.agent?.extractPlan?.model).toBe("claude-sonnet-4-6");
+      expect(result.success.agent?.extractPlan?.effort).toBe("high");
     }
   });
 
@@ -55,9 +55,9 @@ describe("decodePhaxUserOverlay", () => {
     });
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.authoring?.spec?.model).toBe("claude-sonnet-5");
-      expect(result.right.authoring?.spec?.effort).toBe("high");
-      expect(result.right.authoring?.plan?.effort).toBe("medium");
+      expect(result.success.authoring?.spec?.model).toBe("claude-sonnet-5");
+      expect(result.success.authoring?.spec?.effort).toBe("high");
+      expect(result.success.authoring?.plan?.effort).toBe("medium");
     }
   });
 

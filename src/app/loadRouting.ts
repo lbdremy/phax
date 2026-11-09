@@ -47,13 +47,13 @@ export function loadModelRouting(): Effect.Effect<ModelRouting, ConfigValidation
     if (Result.isFailure(decoded)) {
       return yield* Effect.fail(
         new ConfigValidationError({
-          message: `Invalid model-routing.json at "${MODEL_ROUTING_PATH}":\n${formatParseError(decoded.left)}`,
+          message: `Invalid model-routing.json at "${MODEL_ROUTING_PATH}":\n${formatParseError(decoded.failure)}`,
           path: MODEL_ROUTING_PATH,
         }),
       );
     }
 
-    return decoded.right;
+    return decoded.success;
   });
 }
 
@@ -126,12 +126,12 @@ export function readProviderConfigFile(): Effect.Effect<
     if (Result.isFailure(decoded)) {
       return yield* Effect.fail(
         new ConfigValidationError({
-          message: `Invalid providers.json at "${PROVIDER_CONFIG_PATH}":\n${formatParseError(decoded.left)}`,
+          message: `Invalid providers.json at "${PROVIDER_CONFIG_PATH}":\n${formatParseError(decoded.failure)}`,
           path: PROVIDER_CONFIG_PATH,
         }),
       );
     }
 
-    return decoded.right;
+    return decoded.success;
   });
 }

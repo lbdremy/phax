@@ -517,10 +517,10 @@ export function runClaudeAgent(
     }
     const sessionIdResult = answerSessionId(outcome);
     if (Result.isFailure(sessionIdResult)) {
-      return yield* Effect.fail(failSession(sessionIdResult.left, failed));
+      return yield* Effect.fail(failSession(sessionIdResult.failure, failed));
     }
 
-    const capturedSessionId = sessionIdResult.right;
+    const capturedSessionId = sessionIdResult.success;
 
     if (options.phaseFolderPath !== undefined) {
       yield* Effect.tryPromise({

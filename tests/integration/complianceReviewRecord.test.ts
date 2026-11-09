@@ -546,8 +546,8 @@ describe("compliance review entry by hand (real git)", () => {
 
     function configOfA(): ResolvedConfig {
       const loaded = loadConfig(projectA);
-      if (Result.isFailure(loaded)) throw new Error(loaded.left.message);
-      return loaded.right;
+      if (Result.isFailure(loaded)) throw new Error(loaded.failure.message);
+      return loaded.success;
     }
 
     it("records the review in the run's own project, never the one the command runs from", async () => {

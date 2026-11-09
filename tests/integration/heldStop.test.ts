@@ -58,8 +58,8 @@ function heldStop(result: Result.Result<unknown, unknown>): {
   report: HeldStopReport;
 } {
   if (Result.isSuccess(result)) throw new Error("the run did not stop");
-  expect(result.left).toBeInstanceOf(AwaitingReviewStopError);
-  const error = result.left as AwaitingReviewStopError;
+  expect(result.failure).toBeInstanceOf(AwaitingReviewStopError);
+  const error = result.failure as AwaitingReviewStopError;
   if (error.report.cause !== "held") throw new Error("the run stopped, but not held");
   return { error, report: error.report };
 }
@@ -157,8 +157,8 @@ describe("a run holding phase-02", { timeout: 30_000 }, () => {
     expect(raw["$schema"]).toMatch(SCHEMA_URL("review-stop"));
     expect(raw).not.toHaveProperty("firstReading");
     const decoded = decodeReviewStopFile(raw);
-    if (Result.isFailure(decoded)) throw new Error(String(decoded.left));
-    const stop = decoded.right;
+    if (Result.isFailure(decoded)) throw new Error(String(decoded.failure));
+    const stop = decoded.success;
     if (stop.cause !== "held") throw new Error("not the held variant");
     expect(stop).toMatchObject({
       run: SHORT,

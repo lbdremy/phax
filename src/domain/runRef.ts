@@ -25,7 +25,7 @@ export function parseRunRef(input: string): Result.Result<RunRef, string> {
         `"${input}" is not a valid run short name. Short names must match ^[a-z][a-z0-9-]*$ and be 1–64 characters.`,
       );
     }
-    return Result.succeed({ namespace: undefined, shortName: result.right });
+    return Result.succeed({ namespace: undefined, shortName: result.success });
   }
 
   const namespaceStr = input.slice(0, dotIndex);
@@ -63,7 +63,7 @@ export function parseRunRef(input: string): Result.Result<RunRef, string> {
     );
   }
 
-  return Result.succeed({ namespace: nsResult.right, shortName: shortResult.right });
+  return Result.succeed({ namespace: nsResult.success, shortName: shortResult.success });
 }
 
 export function nextAvailableShortName(
@@ -84,13 +84,13 @@ export function parseRunKey(
 ): Result.Result<{ namespace: string; shortName: string }, string> {
   const result = parseRunRef(key);
   if (Result.isFailure(result)) {
-    return Result.fail(result.left);
+    return Result.fail(result.failure);
   }
-  if (result.right.namespace === undefined) {
+  if (result.success.namespace === undefined) {
     return Result.fail(
       `"${key}" is an unqualified short name. A run key must be in the form <namespace>.<shortName>.`,
     );
   }
-  const { namespace, shortName } = result.right;
+  const { namespace, shortName } = result.success;
   return Result.succeed({ namespace, shortName });
 }

@@ -408,8 +408,8 @@ function afterEachTurn(
 
 function exhaustedOf(observed: Observed): GateAttemptsExhaustedError {
   if (Result.isSuccess(observed.result)) throw new Error("the phase was expected to pause");
-  expect(observed.result.left).toBeInstanceOf(GateAttemptsExhaustedError);
-  return observed.result.left as GateAttemptsExhaustedError;
+  expect(observed.result.failure).toBeInstanceOf(GateAttemptsExhaustedError);
+  return observed.result.failure as GateAttemptsExhaustedError;
 }
 
 function commitSubjects(worktree: string): string[] {
@@ -466,7 +466,7 @@ describe("a protected edit by the agent's own tools", () => {
         ],
       });
 
-      if (Result.isFailure(observed.result)) throw observed.result.left as Error;
+      if (Result.isFailure(observed.result)) throw observed.result.failure as Error;
       expect(commitSubjects(observed.worktree)).toEqual(["feat(export): step one", "chore: start"]);
       // The first attempt failed for the check alone, with its own record.
       expect(
@@ -646,7 +646,7 @@ describe("a step failure or refusal together with a protected edit", () => {
       });
 
       if (Result.isSuccess(observed.result)) throw new Error("the phase was expected to pause");
-      const error = observed.result.left;
+      const error = observed.result.failure;
       expect(error).toBeInstanceOf(GateStepRefusedError);
       expect(error).toMatchObject({
         command: "node scripts/refuse.js",
@@ -793,7 +793,7 @@ describe("a project that declares no protectedPaths", () => {
     });
 
     // The step rewrote a baseline, but nothing is protected here: the phase commits.
-    if (Result.isFailure(observed.result)) throw observed.result.left as Error;
+    if (Result.isFailure(observed.result)) throw observed.result.failure as Error;
     expect(observations).toBe(0);
     expect(existsSync(join(observed.phaseFolder, "gate-attribution.json"))).toBe(true);
     expect(readJson(join(observed.phaseFolder, "gate-attribution.json"))).toMatchObject({

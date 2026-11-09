@@ -230,8 +230,8 @@ export function readArtifact(
     const { path } = input;
     const md = yield* fs.readText(path);
     const validated = validateArtifact(path, md);
-    if (Result.isFailure(validated)) return yield* Effect.fail(validated.left);
-    const { kind, status } = validated.right;
+    if (Result.isFailure(validated)) return yield* Effect.fail(validated.failure);
+    const { kind, status } = validated.success;
     if (status === "Approved" || status === "Stale") {
       return yield* refused(
         "not-draft",
@@ -349,19 +349,19 @@ function chooseSession(
       return fresh();
     }
     const kept = decodeAuthoringSession(json);
-    if (Result.isFailure(kept) || kept.right.provider !== "claude-code") return fresh();
+    if (Result.isFailure(kept) || kept.success.provider !== "claude-code") return fresh();
     // The state root is shared by every checkout: a session authored in
     // another clone, or one since moved or deleted, is not resumed.
-    if (resolve(kept.right.cwd) !== resolve(input.repoRoot)) return fresh();
-    const sessionId = decodeClaudeSessionId(kept.right.retrySessionId ?? kept.right.sessionId);
+    if (resolve(kept.success.cwd) !== resolve(input.repoRoot)) return fresh();
+    const sessionId = decodeClaudeSessionId(kept.success.retrySessionId ?? kept.success.sessionId);
     if (Result.isFailure(sessionId)) return fresh();
     return {
       kind: "resume",
-      id: sessionId.right,
-      cwd: kept.right.cwd,
+      id: sessionId.success,
+      cwd: kept.success.cwd,
       keptIds: [
-        kept.right.sessionId,
-        ...(kept.right.retrySessionId === null ? [] : [kept.right.retrySessionId]),
+        kept.success.sessionId,
+        ...(kept.success.retrySessionId === null ? [] : [kept.success.retrySessionId]),
       ],
     };
   });
@@ -418,8 +418,8 @@ function checkHeadless(
     operator: ctx.operator,
     atIso: ctx.atIso,
   });
-  if (Result.isFailure(decoded)) return Result.fail(decoded.left);
-  const after = decoded.right;
+  if (Result.isFailure(decoded)) return Result.fail(decoded.failure);
+  const after = decoded.success;
   const documents = { before: original, after, scope: ctx.scope };
   const violation = firstRevisionViolation({
     ...documents,
@@ -453,8 +453,8 @@ function checkHand(
     operator: ctx.operator,
     atIso: ctx.atIso,
   });
-  if (Result.isFailure(decoded)) return Result.fail(decoded.left);
-  const answer: HandDecisionAnswer = decoded.right;
+  if (Result.isFailure(decoded)) return Result.fail(decoded.failure);
+  const answer: HandDecisionAnswer = decoded.success;
   const documentJson = `${JSON.stringify({ $schema: currentSchemaUrl(`${kind}-hand-decision-answer`), ...answer }, null, 2)}\n`;
   if (parsed === null) {
     return answer.decisions.length === 0
@@ -478,7 +478,7 @@ function checkHand(
     parsed,
     reArbitrated: ctx.scope.reArbitrated === null ? [] : [ctx.scope.reArbitrated],
   });
-  if (Result.isFailure(written)) return Result.fail({ path: "markdown", message: written.left });
+  if (Result.isFailure(written)) return Result.fail({ path: "markdown", message: written.failure });
   const recommendation = new Map(
     [...parsed.open, ...parsed.arbitrated].map((q) => [q.id, q.recommendation]),
   );
@@ -491,7 +491,7 @@ function checkHand(
       departs: verdict.chosen !== recommendation.get(id),
       revised: verdict.revised,
     })),
-    md: written.right,
+    md: written.success,
     sidecarText: null,
     documentJson,
     planDocument: null,
@@ -503,11 +503,11 @@ function checkAnswer(
   ctx: CheckContext,
 ): Result.Result<AcceptedAnswer, RevisionRefusal> {
   const parsed = answerJson(result);
-  if (Result.isFailure(parsed)) return Result.fail({ path: "", message: parsed.left });
+  if (Result.isFailure(parsed)) return Result.fail({ path: "", message: parsed.failure });
   const { authored } = ctx.snapshot;
   return authored.variant === "headless"
-    ? checkHeadless(parsed.right, ctx, authored.document)
-    : checkHand(parsed.right, ctx, authored.parsed);
+    ? checkHeadless(parsed.success, ctx, authored.document)
+    : checkHand(parsed.success, ctx, authored.parsed);
 }
 
 /** What the decision record needs to know of the session once it has spawned. */
@@ -564,9 +564,9 @@ function handBack(
     });
     observed.sessionIds.push(first.sessionId);
     const firstAnswer = checkAnswer(first, ctx);
-    if (Result.isSuccess(firstAnswer)) return firstAnswer.right;
+    if (Result.isSuccess(firstAnswer)) return firstAnswer.success;
 
-    const firstRefusal = describeRevisionRefusal(firstAnswer.left);
+    const firstRefusal = describeRevisionRefusal(firstAnswer.failure);
     const retryPrompt = buildDecideRetryPrompt(authored.variant, firstRefusal);
     yield* fs.writeAtomic(join(folder, DECIDE_RETRY_PROMPT_FILENAME), retryPrompt);
     input.output.warn(
@@ -579,11 +579,11 @@ function handBack(
     });
     observed.sessionIds.push(retried.sessionId);
     const retryAnswer = checkAnswer(retried, ctx);
-    if (Result.isSuccess(retryAnswer)) return retryAnswer.right;
+    if (Result.isSuccess(retryAnswer)) return retryAnswer.success;
     return yield* Effect.fail(
       new DecideDocumentError({
-        path: retryAnswer.left.path,
-        message: `revised document rejected twice — first answer: ${firstRefusal}; retry: ${describeRevisionRefusal(retryAnswer.left)}`,
+        path: retryAnswer.failure.path,
+        message: `revised document rejected twice — first answer: ${firstRefusal}; retry: ${describeRevisionRefusal(retryAnswer.failure)}`,
       }),
     );
   });
@@ -669,8 +669,8 @@ export function decideArtifact(
     const { kind, slug } = snapshot;
     const { path } = input;
     const scoped = decideScope(questionIds(snapshot.authored), input.question);
-    if (Result.isFailure(scoped)) return yield* refused("unknown-question", scoped.left);
-    const scope = scoped.right;
+    if (Result.isFailure(scoped)) return yield* refused("unknown-question", scoped.failure);
+    const scope = scoped.success;
     if (scope.presented.length === 0) return { kind: "nothing", path } as const;
     if (!(yield* (yield* Terminal).stdinIsTerminal)) {
       return yield* refused(
@@ -679,7 +679,7 @@ export function decideArtifact(
       );
     }
     const model = resolveDecideModel(input.model, input.effort);
-    if (Result.isFailure(model)) return yield* refused("model", model.left);
+    if (Result.isFailure(model)) return yield* refused("model", model.failure);
     const doctrine = yield* resolveDoctrine({
       kind,
       bundledSkillText: input.bundledSkills[kind],
@@ -726,8 +726,8 @@ export function decideArtifact(
     const invocation = buildDecideInvocation({
       cwd: session.cwd,
       session: { kind: session.kind, id: session.id },
-      model: model.right.model,
-      effort: model.right.effort,
+      model: model.success.model,
+      effort: model.success.effort,
       permissionFlags: claudeReadOnlyFlags([folder]),
       prompt: positionalPrompt(promptPath),
     });
@@ -735,7 +735,7 @@ export function decideArtifact(
     input.output.log(
       `decide ${kind} ${slug} — framing ${FRAMING_QUESTIONS[0]?.id ?? "F1"}–${FRAMING_QUESTIONS.at(-1)?.id ?? "F5"}, then ${scope.presented.join(", ")} — interactive, ${session.kind === "resume" ? "resumed authoring session" : "new session"}`,
     );
-    input.output.log(modelLine(model.right));
+    input.output.log(modelLine(model.success));
 
     // The decision record's `sourceSha`: HEAD as the session starts.
     const sourceSha = yield* git.headCommit(input.repoRoot);
@@ -762,17 +762,17 @@ export function decideArtifact(
         session,
         folder,
         decisionId,
-        model: model.right,
+        model: model.success,
         security,
         observed,
       }),
     );
     const accepted = observed.accepted;
     const end: DecisionRecordEnd = Result.isFailure(ended)
-      ? { outcome: "failed", commit: null, failure: decisionFailureOf(ended.left) }
-      : ended.right.kind === "committed"
-        ? { outcome: "committed", commit: ended.right.commit.hash }
-        : { outcome: ended.right.kind, commit: null };
+      ? { outcome: "failed", commit: null, failure: decisionFailureOf(ended.failure) }
+      : ended.success.kind === "committed"
+        ? { outcome: "committed", commit: ended.success.commit.hash }
+        : { outcome: ended.success.kind, commit: null };
     const record = yield* writeDecisionRecord({
       repoRoot: input.repoRoot,
       recordsClonePath: input.recordsClonePath,
@@ -790,8 +790,8 @@ export function decideArtifact(
       departed: accepted?.decided.filter((d) => d.departs).length ?? 0,
       sourceSha,
       provider: "claude-code",
-      model: model.right.model,
-      effort: model.right.effort,
+      model: model.success.model,
+      effort: model.success.effort,
       end,
       retried: observed.retried,
       sessionIds: [session.id, ...session.keptIds, ...observed.sessionIds],
@@ -810,8 +810,8 @@ export function decideArtifact(
     if (Result.isFailure(ended)) {
       // The cause prints first: the record's warnings ride on the error.
       return yield* Effect.fail(
-        failWithFollowUps(ended.left, [
-          decisionRecordWarning(record, isSessionFailureCause(ended.left)),
+        failWithFollowUps(ended.failure, [
+          decisionRecordWarning(record, isSessionFailureCause(ended.failure)),
           decisionRecordPushWarning(recordPush),
         ]),
       );
@@ -823,7 +823,7 @@ export function decideArtifact(
       record,
       recordPush,
     };
-    return { ...ended.right, path, ...facts };
+    return { ...ended.success, path, ...facts };
   });
 }
 
@@ -953,7 +953,7 @@ function concludeSession(
       return yield* Effect.fail(
         new ArtifactCommitFailedError({
           paths,
-          cause: committed.left.message,
+          cause: committed.failure.message,
           commitMessage: { subject, body },
         }),
       );

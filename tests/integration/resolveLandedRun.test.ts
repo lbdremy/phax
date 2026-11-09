@@ -44,7 +44,7 @@ function setup(runs: RegistryEntry[] | undefined) {
 
 function expectRefusal(result: Result.Result<unknown, { readonly message: string }>): string {
   expect(Result.isFailure(result)).toBe(true);
-  return Result.isFailure(result) ? result.left.message : "";
+  return Result.isFailure(result) ? result.failure.message : "";
 }
 
 describe("resolveLandedRun", () => {

@@ -59,14 +59,14 @@ function decodes(decode: (input: unknown) => Result.Result<unknown, unknown>, in
 describe("the brief-request document", () => {
   it("decodes the in-phase variant, with null files and with a list", () => {
     const decoded = decodeBriefRequestFile(phaseRequest());
-    expect(Result.isSuccess(decoded) && decoded.right).toEqual(phaseRequest());
+    expect(Result.isSuccess(decoded) && decoded.success).toEqual(phaseRequest());
     const named = { ...phaseRequest(), files: ["src/billing/tax.ts", "src/billing/invoice.ts"] };
     expect(decodes(decodeBriefRequestFile, named)).toBe(true);
   });
 
   it("decodes the outside variant: $schema and files only", () => {
     const decoded = decodeBriefRequestFile(outsideRequest());
-    expect(Result.isSuccess(decoded) && decoded.right).toEqual(outsideRequest());
+    expect(Result.isSuccess(decoded) && decoded.success).toEqual(outsideRequest());
   });
 
   it("rejects an extra key in either variant", () => {
@@ -116,7 +116,7 @@ describe("the brief-record document", () => {
 
   it("decodes a pushed record with an answered outcome, keeping the answer as printed", () => {
     const decoded = decodeBriefRecordFile(pushed);
-    expect(Result.isSuccess(decoded) && decoded.right).toEqual(pushed);
+    expect(Result.isSuccess(decoded) && decoded.success).toEqual(pushed);
   });
 
   it("decodes a pulled record with a failed outcome", () => {

@@ -60,13 +60,13 @@ describe("installSkill", () => {
     const result = await run(provide(installSkill(makeInput())));
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.status).toBe("created");
-      expect(result.right.skillName).toBe("phax-planning");
-      expect(result.right.target).toBe("claude");
-      expect(result.right.scope).toBe("project");
-      expect(result.right.destination).toContain("phax-planning");
+      expect(result.success.status).toBe("created");
+      expect(result.success.skillName).toBe("phax-planning");
+      expect(result.success.target).toBe("claude");
+      expect(result.success.scope).toBe("project");
+      expect(result.success.destination).toContain("phax-planning");
 
-      const written = readFileSync(join(result.right.destination, "SKILL.md"), "utf8");
+      const written = readFileSync(join(result.success.destination, "SKILL.md"), "utf8");
       expect(written).toBe(FAKE_SKILL_CONTENT);
     }
   });
@@ -76,7 +76,7 @@ describe("installSkill", () => {
     const result = await run(provide(installSkill(makeInput())));
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.status).toBe("already-present");
+      expect(result.success.status).toBe("already-present");
     }
   });
 
@@ -87,14 +87,14 @@ describe("installSkill", () => {
     if (!Result.isSuccess(first)) return;
 
     // Modify the destination file to simulate drift
-    writeFileSync(join(first.right.destination, "SKILL.md"), "stale content");
+    writeFileSync(join(first.success.destination, "SKILL.md"), "stale content");
 
     const result = await run(provide(installSkill(makeInput())));
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.status).toBe("updated");
+      expect(result.success.status).toBe("updated");
       // File is rewritten with the bundled content
-      const written = readFileSync(join(result.right.destination, "SKILL.md"), "utf8");
+      const written = readFileSync(join(result.success.destination, "SKILL.md"), "utf8");
       expect(written).toBe(FAKE_SKILL_CONTENT);
     }
   });
@@ -106,8 +106,8 @@ describe("installSkill", () => {
     const result = await run(provide(installSkill(makeInput({ bundleRoot: emptyBundleRoot }))));
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(SkillInstallError);
-      expect(result.left.message).toContain("Bundled skill file missing");
+      expect(result.failure).toBeInstanceOf(SkillInstallError);
+      expect(result.failure.message).toContain("Bundled skill file missing");
     }
   });
 
@@ -115,8 +115,8 @@ describe("installSkill", () => {
     const result = await run(provide(installSkill(makeInput({ skillName: "nonexistent-skill" }))));
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(SkillInstallError);
-      expect(result.left.message).toContain("Unknown skill");
+      expect(result.failure).toBeInstanceOf(SkillInstallError);
+      expect(result.failure.message).toContain("Unknown skill");
     }
   });
 
@@ -124,8 +124,8 @@ describe("installSkill", () => {
     const result = await run(provide(installSkill(makeInput({ scope: "user" }))));
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.destination).toContain(homeDir);
-      expect(result.right.destination).toContain(".claude/skills/phax-planning");
+      expect(result.success.destination).toContain(homeDir);
+      expect(result.success.destination).toContain(".claude/skills/phax-planning");
     }
   });
 
@@ -135,7 +135,7 @@ describe("installSkill", () => {
     );
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
-      expect(result.right.destination).toContain(".agents/skills/phax-planning");
+      expect(result.success.destination).toContain(".agents/skills/phax-planning");
     }
   });
 });

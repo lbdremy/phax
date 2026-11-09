@@ -122,8 +122,8 @@ export const encodeCodeReviewFile = Schema.encodeSync(CodeReviewFileSchema);
  */
 export function readCodeReviewAnswer(parsed: unknown): Result.Result<CodeReview, string> {
   const decoded = decodeCodeReviewAnswerAll(parsed);
-  if (Result.isFailure(decoded)) return Result.fail(formatAnswerViolations(decoded.left));
-  return Result.succeed({ findings: decoded.right.findings });
+  if (Result.isFailure(decoded)) return Result.fail(formatAnswerViolations(decoded.failure));
+  return Result.succeed({ findings: decoded.success.findings });
 }
 
 /** The text of `code-review.json`: `$schema` first, then the findings, indented by 2. */

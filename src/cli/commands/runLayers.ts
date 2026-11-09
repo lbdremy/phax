@@ -109,7 +109,9 @@ export function makeRepoRootedFileSystemLayer(config: ResolvedConfig): Layer.Lay
  */
 export function makeGlobalTelemetryJournalLayerOrNoop(): Layer.Layer<SystemTelemetry> {
   const telemetryConfig = loadTelemetryConfig(TELEMETRY_CONFIG_PATH);
-  const telemetryEnabled = Result.isSuccess(telemetryConfig) ? telemetryConfig.right.enabled : true;
+  const telemetryEnabled = Result.isSuccess(telemetryConfig)
+    ? telemetryConfig.success.enabled
+    : true;
   return telemetryEnabled
     ? makeGlobalTelemetryJournalLayer(PHAX_HOME_DIR).pipe(Layer.provide(NodeFileSystemLayer))
     : NoopSystemTelemetryLayer;

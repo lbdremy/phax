@@ -478,10 +478,12 @@ describe.each(ANSWERS)(
           // so only the verdict is shared there; the per-kind table below
           // names the paths.
           if (!answer.id.endsWith("-hand-decision-answer")) {
-            expect(firstPath(current.left)).toBe(firstPath(frozen.left));
+            expect(firstPath(current.failure)).toBe(firstPath(frozen.failure));
           }
           if (answer.sameMessage === true && answer.rewordedMessages?.includes(_name) !== true) {
-            expect(formatFirstViolation(current.left)).toBe(formatFirstViolation(frozen.left));
+            expect(formatFirstViolation(current.failure)).toBe(
+              formatFirstViolation(frozen.failure),
+            );
           }
         }
       } else {
@@ -575,7 +577,7 @@ describe("phax-plan-extraction: keeps the verdicts of the extraction answer it r
       expect(Result.isSuccess(read)).toBe(true);
     } else {
       expect(Result.isFailure(read)).toBe(true);
-      if (Result.isFailure(read)) expect(read.left).toContain(refusedAt);
+      if (Result.isFailure(read)) expect(read.failure).toContain(refusedAt);
     }
   });
 });
@@ -642,7 +644,7 @@ describe("the hand decision answers' verdict phase", () => {
       const decoded = decode({ $schema: schemaUrl(id, CURRENT_STAMPS[id]), ...body, decisions });
       expect(Result.isFailure(decoded)).toBe(true);
       if (Result.isFailure(decoded))
-        expect(firstPath(decoded.left)).toBe("decisions[0].verdict.phase");
+        expect(firstPath(decoded.failure)).toBe("decisions[0].verdict.phase");
     },
   );
 });
@@ -689,7 +691,7 @@ describe("a test line's edge strings", () => {
     expect(Result.isFailure(current)).toBe(Result.isFailure(frozen));
     const reworded = coordinate === "criterion" && (value === "oracle" || value === "in-phase");
     if (Result.isFailure(frozen) && Result.isFailure(current) && !reworded) {
-      expect(formatFirstViolation(current.left)).toBe(formatFirstViolation(frozen.left));
+      expect(formatFirstViolation(current.failure)).toBe(formatFirstViolation(frozen.failure));
     }
   });
 

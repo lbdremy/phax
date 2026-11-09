@@ -201,7 +201,7 @@ describe("partial commands are never run", () => {
         }).pipe(Effect.provide(layers)),
       ),
     );
-    expect(result, JSON.stringify(result)).toMatchObject({ _tag: "Right" });
+    expect(result, JSON.stringify(result)).toMatchObject({ _tag: "Success" });
 
     // The gate failed once and ran again after the fix attempt.
     expect(testRuns).toBe(2);

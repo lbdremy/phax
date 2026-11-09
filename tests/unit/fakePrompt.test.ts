@@ -68,7 +68,7 @@ describe("makeFakePrompt", () => {
     const result = await runEither(impl.text({ message: "will cancel" }));
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(PromptCancelled);
+      expect(result.failure).toBeInstanceOf(PromptCancelled);
     }
   });
 
@@ -77,7 +77,7 @@ describe("makeFakePrompt", () => {
     const result = await runEither(impl.text({ message: "empty" }));
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(PromptError);
+      expect(result.failure).toBeInstanceOf(PromptError);
     }
   });
 
@@ -91,8 +91,8 @@ describe("makeFakePrompt", () => {
     );
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toBeInstanceOf(PromptError);
-      expect((result.left as PromptError).message).toBe("invalid");
+      expect(result.failure).toBeInstanceOf(PromptError);
+      expect((result.failure as PromptError).message).toBe("invalid");
     }
   });
 

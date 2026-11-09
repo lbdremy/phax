@@ -101,7 +101,7 @@ function plansLeftStale(
       if (!entry.endsWith(".md")) continue; // skips archive/ and approvals/
       const planPath = `docs/plans/${entry}`;
       const validated = validateArtifact(planPath, yield* fs.readText(planPath));
-      if (Result.isFailure(validated) || validated.right.status !== "Approved") continue;
+      if (Result.isFailure(validated) || validated.success.status !== "Approved") continue;
       const record = yield* readPlanApprovalRecord(planPath);
       const recordedSpec = record?.sourceSpec ?? null;
       if (recordedSpec === null) continue;
@@ -195,7 +195,7 @@ export function migrateDocuments(
       return yield* Effect.fail(
         new ArtifactCommitFailedError({
           paths,
-          cause: committed.left.message,
+          cause: committed.failure.message,
           commitMessage: { subject, body },
         }),
       );

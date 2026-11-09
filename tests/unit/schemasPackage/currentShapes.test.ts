@@ -467,17 +467,17 @@ describe("phax's bridge and the package agree", () => {
         unmetPromises: UNKNOWN,
       });
       const read = readComplianceReviewFile("/work/example-repo/compliance-review.json", document);
-      if (Result.isFailure(read)) throw new Error(read.left.message);
-      expect(read.right.shape).toBe(shape);
-      expect(read.right.review).not.toHaveProperty("unplannedChanges");
-      expect(read.right.review).not.toHaveProperty("unmetPromises");
+      if (Result.isFailure(read)) throw new Error(read.failure.message);
+      expect(read.success.shape).toBe(shape);
+      expect(read.success.review).not.toHaveProperty("unplannedChanges");
+      expect(read.success.review).not.toHaveProperty("unmetPromises");
       // Every other recorded fact reads alike.
       const {
         unplannedChanges: _a,
         unmetPromises: _b,
         ...recorded
       } = PACKAGE_LATEST["compliance-review"](document) as Record<string, unknown>;
-      expect(read.right.review).toEqual(recorded);
+      expect(read.success.review).toEqual(recorded);
     },
   );
 
@@ -495,7 +495,7 @@ describe("phax's bridge and the package agree", () => {
     });
     const read = readPlanDocumentFile("/work/example-repo/plan-document.json", document);
     expect(Result.isFailure(read)).toBe(true);
-    if (Result.isFailure(read)) expect(read.left.message).toContain("lacks completesSpec");
+    if (Result.isFailure(read)) expect(read.failure.message).toContain("lacks completesSpec");
   });
 
   // Where they part: a pre-schema phase status never recorded the commit its
@@ -506,7 +506,7 @@ describe("phax's bridge and the package agree", () => {
     expect(PACKAGE_LATEST["phase-status"](document)).toMatchObject({ base: UNKNOWN });
     const read = readPhaseStatusFile("/work/example-repo/phase-status.json", document);
     expect(Result.isFailure(read)).toBe(true);
-    if (Result.isFailure(read)) expect(read.left.message).toContain("lacks base");
+    if (Result.isFailure(read)) expect(read.failure.message).toContain("lacks base");
   });
 
   // Where they part: a pre-schema spec document recorded no surface summary.
@@ -520,7 +520,7 @@ describe("phax's bridge and the package agree", () => {
     const read = readSpecDocumentFile("/work/example-repo/spec-document.json", document);
     expect(Result.isSuccess(read)).toBe(true);
     if (Result.isSuccess(read)) {
-      expect(read.right).toMatchObject({ surface: [{ summary: SURFACE_SUMMARY_PLACEHOLDER }] });
+      expect(read.success).toMatchObject({ surface: [{ summary: SURFACE_SUMMARY_PLACEHOLDER }] });
     }
     // A phax-written document keeps the summary it recorded, in either reading.
     const written = validDocuments["spec-document"];
@@ -537,11 +537,11 @@ describe("phax's bridge and the package agree", () => {
     const lifted = PACKAGE_LATEST["phax-plan"](document) as { phases: object[] };
     expect(lifted.phases.every((p) => "testLines" in p && p.testLines === UNKNOWN)).toBe(true);
     const read = readPhaxPlanFile("/work/example-repo/phax-plan.json", document);
-    if (Result.isFailure(read)) throw new Error(read.left.message);
-    expect(read.right.shape).toBe("pre-schema");
-    expect(read.right.plan.phases.every((p) => !("testLines" in p))).toBe(true);
+    if (Result.isFailure(read)) throw new Error(read.failure.message);
+    expect(read.success.shape).toBe("pre-schema");
+    expect(read.success.plan.phases.every((p) => !("testLines" in p))).toBe(true);
     // Every other recorded fact reads alike.
-    expect(phasesWithoutLines(read.right.plan.phases)).toEqual(phasesWithoutLines(lifted.phases));
+    expect(phasesWithoutLines(read.success.plan.phases)).toEqual(phasesWithoutLines(lifted.phases));
     // A phax-written plan keeps the lines it recorded, in either reading.
     const written = PACKAGE_LATEST["phax-plan"](validDocuments["phax-plan"]) as {
       phases: object[];
@@ -573,12 +573,12 @@ describe("phax's bridge and the package agree", () => {
         schemaUrl("plan-document", release),
       );
       const read = readPlanDocumentFile("/work/example-repo/plan.json", document);
-      if (Result.isFailure(read)) throw new Error(read.left.message);
-      expect(read.right).toEqual(PACKAGE_LATEST["plan-document"](document));
-      const lines = read.right.phases.flatMap((phase) => phase.testStrategy);
+      if (Result.isFailure(read)) throw new Error(read.failure.message);
+      expect(read.success).toEqual(PACKAGE_LATEST["plan-document"](document));
+      const lines = read.success.phases.flatMap((phase) => phase.testStrategy);
       expect(lines.length).toBeGreaterThan(0);
       expect(lines.every((line) => line.loop === "acceptance")).toBe(true);
-      expect(read.right.phases[0]?.acceptance).toEqual({
+      expect(read.success.phases[0]?.acceptance).toEqual({
         passedBy: "phase-02",
         files: ["tests/a.test.ts"],
       });

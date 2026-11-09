@@ -124,7 +124,7 @@ export function parseTestLine(text: string, options: TestLineReadOptions = {}): 
     loop,
     criterion,
   });
-  return Result.isSuccess(decoded) ? decoded.right : null;
+  return Result.isSuccess(decoded) ? decoded.success : null;
 }
 
 // `[\s\S]`, not `.`, which stops at U+2028 and U+2029: an entry holding one is

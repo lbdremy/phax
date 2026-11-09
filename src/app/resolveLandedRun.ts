@@ -34,10 +34,10 @@ export function resolveLandedRun(
   return Effect.gen(function* () {
     const ref = parseRunRef(input.landed);
     if (Result.isFailure(ref)) {
-      return yield* Effect.fail(new LandedRunResolutionError({ message: ref.left }));
+      return yield* Effect.fail(new LandedRunResolutionError({ message: ref.failure }));
     }
-    const namespace = ref.right.namespace ?? input.namespace;
-    const { shortName } = ref.right;
+    const namespace = ref.success.namespace ?? input.namespace;
+    const { shortName } = ref.success;
     const key = runKey(namespace, shortName);
     const runsRoot = join(input.stateRoot, "runs");
 

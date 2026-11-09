@@ -49,9 +49,11 @@ export const reportCommand = defineCommand({
       if (shortName !== undefined) {
         const configResult = loadConfig(process.cwd());
         if (Result.isFailure(configResult)) {
-          return yield* Effect.fail(new ReportConfigError({ message: configResult.left.message }));
+          return yield* Effect.fail(
+            new ReportConfigError({ message: configResult.failure.message }),
+          );
         }
-        stateRoot = configResult.right.stateRoot;
+        stateRoot = configResult.success.stateRoot;
       }
       const outcome = yield* Effect.result(
         report({
@@ -64,9 +66,9 @@ export const reportCommand = defineCommand({
         }).pipe(Effect.provide(Layer.mergeAll(NodeFileSystemLayer, makeNodeGitHubLayer()))),
       );
       if (Result.isFailure(outcome)) {
-        return yield* Effect.fail(new ReportFailedError({ message: outcome.left.message }));
+        return yield* Effect.fail(new ReportFailedError({ message: outcome.failure.message }));
       }
-      return { issueUrl: outcome.right };
+      return { issueUrl: outcome.success };
     }).pipe(Effect.mapError(exposeMessage)),
   exits: { ReportConfigError: 1, ReportFailedError: 1 },
   errors: { ReportConfigError: MessageFields, ReportFailedError: MessageFields },

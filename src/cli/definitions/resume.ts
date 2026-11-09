@@ -129,27 +129,28 @@ function runResumeCommand(
   return Effect.gen(function* () {
     const out = outputPortOf(call);
     const configResult = loadConfig(process.cwd());
-    if (Result.isFailure(configResult)) return yield* refuse(1, configErrorText(configResult.left));
-    const config = configResult.right;
+    if (Result.isFailure(configResult))
+      return yield* refuse(1, configErrorText(configResult.failure));
+    const config = configResult.success;
     const { stateRoot } = config;
 
     const telemetryConfigResult = loadTelemetryConfig();
     if (Result.isFailure(telemetryConfigResult)) {
-      return yield* refuse(1, configErrorText(telemetryConfigResult.left));
+      return yield* refuse(1, configErrorText(telemetryConfigResult.failure));
     }
-    const telemetryEnabled = telemetryConfigResult.right.enabled;
+    const telemetryEnabled = telemetryConfigResult.success.enabled;
 
     const resolvedResult = resolveRunRef(call.runRefArg, config, stateRoot);
-    if (Result.isFailure(resolvedResult)) return yield* refuse(1, resolvedResult.left.message);
-    const { namespace, info, crossProject } = resolvedResult.right;
-    const shortNameStr = resolvedResult.right.shortName;
+    if (Result.isFailure(resolvedResult)) return yield* refuse(1, resolvedResult.failure.message);
+    const { namespace, info, crossProject } = resolvedResult.success;
+    const shortNameStr = resolvedResult.success.shortName;
     const qualifiedName = runKey(namespace, shortNameStr);
     // Safe: resolveRunRef already validated the shortName via decodeShortName.
     const shortNameResult = decodeShortName(shortNameStr);
     if (Result.isFailure(shortNameResult)) {
       return yield* refuse(1, `Internal error: resolved shortName "${shortNameStr}" is invalid.`);
     }
-    const shortName = shortNameResult.right;
+    const shortName = shortNameResult.success;
 
     let priorityOverride: NonEmptyArray<ProviderId> | undefined;
     if (call.providerPriority !== undefined) {
@@ -172,18 +173,18 @@ function runResumeCommand(
       );
     }
     const runStatusResult = readRunStatusFile(runStatusPath, runStatusRaw);
-    if (Result.isFailure(runStatusResult)) return yield* refuse(2, runStatusResult.left.message);
-    const runStatus = runStatusResult.right;
+    if (Result.isFailure(runStatusResult)) return yield* refuse(2, runStatusResult.failure.message);
+    const runStatus = runStatusResult.success;
 
     const inspectionResult = yield* Effect.result(inspectResumeOfRun(info, runStatus.hold)).pipe(
       Effect.provide(makeRepoRootedFileSystemLayer(config)),
     );
     if (Result.isFailure(inspectionResult)) {
-      return yield* refuse(2, `Cannot read the run's phases: ${inspectionResult.left.message}`);
+      return yield* refuse(2, `Cannot read the run's phases: ${inspectionResult.failure.message}`);
     }
-    const { decision: decisionResult, completedPhaseCount } = inspectionResult.right;
+    const { decision: decisionResult, completedPhaseCount } = inspectionResult.success;
     if (Result.isFailure(decisionResult)) {
-      const refusal = decisionResult.left;
+      const refusal = decisionResult.failure;
       if (refusal.reason === "review_open") {
         let prUrl: string | null = null;
         try {
@@ -191,8 +192,8 @@ function runResumeCommand(
             readFileSync(join(info.runPath, "publication.json"), "utf8"),
           ) as unknown;
           const pubResult = decodePublication(pubRaw);
-          if (Result.isSuccess(pubResult) && pubResult.right.pullRequestUrl !== undefined) {
-            prUrl = pubResult.right.pullRequestUrl;
+          if (Result.isSuccess(pubResult) && pubResult.success.pullRequestUrl !== undefined) {
+            prUrl = pubResult.success.pullRequestUrl;
           }
         } catch {
           // no publication.json or unreadable — no pull request to name
@@ -212,7 +213,7 @@ function runResumeCommand(
       return yield* refuse(1, refusal.message);
     }
 
-    const decision = decisionResult.right;
+    const decision = decisionResult.success;
     for (const skippedId of decision.skippedPhaseIds) {
       yield* call.say(`  Skipping ${skippedId} (produced no changes).`);
     }
@@ -222,8 +223,8 @@ function runResumeCommand(
     const planMdPath = join(runPath, "plan.md");
     const planResult = loadPlan(planPath, { run: qualifiedName });
     if (Result.isFailure(planResult))
-      return yield* refuse(2, `Plan error: ${planResult.left.message}`);
-    const plan = planResult.right;
+      return yield* refuse(2, `Plan error: ${planResult.failure.message}`);
+    const plan = planResult.success;
 
     if (call.skipAcceptance) {
       const skipRefusal =
@@ -281,7 +282,7 @@ function runResumeCommand(
 
     const runIdResult = decodeRunId(runStatus.runId);
     if (Result.isFailure(runIdResult)) return yield* refuse(2, `Invalid runId in run-status.json`);
-    const runId = runIdResult.right;
+    const runId = runIdResult.success;
 
     const profiles = config.raw.gateProfiles;
     const gateProfileId = runStatus.gateProfileId ?? Object.keys(profiles)[0] ?? null;
@@ -291,7 +292,7 @@ function runResumeCommand(
       Effect.all({ routing: loadModelRouting(), providerConfig: loadProviderConfig() }),
     ).pipe(Effect.provide(makeRepoRootedFileSystemLayer(config)));
     const { routing: loadedRouting, providerConfig } = Result.isSuccess(routingResult)
-      ? routingResult.right
+      ? routingResult.success
       : { routing: undefined, providerConfig: DEFAULT_PROVIDER_CONFIG };
 
     const routing =
@@ -352,7 +353,7 @@ function runResumeCommand(
     ).pipe(Effect.ensuring(Effect.sync(clearRunInterruptContext)));
 
     if (Result.isFailure(result)) {
-      const { cause: err, followUps } = splitFollowUps(result.left);
+      const { cause: err, followUps } = splitFollowUps(result.failure);
       if (err instanceof AwaitingReviewStopError) {
         const answer: RunAnswer = { qualifiedName, crossProject, outcome: stoppedOutcome(err) };
         return answer;
@@ -394,7 +395,7 @@ function runResumeCommand(
       );
     }
 
-    const execResult = result.right;
+    const execResult = result.success;
     const answer: RunAnswer = {
       qualifiedName,
       crossProject,

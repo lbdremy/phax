@@ -402,8 +402,8 @@ describe("runVibeAgent against a fake vibe", () => {
   ): Promise<AgentInvocationError> => {
     const result = await run(executable, options);
     if (Result.isSuccess(result)) throw new Error("expected the turn to fail");
-    expect(result.left).toBeInstanceOf(AgentInvocationError);
-    return result.left as AgentInvocationError;
+    expect(result.failure).toBeInstanceOf(AgentInvocationError);
+    return result.failure as AgentInvocationError;
   };
   const sessionFailureOf = async (
     executable: string,
@@ -411,8 +411,8 @@ describe("runVibeAgent against a fake vibe", () => {
   ): Promise<AgentSessionFailedError> => {
     const result = await run(executable, options);
     if (Result.isSuccess(result)) throw new Error("expected the turn to fail");
-    expect(result.left).toBeInstanceOf(AgentSessionFailedError);
-    return result.left as AgentSessionFailedError;
+    expect(result.failure).toBeInstanceOf(AgentSessionFailedError);
+    return result.failure as AgentSessionFailedError;
   };
 
   it("answers with the stream's PONG and the export's session id, and keeps both beside each other", async () => {
@@ -422,7 +422,7 @@ describe("runVibeAgent against a fake vibe", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isFailure(result)) return;
-    expect(result.right).toMatchObject({
+    expect(result.success).toMatchObject({
       finalText: "PONG",
       sessionId: VIBE3_SESSION_ID,
       outputPath: transcript,
@@ -511,8 +511,8 @@ describe("runVibeAgent against a fake vibe", () => {
     const securityRefusalOf = async (executable: string, options: AgentRunOptions) => {
       const result = await run(executable, options);
       if (Result.isSuccess(result)) throw new Error("expected the turn to be refused");
-      expect(result.left).toBeInstanceOf(SecurityEnforcementError);
-      return result.left as SecurityEnforcementError;
+      expect(result.failure).toBeInstanceOf(SecurityEnforcementError);
+      return result.failure as SecurityEnforcementError;
     };
     const withAcceptEditsProfile = () => {
       const vibeHome = join(root, "vibe-home");
@@ -643,7 +643,7 @@ describe("runVibeAgent against a fake vibe", () => {
 
       const result = await complete(fake.executable);
 
-      expect(Result.isSuccess(result) && result.right.finalText).toBe("PONG");
+      expect(Result.isSuccess(result) && result.success.finalText).toBe("PONG");
       const turn = fake.invocations().find((line) => line.startsWith("-p ")) ?? "";
       expect(turn).toContain("--agent accept-edits --disabled-tools *");
       expect(turn).toContain(`--workdir ${root}`);
@@ -663,9 +663,9 @@ describe("runVibeAgent against a fake vibe", () => {
 
       expect(Result.isFailure(result)).toBe(true);
       if (Result.isFailure(result)) {
-        expect(result.left).toBeInstanceOf(AgentSessionFailedError);
-        expect(result.left.message).toContain("mistral-vibe session failed (provider-error): ");
-        expect(result.left.message).toContain("no completion answer");
+        expect(result.failure).toBeInstanceOf(AgentSessionFailedError);
+        expect(result.failure.message).toContain("mistral-vibe session failed (provider-error): ");
+        expect(result.failure.message).toContain("no completion answer");
       }
     });
   });
@@ -707,7 +707,7 @@ describe("runVibeAgent against a fake vibe", () => {
       VIBE3_SESSION_ID,
     );
 
-    expect(Result.isSuccess(resumed) && resumed.right.finalText).toBe("DONE");
+    expect(Result.isSuccess(resumed) && resumed.success.finalText).toBe("DONE");
     expect(readFileSync(join(phaseFolder, "output.vibe-export", "export.json"), "utf8")).toBe(
       vibe3ExportText(VIBE3_EXPORT_SHORT),
     );
@@ -770,7 +770,7 @@ describe("runVibeAgent against a fake vibe", () => {
 
     const result = await run(fake.executable);
 
-    expect(Result.isSuccess(result) && result.right.finalText).toBe("PONG");
+    expect(Result.isSuccess(result) && result.success.finalText).toBe("PONG");
   });
 
   it("fails a turn whose export reports a backend error with the provider's own text", async () => {

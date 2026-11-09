@@ -90,10 +90,10 @@ export function extractBaseModel(
     const decoded = decodeVibeBaseModel(fields);
     if (Result.isFailure(decoded)) {
       return Result.fail(
-        `Invalid base model block for alias "${baseAlias}": ${formatParseError(decoded.left)}`,
+        `Invalid base model block for alias "${baseAlias}": ${formatParseError(decoded.failure)}`,
       );
     }
-    return Result.succeed(decoded.right);
+    return Result.succeed(decoded.success);
   }
 
   return Result.fail(`Base model block with alias "${baseAlias}" not found in config`);

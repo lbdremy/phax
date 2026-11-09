@@ -29,7 +29,7 @@ const VALID = `## What was corrected
 const defectsOf = (markdown: string): readonly string[] => {
   const result = validateInteractiveHandoff(markdown);
   if (Result.isSuccess(result)) throw new Error("expected defects");
-  return result.left;
+  return result.failure;
 };
 
 describe("validateInteractiveHandoff", () => {

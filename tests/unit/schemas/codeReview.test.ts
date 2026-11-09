@@ -21,8 +21,8 @@ const answer = (findings: readonly unknown[]): unknown => ({ $schema: STAMP, fin
 
 function accept(parsed: unknown) {
   const result = readCodeReviewAnswer(parsed);
-  if (Result.isFailure(result)) throw new Error(`refused: ${result.left}`);
-  return result.right;
+  if (Result.isFailure(result)) throw new Error(`refused: ${result.failure}`);
+  return result.success;
 }
 
 describe("the code-review answer contract", () => {
@@ -91,7 +91,7 @@ describe("the code-review answer contract", () => {
     const result = readCodeReviewAnswer(parsed);
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      for (const word of mentions) expect(result.left).toContain(word);
+      for (const word of mentions) expect(result.failure).toContain(word);
     }
   });
 
@@ -99,7 +99,7 @@ describe("the code-review answer contract", () => {
     const result = readCodeReviewAnswer({ version: 1, findings: [] });
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
-      expect(result.left).toMatch(/^\$schema: is missing; version: is unexpected/);
+      expect(result.failure).toMatch(/^\$schema: is missing; version: is unexpected/);
     }
   });
 });

@@ -192,14 +192,14 @@ describe("a failed phase session and its refused record", { timeout: 30_000 }, (
 
     expect(Result.isFailure(result)).toBe(true);
     if (!Result.isFailure(result)) return;
-    expect(result.left).toBeInstanceOf(FailureWithFollowUpsError);
-    expect(exitCodeForError(result.left)).toBe(5);
+    expect(result.failure).toBeInstanceOf(FailureWithFollowUpsError);
+    expect(exitCodeForError(result.failure)).toBe(5);
 
     // The refusal never reached stderr ahead of the failure.
     const written = stderr.mock.calls.map(([chunk]) => String(chunk)).join("");
     expect(written).not.toContain("records destination refused");
 
-    const { cause, followUps } = splitFollowUps(result.left);
+    const { cause, followUps } = splitFollowUps(result.failure);
     expect(cause).toBeInstanceOf(AgentSessionFailedError);
     const printed = [
       ...renderSessionFailure(cause as AgentSessionFailedError, null),

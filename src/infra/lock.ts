@@ -35,7 +35,7 @@ async function readLockFile(path: string): Promise<LockFile | undefined> {
   try {
     const content = await readFile(path, "utf8");
     const decoded = decodeLockFile(JSON.parse(content) as unknown);
-    return Result.isSuccess(decoded) ? decoded.right : undefined;
+    return Result.isSuccess(decoded) ? decoded.success : undefined;
   } catch {
     return undefined;
   }

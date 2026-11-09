@@ -201,8 +201,8 @@ function protectedPathsError(
     if (problem !== undefined) return refuse(`protectedPaths[${index}]: ${problem}`);
   }
   const submodules = readSubmodulePaths(gitRoot, configPath);
-  if (Result.isFailure(submodules)) return submodules.left;
-  const conflict = submoduleConflict(declared as readonly string[], submodules.right);
+  if (Result.isFailure(submodules)) return submodules.failure;
+  const conflict = submoduleConflict(declared as readonly string[], submodules.success);
   if (conflict !== undefined) {
     return refuse(
       `protectedPaths[${conflict.index}]: ${JSON.stringify(conflict.glob)} is inside the submodule ${conflict.submodule}`,
@@ -250,7 +250,7 @@ function partialCommandsError(raw: unknown, configPath: string): ConfigValidatio
           if (typeof command !== "string") continue;
           const parsed = parsePartialCommand(command, variant);
           if (Result.isFailure(parsed)) {
-            return refuse(`${path}.${variant}: ${describePartialRefusal(parsed.left)}`);
+            return refuse(`${path}.${variant}: ${describePartialRefusal(parsed.failure)}`);
           }
         }
       }
@@ -358,12 +358,12 @@ function readUserOverlay(
   if (Result.isFailure(decoded)) {
     return Result.fail(
       new ConfigValidationError({
-        message: `Invalid user config at "${filePath}":\n${formatConfigParseError(raw, decoded.left)}`,
+        message: `Invalid user config at "${filePath}":\n${formatConfigParseError(raw, decoded.failure)}`,
         path: filePath,
       }),
     );
   }
-  return Result.succeed(decoded.right);
+  return Result.succeed(decoded.success);
 }
 
 export interface ConfigSources {
@@ -500,23 +500,23 @@ export function loadConfig(
   if (Result.isFailure(decoded)) {
     return Result.fail(
       new ConfigValidationError({
-        message: `Invalid phax.json at "${configPath}":\n${formatConfigParseError(raw, decoded.left)}`,
+        message: `Invalid phax.json at "${configPath}":\n${formatConfigParseError(raw, decoded.failure)}`,
         path: configPath,
       }),
     );
   }
 
-  const projectConfig = decoded.right;
+  const projectConfig = decoded.success;
 
   const globalUserPath = join(homedir(), ".phax", "config.json");
   const globalUserResult = readUserOverlay(globalUserPath);
-  if (Result.isFailure(globalUserResult)) return Result.fail(globalUserResult.left);
-  const globalUser = globalUserResult.right;
+  if (Result.isFailure(globalUserResult)) return Result.fail(globalUserResult.failure);
+  const globalUser = globalUserResult.success;
 
   const localUserPath = localUserConfigPath(configPath);
   const localUserResult = readUserOverlay(localUserPath);
-  if (Result.isFailure(localUserResult)) return Result.fail(localUserResult.left);
-  const localUser = localUserResult.right;
+  if (Result.isFailure(localUserResult)) return Result.fail(localUserResult.failure);
+  const localUser = localUserResult.success;
 
   const config = mergeConfigLayers({
     project: projectConfig,
