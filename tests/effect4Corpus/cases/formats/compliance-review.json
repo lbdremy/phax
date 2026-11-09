@@ -1124,7 +1124,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "perPhase[0].phaseId: Expected a string at least 1 character(s) long, actual \"\""
+          "refusal": "perPhase[0].phaseId: Expected a non empty string, actual \"\""
         }
       }
     ],
@@ -1389,7 +1389,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "perPhase[0].phaseId: Expected a string at least 1 character(s) long, actual \"\""
+          "refusal": "perPhase[0].phaseId: Expected a non empty string, actual \"\""
         }
       }
     ]

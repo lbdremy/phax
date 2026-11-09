@@ -400,7 +400,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "  providers.claude-code.executable: Expected a string at least 1 character(s) long, actual \"\""
+        "refusal": "  providers.claude-code.executable: Expected a non empty string, actual \"\""
       }
     },
     {

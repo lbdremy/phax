@@ -59,6 +59,13 @@ const cases: ReadonlyArray<{
     refusals: [{ kind: "invalid-type", path: [], expected: "an array", actual: 1, message: null }],
   },
   {
+    // move: Effect 3 `Expected readonly [string, ...string[]], actual 1`. A tuple with a rest
+    // element is an array to its reader.
+    name: "a non-empty array given a number",
+    error: refused(Schema.NonEmptyArray(Schema.String), 1),
+    refusals: [{ kind: "invalid-type", path: [], expected: "an array", actual: 1, message: null }],
+  },
+  {
     // move: Effect 3 `Expected readonly [string, number], actual {"a":1}`.
     name: "a tuple given an object",
     error: refused(Schema.Tuple(Schema.String, Schema.Number), { a: 1 }),
@@ -163,15 +170,23 @@ const cases: ReadonlyArray<{
     ],
   },
   {
-    // Effect 3: `Expected a string at least 1 character(s) long, actual ""`.
+    // A minimum of one keeps phax's Effect 3 words, `a non empty string` (operator, 2026-11-09).
     name: "a minLength filter",
     error: refused(Schema.String.pipe(Schema.minLength(1)), ""),
+    refusals: [
+      { kind: "filter", path: [], expected: "a non empty string", actual: "", message: null },
+    ],
+  },
+  {
+    // Effect 3: `Expected a string at least 2 character(s) long, actual "a"`.
+    name: "a minLength filter above one",
+    error: refused(Schema.String.pipe(Schema.minLength(2)), "a"),
     refusals: [
       {
         kind: "filter",
         path: [],
-        expected: "a string at least 1 character(s) long",
-        actual: "",
+        expected: "a string at least 2 character(s) long",
+        actual: "a",
         message: null,
       },
     ],

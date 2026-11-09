@@ -234,7 +234,10 @@ function labelOf(ast: SchemaAST.AST): string {
 function wholeTypeLabel(ast: SchemaAST.AST): string | undefined {
   const core = lookThrough(ast);
   if (SchemaAST.isTypeLiteral(core)) return "an object";
-  if (SchemaAST.isTupleType(core)) return core.elements.length === 0 ? "an array" : "a tuple";
+  if (SchemaAST.isTupleType(core)) {
+    // A tuple with a rest element (`NonEmptyArray`, `[A, ...A[]]`) is an array to its reader.
+    return core.elements.length === 0 || core.rest.length > 0 ? "an array" : "a tuple";
+  }
   if (SchemaAST.isUnion(core)) {
     return unionText(dedupe(core.types.flatMap(unionLabelParts)), core.types.every(isLiteralAst));
   }
@@ -262,7 +265,14 @@ function lookThrough(ast: SchemaAST.AST): SchemaAST.AST {
 function isLiteralAst(ast: SchemaAST.AST): boolean {
   const core = lookThrough(ast);
   if (SchemaAST.isUnion(core)) return core.types.every(isLiteralAst);
-  return SchemaAST.isLiteral(core) || SchemaAST.isUniqueSymbol(core) || SchemaAST.isEnums(core);
+  // `undefined` reads as a literal beside the others (`"a" | "b" | undefined`), as `null` does
+  // (operator, 2026-11-09).
+  return (
+    SchemaAST.isLiteral(core) ||
+    SchemaAST.isUniqueSymbol(core) ||
+    SchemaAST.isEnums(core) ||
+    SchemaAST.isUndefinedKeyword(core)
+  );
 }
 
 // A keyword's name, in the words Effect 3 prints for it.
@@ -327,7 +337,10 @@ function builtinFilterLabel(ast: SchemaAST.Refinement): string | undefined {
   const bound = jsonSchemaNumbers(ast);
   switch (id) {
     case Schema.MinLengthSchemaId:
-      return withBound(bound.minLength, (n) => `a string at least ${n} character(s) long`);
+      // A minimum of one keeps the words phax printed on Effect 3 (operator, 2026-11-09).
+      return withBound(bound.minLength, (n) =>
+        n === 1 ? "a non empty string" : `a string at least ${n} character(s) long`,
+      );
     case Schema.MaxLengthSchemaId:
       return withBound(bound.maxLength, (n) => `a string at most ${n} character(s) long`);
     case Schema.LengthSchemaId:

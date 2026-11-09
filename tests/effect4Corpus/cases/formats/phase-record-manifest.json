@@ -1638,7 +1638,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "runId: Expected a string at least 1 character(s) long, actual \"\""
+          "refusal": "runId: Expected a non empty string, actual \"\""
         }
       }
     ],
@@ -2038,7 +2038,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "runId: Expected a string at least 1 character(s) long, actual \"\""
+          "refusal": "runId: Expected a non empty string, actual \"\""
         }
       }
     ],
@@ -2754,7 +2754,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "runId: Expected a string at least 1 character(s) long, actual \"\""
+          "refusal": "runId: Expected a non empty string, actual \"\""
         }
       }
     ],
@@ -3450,7 +3450,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "runId: Expected a string at least 1 character(s) long, actual \"\""
+          "refusal": "runId: Expected a non empty string, actual \"\""
         }
       }
     ],
@@ -4140,7 +4140,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "runId: Expected a string at least 1 character(s) long, actual \"\""
+          "refusal": "runId: Expected a non empty string, actual \"\""
         }
       }
     ]
