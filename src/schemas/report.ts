@@ -19,10 +19,11 @@ export function described<S extends Schema.Top>(schema: S, description: string) 
 
 // A line number is at least 1. The JSON Schema says so; phax's decode leaves
 // it to the location's filter, so that a refusal names the location's file.
-const LineNumberSchema = Schema.Int.annotate({
+const LineNumberSchema = Schema.Int.check(
+  Schema.makeFilter(() => true, { toJsonSchema: () => ({ minimum: 1 }) }),
+).annotate({
   identifier: "LineNumber",
   description: "A 1-based line number.",
-  jsonSchema: { type: "integer", minimum: 1 },
 });
 
 const LinesSchema = Schema.NullOr(Schema.Tuple([LineNumberSchema, LineNumberSchema]));
@@ -59,7 +60,8 @@ const ORDERED_LINES =
 export const ReportLocationSchema = Schema.Struct(locationFields)
   .check(
     Schema.makeFilter(linesViolation, {
-      jsonSchema: { description: `A file and the lines in it. ${ORDERED_LINES}` },
+      description: `A file and the lines in it. ${ORDERED_LINES}`,
+      toJsonSchema: () => ({}),
     }),
   )
   .pipe(Schema.annotate({ identifier: "ReportLocation" }));
@@ -73,9 +75,8 @@ export const ReportRelatedLocationSchema = Schema.Struct({
 })
   .check(
     Schema.makeFilter(linesViolation, {
-      jsonSchema: {
-        description: `Another location the finding involves, and why. ${ORDERED_LINES}`,
-      },
+      description: `Another location the finding involves, and why. ${ORDERED_LINES}`,
+      toJsonSchema: () => ({}),
     }),
   )
   .pipe(Schema.annotate({ identifier: "ReportRelatedLocation" }));
@@ -144,7 +145,10 @@ export function uniqueFindingIds<A extends { readonly id: string }, I, R>(
           ? undefined
           : `finding id ${JSON.stringify(duplicate)} is used twice`;
       },
-      { jsonSchema: { description: "Checked by phax's parser: no two findings share an id." } },
+      {
+        description: "Checked by phax's parser: no two findings share an id.",
+        toJsonSchema: () => ({}),
+      },
     ),
   );
 }

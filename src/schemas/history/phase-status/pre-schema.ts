@@ -50,7 +50,7 @@ const BranchNameSchema = Schema.String.check(
   Schema.isMaxLength(255),
   Schema.makeFilter(isSafeBranchName, {
     message: "branch name must not start with '-' or contain whitespace/control characters",
-    jsonSchema: { pattern: "^[^\\x00-\\x20\\x7f-][^\\x00-\\x20\\x7f]*$" },
+    toJsonSchema: () => ({ pattern: "^[^\\x00-\\x20\\x7f-][^\\x00-\\x20\\x7f]*$" }),
   }),
 ).pipe(Schema.brand("BranchName"));
 

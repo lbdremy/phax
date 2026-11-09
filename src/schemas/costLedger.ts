@@ -7,13 +7,14 @@
 // (`readCostLedgerFile`) and writes it with `withSchemaUrl`.
 import { Schema } from "effect";
 import { schemaUrlField } from "./schemaUrl.js";
+import { isExportedPattern } from "./strictString.js";
 
-const PhaseIdSchema = Schema.String.check(Schema.isPattern(/^phase-\d{2}$/)).pipe(
+const PhaseIdSchema = Schema.String.check(isExportedPattern(/^phase-\d{2}$/)).pipe(
   Schema.annotate({ description: "The phase the invocation ran for." }),
 );
 
 const InstantSchema = Schema.String.check(
-  Schema.isPattern(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/),
+  isExportedPattern(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/),
 ).pipe(Schema.annotate({ description: "An ISO-8601 UTC instant." }));
 
 const TokensSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0));

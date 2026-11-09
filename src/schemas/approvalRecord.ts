@@ -1,6 +1,7 @@
 import { Schema, type Types } from "effect";
 import { ApprovedBySchema } from "./approvedBy.js";
 import { schemaUrlField } from "./schemaUrl.js";
+import { isExportedPattern } from "./strictString.js";
 
 const SourceSpecBindingSchema = Schema.Struct({
   path: Schema.NonEmptyString,
@@ -10,7 +11,7 @@ const SourceSpecBindingSchema = Schema.Struct({
 export const ApprovalRecordSchema = Schema.Struct({
   planFingerprint: Schema.NonEmptyString,
   approvedAt: Schema.NonEmptyString,
-  baseline: Schema.NonEmptyString.check(Schema.isPattern(/^[0-9a-f]{40}$/)),
+  baseline: Schema.NonEmptyString.check(isExportedPattern(/^[0-9a-f]{40}$/)),
   sourceSpec: Schema.NullOr(SourceSpecBindingSchema),
 });
 

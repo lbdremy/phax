@@ -5,6 +5,7 @@ import { schemaUrlField } from "./schemaUrl.js";
 import { SafeSessionIdSchema } from "./sessionId.js";
 import { FullCommitShaSchema } from "./status.js";
 import { RecordedSurfaceSchema } from "./surface.js";
+import { isExportedPattern } from "./strictString.js";
 
 /**
  * Full = skeleton plus `output.jsonl`. Skeleton is produced both when the
@@ -114,7 +115,7 @@ export function liftFrozenTokenUsage(usage: FrozenTokenUsage): TokenUsage {
   return { available: true, usage: recorded };
 }
 
-const PhaseIdSchema = Schema.String.check(Schema.isPattern(/^phase-\d{2}$/));
+const PhaseIdSchema = Schema.String.check(isExportedPattern(/^phase-\d{2}$/));
 
 /**
  * The phase's role in an acceptance pair: null when it is in none;
@@ -142,7 +143,7 @@ const RecordClosedBySchema = Schema.Struct({
 const RecordTranscriptSchema = Schema.Union([
   Schema.Struct({
     status: Schema.Literal("captured"),
-    sha256: Schema.String.check(Schema.isPattern(/^[0-9a-f]{64}$/)).pipe(
+    sha256: Schema.String.check(isExportedPattern(/^[0-9a-f]{64}$/)).pipe(
       Schema.annotate({ description: "The sha256 of the transcript copy's bytes." }),
     ),
   }),

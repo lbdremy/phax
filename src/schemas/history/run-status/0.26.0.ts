@@ -6,8 +6,17 @@
 // it as the format's 0.26.0 release.
 import { Schema } from "effect";
 
+// `Schema.isPattern` whose JSON Schema is the RegExp's source, whatever its
+// flags: Effect 4 exports a pattern only for a RegExp with the `u` flag.
+function isExportedPattern(regExp: RegExp, annotations?: Schema.Annotations.Filter) {
+  return Schema.isPattern(regExp, {
+    toJsonSchema: () => ({ pattern: regExp.source }),
+    ...annotations,
+  });
+}
+
 const SchemaUrlSchema = Schema.String.check(
-  Schema.isPattern(
+  isExportedPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/run-status\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
 ).pipe(
@@ -31,7 +40,7 @@ const RunStateSchema = Schema.Union([
 ]);
 
 const HoldPhasesSchema = Schema.NonEmptyArray(
-  Schema.String.check(Schema.isPattern(/^phase-\d{2}$/)),
+  Schema.String.check(isExportedPattern(/^phase-\d{2}$/)),
 );
 
 const RunHoldSchema = Schema.Union([

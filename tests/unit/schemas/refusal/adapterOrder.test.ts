@@ -1,4 +1,4 @@
-import { Effect, Result, Schema, SchemaGetter, SchemaIssue } from "effect";
+import { Result, Schema, SchemaIssue } from "effect";
 import { describe, expect, it } from "vitest";
 import { decodeCodeReviewV0_29_0 } from "../../../../src/schemas/history/code-review/0.29.0.js";
 import { decodeRunStatusV0_26_0 } from "../../../../src/schemas/history/run-status/0.26.0.js";
@@ -50,12 +50,13 @@ function checkOrder(error: Schema.SchemaError, exceptions: ReadonlyArray<Excepti
   expect(refusals.map(({ path }) => path)).toEqual(expectedPaths(formatted, exceptions));
   for (const exception of exceptions) {
     if ("drop" in exception) {
-      // ArrayFormatter has the shallow member's issue; the adapter has none.
-      expect(formatted.some((path) => same(path, exception.drop))).toBe(true);
+      // The adapter has no refusal for the shallow member. (Effect 3's ArrayFormatter
+      // had its issue; Effect 4's formatter reports none either.)
       expect(refusals.some(({ path }) => same(path, exception.drop))).toBe(false);
     } else {
-      // ArrayFormatter has one issue per member; the adapter has one refusal.
-      expect(formatted.filter((path) => same(path, exception.collapse)).length).toBeGreaterThan(1);
+      // The adapter has one refusal for the union. (Effect 3's ArrayFormatter had one
+      // issue per member; Effect 4's formatter reports a literal union once.)
+      expect(formatted.filter((path) => same(path, exception.collapse)).length).toBeGreaterThan(0);
       const at = refusals.filter(({ path }) => same(path, exception.collapse));
       expect(at).toHaveLength(1);
       expect(at[0]).toMatchObject(exception.into);
@@ -232,13 +233,11 @@ describe("refusalsOf on phax's real decoders", () => {
 
 describe("refusalsOf on a Forbidden issue", () => {
   it("gives an invalid-value refusal, never a crash", () => {
-    const Async = Schema.String.pipe(
-      Schema.decodeTo(Schema.String, {
-        decode: SchemaGetter.transformEffect((s: string) => Effect.as(Effect.sleep("1 millis"), s)),
-        encode: SchemaGetter.passthrough(),
-      }),
+    // Effect 4's synchronous decoders die on an asynchronous step rather than
+    // report it, so the Forbidden issue is built as Effect builds one.
+    const error = new Schema.SchemaError(
+      new SchemaIssue.Forbidden(undefined, "x", { reportInput: true }),
     );
-    const error = refused(Schema.decodeUnknownResult(Async, { reportInput: true })("x"));
     expect(error.issue).toBeInstanceOf(SchemaIssue.Forbidden);
     expect(refusalsOf(error)).toEqual([
       {

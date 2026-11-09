@@ -8,8 +8,17 @@
 // cannot move it.
 import { Schema } from "effect";
 
+// `Schema.isPattern` whose JSON Schema is the RegExp's source, whatever its
+// flags: Effect 4 exports a pattern only for a RegExp with the `u` flag.
+function isExportedPattern(regExp: RegExp, annotations?: Schema.Annotations.Filter) {
+  return Schema.isPattern(regExp, {
+    toJsonSchema: () => ({ pattern: regExp.source }),
+    ...annotations,
+  });
+}
+
 const FirstReadingSchemaUrlSchema = Schema.String.check(
-  Schema.isPattern(
+  isExportedPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/first-reading\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
 ).pipe(
@@ -19,7 +28,7 @@ const FirstReadingSchemaUrlSchema = Schema.String.check(
   }),
 );
 
-const PhaseIdSchema = Schema.String.check(Schema.isPattern(/^phase-\d{2}$/));
+const PhaseIdSchema = Schema.String.check(isExportedPattern(/^phase-\d{2}$/));
 
 /** A 0.26.0 `first-reading` document. Exactly these keys; any other is refused. */
 export const FirstReadingV0_26_0Schema = Schema.Struct({

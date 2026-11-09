@@ -1,6 +1,6 @@
 import { Schema, type Types } from "effect";
 import { schemaUrlField } from "./schemaUrl.js";
-import { NonEmptyString } from "./strictString.js";
+import { NonEmptyString, isExportedPattern } from "./strictString.js";
 import { TestLineSchema } from "./testLine.js";
 
 /** phax's effort vocabulary: a plan phase's `effort`, and a bound's `effort.min` and `effort.max`. */
@@ -19,7 +19,7 @@ export const PlanEffortSchema = Schema.Literals([
 /** How a phase runs: headless, or kept open for a person (interactive-phases). */
 export const PhaseModeSchema = Schema.Literals(["headless", "interactive"]);
 
-const PhaseIdSchema = Schema.String.check(Schema.isPattern(/^phase-\d{2}$/));
+const PhaseIdSchema = Schema.String.check(isExportedPattern(/^phase-\d{2}$/));
 
 /**
  * A phase's acceptance tests (acceptance-tests): the phase that passes them and

@@ -10,8 +10,17 @@
 // src/schemas/testLine.ts or questions.ts cannot move it.
 import { Schema } from "effect";
 
+// `Schema.isPattern` whose JSON Schema is the RegExp's source, whatever its
+// flags: Effect 4 exports a pattern only for a RegExp with the `u` flag.
+function isExportedPattern(regExp: RegExp, annotations?: Schema.Annotations.Filter) {
+  return Schema.isPattern(regExp, {
+    toJsonSchema: () => ({ pattern: regExp.source }),
+    ...annotations,
+  });
+}
+
 const SchemaUrlSchema = Schema.String.check(
-  Schema.isPattern(
+  isExportedPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/plan-document\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
 ).pipe(
@@ -33,7 +42,7 @@ const EffortSchema = Schema.Literals([
   "ultra",
 ]);
 
-const PhaseIdSchema = Schema.String.check(Schema.isPattern(/^phase-\d{2}$/));
+const PhaseIdSchema = Schema.String.check(isExportedPattern(/^phase-\d{2}$/));
 
 // ── test lines
 
@@ -46,10 +55,10 @@ const TRIMMED = /^(?!\s)[\s\S]*\S$/;
 
 const oneLineText = (coordinate: string) =>
   Schema.String.check(
-    Schema.isPattern(ONE_LINE, {
+    isExportedPattern(ONE_LINE, {
       message: `a ${coordinate} is one line: no line break, U+2028, U+2029, U+0085 or other control character`,
     }),
-    Schema.isPattern(TRIMMED, {
+    isExportedPattern(TRIMMED, {
       message: `a ${coordinate} is non-empty and trimmed: no leading or trailing whitespace`,
     }),
   );
@@ -60,14 +69,14 @@ const GuaranteeSchema = oneLineText("guarantee").annotate({
 
 const OracleSchema = oneLineText("oracle")
   .check(
-    Schema.isPattern(/^(?![\s\S]* — )/, {
+    isExportedPattern(/^(?![\s\S]* — )/, {
       message: "an oracle never contains ' — ' (a space, an em dash, a space)",
     }),
-    Schema.isPattern(/^(?!— )/, {
+    isExportedPattern(/^(?!— )/, {
       message:
         "an oracle never starts with '— ' (an em dash and a space): it would read back as another line",
     }),
-    Schema.isPattern(/^(?![\s\S]* ·$)/, {
+    isExportedPattern(/^(?![\s\S]* ·$)/, {
       message:
         "an oracle never ends with ' ·' (a space and a middle dot): it would read back as another line",
     }),
@@ -81,11 +90,11 @@ const OracleSchema = oneLineText("oracle")
 
 const CriterionSchema = Schema.String.check(
   // eslint-disable-next-line no-control-regex
-  Schema.isPattern(/^[^\s`\x00-\x1F\x7F-\x9F]+$/, {
+  isExportedPattern(/^[^\s`\x00-\x1F\x7F-\x9F]+$/, {
     message:
       "a criterion is a run of non-whitespace characters holding no backtick and no control character",
   }),
-  Schema.isPattern(/^(?!(?:oracle|in-phase)$)/, {
+  isExportedPattern(/^(?!(?:oracle|in-phase)$)/, {
     message: "a criterion is neither 'oracle' nor 'in-phase', the loop values",
   }),
 ).pipe(
@@ -150,7 +159,7 @@ const ExtractedRunSchema = Schema.Struct({
 // A question or option id: a run of characters without whitespace, so the §9
 // format's `### <id> — …`, `- <id> — …`, Recommendation and Decision lines
 // read it back.
-const QuestionIdSchema = Schema.String.check(Schema.isPattern(/^\S+$/)).pipe(
+const QuestionIdSchema = Schema.String.check(isExportedPattern(/^\S+$/)).pipe(
   Schema.annotate({ description: "An id: a run of characters without whitespace." }),
 );
 
@@ -170,12 +179,12 @@ const OpenQuestionSchema = Schema.Struct({
 
 type OpenQuestion = Schema.Schema.Type<typeof OpenQuestionSchema>;
 
-const DateSchema = Schema.String.check(Schema.isPattern(/^\d{4}-\d{2}-\d{2}$/)).pipe(
+const DateSchema = Schema.String.check(isExportedPattern(/^\d{4}-\d{2}-\d{2}$/)).pipe(
   Schema.annotate({ description: "A date, YYYY-MM-DD." }),
 );
 
 const TimestampSchema = Schema.String.check(
-  Schema.isPattern(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/),
+  isExportedPattern(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/),
 ).pipe(Schema.annotate({ description: "An ISO-8601 UTC timestamp." }));
 
 /**
@@ -204,7 +213,7 @@ const PlanDecidedVerdictSchema = Schema.Struct({
   by: Schema.Struct({ kind: Schema.Literal("operator"), name: Schema.NonEmptyString }),
   at: TimestampSchema,
   revised: Schema.Array(Schema.NonEmptyString),
-  phase: Schema.String.check(Schema.isPattern(/^phase-\d{2}$/)),
+  phase: Schema.String.check(isExportedPattern(/^phase-\d{2}$/)),
 });
 
 const PlanVerdictSchema = Schema.Union([PlanDecidedVerdictSchema, LiftedVerdictSchema]);
@@ -442,14 +451,13 @@ type PlanDocumentLineage =
 
 // The lineage check: a boolean `completesSpec` beside a `sourceSpec` path,
 // null beside `sourceSpec: null`; then the question checks.
-export const PlanDocumentV0_28_0Schema = PlanDocumentStruct.check(
-  Schema.makeFilter(
+export const PlanDocumentV0_28_0Schema = PlanDocumentStruct.pipe(Schema.refine(
     (doc: PlanDocumentStructType): doc is PlanDocumentStructType & PlanDocumentLineage =>
       (doc.sourceSpec === null) === (doc.completesSpec === null),
     {
       message:
         "completesSpec is a boolean beside a sourceSpec path and null beside sourceSpec: null",
-      jsonSchema: {
+      toJsonSchema: () => ({
         allOf: [
           {
             oneOf: [
@@ -463,10 +471,9 @@ export const PlanDocumentV0_28_0Schema = PlanDocumentStruct.check(
             ],
           },
         ],
-      },
+      }),
     },
-  ),
-  Schema.makeFilter(
+  )).check(Schema.makeFilter(
     (doc) =>
       violationIssue(
         firstQuestionViolation(
@@ -476,12 +483,11 @@ export const PlanDocumentV0_28_0Schema = PlanDocumentStruct.check(
         ),
       ),
     {
-      jsonSchema: {
+      toJsonSchema: () => ({
         description: `Checked by phax's parser, not by this JSON Schema, in the preamble: ${QUESTION_CHECKS_DESCRIPTION}; and a decided verdict's \`phase\` names one of the plan's phases.`,
-      },
+      }),
     },
-  ),
-);
+  ));
 
 export type PlanDocumentV0_28_0 = Schema.Schema.Type<typeof PlanDocumentV0_28_0Schema>;
 

@@ -6,9 +6,9 @@
 // (`readFirstReadingAnswer`) and never writes it back as a document.
 import { Schema } from "effect";
 import { answerSchemaUrlField } from "./answerStamp.js";
-import { NonEmptyString } from "./strictString.js";
+import { NonEmptyString, isExportedPattern } from "./strictString.js";
 
-const PhaseIdSchema = Schema.String.check(Schema.isPattern(/^phase-\d{2}$/));
+const PhaseIdSchema = Schema.String.check(isExportedPattern(/^phase-\d{2}$/));
 
 /**
  * A `first-reading` document: the pattern the phase introduces, the earlier

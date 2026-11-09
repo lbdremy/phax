@@ -4,8 +4,17 @@
 // it; the schemas package lists it as the format's 0.17.0 release.
 import { Schema } from "effect";
 
+// `Schema.isPattern` whose JSON Schema is the RegExp's source, whatever its
+// flags: Effect 4 exports a pattern only for a RegExp with the `u` flag.
+function isExportedPattern(regExp: RegExp, annotations?: Schema.Annotations.Filter) {
+  return Schema.isPattern(regExp, {
+    toJsonSchema: () => ({ pattern: regExp.source }),
+    ...annotations,
+  });
+}
+
 const SchemaUrlSchema = Schema.String.check(
-  Schema.isPattern(
+  isExportedPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/plan-document\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
 ).pipe(
@@ -28,7 +37,7 @@ const EffortSchema = Schema.Literals([
 ]);
 
 const ExtractedPhaseFields = {
-  id: Schema.String.check(Schema.isPattern(/^phase-\d{2}$/)),
+  id: Schema.String.check(isExportedPattern(/^phase-\d{2}$/)),
   model: Schema.NonEmptyString,
   effort: EffortSchema,
   planMarkdownAnchor: Schema.NonEmptyString,

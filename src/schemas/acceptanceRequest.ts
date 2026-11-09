@@ -8,8 +8,9 @@
 import { Schema } from "effect";
 import { schemaUrlField } from "./schemaUrl.js";
 import { FullCommitShaSchema } from "./status.js";
+import { isExportedPattern } from "./strictString.js";
 
-const PhaseIdSchema = Schema.String.check(Schema.isPattern(/^phase-\d{2}$/));
+const PhaseIdSchema = Schema.String.check(isExportedPattern(/^phase-\d{2}$/));
 
 const filesSchema = Schema.NonEmptyArray(Schema.NonEmptyString).annotate({
   description:

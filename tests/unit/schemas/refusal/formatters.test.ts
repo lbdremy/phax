@@ -161,14 +161,14 @@ describe("formatPlanDocumentViolation", () => {
   });
 });
 
-describe("the source", () => {
-  function sources(dir: string): string[] {
-    return readdirSync(dir).flatMap((name) => {
-      const path = join(dir, name);
-      return statSync(path).isDirectory() ? sources(path) : path.endsWith(".ts") ? [path] : [];
-    });
-  }
+function sources(dir: string): string[] {
+  return readdirSync(dir).flatMap((name) => {
+    const path = join(dir, name);
+    return statSync(path).isDirectory() ? sources(path) : path.endsWith(".ts") ? [path] : [];
+  });
+}
 
+describe("the source", () => {
   it("calls no ArrayFormatter and reads no Effect issue message outside the adapter", () => {
     const root = join(import.meta.dirname, "../../../..");
     const trees = [

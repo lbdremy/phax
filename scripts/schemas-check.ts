@@ -7,15 +7,21 @@
 // package.json version while a `next` snapshot exists — a drifted stamp is
 // reported by format), packages/schemas/history.lock.json
 // against the bytes of every frozen module under phax's src/schemas/history/
-// (keyed by repo-relative path), and every format's JSON Schema snapshots
+// (keyed by repo-relative path), every format's JSON Schema snapshots
 // under packages/schemas/snapshots/<format id>/ against the schema its
-// current decoder renders. `--write` is `applySchemasWrite(root)`, which the
-// release cut (scripts/release-cut.ts) also runs on the tree it cuts.
+// current decoder renders, judged against a released snapshot by the
+// format's corpus documents (packages/schemas/build/equivalence.ts), and
+// packages/schemas/shipped-json.json, the JSON Schemas the package ships,
+// against the same rendering. `--write` is
+// `applySchemasWrite(root)`, which the release cut (scripts/release-cut.ts)
+// also runs on the tree it cuts; it sets the shipped entry of a format whose
+// `next` snapshot it records to the generated schema.
 // Check: pnpm exec tsx scripts/schemas-check.ts
 // Write: pnpm exec tsx scripts/schemas-check.ts --write
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { judgeEquivalence } from "../packages/schemas/build/equivalence.js";
 import {
   WRITE_COMMAND,
   currentStamps,
@@ -28,7 +34,13 @@ import {
 import {
   FORMAT_DEFINITIONS,
   JSON_SCHEMA_FORMATS,
+  RECORD_MANIFEST_MEMBERS,
+  SHIPPED_JSON_PATH,
+  parseShippedJson,
   renderJsonSchemas,
+  renderShippedJson,
+  shipsGenerated,
+  type ShippedJson,
 } from "../packages/schemas/build/jsonSchemas.js";
 import {
   SNAPSHOTS_DIR,
@@ -39,6 +51,7 @@ import {
   type SnapshotFormat,
 } from "../packages/schemas/build/snapshots.js";
 import { FORMAT_IDS, type FormatId } from "../src/schemas/schemaUrl.js";
+import { isCaseFile, parseCorpusFile } from "../tests/effect4Corpus/corpus.js";
 
 const PACKAGE_DIR = "packages/schemas";
 const GENERATED_INDEX = "src/generated/index.ts";
@@ -67,6 +80,25 @@ export interface SchemasState {
   readonly snapshotRootFiles: ReadonlyArray<string>;
   /** Every format id's current shape name and rendered JSON Schema. */
   readonly formats: ReadonlyArray<SnapshotFormat>;
+  /**
+   * Format id (and `record-manifest`) → its corpus documents, the inputs of
+   * tests/effect4Corpus/cases/formats/<id>.json, which judge a generated
+   * schema against a released one. An injected state may leave them out.
+   */
+  readonly documents?: ReadonlyMap<string, ReadonlyArray<unknown>>;
+  /**
+   * packages/schemas/shipped-json.json, with every rendered file of the JSON
+   * Schema table it is judged against. An injected state may leave it out;
+   * the check then does not read it.
+   */
+  readonly shipped?: ShippedState;
+}
+
+export interface ShippedState {
+  /** The parsed file, or why it could not be read. */
+  readonly json: ShippedJson | string;
+  /** File name → what `renderJsonSchemas` renders for the table entry. */
+  readonly generated: ReadonlyMap<string, string>;
 }
 
 function readSnapshots(root: string): Pick<SchemasState, "snapshots" | "snapshotRootFiles"> {
@@ -88,8 +120,10 @@ function readSnapshots(root: string): Pick<SchemasState, "snapshots" | "snapshot
   return { snapshots, snapshotRootFiles };
 }
 
-function renderFormats(): SnapshotFormat[] {
-  const { files, failures } = renderJsonSchemas(JSON_SCHEMA_FORMATS);
+function renderFormats(
+  files: ReadonlyMap<string, string>,
+  failures: ReturnType<typeof renderJsonSchemas>["failures"],
+): SnapshotFormat[] {
   return FORMAT_IDS.map((id): SnapshotFormat => {
     const content = files.get(`${id}.schema.json`);
     const failure = failures.find((entry) => entry.format === id);
@@ -112,6 +146,34 @@ function listFiles(root: string): string[] {
   );
 }
 
+const CORPUS_FORMATS_DIR = "tests/effect4Corpus/cases/formats";
+/** The repository this script belongs to. */
+const OWN_ROOT = join(fileURLToPath(import.meta.url), "../..");
+
+/**
+ * Format id → the input of every case in its corpus file (current and every
+ * frozen shape), read through the corpus's own loader; `record-manifest` →
+ * the union of its members'. A format without a file has no entry.
+ */
+export function readCorpusDocuments(repoRoot: string): ReadonlyMap<string, ReadonlyArray<unknown>> {
+  const documents = new Map<string, ReadonlyArray<unknown>>();
+  for (const id of FORMAT_IDS) {
+    const path = join(repoRoot, CORPUS_FORMATS_DIR, `${id}.json`);
+    if (!existsSync(path)) continue;
+    const file = parseCorpusFile(readFileSync(path, "utf8"), path);
+    if (isCaseFile(file)) continue;
+    documents.set(
+      id,
+      [...file.current, ...Object.values(file.shapes).flat()].map(({ input }) => input),
+    );
+  }
+  documents.set(
+    "record-manifest",
+    RECORD_MANIFEST_MEMBERS.flatMap((member) => documents.get(member) ?? []),
+  );
+  return documents;
+}
+
 export function readSchemasState(repoRoot: string): SchemasState {
   const packageDir = join(repoRoot, PACKAGE_DIR);
   const rootManifest = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8")) as {
@@ -125,6 +187,8 @@ export function readSchemasState(repoRoot: string): SchemasState {
     historyFiles.set(relative(repoRoot, file).split("\\").join("/"), readFileSync(file));
   }
   const snapshots = readSnapshots(join(repoRoot, SNAPSHOTS_DIR));
+  const rendered = renderJsonSchemas(JSON_SCHEMA_FORMATS);
+  const shippedPath = join(repoRoot, SHIPPED_JSON_PATH);
   return {
     packageVersion: rootManifest.version,
     firstSupportedRelease: firstSupportedRelease(snapshots.snapshots),
@@ -134,7 +198,19 @@ export function readSchemasState(repoRoot: string): SchemasState {
     lock: existsSync(lockPath) ? (JSON.parse(readFileSync(lockPath, "utf8")) as HistoryLock) : {},
     historyFiles,
     ...snapshots,
-    formats: renderFormats(),
+    formats: renderFormats(rendered.files, rendered.failures),
+    // The corpus judges this process's renderings, so it is read beside this
+    // script, like the schemas it renders, whatever tree is checked.
+    documents: readCorpusDocuments(OWN_ROOT),
+    // A tree without shipped-json.json (a partial copy) is not checked for it.
+    ...(existsSync(shippedPath)
+      ? {
+          shipped: {
+            json: parseShippedJson(readFileSync(shippedPath, "utf8")),
+            generated: rendered.files,
+          },
+        }
+      : {}),
   };
 }
 
@@ -273,7 +349,105 @@ export function checkSchemas(state: SchemasState): string[] {
         : `✗ ${LOCK_PATH} names ${path}, which does not exist — restore the module`,
     );
   }
-  return [...findings, ...checkSnapshots(state)];
+  return [...findings, ...checkSnapshots(state), ...shippedFindings(state)];
+}
+
+/** The format ids whose current shape `snapshots` records as `next`. */
+function nextFormatsOf(
+  snapshots: ReadonlyMap<string, ReadonlyMap<string, string>>,
+): ReadonlySet<string> {
+  const { names } = currentShapeNames(snapshots);
+  return new Set(FORMAT_IDS.filter((id) => names[id] === "next"));
+}
+
+function parsedOrNull(content: string): unknown {
+  try {
+    return JSON.parse(content);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * One finding per shipped-json.json entry the build would ship wrong: a table
+ * file without an entry, an entry no table file names, an entry of a format
+ * that ships its generated schema (`shipsGenerated`) that is not that schema
+ * byte for byte, and an entry of any other format the equivalence judge does
+ * not find equivalent to its generated schema over the format's corpus
+ * documents.
+ */
+function shippedFindings(state: SchemasState): string[] {
+  const { shipped } = state;
+  if (shipped === undefined) return [];
+  if (typeof shipped.json === "string") {
+    return [`✗ ${SHIPPED_JSON_PATH} cannot be read: ${shipped.json}`];
+  }
+  const json = shipped.json;
+  const nextFormats = nextFormatsOf(state.snapshots);
+  const findings: string[] = [];
+  for (const entry of JSON_SCHEMA_FORMATS) {
+    const content = json[entry.fileName];
+    const generated = shipped.generated.get(entry.fileName);
+    if (content === undefined) {
+      findings.push(`✗ ${SHIPPED_JSON_PATH} has no ${entry.fileName} entry — run ${WRITE_COMMAND}`);
+      continue;
+    }
+    // A format that failed to render is reported by the snapshot check.
+    if (generated === undefined) continue;
+    if (shipsGenerated(entry.format, nextFormats)) {
+      if (content !== generated) {
+        findings.push(
+          `✗ ${SHIPPED_JSON_PATH}: ${entry.fileName} is not the generated schema its next ` +
+            `snapshot ships — run ${WRITE_COMMAND}`,
+        );
+      }
+      continue;
+    }
+    const verdict = judgeEquivalence({
+      released: parsedOrNull(content),
+      generated: parsedOrNull(generated),
+      documents: state.documents?.get(entry.format) ?? [],
+    });
+    if (!verdict.equivalent) {
+      findings.push(
+        `✗ ${SHIPPED_JSON_PATH}: ${entry.fileName} is not equivalent to the generated schema ` +
+          `(${verdict.disagreements.length} corpus documents judged differently` +
+          `${verdict.problem === null ? "" : `; ${verdict.problem}`}) — record the format's next ` +
+          `snapshot (run ${WRITE_COMMAND})`,
+      );
+    }
+  }
+  const fileNames = new Set(JSON_SCHEMA_FORMATS.map(({ fileName }) => fileName));
+  for (const fileName of Object.keys(json)) {
+    if (!fileNames.has(fileName)) {
+      findings.push(
+        `✗ ${SHIPPED_JSON_PATH} names ${fileName}, which no format ships — run ${WRITE_COMMAND}`,
+      );
+    }
+  }
+  return findings;
+}
+
+/**
+ * shipped-json.json once `--write` has run, given the formats whose current
+ * shape is `next` after its snapshot writes: an entry per table file, the
+ * generated schema for a format that ships it or had no entry, the entry
+ * kept otherwise. Undefined when the state has no readable shipped-json.json.
+ */
+function shippedAfter(
+  state: SchemasState,
+  nextFormats: ReadonlySet<string>,
+): ShippedJson | undefined {
+  const { shipped } = state;
+  if (shipped === undefined || typeof shipped.json === "string") return undefined;
+  const json = shipped.json;
+  const after: Record<string, string> = {};
+  for (const entry of JSON_SCHEMA_FORMATS) {
+    const kept = shipsGenerated(entry.format, nextFormats) ? undefined : json[entry.fileName];
+    const content = kept ?? shipped.generated.get(entry.fileName) ?? json[entry.fileName];
+    if (content !== undefined) after[entry.fileName] = content;
+  }
+  return after;
 }
 
 /** True when `path` is a frozen module under a directory that names no current format id. */
@@ -297,10 +471,12 @@ function withoutRetired(
  * lock with missing entries added and the entries of a retired format's
  * deleted modules dropped (a directory under src/schemas/history/ that names
  * no current format id), and the snapshot files to write (repo-relative path →
- * content) or remove. The index names the current shapes the snapshots record
- * once those writes and removals are applied, so one `--write` leaves the
- * check green. `mismatched` lists the lock entries it refused to change; when
- * it is non-empty nothing is written.
+ * content) or remove, then shipped-json.json, whose entry of a format that is
+ * `next` once those apply (for record-manifest, one of its members) becomes
+ * its generated schema. The index names the current shapes the snapshots
+ * record once those writes and removals are applied, so one `--write` leaves
+ * the check green. `mismatched` lists the lock entries it refused to change;
+ * when it is non-empty nothing is written.
  */
 export function writeSchemas(state: SchemasState): {
   generatedIndex: string;
@@ -309,13 +485,17 @@ export function writeSchemas(state: SchemasState): {
   mismatched: ReadonlyArray<string>;
   snapshotWrites: ReadonlyMap<string, string>;
   snapshotRemovals: ReadonlyArray<string>;
+  /** shipped-json.json's content, when the state reads it. */
+  shippedJson: string | undefined;
 } {
   const { lock, mismatched } = refreshLock(
     withoutRetired(state.lock, state.historyFiles),
     state.historyFiles,
   );
   const { writes, removals } = planSnapshotWrites(state);
-  const currentShapes = currentShapeNames(snapshotsAfter(state, writes, removals)).names;
+  const snapshots = snapshotsAfter(state, writes, removals);
+  const currentShapes = currentShapeNames(snapshots).names;
+  const shipped = shippedAfter(state, nextFormatsOf(snapshots));
   return {
     generatedIndex: generatedIndexOf(state, currentShapes),
     releaseModule: releaseModuleOf(state, currentShapes),
@@ -323,6 +503,7 @@ export function writeSchemas(state: SchemasState): {
     mismatched,
     snapshotWrites: writes,
     snapshotRemovals: removals,
+    shippedJson: shipped === undefined ? undefined : renderShippedJson(shipped),
   };
 }
 
@@ -337,7 +518,8 @@ function writeIfChanged(repoRoot: string, path: string, content: string): boolea
 
 /**
  * Applies `writeSchemas` to the tree at `repoRoot`: the generated index,
- * phax's release module, the lock, and the snapshot writes and removals.
+ * phax's release module, the lock, the snapshot writes and removals, and
+ * shipped-json.json.
  * When a frozen module differs from its lock entry it writes nothing and
  * returns those paths in `mismatched`. `changed` lists, sorted, the
  * repo-relative paths it wrote or removed whose content actually changed.
@@ -354,6 +536,9 @@ export function applySchemasWrite(repoRoot: string): {
     [RELEASE_MODULE, written.releaseModule],
     [LOCK_PATH, written.lock],
     ...written.snapshotWrites,
+    ...(written.shippedJson === undefined
+      ? []
+      : [[SHIPPED_JSON_PATH, written.shippedJson] as const]),
   ];
   for (const [path, content] of files) {
     if (writeIfChanged(repoRoot, path, content)) changed.push(path);

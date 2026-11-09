@@ -8,8 +8,17 @@
 // schemas package lists it as the format's 0.26.0 release.
 import { Schema } from "effect";
 
+// `Schema.isPattern` whose JSON Schema is the RegExp's source, whatever its
+// flags: Effect 4 exports a pattern only for a RegExp with the `u` flag.
+function isExportedPattern(regExp: RegExp, annotations?: Schema.Annotations.Filter) {
+  return Schema.isPattern(regExp, {
+    toJsonSchema: () => ({ pattern: regExp.source }),
+    ...annotations,
+  });
+}
+
 const SchemaUrlSchema = Schema.String.check(
-  Schema.isPattern(
+  isExportedPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/interactive-session\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
 ).pipe(
@@ -26,7 +35,7 @@ const ProviderIdSchema = Schema.Union([
 ]);
 
 const SafeSessionIdSchema = Schema.String.check(
-  Schema.isPattern(/^[A-Za-z0-9][A-Za-z0-9._-]*$/),
+  isExportedPattern(/^[A-Za-z0-9][A-Za-z0-9._-]*$/),
 ).pipe(
   Schema.annotate({
     identifier: "SafeSessionId",
@@ -74,7 +83,7 @@ const TokenUsageSchema = Schema.Union([
   Schema.Struct({ available: Schema.Literal(false) }),
 ]);
 
-const PhaseIdSchema = Schema.String.check(Schema.isPattern(/^phase-\d{2}$/));
+const PhaseIdSchema = Schema.String.check(isExportedPattern(/^phase-\d{2}$/));
 
 const InstantSchema = Schema.NonEmptyString.annotate({ description: "An ISO-8601 instant." });
 
@@ -88,7 +97,7 @@ const SessionOriginSchema = Schema.Literals(["first-turn", "new-session", "build
     "How the session began: the first turn, `phax enter-phase --new-session`, or the builder session of a held headless phase.",
 });
 
-const Sha256Schema = Schema.String.check(Schema.isPattern(/^[0-9a-f]{64}$/)).pipe(
+const Sha256Schema = Schema.String.check(isExportedPattern(/^[0-9a-f]{64}$/)).pipe(
   Schema.annotate({ description: "A sha256 hex digest." }),
 );
 

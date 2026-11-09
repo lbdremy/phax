@@ -25,6 +25,7 @@ import {
   FIRST_SUPPORTED_RELEASE,
   PACKAGE_VERSION,
 } from "../../../packages/schemas/src/generated/index.js";
+import { judgeEquivalence } from "../../../packages/schemas/build/equivalence.js";
 import { readPackageVersion } from "../../../src/cli/commands/usage.js";
 import { CURRENT_STAMPS, PHAX_RELEASE } from "../../../src/schemas/release.js";
 import { FORMAT_IDS, PRE_SCHEMA_FORMAT_IDS } from "../../../src/schemas/schemaUrl.js";
@@ -90,9 +91,15 @@ describe("schemas-check on the committed tree", () => {
     for (const { id, release, content } of rendered) {
       const snapshot = state.snapshots.get(id)?.get(`${release}.schema.json`);
       expect(snapshot, `${id}/${release}`).toBeDefined();
-      expect(JSON.parse(content ?? "null"), `${id}/${release}`).toEqual(
-        JSON.parse(snapshot ?? "null"),
-      );
+      // Effect 4's generator renders the snapshot's contract in its own form:
+      // the equivalence judge holds the two equal over the format's corpus documents.
+      const verdict = judgeEquivalence({
+        released: JSON.parse(snapshot ?? "null"),
+        generated: JSON.parse(content ?? "null"),
+        documents: state.documents?.get(id) ?? [],
+      });
+      expect(verdict.disagreements, `${id}/${release}`).toEqual([]);
+      expect(verdict.equivalent, `${id}/${release}`).toBe(true);
     }
   });
 

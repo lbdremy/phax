@@ -8,9 +8,10 @@
 // this schema's.
 import { Schema } from "effect";
 import { draft07JsonSchema, schemaUrlField } from "./schemaUrl.js";
+import { isExportedPattern } from "./strictString.js";
 
 // A question or option id, as the §9 format reads it back: no whitespace.
-const IdSchema = Schema.String.check(Schema.isPattern(/^\S+$/));
+const IdSchema = Schema.String.check(isExportedPattern(/^\S+$/));
 
 const DecideVerdictSchema = Schema.Struct({
   question: IdSchema.annotate({ description: "The id of a question of the artifact." }),

@@ -86,6 +86,7 @@ import {
   type PlanRecord,
 } from "./approvalRecord.js";
 import {
+  decodeAuthoringRecordManifestFile,
   decodeRecordManifestFile,
   type RecordManifest,
   type RecordManifestFile,
@@ -1771,7 +1772,10 @@ const readAuthoringRecordManifest: Reader<RecordManifest> = (file, input) => {
     format: "authoring-record-manifest",
     label: "authoring record manifest",
     file,
-    decodeCurrent: decodeRecordManifestFile,
+    // The input says `kind: "authoring"`, so the authoring member alone reads it: every
+    // other member refuses its `kind`. Effect 4 reports a member's missing key before its
+    // unexpected one, so the whole union would name the phase manifest's missing keys first.
+    decodeCurrent: decodeAuthoringRecordManifestFile,
     decodePreSchema: decodeAuthoringRecordManifestPreSchema,
     fromCurrent: fromRecordManifestFile,
     fromPreSchema: ({ version: _version, usage, ...manifest }) =>

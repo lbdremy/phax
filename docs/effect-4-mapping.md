@@ -174,3 +174,94 @@ refusal model before any of this is touched.
 
 The ports' `Context.Tag` classes are the codemod's (§1). The services phase keeps every port's
 name and shape, and reads `layer-memoization.md` before it changes how a layer is built.
+
+## 3. What Effect 4's JSON Schema generator renders differently
+
+phax renders a format's JSON Schema with `Schema.toJsonSchemaDocument`, converted by
+`JsonSchema.toDocumentDraft07` (`draft07Document` in `src/schemas/schemaUrl.ts`). It keeps
+phax's published form: definitions under `$defs`, and a non-empty array of one schema as
+`items` with `minItems`. The table compares that rendering with each format's latest
+released snapshot, parsed, annotations aside (`withoutAnnotations` in
+`packages/schemas/build/equivalence.ts`). `record-manifest` has no snapshot; it is compared
+with its `packages/schemas/shipped-json.json` entry. A path is a JSON Pointer into the
+generated schema where the two differ.
+
+**Same contract, every format.** The equivalence judge gives every corpus document the same
+verdict under both schemas, for every format and every frozen decoder's released snapshot.
+No format records a `next` snapshot, and the package keeps shipping the Effect 3 bytes from
+`shipped-json.json`. 7 formats render identically. The other 35 differ in form only:
+
+- **Built-ins inlined.** Effect 3 named its built-in refinements as definitions
+  (`$ref: "#/$defs/NonEmptyString"`, `"#/$defs/Int"`). Effect 4 inlines them: `NonEmptyString`
+  is `{ "type": "string", "minLength": 1 }`, `Int` is `{ "type": "integer" }` with the safe
+  integer bounds. This accounts for nearly every `type`, `minLength`, `maximum` and `$ref`
+  path below.
+- **Annotated copies of a definition.** A `NonEmptyString` with its own description becomes
+  its own definition (`NonEmptyString_1`, …), where Effect 3 inlined it.
+- **A filter's fragment that cannot sit on its node goes under `allOf`.** For example, a
+  description-only filter on an object, or a key's `annotateKey` beside a node's own
+  description.
+- **Effect 4 renders the JSON codec.** `Schema.Number` admits `"NaN"`, `"Infinity"` and
+  `"-Infinity"` strings and drops its own annotations. An optional value
+  (`Schema.optional`, `withDecodingDefaultType`) renders as `anyOf [X, { "type": "null" }]`.
+  A record keyed by a non-empty string is `propertyNames` plus `additionalProperties`, not
+  `patternProperties: { "": … }`. phax's decoders accept neither the null nor the strings,
+  so the generated schema is looser there than the released one. No corpus document
+  exercises the difference.
+- **`isPattern` exports a pattern only for a `u`-flag RegExp.** phax's patterns keep their
+  flags and export their source through `isExportedPattern` (`src/schemas/strictString.ts`),
+  as Effect 3 did.
+- **The v3 `jsonSchema` annotation is gone.** It became the `toJsonSchema` key on a check.
+  A key Effect places under `allOf` but phax states on its node (an answer's `$schema`
+  `const`, the config partial's `anyOf`) is an annotation that `draft07Document` copies
+  with `includeAnnotationKey`.
+
+| Format | Compared with | Paths that differ |
+| ------ | ------------- | ----------------- |
+| `registry` | 0.26.0 | 27: `/properties/runs/items/properties/namespace/type`, `/properties/runs/items/properties/namespace/minLength`, `/properties/runs/items/properties/namespace/$ref`, … |
+| `run-status` | 0.33.0 | 32: `/properties/namespace/type`, `/properties/namespace/minLength`, `/properties/namespace/$ref`, … |
+| `phase-status` | 0.33.0 | 25: `/properties/phaseId/type`, `/properties/phaseId/minLength`, `/properties/phaseId/$ref`, … |
+| `phax-plan` | 0.33.0 | identical |
+| `compliance-review` | 0.32.0 | identical |
+| `plan-approvals` | 0.17.0 | 18: `/properties/records/additionalProperties/properties/planFingerprint/type`, `…/minLength`, `…/$ref`, … |
+| `spec-approvals` | 0.17.0 | 12: `/properties/records/additionalProperties/properties/specFingerprint/type`, `…/minLength`, `…/$ref`, … |
+| `phase-record-manifest` | 0.34.0 | 43: `/properties/runId/type`, `/properties/runId/minLength`, `/properties/runId/$ref`, … |
+| `authoring-record-manifest` | 0.30.0 | 41: `/properties/authoringId/type`, `/properties/authoringId/minLength`, `/properties/authoringId/$ref`, … |
+| `gate-attribution` | 0.33.0 | 11: `/properties/phase/type`, `/properties/phase/minLength`, `/properties/phase/$ref`, … |
+| `phase-file-reconciliation` | 0.26.0 | 4: `/properties/phaseId/type`, `/properties/phaseId/minLength`, `/properties/phaseId/$ref`, `/$defs` |
+| `spec-document` | 0.32.0 | identical |
+| `plan-document` | 0.33.0 | 1: `/allOf` |
+| `plan-approval-record` | 0.25.0 | 19: `/properties/artifact/type`, `/properties/artifact/minLength`, `/properties/artifact/$ref`, … |
+| `spec-approval-record` | 0.25.0 | 13: `/properties/artifact/type`, `/properties/artifact/minLength`, `/properties/artifact/$ref`, … |
+| `gate-request` | 0.20.0 | identical |
+| `brief-request` | 0.20.0 | 7: `/anyOf/0/properties/files/anyOf/0/items/type`, `…/minLength`, `…/$ref`, … |
+| `brief-record` | 0.21.0 | 10: `/properties/request/anyOf/0/properties/files/anyOf/0/items/type`, `…/minLength`, `…/$ref`, … |
+| `gate-report` | 0.21.0 | 51: `/anyOf/0/properties/outcome/allOf`, `/anyOf/0/properties/findings/allOf`, `/anyOf/0/properties/findings/items/properties/id/type`, … |
+| `brief-report` | 0.21.0 | 46: `/properties/rules/allOf`, `/properties/rules/items/properties/rule/type`, `/properties/rules/items/properties/rule/minLength`, … |
+| `hand-decision-answer` | 0.25.0 | 43: `/anyOf/0/properties/decisions/items/properties/verdict/properties/chosen/type`, `…/minLength`, `…/$ref`, … |
+| `decision-record-manifest` | 0.34.0 | 278: `/anyOf/0/properties/artifact/type`, `/anyOf/0/properties/artifact/minLength`, `/anyOf/0/properties/artifact/$ref`, … |
+| `cost-ledger` | 0.29.0 | 47: `/properties/entries/items/anyOf/0/properties/sessionId/type`, `…/minLength`, `…/$ref`, … |
+| `architecture-request` | 0.26.0 | 4: `/properties/files/anyOf/0/items/type`, `…/minLength`, `…/$ref`, `/$defs` |
+| `architecture-report` | 0.26.0 | 7: `/properties/parts/items/properties/id/type`, `/properties/parts/items/properties/id/minLength`, `/properties/parts/items/properties/id/$ref`, … |
+| the retired request format `acceptance-request` replaced | 0.26.0 | 7: `/anyOf/0/properties/files/items/type`, `/anyOf/0/properties/files/items/minLength`, `/anyOf/0/properties/files/items/$ref`, … |
+| `first-reading` | 0.32.0 | 4: `/properties/copiedBy/items/properties/what/$ref`, `…/type`, `…/pattern`, `/$defs/NonEmptyString_1` |
+| `interactive-handoff` | 0.32.0 | 14: `/properties/corrections/items/properties/what/$ref`, `…/type`, `…/pattern`, … |
+| `interactive-session` | 0.30.0 | 22: `/properties/current/anyOf/0/properties/model/type`, `…/minLength`, `…/$ref`, … |
+| `review-stop` | 0.30.0 | 95: `/anyOf/0/properties/phase/properties/title/type`, `…/minLength`, `…/$ref`, … |
+| `run-list` | 0.34.0 | 11: `/properties/runs/items/properties/shortName/type`, `…/minLength`, `…/$ref`, … |
+| `decide-verdicts` | 0.28.0 | 4: `/properties/verdicts/items/properties/note/anyOf/0/type`, `…/minLength`, `…/$ref`, `/$defs` |
+| `review-record-manifest` | 0.29.0 | 4: `/properties/runId/type`, `/properties/runId/minLength`, `/properties/runId/$ref`, `/$defs` |
+| `code-review` | 0.32.0 | 11: `/properties/findings/items/properties/file/$ref`, `…/type`, `…/pattern`, … |
+| `phax-plan-extraction` | 0.33.0 | identical |
+| `spec-hand-decision-answer` | 0.32.0 | 4: `/properties/markdown/$ref`, `/properties/markdown/type`, `/properties/markdown/pattern`, `/$defs/NonEmptyString_1` |
+| `plan-hand-decision-answer` | 0.32.0 | 4: `/properties/markdown/$ref`, `/properties/markdown/type`, `/properties/markdown/pattern`, `/$defs/NonEmptyString_1` |
+| `acceptance-request` | 0.33.0 | 7: `/anyOf/0/properties/files/items/type`, `/anyOf/0/properties/files/items/minLength`, `/anyOf/0/properties/files/items/$ref`, … |
+| `artifact-status` | 0.34.0 | 16: `/properties/authoring/anyOf/1/properties/agreement/anyOf/1/properties/message/type`, `…/minLength`, `…/$ref`, … |
+| `plan-overview` | 0.34.0 | identical |
+| `plan-lint` | 0.34.0 | identical |
+| `record-manifest` | `shipped-json.json` | 3: `/anyOf`, `/$defs/NonEmptyString`, `/$defs/Int` |
+
+The answer schemas phax hands a model (`answerJsonSchema`, in prompts and provider flags) are
+the Effect 4 rendering, not the shipped bytes. Each is equivalent to its shipped schema over
+the corpus, and each passes the Codex and Claude Code strict check. plan-document keeps one
+root description, so that no root `allOf` reaches a provider.

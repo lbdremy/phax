@@ -4,10 +4,19 @@
 // edit this module: packages/schemas/history.lock.json pins its bytes. In
 // phax, only src/schemas/persisted.ts may import it; the schemas package lists
 // it as the format's 0.26.0 release.
-import { Schema } from "effect";
+import { Predicate, Result, Schema, SchemaIssue } from "effect";
+
+// `Schema.isPattern` whose JSON Schema is the RegExp's source, whatever its
+// flags: Effect 4 exports a pattern only for a RegExp with the `u` flag.
+function isExportedPattern(regExp: RegExp, annotations?: Schema.Annotations.Filter) {
+  return Schema.isPattern(regExp, {
+    toJsonSchema: () => ({ pattern: regExp.source }),
+    ...annotations,
+  });
+}
 
 const SchemaUrlSchema = Schema.String.check(
-  Schema.isPattern(
+  isExportedPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/phase-status\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
 ).pipe(
@@ -63,12 +72,12 @@ const BranchNameSchema = Schema.String.check(
   Schema.isMaxLength(255),
   Schema.makeFilter(isSafeBranchName, {
     message: "branch name must not start with '-' or contain whitespace/control characters",
-    jsonSchema: { pattern: "^[^\\x00-\\x20\\x7f-][^\\x00-\\x20\\x7f]*$" },
+    toJsonSchema: () => ({ pattern: "^[^\\x00-\\x20\\x7f-][^\\x00-\\x20\\x7f]*$" }),
   }),
 ).pipe(Schema.brand("BranchName"));
 
 const FullCommitShaSchema = Schema.String.check(
-  Schema.isPattern(/^[0-9a-f]{40}([0-9a-f]{24})?$/),
+  isExportedPattern(/^[0-9a-f]{40}([0-9a-f]{24})?$/),
 ).pipe(
   Schema.annotate({
     description: "A commit's full object name: 40 lowercase hex digits (SHA-1) or 64 (SHA-256).",
@@ -77,61 +86,81 @@ const FullCommitShaSchema = Schema.String.check(
 
 const PhaseModeSchema = Schema.Literals(["headless", "interactive"]);
 
-const ClosedBySchema = Schema.Struct({
-  name: Schema.NonEmptyString,
-  email: Schema.NonEmptyString,
-})
-  .annotate({
+// A stop refuses any key it does not name (`decodePhaseStatusV0_26_0`
+// decodes it again with `onExcessProperty: "error"`); its JSON Schema names
+// its keys, with a check that refuses nothing when decoding.
+function closed<S extends Schema.Struct<Schema.Struct.Fields>>(struct: S) {
+  const keys = Object.keys(struct.fields);
+  return struct.check(
+    Schema.makeFilter(() => true, { toJsonSchema: () => ({ propertyNames: { enum: keys } }) }),
+  );
+}
+
+const ClosedBySchema = closed(
+  Schema.Struct({
+    name: Schema.NonEmptyString,
+    email: Schema.NonEmptyString,
+  }).annotate({
     description:
       "The git identity of the checkout that closed the stop, read from its configuration and never from a commit.",
-  })
-  .annotate({ jsonSchema: { additionalProperties: false } });
+  }),
+);
 
 const OracleStepSchema = Schema.Literals(["authored", "none"]).annotate({
   description:
     "Whether the close's gate ended with the `authored` oracle step, which passed, since the close committed.",
 });
 
-const strictStop = { jsonSchema: { additionalProperties: false } } as const;
-
 const PhaseStopSchema = Schema.NullOr(
   Schema.Union([
-    Schema.Struct({
-      cause: Schema.Literal("declared"),
-      status: Schema.Literal("waiting"),
-    }).annotate(strictStop),
-    Schema.Struct({
-      cause: Schema.Literal("declared"),
-      status: Schema.Literal("closed"),
-      outcome: Schema.Literal("corrected"),
-      oracleStep: OracleStepSchema,
-      closedBy: ClosedBySchema,
-    }).annotate(strictStop),
-    Schema.Struct({
-      cause: Schema.Literal("declared"),
-      status: Schema.Literal("closed"),
-      outcome: Schema.Literal("unchanged"),
-      closedBy: ClosedBySchema,
-    }).annotate(strictStop),
-    Schema.Struct({
-      cause: Schema.Literal("held"),
-      status: Schema.Literal("waiting"),
-    }).annotate(strictStop),
-    Schema.Struct({
-      cause: Schema.Literal("held"),
-      status: Schema.Literal("closed"),
-      outcome: Schema.Literal("corrected"),
-      reviewCommit: FullCommitShaSchema,
-      oracleStep: OracleStepSchema,
-      closedBy: ClosedBySchema,
-    }).annotate(strictStop),
-    Schema.Struct({
-      cause: Schema.Literal("held"),
-      status: Schema.Literal("closed"),
-      outcome: Schema.Literal("unchanged"),
-      closedBy: ClosedBySchema,
-    }).annotate(strictStop),
-  ]).annotate({ parseOptions: { onExcessProperty: "error" } }),
+    closed(
+      Schema.Struct({
+        cause: Schema.Literal("declared"),
+        status: Schema.Literal("waiting"),
+      }),
+    ),
+    closed(
+      Schema.Struct({
+        cause: Schema.Literal("declared"),
+        status: Schema.Literal("closed"),
+        outcome: Schema.Literal("corrected"),
+        oracleStep: OracleStepSchema,
+        closedBy: ClosedBySchema,
+      }),
+    ),
+    closed(
+      Schema.Struct({
+        cause: Schema.Literal("declared"),
+        status: Schema.Literal("closed"),
+        outcome: Schema.Literal("unchanged"),
+        closedBy: ClosedBySchema,
+      }),
+    ),
+    closed(
+      Schema.Struct({
+        cause: Schema.Literal("held"),
+        status: Schema.Literal("waiting"),
+      }),
+    ),
+    closed(
+      Schema.Struct({
+        cause: Schema.Literal("held"),
+        status: Schema.Literal("closed"),
+        outcome: Schema.Literal("corrected"),
+        reviewCommit: FullCommitShaSchema,
+        oracleStep: OracleStepSchema,
+        closedBy: ClosedBySchema,
+      }),
+    ),
+    closed(
+      Schema.Struct({
+        cause: Schema.Literal("held"),
+        status: Schema.Literal("closed"),
+        outcome: Schema.Literal("unchanged"),
+        closedBy: ClosedBySchema,
+      }),
+    ),
+  ]),
 );
 
 export const PhaseStatusV0_26_0Schema = Schema.Struct({
@@ -157,6 +186,20 @@ export const PhaseStatusV0_26_0Schema = Schema.Struct({
 
 export type PhaseStatusV0_26_0 = Schema.Schema.Type<typeof PhaseStatusV0_26_0Schema>;
 
-export const decodePhaseStatusV0_26_0 = Schema.decodeUnknownResult(PhaseStatusV0_26_0Schema, {
+const decodeLenient = Schema.decodeUnknownResult(PhaseStatusV0_26_0Schema, { reportInput: true });
+const decodeStrictStop = Schema.decodeUnknownResult(PhaseStopSchema, {
+  onExcessProperty: "error",
   reportInput: true,
 });
+
+/** Ignores unknown keys except on the stop, whose first violation is the file's, at `stop`. */
+export const decodePhaseStatusV0_26_0 = (
+  input: unknown,
+): Result.Result<PhaseStatusV0_26_0, Schema.SchemaError> => {
+  const decoded = decodeLenient(input);
+  if (Result.isFailure(decoded) || !Predicate.hasProperty(input, "stop")) return decoded;
+  const stop = decodeStrictStop(input.stop);
+  return Result.isFailure(stop)
+    ? Result.fail(new Schema.SchemaError(new SchemaIssue.Pointer(["stop"], stop.failure.issue)))
+    : decoded;
+};

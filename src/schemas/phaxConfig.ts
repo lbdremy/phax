@@ -109,30 +109,27 @@ const PARTIAL_DIFF_DESCRIPTION =
 
 // The loader refuses a malformed partial with the step's path before this
 // decode; the schema declares the structure for the type and the editor schema.
+// The editor schema states the at-least-one rule on the object itself: the
+// struct's `anyOf` annotation (a key `draft07Document` copies), so the filter
+// adds no JSON Schema of its own.
 const PartialSchema = Schema.Struct({
   files: Schema.optionalKey(
-    Schema.NonEmptyString.annotate({ jsonSchema: { description: PARTIAL_FILES_DESCRIPTION } }),
+    Schema.NonEmptyString.annotate({ description: PARTIAL_FILES_DESCRIPTION }),
   ),
   diff: Schema.optionalKey(
-    Schema.NonEmptyString.annotate({ jsonSchema: { description: PARTIAL_DIFF_DESCRIPTION } }),
+    Schema.NonEmptyString.annotate({ description: PARTIAL_DIFF_DESCRIPTION }),
   ),
-}).check(
-  Schema.makeFilter((value) => value.files !== undefined || value.diff !== undefined, {
-    message: 'declare "files", "diff" or both',
-    // A jsonSchema annotation on a refinement replaces the struct's generated
-    // schema, so the whole object is spelled out here.
-    jsonSchema: {
-      type: "object",
-      description: PARTIAL_DESCRIPTION,
-      properties: {
-        files: { type: "string", minLength: 1, description: PARTIAL_FILES_DESCRIPTION },
-        diff: { type: "string", minLength: 1, description: PARTIAL_DIFF_DESCRIPTION },
-      },
-      additionalProperties: false,
-      anyOf: [{ required: ["files"] }, { required: ["diff"] }],
-    },
-  }),
-);
+})
+  .annotate({
+    description: PARTIAL_DESCRIPTION,
+    anyOf: [{ required: ["files"] }, { required: ["diff"] }],
+  })
+  .check(
+    Schema.makeFilter((value) => value.files !== undefined || value.diff !== undefined, {
+      message: 'declare "files", "diff" or both',
+      toJsonSchema: () => ({}),
+    }),
+  );
 
 const GateStepSchema = Schema.Struct({
   command: Schema.NonEmptyString,
@@ -143,14 +140,9 @@ const GateStepSchema = Schema.Struct({
   ).annotateKey({
     description: GATE_OUTPUT_DESCRIPTION,
   }),
-  // The description rides the jsonSchema annotation: a plain `description` on
-  // the literal would replace `Expected "gate-request"` in the config refusal,
-  // and one on the property signature is dropped from this transformed
-  // struct's JSON Schema.
+  // phax's refusal never reads a description, so the literal carries it.
   input: Schema.optionalKey(
-    Schema.Literal("gate-request").annotate({
-      jsonSchema: { description: GATE_INPUT_DESCRIPTION },
-    }),
+    Schema.Literal("gate-request").annotate({ description: GATE_INPUT_DESCRIPTION }),
   ),
   partial: Schema.optionalKey(PartialSchema),
 });

@@ -1,4 +1,5 @@
 import { Schema } from "effect";
+import { isExportedPattern } from "./strictString.js";
 
 /** A machine's grant: a kebab-case slug, as `--by machine:<grant>` takes it. */
 export const GRANT_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
@@ -11,7 +12,7 @@ export const GRANT_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 export const ApprovedBySchema = Schema.Union([
   Schema.Struct({
     kind: Schema.Literal("machine"),
-    grant: Schema.String.check(Schema.isPattern(GRANT_PATTERN)).pipe(
+    grant: Schema.String.check(isExportedPattern(GRANT_PATTERN)).pipe(
       Schema.annotate({
         description: "The grant the machine declared with `--by machine:<grant>`.",
       }),

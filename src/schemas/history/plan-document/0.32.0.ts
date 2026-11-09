@@ -12,6 +12,15 @@
 // or questions.ts cannot move it.
 import { Schema } from "effect";
 
+// `Schema.isPattern` whose JSON Schema is the RegExp's source, whatever its
+// flags: Effect 4 exports a pattern only for a RegExp with the `u` flag.
+function isExportedPattern(regExp: RegExp, annotations?: Schema.Annotations.Filter) {
+  return Schema.isPattern(regExp, {
+    toJsonSchema: () => ({ pattern: regExp.source }),
+    ...annotations,
+  });
+}
+
 // phax's own refusal text for a refused value, computed from it. The annotation key is the
 // one src/schemas/refusal/adapter.ts reads, written out here because a frozen module imports
 // only effect.
@@ -22,12 +31,12 @@ const refusalMessage = (message: (actual: unknown) => string) => ({
 const SCHEMA_URL = "https://docs.phax.run/schemas/plan-document/0.32.0.json";
 
 const SchemaUrlSchema = Schema.Literal(SCHEMA_URL).annotate({
-  jsonSchema: { const: SCHEMA_URL },
   description: `The plan-document format's shape, exactly: ${SCHEMA_URL}`,
+  const: SCHEMA_URL,
 });
 
 const NonEmptyString = Schema.String.check(
-  Schema.isPattern(/^[\s\S]+$/, {
+  isExportedPattern(/^[\s\S]+$/, {
     identifier: "NonEmptyString",
     // The pattern refuses the empty string alone, so the refused value is always "".
     message: 'Expected a non empty string, actual ""',
@@ -46,7 +55,7 @@ const EffortSchema = Schema.Literals([
   "ultra",
 ]);
 
-const PhaseIdSchema = Schema.String.check(Schema.isPattern(/^phase-\d{2}$/));
+const PhaseIdSchema = Schema.String.check(isExportedPattern(/^phase-\d{2}$/));
 
 // ── test lines
 
@@ -60,7 +69,7 @@ const ONE_LINE_TRIMMED = new RegExp(`^${ONE_LINE_EDGE}(?:${ONE_LINE_CHAR}*${ONE_
 
 const oneLineText = (coordinate: string) =>
   Schema.String.check(
-    Schema.isPattern(
+    isExportedPattern(
       ONE_LINE_TRIMMED,
       refusalMessage((actual) =>
         typeof actual === "string" && !ONE_LINE.test(actual)
@@ -91,9 +100,9 @@ function oracleViolation(oracle: string): string | undefined {
 
 const OracleSchema = oneLineText("oracle").check(
   Schema.makeFilter((oracle) => oracleViolation(oracle) ?? true, {
-    jsonSchema: {
+    toJsonSchema: () => ({
       description: `What the test compares against: one non-empty, trimmed line, ${ORACLE_RULES} (these three checked by phax, not by this JSON Schema).`,
-    },
+    }),
   }),
 );
 
@@ -101,7 +110,7 @@ const LOOPS: ReadonlyArray<string> = ["oracle", "in-phase"];
 
 const CriterionSchema = Schema.String.check(
   // eslint-disable-next-line no-control-regex
-  Schema.isPattern(/^[^\s`\x00-\x1F\x7F-\x9F]+$/, {
+  isExportedPattern(/^[^\s`\x00-\x1F\x7F-\x9F]+$/, {
     message:
       "a criterion is a run of non-whitespace characters holding no backtick and no control character",
   }),
@@ -110,10 +119,10 @@ const CriterionSchema = Schema.String.check(
       !LOOPS.includes(criterion) ||
       "a criterion is neither 'oracle' nor 'in-phase', the loop values",
     {
-      jsonSchema: {
+      toJsonSchema: () => ({
         description:
           "An acceptance criterion id from the source spec's JSON sidecar: a run of non-whitespace characters, no backtick, neither 'oracle' nor 'in-phase' (that last checked by phax, not by this JSON Schema).",
-      },
+      }),
     },
   ),
 );
@@ -173,7 +182,7 @@ const ExtractedRunSchema = Schema.Struct({
 // A question or option id: a run of characters without whitespace, so the §9
 // format's `### <id> — …`, `- <id> — …`, Recommendation and Decision lines
 // read it back.
-const QuestionIdSchema = Schema.String.check(Schema.isPattern(/^\S+$/)).pipe(
+const QuestionIdSchema = Schema.String.check(isExportedPattern(/^\S+$/)).pipe(
   Schema.annotate({ description: "An id: a run of characters without whitespace." }),
 );
 
@@ -193,12 +202,12 @@ const OpenQuestionSchema = Schema.Struct({
 
 type OpenQuestion = Schema.Schema.Type<typeof OpenQuestionSchema>;
 
-const DateSchema = Schema.String.check(Schema.isPattern(/^\d{4}-\d{2}-\d{2}$/)).pipe(
+const DateSchema = Schema.String.check(isExportedPattern(/^\d{4}-\d{2}-\d{2}$/)).pipe(
   Schema.annotate({ description: "A date, YYYY-MM-DD." }),
 );
 
 const TimestampSchema = Schema.String.check(
-  Schema.isPattern(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/),
+  isExportedPattern(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/),
 ).pipe(Schema.annotate({ description: "An ISO-8601 UTC timestamp." }));
 
 /**
@@ -227,7 +236,7 @@ const PlanDecidedVerdictSchema = Schema.Struct({
   by: Schema.Struct({ kind: Schema.Literal("operator"), name: NonEmptyString }),
   at: TimestampSchema,
   revised: Schema.Array(NonEmptyString),
-  phase: Schema.String.check(Schema.isPattern(/^phase-\d{2}$/)),
+  phase: Schema.String.check(isExportedPattern(/^phase-\d{2}$/)),
 });
 
 const PlanVerdictSchema = Schema.Union([PlanDecidedVerdictSchema, LiftedVerdictSchema]);
@@ -470,16 +479,14 @@ const LINEAGE_MESSAGE =
 // description (Effect keeps only the last root filter's).
 const ROOT_DESCRIPTION = `Checked by phax's parser, not by this JSON Schema: ${LINEAGE_MESSAGE}; in the preamble, ${QUESTION_CHECKS_DESCRIPTION}, and a decided verdict's \`phase\` names one of the plan's phases; and an authoring session's answer leaves every question open, so its preamble.arbitratedQuestions is [].`;
 
-export const PlanDocumentV0_32_0Schema = PlanDocumentStruct.check(
-  Schema.makeFilter(
+export const PlanDocumentV0_32_0Schema = PlanDocumentStruct.pipe(Schema.refine(
     (doc: PlanDocumentStructType): doc is PlanDocumentStructType & PlanDocumentLineage =>
       (doc.sourceSpec === null) === (doc.completesSpec === null),
     {
       message: LINEAGE_MESSAGE,
-      jsonSchema: { description: ROOT_DESCRIPTION },
+      toJsonSchema: () => ({ description: ROOT_DESCRIPTION }),
     },
-  ),
-  Schema.makeFilter(
+  )).check(Schema.makeFilter(
     (doc) =>
       violationIssue(
         firstQuestionViolation(
@@ -489,10 +496,9 @@ export const PlanDocumentV0_32_0Schema = PlanDocumentStruct.check(
         ),
       ),
     {
-      jsonSchema: { description: ROOT_DESCRIPTION },
+      toJsonSchema: () => ({ description: ROOT_DESCRIPTION }),
     },
-  ),
-);
+  ));
 
 export type PlanDocumentV0_32_0 = Schema.Schema.Type<typeof PlanDocumentV0_32_0Schema>;
 

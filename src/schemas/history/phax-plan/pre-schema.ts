@@ -4,6 +4,15 @@
 // schemas package re-exports its schema and type.
 import { Schema } from "effect";
 
+// `Schema.isPattern` whose JSON Schema is the RegExp's source, whatever its
+// flags: Effect 4 exports a pattern only for a RegExp with the `u` flag.
+function isExportedPattern(regExp: RegExp, annotations?: Schema.Annotations.Filter) {
+  return Schema.isPattern(regExp, {
+    toJsonSchema: () => ({ pattern: regExp.source }),
+    ...annotations,
+  });
+}
+
 const EffortSchema = Schema.Literals([
   "none",
   "off",
@@ -17,7 +26,7 @@ const EffortSchema = Schema.Literals([
 ]);
 
 const PhaseSchema = Schema.Struct({
-  id: Schema.String.check(Schema.isPattern(/^phase-\d{2}$/)),
+  id: Schema.String.check(isExportedPattern(/^phase-\d{2}$/)),
   title: Schema.NonEmptyString,
   model: Schema.NonEmptyString,
   effort: EffortSchema,

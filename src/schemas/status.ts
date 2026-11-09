@@ -1,7 +1,8 @@
-import { Schema, type Types } from "effect";
+import { Predicate, Result, Schema, SchemaIssue, type Types } from "effect";
 import { BranchNameSchema } from "../domain/branded.js";
 import { PhaseModeSchema } from "./phaxPlan.js";
 import { schemaUrlField } from "./schemaUrl.js";
+import { isExportedPattern } from "./strictString.js";
 
 export const RunStateSchema = Schema.Union([
   Schema.Literal("created"),
@@ -48,7 +49,7 @@ const EffortSchema = Schema.Union([
 ]);
 
 const HoldPhasesSchema = Schema.NonEmptyArray(
-  Schema.String.check(Schema.isPattern(/^phase-\d{2}$/)),
+  Schema.String.check(isExportedPattern(/^phase-\d{2}$/)),
 );
 
 /**
@@ -112,31 +113,39 @@ export const encodeRunStatus = Schema.encodeSync(RunStatusFileSchema);
 
 /** A commit's full object name: 40 hex digits (SHA-1) or 64 (SHA-256). */
 export const FullCommitShaSchema = Schema.String.check(
-  Schema.isPattern(/^[0-9a-f]{40}([0-9a-f]{24})?$/),
+  isExportedPattern(/^[0-9a-f]{40}([0-9a-f]{24})?$/),
 ).pipe(
   Schema.annotate({
     description: "A commit's full object name: 40 lowercase hex digits (SHA-1) or 64 (SHA-256).",
   }),
 );
 
-const ClosedBySchema = Schema.Struct({
-  name: Schema.NonEmptyString,
-  email: Schema.NonEmptyString,
-})
-  .annotate({
+// The decoder refuses any other key on a stop (`decodePhaseStatusFile`), so
+// the published JSON Schema does too, although the rest of status.json allows
+// unknown keys. Effect's JSON Schema takes one excess-property strategy per
+// document, so a stop names its keys: a check that refuses nothing when
+// decoding, whose JSON Schema is `propertyNames`.
+function closed<S extends Schema.Struct<Schema.Struct.Fields>>(struct: S) {
+  const keys = Object.keys(struct.fields);
+  return struct.check(
+    Schema.makeFilter(() => true, { toJsonSchema: () => ({ propertyNames: { enum: keys } }) }),
+  );
+}
+
+const ClosedBySchema = closed(
+  Schema.Struct({
+    name: Schema.NonEmptyString,
+    email: Schema.NonEmptyString,
+  }).annotate({
     description:
       "The git identity of the checkout that closed the stop, read from its configuration and never from a commit.",
-  })
-  .annotate({ jsonSchema: { additionalProperties: false } });
+  }),
+);
 
 const AcceptanceStepSchema = Schema.Literals(["authored", "none"]).annotate({
   description:
     "Whether the close's gate ended with the `authored` acceptance step, which passed, since the close committed.",
 });
-
-// The decoder refuses any other key on a stop, so the published JSON Schema
-// does too, although the rest of status.json allows unknown keys.
-const strictStop = { jsonSchema: { additionalProperties: false } } as const;
 
 /**
  * A phase's stop: null for a phase that never stopped; `waiting` while it
@@ -147,42 +156,54 @@ const strictStop = { jsonSchema: { additionalProperties: false } } as const;
  */
 export const PhaseStopSchema = Schema.NullOr(
   Schema.Union([
-    Schema.Struct({
-      cause: Schema.Literal("declared"),
-      status: Schema.Literal("waiting"),
-    }).annotate(strictStop),
-    Schema.Struct({
-      cause: Schema.Literal("declared"),
-      status: Schema.Literal("closed"),
-      outcome: Schema.Literal("corrected"),
-      acceptanceStep: AcceptanceStepSchema,
-      closedBy: ClosedBySchema,
-    }).annotate(strictStop),
-    Schema.Struct({
-      cause: Schema.Literal("declared"),
-      status: Schema.Literal("closed"),
-      outcome: Schema.Literal("unchanged"),
-      closedBy: ClosedBySchema,
-    }).annotate(strictStop),
-    Schema.Struct({
-      cause: Schema.Literal("held"),
-      status: Schema.Literal("waiting"),
-    }).annotate(strictStop),
-    Schema.Struct({
-      cause: Schema.Literal("held"),
-      status: Schema.Literal("closed"),
-      outcome: Schema.Literal("corrected"),
-      reviewCommit: FullCommitShaSchema,
-      acceptanceStep: AcceptanceStepSchema,
-      closedBy: ClosedBySchema,
-    }).annotate(strictStop),
-    Schema.Struct({
-      cause: Schema.Literal("held"),
-      status: Schema.Literal("closed"),
-      outcome: Schema.Literal("unchanged"),
-      closedBy: ClosedBySchema,
-    }).annotate(strictStop),
-  ]).annotate({ parseOptions: { onExcessProperty: "error" } }),
+    closed(
+      Schema.Struct({
+        cause: Schema.Literal("declared"),
+        status: Schema.Literal("waiting"),
+      }),
+    ),
+    closed(
+      Schema.Struct({
+        cause: Schema.Literal("declared"),
+        status: Schema.Literal("closed"),
+        outcome: Schema.Literal("corrected"),
+        acceptanceStep: AcceptanceStepSchema,
+        closedBy: ClosedBySchema,
+      }),
+    ),
+    closed(
+      Schema.Struct({
+        cause: Schema.Literal("declared"),
+        status: Schema.Literal("closed"),
+        outcome: Schema.Literal("unchanged"),
+        closedBy: ClosedBySchema,
+      }),
+    ),
+    closed(
+      Schema.Struct({
+        cause: Schema.Literal("held"),
+        status: Schema.Literal("waiting"),
+      }),
+    ),
+    closed(
+      Schema.Struct({
+        cause: Schema.Literal("held"),
+        status: Schema.Literal("closed"),
+        outcome: Schema.Literal("corrected"),
+        reviewCommit: FullCommitShaSchema,
+        acceptanceStep: AcceptanceStepSchema,
+        closedBy: ClosedBySchema,
+      }),
+    ),
+    closed(
+      Schema.Struct({
+        cause: Schema.Literal("held"),
+        status: Schema.Literal("closed"),
+        outcome: Schema.Literal("unchanged"),
+        closedBy: ClosedBySchema,
+      }),
+    ),
+  ]),
 );
 
 export type PhaseStop = Schema.Schema.Type<typeof PhaseStopSchema>;
@@ -222,7 +243,28 @@ export const PhaseStatusFileSchema = Schema.Struct({
 
 export type PhaseStatusFile = Schema.Schema.Type<typeof PhaseStatusFileSchema>;
 
-export const decodePhaseStatusFile = Schema.decodeUnknownResult(PhaseStatusFileSchema, {
+const decodeLenientPhaseStatusFile = Schema.decodeUnknownResult(PhaseStatusFileSchema, {
   reportInput: true,
 });
+const decodeStrictStop = Schema.decodeUnknownResult(PhaseStopSchema, {
+  onExcessProperty: "error",
+  reportInput: true,
+});
+
+/**
+ * Decodes a `status.json`, ignoring unknown keys except on its stop: Effect 4
+ * takes one excess-property strategy per decode, so the stop, once the file
+ * decodes, is decoded again with `onExcessProperty: "error"`, and its first
+ * violation is the file's, at `stop`.
+ */
+export const decodePhaseStatusFile = (
+  input: unknown,
+): Result.Result<PhaseStatusFile, Schema.SchemaError> => {
+  const decoded = decodeLenientPhaseStatusFile(input);
+  if (Result.isFailure(decoded) || !Predicate.hasProperty(input, "stop")) return decoded;
+  const stop = decodeStrictStop(input.stop);
+  return Result.isFailure(stop)
+    ? Result.fail(new Schema.SchemaError(new SchemaIssue.Pointer(["stop"], stop.failure.issue)))
+    : decoded;
+};
 export const encodePhaseStatus = Schema.encodeSync(PhaseStatusFileSchema);

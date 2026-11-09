@@ -7,6 +7,7 @@ import {
   type FrozenTokenUsage,
 } from "./runRecord.js";
 import { schemaUrlField } from "./schemaUrl.js";
+import { isExportedPattern } from "./strictString.js";
 
 /**
  * How an interactive decide session that spawned ended: its decisions landed
@@ -76,7 +77,7 @@ export type DecisionRecordMode = Schema.Schema.Type<typeof DecisionRecordModeSch
 /** Whether the session resumed the artifact's kept authoring session or started a new one. */
 export const DecisionRecordSessionSchema = Schema.Literals(["new", "resumed-authoring"]);
 
-const FingerprintSchema = Schema.String.check(Schema.isPattern(/^[0-9a-f]{64}$/)).pipe(
+const FingerprintSchema = Schema.String.check(isExportedPattern(/^[0-9a-f]{64}$/)).pipe(
   Schema.annotate({ description: "The sha256 hex of the source's text." }),
 );
 
@@ -108,7 +109,7 @@ const CountSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0));
 const decisionRecordManifestFields = {
   kind: Schema.Literal("decision"),
   /** `<stamp>-<slug>/<NN>`: the record key's tail and the `Decision-Id` trailer. */
-  decisionId: Schema.String.check(Schema.isPattern(/^[^/\s]+\/\d{2,}$/)).pipe(
+  decisionId: Schema.String.check(isExportedPattern(/^[^/\s]+\/\d{2,}$/)).pipe(
     Schema.annotate({ description: "`<stamp>-<slug>/<NN>`, the Decision-Id trailer." }),
   ),
   /** Repo-relative path of the artifact decided. */

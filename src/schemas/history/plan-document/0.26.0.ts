@@ -9,8 +9,17 @@
 // cannot move it.
 import { Schema } from "effect";
 
+// `Schema.isPattern` whose JSON Schema is the RegExp's source, whatever its
+// flags: Effect 4 exports a pattern only for a RegExp with the `u` flag.
+function isExportedPattern(regExp: RegExp, annotations?: Schema.Annotations.Filter) {
+  return Schema.isPattern(regExp, {
+    toJsonSchema: () => ({ pattern: regExp.source }),
+    ...annotations,
+  });
+}
+
 const SchemaUrlSchema = Schema.String.check(
-  Schema.isPattern(
+  isExportedPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/plan-document\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
 ).pipe(
@@ -32,7 +41,7 @@ const EffortSchema = Schema.Literals([
   "ultra",
 ]);
 
-const PhaseIdSchema = Schema.String.check(Schema.isPattern(/^phase-\d{2}$/));
+const PhaseIdSchema = Schema.String.check(isExportedPattern(/^phase-\d{2}$/));
 
 const ExtractedPhaseFields = {
   id: PhaseIdSchema,
@@ -64,7 +73,7 @@ const ExtractedRunSchema = Schema.Struct({
 // A question or option id: a run of characters without whitespace, so the §9
 // format's `### <id> — …`, `- <id> — …`, Recommendation and Decision lines
 // read it back.
-const QuestionIdSchema = Schema.String.check(Schema.isPattern(/^\S+$/)).pipe(
+const QuestionIdSchema = Schema.String.check(isExportedPattern(/^\S+$/)).pipe(
   Schema.annotate({ description: "An id: a run of characters without whitespace." }),
 );
 
@@ -84,12 +93,12 @@ const OpenQuestionSchema = Schema.Struct({
 
 type OpenQuestion = Schema.Schema.Type<typeof OpenQuestionSchema>;
 
-const DateSchema = Schema.String.check(Schema.isPattern(/^\d{4}-\d{2}-\d{2}$/)).pipe(
+const DateSchema = Schema.String.check(isExportedPattern(/^\d{4}-\d{2}-\d{2}$/)).pipe(
   Schema.annotate({ description: "A date, YYYY-MM-DD." }),
 );
 
 const TimestampSchema = Schema.String.check(
-  Schema.isPattern(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/),
+  isExportedPattern(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/),
 ).pipe(Schema.annotate({ description: "An ISO-8601 UTC timestamp." }));
 
 /**
@@ -122,7 +131,7 @@ const decidedVerdictFields = {
 /** A plan question decided by the operator: the decided fields, plus the phase it bears on. */
 const PlanDecidedVerdictSchema = Schema.Struct({
   ...decidedVerdictFields,
-  phase: Schema.String.check(Schema.isPattern(/^phase-\d{2}$/)),
+  phase: Schema.String.check(isExportedPattern(/^phase-\d{2}$/)),
 });
 
 const PlanVerdictSchema = Schema.Union([PlanDecidedVerdictSchema, LiftedVerdictSchema]);
@@ -369,21 +378,20 @@ function firstPlanQuestionViolation(doc: QuestionBearing) {
 }
 
 const QUESTIONS_FILTER_OPTIONS = {
-  jsonSchema: {
+  toJsonSchema: () => ({
     description: `Checked by phax's parser, not by this JSON Schema, in the preamble: ${QUESTION_CHECKS_DESCRIPTION}; and a decided verdict's \`phase\` names one of the plan's phases.`,
-  },
+  }),
 };
 
 // The lineage check: a boolean `completesSpec` beside a `sourceSpec` path,
 // null beside `sourceSpec: null`.
-export const PlanDocumentV0_26_0Schema = PlanDocumentStruct.check(
-  Schema.makeFilter(
+export const PlanDocumentV0_26_0Schema = PlanDocumentStruct.pipe(Schema.refine(
     (doc: PlanDocumentStructType): doc is PlanDocumentStructType & PlanDocumentLineage =>
       (doc.sourceSpec === null) === (doc.completesSpec === null),
     {
       message:
         "completesSpec is a boolean beside a sourceSpec path and null beside sourceSpec: null",
-      jsonSchema: {
+      toJsonSchema: () => ({
         allOf: [
           {
             oneOf: [
@@ -397,14 +405,12 @@ export const PlanDocumentV0_26_0Schema = PlanDocumentStruct.check(
             ],
           },
         ],
-      },
+      }),
     },
-  ),
-  Schema.makeFilter(
+  )).check(Schema.makeFilter(
     (doc) => violationIssue(firstPlanQuestionViolation(doc)),
     QUESTIONS_FILTER_OPTIONS,
-  ),
-);
+  ));
 
 export type PlanDocumentV0_26_0 = Schema.Schema.Type<typeof PlanDocumentV0_26_0Schema>;
 

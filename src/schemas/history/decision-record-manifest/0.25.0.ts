@@ -8,8 +8,17 @@
 // format's 0.25.0 release.
 import { Schema } from "effect";
 
+// `Schema.isPattern` whose JSON Schema is the RegExp's source, whatever its
+// flags: Effect 4 exports a pattern only for a RegExp with the `u` flag.
+function isExportedPattern(regExp: RegExp, annotations?: Schema.Annotations.Filter) {
+  return Schema.isPattern(regExp, {
+    toJsonSchema: () => ({ pattern: regExp.source }),
+    ...annotations,
+  });
+}
+
 const SchemaUrlSchema = Schema.String.check(
-  Schema.isPattern(
+  isExportedPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/decision-record-manifest\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
 ).pipe(
@@ -61,7 +70,7 @@ const TokenUsageSchema = Schema.Union([
   Schema.Struct({ available: Schema.Literal(false) }),
 ]);
 
-const FingerprintSchema = Schema.String.check(Schema.isPattern(/^[0-9a-f]{64}$/)).pipe(
+const FingerprintSchema = Schema.String.check(isExportedPattern(/^[0-9a-f]{64}$/)).pipe(
   Schema.annotate({ description: "The sha256 hex of the source's text." }),
 );
 
@@ -83,7 +92,7 @@ const CountSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0));
 
 const decisionRecordManifestFields = {
   kind: Schema.Literal("decision"),
-  decisionId: Schema.String.check(Schema.isPattern(/^[^/\s]+\/\d{2,}$/)).pipe(
+  decisionId: Schema.String.check(isExportedPattern(/^[^/\s]+\/\d{2,}$/)).pipe(
     Schema.annotate({ description: "`<stamp>-<slug>/<NN>`, the Decision-Id trailer." }),
   ),
   artifact: Schema.NonEmptyString,

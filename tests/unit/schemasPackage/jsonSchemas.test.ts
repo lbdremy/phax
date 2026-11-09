@@ -334,7 +334,9 @@ describe("findJsonSchemaGaps", () => {
   it("does not flag a brand-only refinement, an annotated filter or effect's built-ins", () => {
     const Toy = Schema.Struct({
       id: Schema.String.pipe(Schema.brand("Id")),
-      even: Schema.Number.check(Schema.makeFilter(isEven, { jsonSchema: { multipleOf: 2 } })),
+      even: Schema.Number.check(
+        Schema.makeFilter(isEven, { toJsonSchema: () => ({ multipleOf: 2 }) }),
+      ),
       count: Schema.Number.check(Schema.isInt(), Schema.isGreaterThan(0)),
       name: Schema.String.check(Schema.isMinLength(1), Schema.isPattern(/^[a-z]+$/)),
       branch: BranchNameSchema,
@@ -376,7 +378,8 @@ describe("renderJsonSchemas", () => {
       ...cleanEntry,
       format: "toy-throws",
       fileName: "toy-throws.schema.json",
-      schema: Schema.Struct({ at: Schema.DateFromString }),
+      // Effect 4's generator throws on a property name that is not a string.
+      schema: Schema.Struct({ [Symbol.for("phax/toy")]: Schema.String }),
     };
     const { files, failures } = renderJsonSchemas([throwing, cleanEntry]);
     expect(failures.map(({ format }) => format)).toEqual(["toy-throws"]);
