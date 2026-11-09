@@ -49,13 +49,31 @@ describe("phax.json", () => {
   it("protects the corpus, the baseline and the ratchet, but not the counts file", () => {
     const protectedPaths = decoded().protectedPaths ?? [];
     expect(protectedPaths).toEqual([
+      "tests/effect4Corpus/cases/**",
       "tests/effect4Corpus/baseline/**",
       "tests/effect4Corpus/corpus.ts",
+      "tests/unit/effect4Corpus/**",
+      "scripts/effect4-codemod/ratchet.ts",
       "scripts/effect4-codemod/counts.ts",
+      "scripts/effect4-codemod/main.ts",
+      "scripts/effect4-codemod/passingTests.ts",
       "tsconfig.json",
       "tsconfig.test.json",
       "vitest.config.ts",
+      "**/__snapshots__/**",
+      "packages/schemas/snapshots/**",
+      "tests/fixtures/help/**",
+      "tests/fixtures/usage/**",
+      "tests/unit/commandLibrary/contract/fixtures/**",
+      "tests/e2e/realFlow.test.ts",
+      "tests/e2e/headlessAuthoring.test.ts",
+      "tests/e2e/claudeProtectedPaths.test.ts",
+      "tests/e2e/claudeSkillEditGrant.test.ts",
+      "tests/unit/generateModelCatalog.test.ts",
+      "tests/unit/reconciliation/global.test.ts",
     ]);
+    // Every migration phase rewrites the ratchet's two records, so neither is protected.
     expect(protectedPaths.join("\n")).not.toContain("type-error-counts");
+    expect(protectedPaths.join("\n")).not.toContain("passing-tests.json");
   });
 });
