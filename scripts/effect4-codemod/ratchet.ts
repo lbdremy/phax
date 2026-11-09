@@ -20,6 +20,7 @@ import { dirname, join } from "node:path";
 import { measureCounts, type Counts } from "./counts.js";
 import {
   checkTests,
+  failsMarkersAdded,
   PASSING_TESTS_FILE,
   readTestBase,
   recordSize,
@@ -199,6 +200,15 @@ export function runRatchet(root: string, options: RatchetOptions = {}): number {
   if (testBase.kind === "malformed" || testBase.kind === "unreadable") {
     write(`ratchet: ${testBase.reason}\n`);
     return 1;
+  }
+  if (testBase.kind === "found") {
+    const inverted = failsMarkersAdded(root, testBase.record);
+    if (inverted.length > 0) {
+      write(
+        `ratchet: ${inverted.join(", ")} mark${inverted.length === 1 ? "s" : ""} more tests \`.fails\` than at HEAD: a recorded test would pass by failing\n`,
+      );
+      return 1;
+    }
   }
   const scripts = scriptsChange(root);
   if (scripts !== null) {

@@ -5536,7 +5536,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "lastClose.exitCode: Expected 1, actual 5"
+        "refusal": "lastClose.detail: Expected a non empty string, actual \"\""
       }
     },
     {
@@ -5619,7 +5619,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "lastClose.exitCode: Expected 1, actual 5"
+        "refusal": "lastClose.detail: is missing"
       }
     },
     {
@@ -5871,7 +5871,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "lastClose.exitCode: Expected 1, actual 4"
+        "refusal": "lastClose.log: Expected a non empty string, actual \"\""
       }
     },
     {
@@ -5953,7 +5953,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "lastClose.exitCode: Expected 1, actual 4"
+        "refusal": "lastClose.log: is missing"
       }
     },
     {
@@ -6201,7 +6201,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "lastClose.exitCode: Expected 1, actual 5"
+        "refusal": "lastClose.reason: Expected a non empty string, actual \"\""
       }
     },
     {
@@ -6283,7 +6283,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "lastClose.exitCode: Expected 1, actual 5"
+        "refusal": "lastClose.reason: is missing"
       }
     },
     {
@@ -6365,7 +6365,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "lastClose.exitCode: Expected 1, actual 8"
+        "refusal": "lastClose.resetAt: is missing"
       }
     },
     {
@@ -6618,7 +6618,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "lastClose.exitCode: Expected 1, actual 5"
+        "refusal": "lastClose.step: Expected \"closing-turn\", actual \"bogus-value\""
       }
     },
     {
@@ -6701,7 +6701,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "lastClose.exitCode: Expected 1, actual 5"
+        "refusal": "lastClose.step: is missing"
       }
     },
     {
@@ -13688,7 +13688,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "lastClose.exitCode: Expected 1, actual 5"
+          "refusal": "lastClose.detail: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -13771,7 +13771,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "lastClose.exitCode: Expected 1, actual 5"
+          "refusal": "lastClose.detail: is missing"
         }
       },
       {
@@ -14023,7 +14023,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "lastClose.exitCode: Expected 1, actual 4"
+          "refusal": "lastClose.log: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -14105,7 +14105,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "lastClose.exitCode: Expected 1, actual 4"
+          "refusal": "lastClose.log: is missing"
         }
       },
       {
@@ -14523,7 +14523,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "lastClose.exitCode: Expected 1, actual 5"
+          "refusal": "lastClose.step: Expected \"closing-turn\", actual \"bogus-value\""
         }
       },
       {
@@ -14606,7 +14606,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "lastClose.exitCode: Expected 1, actual 5"
+          "refusal": "lastClose.step: is missing"
         }
       },
       {
@@ -17358,7 +17358,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "lastClose.exitCode: Expected 1, actual 5"
+          "refusal": "lastClose.reason: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -17440,7 +17440,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "lastClose.exitCode: Expected 1, actual 5"
+          "refusal": "lastClose.reason: is missing"
         }
       },
       {
@@ -17522,7 +17522,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "lastClose.exitCode: Expected 1, actual 8"
+          "refusal": "lastClose.resetAt: is missing"
         }
       }
     ]

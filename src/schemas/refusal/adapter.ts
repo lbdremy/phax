@@ -147,7 +147,42 @@ function unionRefusals(
     refusals.length === 1 &&
     samePath(refusals[0]!.path, path) &&
     (refusals[0]!.kind === "invalid-type" || refusals[0]!.kind === "invalid-value");
-  if (!refused.every(isShallow)) return refused.filter((r) => !isShallow(r)).flat();
+  if (!refused.every(isShallow)) {
+    // Members told apart by their keys (`outcome: "committed" | "failed"`, a key only one
+    // variant declares). A member refused on a key of its own, a literal the value misses
+    // or a key it does not declare, is not the one the input chose when another member
+    // declares each such key and its type there accepts the input's value. Its line
+    // (`outcome: Expected "failed"`) then gives way to the chosen member's
+    // (`arbitrated: is missing`). When no member is left, every deeper member's refusals
+    // stay, in Effect 3's order.
+    const deeper = members.flatMap((member, i) =>
+      isShallow(refused[i]!) ? [] : [{ member, refusals: refused[i]! }],
+    );
+    const properties = deeper.map(({ member }) => propertiesOf(member));
+    const shapeMisses = deeper.map(({ refusals }) =>
+      refusals.filter(
+        (r) =>
+          (r.kind === "invalid-value" || r.kind === "unexpected") &&
+          r.path.length === path.length + 1 &&
+          samePrefix(r.path, path),
+      ),
+    );
+    const accepts = (other: number, r: Refusal): boolean => {
+      const type = properties[other]!.get(r.path[path.length]!);
+      if (type === undefined) return false;
+      return (
+        r.kind === "unexpected" ||
+        (r.kind === "invalid-value" && Schema.is(Schema.make(type))(r.actual))
+      );
+    };
+    const notChosen = (self: number): boolean =>
+      shapeMisses[self]!.length > 0 &&
+      deeper.some(
+        (_, other) => other !== self && shapeMisses[self]!.every((r) => accepts(other, r)),
+      );
+    const chosen = deeper.filter((_, i) => !notChosen(i));
+    return (chosen.length > 0 ? chosen : deeper).flatMap(({ refusals }) => refusals);
+  }
   const shallow = refused.map(([refusal]) => refusal as Extract<Refusal, { kind: ValueKind }>);
   const parts = dedupe(shallow.flatMap((r) => unionParts.get(r) ?? [r.expected]));
   const literal = shallow.every((r) => r.kind === "invalid-value");
@@ -160,6 +195,18 @@ function unionRefusals(
   };
   unionParts.set(refusal, parts);
   return [refusal];
+}
+
+// A struct member's property types by key, seen through the nodes that do not decide
+// the kind. Empty for any other member.
+function propertiesOf(member: ParseResult.ParseIssue): ReadonlyMap<PropertyKey, SchemaAST.AST> {
+  const core = member instanceof ParseResult.Composite ? lookThrough(member.ast) : undefined;
+  if (core === undefined || !SchemaAST.isTypeLiteral(core)) return new Map();
+  return new Map(core.propertySignatures.map((p) => [p.name, p.type] as const));
+}
+
+function samePrefix(path: RefusalPath, prefix: RefusalPath): boolean {
+  return prefix.every((segment, i) => segment === path[i]);
 }
 
 function samePath(a: RefusalPath, b: RefusalPath): boolean {
@@ -200,6 +247,13 @@ function describe(issue: ParseResult.ParseIssue): Described {
   // A Type, a Composite or a Forbidden issue: its own AST.
   if (SchemaAST.isRefinement(issue.ast)) {
     return { kind: "filter", expected: filterLabel(issue.ast) };
+  }
+  // A transformation that failed (`NumberFromString` given "x") is named by
+  // what it decodes into, never by its identifier or Effect's reason; one
+  // that decodes into anything (`parseJson`) keeps the label of its input.
+  if (issue instanceof ParseResult.Type && SchemaAST.isTransformation(issue.ast)) {
+    const into = labelOf(issue.ast.to);
+    if (into !== "unknown" && into !== "any") return { kind: "invalid-type", expected: into };
   }
   return {
     kind: isLiteralAst(issue.ast) ? "invalid-value" : "invalid-type",
@@ -324,7 +378,9 @@ function filterLabel(ast: SchemaAST.Refinement): string {
 // description. Undefined for a filter that is not built in, or whose
 // parameters cannot be read.
 function builtinFilterLabel(ast: SchemaAST.Refinement): string | undefined {
-  const id = Option.getOrUndefined(SchemaAST.getSchemaIdAnnotation(ast));
+  // Read directly: `SchemaAST.getSchemaIdAnnotation` exists only from effect 3.14.2, and the
+  // declared range (`^3.14.0`) admits older releases.
+  const id = ast.annotations[SchemaAST.SchemaIdAnnotationId];
   if (id === undefined) return undefined;
   if (id === Schema.PatternSchemaId) {
     const pattern = ast.annotations[Schema.PatternSchemaId] as

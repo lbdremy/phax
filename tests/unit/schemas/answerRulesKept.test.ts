@@ -214,10 +214,6 @@ const ANSWERS: ReadonlyArray<Answer> = [
     frozenStamp: schemaUrl("spec-document", "0.27.0"),
     current: decodeSpecDocumentFile,
     sameMessage: true,
-    // The frozen shape uses Effect's `NonEmptyString`, which the refusal model now labels from
-    // its constraint (`a string at least 1 character(s) long`); the current shape keeps its own
-    // `a non empty string` message.
-    rewordedMessages: ["an empty title"],
     fixtures: [
       ["a full spec", spec],
       ["an open question", { ...spec, openQuestions: [openQuestion] }],

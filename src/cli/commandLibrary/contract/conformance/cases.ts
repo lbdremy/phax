@@ -721,7 +721,8 @@ const jsonCases: ReadonlyArray<Case> = [
     check: (runner) =>
       Effect.gen(function* () {
         // `--count x` does not decode: one `refused` line naming the flags and the option as
-        // written, whose text is the one written without `--json`.
+        // written, whose text is the one written without `--json`, and whose expected value
+        // names what the transformation decodes into, not the schema (`NumberFromString`).
         const recorded = count();
         const text = yield* call(runner, [recorded.command], ["count", "--count", "x"]);
         const json = yield* call(runner, [recorded.command], ["count", "--count", "x", "--json"]);
@@ -739,9 +740,7 @@ const jsonCases: ReadonlyArray<Case> = [
           is("path", ["--count"], Reflect.get(Object(only), "path")),
           is("exit", REFUSED, Reflect.get(Object(only), "exit")),
           is("text", text.err.slice(0, -1), Reflect.get(Object(only), "text")),
-          typeof expected === "string" && expected !== ""
-            ? undefined
-            : `expected should say what was expected, got ${show(expected)}`,
+          is("expected", 'Expected number, actual "x"', expected),
           is("keys", ["kind", "source", "path", "expected", "text", "exit"], keysOf(only)),
           ran([recorded]),
         );

@@ -6,7 +6,7 @@
 // imports only `effect` and its own refusal model, so the schemas package can carry it.
 import { type ParseResult, Schema } from "effect";
 import { firstRefusal } from "./refusal/adapter.js";
-import { refusalMessage, refusalPath } from "./refusal/render.js";
+import { refusalMessage, refusalPath, UNDESCRIBED_REFUSAL } from "./refusal/render.js";
 
 /**
  * A key with its description. The description sits on the key, not on its
@@ -152,7 +152,7 @@ export function uniqueFindingIds<A extends { readonly id: string }, I, R>(
  */
 export function describeReportIssue(error: ParseResult.ParseError): string {
   const first = firstRefusal(error);
-  if (first === undefined) return error.message;
+  if (first === undefined) return UNDESCRIBED_REFUSAL;
   const path = refusalPath(first.path, "bracketed");
   const message = refusalMessage(first);
   return path.length > 0 ? `${path}: ${message}` : message;

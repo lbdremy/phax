@@ -799,7 +799,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "corrections.0.guard.kind: Expected \"none\", actual \"test\""
+        "refusal": "corrections.0.guard.ref: Expected a non empty string, actual \"\""
       }
     },
     {
@@ -830,7 +830,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "corrections.0.guard.kind: Expected \"none\", actual \"test\""
+        "refusal": "corrections.0.guard.ref: is missing"
       }
     },
     {
@@ -1479,7 +1479,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "corrections.0.guard.kind: Expected \"none\", actual \"test\""
+          "refusal": "corrections.0.guard.ref: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -1503,7 +1503,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "corrections.0.guard.kind: Expected \"none\", actual \"test\""
+          "refusal": "corrections.0.guard.ref: is missing"
         }
       },
       {

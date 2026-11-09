@@ -1020,7 +1020,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "steps.0.surface: Expected \"acceptance\", actual \"structural\""
+        "refusal": "steps.0.command: Expected a non empty string, actual \"\""
       }
     },
     {
@@ -1043,7 +1043,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "steps.0.surface: Expected \"acceptance\", actual \"structural\""
+        "refusal": "steps.0.command: is missing"
       }
     },
     {
@@ -1067,7 +1067,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "steps.0.surface: Expected \"acceptance\", actual \"structural\""
+        "refusal": "steps.0.result: Expected \"pass\" | \"fail\" | \"refused\", actual \"bogus-value\""
       }
     },
     {
@@ -1090,7 +1090,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "steps.0.surface: Expected \"acceptance\", actual \"structural\""
+        "refusal": "steps.0.result: is missing"
       }
     },
     {
@@ -2823,7 +2823,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "steps[0].surface: Expected \"oracle\", actual \"structural\""
+          "refusal": "steps[0].command: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -2840,7 +2840,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "steps[0].surface: Expected \"oracle\", actual \"structural\""
+          "refusal": "steps[0].command: is missing"
         }
       },
       {
@@ -2858,7 +2858,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "steps[0].surface: Expected \"oracle\", actual \"structural\""
+          "refusal": "steps[0].result: Expected \"pass\" | \"fail\" | \"refused\", actual \"bogus-value\""
         }
       },
       {
@@ -2875,7 +2875,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "steps[0].surface: Expected \"oracle\", actual \"structural\""
+          "refusal": "steps[0].result: is missing"
         }
       },
       {
@@ -3608,7 +3608,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "steps[0].surface: Expected \"oracle\", actual \"structural\""
+          "refusal": "steps[0].command: Expected a non empty string, actual \"\""
         }
       },
       {
@@ -3635,7 +3635,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "steps[0].surface: Expected \"oracle\", actual \"structural\""
+          "refusal": "steps[0].command: is missing"
         }
       },
       {
@@ -3663,7 +3663,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "steps[0].surface: Expected \"oracle\", actual \"structural\""
+          "refusal": "steps[0].result: Expected \"pass\" | \"fail\" | \"refused\", actual \"bogus-value\""
         }
       },
       {
@@ -3690,7 +3690,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "steps[0].surface: Expected \"oracle\", actual \"structural\""
+          "refusal": "steps[0].result: is missing"
         }
       },
       {

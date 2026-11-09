@@ -23,6 +23,12 @@ export function refusalMessage(refusal: Refusal): string {
 }
 
 /**
+ * What a formatter prints for a decode failure that yields no refusal, which
+ * the adapter never does today: phax's words, never Effect's own text.
+ */
+export const UNDESCRIBED_REFUSAL = "does not match its schema";
+
+/**
  * A refusal's path. `bracketed` reads as the JSON path a document author would
  * type (`acceptanceCriteria[2].refs[0]`); `dotted` joins every segment with
  * `.` (`a.0.b`). Both give `""` for the root.

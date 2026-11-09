@@ -220,6 +220,25 @@ function constraintPaths(schema: JsonObject): Constraint[] {
   );
 }
 
+/** Whether a refusal line names the path of the constraint case `name` (see the test). */
+function refusedAtItsPath(name: string, refusal: string): boolean {
+  const [, path = "", keyword = ""] = /^constraint (\S+) (\S+)$/.exec(name) ?? [];
+  if (path === "$schema" && keyword === "required" && refusal.includes("older than phax 0.17.0")) {
+    return true;
+  }
+  const field = /^phases\[\]\.testStrategy\[\]\.(\w+)$/.exec(path)?.[1];
+  if (field !== undefined && new RegExp(`^phase-\\d+ test line \\d+ ${field}:`).test(refusal)) {
+    return true;
+  }
+  let pattern = "";
+  for (const segment of path.match(/[^.[\]]+|\[\]/g) ?? []) {
+    if (segment === "[]") pattern += String.raw`(?:\.\d+|\[\d+\])`;
+    else if (segment === "*") pattern += String.raw`\.[^:\s[]+`;
+    else pattern += (pattern === "" ? "" : String.raw`\.`) + segment.replace(/[$]/g, "\\$&");
+  }
+  return new RegExp(String.raw`(?:^|\n)\s*${pattern}(?:\.\d+|\[\d+\])?:`).test(refusal);
+}
+
 function constraintCaseName(c: Constraint): string {
   return `constraint ${c.path} ${c.keyword}`;
 }
@@ -413,6 +432,24 @@ describe("behaviour corpus coverage", () => {
         .map(constraintCaseName)
         .filter((name) => !refused.has(name));
       expect(missing, `${module}: constraints without a refused case`).toEqual([]);
+    });
+  }
+
+  // A constraint case guards its constraint only when that constraint is what refuses it: a
+  // case refused at another path would replay the same line with the constraint loosened.
+  // Two readings stand in for the path: a document with no `$schema` is refused by its
+  // version check before any shape decodes it, and a plan's test line is named by its
+  // phase and line (`phase-01 test line 1 loop: …`).
+  for (const id of ids) {
+    it(`${id} refuses each constraint case at the path it names`, () => {
+      const file = readFormatFile(id);
+      if (file === undefined) throw new Error(`no case file for ${id}`);
+      const elsewhere = [file.current, ...Object.values(file.shapes)]
+        .flat()
+        .filter((c) => c.name.startsWith("constraint ") && c.expected?.ok === false)
+        .filter((c) => c.expected?.ok === false && !refusedAtItsPath(c.name, c.expected.refusal))
+        .map((c) => c.name);
+      expect(elsewhere, `${id}: constraint cases refused at another path`).toEqual([]);
     });
   }
 
