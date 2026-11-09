@@ -1,5 +1,7 @@
 import * as ParseResult from "effect/ParseResult";
 import * as Schema from "effect/Schema";
+import { firstRefusal } from "../../../schemas/refusal/adapter.js";
+import { refusalMessage } from "../../../schemas/refusal/render.js";
 import { messages, Written, type ExitCode, type RefusalSource } from "../contract/index.js";
 import type { Outcome } from "./outcome.js";
 import { END_OF_OPTIONS, isOption } from "./undeclared.js";
@@ -120,7 +122,7 @@ export function pathOf(
 }
 
 /** The details of a decode failure, from the first issue Effect reports: Effect 3's
- *  `ParseResult.ArrayFormatter` gives its path and its message. `names` are the positionals'
+ *  refusal model gives its path and its message. `names` are the positionals'
  *  names, when the source is the arguments. */
 export function detailsOf(
   source: RefusalSource,
@@ -128,12 +130,12 @@ export function detailsOf(
   names: ReadonlyArray<string> = [],
 ): Details {
   if (ParseResult.isParseError(failure)) {
-    const first = ParseResult.ArrayFormatter.formatErrorSync(failure)[0];
+    const first = firstRefusal(failure);
     if (first !== undefined) {
       return {
         source,
         path: pathOf(source, first.path, names),
-        expected: first.message,
+        expected: refusalMessage(first),
       };
     }
   }

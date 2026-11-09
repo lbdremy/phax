@@ -174,7 +174,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "files: Expected readonly [NonEmptyString, ...NonEmptyString[]], actual 42"
+        "refusal": "files: Expected one of an array | null, actual 42"
       }
     }
   ],

@@ -365,7 +365,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "state: Expected \"pending\", actual \"bogus-value\""
+        "refusal": "state: Expected \"pending\" | \"setting_up_worktree\" | \"running\" | \"gates_failed\" | \"gates_exhausted\" | \"fixing\" | \"failed\" | \"passed\" | \"committed\" | \"cleaning_up\" | \"cleaned_up\" | \"review_open\" | \"handoff_failed\" | \"skipped\" | \"rate_limited\" | \"awaiting_review\", actual \"bogus-value\""
       }
     },
     {
@@ -885,7 +885,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "state: Expected \"pending\", actual \"bogus-value\""
+          "refusal": "state: Expected \"pending\" | \"setting_up_worktree\" | \"running\" | \"gates_failed\" | \"gates_exhausted\" | \"fixing\" | \"failed\" | \"passed\" | \"committed\" | \"cleaning_up\" | \"cleaned_up\" | \"review_open\" | \"handoff_failed\" | \"skipped\" | \"rate_limited\", actual \"bogus-value\""
         }
       },
       {

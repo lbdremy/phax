@@ -588,7 +588,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "decisions.0.id: Expected A question id of the artifact: no whitespace., actual \"\""
+        "refusal": "decisions.0.id: Expected a string matching the pattern ^\\S+$, actual \"\""
       }
     }
   ],

@@ -380,7 +380,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "phase: Expected The gated phase., actual \"\""
+        "refusal": "phase: Expected a string matching the pattern ^phase-\\d{2}$, actual \"\""
       }
     }
   ],

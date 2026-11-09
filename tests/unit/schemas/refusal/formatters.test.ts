@@ -165,9 +165,13 @@ describe("the source", () => {
   }
 
   it("calls no ArrayFormatter and reads no Effect issue message outside the adapter", () => {
-    const root = join(import.meta.dirname, "../../../../src");
-    const offenders = ["schemas", "domain", "app"]
-      .flatMap((layer) => sources(join(root, layer)))
+    const root = join(import.meta.dirname, "../../../..");
+    const trees = [
+      ...["schemas", "domain", "app", "cli"].flatMap((layer) => sources(join(root, "src", layer))),
+      ...sources(join(root, "packages/schemas/src")),
+      ...sources(join(root, "tests/effect4Corpus")),
+    ];
+    const offenders = trees
       .filter((path) => !path.endsWith(join("schemas", "refusal", "adapter.ts")))
       .filter((path) =>
         /ArrayFormatter|issueMessage|LITERAL_MISMATCH_RE/.test(readFileSync(path, "utf8")),

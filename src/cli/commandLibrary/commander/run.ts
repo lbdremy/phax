@@ -2,6 +2,8 @@ import { Cause, Data, Effect, Either, Option } from "effect";
 import * as ParseResult from "effect/ParseResult";
 import * as Schema from "effect/Schema";
 import * as SchemaAST from "effect/SchemaAST";
+import { firstRefusal } from "../../../schemas/refusal/adapter.js";
+import { refusalMessage } from "../../../schemas/refusal/render.js";
 import {
   catalogue,
   commandContract,
@@ -221,16 +223,17 @@ const policyOf = (source: Source<Schema.Schema.Any>) =>
   }) as const;
 
 /** Why a decode failed, on one line: the first issue's place, as the call writes it, and what
- *  Effect 3's `ParseResult.ArrayFormatter` says of it. */
+ *  phax's refusal model says of it. */
 function reasonOf(
   kind: Details["source"],
   failure: ParseResult.ParseError,
   names: ReadonlyArray<string>,
 ): string {
-  const first = ParseResult.ArrayFormatter.formatErrorSync(failure)[0];
-  if (first === undefined) return failure.message;
+  const first = firstRefusal(failure);
+  if (first === undefined) return "a value the contract accepts";
   const path = pathOf(kind, first.path, names);
-  return path.length === 0 ? first.message : `${path.join(".")}: ${first.message}`;
+  const message = refusalMessage(first);
+  return path.length === 0 ? message : `${path.join(".")}: ${message}`;
 }
 
 /** Decodes one source's value with its policy applied literally, with Effect 3's

@@ -930,7 +930,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "provider: Expected \"claude-code\", actual \"bogus-value\""
+        "refusal": "provider: Expected \"claude-code\" | \"codex-cli\" | \"mistral-vibe\", actual \"bogus-value\""
       }
     },
     {

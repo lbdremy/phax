@@ -752,7 +752,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "phases.0.effort: Expected \"none\", actual \"bogus-value\""
+        "refusal": "phases.0.effort: Expected \"none\" | \"off\" | \"low\" | \"medium\" | \"high\" | \"xhigh\" | \"max\" | \"ultracode\" | \"ultra\", actual \"bogus-value\""
       }
     },
     {

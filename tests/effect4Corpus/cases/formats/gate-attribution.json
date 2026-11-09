@@ -931,7 +931,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "steps.0.surface: Expected \"local\", actual \"bogus-value\""
+          "refusal": "steps.0.surface: Expected \"local\" | \"structural\" | \"product\", actual \"bogus-value\""
         }
       },
       {
@@ -1089,7 +1089,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "steps.0.surface: Expected \"local\", actual \"bogus-value\""
+          "refusal": "steps.0.surface: Expected \"local\" | \"structural\" | \"product\", actual \"bogus-value\""
         }
       },
       {
@@ -1247,7 +1247,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "steps.0.surface: Expected \"local\", actual \"bogus-value\""
+          "refusal": "steps.0.surface: Expected \"local\" | \"structural\" | \"product\", actual \"bogus-value\""
         }
       },
       {

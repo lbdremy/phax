@@ -14,6 +14,8 @@
 // module's refusal, or, for a module phax never reads that way, as the
 // package's first issue.
 import { Either, Option, ParseResult } from "effect";
+import { firstRefusal } from "../../src/schemas/refusal/adapter.js";
+import { refusalMessage, refusalPath } from "../../src/schemas/refusal/render.js";
 import {
   parseAcceptanceRequest,
   parseArchitectureReport,
@@ -376,10 +378,10 @@ type Render = "first" | "plan-document" | "package";
 function renderFrozen(render: Render, raw: unknown, error: ParseResult.ParseError): string {
   if (render === "first") return formatFirstViolation(error);
   if (render === "plan-document") return formatPlanDocumentViolation(raw, error);
-  const [first] = ParseResult.ArrayFormatter.formatErrorSync(error);
+  const first = firstRefusal(error);
   return first === undefined
     ? ": invalid document"
-    : `${first.path.map(String).join(".")}: ${first.message}`;
+    : `${refusalPath(first.path, "dotted")}: ${refusalMessage(first)}`;
 }
 
 function frozen<A>(
