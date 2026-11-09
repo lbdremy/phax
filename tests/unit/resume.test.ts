@@ -2,7 +2,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { decodeShortName } from "../../src/domain/branded.js";
 import { findNextResumablePhase, inspectResumeOfRun, readRunHold } from "../../src/app/resume.js";
 import type { RunReviewInfo } from "../../src/domain/runReviewInfo.js";
@@ -15,8 +15,8 @@ import { phaseStatus, phaseStatusFile } from "../helpers/phaseStatusFixture.js";
 import type { PhaseStatus, RunHold } from "../../src/schemas/status.js";
 import { REQUIRED_HANDOFF_SECTIONS } from "../../src/app/handoffGuidance.js";
 
-function unwrap<T>(e: Either.Either<T, unknown>): T {
-  if (Either.isLeft(e)) throw new Error("decode failed");
+function unwrap<T>(e: Result.Result<T, unknown>): T {
+  if (Result.isFailure(e)) throw new Error("decode failed");
   return e.right;
 }
 
@@ -310,8 +310,8 @@ describe("inspectResume", () => {
 
     const result = await inspectResumeOnDisk("test-project", shortName, stateRoot);
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isRight(result)) throw new Error("expected refusal");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isSuccess(result)) throw new Error("expected refusal");
     expect(result.left.reason).toBe("created");
     expect(result.left.message).toContain("test-run");
     expect(result.left.message).toContain("not been started");
@@ -329,8 +329,8 @@ describe("inspectResume", () => {
 
     const result = await inspectResumeOnDisk("test-project", shortName, stateRoot);
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isRight(result)) throw new Error("expected refusal");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isSuccess(result)) throw new Error("expected refusal");
     expect(result.left.reason).toBe("failed");
     expect(result.left.message).toContain("test-run");
     expect(result.left.message).toContain("failed");
@@ -346,8 +346,8 @@ describe("inspectResume", () => {
 
     const result = await inspectResumeOnDisk("test-project", shortName, stateRoot);
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isRight(result)) throw new Error("expected refusal");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isSuccess(result)) throw new Error("expected refusal");
     expect(result.left.reason).toBe("review_open");
     expect(result.left.message).toContain("phax enter");
   });
@@ -361,8 +361,8 @@ describe("inspectResume", () => {
 
     const result = await inspectResumeOnDisk("test-project", shortName, stateRoot);
 
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isLeft(result)) throw new Error("expected decision");
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isFailure(result)) throw new Error("expected decision");
     expect(result.right.fromState).toBe("rate_limited");
     expect(result.right.nextPhaseId).toBe("phase-01");
   });
@@ -416,8 +416,8 @@ describe("inspectResume", () => {
 
     const result = await inspectResumeOnDisk("test-project", shortName, stateRoot);
 
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isLeft(result)) throw new Error(`expected decision, got: ${result.left.message}`);
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isFailure(result)) throw new Error(`expected decision, got: ${result.left.message}`);
     expect(result.right.nextPhaseId).toBe("phase-02");
     expect(result.right.nextPhaseIndex).toBe(1);
     expect(result.right.skippedPhaseIds).toContain("phase-01");
@@ -462,8 +462,8 @@ describe("inspectResume", () => {
 
     const result = await inspectResumeOnDisk("test-project", shortName, stateRoot);
 
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isLeft(result)) throw new Error(`expected decision, got: ${result.left.message}`);
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isFailure(result)) throw new Error(`expected decision, got: ${result.left.message}`);
     expect(result.right.nextPhaseId).toBe("phase-03");
     expect(result.right.nextPhaseIndex).toBe(2);
     expect(result.right.skippedPhaseIds).toEqual(["phase-01", "phase-02"]);
@@ -502,8 +502,8 @@ describe("inspectResume", () => {
 
     const result = await inspectResumeOnDisk("test-project", shortName, stateRoot);
 
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isLeft(result)) throw new Error(`expected decision, got: ${result.left.message}`);
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isFailure(result)) throw new Error(`expected decision, got: ${result.left.message}`);
     expect(result.right.fromState).toBe("interrupted");
     expect(result.right.nextPhaseId).toBe("phase-01");
     expect(result.right.nextPhaseIndex).toBe(0);
@@ -538,8 +538,8 @@ describe("inspectResume", () => {
 
     const result = await inspectResumeOnDisk("test-project", shortName, stateRoot);
 
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isLeft(result)) throw new Error(`expected decision, got: ${result.left.message}`);
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isFailure(result)) throw new Error(`expected decision, got: ${result.left.message}`);
     expect(result.right.nextPhaseId).toBe("phase-01");
     expect(result.right.nextPhaseIndex).toBe(0);
     expect(result.right.owedStep).toBe("post-handoff");
@@ -574,7 +574,7 @@ describe("inspectResume", () => {
 
     const result = await inspectResumeOnDisk("test-project", shortName, stateRoot);
 
-    if (Either.isLeft(result)) throw new Error(`expected decision, got: ${result.left.message}`);
+    if (Result.isFailure(result)) throw new Error(`expected decision, got: ${result.left.message}`);
     expect(result.right).toMatchObject({ nextPhaseId: "phase-01", owedStep: "post-handoff" });
   });
 
@@ -608,7 +608,7 @@ describe("inspectResume", () => {
 
     const result = await inspectResumeOnDisk("test-project", shortName, stateRoot);
 
-    if (Either.isLeft(result)) throw new Error(`expected decision, got: ${result.left.message}`);
+    if (Result.isFailure(result)) throw new Error(`expected decision, got: ${result.left.message}`);
     expect(result.right.nextPhaseId).toBe("phase-01");
     expect(result.right.nextPhaseIndex).toBe(0);
   });
@@ -653,7 +653,8 @@ describe("inspectResume", () => {
 
       const result = await inspectResumeOnDisk("test-project", shortName, stateRoot);
 
-      if (Either.isLeft(result)) throw new Error(`expected decision, got: ${result.left.message}`);
+      if (Result.isFailure(result))
+        throw new Error(`expected decision, got: ${result.left.message}`);
       expect(result.right.nextPhaseId).toBe("phase-01");
       expect(result.right.owedStep).toBe("handoff");
     });
@@ -668,7 +669,8 @@ describe("inspectResume", () => {
 
       const result = await inspectResumeOnDisk("test-project", shortName, stateRoot);
 
-      if (Either.isLeft(result)) throw new Error(`expected decision, got: ${result.left.message}`);
+      if (Result.isFailure(result))
+        throw new Error(`expected decision, got: ${result.left.message}`);
       expect(result.right.nextPhaseId).toBe("phase-01");
     });
 
@@ -678,7 +680,7 @@ describe("inspectResume", () => {
 
       const result = await inspectResumeOnDisk("test-project", shortName, stateRoot);
 
-      if (Either.isRight(result)) throw new Error("expected refusal");
+      if (Result.isSuccess(result)) throw new Error("expected refusal");
       expect(result.left).toEqual({
         reason: "handoff_unrecoverable",
         message: `Phase "phase-01" of run "test-run" committed, but its handoff turn did not finish, and its worktree "${gone}" no longer exists. Restore it with \`git worktree prune\` then \`git worktree add ${gone} ai/test-run--phase-01\`, then run \`phax resume test-run --yes\`: phax then writes the handoff itself.`,
@@ -691,7 +693,7 @@ describe("inspectResume", () => {
 
       const result = await inspectResumeOnDisk("test-project", shortName, stateRoot);
 
-      if (Either.isRight(result)) throw new Error("expected refusal");
+      if (Result.isSuccess(result)) throw new Error("expected refusal");
       expect(result.left).toEqual({
         reason: "handoff_unrecoverable",
         message: `Phase "phase-01" of run "test-run" committed, but its handoff turn did not finish, and no session id is recorded for it. Write ${join(runPath, "phase-01", "phase-handoff.md")} by hand with these four sections: ${REQUIRED_HANDOFF_SECTIONS.join(", ")}. Then run \`phax resume test-run --yes\`.`,
@@ -704,7 +706,7 @@ describe("inspectResume", () => {
 
       const result = await inspectResumeOnDisk("test-project", shortName, stateRoot);
 
-      if (Either.isRight(result)) throw new Error("expected refusal");
+      if (Result.isSuccess(result)) throw new Error("expected refusal");
       expect(result.left).toEqual({
         reason: "handoff_unrecoverable",
         message: `Phase "phase-01" of run "test-run" committed, but its handoff turn did not finish, and its worktree "${gone}" no longer exists and no session id is recorded for it. Write ${join(runPath, "phase-01", "phase-handoff.md")} by hand with these four sections: ${REQUIRED_HANDOFF_SECTIONS.join(", ")}. Restore its worktree, which completing the run needs: \`git worktree prune\` then \`git worktree add ${gone} ai/test-run--phase-01\`. Then run \`phax resume test-run --yes\`.`,
@@ -717,7 +719,7 @@ describe("inspectResume", () => {
 
       const result = await inspectResumeOnDisk("test-project", shortName, stateRoot);
 
-      if (Either.isRight(result)) throw new Error("expected refusal");
+      if (Result.isSuccess(result)) throw new Error("expected refusal");
       expect(result.left.reason).toBe("handoff_unrecoverable");
       expect(result.left.message).not.toContain("git worktree add");
     });
@@ -731,23 +733,23 @@ describe("readRunHold", () => {
   function read(content: string) {
     const fs = makeFakeFileSystem();
     fs.impl.setFile(statusPath, content);
-    return Effect.runSync(Effect.either(readRunHold(runPath).pipe(Effect.provide(fs.layer))));
+    return Effect.runSync(Effect.result(readRunHold(runPath).pipe(Effect.provide(fs.layer))));
   }
 
   it("reads the recorded hold through the FileSystem port", () => {
     const hold = { selection: "listed", phases: ["phase-02", "phase-04"] };
     expect(read(JSON.stringify(makeRunStatus("interrupted", { hold })))).toEqual(
-      Either.right(hold),
+      Result.succeed(hold),
     );
   });
 
   it("fails with an FsError naming the file when it is not JSON or not a run status", () => {
     const notJson = read("{");
-    expect(Either.isLeft(notJson) && notJson.left.message).toBe(`${statusPath}: not valid JSON`);
+    expect(Result.isFailure(notJson) && notJson.left.message).toBe(`${statusPath}: not valid JSON`);
     const withoutHold = { ...makeRunStatus("interrupted") } as Record<string, unknown>;
     delete withoutHold["hold"];
     const refused = read(JSON.stringify(withoutHold));
-    if (Either.isRight(refused)) throw new Error("expected a refusal");
+    if (Result.isSuccess(refused)) throw new Error("expected a refusal");
     expect(refused.left).toBeInstanceOf(FsError);
   });
 });
@@ -805,7 +807,7 @@ describe("inspectResumeOfRun", () => {
       statusOf("phase-03", 2, "review_open"),
     ]);
     expect(inspection.completedPhaseCount).toBe(2);
-    expect(Either.isLeft(inspection.decision) && inspection.decision.left.reason).toBe(
+    expect(Result.isFailure(inspection.decision) && inspection.decision.left.reason).toBe(
       "review_open",
     );
   });
@@ -817,8 +819,10 @@ describe("inspectResumeOfRun", () => {
       statusOf("phase-03", 2, "running"),
     ];
     const gone = inspect("interrupted", statuses);
-    expect(Either.isLeft(gone.decision) && gone.decision.left.reason).toBe("missing_worktree");
+    expect(Result.isFailure(gone.decision) && gone.decision.left.reason).toBe("missing_worktree");
     const present = inspect("interrupted", statuses, [`${worktree}/.phax-context/plan.md`]);
-    expect(Either.isRight(present.decision) && present.decision.right.nextPhaseId).toBe("phase-03");
+    expect(Result.isSuccess(present.decision) && present.decision.right.nextPhaseId).toBe(
+      "phase-03",
+    );
   });
 });

@@ -28,7 +28,7 @@
  * tokens and trusts Vibe's own enforcement, which a unit test cannot check.
  */
 
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createHash } from "node:crypto";
 import {
@@ -658,7 +658,7 @@ describe.skipIf(SKIP !== undefined)("Mistral Vibe 3 in secure mode (real CLI)", 
     async () => {
       const diffCommand = "git diff --name-only --diff-filter=d | xargs wc -l";
       const parsed = parsePartialCommand(diffCommand, "diff");
-      if (Either.isLeft(parsed)) throw new Error(`refused: ${parsed.left.kind}`);
+      if (Result.isFailure(parsed)) throw new Error(`refused: ${parsed.left.kind}`);
       const prefixes = parsed.right.segments.map((segment) => segment.prefix);
 
       const cwd = mkdtempSync(join(tmpdir(), "phax-e2e-vibe-partial-"));
@@ -731,7 +731,7 @@ describe.skipIf(SKIP !== undefined)("Mistral Vibe 3 in secure mode (real CLI)", 
       const allowed = "git diff --name-only --diff-filter=d | xargs wc -l";
       const unlisted = `git diff --name-only --diff-filter=d | tee ${canary}`;
       const parsed = parsePartialCommand(allowed, "diff");
-      if (Either.isLeft(parsed)) throw new Error(`refused: ${parsed.left.kind}`);
+      if (Result.isFailure(parsed)) throw new Error(`refused: ${parsed.left.kind}`);
       const prefixes = parsed.right.segments.map((segment) => segment.prefix);
 
       const cwd = mkdtempSync(join(tmpdir(), "phax-e2e-vibe-partial-neg-"));

@@ -273,4 +273,4 @@ export interface GitOps {
   ): Effect.Effect<string, GitError>;
 }
 
-export class Git extends Context.Tag("phax/Git")<Git, GitOps>() {}
+export class Git extends Context.Service<Git, GitOps>()("phax/Git") {}

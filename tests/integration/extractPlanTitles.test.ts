@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { loadOrExtractPlan } from "../../src/app/loadOrExtractPlan.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
@@ -41,7 +41,7 @@ function run(planMd: string, finalText: string) {
 
   const layer = Layer.mergeAll(fakeFs.layer, fakeBackend.layer);
   return Effect.runPromise(
-    Effect.either(
+    Effect.result(
       loadOrExtractPlan({
         planMdPath: "/repo/plan.md",
         model: "claude-sonnet-4-6",
@@ -70,8 +70,8 @@ describe("loadOrExtractPlan — title derivation from headings", () => {
       ]),
     );
 
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
       expect(result.right.plan.phases.map((p) => p.title)).toEqual(["Alpha phase", "Beta phase"]);
     }
   });
@@ -87,8 +87,8 @@ describe("loadOrExtractPlan — title derivation from headings", () => {
       extractedJson([{ id: "phase-01", anchor: "#phase-01-quoted" }]),
     );
 
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
       expect(result.right.plan.phases[0]!.title).toBe('Guard "all I/O goes through a port"');
     }
   });
@@ -106,8 +106,8 @@ describe("loadOrExtractPlan — title derivation from headings", () => {
       ]),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left).toBeInstanceOf(PlanValidationError);
       expect(result.left.message).toContain("phase-02");
     }

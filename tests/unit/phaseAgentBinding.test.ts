@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   decodePhaseAgentBinding,
@@ -27,52 +27,52 @@ const validBinding: PhaseAgentBinding = {
 
 describe("decodePhaseAgentBinding", () => {
   it("accepts a fully-populated valid binding", () => {
-    expect(Either.isRight(decodePhaseAgentBinding(validBinding))).toBe(true);
+    expect(Result.isSuccess(decodePhaseAgentBinding(validBinding))).toBe(true);
   });
 
   it("accepts a binding with sessionId: null", () => {
     const binding = { ...validBinding, sessionId: null };
-    expect(Either.isRight(decodePhaseAgentBinding(binding))).toBe(true);
+    expect(Result.isSuccess(decodePhaseAgentBinding(binding))).toBe(true);
   });
 
   it("accepts a binding with sessionHandle: null", () => {
     const binding = { ...validBinding, sessionHandle: null };
-    expect(Either.isRight(decodePhaseAgentBinding(binding))).toBe(true);
+    expect(Result.isSuccess(decodePhaseAgentBinding(binding))).toBe(true);
   });
 
   it("accepts launching status with null sessionId", () => {
     const binding = { ...validBinding, status: "launching", sessionId: null };
-    expect(Either.isRight(decodePhaseAgentBinding(binding))).toBe(true);
+    expect(Result.isSuccess(decodePhaseAgentBinding(binding))).toBe(true);
   });
 
   it("rejects an unknown provider", () => {
     const binding = { ...validBinding, provider: "openai" };
-    expect(Either.isLeft(decodePhaseAgentBinding(binding))).toBe(true);
+    expect(Result.isFailure(decodePhaseAgentBinding(binding))).toBe(true);
   });
 
   it("rejects an unknown adapter", () => {
     const binding = { ...validBinding, adapter: "openai" };
-    expect(Either.isLeft(decodePhaseAgentBinding(binding))).toBe(true);
+    expect(Result.isFailure(decodePhaseAgentBinding(binding))).toBe(true);
   });
 
   it("rejects an unknown status", () => {
     const binding = { ...validBinding, status: "paused" };
-    expect(Either.isLeft(decodePhaseAgentBinding(binding))).toBe(true);
+    expect(Result.isFailure(decodePhaseAgentBinding(binding))).toBe(true);
   });
 
   it("rejects a missing required field", () => {
     const { model: _model, ...binding } = validBinding;
-    expect(Either.isLeft(decodePhaseAgentBinding(binding))).toBe(true);
+    expect(Result.isFailure(decodePhaseAgentBinding(binding))).toBe(true);
   });
 
   it("rejects a phaseId that doesn't match ^phase-\\d{2}$", () => {
     const binding = { ...validBinding, phaseId: "phase-1" };
-    expect(Either.isLeft(decodePhaseAgentBinding(binding))).toBe(true);
+    expect(Result.isFailure(decodePhaseAgentBinding(binding))).toBe(true);
   });
 
   it("rejects a phaseId that doesn't match pattern (prose)", () => {
     const binding = { ...validBinding, phaseId: "my-phase" };
-    expect(Either.isLeft(decodePhaseAgentBinding(binding))).toBe(true);
+    expect(Result.isFailure(decodePhaseAgentBinding(binding))).toBe(true);
   });
 });
 
@@ -80,8 +80,8 @@ describe("encode → decode round-trip", () => {
   it("round-trips a valid binding", () => {
     const encoded = encodePhaseAgentBinding(validBinding);
     const decoded = decodePhaseAgentBinding(encoded);
-    expect(Either.isRight(decoded)).toBe(true);
-    if (Either.isRight(decoded)) {
+    expect(Result.isSuccess(decoded)).toBe(true);
+    if (Result.isSuccess(decoded)) {
       expect(decoded.right).toEqual(validBinding);
     }
   });
@@ -95,8 +95,8 @@ describe("encode → decode round-trip", () => {
     };
     const encoded = encodePhaseAgentBinding(binding);
     const decoded = decodePhaseAgentBinding(encoded);
-    expect(Either.isRight(decoded)).toBe(true);
-    if (Either.isRight(decoded)) {
+    expect(Result.isSuccess(decoded)).toBe(true);
+    if (Result.isSuccess(decoded)) {
       expect(decoded.right).toEqual(binding);
     }
   });

@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { join } from "node:path";
 import {
   extractClaudeUsage,
@@ -39,7 +39,7 @@ import {
 
 export { RECORDS_BRANCH_NAME };
 
-const RECORDS_BRANCH: BranchName = Either.getOrThrow(decodeBranchName(RECORDS_BRANCH_NAME));
+const RECORDS_BRANCH: BranchName = Result.getOrThrow(decodeBranchName(RECORDS_BRANCH_NAME));
 
 export const RECORD_TRANSCRIPT_FILE = "output.jsonl";
 const MANIFEST_FILE = "record.json";
@@ -221,8 +221,8 @@ export function commitRecordTree(input: CommitRecordTreeInput): Effect.Effect<
           parent,
           expectedTip,
         })
-        .pipe(Effect.either);
-      if (Either.isRight(written)) {
+        .pipe(Effect.result);
+      if (Result.isSuccess(written)) {
         return {
           commitSha: written.right,
           branch: RECORDS_BRANCH_NAME,

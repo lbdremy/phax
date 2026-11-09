@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execSync } from "node:child_process";
-import { Either } from "effect";
+import { Result } from "effect";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { loadConfig } from "../../src/app/loadConfig.js";
 
@@ -51,8 +51,8 @@ describe("loadConfig with no user config files", () => {
   it("loads project config when neither user file exists", () => {
     writeProjectConfig(baseConfig);
     const result = loadConfig(repoDir);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
       expect(result.right.maxFixAttempts).toBe(1);
       expect(result.right.namespace).toBe("test");
     }
@@ -61,8 +61,8 @@ describe("loadConfig with no user config files", () => {
   it("defaults stateRoot to tempHome/.phax when no layer sets it", () => {
     writeProjectConfig(baseConfig);
     const result = loadConfig(repoDir);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
       expect(result.right.stateRoot).toBe(join(tempHome, ".phax"));
     }
   });
@@ -73,8 +73,8 @@ describe("loadConfig phax.local.json scalar override", () => {
     writeProjectConfig({ ...baseConfig, agent: { maxFixAttempts: 2 } });
     writeLocalUserConfig({ agent: { maxFixAttempts: 5 } });
     const result = loadConfig(repoDir);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
       expect(result.right.maxFixAttempts).toBe(5);
     }
   });
@@ -83,8 +83,8 @@ describe("loadConfig phax.local.json scalar override", () => {
     writeProjectConfig({ ...baseConfig, fileReconciliation: { mode: "report_only" } });
     writeLocalUserConfig({ fileReconciliation: { mode: "warn" } });
     const result = loadConfig(repoDir);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
       expect(result.right.fileReconciliationMode).toBe("warn");
     }
   });
@@ -93,8 +93,8 @@ describe("loadConfig phax.local.json scalar override", () => {
     writeProjectConfig(baseConfig);
     writeLocalUserConfig({ state: { root: "~/custom-root" } });
     const result = loadConfig(repoDir);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
       expect(result.right.stateRoot).toBe(join(tempHome, "custom-root"));
     }
   });
@@ -105,8 +105,8 @@ describe("loadConfig ~/.phax/config.json scalar override", () => {
     writeProjectConfig({ ...baseConfig, agent: { maxFixAttempts: 2 } });
     writeGlobalUserConfig({ agent: { maxFixAttempts: 4 } });
     const result = loadConfig(repoDir);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
       expect(result.right.maxFixAttempts).toBe(4);
     }
   });
@@ -116,8 +116,8 @@ describe("loadConfig ~/.phax/config.json scalar override", () => {
     writeGlobalUserConfig({ agent: { maxFixAttempts: 3 } });
     writeLocalUserConfig({ agent: { maxFixAttempts: 7 } });
     const result = loadConfig(repoDir);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
       expect(result.right.maxFixAttempts).toBe(7);
     }
   });
@@ -127,8 +127,8 @@ describe("loadConfig ~/.phax/config.json scalar override", () => {
     writeGlobalUserConfig({ state: { root: "~/global-root" } });
     writeLocalUserConfig({ state: { root: "~/local-root" } });
     const result = loadConfig(repoDir);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
       expect(result.right.stateRoot).toBe(join(tempHome, "local-root"));
     }
   });
@@ -143,8 +143,8 @@ describe("loadConfig allowlist union across layers", () => {
     writeGlobalUserConfig({ security: { filesystem: { allowWrite: ["/tmp/global-path"] } } });
     writeLocalUserConfig({ security: { filesystem: { allowWrite: ["/tmp/local-path"] } } });
     const result = loadConfig(repoDir);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
       const paths = result.right.security.filesystem.allowWrite;
       expect(paths).toContain("/tmp/project-path");
       expect(paths).toContain("/tmp/global-path");
@@ -159,8 +159,8 @@ describe("loadConfig allowlist union across layers", () => {
     });
     writeLocalUserConfig({ security: { filesystem: { allowWrite: ["/tmp/shared"] } } });
     const result = loadConfig(repoDir);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
       const paths = result.right.security.filesystem.allowWrite;
       expect(paths.filter((p) => p === "/tmp/shared")).toHaveLength(1);
     }
@@ -173,8 +173,8 @@ describe("loadConfig allowlist union across layers", () => {
     });
     writeLocalUserConfig({ security: { filesystem: { allowWrite: ["/tmp/extra-path"] } } });
     const result = loadConfig(repoDir);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
       const paths = result.right.security.filesystem.allowWrite;
       expect(paths).toContain("/tmp/project-path");
       expect(paths).toContain("/tmp/extra-path");
@@ -189,8 +189,8 @@ describe("loadConfig allowlist union across layers", () => {
     writeGlobalUserConfig({ security: { agentCommands: ["make build"] } });
     writeLocalUserConfig({ security: { agentCommands: ["cargo check"] } });
     const result = loadConfig(repoDir);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
       const cmds = result.right.security.agentCommands;
       expect(cmds).toContain("pnpm test");
       expect(cmds).toContain("make build");
@@ -219,13 +219,13 @@ describe("loadConfig assignments", () => {
     writeProjectConfig({ ...baseConfig, assignments });
     writeLocalUserConfig({ agent: { maxFixAttempts: 2 } });
     const result = loadConfig(repoDir);
-    expect(Either.isRight(result) && result.right.assignments).toEqual(assignments);
+    expect(Result.isSuccess(result) && result.right.assignments).toEqual(assignments);
   });
 
   it("leaves assignments unset when phax.json declares none", () => {
     writeProjectConfig(baseConfig);
     const result = loadConfig(repoDir);
-    expect(Either.isRight(result) && result.right.assignments).toBeUndefined();
+    expect(Result.isSuccess(result) && result.right.assignments).toBeUndefined();
   });
 
   it.each([
@@ -243,8 +243,8 @@ describe("loadConfig assignments", () => {
     writeProjectConfig({ ...baseConfig, assignments });
     write();
     const result = loadConfig(repoDir);
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left.message).toBe('"assignments" is accepted only in phax.json');
       expect(result.left.path).toBe(path());
     }
@@ -254,7 +254,7 @@ describe("loadConfig assignments", () => {
     writeProjectConfig(baseConfig);
     writeLocalUserConfig({ assignments: [] });
     const result = loadConfig(repoDir);
-    expect(Either.isLeft(result) && result.left.message).toBe(
+    expect(Result.isFailure(result) && result.left.message).toBe(
       '"assignments" is accepted only in phax.json',
     );
   });
@@ -265,8 +265,8 @@ describe("loadConfig assignments", () => {
       assignments: [assignments[0], { ...assignments[1], globs: [] }],
     });
     const result = loadConfig(repoDir);
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left.path).toBe(join(repoDir, "phax.json"));
       expect(result.left.message).toContain("  assignments[1].globs: must not be empty");
     }
@@ -279,8 +279,8 @@ describe("loadConfig invalid user file error handling", () => {
     mkdirSync(join(tempHome, ".phax"), { recursive: true });
     writeFileSync(join(tempHome, ".phax", "config.json"), "{ invalid json }");
     const result = loadConfig(repoDir);
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left.path).toBe(join(tempHome, ".phax", "config.json"));
     }
   });
@@ -289,8 +289,8 @@ describe("loadConfig invalid user file error handling", () => {
     writeProjectConfig(baseConfig);
     writeFileSync(join(repoDir, "phax.local.json"), "{ invalid json }");
     const result = loadConfig(repoDir);
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left.path).toBe(join(repoDir, "phax.local.json"));
     }
   });
@@ -299,8 +299,8 @@ describe("loadConfig invalid user file error handling", () => {
     writeProjectConfig(baseConfig);
     writeGlobalUserConfig({ version: 1 });
     const result = loadConfig(repoDir);
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left.path).toBe(join(tempHome, ".phax", "config.json"));
     }
   });
@@ -309,8 +309,8 @@ describe("loadConfig invalid user file error handling", () => {
     writeProjectConfig(baseConfig);
     writeLocalUserConfig({ name: "other" });
     const result = loadConfig(repoDir);
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left.path).toBe(join(repoDir, "phax.local.json"));
     }
   });
@@ -330,8 +330,8 @@ describe("loadConfig invalid user file error handling", () => {
       },
     });
     const result = loadConfig(repoDir);
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left.path).toBe(join(repoDir, "phax.local.json"));
       expect(result.left.message).toContain(
         'gate step "node ./audit.mjs": output must be "log" or "gate-report"',
@@ -352,8 +352,8 @@ describe("loadConfig invalid user file error handling", () => {
       },
     });
     const result = loadConfig(repoDir);
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left.path).toBe("gateProfiles.fast");
       expect(result.left.message).toBe(
         'gateProfiles.fast lists the command "pnpm lint" twice (steps 1 and 3)',
@@ -365,8 +365,8 @@ describe("loadConfig invalid user file error handling", () => {
     writeProjectConfig({ ...baseConfig, brief: { command: "node ./brief.mjs", push: "findings" } });
     writeLocalUserConfig({ brief: { command: "node ./local-brief.mjs" } });
     const result = loadConfig(repoDir);
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left.path).toBe(join(repoDir, "phax.local.json"));
       expect(result.left.message).toContain(join(repoDir, "phax.local.json"));
       expect(result.left.message).toContain(
@@ -382,28 +382,28 @@ describe("the acceptance provider key across the three layers (ac-provider-old)"
   it("merges acceptance with local over global over project", () => {
     writeProjectConfig({ ...baseConfig, acceptance: { command: "project-acceptance" } });
     const projectOnly = loadConfig(repoDir);
-    expect(Either.isRight(projectOnly) && projectOnly.right.acceptance).toEqual({
+    expect(Result.isSuccess(projectOnly) && projectOnly.right.acceptance).toEqual({
       command: "project-acceptance",
     });
 
     writeGlobalUserConfig({ acceptance: { command: "global-acceptance" } });
     const withGlobal = loadConfig(repoDir);
-    expect(Either.isRight(withGlobal) && withGlobal.right.acceptance).toEqual({
+    expect(Result.isSuccess(withGlobal) && withGlobal.right.acceptance).toEqual({
       command: "global-acceptance",
     });
 
     writeLocalUserConfig({ acceptance: { command: "local-acceptance" } });
     const withLocal = loadConfig(repoDir);
-    expect(Either.isRight(withLocal) && withLocal.right.acceptance).toEqual({
+    expect(Result.isSuccess(withLocal) && withLocal.right.acceptance).toEqual({
       command: "local-acceptance",
     });
-    expect(Either.isRight(withLocal) && "oracles" in withLocal.right).toBe(false);
+    expect(Result.isSuccess(withLocal) && "oracles" in withLocal.right).toBe(false);
   });
 
   it("leaves acceptance unset when no layer declares it", () => {
     writeProjectConfig(baseConfig);
     const result = loadConfig(repoDir);
-    expect(Either.isRight(result) && result.right.acceptance).toBeUndefined();
+    expect(Result.isSuccess(result) && result.right.acceptance).toBeUndefined();
   });
 
   it.each([
@@ -431,8 +431,8 @@ describe("the acceptance provider key across the three layers (ac-provider-old)"
   ])("refuses an oracles key in %s, naming that file", (_layer, write, expectedPath) => {
     write();
     const result = loadConfig(repoDir);
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       const path = expectedPath();
       expect(result.left.path).toBe(path);
       expect(result.left.message).toBe(`${path}: "oracles" is no longer read: write "acceptance"`);
@@ -442,8 +442,8 @@ describe("the acceptance provider key across the three layers (ac-provider-old)"
   it("refuses the key even when its block is malformed, and even beside a valid acceptance key", () => {
     writeProjectConfig({ ...baseConfig, acceptance: { command: "ok" }, oracles: "not a block" });
     const result = loadConfig(repoDir);
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left.message).toBe(
         `${join(repoDir, "phax.json")}: "oracles" is no longer read: write "acceptance"`,
       );
@@ -455,6 +455,6 @@ describe("the acceptance provider key across the three layers (ac-provider-old)"
     writeGlobalUserConfig({ acceptance: { command: "global-acceptance" } });
     writeLocalUserConfig({ oracles: { command: COMMAND } });
     const result = loadConfig(repoDir);
-    expect(Either.isLeft(result) && result.left.path).toBe(join(repoDir, "phax.local.json"));
+    expect(Result.isFailure(result) && result.left.path).toBe(join(repoDir, "phax.local.json"));
   });
 });

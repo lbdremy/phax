@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { ReviewHandoffArtifactMissingError } from "../../src/domain/errors.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
@@ -94,8 +94,8 @@ function makeStampedPhaseJson(phaseId: string, overrides: Record<string, unknown
   );
 }
 
-function runWith<A, E>(effect: Effect.Effect<A, E, never>): Promise<Either.Either<A, E>> {
-  return Effect.runPromise(Effect.either(effect));
+function runWith<A, E>(effect: Effect.Effect<A, E, never>): Promise<Result.Result<A, E>> {
+  return Effect.runPromise(Effect.result(effect));
 }
 
 describe("loadReviewHandoffInputs", () => {
@@ -114,8 +114,8 @@ describe("loadReviewHandoffInputs", () => {
 
     const result = await runWith(loadReviewHandoffInputs(makeInfo()).pipe(Effect.provide(layer)));
 
-    expect(Either.isRight(result)).toBe(true);
-    if (!Either.isRight(result)) return;
+    expect(Result.isSuccess(result)).toBe(true);
+    if (!Result.isSuccess(result)) return;
     expect(result.right.global.files.map((f) => [f.path, f.status])).toEqual([
       ["src/bar.ts", "matched"],
       ["src/foo.ts", "matched"],
@@ -140,8 +140,8 @@ describe("loadReviewHandoffInputs", () => {
 
     const result = await runWith(loadReviewHandoffInputs(makeInfo()).pipe(Effect.provide(layer)));
 
-    expect(Either.isRight(result)).toBe(true);
-    if (!Either.isRight(result)) return;
+    expect(Result.isSuccess(result)).toBe(true);
+    if (!Result.isSuccess(result)) return;
 
     const { global, globalMd, phaseContents } = result.right;
 
@@ -169,8 +169,8 @@ describe("loadReviewHandoffInputs", () => {
 
     const result = await runWith(loadReviewHandoffInputs(makeInfo()).pipe(Effect.provide(layer)));
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (!Either.isLeft(result)) return;
+    expect(Result.isFailure(result)).toBe(true);
+    if (!Result.isFailure(result)) return;
 
     expect(result.left).toBeInstanceOf(ReviewHandoffArtifactMissingError);
     const err = result.left as ReviewHandoffArtifactMissingError;
@@ -189,8 +189,8 @@ describe("loadReviewHandoffInputs", () => {
 
     const result = await runWith(loadReviewHandoffInputs(makeInfo()).pipe(Effect.provide(layer)));
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (!Either.isLeft(result)) return;
+    expect(Result.isFailure(result)).toBe(true);
+    if (!Result.isFailure(result)) return;
     expect(result.left).toBeInstanceOf(ReviewHandoffArtifactMissingError);
   });
 
@@ -203,8 +203,8 @@ describe("loadReviewHandoffInputs", () => {
 
     const result = await runWith(loadReviewHandoffInputs(makeInfo()).pipe(Effect.provide(layer)));
 
-    expect(Either.isRight(result)).toBe(true);
-    if (!Either.isRight(result)) return;
+    expect(Result.isSuccess(result)).toBe(true);
+    if (!Result.isSuccess(result)) return;
 
     const { phaseContents } = result.right;
     expect(phaseContents[0]?.fileReconciliationMd).toContain("PARTIAL");
@@ -218,8 +218,8 @@ describe("loadReviewHandoffInputs", () => {
 
     const result = await runWith(loadReviewHandoffInputs(infoNoPhases).pipe(Effect.provide(layer)));
 
-    expect(Either.isRight(result)).toBe(true);
-    if (!Either.isRight(result)) return;
+    expect(Result.isSuccess(result)).toBe(true);
+    if (!Result.isSuccess(result)) return;
 
     const { global, phaseContents } = result.right;
     expect(global.files).toHaveLength(0);
@@ -269,13 +269,13 @@ describe("loadReviewNotes", () => {
   it("reads only the last recorded attempt, so an earlier attempt's note is left out", async () => {
     const fs = seedAttempts([]);
     const result = await runWith(loadReviewNotes(info).pipe(Effect.provide(fs.layer)));
-    expect(result).toEqual(Either.right(undefined));
+    expect(result).toEqual(Result.succeed(undefined));
   });
 
   it("gives the last recorded attempt's notes", async () => {
     const fs = seedAttempts([{ owner: "maintainers", note: "whether the log reads well" }]);
     const result = await runWith(loadReviewNotes(info).pipe(Effect.provide(fs.layer)));
-    if (Either.isLeft(result)) throw new Error("loadReviewNotes never fails");
+    if (Result.isFailure(result)) throw new Error("loadReviewNotes never fails");
     expect(result.right).toContain("whether the log reads well");
     expect(result.right).not.toContain("check the retry budget");
   });
@@ -292,8 +292,8 @@ describe("loadPhaseContents", () => {
 
     const result = await runWith(loadPhaseContents(makeInfo()).pipe(Effect.provide(layer)));
 
-    expect(Either.isRight(result)).toBe(true);
-    if (!Either.isRight(result)) return;
+    expect(Result.isSuccess(result)).toBe(true);
+    if (!Result.isSuccess(result)) return;
 
     const { phaseContents, missingPhases, missingPaths } = result.right;
     expect(phaseContents).toHaveLength(2);
@@ -313,8 +313,8 @@ describe("loadPhaseContents", () => {
 
     const result = await runWith(loadPhaseContents(makeInfo()).pipe(Effect.provide(layer)));
 
-    expect(Either.isRight(result)).toBe(true);
-    if (!Either.isRight(result)) return;
+    expect(Result.isSuccess(result)).toBe(true);
+    if (!Result.isSuccess(result)) return;
 
     const { phaseContents, missingPhases, missingPaths } = result.right;
     expect(missingPhases).toContain("phase-01");
@@ -361,8 +361,8 @@ describe("loadPhaseContents", () => {
 
     const result = await runWith(loadPhaseContents(infoReversed).pipe(Effect.provide(layer)));
 
-    expect(Either.isRight(result)).toBe(true);
-    if (!Either.isRight(result)) return;
+    expect(Result.isSuccess(result)).toBe(true);
+    if (!Result.isSuccess(result)) return;
 
     const { phaseContents } = result.right;
     expect(phaseContents[0]?.phaseId).toBe("phase-01");

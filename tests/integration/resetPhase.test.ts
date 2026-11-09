@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -127,7 +127,7 @@ async function snapshot(runPath: string) {
 }
 
 function shortName(): ShortName {
-  return Either.getOrThrow(decodeShortName(SHORT_NAME));
+  return Result.getOrThrow(decodeShortName(SHORT_NAME));
 }
 
 // A fake Git whose stopped worktree holds a modified, an added and a deleted file.
@@ -200,7 +200,7 @@ describe("resetPhase", () => {
     );
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         resetPhase({
           shortName: shortName(),
           namespace: NAMESPACE,
@@ -210,8 +210,8 @@ describe("resetPhase", () => {
       ),
     );
 
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isLeft(result)) throw new Error("unreachable");
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isFailure(result)) throw new Error("unreachable");
     const value = result.right;
     expect(value.phaseId).toBe("phase-02");
     expect(value.worktreeRemoved).toBe(true);
@@ -276,7 +276,7 @@ describe("resetPhase", () => {
     );
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         resetPhase({
           shortName: shortName(),
           namespace: NAMESPACE,
@@ -287,8 +287,8 @@ describe("resetPhase", () => {
       ),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isRight(result)) throw new Error("unreachable");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isSuccess(result)) throw new Error("unreachable");
     expect(result.left).toBeInstanceOf(ResetPhaseError);
     expect((result.left as ResetPhaseError).reason).toBe("phase_blocked_by_later_committed");
 
@@ -362,7 +362,7 @@ describe("resetPhase", () => {
         NoopSystemTelemetryLayer,
       );
       return Effect.runPromise(
-        Effect.either(
+        Effect.result(
           resetPhase({
             shortName: shortName(),
             namespace: NAMESPACE,
@@ -382,8 +382,8 @@ describe("resetPhase", () => {
 
       const result = await reset("phase-02", fakeGit);
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isRight(result)) throw new Error("unreachable");
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isSuccess(result)) throw new Error("unreachable");
       expect(result.left).toBeInstanceOf(ResetPhaseError);
       const error = result.left as ResetPhaseError;
       expect(error.reason).toBe("phase_blocked_by_passing");
@@ -401,7 +401,7 @@ describe("resetPhase", () => {
 
       const result = await reset("phase-02", makeFakeGit());
 
-      if (Either.isRight(result)) throw new Error("unreachable");
+      if (Result.isSuccess(result)) throw new Error("unreachable");
       const error = result.left as ResetPhaseError;
       expect(error.reason).toBe("phase_blocked_by_passing");
       expect(error.message).toBe(
@@ -415,8 +415,8 @@ describe("resetPhase", () => {
 
       const result = await reset("phase-02");
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
         expect((result.left as ResetPhaseError).reason).toBe("phase_blocked_by_passing");
       }
     });
@@ -425,13 +425,13 @@ describe("resetPhase", () => {
       const { runPath } = await seedPair("failed");
       await writePairPlan(runPath);
 
-      expect(Either.isRight(await reset("phase-03"))).toBe(true);
+      expect(Result.isSuccess(await reset("phase-03"))).toBe(true);
       const second = await reset("phase-02");
 
       // The discharge no longer blocks, but the state machine never resets a
       // committed phase: a committed oracle phase is not reset.
-      expect(Either.isLeft(second)).toBe(true);
-      if (Either.isLeft(second)) {
+      expect(Result.isFailure(second)).toBe(true);
+      if (Result.isFailure(second)) {
         expect((second.left as ResetPhaseError).reason).toBe("not_resettable");
       }
     });
@@ -443,7 +443,7 @@ describe("resetPhase", () => {
       const result = await reset("phase-02");
 
       // The later-committed rule does not apply (phase-03 is failed): the reset proceeds.
-      expect(Either.isRight(result)).toBe(true);
+      expect(Result.isSuccess(result)).toBe(true);
     });
   });
 
@@ -516,7 +516,7 @@ describe("resetPhase", () => {
         NoopSystemTelemetryLayer,
       );
       return Effect.runPromise(
-        Effect.either(
+        Effect.result(
           resetPhase({
             shortName: shortName(),
             namespace: NAMESPACE,
@@ -534,7 +534,7 @@ describe("resetPhase", () => {
 
       const result = await reset("phase-03");
 
-      if (Either.isRight(result)) throw new Error("expected the reset to be refused");
+      if (Result.isSuccess(result)) throw new Error("expected the reset to be refused");
       expect(result.left).toMatchObject({
         reason: "phase_blocked_by_passing",
         message:
@@ -548,7 +548,7 @@ describe("resetPhase", () => {
 
       const result = await reset("phase-03");
 
-      if (Either.isRight(result)) throw new Error("expected the reset to be refused");
+      if (Result.isSuccess(result)) throw new Error("expected the reset to be refused");
       expect(result.left).toMatchObject({
         reason: "phase_blocked_by_passing",
         message:
@@ -567,7 +567,7 @@ describe("resetPhase", () => {
         const result = await reset("phase-03");
 
         // Some other rule may refuse it, never the discharge rule.
-        if (Either.isLeft(result)) {
+        if (Result.isFailure(result)) {
           expect((result.left as ResetPhaseError).reason).not.toBe("phase_blocked_by_passing");
         }
       }
@@ -598,7 +598,7 @@ describe("resetPhase", () => {
     );
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         resetPhase({
           shortName: shortName(),
           namespace: NAMESPACE,
@@ -608,8 +608,8 @@ describe("resetPhase", () => {
       ),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isRight(result)) throw new Error("unreachable");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isSuccess(result)) throw new Error("unreachable");
     expect(result.left).toBeInstanceOf(ResetPhaseError);
     expect((result.left as ResetPhaseError).reason).toBe("not_resettable");
   });
@@ -643,7 +643,7 @@ describe("resetPhase", () => {
     );
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         resetPhase({
           shortName: shortName(),
           namespace: NAMESPACE,
@@ -653,8 +653,8 @@ describe("resetPhase", () => {
       ),
     );
 
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isLeft(result)) throw new Error("unreachable");
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isFailure(result)) throw new Error("unreachable");
     expect(result.right.branchDeleted).toBe(false);
     expect(fakeGit.impl.deletedBranches.length).toBe(0);
 
@@ -810,7 +810,7 @@ describe("resetPhase", () => {
       const before = await snapshot(runPath);
 
       const result = await Effect.runPromise(
-        Effect.either(
+        Effect.result(
           resetPhase({
             shortName: shortName(),
             namespace: NAMESPACE,
@@ -830,7 +830,7 @@ describe("resetPhase", () => {
         ),
       );
 
-      expect(Either.isLeft(result) && result.left).toBeInstanceOf(LockConflictError);
+      expect(Result.isFailure(result) && result.left).toBeInstanceOf(LockConflictError);
       expect(await snapshot(runPath)).toEqual(before);
       expect(fakeGit.impl.calls.filter((c) => c.method === "removeWorktree")).toEqual([]);
       expect(fakeGit.impl.deletedBranches).toHaveLength(0);
@@ -842,7 +842,7 @@ describe("resetPhase", () => {
       const before = await snapshot(runPath);
 
       const result = await Effect.runPromise(
-        Effect.either(
+        Effect.result(
           resetPhase({
             shortName: shortName(),
             namespace: NAMESPACE,
@@ -853,8 +853,8 @@ describe("resetPhase", () => {
         ),
       );
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isRight(result)) throw new Error("unreachable");
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isSuccess(result)) throw new Error("unreachable");
       expect(result.left).toBeInstanceOf(ResetPhaseError);
       expect((result.left as ResetPhaseError).reason).toBe("phase_not_at_stop");
       expect(result.left.message).toBe(
@@ -876,7 +876,7 @@ describe("resetPhase", () => {
     );
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         resetPhase({
           shortName: shortName(),
           namespace: NAMESPACE,
@@ -886,8 +886,8 @@ describe("resetPhase", () => {
       ),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isRight(result)) throw new Error("unreachable");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isSuccess(result)) throw new Error("unreachable");
     expect(result.left).toBeInstanceOf(ResetPhaseError);
     expect((result.left as ResetPhaseError).reason).toBe("run_not_found");
   });
@@ -940,14 +940,14 @@ describe("previewResetPhase refuses what resetPhase refuses", () => {
       repoRoot: stateRoot,
     };
     const previewed = await Effect.runPromise(
-      Effect.either(previewResetPhase(opts).pipe(Effect.provide(layers))),
+      Effect.result(previewResetPhase(opts).pipe(Effect.provide(layers))),
     );
     const reset = await Effect.runPromise(
-      Effect.either(resetPhase(opts).pipe(Effect.provide(layers))),
+      Effect.result(resetPhase(opts).pipe(Effect.provide(layers))),
     );
 
-    if (Either.isRight(previewed)) throw new Error("expected the preview to be refused");
-    if (Either.isRight(reset)) throw new Error("expected the reset to be refused");
+    if (Result.isSuccess(previewed)) throw new Error("expected the preview to be refused");
+    if (Result.isSuccess(reset)) throw new Error("expected the reset to be refused");
     expect(previewed.left).toBeInstanceOf(ResetPhaseError);
     expect(reset.left).toBeInstanceOf(ResetPhaseError);
     const { reason, message } = reset.left as ResetPhaseError;

@@ -1,7 +1,7 @@
 // The `stop` of a phase record's manifest: built from a close as it happens,
 // or from what a closed stop left on disk when its record is written by a
 // later resume. Pure: the caller reads the files.
-import { Either } from "effect";
+import { Result } from "effect";
 import {
   recordedSessions,
   type ClosedStopSession,
@@ -84,20 +84,20 @@ export function recordStopOf(facts: StopRecordFacts): NonNullable<RecordStop> {
 export function recordStopFromPersisted(
   stop: PhaseStop,
   session: InteractiveSession | null,
-): Either.Either<NonNullable<RecordStop>, string> {
+): Result.Result<NonNullable<RecordStop>, string> {
   if (stop === null || stop.status !== "closed") {
-    return Either.left("the phase's stop is not closed");
+    return Result.fail("the phase's stop is not closed");
   }
   const sessions: ClosedStopSession[] = [];
   if (session !== null) {
     const { transcripts } = session;
     if (transcripts === null) {
-      return Either.left("interactive-session.json names no transcript: the close never ran");
+      return Result.fail("interactive-session.json names no transcript: the close never ran");
     }
     for (const recorded of recordedSessions(session)) {
       const entry = transcripts.find((t) => t.sessionId === recorded.sessionId);
       if (entry === undefined) {
-        return Either.left(
+        return Result.fail(
           `interactive-session.json names no transcript for session ${recorded.sessionId}`,
         );
       }
@@ -116,11 +116,11 @@ export function recordStopFromPersisted(
   }
   const closedBy = stop.closedBy;
   if (stop.cause === "declared") {
-    return Either.right(
+    return Result.succeed(
       recordStopOf({ cause: "declared", outcome: stop.outcome, closedBy, sessions }),
     );
   }
-  return Either.right(
+  return Result.succeed(
     stop.outcome === "corrected"
       ? recordStopOf({
           cause: "held",

@@ -84,7 +84,7 @@ export type AuthoringRecordManifestV0_23_0 = Schema.Schema.Type<
   typeof AuthoringRecordManifestV0_23_0Schema
 >;
 
-export const decodeAuthoringRecordManifestV0_23_0 = Schema.decodeUnknownEither(
+export const decodeAuthoringRecordManifestV0_23_0 = Schema.decodeUnknownResult(
   AuthoringRecordManifestV0_23_0Schema,
   { onExcessProperty: "error" },
 );

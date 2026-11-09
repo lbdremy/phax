@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { transitionArtifactBy } from "../../src/app/artifactStatus.js";
 import { plansStalenessReport } from "../../src/app/planStaleness.js";
@@ -137,7 +137,7 @@ function transition(
     makeFakeTerminal(stdinIsTerminal).layer,
   );
   return Effect.runPromise(
-    Effect.either(
+    Effect.result(
       transitionArtifactBy(path, target, { repoRoot: repoDir, nowIso: NOW, commit: true, by }).pipe(
         Effect.provide(layer),
       ),
@@ -147,7 +147,7 @@ function transition(
 
 async function approve(path: string): Promise<void> {
   const result = await transition(path, "Approved", "operator");
-  if (Either.isLeft(result)) throw new Error(`fixture approval failed: ${result.left.message}`);
+  if (Result.isFailure(result)) throw new Error(`fixture approval failed: ${result.left.message}`);
 }
 
 function plansReport() {
@@ -169,12 +169,12 @@ function plansReport() {
 
 // A refusal: exit 12, the message naming `expected`, nothing written, HEAD unchanged.
 function expectRefusedUntouched(
-  result: Either.Either<unknown, { readonly message: string }>,
+  result: Result.Result<unknown, { readonly message: string }>,
   expected: string,
   before: string,
 ): void {
-  expect(Either.isLeft(result)).toBe(true);
-  if (Either.isLeft(result)) {
+  expect(Result.isFailure(result)).toBe(true);
+  if (Result.isFailure(result)) {
     expect(exitCodeForError(result.left)).toBe(12);
     expect(result.left.message).toContain(expected);
   }
@@ -214,8 +214,8 @@ describe("Artifact reopen returns an Approved artifact to Draft", { timeout: 30_
 
     const result = await transition(SPEC, "Draft", "machine:roadmap-loop");
 
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
       expect(result.right).toMatchObject({
         status: "Draft",
         previousStatus: "Approved",
@@ -247,7 +247,7 @@ describe("Artifact reopen returns an Approved artifact to Draft", { timeout: 30_
 
     const result = await transition(PLAN, "Draft", "machine:roadmap-loop");
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     expect(readRepoFile(PLAN)).not.toContain("approved:");
     expect(readRepoFile(PLAN_SIDECAR)).toBe(sidecar);
     expect(headChanges().toSorted()).toEqual([`D ${recordOf("plan", PLAN)}`, `M ${PLAN}`]);
@@ -273,8 +273,8 @@ describe("Artifact reopen returns an Approved artifact to Draft", { timeout: 30_
     async (terminal) => {
       await approve(SPEC);
       const retired = await transition(SPEC, terminal, undefined);
-      expect(Either.isRight(retired)).toBe(true);
-      const archived = Either.isRight(retired) ? retired.right.path : "";
+      expect(Result.isSuccess(retired)).toBe(true);
+      const archived = Result.isSuccess(retired) ? retired.right.path : "";
 
       const before = headSha();
       const result = await transition(archived, "Draft", "machine:roadmap-loop");
@@ -286,12 +286,12 @@ describe("Artifact reopen returns an Approved artifact to Draft", { timeout: 30_
     writeRepoFile(PLAN, planMd(null));
     commitAll();
     await approve(PLAN);
-    expect(Either.isRight(await transition(PLAN, "Stale", undefined))).toBe(true);
+    expect(Result.isSuccess(await transition(PLAN, "Stale", undefined))).toBe(true);
 
     const result = await transition(PLAN, "Draft", "operator");
 
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) expect(result.right.previousStatus).toBe("Stale");
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) expect(result.right.previousStatus).toBe("Stale");
     expect(readRepoFile(PLAN)).toContain("status: Draft");
     expect(readRepoFile(PLAN)).not.toContain("approved:");
     expect(existsSync(join(repoDir, recordOf("plan", PLAN)))).toBe(false);
@@ -303,7 +303,7 @@ describe("Artifact reopen returns an Approved artifact to Draft", { timeout: 30_
     const before = headSha();
     const result = await transition(SPEC, "Draft", undefined, false);
     expectRefusedUntouched(result, "--by operator", before);
-    if (Either.isLeft(result)) {
+    if (Result.isFailure(result)) {
       expect(result.left.message).toContain("--by machine:<grant>");
       expect(result.left.message).toMatch(/^Reopen refused: /);
     }
@@ -314,8 +314,8 @@ describe("Artifact reopen returns an Approved artifact to Draft", { timeout: 30_
   it("reopen from a terminal without --by names the operator by git user.name", async () => {
     await approve(SPEC);
     const result = await transition(SPEC, "Draft", undefined, true);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
       expect(result.right.reopenedBy).toEqual({ kind: "operator", name: OPERATOR });
     }
     expect(headBody()).toMatch(/\n\nReopened-By: operator \(Ada Lovelace\)$/);
@@ -342,8 +342,8 @@ describe("Reopening a spec names its plans and leaves them", { timeout: 30_000 }
 
     const result = await transition(SPEC, "Draft", "operator");
 
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
       expect(result.right.boundPlans).toEqual([{ path: PLAN, status: "Approved" }]);
     }
     expect(readRepoFile(PLAN)).toBe(planBefore);

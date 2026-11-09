@@ -13,7 +13,7 @@ import {
   type TestStrategyReading,
 } from "./testLineGrammar.js";
 
-const decodeExtracted = Schema.decodeUnknownEither(ExtractedPhaxPlanSchema, {
+const decodeExtracted = Schema.decodeUnknownResult(ExtractedPhaxPlanSchema, {
   onExcessProperty: "error",
 });
 
@@ -326,7 +326,7 @@ const EffortSchema = Schema.Literal(
   "ultracode",
   "ultra",
 );
-const decodeEffort = Schema.decodeUnknownEither(EffortSchema);
+const decodeEffort = Schema.decodeUnknownResult(EffortSchema);
 
 /**
  * A structural defect found while walking a plan.md. `phase` is the

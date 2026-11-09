@@ -1,6 +1,6 @@
 // How a refused code-review answer reads: a value outside a closed set names
 // itself and the whole set, and a bad line says what it must be.
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { readCodeReviewAnswer } from "../../../src/schemas/codeReview.js";
 import { CURRENT_STAMPS } from "../../../src/schemas/release.js";
@@ -23,7 +23,7 @@ const refusal = (overrides: Record<string, unknown>) => {
     $schema: schemaUrl("code-review", CURRENT_STAMPS["code-review"]),
     findings: [finding(overrides)],
   });
-  return Either.isLeft(read) ? read.left : undefined;
+  return Result.isFailure(read) ? read.left : undefined;
 };
 
 describe("code-review answer refusals", () => {

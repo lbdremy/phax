@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { join } from "node:path";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { RegistryCorruptionError } from "../domain/errors.js";
@@ -32,7 +32,7 @@ export function readRegistry(
       );
     }
     const decoded = readRegistryFile(path, parsed);
-    if (Either.isLeft(decoded)) {
+    if (Result.isFailure(decoded)) {
       return yield* Effect.fail(
         new RegistryCorruptionError({
           message: decoded.left.message,

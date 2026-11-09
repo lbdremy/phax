@@ -272,7 +272,7 @@ export const RunRecordManifestFileSchema = Schema.Struct({
 
 export type RunRecordManifestFile = Schema.Schema.Type<typeof RunRecordManifestFileSchema>;
 
-export const decodeRunRecordManifestFile = Schema.decodeUnknownEither(RunRecordManifestFileSchema, {
+export const decodeRunRecordManifestFile = Schema.decodeUnknownResult(RunRecordManifestFileSchema, {
   onExcessProperty: "error",
 });
 

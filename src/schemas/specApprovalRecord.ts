@@ -32,7 +32,7 @@ export const SpecApprovalRecordFileSchema = Schema.Struct({
 
 export type SpecApprovalRecordFile = Schema.Schema.Type<typeof SpecApprovalRecordFileSchema>;
 
-export const decodeSpecApprovalRecordFile = Schema.decodeUnknownEither(
+export const decodeSpecApprovalRecordFile = Schema.decodeUnknownResult(
   SpecApprovalRecordFileSchema,
   { onExcessProperty: "error" },
 );
@@ -67,7 +67,7 @@ export const SpecRecordFileSchema = Schema.Struct({
 
 export type SpecRecordFile = Schema.Schema.Type<typeof SpecRecordFileSchema>;
 
-export const decodeSpecRecordFile = Schema.decodeUnknownEither(SpecRecordFileSchema, {
+export const decodeSpecRecordFile = Schema.decodeUnknownResult(SpecRecordFileSchema, {
   onExcessProperty: "error",
 });
 

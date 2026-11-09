@@ -1,4 +1,4 @@
-import { Either, JSONSchema, Schema } from "effect";
+import { Result, JSONSchema, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import { findJsonSchemaGaps } from "../../packages/schemas/build/jsonSchemas.js";
 import {
@@ -100,12 +100,12 @@ describe("schemaUrl", () => {
 });
 
 describe("schemaUrlField", () => {
-  const decode = Schema.decodeUnknownEither(schemaUrlField("registry"));
+  const decode = Schema.decodeUnknownResult(schemaUrlField("registry"));
 
   it.each(["0.16.0", "0.17.0", "1.0.0", "12.34.56"])(
     "accepts the format's own URL at release %s",
     (release) => {
-      expect(Either.isRight(decode(schemaUrl("registry", release)))).toBe(true);
+      expect(Result.isSuccess(decode(schemaUrl("registry", release)))).toBe(true);
     },
   );
 
@@ -119,11 +119,11 @@ describe("schemaUrlField", () => {
     ["no .json suffix", `${SCHEMA_URL_BASE}/registry/0.17.0`],
     ["a trailing suffix", `${schemaUrl("registry", "0.17.0")}x`],
   ])("rejects %s", (_label, value) => {
-    expect(Either.isLeft(decode(value))).toBe(true);
+    expect(Result.isFailure(decode(value))).toBe(true);
   });
 
   it.each([42, null, undefined, {}, ["x"]])("rejects the non-string %j", (value) => {
-    expect(Either.isLeft(decode(value))).toBe(true);
+    expect(Result.isFailure(decode(value))).toBe(true);
   });
 
   it.each(FORMAT_IDS.map((id) => [id]))(

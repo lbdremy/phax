@@ -87,11 +87,11 @@ export const PhaseStatusV0_20_0Schema = Schema.Struct({
     description:
       "The full object name of the commit this phase's branch was created from, noted when phax created the branch.",
   }),
-  worktreePath: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
-  claudeSessionId: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
-  commitHash: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
+  worktreePath: Schema.optionalKey(Schema.NonEmptyString),
+  claudeSessionId: Schema.optionalKey(Schema.NonEmptyString),
+  commitHash: Schema.optionalKey(Schema.NonEmptyString),
 });
 
 export type PhaseStatusV0_20_0 = Schema.Schema.Type<typeof PhaseStatusV0_20_0Schema>;
 
-export const decodePhaseStatusV0_20_0 = Schema.decodeUnknownEither(PhaseStatusV0_20_0Schema);
+export const decodePhaseStatusV0_20_0 = Schema.decodeUnknownResult(PhaseStatusV0_20_0Schema);

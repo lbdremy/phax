@@ -1,4 +1,4 @@
-import { Either, Schema } from "effect";
+import { Result, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   parseAuthoringRecordManifest,
@@ -62,28 +62,28 @@ describe("AuthoringRecordManifestSchema", () => {
   it("round-trips a committed manifest", () => {
     const encoded = encodeAuthoringRecordManifest(authoringManifest);
     const decoded = decodeAuthoringRecordManifestFile(JSON.parse(JSON.stringify(encoded)));
-    expect(Either.isRight(decoded) && decoded.right).toEqual(authoringManifest);
+    expect(Result.isSuccess(decoded) && decoded.right).toEqual(authoringManifest);
   });
 
   it("decodes a failed manifest without sourceSha", () => {
     const { sourceSha: _sourceSha, ...rest } = authoringManifest;
     const decoded = decodeAuthoringRecordManifestFile({ ...rest, outcome: "failed" });
-    expect(Either.isRight(decoded)).toBe(true);
+    expect(Result.isSuccess(decoded)).toBe(true);
   });
 
   it("rejects an unknown key", () => {
     const decoded = decodeAuthoringRecordManifestFile({ ...authoringManifest, runId: "r" });
-    expect(Either.isLeft(decoded)).toBe(true);
+    expect(Result.isFailure(decoded)).toBe(true);
   });
 
   it("rejects a phase-only outcome and an unknown artifact kind", () => {
     expect(
-      Either.isLeft(
+      Result.isFailure(
         decodeAuthoringRecordManifestFile({ ...authoringManifest, outcome: "abandoned" }),
       ),
     ).toBe(true);
     expect(
-      Either.isLeft(
+      Result.isFailure(
         decodeAuthoringRecordManifestFile({ ...authoringManifest, artifactKind: "idea" }),
       ),
     ).toBe(true);
@@ -97,15 +97,15 @@ describe("AuthoringRecordManifestSchema", () => {
 
   it("rejects a version key, a missing or foreign $schema, or another kind", () => {
     expect(
-      Either.isLeft(decodeAuthoringRecordManifestFile({ ...authoringManifest, version: 1 })),
+      Result.isFailure(decodeAuthoringRecordManifestFile({ ...authoringManifest, version: 1 })),
     ).toBe(true);
     expect(
-      Either.isLeft(
+      Result.isFailure(
         decodeAuthoringRecordManifestFile({ ...inMemoryAuthoringManifest, version: 1 }),
       ),
     ).toBe(true);
     expect(
-      Either.isLeft(
+      Result.isFailure(
         decodeAuthoringRecordManifestFile({
           ...authoringManifest,
           $schema: currentSchemaUrl("phase-record-manifest"),
@@ -113,7 +113,7 @@ describe("AuthoringRecordManifestSchema", () => {
       ),
     ).toBe(true);
     expect(
-      Either.isLeft(decodeAuthoringRecordManifestFile({ ...authoringManifest, kind: "run" })),
+      Result.isFailure(decodeAuthoringRecordManifestFile({ ...authoringManifest, kind: "run" })),
     ).toBe(true);
   });
 });
@@ -123,28 +123,28 @@ describe("RecordManifestSchema (either kind)", () => {
     const phase = decodeRecordManifestFile(phaseManifest);
     const authoring = decodeRecordManifestFile(encodeAuthoringRecordManifest(authoringManifest));
 
-    expect(Either.isRight(phase)).toBe(true);
-    expect(Either.isRight(authoring)).toBe(true);
-    if (Either.isRight(phase)) expect(isAuthoringRecordManifest(phase.right)).toBe(false);
-    if (Either.isRight(authoring)) expect(isAuthoringRecordManifest(authoring.right)).toBe(true);
+    expect(Result.isSuccess(phase)).toBe(true);
+    expect(Result.isSuccess(authoring)).toBe(true);
+    if (Result.isSuccess(phase)) expect(isAuthoringRecordManifest(phase.right)).toBe(false);
+    if (Result.isSuccess(authoring)) expect(isAuthoringRecordManifest(authoring.right)).toBe(true);
   });
 
   it("rejects a mixed object", () => {
-    expect(Either.isLeft(decodeRecordManifestFile({ ...phaseManifest, kind: "authoring" }))).toBe(
-      true,
-    );
     expect(
-      Either.isLeft(decodeRecordManifestFile({ ...authoringManifest, phaseId: "phase-01" })),
+      Result.isFailure(decodeRecordManifestFile({ ...phaseManifest, kind: "authoring" })),
     ).toBe(true);
     expect(
-      Either.isLeft(decodeRecordManifestFile({ ...phaseManifest, ...authoringManifest })),
+      Result.isFailure(decodeRecordManifestFile({ ...authoringManifest, phaseId: "phase-01" })),
+    ).toBe(true);
+    expect(
+      Result.isFailure(decodeRecordManifestFile({ ...phaseManifest, ...authoringManifest })),
     ).toBe(true);
   });
 
   it("rejects a manifest without $schema", () => {
     const { $schema: _schema, ...withoutSchema } = phaseManifest;
-    expect(Either.isLeft(decodeRecordManifestFile({ ...withoutSchema, version: 2 }))).toBe(true);
-    expect(Either.isLeft(decodeRecordManifestFile(inMemoryAuthoringManifest))).toBe(true);
+    expect(Result.isFailure(decodeRecordManifestFile({ ...withoutSchema, version: 2 }))).toBe(true);
+    expect(Result.isFailure(decodeRecordManifestFile(inMemoryAuthoringManifest))).toBe(true);
   });
 });
 
@@ -153,14 +153,14 @@ describe("the authoring manifest's retry", () => {
 
   function readError(input: unknown): string {
     const read = readRecordManifestFile(FILE, input);
-    if (Either.isRight(read)) throw new Error("expected the manifest to be refused");
+    if (Result.isSuccess(read)) throw new Error("expected the manifest to be refused");
     return read.left.message;
   }
 
   it("takes exactly none or retried", () => {
     for (const retry of ["none", "retried"] as const) {
       const read = readRecordManifestFile(FILE, { ...authoringManifest, retry });
-      expect(Either.isRight(read) && read.right).toEqual({ ...inMemoryAuthoringManifest, retry });
+      expect(Result.isSuccess(read) && read.right).toEqual({ ...inMemoryAuthoringManifest, retry });
     }
   });
 
@@ -169,7 +169,7 @@ describe("the authoring manifest's retry", () => {
     expect(readError(withoutRetry)).toContain("retry");
     expect(readError({ ...authoringManifest, retry: "maybe" })).toContain("retry");
     expect(
-      Either.isLeft(decodeAuthoringRecordManifestFile({ ...authoringManifest, retry: "maybe" })),
+      Result.isFailure(decodeAuthoringRecordManifestFile({ ...authoringManifest, retry: "maybe" })),
     ).toBe(true);
   });
 
@@ -191,9 +191,11 @@ describe("the authoring manifest's retry", () => {
   it("a manifest stamped 0.17.0 is read by phax and upgraded with retry none", () => {
     const { $schema: _schema, ...recorded } = v0_17_0;
     const read = readRecordManifestFile(FILE, v0_17_0);
-    expect(Either.isRight(read) && read.right).toEqual({ ...recorded, retry: "none" });
+    expect(Result.isSuccess(read) && read.right).toEqual({ ...recorded, retry: "none" });
     // A 0.17.0 manifest never carried a retry: one that does is not that shape.
-    expect(Either.isLeft(readRecordManifestFile(FILE, { ...v0_17_0, retry: "none" }))).toBe(true);
+    expect(Result.isFailure(readRecordManifestFile(FILE, { ...v0_17_0, retry: "none" }))).toBe(
+      true,
+    );
   });
 
   it("a manifest stamped 0.17.0 is read by the package as its 0.17.0 shape and upgraded with retry none", () => {
@@ -208,7 +210,7 @@ describe("the authoring manifest's retry", () => {
     const { $schema: _schema, retry: _retry, ...recorded } = authoringManifest;
     const preSchema = { version: 1, ...recorded };
     const read = readRecordManifestFile(FILE, preSchema);
-    expect(Either.isRight(read) && read.right).toEqual({ ...recorded, retry: "none" });
+    expect(Result.isSuccess(read) && read.right).toEqual({ ...recorded, retry: "none" });
     const parsed = parseAuthoringRecordManifest(preSchema);
     expect(parsed.ok && toLatestAuthoringRecordManifest(parsed.value)).toEqual({
       ...recorded,

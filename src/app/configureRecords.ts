@@ -1,4 +1,4 @@
-import { Effect, Either, Schema } from "effect";
+import { Effect, Result, Schema } from "effect";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import { GitHub, type GitHubError } from "../ports/github.js";
@@ -40,8 +40,8 @@ export function askRecordsAnswers(input: {
           "Records remote (this repo is public, so records with transcripts cannot be stored in it)",
         required: true,
         validate: (value) => {
-          const decoded = Schema.decodeUnknownEither(RecordsRemoteSchema)(value);
-          return Either.isLeft(decoded)
+          const decoded = Schema.decodeUnknownResult(RecordsRemoteSchema)(value);
+          return Result.isFailure(decoded)
             ? "Must be an https://, ssh://, or git@host:path URL"
             : undefined;
         },

@@ -36,5 +36,5 @@ type AssertPlanStatus = PlanStatusSchemaType extends PlanStatus
 const assertPlanStatus: AssertPlanStatus = true as const;
 void assertPlanStatus;
 
-export const decodeSpecStatus = Schema.decodeUnknownEither(SpecStatusSchema);
-export const decodePlanStatus = Schema.decodeUnknownEither(PlanStatusSchema);
+export const decodeSpecStatus = Schema.decodeUnknownResult(SpecStatusSchema);
+export const decodePlanStatus = Schema.decodeUnknownResult(PlanStatusSchema);

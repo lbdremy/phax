@@ -36,7 +36,7 @@ export type FirstReadingFile = Schema.Schema.Type<typeof FirstReadingFileSchema>
 /** A first reading, without `$schema`. */
 export type FirstReading = Omit<FirstReadingFile, "$schema">;
 
-export const decodeFirstReadingFile = Schema.decodeUnknownEither(FirstReadingFileSchema, {
+export const decodeFirstReadingFile = Schema.decodeUnknownResult(FirstReadingFileSchema, {
   onExcessProperty: "error",
 });
 

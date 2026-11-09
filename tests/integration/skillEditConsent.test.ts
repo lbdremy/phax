@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -40,7 +40,7 @@ const HANDOFF_CONTENT = [
 
 const SKILL_FILE = ".claude/skills/foo/SKILL.md";
 
-const shortName = Either.getOrThrow(decodeShortName("skill-run"));
+const shortName = Result.getOrThrow(decodeShortName("skill-run"));
 
 function makePlan(skillPhaseIndex: number): PhaxPlan {
   const phase = (n: number) => ({
@@ -54,7 +54,7 @@ function makePlan(skillPhaseIndex: number): PhaxPlan {
     optionalFilesToEdit: [],
     commit: { subject: `feat: phase ${n}`, body: `Phase ${n}.` },
   });
-  return Either.getOrThrow(
+  return Result.getOrThrow(
     liftFixturePhaxPlanToCurrent("phax-plan.json", {
       version: 1,
       run: {
@@ -130,7 +130,7 @@ function makeLayers() {
 // Mirrors `phax resume`: decode run-status.json and inherit the recorded consent.
 async function readRecordedConsent(runPath: string): Promise<boolean> {
   const raw = JSON.parse(await readFile(join(runPath, "run-status.json"), "utf8")) as unknown;
-  const status = Either.getOrThrow(decodeRunStatusFile(raw));
+  const status = Result.getOrThrow(decodeRunStatusFile(raw));
   return status.allowSkillEdits === true;
 }
 
@@ -179,7 +179,7 @@ describe("executePlan — skill edit consent preflight", () => {
     protectedGlobs?: readonly string[],
   ) {
     return Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -210,8 +210,8 @@ describe("executePlan — skill edit consent preflight", () => {
 
     const result = await run(plan, layer, runPath, runId, 0);
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left).toBeInstanceOf(SkillEditConsentError);
       const err = result.left as SkillEditConsentError;
       expect(err.phases).toEqual([{ phaseId: "phase-02", files: [SKILL_FILE] }]);
@@ -245,8 +245,8 @@ describe("executePlan — skill edit consent preflight", () => {
 
     const result = await run(plan, layer, runPath, runId, 0, true, [".claude/skills/**"]);
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left).toBeInstanceOf(SkillEditProtectedError);
       expect(result.left.message).toBe(
         [
@@ -280,7 +280,7 @@ describe("executePlan — skill edit consent preflight", () => {
 
     const result = await run(plan, layer, runPath, runId, 1, true, [".claude/skills/**"]);
 
-    expect(Either.isLeft(result) && result.left).toBeInstanceOf(SkillEditProtectedError);
+    expect(Result.isFailure(result) && result.left).toBeInstanceOf(SkillEditProtectedError);
     expect(fakeBackend.impl.runCalls).toHaveLength(0);
   });
 
@@ -295,7 +295,7 @@ describe("executePlan — skill edit consent preflight", () => {
 
     const result = await run(plan, layer, runPath, runId, 0, false, [".claude/skills/**"]);
 
-    expect(Either.isLeft(result) && result.left).toBeInstanceOf(SkillEditConsentError);
+    expect(Result.isFailure(result) && result.left).toBeInstanceOf(SkillEditConsentError);
   });
 
   it("proceeds with consent and records it in run-status.json", async () => {
@@ -315,7 +315,7 @@ describe("executePlan — skill edit consent preflight", () => {
 
     const result = await run(plan, layer, runPath, runId, 0, true);
 
-    if (Either.isLeft(result)) expect(result.left).not.toBeInstanceOf(SkillEditConsentError);
+    if (Result.isFailure(result)) expect(result.left).not.toBeInstanceOf(SkillEditConsentError);
     expect(fakeBackend.impl.runCalls.length).toBeGreaterThan(0);
   });
 
@@ -330,7 +330,7 @@ describe("executePlan — skill edit consent preflight", () => {
 
     const result = await run(plan, layer, runPath, runId, 0, true);
 
-    if (Either.isLeft(result)) expect(result.left).not.toBeInstanceOf(SkillEditConsentError);
+    if (Result.isFailure(result)) expect(result.left).not.toBeInstanceOf(SkillEditConsentError);
     expect(fakeBackend.impl.runCalls.length).toBeGreaterThan(0);
   });
 
@@ -351,7 +351,7 @@ describe("executePlan — skill edit consent preflight", () => {
 
     const result = await run(plan, layer, runPath, runId, 1, await readRecordedConsent(runPath));
 
-    if (Either.isLeft(result)) expect(result.left).not.toBeInstanceOf(SkillEditConsentError);
+    if (Result.isFailure(result)) expect(result.left).not.toBeInstanceOf(SkillEditConsentError);
     expect(fakeBackend.impl.runCalls.length).toBeGreaterThan(0);
   });
 
@@ -369,8 +369,8 @@ describe("executePlan — skill edit consent preflight", () => {
 
     const result = await run(plan, layer, runPath, runId, 1, await readRecordedConsent(runPath));
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left).toBeInstanceOf(SkillEditConsentError);
       expect(result.left.message).toContain("phase-02");
     }

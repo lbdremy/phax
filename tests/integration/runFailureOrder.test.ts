@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -73,7 +73,7 @@ describe("a failed phase session and its refused record", { timeout: 30_000 }, (
     const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
     await mkdir(join(worktreePath, ".phax-context"), { recursive: true });
 
-    const plan = Either.getOrThrow(
+    const plan = Result.getOrThrow(
       liftFixturePhaxPlanToCurrent("phax-plan.json", {
         version: 1,
         run: { shortName: "my-run", title: "My Run", branch: "ai/my-run", requiredCommands: [] },
@@ -165,14 +165,14 @@ describe("a failed phase session and its refused record", { timeout: 30_000 }, (
       NoopSystemTelemetryLayer,
     );
 
-    const shortName = Either.getOrThrow(decodeShortName("my-run"));
+    const shortName = Result.getOrThrow(decodeShortName("my-run"));
     const { runPath, runId } = await Effect.runPromise(
       createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(layers)),
     );
 
     const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -190,8 +190,8 @@ describe("a failed phase session and its refused record", { timeout: 30_000 }, (
       ),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (!Either.isLeft(result)) return;
+    expect(Result.isFailure(result)).toBe(true);
+    if (!Result.isFailure(result)) return;
     expect(result.left).toBeInstanceOf(FailureWithFollowUpsError);
     expect(exitCodeForError(result.left)).toBe(5);
 

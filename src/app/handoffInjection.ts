@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { join } from "node:path";
 import type { ReviewCorrectionStop } from "../domain/interactive/reviewCorrections.js";
 import { FileSystem, FsError } from "../ports/fs.js";
@@ -135,7 +135,7 @@ export function readReviewCorrections(
         catch: () => new FsError({ message: `${reconPath}: not valid JSON` }),
       });
       const decoded = readPhaseFileReconciliationFile(reconPath, parsed);
-      if (Either.isLeft(decoded)) {
+      if (Result.isFailure(decoded)) {
         return yield* Effect.fail(new FsError({ message: decoded.left.message }));
       }
       stops.push({

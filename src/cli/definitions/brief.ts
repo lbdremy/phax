@@ -2,7 +2,7 @@
 // answered, with the files asked about, and today's rendering as its text. The record warning of
 // a pull that could not record itself is a note. Every refusal and failure is a declared error
 // with today's `✗ …` sentence and exit 1; an invalid config is exit 2.
-import { Data, Effect, Either, Layer } from "effect";
+import { Data, Effect, Result, Layer } from "effect";
 import * as Schema from "effect/Schema";
 import { loadConfig, locateWorkingTree } from "../../app/loadConfig.js";
 import { pullBrief } from "../../app/pullBrief.js";
@@ -76,7 +76,7 @@ function makeBriefCommand(cwdOf: () => string) {
           );
         }
         const configResult = loadConfig(tree.mainRoot);
-        if (Either.isLeft(configResult)) return yield* Effect.fail(configResult.left);
+        if (Result.isFailure(configResult)) return yield* Effect.fail(configResult.left);
         const { brief } = configResult.right;
         if (brief === undefined) {
           return yield* Effect.fail(

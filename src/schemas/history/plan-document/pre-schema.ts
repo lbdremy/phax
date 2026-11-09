@@ -65,6 +65,6 @@ export const PlanDocumentPreSchemaSchema = Schema.Struct({
 
 export type PlanDocumentPreSchema = Schema.Schema.Type<typeof PlanDocumentPreSchemaSchema>;
 
-export const decodePlanDocumentPreSchema = Schema.decodeUnknownEither(PlanDocumentPreSchemaSchema, {
+export const decodePlanDocumentPreSchema = Schema.decodeUnknownResult(PlanDocumentPreSchemaSchema, {
   onExcessProperty: "error",
 });

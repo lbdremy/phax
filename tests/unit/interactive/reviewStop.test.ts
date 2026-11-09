@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   buildDeclaredReviewStop,
@@ -124,7 +124,7 @@ describe("buildDeclaredReviewStop", () => {
   it("is a document the review-stop schema accepts once stamped", () => {
     const stop = buildDeclaredReviewStop(input);
     const decoded = decodeReviewStopFile({ $schema: schemaUrl("review-stop", "1.2.3"), ...stop });
-    expect(Either.isRight(decoded)).toBe(true);
+    expect(Result.isSuccess(decoded)).toBe(true);
   });
 });
 
@@ -222,7 +222,7 @@ describe("buildHeldReviewStop", () => {
   it("is a document the review-stop schema accepts once stamped, as the held variant", () => {
     const stop = buildHeldReviewStop({ ...heldInput, session: null });
     const decoded = decodeReviewStopFile({ $schema: schemaUrl("review-stop", "1.2.3"), ...stop });
-    if (Either.isLeft(decoded)) throw new Error(String(decoded.left));
+    if (Result.isFailure(decoded)) throw new Error(String(decoded.left));
     expect(decoded.right.cause).toBe("held");
   });
 });

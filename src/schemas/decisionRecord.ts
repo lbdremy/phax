@@ -244,7 +244,7 @@ export type WrittenDecisionRecordManifest = DecisionRecordManifestFile extends i
     : never
   : never;
 
-export const decodeDecisionRecordManifestFile = Schema.decodeUnknownEither(
+export const decodeDecisionRecordManifestFile = Schema.decodeUnknownResult(
   DecisionRecordManifestFileSchema,
   { onExcessProperty: "error" },
 );

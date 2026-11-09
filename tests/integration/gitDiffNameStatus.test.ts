@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execSync } from "node:child_process";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { NodeGitLayer } from "../../src/infra/git.js";
 import { Git, GitError } from "../../src/ports/git.js";
 import type { BranchName, WorktreePath } from "../../src/domain/branded.js";
@@ -112,15 +112,15 @@ describe("NodeGitLayer.diffNameStatus", () => {
 
   it("returns GitError when deleting a missing branch without force", async () => {
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         Effect.flatMap(Git, (git) =>
           git.deleteBranch("missing-branch" as BranchName, false, repoDir),
         ).pipe(Effect.provide(NodeGitLayer)),
       ),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left).toBeInstanceOf(GitError);
       expect(result.left.command).toBe("git branch -d -- missing-branch");
     }

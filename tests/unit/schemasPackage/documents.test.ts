@@ -1,7 +1,7 @@
 import { readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Either, type ParseResult } from "effect";
+import { Result, type ParseResult } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   decodeApprovalRecordFile,
@@ -83,7 +83,7 @@ import {
   withoutKey,
 } from "./documents.js";
 
-type Decode = (input: unknown) => Either.Either<unknown, ParseResult.ParseError>;
+type Decode = (input: unknown) => Result.Result<unknown, ParseResult.ParseError>;
 
 /** phax's own decoder for each format. */
 const PHAX_DECODERS: { readonly [F in FormatId]: Decode } = {
@@ -168,18 +168,20 @@ describe("the test documents", () => {
 
   it.each(FORMAT_IDS)("%s: is accepted by phax's own decoder", (id) => {
     const decoded = PHAX_DECODERS[id](validDocuments[id]);
-    expect(Either.isRight(decoded), JSON.stringify(Either.isLeft(decoded) && decoded.left)).toBe(
-      true,
-    );
+    expect(
+      Result.isSuccess(decoded),
+      JSON.stringify(Result.isFailure(decoded) && decoded.left),
+    ).toBe(true);
   });
 
   it.each(PRE_SCHEMA_FORMAT_IDS)(
     "%s: the pre-schema document is accepted by its frozen decoder",
     (id) => {
       const decoded = FROZEN_DECODERS[id](preSchemaDocuments[id]);
-      expect(Either.isRight(decoded), JSON.stringify(Either.isLeft(decoded) && decoded.left)).toBe(
-        true,
-      );
+      expect(
+        Result.isSuccess(decoded),
+        JSON.stringify(Result.isFailure(decoded) && decoded.left),
+      ).toBe(true);
     },
   );
 
@@ -202,12 +204,12 @@ describe("the test documents", () => {
   it("include a version-1 phase record manifest that phax's decoder rejects", () => {
     expect(versionOnePhaseRecordManifest["version"]).toBe(1);
     expect(Object.hasOwn(versionOnePhaseRecordManifest, "verifiedSurfaces")).toBe(false);
-    expect(Either.isLeft(decodeRunRecordManifestFile(versionOnePhaseRecordManifest))).toBe(true);
+    expect(Result.isFailure(decodeRunRecordManifestFile(versionOnePhaseRecordManifest))).toBe(true);
   });
 
   it("include a cost ledger stamped 0.26.0 that the frozen decoder accepts", () => {
     const older = costLedgerV0_26_0Document();
-    expect(Either.isRight(decodeCostLedgerV0_26_0(older))).toBe(true);
+    expect(Result.isSuccess(decodeCostLedgerV0_26_0(older))).toBe(true);
     expect(older["$schema"]).toBe(schemaUrl("cost-ledger", "0.26.0"));
     const entries = older["entries"] as Array<{ role: string }>;
     expect(entries.map((entry) => entry.role)).toEqual([

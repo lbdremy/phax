@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 import { runInitWizard } from "../../src/app/initWizard.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
@@ -32,7 +32,7 @@ async function runWizard(
   const fakeGit = makeFakeGit();
   const fakeGitHub = makeFakeGitHub();
   return Effect.runPromise(
-    Effect.either(
+    Effect.result(
       runInitWizard({ cwd: CWD, ...opts }).pipe(
         Effect.provide(
           Layer.mergeAll(fakeFs.layer, fakePrompt.layer, fakeGit.layer, fakeGitHub.layer),
@@ -50,8 +50,8 @@ describe("runInitWizard — non-interactive path", () => {
 
     const result = await runWizard(fakeFs, fakePrompt, { interactive: false });
 
-    expect(Either.isRight(result)).toBe(true);
-    if (!Either.isRight(result)) return;
+    expect(Result.isSuccess(result)).toBe(true);
+    if (!Result.isSuccess(result)) return;
     expect(result.right.kind).toBe("created");
     if (result.right.kind !== "created") return;
 
@@ -85,7 +85,7 @@ describe("runInitWizard — non-interactive path", () => {
     const fakePrompt = makeFakePrompt([]);
 
     const result = await runWizard(fakeFs, fakePrompt, { interactive: false });
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
 
     const config = JSON.parse(fakeFs.impl.getFile(CONFIG_PATH)!);
     expect(config.state).toBeUndefined();
@@ -123,7 +123,7 @@ describe("runInitWizard — non-interactive path", () => {
 
     const config = JSON.parse(fakeFs.impl.getFile(CONFIG_PATH)!);
     const decoded = decodePhaxConfig(config);
-    expect(Either.isRight(decoded)).toBe(true);
+    expect(Result.isSuccess(decoded)).toBe(true);
   });
 
   it("uses cwd basename as name when package.json is absent", async () => {
@@ -161,8 +161,8 @@ describe("runInitWizard — non-interactive path", () => {
 
     const result = await runWizard(fakeFs, fakePrompt, { interactive: false });
 
-    expect(Either.isRight(result)).toBe(true);
-    if (!Either.isRight(result)) return;
+    expect(Result.isSuccess(result)).toBe(true);
+    if (!Result.isSuccess(result)) return;
     expect(result.right.kind).toBe("already_initialized");
     // file must not be overwritten
     expect(JSON.parse(fakeFs.impl.getFile(CONFIG_PATH)!)).toEqual({ sentinel: true });
@@ -176,8 +176,8 @@ describe("runInitWizard — non-interactive path", () => {
 
     const result = await runWizard(fakeFs, fakePrompt, { force: true, interactive: false });
 
-    expect(Either.isRight(result)).toBe(true);
-    if (!Either.isRight(result)) return;
+    expect(Result.isSuccess(result)).toBe(true);
+    if (!Result.isSuccess(result)) return;
     expect(result.right.kind).toBe("created");
     const config = JSON.parse(fakeFs.impl.getFile(CONFIG_PATH)!);
     expect(config.version).toBe(1);
@@ -199,8 +199,8 @@ describe("runInitWizard — interactive path", () => {
 
     const result = await runWizard(fakeFs, fakePrompt, { interactive: true });
 
-    expect(Either.isRight(result)).toBe(true);
-    if (!Either.isRight(result)) return;
+    expect(Result.isSuccess(result)).toBe(true);
+    if (!Result.isSuccess(result)) return;
     expect(result.right.kind).toBe("created");
 
     const config = JSON.parse(fakeFs.impl.getFile(CONFIG_PATH)!);
@@ -324,8 +324,8 @@ describe("runInitWizard — cancel", () => {
 
     const result = await runWizard(fakeFs, fakePrompt, { interactive: true });
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (!Either.isLeft(result)) return;
+    expect(Result.isFailure(result)).toBe(true);
+    if (!Result.isFailure(result)) return;
     expect(result.left).toBeInstanceOf(PromptCancelled);
   });
 
@@ -357,8 +357,8 @@ describe("runInitWizard — existing config, interactive reconfigure", () => {
 
     const result = await runWizard(fakeFs, fakePrompt, { interactive: true });
 
-    expect(Either.isRight(result)).toBe(true);
-    if (!Either.isRight(result)) return;
+    expect(Result.isSuccess(result)).toBe(true);
+    if (!Result.isSuccess(result)) return;
     expect(result.right.kind).toBe("already_initialized");
   });
 
@@ -387,8 +387,8 @@ describe("runInitWizard — existing config, interactive reconfigure", () => {
 
     const result = await runWizard(fakeFs, fakePrompt, { interactive: true });
 
-    expect(Either.isRight(result)).toBe(true);
-    if (!Either.isRight(result)) return;
+    expect(Result.isSuccess(result)).toBe(true);
+    if (!Result.isSuccess(result)) return;
     expect(result.right.kind).toBe("created");
     const config = JSON.parse(fakeFs.impl.getFile(CONFIG_PATH)!);
     expect(config.name).toBe("new-name");

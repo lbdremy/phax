@@ -20,6 +20,6 @@ export const GateAttributionPreSchemaSchema = Schema.Struct({
 
 export type GateAttributionPreSchema = Schema.Schema.Type<typeof GateAttributionPreSchemaSchema>;
 
-export const decodeGateAttributionPreSchema = Schema.decodeUnknownEither(
+export const decodeGateAttributionPreSchema = Schema.decodeUnknownResult(
   GateAttributionPreSchemaSchema,
 );

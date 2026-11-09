@@ -7,7 +7,7 @@
 import { chmodSync, existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { parseRegistry } from "../../packages/schemas/src/index.js";
 import { prepareRunBranch } from "../../src/app/worktree.js";
@@ -607,7 +607,7 @@ describe("phax prune", { timeout: 30_000 }, () => {
       registry.some((r) => r.namespace === roots.namespace && r.shortName === name) ||
       existsSync(join(runsDir, name));
     const base = decodeShortName("run-prune");
-    if (Either.isLeft(base)) throw new Error(base.left.message);
+    if (Result.isFailure(base)) throw new Error(base.left.message);
     const shortName = nextAvailableShortName(base.right, isUsed);
     expect(shortName).toBe("run-prune");
 

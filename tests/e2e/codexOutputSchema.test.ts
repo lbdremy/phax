@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import { mkdtempSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Effect, Either, Schema } from "effect";
+import { Effect, Result, Schema } from "effect";
 import { Backend, type AgentRunOptions } from "../../src/ports/backend.js";
 import type { ClaudeSessionId } from "../../src/domain/branded.js";
 import { DEFAULT_PROVIDER_CONFIG } from "../../src/domain/routing/defaults.js";
@@ -103,11 +103,11 @@ function expectDecodes(format: (typeof FORMATS)[number], finalText: string) {
   expect(() => {
     parsed = JSON.parse(finalText);
   }, "the final message is JSON").not.toThrow();
-  const decoded = Schema.decodeUnknownEither(
+  const decoded = Schema.decodeUnknownResult(
     ANSWER_FORMATS[format].schema as Schema.Schema<unknown, unknown>,
     { onExcessProperty: "error" },
   )(parsed);
-  expect(Either.isRight(decoded) ? "" : String(decoded.left)).toBe("");
+  expect(Result.isSuccess(decoded) ? "" : String(decoded.left)).toBe("");
 }
 
 describe.skipIf(!shouldRun)("codex --output-schema (real provider)", () => {

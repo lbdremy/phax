@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   AgentSessionFailedError,
@@ -94,11 +94,11 @@ async function runAgentFailure(provider: AgentRunOptions["provider"]): Promise<S
   const result = await Effect.runPromise(
     Backend.pipe(
       Effect.flatMap((backend) => backend.runAgent("do the phase", runOptions(provider))),
-      Effect.either,
+      Effect.result,
       Effect.provide(makeNodeBackendLayer(providerConfig())),
     ),
   );
-  if (Either.isRight(result)) throw new Error("expected the session to fail");
+  if (Result.isSuccess(result)) throw new Error("expected the session to fail");
   return result.left as SessionError;
 }
 
@@ -113,7 +113,7 @@ async function completeOutcome(provider: CompletionOptions["provider"]) {
           cwd: worktree,
         }),
       ),
-      Effect.either,
+      Effect.result,
       Effect.provide(makeNodeBackendLayer(providerConfig())),
     ),
   );
@@ -337,8 +337,8 @@ describe("the Codex and Vibe adapters fail with the provider's own text", () => 
 
     const result = await completeOutcome("codex-cli");
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left).toBeInstanceOf(AgentSessionFailedError);
       expect((result.left as AgentSessionFailedError).failure.kind).toBe("provider-error");
     }
@@ -477,7 +477,7 @@ describe("the next session in a folder archives the previous failure", () => {
     return Effect.runPromise(
       Backend.pipe(
         Effect.flatMap((backend) => backend.runAgent("do the phase", options)),
-        Effect.either,
+        Effect.result,
         Effect.provide(makeNodeBackendLayer(providerConfig())),
       ),
     );
@@ -493,7 +493,7 @@ describe("the next session in a folder archives the previous failure", () => {
     cli.setScript({ sessionId: SESSION, finalText: "done" });
     const answered = await runAgentWith(runOptions("claude-code"));
 
-    expect(Either.isRight(answered)).toBe(true);
+    expect(Result.isSuccess(answered)).toBe(true);
     expect(existsSync(logPath)).toBe(false);
     const archivedTranscript = join(phaseFolder, "output.failed-01.jsonl");
     const archivedLog = readFileSync(join(phaseFolder, "agent-error.failed-01.log"), "utf8");

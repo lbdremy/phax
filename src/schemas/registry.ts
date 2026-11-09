@@ -24,7 +24,7 @@ export const RegistryEntrySchema = Schema.Struct({
   phasesCount: Schema.Number,
   createdAt: Schema.NonEmptyString,
   updatedAt: Schema.NonEmptyString,
-  archivePath: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
+  archivePath: Schema.optionalKey(Schema.NonEmptyString),
 });
 
 export type RegistryEntry = Schema.Schema.Type<typeof RegistryEntrySchema>;
@@ -42,5 +42,5 @@ export const RegistryFileSchema = Schema.Struct({
 
 export type RegistryFile = Schema.Schema.Type<typeof RegistryFileSchema>;
 
-export const decodeRegistryFile = Schema.decodeUnknownEither(RegistryFileSchema);
+export const decodeRegistryFile = Schema.decodeUnknownResult(RegistryFileSchema);
 export const encodeRegistryFile = Schema.encodeSync(RegistryFileSchema);

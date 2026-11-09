@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it, vi } from "vitest";
 import { AgentSessionFailedError } from "../../src/domain/errors.js";
 import { readClaudeOutcome, type SessionFailure } from "../../src/domain/session/outcome.js";
@@ -74,8 +74,8 @@ describe("ac-auth", () => {
         records: false,
       });
 
-      expect(Either.isLeft(result)).toBe(true);
-      const error = Either.isLeft(result) ? result.left : undefined;
+      expect(Result.isFailure(result)).toBe(true);
+      const error = Result.isFailure(result) ? result.left : undefined;
       expect(error).toBeInstanceOf(AgentSessionFailedError);
       const failed = error as AgentSessionFailedError;
       expect(failed.failure.kind).toBe("not-authenticated");

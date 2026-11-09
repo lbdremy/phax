@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Either } from "effect";
+import { Result } from "effect";
 import {
   declaresInteractive,
   acceptanceDeclaration,
@@ -341,7 +341,7 @@ describe("withPhaseKinds", () => {
 
   it("adds each phase's mode and acceptance from its header lines, after optionalFilesToEdit and before the answer's testLines", () => {
     const result = withPhaseKinds(answer(["phase-01", "phase-02"]), twoPhases);
-    if (Either.isLeft(result)) throw new Error(result.left.message);
+    if (Result.isFailure(result)) throw new Error(result.left.message);
     const [first, second] = result.right.phases;
     expect(first).toMatchObject({
       mode: "headless",
@@ -360,7 +360,7 @@ describe("withPhaseKinds", () => {
 
   it("fails naming an answer phase with no heading in plan.md", () => {
     const result = withPhaseKinds(answer(["phase-01", "phase-09"]), twoPhases);
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) expect(result.left.message).toContain("phase-09");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) expect(result.left.message).toContain("phase-09");
   });
 });

@@ -1,4 +1,4 @@
-import { Either, ParseResult, Predicate, Schema } from "effect";
+import { Result, ParseResult, Predicate, Schema } from "effect";
 import { PlanStatusSchema, SpecStatusSchema } from "./artifactStatus.js";
 
 export const ApprovedStampSchema = Schema.Struct({
@@ -44,14 +44,14 @@ export const PlanFrontmatterSchema = Schema.Union(
 );
 export type PlanFrontmatter = Schema.Schema.Type<typeof PlanFrontmatterSchema>;
 
-export const decodeSpecFrontmatter = Schema.decodeUnknownEither(SpecFrontmatterSchema, {
+export const decodeSpecFrontmatter = Schema.decodeUnknownResult(SpecFrontmatterSchema, {
   onExcessProperty: "error",
 });
 
-const decodeSpecLessPlanFrontmatter = Schema.decodeUnknownEither(SpecLessPlanFrontmatterSchema, {
+const decodeSpecLessPlanFrontmatter = Schema.decodeUnknownResult(SpecLessPlanFrontmatterSchema, {
   onExcessProperty: "error",
 });
-const decodeSpecBoundPlanFrontmatter = Schema.decodeUnknownEither(SpecBoundPlanFrontmatterSchema, {
+const decodeSpecBoundPlanFrontmatter = Schema.decodeUnknownResult(SpecBoundPlanFrontmatterSchema, {
   onExcessProperty: "error",
 });
 
@@ -61,11 +61,11 @@ const decodeSpecBoundPlanFrontmatter = Schema.decodeUnknownEither(SpecBoundPlanF
 // than as a merely unexpected key.
 export function decodePlanFrontmatter(
   value: unknown,
-): Either.Either<PlanFrontmatter, ParseResult.ParseError> {
+): Result.Result<PlanFrontmatter, ParseResult.ParseError> {
   if (!Predicate.isRecord(value)) return decodeSpecLessPlanFrontmatter(value);
   const sourceSpec = value["source-spec"];
   if (sourceSpec === null && "completes-spec" in value) {
-    return Either.left(
+    return Result.fail(
       ParseResult.parseError(
         new ParseResult.Pointer(
           "completes-spec",

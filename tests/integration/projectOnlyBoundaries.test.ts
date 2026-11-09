@@ -8,7 +8,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { describe, expect, it, vi } from "vitest";
 import { buildDecideInvocation, claudeSessionAdapter } from "../../src/domain/session/claude.js";
 import { makeFakeSession } from "../../src/infra/fakes/session.js";
@@ -50,7 +50,7 @@ async function runOnePhase(): Promise<Awaited<ReturnType<typeof runHeadlessPlan>
     gate: "pass",
     records: false,
   });
-  expect(Either.isRight(run.result)).toBe(true);
+  expect(Result.isSuccess(run.result)).toBe(true);
   return run;
 }
 

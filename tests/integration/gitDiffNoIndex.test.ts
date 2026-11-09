@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { chmodSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { NodeGitLayer } from "../../src/infra/git.js";
 import { Git } from "../../src/ports/git.js";
@@ -27,7 +27,7 @@ afterEach(() => {
 
 function diff(before: string, after: string) {
   return Effect.runPromise(
-    Effect.either(
+    Effect.result(
       Effect.gen(function* () {
         return yield* (yield* Git).diffNoIndex(repoDir, before, after, LABEL);
       }).pipe(Effect.provide(NodeGitLayer)),
@@ -44,8 +44,8 @@ describe("Git.diffNoIndex", () => {
 
     const result = await diff(before, after);
 
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isLeft(result)) return;
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isFailure(result)) return;
     expect(result.right).toContain("--- a/");
     expect(result.right).toContain("+++ b/");
     expect(result.right).toContain("-### Q1 — Keep?");
@@ -64,8 +64,8 @@ describe("Git.diffNoIndex", () => {
 
     const result = await diff(before, after);
 
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isLeft(result)) return;
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isFailure(result)) return;
     const lines = result.right.split("\n");
     expect(lines[0]).toBe(`diff --git a/${LABEL} b/${LABEL}`);
     expect(lines).toContain(`--- a/${LABEL}`);
@@ -77,8 +77,8 @@ describe("Git.diffNoIndex", () => {
     expect(lines).toContain("+new");
 
     const hunk = await diff(join(repoDir, "removed.md"), join(repoDir, "empty.md"));
-    expect(Either.isRight(hunk)).toBe(true);
-    if (Either.isLeft(hunk)) return;
+    expect(Result.isSuccess(hunk)).toBe(true);
+    if (Result.isFailure(hunk)) return;
     expect(hunk.right.split("\n")).toContain("--- gone");
   });
 
@@ -102,8 +102,8 @@ describe("Git.diffNoIndex", () => {
 
     const result = await diff(before, after);
 
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isLeft(result)) return;
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isFailure(result)) return;
     expect(result.right).not.toContain("EXTERNAL");
     expect(result.right).not.toContain("OLD");
     expect(result.right).not.toContain("\u001b[");
@@ -116,7 +116,7 @@ describe("Git.diffNoIndex", () => {
     writeFileSync(before, "same\n");
     writeFileSync(after, "same\n");
 
-    expect(await diff(before, after)).toEqual(Either.right(""));
+    expect(await diff(before, after)).toEqual(Result.succeed(""));
   });
 
   it("fails on a missing file", async () => {
@@ -125,6 +125,6 @@ describe("Git.diffNoIndex", () => {
 
     const result = await diff(before, join(repoDir, "missing.md"));
 
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 });

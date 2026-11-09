@@ -24,7 +24,7 @@ export const PlanApprovalsPreSchemaSchema = Schema.Struct({
 
 export type PlanApprovalsPreSchema = Schema.Schema.Type<typeof PlanApprovalsPreSchemaSchema>;
 
-export const decodePlanApprovalsPreSchema = Schema.decodeUnknownEither(
+export const decodePlanApprovalsPreSchema = Schema.decodeUnknownResult(
   PlanApprovalsPreSchemaSchema,
   { onExcessProperty: "error" },
 );

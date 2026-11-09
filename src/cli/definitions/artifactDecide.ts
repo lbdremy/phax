@@ -9,7 +9,7 @@
 // under `--json`), its warnings are progress lines, and the record's and push's warnings notes. A
 // call that would wait on a person (no `--verdicts`, or no `--by`) is refused under `--json`.
 import { join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import * as Schema from "effect/Schema";
 import { decideArtifact, readArtifact } from "../../app/decideArtifact.js";
 import { type DecideVerdictsResult, decideVerdicts } from "../../app/decideVerdicts.js";
@@ -86,8 +86,7 @@ const PathArg = reject(
   ),
 );
 
-const optional = <S extends Schema.Schema.Any>(schema: S) =>
-  Schema.optionalWith(schema, { exact: true });
+const optional = <S extends Schema.Schema.Any>(schema: S) => Schema.optionalKey(schema);
 
 const DecideFlags = reject(
   Schema.Struct({
@@ -340,7 +339,7 @@ function runDecide(call: DecideCall, deps: ArtifactDecideDeps) {
       return yield* Effect.fail(sessionCommandRefusal(12, `✗ ${flagRefusal}`));
     }
     const configResult = loadConfig(process.cwd());
-    if (Either.isLeft(configResult)) {
+    if (Result.isFailure(configResult)) {
       return yield* Effect.fail(
         sessionCommandRefusal(1, `Config error: ${configResult.left.message}`),
       );
@@ -348,8 +347,8 @@ function runDecide(call: DecideCall, deps: ArtifactDecideDeps) {
     const config = configResult.right;
     const repoRoot = config.repoRoot;
     const fsLayer = makeRootedNodeFileSystemLayer(repoRoot);
-    const providerConfig = yield* Effect.either(loadProviderConfig().pipe(Effect.provide(fsLayer)));
-    if (Either.isLeft(providerConfig)) {
+    const providerConfig = yield* Effect.result(loadProviderConfig().pipe(Effect.provide(fsLayer)));
+    if (Result.isFailure(providerConfig)) {
       return yield* Effect.fail(
         sessionCommandRefusal(1, `Failed to load routing config: ${providerConfig.left.message}`),
       );
@@ -414,7 +413,7 @@ function runDecide(call: DecideCall, deps: ArtifactDecideDeps) {
           ...(flags.by === undefined ? [] : ["--by", flags.by]),
           ...sharedFlags,
         ]) + (source === "-" ? " (pipe the same verdicts again)" : "");
-      const decided = yield* Effect.either(
+      const decided = yield* Effect.result(
         Effect.gen(function* () {
           const routing = yield* loadModelRouting();
           return yield* decideVerdicts({
@@ -428,7 +427,7 @@ function runDecide(call: DecideCall, deps: ArtifactDecideDeps) {
           });
         }).pipe(Effect.provide(layer)),
       );
-      if (Either.isLeft(decided)) {
+      if (Result.isFailure(decided)) {
         return yield* Effect.fail(yield* sessionFailure(decided.left, causeLines(retry), repoRoot));
       }
       const result = decided.right;
@@ -447,7 +446,7 @@ function runDecide(call: DecideCall, deps: ArtifactDecideDeps) {
       ...(flags.question === undefined ? [] : ["--question", flags.question]),
       ...sharedFlags,
     ]);
-    const decided = yield* Effect.either(
+    const decided = yield* Effect.result(
       Effect.gen(function* () {
         return yield* decideArtifact({
           ...common,
@@ -456,7 +455,7 @@ function runDecide(call: DecideCall, deps: ArtifactDecideDeps) {
         });
       }).pipe(Effect.provide(layer)),
     );
-    if (Either.isLeft(decided)) {
+    if (Result.isFailure(decided)) {
       return yield* Effect.fail(yield* sessionFailure(decided.left, causeLines(retry), repoRoot));
     }
     const result = decided.right;
@@ -504,15 +503,15 @@ function checkVerdicts(call: {
       );
     }
     const config = loadConfig(process.cwd());
-    if (Either.isLeft(config)) return;
+    if (Result.isFailure(config)) return;
     const repoRoot = config.right.repoRoot;
     const path = repoPaths(call.pathArg, repoRoot).repoRelPath;
-    const snapshot = yield* Effect.either(
+    const snapshot = yield* Effect.result(
       readArtifact({ path, repoRoot }).pipe(
         Effect.provide(Layer.merge(makeRootedNodeFileSystemLayer(repoRoot), makeNodeGitLayer())),
       ),
     );
-    if (Either.isLeft(snapshot)) return;
+    if (Result.isFailure(snapshot)) return;
     const { authored } = snapshot.right;
     const questions =
       authored.variant === "headless"
@@ -522,7 +521,7 @@ function checkVerdicts(call: {
           : questionFactsOfHand(authored.parsed);
     const label = labelOf(document);
     const bound = bindVerdictsAt({ file, artifactPath: path, questions, label });
-    if (Either.isRight(bound)) return;
+    if (Result.isSuccess(bound)) return;
     const refusal = bound.left;
     return yield* Effect.fail(
       new Refused({

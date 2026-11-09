@@ -200,7 +200,7 @@ export const InteractiveSessionV0_26_0Schema = Schema.Struct({
 
 export type InteractiveSessionV0_26_0 = Schema.Schema.Type<typeof InteractiveSessionV0_26_0Schema>;
 
-export const decodeInteractiveSessionV0_26_0 = Schema.decodeUnknownEither(
+export const decodeInteractiveSessionV0_26_0 = Schema.decodeUnknownResult(
   InteractiveSessionV0_26_0Schema,
   { onExcessProperty: "error" },
 );

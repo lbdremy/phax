@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   applyStalenessReport,
@@ -38,7 +38,7 @@ function planMd(sourceSpec: string): string {
 }
 
 function run<A, E>(effect: Effect.Effect<A, E, never>) {
-  return Effect.runPromise(Effect.either(effect));
+  return Effect.runPromise(Effect.result(effect));
 }
 
 // Backend-free harness: proves computeStalenessForPlan requires only FileSystem | Git.
@@ -60,8 +60,8 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
       }).pipe(Effect.provide(layer)),
     );
 
-    expect(Either.isRight(verdict)).toBe(true);
-    if (Either.isRight(verdict)) {
+    expect(Result.isSuccess(verdict)).toBe(true);
+    if (Result.isSuccess(verdict)) {
       expect(verdict.right.kind).toBe("missing-record");
     }
   });
@@ -85,8 +85,8 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
       }).pipe(Effect.provide(layer)),
     );
 
-    expect(Either.isRight(verdict)).toBe(true);
-    if (Either.isRight(verdict)) {
+    expect(Result.isSuccess(verdict)).toBe(true);
+    if (Result.isSuccess(verdict)) {
       expect(verdict.right.kind).toBe("missing-record");
       if (verdict.right.kind === "missing-record") {
         expect(verdict.right.detail).toContain(baseline);
@@ -122,8 +122,8 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
       ).pipe(Effect.provide(layer)),
     );
 
-    expect(Either.isRight(verdict)).toBe(true);
-    if (Either.isRight(verdict)) expect(verdict.right).toEqual({ kind: "fresh" });
+    expect(Result.isSuccess(verdict)).toBe(true);
+    if (Result.isSuccess(verdict)) expect(verdict.right).toEqual({ kind: "fresh" });
   });
 
   it("a declared spec's content edit reports spec-changed", async () => {
@@ -154,8 +154,8 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
       }).pipe(Effect.provide(layer)),
     );
 
-    expect(Either.isRight(verdict)).toBe(true);
-    if (Either.isRight(verdict)) {
+    expect(Result.isSuccess(verdict)).toBe(true);
+    if (Result.isSuccess(verdict)) {
       expect(verdict.right).toEqual({
         kind: "stale",
         evidence: [{ reason: "spec-changed", specPath: "docs/specs/2609101222-foo.md" }],
@@ -192,7 +192,7 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
         repoRoot: REPO_ROOT,
       }).pipe(Effect.provide(layer)),
     );
-    expect(before).toEqual(Either.right({ kind: "fresh" }));
+    expect(before).toEqual(Result.succeed({ kind: "fresh" }));
 
     const flipped = approvedPlanMd.replace("completes-spec: false", "completes-spec: true");
     expect(flipped).not.toBe(approvedPlanMd);
@@ -201,7 +201,9 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
         repoRoot: REPO_ROOT,
       }).pipe(Effect.provide(layer)),
     );
-    expect(after).toEqual(Either.right({ kind: "stale", evidence: [{ reason: "self-changed" }] }));
+    expect(after).toEqual(
+      Result.succeed({ kind: "stale", evidence: [{ reason: "self-changed" }] }),
+    );
   });
 
   it("a spec-less ((none)) plan never reports spec-changed", async () => {
@@ -221,8 +223,8 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
       }).pipe(Effect.provide(layer)),
     );
 
-    expect(Either.isRight(verdict)).toBe(true);
-    if (Either.isRight(verdict)) expect(verdict.right).toEqual({ kind: "fresh" });
+    expect(Result.isSuccess(verdict)).toBe(true);
+    if (Result.isSuccess(verdict)) expect(verdict.right).toEqual({ kind: "fresh" });
   });
 
   it("a footprint file listed in changedFilesSince reports ground-changed naming exactly that file", async () => {
@@ -248,8 +250,8 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
       ).pipe(Effect.provide(layer)),
     );
 
-    expect(Either.isRight(verdict)).toBe(true);
-    if (Either.isRight(verdict)) {
+    expect(Result.isSuccess(verdict)).toBe(true);
+    if (Result.isSuccess(verdict)) {
       expect(verdict.right).toEqual({
         kind: "stale",
         evidence: [
@@ -282,8 +284,8 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
       ).pipe(Effect.provide(layer)),
     );
 
-    expect(Either.isRight(verdict)).toBe(true);
-    if (Either.isRight(verdict)) expect(verdict.right).toEqual({ kind: "fresh" });
+    expect(Result.isSuccess(verdict)).toBe(true);
+    if (Result.isSuccess(verdict)) expect(verdict.right).toEqual({ kind: "fresh" });
   });
 
   it("editing the plan body after approval reports self-changed", async () => {
@@ -304,8 +306,8 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
       }).pipe(Effect.provide(layer)),
     );
 
-    expect(Either.isRight(verdict)).toBe(true);
-    if (Either.isRight(verdict)) {
+    expect(Result.isSuccess(verdict)).toBe(true);
+    if (Result.isSuccess(verdict)) {
       expect(verdict.right).toEqual({ kind: "stale", evidence: [{ reason: "self-changed" }] });
     }
   });
@@ -341,8 +343,8 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
       }).pipe(Effect.provide(layer)),
     );
 
-    expect(Either.isRight(verdict)).toBe(true);
-    if (Either.isRight(verdict)) {
+    expect(Result.isSuccess(verdict)).toBe(true);
+    if (Result.isSuccess(verdict)) {
       expect(verdict.right).toEqual({
         kind: "stale",
         evidence: [
@@ -389,8 +391,8 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
       }).pipe(Effect.provide(layer)),
     );
 
-    expect(Either.isRight(verdict)).toBe(true);
-    if (Either.isRight(verdict)) {
+    expect(Result.isSuccess(verdict)).toBe(true);
+    if (Result.isSuccess(verdict)) {
       expect(verdict.right).toEqual({ kind: "fresh" });
     }
   });
@@ -419,8 +421,8 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
       }).pipe(Effect.provide(layer)),
     );
 
-    expect(Either.isLeft(verdict)).toBe(true);
-    if (Either.isLeft(verdict)) {
+    expect(Result.isFailure(verdict)).toBe(true);
+    if (Result.isFailure(verdict)) {
       expect(verdict.left).toBeInstanceOf(ArtifactValidationError);
       expect((verdict.left as ArtifactValidationError).message).toContain(
         "docs/specs/2609101222-foo.md",
@@ -446,8 +448,8 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
         repoRoot: REPO_ROOT,
       }).pipe(Effect.provide(layer)),
     );
-    expect(Either.isRight(staleVerdict)).toBe(true);
-    if (Either.isRight(staleVerdict)) expect(staleVerdict.right.kind).toBe("stale");
+    expect(Result.isSuccess(staleVerdict)).toBe(true);
+    if (Result.isSuccess(staleVerdict)) expect(staleVerdict.right.kind).toBe("stale");
 
     await run(
       transitionArtifact("docs/plans/2609101240-thing-plan.md", "Approved", {
@@ -462,8 +464,8 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
         repoRoot: REPO_ROOT,
       }).pipe(Effect.provide(layer)),
     );
-    expect(Either.isRight(freshVerdict)).toBe(true);
-    if (Either.isRight(freshVerdict)) expect(freshVerdict.right).toEqual({ kind: "fresh" });
+    expect(Result.isSuccess(freshVerdict)).toBe(true);
+    if (Result.isSuccess(freshVerdict)) expect(freshVerdict.right).toEqual({ kind: "fresh" });
   });
 });
 
@@ -557,8 +559,8 @@ describe("computePlanStaleness (extraction wrapper)", () => {
       ),
     );
 
-    expect(Either.isRight(verdict)).toBe(true);
-    if (Either.isRight(verdict)) expect(verdict.right).toEqual({ kind: "fresh" });
+    expect(Result.isSuccess(verdict)).toBe(true);
+    if (Result.isSuccess(verdict)) expect(verdict.right).toEqual({ kind: "fresh" });
     expect(backendImpl.runCalls).toHaveLength(0);
     expect(backendImpl.completeCalls).toHaveLength(0);
   });
@@ -795,8 +797,8 @@ describe("applyStalenessReport", () => {
       applyStalenessReport(report, APPROVE_OPTS).pipe(Effect.provide(layer)),
     );
 
-    expect(Either.isRight(flipped)).toBe(true);
-    if (Either.isRight(flipped)) {
+    expect(Result.isSuccess(flipped)).toBe(true);
+    if (Result.isSuccess(flipped)) {
       expect(flipped.right.map((f) => f.path)).toEqual(["docs/plans/2609101241-stale-plan.md"]);
       const rendered = renderStalenessApply(flipped.right);
       expect(rendered).toContain("docs/plans/2609101241-stale-plan.md: Approved -> Stale");
@@ -836,8 +838,8 @@ describe("applyStalenessReport", () => {
       applyStalenessReport(report, APPROVE_OPTS).pipe(Effect.provide(layer)),
     );
 
-    expect(Either.isRight(flipped)).toBe(true);
-    if (Either.isRight(flipped)) {
+    expect(Result.isSuccess(flipped)).toBe(true);
+    if (Result.isSuccess(flipped)) {
       expect(flipped.right.map((f) => f.path)).toEqual(["docs/plans/2609101240-thing-plan.md"]);
       expect(flipped.right[0]?.verdict.kind).toBe("missing-record");
     }
@@ -865,7 +867,7 @@ describe("per-artifact approval record files", () => {
     const approved = await run(
       transitionArtifact(path, "Approved", APPROVE_OPTS).pipe(Effect.provide(layer)),
     );
-    expect(Either.isRight(approved)).toBe(true);
+    expect(Result.isSuccess(approved)).toBe(true);
   }
 
   // Another plan's record is never read.
@@ -884,7 +886,7 @@ describe("per-artifact approval record files", () => {
         repoRoot: REPO_ROOT,
       }).pipe(Effect.provide(layer)),
     );
-    expect(verdictA).toEqual(Either.right({ kind: "fresh" }));
+    expect(verdictA).toEqual(Result.succeed({ kind: "fresh" }));
 
     const { report } = await Effect.runPromise(
       plansStalenessReport(REPORT_OPTS).pipe(Effect.provide(layer)),
@@ -912,7 +914,7 @@ describe("per-artifact approval record files", () => {
         repoRoot: REPO_ROOT,
       }).pipe(Effect.provide(layer)),
     );
-    expect(Either.isRight(verdict) && verdict.right.kind).toBe("missing-record");
+    expect(Result.isSuccess(verdict) && verdict.right.kind).toBe("missing-record");
   });
 
   // Unreadable record files are refused and kept.
@@ -930,8 +932,8 @@ describe("per-artifact approval record files", () => {
         repoRoot: REPO_ROOT,
       }).pipe(Effect.provide(layer)),
     );
-    expect(Either.isLeft(verdict)).toBe(true);
-    if (Either.isLeft(verdict)) {
+    expect(Result.isFailure(verdict)).toBe(true);
+    if (Result.isFailure(verdict)) {
       expect(verdict.left).toBeInstanceOf(ApprovalRecordUnreadableError);
       expect(verdict.left.message).toContain(`${RECORD_A}: plan approval record has no $schema`);
     }
@@ -971,7 +973,7 @@ describe("orphan record files", () => {
     const approved = await run(
       transitionArtifact(PLAN_A, "Approved", APPROVE_OPTS).pipe(Effect.provide(harness.layer)),
     );
-    expect(Either.isRight(approved)).toBe(true);
+    expect(Result.isSuccess(approved)).toBe(true);
     return harness;
   }
 
@@ -1054,14 +1056,14 @@ describe("old approval ledger refusal", () => {
       const approved = await run(
         transitionArtifact(PLAN, "Approved", APPROVE_OPTS).pipe(Effect.provide(harness.layer)),
       );
-      expect(Either.isRight(approved)).toBe(true);
+      expect(Result.isSuccess(approved)).toBe(true);
       harness.fsImpl.setFile(ledgerPath, `{"version":1,"records":{}}`);
       return { ...harness, before: new Map(harness.fsImpl.files) };
     }
 
-    function expectRefused(result: Either.Either<unknown, unknown>): void {
-      expect(Either.isLeft(result)).toBe(true);
-      if (!Either.isLeft(result)) return;
+    function expectRefused(result: Result.Result<unknown, unknown>): void {
+      expect(Result.isFailure(result)).toBe(true);
+      if (!Result.isFailure(result)) return;
       expect(result.left).toBeInstanceOf(ApprovalLedgerMigrationRequiredError);
       expect((result.left as ApprovalLedgerMigrationRequiredError).ledgerPath).toBe(ledgerPath);
     }

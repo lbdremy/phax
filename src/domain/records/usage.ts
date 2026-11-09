@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import type { ClaudeTokenUsage, CodexTokenUsage, VibeTokenUsage } from "../../schemas/runRecord.js";
 import { decodeVibeExportText, type VibeExport } from "../../schemas/vibeExport.js";
 
@@ -178,5 +178,5 @@ function vibeUsageOf(exported: VibeExport): VibeTokenUsage {
  */
 export function extractVibeExportUsage(exportJsonText: string): VibeTokenUsage | undefined {
   const decoded = decodeVibeExportText(exportJsonText);
-  return Either.isLeft(decoded) ? undefined : vibeUsageOf(decoded.right);
+  return Result.isFailure(decoded) ? undefined : vibeUsageOf(decoded.right);
 }

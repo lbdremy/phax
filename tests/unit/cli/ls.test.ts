@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { phaxCall } from "../../helpers/runnerCall.js";
 import { ConfigValidationError } from "../../../src/domain/errors.js";
 import { makeFakeLock } from "../../../src/infra/fakes/lock.js";
@@ -15,7 +15,7 @@ vi.mock("../../../src/app/registry.js", () => ({
 }));
 
 vi.mock("../../../src/app/resolveRunInfo.js", () => ({
-  resolveRun: vi.fn(() => Either.left("not found")),
+  resolveRun: vi.fn(() => Result.fail("not found")),
   findCurrentPhase: vi.fn(() => undefined),
 }));
 
@@ -96,7 +96,7 @@ describe("runLs — qualified names", () => {
 
   it("shows qualified run name as primary identity in table output", async () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
-    loadConfig.mockReturnValue(Either.right(makeConfig()));
+    loadConfig.mockReturnValue(Result.succeed(makeConfig()));
 
     const { readRegistry } = vi.mocked(await import("../../../src/app/registry.js"));
     readRegistry.mockReturnValue(
@@ -113,7 +113,7 @@ describe("runLs — qualified names", () => {
 
   it("shows two same-short-name runs in different namespaces as distinct rows", async () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
-    loadConfig.mockReturnValue(Either.right(makeConfig()));
+    loadConfig.mockReturnValue(Result.succeed(makeConfig()));
 
     const { readRegistry } = vi.mocked(await import("../../../src/app/registry.js"));
     readRegistry.mockReturnValue(
@@ -133,7 +133,7 @@ describe("runLs — qualified names", () => {
 
   it("includes namespace and qualifiedName in --json output", async () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
-    loadConfig.mockReturnValue(Either.right(makeConfig()));
+    loadConfig.mockReturnValue(Result.succeed(makeConfig()));
 
     const { readRegistry } = vi.mocked(await import("../../../src/app/registry.js"));
     readRegistry.mockReturnValue(
@@ -163,7 +163,7 @@ describe("runLs — qualified names", () => {
 
   it("includes qualifiedName for both runs when namespaces differ in --json output", async () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
-    loadConfig.mockReturnValue(Either.right(makeConfig()));
+    loadConfig.mockReturnValue(Result.succeed(makeConfig()));
 
     const { readRegistry } = vi.mocked(await import("../../../src/app/registry.js"));
     readRegistry.mockReturnValue(
@@ -185,7 +185,7 @@ describe("runLs — qualified names", () => {
 
   it("returns 1 and error when config load fails", async () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
-    loadConfig.mockReturnValue(Either.left(new ConfigValidationError({ message: "no phax.json" })));
+    loadConfig.mockReturnValue(Result.fail(new ConfigValidationError({ message: "no phax.json" })));
 
     const { code, errLines: errors } = await phaxCall(["ls"]);
     expect(code).toBe(1);
@@ -194,7 +194,7 @@ describe("runLs — qualified names", () => {
 
   it("--awaiting-review keeps only the runs awaiting review", async () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
-    loadConfig.mockReturnValue(Either.right(makeConfig()));
+    loadConfig.mockReturnValue(Result.succeed(makeConfig()));
 
     const { readRegistry } = vi.mocked(await import("../../../src/app/registry.js"));
     readRegistry.mockReturnValue(
@@ -219,7 +219,7 @@ describe("runLs — qualified names", () => {
 
   it("returns 0 with (no runs) when registry is empty", async () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
-    loadConfig.mockReturnValue(Either.right(makeConfig()));
+    loadConfig.mockReturnValue(Result.succeed(makeConfig()));
 
     const { readRegistry } = vi.mocked(await import("../../../src/app/registry.js"));
     readRegistry.mockReturnValue(Effect.succeed({ version: 1 as const, runs: [] }));

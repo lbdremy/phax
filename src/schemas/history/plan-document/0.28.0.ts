@@ -477,6 +477,6 @@ export const PlanDocumentV0_28_0Schema = PlanDocumentStruct.pipe(
 
 export type PlanDocumentV0_28_0 = Schema.Schema.Type<typeof PlanDocumentV0_28_0Schema>;
 
-export const decodePlanDocumentV0_28_0 = Schema.decodeUnknownEither(PlanDocumentV0_28_0Schema, {
+export const decodePlanDocumentV0_28_0 = Schema.decodeUnknownResult(PlanDocumentV0_28_0Schema, {
   onExcessProperty: "error",
 });

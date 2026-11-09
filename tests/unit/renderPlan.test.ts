@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Either } from "effect";
+import { Result } from "effect";
 import { renderPlanBody } from "../../src/domain/authoring/renderPlan.js";
 import {
   collectPlanStructureErrors,
@@ -17,7 +17,7 @@ import { currentSchemaUrl, withSchemaUrl } from "../../src/schemas/persisted.js"
 
 function decoded(raw: unknown): PlanDocument {
   const result = decodeAuthoredPlanDocument(raw);
-  if (Either.isLeft(result)) throw new Error(`fixture does not decode: ${result.left}`);
+  if (Result.isFailure(result)) throw new Error(`fixture does not decode: ${result.left}`);
   return result.right;
 }
 
@@ -116,11 +116,11 @@ function fixture(): PlanDocument {
 
 function roundTrip(doc: PlanDocument, md: string) {
   const parsed = extractPlanDeterministic(md);
-  if (Either.isLeft(parsed))
+  if (Result.isFailure(parsed))
     throw new Error(`rendered plan does not parse: ${parsed.left.message}`);
   const fromMarkdown = finalizeExtractedPlan(parsed.right, md);
   const fromDocument = finalizeExtractedPlan(projectExtractedPlan(doc), md);
-  if (Either.isLeft(fromMarkdown) || Either.isLeft(fromDocument)) {
+  if (Result.isFailure(fromMarkdown) || Result.isFailure(fromDocument)) {
     throw new Error("finalize failed");
   }
   return {
@@ -439,7 +439,7 @@ function withQuestions(): PlanDocument {
   const file = decodePlanDocumentFile(
     withSchemaUrl("plan-document", { ...base, preamble: questionPreamble(base.preamble) }),
   );
-  if (Either.isLeft(file)) throw new Error(`fixture does not decode: ${file.left.message}`);
+  if (Result.isFailure(file)) throw new Error(`fixture does not decode: ${file.left.message}`);
   return file.right;
 }
 

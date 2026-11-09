@@ -42,7 +42,7 @@ export const ComplianceReviewPreSchemaSchema = Schema.Struct({
 
 export type ComplianceReviewPreSchema = Schema.Schema.Type<typeof ComplianceReviewPreSchemaSchema>;
 
-export const decodeComplianceReviewPreSchema = Schema.decodeUnknownEither(
+export const decodeComplianceReviewPreSchema = Schema.decodeUnknownResult(
   ComplianceReviewPreSchemaSchema,
   { onExcessProperty: "error" },
 );

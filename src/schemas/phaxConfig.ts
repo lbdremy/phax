@@ -109,13 +109,11 @@ const PARTIAL_DIFF_DESCRIPTION =
 // The loader refuses a malformed partial with the step's path before this
 // decode; the schema declares the structure for the type and the editor schema.
 const PartialSchema = Schema.Struct({
-  files: Schema.optionalWith(
+  files: Schema.optionalKey(
     Schema.NonEmptyString.annotations({ jsonSchema: { description: PARTIAL_FILES_DESCRIPTION } }),
-    { exact: true },
   ),
-  diff: Schema.optionalWith(
+  diff: Schema.optionalKey(
     Schema.NonEmptyString.annotations({ jsonSchema: { description: PARTIAL_DIFF_DESCRIPTION } }),
-    { exact: true },
   ),
 }).pipe(
   Schema.filter((value) => value.files !== undefined || value.diff !== undefined, {
@@ -146,13 +144,12 @@ const GateStepSchema = Schema.Struct({
   // the literal would replace `Expected "gate-request"` in the config refusal,
   // and one on the property signature is dropped from this transformed
   // struct's JSON Schema.
-  input: Schema.optionalWith(
+  input: Schema.optionalKey(
     Schema.Literal("gate-request").annotations({
       jsonSchema: { description: GATE_INPUT_DESCRIPTION },
     }),
-    { exact: true },
   ),
-  partial: Schema.optionalWith(PartialSchema, { exact: true }),
+  partial: Schema.optionalKey(PartialSchema),
 });
 export type GateStep = Schema.Schema.Type<typeof GateStepSchema>;
 
@@ -384,7 +381,7 @@ export interface ResolvedConfig {
 
 export type { ResolvedSecurityConfig, ResolvedRecordsConfig };
 
-export const decodePhaxConfig = Schema.decodeUnknownEither(PhaxConfigSchema, {
+export const decodePhaxConfig = Schema.decodeUnknownResult(PhaxConfigSchema, {
   onExcessProperty: "error",
   errors: "all",
 });
@@ -440,7 +437,7 @@ export const PhaxUserOverlaySchema = Schema.Struct({
 
 export type PhaxUserOverlay = Schema.Schema.Type<typeof PhaxUserOverlaySchema>;
 
-export const decodePhaxUserOverlay = Schema.decodeUnknownEither(PhaxUserOverlaySchema, {
+export const decodePhaxUserOverlay = Schema.decodeUnknownResult(PhaxUserOverlaySchema, {
   onExcessProperty: "error",
   errors: "all",
 });

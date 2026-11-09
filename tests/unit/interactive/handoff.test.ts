@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   INTERACTIVE_HANDOFF_SECTIONS,
@@ -28,13 +28,13 @@ const VALID = `## What was corrected
 
 const defectsOf = (markdown: string): readonly string[] => {
   const result = validateInteractiveHandoff(markdown);
-  if (Either.isRight(result)) throw new Error("expected defects");
+  if (Result.isSuccess(result)) throw new Error("expected defects");
   return result.left;
 };
 
 describe("validateInteractiveHandoff", () => {
   it("returns a valid handoff unchanged", () => {
-    expect(validateInteractiveHandoff(VALID)).toEqual(Either.right(VALID));
+    expect(validateInteractiveHandoff(VALID)).toEqual(Result.succeed(VALID));
   });
 
   it("accepts numbered entries and indented continuation lines", () => {
@@ -42,7 +42,7 @@ describe("validateInteractiveHandoff", () => {
       "- no guard: the order",
       "- no guard: the order\n  (see the plan)",
     );
-    expect(Either.isRight(validateInteractiveHandoff(md))).toBe(true);
+    expect(Result.isSuccess(validateInteractiveHandoff(md))).toBe(true);
     const numbered = `## What was corrected
 1. One thing.
 
@@ -55,7 +55,7 @@ describe("validateInteractiveHandoff", () => {
 ## What the next phases need to know
 - none
 `;
-    expect(Either.isRight(validateInteractiveHandoff(numbered))).toBe(true);
+    expect(Result.isSuccess(validateInteractiveHandoff(numbered))).toBe(true);
   });
 
   it("names a missing ## Guards section", () => {
@@ -116,7 +116,7 @@ describe("validateInteractiveHandoff", () => {
       "- Header labels come from `EXPORT_LABELS`.",
       "- Header labels come from `EXPORT_LABELS`:\n\n```md\n## Not a section\n```",
     );
-    expect(Either.isRight(validateInteractiveHandoff(md))).toBe(true);
+    expect(Result.isSuccess(validateInteractiveHandoff(md))).toBe(true);
   });
 
   it("refuses an empty document with the four missing sections", () => {
@@ -157,13 +157,15 @@ describe("renderInteractiveHandoff", () => {
   it("renders a document that validates, even with multi-line entries", () => {
     const text = renderInteractiveHandoff(answer);
     expect(text).toContain("- The column order is kept as the plan states it.");
-    expect(Either.isRight(validateInteractiveHandoff(text))).toBe(true);
+    expect(Result.isSuccess(validateInteractiveHandoff(text))).toBe(true);
   });
 });
 
 describe("REVIEWED_WITHOUT_CHANGE_HANDOFF", () => {
   it("passes validation", () => {
-    expect(Either.isRight(validateInteractiveHandoff(REVIEWED_WITHOUT_CHANGE_HANDOFF))).toBe(true);
+    expect(Result.isSuccess(validateInteractiveHandoff(REVIEWED_WITHOUT_CHANGE_HANDOFF))).toBe(
+      true,
+    );
   });
 
   it("summarizes as one correction line and one no-guard entry", () => {

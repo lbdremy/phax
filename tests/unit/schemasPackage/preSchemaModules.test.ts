@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Either, ParseResult, type Schema } from "effect";
+import { Result, ParseResult, type Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   JSON_SCHEMA_FORMATS,
@@ -45,7 +45,7 @@ import { preSchemaDocuments, withKey, withoutKey } from "./documents.js";
 
 interface FrozenModule {
   readonly schema: Schema.Schema.Any;
-  readonly decode: (input: unknown) => Either.Either<unknown, ParseResult.ParseError>;
+  readonly decode: (input: unknown) => Result.Result<unknown, ParseResult.ParseError>;
   readonly parse: (input: unknown) => { readonly ok: true; readonly shape: string } | ParseFailure;
 }
 
@@ -161,8 +161,8 @@ function pascal(id: FormatId): string {
 }
 
 /** The path of a decoder's first violation, joined with `.`. */
-function firstViolationPath(result: Either.Either<unknown, ParseResult.ParseError>): string {
-  if (Either.isRight(result)) throw new Error("expected the frozen decoder to reject");
+function firstViolationPath(result: Result.Result<unknown, ParseResult.ParseError>): string {
+  if (Result.isSuccess(result)) throw new Error("expected the frozen decoder to reject");
   const [first] = ParseResult.ArrayFormatter.formatErrorSync(result.left);
   return first === undefined ? "" : first.path.map(String).join(".");
 }
@@ -219,7 +219,7 @@ describe("the frozen pre-schema modules", () => {
       if (tableEntry(id).excess === "error") {
         expect(firstViolationPath(FROZEN[id].decode(extra))).toBe("unexpectedKey");
       } else {
-        expect(Either.isRight(FROZEN[id].decode(extra))).toBe(true);
+        expect(Result.isSuccess(FROZEN[id].decode(extra))).toBe(true);
       }
     },
   );

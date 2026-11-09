@@ -3,7 +3,7 @@
 // `standard`.
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { decodePhaxConfig } from "../../../src/schemas/phaxConfig.js";
 
@@ -11,7 +11,7 @@ const phaxJson = fileURLToPath(new URL("../../../phax.json", import.meta.url));
 
 function decoded() {
   const result = decodePhaxConfig(JSON.parse(readFileSync(phaxJson, "utf8")));
-  if (Either.isLeft(result)) throw new Error(String(result.left));
+  if (Result.isFailure(result)) throw new Error(String(result.left));
   return result.right;
 }
 

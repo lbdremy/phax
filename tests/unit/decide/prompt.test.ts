@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import type { SidecarDocument } from "../../../src/domain/artifact/sidecar.js";
 import { type Doctrine, assembleDoctrine } from "../../../src/domain/decide/doctrine.js";
@@ -94,7 +94,7 @@ function doctrine(): Doctrine {
     },
     file: { path: "docs/doctrine.md", text: "- `X1` Prefer the cheaper option.\n" },
   });
-  if (Either.isLeft(assembled)) throw new Error(assembled.left);
+  if (Result.isFailure(assembled)) throw new Error(assembled.left);
   return assembled.right;
 }
 

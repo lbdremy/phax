@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { readRegistry, removeRun, upsertRun, setRunStatus } from "../../src/app/registry.js";
 import { RegistryCorruptionError } from "../../src/domain/errors.js";
@@ -97,10 +97,10 @@ describe("readRegistry", () => {
     );
 
     const result = await Effect.runPromise(
-      Effect.either(readRegistry(stateRoot).pipe(Effect.provide(layer))),
+      Effect.result(readRegistry(stateRoot).pipe(Effect.provide(layer))),
     );
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left).toBeInstanceOf(RegistryCorruptionError);
       expect(result.left.message).toMatch(/^\/fake-state\/registry\.json: .*\$schema/);
     }
@@ -126,10 +126,10 @@ describe("readRegistry", () => {
     impl.setFile(`${stateRoot}/registry.json`, "{ invalid json }");
 
     const result = await Effect.runPromise(
-      Effect.either(readRegistry(stateRoot).pipe(Effect.provide(layer))),
+      Effect.result(readRegistry(stateRoot).pipe(Effect.provide(layer))),
     );
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left).toBeInstanceOf(RegistryCorruptionError);
     }
   });
@@ -167,10 +167,10 @@ describe("readRegistry", () => {
     impl.setFile(`${stateRoot}/registry.json`, JSON.stringify({ version: 99, runs: [] }));
 
     const result = await Effect.runPromise(
-      Effect.either(readRegistry(stateRoot).pipe(Effect.provide(layer))),
+      Effect.result(readRegistry(stateRoot).pipe(Effect.provide(layer))),
     );
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left).toBeInstanceOf(RegistryCorruptionError);
     }
   });

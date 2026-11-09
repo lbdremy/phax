@@ -6,7 +6,7 @@
 // Every run uses a temporary state root and a fake backend that writes
 // made-up streams to the invocation's outputJsonlPath; no real provider is
 // spawned and ~/.phax is never read.
-import { Effect, Either, Exit, Fiber, Layer } from "effect";
+import { Effect, Result, Exit, Fiber, Layer } from "effect";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -62,7 +62,7 @@ const HANDOFF_CONTENT = [
 
 const NAMESPACE = "test-project";
 const SHORT_NAME = "ledger-run";
-const shortName = Either.getOrThrow(decodeShortName(SHORT_NAME));
+const shortName = Result.getOrThrow(decodeShortName(SHORT_NAME));
 const GATE = "node scripts/example-check.mjs";
 
 function rawPlan(phase02Model: string) {
@@ -241,7 +241,7 @@ function playStream(phaseFolderPath: string, outputJsonlPath: string): void {
 async function readLedger(runPath: string): Promise<ReadonlyArray<CostLedgerEntry>> {
   const text = await readFile(join(runPath, COST_LEDGER_FILE), "utf8");
   const read = readCostLedgerFile(COST_LEDGER_FILE, JSON.parse(text));
-  if (Either.isLeft(read)) throw new Error(read.left.message);
+  if (Result.isFailure(read)) throw new Error(read.left.message);
   return read.right.entries;
 }
 
@@ -358,7 +358,7 @@ describe("cost ledger at run time", () => {
     readonly providerConfig?: ProviderConfig;
     readonly prepare?: (backend: ReturnType<typeof makeFakeBackend>) => void;
   }) {
-    const plan = Either.getOrThrow(
+    const plan = Result.getOrThrow(
       liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan(opts.phase02Model)),
     ).plan;
     const config = makeConfig(stateRoot, opts.complianceReview);
@@ -368,7 +368,7 @@ describe("cost ledger at run time", () => {
       createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(layers)),
     );
     const outcome = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -395,7 +395,7 @@ describe("cost ledger at run time", () => {
       complianceReview: true,
       gateFailsOnce: true,
     });
-    expect(Either.isRight(outcome)).toBe(true);
+    expect(Result.isSuccess(outcome)).toBe(true);
     expect(runPath).toBe(runFolder);
 
     const entries = await readLedger(runPath);
@@ -455,7 +455,7 @@ describe("cost ledger at run time", () => {
       gateFailsOnce: false,
       providerConfig: codexEnabled,
     });
-    expect(Either.isRight(outcome)).toBe(true);
+    expect(Result.isSuccess(outcome)).toBe(true);
     expect(backend.impl.runCalls.map((call) => call.options.provider)).toEqual([
       "claude-code",
       "codex-cli",
@@ -490,7 +490,7 @@ describe("cost ledger at run time", () => {
         });
       },
     });
-    expect(Either.isLeft(outcome) && outcome.left instanceof UsageLimitError).toBe(true);
+    expect(Result.isFailure(outcome) && outcome.left instanceof UsageLimitError).toBe(true);
     const runStatus = JSON.parse(await readFile(join(runPath, "run-status.json"), "utf8")) as {
       state: string;
     };
@@ -523,7 +523,7 @@ describe("cost ledger at run time", () => {
       complianceReview: false,
       gateFailsOnce: false,
     });
-    expect(Either.isRight(outcome)).toBe(true);
+    expect(Result.isSuccess(outcome)).toBe(true);
     const before = await readFile(join(runPath, COST_LEDGER_FILE));
 
     await Effect.runPromise(
@@ -574,13 +574,13 @@ describe("withInvocationCost", () => {
   it("records a failed invocation and keeps its failure", async () => {
     writeStream(streamPath(), [init("session-failed"), result("session-failed", 0.2, 20)]);
     const outcome = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         wrapped(Effect.fail("agent crashed")).pipe(
           Effect.provide(Layer.merge(NodeFileSystemLayer, NoopSystemTelemetryLayer)),
         ),
       ),
     );
-    expect(outcome).toEqual(Either.left("agent crashed"));
+    expect(outcome).toEqual(Result.fail("agent crashed"));
     const entries = await readLedger(runPath);
     expect(entries.map((entry) => entry.costUsd)).toEqual([0.2]);
   });

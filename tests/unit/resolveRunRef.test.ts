@@ -2,7 +2,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { Either } from "effect";
+import { Result } from "effect";
 import { resolveRunRef } from "../../src/app/resolveRunRef.js";
 import {
   resolveAuthoringConfig,
@@ -130,8 +130,8 @@ describe("resolveRunRef", () => {
       const config = makeConfig("myns", stateRoot);
       const result = resolveRunRef("fixbug", config, stateRoot);
 
-      expect(Either.isRight(result)).toBe(true);
-      if (Either.isLeft(result)) throw new Error("expected success");
+      expect(Result.isSuccess(result)).toBe(true);
+      if (Result.isFailure(result)) throw new Error("expected success");
       expect(result.right.namespace).toBe("myns");
       expect(result.right.shortName).toBe("fixbug");
       expect(result.right.info.namespace).toBe("myns");
@@ -144,8 +144,8 @@ describe("resolveRunRef", () => {
       const config = makeConfig("myns", stateRoot);
       const result = resolveRunRef("fixbug", config, stateRoot);
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isRight(result)) throw new Error("expected refusal");
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isSuccess(result)) throw new Error("expected refusal");
       expect(result.left.variant).toBe("not-found");
       expect(result.left.message).toContain("myns");
     });
@@ -154,8 +154,8 @@ describe("resolveRunRef", () => {
       const config = makeConfig("myns", stateRoot);
       const result = resolveRunRef("missing", config, stateRoot);
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isRight(result)) throw new Error("expected refusal");
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isSuccess(result)) throw new Error("expected refusal");
       expect(result.left.variant).toBe("not-found");
       expect(result.left.message).toContain("myns.missing");
     });
@@ -178,8 +178,8 @@ describe("resolveRunRef", () => {
       const config = makeConfig("myns", stateRoot);
       const result = resolveRunRef("fixbug", config, stateRoot);
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isRight(result)) throw new Error("expected refusal");
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isSuccess(result)) throw new Error("expected refusal");
       expect(result.left.variant).toBe("unresolvable-qualified");
       expect(result.left.message).toContain("myns.fixbug");
       expect(result.left.message).toContain("could not be read");
@@ -198,8 +198,8 @@ describe("resolveRunRef", () => {
       const config = makeConfig("myns", stateRoot);
       const result = resolveRunRef("fixbug", config, stateRoot);
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isRight(result)) throw new Error("expected refusal");
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isSuccess(result)) throw new Error("expected refusal");
       expect(result.left.variant).toBe("unresolvable-qualified");
       expect(result.left.message).toContain("No run-status.json");
     });
@@ -218,8 +218,8 @@ describe("resolveRunRef", () => {
 
       const result = resolveRunRef("fixbug", undefined, stateRoot);
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isRight(result)) throw new Error("expected refusal");
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isSuccess(result)) throw new Error("expected refusal");
       expect(result.left.variant).toBe("ambiguous-outside-project");
       expect(result.left.candidates).toContain("ns-a.fixbug");
       expect(result.left.candidates).toContain("ns-b.fixbug");
@@ -229,8 +229,8 @@ describe("resolveRunRef", () => {
     it("refuses with no-project message when no candidates found", () => {
       const result = resolveRunRef("missing", undefined, stateRoot);
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isRight(result)) throw new Error("expected refusal");
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isSuccess(result)) throw new Error("expected refusal");
       expect(result.left.variant).toBe("ambiguous-outside-project");
       expect(result.left.candidates).toHaveLength(0);
       expect(result.left.message).toContain("No PHAX project is active");
@@ -248,8 +248,8 @@ describe("resolveRunRef", () => {
       const config = makeConfig("myns", stateRoot);
       const result = resolveRunRef("myns.fixbug", config, stateRoot);
 
-      expect(Either.isRight(result)).toBe(true);
-      if (Either.isLeft(result)) throw new Error("expected success");
+      expect(Result.isSuccess(result)).toBe(true);
+      if (Result.isFailure(result)) throw new Error("expected success");
       expect(result.right.namespace).toBe("myns");
       expect(result.right.shortName).toBe("fixbug");
       expect(result.right.crossProject).toBe(false);
@@ -265,8 +265,8 @@ describe("resolveRunRef", () => {
       const config = makeConfig("myns", stateRoot);
       const result = resolveRunRef("otherns.fixbug", config, stateRoot);
 
-      expect(Either.isRight(result)).toBe(true);
-      if (Either.isLeft(result)) throw new Error("expected success");
+      expect(Result.isSuccess(result)).toBe(true);
+      if (Result.isFailure(result)) throw new Error("expected success");
       expect(result.right.namespace).toBe("otherns");
       expect(result.right.crossProject).toBe(true);
     });
@@ -280,8 +280,8 @@ describe("resolveRunRef", () => {
 
       const result = resolveRunRef("myns.fixbug", undefined, stateRoot);
 
-      expect(Either.isRight(result)).toBe(true);
-      if (Either.isLeft(result)) throw new Error("expected success");
+      expect(Result.isSuccess(result)).toBe(true);
+      if (Result.isFailure(result)) throw new Error("expected success");
       expect(result.right.namespace).toBe("myns");
       expect(result.right.crossProject).toBe(false);
     });
@@ -295,8 +295,8 @@ describe("resolveRunRef", () => {
 
       const result = resolveRunRef("myns.fixbug", undefined, stateRoot);
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isRight(result)) throw new Error("expected refusal");
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isSuccess(result)) throw new Error("expected refusal");
       expect(result.left.variant).toBe("not-found");
       expect(result.left.message).toContain("myns.fixbug");
     });
@@ -309,8 +309,8 @@ describe("resolveRunRef", () => {
 
       const result = resolveRunRef("myns.fixbug", undefined, stateRoot);
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isRight(result)) throw new Error("expected refusal");
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isSuccess(result)) throw new Error("expected refusal");
       expect(result.left.variant).toBe("unresolvable-qualified");
       expect(result.left.message).toContain("myns.fixbug");
       expect(result.left.message).toContain("Reason: No run-status.json");
@@ -320,15 +320,15 @@ describe("resolveRunRef", () => {
   describe("invalid input", () => {
     it("returns not-found for empty input", () => {
       const result = resolveRunRef("", makeConfig("myns", stateRoot), stateRoot);
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isRight(result)) throw new Error("expected refusal");
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isSuccess(result)) throw new Error("expected refusal");
       expect(result.left.variant).toBe("not-found");
     });
 
     it("returns not-found for input with multiple dots", () => {
       const result = resolveRunRef("a.b.c", makeConfig("myns", stateRoot), stateRoot);
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isRight(result)) throw new Error("expected refusal");
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isSuccess(result)) throw new Error("expected refusal");
       expect(result.left.variant).toBe("not-found");
     });
   });

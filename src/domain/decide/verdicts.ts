@@ -1,5 +1,5 @@
 import { posix } from "node:path";
-import { Either, ParseResult } from "effect";
+import { Result, ParseResult } from "effect";
 import type { HandDecisionAnswer } from "../../schemas/handDecisionAnswer.js";
 import {
   decodeCurrentDecideVerdicts,
@@ -88,34 +88,34 @@ export function verdictsStampViolation(json: Record<string, unknown>): string | 
  * `verdicts`), or the first decoder violation with its path rendered like
  * `verdicts[0].note`.
  */
-export function parseVerdictsFile(text: string): Either.Either<VerdictsFile, VerdictsRefusal> {
+export function parseVerdictsFile(text: string): Result.Result<VerdictsFile, VerdictsRefusal> {
   let json: unknown;
   try {
     json = JSON.parse(text);
   } catch (error) {
-    return Either.left({
+    return Result.fail({
       path: "",
       message: error instanceof Error ? error.message : String(error),
     });
   }
   const reads = schemaUrl(VERDICTS_FORMAT, CURRENT_STAMPS[VERDICTS_FORMAT]);
   if (!isObject(json)) {
-    return Either.left({
+    return Result.fail({
       path: "",
       message: `the file is not a JSON object — phax reads ${reads}`,
     });
   }
   const stampViolation = verdictsStampViolation(json);
   if (stampViolation !== undefined)
-    return Either.left({ path: "$schema", message: stampViolation });
+    return Result.fail({ path: "$schema", message: stampViolation });
   const given = json["verdicts"];
   if (Array.isArray(given) && given.length === 0) {
-    return Either.left({
+    return Result.fail({
       path: "verdicts",
       message: "the list is empty — give at least one verdict",
     });
   }
-  return Either.mapLeft(decodeCurrentDecideVerdicts(json), firstParseIssue);
+  return Result.mapError(decodeCurrentDecideVerdicts(json), firstParseIssue);
 }
 
 /**
@@ -275,10 +275,10 @@ export function bindVerdictsAt(input: {
   readonly artifactPath: string;
   readonly questions: readonly QuestionFacts[];
   readonly label: string;
-}): Either.Either<BoundVerdicts, VerdictsBindingRefusal> {
+}): Result.Result<BoundVerdicts, VerdictsBindingRefusal> {
   const { file, artifactPath, questions, label } = input;
   if (namesAnotherArtifact(file.artifact, artifactPath)) {
-    return Either.left({
+    return Result.fail({
       path: ["artifact"],
       expected: `the artifact's path, ${artifactPath}`,
       problem: `names ${file.artifact}, not ${artifactPath}`,
@@ -289,7 +289,7 @@ export function bindVerdictsAt(input: {
   const byId = new Map(questions.map((q) => [q.id, q]));
   for (const [index, { question }] of file.verdicts.entries()) {
     if (!byId.has(question)) {
-      return Either.left({
+      return Result.fail({
         path: ["verdicts", index, "question"],
         expected: `a question id of the artifact: ${ids.join(", ") || "none"}`,
         problem: `names ${question}, which is no question of the artifact`,
@@ -300,7 +300,7 @@ export function bindVerdictsAt(input: {
   const seen = new Set<string>();
   for (const [index, { question }] of file.verdicts.entries()) {
     if (seen.has(question)) {
-      return Either.left({
+      return Result.fail({
         path: ["verdicts", index, "question"],
         expected: "a question no other verdict names",
         problem: `names ${question} a second time`,
@@ -313,7 +313,7 @@ export function bindVerdictsAt(input: {
   for (const [index, { question, chosen }] of file.verdicts.entries()) {
     const facts = byId.get(question);
     if (facts !== undefined && chosen !== OTHER_OPTION_ID && !facts.optionIds.includes(chosen)) {
-      return Either.left({
+      return Result.fail({
         path: ["verdicts", index, "chosen"],
         expected: `an option id of ${question}`,
         problem: `is not an option of ${question}`,
@@ -328,7 +328,7 @@ export function bindVerdictsAt(input: {
     const index = file.verdicts.indexOf(verdict);
     const departs = verdict.chosen !== facts.recommendation;
     if (departs && verdict.note === null) {
-      return Either.left({
+      return Result.fail({
         path: ["verdicts", index, "note"],
         expected: `a note: ${verdict.chosen} departs from the recommendation ${facts.recommendation}`,
         problem: `is null, and ${verdict.chosen} departs from ${facts.id}'s recommendation ${facts.recommendation}`,
@@ -336,7 +336,7 @@ export function bindVerdictsAt(input: {
       });
     }
     if (verdict.note === null && facts.rationale.trim().length === 0) {
-      return Either.left({
+      return Result.fail({
         path: ["verdicts", index, "note"],
         expected: `a note: ${facts.id} has no rationale to stand as its why`,
         problem: `is null, and ${facts.id} has no rationale to stand as its why`,
@@ -355,7 +355,7 @@ export function bindVerdictsAt(input: {
     });
   }
   const open = questions.filter((q) => q.state === "open" && !given.has(q.id)).map((q) => q.id);
-  return Either.right({ verdicts, open });
+  return Result.succeed({ verdicts, open });
 }
 
 /**
@@ -375,8 +375,8 @@ export function bindVerdicts(input: {
   readonly artifactPath: string;
   readonly questions: readonly QuestionFacts[];
   readonly label: string;
-}): Either.Either<BoundVerdicts, string> {
-  return Either.mapLeft(bindVerdictsAt(input), (refused) => refused.message);
+}): Result.Result<BoundVerdicts, string> {
+  return Result.mapError(bindVerdictsAt(input), (refused) => refused.message);
 }
 
 /** A field path into a verdicts file as a person reads it: `verdicts[0].chosen`. */
@@ -738,28 +738,28 @@ export function checkTranscription(input: {
   readonly operator: { readonly name: string };
   readonly atIso: string;
   readonly principleIds: ReadonlySet<string>;
-}): Either.Either<
+}): Result.Result<
   { readonly document: SidecarDocument; readonly verdicts: readonly TranscribedVerdict[] },
   RevisionRefusal
 > {
   const { original, answer, bound, operator, atIso, principleIds } = input;
   const stampViolation = answerStampViolation(original.kind, answer);
   if (stampViolation !== undefined) {
-    return Either.left({ path: isObject(answer) ? "$schema" : "", message: stampViolation });
+    return Result.fail({ path: isObject(answer) ? "$schema" : "", message: stampViolation });
   }
   const optionsViolation = changedOptions(original, answer);
-  if (optionsViolation !== undefined) return Either.left(optionsViolation);
-  const decoded = Either.mapLeft(
+  if (optionsViolation !== undefined) return Result.fail(optionsViolation);
+  const decoded = Result.mapError(
     decodeCurrentDocumentSidecar(
       original.kind,
       stampDocument(answer, original, boundOf(bound), operator, atIso),
     ),
     firstParseIssue,
   );
-  if (Either.isLeft(decoded)) return Either.left(decoded.left);
+  if (Result.isFailure(decoded)) return Result.fail(decoded.left);
   const revised: SidecarDocument = decoded.right;
   const violation = firstTranscriptionViolation({ original, revised, bound, principleIds });
-  if (violation !== undefined) return Either.left(violation);
+  if (violation !== undefined) return Result.fail(violation);
 
   const landed = new Map(arraysOf(revised).arbitratedQuestions.map((q) => [q.id, q.verdict]));
   const verdicts = bound.verdicts.flatMap((given): TranscribedVerdict[] => {
@@ -777,7 +777,7 @@ export function checkTranscription(input: {
       },
     ];
   });
-  return Either.right({ document: revised, verdicts });
+  return Result.succeed({ document: revised, verdicts });
 }
 
 function stampHandAnswer(
@@ -812,7 +812,7 @@ export function checkHandTranscription(input: {
   readonly atIso: string;
   readonly principleIds: ReadonlySet<string>;
   readonly phaseIds: readonly string[];
-}): Either.Either<
+}): Result.Result<
   {
     readonly answer: HandDecisionAnswer;
     readonly md: string;
@@ -823,25 +823,25 @@ export function checkHandTranscription(input: {
   const { kind, md, parsed, answer, bound, operator, atIso } = input;
   const stampViolation = handAnswerStampViolation(answer, kind);
   if (stampViolation !== undefined) {
-    return Either.left({ path: isObject(answer) ? "$schema" : "", message: stampViolation });
+    return Result.fail({ path: isObject(answer) ? "$schema" : "", message: stampViolation });
   }
   const named = boundOf(bound);
-  const decoded = Either.mapLeft(
+  const decoded = Result.mapError(
     decodeCurrentHandDecisionAnswer(stampHandAnswer(answer, named, operator, atIso), kind),
     (error: ParseResult.ParseError) => firstParseIssue(error),
   );
-  if (Either.isLeft(decoded)) return Either.left(decoded.left);
+  if (Result.isFailure(decoded)) return Result.fail(decoded.left);
   const handAnswer = decoded.right;
 
   for (const [i, { id, verdict }] of handAnswer.decisions.entries()) {
     const given = named.get(id);
     if (given === undefined) {
-      return Either.left(
+      return Result.fail(
         refusal(["decisions", i, "id"], `"${id}" is not named in the verdicts file`),
       );
     }
     if (verdict.chosen !== given.chosen) {
-      return Either.left(
+      return Result.fail(
         refusal(
           ["decisions", i, "verdict", "chosen"],
           `"${verdict.chosen}" is not "${given.chosen}", the option the verdicts file gives for "${id}"`,
@@ -850,12 +850,12 @@ export function checkHandTranscription(input: {
     }
     const revisedRefusal = revisedViolation(given, verdict.revised);
     if (revisedRefusal !== undefined) {
-      return Either.left(refusal(["decisions", i, "verdict", "revised"], revisedRefusal));
+      return Result.fail(refusal(["decisions", i, "verdict", "revised"], revisedRefusal));
     }
   }
   for (const { question } of bound.verdicts) {
     if (!handAnswer.decisions.some(({ id }) => id === question)) {
-      return Either.left(
+      return Result.fail(
         refusal(["decisions"], `"${question}" is named in the verdicts file: decide it`),
       );
     }
@@ -870,7 +870,7 @@ export function checkHandTranscription(input: {
     principleIds: input.principleIds,
     phaseIds: input.phaseIds,
   });
-  if (violation !== undefined) return Either.left(violation);
+  if (violation !== undefined) return Result.fail(violation);
 
   const written = writeHandDecisions({
     kind,
@@ -879,7 +879,7 @@ export function checkHandTranscription(input: {
     parsed,
     reArbitrated: bound.verdicts.filter((v) => v.state === "arbitrated").map((v) => v.question),
   });
-  if (Either.isLeft(written)) return Either.left(refusal(["markdown"], written.left));
+  if (Result.isFailure(written)) return Result.fail(refusal(["markdown"], written.left));
 
   const verdicts = bound.verdicts.flatMap((given): TranscribedVerdict[] => {
     const decision = handAnswer.decisions.find(({ id }) => id === given.question);
@@ -896,5 +896,5 @@ export function checkHandTranscription(input: {
       },
     ];
   });
-  return Either.right({ answer: handAnswer, md: written.right, verdicts });
+  return Result.succeed({ answer: handAnswer, md: written.right, verdicts });
 }

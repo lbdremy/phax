@@ -44,7 +44,7 @@ export const ReviewRecordManifestFileSchema = Schema.Struct({
 
 export type ReviewRecordManifestFile = Schema.Schema.Type<typeof ReviewRecordManifestFileSchema>;
 
-export const decodeReviewRecordManifestFile = Schema.decodeUnknownEither(
+export const decodeReviewRecordManifestFile = Schema.decodeUnknownResult(
   ReviewRecordManifestFileSchema,
   { onExcessProperty: "error" },
 );

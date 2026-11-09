@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { makeNodeBackendLayer } from "../../infra/claudeCli.js";
 import { NodeFileSystemLayer, makeRootedNodeFileSystemLayer } from "../../infra/fs.js";
 import type { ProviderConfig } from "../../schemas/providerConfig.js";
@@ -109,7 +109,7 @@ export function makeRepoRootedFileSystemLayer(config: ResolvedConfig): Layer.Lay
  */
 export function makeGlobalTelemetryJournalLayerOrNoop(): Layer.Layer<SystemTelemetry> {
   const telemetryConfig = loadTelemetryConfig(TELEMETRY_CONFIG_PATH);
-  const telemetryEnabled = Either.isRight(telemetryConfig) ? telemetryConfig.right.enabled : true;
+  const telemetryEnabled = Result.isSuccess(telemetryConfig) ? telemetryConfig.right.enabled : true;
   return telemetryEnabled
     ? makeGlobalTelemetryJournalLayer(PHAX_HOME_DIR).pipe(Layer.provide(NodeFileSystemLayer))
     : NoopSystemTelemetryLayer;

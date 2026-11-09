@@ -98,7 +98,7 @@ export const HandDecisionAnswerV0_25_0Schema = Schema.Union(
 
 export type HandDecisionAnswerV0_25_0 = Schema.Schema.Type<typeof HandDecisionAnswerV0_25_0Schema>;
 
-export const decodeHandDecisionAnswerV0_25_0 = Schema.decodeUnknownEither(
+export const decodeHandDecisionAnswerV0_25_0 = Schema.decodeUnknownResult(
   HandDecisionAnswerV0_25_0Schema,
   { onExcessProperty: "error" },
 );

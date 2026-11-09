@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { Either } from "effect";
+import { Result } from "effect";
 import { PlanValidationError } from "../domain/errors.js";
 import type { PhaxPlan } from "../schemas/phaxPlan.js";
 import { readPhaxPlanFile, type PhaxPlanShape } from "../schemas/persisted.js";
@@ -32,12 +32,12 @@ export function olderPhaxPlanMessage(
 export function loadPlan(
   planPath: string,
   opts: { readonly run?: string } = {},
-): Either.Either<PhaxPlan, LoadPlanError> {
+): Result.Result<PhaxPlan, LoadPlanError> {
   let raw: unknown;
   try {
     raw = JSON.parse(readFileSync(planPath, "utf8"));
   } catch (err) {
-    return Either.left(
+    return Result.fail(
       new PlanValidationError({
         message: `Failed to read or parse "${planPath}": ${String(err)}`,
         path: planPath,
@@ -46,8 +46,8 @@ export function loadPlan(
   }
 
   const decoded = readPhaxPlanFile(planPath, raw);
-  if (Either.isLeft(decoded)) {
-    return Either.left(
+  if (Result.isFailure(decoded)) {
+    return Result.fail(
       new PlanValidationError({
         message: decoded.left.message,
         path: planPath,
@@ -57,7 +57,7 @@ export function loadPlan(
 
   const { shape, plan } = decoded.right;
   if (shape !== "current") {
-    return Either.left(
+    return Result.fail(
       new PlanValidationError({
         message: olderPhaxPlanMessage(planPath, shape, opts.run),
         path: planPath,
@@ -65,5 +65,5 @@ export function loadPlan(
     );
   }
 
-  return Either.right(plan);
+  return Result.succeed(plan);
 }

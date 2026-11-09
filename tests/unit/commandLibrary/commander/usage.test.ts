@@ -29,16 +29,13 @@ const show = defineCommand({
     args: reject(Schema.Tuple(Id)),
     flags: reject(
       Schema.Struct({
-        mode: Schema.optionalWith(
-          Schema.Literal("a", "b").annotations({ description: "The mode" }),
-          { exact: true },
-        ),
+        mode: Schema.optionalKey(Schema.Literal("a", "b").annotations({ description: "The mode" })),
         // Effect 3's decoding default: the key is optional on the command line, and the
         // contract gives `low` when it is absent.
         level: Schema.optionalWith(Str.annotations({ description: "How loud" }), {
           default: () => "low",
         }),
-        dryRun: Schema.optionalWith(Schema.Boolean, { exact: true }),
+        dryRun: Schema.optionalKey(Schema.Boolean),
       }),
     ),
   },
@@ -265,9 +262,7 @@ describe("the usage spec of a program that names its usage flag", () => {
     usage: { flag: "usage", format: "usage-format", jsonSchema: "program" },
     options: reject(
       Schema.Struct({
-        verbose: Schema.optionalWith(Schema.Boolean.annotations({ description: "Say more" }), {
-          exact: true,
-        }),
+        verbose: Schema.optionalKey(Schema.Boolean.annotations({ description: "Say more" })),
       }),
     ),
     commands: [

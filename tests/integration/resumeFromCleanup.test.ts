@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -37,7 +37,7 @@ const HANDOFF_CONTENT = [
   "Ready to proceed.",
 ].join("\n");
 
-const shortName = Either.getOrThrow(decodeShortName("my-run"));
+const shortName = Result.getOrThrow(decodeShortName("my-run"));
 
 const rawPlan = {
   version: 1,
@@ -226,7 +226,7 @@ describe("executePlan — resume from cleanup-paused (cleaning_up+interrupted)",
   });
 
   it("re-runs only cleanup for a cleaning_up phase, skipping agent/gate/commit/handoff", async () => {
-    const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
     const config = makeConfig(stateRoot);
 
     const setupLayers = Layer.mergeAll(
@@ -300,7 +300,7 @@ describe("executePlan — resume from cleanup-paused (cleaning_up+interrupted)",
     );
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -318,8 +318,8 @@ describe("executePlan — resume from cleanup-paused (cleaning_up+interrupted)",
       ),
     );
 
-    if (Either.isLeft(result)) console.error("FAILED:", result.left);
-    expect(Either.isRight(result)).toBe(true);
+    if (Result.isFailure(result)) console.error("FAILED:", result.left);
+    expect(Result.isSuccess(result)).toBe(true);
 
     // Phase-01 agent body must NOT be re-invoked — only phase-02 body runs.
     expect(fakeBackend.impl.runCalls).toHaveLength(1);
@@ -350,7 +350,7 @@ describe("executePlan — resume from cleanup-paused (cleaning_up+interrupted)",
   });
 
   it("pauses as CleanupPausedError when cleanup fails again on resume", async () => {
-    const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
     const config = makeConfig(stateRoot);
 
     const setupLayers = Layer.mergeAll(
@@ -395,7 +395,7 @@ describe("executePlan — resume from cleanup-paused (cleaning_up+interrupted)",
     );
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -414,8 +414,8 @@ describe("executePlan — resume from cleanup-paused (cleaning_up+interrupted)",
     );
 
     // The run pauses again — CleanupPausedError is the pause sentinel.
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left).toBeInstanceOf(CleanupPausedError);
     }
 

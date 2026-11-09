@@ -13,6 +13,6 @@ export const GithubRepoViewSchema = Schema.Struct({ url: RepoWebUrlSchema });
 
 export type GithubRepoView = Schema.Schema.Type<typeof GithubRepoViewSchema>;
 
-export const decodeGithubRepoView = Schema.decodeUnknownEither(GithubRepoViewSchema, {
+export const decodeGithubRepoView = Schema.decodeUnknownResult(GithubRepoViewSchema, {
   onExcessProperty: "error",
 });

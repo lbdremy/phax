@@ -12,12 +12,10 @@ const RETENTION_DAYS = 7;
 const pruneOldJournals = (dir: string, today: Date): Effect.Effect<void, never, FileSystem> =>
   Effect.gen(function* () {
     const fs = yield* FileSystem;
-    const names = yield* Effect.catchAll(fs.list(dir), () =>
-      Effect.succeed([] as readonly string[]),
-    );
+    const names = yield* Effect.catch(fs.list(dir), () => Effect.succeed([] as readonly string[]));
     const toRemove = journalFilesToPrune(names, today, RETENTION_DAYS);
     for (const name of toRemove) {
-      yield* Effect.catchAll(fs.remove(join(dir, name)), () => Effect.void);
+      yield* Effect.catch(fs.remove(join(dir, name)), () => Effect.void);
     }
   });
 
@@ -37,7 +35,7 @@ export const makeGlobalTelemetryJournalLayer = (
       const today = new Date(now());
       const journalPath = join(phaxDir, dailyJournalFileName(today));
 
-      yield* Effect.catchAll(fs.mkdirp(phaxDir), () => Effect.void);
+      yield* Effect.catch(fs.mkdirp(phaxDir), () => Effect.void);
       yield* pruneOldJournals(phaxDir, today);
 
       const jsonFileOps = makeJsonFileTelemetryOps(journalPath, fs, now);

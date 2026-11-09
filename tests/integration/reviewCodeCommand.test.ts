@@ -2,7 +2,7 @@ import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { Either } from "effect";
+import { Result } from "effect";
 import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
 import type { PhaseStatus } from "../../src/schemas/status.js";
 
@@ -195,7 +195,7 @@ describe("runReviewCode", () => {
 
     const { loadConfig } = await import("../../src/app/loadConfig.js");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    vi.mocked(loadConfig).mockReturnValue(Either.right(makeBaseConfig(stateRoot) as any));
+    vi.mocked(loadConfig).mockReturnValue(Result.succeed(makeBaseConfig(stateRoot) as any));
   });
 
   afterEach(async () => {

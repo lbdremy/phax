@@ -103,7 +103,7 @@ function recordOf(
 }
 
 function run<A, E>(effect: Effect.Effect<A, E, never>) {
-  return Effect.runPromise(Effect.either(effect));
+  return Effect.runPromise(Effect.result(effect));
 }
 
 function makeHarness() {

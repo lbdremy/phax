@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { decodeRunListV0_30_0 } from "../../../src/schemas/history/run-list/0.30.0.js";
 import { decodeArtifactStatusFile } from "../../../src/schemas/artifactStatusDocument.js";
@@ -12,7 +12,7 @@ import { validDocuments, withKey, withoutKey, type Doc } from "../schemasPackage
 // each decoder reads a full document, refuses a key it does not name and one
 // that is missing.
 
-type Decoder = (input: unknown) => Either.Either<unknown, unknown>;
+type Decoder = (input: unknown) => Result.Result<unknown, unknown>;
 
 const DECODERS: ReadonlyArray<
   readonly ["artifact-status" | "plan-overview" | "plan-lint", Decoder, string]
@@ -26,7 +26,7 @@ describe.each(DECODERS)("the %s format", (id, decode, requiredKey) => {
   const document = validDocuments[id];
 
   it("decodes a full document", () => {
-    expect(Either.isRight(decode(document))).toBe(true);
+    expect(Result.isSuccess(decode(document))).toBe(true);
   });
 
   it("starts with $schema and is stamped 0.34.0", () => {
@@ -35,19 +35,19 @@ describe.each(DECODERS)("the %s format", (id, decode, requiredKey) => {
   });
 
   it("refuses a key it does not name", () => {
-    expect(Either.isLeft(decode(withKey(document, "extra", 1)))).toBe(true);
+    expect(Result.isFailure(decode(withKey(document, "extra", 1)))).toBe(true);
   });
 
   it("refuses a missing key", () => {
-    expect(Either.isLeft(decode(withoutKey(document, requiredKey)))).toBe(true);
-    expect(Either.isLeft(decode(withoutKey(document, "$schema")))).toBe(true);
+    expect(Result.isFailure(decode(withoutKey(document, requiredKey)))).toBe(true);
+    expect(Result.isFailure(decode(withoutKey(document, "$schema")))).toBe(true);
   });
 });
 
 describe("the artifact-status variants", () => {
   const base = validDocuments["artifact-status"];
   const decodes = (patch: Record<string, unknown>) =>
-    Either.isRight(decodeArtifactStatusFile({ ...base, ...patch }));
+    Result.isSuccess(decodeArtifactStatusFile({ ...base, ...patch }));
 
   it("reads each approval", () => {
     expect(decodes({ approval: { kind: "none" } })).toBe(true);
@@ -112,22 +112,22 @@ describe("the run list's pull request", () => {
   };
 
   it("decodes a 0.30.0 list without pullRequest in the frozen shape", () => {
-    expect(Either.isRight(decodeRunListV0_30_0(frozen))).toBe(true);
+    expect(Result.isSuccess(decodeRunListV0_30_0(frozen))).toBe(true);
   });
 
   it("refuses a 0.30.0 list that carries pullRequest", () => {
-    expect(Either.isLeft(decodeRunListV0_30_0(current))).toBe(true);
+    expect(Result.isFailure(decodeRunListV0_30_0(current))).toBe(true);
   });
 
   it("refuses a current list without pullRequest", () => {
-    expect(Either.isLeft(decodeRunListFile(frozen))).toBe(true);
+    expect(Result.isFailure(decodeRunListFile(frozen))).toBe(true);
   });
 
   it("reads a URL and null, and refuses an empty URL", () => {
     const urls = rows.map((row) => row["pullRequest"]);
     expect(urls).toEqual(["https://github.com/example/invoices/pull/12", null]);
     expect(
-      Either.isLeft(decodeRunListFile({ ...current, runs: [{ ...rows[0], pullRequest: "" }] })),
+      Result.isFailure(decodeRunListFile({ ...current, runs: [{ ...rows[0], pullRequest: "" }] })),
     ).toBe(true);
   });
 });

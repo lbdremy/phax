@@ -17,7 +17,7 @@ export const makeCompositeOps = (
     fn: (impl: SystemTelemetryOps) => Effect.Effect<void, never, never>,
   ): Effect.Effect<void, never, never> =>
     Effect.all(
-      implementations.map((impl) => Effect.catchAll(fn(impl), () => Effect.void)),
+      implementations.map((impl) => Effect.catch(fn(impl), () => Effect.void)),
       { concurrency: 1 },
     ).pipe(Effect.asVoid);
 

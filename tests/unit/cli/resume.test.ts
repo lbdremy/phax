@@ -2,7 +2,7 @@ import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "nod
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { currentSchemaUrl } from "../../../src/schemas/persisted.js";
 import type { BranchName } from "../../../src/domain/branded.js";
 import type { RunReviewInfo } from "../../../src/domain/runReviewInfo.js";
@@ -163,7 +163,7 @@ function writeRunStatus(
 
 /** What the mocked inspectResumeOfRun answers: the decision, with the run's count. */
 function inspection(
-  decision: Either.Either<ResumeDecision, ResumeRefusal>,
+  decision: Result.Result<ResumeDecision, ResumeRefusal>,
   completedPhaseCount = 0,
 ) {
   return Effect.succeed({ decision, completedPhaseCount });
@@ -174,8 +174,8 @@ function decisionAt(
   nextPhaseIndex: number,
   fromState: string,
   owedStep: OwedStep = "none",
-): Either.Either<ResumeDecision, ResumeRefusal> {
-  return Either.right({
+): Result.Result<ResumeDecision, ResumeRefusal> {
+  return Result.succeed({
     shortName: "my-run",
     nextPhaseId,
     nextPhaseIndex,
@@ -224,10 +224,10 @@ describe("runResume --skip-acceptance", () => {
     );
     const { executePlan } = vi.mocked(await import("../../../src/app/executePlan.js"));
 
-    loadConfig.mockReturnValue(Either.right(makeConfig(stateRoot)));
-    loadTelemetryConfig.mockReturnValue(Either.right({ enabled: false }));
+    loadConfig.mockReturnValue(Result.succeed(makeConfig(stateRoot)));
+    loadTelemetryConfig.mockReturnValue(Result.succeed({ enabled: false }));
     resolveRunRef.mockReturnValue(
-      Either.right({
+      Result.succeed({
         namespace: "test-ns",
         shortName: "my-run",
         info: { runPath } as unknown as RunReviewInfo,
@@ -238,7 +238,7 @@ describe("runResume --skip-acceptance", () => {
       inspection(decisionAt(restartPhase, restartPhase === "phase-01" ? 0 : 1, "interrupted")),
     );
     loadPlan.mockReturnValue(
-      Either.right({
+      Result.succeed({
         phases: [
           {
             id: "phase-01",
@@ -385,10 +385,10 @@ describe("runResume — a committed phase owing its handoff", () => {
     const { resolveRunRef } = vi.mocked(await import("../../../src/app/resolveRunRef.js"));
     const { inspectResumeOfRun } = vi.mocked(await import("../../../src/app/resume.js"));
     const { loadPlan } = vi.mocked(await import("../../../src/app/loadPlan.js"));
-    loadConfig.mockReturnValue(Either.right(makeConfig(stateRoot)));
-    loadTelemetryConfig.mockReturnValue(Either.right({ enabled: false }));
+    loadConfig.mockReturnValue(Result.succeed(makeConfig(stateRoot)));
+    loadTelemetryConfig.mockReturnValue(Result.succeed({ enabled: false }));
     resolveRunRef.mockReturnValue(
-      Either.right({
+      Result.succeed({
         namespace: "test-ns",
         shortName: "my-run",
         info: { runPath, phaseStatuses: [] } as unknown as RunReviewInfo,
@@ -397,7 +397,7 @@ describe("runResume — a committed phase owing its handoff", () => {
     );
     inspectResumeOfRun.mockReturnValue(inspection(decisionAt("phase-01", 0, "running", owedStep)));
     loadPlan.mockReturnValue(
-      Either.right({ phases: [{ id: "phase-01", acceptance: null }] } as never),
+      Result.succeed({ phases: [{ id: "phase-01", acceptance: null }] } as never),
     );
     return inspectResumeOfRun;
   }
@@ -458,10 +458,10 @@ describe("runResume — the recorded hold", () => {
     );
     const { resolveRunRef } = vi.mocked(await import("../../../src/app/resolveRunRef.js"));
     const { inspectResumeOfRun } = vi.mocked(await import("../../../src/app/resume.js"));
-    loadConfig.mockReturnValue(Either.right(makeConfig(stateRoot)));
-    loadTelemetryConfig.mockReturnValue(Either.right({ enabled: false }));
+    loadConfig.mockReturnValue(Result.succeed(makeConfig(stateRoot)));
+    loadTelemetryConfig.mockReturnValue(Result.succeed({ enabled: false }));
     resolveRunRef.mockReturnValue(
-      Either.right({
+      Result.succeed({
         namespace: "test-ns",
         shortName: "my-run",
         info: { runPath } as unknown as RunReviewInfo,
@@ -469,7 +469,7 @@ describe("runResume — the recorded hold", () => {
       }),
     );
     inspectResumeOfRun.mockReturnValue(
-      inspection(Either.left({ reason: "failed" as const, message: "Run failed." })),
+      inspection(Result.fail({ reason: "failed" as const, message: "Run failed." })),
     );
     return inspectResumeOfRun;
   }
@@ -518,8 +518,8 @@ describe("runResume — review_open early branch recap", () => {
     const { resolveRunRef } = vi.mocked(await import("../../../src/app/resolveRunRef.js"));
     const { inspectResumeOfRun } = vi.mocked(await import("../../../src/app/resume.js"));
 
-    loadConfig.mockReturnValue(Either.right(makeConfig(stateRoot)));
-    loadTelemetryConfig.mockReturnValue(Either.right({ enabled: false }));
+    loadConfig.mockReturnValue(Result.succeed(makeConfig(stateRoot)));
+    loadTelemetryConfig.mockReturnValue(Result.succeed({ enabled: false }));
 
     const info: RunReviewInfo = {
       namespace: "test-ns",
@@ -544,10 +544,10 @@ describe("runResume — review_open early branch recap", () => {
     };
 
     resolveRunRef.mockReturnValue(
-      Either.right({ namespace: "test-ns", shortName: "my-run", info, crossProject: false }),
+      Result.succeed({ namespace: "test-ns", shortName: "my-run", info, crossProject: false }),
     );
     inspectResumeOfRun.mockReturnValue(
-      inspection(Either.left(makeReviewOpenRefusal()), completedPhaseCount),
+      inspection(Result.fail(makeReviewOpenRefusal()), completedPhaseCount),
     );
   }
 

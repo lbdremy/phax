@@ -1,4 +1,4 @@
-import { Either, Schema } from "effect";
+import { Result, Schema } from "effect";
 import type { ParseResult } from "effect";
 import { ProviderIdSchema } from "./modelRouting.js";
 import { NetworkProfileSchema, McpModeSchema } from "./securityConfig.js";
@@ -94,9 +94,9 @@ export const SecurityPostureV2Schema = Schema.Struct({
 const STRICT = { onExcessProperty: "error" } as const;
 
 /** Version 3 only, strictly. Readers of a file on disk use `readSecurityPosture`. */
-export const decodeSecurityPosture = Schema.decodeUnknownEither(SecurityPostureSchema, STRICT);
-const decodeSecurityPostureV1 = Schema.decodeUnknownEither(SecurityPostureV1Schema);
-const decodeSecurityPostureV2 = Schema.decodeUnknownEither(SecurityPostureV2Schema, STRICT);
+export const decodeSecurityPosture = Schema.decodeUnknownResult(SecurityPostureSchema, STRICT);
+const decodeSecurityPostureV1 = Schema.decodeUnknownResult(SecurityPostureV1Schema);
+const decodeSecurityPostureV2 = Schema.decodeUnknownResult(SecurityPostureV2Schema, STRICT);
 export const encodeSecurityPosture = Schema.encodeSync(SecurityPostureSchema);
 
 /**
@@ -106,11 +106,11 @@ export const encodeSecurityPosture = Schema.encodeSync(SecurityPostureSchema);
  */
 export function readSecurityPosture(
   input: unknown,
-): Either.Either<SecurityPosture, ParseResult.ParseError> {
+): Result.Result<SecurityPosture, ParseResult.ParseError> {
   const version =
     typeof input === "object" && input !== null && "version" in input ? input.version : undefined;
   if (version === 1) {
-    return Either.map(decodeSecurityPostureV1(input), (v1) => {
+    return Result.map(decodeSecurityPostureV1(input), (v1) => {
       const { version: _version, providerSkippedForSecurity, ...rest } = v1;
       return {
         version: 3 as const,
@@ -122,7 +122,7 @@ export function readSecurityPosture(
     });
   }
   if (version === 2) {
-    return Either.map(decodeSecurityPostureV2(input), (v2) => {
+    return Result.map(decodeSecurityPostureV2(input), (v2) => {
       const { version: _version, providerSkippedForSecurity, stop, ...rest } = v2;
       return {
         version: 3 as const,

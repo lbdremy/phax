@@ -14,7 +14,7 @@ import type { Parsed } from "../../../packages/schemas/src/parsed.js";
 import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
 
 function shape<A, I>(schema: Schema.Schema<A, I>): Shape<A> {
-  return { schema, decode: Schema.decodeUnknownEither(schema, { onExcessProperty: "error" }) };
+  return { schema, decode: Schema.decodeUnknownResult(schema, { onExcessProperty: "error" }) };
 }
 
 /** A shape whose decoder counts its calls, so a test can tell which decoder read a document. */
@@ -51,7 +51,7 @@ const url = (release: string) => schemaUrl("gate-attribution", release);
 
 // The toy admits an optional `version` literal, as phax's formats carry one.
 const CURRENT = Schema.Struct({
-  version: Schema.optionalWith(Schema.Literal(1), { exact: true }),
+  version: Schema.optionalKey(Schema.Literal(1)),
   a: Schema.String,
   b: Schema.Number,
 });

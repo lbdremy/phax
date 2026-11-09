@@ -440,7 +440,7 @@ async function execute(harness: Harness, startIndex: number) {
     }),
   );
   return Effect.runPromise(
-    Effect.either(
+    Effect.result(
       program.pipe(
         Effect.provide(
           Layer.mergeAll(
@@ -672,7 +672,7 @@ describe("phax resume at a declared stop", { timeout: 30_000 }, () => {
     correct();
 
     const reset = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         resetPhase({
           namespace: NAMESPACE,
           shortName: harness.shortName,

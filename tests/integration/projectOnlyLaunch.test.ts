@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { describe, expect, it, vi } from "vitest";
 import { authorArtifact, type AuthorArtifactInput } from "../../src/app/authorArtifact.js";
 import { decideArtifact } from "../../src/app/decideArtifact.js";
@@ -168,7 +168,7 @@ async function driveAuthoring(): Promise<void> {
     output: { warn: () => undefined },
   };
   await Effect.runPromise(
-    Effect.either(
+    Effect.result(
       authorArtifact(input).pipe(
         Effect.provide(
           Layer.mergeAll(
@@ -213,7 +213,7 @@ async function driveCodeReview(): Promise<void> {
   mkdirSync(runPath, { recursive: true });
   mkdirSync(worktreePath, { recursive: true });
   await Effect.runPromise(
-    Effect.either(
+    Effect.result(
       reviewCodeHeadless(
         reviewInfo(runPath, worktreePath),
         { enabled: false, model: "claude-opus-5-5", effort: "high" },
@@ -248,7 +248,7 @@ async function driveComplianceReview(): Promise<void> {
   fs.impl.setFile(join(runPath, "plan.md"), "# Made-up plan\n");
   fs.impl.setFile(join(runPath, "global-file-reconciliation.md"), "# Reconciliation\n");
   await Effect.runPromise(
-    Effect.either(
+    Effect.result(
       reviewCompliance(
         reviewInfo(runPath, worktreePath),
         { enabled: true, model: "claude-opus-5-5", effort: "high" },
@@ -300,7 +300,7 @@ async function driveFirstTurn(): Promise<void> {
     });
   });
   await Effect.runPromise(
-    Effect.either(
+    Effect.result(
       program.pipe(
         Effect.provide(
           Layer.mergeAll(
@@ -376,7 +376,7 @@ async function driveHandDecide(): Promise<void> {
   world.writeRepoFile(HAND_SPEC_PATH, HAND_SPEC);
   world.commitAll();
   await Effect.runPromise(
-    Effect.either(
+    Effect.result(
       decideArtifact({
         path: HAND_SPEC_PATH,
         question: null,
@@ -425,7 +425,7 @@ describe("ac-phase-argv", () => {
         records: false,
       });
 
-      expect(Either.isRight(run.result)).toBe(true);
+      expect(Result.isSuccess(run.result)).toBe(true);
       const [work] = fake.claudeLaunches();
       expect(work).toBeDefined();
       expect(work?.argv).not.toContain("--resume");
@@ -447,7 +447,7 @@ const KINDS: readonly LaunchKind[] = [
     name: "a read-only session",
     drive: () =>
       Effect.runPromise(
-        Effect.either(
+        Effect.result(
           runClaudeAgent("ask", sessionOptions(securePolicy(fake.root), { readOnly: true })),
         ),
       ),
@@ -456,19 +456,19 @@ const KINDS: readonly LaunchKind[] = [
     name: "a secure session",
     drive: () =>
       Effect.runPromise(
-        Effect.either(runClaudeAgent("ask", sessionOptions(securePolicy(fake.root)))),
+        Effect.result(runClaudeAgent("ask", sessionOptions(securePolicy(fake.root)))),
       ),
   },
   {
     name: "an unsafe session",
     drive: () =>
-      Effect.runPromise(Effect.either(runClaudeAgent("ask", sessionOptions(unsafePolicy)))),
+      Effect.runPromise(Effect.result(runClaudeAgent("ask", sessionOptions(unsafePolicy)))),
   },
   {
     name: "a structured completion",
     drive: () =>
       Effect.runPromise(
-        Effect.either(
+        Effect.result(
           runClaudeCompletion("ask", {
             provider: "claude-code",
             model: "claude-sonnet-5-5",
@@ -524,7 +524,7 @@ describe("ac-memory-wins", () => {
     fake.cli.setScript(PROSE);
 
     await Effect.runPromise(
-      Effect.either(runClaudeAgent("ask", sessionOptions(securePolicy(fake.root)))),
+      Effect.result(runClaudeAgent("ask", sessionOptions(securePolicy(fake.root)))),
     );
 
     const [launch] = fake.claudeLaunches();
@@ -537,7 +537,7 @@ describe("ac-memory-wins", () => {
     fake.cli.setScript(PROSE);
 
     await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         runClaudeCompletion("ask", {
           provider: "claude-code",
           model: "claude-sonnet-5-5",
@@ -568,7 +568,7 @@ describe("ac-resume", () => {
         records: false,
       });
 
-      expect(Either.isRight(run.result)).toBe(true);
+      expect(Result.isSuccess(run.result)).toBe(true);
       // The work turn, the fix attempt, then the handoff turn.
       const [work, fix] = fake.claudeLaunches();
       expect(fake.claudeLaunches()).toHaveLength(3);

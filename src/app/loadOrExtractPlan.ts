@@ -1,4 +1,4 @@
-import { Effect, Either, Option } from "effect";
+import { Effect, Result, Option } from "effect";
 import { Backend } from "../ports/backend.js";
 import { FileSystem } from "../ports/fs.js";
 import type { PhaxPlan } from "../schemas/phaxPlan.js";
@@ -52,9 +52,9 @@ export function loadOrExtractPlan(
 
     // Attempt deterministic extraction first: pure, instant, no cache access.
     const deterministicResult = extractPlanDeterministic(planMd);
-    if (Either.isRight(deterministicResult)) {
+    if (Result.isSuccess(deterministicResult)) {
       const finalized = finalizeExtractedPlan(deterministicResult.right, planMd);
-      if (Either.isLeft(finalized)) {
+      if (Result.isFailure(finalized)) {
         return yield* Effect.fail(finalized.left);
       }
       const { plan, warnings, detectedAnchors } = finalized.right;
@@ -70,7 +70,7 @@ export function loadOrExtractPlan(
       const cached = yield* readCacheEntry(opts.stateRoot, key);
       if (Option.isSome(cached)) {
         const finalized = finalizeExtractedPlan(cached.value, planMd);
-        if (Either.isLeft(finalized)) {
+        if (Result.isFailure(finalized)) {
           return yield* Effect.fail(finalized.left);
         }
         const { plan, warnings, detectedAnchors } = finalized.right;
@@ -99,7 +99,7 @@ export function loadOrExtractPlan(
     });
 
     const finalized = finalizeExtractedPlan(extracted, planMd);
-    if (Either.isLeft(finalized)) {
+    if (Result.isFailure(finalized)) {
       return yield* Effect.fail(finalized.left);
     }
 

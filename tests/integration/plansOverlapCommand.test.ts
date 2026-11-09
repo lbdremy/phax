@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { Either } from "effect";
+import { Result } from "effect";
 import { EXTRACTOR_VERSION, planCacheKey } from "../../src/domain/planCache/key.js";
 import { planMdSha256, cacheEntryPath } from "../../src/app/planCacheStore.js";
 import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
@@ -133,7 +133,7 @@ describe("runPlansOverlap", () => {
     await mkdir(stateRoot, { recursive: true });
 
     const { loadConfig } = await import("../../src/app/loadConfig.js");
-    vi.mocked(loadConfig).mockReturnValue(Either.right(makeBaseConfig(stateRoot)));
+    vi.mocked(loadConfig).mockReturnValue(Result.succeed(makeBaseConfig(stateRoot)));
   });
 
   afterEach(async () => {

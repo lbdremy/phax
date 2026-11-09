@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import type { ArtifactKind } from "../artifact/status.js";
 import { extractJsonDocumentText } from "./jsonText.js";
 
@@ -19,13 +19,13 @@ export const RETRY_TRANSCRIPT_FILENAME = "retry-output.jsonl";
  * or the refusal: the parser's error and the position where parsing failed in
  * the text that was parsed, then the message's first 200 characters.
  */
-export function parseFinalMessageJson(finalText: string): Either.Either<unknown, string> {
+export function parseFinalMessageJson(finalText: string): Result.Result<unknown, string> {
   const text = extractJsonDocumentText(finalText);
   try {
-    return Either.right(JSON.parse(text) as unknown);
+    return Result.succeed(JSON.parse(text) as unknown);
   } catch (error) {
     const { message, position } = describeParseError(text, error);
-    return Either.left(
+    return Result.fail(
       `the session's final message is not JSON (${message} at position ${position}): ${finalText.slice(0, 200)}`,
     );
   }

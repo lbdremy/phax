@@ -55,7 +55,7 @@ export type RunListFile = Schema.Schema.Type<typeof RunListFileSchema>;
 /** A run list without `$schema`. */
 export type RunList = Omit<RunListFile, "$schema">;
 
-export const decodeRunListFile = Schema.decodeUnknownEither(RunListFileSchema, {
+export const decodeRunListFile = Schema.decodeUnknownResult(RunListFileSchema, {
   onExcessProperty: "error",
 });
 

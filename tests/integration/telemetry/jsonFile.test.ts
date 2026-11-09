@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { mkdtemp, rm, readFile, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -15,7 +15,7 @@ import { NodeFileSystemLayer } from "../../../src/infra/fs.js";
 import { SystemTelemetry } from "../../../src/ports/systemTelemetry.js";
 import { decodeSemanticTelemetryEvent } from "../../../src/schemas/telemetryEvents.js";
 
-const runId = Either.getOrThrow(decodeRunId("json-file-run-001"));
+const runId = Result.getOrThrow(decodeRunId("json-file-run-001"));
 
 let tmpDir: string;
 
@@ -76,7 +76,7 @@ describe("JsonFileTelemetry", () => {
     for (const line of lines) {
       const parsed = JSON.parse(line) as unknown;
       const decoded = decodeSemanticTelemetryEvent(parsed);
-      expect(Either.isRight(decoded)).toBe(true);
+      expect(Result.isSuccess(decoded)).toBe(true);
     }
 
     // verify order matches insertion order

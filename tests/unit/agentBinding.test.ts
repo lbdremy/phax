@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { mkdir, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -45,8 +45,8 @@ describe("writeAgentBinding + readAgentBinding", () => {
   it("round-trips: writeAgentBinding then readAgentBinding returns the original binding", async () => {
     await writeAgentBinding(phaseFolder, validBinding);
     const result = await readAgentBinding(phaseFolder);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
       expect(result.right).toEqual(validBinding);
     }
   });
@@ -61,14 +61,14 @@ describe("writeAgentBinding + readAgentBinding", () => {
 
   it("readAgentBinding returns Left when file is absent", async () => {
     const result = await readAgentBinding(phaseFolder);
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 
   it("readAgentBinding returns Left when file contains malformed JSON", async () => {
     const { writeFile } = await import("node:fs/promises");
     await writeFile(join(phaseFolder, "agent-binding.json"), "not-json", "utf8");
     const result = await readAgentBinding(phaseFolder);
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 
   it("readAgentBinding returns Left when binding fails schema validation", async () => {
@@ -79,7 +79,7 @@ describe("writeAgentBinding + readAgentBinding", () => {
       "utf8",
     );
     const result = await readAgentBinding(phaseFolder);
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 });
 
@@ -99,8 +99,8 @@ describe("patchAgentBindingSession", () => {
     await writeAgentBinding(phaseFolder, validBinding);
     await patchAgentBindingSession(phaseFolder, { sessionId: "sess-xyz", status: "running" });
     const result = await readAgentBinding(phaseFolder);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
       expect(result.right.sessionId).toBe("sess-xyz");
       expect(result.right.status).toBe("running");
       // Other fields unchanged
@@ -140,8 +140,8 @@ describe("patchAgentBindingStatus", () => {
     await writeAgentBinding(phaseFolder, validBinding);
     await patchAgentBindingStatus(phaseFolder, "completed");
     const result = await readAgentBinding(phaseFolder);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
       expect(result.right.status).toBe("completed");
       // sessionId and other fields unchanged
       expect(result.right.sessionId).toBeNull();
@@ -156,8 +156,8 @@ describe("patchAgentBindingStatus", () => {
       await writeAgentBinding(phaseFolder, validBinding);
       await patchAgentBindingStatus(phaseFolder, status);
       const result = await readAgentBinding(phaseFolder);
-      expect(Either.isRight(result)).toBe(true);
-      if (Either.isRight(result)) {
+      expect(Result.isSuccess(result)).toBe(true);
+      if (Result.isSuccess(result)) {
         expect(result.right.status).toBe(status);
       }
     }

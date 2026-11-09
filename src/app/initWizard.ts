@@ -57,9 +57,7 @@ export function runInitWizard(input: {
       if (!interactive) {
         return { kind: "already_initialized" as const, configPath };
       }
-      const existingText = yield* Effect.orElse(fs.readText(configPath), () =>
-        Effect.succeed("{}"),
-      );
+      const existingText = yield* Effect.catch(fs.readText(configPath), () => Effect.succeed("{}"));
       const parsedConfig = Either.getOrNull(decodePhaxConfig(safeParseJson(existingText)));
       existingName = parsedConfig?.name;
 
@@ -72,7 +70,7 @@ export function runInitWizard(input: {
       }
     }
 
-    const pkgText = yield* Effect.orElse(fs.readText(join(cwd, "package.json")), () =>
+    const pkgText = yield* Effect.catch(fs.readText(join(cwd, "package.json")), () =>
       Effect.succeed("{}"),
     );
     const pkg = Either.getOrElse(

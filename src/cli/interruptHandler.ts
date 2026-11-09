@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
-import { Either } from "effect";
+import { Result } from "effect";
 import { activeInvocationCost, COST_LEDGER_FILE, nextLedger } from "../app/costLedger.js";
 import { reviewStopPaths } from "../app/interactiveFiles.js";
 import { composePhaxState } from "../app/phaxState.js";
@@ -59,7 +59,7 @@ function closingPhase(runPath: string, run: RunStatus): PhaseStatus | undefined 
     const path = join(runPath, entry, "status.json");
     if (!existsSync(path)) continue;
     const decoded = readPhaseStatusFile(path, JSON.parse(readFileSync(path, "utf8")) as unknown);
-    if (Either.isLeft(decoded) || decoded.right.state !== "awaiting_review") continue;
+    if (Result.isFailure(decoded) || decoded.right.state !== "awaiting_review") continue;
     if (run.currentPhaseIndex !== undefined && decoded.right.phaseIndex !== run.currentPhaseIndex) {
       continue;
     }
@@ -81,7 +81,7 @@ function syncRestoreReviewStop(
   const source = existsSync(parked) ? parked : live;
   if (!existsSync(source)) return false;
   const decoded = readReviewStopFile(source, JSON.parse(readFileSync(source, "utf8")) as unknown);
-  if (Either.isLeft(decoded)) return false;
+  if (Result.isFailure(decoded)) return false;
   const restored = withSchemaUrl("review-stop", { ...decoded.right, lastClose });
   writeFileSync(live, JSON.stringify(encodeReviewStopFile(restored), null, 2));
   if (source === parked) rmSync(parked);
@@ -107,7 +107,7 @@ export function syncSaveInterruptedRun(
   try {
     const raw = JSON.parse(readFileSync(statusPath, "utf8")) as unknown;
     const decoded = readRunStatusFile(statusPath, raw);
-    if (Either.isLeft(decoded) || decoded.right.state !== "running") return null;
+    if (Result.isFailure(decoded) || decoded.right.state !== "running") return null;
     const run = decoded.right;
     const write = (state: RunStatus["state"]): void => {
       const updated: RunStatus = { ...run, state, updatedAt: new Date().toISOString() };
@@ -161,7 +161,7 @@ export function syncRecordInterruptedInvocation(): void {
         ledgerPath,
         JSON.parse(readFileSync(ledgerPath, "utf8")) as unknown,
       );
-      if (Either.isLeft(read)) return;
+      if (Result.isFailure(read)) return;
       ledger = read.right;
     }
     const now = Date.now();

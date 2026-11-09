@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { type Doctrine, assembleDoctrine } from "../../../src/domain/decide/doctrine.js";
 import { buildVerdictsPrompt } from "../../../src/domain/decide/verdictsPrompt.js";
@@ -33,7 +33,7 @@ function doctrine(): Doctrine {
     },
     file: null,
   });
-  if (Either.isLeft(assembled)) throw new Error(assembled.left);
+  if (Result.isFailure(assembled)) throw new Error(assembled.left);
   return assembled.right;
 }
 

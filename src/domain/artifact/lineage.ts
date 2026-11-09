@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import type { PlanFrontmatter } from "../../schemas/artifactFrontmatter.js";
 import { approvalRecordPathFor } from "./approvalRecordFile.js";
 import {
@@ -18,7 +18,7 @@ export type SourceSpecDeclaration =
 // declaration".
 export function readSourceSpec(md: string): SourceSpecDeclaration | null {
   const decoded = decodeArtifactFrontmatter("plan", md);
-  if (Either.isLeft(decoded)) return null;
+  if (Result.isFailure(decoded)) return null;
   const frontmatter = decoded.right;
   if (frontmatter["source-spec"] === null) return { kind: "none" };
   return {
@@ -56,7 +56,7 @@ function briefProblem(detail: string): string {
 
 export function readPlanFrontmatter(md: string): PlanFrontmatterReading {
   const decoded = decodeArtifactFrontmatter("plan", md);
-  if (Either.isLeft(decoded)) {
+  if (Result.isFailure(decoded)) {
     const problem = decoded.left;
     switch (problem.kind) {
       case "missing-block":
@@ -92,24 +92,24 @@ export interface CompletesSpecFlags {
 // (true) or `--not-last` (false); without it, neither (null). Never inferred.
 export function resolveCompletesSpec(
   flags: CompletesSpecFlags,
-): Either.Either<boolean | null, string> {
+): Result.Result<boolean | null, string> {
   const { hasSourceSpec, last, notLast } = flags;
   if (!hasSourceSpec) {
     if (last || notLast) {
       const given = last ? "--last" : "--not-last";
-      return Either.left(`${given} needs --spec: a plan without a source spec completes none`);
+      return Result.fail(`${given} needs --spec: a plan without a source spec completes none`);
     }
-    return Either.right(null);
+    return Result.succeed(null);
   }
   if (last && notLast) {
-    return Either.left("--last and --not-last are opposites: pass exactly one with --spec");
+    return Result.fail("--last and --not-last are opposites: pass exactly one with --spec");
   }
   if (!last && !notLast) {
-    return Either.left(
+    return Result.fail(
       "--spec needs --last (this plan is the spec's last) or --not-last (more plans follow)",
     );
   }
-  return Either.right(last);
+  return Result.succeed(last);
 }
 
 // Upserts the `approved` frontmatter mapping (date + short baseline), replacing
@@ -120,7 +120,7 @@ export function stampApproved(
   md: string,
   dateIso: string,
   shortBaseline: string,
-): Either.Either<string, FrontmatterProblem> {
+): Result.Result<string, FrontmatterProblem> {
   const date = (dateIso.split("T")[0] as string) ?? dateIso;
   return setFrontmatterKeys(md, [{ key: "approved", value: { date, baseline: shortBaseline } }]);
 }
@@ -129,7 +129,7 @@ export function stampApproved(
 // on reopen so a Draft plan no longer stamps an approval of text about to be
 // rewritten. Fingerprint-neutral: fingerprintSource already deletes `approved`
 // before hashing, so clearing it never changes the plan's approval fingerprint.
-export function clearApproved(md: string): Either.Either<string, FrontmatterProblem> {
+export function clearApproved(md: string): Result.Result<string, FrontmatterProblem> {
   return removeFrontmatterKeys(md, ["approved"]);
 }
 

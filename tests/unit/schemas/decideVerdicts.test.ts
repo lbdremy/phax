@@ -1,5 +1,5 @@
 import { Ajv } from "ajv";
-import { Either, ParseResult } from "effect";
+import { Result, ParseResult } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   decodeDecideVerdictsFile,
@@ -28,14 +28,15 @@ function verdictsFile(extra: Doc = {}): Doc {
 
 function firstIssue(input: unknown): { path: string; message: string } {
   const decoded = decodeDecideVerdictsFile(input);
-  if (Either.isRight(decoded)) throw new Error("expected a refusal");
+  if (Result.isSuccess(decoded)) throw new Error("expected a refusal");
   const [issue] = ParseResult.ArrayFormatter.formatErrorSync(decoded.left);
   return { path: (issue?.path ?? []).join("."), message: issue?.message ?? "" };
 }
 
 const validate = new Ajv().compile(getDecideVerdictsFileJsonSchema());
 const jsonSchemaAccepts = (input: unknown): boolean => validate(input) === true;
-const decoderAccepts = (input: unknown): boolean => Either.isRight(decodeDecideVerdictsFile(input));
+const decoderAccepts = (input: unknown): boolean =>
+  Result.isSuccess(decodeDecideVerdictsFile(input));
 
 describe("decide-verdicts", () => {
   it("decodes a file whose verdicts follow a recommendation, depart or choose other", () => {
@@ -44,7 +45,7 @@ describe("decide-verdicts", () => {
 
   it("is read by the current-shape bridge without its $schema", () => {
     const { $schema: _schema, ...expected } = verdictsFile();
-    expect(Either.getOrThrow(decodeCurrentDecideVerdicts(verdictsFile()))).toEqual(expected);
+    expect(Result.getOrThrow(decodeCurrentDecideVerdicts(verdictsFile()))).toEqual(expected);
   });
 
   it("titles its JSON Schema", () => {

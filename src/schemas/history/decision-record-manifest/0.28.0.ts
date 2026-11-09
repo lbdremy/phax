@@ -150,7 +150,7 @@ export type DecisionRecordManifestV0_28_0 = Schema.Schema.Type<
   typeof DecisionRecordManifestV0_28_0Schema
 >;
 
-export const decodeDecisionRecordManifestV0_28_0 = Schema.decodeUnknownEither(
+export const decodeDecisionRecordManifestV0_28_0 = Schema.decodeUnknownResult(
   DecisionRecordManifestV0_28_0Schema,
   { onExcessProperty: "error" },
 );

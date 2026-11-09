@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   parseHandAuthoredQuestions,
@@ -22,13 +22,13 @@ const PLAN_FRONTMATTER = "---\nstatus: Draft\nsource-spec: null\n---\n";
 
 function baseSpec(): SpecDocument {
   const doc = readSpecDocumentFile("spec.json", validDocuments["spec-document"]);
-  if (Either.isLeft(doc)) throw new Error(doc.left.message);
+  if (Result.isFailure(doc)) throw new Error(doc.left.message);
   return doc.right;
 }
 
 function basePlan(): PlanDocument {
   const doc = readPlanDocumentFile("plan.json", validDocuments["plan-document"]);
-  if (Either.isLeft(doc)) throw new Error(doc.left.message);
+  if (Result.isFailure(doc)) throw new Error(doc.left.message);
   return doc.right;
 }
 

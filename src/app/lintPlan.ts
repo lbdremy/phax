@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import type { ArtifactValidationError, ConfigValidationError } from "../domain/errors.js";
 import type { ResolvedConfig } from "../schemas/phaxConfig.js";
@@ -115,7 +115,7 @@ export function lintPlan(
 
     if (classifyArtifactPath(repoRelPath) !== null) {
       const validated = validateArtifact(repoRelPath, planMd);
-      if (Either.isLeft(validated)) return yield* Effect.fail(validated.left);
+      if (Result.isFailure(validated)) return yield* Effect.fail(validated.left);
       const planSlug = parseArtifactName("plan", fileNameOf(repoRelPath))?.slug;
       if (planSlug !== undefined) {
         findings.push(...lineageFindings(planSlug, sourceSpecSlug(planMd)));
@@ -123,7 +123,7 @@ export function lintPlan(
     }
 
     const extracted = readPlanDeterministic(planMd);
-    if (Either.isLeft(extracted)) {
+    if (Result.isFailure(extracted)) {
       // Every later check needs a parsed plan; the structural errors already
       // say why it could not be parsed.
       findings.push(
@@ -135,7 +135,7 @@ export function lintPlan(
     }
 
     const finalized = finalizeExtractedPlan(extracted.right.plan, planMd);
-    if (Either.isLeft(finalized)) {
+    if (Result.isFailure(finalized)) {
       findings.push({
         severity: "error",
         check: "structure",
@@ -224,7 +224,7 @@ export function lintPlan(
         config.repoRoot,
       );
       findings.push(
-        ...(Either.isRight(audited)
+        ...(Result.isSuccess(audited)
           ? advisoryFindings(audited.right)
           : [auditorFailureFinding(audited.left)]),
       );

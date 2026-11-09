@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import type { PlanAuditorConfig } from "../schemas/phaxConfig.js";
 import type { PlanAuditRequest } from "../domain/plan/projection.js";
 import { PlanAuditorError } from "../domain/errors.js";
@@ -18,7 +18,7 @@ export function queryPlanAuditor(
   config: PlanAuditorConfig,
   request: PlanAuditRequest,
   cwd: string,
-): Effect.Effect<Either.Either<PlanAuditResponse, PlanAuditorError>, never, Shell> {
+): Effect.Effect<Result.Result<PlanAuditResponse, PlanAuditorError>, never, Shell> {
   return runProviderQuery(
     "Plan auditor",
     config.command,

@@ -1,4 +1,4 @@
-import { Either, Schema } from "effect";
+import { Result, Schema } from "effect";
 import { formatParseError } from "./formatError.js";
 
 export const VibeBaseModelSchema = Schema.Struct({
@@ -12,7 +12,7 @@ export const VibeBaseModelSchema = Schema.Struct({
 
 export type VibeBaseModel = Schema.Schema.Type<typeof VibeBaseModelSchema>;
 
-const decodeVibeBaseModel = Schema.decodeUnknownEither(VibeBaseModelSchema);
+const decodeVibeBaseModel = Schema.decodeUnknownResult(VibeBaseModelSchema);
 
 /** The reasoning levels the Mistral API serves for mistral-medium-3.5: one phax alias each. */
 export const PHAX_ALIAS_LEVELS = ["off", "high"] as const;
@@ -63,7 +63,7 @@ function extractBlockFields(lines: string[]): Record<string, string | number | b
 export function extractBaseModel(
   tomlText: string,
   baseAlias: string,
-): Either.Either<VibeBaseModel, string> {
+): Result.Result<VibeBaseModel, string> {
   const lines = tomlText.split("\n");
   const blockStarts: number[] = [];
 
@@ -88,15 +88,15 @@ export function extractBaseModel(
 
     const fields = extractBlockFields(blockLines);
     const decoded = decodeVibeBaseModel(fields);
-    if (Either.isLeft(decoded)) {
-      return Either.left(
+    if (Result.isFailure(decoded)) {
+      return Result.fail(
         `Invalid base model block for alias "${baseAlias}": ${formatParseError(decoded.left)}`,
       );
     }
-    return Either.right(decoded.right);
+    return Result.succeed(decoded.right);
   }
 
-  return Either.left(`Base model block with alias "${baseAlias}" not found in config`);
+  return Result.fail(`Base model block with alias "${baseAlias}" not found in config`);
 }
 
 export function renderPhaxAliasBlocks(

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { closeStop } from "../../src/app/closeStop.js";
 import { dispatch } from "../../src/app/dispatcher.js";
@@ -81,7 +81,7 @@ let world: World;
 beforeEach(async () => {
   world = createWorld();
   const { loadConfig } = await import("../../src/app/loadConfig.js");
-  vi.mocked(loadConfig).mockReturnValue(Either.right(resolvedConfig(world)));
+  vi.mocked(loadConfig).mockReturnValue(Result.succeed(resolvedConfig(world)));
 });
 
 afterEach(() => {
@@ -150,7 +150,7 @@ async function closeWithNetworkFailure(
         phaseId: "phase-03",
       },
     );
-    return yield* Effect.either(closeStop(closeInput(run)));
+    return yield* Effect.result(closeStop(closeInput(run)));
   });
   return Effect.runPromise(
     program.pipe(
@@ -174,7 +174,7 @@ describe("a closing turn that loses the network", () => {
 
     const result = await closeWithNetworkFailure(run);
 
-    if (Either.isRight(result)) throw new Error("the close was not refused");
+    if (Result.isSuccess(result)) throw new Error("the close was not refused");
     expect(result.left).toBeInstanceOf(StopCloseRefusedError);
     const error = result.left as StopCloseRefusedError;
     expect(exitCodeForError(error)).toBe(14);
@@ -195,7 +195,7 @@ describe("a closing turn that loses the network", () => {
       detail: expect.stringContaining(PROVIDER_MESSAGE),
     });
     expect(Object.keys(stop["lastClose"] as object)).not.toContain("step");
-    expect(Either.isRight(decodeReviewStopFile(stop))).toBe(true);
+    expect(Result.isSuccess(decodeReviewStopFile(stop))).toBe(true);
   });
 });
 
@@ -206,7 +206,7 @@ describe("the terminal after a closing turn that lost the network", () => {
 
     const result = await closeWithNetworkFailure(run);
 
-    if (Either.isRight(result)) throw new Error("the close was not refused");
+    if (Result.isSuccess(result)) throw new Error("the close was not refused");
     const error = result.left as StopCloseRefusedError;
     const retry = resumeRetryCommand(run.shortName, "claude-code,codex-cli");
     expect(renderStopCloseRefusal(error, retry)).toEqual([
@@ -249,9 +249,9 @@ describe("review-stop and run-list documents at 0.26.0 and 0.30.0", () => {
     const path = join(run.runPath, "review-stop.json");
     writeFileSync(path, JSON.stringify(stop));
 
-    expect(Either.isRight(decodeReviewStopV0_26_0(stop))).toBe(true);
+    expect(Result.isSuccess(decodeReviewStopV0_26_0(stop))).toBe(true);
     const read = readReviewStopFile(path, JSON.parse(readFileSync(path, "utf8")));
-    if (Either.isLeft(read)) throw new Error(String(read.left));
+    if (Result.isFailure(read)) throw new Error(String(read.left));
     expect(read.right).not.toHaveProperty("$schema");
     expect(read.right.lastClose).toBeNull();
     expect(read.right.run).toBe(stop["run"]);
@@ -264,7 +264,7 @@ describe("review-stop and run-list documents at 0.26.0 and 0.30.0", () => {
       $schema: "https://docs.phax.run/schemas/review-stop/0.26.0.json",
       lastClose: { result: "network", at: "2026-10-28T10:00:00.000Z", exitCode: 14, detail: "x" },
     };
-    expect(Either.isLeft(decodeReviewStopV0_26_0(stop))).toBe(true);
+    expect(Result.isFailure(decodeReviewStopV0_26_0(stop))).toBe(true);
   });
 
   it("round-trips a 0.30.0 network close through the current decoder", async () => {
@@ -280,10 +280,10 @@ describe("review-stop and run-list documents at 0.26.0 and 0.30.0", () => {
       },
     };
     const decoded = decodeReviewStopFile(stop);
-    if (Either.isLeft(decoded)) throw new Error(String(decoded.left));
+    if (Result.isFailure(decoded)) throw new Error(String(decoded.left));
     expect(decoded.right.lastClose).toEqual(stop.lastClose);
     const withStep = { ...stop, lastClose: { ...stop.lastClose, step: "closing-turn" } };
-    expect(Either.isLeft(decodeReviewStopFile(withStep))).toBe(true);
+    expect(Result.isFailure(decodeReviewStopFile(withStep))).toBe(true);
   });
 
   it("reads a run list at 0.26.0 and a 0.30.0 one embedding a network close", async () => {
@@ -312,7 +312,7 @@ describe("review-stop and run-list documents at 0.26.0 and 0.30.0", () => {
       { ...base, $schema: "https://docs.phax.run/schemas/review-stop/0.26.0.json" },
       "0.26.0",
     );
-    expect(Either.isRight(decodeRunListV0_26_0(old))).toBe(true);
+    expect(Result.isSuccess(decodeRunListV0_26_0(old))).toBe(true);
 
     const current = row(
       {
@@ -323,14 +323,14 @@ describe("review-stop and run-list documents at 0.26.0 and 0.30.0", () => {
       "0.30.0",
     );
     // Frozen at 0.30.0, it has no pullRequest: the current shape adds one to each row.
-    expect(Either.isRight(decodeRunListV0_30_0(current))).toBe(true);
-    expect(Either.isLeft(decodeRunListV0_26_0(current))).toBe(true);
-    expect(Either.isLeft(decodeRunListFile(current))).toBe(true);
+    expect(Result.isSuccess(decodeRunListV0_30_0(current))).toBe(true);
+    expect(Result.isFailure(decodeRunListV0_26_0(current))).toBe(true);
+    expect(Result.isFailure(decodeRunListFile(current))).toBe(true);
     const latest = {
       ...current,
       $schema: currentSchemaUrl("run-list"),
       runs: current.runs.map((each) => ({ ...each, pullRequest: null })),
     };
-    expect(Either.isRight(decodeRunListFile(latest))).toBe(true);
+    expect(Result.isSuccess(decodeRunListFile(latest))).toBe(true);
   });
 });

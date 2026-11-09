@@ -60,17 +60,15 @@ function makeInitCommand(layers: InitLayers) {
     input: {
       flags: reject(
         Schema.Struct({
-          force: Schema.optionalWith(
+          force: Schema.optionalKey(
             Schema.Boolean.annotations({
               description: "Overwrite and reconfigure an existing phax.json",
             }),
-            { exact: true },
           ),
-          yes: Schema.optionalWith(
+          yes: Schema.optionalKey(
             Schema.Boolean.annotations({
               description: "Accept detected defaults without prompting",
             }),
-            { exact: true },
           ),
         }),
       ),
@@ -94,7 +92,7 @@ function makeInitCommand(layers: InitLayers) {
             (error) => error instanceof PromptCancelled,
             () => Effect.succeed({ cancelled: true as const }),
           ),
-          Effect.catchAll((error) => Effect.fail(new InitFailedError({ message: error.message }))),
+          Effect.catch((error) => Effect.fail(new InitFailedError({ message: error.message }))),
         );
         if (outcome.cancelled) return { kind: "aborted" as const };
         const result = outcome.result;

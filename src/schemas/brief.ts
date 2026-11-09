@@ -58,7 +58,7 @@ export type OutsideBriefRequest = Omit<OutsideBriefRequestFile, "$schema">;
 /** A brief request, without `$schema`. */
 export type BriefRequest = PhaseBriefRequest | OutsideBriefRequest;
 
-export const decodeBriefRequestFile = Schema.decodeUnknownEither(BriefRequestFileSchema, {
+export const decodeBriefRequestFile = Schema.decodeUnknownResult(BriefRequestFileSchema, {
   onExcessProperty: "error",
 });
 
@@ -103,7 +103,7 @@ export type BriefRecordFile = Schema.Schema.Type<typeof BriefRecordFileSchema>;
 /** A brief record, without its own top-level `$schema`. */
 export type BriefRecord = Omit<BriefRecordFile, "$schema">;
 
-export const decodeBriefRecordFile = Schema.decodeUnknownEither(BriefRecordFileSchema, {
+export const decodeBriefRecordFile = Schema.decodeUnknownResult(BriefRecordFileSchema, {
   onExcessProperty: "error",
 });
 

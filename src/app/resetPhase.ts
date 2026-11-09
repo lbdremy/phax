@@ -1,4 +1,4 @@
-import { Data, Effect, Either } from "effect";
+import { Data, Effect, Result } from "effect";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import {
@@ -135,7 +135,7 @@ function resetPhaseLocked(
     const git = yield* Git;
 
     const infoResult = resolveRun(opts.namespace, opts.shortName, opts.stateRoot);
-    if (Either.isLeft(infoResult)) {
+    if (Result.isFailure(infoResult)) {
       return yield* Effect.fail(
         new ResetPhaseError({
           reason: "run_not_found",
@@ -188,25 +188,25 @@ function resetPhaseLocked(
     let worktreeRemoved = false;
     if (target.worktreePath !== undefined) {
       const wtPathResult = decodeWorktreePath(target.worktreePath);
-      if (Either.isRight(wtPathResult)) {
-        const wtResult = yield* Effect.either(
+      if (Result.isSuccess(wtPathResult)) {
+        const wtResult = yield* Effect.result(
           git.removeWorktree(wtPathResult.right, true, opts.repoRoot),
         );
-        worktreeRemoved = Either.isRight(wtResult);
+        worktreeRemoved = Result.isSuccess(wtResult);
       }
     }
 
     // 4) Delete the phase branch, tolerant of an already-missing branch.
     let branchDeleted = false;
     const branchResult = decodeBranchName(target.branchName);
-    if (Either.isRight(branchResult)) {
+    if (Result.isSuccess(branchResult)) {
       const branch = branchResult.right;
       const exists = yield* git
         .branchExists(branch, opts.repoRoot)
-        .pipe(Effect.catchAll(() => Effect.succeed(false)));
+        .pipe(Effect.catch(() => Effect.succeed(false)));
       if (exists) {
-        const deleteResult = yield* Effect.either(git.deleteBranch(branch, true, opts.repoRoot));
-        branchDeleted = Either.isRight(deleteResult);
+        const deleteResult = yield* Effect.result(git.deleteBranch(branch, true, opts.repoRoot));
+        branchDeleted = Result.isSuccess(deleteResult);
       }
     }
 
@@ -242,7 +242,7 @@ export function previewResetPhase(
     const git = yield* Git;
 
     const infoResult = resolveRun(opts.namespace, opts.shortName, opts.stateRoot);
-    if (Either.isLeft(infoResult)) {
+    if (Result.isFailure(infoResult)) {
       return yield* Effect.fail(
         new ResetPhaseError({
           reason: "run_not_found",
@@ -313,7 +313,7 @@ function checkResettable(
 ): Effect.Effect<PhaseId, ResetPhaseError, FileSystem> {
   return Effect.gen(function* () {
     const phaseIdResult = decodePhaseId(target.phaseId);
-    if (Either.isLeft(phaseIdResult)) {
+    if (Result.isFailure(phaseIdResult)) {
       return yield* Effect.fail(
         new ResetPhaseError({
           reason: "phase_not_found",
@@ -369,7 +369,7 @@ function readPlanPhases(
     const raw = yield* fs.readText(path);
     const parsed = yield* Effect.try(() => JSON.parse(raw) as unknown);
     const read = readPhaxPlanFile(path, parsed);
-    return Either.isLeft(read) ? undefined : read.right.plan.phases;
+    return Result.isFailure(read) ? undefined : read.right.plan.phases;
   }).pipe(Effect.orElseSucceed(() => undefined));
 }
 
@@ -387,7 +387,7 @@ function clearRunStatusLastError(runPath: string): Effect.Effect<void, FsError, 
       return;
     }
     const decoded = readRunStatusFile(path, parsed);
-    if (Either.isLeft(decoded)) return;
+    if (Result.isFailure(decoded)) return;
     // Drop `lastError` from the bridge-read status and stamp `$schema`. We don't
     // go through a status encoder here — the architectural guard reserves those
     // for the dispatcher and effect runner.

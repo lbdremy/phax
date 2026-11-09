@@ -4,7 +4,7 @@
 // included) is a declared error, exit 1, with the resolver's sentence.
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { Data, Effect, Either, type Layer } from "effect";
+import { Data, Effect, Result, type Layer } from "effect";
 import * as Schema from "effect/Schema";
 import { readAgentBinding } from "../../app/agentBinding.js";
 import { planEnterPhase, type EnterPhaseResult } from "../../app/enterPhase.js";
@@ -78,11 +78,10 @@ const SessionInfoOutput = Schema.Struct({
 });
 
 const SessionInfoFlags = Schema.Struct({
-  debug: Schema.optionalWith(
+  debug: Schema.optionalKey(
     Schema.Boolean.annotations({
       description: "Dump raw binding and model-resolution metadata",
     }),
-    { exact: true },
   ),
 });
 
@@ -108,7 +107,7 @@ async function planEnter(
     ),
   );
   const planned = await Effect.runPromise(
-    Effect.either(
+    Effect.result(
       planEnterPhase({
         namespace: target.namespace,
         shortName: target.shortName,
@@ -120,7 +119,7 @@ async function planEnter(
       }).pipe(Effect.provide(target.fsLayer)),
     ),
   );
-  return Either.isRight(planned)
+  return Result.isSuccess(planned)
     ? planned.right
     : { kind: "refused", message: planned.left.message };
 }
@@ -212,11 +211,11 @@ export const sessionInfoCommand = defineCommand({
   run: ({ input }) =>
     Effect.gen(function* () {
       const configResult = loadConfig(process.cwd());
-      const config = Either.isRight(configResult) ? configResult.right : undefined;
+      const config = Result.isSuccess(configResult) ? configResult.right : undefined;
       const stateRoot = effectiveStateRoot(config);
 
       const resolved = resolveRunRef(input.args[0], config, stateRoot);
-      if (Either.isLeft(resolved)) {
+      if (Result.isFailure(resolved)) {
         return yield* Effect.fail(new RunRefError({ message: resolved.left.message }));
       }
       const { namespace, shortName, info, crossProject } = resolved.right;
@@ -238,13 +237,13 @@ export const sessionInfoCommand = defineCommand({
       const phaseTitle =
         info.planPhases.find((phase) => phase.id === finalPhaseId)?.title ?? info.finalPhaseTitle;
 
-      const stopResult = yield* Effect.either(
+      const stopResult = yield* Effect.result(
         readStopInfo(info).pipe(Effect.provide(target.fsLayer)),
       );
-      const stop = Either.isRight(stopResult) ? stopResult.right : null;
+      const stop = Result.isSuccess(stopResult) ? stopResult.right : null;
 
       const bindingResult = yield* Effect.promise(() => readAgentBinding(phaseFolderPath));
-      const binding: PhaseAgentBinding | null = Either.isRight(bindingResult)
+      const binding: PhaseAgentBinding | null = Result.isSuccess(bindingResult)
         ? bindingResult.right
         : null;
 

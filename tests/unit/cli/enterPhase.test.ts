@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { Either } from "effect";
+import { Result } from "effect";
 import type { ResolvedConfig } from "../../../src/schemas/phaxConfig.js";
 import { phaseStatus } from "../../helpers/phaseStatusFixture.js";
 import { phaxCall } from "../../helpers/runnerCall.js";
@@ -125,17 +125,17 @@ describe("runEnterPhase — namespace-scoped resolution", () => {
 
   it("resolves a run via resolveRunRef (namespace-scoped) and shows qualified name for cross-project runs", async () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
-    loadConfig.mockReturnValue(Either.right(makeConfig("acme")));
+    loadConfig.mockReturnValue(Result.succeed(makeConfig("acme")));
 
     const { resolveRunRef } = vi.mocked(await import("../../../src/app/resolveRunRef.js"));
     const info = makeRunInfo("other", "fixbug");
     resolveRunRef.mockReturnValue(
-      Either.right({ namespace: "other", shortName: "fixbug", info, crossProject: true }),
+      Result.succeed({ namespace: "other", shortName: "fixbug", info, crossProject: true }),
     );
 
     const { readAgentBinding } = vi.mocked(await import("../../../src/app/agentBinding.js"));
     const { makeNodeSessionLayer } = vi.mocked(await import("../../../src/infra/session.js"));
-    readAgentBinding.mockResolvedValue(Either.left("no binding"));
+    readAgentBinding.mockResolvedValue(Result.fail("no binding"));
     makeNodeSessionLayer.mockReturnValue(undefined as never);
 
     const { code, lines, errors } = await runEnterPhase("other.fixbug", "phase-01");
@@ -155,16 +155,16 @@ describe("runEnterPhase — namespace-scoped resolution", () => {
 
   it("resolves phase from phaseStatuses (not a separate resolvePhaseInfo call)", async () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
-    loadConfig.mockReturnValue(Either.right(makeConfig("acme")));
+    loadConfig.mockReturnValue(Result.succeed(makeConfig("acme")));
 
     const { resolveRunRef } = vi.mocked(await import("../../../src/app/resolveRunRef.js"));
     const info = makeRunInfo("acme", "fixbug", "phase-02");
     resolveRunRef.mockReturnValue(
-      Either.right({ namespace: "acme", shortName: "fixbug", info, crossProject: false }),
+      Result.succeed({ namespace: "acme", shortName: "fixbug", info, crossProject: false }),
     );
 
     const { readAgentBinding } = vi.mocked(await import("../../../src/app/agentBinding.js"));
-    readAgentBinding.mockResolvedValue(Either.left("no binding"));
+    readAgentBinding.mockResolvedValue(Result.fail("no binding"));
 
     const { code, errors } = await runEnterPhase("fixbug", "phase-02");
 
@@ -175,12 +175,12 @@ describe("runEnterPhase — namespace-scoped resolution", () => {
 
   it("returns 1 with phase-not-found error when phaseId is absent from phaseStatuses", async () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
-    loadConfig.mockReturnValue(Either.right(makeConfig("acme")));
+    loadConfig.mockReturnValue(Result.succeed(makeConfig("acme")));
 
     const { resolveRunRef } = vi.mocked(await import("../../../src/app/resolveRunRef.js"));
     const info = makeRunInfo("acme", "fixbug", "phase-01");
     resolveRunRef.mockReturnValue(
-      Either.right({ namespace: "acme", shortName: "fixbug", info, crossProject: false }),
+      Result.succeed({ namespace: "acme", shortName: "fixbug", info, crossProject: false }),
     );
 
     const { code, errors } = await runEnterPhase("fixbug", "phase-99");
@@ -191,11 +191,11 @@ describe("runEnterPhase — namespace-scoped resolution", () => {
 
   it("returns 1 when resolveRunRef fails (run not found)", async () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
-    loadConfig.mockReturnValue(Either.right(makeConfig("acme")));
+    loadConfig.mockReturnValue(Result.succeed(makeConfig("acme")));
 
     const { resolveRunRef } = vi.mocked(await import("../../../src/app/resolveRunRef.js"));
     resolveRunRef.mockReturnValue(
-      Either.left({ variant: "not-found" as const, message: 'Run "acme.unknown" not found.' }),
+      Result.fail({ variant: "not-found" as const, message: 'Run "acme.unknown" not found.' }),
     );
 
     const { code, errors } = await runEnterPhase("unknown", "phase-01");
@@ -208,13 +208,13 @@ describe("runEnterPhase — namespace-scoped resolution", () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
     const { resolveRunRef } = vi.mocked(await import("../../../src/app/resolveRunRef.js"));
     const { readAgentBinding } = vi.mocked(await import("../../../src/app/agentBinding.js"));
-    readAgentBinding.mockResolvedValue(Either.left("no binding"));
+    readAgentBinding.mockResolvedValue(Result.fail("no binding"));
 
     // First call: inside namespace "alpha"
-    loadConfig.mockReturnValue(Either.right(makeConfig("alpha")));
+    loadConfig.mockReturnValue(Result.succeed(makeConfig("alpha")));
     const infoAlpha = makeRunInfo("alpha", "fixbug");
     resolveRunRef.mockReturnValue(
-      Either.right({
+      Result.succeed({
         namespace: "alpha",
         shortName: "fixbug",
         info: infoAlpha,
@@ -224,10 +224,15 @@ describe("runEnterPhase — namespace-scoped resolution", () => {
     const { code: codeA, errors: errA } = await runEnterPhase("fixbug", "phase-01");
 
     // Second call: inside namespace "beta"
-    loadConfig.mockReturnValue(Either.right(makeConfig("beta")));
+    loadConfig.mockReturnValue(Result.succeed(makeConfig("beta")));
     const infoBeta = makeRunInfo("beta", "fixbug");
     resolveRunRef.mockReturnValue(
-      Either.right({ namespace: "beta", shortName: "fixbug", info: infoBeta, crossProject: false }),
+      Result.succeed({
+        namespace: "beta",
+        shortName: "fixbug",
+        info: infoBeta,
+        crossProject: false,
+      }),
     );
     const { code: codeB, errors: errB } = await runEnterPhase("fixbug", "phase-01");
 

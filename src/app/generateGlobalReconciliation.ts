@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { join } from "node:path";
 import type { RunId } from "../domain/branded.js";
 import { ReviewHandoffArtifactMissingError } from "../domain/errors.js";
@@ -44,8 +44,8 @@ export function generateGlobalReconciliation(
     // One reconciliation file, decoded; undefined when it cannot be read or decoded.
     const readReconciliation = (jsonPath: string) =>
       Effect.gen(function* () {
-        const readResult = yield* Effect.either(fs.readText(jsonPath));
-        if (Either.isLeft(readResult)) return undefined;
+        const readResult = yield* Effect.result(fs.readText(jsonPath));
+        if (Result.isFailure(readResult)) return undefined;
         let parsed: unknown;
         try {
           parsed = JSON.parse(readResult.right) as unknown;
@@ -53,7 +53,7 @@ export function generateGlobalReconciliation(
           return undefined;
         }
         const decoded = readPhaseFileReconciliationFile(jsonPath, parsed);
-        return Either.isLeft(decoded) ? undefined : decoded.right;
+        return Result.isFailure(decoded) ? undefined : decoded.right;
       });
 
     for (const { phaseId, stop } of opts.phases) {

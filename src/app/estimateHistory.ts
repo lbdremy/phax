@@ -6,7 +6,7 @@
 // phase's planned files, measured as git blob sizes at the last commit before
 // the run was created. Anything unreadable past the registry is skipped with
 // its reason, never fatal, and a skip names a path, never a file's content.
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { join } from "node:path";
 import type { RegistryCorruptionError } from "../domain/errors.js";
 import type { HistoricalPhasePlan, LedgerSource, SizedRun } from "../domain/cost/history.js";
@@ -52,14 +52,14 @@ interface SkipReasons {
 /** Reads and decodes one JSON file; an unreadable, unparseable or undecodable file is skipped with its reason. */
 function readJsonFile<T>(
   path: string,
-  decode: (file: string, input: unknown) => Either.Either<T, unknown>,
+  decode: (file: string, input: unknown) => Result.Result<T, unknown>,
   reasons: SkipReasons,
   skipped: SkippedHistory[],
 ): Effect.Effect<Read<T>, never, FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
-    const read = yield* Effect.either(fs.readText(path));
-    if (Either.isLeft(read)) {
+    const read = yield* Effect.result(fs.readText(path));
+    if (Result.isFailure(read)) {
       skipped.push({ path, reason: reasons.unreadable });
       return { kind: "skipped" } as const;
     }
@@ -73,7 +73,7 @@ function readJsonFile<T>(
       return { kind: "skipped" } as const;
     }
     const decoded = decode(path, parsed);
-    if (Either.isLeft(decoded)) {
+    if (Result.isFailure(decoded)) {
       skipped.push({ path, reason });
       return { kind: "skipped" } as const;
     }
@@ -128,7 +128,7 @@ function sizeRun(
     // Sizing only: an older shape is read lifted, whatever the shape.
     const plan = yield* readJsonFile<AnyShapePhaxPlan>(
       planPath,
-      (file, input) => Either.map(readPhaxPlanFile(file, input), (read) => read.plan),
+      (file, input) => Result.map(readPhaxPlanFile(file, input), (read) => read.plan),
       {
         unreadable: "phax-plan.json could not be read: the run is not sized",
         undecodable: "phax-plan.json could not be decoded: the run is not sized",

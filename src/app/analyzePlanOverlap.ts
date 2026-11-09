@@ -1,4 +1,4 @@
-import { Data, Effect, Either } from "effect";
+import { Data, Effect, Result } from "effect";
 import { join } from "node:path";
 import { Backend } from "../ports/backend.js";
 import { FileSystem } from "../ports/fs.js";
@@ -80,13 +80,13 @@ export function analyzePlanOverlap(
 
     // Attempt to load all plans, collecting failures
     const results = yield* Effect.all(
-      uniquePaths.map((path) => loadAndMapPlanInput(path, opts).pipe(Effect.either)),
+      uniquePaths.map((path) => loadAndMapPlanInput(path, opts).pipe(Effect.result)),
     );
 
     const failures: string[] = [];
     const inputs: PlanInput[] = [];
     for (const result of results) {
-      if (Either.isLeft(result)) {
+      if (Result.isFailure(result)) {
         failures.push(result.left.message);
       } else {
         inputs.push(result.right);
@@ -114,8 +114,8 @@ export function analyzeReadjustmentImpact(
     const fs = yield* FileSystem;
 
     const reconciliationPath = join(runPath, "global-file-reconciliation.json");
-    const readResult = yield* Effect.either(fs.readText(reconciliationPath));
-    if (Either.isLeft(readResult)) {
+    const readResult = yield* Effect.result(fs.readText(reconciliationPath));
+    if (Result.isFailure(readResult)) {
       return yield* Effect.fail(
         new AnalyzePlanOverlapError({
           message:
@@ -137,7 +137,7 @@ export function analyzeReadjustmentImpact(
     }
 
     const decoded = decodeGlobalFileReconciliation(parsed);
-    if (Either.isLeft(decoded)) {
+    if (Result.isFailure(decoded)) {
       return yield* Effect.fail(
         new AnalyzePlanOverlapError({
           message: `Failed to decode global-file-reconciliation.json at "${reconciliationPath}": ${String(decoded.left)}`,
@@ -180,13 +180,13 @@ export function analyzeReadjustmentImpact(
     }
 
     const results = yield* Effect.all(
-      uniquePaths.map((path) => loadAndMapPlanInput(path, opts).pipe(Effect.either)),
+      uniquePaths.map((path) => loadAndMapPlanInput(path, opts).pipe(Effect.result)),
     );
 
     const failures: string[] = [];
     const inputs: PlanInput[] = [];
     for (const result of results) {
-      if (Either.isLeft(result)) {
+      if (Result.isFailure(result)) {
         failures.push(result.left.message);
       } else {
         inputs.push(result.right);

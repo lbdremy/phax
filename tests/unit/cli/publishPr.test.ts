@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import type { OutputPort } from "../../../src/ports/output.js";
 import { phaxCall } from "../../helpers/runnerCall.js";
 import type { RunReviewInfo } from "../../../src/domain/runReviewInfo.js";
@@ -112,7 +112,7 @@ describe("runPublishPr", () => {
 
   it("returns 1 and error when config load fails", async () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
-    loadConfig.mockReturnValue(Either.left(new ConfigValidationError({ message: "no phax.json" })));
+    loadConfig.mockReturnValue(Result.fail(new ConfigValidationError({ message: "no phax.json" })));
 
     const { out, errors } = makeOutput();
     const code = await runPublishPr(FAKE_SHORT_NAME, {}, out);
@@ -122,11 +122,11 @@ describe("runPublishPr", () => {
 
   it("proceeds to publishRun even when publish.auto is false", async () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
-    loadConfig.mockReturnValue(Either.right(makeConfig(false)));
+    loadConfig.mockReturnValue(Result.succeed(makeConfig(false)));
 
     const { resolveRunRef } = vi.mocked(await import("../../../src/app/resolveRunRef.js"));
     resolveRunRef.mockReturnValue(
-      Either.right({
+      Result.succeed({
         namespace: "test-project",
         shortName: FAKE_SHORT_NAME,
         info: makeInfo(),
@@ -145,11 +145,11 @@ describe("runPublishPr", () => {
 
   it("returns 1 when short name is invalid", async () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
-    loadConfig.mockReturnValue(Either.right(makeConfig(true)));
+    loadConfig.mockReturnValue(Result.succeed(makeConfig(true)));
 
     const { resolveRunRef } = vi.mocked(await import("../../../src/app/resolveRunRef.js"));
     resolveRunRef.mockReturnValue(
-      Either.left({
+      Result.fail({
         message: '"INVALID NAME!" is not a valid run short name.',
         variant: "not-found" as const,
       }),
@@ -163,10 +163,10 @@ describe("runPublishPr", () => {
 
   it("returns 1 when run cannot be resolved", async () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
-    loadConfig.mockReturnValue(Either.right(makeConfig(true)));
+    loadConfig.mockReturnValue(Result.succeed(makeConfig(true)));
 
     const { resolveRunRef } = vi.mocked(await import("../../../src/app/resolveRunRef.js"));
-    resolveRunRef.mockReturnValue(Either.left({ message: "run not found", variant: "not-found" }));
+    resolveRunRef.mockReturnValue(Result.fail({ message: "run not found", variant: "not-found" }));
 
     const { out, errors } = makeOutput();
     const code = await runPublishPr(FAKE_SHORT_NAME, {}, out);
@@ -176,11 +176,11 @@ describe("runPublishPr", () => {
 
   it("returns 1 when run is not in review_open state", async () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
-    loadConfig.mockReturnValue(Either.right(makeConfig(true)));
+    loadConfig.mockReturnValue(Result.succeed(makeConfig(true)));
 
     const { resolveRunRef } = vi.mocked(await import("../../../src/app/resolveRunRef.js"));
     resolveRunRef.mockReturnValue(
-      Either.right({
+      Result.succeed({
         namespace: "test-project",
         shortName: FAKE_SHORT_NAME,
         info: { ...makeInfo(), runState: "running" },
@@ -196,11 +196,11 @@ describe("runPublishPr", () => {
 
   it("returns 0 and prints PR URL on successful publication", async () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
-    loadConfig.mockReturnValue(Either.right(makeConfig(true)));
+    loadConfig.mockReturnValue(Result.succeed(makeConfig(true)));
 
     const { resolveRunRef } = vi.mocked(await import("../../../src/app/resolveRunRef.js"));
     resolveRunRef.mockReturnValue(
-      Either.right({
+      Result.succeed({
         namespace: "test-project",
         shortName: FAKE_SHORT_NAME,
         info: makeInfo(),
@@ -221,11 +221,11 @@ describe("runPublishPr", () => {
 
   it("returns 1 and prints failure reason + retry hint on failed publication", async () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
-    loadConfig.mockReturnValue(Either.right(makeConfig(true)));
+    loadConfig.mockReturnValue(Result.succeed(makeConfig(true)));
 
     const { resolveRunRef } = vi.mocked(await import("../../../src/app/resolveRunRef.js"));
     resolveRunRef.mockReturnValue(
-      Either.right({
+      Result.succeed({
         namespace: "test-project",
         shortName: FAKE_SHORT_NAME,
         info: makeInfo(),

@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -396,8 +396,8 @@ describe("the answer schema file", () => {
         entry(),
       ),
     );
-    const failed = await Effect.runPromise(Effect.either(runCodexAgent("ask", options(), entry())));
-    expect(Either.isLeft(failed)).toBe(true);
+    const failed = await Effect.runPromise(Effect.result(runCodexAgent("ask", options(), entry())));
+    expect(Result.isFailure(failed)).toBe(true);
 
     const invocations = cli.invocations();
     expect(invocations[0]?.argv.slice(0, 3)).toEqual(["exec", "resume", SESSION]);

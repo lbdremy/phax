@@ -40,7 +40,7 @@ export type PlanLintFile = Schema.Schema.Type<typeof PlanLintFileSchema>;
 /** A lint report without `$schema`. */
 export type PlanLintDocument = Omit<PlanLintFile, "$schema">;
 
-export const decodePlanLintFile = Schema.decodeUnknownEither(PlanLintFileSchema, {
+export const decodePlanLintFile = Schema.decodeUnknownResult(PlanLintFileSchema, {
   onExcessProperty: "error",
 });
 

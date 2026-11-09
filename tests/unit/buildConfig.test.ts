@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { buildPhaxConfig, type WizardAnswers } from "../../src/domain/init/buildConfig.js";
 import { decodePhaxConfig } from "../../src/schemas/phaxConfig.js";
@@ -81,7 +81,7 @@ describe("buildPhaxConfig", () => {
   it("output decodes cleanly through decodePhaxConfig", () => {
     const config = buildPhaxConfig(baseAnswers);
     const decoded = decodePhaxConfig(config);
-    expect(Either.isRight(decoded)).toBe(true);
+    expect(Result.isSuccess(decoded)).toBe(true);
   });
 
   it("output with all toggles on also decodes cleanly", () => {
@@ -93,12 +93,12 @@ describe("buildPhaxConfig", () => {
       publishCreatePr: true,
     });
     const decoded = decodePhaxConfig(config);
-    expect(Either.isRight(decoded)).toBe(true);
+    expect(Result.isSuccess(decoded)).toBe(true);
   });
 
   it("output with empty commands also decodes cleanly", () => {
     const config = buildPhaxConfig({ ...baseAnswers, gateCommands: [] });
     const decoded = decodePhaxConfig(config);
-    expect(Either.isRight(decoded)).toBe(true);
+    expect(Result.isSuccess(decoded)).toBe(true);
   });
 });

@@ -1,9 +1,9 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { decodeRunId } from "../../../src/domain/branded.js";
 import { makeSystemErrorReport } from "../../../src/domain/telemetry/errors.js";
 
-const runId = Either.getOrThrow(decodeRunId("test-run-001"));
+const runId = Result.getOrThrow(decodeRunId("test-run-001"));
 
 const MAX_STDERR_BYTES = 4 * 1024;
 

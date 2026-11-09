@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Either } from "effect";
+import { Result } from "effect";
 import { decodeGateRequestFile } from "../../../src/schemas/gateRequest.js";
 import { currentSchemaUrl } from "../../../src/schemas/persisted.js";
 
@@ -19,13 +19,13 @@ function request(): Record<string, unknown> {
 }
 
 function decodes(document: unknown): boolean {
-  return Either.isRight(decodeGateRequestFile(document));
+  return Result.isSuccess(decodeGateRequestFile(document));
 }
 
 describe("the gate-request document", () => {
   it("decodes a valid document", () => {
     const decoded = decodeGateRequestFile(request());
-    expect(Either.isRight(decoded) && decoded.right).toEqual(request());
+    expect(Result.isSuccess(decoded) && decoded.right).toEqual(request());
   });
 
   it("decodes a SHA-256 base", () => {

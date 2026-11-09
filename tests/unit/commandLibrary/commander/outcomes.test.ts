@@ -329,9 +329,7 @@ describe("a command declaring a program option", () => {
       name: "loud",
       summary: "loud",
       input: {
-        flags: reject(
-          Schema.Struct({ verbose: Schema.optionalWith(Schema.Boolean, { exact: true }) }),
-        ),
+        flags: reject(Schema.Struct({ verbose: Schema.optionalKey(Schema.Boolean) })),
       },
       output: strip(Schema.String),
       exits: {},
@@ -341,9 +339,7 @@ describe("a command declaring a program option", () => {
       name: "todos",
       version: "1.0.0",
       exits: { refused: 2, defect: 70 },
-      options: reject(
-        Schema.Struct({ verbose: Schema.optionalWith(Schema.Boolean, { exact: true }) }),
-      ),
+      options: reject(Schema.Struct({ verbose: Schema.optionalKey(Schema.Boolean) })),
       commands: [loud],
     });
     const result = await call(program, { argv: ["loud"] });
@@ -359,9 +355,7 @@ describe("a command declaring a program option", () => {
       name: "todos",
       version: "1.0.0",
       exits: { refused: 2, defect: 70 },
-      options: reject(
-        Schema.Struct({ json: Schema.optionalWith(Schema.Boolean, { exact: true }) }),
-      ),
+      options: reject(Schema.Struct({ json: Schema.optionalKey(Schema.Boolean) })),
       commands: [],
     });
     const result = await call(program, { argv: ["--help"] });

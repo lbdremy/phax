@@ -62,9 +62,8 @@ const PlansStatusOutput = Schema.Union(
 );
 
 const PlansStatusFlags = Schema.Struct({
-  apply: Schema.optionalWith(
+  apply: Schema.optionalKey(
     Schema.Boolean.annotations({ description: "Flip stale-computed plans Approved -> Stale" }),
-    { exact: true },
   ),
 });
 

@@ -3,7 +3,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { NodeGitLayer } from "../../src/infra/git.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { Git, type GitError, type GitOps } from "../../src/ports/git.js";
@@ -11,7 +11,7 @@ import { decodeBranchName, type BranchName } from "../../src/domain/branded.js";
 import { isolateGit } from "../helpers/isolateGit.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 
-const BRANCH: BranchName = Either.getOrThrow(decodeBranchName("phax/records/v1"));
+const BRANCH: BranchName = Result.getOrThrow(decodeBranchName("phax/records/v1"));
 const BRANCH_REF = `refs/heads/${BRANCH}`;
 const REMOTE_TRACKING_REF = `refs/remotes/origin/${BRANCH}`;
 
@@ -254,11 +254,11 @@ describe.each([
       await world.run((g) => g.updateRef(world.repo, BRANCH_REF, c2, null));
 
       const stale = await world.run((g) =>
-        Effect.either(g.updateRef(world.repo, BRANCH_REF, c3, c1)),
+        Effect.result(g.updateRef(world.repo, BRANCH_REF, c3, c1)),
       );
 
-      expect(Either.isLeft(stale)).toBe(true);
-      if (Either.isLeft(stale)) expect(stale.left.command).toContain("update-ref");
+      expect(Result.isFailure(stale)).toBe(true);
+      if (Result.isFailure(stale)) expect(stale.left.command).toContain("update-ref");
       expect(await world.run((g) => g.resolveRef(world.repo, BRANCH_REF))).toBe(c2);
     });
 
@@ -268,10 +268,10 @@ describe.each([
       await world.run((g) => g.updateRef(world.repo, BRANCH_REF, c1, null));
 
       const created = await world.run((g) =>
-        Effect.either(g.updateRef(world.repo, BRANCH_REF, c2, null)),
+        Effect.result(g.updateRef(world.repo, BRANCH_REF, c2, null)),
       );
 
-      expect(Either.isLeft(created)).toBe(true);
+      expect(Result.isFailure(created)).toBe(true);
       expect(await world.run((g) => g.resolveRef(world.repo, BRANCH_REF))).toBe(c1);
     });
   });
@@ -300,7 +300,7 @@ describe.each([
       await world.run((g) => g.updateRef(world.repo, BRANCH_REF, c1, null));
 
       const attempt = await world.run((g) =>
-        Effect.either(
+        Effect.result(
           g.writeTreeCommit({
             repo: world.repo,
             branch: BRANCH,
@@ -312,7 +312,7 @@ describe.each([
         ),
       );
 
-      expect(Either.isLeft(attempt)).toBe(true);
+      expect(Result.isFailure(attempt)).toBe(true);
       expect(await world.run((g) => g.resolveRef(world.repo, BRANCH_REF))).toBe(c1);
     });
   });

@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { resolveDecideModel, resolveVerdictsModel } from "../../../src/domain/decide/model.js";
 import {
@@ -22,7 +22,7 @@ describe("resolveDecideModel", () => {
     expect(DEFAULT_DECIDE_MODEL).toBe("claude-opus-5-5");
     expect(DEFAULT_DECIDE_EFFORT).toBe("high");
     expect(resolveDecideModel(undefined, undefined)).toEqual(
-      Either.right({
+      Result.succeed({
         model: "claude-opus-5-5",
         effort: "high",
         modelSource: "catalog default",
@@ -33,7 +33,7 @@ describe("resolveDecideModel", () => {
 
   it("takes --model and --effort when given", () => {
     expect(resolveDecideModel("claude-sonnet-5-5", "medium")).toEqual(
-      Either.right({
+      Result.succeed({
         model: "claude-sonnet-5-5",
         effort: "medium",
         modelSource: "flag",
@@ -44,7 +44,7 @@ describe("resolveDecideModel", () => {
 
   it("names each source on its own", () => {
     const resolved = resolveDecideModel(undefined, "xhigh");
-    expect(Either.getOrThrow(resolved)).toMatchObject({
+    expect(Result.getOrThrow(resolved)).toMatchObject({
       model: "claude-opus-5-5",
       effort: "xhigh",
       modelSource: "catalog default",
@@ -55,8 +55,8 @@ describe("resolveDecideModel", () => {
   it("refuses a model outside the Claude Code catalog, naming Claude Code", () => {
     for (const model of ["gpt-6-sol", "phax-mistral-medium-3.5-high", "opus", "claude-opus-9"]) {
       const resolved = resolveDecideModel(model, undefined);
-      expect(Either.isLeft(resolved), model).toBe(true);
-      if (Either.isLeft(resolved)) {
+      expect(Result.isFailure(resolved), model).toBe(true);
+      if (Result.isFailure(resolved)) {
         expect(resolved.left).toContain(`--model ${model} is not a Claude Code model`);
         expect(resolved.left).toContain("decide runs on Claude Code only");
       }
@@ -65,8 +65,8 @@ describe("resolveDecideModel", () => {
 
   it("refuses an effort the Claude entry does not list", () => {
     const resolved = resolveDecideModel("claude-sonnet-4-6", "xhigh");
-    expect(Either.isLeft(resolved)).toBe(true);
-    if (Either.isLeft(resolved)) {
+    expect(Result.isFailure(resolved)).toBe(true);
+    if (Result.isFailure(resolved)) {
       expect(resolved.left).toContain("--effort xhigh");
       expect(resolved.left).toContain("low, medium, high, max");
     }
@@ -92,7 +92,7 @@ describe("resolveVerdictsModel", () => {
     expect(DEFAULT_VERDICTS_MODEL).toBe("claude-sonnet-5-5");
     expect(DEFAULT_VERDICTS_EFFORT).toBe("medium");
     expect(
-      Either.getOrThrow(
+      Result.getOrThrow(
         resolveVerdictsModel(undefined, undefined, ROUTING, DEFAULT_PROVIDER_CONFIG),
       ),
     ).toMatchObject({
@@ -112,7 +112,7 @@ describe("resolveVerdictsModel", () => {
     { model: "claude-haiku-5-5", effort: "low" },
   ])("takes --model $model and --effort $effort, each source a flag", (c) => {
     expect(
-      Either.getOrThrow(resolveVerdictsModel(c.model, c.effort, ROUTING, DEFAULT_PROVIDER_CONFIG)),
+      Result.getOrThrow(resolveVerdictsModel(c.model, c.effort, ROUTING, DEFAULT_PROVIDER_CONFIG)),
     ).toMatchObject({
       model: c.model,
       effort: c.effort,
@@ -126,12 +126,12 @@ describe("resolveVerdictsModel", () => {
 
   it("names each source on its own", () => {
     expect(
-      Either.getOrThrow(resolveVerdictsModel(undefined, "high", ROUTING, DEFAULT_PROVIDER_CONFIG)),
+      Result.getOrThrow(resolveVerdictsModel(undefined, "high", ROUTING, DEFAULT_PROVIDER_CONFIG)),
     ).toMatchObject({ modelSource: "built-in default", effortSource: "flag" });
   });
 
   it("routes to the provider routing selects: gpt-6-luna goes to codex-cli once it is enabled", () => {
-    const resolved = Either.getOrThrow(
+    const resolved = Result.getOrThrow(
       resolveVerdictsModel("gpt-6-luna", undefined, ROUTING, CODEX_ENABLED),
     );
     expect(resolved).toMatchObject({
@@ -146,7 +146,7 @@ describe("resolveVerdictsModel", () => {
       ...ROUTING,
       requestedModelNormalization: { "mystery-1": "openai-gpt" },
     };
-    const resolved = Either.getOrThrow(
+    const resolved = Result.getOrThrow(
       resolveVerdictsModel("mystery-1", "medium", routing, DEFAULT_PROVIDER_CONFIG),
     );
     expect(resolved).toMatchObject({
@@ -164,7 +164,7 @@ describe("resolveVerdictsModel", () => {
       ROUTING,
       DEFAULT_PROVIDER_CONFIG,
     );
-    expect(Either.isRight(resolved)).toBe(true);
+    expect(Result.isSuccess(resolved)).toBe(true);
   });
 
   it("resolves a model routing sends to mistral-vibe, which holds a session read-only", () => {
@@ -176,24 +176,24 @@ describe("resolveVerdictsModel", () => {
     };
     for (const model of ["claude-sonnet-4-6", "phax-mistral-medium-3.5-high"]) {
       const resolved = resolveVerdictsModel(model, "medium", ROUTING, vibeEnabled);
-      expect(Either.isRight(resolved), model).toBe(true);
+      expect(Result.isSuccess(resolved), model).toBe(true);
     }
     expect(
-      Either.getOrThrow(
+      Result.getOrThrow(
         resolveVerdictsModel("phax-mistral-medium-3.5-high", "medium", ROUTING, vibeEnabled),
       ).provider,
     ).toBe("mistral-vibe");
     // The built-in default still routes to Claude Code with Vibe enabled.
     expect(
-      Either.getOrThrow(resolveVerdictsModel(undefined, undefined, ROUTING, vibeEnabled)).provider,
+      Result.getOrThrow(resolveVerdictsModel(undefined, undefined, ROUTING, vibeEnabled)).provider,
     ).toBe("claude-code");
   });
 
   it("refuses an effort outside low, medium and high, naming the effort and the allowed values", () => {
     for (const effort of ["xhigh", "max", "ultra", "loud"]) {
       const resolved = resolveVerdictsModel(undefined, effort, ROUTING, DEFAULT_PROVIDER_CONFIG);
-      expect(Either.isLeft(resolved), effort).toBe(true);
-      if (Either.isLeft(resolved)) {
+      expect(Result.isFailure(resolved), effort).toBe(true);
+      if (Result.isFailure(resolved)) {
         expect(resolved.left).toContain(`--effort ${effort}`);
         expect(resolved.left).toContain("low, medium, high");
       }

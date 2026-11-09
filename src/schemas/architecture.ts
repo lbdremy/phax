@@ -26,7 +26,7 @@ export type ArchitectureRequestFile = Schema.Schema.Type<typeof ArchitectureRequ
 /** An architecture request, without `$schema`. */
 export type ArchitectureRequest = Omit<ArchitectureRequestFile, "$schema">;
 
-export const decodeArchitectureRequestFile = Schema.decodeUnknownEither(
+export const decodeArchitectureRequestFile = Schema.decodeUnknownResult(
   ArchitectureRequestFileSchema,
   { onExcessProperty: "error" },
 );
@@ -138,7 +138,7 @@ export type ArchitectureReportFile = Schema.Schema.Type<typeof ArchitectureRepor
 /** An architecture report, without `$schema`. */
 export type ArchitectureReport = Omit<ArchitectureReportFile, "$schema">;
 
-export const decodeArchitectureReportFile = Schema.decodeUnknownEither(
+export const decodeArchitectureReportFile = Schema.decodeUnknownResult(
   ArchitectureReportFileSchema,
   { onExcessProperty: "error" },
 );

@@ -44,6 +44,6 @@ export const PhaxPlanPreSchemaSchema = Schema.Struct({
 
 export type PhaxPlanPreSchema = Schema.Schema.Type<typeof PhaxPlanPreSchemaSchema>;
 
-export const decodePhaxPlanPreSchema = Schema.decodeUnknownEither(PhaxPlanPreSchemaSchema, {
+export const decodePhaxPlanPreSchema = Schema.decodeUnknownResult(PhaxPlanPreSchemaSchema, {
   onExcessProperty: "error",
 });

@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   parseDocument,
@@ -152,7 +152,7 @@ const ROWS: ReadonlyArray<Row> = [
 
 const FILE = "/home/example/.phax/example/record.json";
 
-function read(format: FormatId, document: Doc): Either.Either<object, PersistedReadError> {
+function read(format: FormatId, document: Doc): Result.Result<object, PersistedReadError> {
   return format === "interactive-session"
     ? readInteractiveSessionFile(FILE, document)
     : readRecordManifestFile(FILE, document);
@@ -174,7 +174,7 @@ describe("a record stamped below 0.30.0 reads through its frozen decoder (phax)"
     "%s at %s: %s usage",
     (_label, format, stamp, frozen, usageKey, _provider, usage, lifted) => {
       const value = read(format, frozen(stamp, usage));
-      if (Either.isLeft(value)) throw new Error(value.left.message);
+      if (Result.isFailure(value)) throw new Error(value.left.message);
       expect(value.right).toEqual(expectedValue(format, usageKey, lifted));
       expect(value.right).not.toHaveProperty("$schema");
     },
@@ -186,7 +186,7 @@ describe("a record stamped below 0.30.0 reads through its frozen decoder (phax)"
         FILE,
         withKey(preSchemaDocuments[id], "usage", FROZEN_VIBE),
       );
-      if (Either.isLeft(value)) throw new Error(value.left.message);
+      if (Result.isFailure(value)) throw new Error(value.left.message);
       expect(value.right).toMatchObject({ usage: UNAVAILABLE });
     }
   });
@@ -200,7 +200,7 @@ describe("a record stamped below 0.30.0 reads through its frozen decoder (phax)"
     ] as const) {
       const document = frozen("0.30.0", FROZEN_VIBE);
       expect(document[usageKey], format).toEqual(FROZEN_VIBE);
-      expect(Either.isLeft(read(format, document)), format).toBe(true);
+      expect(Result.isFailure(read(format, document)), format).toBe(true);
     }
   });
 
@@ -222,7 +222,7 @@ describe("a record stamped below 0.30.0 reads through its frozen decoder (phax)"
       ["interactive-session", session, "builderUsage"],
     ] as const) {
       const value = read(format, frozen("0.30.0", current));
-      if (Either.isLeft(value)) throw new Error(value.left.message);
+      if (Result.isFailure(value)) throw new Error(value.left.message);
       expect(value.right, format).toMatchObject({ [usageKey]: current });
     }
   });

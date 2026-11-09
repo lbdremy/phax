@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   describeArbiter,
@@ -9,19 +9,19 @@ import {
 } from "../../../src/domain/artifact/arbiter.js";
 import { GRANT_PATTERN } from "../../../src/schemas/approvedBy.js";
 
-function refusal<A>(result: Either.Either<A, string>): string {
-  if (Either.isRight(result)) throw new Error("expected a refusal");
+function refusal<A>(result: Result.Result<A, string>): string {
+  if (Result.isSuccess(result)) throw new Error("expected a refusal");
   return result.left;
 }
 
 describe("parseArbiterDeclaration", () => {
   it("reads operator", () => {
-    expect(parseArbiterDeclaration("operator")).toEqual(Either.right({ kind: "operator" }));
+    expect(parseArbiterDeclaration("operator")).toEqual(Result.succeed({ kind: "operator" }));
   });
 
   it("reads a machine and its grant", () => {
     expect(parseArbiterDeclaration("machine:roadmap-loop")).toEqual(
-      Either.right({ kind: "machine", grant: "roadmap-loop" }),
+      Result.succeed({ kind: "machine", grant: "roadmap-loop" }),
     );
   });
 
@@ -46,19 +46,19 @@ describe("resolveArbiter", () => {
   it.each([true, false])("resolves a declared machine with terminal %s and no user.name", (tty) => {
     expect(
       resolveArbiter({ declared: machine, stdinIsTerminal: tty, committerName: null }),
-    ).toEqual(Either.right({ kind: "machine", grant: "roadmap-loop" }));
+    ).toEqual(Result.succeed({ kind: "machine", grant: "roadmap-loop" }));
   });
 
   it.each([true, false])("resolves a declared operator by user.name, terminal %s", (tty) => {
     expect(
       resolveArbiter({ declared: operator, stdinIsTerminal: tty, committerName: "Ada Lovelace" }),
-    ).toEqual(Either.right({ kind: "operator", name: "Ada Lovelace" }));
+    ).toEqual(Result.succeed({ kind: "operator", name: "Ada Lovelace" }));
   });
 
   it("defaults to the operator from a terminal", () => {
     expect(
       resolveArbiter({ declared: null, stdinIsTerminal: true, committerName: "Ada Lovelace" }),
-    ).toEqual(Either.right({ kind: "operator", name: "Ada Lovelace" }));
+    ).toEqual(Result.succeed({ kind: "operator", name: "Ada Lovelace" }));
   });
 
   it("refuses no declaration without a terminal, naming both forms", () => {

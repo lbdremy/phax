@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -22,7 +22,7 @@ afterEach(async () => {
 
 const run = (doctrinePath: string | null, kind: "spec" | "plan" = "spec") =>
   Effect.runPromise(
-    Effect.either(resolveDoctrine({ kind, bundledSkillText: BUNDLED, doctrinePath })).pipe(
+    Effect.result(resolveDoctrine({ kind, bundledSkillText: BUNDLED, doctrinePath })).pipe(
       Effect.provide(makeRootedNodeFileSystemLayer(repo)),
     ),
   );
@@ -35,7 +35,7 @@ async function writeRepoFile(rel: string, text: string): Promise<void> {
 describe("resolveDoctrine", () => {
   it("uses the bundled skill when the project has no copy", async () => {
     const result = await run(null);
-    if (Either.isLeft(result)) throw result.left;
+    if (Result.isFailure(result)) throw result.left;
     expect(result.right.text).toBe(BUNDLED);
     expect(result.right.sources).toEqual([
       expect.objectContaining({ kind: "skill", name: "phax-decide-spec", source: "bundled" }),
@@ -46,7 +46,7 @@ describe("resolveDoctrine", () => {
     await writeRepoFile(".claude/skills/phax-decide-spec/SKILL.md", PROJECT);
     await writeRepoFile("docs/doctrine/spec.md", "- `X1` **Project rule.**\n");
     const result = await run("docs/doctrine/spec.md");
-    if (Either.isLeft(result)) throw result.left;
+    if (Result.isFailure(result)) throw result.left;
     const { text, principleIds, sources } = result.right;
     expect(text.startsWith(PROJECT)).toBe(true);
     expect(text).not.toContain("Bundled doctrine");
@@ -63,7 +63,7 @@ describe("resolveDoctrine", () => {
   it("reads the plan's project copy under phax-decide-plan", async () => {
     await writeRepoFile(".claude/skills/phax-decide-spec/SKILL.md", PROJECT);
     const result = await run(null, "plan");
-    if (Either.isLeft(result)) throw result.left;
+    if (Result.isFailure(result)) throw result.left;
     expect(result.right.sources).toEqual([
       expect.objectContaining({ name: "phax-decide-plan", source: "bundled" }),
     ]);
@@ -71,7 +71,7 @@ describe("resolveDoctrine", () => {
 
   it("refuses an unreadable doctrine file with reason doctrine", async () => {
     const result = await run("docs/doctrine/missing.md");
-    if (Either.isRight(result)) throw new Error("expected a refusal");
+    if (Result.isSuccess(result)) throw new Error("expected a refusal");
     expect(result.left).toBeInstanceOf(DecideRefusedError);
     expect(result.left).toMatchObject({ reason: "doctrine" });
     expect(result.left.message).toContain("docs/doctrine/missing.md");
@@ -80,7 +80,7 @@ describe("resolveDoctrine", () => {
   it("refuses a doctrine file that redefines a skill id", async () => {
     await writeRepoFile("docs/doctrine/clash.md", "- `S1` **Mine.**\n");
     const result = await run("docs/doctrine/clash.md");
-    if (Either.isRight(result)) throw new Error("expected a refusal");
+    if (Result.isSuccess(result)) throw new Error("expected a refusal");
     expect(result.left).toMatchObject({ reason: "doctrine" });
     expect(result.left.message).toContain("`S1`");
   });
@@ -88,7 +88,7 @@ describe("resolveDoctrine", () => {
   it("refuses a doctrine file that defines no id", async () => {
     await writeRepoFile("docs/doctrine/prose.md", "Only prose, `X1` inline.\n");
     const result = await run("docs/doctrine/prose.md");
-    if (Either.isRight(result)) throw new Error("expected a refusal");
+    if (Result.isSuccess(result)) throw new Error("expected a refusal");
     expect(result.left).toMatchObject({ reason: "doctrine" });
     expect(result.left.message).toContain("docs/doctrine/prose.md");
   });

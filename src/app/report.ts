@@ -23,7 +23,7 @@ export interface ReportInput {
 const findLatestJournal = (phaxHomeDir: string): Effect.Effect<string | null, never, FileSystem> =>
   Effect.gen(function* () {
     const fs = yield* FileSystem;
-    const names = yield* Effect.catchAll(fs.list(phaxHomeDir), () =>
+    const names = yield* Effect.catch(fs.list(phaxHomeDir), () =>
       Effect.succeed([] as readonly string[]),
     );
     const journals = names

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Either } from "effect";
+import { Result } from "effect";
 import { resolveGateProfile } from "../../src/app/gates.js";
 import {
   decodePhaxConfig,
@@ -135,7 +135,7 @@ describe("gate profile decode (attributed steps)", () => {
         full: [{ command: "pnpm test", surface: "local", firing: "every-phase" }],
       },
     });
-    expect(Either.isRight(decoded)).toBe(true);
+    expect(Result.isSuccess(decoded)).toBe(true);
   });
 
   it("rejects the old flat-array (command-string) profile form, naming the profile", () => {
@@ -145,8 +145,8 @@ describe("gate profile decode (attributed steps)", () => {
         full: ["pnpm test", "pnpm lint"],
       },
     });
-    expect(Either.isLeft(decoded)).toBe(true);
-    if (Either.isLeft(decoded)) {
+    expect(Result.isFailure(decoded)).toBe(true);
+    if (Result.isFailure(decoded)) {
       const message = decoded.left.toString();
       // The decode-error path names the offending profile so the operator can
       // find the flat entry that must be migrated.
@@ -162,7 +162,7 @@ describe("gate profile decode (attributed steps)", () => {
         full: [{ command: "pnpm test", surface: "cosmic", firing: "every-phase" }],
       },
     });
-    expect(Either.isLeft(decoded)).toBe(true);
+    expect(Result.isFailure(decoded)).toBe(true);
   });
 
   it("rejects a step whose firing is outside the closed enum", () => {
@@ -172,7 +172,7 @@ describe("gate profile decode (attributed steps)", () => {
         full: [{ command: "pnpm test", surface: "local", firing: "sometimes" }],
       },
     });
-    expect(Either.isLeft(decoded)).toBe(true);
+    expect(Result.isFailure(decoded)).toBe(true);
   });
 
   it("rejects an unknown step key (onExcessProperty: error)", () => {
@@ -182,7 +182,7 @@ describe("gate profile decode (attributed steps)", () => {
         full: [{ command: "pnpm test", surface: "local", firing: "every-phase", extra: true }],
       },
     });
-    expect(Either.isLeft(decoded)).toBe(true);
+    expect(Result.isFailure(decoded)).toBe(true);
   });
 
   it("decodes a step without output to output: log", () => {
@@ -192,8 +192,8 @@ describe("gate profile decode (attributed steps)", () => {
         full: [{ command: "pnpm test", surface: "local", firing: "every-phase" }],
       },
     });
-    expect(Either.isRight(decoded)).toBe(true);
-    if (Either.isRight(decoded)) {
+    expect(Result.isSuccess(decoded)).toBe(true);
+    if (Result.isSuccess(decoded)) {
       expect(decoded.right.gateProfiles["full"]?.[0]?.output).toBe("log");
     }
   });
@@ -212,8 +212,8 @@ describe("gate profile decode (attributed steps)", () => {
         ],
       },
     });
-    expect(Either.isRight(decoded)).toBe(true);
-    if (Either.isRight(decoded)) {
+    expect(Result.isSuccess(decoded)).toBe(true);
+    if (Result.isSuccess(decoded)) {
       expect(decoded.right.gateProfiles["full"]?.[0]?.output).toBe("gate-report");
       expect(decoded.right.gateProfiles["full"]?.[0]?.input).toBeUndefined();
     }
@@ -233,7 +233,7 @@ describe("gate profile decode (attributed steps)", () => {
         ],
       },
     });
-    expect(Either.isLeft(decoded)).toBe(true);
+    expect(Result.isFailure(decoded)).toBe(true);
   });
 
   it("rejects a step whose output is outside the closed enum", () => {
@@ -243,6 +243,6 @@ describe("gate profile decode (attributed steps)", () => {
         full: [{ command: "pnpm test", surface: "local", firing: "every-phase", output: "json" }],
       },
     });
-    expect(Either.isLeft(decoded)).toBe(true);
+    expect(Result.isFailure(decoded)).toBe(true);
   });
 });

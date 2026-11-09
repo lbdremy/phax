@@ -706,7 +706,7 @@ function runCloseGate(
     yield* at("gate", fs.mkdirp(layout.gateFolder));
     const names = yield* at("gate", fs.list(layout.gateFolder));
     const log = join(layout.gateFolder, attemptLogName(nextAttemptNumber(names)));
-    const outcome = yield* Effect.either(
+    const outcome = yield* Effect.result(
       tracedCloseGate(
         { runId: input.runId, phaseId: input.phase.id },
         runGates({
@@ -809,7 +809,7 @@ function attemptClosingTurn(
       binding: Binding,
       operation: "agent.run" | "agent.resume",
     ) =>
-      Effect.either(
+      Effect.result(
         tracedTurnCall(
           { runId: input.runId, phaseId: input.phase.id, provider: binding.provider, operation },
           withInvocationCost(run, {
@@ -863,7 +863,7 @@ function attemptClosingTurn(
       // and interactive-session.json records that turn in progress.
       const newTurn = current === null ? ctx.turn : ctx.turn + 1;
       if (newTurn !== ctx.turn) {
-        const advanced = yield* Effect.either(ctx.advanceTurn(newTurn));
+        const advanced = yield* Effect.result(ctx.advanceTurn(newTurn));
         if (Either.isLeft(advanced)) {
           return {
             kind: "refused",
@@ -1585,7 +1585,7 @@ export function closeStop(
       phaseId: input.phase.id as PhaseId,
     } as const;
 
-    const closed = yield* Effect.either(closeSteps(input));
+    const closed = yield* Effect.result(closeSteps(input));
     if (Either.isLeft(closed)) {
       const lastClose = { ...closed.left.refusal, at: now() } as RefusedClose;
       yield* dispatch({ ...base, type: "StopCloseRefused", lastClose }, ctx);

@@ -1,6 +1,6 @@
 import { Effect, Exit } from "effect";
 import { describe, expect, it } from "vitest";
-import { Either } from "effect";
+import { Result } from "effect";
 import { decodeRunId } from "../../../src/domain/branded.js";
 import {
   makeStateTransitionTelemetryEvent,
@@ -9,7 +9,7 @@ import {
 import { makeSystemErrorReport } from "../../../src/domain/telemetry/errors.js";
 import { NoopSystemTelemetryLayer, SystemTelemetry } from "../../../src/ports/systemTelemetry.js";
 
-const runId = Either.getOrThrow(decodeRunId("test-run-001"));
+const runId = Result.getOrThrow(decodeRunId("test-run-001"));
 
 const runNoop = <A>(eff: Effect.Effect<A, never, SystemTelemetry>): Promise<A> =>
   Effect.runPromise(Effect.provide(eff, NoopSystemTelemetryLayer));

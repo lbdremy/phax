@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { parseHandAuthoredQuestions } from "../../../src/domain/artifact/questions.js";
 import type { SidecarDocument } from "../../../src/domain/artifact/sidecar.js";
@@ -97,14 +97,14 @@ function checkHand(answer: unknown, bound: BoundVerdicts) {
 
 function landed(original: SidecarDocument, answer: unknown, bound: BoundVerdicts) {
   const checked = check(original, answer, bound);
-  if (Either.isLeft(checked))
+  if (Result.isFailure(checked))
     throw new Error(`expected a document, got ${JSON.stringify(checked.left)}`);
   return checked.right;
 }
 
 function refusalOf(original: SidecarDocument, answer: unknown, bound: BoundVerdicts) {
   const checked = check(original, answer, bound);
-  if (Either.isRight(checked)) throw new Error("expected a refusal");
+  if (Result.isSuccess(checked)) throw new Error("expected a refusal");
   return checked.left;
 }
 
@@ -374,7 +374,7 @@ describe("a plan's verdict", () => {
 describe("a hand decision answer", () => {
   function handLanded(answer: unknown, bound: BoundVerdicts) {
     const checked = checkHand(answer, bound);
-    if (Either.isLeft(checked))
+    if (Result.isFailure(checked))
       throw new Error(`expected an answer, got ${JSON.stringify(checked.left)}`);
     return checked.right;
   }
@@ -410,7 +410,7 @@ describe("a hand decision answer", () => {
 
   it("refuses an answer choosing another option than the one given", () => {
     const checked = checkHand(HAND_ANSWER_WRONG_OPTION, BOUND_HAND_Q1);
-    if (Either.isRight(checked)) throw new Error("expected a refusal");
+    if (Result.isSuccess(checked)) throw new Error("expected a refusal");
     expect(checked.left.path).toBe("decisions[0].verdict.chosen");
   });
 });
@@ -477,7 +477,7 @@ describe("a verdict that restores the recommendation", () => {
 
   it("lands on a hand-authored departure, which records no revised sections, revising the body", () => {
     const checked = checkHandOn(HAND_ANSWER_RESTORE);
-    if (Either.isLeft(checked)) throw new Error(JSON.stringify(checked.left));
+    if (Result.isFailure(checked)) throw new Error(JSON.stringify(checked.left));
     expect(checked.right.md).toContain("THE system SHALL keep the ten most recent logs.");
     expect(checked.right.md).toContain("Decision: keep-10");
     expect(checked.right.md).toContain("Earlier decision: keep-20");
@@ -488,7 +488,7 @@ describe("a verdict that restores the recommendation", () => {
 
   it("lands on a hand-authored departure without revising the body too", () => {
     const checked = checkHandOn(HAND_ANSWER_RESTORE_UNREVISED);
-    if (Either.isLeft(checked)) throw new Error(JSON.stringify(checked.left));
+    if (Result.isFailure(checked)) throw new Error(JSON.stringify(checked.left));
     expect(checked.right.md).toContain("THE system SHALL keep the twenty most recent logs.");
     expect(checked.right.verdicts).toMatchObject([{ question: "Q1", revised: [] }]);
   });

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
@@ -43,7 +43,7 @@ function extract(planMd: string) {
   const fakeShell = makeFakeShell();
   fakeFs.impl.setFile(PLAN_MD_PATH, planMd);
   const result = Effect.runPromise(
-    Effect.either(
+    Effect.result(
       loadOrExtractPlan({
         planMdPath: PLAN_MD_PATH,
         model: MODEL,
@@ -61,8 +61,8 @@ describe("acceptance: extraction of the acceptance header lines", () => {
   it("ac-header: the extracted phase carries acceptance, at phax-plan 0.33.0", async () => {
     const { result } = extract(acHeaderPlan());
     const extracted = await result;
-    expect(Either.isRight(extracted)).toBe(true);
-    if (Either.isLeft(extracted)) return;
+    expect(Result.isSuccess(extracted)).toBe(true);
+    if (Result.isFailure(extracted)) return;
 
     // What createRunFolder writes as phax-plan.json.
     const written = JSON.parse(
@@ -81,8 +81,8 @@ describe("acceptance: extraction of the acceptance header lines", () => {
     const { result, fakeBackend, fakeShell } = extract(acLoopOldPlan());
     const outcome = await result;
 
-    expect(Either.isLeft(outcome)).toBe(true);
-    if (Either.isLeft(outcome)) {
+    expect(Result.isFailure(outcome)).toBe(true);
+    if (Result.isFailure(outcome)) {
       expect(outcome.left.message).toBe(
         `${PLAN_MD_PATH}: phase-03 ${OLD_LOOP_MESSAGE} — run phax plans lint ${PLAN_MD_PATH}`,
       );
@@ -173,7 +173,7 @@ describe("acceptance: the acceptance-phases run preflight", () => {
     const fs = makeFakeFileSystem();
     const shell = makeFakeShell();
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         runPreflights(makeInput(acHeaderOldPlan())).pipe(
           Effect.provide(fs.layer),
           Effect.provide(shell.layer),
@@ -181,8 +181,8 @@ describe("acceptance: the acceptance-phases run preflight", () => {
       ),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left).toMatchObject({ _tag: "AcceptancePreflightError" });
       expect(result.left.message).toBe(
         [

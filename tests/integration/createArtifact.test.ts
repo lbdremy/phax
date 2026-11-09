@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { createArtifact, resolveArtifactTarget } from "../../src/app/createArtifact.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
@@ -25,7 +25,7 @@ const LAST = { last: true, notLast: false } as const;
 const NOT_LAST = { last: false, notLast: true } as const;
 
 function run<A, E>(effect: Effect.Effect<A, E, never>) {
-  return Effect.runPromise(Effect.either(effect));
+  return Effect.runPromise(Effect.result(effect));
 }
 
 describe("createArtifact", () => {
@@ -43,8 +43,8 @@ describe("createArtifact", () => {
       }).pipe(Effect.provide(layer)),
     );
 
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
       expect(result.right).toEqual({
         path: "docs/specs/2609091412-plan-prune.md",
         sourceSpec: null,
@@ -73,15 +73,15 @@ describe("createArtifact", () => {
       }).pipe(Effect.provide(layer)),
     );
 
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
       expect(result.right).toEqual({ path: PLAN_PATH, sourceSpec: SPEC_PATH, completesSpec: true });
     }
     const written = impl.getFile(PLAN_PATH) ?? "";
     expect(written).toBe(
       `---\nstatus: Draft\nsource-spec: ${SPEC_PATH}\ncompletes-spec: true\n---\n`,
     );
-    expect(Either.isRight(validateArtifact(PLAN_PATH, written))).toBe(true);
+    expect(Result.isSuccess(validateArtifact(PLAN_PATH, written))).toBe(true);
   });
 
   it("writes completes-spec false on the line after source-spec with --not-last", async () => {
@@ -99,11 +99,11 @@ describe("createArtifact", () => {
       }).pipe(Effect.provide(layer)),
     );
 
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) expect(result.right.completesSpec).toBe(false);
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) expect(result.right.completesSpec).toBe(false);
     const written = impl.getFile(PLAN_PATH) ?? "";
     expect(written).toContain(`source-spec: ${SPEC_PATH}\ncompletes-spec: false\n`);
-    expect(Either.isRight(validateArtifact(PLAN_PATH, written))).toBe(true);
+    expect(Result.isSuccess(validateArtifact(PLAN_PATH, written))).toBe(true);
   });
 
   it("creates a Draft plan with source-spec null and no completes-spec when no --spec is given", async () => {
@@ -120,8 +120,8 @@ describe("createArtifact", () => {
       }).pipe(Effect.provide(layer)),
     );
 
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
       expect(result.right).toEqual({
         path: "docs/plans/2609101031-catalog-refresh-plan.md",
         sourceSpec: null,
@@ -132,7 +132,7 @@ describe("createArtifact", () => {
     expect(written).toContain("source-spec: null");
     expect(written).not.toContain("completes-spec");
     expect(
-      Either.isRight(validateArtifact("docs/plans/2609101031-catalog-refresh-plan.md", written)),
+      Result.isSuccess(validateArtifact("docs/plans/2609101031-catalog-refresh-plan.md", written)),
     ).toBe(true);
   });
 
@@ -176,8 +176,8 @@ describe("createArtifact", () => {
       }).pipe(Effect.provide(layer)),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left).toBeInstanceOf(ArtifactCreationError);
       expect(result.left.message).toContain(names);
     }
@@ -198,8 +198,8 @@ describe("createArtifact", () => {
       }).pipe(Effect.provide(layer)),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left).toBeInstanceOf(ArtifactCreationError);
       expect(result.left.message).toContain("Plan_Prune");
     }
@@ -220,8 +220,8 @@ describe("createArtifact", () => {
       }).pipe(Effect.provide(layer)),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left).toBeInstanceOf(ArtifactCreationError);
       expect(result.left.message).toContain("2609091412-foo-plan.md");
     }
@@ -243,8 +243,8 @@ describe("createArtifact", () => {
       }).pipe(Effect.provide(layer)),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left).toBeInstanceOf(ArtifactCreationError);
       expect(result.left.message).toContain("2609091412-plan-prune.md");
     }
@@ -265,8 +265,8 @@ describe("createArtifact", () => {
       }).pipe(Effect.provide(layer)),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left).toBeInstanceOf(ArtifactCreationError);
     }
     expect(impl.files.size).toBe(0);
@@ -290,8 +290,8 @@ describe("createArtifact", () => {
       }).pipe(Effect.provide(layer)),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left).toBeInstanceOf(ArtifactCreationError);
     }
     expect(impl.files.size).toBe(1);
@@ -313,8 +313,8 @@ describe("resolveArtifactTarget", () => {
       }).pipe(Effect.provide(layer)),
     );
 
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
       expect(result.right).toEqual({
         dir: "docs/plans",
         path: PLAN_PATH,
@@ -338,8 +338,8 @@ describe("resolveArtifactTarget", () => {
       }).pipe(Effect.provide(layer)),
     );
 
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
       expect(result.right).toEqual({
         dir: "docs/specs",
         path: "docs/specs/2609091412-plan-prune.md",

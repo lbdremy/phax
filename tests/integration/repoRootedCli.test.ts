@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execSync } from "node:child_process";
-import { Effect, Either, type Layer } from "effect";
+import { Effect, Result, type Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { loadConfig } from "../../src/app/loadConfig.js";
 import { plansStalenessReport } from "../../src/app/planStaleness.js";
@@ -56,7 +56,7 @@ beforeEach(() => {
   mkdirSync(subDir, { recursive: true });
 
   const configResult = loadConfig(repoDir);
-  if (Either.isLeft(configResult)) throw new Error(configResult.left.message);
+  if (Result.isFailure(configResult)) throw new Error(configResult.left.message);
   config = configResult.right;
 });
 
@@ -73,12 +73,12 @@ afterEach(() => {
 function readViaLayer(
   layer: Layer.Layer<FileSystem>,
   path: string,
-): Promise<Either.Either<string, unknown>> {
+): Promise<Result.Result<string, unknown>> {
   const effect = Effect.gen(function* () {
     const fs = yield* FileSystem;
     return yield* fs.readText(path);
   }).pipe(Effect.provide(layer));
-  return Effect.runPromise(Effect.either(effect));
+  return Effect.runPromise(Effect.result(effect));
 }
 
 describe("repo-rooted FileSystem layer, invoked from a nested subdirectory", () => {
@@ -88,8 +88,8 @@ describe("repo-rooted FileSystem layer, invoked from a nested subdirectory", () 
 
     const result = await readViaLayer(rooted, PLAN_REL);
 
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) expect(result.right).toBe(PLAN_MD);
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) expect(result.right).toBe(PLAN_MD);
   });
 
   it("passes an absolute path argument through unchanged under the rooted layer", async () => {
@@ -98,8 +98,8 @@ describe("repo-rooted FileSystem layer, invoked from a nested subdirectory", () 
 
     const result = await readViaLayer(rooted, join(repoDir, PLAN_REL));
 
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) expect(result.right).toBe(PLAN_MD);
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) expect(result.right).toBe(PLAN_MD);
   });
 
   it("the identity layer from a subdirectory cannot see the repo-relative artifact", async () => {
@@ -109,7 +109,7 @@ describe("repo-rooted FileSystem layer, invoked from a nested subdirectory", () 
 
     // This failure is the bug the rooting fixes: the same relative path the
     // rooted layer reads successfully is unreadable from the subdirectory.
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 
   it("plans status reads docs/plans from a subdirectory (the sharpest case)", async () => {
@@ -127,7 +127,7 @@ describe("repo-rooted FileSystem layer, invoked from a nested subdirectory", () 
 
     // Rooted layer from the subdirectory: sees docs/plans and reports the entry.
     const rootedReport = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         plansStalenessReport(reportOpts).pipe(
           Effect.provide(makeRepoRootedFileSystemLayer(config)),
           Effect.provide(gitLayer),
@@ -135,15 +135,15 @@ describe("repo-rooted FileSystem layer, invoked from a nested subdirectory", () 
         ),
       ),
     );
-    expect(Either.isRight(rootedReport)).toBe(true);
-    if (Either.isRight(rootedReport)) {
+    expect(Result.isSuccess(rootedReport)).toBe(true);
+    if (Result.isSuccess(rootedReport)) {
       expect(rootedReport.right.report.map((e) => e.path)).toEqual([PLAN_REL]);
     }
 
     // Identity layer from the same subdirectory: docs/plans is invisible, so the
     // report is empty — exactly the disagreement that produced missing-record.
     const identityReport = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         plansStalenessReport(reportOpts).pipe(
           Effect.provide(NodeFileSystemLayer),
           Effect.provide(gitLayer),
@@ -151,8 +151,8 @@ describe("repo-rooted FileSystem layer, invoked from a nested subdirectory", () 
         ),
       ),
     );
-    expect(Either.isRight(identityReport)).toBe(true);
-    if (Either.isRight(identityReport)) {
+    expect(Result.isSuccess(identityReport)).toBe(true);
+    if (Result.isSuccess(identityReport)) {
       expect(identityReport.right).toEqual({ report: [], orphanRecords: [] });
     }
   });

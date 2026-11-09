@@ -1,4 +1,4 @@
-import type { Either, ParseResult, Schema } from "effect";
+import type { Result, ParseResult, Schema } from "effect";
 import {
   SCHEMA_URL_BASE,
   compareReleases,
@@ -28,7 +28,7 @@ export type CurrentShapeName<F extends FormatId> = (typeof CURRENT_SHAPES)[F];
 /** One shape of a format: its schema and the decoder that reads it. */
 export interface Shape<T> {
   readonly schema: Schema.Schema.AnyNoContext & { readonly Type: T };
-  readonly decode: (input: unknown) => Either.Either<T, ParseResult.ParseError>;
+  readonly decode: (input: unknown) => Result.Result<T, ParseResult.ParseError>;
 }
 
 type ShapeId<M> = keyof M & string;

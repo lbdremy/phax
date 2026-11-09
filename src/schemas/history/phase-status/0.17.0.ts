@@ -74,11 +74,11 @@ export const PhaseStatusV0_17_0Schema = Schema.Struct({
   createdAt: Schema.NonEmptyString,
   updatedAt: Schema.NonEmptyString,
   branchName: BranchNameSchema,
-  worktreePath: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
-  claudeSessionId: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
-  commitHash: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
+  worktreePath: Schema.optionalKey(Schema.NonEmptyString),
+  claudeSessionId: Schema.optionalKey(Schema.NonEmptyString),
+  commitHash: Schema.optionalKey(Schema.NonEmptyString),
 });
 
 export type PhaseStatusV0_17_0 = Schema.Schema.Type<typeof PhaseStatusV0_17_0Schema>;
 
-export const decodePhaseStatusV0_17_0 = Schema.decodeUnknownEither(PhaseStatusV0_17_0Schema);
+export const decodePhaseStatusV0_17_0 = Schema.decodeUnknownResult(PhaseStatusV0_17_0Schema);

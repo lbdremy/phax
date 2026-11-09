@@ -11,7 +11,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   readExecutedHandoffs,
@@ -124,7 +124,7 @@ const readJson = (path: string): Record<string, unknown> =>
 function readSession(): InteractiveSession {
   const path = join(phaseFolder, "interactive-session.json");
   const decoded = readInteractiveSessionFile(path, readJson(path));
-  if (Either.isLeft(decoded)) throw new Error(decoded.left.message);
+  if (Result.isFailure(decoded)) throw new Error(decoded.left.message);
   return decoded.right;
 }
 

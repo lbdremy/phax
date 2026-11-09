@@ -1,4 +1,4 @@
-import { Either, Option } from "effect";
+import { Result, Option } from "effect";
 import * as Schema from "effect/Schema";
 import * as SchemaAST from "effect/SchemaAST";
 import type { Command, StructContract, TupleContract } from "./command.js";
@@ -161,10 +161,10 @@ function defaultOf(
 ): string | undefined {
   let decoded: unknown;
   try {
-    const result = Schema.decodeUnknownEither(schema as Schema.Schema<unknown, unknown, never>)(
+    const result = Schema.decodeUnknownResult(schema as Schema.Schema<unknown, unknown, never>)(
       empty,
     );
-    if (Either.isLeft(result)) return undefined;
+    if (Result.isFailure(result)) return undefined;
     decoded = result.right;
   } catch {
     // A default that needs a service or an asynchronous read is not a default to show.

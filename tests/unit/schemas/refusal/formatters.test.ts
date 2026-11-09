@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
-import { Either, Schema } from "effect";
+import { Result, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   formatAnswerViolations,
@@ -21,11 +21,11 @@ const Config = Schema.Struct({
 });
 
 function refused<A, I>(schema: Schema.Schema<A, I>, input: unknown): never {
-  const decoded = Schema.decodeUnknownEither(schema, {
+  const decoded = Schema.decodeUnknownResult(schema, {
     errors: "all",
     onExcessProperty: "error",
   })(input);
-  if (Either.isRight(decoded)) throw new Error("expected a refusal");
+  if (Result.isSuccess(decoded)) throw new Error("expected a refusal");
   return decoded.left as never;
 }
 

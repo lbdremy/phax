@@ -2,7 +2,7 @@ import { existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } fro
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Ajv } from "ajv";
-import { Either, JSONSchema, type ParseResult, Schema } from "effect";
+import { Result, JSONSchema, type ParseResult, Schema } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   JSON_SCHEMA_FORMATS,
@@ -82,7 +82,7 @@ import { answerJsonSchema } from "../../../src/schemas/answerSchemas.js";
 import { SpecDocumentFileSchema } from "../../../src/schemas/specDocument.js";
 import { phaseStatusStopDocuments, validDocuments, withoutKey } from "./documents.js";
 
-type Decode = (input: unknown) => Either.Either<unknown, ParseResult.ParseError>;
+type Decode = (input: unknown) => Result.Result<unknown, ParseResult.ParseError>;
 type JsonSchemaFormatId = FormatId | "record-manifest";
 
 const phaseManifest = validDocuments["phase-record-manifest"];
@@ -172,7 +172,7 @@ function withoutTitle(schema: object): object {
 
 function acceptedDocuments(entry: JsonSchemaFormat): unknown[] {
   const format = entry.format as JsonSchemaFormatId;
-  return documentsOf(format).filter((document) => Either.isRight(DECODERS[format](document)));
+  return documentsOf(format).filter((document) => Result.isSuccess(DECODERS[format](document)));
 }
 
 describe("the JSON Schema table", () => {
@@ -327,7 +327,7 @@ describe("findJsonSchemaGaps", () => {
   });
 
   it("names a filter on the root as (root)", () => {
-    const Toy = Schema.Struct({ n: Schema.Number }).pipe(Schema.filter(({ n }) => isEven(n)));
+    const Toy = Schema.Struct({ n: Schema.Number }).check(Schema.makeFilter(({ n }) => isEven(n)));
     expect(findJsonSchemaGaps(Toy)).toEqual(["(root)"]);
   });
 
@@ -366,7 +366,7 @@ const gapEntry: JsonSchemaFormat = {
   format: "toy-gap",
   fileName: "toy-gap.schema.json",
   title: "phax toy with a gap",
-  schema: Schema.Struct({ n: Schema.Number.pipe(Schema.filter((n) => n > 1)) }),
+  schema: Schema.Struct({ n: Schema.Number.check(Schema.makeFilter((n) => n > 1)) }),
   excess: "error",
 };
 
@@ -468,7 +468,7 @@ describe("every exported format has a usable JSON Schema", () => {
       const withUnknownKey = { ...(document as object), unknownKey: true };
       const ignores = entry.excess === "ignore";
       expect(validate(withUnknownKey)).toBe(ignores);
-      expect(Either.isRight(DECODERS[entry.format as JsonSchemaFormatId](withUnknownKey))).toBe(
+      expect(Result.isSuccess(DECODERS[entry.format as JsonSchemaFormatId](withUnknownKey))).toBe(
         ignores,
       );
     },
@@ -488,7 +488,7 @@ describe("a phase status's stop", () => {
       const withUnknownStopKey = { ...(document as object), stop: { ...stop, unknownKey: true } };
       expect(validate(document)).toBe(true);
       expect(validate(withUnknownStopKey)).toBe(false);
-      expect(Either.isRight(DECODERS["phase-status"](withUnknownStopKey))).toBe(false);
+      expect(Result.isSuccess(DECODERS["phase-status"](withUnknownStopKey))).toBe(false);
     },
   );
 });

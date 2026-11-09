@@ -13,4 +13,4 @@ export interface TerminalOps {
   readonly readStdin: Effect.Effect<string, StdinReadError>;
 }
 
-export class Terminal extends Context.Tag("phax/Terminal")<Terminal, TerminalOps>() {}
+export class Terminal extends Context.Service<Terminal, TerminalOps>()("phax/Terminal") {}

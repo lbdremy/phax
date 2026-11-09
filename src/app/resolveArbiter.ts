@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import {
   needsOperatorName,
   parseArbiterDeclaration,
@@ -19,8 +19,8 @@ export function resolveArbiter(
   repoRoot: string,
 ): Effect.Effect<ResolvedArbiter, ArtifactArbiterRefusedError | GitError, Terminal | Git> {
   return Effect.gen(function* () {
-    const declared = by === undefined ? Either.right(null) : parseArbiterDeclaration(by);
-    if (Either.isLeft(declared)) {
+    const declared = by === undefined ? Result.succeed(null) : parseArbiterDeclaration(by);
+    if (Result.isFailure(declared)) {
       return yield* Effect.fail(new ArtifactArbiterRefusedError({ message: declared.left }));
     }
     const stdinIsTerminal = yield* (yield* Terminal).stdinIsTerminal;
@@ -28,7 +28,7 @@ export function resolveArbiter(
       ? yield* (yield* Git).committerName(repoRoot)
       : null;
     const resolved = resolveFromFacts({ declared: declared.right, stdinIsTerminal, committerName });
-    if (Either.isLeft(resolved)) {
+    if (Result.isFailure(resolved)) {
       return yield* Effect.fail(new ArtifactArbiterRefusedError({ message: resolved.left }));
     }
     return resolved.right;

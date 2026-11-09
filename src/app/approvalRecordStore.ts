@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { createHash } from "node:crypto";
 import {
   ApprovalLedgerMigrationRequiredError,
@@ -39,7 +39,7 @@ import {
 // artifact's record file, so transitions of different artifacts never touch
 // the same path.
 
-type RecordReader<R> = (file: string, input: unknown) => Either.Either<R, PersistedReadError>;
+type RecordReader<R> = (file: string, input: unknown) => Result.Result<R, PersistedReadError>;
 
 // A missing file is no record, and so is a path that is not a live artifact
 // (no disk access). An unreadable file — not JSON, failing to decode, without
@@ -68,7 +68,7 @@ function readRecordFile<R extends { readonly artifact: string }>(
       );
     }
     const decoded = read(recordPath, parsed);
-    if (Either.isLeft(decoded)) {
+    if (Result.isFailure(decoded)) {
       return yield* Effect.fail(
         new ApprovalRecordUnreadableError({ message: decoded.left.message, recordPath }),
       );

@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync
 import { execFileSync, spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { archive } from "../../src/app/archive.js";
 import type { ShortName } from "../../src/domain/branded.js";
@@ -70,7 +70,7 @@ beforeEach(async () => {
   fakes.session = fakeSession as unknown as { layer: unknown };
   fakes.editor = fakeEditor as unknown as { layer: unknown };
   const { loadConfig } = await import("../../src/app/loadConfig.js");
-  vi.mocked(loadConfig).mockReturnValue(Either.right(resolvedConfig(world)));
+  vi.mocked(loadConfig).mockReturnValue(Result.succeed(resolvedConfig(world)));
 });
 
 afterEach(() => {
@@ -348,10 +348,10 @@ describe("phax archive on a waiting run", () => {
     const run = await stopRun(world);
     writeRegistry(world, [run]);
 
-    const outcome = await Effect.runPromise(Effect.either(archiveRun(run, false)));
+    const outcome = await Effect.runPromise(Effect.result(archiveRun(run, false)));
 
-    expect(Either.isLeft(outcome)).toBe(true);
-    if (Either.isRight(outcome)) return;
+    expect(Result.isFailure(outcome)).toBe(true);
+    if (Result.isSuccess(outcome)) return;
     expect(outcome.left).toBeInstanceOf(ArchiveRefusedError);
     expect(outcome.left.message).toContain("awaiting_review");
     expect(outcome.left.message).toContain("--force");

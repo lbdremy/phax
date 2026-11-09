@@ -20,7 +20,7 @@
  * the real e2e's job. Gate: set PHAX_E2E_RUN=1 to run.
  */
 
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -71,7 +71,7 @@ const UNSTABLE_FIELD_NAMES = ["timestamp", "traceId", "spanId", "durationMs"] as
 
 const shouldRun = process.env["PHAX_E2E_RUN"] === "1";
 
-const shortName = Either.getOrThrow(decodeShortName("my-run"));
+const shortName = Result.getOrThrow(decodeShortName("my-run"));
 
 const rawPlan = {
   version: 1,
@@ -165,7 +165,7 @@ describe.skipIf(!shouldRun)("E2E semantic trace — per-provider snapshots", () 
 
   for (const testCase of CASES) {
     it(`pins the semantic trace for ${testCase.name}`, async () => {
-      const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+      const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
 
       const config: ResolvedConfig = {
         raw: {
@@ -247,7 +247,7 @@ describe.skipIf(!shouldRun)("E2E semantic trace — per-provider snapshots", () 
       );
 
       const result = await Effect.runPromise(
-        Effect.either(
+        Effect.result(
           executePlan({
             phaxVersion: "0.0.0-test",
             output: processOutput,
@@ -268,7 +268,7 @@ describe.skipIf(!shouldRun)("E2E semantic trace — per-provider snapshots", () 
         ),
       );
 
-      expect(Either.isRight(result)).toBe(true);
+      expect(Result.isSuccess(result)).toBe(true);
 
       const snapshot = telemetry.impl.getSemanticTraceSnapshot();
 

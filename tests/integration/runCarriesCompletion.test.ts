@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -38,7 +38,7 @@ const HANDOFF_CONTENT = [
   "Ready to proceed.",
 ].join("\n");
 
-const shortName = Either.getOrThrow(decodeShortName("my-run"));
+const shortName = Result.getOrThrow(decodeShortName("my-run"));
 
 const PLAN_REL = "docs/plans/2609101270-run-carry-plan.md";
 const PLAN_ARCHIVE = "docs/plans/archive/2609101270-run-carry-plan.md";
@@ -193,7 +193,7 @@ describe("executePlan — run carries artifact completion (spec 27)", () => {
   });
 
   it("completes the plan and rides the spec along on the run branch, leaving the origin untouched", async () => {
-    const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
     const config = makeConfig(stateRoot);
     const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
 
@@ -223,7 +223,7 @@ describe("executePlan — run carries artifact completion (spec 27)", () => {
     await seedWorktreeArtifacts(worktreePath, "Approved", SPEC_REL);
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -242,9 +242,9 @@ describe("executePlan — run carries artifact completion (spec 27)", () => {
       ),
     );
 
-    if (Either.isLeft(result)) console.error("FAILED:", result.left);
-    expect(Either.isRight(result)).toBe(true);
-    if (!Either.isRight(result)) return;
+    if (Result.isFailure(result)) console.error("FAILED:", result.left);
+    expect(Result.isSuccess(result)).toBe(true);
+    if (!Result.isSuccess(result)) return;
 
     // The report carries both transitions with their commits.
     const report = result.right.artifactCompletions;
@@ -298,7 +298,7 @@ describe("executePlan — run carries artifact completion (spec 27)", () => {
   });
 
   it("with completes-spec: false, completes only the plan and states the kept spec in the handoff", async () => {
-    const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
     const config = makeConfig(stateRoot);
     const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
 
@@ -325,7 +325,7 @@ describe("executePlan — run carries artifact completion (spec 27)", () => {
     const specBefore = await readFile(join(worktreePath, SPEC_REL), "utf8");
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -344,9 +344,9 @@ describe("executePlan — run carries artifact completion (spec 27)", () => {
       ),
     );
 
-    if (Either.isLeft(result)) console.error("FAILED:", result.left);
-    expect(Either.isRight(result)).toBe(true);
-    if (!Either.isRight(result)) return;
+    if (Result.isFailure(result)) console.error("FAILED:", result.left);
+    expect(Result.isSuccess(result)).toBe(true);
+    if (!Result.isSuccess(result)) return;
 
     const report = result.right.artifactCompletions;
     expect(report?.transitions).toHaveLength(1);
@@ -372,7 +372,7 @@ describe("executePlan — run carries artifact completion (spec 27)", () => {
   });
 
   it("pauses the run as interrupted (not review_open) when the plan's transition is illegal", async () => {
-    const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
     const config = makeConfig(stateRoot);
     const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
 
@@ -396,7 +396,7 @@ describe("executePlan — run carries artifact completion (spec 27)", () => {
     await seedWorktreeArtifacts(worktreePath, "Draft", "null");
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -415,8 +415,8 @@ describe("executePlan — run carries artifact completion (spec 27)", () => {
       ),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left).toBeInstanceOf(ArtifactCompletionPausedError);
     }
 

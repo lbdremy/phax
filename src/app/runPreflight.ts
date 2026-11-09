@@ -10,7 +10,7 @@
  * A check that needs the run's folder, registry entry or branch must be
  * declared outside this set, explicitly.
  */
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import {
   AssignmentPreflightError,
   type ConfigValidationError,
@@ -109,7 +109,7 @@ export function mcpAllowlistPreflight(mcp: {
     const fs = yield* FileSystem;
     const missing: string[] = [];
     for (const entry of mcp.allow) {
-      const ok = yield* fs.exists(entry).pipe(Effect.orElse(() => Effect.succeed(false)));
+      const ok = yield* fs.exists(entry).pipe(Effect.catch(() => Effect.succeed(false)));
       if (!ok) missing.push(entry);
     }
     if (missing.length > 0) {
@@ -235,9 +235,9 @@ function withLabelFailures(
 
 function locateSections(input: RunPreflightInput): LocatedSections {
   return Effect.suspend(() =>
-    Either.match(locatePlanSections(input.planMd, input.plan.phases), {
-      onLeft: (phases) => Effect.fail(planSectionsRefusal(phases, input.planPath)),
-      onRight: (sections) => Effect.succeed(sections),
+    Result.match(locatePlanSections(input.planMd, input.plan.phases), {
+      onFailure: (phases) => Effect.fail(planSectionsRefusal(phases, input.planPath)),
+      onSuccess: (sections) => Effect.succeed(sections),
     }),
   );
 }

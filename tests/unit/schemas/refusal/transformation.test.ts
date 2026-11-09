@@ -2,14 +2,14 @@
 // not by the schema's identifier (`NumberFromString`) and not by Effect's reason
 // (`Unable to decode "x" into a number`). One that decodes into anything (`parseJson`)
 // keeps the label of its input.
-import { Either, ParseResult, Schema } from "effect";
+import { Result, ParseResult, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import { firstRefusal } from "../../../../src/schemas/refusal/adapter.js";
 import { refusalMessage } from "../../../../src/schemas/refusal/render.js";
 
 function refused<A, I>(schema: Schema.Schema<A, I, never>, input: unknown): ParseResult.ParseError {
-  const decoded = Schema.decodeUnknownEither(schema)(input);
-  if (Either.isRight(decoded)) throw new Error(`expected a refusal of ${JSON.stringify(input)}`);
+  const decoded = Schema.decodeUnknownResult(schema)(input);
+  if (Result.isSuccess(decoded)) throw new Error(`expected a refusal of ${JSON.stringify(input)}`);
   return decoded.left;
 }
 

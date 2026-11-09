@@ -1,4 +1,4 @@
-import { Brand, Either, ParseResult, Schema } from "effect";
+import { Brand, Result, ParseResult, Schema } from "effect";
 
 type ParseError = ParseResult.ParseError;
 
@@ -9,8 +9,8 @@ const NamespaceSchema = Schema.String.pipe(
   Schema.pattern(/^[a-z][a-z0-9-]*$/),
   Schema.brand("Namespace"),
 );
-export const decodeNamespace = (u: unknown): Either.Either<Namespace, ParseError> =>
-  Schema.decodeUnknownEither(NamespaceSchema)(u);
+export const decodeNamespace = (u: unknown): Result.Result<Namespace, ParseError> =>
+  Schema.decodeUnknownResult(NamespaceSchema)(u);
 
 export type ShortName = string & Brand.Brand<"ShortName">;
 const ShortNameSchema = Schema.String.pipe(
@@ -19,8 +19,8 @@ const ShortNameSchema = Schema.String.pipe(
   Schema.pattern(/^[a-z][a-z0-9-]*$/),
   Schema.brand("ShortName"),
 );
-export const decodeShortName = (u: unknown): Either.Either<ShortName, ParseError> =>
-  Schema.decodeUnknownEither(ShortNameSchema)(u);
+export const decodeShortName = (u: unknown): Result.Result<ShortName, ParseError> =>
+  Schema.decodeUnknownResult(ShortNameSchema)(u);
 
 /**
  * Normalize arbitrary text into a valid ShortName slug. The model is asked for a
@@ -42,13 +42,13 @@ export function slugifyShortName(raw: string): string {
 
 export type RunId = string & Brand.Brand<"RunId">;
 const RunIdSchema = Schema.String.pipe(Schema.minLength(1), Schema.brand("RunId"));
-export const decodeRunId = (u: unknown): Either.Either<RunId, ParseError> =>
-  Schema.decodeUnknownEither(RunIdSchema)(u);
+export const decodeRunId = (u: unknown): Result.Result<RunId, ParseError> =>
+  Schema.decodeUnknownResult(RunIdSchema)(u);
 
 export type PhaseId = string & Brand.Brand<"PhaseId">;
 const PhaseIdSchema = Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/), Schema.brand("PhaseId"));
-export const decodePhaseId = (u: unknown): Either.Either<PhaseId, ParseError> =>
-  Schema.decodeUnknownEither(PhaseIdSchema)(u);
+export const decodePhaseId = (u: unknown): Result.Result<PhaseId, ParseError> =>
+  Schema.decodeUnknownResult(PhaseIdSchema)(u);
 
 function isSafeBranchName(s: string): boolean {
   if (s.length === 0 || s[0] === "-") return false;
@@ -73,28 +73,28 @@ export const BranchNameSchema = Schema.String.pipe(
   }),
   Schema.brand("BranchName"),
 );
-export const decodeBranchName = (u: unknown): Either.Either<BranchName, ParseError> =>
-  Schema.decodeUnknownEither(BranchNameSchema)(u);
+export const decodeBranchName = (u: unknown): Result.Result<BranchName, ParseError> =>
+  Schema.decodeUnknownResult(BranchNameSchema)(u);
 
 export type WorktreePath = string & Brand.Brand<"WorktreePath">;
 const WorktreePathSchema = Schema.String.pipe(Schema.minLength(1), Schema.brand("WorktreePath"));
-export const decodeWorktreePath = (u: unknown): Either.Either<WorktreePath, ParseError> =>
-  Schema.decodeUnknownEither(WorktreePathSchema)(u);
+export const decodeWorktreePath = (u: unknown): Result.Result<WorktreePath, ParseError> =>
+  Schema.decodeUnknownResult(WorktreePathSchema)(u);
 
 export type ClaudeSessionId = string & Brand.Brand<"ClaudeSessionId">;
 const ClaudeSessionIdSchema = Schema.String.pipe(
   Schema.minLength(1),
   Schema.brand("ClaudeSessionId"),
 );
-export const decodeClaudeSessionId = (u: unknown): Either.Either<ClaudeSessionId, ParseError> =>
-  Schema.decodeUnknownEither(ClaudeSessionIdSchema)(u);
+export const decodeClaudeSessionId = (u: unknown): Result.Result<ClaudeSessionId, ParseError> =>
+  Schema.decodeUnknownResult(ClaudeSessionIdSchema)(u);
 
 export type GateProfileId = string & Brand.Brand<"GateProfileId">;
 const GateProfileIdSchema = Schema.String.pipe(Schema.minLength(1), Schema.brand("GateProfileId"));
-export const decodeGateProfileId = (u: unknown): Either.Either<GateProfileId, ParseError> =>
-  Schema.decodeUnknownEither(GateProfileIdSchema)(u);
+export const decodeGateProfileId = (u: unknown): Result.Result<GateProfileId, ParseError> =>
+  Schema.decodeUnknownResult(GateProfileIdSchema)(u);
 
 export type WorkspaceId = string & Brand.Brand<"WorkspaceId">;
 const WorkspaceIdSchema = Schema.String.pipe(Schema.minLength(1), Schema.brand("WorkspaceId"));
-export const decodeWorkspaceId = (u: unknown): Either.Either<WorkspaceId, ParseError> =>
-  Schema.decodeUnknownEither(WorkspaceIdSchema)(u);
+export const decodeWorkspaceId = (u: unknown): Result.Result<WorkspaceId, ParseError> =>
+  Schema.decodeUnknownResult(WorkspaceIdSchema)(u);

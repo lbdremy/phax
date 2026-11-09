@@ -144,6 +144,6 @@ export type SemanticTelemetryEventFromSchema = Schema.Schema.Type<
   typeof SemanticTelemetryEventSchema
 >;
 
-export const decodeSemanticTelemetryEvent = Schema.decodeUnknownEither(
+export const decodeSemanticTelemetryEvent = Schema.decodeUnknownResult(
   SemanticTelemetryEventSchema,
 );

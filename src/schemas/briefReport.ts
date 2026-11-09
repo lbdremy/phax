@@ -57,6 +57,6 @@ export type BriefReportFile = Schema.Schema.Type<typeof BriefReportFileSchema>;
 /** A brief report, without `$schema`. */
 export type BriefReport = Omit<BriefReportFile, "$schema">;
 
-export const decodeBriefReportFile = Schema.decodeUnknownEither(BriefReportFileSchema, {
+export const decodeBriefReportFile = Schema.decodeUnknownResult(BriefReportFileSchema, {
   onExcessProperty: "error",
 });

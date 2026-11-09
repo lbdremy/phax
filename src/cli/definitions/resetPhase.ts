@@ -6,7 +6,7 @@
 // line of another project's run, then today's lines. A failure is a declared error with today's
 // sentence: 7 for a held lock (its fields the run's short name and the holder's pid), 1 otherwise,
 // its `Target:` line first on stdout when the run is another project's.
-import { Data, Effect, Either, Layer } from "effect";
+import { Data, Effect, Result, Layer } from "effect";
 import * as Schema from "effect/Schema";
 import { resolveRunRef } from "../../app/resolveRunRef.js";
 import { previewResetPhase, resetPhase } from "../../app/resetPhase.js";
@@ -203,7 +203,7 @@ export function makeResetPhaseCommand(layers: ResetPhaseLayers = {}) {
       ),
       flags: reject(
         Schema.Struct({
-          yes: Schema.optionalWith(Schema.Boolean, { exact: true }).annotations({
+          yes: Schema.optionalKey(Schema.Boolean).annotations({
             description: "Proceed without confirmation (removes the worktree and branch)",
             [AliasAnnotationId]: "y",
           }),
@@ -220,14 +220,14 @@ export function makeResetPhaseCommand(layers: ResetPhaseLayers = {}) {
           ),
         );
         const resolved = resolveRunRef(shortNameArg, config, config.stateRoot);
-        if (Either.isLeft(resolved)) {
+        if (Result.isFailure(resolved)) {
           return yield* Effect.fail(new ResetPhaseRunRefError({ message: resolved.left.message }));
         }
         const { namespace, shortName: shortNameStr, crossProject } = resolved.right;
         const qualifiedName = runKey(namespace, shortNameStr);
         // Safe: resolveRunRef already validated the shortName via parseRunRef.
         const decoded = decodeShortName(shortNameStr);
-        if (Either.isLeft(decoded)) {
+        if (Result.isFailure(decoded)) {
           return yield* Effect.fail(
             new ResetPhaseFailedError({
               message: `Internal error: resolved shortName "${shortNameStr}" is invalid.`,

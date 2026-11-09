@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   type DocumentMigration,
@@ -215,7 +215,7 @@ function decidePlan(md: string, sidecarJson: string): DocumentMigrationDecision 
 
 function liftedPlan(): PlanDocument {
   const read = readPlanDocumentFile(PLAN_SIDECAR, JSON.parse(PLAN_0_20_0_JSON));
-  if (Either.isLeft(read)) throw new Error(read.left.message);
+  if (Result.isFailure(read)) throw new Error(read.left.message);
   return read.right;
 }
 
@@ -250,7 +250,7 @@ describe("decideDocumentMigration — specs", () => {
     expect(sidecar["$schema"]).toBe(currentSchemaUrl("spec-document"));
     expect(m.sidecarText.endsWith("}\n")).toBe(true);
     const read = readSpecDocumentFile(SPEC_SIDECAR, sidecar);
-    if (Either.isLeft(read)) throw new Error(read.left.message);
+    if (Result.isFailure(read)) throw new Error(read.left.message);
     expect(read.right.openQuestions.map((q) => q.id)).toEqual(["Q2"]);
     const [q1] = read.right.arbitratedQuestions;
     expect(q1?.id).toBe("Q1");
@@ -296,7 +296,7 @@ describe("decideDocumentMigration — specs", () => {
     const sidecar = JSON.parse(m.sidecarText) as Record<string, unknown>;
     expect(sidecar["$schema"]).toBe(currentSchemaUrl("spec-document"));
     const read = readSpecDocumentFile(SPEC_SIDECAR, sidecar);
-    if (Either.isLeft(read)) throw new Error(read.left.message);
+    if (Result.isFailure(read)) throw new Error(read.left.message);
     expect(read.right.surface.map((element) => element.summary)).toEqual([
       SURFACE_SUMMARY_PLACEHOLDER,
       SURFACE_SUMMARY_PLACEHOLDER,

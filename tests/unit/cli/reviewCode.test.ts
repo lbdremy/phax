@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import type { OutputPort } from "../../../src/ports/output.js";
 import { phaxCall } from "../../helpers/runnerCall.js";
 import type { RunReviewInfo } from "../../../src/domain/runReviewInfo.js";
@@ -161,10 +161,10 @@ const accepted = (
 
 async function setup(info: RunReviewInfo, crossProject = false, namespace = "louloupapers") {
   const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
-  loadConfig.mockReturnValue(Either.right(makeConfig()));
+  loadConfig.mockReturnValue(Result.succeed(makeConfig()));
   const { resolveRunRef } = vi.mocked(await import("../../../src/app/resolveRunRef.js"));
   resolveRunRef.mockReturnValue(
-    Either.right({ namespace, shortName: SHORT_NAME, info, crossProject }),
+    Result.succeed({ namespace, shortName: SHORT_NAME, info, crossProject }),
   );
   const { loadModelRouting, loadProviderConfig } = vi.mocked(
     await import("../../../src/app/loadRouting.js"),

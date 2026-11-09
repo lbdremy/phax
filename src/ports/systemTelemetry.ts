@@ -29,10 +29,9 @@ export interface SystemTelemetryOps {
   ): Effect.Effect<void, never, never>;
 }
 
-export class SystemTelemetry extends Context.Tag("phax/SystemTelemetry")<
-  SystemTelemetry,
-  SystemTelemetryOps
->() {}
+export class SystemTelemetry extends Context.Service<SystemTelemetry, SystemTelemetryOps>()(
+  "phax/SystemTelemetry",
+) {}
 
 export const NoopSystemTelemetryLayer: Layer.Layer<SystemTelemetry> = Layer.succeed(
   SystemTelemetry,

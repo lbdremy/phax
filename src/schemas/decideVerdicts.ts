@@ -41,7 +41,7 @@ export type DecideVerdictsFile = Schema.Schema.Type<typeof DecideVerdictsFileSch
 /** A verdicts document as phax holds it: without `$schema`. */
 export type DecideVerdicts = Omit<DecideVerdictsFile, "$schema">;
 
-export const decodeDecideVerdictsFile = Schema.decodeUnknownEither(DecideVerdictsFileSchema, {
+export const decodeDecideVerdictsFile = Schema.decodeUnknownResult(DecideVerdictsFileSchema, {
   onExcessProperty: "error",
 });
 

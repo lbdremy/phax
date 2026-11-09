@@ -1,4 +1,4 @@
-import { Array as Arr, Effect, Either } from "effect";
+import { Array as Arr, Effect, Result } from "effect";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import type { ClaudeSessionId, PhaseId, RunId, WorktreePath } from "../domain/branded.js";
@@ -190,7 +190,7 @@ export function runGatesWithFixLoop(
       const recordRaw = yield* fs.readText(recordPath);
       const recordParsed = yield* Effect.try(() => JSON.parse(recordRaw) as unknown);
       const record = readGateAttributionFile(recordPath, recordParsed);
-      if (Either.isLeft(record)) return none;
+      if (Result.isFailure(record)) return none;
       const index = record.right.steps.findIndex((step) =>
         sameCommand(step.command, failingCommand),
       );
@@ -200,7 +200,7 @@ export function runGatesWithFixLoop(
       const raw = yield* fs.readText(path);
       const parsed = yield* Effect.try(() => JSON.parse(raw) as unknown);
       const read = readGateReport(parsed);
-      if (Either.isLeft(read) || read.right.outcome !== "checked") return none;
+      if (Result.isFailure(read) || read.right.outcome !== "checked") return none;
       return new Set(read.right.findings.map((finding) => finding.id));
     }).pipe(Effect.orElseSucceed(() => none));
   }
@@ -259,7 +259,7 @@ export function runGatesWithFixLoop(
       yield* telemetry.recordEvent(
         makeStepStartedTelemetryEvent({ runId, operationId: phaseId, step: `gate.run` }),
       );
-      const gateResult = yield* Effect.either(
+      const gateResult = yield* Effect.result(
         runGates({
           steps,
           cwd,
@@ -275,13 +275,13 @@ export function runGatesWithFixLoop(
       // pass, a failure or a refusal alike. A fault of the run itself (a shell
       // or file error) is judged by nothing and goes up unchecked.
       const judged =
-        Either.isRight(gateResult) ||
+        Result.isSuccess(gateResult) ||
         gateResult.left instanceof GateFailedError ||
         gateResult.left instanceof GateStepRefusedError;
       const changes = judged ? yield* checkAttempt(attempt) : [];
 
       let failure: AttemptFailure;
-      if (Either.isRight(gateResult)) {
+      if (Result.isSuccess(gateResult)) {
         if (!Arr.isNonEmptyReadonlyArray(changes)) {
           yield* telemetry.recordEvent(
             makeStepCompletedTelemetryEvent({

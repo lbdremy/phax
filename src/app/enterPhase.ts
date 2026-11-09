@@ -11,7 +11,7 @@
 // Every continue command carries the phase's posture, rebuilt from its
 // `security.json` (q-enter-phase-posture, carry-posture); a phase whose
 // `security.json` cannot be read is refused rather than opened unconfined.
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { join } from "node:path";
 import { decodeShortName, type RunId } from "../domain/branded.js";
 import type { LockConflictError } from "../domain/errors.js";
@@ -175,10 +175,10 @@ function readPhaseFacts(
   phase: PhaseStatus,
 ): Effect.Effect<PhaseFacts | { readonly refusal: string }, never, FileSystem> {
   return Effect.gen(function* () {
-    const model = yield* Effect.either(readModelResolution(phaseFolder));
-    if (Either.isLeft(model)) return { refusal: unreadable(phase, model.left.message) };
-    const posture = yield* Effect.either(readPhasePosture(phaseFolder));
-    if (Either.isLeft(posture)) return { refusal: unreadable(phase, posture.left.message) };
+    const model = yield* Effect.result(readModelResolution(phaseFolder));
+    if (Result.isFailure(model)) return { refusal: unreadable(phase, model.left.message) };
+    const posture = yield* Effect.result(readPhasePosture(phaseFolder));
+    if (Result.isFailure(posture)) return { refusal: unreadable(phase, posture.left.message) };
     return {
       model: model.right,
       effort: model.right.effort ?? phase.effort,
@@ -279,7 +279,7 @@ function planHeadless(
   return Effect.gen(function* () {
     const phaseFolder = join(input.info.runPath, input.phaseId);
     const bindingResult = yield* Effect.promise(() => readAgentBinding(phaseFolder));
-    if (Either.isLeft(bindingResult)) {
+    if (Result.isFailure(bindingResult)) {
       return refused(
         `No agent binding found for phase "${input.phaseId}" of run "${qualifiedName(input)}": ${bindingResult.left}`,
       );
@@ -290,8 +290,8 @@ function planHeadless(
         `No session ID captured for this ${binding.provider} phase "${input.phaseId}"; cannot resume interactively.`,
       );
     }
-    const posture = yield* Effect.either(readPhasePosture(phaseFolder));
-    if (Either.isLeft(posture)) return refused(unreadable(phase, posture.left.message));
+    const posture = yield* Effect.result(readPhasePosture(phaseFolder));
+    if (Result.isFailure(posture)) return refused(unreadable(phase, posture.left.message));
     const commands = sessionCommands(
       {
         phaseId: input.phaseId,
@@ -375,11 +375,11 @@ function runNewSessionTurn(
   return Effect.gen(function* () {
     // The run as it stands now: a close may have started since the command read it.
     const shortName = decodeShortName(input.shortName);
-    if (Either.isLeft(shortName)) {
+    if (Result.isFailure(shortName)) {
       return { refusal: refused(`"${input.shortName}" is not a valid run short name.`) };
     }
     const again = resolveRun(input.namespace, shortName.right, input.stateRoot);
-    if (Either.isLeft(again)) return { refusal: refused(again.left) };
+    if (Result.isFailure(again)) return { refusal: refused(again.left) };
     const fresh = again.right;
     const phase = fresh.phaseStatuses.find((p) => p.phaseId === input.phaseId);
     if (phase === undefined) {

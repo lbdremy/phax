@@ -3,7 +3,7 @@
  * resolution against a plan. Pure: no I/O, and the grammar knows nothing of
  * plans.
  */
-import { Either } from "effect";
+import { Result } from "effect";
 import type { PhaxPlanPhase } from "../schemas/phaxPlan.js";
 import type { RunHold } from "../schemas/status.js";
 
@@ -28,22 +28,22 @@ function refusal(value: string): string {
  * Reads commander's value for `--hold [selection]`: `true` for a bare flag,
  * else the string given.
  */
-export function parseHoldValue(value: true | string): Either.Either<HoldRequest, string> {
-  if (value === true) return Either.right({ kind: "all" });
+export function parseHoldValue(value: true | string): Result.Result<HoldRequest, string> {
+  if (value === true) return Result.succeed({ kind: "all" });
   const items = value.split(",");
   if (items.includes("oracle")) {
-    return Either.left("--hold 'oracle' is no longer read: write --hold acceptance");
+    return Result.fail("--hold 'oracle' is no longer read: write --hold acceptance");
   }
-  if (value === "acceptance") return Either.right({ kind: "acceptance" });
+  if (value === "acceptance") return Result.succeed({ kind: "acceptance" });
   if (items.includes("acceptance")) {
-    return Either.left(`--hold '${value}' is not a hold selection: acceptance stands alone`);
+    return Result.fail(`--hold '${value}' is not a hold selection: acceptance stands alone`);
   }
   const [first, ...rest] = items;
   if (first === undefined || !PHASE_ID.test(first) || !rest.every((i) => PHASE_ID.test(i))) {
-    return Either.left(refusal(value));
+    return Result.fail(refusal(value));
   }
-  if (new Set(items).size !== items.length) return Either.left(refusal(value));
-  return Either.right({ kind: "listed", phases: [first, ...rest] });
+  if (new Set(items).size !== items.length) return Result.fail(refusal(value));
+  return Result.succeed({ kind: "listed", phases: [first, ...rest] });
 }
 
 export interface HoldFinding {

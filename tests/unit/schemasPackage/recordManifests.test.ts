@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { CURRENT_SHAPES, PACKAGE_VERSION } from "../../../packages/schemas/src/generated/index.js";
 import {
@@ -67,7 +67,7 @@ describe("the authoring record manifest", () => {
     expect(Object.keys(writtenAuthoring)[0]).toBe("$schema");
     expect(writtenAuthoring).not.toHaveProperty("version");
     const phax = decodeAuthoringRecordManifestFile(writtenAuthoring);
-    if (Either.isLeft(phax)) throw new Error("document rejected by phax");
+    if (Result.isFailure(phax)) throw new Error("document rejected by phax");
     expect(parseAuthoringRecordManifest(writtenAuthoring)).toEqual({
       ok: true,
       shape: AUTHORING_CURRENT,
@@ -120,7 +120,7 @@ describe("the decision record manifest", () => {
   it("parses a manifest phax writes as its current shape, with phax's value", () => {
     expect(Object.keys(writtenDecision)[0]).toBe("$schema");
     const phax = decodeDecisionRecordManifestFile(writtenDecision);
-    if (Either.isLeft(phax)) throw new Error("document rejected by phax");
+    if (Result.isFailure(phax)) throw new Error("document rejected by phax");
     expect(parseDecisionRecordManifest(writtenDecision)).toEqual({
       ok: true,
       shape: DECISION_CURRENT,
@@ -183,7 +183,7 @@ describe("the review record manifest", () => {
     expect(Object.keys(writtenReview)[0]).toBe("$schema");
     expect(writtenReview["$schema"]).toBe(schemaUrl("review-record-manifest", "0.29.0"));
     const phax = decodeReviewRecordManifestFile(writtenReview);
-    if (Either.isLeft(phax)) throw new Error("document rejected by phax");
+    if (Result.isFailure(phax)) throw new Error("document rejected by phax");
     expect(parseReviewRecordManifest(writtenReview)).toEqual({
       ok: true,
       shape: REVIEW_CURRENT,

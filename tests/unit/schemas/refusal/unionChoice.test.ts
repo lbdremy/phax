@@ -2,7 +2,7 @@
 // member refused on one of its own keys (a literal the value misses, a key it does not
 // declare) gives way to a member whose type there accepts the value; when no member accepts
 // it, every member's refusal stays.
-import { Either, ParseResult, Schema } from "effect";
+import { Result, ParseResult, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import { refusalsOf } from "../../../../src/schemas/refusal/adapter.js";
 import { refusalMessage, refusalPath } from "../../../../src/schemas/refusal/render.js";
@@ -21,8 +21,8 @@ const Committed = Schema.Struct({
 const Record = Schema.Union(Failed, Committed);
 
 function lines(input: unknown): ReadonlyArray<string> {
-  const decoded = Schema.decodeUnknownEither(Record, { onExcessProperty: "error" })(input);
-  if (Either.isRight(decoded)) throw new Error(`expected a refusal of ${JSON.stringify(input)}`);
+  const decoded = Schema.decodeUnknownResult(Record, { onExcessProperty: "error" })(input);
+  if (Result.isSuccess(decoded)) throw new Error(`expected a refusal of ${JSON.stringify(input)}`);
   return refusalsOf(decoded.left as ParseResult.ParseError).map(
     (r) => `${refusalPath(r.path, "dotted")}: ${refusalMessage(r)}`,
   );

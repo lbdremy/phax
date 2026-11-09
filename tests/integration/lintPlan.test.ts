@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { Effect, Either, Exit, Layer } from "effect";
+import { Effect, Result, Exit, Layer } from "effect";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { lintPlan, type LintReport } from "../../src/app/lintPlan.js";
@@ -348,7 +348,7 @@ function planWithQuestions(): PlanDocument {
       ],
     }),
   );
-  if (Either.isLeft(decoded)) throw new Error(decoded.left.message);
+  if (Result.isFailure(decoded)) throw new Error(decoded.left.message);
   const { $schema: _schema, ...doc } = decoded.right;
   return doc;
 }
@@ -838,11 +838,11 @@ describe("lintPlan", () => {
   describe("repo-tracked plan checks", () => {
     it("fails with ArtifactValidationError, naming the grammar, on an off-grammar name", async () => {
       const result = await Effect.runPromise(
-        Effect.either(lintEffect(planMd(), {}, { planRel: "docs/plans/Thing_Plan.md" })),
+        Effect.result(lintEffect(planMd(), {}, { planRel: "docs/plans/Thing_Plan.md" })),
       );
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
         expect(result.left).toBeInstanceOf(ArtifactValidationError);
         expect((result.left as ArtifactValidationError).message).toBe(
           "docs/plans/Thing_Plan.md: name does not match <YYMMDDHHMM>-<slug>-plan.md",
@@ -852,11 +852,11 @@ describe("lintPlan", () => {
 
     it("fails with ArtifactValidationError on a well-named plan with no frontmatter", async () => {
       const result = await Effect.runPromise(
-        Effect.either(lintEffect(planMd({ frontmatter: "" }))),
+        Effect.result(lintEffect(planMd({ frontmatter: "" }))),
       );
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
         expect(result.left).toBeInstanceOf(ArtifactValidationError);
       }
     });
@@ -920,15 +920,15 @@ describe("lintPlan", () => {
       "fails with ArtifactValidationError naming completes-spec for %s",
       async (_label, frontmatter, detail) => {
         const result = await Effect.runPromise(
-          Effect.either(
+          Effect.result(
             lintEffect(planMd({ frontmatter, edit: "- src/a.ts" }), {
               "/repo/src/a.ts": "export {}",
             }),
           ),
         );
 
-        expect(Either.isLeft(result)).toBe(true);
-        if (Either.isLeft(result)) {
+        expect(Result.isFailure(result)).toBe(true);
+        if (Result.isFailure(result)) {
           expect(result.left).toBeInstanceOf(ArtifactValidationError);
           expect((result.left as ArtifactValidationError).message).toContain(detail);
         }

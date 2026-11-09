@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import {
   ConfigValidationError,
   GateAttemptsExhaustedError,
@@ -210,7 +210,7 @@ describe("runRun — AP2(a): config missing name fails before run folder creatio
   it("returns exit code 2 and never calls createRunFolder", async () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
     loadConfig.mockReturnValue(
-      Either.left(
+      Result.fail(
         new ConfigValidationError({
           message: "PHAX project name is missing in phax.json.",
           path: "name",
@@ -230,7 +230,7 @@ describe("runRun — AP2(a): config missing name fails before run folder creatio
   it("reports the validation path 'name' in the error output", async () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
     loadConfig.mockReturnValue(
-      Either.left(
+      Result.fail(
         new ConfigValidationError({
           message: "PHAX project name is missing in phax.json.",
           path: "name",
@@ -253,12 +253,12 @@ describe("runRun — AP2(c): output includes qualified run name", () => {
 
   it("logs the qualified name (namespace.shortName) before executing the plan", async () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
-    loadConfig.mockReturnValue(Either.right(makeConfig("acme")));
+    loadConfig.mockReturnValue(Result.succeed(makeConfig("acme")));
 
     const { loadTelemetryConfig } = vi.mocked(
       await import("../../../src/app/loadTelemetryConfig.js"),
     );
-    loadTelemetryConfig.mockReturnValue(Either.right({ enabled: false }));
+    loadTelemetryConfig.mockReturnValue(Result.succeed({ enabled: false }));
 
     const { loadOrExtractPlan } = vi.mocked(await import("../../../src/app/loadOrExtractPlan.js"));
     loadOrExtractPlan.mockReturnValue(
@@ -295,12 +295,12 @@ describe("runRun — AP2(c): output includes qualified run name", () => {
       // Use a stateRoot that has a fake registry with "fixbug" taken in "acme"
       stateRoot: "/fake-taken",
     };
-    loadConfig.mockReturnValue(Either.right(config));
+    loadConfig.mockReturnValue(Result.succeed(config));
 
     const { loadTelemetryConfig } = vi.mocked(
       await import("../../../src/app/loadTelemetryConfig.js"),
     );
-    loadTelemetryConfig.mockReturnValue(Either.right({ enabled: false }));
+    loadTelemetryConfig.mockReturnValue(Result.succeed({ enabled: false }));
 
     const { loadOrExtractPlan } = vi.mocked(await import("../../../src/app/loadOrExtractPlan.js"));
     loadOrExtractPlan.mockReturnValue(
@@ -351,11 +351,11 @@ describe("runRun — skill edit consent is refused before the run is created", (
 
   async function mockRunDependencies(plan: PhaxPlan) {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
-    loadConfig.mockReturnValue(Either.right(makeConfig("acme")));
+    loadConfig.mockReturnValue(Result.succeed(makeConfig("acme")));
     const { loadTelemetryConfig } = vi.mocked(
       await import("../../../src/app/loadTelemetryConfig.js"),
     );
-    loadTelemetryConfig.mockReturnValue(Either.right({ enabled: false }));
+    loadTelemetryConfig.mockReturnValue(Result.succeed({ enabled: false }));
     const { loadOrExtractPlan } = vi.mocked(await import("../../../src/app/loadOrExtractPlan.js"));
     loadOrExtractPlan.mockReturnValue(
       Effect.succeed({ plan, warnings: [], detectedAnchors: [], fromCache: false }),
@@ -497,12 +497,12 @@ describe("runRun — --plan resolves against process.cwd()", () => {
 
   it("resolves a relative --plan path against process.cwd() before extraction", async () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
-    loadConfig.mockReturnValue(Either.right(makeConfig("acme")));
+    loadConfig.mockReturnValue(Result.succeed(makeConfig("acme")));
 
     const { loadTelemetryConfig } = vi.mocked(
       await import("../../../src/app/loadTelemetryConfig.js"),
     );
-    loadTelemetryConfig.mockReturnValue(Either.right({ enabled: false }));
+    loadTelemetryConfig.mockReturnValue(Result.succeed({ enabled: false }));
 
     const { loadOrExtractPlan } = vi.mocked(await import("../../../src/app/loadOrExtractPlan.js"));
     loadOrExtractPlan.mockReturnValue(
@@ -534,12 +534,12 @@ describe("runRun — --plan resolves against process.cwd()", () => {
 
 async function setupSuccessRun(executePlanResult: Partial<ExecutePlanResult> = {}) {
   const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
-  loadConfig.mockReturnValue(Either.right(makeConfig("acme")));
+  loadConfig.mockReturnValue(Result.succeed(makeConfig("acme")));
 
   const { loadTelemetryConfig } = vi.mocked(
     await import("../../../src/app/loadTelemetryConfig.js"),
   );
-  loadTelemetryConfig.mockReturnValue(Either.right({ enabled: false }));
+  loadTelemetryConfig.mockReturnValue(Result.succeed({ enabled: false }));
 
   const { loadOrExtractPlan } = vi.mocked(await import("../../../src/app/loadOrExtractPlan.js"));
   loadOrExtractPlan.mockReturnValue(
@@ -860,12 +860,12 @@ describe("runRun — artifact-completion recap output (spec 27 §6)", () => {
 
 async function setupConfigOnly() {
   const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
-  loadConfig.mockReturnValue(Either.right(makeConfig("acme")));
+  loadConfig.mockReturnValue(Result.succeed(makeConfig("acme")));
 
   const { loadTelemetryConfig } = vi.mocked(
     await import("../../../src/app/loadTelemetryConfig.js"),
   );
-  loadTelemetryConfig.mockReturnValue(Either.right({ enabled: false }));
+  loadTelemetryConfig.mockReturnValue(Result.succeed({ enabled: false }));
 }
 
 async function mockPlanMd(content: string) {
@@ -1003,12 +1003,12 @@ describe("runRun — staleness gate", () => {
 
   async function setupStalenessRun() {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
-    loadConfig.mockReturnValue(Either.right({ ...makeConfig("acme"), repoRoot: process.cwd() }));
+    loadConfig.mockReturnValue(Result.succeed({ ...makeConfig("acme"), repoRoot: process.cwd() }));
 
     const { loadTelemetryConfig } = vi.mocked(
       await import("../../../src/app/loadTelemetryConfig.js"),
     );
-    loadTelemetryConfig.mockReturnValue(Either.right({ enabled: false }));
+    loadTelemetryConfig.mockReturnValue(Result.succeed({ enabled: false }));
 
     const { loadOrExtractPlan } = vi.mocked(await import("../../../src/app/loadOrExtractPlan.js"));
     loadOrExtractPlan.mockReturnValue(

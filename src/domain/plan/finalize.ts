@@ -1,4 +1,4 @@
-import { Array as Arr, Either } from "effect";
+import { Array as Arr, Result } from "effect";
 import { slugifyShortName } from "../branded.js";
 import { PlanValidationError } from "../errors.js";
 import type { ExtractedPhaxPlan, PhaxPlan } from "../../schemas/phaxPlan.js";
@@ -43,14 +43,14 @@ function detectPhaseAnchors(planMd: string): string[] {
 export function finalizeExtractedPlan(
   extracted: ExtractedPhaxPlan,
   planMd: string,
-): Either.Either<FinalizeResult, PlanValidationError> {
+): Result.Result<FinalizeResult, PlanValidationError> {
   const phaseTitles = parsePhaseTitles(planMd);
   const missingTitle = extracted.phases.filter((p) => {
     const t = phaseTitles.get(p.id);
     return t === undefined || t.length === 0;
   });
   if (missingTitle.length > 0) {
-    return Either.left(
+    return Result.fail(
       new PlanValidationError({
         message: `Could not derive a title from plan.md for: ${missingTitle.map((p) => p.id).join(", ")}. Each phase needs a "## <phase-id> — <title> {#anchor}" heading.`,
       }),
@@ -93,5 +93,5 @@ export function finalizeExtractedPlan(
     }
   }
 
-  return Either.right({ plan, warnings, detectedAnchors });
+  return Result.succeed({ plan, warnings, detectedAnchors });
 }

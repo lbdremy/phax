@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 import { analyzePlanOverlap } from "../../src/app/analyzePlanOverlap.js";
 import { EXTRACTOR_VERSION, planCacheKey } from "../../src/domain/planCache/key.js";
@@ -189,13 +189,13 @@ describe("analyzePlanOverlap", () => {
 
     const result = await Effect.runPromise(
       analyzePlanOverlap([planA.path, "/repo/plans/missing.md"], BASE_OPTS).pipe(
-        Effect.either,
+        Effect.result,
         Effect.provide(layer),
       ),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left.message).toContain("/repo/plans/missing.md");
     }
   });
@@ -217,10 +217,10 @@ describe("analyzePlanOverlap", () => {
       analyzePlanOverlap(["/repo/plans/a.md", "/repo/plans/b.md"], {
         ...BASE_OPTS,
         noExtract: true,
-      }).pipe(Effect.either, Effect.provide(layer)),
+      }).pipe(Effect.result, Effect.provide(layer)),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
     expect(fakeBackend.impl.completeCalls).toHaveLength(0);
     expect(fakeBackend.impl.runCalls).toHaveLength(0);
   });
@@ -236,22 +236,22 @@ describe("analyzePlanOverlap", () => {
     const { layer } = setup([planA]);
 
     const singleResult = await Effect.runPromise(
-      analyzePlanOverlap([planA.path], BASE_OPTS).pipe(Effect.either, Effect.provide(layer)),
+      analyzePlanOverlap([planA.path], BASE_OPTS).pipe(Effect.result, Effect.provide(layer)),
     );
-    expect(Either.isLeft(singleResult)).toBe(true);
-    if (Either.isLeft(singleResult)) {
+    expect(Result.isFailure(singleResult)).toBe(true);
+    if (Result.isFailure(singleResult)) {
       expect(singleResult.left.message).toContain("two or more");
     }
 
     // Same path twice → still treated as one unique path
     const dupeResult = await Effect.runPromise(
       analyzePlanOverlap([planA.path, planA.path], BASE_OPTS).pipe(
-        Effect.either,
+        Effect.result,
         Effect.provide(layer),
       ),
     );
-    expect(Either.isLeft(dupeResult)).toBe(true);
-    if (Either.isLeft(dupeResult)) {
+    expect(Result.isFailure(dupeResult)).toBe(true);
+    if (Result.isFailure(dupeResult)) {
       expect(dupeResult.left.message).toContain("two or more");
     }
   });

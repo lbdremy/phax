@@ -9,7 +9,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { executePlan } from "../../src/app/executePlan.js";
 import { createRunFolder } from "../../src/app/runFolder.js";
@@ -309,8 +309,8 @@ interface Harness {
 async function startRun(
   outage: Outage | null,
   backendLayer?: Layer.Layer<Backend>,
-): Promise<{ harness: Harness; result: Either.Either<unknown, unknown> }> {
-  const shortName = Either.getOrThrow(decodeShortName(SHORT));
+): Promise<{ harness: Harness; result: Result.Result<unknown, unknown> }> {
+  const shortName = Result.getOrThrow(decodeShortName(SHORT));
   const { plan, planMd } = planOf();
   const config = configOf();
   const turns: Turn[] = [];
@@ -335,7 +335,7 @@ async function startRun(
 
 function execute(harness: Harness, startIndex: number) {
   return Effect.runPromise(
-    Effect.either(
+    Effect.result(
       executePlan({
         phaxVersion: "0.0.0-test",
         output: processOutput,
@@ -370,7 +370,7 @@ function execute(harness: Harness, startIndex: number) {
 /** `phax resume`: the start phase as the resume command decides it. */
 async function resume(harness: Harness) {
   const decision = await inspectResumeOnDisk(NAMESPACE, harness.shortName, world.stateRoot);
-  if (Either.isLeft(decision)) throw new Error(decision.left.message);
+  if (Result.isFailure(decision)) throw new Error(decision.left.message);
   return execute(harness, decision.right.nextPhaseIndex);
 }
 
@@ -388,8 +388,8 @@ const handledEvents = (h: Harness): string[] =>
     .filter((e) => e.type === "state.transition")
     .map((e) => ("event" in e ? e.event : ""));
 
-function leftOf(result: Either.Either<unknown, unknown>): unknown {
-  if (Either.isRight(result)) throw new Error("the run did not fail");
+function leftOf(result: Result.Result<unknown, unknown>): unknown {
+  if (Result.isSuccess(result)) throw new Error("the run did not fail");
   return result.left;
 }
 
@@ -464,7 +464,7 @@ describe("a run whose phase session loses the network", { timeout: 60_000 }, () 
 
     const resumed = await resume(harness);
 
-    expect(Either.isRight(resumed)).toBe(true);
+    expect(Result.isSuccess(resumed)).toBe(true);
     expect(runStatus(harness)["state"]).toBe("review_open");
     expect(phaseStatus(harness, "phase-02")["state"]).toBe("review_open");
     // phase-01 ran once; phase-02 ran its work turn again on the resume.
@@ -514,7 +514,7 @@ describe("a phase whose handoff turn fails", { timeout: 60_000 }, () => {
 
     const resumed = await resume(harness);
 
-    expect(Either.isLeft(resumed) ? String(resumed.left) : null).toBeNull();
+    expect(Result.isFailure(resumed) ? String(resumed.left) : null).toBeNull();
     expect(runStatus(harness)["state"]).toBe("review_open");
     // phase-01's work turn ran once, in the first process; its handoff ran twice.
     expect(harness.turns.filter((t) => t.kind === "run" && t.phase === "phase-01")).toHaveLength(1);
@@ -721,7 +721,7 @@ describe("a phase or handoff turn whose Claude Code result is empty", { timeout:
 
     const { harness, result } = await startRun(null, makeNodeBackendLayer(DEFAULT_PROVIDER_CONFIG));
 
-    expect(Either.isLeft(result) ? String(result.left) : null).toBeNull();
+    expect(Result.isFailure(result) ? String(result.left) : null).toBeNull();
     expect(handledEvents(harness)).toContain("GatePassed");
     expect(phaseStatus(harness, "phase-01")["state"]).toBe("cleaned_up");
     expect(runStatus(harness)["state"]).toBe("review_open");
@@ -737,7 +737,7 @@ describe("a phase or handoff turn whose Claude Code result is empty", { timeout:
 
     const { harness, result } = await startRun(null, makeNodeBackendLayer(DEFAULT_PROVIDER_CONFIG));
 
-    expect(Either.isLeft(result) ? String(result.left) : null).toBeNull();
+    expect(Result.isFailure(result) ? String(result.left) : null).toBeNull();
     expect(handledEvents(harness)).not.toContain("HandoffTurnFailed");
     expect(runStatus(harness)["stoppedReason"]).toBeUndefined();
     expect(runStatus(harness)["state"]).toBe("review_open");

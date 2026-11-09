@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { rmSync } from "node:fs";
 import { join } from "node:path";
-import { Either } from "effect";
+import { Result } from "effect";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   LOG_FORMAT,
@@ -480,7 +480,7 @@ describe("collectReleaseNotes", { timeout: 30_000 }, () => {
     it("a plan sidecar that does not decode", () => {
       const sidecar = path.replace(/\.md$/, ".json");
       const read = readDocumentSidecar("plan", sidecar, {});
-      if (!Either.isLeft(read)) throw new Error("an empty object must not decode");
+      if (!Result.isFailure(read)) throw new Error("an empty object must not decode");
       refuses(
         withPlan((repo) => {
           writePlan(repo, plan);
@@ -504,7 +504,7 @@ describe("collectReleaseNotes", { timeout: 30_000 }, () => {
     it("a spec sidecar that does not decode", () => {
       const sidecar = TABLE_SPEC.path.replace(/\.md$/, ".json");
       const read = readDocumentSidecar("spec", sidecar, {});
-      if (!Either.isLeft(read)) throw new Error("an empty object must not decode");
+      if (!Result.isFailure(read)) throw new Error("an empty object must not decode");
       refuses(
         withPlan((repo) => {
           writePlan(repo, { ...plan, spec: { path: TABLE_SPEC.path, completes: true } });

@@ -8,7 +8,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Either } from "effect";
+import { Result } from "effect";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { composePhaxState } from "../../src/app/phaxState.js";
 import { syncSaveInterruptedRun } from "../../src/cli/interruptHandler.js";
@@ -90,7 +90,7 @@ function seed(run: RunStatus, phase: PhaseStatus, parked: boolean): void {
 
 function savedRunStatus(): RunStatus {
   const path = join(runPath, "run-status.json");
-  return Either.getOrThrow(readRunStatusFile(path, readJson(path)));
+  return Result.getOrThrow(readRunStatusFile(path, readJson(path)));
 }
 
 beforeEach(() => {
@@ -135,7 +135,7 @@ describe("an interrupt while a close runs", () => {
     syncSaveInterruptedRun(ctx());
 
     expect(existsSync(parkedPath())).toBe(false);
-    const restored = Either.getOrThrow(readReviewStopFile(stopPath(), readJson(stopPath())));
+    const restored = Result.getOrThrow(readReviewStopFile(stopPath(), readJson(stopPath())));
     expect(restored.lastClose).toMatchObject({ result: "interrupted", exitCode: 130 });
     expect(restored.closeBase).toBe(CLOSE_BASE);
     const { lastClose: _lastClose, ...rest } = restored;
@@ -148,7 +148,7 @@ describe("an interrupt while a close runs", () => {
 
     syncSaveInterruptedRun(ctx());
 
-    const restored = Either.getOrThrow(readReviewStopFile(stopPath(), readJson(stopPath())));
+    const restored = Result.getOrThrow(readReviewStopFile(stopPath(), readJson(stopPath())));
     expect(restored.lastClose).toMatchObject({ result: "interrupted", exitCode: 130 });
   });
 });

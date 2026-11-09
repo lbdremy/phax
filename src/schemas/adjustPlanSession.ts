@@ -14,7 +14,7 @@ export const AdjustPlanSessionSchema = Schema.Struct({
 
 export type AdjustPlanSession = Schema.Schema.Type<typeof AdjustPlanSessionSchema>;
 
-export const decodeAdjustPlanSession = Schema.decodeUnknownEither(AdjustPlanSessionSchema, {
+export const decodeAdjustPlanSession = Schema.decodeUnknownResult(AdjustPlanSessionSchema, {
   onExcessProperty: "error",
 });
 

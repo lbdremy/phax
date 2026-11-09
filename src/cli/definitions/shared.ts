@@ -3,7 +3,7 @@
 // errors of a command that runs an agent session.
 import { execSync } from "node:child_process";
 import { isAbsolute, relative, resolve, sep } from "node:path";
-import { Data, Effect, Either } from "effect";
+import { Data, Effect, Result } from "effect";
 import * as Schema from "effect/Schema";
 import { loadConfig } from "../../app/loadConfig.js";
 import { ArtifactCommitFailedError, type ConfigValidationError } from "../../domain/errors.js";
@@ -33,7 +33,7 @@ export function exposeMessage<E extends { readonly _tag: string; readonly messag
 export function configured(): Effect.Effect<ResolvedConfig, ConfigValidationError> {
   return Effect.suspend(() => {
     const config = loadConfig(process.cwd());
-    return Either.isLeft(config) ? Effect.fail(config.left) : Effect.succeed(config.right);
+    return Result.isFailure(config) ? Effect.fail(config.left) : Effect.succeed(config.right);
   });
 }
 

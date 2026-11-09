@@ -66,7 +66,7 @@ export type AcceptanceRequest = AcceptanceRequestFile extends infer V
     : never
   : never;
 
-export const decodeAcceptanceRequestFile = Schema.decodeUnknownEither(AcceptanceRequestFileSchema, {
+export const decodeAcceptanceRequestFile = Schema.decodeUnknownResult(AcceptanceRequestFileSchema, {
   onExcessProperty: "error",
 });
 

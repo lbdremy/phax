@@ -12,7 +12,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { closeStop, type CloseReport } from "../../src/app/closeStop.js";
 import { computeRecordUsage } from "../../src/app/recordPlumbing.js";
@@ -257,13 +257,13 @@ function layersOf(backend: BackendOps, variant: Variant, telemetry = makeInMemor
   };
 }
 
-const success = (result: Either.Either<CloseReport, unknown>): CloseReport => {
-  if (Either.isLeft(result)) throw new Error(`close refused: ${String(result.left)}`);
+const success = (result: Result.Result<CloseReport, unknown>): CloseReport => {
+  if (Result.isFailure(result)) throw new Error(`close refused: ${String(result.left)}`);
   return result.right;
 };
 
-const refusalOf = (result: Either.Either<CloseReport, unknown>): StopCloseRefusedError => {
-  if (Either.isRight(result)) throw new Error("the close was not refused");
+const refusalOf = (result: Result.Result<CloseReport, unknown>): StopCloseRefusedError => {
+  if (Result.isSuccess(result)) throw new Error("the close was not refused");
   expect(result.left).toBeInstanceOf(StopCloseRefusedError);
   return result.left as StopCloseRefusedError;
 };
@@ -304,7 +304,7 @@ describe("transcripts at a declared stop's close", () => {
     mkdirSync(home, { recursive: true });
     vi.stubEnv("HOME", home);
     const { loadConfig } = await import("../../src/app/loadConfig.js");
-    vi.mocked(loadConfig).mockReturnValue(Either.right(resolvedConfig(world)));
+    vi.mocked(loadConfig).mockReturnValue(Result.succeed(resolvedConfig(world)));
     run = await stopRun(world, { provider: "codex-cli", model: "gpt-6" });
 
     // The first turn's session X1 was never continued; the person then entered
@@ -396,7 +396,7 @@ describe("transcripts at a declared stop's close", () => {
     const result = await Effect.runPromise(
       Effect.gen(function* () {
         if (variant.resume !== false) yield* resumeRequested();
-        return yield* Effect.either(closeStop(closeInput()));
+        return yield* Effect.result(closeStop(closeInput()));
       }).pipe(Effect.provide(layer)),
     );
     return { result, telemetry };
@@ -749,7 +749,7 @@ describe("transcripts at a held stop's close", () => {
     const result = await Effect.runPromise(
       Effect.gen(function* () {
         yield* resumeRequested();
-        return yield* Effect.either(closeStop(closeInput()));
+        return yield* Effect.result(closeStop(closeInput()));
       }).pipe(Effect.provide(layer)),
     );
     return { result, telemetry };
@@ -859,7 +859,7 @@ describe("a Vibe session and its declared stop's close, with VIBE_HOME unreadabl
     chmodSync(vibeHome, 0o000);
     vi.stubEnv("VIBE_HOME", vibeHome);
     const { loadConfig } = await import("../../src/app/loadConfig.js");
-    vi.mocked(loadConfig).mockReturnValue(Either.right(resolvedConfig(world)));
+    vi.mocked(loadConfig).mockReturnValue(Result.succeed(resolvedConfig(world)));
     run = await stopRun(world, {
       provider: "mistral-vibe",
       model: "phax-mistral-medium-3.5-high",
@@ -952,7 +952,7 @@ describe("a Vibe session and its declared stop's close, with VIBE_HOME unreadabl
             phaseId: "phase-03",
           },
         );
-        return yield* Effect.either(closeStop(closeInput()));
+        return yield* Effect.result(closeStop(closeInput()));
       }).pipe(Effect.provide(layer)),
     );
   }

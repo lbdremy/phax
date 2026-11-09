@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { Either } from "effect";
+import { Result } from "effect";
 import {
   locatePlanSections,
   phaseHeadingIds,
@@ -48,7 +48,7 @@ const PHASES: readonly LocatablePhase[] = [
 
 function located(planMd: string, phases: readonly LocatablePhase[] = PHASES) {
   const result = locatePlanSections(planMd, phases);
-  if (Either.isLeft(result)) throw new Error(`unlocatable: ${result.left.join(", ")}`);
+  if (Result.isFailure(result)) throw new Error(`unlocatable: ${result.left.join(", ")}`);
   return result.right;
 }
 
@@ -91,12 +91,12 @@ describe("locatePlanSections", () => {
       PHASE_02,
       "```md\n## phase-02 — Render the widget {#phase-02-render}\n```",
     );
-    expect(locatePlanSections(plan, PHASES)).toEqual(Either.left(["phase-02"]));
+    expect(locatePlanSections(plan, PHASES)).toEqual(Result.fail(["phase-02"]));
   });
 
   it("lists a missing phase in the Left", () => {
     const plan = PLAN.replace(PHASE_02, "");
-    expect(locatePlanSections(plan, PHASES)).toEqual(Either.left(["phase-02"]));
+    expect(locatePlanSections(plan, PHASES)).toEqual(Result.fail(["phase-02"]));
   });
 
   it("lists every missing phase in plan order", () => {
@@ -107,7 +107,7 @@ describe("locatePlanSections", () => {
       { id: "phase-04", planMarkdownAnchor: "#nowhere-four" },
     ];
     const plan = PLAN.replace(PHASE_02, "## phase-03 — Ship {#phase-03-ship}\n\nShip it.");
-    expect(locatePlanSections(plan, phases)).toEqual(Either.left(["phase-02", "phase-04"]));
+    expect(locatePlanSections(plan, phases)).toEqual(Result.fail(["phase-02", "phase-04"]));
   });
 
   it("keeps a non-phase ## between two phases in the section before it", () => {
@@ -132,7 +132,7 @@ describe("locatePlanSections", () => {
       { id: "phase-02", planMarkdownAnchor: "#phase-01-parse" },
     ];
     const plan = PLAN.replace("## phase-02 — Render the widget {#phase-02-render}", "## Other");
-    expect(locatePlanSections(plan, phases)).toEqual(Either.left(["phase-02"]));
+    expect(locatePlanSections(plan, phases)).toEqual(Result.fail(["phase-02"]));
   });
 
   it("reads a plan with no frontmatter", () => {

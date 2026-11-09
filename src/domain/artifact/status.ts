@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { InvalidArtifactTransitionError } from "../errors.js";
 
 export type ArtifactKind = "spec" | "plan";
@@ -53,12 +53,12 @@ export function requestTransition<K extends ArtifactKind>(
   kind: K,
   from: StatusFor<K>,
   to: StatusFor<K>,
-): Either.Either<StatusFor<K>, InvalidArtifactTransitionError> {
+): Result.Result<StatusFor<K>, InvalidArtifactTransitionError> {
   const legalTargets = legalTargetsFrom(kind, from);
   if ((legalTargets as readonly string[]).includes(to as string)) {
-    return Either.right(to);
+    return Result.succeed(to);
   }
-  return Either.left(
+  return Result.fail(
     new InvalidArtifactTransitionError({
       kind,
       from: from as string,

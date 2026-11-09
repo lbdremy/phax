@@ -4,7 +4,7 @@
 // verdict, the summary, one verdict per phase, the two ledgers, the attention
 // points and the pointers. The 0.17.0 shape (no ledgers) and the pre-schema one
 // stay readable through src/schemas/history/compliance-review/.
-import { Either, Schema, type Types } from "effect";
+import { Result, Schema, type Types } from "effect";
 import { answerSchemaUrlField } from "./answerStamp.js";
 import { formatAnswerViolations } from "./formatError.js";
 import { CURRENT_STAMPS } from "./release.js";
@@ -97,11 +97,11 @@ export const ComplianceReviewFileSchema = Schema.Struct({
 
 export type ComplianceReviewFile = Schema.Schema.Type<typeof ComplianceReviewFileSchema>;
 
-export const decodeComplianceReviewFile = Schema.decodeUnknownEither(ComplianceReviewFileSchema, {
+export const decodeComplianceReviewFile = Schema.decodeUnknownResult(ComplianceReviewFileSchema, {
   onExcessProperty: "error",
 });
 
-const decodeComplianceReviewAnswerAll = Schema.decodeUnknownEither(ComplianceReviewFileSchema, {
+const decodeComplianceReviewAnswerAll = Schema.decodeUnknownResult(ComplianceReviewFileSchema, {
   errors: "all",
   onExcessProperty: "error",
 });
@@ -116,11 +116,11 @@ export const encodeComplianceReviewFile = Schema.encodeSync(ComplianceReviewFile
  */
 export function readComplianceReviewAnswer(
   parsed: unknown,
-): Either.Either<ComplianceReview, string> {
+): Result.Result<ComplianceReview, string> {
   const decoded = decodeComplianceReviewAnswerAll(parsed);
-  if (Either.isLeft(decoded)) return Either.left(formatAnswerViolations(decoded.left));
+  if (Result.isFailure(decoded)) return Result.fail(formatAnswerViolations(decoded.left));
   const { $schema: _schema, ...review } = decoded.right;
-  return Either.right(review);
+  return Result.succeed(review);
 }
 
 /** The text of `compliance-review.json`: `$schema` first, then the review, indented by 2. */

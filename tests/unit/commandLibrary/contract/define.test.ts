@@ -148,9 +148,7 @@ describe("the gains' declarations", () => {
   });
 
   it("a program keeps its usage flag and its options as given", () => {
-    const options = reject(
-      Schema.Struct({ verbose: Schema.optionalWith(Schema.Boolean, { exact: true }) }),
-    );
+    const options = reject(Schema.Struct({ verbose: Schema.optionalKey(Schema.Boolean) }));
     const program = defineProgram({
       name: "tool",
       version: "1.0.0",

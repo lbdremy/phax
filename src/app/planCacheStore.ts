@@ -1,4 +1,4 @@
-import { Effect, Either, Option } from "effect";
+import { Effect, Result, Option } from "effect";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { EXTRACTOR_VERSION, planCacheKey } from "../domain/planCache/key.js";
@@ -34,7 +34,7 @@ export function readCacheEntry(
     }
 
     const decoded = decodeExtractedPlanCacheEntry(parsed);
-    if (Either.isLeft(decoded)) return Option.none();
+    if (Result.isFailure(decoded)) return Option.none();
 
     return Option.some(decoded.right.extracted);
   });

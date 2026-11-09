@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -29,7 +29,7 @@ const HANDOFF_CONTENT = [
   "Ready to proceed.",
 ].join("\n");
 
-const shortName = Either.getOrThrow(decodeShortName("my-run"));
+const shortName = Result.getOrThrow(decodeShortName("my-run"));
 
 const rawPlan = {
   version: 1,
@@ -64,7 +64,7 @@ describe("State Machine Contract", () => {
   });
 
   it("snapshots the ordered semantic trace for a happy-path one-phase run", async () => {
-    const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
 
     const config: ResolvedConfig = {
       raw: {
@@ -155,7 +155,7 @@ describe("State Machine Contract", () => {
     );
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -173,7 +173,7 @@ describe("State Machine Contract", () => {
       ),
     );
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
 
     // Snapshot the semantic trace projection — the stable, transport-agnostic contract.
     const snapshot = fakeTelemetry.impl.getSemanticTraceSnapshot();
@@ -181,7 +181,7 @@ describe("State Machine Contract", () => {
   });
 
   it("snapshots the rate-limit pause semantic events", async () => {
-    const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
 
     const config: ResolvedConfig = {
       raw: {
@@ -267,7 +267,7 @@ describe("State Machine Contract", () => {
     );
 
     const runResult = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -286,7 +286,7 @@ describe("State Machine Contract", () => {
     );
 
     // Run should fail with rate limit.
-    expect(Either.isLeft(runResult)).toBe(true);
+    expect(Result.isFailure(runResult)).toBe(true);
 
     // The rate-limit path should produce an adapter.call.failed event and a
     // step.completed (resume.notify) event through the EmitTrace → semantic mapping.
@@ -300,7 +300,7 @@ describe("State Machine Contract", () => {
   });
 
   it("pauses the run as gates_exhausted when fix attempts are exhausted", async () => {
-    const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
 
     const config: ResolvedConfig = {
       raw: {
@@ -399,7 +399,7 @@ describe("State Machine Contract", () => {
     );
 
     const runResult = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,

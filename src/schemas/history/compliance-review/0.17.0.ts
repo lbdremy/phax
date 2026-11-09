@@ -57,7 +57,7 @@ export const ComplianceReviewV0_17_0Schema = Schema.Struct({
 
 export type ComplianceReviewV0_17_0 = Schema.Schema.Type<typeof ComplianceReviewV0_17_0Schema>;
 
-export const decodeComplianceReviewV0_17_0 = Schema.decodeUnknownEither(
+export const decodeComplianceReviewV0_17_0 = Schema.decodeUnknownResult(
   ComplianceReviewV0_17_0Schema,
   { onExcessProperty: "error" },
 );

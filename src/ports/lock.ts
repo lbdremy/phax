@@ -12,7 +12,7 @@ export const LockFileSchema = Schema.Struct({
 
 export type LockFile = Schema.Schema.Type<typeof LockFileSchema>;
 
-export const decodeLockFile = Schema.decodeUnknownEither(LockFileSchema);
+export const decodeLockFile = Schema.decodeUnknownResult(LockFileSchema);
 
 export type LockStatus =
   | { readonly kind: "none" }
@@ -26,4 +26,4 @@ export interface LockOps {
   status(key: string): Effect.Effect<LockStatus, FsError>;
 }
 
-export class Lock extends Context.Tag("phax/Lock")<Lock, LockOps>() {}
+export class Lock extends Context.Service<Lock, LockOps>()("phax/Lock") {}

@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { readDocumentSidecar } from "../../src/schemas/persisted.js";
 import { compareReleases, parseSchemaUrl } from "../../src/schemas/schemaUrl.js";
@@ -38,7 +38,7 @@ describe("archived spec sidecars", () => {
 
   it.each(ARCHIVED.map((a) => [a.file, a] as const))("%s reads", (_file, archived) => {
     const read = readDocumentSidecar("spec", archived.file, archived.json);
-    if (Either.isLeft(read)) throw new Error(read.left.message);
+    if (Result.isFailure(read)) throw new Error(read.left.message);
     const sidecar = read.right;
     if (compareReleases(archived.release, "0.25.0") < 0) return;
     // Stamped 0.25.0 or later: read as the frozen 0.25.0 shape, or as the
@@ -56,7 +56,7 @@ describe("archived spec sidecars", () => {
   it("reads at least one sidecar stamped 0.25.0 as shape 0.25.0", () => {
     const shapes = ARCHIVED.map((a) => {
       const read = readDocumentSidecar("spec", a.file, a.json);
-      return Either.isRight(read) ? read.right.shape : "unreadable";
+      return Result.isSuccess(read) ? read.right.shape : "unreadable";
     });
     expect(shapes).toContain("0.25.0");
   });

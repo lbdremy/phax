@@ -70,19 +70,17 @@ const PlanPath = Schema.String.annotations({
 });
 
 const PlansOverlapFlags = Schema.Struct({
-  noExtract: Schema.optionalWith(
+  noExtract: Schema.optionalKey(
     Schema.Boolean.annotations({
       description: "Fail on a cache miss instead of extracting the plan.md",
     }),
-    { exact: true },
   ),
-  landed: Schema.optionalWith(
+  landed: Schema.optionalKey(
     Schema.String.annotations({
       identifier: "run",
       description:
         "Report which of the given plans need re-adjustment after this run's actual changes",
     }),
-    { exact: true },
   ),
 });
 

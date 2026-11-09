@@ -17,7 +17,7 @@ export const AuthoringSessionSchema = Schema.Struct({
 
 export type AuthoringSession = Schema.Schema.Type<typeof AuthoringSessionSchema>;
 
-export const decodeAuthoringSession = Schema.decodeUnknownEither(AuthoringSessionSchema, {
+export const decodeAuthoringSession = Schema.decodeUnknownResult(AuthoringSessionSchema, {
   onExcessProperty: "error",
 });
 

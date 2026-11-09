@@ -37,5 +37,5 @@ export const PhaseAgentBindingSchema = Schema.Struct({
 
 export type PhaseAgentBinding = Schema.Schema.Type<typeof PhaseAgentBindingSchema>;
 
-export const decodePhaseAgentBinding = Schema.decodeUnknownEither(PhaseAgentBindingSchema);
+export const decodePhaseAgentBinding = Schema.decodeUnknownResult(PhaseAgentBindingSchema);
 export const encodePhaseAgentBinding = Schema.encodeSync(PhaseAgentBindingSchema);

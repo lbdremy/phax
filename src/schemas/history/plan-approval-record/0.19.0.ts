@@ -32,7 +32,7 @@ export const PlanApprovalRecordV0_19_0Schema = Schema.Struct({
 
 export type PlanApprovalRecordV0_19_0 = Schema.Schema.Type<typeof PlanApprovalRecordV0_19_0Schema>;
 
-export const decodePlanApprovalRecordV0_19_0 = Schema.decodeUnknownEither(
+export const decodePlanApprovalRecordV0_19_0 = Schema.decodeUnknownResult(
   PlanApprovalRecordV0_19_0Schema,
   { onExcessProperty: "error" },
 );

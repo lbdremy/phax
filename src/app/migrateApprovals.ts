@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import {
   ApprovalMigrationRefusedError,
   ApprovalRecordUnreadableError,
@@ -67,7 +67,7 @@ interface LedgerKind {
   readonly decode: (
     file: string,
     input: unknown,
-  ) => Either.Either<ReadonlyArray<readonly [string, string]>, PersistedReadError>;
+  ) => Result.Result<ReadonlyArray<readonly [string, string]>, PersistedReadError>;
   readonly readExisting: ReadExisting;
 }
 
@@ -76,7 +76,7 @@ const LEDGER_KINDS: readonly LedgerKind[] = [
     kind: "plan",
     ledgerPath: OLD_PLAN_LEDGER_PATH,
     decode: (file, input) =>
-      Either.map(readPlanApprovalsFile(file, input), (ledger) =>
+      Result.map(readPlanApprovalsFile(file, input), (ledger) =>
         Object.entries(ledger.records).map(
           ([artifact, record]) =>
             [
@@ -94,7 +94,7 @@ const LEDGER_KINDS: readonly LedgerKind[] = [
     kind: "spec",
     ledgerPath: OLD_SPEC_LEDGER_PATH,
     decode: (file, input) =>
-      Either.map(readSpecApprovalsFile(file, input), (ledger) =>
+      Result.map(readSpecApprovalsFile(file, input), (ledger) =>
         Object.entries(ledger.records).map(
           ([artifact, record]) =>
             [
@@ -152,7 +152,7 @@ function planLedger(
       );
     }
     const decoded = spec.decode(ledgerPath, parsed);
-    if (Either.isLeft(decoded)) {
+    if (Result.isFailure(decoded)) {
       return yield* Effect.fail(unreadableLedger(ledgerPath, decoded.left.message));
     }
 
@@ -251,8 +251,8 @@ export function migrateApprovals(
 
     const subject = MIGRATION_COMMIT_SUBJECT;
     const body = migrationCommitBody(ledgers);
-    const committed = yield* Effect.either(git.commitPaths(opts.repoRoot, paths, subject, body));
-    if (Either.isLeft(committed)) {
+    const committed = yield* Effect.result(git.commitPaths(opts.repoRoot, paths, subject, body));
+    if (Result.isFailure(committed)) {
       return yield* Effect.fail(
         new ArtifactCommitFailedError({
           paths,

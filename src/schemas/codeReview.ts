@@ -5,7 +5,7 @@
 // phax persists the findings as they came. Born with `$schema`. The closed
 // severity, lens and escape ids are the ones the bundled `phax-review` skill
 // lists; a test keeps the two equal.
-import { Either, Schema } from "effect";
+import { Result, Schema } from "effect";
 import { answerSchemaUrlField } from "./answerStamp.js";
 import { formatAnswerViolations } from "./formatError.js";
 import { CURRENT_STAMPS } from "./release.js";
@@ -107,11 +107,11 @@ export const CodeReviewFileSchema = Schema.Struct({
 
 export type CodeReviewFile = Schema.Schema.Type<typeof CodeReviewFileSchema>;
 
-export const decodeCodeReviewFile = Schema.decodeUnknownEither(CodeReviewFileSchema, {
+export const decodeCodeReviewFile = Schema.decodeUnknownResult(CodeReviewFileSchema, {
   onExcessProperty: "error",
 });
 
-const decodeCodeReviewAnswerAll = Schema.decodeUnknownEither(CodeReviewFileSchema, {
+const decodeCodeReviewAnswerAll = Schema.decodeUnknownResult(CodeReviewFileSchema, {
   errors: "all",
   onExcessProperty: "error",
 });
@@ -124,10 +124,10 @@ export const encodeCodeReviewFile = Schema.encodeSync(CodeReviewFileSchema);
  * `$schema` first, joined by `; `; else the first violation); otherwise the
  * findings, without `$schema`. Reading the final text as JSON is the caller's.
  */
-export function readCodeReviewAnswer(parsed: unknown): Either.Either<CodeReview, string> {
+export function readCodeReviewAnswer(parsed: unknown): Result.Result<CodeReview, string> {
   const decoded = decodeCodeReviewAnswerAll(parsed);
-  if (Either.isLeft(decoded)) return Either.left(formatAnswerViolations(decoded.left));
-  return Either.right({ findings: decoded.right.findings });
+  if (Result.isFailure(decoded)) return Result.fail(formatAnswerViolations(decoded.left));
+  return Result.succeed({ findings: decoded.right.findings });
 }
 
 /** The text of `code-review.json`: `$schema` first, then the findings, indented by 2. */

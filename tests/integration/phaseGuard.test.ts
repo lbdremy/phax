@@ -183,7 +183,7 @@ describe("phase guard — phaxProgram's guard on the runner", () => {
         summary: "Plans",
         commands: [
           leaf("status", {
-            apply: Schema.optionalWith(Schema.Boolean, { exact: true }),
+            apply: Schema.optionalKey(Schema.Boolean),
           }),
         ],
       }),

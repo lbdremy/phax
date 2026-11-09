@@ -13,7 +13,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterAll, describe, expect, it } from "vitest";
 import {
   ACCEPTANCE_PROVIDER_TIMEOUT_MS,
@@ -138,7 +138,7 @@ describe("runGates", () => {
     });
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         runGates({
           steps: steps("pnpm test"),
           cwd,
@@ -148,8 +148,8 @@ describe("runGates", () => {
       ),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left).toBeInstanceOf(GateFailedError);
       const err = result.left as GateFailedError;
       expect(err.exitCode).toBe(1);
@@ -362,7 +362,7 @@ describe("runGates", () => {
       // The same gate-attribution document as the per-phase file.
       expect(raw).toBe(fakeFs.impl.getFile(attributionPath));
       const decoded = readGateAttributionFile(stepRecordPath, JSON.parse(raw!) as unknown);
-      if (Either.isLeft(decoded)) throw new Error("the step record does not decode");
+      if (Result.isFailure(decoded)) throw new Error("the step record does not decode");
       expect(decoded.right.phase).toBe(phaseId);
       return decoded.right.steps.map((step) => [step.command, step.result]);
     }
@@ -431,7 +431,7 @@ describe("runGates", () => {
       const fakeShell = makeFakeShell();
       fakeShell.impl.setResponse("node ./audit.mjs", { exitCode, stdout, stderr: "" });
       const result = await Effect.runPromise(
-        Effect.either(
+        Effect.result(
           runGates({
             steps: [reportStep("node ./audit.mjs")],
             cwd,
@@ -445,7 +445,7 @@ describe("runGates", () => {
       const attribution = JSON.parse(fakeFs.impl.getFile(attributionPath)!) as GateAttribution;
       return {
         result,
-        error: Either.isLeft(result) ? (result.left as GateFailedError) : undefined,
+        error: Result.isFailure(result) ? (result.left as GateFailedError) : undefined,
         log: fakeFs.impl.getFile(logPath)!,
         saved: savedReports(fakeFs),
         results: attribution.steps.map((step) => step.result),
@@ -551,8 +551,8 @@ describe("runGates", () => {
               });
             },
           });
-          const result = await Effect.runPromise(Effect.either(effect));
-          if (Either.isRight(result)) throw new Error("the gate passed");
+          const result = await Effect.runPromise(Effect.result(effect));
+          if (Result.isSuccess(result)) throw new Error("the gate passed");
           const err = result.left as GateFailedError;
           return {
             message: err.message,
@@ -622,7 +622,7 @@ describe("runGates", () => {
             });
           },
         });
-        await Effect.runPromise(Effect.either(effect));
+        await Effect.runPromise(Effect.result(effect));
         const record = JSON.parse(fakeFs.impl.getFile(attributionPath)!) as GateAttribution;
         results.push(...record.steps.map((step) => step.result));
       }
@@ -672,9 +672,9 @@ describe("runGates", () => {
         },
       });
 
-      const result = await Effect.runPromise(Effect.either(effect));
+      const result = await Effect.runPromise(Effect.result(effect));
 
-      expect(Either.isLeft(result)).toBe(true);
+      expect(Result.isFailure(result)).toBe(true);
       expect(fakeShell.impl.calls.map((call) => call.command.join(" "))).toEqual([
         "pnpm lint",
         "node ./audit.mjs",
@@ -712,7 +712,7 @@ interface Workspace {
 
 function runReal(ws: Workspace, gateSteps: readonly GateStep[], request: string = gateRequest) {
   return Effect.runPromise(
-    Effect.either(
+    Effect.result(
       runGates({
         steps: gateSteps,
         cwd: ws.dir,
@@ -810,7 +810,7 @@ describe("runGates with a declaring step (Node shell)", () => {
 
     const result = await runReal(ws, [declaring("node ./echo.mjs copy.json")]);
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     const saved = readFileSync(ws.requestPath);
     expect(readFileSync(join(ws.dir, "copy.json")).equals(saved)).toBe(true);
     expect(saved.toString("utf8")).toBe(gateRequest);
@@ -835,7 +835,7 @@ describe("runGates with a declaring step (Node shell)", () => {
 
     const result = await runReal(ws, [plainStep("node ./count.mjs")]);
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     const lines = readLogLines(ws);
     expect(lineAfter(lines, "$ node ./count.mjs")).toBe("bytes=0");
     expect(lines.some((line) => line.startsWith("stdin:"))).toBe(false);
@@ -850,7 +850,7 @@ describe("runGates with a declaring step (Node shell)", () => {
       declaring("node ./echo.mjs"),
     ]);
 
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
     expect(existsSync(ws.requestPath)).toBe(false);
     expect(readLogLines(ws).some((line) => line.startsWith("stdin:"))).toBe(false);
   });
@@ -882,8 +882,8 @@ describe("runGates with a declaring step (Node shell)", () => {
 
     const result = await runReal(ws, [declaring("node ./report.mjs", { output: "gate-report" })]);
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect((result.left as GateFailedError).reportFindings).toEqual({
         step: 1,
         findings: [finding],
@@ -915,7 +915,7 @@ describe("runGates with a declaring step (Node shell)", () => {
 
     const result = await runReal(ws, [declaring("node ./exit.mjs 0")], large);
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     expect(readFileSync(ws.requestPath, "utf8")).toBe(large);
   });
 
@@ -1019,7 +1019,7 @@ describe("runGates over a step's split writes (Node shell)", () => {
 
     const result = await runReal(ws, [plainStep("node ./print.mjs")]);
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     const log = readFileSync(ws.logPath, "utf8");
     expect(log.split("✓")).toHaveLength(3);
     expect(log).not.toContain("�");
@@ -1046,15 +1046,15 @@ function reportStep(command: string): GateStep {
 }
 
 /** The gate's failure; fails the test when the gate passed. */
-function failure(result: Either.Either<unknown, unknown>): GateFailedError {
-  if (Either.isRight(result)) throw new Error("expected the gate to fail");
+function failure(result: Result.Result<unknown, unknown>): GateFailedError {
+  if (Result.isSuccess(result)) throw new Error("expected the gate to fail");
   expect(result.left).toBeInstanceOf(GateFailedError);
   return result.left as GateFailedError;
 }
 
 /** The gate's refusal; fails the test when the gate did not refuse. */
-function refusedWith(result: Either.Either<unknown, unknown>): GateStepRefusedError {
-  if (Either.isRight(result)) throw new Error("expected the gate to refuse");
+function refusedWith(result: Result.Result<unknown, unknown>): GateStepRefusedError {
+  if (Result.isSuccess(result)) throw new Error("expected the gate to refuse");
   expect(result.left).toBeInstanceOf(GateStepRefusedError);
   return result.left as GateStepRefusedError;
 }
@@ -1113,7 +1113,7 @@ describe("runGates with a report step", () => {
       fakeShell.impl.setResponse(command, { ...response, stderr: "" });
     }
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         runGates({
           steps: gateSteps,
           cwd,
@@ -1151,7 +1151,7 @@ describe("runGates with a report step", () => {
       "node ./audit.mjs": { exitCode: 0, stdout },
     });
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     expect(fakeFs.impl.getFile(reportPath)).toBe(stdout);
     expect(attribution.steps).toEqual([
       { command: "node ./audit.mjs", surface: "structural", result: "pass" },
@@ -1472,7 +1472,7 @@ describe("runGates with a report step", () => {
       { "node ./audit.mjs": { exitCode: 0, stdout: checked([]) } },
     );
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     expect(fakeShell.impl.calls[0]?.stdin).toBe(gateRequest);
     expect(fakeFs.impl.getFile(logPath)).toContain("stdin: checks-attempt-01.request.json");
   });
@@ -1572,7 +1572,7 @@ describe("runGates with an acceptance step (Node shell)", () => {
     request = oracleRequest,
   ) {
     return Effect.runPromise(
-      Effect.either(
+      Effect.result(
         runGates({
           steps: gateSteps,
           cwd: ws.dir,
@@ -1604,7 +1604,7 @@ describe("runGates with an acceptance step (Node shell)", () => {
       "pass",
     );
 
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
     expect(seen(ws)).toBeUndefined();
     expect(existsSync(ws.oracleRequestPath)).toBe(false);
     expect(readAttribution(ws).steps).toEqual([
@@ -1616,7 +1616,7 @@ describe("runGates with an acceptance step (Node shell)", () => {
   describe("a skipped oracle step", () => {
     function runSkipped(ws: Workspace, gateSteps: readonly GateStep[]) {
       return Effect.runPromise(
-        Effect.either(
+        Effect.result(
           runGates({
             steps: gateSteps,
             cwd: ws.dir,
@@ -1635,7 +1635,7 @@ describe("runGates with an acceptance step (Node shell)", () => {
 
       const result = await runSkipped(ws, configured);
 
-      expect(Either.isRight(result)).toBe(true);
+      expect(Result.isSuccess(result)).toBe(true);
       expect(seen(ws)).toBeUndefined();
       expect(existsSync(ws.oracleRequestPath)).toBe(false);
       const skipped = {
@@ -1665,7 +1665,7 @@ describe("runGates with an acceptance step (Node shell)", () => {
         stepWithSurface("node ./check.mjs 1", "structural"),
       ]);
 
-      expect(Either.isLeft(result)).toBe(true);
+      expect(Result.isFailure(result)).toBe(true);
       expect(readAttribution(ws).steps).toEqual([
         { command: "node ./check.mjs 0", surface: "local", result: "pass" },
         { command: "node ./check.mjs 1", surface: "structural", result: "fail" },
@@ -1679,7 +1679,7 @@ describe("runGates with an acceptance step (Node shell)", () => {
 
     const result = await runOracle(ws, threeSteps, "pass");
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     expect(readAttribution(ws).steps).toEqual([
       { command: "node ./check.mjs 0", surface: "local", result: "pass" },
       { command: "node ./check.mjs 0", surface: "structural", result: "pass" },
@@ -1766,8 +1766,8 @@ describe("runGates with an acceptance step (Node shell)", () => {
 
     const result = await runOracle(ws, configured, "finding");
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left).toBeInstanceOf(GateFailedError);
       if (result.left instanceof GateFailedError) {
         expect(result.left.command).toBe("node ./oracles.mjs finding");
@@ -1786,8 +1786,8 @@ describe("runGates with an acceptance step (Node shell)", () => {
 
     const result = await runOracle(ws, configured, "refused");
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
       expect(result.left).toBeInstanceOf(GateStepRefusedError);
       if (result.left instanceof GateStepRefusedError) {
         expect(result.left.reason).toBe("the oracle files are not test files");
@@ -1826,8 +1826,8 @@ describe("runGates with an acceptance step (Node shell)", () => {
 
       const result = await runOracle(ws, configured, mode, timeoutMs, command);
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
         expect(result.left).toBeInstanceOf(GateFailedError);
         if (result.left instanceof GateFailedError) expect(result.left.reportFindings).toBeNull();
       }
@@ -1883,7 +1883,7 @@ describe("runGates with an oracle step (fake ports)", () => {
     );
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         runGates({
           steps: steps("pnpm test"),
           cwd,
@@ -1898,7 +1898,7 @@ describe("runGates with an oracle step (fake ports)", () => {
       ),
     );
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     expect(touched.filter((path) => path.includes("refunds.test.ts"))).toEqual([]);
     expect(fakeShell.impl.calls.at(-1)).toMatchObject({
       command: ["./oracles", "--check"],

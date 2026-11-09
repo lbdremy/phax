@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { decodeVibeOutcomeText, type VibeOutcomeExport } from "../../schemas/vibeExport.js";
 import { findVibeResultEvent, findVibeStreamHead } from "../../schemas/vibeOutput.js";
 import type { EndedSession, SessionFailure, SessionOutcome, VibeExportRead } from "./outcome.js";
@@ -106,7 +106,7 @@ export function readVibeOutcome(ended: EndedSession, exported: VibeExportRead): 
   }
 
   const decoded = decodeVibeOutcomeText(exported.text);
-  if (Either.isLeft(decoded)) {
+  if (Result.isFailure(decoded)) {
     return unreadExportOutcome(
       ended,
       `invalid Vibe export at ${exported.path} (${decoded.left.reason}): ${decoded.left.detail}`,

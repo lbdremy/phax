@@ -11,7 +11,7 @@
 // its entry in the architectural guard's direct-I/O allowlist says so.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { Effect, Either, type Layer } from "effect";
+import { Effect, Result, type Layer } from "effect";
 import * as Schema from "effect/Schema";
 import { executePlan } from "../../app/executePlan.js";
 import { loadConfig } from "../../app/loadConfig.js";
@@ -88,23 +88,21 @@ const SKIP_ORACLE_RETIRED = "--skip-oracle is no longer read: write --skip-accep
 
 const ResumeFlags = reject(
   Schema.Struct({
-    yes: Schema.optionalWith(Schema.Boolean, { exact: true }).annotations({
+    yes: Schema.optionalKey(Schema.Boolean).annotations({
       description: "Proceed without confirmation",
       [AliasAnnotationId]: "y",
     }),
-    providerPriority: Schema.optionalWith(
+    providerPriority: Schema.optionalKey(
       Schema.String.annotations({
         identifier: "list",
         description: "Comma-separated provider priority override (e.g. mistral-vibe,claude-code)",
       }),
-      { exact: true },
     ),
-    skipAcceptance: Schema.optionalWith(
+    skipAcceptance: Schema.optionalKey(
       Schema.Boolean.annotations({
         description:
           "Skip the acceptance step of the phase this resume restarts at; its configured gate still runs",
       }),
-      { exact: true },
     ),
   }),
 );
@@ -131,24 +129,24 @@ function runResumeCommand(
   return Effect.gen(function* () {
     const out = outputPortOf(call);
     const configResult = loadConfig(process.cwd());
-    if (Either.isLeft(configResult)) return yield* refuse(1, configErrorText(configResult.left));
+    if (Result.isFailure(configResult)) return yield* refuse(1, configErrorText(configResult.left));
     const config = configResult.right;
     const { stateRoot } = config;
 
     const telemetryConfigResult = loadTelemetryConfig();
-    if (Either.isLeft(telemetryConfigResult)) {
+    if (Result.isFailure(telemetryConfigResult)) {
       return yield* refuse(1, configErrorText(telemetryConfigResult.left));
     }
     const telemetryEnabled = telemetryConfigResult.right.enabled;
 
     const resolvedResult = resolveRunRef(call.runRefArg, config, stateRoot);
-    if (Either.isLeft(resolvedResult)) return yield* refuse(1, resolvedResult.left.message);
+    if (Result.isFailure(resolvedResult)) return yield* refuse(1, resolvedResult.left.message);
     const { namespace, info, crossProject } = resolvedResult.right;
     const shortNameStr = resolvedResult.right.shortName;
     const qualifiedName = runKey(namespace, shortNameStr);
     // Safe: resolveRunRef already validated the shortName via decodeShortName.
     const shortNameResult = decodeShortName(shortNameStr);
-    if (Either.isLeft(shortNameResult)) {
+    if (Result.isFailure(shortNameResult)) {
       return yield* refuse(1, `Internal error: resolved shortName "${shortNameStr}" is invalid.`);
     }
     const shortName = shortNameResult.right;
@@ -174,17 +172,17 @@ function runResumeCommand(
       );
     }
     const runStatusResult = readRunStatusFile(runStatusPath, runStatusRaw);
-    if (Either.isLeft(runStatusResult)) return yield* refuse(2, runStatusResult.left.message);
+    if (Result.isFailure(runStatusResult)) return yield* refuse(2, runStatusResult.left.message);
     const runStatus = runStatusResult.right;
 
-    const inspectionResult = yield* Effect.either(inspectResumeOfRun(info, runStatus.hold)).pipe(
+    const inspectionResult = yield* Effect.result(inspectResumeOfRun(info, runStatus.hold)).pipe(
       Effect.provide(makeRepoRootedFileSystemLayer(config)),
     );
-    if (Either.isLeft(inspectionResult)) {
+    if (Result.isFailure(inspectionResult)) {
       return yield* refuse(2, `Cannot read the run's phases: ${inspectionResult.left.message}`);
     }
     const { decision: decisionResult, completedPhaseCount } = inspectionResult.right;
-    if (Either.isLeft(decisionResult)) {
+    if (Result.isFailure(decisionResult)) {
       const refusal = decisionResult.left;
       if (refusal.reason === "review_open") {
         let prUrl: string | null = null;
@@ -193,7 +191,7 @@ function runResumeCommand(
             readFileSync(join(info.runPath, "publication.json"), "utf8"),
           ) as unknown;
           const pubResult = decodePublication(pubRaw);
-          if (Either.isRight(pubResult) && pubResult.right.pullRequestUrl !== undefined) {
+          if (Result.isSuccess(pubResult) && pubResult.right.pullRequestUrl !== undefined) {
             prUrl = pubResult.right.pullRequestUrl;
           }
         } catch {
@@ -223,7 +221,7 @@ function runResumeCommand(
     const planPath = join(runPath, "phax-plan.json");
     const planMdPath = join(runPath, "plan.md");
     const planResult = loadPlan(planPath, { run: qualifiedName });
-    if (Either.isLeft(planResult))
+    if (Result.isFailure(planResult))
       return yield* refuse(2, `Plan error: ${planResult.left.message}`);
     const plan = planResult.right;
 
@@ -282,17 +280,17 @@ function runResumeCommand(
     }
 
     const runIdResult = decodeRunId(runStatus.runId);
-    if (Either.isLeft(runIdResult)) return yield* refuse(2, `Invalid runId in run-status.json`);
+    if (Result.isFailure(runIdResult)) return yield* refuse(2, `Invalid runId in run-status.json`);
     const runId = runIdResult.right;
 
     const profiles = config.raw.gateProfiles;
     const gateProfileId = runStatus.gateProfileId ?? Object.keys(profiles)[0] ?? null;
     if (gateProfileId === null) return yield* refuse(2, "No gate profiles configured in phax.json");
 
-    const routingResult = yield* Effect.either(
+    const routingResult = yield* Effect.result(
       Effect.all({ routing: loadModelRouting(), providerConfig: loadProviderConfig() }),
     ).pipe(Effect.provide(makeRepoRootedFileSystemLayer(config)));
-    const { routing: loadedRouting, providerConfig } = Either.isRight(routingResult)
+    const { routing: loadedRouting, providerConfig } = Result.isSuccess(routingResult)
       ? routingResult.right
       : { routing: undefined, providerConfig: DEFAULT_PROVIDER_CONFIG };
 
@@ -349,11 +347,11 @@ function runResumeCommand(
     );
 
     setRunInterruptContext(shortName, namespace, stateRoot, (text) => out.warn(text));
-    const result = yield* Effect.either(
+    const result = yield* Effect.result(
       provideRunLayers(program, config, telemetryLayer, providerConfig, deps),
     ).pipe(Effect.ensuring(Effect.sync(clearRunInterruptContext)));
 
-    if (Either.isLeft(result)) {
+    if (Result.isFailure(result)) {
       const { cause: err, followUps } = splitFollowUps(result.left);
       if (err instanceof AwaitingReviewStopError) {
         const answer: RunAnswer = { qualifiedName, crossProject, outcome: stoppedOutcome(err) };

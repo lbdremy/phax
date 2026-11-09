@@ -74,7 +74,7 @@ export type AuthoringRecordManifestPreSchema = Schema.Schema.Type<
   typeof AuthoringRecordManifestPreSchemaSchema
 >;
 
-export const decodeAuthoringRecordManifestPreSchema = Schema.decodeUnknownEither(
+export const decodeAuthoringRecordManifestPreSchema = Schema.decodeUnknownResult(
   AuthoringRecordManifestPreSchemaSchema,
   { onExcessProperty: "error" },
 );

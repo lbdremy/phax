@@ -1,4 +1,4 @@
-import { Either, type ParseResult } from "effect";
+import { Result, type ParseResult } from "effect";
 import { describe, expect, it } from "vitest";
 import { CURRENT_SHAPES, PACKAGE_VERSION } from "../../../packages/schemas/src/generated/index.js";
 import {
@@ -31,7 +31,7 @@ import {
   type Doc,
 } from "./documents.js";
 
-type Decode = (input: unknown) => Either.Either<unknown, ParseResult.ParseError>;
+type Decode = (input: unknown) => Result.Result<unknown, ParseResult.ParseError>;
 type Parse = (input: unknown) => {
   readonly ok: boolean;
   readonly shape?: string;
@@ -80,7 +80,7 @@ describe.each(FORMATS)("$id", (format) => {
     expect(Object.keys(written)[0]).toBe("$schema");
     expect(written).not.toHaveProperty("version");
     const phax = format.phax(written);
-    if (Either.isLeft(phax)) throw new Error("document rejected by phax");
+    if (Result.isFailure(phax)) throw new Error("document rejected by phax");
     expect(format.parse(written)).toEqual({
       ok: true,
       shape: CURRENT_SHAPES[format.id],
@@ -279,7 +279,7 @@ describe("gate-request, born with $schema", () => {
   it("parses the document phax writes as its current shape, with phax's value", () => {
     expect(Object.keys(document)).toEqual(["$schema", "phase", "base", "terminal", "phases"]);
     const phax = decodeGateRequestFile(document);
-    if (Either.isLeft(phax)) throw new Error("document rejected by phax");
+    if (Result.isFailure(phax)) throw new Error("document rejected by phax");
     expect(parseGateRequest(document)).toEqual({ ok: true, shape: current, value: phax.right });
   });
 
@@ -301,7 +301,7 @@ describe("gate-request, born with $schema", () => {
   it("rejects an extra key, as phax's strict decoder does", () => {
     const extra = withKey(document, "touched", ["src/example.ts"]);
     expect(parseGateRequest(extra).ok).toBe(false);
-    expect(Either.isLeft(decodeGateRequestFile(extra))).toBe(true);
+    expect(Result.isFailure(decodeGateRequestFile(extra))).toBe(true);
   });
 
   it("drops $schema on upgrade and keeps every other key", () => {

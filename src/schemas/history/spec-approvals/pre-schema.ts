@@ -18,7 +18,7 @@ export const SpecApprovalsPreSchemaSchema = Schema.Struct({
 
 export type SpecApprovalsPreSchema = Schema.Schema.Type<typeof SpecApprovalsPreSchemaSchema>;
 
-export const decodeSpecApprovalsPreSchema = Schema.decodeUnknownEither(
+export const decodeSpecApprovalsPreSchema = Schema.decodeUnknownResult(
   SpecApprovalsPreSchemaSchema,
   { onExcessProperty: "error" },
 );

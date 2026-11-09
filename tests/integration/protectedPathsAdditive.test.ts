@@ -9,7 +9,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { executePlan } from "../../src/app/executePlan.js";
 import { createRunFolder } from "../../src/app/runFolder.js";
@@ -260,7 +260,7 @@ interface Observed {
   readonly gateLogs: Readonly<Record<string, string>>;
   readonly output: readonly string[];
   readonly phaseFolder: string;
-  readonly result: Either.Either<unknown, unknown>;
+  readonly result: Result.Result<unknown, unknown>;
 }
 
 // The variables a child has that the test process did not hand it: what phax
@@ -313,7 +313,7 @@ async function runPhase(
       ? (["claude-sonnet-4-6", "high"] as const)
       : (["claude-sonnet-5-5", "medium"] as const);
   const { plan, planMd } = planOf(model, effort);
-  const shortName = Either.getOrThrow(decodeShortName(SHORT));
+  const shortName = Result.getOrThrow(decodeShortName(SHORT));
   const config = configOf(protectedPaths);
   const { runPath, runId } = await Effect.runPromise(
     createRunFolder(shortName, planMd, plan, config).pipe(Effect.provide(NodeFileSystemLayer)),
@@ -330,7 +330,7 @@ async function runPhase(
 
   const providerConfig = providerConfigOf(provider, vibe.executable);
   const result = await Effect.runPromise(
-    Effect.either(
+    Effect.result(
       executePlan({
         phaxVersion: "0.0.0-test",
         output: processOutput,
@@ -424,7 +424,7 @@ describe.each<ProviderName>(["claude-code", "codex-cli", "mistral-vibe"])(
       { timeout: 60_000 },
       async () => {
         const observed = await runPhase(provider);
-        if (Either.isLeft(observed.result)) throw observed.result.left as Error;
+        if (Result.isFailure(observed.result)) throw observed.result.left as Error;
 
         // Work turn, fix turn after the red attempt, handoff turn.
         expect(observed.argv).toHaveLength(3);
@@ -444,7 +444,7 @@ describe.each<ProviderName>(["claude-code", "codex-cli", "mistral-vibe"])(
       { timeout: 60_000 },
       async () => {
         const observed = await runPhase(provider);
-        if (Either.isLeft(observed.result)) throw observed.result.left as Error;
+        if (Result.isFailure(observed.result)) throw observed.result.left as Error;
 
         // The records' values, spelled out: security.json at version 3 and
         // gate-attribution.json at 0.33.0, each with `protectedPaths: null`.
@@ -492,7 +492,7 @@ describe("a phase on claude-code in a project that declares protectedPaths", () 
     { timeout: 60_000 },
     async () => {
       const observed = await runPhase("claude-code", ["**/steme.baseline.json"]);
-      if (Either.isLeft(observed.result)) throw observed.result.left as Error;
+      if (Result.isFailure(observed.result)) throw observed.result.left as Error;
 
       const posture = readJson(join(observed.phaseFolder, "security.json")) as {
         version: number;

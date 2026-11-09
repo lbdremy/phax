@@ -92,6 +92,6 @@ export const CostLedgerV0_25_0Schema = Schema.Struct({
 
 export type CostLedgerV0_25_0 = Schema.Schema.Type<typeof CostLedgerV0_25_0Schema>;
 
-export const decodeCostLedgerV0_25_0 = Schema.decodeUnknownEither(CostLedgerV0_25_0Schema, {
+export const decodeCostLedgerV0_25_0 = Schema.decodeUnknownResult(CostLedgerV0_25_0Schema, {
   onExcessProperty: "error",
 });

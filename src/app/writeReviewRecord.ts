@@ -116,7 +116,7 @@ export function writeReviewRecord(
 
     return { kind: "written", commitSha, branch, key, fileCount, branchState, branchNote } as const;
   }).pipe(
-    Effect.catchAll((error) =>
+    Effect.catch((error) =>
       Effect.succeed({
         kind: "write-failed",
         message: gitFailureLine(

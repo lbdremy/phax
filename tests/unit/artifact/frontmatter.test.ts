@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   decodeArtifactFrontmatter,
@@ -82,7 +82,7 @@ describe("decodeArtifactFrontmatter", () => {
   it("decodes a valid spec key set", () => {
     const decoded = decodeArtifactFrontmatter("spec", SPEC_DOC);
     expect(decoded).toEqual(
-      Either.right({
+      Result.succeed({
         status: "Draft",
         date: "2026-08-11",
         audience: "implementation planning with Claude Code",
@@ -94,7 +94,7 @@ describe("decodeArtifactFrontmatter", () => {
   it("decodes a valid plan key set", () => {
     const decoded = decodeArtifactFrontmatter("plan", PLAN_DOC);
     expect(decoded).toEqual(
-      Either.right({
+      Result.succeed({
         status: "Approved",
         "source-spec": "docs/specs/2609101226-artifact-frontmatter-metadata.md",
         "completes-spec": true,
@@ -106,24 +106,24 @@ describe("decodeArtifactFrontmatter", () => {
   it("decodes source-spec: null as null", () => {
     const md = `---\nstatus: Draft\nsource-spec: null\n---\n\n# Plan\n`;
     const decoded = decodeArtifactFrontmatter("plan", md);
-    expect(Either.isRight(decoded)).toBe(true);
-    if (!Either.isRight(decoded)) return;
+    expect(Result.isSuccess(decoded)).toBe(true);
+    if (!Result.isSuccess(decoded)) return;
     expect(decoded.right["source-spec"]).toBeNull();
   });
 
   it("decodes a plan with approved absent as valid", () => {
     const md = `---\nstatus: Draft\nsource-spec: null\n---\n\n# Plan\n`;
     const decoded = decodeArtifactFrontmatter("plan", md);
-    expect(Either.isRight(decoded)).toBe(true);
-    if (!Either.isRight(decoded)) return;
+    expect(Result.isSuccess(decoded)).toBe(true);
+    if (!Result.isSuccess(decoded)) return;
     expect("approved" in decoded.right).toBe(false);
   });
 
   it("fails naming the offending key when an unknown key is present", () => {
     const md = `---\nstatus: Draft\ndate: 2026-08-11\naudience: x\nscope: y\nstaus: Draft\n---\n\n# Spec\n`;
     const decoded = decodeArtifactFrontmatter("spec", md);
-    expect(Either.isLeft(decoded)).toBe(true);
-    if (!Either.isLeft(decoded)) return;
+    expect(Result.isFailure(decoded)).toBe(true);
+    if (!Result.isFailure(decoded)) return;
     expect(decoded.left.kind).toBe("schema");
     expect(decoded.left).toMatchObject({ kind: "schema" });
     if (decoded.left.kind === "schema") {
@@ -134,8 +134,8 @@ describe("decodeArtifactFrontmatter", () => {
   it("fails naming source-spec when it is missing from a plan", () => {
     const md = `---\nstatus: Draft\n---\n\n# Plan\n`;
     const decoded = decodeArtifactFrontmatter("plan", md);
-    expect(Either.isLeft(decoded)).toBe(true);
-    if (!Either.isLeft(decoded)) return;
+    expect(Result.isFailure(decoded)).toBe(true);
+    if (!Result.isFailure(decoded)) return;
     expect(decoded.left.kind).toBe("schema");
     if (decoded.left.kind === "schema") {
       expect(decoded.left.detail).toContain("source-spec");
@@ -146,7 +146,7 @@ describe("decodeArtifactFrontmatter", () => {
     const md = `---\nstatus: Draft\nsource-spec: docs/specs/1-a.md\ncompletes-spec: false\n---\n\n# Plan\n`;
     const decoded = decodeArtifactFrontmatter("plan", md);
     expect(decoded).toEqual(
-      Either.right({
+      Result.succeed({
         status: "Draft",
         "source-spec": "docs/specs/1-a.md",
         "completes-spec": false,
@@ -158,7 +158,7 @@ describe("decodeArtifactFrontmatter", () => {
     const md = `---\nstatus: Draft\nsource-spec: docs/specs/1-a.md\n---\n\n# Plan\n`;
     const decoded = decodeArtifactFrontmatter("plan", md);
     expect(decoded).toEqual(
-      Either.left({
+      Result.fail({
         kind: "schema",
         detail: expect.stringContaining("completes-spec: is missing"),
       }),
@@ -173,7 +173,7 @@ describe("decodeArtifactFrontmatter", () => {
     const md = `---\nstatus: Draft\nsource-spec: docs/specs/1-a.md\ncompletes-spec: ${raw}\n---\n\n# Plan\n`;
     const decoded = decodeArtifactFrontmatter("plan", md);
     expect(decoded).toEqual(
-      Either.left({
+      Result.fail({
         kind: "schema",
         detail: expect.stringContaining(`completes-spec: must be true or false, actual ${shown}`),
       }),
@@ -186,7 +186,7 @@ describe("decodeArtifactFrontmatter", () => {
       const md = `---\nstatus: Draft\nsource-spec: null\ncompletes-spec: ${raw}\n---\n\n# Plan\n`;
       const decoded = decodeArtifactFrontmatter("plan", md);
       expect(decoded).toEqual(
-        Either.left({
+        Result.fail({
           kind: "schema",
           detail: expect.stringContaining("completes-spec: is inconsistent with source-spec: null"),
         }),
@@ -197,8 +197,8 @@ describe("decodeArtifactFrontmatter", () => {
   it("names an unknown key beside a source-spec path without blaming completes-spec", () => {
     const md = `---\nstatus: Draft\nsource-spec: docs/specs/1-a.md\ncompletes-spec: true\nstaus: Draft\n---\n\n# Plan\n`;
     const decoded = decodeArtifactFrontmatter("plan", md);
-    expect(Either.isLeft(decoded)).toBe(true);
-    if (!Either.isLeft(decoded) || decoded.left.kind !== "schema") return;
+    expect(Result.isFailure(decoded)).toBe(true);
+    if (!Result.isFailure(decoded) || decoded.left.kind !== "schema") return;
     expect(decoded.left.detail).toContain("staus");
     expect(decoded.left.detail).not.toContain("completes-spec:");
   });
@@ -206,30 +206,30 @@ describe("decodeArtifactFrontmatter", () => {
   it("fails on a bad status value", () => {
     const md = `---\nstatus: NotAStatus\ndate: 2026-08-11\naudience: x\nscope: y\n---\n\n# Spec\n`;
     const decoded = decodeArtifactFrontmatter("spec", md);
-    expect(Either.isLeft(decoded)).toBe(true);
-    if (!Either.isLeft(decoded)) return;
+    expect(Result.isFailure(decoded)).toBe(true);
+    if (!Result.isFailure(decoded)) return;
     expect(decoded.left.kind).toBe("schema");
   });
 
   it("fails with missing-block when there is no frontmatter", () => {
     const md = `# Spec\n\nStatus: Draft\n`;
     const decoded = decodeArtifactFrontmatter("spec", md);
-    expect(decoded).toEqual(Either.left({ kind: "missing-block" }));
+    expect(decoded).toEqual(Result.fail({ kind: "missing-block" }));
   });
 
   it("fails with yaml-syntax when the block is not a mapping", () => {
     const md = `---\n- one\n- two\n---\n\n# Spec\n`;
     const decoded = decodeArtifactFrontmatter("spec", md);
-    expect(Either.isLeft(decoded)).toBe(true);
-    if (!Either.isLeft(decoded)) return;
+    expect(Result.isFailure(decoded)).toBe(true);
+    if (!Result.isFailure(decoded)) return;
     expect(decoded.left.kind).toBe("yaml-syntax");
   });
 
   it("fails with yaml-syntax on malformed YAML", () => {
     const md = `---\nstatus: [unterminated\n---\n\n# Spec\n`;
     const decoded = decodeArtifactFrontmatter("spec", md);
-    expect(Either.isLeft(decoded)).toBe(true);
-    if (!Either.isLeft(decoded)) return;
+    expect(Result.isFailure(decoded)).toBe(true);
+    if (!Result.isFailure(decoded)) return;
     expect(decoded.left.kind).toBe("yaml-syntax");
   });
 });
@@ -238,8 +238,8 @@ describe("setFrontmatterKeys", () => {
   it("rewrites status leaving other keys and the body byte-identical", () => {
     const md = `---\nstatus: Draft # a comment\nsource-spec: docs/specs/1-a.md\n---\n\n# Plan\n\nBody.\n`;
     const result = setFrontmatterKeys(md, [{ key: "status", value: "Approved" }]);
-    expect(Either.isRight(result)).toBe(true);
-    if (!Either.isRight(result)) return;
+    expect(Result.isSuccess(result)).toBe(true);
+    if (!Result.isSuccess(result)) return;
     expect(result.right).toContain("status: Approved # a comment");
     expect(result.right).toContain("source-spec: docs/specs/1-a.md");
     expect(result.right.endsWith("\n# Plan\n\nBody.\n")).toBe(true);
@@ -249,11 +249,11 @@ describe("setFrontmatterKeys", () => {
     const result = setFrontmatterKeys(PLAN_DOC, [
       { key: "approved", value: { date: "2026-08-12", baseline: "abcdef1" } },
     ]);
-    expect(Either.isRight(result)).toBe(true);
-    if (!Either.isRight(result)) return;
+    expect(Result.isSuccess(result)).toBe(true);
+    if (!Result.isSuccess(result)) return;
     const decoded = decodeArtifactFrontmatter("plan", result.right);
-    expect(Either.isRight(decoded)).toBe(true);
-    if (!Either.isRight(decoded)) return;
+    expect(Result.isSuccess(decoded)).toBe(true);
+    if (!Result.isSuccess(decoded)) return;
     expect(decoded.right).toMatchObject({
       approved: { date: "2026-08-12", baseline: "abcdef1" },
     });
@@ -263,27 +263,27 @@ describe("setFrontmatterKeys", () => {
     const result = setFrontmatterKeys(PLAN_DOC, [
       { key: "approved", value: { date: "2026-08-12", baseline: "1234567" } },
     ]);
-    expect(Either.isRight(result)).toBe(true);
-    if (!Either.isRight(result)) return;
+    expect(Result.isSuccess(result)).toBe(true);
+    if (!Result.isSuccess(result)) return;
     expect(result.right).toContain('baseline: "1234567"');
     const decoded = decodeArtifactFrontmatter("plan", result.right);
-    expect(Either.isRight(decoded)).toBe(true);
-    if (!Either.isRight(decoded)) return;
+    expect(Result.isSuccess(decoded)).toBe(true);
+    if (!Result.isSuccess(decoded)) return;
     expect(decoded.right).toMatchObject({ approved: { baseline: "1234567" } });
   });
 
   it("fails with missing-block when there is no frontmatter to rewrite", () => {
     const md = `# Plan\n\nStatus: Draft\n`;
     const result = setFrontmatterKeys(md, [{ key: "status", value: "Approved" }]);
-    expect(result).toEqual(Either.left({ kind: "missing-block" }));
+    expect(result).toEqual(Result.fail({ kind: "missing-block" }));
   });
 });
 
 describe("removeFrontmatterKeys", () => {
   it("deletes the key, leaving every other key and the body byte-identical", () => {
     const result = removeFrontmatterKeys(PLAN_DOC, ["approved"]);
-    expect(Either.isRight(result)).toBe(true);
-    if (!Either.isRight(result)) return;
+    expect(Result.isSuccess(result)).toBe(true);
+    if (!Result.isSuccess(result)) return;
     expect(result.right).not.toContain("approved:");
     expect(result.right).toContain("status: Approved");
     expect(result.right).toContain(
@@ -297,22 +297,22 @@ describe("removeFrontmatterKeys", () => {
   it("is a no-op on an absent key", () => {
     const md = `---\nstatus: Draft\nsource-spec: null\n---\n\n# Plan\n`;
     const result = removeFrontmatterKeys(md, ["approved"]);
-    expect(Either.isRight(result)).toBe(true);
-    if (!Either.isRight(result)) return;
+    expect(Result.isSuccess(result)).toBe(true);
+    if (!Result.isSuccess(result)) return;
     expect(result.right).toBe(md);
   });
 
   it("fails with missing-block when there is no frontmatter", () => {
     const md = `# Plan\n\nStatus: Draft\n`;
     const result = removeFrontmatterKeys(md, ["approved"]);
-    expect(result).toEqual(Either.left({ kind: "missing-block" }));
+    expect(result).toEqual(Result.fail({ kind: "missing-block" }));
   });
 
   it("fails with yaml-syntax on malformed input", () => {
     const md = `---\nstatus: [unterminated\n---\n\n# Plan\n`;
     const result = removeFrontmatterKeys(md, ["approved"]);
-    expect(Either.isLeft(result)).toBe(true);
-    if (!Either.isLeft(result)) return;
+    expect(Result.isFailure(result)).toBe(true);
+    if (!Result.isFailure(result)) return;
     expect(result.left.kind).toBe("yaml-syntax");
   });
 });
@@ -335,8 +335,8 @@ Body text.
 describe("decodeArtifactFrontmatter (spec approved stamp)", () => {
   it("decodes a spec with a valid approved mapping", () => {
     const decoded = decodeArtifactFrontmatter("spec", STAMPED_SPEC_DOC);
-    expect(Either.isRight(decoded)).toBe(true);
-    if (!Either.isRight(decoded)) return;
+    expect(Result.isSuccess(decoded)).toBe(true);
+    if (!Result.isSuccess(decoded)) return;
     expect(decoded.right).toMatchObject({
       status: "Approved",
       approved: { date: "2026-08-11", baseline: "4ae687b" },
@@ -346,8 +346,8 @@ describe("decodeArtifactFrontmatter (spec approved stamp)", () => {
   it("rejects a spec whose approved mapping carries an extra sub-key", () => {
     const md = `---\nstatus: Approved\ndate: 2026-08-11\naudience: x\nscope: y\napproved:\n  date: 2026-08-11\n  baseline: abc1234\n  extra: forbidden\n---\n\n# Spec\n`;
     const decoded = decodeArtifactFrontmatter("spec", md);
-    expect(Either.isLeft(decoded)).toBe(true);
-    if (!Either.isLeft(decoded)) return;
+    expect(Result.isFailure(decoded)).toBe(true);
+    if (!Result.isFailure(decoded)) return;
     expect(decoded.left.kind).toBe("schema");
     if (decoded.left.kind === "schema") {
       expect(decoded.left.detail).toContain("extra");
@@ -356,8 +356,8 @@ describe("decodeArtifactFrontmatter (spec approved stamp)", () => {
 
   it("decodes a spec with approved absent as valid", () => {
     const decoded = decodeArtifactFrontmatter("spec", SPEC_DOC);
-    expect(Either.isRight(decoded)).toBe(true);
-    if (!Either.isRight(decoded)) return;
+    expect(Result.isSuccess(decoded)).toBe(true);
+    if (!Result.isSuccess(decoded)) return;
     expect("approved" in decoded.right).toBe(false);
   });
 });

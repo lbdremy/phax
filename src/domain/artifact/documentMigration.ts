@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import {
   type DocumentSidecar,
   type PlanDocumentLift,
@@ -159,7 +159,7 @@ export function decideDocumentMigration(input: DocumentMigrationInput): Document
   const remedy = `${sidecarRemedy(kind, slug, sidecarPath)} Then rerun.`;
 
   const validated = validateArtifact(path, md);
-  if (Either.isLeft(validated)) {
+  if (Result.isFailure(validated)) {
     return refuse(
       path,
       `cannot be read — ${validated.left.message}`,

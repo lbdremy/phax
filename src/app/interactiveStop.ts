@@ -216,7 +216,7 @@ function attemptTurn(
       );
 
     const firstStream = `${label}.jsonl`;
-    const first = yield* Effect.either(
+    const first = yield* Effect.result(
       costed(
         backend.runAgent(
           firstTurnPrompt({
@@ -237,7 +237,7 @@ function attemptTurn(
     }
 
     const retryStream = `${label}-retry.jsonl`;
-    const retry = yield* Effect.either(
+    const retry = yield* Effect.result(
       costed(
         backend.resumeAgentSession(
           first.right.sessionId,

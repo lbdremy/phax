@@ -71,7 +71,7 @@ export type AuthoringRecordManifestFile = Schema.Schema.Type<
   typeof AuthoringRecordManifestFileSchema
 >;
 
-export const decodeAuthoringRecordManifestFile = Schema.decodeUnknownEither(
+export const decodeAuthoringRecordManifestFile = Schema.decodeUnknownResult(
   AuthoringRecordManifestFileSchema,
   { onExcessProperty: "error" },
 );
@@ -104,7 +104,7 @@ export type RecordManifestFile = Schema.Schema.Type<typeof RecordManifestFileSch
  */
 export const RecordManifestSchema = RecordManifestFileSchema;
 
-export const decodeRecordManifestFile = Schema.decodeUnknownEither(RecordManifestFileSchema, {
+export const decodeRecordManifestFile = Schema.decodeUnknownResult(RecordManifestFileSchema, {
   onExcessProperty: "error",
 });
 
