@@ -176,6 +176,68 @@
         "ok": false,
         "refusal": "files: Expected one of an array | null, actual 42"
       }
+    },
+    {
+      "name": "constraint $schema pattern",
+      "input": {
+        "$schema": "",
+        "files": [
+          "src/example.ts",
+          "src/missing.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: expected https://docs.phax.run/schemas/<format-id>/<X.Y.Z>.json, got \"\""
+      }
+    },
+    {
+      "name": "constraint $schema required",
+      "input": {
+        "files": [
+          "src/example.ts",
+          "src/missing.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: architecture request has no $schema — every architecture request is written with one"
+      }
+    },
+    {
+      "name": "constraint files minItems",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/architecture-request/0.26.0.json",
+        "files": []
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "files.0: is missing"
+      }
+    },
+    {
+      "name": "constraint files required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/architecture-request/0.26.0.json"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "files: is missing"
+      }
+    },
+    {
+      "name": "constraint files[] minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/architecture-request/0.26.0.json",
+        "files": [
+          "",
+          "src/missing.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "files.0: Expected a non empty string, actual \"\""
+      }
     }
   ],
   "shapes": {}

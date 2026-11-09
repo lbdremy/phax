@@ -315,6 +315,254 @@
         "ok": false,
         "refusal": "artifact: Expected a non empty string, actual \"\""
       }
+    },
+    {
+      "name": "constraint $schema pattern",
+      "input": {
+        "$schema": "",
+        "artifact": "docs/specs/2610250900-example-spec.md",
+        "verdicts": [
+          {
+            "question": "q-retention",
+            "chosen": "keep-30",
+            "note": null
+          },
+          {
+            "question": "q-format",
+            "chosen": "other",
+            "note": "Newline-delimited JSON, one record a line."
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: expected https://docs.phax.run/schemas/<format-id>/<X.Y.Z>.json, got \"\""
+      }
+    },
+    {
+      "name": "constraint $schema required",
+      "input": {
+        "artifact": "docs/specs/2610250900-example-spec.md",
+        "verdicts": [
+          {
+            "question": "q-retention",
+            "chosen": "keep-30",
+            "note": null
+          },
+          {
+            "question": "q-format",
+            "chosen": "other",
+            "note": "Newline-delimited JSON, one record a line."
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: decide verdicts has no $schema — every decide verdicts is written with one"
+      }
+    },
+    {
+      "name": "constraint artifact minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/decide-verdicts/0.28.0.json",
+        "artifact": "",
+        "verdicts": [
+          {
+            "question": "q-retention",
+            "chosen": "keep-30",
+            "note": null
+          },
+          {
+            "question": "q-format",
+            "chosen": "other",
+            "note": "Newline-delimited JSON, one record a line."
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "artifact: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint artifact required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/decide-verdicts/0.28.0.json",
+        "verdicts": [
+          {
+            "question": "q-retention",
+            "chosen": "keep-30",
+            "note": null
+          },
+          {
+            "question": "q-format",
+            "chosen": "other",
+            "note": "Newline-delimited JSON, one record a line."
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "artifact: is missing"
+      }
+    },
+    {
+      "name": "constraint verdicts minItems",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/decide-verdicts/0.28.0.json",
+        "artifact": "docs/specs/2610250900-example-spec.md",
+        "verdicts": []
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "verdicts.0: is missing"
+      }
+    },
+    {
+      "name": "constraint verdicts required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/decide-verdicts/0.28.0.json",
+        "artifact": "docs/specs/2610250900-example-spec.md"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "verdicts: is missing"
+      }
+    },
+    {
+      "name": "constraint verdicts[].chosen pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/decide-verdicts/0.28.0.json",
+        "artifact": "docs/specs/2610250900-example-spec.md",
+        "verdicts": [
+          {
+            "question": "q-retention",
+            "chosen": "",
+            "note": null
+          },
+          {
+            "question": "q-format",
+            "chosen": "other",
+            "note": "Newline-delimited JSON, one record a line."
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "verdicts.0.chosen: Expected a string matching the pattern ^\\S+$, actual \"\""
+      }
+    },
+    {
+      "name": "constraint verdicts[].chosen required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/decide-verdicts/0.28.0.json",
+        "artifact": "docs/specs/2610250900-example-spec.md",
+        "verdicts": [
+          {
+            "question": "q-retention",
+            "note": null
+          },
+          {
+            "question": "q-format",
+            "chosen": "other",
+            "note": "Newline-delimited JSON, one record a line."
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "verdicts.0.chosen: is missing"
+      }
+    },
+    {
+      "name": "constraint verdicts[].note minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/decide-verdicts/0.28.0.json",
+        "artifact": "docs/specs/2610250900-example-spec.md",
+        "verdicts": [
+          {
+            "question": "q-retention",
+            "chosen": "keep-30",
+            "note": null
+          },
+          {
+            "question": "q-format",
+            "chosen": "other",
+            "note": ""
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "verdicts.1.note: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint verdicts[].note required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/decide-verdicts/0.28.0.json",
+        "artifact": "docs/specs/2610250900-example-spec.md",
+        "verdicts": [
+          {
+            "question": "q-retention",
+            "chosen": "keep-30"
+          },
+          {
+            "question": "q-format",
+            "chosen": "other",
+            "note": "Newline-delimited JSON, one record a line."
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "verdicts.0.note: is missing"
+      }
+    },
+    {
+      "name": "constraint verdicts[].question pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/decide-verdicts/0.28.0.json",
+        "artifact": "docs/specs/2610250900-example-spec.md",
+        "verdicts": [
+          {
+            "question": "",
+            "chosen": "keep-30",
+            "note": null
+          },
+          {
+            "question": "q-format",
+            "chosen": "other",
+            "note": "Newline-delimited JSON, one record a line."
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "verdicts.0.question: Expected a string matching the pattern ^\\S+$, actual \"\""
+      }
+    },
+    {
+      "name": "constraint verdicts[].question required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/decide-verdicts/0.28.0.json",
+        "artifact": "docs/specs/2610250900-example-spec.md",
+        "verdicts": [
+          {
+            "chosen": "keep-30",
+            "note": null
+          },
+          {
+            "question": "q-format",
+            "chosen": "other",
+            "note": "Newline-delimited JSON, one record a line."
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "verdicts.0.question: is missing"
+      }
     }
   ],
   "shapes": {}

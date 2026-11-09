@@ -607,6 +607,538 @@
           ]
         }
       }
+    },
+    {
+      "name": "constraint $schema pattern",
+      "input": {
+        "$schema": "",
+        "phase": "phase-01",
+        "steps": [
+          {
+            "command": "pnpm typecheck",
+            "surface": "structural",
+            "result": "pass"
+          },
+          {
+            "command": "pnpm test",
+            "surface": "local",
+            "result": "fail"
+          }
+        ],
+        "protectedPaths": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: expected https://docs.phax.run/schemas/<format-id>/<X.Y.Z>.json, got \"\""
+      }
+    },
+    {
+      "name": "constraint $schema required",
+      "input": {
+        "steps": [
+          {
+            "command": "pnpm typecheck",
+            "surface": "structural",
+            "result": "pass"
+          },
+          {
+            "command": "pnpm test",
+            "surface": "local",
+            "result": "fail"
+          }
+        ],
+        "protectedPaths": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "phase: gate attribution older than phax 0.17.0, the first supported release — not supported (is missing)"
+      }
+    },
+    {
+      "name": "constraint phase minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-attribution/0.33.0.json",
+        "phase": "",
+        "steps": [
+          {
+            "command": "pnpm typecheck",
+            "surface": "structural",
+            "result": "pass"
+          },
+          {
+            "command": "pnpm test",
+            "surface": "local",
+            "result": "fail"
+          }
+        ],
+        "protectedPaths": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "phase: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint phase required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-attribution/0.33.0.json",
+        "steps": [
+          {
+            "command": "pnpm typecheck",
+            "surface": "structural",
+            "result": "pass"
+          },
+          {
+            "command": "pnpm test",
+            "surface": "local",
+            "result": "fail"
+          }
+        ],
+        "protectedPaths": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "phase: is missing"
+      }
+    },
+    {
+      "name": "constraint protectedPaths required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-attribution/0.33.0.json",
+        "phase": "phase-01",
+        "steps": [
+          {
+            "command": "pnpm typecheck",
+            "surface": "structural",
+            "result": "pass"
+          },
+          {
+            "command": "pnpm test",
+            "surface": "local",
+            "result": "fail"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "protectedPaths: is missing"
+      }
+    },
+    {
+      "name": "constraint protectedPaths.changes minItems",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-attribution/0.33.0.json",
+        "phase": "phase-01",
+        "steps": [
+          {
+            "command": "pnpm typecheck",
+            "surface": "structural",
+            "result": "pass"
+          }
+        ],
+        "protectedPaths": {
+          "result": "fail",
+          "changes": []
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "protectedPaths.changes.0: is missing"
+      }
+    },
+    {
+      "name": "constraint protectedPaths.changes required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-attribution/0.33.0.json",
+        "phase": "phase-01",
+        "steps": [
+          {
+            "command": "pnpm typecheck",
+            "surface": "structural",
+            "result": "pass"
+          }
+        ],
+        "protectedPaths": {
+          "result": "fail"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "protectedPaths.changes: is missing"
+      }
+    },
+    {
+      "name": "constraint protectedPaths.changes[].entry minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-attribution/0.33.0.json",
+        "phase": "phase-01",
+        "steps": [
+          {
+            "command": "pnpm typecheck",
+            "surface": "structural",
+            "result": "pass"
+          }
+        ],
+        "protectedPaths": {
+          "result": "fail",
+          "changes": [
+            {
+              "path": "text-3",
+              "kind": "created",
+              "entry": ""
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "protectedPaths.changes.0.entry: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint protectedPaths.changes[].entry required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-attribution/0.33.0.json",
+        "phase": "phase-01",
+        "steps": [
+          {
+            "command": "pnpm typecheck",
+            "surface": "structural",
+            "result": "pass"
+          }
+        ],
+        "protectedPaths": {
+          "result": "fail",
+          "changes": [
+            {
+              "path": "text-3",
+              "kind": "created"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "protectedPaths.changes.0.entry: is missing"
+      }
+    },
+    {
+      "name": "constraint protectedPaths.changes[].kind enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-attribution/0.33.0.json",
+        "phase": "phase-01",
+        "steps": [
+          {
+            "command": "pnpm typecheck",
+            "surface": "structural",
+            "result": "pass"
+          }
+        ],
+        "protectedPaths": {
+          "result": "fail",
+          "changes": [
+            {
+              "path": "text-3",
+              "kind": "bogus-value",
+              "entry": "text-4"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "protectedPaths.changes.0.kind: Expected \"created\" | \"edited\" | \"deleted\" | \"renamed\" | \"symlink\" | \"nested-repository\", actual \"bogus-value\""
+      }
+    },
+    {
+      "name": "constraint protectedPaths.changes[].kind required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-attribution/0.33.0.json",
+        "phase": "phase-01",
+        "steps": [
+          {
+            "command": "pnpm typecheck",
+            "surface": "structural",
+            "result": "pass"
+          }
+        ],
+        "protectedPaths": {
+          "result": "fail",
+          "changes": [
+            {
+              "path": "text-3",
+              "entry": "text-4"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "protectedPaths.changes.0.kind: is missing"
+      }
+    },
+    {
+      "name": "constraint protectedPaths.changes[].path minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-attribution/0.33.0.json",
+        "phase": "phase-01",
+        "steps": [
+          {
+            "command": "pnpm typecheck",
+            "surface": "structural",
+            "result": "pass"
+          }
+        ],
+        "protectedPaths": {
+          "result": "fail",
+          "changes": [
+            {
+              "path": "",
+              "kind": "created",
+              "entry": "text-4"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "protectedPaths.changes.0.path: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint protectedPaths.changes[].path required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-attribution/0.33.0.json",
+        "phase": "phase-01",
+        "steps": [
+          {
+            "command": "pnpm typecheck",
+            "surface": "structural",
+            "result": "pass"
+          }
+        ],
+        "protectedPaths": {
+          "result": "fail",
+          "changes": [
+            {
+              "kind": "created",
+              "entry": "text-4"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "protectedPaths.changes.0.path: is missing"
+      }
+    },
+    {
+      "name": "constraint protectedPaths.result enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-attribution/0.33.0.json",
+        "phase": "phase-01",
+        "steps": [
+          {
+            "command": "pnpm typecheck",
+            "surface": "structural",
+            "result": "pass"
+          }
+        ],
+        "protectedPaths": {
+          "result": "bogus-value",
+          "changes": [
+            {
+              "path": "text-3",
+              "kind": "created",
+              "entry": "text-4"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "protectedPaths.result: Expected \"pass\" | \"fail\", actual \"bogus-value\""
+      }
+    },
+    {
+      "name": "constraint protectedPaths.result required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-attribution/0.33.0.json",
+        "phase": "phase-01",
+        "steps": [
+          {
+            "command": "pnpm typecheck",
+            "surface": "structural",
+            "result": "pass"
+          }
+        ],
+        "protectedPaths": {
+          "changes": [
+            {
+              "path": "text-3",
+              "kind": "created",
+              "entry": "text-4"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "protectedPaths.result: is missing"
+      }
+    },
+    {
+      "name": "constraint steps required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-attribution/0.33.0.json",
+        "phase": "phase-01",
+        "protectedPaths": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "steps: is missing"
+      }
+    },
+    {
+      "name": "constraint steps[].command minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-attribution/0.33.0.json",
+        "phase": "phase-01",
+        "steps": [
+          {
+            "command": "",
+            "surface": "structural",
+            "result": "pass"
+          },
+          {
+            "command": "pnpm test",
+            "surface": "local",
+            "result": "fail"
+          }
+        ],
+        "protectedPaths": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "steps.0.surface: Expected \"acceptance\", actual \"structural\""
+      }
+    },
+    {
+      "name": "constraint steps[].command required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-attribution/0.33.0.json",
+        "phase": "phase-01",
+        "steps": [
+          {
+            "surface": "structural",
+            "result": "pass"
+          },
+          {
+            "command": "pnpm test",
+            "surface": "local",
+            "result": "fail"
+          }
+        ],
+        "protectedPaths": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "steps.0.surface: Expected \"acceptance\", actual \"structural\""
+      }
+    },
+    {
+      "name": "constraint steps[].result enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-attribution/0.33.0.json",
+        "phase": "phase-01",
+        "steps": [
+          {
+            "command": "pnpm typecheck",
+            "surface": "structural",
+            "result": "bogus-value"
+          },
+          {
+            "command": "pnpm test",
+            "surface": "local",
+            "result": "fail"
+          }
+        ],
+        "protectedPaths": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "steps.0.surface: Expected \"acceptance\", actual \"structural\""
+      }
+    },
+    {
+      "name": "constraint steps[].result required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-attribution/0.33.0.json",
+        "phase": "phase-01",
+        "steps": [
+          {
+            "command": "pnpm typecheck",
+            "surface": "structural"
+          },
+          {
+            "command": "pnpm test",
+            "surface": "local",
+            "result": "fail"
+          }
+        ],
+        "protectedPaths": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "steps.0.surface: Expected \"acceptance\", actual \"structural\""
+      }
+    },
+    {
+      "name": "constraint steps[].surface enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-attribution/0.33.0.json",
+        "phase": "phase-01",
+        "steps": [
+          {
+            "command": "pnpm typecheck",
+            "surface": "bogus-value",
+            "result": "pass"
+          },
+          {
+            "command": "pnpm test",
+            "surface": "local",
+            "result": "fail"
+          }
+        ],
+        "protectedPaths": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "steps.0.surface: Expected \"acceptance\", actual \"bogus-value\""
+      }
+    },
+    {
+      "name": "constraint steps[].surface required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/gate-attribution/0.33.0.json",
+        "phase": "phase-01",
+        "steps": [
+          {
+            "command": "pnpm typecheck",
+            "result": "pass"
+          },
+          {
+            "command": "pnpm test",
+            "surface": "local",
+            "result": "fail"
+          }
+        ],
+        "protectedPaths": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "steps.0.surface: is missing"
+      }
     }
   ],
   "shapes": {
@@ -822,6 +1354,188 @@
             ]
           }
         }
+      },
+      {
+        "name": "constraint phase minLength",
+        "input": {
+          "phase": "",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            },
+            {
+              "command": "pnpm test",
+              "surface": "local",
+              "result": "fail"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phase: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint phase required",
+        "input": {
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            },
+            {
+              "command": "pnpm test",
+              "surface": "local",
+              "result": "fail"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phase: is missing"
+        }
+      },
+      {
+        "name": "constraint steps required",
+        "input": {
+          "phase": "phase-01"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps: is missing"
+        }
+      },
+      {
+        "name": "constraint steps[].command minLength",
+        "input": {
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "",
+              "surface": "structural",
+              "result": "pass"
+            },
+            {
+              "command": "pnpm test",
+              "surface": "local",
+              "result": "fail"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps[0].command: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint steps[].command required",
+        "input": {
+          "phase": "phase-01",
+          "steps": [
+            {
+              "surface": "structural",
+              "result": "pass"
+            },
+            {
+              "command": "pnpm test",
+              "surface": "local",
+              "result": "fail"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps[0].command: is missing"
+        }
+      },
+      {
+        "name": "constraint steps[].result enum",
+        "input": {
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "bogus-value"
+            },
+            {
+              "command": "pnpm test",
+              "surface": "local",
+              "result": "fail"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps[0].result: Expected \"pass\" | \"fail\" | \"pending\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint steps[].result required",
+        "input": {
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural"
+            },
+            {
+              "command": "pnpm test",
+              "surface": "local",
+              "result": "fail"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps[0].result: is missing"
+        }
+      },
+      {
+        "name": "constraint steps[].surface enum",
+        "input": {
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "bogus-value",
+              "result": "pass"
+            },
+            {
+              "command": "pnpm test",
+              "surface": "local",
+              "result": "fail"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps[0].surface: Expected \"local\" | \"structural\" | \"product\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint steps[].surface required",
+        "input": {
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "result": "pass"
+            },
+            {
+              "command": "pnpm test",
+              "surface": "local",
+              "result": "fail"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps[0].surface: is missing"
+        }
       }
     ],
     "0.17.0": [
@@ -979,6 +1693,192 @@
               }
             ]
           }
+        }
+      },
+      {
+        "name": "constraint $schema pattern",
+        "input": {
+          "$schema": "",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "$schema: Expected a string matching the pattern ^https:\\/\\/docs\\.phax\\.run\\/schemas\\/gate-attribution\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$, actual \"\""
+        }
+      },
+      {
+        "name": "constraint $schema required",
+        "input": {
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "$schema: is missing"
+        }
+      },
+      {
+        "name": "constraint phase minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.17.0.json",
+          "phase": "",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phase: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint phase required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.17.0.json",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phase: is missing"
+        }
+      },
+      {
+        "name": "constraint steps required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.17.0.json",
+          "phase": "phase-01"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps: is missing"
+        }
+      },
+      {
+        "name": "constraint steps[].command minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.17.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps.0.command: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint steps[].command required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.17.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps.0.command: is missing"
+        }
+      },
+      {
+        "name": "constraint steps[].result enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.17.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "bogus-value"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps.0.result: Expected \"pass\" | \"fail\" | \"pending\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint steps[].result required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.17.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps.0.result: is missing"
+        }
+      },
+      {
+        "name": "constraint steps[].surface enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.17.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "bogus-value",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps.0.surface: Expected \"local\" | \"structural\" | \"product\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint steps[].surface required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.17.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps.0.surface: is missing"
         }
       }
     ],
@@ -1138,6 +2038,192 @@
             ]
           }
         }
+      },
+      {
+        "name": "constraint $schema pattern",
+        "input": {
+          "$schema": "",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "$schema: Expected a string matching the pattern ^https:\\/\\/docs\\.phax\\.run\\/schemas\\/gate-attribution\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$, actual \"\""
+        }
+      },
+      {
+        "name": "constraint $schema required",
+        "input": {
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "$schema: is missing"
+        }
+      },
+      {
+        "name": "constraint phase minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.20.0.json",
+          "phase": "",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phase: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint phase required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.20.0.json",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phase: is missing"
+        }
+      },
+      {
+        "name": "constraint steps required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.20.0.json",
+          "phase": "phase-01"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps: is missing"
+        }
+      },
+      {
+        "name": "constraint steps[].command minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.20.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps.0.command: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint steps[].command required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.20.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps.0.command: is missing"
+        }
+      },
+      {
+        "name": "constraint steps[].result enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.20.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "bogus-value"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps.0.result: Expected \"pass\" | \"fail\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint steps[].result required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.20.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps.0.result: is missing"
+        }
+      },
+      {
+        "name": "constraint steps[].surface enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.20.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "bogus-value",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps.0.surface: Expected \"local\" | \"structural\" | \"product\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint steps[].surface required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.20.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps.0.surface: is missing"
+        }
       }
     ],
     "0.21.0": [
@@ -1296,6 +2382,192 @@
             ]
           }
         }
+      },
+      {
+        "name": "constraint $schema pattern",
+        "input": {
+          "$schema": "",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "$schema: Expected a string matching the pattern ^https:\\/\\/docs\\.phax\\.run\\/schemas\\/gate-attribution\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$, actual \"\""
+        }
+      },
+      {
+        "name": "constraint $schema required",
+        "input": {
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "$schema: is missing"
+        }
+      },
+      {
+        "name": "constraint phase minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.21.0.json",
+          "phase": "",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phase: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint phase required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.21.0.json",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phase: is missing"
+        }
+      },
+      {
+        "name": "constraint steps required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.21.0.json",
+          "phase": "phase-01"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps: is missing"
+        }
+      },
+      {
+        "name": "constraint steps[].command minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.21.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps.0.command: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint steps[].command required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.21.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps.0.command: is missing"
+        }
+      },
+      {
+        "name": "constraint steps[].result enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.21.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "bogus-value"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps.0.result: Expected \"pass\" | \"fail\" | \"refused\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint steps[].result required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.21.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps.0.result: is missing"
+        }
+      },
+      {
+        "name": "constraint steps[].surface enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.21.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "bogus-value",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps.0.surface: Expected \"local\" | \"structural\" | \"product\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint steps[].surface required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.21.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps.0.surface: is missing"
+        }
       }
     ],
     "0.26.0": [
@@ -1453,6 +2725,192 @@
               }
             ]
           }
+        }
+      },
+      {
+        "name": "constraint $schema pattern",
+        "input": {
+          "$schema": "",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "$schema: Expected a string matching the pattern ^https:\\/\\/docs\\.phax\\.run\\/schemas\\/gate-attribution\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$, actual \"\""
+        }
+      },
+      {
+        "name": "constraint $schema required",
+        "input": {
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "$schema: is missing"
+        }
+      },
+      {
+        "name": "constraint phase minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.26.0.json",
+          "phase": "",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phase: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint phase required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.26.0.json",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phase: is missing"
+        }
+      },
+      {
+        "name": "constraint steps required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.26.0.json",
+          "phase": "phase-01"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps: is missing"
+        }
+      },
+      {
+        "name": "constraint steps[].command minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.26.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps[0].surface: Expected \"oracle\", actual \"structural\""
+        }
+      },
+      {
+        "name": "constraint steps[].command required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.26.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps[0].surface: Expected \"oracle\", actual \"structural\""
+        }
+      },
+      {
+        "name": "constraint steps[].result enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.26.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "bogus-value"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps[0].surface: Expected \"oracle\", actual \"structural\""
+        }
+      },
+      {
+        "name": "constraint steps[].result required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.26.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps[0].surface: Expected \"oracle\", actual \"structural\""
+        }
+      },
+      {
+        "name": "constraint steps[].surface enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.26.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "bogus-value",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps[0].surface: Expected \"oracle\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint steps[].surface required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.26.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps[0].surface: is missing"
         }
       }
     ],
@@ -1711,6 +3169,583 @@
               }
             ]
           }
+        }
+      },
+      {
+        "name": "constraint $schema pattern",
+        "input": {
+          "$schema": "",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ],
+          "protectedPaths": {
+            "result": "fail",
+            "changes": [
+              {
+                "path": "text-3",
+                "kind": "created",
+                "entry": "text-4"
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "$schema: Expected a string matching the pattern ^https:\\/\\/docs\\.phax\\.run\\/schemas\\/gate-attribution\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$, actual \"\""
+        }
+      },
+      {
+        "name": "constraint $schema required",
+        "input": {
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ],
+          "protectedPaths": {
+            "result": "fail",
+            "changes": [
+              {
+                "path": "text-3",
+                "kind": "created",
+                "entry": "text-4"
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "$schema: is missing"
+        }
+      },
+      {
+        "name": "constraint phase minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.31.0.json",
+          "phase": "",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ],
+          "protectedPaths": {
+            "result": "fail",
+            "changes": [
+              {
+                "path": "text-3",
+                "kind": "created",
+                "entry": "text-4"
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phase: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint phase required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.31.0.json",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ],
+          "protectedPaths": {
+            "result": "fail",
+            "changes": [
+              {
+                "path": "text-3",
+                "kind": "created",
+                "entry": "text-4"
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phase: is missing"
+        }
+      },
+      {
+        "name": "constraint protectedPaths required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.31.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "protectedPaths: is missing"
+        }
+      },
+      {
+        "name": "constraint protectedPaths.changes minItems",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.31.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ],
+          "protectedPaths": {
+            "result": "fail",
+            "changes": []
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "protectedPaths.changes[0]: is missing"
+        }
+      },
+      {
+        "name": "constraint protectedPaths.changes required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.31.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ],
+          "protectedPaths": {
+            "result": "fail"
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "protectedPaths.changes: is missing"
+        }
+      },
+      {
+        "name": "constraint protectedPaths.changes[].entry minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.31.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ],
+          "protectedPaths": {
+            "result": "fail",
+            "changes": [
+              {
+                "path": "text-3",
+                "kind": "created",
+                "entry": ""
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "protectedPaths.changes[0].entry: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint protectedPaths.changes[].entry required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.31.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ],
+          "protectedPaths": {
+            "result": "fail",
+            "changes": [
+              {
+                "path": "text-3",
+                "kind": "created"
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "protectedPaths.changes[0].entry: is missing"
+        }
+      },
+      {
+        "name": "constraint protectedPaths.changes[].kind enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.31.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ],
+          "protectedPaths": {
+            "result": "fail",
+            "changes": [
+              {
+                "path": "text-3",
+                "kind": "bogus-value",
+                "entry": "text-4"
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "protectedPaths.changes[0].kind: Expected \"created\" | \"edited\" | \"deleted\" | \"renamed\" | \"symlink\" | \"nested-repository\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint protectedPaths.changes[].kind required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.31.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ],
+          "protectedPaths": {
+            "result": "fail",
+            "changes": [
+              {
+                "path": "text-3",
+                "entry": "text-4"
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "protectedPaths.changes[0].kind: is missing"
+        }
+      },
+      {
+        "name": "constraint protectedPaths.changes[].path minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.31.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ],
+          "protectedPaths": {
+            "result": "fail",
+            "changes": [
+              {
+                "path": "",
+                "kind": "created",
+                "entry": "text-4"
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "protectedPaths.changes[0].path: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint protectedPaths.changes[].path required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.31.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ],
+          "protectedPaths": {
+            "result": "fail",
+            "changes": [
+              {
+                "kind": "created",
+                "entry": "text-4"
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "protectedPaths.changes[0].path: is missing"
+        }
+      },
+      {
+        "name": "constraint protectedPaths.result enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.31.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ],
+          "protectedPaths": {
+            "result": "bogus-value",
+            "changes": [
+              {
+                "path": "text-3",
+                "kind": "created",
+                "entry": "text-4"
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "protectedPaths.result: Expected \"pass\" | \"fail\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint protectedPaths.result required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.31.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ],
+          "protectedPaths": {
+            "changes": [
+              {
+                "path": "text-3",
+                "kind": "created",
+                "entry": "text-4"
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "protectedPaths.result: is missing"
+        }
+      },
+      {
+        "name": "constraint steps required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.31.0.json",
+          "phase": "phase-01",
+          "protectedPaths": {
+            "result": "fail",
+            "changes": [
+              {
+                "path": "text-3",
+                "kind": "created",
+                "entry": "text-4"
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps: is missing"
+        }
+      },
+      {
+        "name": "constraint steps[].command minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.31.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "",
+              "surface": "structural",
+              "result": "pass"
+            }
+          ],
+          "protectedPaths": {
+            "result": "fail",
+            "changes": [
+              {
+                "path": "text-3",
+                "kind": "created",
+                "entry": "text-4"
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps[0].surface: Expected \"oracle\", actual \"structural\""
+        }
+      },
+      {
+        "name": "constraint steps[].command required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.31.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "surface": "structural",
+              "result": "pass"
+            }
+          ],
+          "protectedPaths": {
+            "result": "fail",
+            "changes": [
+              {
+                "path": "text-3",
+                "kind": "created",
+                "entry": "text-4"
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps[0].surface: Expected \"oracle\", actual \"structural\""
+        }
+      },
+      {
+        "name": "constraint steps[].result enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.31.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural",
+              "result": "bogus-value"
+            }
+          ],
+          "protectedPaths": {
+            "result": "fail",
+            "changes": [
+              {
+                "path": "text-3",
+                "kind": "created",
+                "entry": "text-4"
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps[0].surface: Expected \"oracle\", actual \"structural\""
+        }
+      },
+      {
+        "name": "constraint steps[].result required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.31.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "structural"
+            }
+          ],
+          "protectedPaths": {
+            "result": "fail",
+            "changes": [
+              {
+                "path": "text-3",
+                "kind": "created",
+                "entry": "text-4"
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps[0].surface: Expected \"oracle\", actual \"structural\""
+        }
+      },
+      {
+        "name": "constraint steps[].surface enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.31.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "surface": "bogus-value",
+              "result": "pass"
+            }
+          ],
+          "protectedPaths": {
+            "result": "fail",
+            "changes": [
+              {
+                "path": "text-3",
+                "kind": "created",
+                "entry": "text-4"
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps[0].surface: Expected \"oracle\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint steps[].surface required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.31.0.json",
+          "phase": "phase-01",
+          "steps": [
+            {
+              "command": "pnpm typecheck",
+              "result": "pass"
+            }
+          ],
+          "protectedPaths": {
+            "result": "fail",
+            "changes": [
+              {
+                "path": "text-3",
+                "kind": "created",
+                "entry": "text-4"
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "steps[0].surface: is missing"
         }
       }
     ]

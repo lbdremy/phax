@@ -992,6 +992,1808 @@
           ]
         }
       }
+    },
+    {
+      "name": "constraint $schema pattern",
+      "input": {
+        "$schema": "",
+        "entries": [
+          {
+            "role": "phase",
+            "phase": "phase-01",
+            "completeness": "complete",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000001",
+            "models": {
+              "example-model": {
+                "inputTokens": 12,
+                "outputTokens": 340,
+                "cacheReadTokens": 5600,
+                "cacheWriteTokens": 780,
+                "costUsd": 0.125
+              }
+            },
+            "costUsd": 0.125,
+            "agentMs": 4200,
+            "endedAt": "2026-10-16T09:30:00Z",
+            "rateLimitSamples": [
+              {
+                "window": "five-hour",
+                "utilization": 12.5,
+                "resetsAt": "2026-10-16T12:00:00Z",
+                "runCostUsd": 0.1
+              }
+            ]
+          },
+          {
+            "role": "compliance",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000002",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:45:00Z",
+            "rateLimitSamples": []
+          },
+          {
+            "role": "code-review",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000003",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:50:00Z",
+            "rateLimitSamples": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: expected https://docs.phax.run/schemas/<format-id>/<X.Y.Z>.json, got \"\""
+      }
+    },
+    {
+      "name": "constraint $schema required",
+      "input": {
+        "entries": [
+          {
+            "role": "phase",
+            "phase": "phase-01",
+            "completeness": "complete",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000001",
+            "models": {
+              "example-model": {
+                "inputTokens": 12,
+                "outputTokens": 340,
+                "cacheReadTokens": 5600,
+                "cacheWriteTokens": 780,
+                "costUsd": 0.125
+              }
+            },
+            "costUsd": 0.125,
+            "agentMs": 4200,
+            "endedAt": "2026-10-16T09:30:00Z",
+            "rateLimitSamples": [
+              {
+                "window": "five-hour",
+                "utilization": 12.5,
+                "resetsAt": "2026-10-16T12:00:00Z",
+                "runCostUsd": 0.1
+              }
+            ]
+          },
+          {
+            "role": "compliance",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000002",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:45:00Z",
+            "rateLimitSamples": []
+          },
+          {
+            "role": "code-review",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000003",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:50:00Z",
+            "rateLimitSamples": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: cost ledger has no $schema — every cost ledger is written with one"
+      }
+    },
+    {
+      "name": "constraint entries required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/cost-ledger/0.29.0.json"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "entries: is missing"
+      }
+    },
+    {
+      "name": "constraint entries[].agentMs required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/cost-ledger/0.29.0.json",
+        "entries": [
+          {
+            "role": "phase",
+            "phase": "phase-01",
+            "completeness": "complete",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000001",
+            "models": {
+              "example-model": {
+                "inputTokens": 12,
+                "outputTokens": 340,
+                "cacheReadTokens": 5600,
+                "cacheWriteTokens": 780,
+                "costUsd": 0.125
+              }
+            },
+            "costUsd": 0.125,
+            "endedAt": "2026-10-16T09:30:00Z",
+            "rateLimitSamples": [
+              {
+                "window": "five-hour",
+                "utilization": 12.5,
+                "resetsAt": "2026-10-16T12:00:00Z",
+                "runCostUsd": 0.1
+              }
+            ]
+          },
+          {
+            "role": "compliance",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000002",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:45:00Z",
+            "rateLimitSamples": []
+          },
+          {
+            "role": "code-review",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000003",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:50:00Z",
+            "rateLimitSamples": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "entries.0.phase: Expected null, actual \"phase-01\""
+      }
+    },
+    {
+      "name": "constraint entries[].completeness enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/cost-ledger/0.29.0.json",
+        "entries": [
+          {
+            "role": "phase",
+            "phase": "phase-01",
+            "completeness": "bogus-value",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000001",
+            "models": {
+              "example-model": {
+                "inputTokens": 12,
+                "outputTokens": 340,
+                "cacheReadTokens": 5600,
+                "cacheWriteTokens": 780,
+                "costUsd": 0.125
+              }
+            },
+            "costUsd": 0.125,
+            "agentMs": 4200,
+            "endedAt": "2026-10-16T09:30:00Z",
+            "rateLimitSamples": [
+              {
+                "window": "five-hour",
+                "utilization": 12.5,
+                "resetsAt": "2026-10-16T12:00:00Z",
+                "runCostUsd": 0.1
+              }
+            ]
+          },
+          {
+            "role": "compliance",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000002",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:45:00Z",
+            "rateLimitSamples": []
+          },
+          {
+            "role": "code-review",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000003",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:50:00Z",
+            "rateLimitSamples": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "entries.0.phase: Expected null, actual \"phase-01\""
+      }
+    },
+    {
+      "name": "constraint entries[].completeness required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/cost-ledger/0.29.0.json",
+        "entries": [
+          {
+            "role": "phase",
+            "phase": "phase-01",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000001",
+            "models": {
+              "example-model": {
+                "inputTokens": 12,
+                "outputTokens": 340,
+                "cacheReadTokens": 5600,
+                "cacheWriteTokens": 780,
+                "costUsd": 0.125
+              }
+            },
+            "costUsd": 0.125,
+            "agentMs": 4200,
+            "endedAt": "2026-10-16T09:30:00Z",
+            "rateLimitSamples": [
+              {
+                "window": "five-hour",
+                "utilization": 12.5,
+                "resetsAt": "2026-10-16T12:00:00Z",
+                "runCostUsd": 0.1
+              }
+            ]
+          },
+          {
+            "role": "compliance",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000002",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:45:00Z",
+            "rateLimitSamples": []
+          },
+          {
+            "role": "code-review",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000003",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:50:00Z",
+            "rateLimitSamples": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "entries.0.phase: Expected null, actual \"phase-01\""
+      }
+    },
+    {
+      "name": "constraint entries[].costUsd required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/cost-ledger/0.29.0.json",
+        "entries": [
+          {
+            "role": "phase",
+            "phase": "phase-01",
+            "completeness": "complete",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000001",
+            "models": {
+              "example-model": {
+                "inputTokens": 12,
+                "outputTokens": 340,
+                "cacheReadTokens": 5600,
+                "cacheWriteTokens": 780,
+                "costUsd": 0.125
+              }
+            },
+            "agentMs": 4200,
+            "endedAt": "2026-10-16T09:30:00Z",
+            "rateLimitSamples": [
+              {
+                "window": "five-hour",
+                "utilization": 12.5,
+                "resetsAt": "2026-10-16T12:00:00Z",
+                "runCostUsd": 0.1
+              }
+            ]
+          },
+          {
+            "role": "compliance",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000002",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:45:00Z",
+            "rateLimitSamples": []
+          },
+          {
+            "role": "code-review",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000003",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:50:00Z",
+            "rateLimitSamples": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "entries.0.phase: Expected null, actual \"phase-01\""
+      }
+    },
+    {
+      "name": "constraint entries[].endedAt pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/cost-ledger/0.29.0.json",
+        "entries": [
+          {
+            "role": "phase",
+            "phase": "phase-01",
+            "completeness": "complete",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000001",
+            "models": {
+              "example-model": {
+                "inputTokens": 12,
+                "outputTokens": 340,
+                "cacheReadTokens": 5600,
+                "cacheWriteTokens": 780,
+                "costUsd": 0.125
+              }
+            },
+            "costUsd": 0.125,
+            "agentMs": 4200,
+            "endedAt": "",
+            "rateLimitSamples": [
+              {
+                "window": "five-hour",
+                "utilization": 12.5,
+                "resetsAt": "2026-10-16T12:00:00Z",
+                "runCostUsd": 0.1
+              }
+            ]
+          },
+          {
+            "role": "compliance",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000002",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:45:00Z",
+            "rateLimitSamples": []
+          },
+          {
+            "role": "code-review",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000003",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:50:00Z",
+            "rateLimitSamples": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "entries.0.phase: Expected null, actual \"phase-01\""
+      }
+    },
+    {
+      "name": "constraint entries[].endedAt required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/cost-ledger/0.29.0.json",
+        "entries": [
+          {
+            "role": "phase",
+            "phase": "phase-01",
+            "completeness": "complete",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000001",
+            "models": {
+              "example-model": {
+                "inputTokens": 12,
+                "outputTokens": 340,
+                "cacheReadTokens": 5600,
+                "cacheWriteTokens": 780,
+                "costUsd": 0.125
+              }
+            },
+            "costUsd": 0.125,
+            "agentMs": 4200,
+            "rateLimitSamples": [
+              {
+                "window": "five-hour",
+                "utilization": 12.5,
+                "resetsAt": "2026-10-16T12:00:00Z",
+                "runCostUsd": 0.1
+              }
+            ]
+          },
+          {
+            "role": "compliance",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000002",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:45:00Z",
+            "rateLimitSamples": []
+          },
+          {
+            "role": "code-review",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000003",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:50:00Z",
+            "rateLimitSamples": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "entries.0.phase: Expected null, actual \"phase-01\""
+      }
+    },
+    {
+      "name": "constraint entries[].models required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/cost-ledger/0.29.0.json",
+        "entries": [
+          {
+            "role": "phase",
+            "phase": "phase-01",
+            "completeness": "complete",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000001",
+            "costUsd": 0.125,
+            "agentMs": 4200,
+            "endedAt": "2026-10-16T09:30:00Z",
+            "rateLimitSamples": [
+              {
+                "window": "five-hour",
+                "utilization": 12.5,
+                "resetsAt": "2026-10-16T12:00:00Z",
+                "runCostUsd": 0.1
+              }
+            ]
+          },
+          {
+            "role": "compliance",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000002",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:45:00Z",
+            "rateLimitSamples": []
+          },
+          {
+            "role": "code-review",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000003",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:50:00Z",
+            "rateLimitSamples": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "entries.0.phase: Expected null, actual \"phase-01\""
+      }
+    },
+    {
+      "name": "constraint entries[].models.*.cacheReadTokens required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/cost-ledger/0.29.0.json",
+        "entries": [
+          {
+            "role": "phase",
+            "phase": "phase-01",
+            "completeness": "complete",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000001",
+            "models": {
+              "example-model": {
+                "inputTokens": 12,
+                "outputTokens": 340,
+                "cacheWriteTokens": 780,
+                "costUsd": 0.125
+              }
+            },
+            "costUsd": 0.125,
+            "agentMs": 4200,
+            "endedAt": "2026-10-16T09:30:00Z",
+            "rateLimitSamples": [
+              {
+                "window": "five-hour",
+                "utilization": 12.5,
+                "resetsAt": "2026-10-16T12:00:00Z",
+                "runCostUsd": 0.1
+              }
+            ]
+          },
+          {
+            "role": "compliance",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000002",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:45:00Z",
+            "rateLimitSamples": []
+          },
+          {
+            "role": "code-review",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000003",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:50:00Z",
+            "rateLimitSamples": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "entries.0.phase: Expected null, actual \"phase-01\""
+      }
+    },
+    {
+      "name": "constraint entries[].models.*.cacheWriteTokens required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/cost-ledger/0.29.0.json",
+        "entries": [
+          {
+            "role": "phase",
+            "phase": "phase-01",
+            "completeness": "complete",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000001",
+            "models": {
+              "example-model": {
+                "inputTokens": 12,
+                "outputTokens": 340,
+                "cacheReadTokens": 5600,
+                "costUsd": 0.125
+              }
+            },
+            "costUsd": 0.125,
+            "agentMs": 4200,
+            "endedAt": "2026-10-16T09:30:00Z",
+            "rateLimitSamples": [
+              {
+                "window": "five-hour",
+                "utilization": 12.5,
+                "resetsAt": "2026-10-16T12:00:00Z",
+                "runCostUsd": 0.1
+              }
+            ]
+          },
+          {
+            "role": "compliance",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000002",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:45:00Z",
+            "rateLimitSamples": []
+          },
+          {
+            "role": "code-review",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000003",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:50:00Z",
+            "rateLimitSamples": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "entries.0.phase: Expected null, actual \"phase-01\""
+      }
+    },
+    {
+      "name": "constraint entries[].models.*.costUsd required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/cost-ledger/0.29.0.json",
+        "entries": [
+          {
+            "role": "phase",
+            "phase": "phase-01",
+            "completeness": "complete",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000001",
+            "models": {
+              "example-model": {
+                "inputTokens": 12,
+                "outputTokens": 340,
+                "cacheReadTokens": 5600,
+                "cacheWriteTokens": 780
+              }
+            },
+            "costUsd": 0.125,
+            "agentMs": 4200,
+            "endedAt": "2026-10-16T09:30:00Z",
+            "rateLimitSamples": [
+              {
+                "window": "five-hour",
+                "utilization": 12.5,
+                "resetsAt": "2026-10-16T12:00:00Z",
+                "runCostUsd": 0.1
+              }
+            ]
+          },
+          {
+            "role": "compliance",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000002",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:45:00Z",
+            "rateLimitSamples": []
+          },
+          {
+            "role": "code-review",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000003",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:50:00Z",
+            "rateLimitSamples": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "entries.0.phase: Expected null, actual \"phase-01\""
+      }
+    },
+    {
+      "name": "constraint entries[].models.*.inputTokens required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/cost-ledger/0.29.0.json",
+        "entries": [
+          {
+            "role": "phase",
+            "phase": "phase-01",
+            "completeness": "complete",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000001",
+            "models": {
+              "example-model": {
+                "outputTokens": 340,
+                "cacheReadTokens": 5600,
+                "cacheWriteTokens": 780,
+                "costUsd": 0.125
+              }
+            },
+            "costUsd": 0.125,
+            "agentMs": 4200,
+            "endedAt": "2026-10-16T09:30:00Z",
+            "rateLimitSamples": [
+              {
+                "window": "five-hour",
+                "utilization": 12.5,
+                "resetsAt": "2026-10-16T12:00:00Z",
+                "runCostUsd": 0.1
+              }
+            ]
+          },
+          {
+            "role": "compliance",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000002",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:45:00Z",
+            "rateLimitSamples": []
+          },
+          {
+            "role": "code-review",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000003",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:50:00Z",
+            "rateLimitSamples": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "entries.0.phase: Expected null, actual \"phase-01\""
+      }
+    },
+    {
+      "name": "constraint entries[].models.*.outputTokens required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/cost-ledger/0.29.0.json",
+        "entries": [
+          {
+            "role": "phase",
+            "phase": "phase-01",
+            "completeness": "complete",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000001",
+            "models": {
+              "example-model": {
+                "inputTokens": 12,
+                "cacheReadTokens": 5600,
+                "cacheWriteTokens": 780,
+                "costUsd": 0.125
+              }
+            },
+            "costUsd": 0.125,
+            "agentMs": 4200,
+            "endedAt": "2026-10-16T09:30:00Z",
+            "rateLimitSamples": [
+              {
+                "window": "five-hour",
+                "utilization": 12.5,
+                "resetsAt": "2026-10-16T12:00:00Z",
+                "runCostUsd": 0.1
+              }
+            ]
+          },
+          {
+            "role": "compliance",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000002",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:45:00Z",
+            "rateLimitSamples": []
+          },
+          {
+            "role": "code-review",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000003",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:50:00Z",
+            "rateLimitSamples": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "entries.0.phase: Expected null, actual \"phase-01\""
+      }
+    },
+    {
+      "name": "constraint entries[].phase pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/cost-ledger/0.29.0.json",
+        "entries": [
+          {
+            "role": "phase",
+            "phase": "",
+            "completeness": "complete",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000001",
+            "models": {
+              "example-model": {
+                "inputTokens": 12,
+                "outputTokens": 340,
+                "cacheReadTokens": 5600,
+                "cacheWriteTokens": 780,
+                "costUsd": 0.125
+              }
+            },
+            "costUsd": 0.125,
+            "agentMs": 4200,
+            "endedAt": "2026-10-16T09:30:00Z",
+            "rateLimitSamples": [
+              {
+                "window": "five-hour",
+                "utilization": 12.5,
+                "resetsAt": "2026-10-16T12:00:00Z",
+                "runCostUsd": 0.1
+              }
+            ]
+          },
+          {
+            "role": "compliance",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000002",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:45:00Z",
+            "rateLimitSamples": []
+          },
+          {
+            "role": "code-review",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000003",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:50:00Z",
+            "rateLimitSamples": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "entries.0.phase: Expected null, actual \"\""
+      }
+    },
+    {
+      "name": "constraint entries[].phase required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/cost-ledger/0.29.0.json",
+        "entries": [
+          {
+            "role": "phase",
+            "completeness": "complete",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000001",
+            "models": {
+              "example-model": {
+                "inputTokens": 12,
+                "outputTokens": 340,
+                "cacheReadTokens": 5600,
+                "cacheWriteTokens": 780,
+                "costUsd": 0.125
+              }
+            },
+            "costUsd": 0.125,
+            "agentMs": 4200,
+            "endedAt": "2026-10-16T09:30:00Z",
+            "rateLimitSamples": [
+              {
+                "window": "five-hour",
+                "utilization": 12.5,
+                "resetsAt": "2026-10-16T12:00:00Z",
+                "runCostUsd": 0.1
+              }
+            ]
+          },
+          {
+            "role": "compliance",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000002",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:45:00Z",
+            "rateLimitSamples": []
+          },
+          {
+            "role": "code-review",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000003",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:50:00Z",
+            "rateLimitSamples": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "entries.0.phase: is missing"
+      }
+    },
+    {
+      "name": "constraint entries[].provider enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/cost-ledger/0.29.0.json",
+        "entries": [
+          {
+            "role": "phase",
+            "phase": "phase-01",
+            "completeness": "complete",
+            "provider": "bogus-value",
+            "sessionId": "00000000-0000-4000-8000-000000000001",
+            "models": {
+              "example-model": {
+                "inputTokens": 12,
+                "outputTokens": 340,
+                "cacheReadTokens": 5600,
+                "cacheWriteTokens": 780,
+                "costUsd": 0.125
+              }
+            },
+            "costUsd": 0.125,
+            "agentMs": 4200,
+            "endedAt": "2026-10-16T09:30:00Z",
+            "rateLimitSamples": [
+              {
+                "window": "five-hour",
+                "utilization": 12.5,
+                "resetsAt": "2026-10-16T12:00:00Z",
+                "runCostUsd": 0.1
+              }
+            ]
+          },
+          {
+            "role": "compliance",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000002",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:45:00Z",
+            "rateLimitSamples": []
+          },
+          {
+            "role": "code-review",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000003",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:50:00Z",
+            "rateLimitSamples": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "entries.0.provider: Expected \"claude-code\", actual \"bogus-value\""
+      }
+    },
+    {
+      "name": "constraint entries[].provider required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/cost-ledger/0.29.0.json",
+        "entries": [
+          {
+            "role": "phase",
+            "phase": "phase-01",
+            "completeness": "complete",
+            "sessionId": "00000000-0000-4000-8000-000000000001",
+            "models": {
+              "example-model": {
+                "inputTokens": 12,
+                "outputTokens": 340,
+                "cacheReadTokens": 5600,
+                "cacheWriteTokens": 780,
+                "costUsd": 0.125
+              }
+            },
+            "costUsd": 0.125,
+            "agentMs": 4200,
+            "endedAt": "2026-10-16T09:30:00Z",
+            "rateLimitSamples": [
+              {
+                "window": "five-hour",
+                "utilization": 12.5,
+                "resetsAt": "2026-10-16T12:00:00Z",
+                "runCostUsd": 0.1
+              }
+            ]
+          },
+          {
+            "role": "compliance",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000002",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:45:00Z",
+            "rateLimitSamples": []
+          },
+          {
+            "role": "code-review",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000003",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:50:00Z",
+            "rateLimitSamples": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "entries.0.provider: is missing"
+      }
+    },
+    {
+      "name": "constraint entries[].rateLimitSamples required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/cost-ledger/0.29.0.json",
+        "entries": [
+          {
+            "role": "phase",
+            "phase": "phase-01",
+            "completeness": "complete",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000001",
+            "models": {
+              "example-model": {
+                "inputTokens": 12,
+                "outputTokens": 340,
+                "cacheReadTokens": 5600,
+                "cacheWriteTokens": 780,
+                "costUsd": 0.125
+              }
+            },
+            "costUsd": 0.125,
+            "agentMs": 4200,
+            "endedAt": "2026-10-16T09:30:00Z"
+          },
+          {
+            "role": "compliance",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000002",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:45:00Z",
+            "rateLimitSamples": []
+          },
+          {
+            "role": "code-review",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000003",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:50:00Z",
+            "rateLimitSamples": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "entries.0.phase: Expected null, actual \"phase-01\""
+      }
+    },
+    {
+      "name": "constraint entries[].rateLimitSamples[].resetsAt pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/cost-ledger/0.29.0.json",
+        "entries": [
+          {
+            "role": "phase",
+            "phase": "phase-01",
+            "completeness": "complete",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000001",
+            "models": {
+              "example-model": {
+                "inputTokens": 12,
+                "outputTokens": 340,
+                "cacheReadTokens": 5600,
+                "cacheWriteTokens": 780,
+                "costUsd": 0.125
+              }
+            },
+            "costUsd": 0.125,
+            "agentMs": 4200,
+            "endedAt": "2026-10-16T09:30:00Z",
+            "rateLimitSamples": [
+              {
+                "window": "five-hour",
+                "utilization": 12.5,
+                "resetsAt": "",
+                "runCostUsd": 0.1
+              }
+            ]
+          },
+          {
+            "role": "compliance",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000002",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:45:00Z",
+            "rateLimitSamples": []
+          },
+          {
+            "role": "code-review",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000003",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:50:00Z",
+            "rateLimitSamples": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "entries.0.phase: Expected null, actual \"phase-01\""
+      }
+    },
+    {
+      "name": "constraint entries[].rateLimitSamples[].resetsAt required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/cost-ledger/0.29.0.json",
+        "entries": [
+          {
+            "role": "phase",
+            "phase": "phase-01",
+            "completeness": "complete",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000001",
+            "models": {
+              "example-model": {
+                "inputTokens": 12,
+                "outputTokens": 340,
+                "cacheReadTokens": 5600,
+                "cacheWriteTokens": 780,
+                "costUsd": 0.125
+              }
+            },
+            "costUsd": 0.125,
+            "agentMs": 4200,
+            "endedAt": "2026-10-16T09:30:00Z",
+            "rateLimitSamples": [
+              {
+                "window": "five-hour",
+                "utilization": 12.5,
+                "runCostUsd": 0.1
+              }
+            ]
+          },
+          {
+            "role": "compliance",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000002",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:45:00Z",
+            "rateLimitSamples": []
+          },
+          {
+            "role": "code-review",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000003",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:50:00Z",
+            "rateLimitSamples": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "entries.0.phase: Expected null, actual \"phase-01\""
+      }
+    },
+    {
+      "name": "constraint entries[].rateLimitSamples[].runCostUsd required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/cost-ledger/0.29.0.json",
+        "entries": [
+          {
+            "role": "phase",
+            "phase": "phase-01",
+            "completeness": "complete",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000001",
+            "models": {
+              "example-model": {
+                "inputTokens": 12,
+                "outputTokens": 340,
+                "cacheReadTokens": 5600,
+                "cacheWriteTokens": 780,
+                "costUsd": 0.125
+              }
+            },
+            "costUsd": 0.125,
+            "agentMs": 4200,
+            "endedAt": "2026-10-16T09:30:00Z",
+            "rateLimitSamples": [
+              {
+                "window": "five-hour",
+                "utilization": 12.5,
+                "resetsAt": "2026-10-16T12:00:00Z"
+              }
+            ]
+          },
+          {
+            "role": "compliance",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000002",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:45:00Z",
+            "rateLimitSamples": []
+          },
+          {
+            "role": "code-review",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000003",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:50:00Z",
+            "rateLimitSamples": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "entries.0.phase: Expected null, actual \"phase-01\""
+      }
+    },
+    {
+      "name": "constraint entries[].rateLimitSamples[].utilization required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/cost-ledger/0.29.0.json",
+        "entries": [
+          {
+            "role": "phase",
+            "phase": "phase-01",
+            "completeness": "complete",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000001",
+            "models": {
+              "example-model": {
+                "inputTokens": 12,
+                "outputTokens": 340,
+                "cacheReadTokens": 5600,
+                "cacheWriteTokens": 780,
+                "costUsd": 0.125
+              }
+            },
+            "costUsd": 0.125,
+            "agentMs": 4200,
+            "endedAt": "2026-10-16T09:30:00Z",
+            "rateLimitSamples": [
+              {
+                "window": "five-hour",
+                "resetsAt": "2026-10-16T12:00:00Z",
+                "runCostUsd": 0.1
+              }
+            ]
+          },
+          {
+            "role": "compliance",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000002",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:45:00Z",
+            "rateLimitSamples": []
+          },
+          {
+            "role": "code-review",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000003",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:50:00Z",
+            "rateLimitSamples": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "entries.0.phase: Expected null, actual \"phase-01\""
+      }
+    },
+    {
+      "name": "constraint entries[].rateLimitSamples[].window enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/cost-ledger/0.29.0.json",
+        "entries": [
+          {
+            "role": "phase",
+            "phase": "phase-01",
+            "completeness": "complete",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000001",
+            "models": {
+              "example-model": {
+                "inputTokens": 12,
+                "outputTokens": 340,
+                "cacheReadTokens": 5600,
+                "cacheWriteTokens": 780,
+                "costUsd": 0.125
+              }
+            },
+            "costUsd": 0.125,
+            "agentMs": 4200,
+            "endedAt": "2026-10-16T09:30:00Z",
+            "rateLimitSamples": [
+              {
+                "window": "bogus-value",
+                "utilization": 12.5,
+                "resetsAt": "2026-10-16T12:00:00Z",
+                "runCostUsd": 0.1
+              }
+            ]
+          },
+          {
+            "role": "compliance",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000002",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:45:00Z",
+            "rateLimitSamples": []
+          },
+          {
+            "role": "code-review",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000003",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:50:00Z",
+            "rateLimitSamples": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "entries.0.phase: Expected null, actual \"phase-01\""
+      }
+    },
+    {
+      "name": "constraint entries[].rateLimitSamples[].window required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/cost-ledger/0.29.0.json",
+        "entries": [
+          {
+            "role": "phase",
+            "phase": "phase-01",
+            "completeness": "complete",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000001",
+            "models": {
+              "example-model": {
+                "inputTokens": 12,
+                "outputTokens": 340,
+                "cacheReadTokens": 5600,
+                "cacheWriteTokens": 780,
+                "costUsd": 0.125
+              }
+            },
+            "costUsd": 0.125,
+            "agentMs": 4200,
+            "endedAt": "2026-10-16T09:30:00Z",
+            "rateLimitSamples": [
+              {
+                "utilization": 12.5,
+                "resetsAt": "2026-10-16T12:00:00Z",
+                "runCostUsd": 0.1
+              }
+            ]
+          },
+          {
+            "role": "compliance",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000002",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:45:00Z",
+            "rateLimitSamples": []
+          },
+          {
+            "role": "code-review",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000003",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:50:00Z",
+            "rateLimitSamples": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "entries.0.phase: Expected null, actual \"phase-01\""
+      }
+    },
+    {
+      "name": "constraint entries[].role enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/cost-ledger/0.29.0.json",
+        "entries": [
+          {
+            "role": "bogus-value",
+            "phase": "phase-01",
+            "completeness": "complete",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000001",
+            "models": {
+              "example-model": {
+                "inputTokens": 12,
+                "outputTokens": 340,
+                "cacheReadTokens": 5600,
+                "cacheWriteTokens": 780,
+                "costUsd": 0.125
+              }
+            },
+            "costUsd": 0.125,
+            "agentMs": 4200,
+            "endedAt": "2026-10-16T09:30:00Z",
+            "rateLimitSamples": [
+              {
+                "window": "five-hour",
+                "utilization": 12.5,
+                "resetsAt": "2026-10-16T12:00:00Z",
+                "runCostUsd": 0.1
+              }
+            ]
+          },
+          {
+            "role": "compliance",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000002",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:45:00Z",
+            "rateLimitSamples": []
+          },
+          {
+            "role": "code-review",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000003",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:50:00Z",
+            "rateLimitSamples": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "entries.0.phase: Expected null, actual \"phase-01\""
+      }
+    },
+    {
+      "name": "constraint entries[].role required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/cost-ledger/0.29.0.json",
+        "entries": [
+          {
+            "phase": "phase-01",
+            "completeness": "complete",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000001",
+            "models": {
+              "example-model": {
+                "inputTokens": 12,
+                "outputTokens": 340,
+                "cacheReadTokens": 5600,
+                "cacheWriteTokens": 780,
+                "costUsd": 0.125
+              }
+            },
+            "costUsd": 0.125,
+            "agentMs": 4200,
+            "endedAt": "2026-10-16T09:30:00Z",
+            "rateLimitSamples": [
+              {
+                "window": "five-hour",
+                "utilization": 12.5,
+                "resetsAt": "2026-10-16T12:00:00Z",
+                "runCostUsd": 0.1
+              }
+            ]
+          },
+          {
+            "role": "compliance",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000002",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:45:00Z",
+            "rateLimitSamples": []
+          },
+          {
+            "role": "code-review",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000003",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:50:00Z",
+            "rateLimitSamples": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "entries.0.phase: Expected null, actual \"phase-01\""
+      }
+    },
+    {
+      "name": "constraint entries[].sessionId minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/cost-ledger/0.29.0.json",
+        "entries": [
+          {
+            "role": "phase",
+            "phase": "phase-01",
+            "completeness": "complete",
+            "provider": "claude-code",
+            "sessionId": "",
+            "models": {
+              "example-model": {
+                "inputTokens": 12,
+                "outputTokens": 340,
+                "cacheReadTokens": 5600,
+                "cacheWriteTokens": 780,
+                "costUsd": 0.125
+              }
+            },
+            "costUsd": 0.125,
+            "agentMs": 4200,
+            "endedAt": "2026-10-16T09:30:00Z",
+            "rateLimitSamples": [
+              {
+                "window": "five-hour",
+                "utilization": 12.5,
+                "resetsAt": "2026-10-16T12:00:00Z",
+                "runCostUsd": 0.1
+              }
+            ]
+          },
+          {
+            "role": "compliance",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000002",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:45:00Z",
+            "rateLimitSamples": []
+          },
+          {
+            "role": "code-review",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000003",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:50:00Z",
+            "rateLimitSamples": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "entries.0.phase: Expected null, actual \"phase-01\""
+      }
+    },
+    {
+      "name": "constraint entries[].sessionId required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/cost-ledger/0.29.0.json",
+        "entries": [
+          {
+            "role": "phase",
+            "phase": "phase-01",
+            "completeness": "complete",
+            "provider": "claude-code",
+            "models": {
+              "example-model": {
+                "inputTokens": 12,
+                "outputTokens": 340,
+                "cacheReadTokens": 5600,
+                "cacheWriteTokens": 780,
+                "costUsd": 0.125
+              }
+            },
+            "costUsd": 0.125,
+            "agentMs": 4200,
+            "endedAt": "2026-10-16T09:30:00Z",
+            "rateLimitSamples": [
+              {
+                "window": "five-hour",
+                "utilization": 12.5,
+                "resetsAt": "2026-10-16T12:00:00Z",
+                "runCostUsd": 0.1
+              }
+            ]
+          },
+          {
+            "role": "compliance",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000002",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:45:00Z",
+            "rateLimitSamples": []
+          },
+          {
+            "role": "code-review",
+            "phase": null,
+            "completeness": "partial",
+            "provider": "claude-code",
+            "sessionId": "00000000-0000-4000-8000-000000000003",
+            "models": {},
+            "costUsd": 0,
+            "agentMs": 0,
+            "endedAt": "2026-10-16T09:50:00Z",
+            "rateLimitSamples": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "entries.0.phase: Expected null, actual \"phase-01\""
+      }
     }
   ],
   "shapes": {
@@ -1302,6 +3104,1112 @@
           "ok": false,
           "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
         }
+      },
+      {
+        "name": "constraint $schema pattern",
+        "input": {
+          "$schema": "",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "$schema: Expected a string matching the pattern ^https:\\/\\/docs\\.phax\\.run\\/schemas\\/cost-ledger\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$, actual \"\""
+        }
+      },
+      {
+        "name": "constraint $schema required",
+        "input": {
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "$schema: is missing"
+        }
+      },
+      {
+        "name": "constraint entries required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.25.0.json"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries: is missing"
+        }
+      },
+      {
+        "name": "constraint entries[].agentMs required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.25.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint entries[].completeness enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.25.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "bogus-value",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint entries[].completeness required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.25.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint entries[].costUsd required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.25.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint entries[].endedAt pattern",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.25.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint entries[].endedAt required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.25.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint entries[].models required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.25.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint entries[].models.*.cacheReadTokens required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.25.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint entries[].models.*.cacheWriteTokens required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.25.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint entries[].models.*.costUsd required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.25.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint entries[].models.*.inputTokens required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.25.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint entries[].models.*.outputTokens required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.25.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint entries[].phase pattern",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.25.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint entries[].phase required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.25.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint entries[].provider enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.25.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "bogus-value",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].provider: Expected \"claude-code\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint entries[].provider required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.25.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].provider: is missing"
+        }
+      },
+      {
+        "name": "constraint entries[].rateLimitSamples required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.25.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint entries[].rateLimitSamples[].resetsAt pattern",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.25.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint entries[].rateLimitSamples[].resetsAt required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.25.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint entries[].rateLimitSamples[].runCostUsd required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.25.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z"
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint entries[].rateLimitSamples[].utilization required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.25.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint entries[].rateLimitSamples[].window enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.25.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "bogus-value",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint entries[].rateLimitSamples[].window required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.25.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint entries[].role enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.25.0.json",
+          "entries": [
+            {
+              "role": "bogus-value",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint entries[].role required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.25.0.json",
+          "entries": [
+            {
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: is missing"
+        }
+      },
+      {
+        "name": "constraint entries[].sessionId minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.25.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint entries[].sessionId required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.25.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
       }
     ],
     "0.26.0": [
@@ -1584,6 +4492,1112 @@
               "completeness": "complete",
               "provider": "claude-code",
               "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint $schema pattern",
+        "input": {
+          "$schema": "",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "$schema: Expected a string matching the pattern ^https:\\/\\/docs\\.phax\\.run\\/schemas\\/cost-ledger\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$, actual \"\""
+        }
+      },
+      {
+        "name": "constraint $schema required",
+        "input": {
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "$schema: is missing"
+        }
+      },
+      {
+        "name": "constraint entries required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.26.0.json"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries: is missing"
+        }
+      },
+      {
+        "name": "constraint entries[].agentMs required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.26.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint entries[].completeness enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.26.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "bogus-value",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint entries[].completeness required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.26.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint entries[].costUsd required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.26.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint entries[].endedAt pattern",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.26.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint entries[].endedAt required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.26.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint entries[].models required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.26.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint entries[].models.*.cacheReadTokens required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.26.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint entries[].models.*.cacheWriteTokens required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.26.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint entries[].models.*.costUsd required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.26.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint entries[].models.*.inputTokens required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.26.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint entries[].models.*.outputTokens required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.26.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint entries[].phase pattern",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.26.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint entries[].phase required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.26.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint entries[].provider enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.26.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "bogus-value",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].provider: Expected \"claude-code\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint entries[].provider required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.26.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].provider: is missing"
+        }
+      },
+      {
+        "name": "constraint entries[].rateLimitSamples required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.26.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint entries[].rateLimitSamples[].resetsAt pattern",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.26.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint entries[].rateLimitSamples[].resetsAt required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.26.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint entries[].rateLimitSamples[].runCostUsd required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.26.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z"
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint entries[].rateLimitSamples[].utilization required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.26.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint entries[].rateLimitSamples[].window enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.26.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "bogus-value",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint entries[].rateLimitSamples[].window required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.26.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint entries[].role enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.26.0.json",
+          "entries": [
+            {
+              "role": "bogus-value",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint entries[].role required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.26.0.json",
+          "entries": [
+            {
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "00000000-0000-4000-8000-000000000001",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: is missing"
+        }
+      },
+      {
+        "name": "constraint entries[].sessionId minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.26.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
+              "sessionId": "",
+              "models": {
+                "example-model": {
+                  "inputTokens": 12,
+                  "outputTokens": 340,
+                  "cacheReadTokens": 5600,
+                  "cacheWriteTokens": 780,
+                  "costUsd": 0.125
+                }
+              },
+              "costUsd": 0.125,
+              "agentMs": 4200,
+              "endedAt": "2026-10-16T09:30:00Z",
+              "rateLimitSamples": [
+                {
+                  "window": "five-hour",
+                  "utilization": 12.5,
+                  "resetsAt": "2026-10-16T12:00:00Z",
+                  "runCostUsd": 0.1
+                }
+              ]
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "entries[0].role: Expected \"compliance\", actual \"phase\""
+        }
+      },
+      {
+        "name": "constraint entries[].sessionId required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/cost-ledger/0.26.0.json",
+          "entries": [
+            {
+              "role": "phase",
+              "phase": "phase-01",
+              "completeness": "complete",
+              "provider": "claude-code",
               "models": {
                 "example-model": {
                   "inputTokens": 12,

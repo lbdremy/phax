@@ -560,6 +560,1111 @@
           "worktreePath": "/work/example-repo/worktrees/phase-01"
         }
       }
+    },
+    {
+      "name": "constraint $schema pattern",
+      "input": {
+        "$schema": "",
+        "phaseId": "phase-01",
+        "phaseIndex": 0,
+        "state": "running",
+        "model": "example-model",
+        "effort": "high",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "branchName": "phax/example-run--phase-01",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "worktreePath": "/work/example-repo/worktrees/phase-01",
+        "mode": "headless",
+        "stop": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: expected https://docs.phax.run/schemas/<format-id>/<X.Y.Z>.json, got \"\""
+      }
+    },
+    {
+      "name": "constraint $schema required",
+      "input": {
+        "phaseId": "phase-01",
+        "phaseIndex": 0,
+        "state": "running",
+        "model": "example-model",
+        "effort": "high",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "branchName": "phax/example-run--phase-01",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "worktreePath": "/work/example-repo/worktrees/phase-01",
+        "mode": "headless",
+        "stop": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "version: phase status older than phax 0.17.0, the first supported release — not supported (is missing)"
+      }
+    },
+    {
+      "name": "constraint base pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+        "phaseId": "phase-01",
+        "phaseIndex": 0,
+        "state": "running",
+        "model": "example-model",
+        "effort": "high",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "branchName": "phax/example-run--phase-01",
+        "base": "",
+        "worktreePath": "/work/example-repo/worktrees/phase-01",
+        "mode": "headless",
+        "stop": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "base: Expected a string matching the pattern ^[0-9a-f]{40}([0-9a-f]{24})?$, actual \"\""
+      }
+    },
+    {
+      "name": "constraint base required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+        "phaseId": "phase-01",
+        "phaseIndex": 0,
+        "state": "running",
+        "model": "example-model",
+        "effort": "high",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "branchName": "phax/example-run--phase-01",
+        "worktreePath": "/work/example-repo/worktrees/phase-01",
+        "mode": "headless",
+        "stop": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "base: is missing"
+      }
+    },
+    {
+      "name": "constraint branchName maxLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+        "phaseId": "phase-01",
+        "phaseIndex": 0,
+        "state": "running",
+        "model": "example-model",
+        "effort": "high",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "branchName": "phax/example-run--phase-01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "worktreePath": "/work/example-repo/worktrees/phase-01",
+        "mode": "headless",
+        "stop": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "branchName: Expected a string at most 255 character(s) long, actual \"phax/example-run--phase-01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\""
+      }
+    },
+    {
+      "name": "constraint branchName minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+        "phaseId": "phase-01",
+        "phaseIndex": 0,
+        "state": "running",
+        "model": "example-model",
+        "effort": "high",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "branchName": "",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "worktreePath": "/work/example-repo/worktrees/phase-01",
+        "mode": "headless",
+        "stop": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "branchName: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint branchName pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+        "phaseId": "phase-01",
+        "phaseIndex": 0,
+        "state": "running",
+        "model": "example-model",
+        "effort": "high",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "branchName": "",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "worktreePath": "/work/example-repo/worktrees/phase-01",
+        "mode": "headless",
+        "stop": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "branchName: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint branchName required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+        "phaseId": "phase-01",
+        "phaseIndex": 0,
+        "state": "running",
+        "model": "example-model",
+        "effort": "high",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "worktreePath": "/work/example-repo/worktrees/phase-01",
+        "mode": "headless",
+        "stop": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "branchName: is missing"
+      }
+    },
+    {
+      "name": "constraint claudeSessionId minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+        "phaseId": "phase-01",
+        "phaseIndex": 0,
+        "state": "running",
+        "model": "example-model",
+        "effort": "high",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "branchName": "phax/example-run--phase-01",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "worktreePath": "/work/example-repo/worktrees/phase-01",
+        "claudeSessionId": "",
+        "commitHash": "text-9",
+        "mode": "headless",
+        "stop": {
+          "cause": "held",
+          "status": "closed",
+          "outcome": "corrected",
+          "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+          "acceptanceStep": "authored",
+          "closedBy": {
+            "name": "text-11",
+            "email": "text-12"
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "claudeSessionId: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint commitHash minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+        "phaseId": "phase-01",
+        "phaseIndex": 0,
+        "state": "running",
+        "model": "example-model",
+        "effort": "high",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "branchName": "phax/example-run--phase-01",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "worktreePath": "/work/example-repo/worktrees/phase-01",
+        "claudeSessionId": "text-8",
+        "commitHash": "",
+        "mode": "headless",
+        "stop": {
+          "cause": "held",
+          "status": "closed",
+          "outcome": "corrected",
+          "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+          "acceptanceStep": "authored",
+          "closedBy": {
+            "name": "text-11",
+            "email": "text-12"
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "commitHash: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint createdAt minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+        "phaseId": "phase-01",
+        "phaseIndex": 0,
+        "state": "running",
+        "model": "example-model",
+        "effort": "high",
+        "createdAt": "",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "branchName": "phax/example-run--phase-01",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "worktreePath": "/work/example-repo/worktrees/phase-01",
+        "mode": "headless",
+        "stop": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "createdAt: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint createdAt required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+        "phaseId": "phase-01",
+        "phaseIndex": 0,
+        "state": "running",
+        "model": "example-model",
+        "effort": "high",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "branchName": "phax/example-run--phase-01",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "worktreePath": "/work/example-repo/worktrees/phase-01",
+        "mode": "headless",
+        "stop": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "createdAt: is missing"
+      }
+    },
+    {
+      "name": "constraint effort enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+        "phaseId": "phase-01",
+        "phaseIndex": 0,
+        "state": "running",
+        "model": "example-model",
+        "effort": "bogus-value",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "branchName": "phax/example-run--phase-01",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "worktreePath": "/work/example-repo/worktrees/phase-01",
+        "mode": "headless",
+        "stop": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "effort: Expected \"none\" | \"off\" | \"low\" | \"medium\" | \"high\" | \"xhigh\" | \"max\" | \"ultracode\" | \"ultra\", actual \"bogus-value\""
+      }
+    },
+    {
+      "name": "constraint effort required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+        "phaseId": "phase-01",
+        "phaseIndex": 0,
+        "state": "running",
+        "model": "example-model",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "branchName": "phax/example-run--phase-01",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "worktreePath": "/work/example-repo/worktrees/phase-01",
+        "mode": "headless",
+        "stop": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "effort: is missing"
+      }
+    },
+    {
+      "name": "constraint mode enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+        "phaseId": "phase-01",
+        "phaseIndex": 0,
+        "state": "running",
+        "model": "example-model",
+        "effort": "high",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "branchName": "phax/example-run--phase-01",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "worktreePath": "/work/example-repo/worktrees/phase-01",
+        "mode": "bogus-value",
+        "stop": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "mode: Expected \"headless\" | \"interactive\", actual \"bogus-value\""
+      }
+    },
+    {
+      "name": "constraint mode required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+        "phaseId": "phase-01",
+        "phaseIndex": 0,
+        "state": "running",
+        "model": "example-model",
+        "effort": "high",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "branchName": "phax/example-run--phase-01",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "worktreePath": "/work/example-repo/worktrees/phase-01",
+        "stop": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "mode: is missing"
+      }
+    },
+    {
+      "name": "constraint model minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+        "phaseId": "phase-01",
+        "phaseIndex": 0,
+        "state": "running",
+        "model": "",
+        "effort": "high",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "branchName": "phax/example-run--phase-01",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "worktreePath": "/work/example-repo/worktrees/phase-01",
+        "mode": "headless",
+        "stop": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "model: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint model required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+        "phaseId": "phase-01",
+        "phaseIndex": 0,
+        "state": "running",
+        "effort": "high",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "branchName": "phax/example-run--phase-01",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "worktreePath": "/work/example-repo/worktrees/phase-01",
+        "mode": "headless",
+        "stop": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "model: is missing"
+      }
+    },
+    {
+      "name": "constraint phaseId minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+        "phaseId": "",
+        "phaseIndex": 0,
+        "state": "running",
+        "model": "example-model",
+        "effort": "high",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "branchName": "phax/example-run--phase-01",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "worktreePath": "/work/example-repo/worktrees/phase-01",
+        "mode": "headless",
+        "stop": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "phaseId: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint phaseId required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+        "phaseIndex": 0,
+        "state": "running",
+        "model": "example-model",
+        "effort": "high",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "branchName": "phax/example-run--phase-01",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "worktreePath": "/work/example-repo/worktrees/phase-01",
+        "mode": "headless",
+        "stop": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "phaseId: is missing"
+      }
+    },
+    {
+      "name": "constraint phaseIndex required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+        "phaseId": "phase-01",
+        "state": "running",
+        "model": "example-model",
+        "effort": "high",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "branchName": "phax/example-run--phase-01",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "worktreePath": "/work/example-repo/worktrees/phase-01",
+        "mode": "headless",
+        "stop": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "phaseIndex: is missing"
+      }
+    },
+    {
+      "name": "constraint state enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+        "phaseId": "phase-01",
+        "phaseIndex": 0,
+        "state": "bogus-value",
+        "model": "example-model",
+        "effort": "high",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "branchName": "phax/example-run--phase-01",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "worktreePath": "/work/example-repo/worktrees/phase-01",
+        "mode": "headless",
+        "stop": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "state: Expected \"pending\" | \"setting_up_worktree\" | \"running\" | \"gates_failed\" | \"gates_exhausted\" | \"fixing\" | \"failed\" | \"passed\" | \"committed\" | \"cleaning_up\" | \"cleaned_up\" | \"review_open\" | \"handoff_failed\" | \"skipped\" | \"rate_limited\" | \"awaiting_review\", actual \"bogus-value\""
+      }
+    },
+    {
+      "name": "constraint state required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+        "phaseId": "phase-01",
+        "phaseIndex": 0,
+        "model": "example-model",
+        "effort": "high",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "branchName": "phax/example-run--phase-01",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "worktreePath": "/work/example-repo/worktrees/phase-01",
+        "mode": "headless",
+        "stop": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "state: is missing"
+      }
+    },
+    {
+      "name": "constraint stop required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+        "phaseId": "phase-01",
+        "phaseIndex": 0,
+        "state": "running",
+        "model": "example-model",
+        "effort": "high",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "branchName": "phax/example-run--phase-01",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "worktreePath": "/work/example-repo/worktrees/phase-01",
+        "mode": "headless"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "stop: is missing"
+      }
+    },
+    {
+      "name": "constraint stop.acceptanceStep enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+        "phaseId": "phase-01",
+        "phaseIndex": 0,
+        "state": "running",
+        "model": "example-model",
+        "effort": "high",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "branchName": "phax/example-run--phase-01",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "worktreePath": "/work/example-repo/worktrees/phase-01",
+        "claudeSessionId": "text-8",
+        "commitHash": "text-9",
+        "mode": "headless",
+        "stop": {
+          "cause": "held",
+          "status": "closed",
+          "outcome": "corrected",
+          "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+          "acceptanceStep": "bogus-value",
+          "closedBy": {
+            "name": "text-11",
+            "email": "text-12"
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "stop.outcome: is unexpected, expected: \"cause\" | \"status\""
+      }
+    },
+    {
+      "name": "constraint stop.acceptanceStep required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+        "phaseId": "phase-01",
+        "phaseIndex": 0,
+        "state": "running",
+        "model": "example-model",
+        "effort": "high",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "branchName": "phax/example-run--phase-01",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "worktreePath": "/work/example-repo/worktrees/phase-01",
+        "claudeSessionId": "text-8",
+        "commitHash": "text-9",
+        "mode": "headless",
+        "stop": {
+          "cause": "held",
+          "status": "closed",
+          "outcome": "corrected",
+          "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+          "closedBy": {
+            "name": "text-11",
+            "email": "text-12"
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "stop.outcome: is unexpected, expected: \"cause\" | \"status\""
+      }
+    },
+    {
+      "name": "constraint stop.cause enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+        "phaseId": "phase-01",
+        "phaseIndex": 0,
+        "state": "running",
+        "model": "example-model",
+        "effort": "high",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "branchName": "phax/example-run--phase-01",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "worktreePath": "/work/example-repo/worktrees/phase-01",
+        "claudeSessionId": "text-8",
+        "commitHash": "text-9",
+        "mode": "headless",
+        "stop": {
+          "cause": "bogus-value",
+          "status": "closed",
+          "outcome": "corrected",
+          "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+          "acceptanceStep": "authored",
+          "closedBy": {
+            "name": "text-11",
+            "email": "text-12"
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "stop.cause: Expected \"declared\" | \"held\", actual \"bogus-value\""
+      }
+    },
+    {
+      "name": "constraint stop.cause required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+        "phaseId": "phase-01",
+        "phaseIndex": 0,
+        "state": "running",
+        "model": "example-model",
+        "effort": "high",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "branchName": "phax/example-run--phase-01",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "worktreePath": "/work/example-repo/worktrees/phase-01",
+        "claudeSessionId": "text-8",
+        "commitHash": "text-9",
+        "mode": "headless",
+        "stop": {
+          "status": "closed",
+          "outcome": "corrected",
+          "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+          "acceptanceStep": "authored",
+          "closedBy": {
+            "name": "text-11",
+            "email": "text-12"
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "stop.cause: is missing"
+      }
+    },
+    {
+      "name": "constraint stop.closedBy required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+        "phaseId": "phase-01",
+        "phaseIndex": 0,
+        "state": "running",
+        "model": "example-model",
+        "effort": "high",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "branchName": "phax/example-run--phase-01",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "worktreePath": "/work/example-repo/worktrees/phase-01",
+        "claudeSessionId": "text-8",
+        "commitHash": "text-9",
+        "mode": "headless",
+        "stop": {
+          "cause": "held",
+          "status": "closed",
+          "outcome": "corrected",
+          "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+          "acceptanceStep": "authored"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "stop.outcome: is unexpected, expected: \"cause\" | \"status\""
+      }
+    },
+    {
+      "name": "constraint stop.closedBy.email minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+        "phaseId": "phase-01",
+        "phaseIndex": 0,
+        "state": "running",
+        "model": "example-model",
+        "effort": "high",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "branchName": "phax/example-run--phase-01",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "worktreePath": "/work/example-repo/worktrees/phase-01",
+        "claudeSessionId": "text-8",
+        "commitHash": "text-9",
+        "mode": "headless",
+        "stop": {
+          "cause": "held",
+          "status": "closed",
+          "outcome": "corrected",
+          "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+          "acceptanceStep": "authored",
+          "closedBy": {
+            "name": "text-11",
+            "email": ""
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "stop.outcome: is unexpected, expected: \"cause\" | \"status\""
+      }
+    },
+    {
+      "name": "constraint stop.closedBy.email required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+        "phaseId": "phase-01",
+        "phaseIndex": 0,
+        "state": "running",
+        "model": "example-model",
+        "effort": "high",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "branchName": "phax/example-run--phase-01",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "worktreePath": "/work/example-repo/worktrees/phase-01",
+        "claudeSessionId": "text-8",
+        "commitHash": "text-9",
+        "mode": "headless",
+        "stop": {
+          "cause": "held",
+          "status": "closed",
+          "outcome": "corrected",
+          "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+          "acceptanceStep": "authored",
+          "closedBy": {
+            "name": "text-11"
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "stop.outcome: is unexpected, expected: \"cause\" | \"status\""
+      }
+    },
+    {
+      "name": "constraint stop.closedBy.name minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+        "phaseId": "phase-01",
+        "phaseIndex": 0,
+        "state": "running",
+        "model": "example-model",
+        "effort": "high",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "branchName": "phax/example-run--phase-01",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "worktreePath": "/work/example-repo/worktrees/phase-01",
+        "claudeSessionId": "text-8",
+        "commitHash": "text-9",
+        "mode": "headless",
+        "stop": {
+          "cause": "held",
+          "status": "closed",
+          "outcome": "corrected",
+          "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+          "acceptanceStep": "authored",
+          "closedBy": {
+            "name": "",
+            "email": "text-12"
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "stop.outcome: is unexpected, expected: \"cause\" | \"status\""
+      }
+    },
+    {
+      "name": "constraint stop.closedBy.name required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+        "phaseId": "phase-01",
+        "phaseIndex": 0,
+        "state": "running",
+        "model": "example-model",
+        "effort": "high",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "branchName": "phax/example-run--phase-01",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "worktreePath": "/work/example-repo/worktrees/phase-01",
+        "claudeSessionId": "text-8",
+        "commitHash": "text-9",
+        "mode": "headless",
+        "stop": {
+          "cause": "held",
+          "status": "closed",
+          "outcome": "corrected",
+          "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+          "acceptanceStep": "authored",
+          "closedBy": {
+            "email": "text-12"
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "stop.outcome: is unexpected, expected: \"cause\" | \"status\""
+      }
+    },
+    {
+      "name": "constraint stop.outcome enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+        "phaseId": "phase-01",
+        "phaseIndex": 0,
+        "state": "running",
+        "model": "example-model",
+        "effort": "high",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "branchName": "phax/example-run--phase-01",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "worktreePath": "/work/example-repo/worktrees/phase-01",
+        "claudeSessionId": "text-8",
+        "commitHash": "text-9",
+        "mode": "headless",
+        "stop": {
+          "cause": "held",
+          "status": "closed",
+          "outcome": "bogus-value",
+          "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+          "acceptanceStep": "authored",
+          "closedBy": {
+            "name": "text-11",
+            "email": "text-12"
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "stop.outcome: Expected \"unchanged\" | \"corrected\", actual \"bogus-value\""
+      }
+    },
+    {
+      "name": "constraint stop.outcome required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+        "phaseId": "phase-01",
+        "phaseIndex": 0,
+        "state": "running",
+        "model": "example-model",
+        "effort": "high",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "branchName": "phax/example-run--phase-01",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "worktreePath": "/work/example-repo/worktrees/phase-01",
+        "claudeSessionId": "text-8",
+        "commitHash": "text-9",
+        "mode": "headless",
+        "stop": {
+          "cause": "held",
+          "status": "closed",
+          "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+          "acceptanceStep": "authored",
+          "closedBy": {
+            "name": "text-11",
+            "email": "text-12"
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "stop.outcome: is missing"
+      }
+    },
+    {
+      "name": "constraint stop.reviewCommit pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+        "phaseId": "phase-01",
+        "phaseIndex": 0,
+        "state": "running",
+        "model": "example-model",
+        "effort": "high",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "branchName": "phax/example-run--phase-01",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "worktreePath": "/work/example-repo/worktrees/phase-01",
+        "claudeSessionId": "text-8",
+        "commitHash": "text-9",
+        "mode": "headless",
+        "stop": {
+          "cause": "held",
+          "status": "closed",
+          "outcome": "corrected",
+          "reviewCommit": "",
+          "acceptanceStep": "authored",
+          "closedBy": {
+            "name": "text-11",
+            "email": "text-12"
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "stop.outcome: is unexpected, expected: \"cause\" | \"status\""
+      }
+    },
+    {
+      "name": "constraint stop.reviewCommit required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+        "phaseId": "phase-01",
+        "phaseIndex": 0,
+        "state": "running",
+        "model": "example-model",
+        "effort": "high",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "branchName": "phax/example-run--phase-01",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "worktreePath": "/work/example-repo/worktrees/phase-01",
+        "claudeSessionId": "text-8",
+        "commitHash": "text-9",
+        "mode": "headless",
+        "stop": {
+          "cause": "held",
+          "status": "closed",
+          "outcome": "corrected",
+          "acceptanceStep": "authored",
+          "closedBy": {
+            "name": "text-11",
+            "email": "text-12"
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "stop.outcome: is unexpected, expected: \"cause\" | \"status\""
+      }
+    },
+    {
+      "name": "constraint stop.status enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+        "phaseId": "phase-01",
+        "phaseIndex": 0,
+        "state": "running",
+        "model": "example-model",
+        "effort": "high",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "branchName": "phax/example-run--phase-01",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "worktreePath": "/work/example-repo/worktrees/phase-01",
+        "claudeSessionId": "text-8",
+        "commitHash": "text-9",
+        "mode": "headless",
+        "stop": {
+          "cause": "held",
+          "status": "bogus-value",
+          "outcome": "corrected",
+          "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+          "acceptanceStep": "authored",
+          "closedBy": {
+            "name": "text-11",
+            "email": "text-12"
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "stop.status: Expected \"closed\", actual \"bogus-value\""
+      }
+    },
+    {
+      "name": "constraint stop.status required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+        "phaseId": "phase-01",
+        "phaseIndex": 0,
+        "state": "running",
+        "model": "example-model",
+        "effort": "high",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "branchName": "phax/example-run--phase-01",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "worktreePath": "/work/example-repo/worktrees/phase-01",
+        "claudeSessionId": "text-8",
+        "commitHash": "text-9",
+        "mode": "headless",
+        "stop": {
+          "cause": "held",
+          "outcome": "corrected",
+          "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+          "acceptanceStep": "authored",
+          "closedBy": {
+            "name": "text-11",
+            "email": "text-12"
+          }
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "stop.status: is missing"
+      }
+    },
+    {
+      "name": "constraint updatedAt minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+        "phaseId": "phase-01",
+        "phaseIndex": 0,
+        "state": "running",
+        "model": "example-model",
+        "effort": "high",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "",
+        "branchName": "phax/example-run--phase-01",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "worktreePath": "/work/example-repo/worktrees/phase-01",
+        "mode": "headless",
+        "stop": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "updatedAt: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint updatedAt required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+        "phaseId": "phase-01",
+        "phaseIndex": 0,
+        "state": "running",
+        "model": "example-model",
+        "effort": "high",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "branchName": "phax/example-run--phase-01",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "worktreePath": "/work/example-repo/worktrees/phase-01",
+        "mode": "headless",
+        "stop": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "updatedAt: is missing"
+      }
+    },
+    {
+      "name": "constraint worktreePath minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-status/0.33.0.json",
+        "phaseId": "phase-01",
+        "phaseIndex": 0,
+        "state": "running",
+        "model": "example-model",
+        "effort": "high",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "branchName": "phax/example-run--phase-01",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "worktreePath": "",
+        "mode": "headless",
+        "stop": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "worktreePath: Expected a non empty string, actual \"\""
+      }
     }
   ],
   "shapes": {
@@ -761,6 +1866,419 @@
             "worktreePath": "/work/example-repo/worktrees/phase-01"
           }
         }
+      },
+      {
+        "name": "constraint branchName maxLength",
+        "input": {
+          "version": 1,
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "worktreePath": "/work/example-repo/worktrees/phase-01"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "branchName: Expected a string at most 255 character(s) long, actual \"phax/example-run--phase-01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\""
+        }
+      },
+      {
+        "name": "constraint branchName minLength",
+        "input": {
+          "version": 1,
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "",
+          "worktreePath": "/work/example-repo/worktrees/phase-01"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "branchName: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint branchName pattern",
+        "input": {
+          "version": 1,
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "",
+          "worktreePath": "/work/example-repo/worktrees/phase-01"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "branchName: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint branchName required",
+        "input": {
+          "version": 1,
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "worktreePath": "/work/example-repo/worktrees/phase-01"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "branchName: is missing"
+        }
+      },
+      {
+        "name": "constraint claudeSessionId minLength",
+        "input": {
+          "version": 1,
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "",
+          "commitHash": "text-8"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "claudeSessionId: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint commitHash minLength",
+        "input": {
+          "version": 1,
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-7",
+          "commitHash": ""
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "commitHash: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint createdAt minLength",
+        "input": {
+          "version": 1,
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "worktreePath": "/work/example-repo/worktrees/phase-01"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "createdAt: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint createdAt required",
+        "input": {
+          "version": 1,
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "worktreePath": "/work/example-repo/worktrees/phase-01"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "createdAt: is missing"
+        }
+      },
+      {
+        "name": "constraint effort enum",
+        "input": {
+          "version": 1,
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "bogus-value",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "worktreePath": "/work/example-repo/worktrees/phase-01"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "effort: Expected \"none\" | \"off\" | \"low\" | \"medium\" | \"high\" | \"xhigh\" | \"max\" | \"ultracode\" | \"ultra\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint effort required",
+        "input": {
+          "version": 1,
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "worktreePath": "/work/example-repo/worktrees/phase-01"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "effort: is missing"
+        }
+      },
+      {
+        "name": "constraint model minLength",
+        "input": {
+          "version": 1,
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "worktreePath": "/work/example-repo/worktrees/phase-01"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "model: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint model required",
+        "input": {
+          "version": 1,
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "worktreePath": "/work/example-repo/worktrees/phase-01"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "model: is missing"
+        }
+      },
+      {
+        "name": "constraint phaseId minLength",
+        "input": {
+          "version": 1,
+          "phaseId": "",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "worktreePath": "/work/example-repo/worktrees/phase-01"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phaseId: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint phaseId required",
+        "input": {
+          "version": 1,
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "worktreePath": "/work/example-repo/worktrees/phase-01"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phaseId: is missing"
+        }
+      },
+      {
+        "name": "constraint phaseIndex required",
+        "input": {
+          "version": 1,
+          "phaseId": "phase-01",
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "worktreePath": "/work/example-repo/worktrees/phase-01"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phaseIndex: is missing"
+        }
+      },
+      {
+        "name": "constraint state enum",
+        "input": {
+          "version": 1,
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "bogus-value",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "worktreePath": "/work/example-repo/worktrees/phase-01"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "state: Expected \"pending\" | \"setting_up_worktree\" | \"running\" | \"gates_failed\" | \"gates_exhausted\" | \"fixing\" | \"failed\" | \"passed\" | \"committed\" | \"cleaning_up\" | \"cleaned_up\" | \"review_open\" | \"handoff_failed\" | \"skipped\" | \"rate_limited\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint state required",
+        "input": {
+          "version": 1,
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "worktreePath": "/work/example-repo/worktrees/phase-01"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "state: is missing"
+        }
+      },
+      {
+        "name": "constraint updatedAt minLength",
+        "input": {
+          "version": 1,
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "",
+          "branchName": "phax/example-run--phase-01",
+          "worktreePath": "/work/example-repo/worktrees/phase-01"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "updatedAt: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint updatedAt required",
+        "input": {
+          "version": 1,
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "worktreePath": "/work/example-repo/worktrees/phase-01"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "updatedAt: is missing"
+        }
+      },
+      {
+        "name": "constraint version enum",
+        "input": {
+          "version": "bogus-value",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "worktreePath": "/work/example-repo/worktrees/phase-01"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "version: Expected 1, actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint version required",
+        "input": {
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "worktreePath": "/work/example-repo/worktrees/phase-01"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "version: is missing"
+        }
+      },
+      {
+        "name": "constraint worktreePath minLength",
+        "input": {
+          "version": 1,
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "worktreePath": ""
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "worktreePath: Expected a non empty string, actual \"\""
+        }
       }
     ],
     "0.17.0": [
@@ -942,6 +2460,459 @@
             "updatedAt": "2026-01-01T09:30:00.000Z",
             "worktreePath": "/work/example-repo/worktrees/phase-01"
           }
+        }
+      },
+      {
+        "name": "constraint $schema pattern",
+        "input": {
+          "$schema": "",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-7",
+          "commitHash": "text-8"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "$schema: Expected a string matching the pattern ^https:\\/\\/docs\\.phax\\.run\\/schemas\\/phase-status\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$, actual \"\""
+        }
+      },
+      {
+        "name": "constraint $schema required",
+        "input": {
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-7",
+          "commitHash": "text-8"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "$schema: is missing"
+        }
+      },
+      {
+        "name": "constraint branchName maxLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.17.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-7",
+          "commitHash": "text-8"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "branchName: Expected a string at most 255 character(s) long, actual \"phax/example-run--phase-01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\""
+        }
+      },
+      {
+        "name": "constraint branchName minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.17.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-7",
+          "commitHash": "text-8"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "branchName: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint branchName pattern",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.17.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-7",
+          "commitHash": "text-8"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "branchName: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint branchName required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.17.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-7",
+          "commitHash": "text-8"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "branchName: is missing"
+        }
+      },
+      {
+        "name": "constraint claudeSessionId minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.17.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "",
+          "commitHash": "text-8"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "claudeSessionId: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint commitHash minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.17.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-7",
+          "commitHash": ""
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "commitHash: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint createdAt minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.17.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-7",
+          "commitHash": "text-8"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "createdAt: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint createdAt required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.17.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-7",
+          "commitHash": "text-8"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "createdAt: is missing"
+        }
+      },
+      {
+        "name": "constraint effort enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.17.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "bogus-value",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-7",
+          "commitHash": "text-8"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "effort: Expected \"none\" | \"off\" | \"low\" | \"medium\" | \"high\" | \"xhigh\" | \"max\" | \"ultracode\" | \"ultra\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint effort required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.17.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-7",
+          "commitHash": "text-8"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "effort: is missing"
+        }
+      },
+      {
+        "name": "constraint model minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.17.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-7",
+          "commitHash": "text-8"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "model: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint model required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.17.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-7",
+          "commitHash": "text-8"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "model: is missing"
+        }
+      },
+      {
+        "name": "constraint phaseId minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.17.0.json",
+          "phaseId": "",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-7",
+          "commitHash": "text-8"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phaseId: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint phaseId required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.17.0.json",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-7",
+          "commitHash": "text-8"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phaseId: is missing"
+        }
+      },
+      {
+        "name": "constraint phaseIndex required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.17.0.json",
+          "phaseId": "phase-01",
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-7",
+          "commitHash": "text-8"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phaseIndex: is missing"
+        }
+      },
+      {
+        "name": "constraint state enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.17.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "bogus-value",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-7",
+          "commitHash": "text-8"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "state: Expected \"pending\" | \"setting_up_worktree\" | \"running\" | \"gates_failed\" | \"gates_exhausted\" | \"fixing\" | \"failed\" | \"passed\" | \"committed\" | \"cleaning_up\" | \"cleaned_up\" | \"review_open\" | \"handoff_failed\" | \"skipped\" | \"rate_limited\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint state required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.17.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-7",
+          "commitHash": "text-8"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "state: is missing"
+        }
+      },
+      {
+        "name": "constraint updatedAt minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.17.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "",
+          "branchName": "phax/example-run--phase-01",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-7",
+          "commitHash": "text-8"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "updatedAt: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint updatedAt required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.17.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-7",
+          "commitHash": "text-8"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "updatedAt: is missing"
+        }
+      },
+      {
+        "name": "constraint worktreePath minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.17.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "worktreePath": "",
+          "claudeSessionId": "text-7",
+          "commitHash": "text-8"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "worktreePath: Expected a non empty string, actual \"\""
         }
       }
     ],
@@ -1134,6 +3105,524 @@
             "updatedAt": "2026-01-01T09:30:00.000Z",
             "worktreePath": "/work/example-repo/worktrees/phase-01"
           }
+        }
+      },
+      {
+        "name": "constraint $schema pattern",
+        "input": {
+          "$schema": "",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "$schema: Expected a string matching the pattern ^https:\\/\\/docs\\.phax\\.run\\/schemas\\/phase-status\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$, actual \"\""
+        }
+      },
+      {
+        "name": "constraint $schema required",
+        "input": {
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "$schema: is missing"
+        }
+      },
+      {
+        "name": "constraint base pattern",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.20.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "base: Expected a string matching the pattern ^[0-9a-f]{40}([0-9a-f]{24})?$, actual \"\""
+        }
+      },
+      {
+        "name": "constraint base required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.20.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "base: is missing"
+        }
+      },
+      {
+        "name": "constraint branchName maxLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.20.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "branchName: Expected a string at most 255 character(s) long, actual \"phax/example-run--phase-01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\""
+        }
+      },
+      {
+        "name": "constraint branchName minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.20.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "branchName: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint branchName pattern",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.20.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "branchName: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint branchName required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.20.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "branchName: is missing"
+        }
+      },
+      {
+        "name": "constraint claudeSessionId minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.20.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "",
+          "commitHash": "text-9"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "claudeSessionId: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint commitHash minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.20.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": ""
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "commitHash: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint createdAt minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.20.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "createdAt: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint createdAt required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.20.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "createdAt: is missing"
+        }
+      },
+      {
+        "name": "constraint effort enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.20.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "bogus-value",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "effort: Expected \"none\" | \"off\" | \"low\" | \"medium\" | \"high\" | \"xhigh\" | \"max\" | \"ultracode\" | \"ultra\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint effort required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.20.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "effort: is missing"
+        }
+      },
+      {
+        "name": "constraint model minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.20.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "model: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint model required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.20.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "model: is missing"
+        }
+      },
+      {
+        "name": "constraint phaseId minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.20.0.json",
+          "phaseId": "",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phaseId: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint phaseId required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.20.0.json",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phaseId: is missing"
+        }
+      },
+      {
+        "name": "constraint phaseIndex required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.20.0.json",
+          "phaseId": "phase-01",
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phaseIndex: is missing"
+        }
+      },
+      {
+        "name": "constraint state enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.20.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "bogus-value",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "state: Expected \"pending\" | \"setting_up_worktree\" | \"running\" | \"gates_failed\" | \"gates_exhausted\" | \"fixing\" | \"failed\" | \"passed\" | \"committed\" | \"cleaning_up\" | \"cleaned_up\" | \"review_open\" | \"handoff_failed\" | \"skipped\" | \"rate_limited\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint state required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.20.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "state: is missing"
+        }
+      },
+      {
+        "name": "constraint updatedAt minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.20.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "updatedAt: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint updatedAt required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.20.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "updatedAt: is missing"
+        }
+      },
+      {
+        "name": "constraint worktreePath minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.20.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "worktreePath: Expected a non empty string, actual \"\""
         }
       }
     ],
@@ -1446,6 +3935,1401 @@
             "updatedAt": "2026-01-01T09:30:00.000Z",
             "worktreePath": "/work/example-repo/worktrees/phase-01"
           }
+        }
+      },
+      {
+        "name": "constraint $schema pattern",
+        "input": {
+          "$schema": "",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9",
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "status": "closed",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "oracleStep": "authored",
+            "closedBy": {
+              "name": "text-11",
+              "email": "text-12"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "$schema: Expected a string matching the pattern ^https:\\/\\/docs\\.phax\\.run\\/schemas\\/phase-status\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$, actual \"\""
+        }
+      },
+      {
+        "name": "constraint $schema required",
+        "input": {
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9",
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "status": "closed",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "oracleStep": "authored",
+            "closedBy": {
+              "name": "text-11",
+              "email": "text-12"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "$schema: is missing"
+        }
+      },
+      {
+        "name": "constraint base pattern",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.26.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9",
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "status": "closed",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "oracleStep": "authored",
+            "closedBy": {
+              "name": "text-11",
+              "email": "text-12"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "base: Expected a string matching the pattern ^[0-9a-f]{40}([0-9a-f]{24})?$, actual \"\""
+        }
+      },
+      {
+        "name": "constraint base required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.26.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9",
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "status": "closed",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "oracleStep": "authored",
+            "closedBy": {
+              "name": "text-11",
+              "email": "text-12"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "base: is missing"
+        }
+      },
+      {
+        "name": "constraint branchName maxLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.26.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9",
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "status": "closed",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "oracleStep": "authored",
+            "closedBy": {
+              "name": "text-11",
+              "email": "text-12"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "branchName: Expected a string at most 255 character(s) long, actual \"phax/example-run--phase-01aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\""
+        }
+      },
+      {
+        "name": "constraint branchName minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.26.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9",
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "status": "closed",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "oracleStep": "authored",
+            "closedBy": {
+              "name": "text-11",
+              "email": "text-12"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "branchName: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint branchName pattern",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.26.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9",
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "status": "closed",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "oracleStep": "authored",
+            "closedBy": {
+              "name": "text-11",
+              "email": "text-12"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "branchName: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint branchName required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.26.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9",
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "status": "closed",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "oracleStep": "authored",
+            "closedBy": {
+              "name": "text-11",
+              "email": "text-12"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "branchName: is missing"
+        }
+      },
+      {
+        "name": "constraint claudeSessionId minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.26.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "",
+          "commitHash": "text-9",
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "status": "closed",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "oracleStep": "authored",
+            "closedBy": {
+              "name": "text-11",
+              "email": "text-12"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "claudeSessionId: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint commitHash minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.26.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "",
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "status": "closed",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "oracleStep": "authored",
+            "closedBy": {
+              "name": "text-11",
+              "email": "text-12"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "commitHash: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint createdAt minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.26.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9",
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "status": "closed",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "oracleStep": "authored",
+            "closedBy": {
+              "name": "text-11",
+              "email": "text-12"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "createdAt: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint createdAt required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.26.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9",
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "status": "closed",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "oracleStep": "authored",
+            "closedBy": {
+              "name": "text-11",
+              "email": "text-12"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "createdAt: is missing"
+        }
+      },
+      {
+        "name": "constraint effort enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.26.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "bogus-value",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9",
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "status": "closed",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "oracleStep": "authored",
+            "closedBy": {
+              "name": "text-11",
+              "email": "text-12"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "effort: Expected \"none\" | \"off\" | \"low\" | \"medium\" | \"high\" | \"xhigh\" | \"max\" | \"ultracode\" | \"ultra\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint effort required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.26.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9",
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "status": "closed",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "oracleStep": "authored",
+            "closedBy": {
+              "name": "text-11",
+              "email": "text-12"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "effort: is missing"
+        }
+      },
+      {
+        "name": "constraint mode enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.26.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9",
+          "mode": "bogus-value",
+          "stop": {
+            "cause": "held",
+            "status": "closed",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "oracleStep": "authored",
+            "closedBy": {
+              "name": "text-11",
+              "email": "text-12"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "mode: Expected \"headless\" | \"interactive\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint mode required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.26.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9",
+          "stop": {
+            "cause": "held",
+            "status": "closed",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "oracleStep": "authored",
+            "closedBy": {
+              "name": "text-11",
+              "email": "text-12"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "mode: is missing"
+        }
+      },
+      {
+        "name": "constraint model minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.26.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9",
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "status": "closed",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "oracleStep": "authored",
+            "closedBy": {
+              "name": "text-11",
+              "email": "text-12"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "model: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint model required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.26.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9",
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "status": "closed",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "oracleStep": "authored",
+            "closedBy": {
+              "name": "text-11",
+              "email": "text-12"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "model: is missing"
+        }
+      },
+      {
+        "name": "constraint phaseId minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.26.0.json",
+          "phaseId": "",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9",
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "status": "closed",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "oracleStep": "authored",
+            "closedBy": {
+              "name": "text-11",
+              "email": "text-12"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phaseId: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint phaseId required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.26.0.json",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9",
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "status": "closed",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "oracleStep": "authored",
+            "closedBy": {
+              "name": "text-11",
+              "email": "text-12"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phaseId: is missing"
+        }
+      },
+      {
+        "name": "constraint phaseIndex required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.26.0.json",
+          "phaseId": "phase-01",
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9",
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "status": "closed",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "oracleStep": "authored",
+            "closedBy": {
+              "name": "text-11",
+              "email": "text-12"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phaseIndex: is missing"
+        }
+      },
+      {
+        "name": "constraint state enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.26.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "bogus-value",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9",
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "status": "closed",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "oracleStep": "authored",
+            "closedBy": {
+              "name": "text-11",
+              "email": "text-12"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "state: Expected \"pending\" | \"setting_up_worktree\" | \"running\" | \"gates_failed\" | \"gates_exhausted\" | \"fixing\" | \"failed\" | \"passed\" | \"committed\" | \"cleaning_up\" | \"cleaned_up\" | \"review_open\" | \"handoff_failed\" | \"skipped\" | \"rate_limited\" | \"awaiting_review\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint state required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.26.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9",
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "status": "closed",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "oracleStep": "authored",
+            "closedBy": {
+              "name": "text-11",
+              "email": "text-12"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "state: is missing"
+        }
+      },
+      {
+        "name": "constraint stop required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.26.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9",
+          "mode": "headless"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop: is missing"
+        }
+      },
+      {
+        "name": "constraint stop.cause enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.26.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9",
+          "mode": "headless",
+          "stop": {
+            "cause": "bogus-value",
+            "status": "closed",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "oracleStep": "authored",
+            "closedBy": {
+              "name": "text-11",
+              "email": "text-12"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.cause: Expected \"declared\" | \"held\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint stop.cause required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.26.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9",
+          "mode": "headless",
+          "stop": {
+            "status": "closed",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "oracleStep": "authored",
+            "closedBy": {
+              "name": "text-11",
+              "email": "text-12"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.cause: is missing"
+        }
+      },
+      {
+        "name": "constraint stop.closedBy required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.26.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9",
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "status": "closed",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "oracleStep": "authored"
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.outcome: is unexpected, expected: \"cause\" | \"status\""
+        }
+      },
+      {
+        "name": "constraint stop.closedBy.email minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.26.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9",
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "status": "closed",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "oracleStep": "authored",
+            "closedBy": {
+              "name": "text-11",
+              "email": ""
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.outcome: is unexpected, expected: \"cause\" | \"status\""
+        }
+      },
+      {
+        "name": "constraint stop.closedBy.email required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.26.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9",
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "status": "closed",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "oracleStep": "authored",
+            "closedBy": {
+              "name": "text-11"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.outcome: is unexpected, expected: \"cause\" | \"status\""
+        }
+      },
+      {
+        "name": "constraint stop.closedBy.name minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.26.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9",
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "status": "closed",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "oracleStep": "authored",
+            "closedBy": {
+              "name": "",
+              "email": "text-12"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.outcome: is unexpected, expected: \"cause\" | \"status\""
+        }
+      },
+      {
+        "name": "constraint stop.closedBy.name required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.26.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9",
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "status": "closed",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "oracleStep": "authored",
+            "closedBy": {
+              "email": "text-12"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.outcome: is unexpected, expected: \"cause\" | \"status\""
+        }
+      },
+      {
+        "name": "constraint stop.oracleStep enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.26.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9",
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "status": "closed",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "oracleStep": "bogus-value",
+            "closedBy": {
+              "name": "text-11",
+              "email": "text-12"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.outcome: is unexpected, expected: \"cause\" | \"status\""
+        }
+      },
+      {
+        "name": "constraint stop.oracleStep required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.26.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9",
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "status": "closed",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "closedBy": {
+              "name": "text-11",
+              "email": "text-12"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.outcome: is unexpected, expected: \"cause\" | \"status\""
+        }
+      },
+      {
+        "name": "constraint stop.outcome enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.26.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9",
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "status": "closed",
+            "outcome": "bogus-value",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "oracleStep": "authored",
+            "closedBy": {
+              "name": "text-11",
+              "email": "text-12"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.outcome: Expected \"unchanged\" | \"corrected\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint stop.outcome required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.26.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9",
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "status": "closed",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "oracleStep": "authored",
+            "closedBy": {
+              "name": "text-11",
+              "email": "text-12"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.outcome: is missing"
+        }
+      },
+      {
+        "name": "constraint stop.reviewCommit pattern",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.26.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9",
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "status": "closed",
+            "outcome": "corrected",
+            "reviewCommit": "",
+            "oracleStep": "authored",
+            "closedBy": {
+              "name": "text-11",
+              "email": "text-12"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.outcome: is unexpected, expected: \"cause\" | \"status\""
+        }
+      },
+      {
+        "name": "constraint stop.reviewCommit required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.26.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9",
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "status": "closed",
+            "outcome": "corrected",
+            "oracleStep": "authored",
+            "closedBy": {
+              "name": "text-11",
+              "email": "text-12"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.outcome: is unexpected, expected: \"cause\" | \"status\""
+        }
+      },
+      {
+        "name": "constraint stop.status enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.26.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9",
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "status": "bogus-value",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "oracleStep": "authored",
+            "closedBy": {
+              "name": "text-11",
+              "email": "text-12"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.status: Expected \"closed\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint stop.status required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.26.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9",
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "oracleStep": "authored",
+            "closedBy": {
+              "name": "text-11",
+              "email": "text-12"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.status: is missing"
+        }
+      },
+      {
+        "name": "constraint updatedAt minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.26.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9",
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "status": "closed",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "oracleStep": "authored",
+            "closedBy": {
+              "name": "text-11",
+              "email": "text-12"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "updatedAt: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint updatedAt required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.26.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "/work/example-repo/worktrees/phase-01",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9",
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "status": "closed",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "oracleStep": "authored",
+            "closedBy": {
+              "name": "text-11",
+              "email": "text-12"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "updatedAt: is missing"
+        }
+      },
+      {
+        "name": "constraint worktreePath minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-status/0.26.0.json",
+          "phaseId": "phase-01",
+          "phaseIndex": 0,
+          "state": "running",
+          "model": "example-model",
+          "effort": "high",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "branchName": "phax/example-run--phase-01",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "worktreePath": "",
+          "claudeSessionId": "text-8",
+          "commitHash": "text-9",
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "status": "closed",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "oracleStep": "authored",
+            "closedBy": {
+              "name": "text-11",
+              "email": "text-12"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "worktreePath: Expected a non empty string, actual \"\""
         }
       }
     ]

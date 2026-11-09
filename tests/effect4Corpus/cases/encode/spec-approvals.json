@@ -1,0 +1,83 @@
+{
+  "subject": "encode/spec-approvals",
+  "cases": [
+    {
+      "name": "accepts a typical document",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/spec-approvals/0.17.0.json",
+        "records": {
+          "docs/specs/example.md": {
+            "specFingerprint": "spec-fingerprint-0001",
+            "approvedAt": "2026-01-01T09:00:00.000Z",
+            "baseline": "0123456789abcdef0123456789abcdef01234567"
+          }
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/spec-approvals/0.17.0.json",
+          "records": {
+            "docs/specs/example.md": {
+              "approvedAt": "2026-01-01T09:00:00.000Z",
+              "baseline": "0123456789abcdef0123456789abcdef01234567",
+              "specFingerprint": "spec-fingerprint-0001"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "accepts a document setting every field",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/spec-approvals/0.17.0.json",
+        "records": {
+          "docs/specs/example.md": {
+            "specFingerprint": "spec-fingerprint-0001",
+            "approvedAt": "2026-01-01T09:00:00.000Z",
+            "baseline": "0123456789abcdef0123456789abcdef01234567"
+          }
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/spec-approvals/0.17.0.json",
+          "records": {
+            "docs/specs/example.md": {
+              "approvedAt": "2026-01-01T09:00:00.000Z",
+              "baseline": "0123456789abcdef0123456789abcdef01234567",
+              "specFingerprint": "spec-fingerprint-0001"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "accepts a document with only its required fields",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/spec-approvals/0.17.0.json",
+        "records": {
+          "docs/specs/example.md": {
+            "specFingerprint": "spec-fingerprint-0001",
+            "approvedAt": "2026-01-01T09:00:00.000Z",
+            "baseline": "0123456789abcdef0123456789abcdef01234567"
+          }
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/spec-approvals/0.17.0.json",
+          "records": {
+            "docs/specs/example.md": {
+              "approvedAt": "2026-01-01T09:00:00.000Z",
+              "baseline": "0123456789abcdef0123456789abcdef01234567",
+              "specFingerprint": "spec-fingerprint-0001"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

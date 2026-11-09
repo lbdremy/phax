@@ -1,0 +1,785 @@
+{
+  "subject": "encode/plan-document",
+  "cases": [
+    {
+      "name": "accepts a typical document",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/plan-document/0.33.0.json",
+        "kind": "plan",
+        "sourceSpec": null,
+        "completesSpec": null,
+        "run": {
+          "shortName": "example-run",
+          "title": "Example run",
+          "requiredCommands": []
+        },
+        "preamble": {
+          "summary": "An example plan.",
+          "requiredCommandsNote": "No command beyond the gate.",
+          "technicalArbitrations": [],
+          "openQuestions": [],
+          "arbitratedQuestions": []
+        },
+        "phases": [
+          {
+            "id": "phase-01",
+            "title": "Add the example module",
+            "objective": "The example module exists.",
+            "detailedInstructions": [
+              "Create src/example.ts."
+            ],
+            "planMarkdownAnchor": "#phase-01-example",
+            "plannedFilesToCreate": [
+              "src/example.ts"
+            ],
+            "plannedFilesToEdit": [],
+            "optionalFilesToEdit": [],
+            "mode": "headless",
+            "acceptance": null,
+            "boundaryContracts": null,
+            "testStrategy": [
+              {
+                "guarantee": "The example module returns its value",
+                "size": "small",
+                "technique": "example",
+                "oracle": "the module's output",
+                "loop": "in-phase",
+                "criterion": null
+              }
+            ],
+            "implementationOrder": [
+              "Write the test.",
+              "Write the module."
+            ],
+            "excludedScope": [
+              "Everything else."
+            ],
+            "verification": "The standard gate.",
+            "expectedHandoff": "The module's exports.",
+            "commit": {
+              "subject": "feat: add the example module",
+              "body": "Adds the example module."
+            },
+            "assignmentReason": null,
+            "model": "example-model",
+            "effort": "medium"
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.33.0.json",
+          "completesSpec": null,
+          "kind": "plan",
+          "phases": [
+            {
+              "acceptance": null,
+              "assignmentReason": null,
+              "boundaryContracts": null,
+              "commit": {
+                "body": "Adds the example module.",
+                "subject": "feat: add the example module"
+              },
+              "detailedInstructions": [
+                "Create src/example.ts."
+              ],
+              "effort": "medium",
+              "excludedScope": [
+                "Everything else."
+              ],
+              "expectedHandoff": "The module's exports.",
+              "id": "phase-01",
+              "implementationOrder": [
+                "Write the test.",
+                "Write the module."
+              ],
+              "mode": "headless",
+              "model": "example-model",
+              "objective": "The example module exists.",
+              "optionalFilesToEdit": [],
+              "planMarkdownAnchor": "#phase-01-example",
+              "plannedFilesToCreate": [
+                "src/example.ts"
+              ],
+              "plannedFilesToEdit": [],
+              "testStrategy": [
+                {
+                  "criterion": null,
+                  "guarantee": "The example module returns its value",
+                  "loop": "in-phase",
+                  "oracle": "the module's output",
+                  "size": "small",
+                  "technique": "example"
+                }
+              ],
+              "title": "Add the example module",
+              "verification": "The standard gate."
+            }
+          ],
+          "preamble": {
+            "arbitratedQuestions": [],
+            "openQuestions": [],
+            "requiredCommandsNote": "No command beyond the gate.",
+            "summary": "An example plan.",
+            "technicalArbitrations": []
+          },
+          "run": {
+            "requiredCommands": [],
+            "shortName": "example-run",
+            "title": "Example run"
+          },
+          "sourceSpec": null
+        }
+      }
+    },
+    {
+      "name": "accepts a document setting every field",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/plan-document/0.33.0.json",
+        "kind": "plan",
+        "sourceSpec": null,
+        "completesSpec": null,
+        "run": {
+          "shortName": "example-run",
+          "title": "Example run",
+          "requiredCommands": [
+            "text-3"
+          ]
+        },
+        "preamble": {
+          "summary": "An example plan.",
+          "requiredCommandsNote": "No command beyond the gate.",
+          "technicalArbitrations": [
+            "text-6"
+          ],
+          "openQuestions": [
+            {
+              "id": "text-7",
+              "question": "text-8",
+              "options": [
+                {
+                  "id": "text-9",
+                  "label": "text-10",
+                  "abandons": "text-11"
+                },
+                {
+                  "id": "text-12",
+                  "label": "text-13",
+                  "abandons": "text-14"
+                }
+              ],
+              "recommendation": "text-9",
+              "rationale": "text-16"
+            }
+          ],
+          "arbitratedQuestions": [
+            {
+              "id": "text-17",
+              "question": "text-18",
+              "options": [
+                {
+                  "id": "text-19",
+                  "label": "text-20",
+                  "abandons": "text-21"
+                },
+                {
+                  "id": "text-22",
+                  "label": "text-23",
+                  "abandons": "text-24"
+                }
+              ],
+              "recommendation": "text-19",
+              "rationale": "text-26",
+              "verdict": {
+                "kind": "decided",
+                "chosen": "text-19",
+                "abandoned": [
+                  "text-22"
+                ],
+                "why": "text-29",
+                "advocate": "text-30",
+                "principles": [
+                  "text-31"
+                ],
+                "reversibility": "cheap",
+                "by": {
+                  "kind": "operator",
+                  "name": "text-32"
+                },
+                "at": "2026-01-02T03:04:05.000Z",
+                "revised": [
+                  "text-34"
+                ],
+                "phase": "phase-01"
+              },
+              "history": [
+                {
+                  "kind": "decided",
+                  "chosen": "text-19",
+                  "abandoned": [
+                    "text-22"
+                  ],
+                  "why": "text-38",
+                  "advocate": "text-39",
+                  "principles": [
+                    "text-40"
+                  ],
+                  "reversibility": "cheap",
+                  "by": {
+                    "kind": "operator",
+                    "name": "text-41"
+                  },
+                  "at": "2026-01-02T03:04:05.000Z",
+                  "revised": [
+                    "text-43"
+                  ],
+                  "phase": "phase-01"
+                }
+              ]
+            }
+          ]
+        },
+        "phases": [
+          {
+            "id": "phase-01",
+            "title": "Add the example module",
+            "objective": "The example module exists.",
+            "detailedInstructions": [
+              "Create src/example.ts."
+            ],
+            "planMarkdownAnchor": "#phase-01-example",
+            "plannedFilesToCreate": [
+              "src/example.ts"
+            ],
+            "plannedFilesToEdit": [
+              "text-51"
+            ],
+            "optionalFilesToEdit": [
+              "text-52"
+            ],
+            "mode": "headless",
+            "acceptance": {
+              "passedBy": "phase-01",
+              "files": [
+                "text-54"
+              ]
+            },
+            "boundaryContracts": null,
+            "testStrategy": [
+              {
+                "guarantee": "The example module returns its value",
+                "size": "small",
+                "technique": "example",
+                "oracle": "the module's output",
+                "loop": "in-phase",
+                "criterion": null
+              }
+            ],
+            "implementationOrder": [
+              "Write the test."
+            ],
+            "excludedScope": [
+              "Everything else."
+            ],
+            "verification": "The standard gate.",
+            "expectedHandoff": "The module's exports.",
+            "commit": {
+              "subject": "feat: add the example module",
+              "body": "Adds the example module."
+            },
+            "assignmentReason": null,
+            "model": "example-model",
+            "effort": "medium"
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.33.0.json",
+          "completesSpec": null,
+          "kind": "plan",
+          "phases": [
+            {
+              "acceptance": {
+                "files": [
+                  "text-54"
+                ],
+                "passedBy": "phase-01"
+              },
+              "assignmentReason": null,
+              "boundaryContracts": null,
+              "commit": {
+                "body": "Adds the example module.",
+                "subject": "feat: add the example module"
+              },
+              "detailedInstructions": [
+                "Create src/example.ts."
+              ],
+              "effort": "medium",
+              "excludedScope": [
+                "Everything else."
+              ],
+              "expectedHandoff": "The module's exports.",
+              "id": "phase-01",
+              "implementationOrder": [
+                "Write the test."
+              ],
+              "mode": "headless",
+              "model": "example-model",
+              "objective": "The example module exists.",
+              "optionalFilesToEdit": [
+                "text-52"
+              ],
+              "planMarkdownAnchor": "#phase-01-example",
+              "plannedFilesToCreate": [
+                "src/example.ts"
+              ],
+              "plannedFilesToEdit": [
+                "text-51"
+              ],
+              "testStrategy": [
+                {
+                  "criterion": null,
+                  "guarantee": "The example module returns its value",
+                  "loop": "in-phase",
+                  "oracle": "the module's output",
+                  "size": "small",
+                  "technique": "example"
+                }
+              ],
+              "title": "Add the example module",
+              "verification": "The standard gate."
+            }
+          ],
+          "preamble": {
+            "arbitratedQuestions": [
+              {
+                "history": [
+                  {
+                    "abandoned": [
+                      "text-22"
+                    ],
+                    "advocate": "text-39",
+                    "at": "2026-01-02T03:04:05.000Z",
+                    "by": {
+                      "kind": "operator",
+                      "name": "text-41"
+                    },
+                    "chosen": "text-19",
+                    "kind": "decided",
+                    "phase": "phase-01",
+                    "principles": [
+                      "text-40"
+                    ],
+                    "reversibility": "cheap",
+                    "revised": [
+                      "text-43"
+                    ],
+                    "why": "text-38"
+                  }
+                ],
+                "id": "text-17",
+                "options": [
+                  {
+                    "abandons": "text-21",
+                    "id": "text-19",
+                    "label": "text-20"
+                  },
+                  {
+                    "abandons": "text-24",
+                    "id": "text-22",
+                    "label": "text-23"
+                  }
+                ],
+                "question": "text-18",
+                "rationale": "text-26",
+                "recommendation": "text-19",
+                "verdict": {
+                  "abandoned": [
+                    "text-22"
+                  ],
+                  "advocate": "text-30",
+                  "at": "2026-01-02T03:04:05.000Z",
+                  "by": {
+                    "kind": "operator",
+                    "name": "text-32"
+                  },
+                  "chosen": "text-19",
+                  "kind": "decided",
+                  "phase": "phase-01",
+                  "principles": [
+                    "text-31"
+                  ],
+                  "reversibility": "cheap",
+                  "revised": [
+                    "text-34"
+                  ],
+                  "why": "text-29"
+                }
+              }
+            ],
+            "openQuestions": [
+              {
+                "id": "text-7",
+                "options": [
+                  {
+                    "abandons": "text-11",
+                    "id": "text-9",
+                    "label": "text-10"
+                  },
+                  {
+                    "abandons": "text-14",
+                    "id": "text-12",
+                    "label": "text-13"
+                  }
+                ],
+                "question": "text-8",
+                "rationale": "text-16",
+                "recommendation": "text-9"
+              }
+            ],
+            "requiredCommandsNote": "No command beyond the gate.",
+            "summary": "An example plan.",
+            "technicalArbitrations": [
+              "text-6"
+            ]
+          },
+          "run": {
+            "requiredCommands": [
+              "text-3"
+            ],
+            "shortName": "example-run",
+            "title": "Example run"
+          },
+          "sourceSpec": null
+        }
+      }
+    },
+    {
+      "name": "accepts a document with only its required fields",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/plan-document/0.33.0.json",
+        "kind": "plan",
+        "sourceSpec": null,
+        "completesSpec": null,
+        "run": {
+          "shortName": "example-run",
+          "title": "Example run",
+          "requiredCommands": [
+            "text-3"
+          ]
+        },
+        "preamble": {
+          "summary": "An example plan.",
+          "requiredCommandsNote": "No command beyond the gate.",
+          "technicalArbitrations": [
+            "text-6"
+          ],
+          "openQuestions": [
+            {
+              "id": "text-7",
+              "question": "text-8",
+              "options": [
+                {
+                  "id": "text-9",
+                  "label": "text-10",
+                  "abandons": "text-11"
+                },
+                {
+                  "id": "text-12",
+                  "label": "text-13",
+                  "abandons": "text-14"
+                }
+              ],
+              "recommendation": "text-9",
+              "rationale": "text-16"
+            }
+          ],
+          "arbitratedQuestions": [
+            {
+              "id": "text-17",
+              "question": "text-18",
+              "options": [
+                {
+                  "id": "text-19",
+                  "label": "text-20",
+                  "abandons": "text-21"
+                },
+                {
+                  "id": "text-22",
+                  "label": "text-23",
+                  "abandons": "text-24"
+                }
+              ],
+              "recommendation": "text-19",
+              "rationale": "text-26",
+              "verdict": {
+                "kind": "decided",
+                "chosen": "text-19",
+                "abandoned": [
+                  "text-22"
+                ],
+                "why": "text-29",
+                "advocate": "text-30",
+                "principles": [
+                  "text-31"
+                ],
+                "reversibility": "cheap",
+                "by": {
+                  "kind": "operator",
+                  "name": "text-32"
+                },
+                "at": "2026-01-02T03:04:05.000Z",
+                "revised": [
+                  "text-34"
+                ],
+                "phase": "phase-01"
+              },
+              "history": [
+                {
+                  "kind": "decided",
+                  "chosen": "text-19",
+                  "abandoned": [
+                    "text-22"
+                  ],
+                  "why": "text-38",
+                  "advocate": "text-39",
+                  "principles": [
+                    "text-40"
+                  ],
+                  "reversibility": "cheap",
+                  "by": {
+                    "kind": "operator",
+                    "name": "text-41"
+                  },
+                  "at": "2026-01-02T03:04:05.000Z",
+                  "revised": [
+                    "text-43"
+                  ],
+                  "phase": "phase-01"
+                }
+              ]
+            }
+          ]
+        },
+        "phases": [
+          {
+            "id": "phase-01",
+            "title": "Add the example module",
+            "objective": "The example module exists.",
+            "detailedInstructions": [
+              "Create src/example.ts."
+            ],
+            "planMarkdownAnchor": "#phase-01-example",
+            "plannedFilesToCreate": [
+              "src/example.ts"
+            ],
+            "plannedFilesToEdit": [
+              "text-51"
+            ],
+            "optionalFilesToEdit": [
+              "text-52"
+            ],
+            "mode": "headless",
+            "acceptance": {
+              "passedBy": "phase-01",
+              "files": [
+                "text-54"
+              ]
+            },
+            "boundaryContracts": null,
+            "testStrategy": [
+              {
+                "guarantee": "The example module returns its value",
+                "size": "small",
+                "technique": "example",
+                "oracle": "the module's output",
+                "loop": "in-phase",
+                "criterion": null
+              }
+            ],
+            "implementationOrder": [
+              "Write the test."
+            ],
+            "excludedScope": [
+              "Everything else."
+            ],
+            "verification": "The standard gate.",
+            "expectedHandoff": "The module's exports.",
+            "commit": {
+              "subject": "feat: add the example module",
+              "body": "Adds the example module."
+            },
+            "assignmentReason": null,
+            "model": "example-model",
+            "effort": "medium"
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.33.0.json",
+          "completesSpec": null,
+          "kind": "plan",
+          "phases": [
+            {
+              "acceptance": {
+                "files": [
+                  "text-54"
+                ],
+                "passedBy": "phase-01"
+              },
+              "assignmentReason": null,
+              "boundaryContracts": null,
+              "commit": {
+                "body": "Adds the example module.",
+                "subject": "feat: add the example module"
+              },
+              "detailedInstructions": [
+                "Create src/example.ts."
+              ],
+              "effort": "medium",
+              "excludedScope": [
+                "Everything else."
+              ],
+              "expectedHandoff": "The module's exports.",
+              "id": "phase-01",
+              "implementationOrder": [
+                "Write the test."
+              ],
+              "mode": "headless",
+              "model": "example-model",
+              "objective": "The example module exists.",
+              "optionalFilesToEdit": [
+                "text-52"
+              ],
+              "planMarkdownAnchor": "#phase-01-example",
+              "plannedFilesToCreate": [
+                "src/example.ts"
+              ],
+              "plannedFilesToEdit": [
+                "text-51"
+              ],
+              "testStrategy": [
+                {
+                  "criterion": null,
+                  "guarantee": "The example module returns its value",
+                  "loop": "in-phase",
+                  "oracle": "the module's output",
+                  "size": "small",
+                  "technique": "example"
+                }
+              ],
+              "title": "Add the example module",
+              "verification": "The standard gate."
+            }
+          ],
+          "preamble": {
+            "arbitratedQuestions": [
+              {
+                "history": [
+                  {
+                    "abandoned": [
+                      "text-22"
+                    ],
+                    "advocate": "text-39",
+                    "at": "2026-01-02T03:04:05.000Z",
+                    "by": {
+                      "kind": "operator",
+                      "name": "text-41"
+                    },
+                    "chosen": "text-19",
+                    "kind": "decided",
+                    "phase": "phase-01",
+                    "principles": [
+                      "text-40"
+                    ],
+                    "reversibility": "cheap",
+                    "revised": [
+                      "text-43"
+                    ],
+                    "why": "text-38"
+                  }
+                ],
+                "id": "text-17",
+                "options": [
+                  {
+                    "abandons": "text-21",
+                    "id": "text-19",
+                    "label": "text-20"
+                  },
+                  {
+                    "abandons": "text-24",
+                    "id": "text-22",
+                    "label": "text-23"
+                  }
+                ],
+                "question": "text-18",
+                "rationale": "text-26",
+                "recommendation": "text-19",
+                "verdict": {
+                  "abandoned": [
+                    "text-22"
+                  ],
+                  "advocate": "text-30",
+                  "at": "2026-01-02T03:04:05.000Z",
+                  "by": {
+                    "kind": "operator",
+                    "name": "text-32"
+                  },
+                  "chosen": "text-19",
+                  "kind": "decided",
+                  "phase": "phase-01",
+                  "principles": [
+                    "text-31"
+                  ],
+                  "reversibility": "cheap",
+                  "revised": [
+                    "text-34"
+                  ],
+                  "why": "text-29"
+                }
+              }
+            ],
+            "openQuestions": [
+              {
+                "id": "text-7",
+                "options": [
+                  {
+                    "abandons": "text-11",
+                    "id": "text-9",
+                    "label": "text-10"
+                  },
+                  {
+                    "abandons": "text-14",
+                    "id": "text-12",
+                    "label": "text-13"
+                  }
+                ],
+                "question": "text-8",
+                "rationale": "text-16",
+                "recommendation": "text-9"
+              }
+            ],
+            "requiredCommandsNote": "No command beyond the gate.",
+            "summary": "An example plan.",
+            "technicalArbitrations": [
+              "text-6"
+            ]
+          },
+          "run": {
+            "requiredCommands": [
+              "text-3"
+            ],
+            "shortName": "example-run",
+            "title": "Example run"
+          },
+          "sourceSpec": null
+        }
+      }
+    }
+  ]
+}

@@ -753,6 +753,642 @@
           ]
         }
       }
+    },
+    {
+      "name": "constraint $schema pattern",
+      "input": {
+        "$schema": "",
+        "phaseId": "phase-01",
+        "createdAsPlanned": [
+          "src/example.ts"
+        ],
+        "editedAsPlanned": [
+          "src/index.ts"
+        ],
+        "missingPlannedCreate": [],
+        "missingPlannedEdit": [],
+        "createdButPlannedEdit": [],
+        "editedButPlannedCreate": [],
+        "unplannedCreated": [],
+        "unplannedEdited": [],
+        "optionalTouched": [
+          "README.md"
+        ],
+        "deletions": [],
+        "renames": [
+          {
+            "from": "src/old.ts",
+            "to": "src/new.ts"
+          }
+        ],
+        "reviewCorrections": [],
+        "hasDeviations": false
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: expected https://docs.phax.run/schemas/<format-id>/<X.Y.Z>.json, got \"\""
+      }
+    },
+    {
+      "name": "constraint $schema required",
+      "input": {
+        "createdAsPlanned": [
+          "src/example.ts"
+        ],
+        "editedAsPlanned": [
+          "src/index.ts"
+        ],
+        "missingPlannedCreate": [],
+        "missingPlannedEdit": [],
+        "createdButPlannedEdit": [],
+        "editedButPlannedCreate": [],
+        "unplannedCreated": [],
+        "unplannedEdited": [],
+        "optionalTouched": [
+          "README.md"
+        ],
+        "deletions": [],
+        "renames": [
+          {
+            "from": "src/old.ts",
+            "to": "src/new.ts"
+          }
+        ],
+        "reviewCorrections": [],
+        "hasDeviations": false
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "phaseId: phase file reconciliation older than phax 0.17.0, the first supported release — not supported (is missing)"
+      }
+    },
+    {
+      "name": "constraint createdAsPlanned required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-file-reconciliation/0.26.0.json",
+        "phaseId": "phase-01",
+        "editedAsPlanned": [
+          "src/index.ts"
+        ],
+        "missingPlannedCreate": [],
+        "missingPlannedEdit": [],
+        "createdButPlannedEdit": [],
+        "editedButPlannedCreate": [],
+        "unplannedCreated": [],
+        "unplannedEdited": [],
+        "optionalTouched": [
+          "README.md"
+        ],
+        "deletions": [],
+        "renames": [
+          {
+            "from": "src/old.ts",
+            "to": "src/new.ts"
+          }
+        ],
+        "reviewCorrections": [],
+        "hasDeviations": false
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "createdAsPlanned: is missing"
+      }
+    },
+    {
+      "name": "constraint createdButPlannedEdit required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-file-reconciliation/0.26.0.json",
+        "phaseId": "phase-01",
+        "createdAsPlanned": [
+          "src/example.ts"
+        ],
+        "editedAsPlanned": [
+          "src/index.ts"
+        ],
+        "missingPlannedCreate": [],
+        "missingPlannedEdit": [],
+        "editedButPlannedCreate": [],
+        "unplannedCreated": [],
+        "unplannedEdited": [],
+        "optionalTouched": [
+          "README.md"
+        ],
+        "deletions": [],
+        "renames": [
+          {
+            "from": "src/old.ts",
+            "to": "src/new.ts"
+          }
+        ],
+        "reviewCorrections": [],
+        "hasDeviations": false
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "createdButPlannedEdit: is missing"
+      }
+    },
+    {
+      "name": "constraint deletions required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-file-reconciliation/0.26.0.json",
+        "phaseId": "phase-01",
+        "createdAsPlanned": [
+          "src/example.ts"
+        ],
+        "editedAsPlanned": [
+          "src/index.ts"
+        ],
+        "missingPlannedCreate": [],
+        "missingPlannedEdit": [],
+        "createdButPlannedEdit": [],
+        "editedButPlannedCreate": [],
+        "unplannedCreated": [],
+        "unplannedEdited": [],
+        "optionalTouched": [
+          "README.md"
+        ],
+        "renames": [
+          {
+            "from": "src/old.ts",
+            "to": "src/new.ts"
+          }
+        ],
+        "reviewCorrections": [],
+        "hasDeviations": false
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "deletions: is missing"
+      }
+    },
+    {
+      "name": "constraint editedAsPlanned required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-file-reconciliation/0.26.0.json",
+        "phaseId": "phase-01",
+        "createdAsPlanned": [
+          "src/example.ts"
+        ],
+        "missingPlannedCreate": [],
+        "missingPlannedEdit": [],
+        "createdButPlannedEdit": [],
+        "editedButPlannedCreate": [],
+        "unplannedCreated": [],
+        "unplannedEdited": [],
+        "optionalTouched": [
+          "README.md"
+        ],
+        "deletions": [],
+        "renames": [
+          {
+            "from": "src/old.ts",
+            "to": "src/new.ts"
+          }
+        ],
+        "reviewCorrections": [],
+        "hasDeviations": false
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "editedAsPlanned: is missing"
+      }
+    },
+    {
+      "name": "constraint editedButPlannedCreate required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-file-reconciliation/0.26.0.json",
+        "phaseId": "phase-01",
+        "createdAsPlanned": [
+          "src/example.ts"
+        ],
+        "editedAsPlanned": [
+          "src/index.ts"
+        ],
+        "missingPlannedCreate": [],
+        "missingPlannedEdit": [],
+        "createdButPlannedEdit": [],
+        "unplannedCreated": [],
+        "unplannedEdited": [],
+        "optionalTouched": [
+          "README.md"
+        ],
+        "deletions": [],
+        "renames": [
+          {
+            "from": "src/old.ts",
+            "to": "src/new.ts"
+          }
+        ],
+        "reviewCorrections": [],
+        "hasDeviations": false
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "editedButPlannedCreate: is missing"
+      }
+    },
+    {
+      "name": "constraint hasDeviations required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-file-reconciliation/0.26.0.json",
+        "phaseId": "phase-01",
+        "createdAsPlanned": [
+          "src/example.ts"
+        ],
+        "editedAsPlanned": [
+          "src/index.ts"
+        ],
+        "missingPlannedCreate": [],
+        "missingPlannedEdit": [],
+        "createdButPlannedEdit": [],
+        "editedButPlannedCreate": [],
+        "unplannedCreated": [],
+        "unplannedEdited": [],
+        "optionalTouched": [
+          "README.md"
+        ],
+        "deletions": [],
+        "renames": [
+          {
+            "from": "src/old.ts",
+            "to": "src/new.ts"
+          }
+        ],
+        "reviewCorrections": []
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "hasDeviations: is missing"
+      }
+    },
+    {
+      "name": "constraint missingPlannedCreate required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-file-reconciliation/0.26.0.json",
+        "phaseId": "phase-01",
+        "createdAsPlanned": [
+          "src/example.ts"
+        ],
+        "editedAsPlanned": [
+          "src/index.ts"
+        ],
+        "missingPlannedEdit": [],
+        "createdButPlannedEdit": [],
+        "editedButPlannedCreate": [],
+        "unplannedCreated": [],
+        "unplannedEdited": [],
+        "optionalTouched": [
+          "README.md"
+        ],
+        "deletions": [],
+        "renames": [
+          {
+            "from": "src/old.ts",
+            "to": "src/new.ts"
+          }
+        ],
+        "reviewCorrections": [],
+        "hasDeviations": false
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "missingPlannedCreate: is missing"
+      }
+    },
+    {
+      "name": "constraint missingPlannedEdit required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-file-reconciliation/0.26.0.json",
+        "phaseId": "phase-01",
+        "createdAsPlanned": [
+          "src/example.ts"
+        ],
+        "editedAsPlanned": [
+          "src/index.ts"
+        ],
+        "missingPlannedCreate": [],
+        "createdButPlannedEdit": [],
+        "editedButPlannedCreate": [],
+        "unplannedCreated": [],
+        "unplannedEdited": [],
+        "optionalTouched": [
+          "README.md"
+        ],
+        "deletions": [],
+        "renames": [
+          {
+            "from": "src/old.ts",
+            "to": "src/new.ts"
+          }
+        ],
+        "reviewCorrections": [],
+        "hasDeviations": false
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "missingPlannedEdit: is missing"
+      }
+    },
+    {
+      "name": "constraint optionalTouched required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-file-reconciliation/0.26.0.json",
+        "phaseId": "phase-01",
+        "createdAsPlanned": [
+          "src/example.ts"
+        ],
+        "editedAsPlanned": [
+          "src/index.ts"
+        ],
+        "missingPlannedCreate": [],
+        "missingPlannedEdit": [],
+        "createdButPlannedEdit": [],
+        "editedButPlannedCreate": [],
+        "unplannedCreated": [],
+        "unplannedEdited": [],
+        "deletions": [],
+        "renames": [
+          {
+            "from": "src/old.ts",
+            "to": "src/new.ts"
+          }
+        ],
+        "reviewCorrections": [],
+        "hasDeviations": false
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "optionalTouched: is missing"
+      }
+    },
+    {
+      "name": "constraint phaseId minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-file-reconciliation/0.26.0.json",
+        "phaseId": "",
+        "createdAsPlanned": [
+          "src/example.ts"
+        ],
+        "editedAsPlanned": [
+          "src/index.ts"
+        ],
+        "missingPlannedCreate": [],
+        "missingPlannedEdit": [],
+        "createdButPlannedEdit": [],
+        "editedButPlannedCreate": [],
+        "unplannedCreated": [],
+        "unplannedEdited": [],
+        "optionalTouched": [
+          "README.md"
+        ],
+        "deletions": [],
+        "renames": [
+          {
+            "from": "src/old.ts",
+            "to": "src/new.ts"
+          }
+        ],
+        "reviewCorrections": [],
+        "hasDeviations": false
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "phaseId: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint phaseId required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-file-reconciliation/0.26.0.json",
+        "createdAsPlanned": [
+          "src/example.ts"
+        ],
+        "editedAsPlanned": [
+          "src/index.ts"
+        ],
+        "missingPlannedCreate": [],
+        "missingPlannedEdit": [],
+        "createdButPlannedEdit": [],
+        "editedButPlannedCreate": [],
+        "unplannedCreated": [],
+        "unplannedEdited": [],
+        "optionalTouched": [
+          "README.md"
+        ],
+        "deletions": [],
+        "renames": [
+          {
+            "from": "src/old.ts",
+            "to": "src/new.ts"
+          }
+        ],
+        "reviewCorrections": [],
+        "hasDeviations": false
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "phaseId: is missing"
+      }
+    },
+    {
+      "name": "constraint renames required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-file-reconciliation/0.26.0.json",
+        "phaseId": "phase-01",
+        "createdAsPlanned": [
+          "src/example.ts"
+        ],
+        "editedAsPlanned": [
+          "src/index.ts"
+        ],
+        "missingPlannedCreate": [],
+        "missingPlannedEdit": [],
+        "createdButPlannedEdit": [],
+        "editedButPlannedCreate": [],
+        "unplannedCreated": [],
+        "unplannedEdited": [],
+        "optionalTouched": [
+          "README.md"
+        ],
+        "deletions": [],
+        "reviewCorrections": [],
+        "hasDeviations": false
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "renames: is missing"
+      }
+    },
+    {
+      "name": "constraint renames[].from required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-file-reconciliation/0.26.0.json",
+        "phaseId": "phase-01",
+        "createdAsPlanned": [
+          "src/example.ts"
+        ],
+        "editedAsPlanned": [
+          "src/index.ts"
+        ],
+        "missingPlannedCreate": [],
+        "missingPlannedEdit": [],
+        "createdButPlannedEdit": [],
+        "editedButPlannedCreate": [],
+        "unplannedCreated": [],
+        "unplannedEdited": [],
+        "optionalTouched": [
+          "README.md"
+        ],
+        "deletions": [],
+        "renames": [
+          {
+            "to": "src/new.ts"
+          }
+        ],
+        "reviewCorrections": [],
+        "hasDeviations": false
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "renames.0.from: is missing"
+      }
+    },
+    {
+      "name": "constraint renames[].to required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-file-reconciliation/0.26.0.json",
+        "phaseId": "phase-01",
+        "createdAsPlanned": [
+          "src/example.ts"
+        ],
+        "editedAsPlanned": [
+          "src/index.ts"
+        ],
+        "missingPlannedCreate": [],
+        "missingPlannedEdit": [],
+        "createdButPlannedEdit": [],
+        "editedButPlannedCreate": [],
+        "unplannedCreated": [],
+        "unplannedEdited": [],
+        "optionalTouched": [
+          "README.md"
+        ],
+        "deletions": [],
+        "renames": [
+          {
+            "from": "src/old.ts"
+          }
+        ],
+        "reviewCorrections": [],
+        "hasDeviations": false
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "renames.0.to: is missing"
+      }
+    },
+    {
+      "name": "constraint reviewCorrections required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-file-reconciliation/0.26.0.json",
+        "phaseId": "phase-01",
+        "createdAsPlanned": [
+          "src/example.ts"
+        ],
+        "editedAsPlanned": [
+          "src/index.ts"
+        ],
+        "missingPlannedCreate": [],
+        "missingPlannedEdit": [],
+        "createdButPlannedEdit": [],
+        "editedButPlannedCreate": [],
+        "unplannedCreated": [],
+        "unplannedEdited": [],
+        "optionalTouched": [
+          "README.md"
+        ],
+        "deletions": [],
+        "renames": [
+          {
+            "from": "src/old.ts",
+            "to": "src/new.ts"
+          }
+        ],
+        "hasDeviations": false
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "reviewCorrections: is missing"
+      }
+    },
+    {
+      "name": "constraint unplannedCreated required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-file-reconciliation/0.26.0.json",
+        "phaseId": "phase-01",
+        "createdAsPlanned": [
+          "src/example.ts"
+        ],
+        "editedAsPlanned": [
+          "src/index.ts"
+        ],
+        "missingPlannedCreate": [],
+        "missingPlannedEdit": [],
+        "createdButPlannedEdit": [],
+        "editedButPlannedCreate": [],
+        "unplannedEdited": [],
+        "optionalTouched": [
+          "README.md"
+        ],
+        "deletions": [],
+        "renames": [
+          {
+            "from": "src/old.ts",
+            "to": "src/new.ts"
+          }
+        ],
+        "reviewCorrections": [],
+        "hasDeviations": false
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "unplannedCreated: is missing"
+      }
+    },
+    {
+      "name": "constraint unplannedEdited required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-file-reconciliation/0.26.0.json",
+        "phaseId": "phase-01",
+        "createdAsPlanned": [
+          "src/example.ts"
+        ],
+        "editedAsPlanned": [
+          "src/index.ts"
+        ],
+        "missingPlannedCreate": [],
+        "missingPlannedEdit": [],
+        "createdButPlannedEdit": [],
+        "editedButPlannedCreate": [],
+        "unplannedCreated": [],
+        "optionalTouched": [
+          "README.md"
+        ],
+        "deletions": [],
+        "renames": [
+          {
+            "from": "src/old.ts",
+            "to": "src/new.ts"
+          }
+        ],
+        "reviewCorrections": [],
+        "hasDeviations": false
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "unplannedEdited: is missing"
+      }
     }
   ],
   "shapes": {
@@ -1142,6 +1778,508 @@
             "unplannedCreated": [],
             "unplannedEdited": []
           }
+        }
+      },
+      {
+        "name": "constraint createdAsPlanned required",
+        "input": {
+          "phaseId": "phase-01",
+          "editedAsPlanned": [
+            "src/index.ts"
+          ],
+          "missingPlannedCreate": [],
+          "missingPlannedEdit": [],
+          "createdButPlannedEdit": [],
+          "editedButPlannedCreate": [],
+          "unplannedCreated": [],
+          "unplannedEdited": [],
+          "optionalTouched": [
+            "README.md"
+          ],
+          "deletions": [],
+          "renames": [
+            {
+              "from": "src/old.ts",
+              "to": "src/new.ts"
+            }
+          ],
+          "hasDeviations": false
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "createdAsPlanned: is missing"
+        }
+      },
+      {
+        "name": "constraint createdButPlannedEdit required",
+        "input": {
+          "phaseId": "phase-01",
+          "createdAsPlanned": [
+            "src/example.ts"
+          ],
+          "editedAsPlanned": [
+            "src/index.ts"
+          ],
+          "missingPlannedCreate": [],
+          "missingPlannedEdit": [],
+          "editedButPlannedCreate": [],
+          "unplannedCreated": [],
+          "unplannedEdited": [],
+          "optionalTouched": [
+            "README.md"
+          ],
+          "deletions": [],
+          "renames": [
+            {
+              "from": "src/old.ts",
+              "to": "src/new.ts"
+            }
+          ],
+          "hasDeviations": false
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "createdButPlannedEdit: is missing"
+        }
+      },
+      {
+        "name": "constraint deletions required",
+        "input": {
+          "phaseId": "phase-01",
+          "createdAsPlanned": [
+            "src/example.ts"
+          ],
+          "editedAsPlanned": [
+            "src/index.ts"
+          ],
+          "missingPlannedCreate": [],
+          "missingPlannedEdit": [],
+          "createdButPlannedEdit": [],
+          "editedButPlannedCreate": [],
+          "unplannedCreated": [],
+          "unplannedEdited": [],
+          "optionalTouched": [
+            "README.md"
+          ],
+          "renames": [
+            {
+              "from": "src/old.ts",
+              "to": "src/new.ts"
+            }
+          ],
+          "hasDeviations": false
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "deletions: is missing"
+        }
+      },
+      {
+        "name": "constraint editedAsPlanned required",
+        "input": {
+          "phaseId": "phase-01",
+          "createdAsPlanned": [
+            "src/example.ts"
+          ],
+          "missingPlannedCreate": [],
+          "missingPlannedEdit": [],
+          "createdButPlannedEdit": [],
+          "editedButPlannedCreate": [],
+          "unplannedCreated": [],
+          "unplannedEdited": [],
+          "optionalTouched": [
+            "README.md"
+          ],
+          "deletions": [],
+          "renames": [
+            {
+              "from": "src/old.ts",
+              "to": "src/new.ts"
+            }
+          ],
+          "hasDeviations": false
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "editedAsPlanned: is missing"
+        }
+      },
+      {
+        "name": "constraint editedButPlannedCreate required",
+        "input": {
+          "phaseId": "phase-01",
+          "createdAsPlanned": [
+            "src/example.ts"
+          ],
+          "editedAsPlanned": [
+            "src/index.ts"
+          ],
+          "missingPlannedCreate": [],
+          "missingPlannedEdit": [],
+          "createdButPlannedEdit": [],
+          "unplannedCreated": [],
+          "unplannedEdited": [],
+          "optionalTouched": [
+            "README.md"
+          ],
+          "deletions": [],
+          "renames": [
+            {
+              "from": "src/old.ts",
+              "to": "src/new.ts"
+            }
+          ],
+          "hasDeviations": false
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "editedButPlannedCreate: is missing"
+        }
+      },
+      {
+        "name": "constraint hasDeviations required",
+        "input": {
+          "phaseId": "phase-01",
+          "createdAsPlanned": [
+            "src/example.ts"
+          ],
+          "editedAsPlanned": [
+            "src/index.ts"
+          ],
+          "missingPlannedCreate": [],
+          "missingPlannedEdit": [],
+          "createdButPlannedEdit": [],
+          "editedButPlannedCreate": [],
+          "unplannedCreated": [],
+          "unplannedEdited": [],
+          "optionalTouched": [
+            "README.md"
+          ],
+          "deletions": [],
+          "renames": [
+            {
+              "from": "src/old.ts",
+              "to": "src/new.ts"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "hasDeviations: is missing"
+        }
+      },
+      {
+        "name": "constraint missingPlannedCreate required",
+        "input": {
+          "phaseId": "phase-01",
+          "createdAsPlanned": [
+            "src/example.ts"
+          ],
+          "editedAsPlanned": [
+            "src/index.ts"
+          ],
+          "missingPlannedEdit": [],
+          "createdButPlannedEdit": [],
+          "editedButPlannedCreate": [],
+          "unplannedCreated": [],
+          "unplannedEdited": [],
+          "optionalTouched": [
+            "README.md"
+          ],
+          "deletions": [],
+          "renames": [
+            {
+              "from": "src/old.ts",
+              "to": "src/new.ts"
+            }
+          ],
+          "hasDeviations": false
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "missingPlannedCreate: is missing"
+        }
+      },
+      {
+        "name": "constraint missingPlannedEdit required",
+        "input": {
+          "phaseId": "phase-01",
+          "createdAsPlanned": [
+            "src/example.ts"
+          ],
+          "editedAsPlanned": [
+            "src/index.ts"
+          ],
+          "missingPlannedCreate": [],
+          "createdButPlannedEdit": [],
+          "editedButPlannedCreate": [],
+          "unplannedCreated": [],
+          "unplannedEdited": [],
+          "optionalTouched": [
+            "README.md"
+          ],
+          "deletions": [],
+          "renames": [
+            {
+              "from": "src/old.ts",
+              "to": "src/new.ts"
+            }
+          ],
+          "hasDeviations": false
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "missingPlannedEdit: is missing"
+        }
+      },
+      {
+        "name": "constraint optionalTouched required",
+        "input": {
+          "phaseId": "phase-01",
+          "createdAsPlanned": [
+            "src/example.ts"
+          ],
+          "editedAsPlanned": [
+            "src/index.ts"
+          ],
+          "missingPlannedCreate": [],
+          "missingPlannedEdit": [],
+          "createdButPlannedEdit": [],
+          "editedButPlannedCreate": [],
+          "unplannedCreated": [],
+          "unplannedEdited": [],
+          "deletions": [],
+          "renames": [
+            {
+              "from": "src/old.ts",
+              "to": "src/new.ts"
+            }
+          ],
+          "hasDeviations": false
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "optionalTouched: is missing"
+        }
+      },
+      {
+        "name": "constraint phaseId minLength",
+        "input": {
+          "phaseId": "",
+          "createdAsPlanned": [
+            "src/example.ts"
+          ],
+          "editedAsPlanned": [
+            "src/index.ts"
+          ],
+          "missingPlannedCreate": [],
+          "missingPlannedEdit": [],
+          "createdButPlannedEdit": [],
+          "editedButPlannedCreate": [],
+          "unplannedCreated": [],
+          "unplannedEdited": [],
+          "optionalTouched": [
+            "README.md"
+          ],
+          "deletions": [],
+          "renames": [
+            {
+              "from": "src/old.ts",
+              "to": "src/new.ts"
+            }
+          ],
+          "hasDeviations": false
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phaseId: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint phaseId required",
+        "input": {
+          "createdAsPlanned": [
+            "src/example.ts"
+          ],
+          "editedAsPlanned": [
+            "src/index.ts"
+          ],
+          "missingPlannedCreate": [],
+          "missingPlannedEdit": [],
+          "createdButPlannedEdit": [],
+          "editedButPlannedCreate": [],
+          "unplannedCreated": [],
+          "unplannedEdited": [],
+          "optionalTouched": [
+            "README.md"
+          ],
+          "deletions": [],
+          "renames": [
+            {
+              "from": "src/old.ts",
+              "to": "src/new.ts"
+            }
+          ],
+          "hasDeviations": false
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phaseId: is missing"
+        }
+      },
+      {
+        "name": "constraint renames required",
+        "input": {
+          "phaseId": "phase-01",
+          "createdAsPlanned": [
+            "src/example.ts"
+          ],
+          "editedAsPlanned": [
+            "src/index.ts"
+          ],
+          "missingPlannedCreate": [],
+          "missingPlannedEdit": [],
+          "createdButPlannedEdit": [],
+          "editedButPlannedCreate": [],
+          "unplannedCreated": [],
+          "unplannedEdited": [],
+          "optionalTouched": [
+            "README.md"
+          ],
+          "deletions": [],
+          "hasDeviations": false
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "renames: is missing"
+        }
+      },
+      {
+        "name": "constraint renames[].from required",
+        "input": {
+          "phaseId": "phase-01",
+          "createdAsPlanned": [
+            "src/example.ts"
+          ],
+          "editedAsPlanned": [
+            "src/index.ts"
+          ],
+          "missingPlannedCreate": [],
+          "missingPlannedEdit": [],
+          "createdButPlannedEdit": [],
+          "editedButPlannedCreate": [],
+          "unplannedCreated": [],
+          "unplannedEdited": [],
+          "optionalTouched": [
+            "README.md"
+          ],
+          "deletions": [],
+          "renames": [
+            {
+              "to": "src/new.ts"
+            }
+          ],
+          "hasDeviations": false
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "renames[0].from: is missing"
+        }
+      },
+      {
+        "name": "constraint renames[].to required",
+        "input": {
+          "phaseId": "phase-01",
+          "createdAsPlanned": [
+            "src/example.ts"
+          ],
+          "editedAsPlanned": [
+            "src/index.ts"
+          ],
+          "missingPlannedCreate": [],
+          "missingPlannedEdit": [],
+          "createdButPlannedEdit": [],
+          "editedButPlannedCreate": [],
+          "unplannedCreated": [],
+          "unplannedEdited": [],
+          "optionalTouched": [
+            "README.md"
+          ],
+          "deletions": [],
+          "renames": [
+            {
+              "from": "src/old.ts"
+            }
+          ],
+          "hasDeviations": false
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "renames[0].to: is missing"
+        }
+      },
+      {
+        "name": "constraint unplannedCreated required",
+        "input": {
+          "phaseId": "phase-01",
+          "createdAsPlanned": [
+            "src/example.ts"
+          ],
+          "editedAsPlanned": [
+            "src/index.ts"
+          ],
+          "missingPlannedCreate": [],
+          "missingPlannedEdit": [],
+          "createdButPlannedEdit": [],
+          "editedButPlannedCreate": [],
+          "unplannedEdited": [],
+          "optionalTouched": [
+            "README.md"
+          ],
+          "deletions": [],
+          "renames": [
+            {
+              "from": "src/old.ts",
+              "to": "src/new.ts"
+            }
+          ],
+          "hasDeviations": false
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "unplannedCreated: is missing"
+        }
+      },
+      {
+        "name": "constraint unplannedEdited required",
+        "input": {
+          "phaseId": "phase-01",
+          "createdAsPlanned": [
+            "src/example.ts"
+          ],
+          "editedAsPlanned": [
+            "src/index.ts"
+          ],
+          "missingPlannedCreate": [],
+          "missingPlannedEdit": [],
+          "createdButPlannedEdit": [],
+          "editedButPlannedCreate": [],
+          "unplannedCreated": [],
+          "optionalTouched": [
+            "README.md"
+          ],
+          "deletions": [],
+          "renames": [
+            {
+              "from": "src/old.ts",
+              "to": "src/new.ts"
+            }
+          ],
+          "hasDeviations": false
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "unplannedEdited: is missing"
         }
       }
     ],
@@ -1552,6 +2690,829 @@
               "text-9"
             ]
           }
+        }
+      },
+      {
+        "name": "constraint $schema pattern",
+        "input": {
+          "$schema": "",
+          "phaseId": "phase-01",
+          "createdAsPlanned": [
+            "src/example.ts"
+          ],
+          "editedAsPlanned": [
+            "src/index.ts"
+          ],
+          "missingPlannedCreate": [
+            "text-4"
+          ],
+          "missingPlannedEdit": [
+            "text-5"
+          ],
+          "createdButPlannedEdit": [
+            "text-6"
+          ],
+          "editedButPlannedCreate": [
+            "text-7"
+          ],
+          "unplannedCreated": [
+            "text-8"
+          ],
+          "unplannedEdited": [
+            "text-9"
+          ],
+          "optionalTouched": [
+            "README.md"
+          ],
+          "deletions": [
+            "text-11"
+          ],
+          "renames": [
+            {
+              "from": "src/old.ts",
+              "to": "src/new.ts"
+            }
+          ],
+          "hasDeviations": false
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "$schema: Expected a string matching the pattern ^https:\\/\\/docs\\.phax\\.run\\/schemas\\/phase-file-reconciliation\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$, actual \"\""
+        }
+      },
+      {
+        "name": "constraint $schema required",
+        "input": {
+          "phaseId": "phase-01",
+          "createdAsPlanned": [
+            "src/example.ts"
+          ],
+          "editedAsPlanned": [
+            "src/index.ts"
+          ],
+          "missingPlannedCreate": [
+            "text-4"
+          ],
+          "missingPlannedEdit": [
+            "text-5"
+          ],
+          "createdButPlannedEdit": [
+            "text-6"
+          ],
+          "editedButPlannedCreate": [
+            "text-7"
+          ],
+          "unplannedCreated": [
+            "text-8"
+          ],
+          "unplannedEdited": [
+            "text-9"
+          ],
+          "optionalTouched": [
+            "README.md"
+          ],
+          "deletions": [
+            "text-11"
+          ],
+          "renames": [
+            {
+              "from": "src/old.ts",
+              "to": "src/new.ts"
+            }
+          ],
+          "hasDeviations": false
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "$schema: is missing"
+        }
+      },
+      {
+        "name": "constraint createdAsPlanned required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-file-reconciliation/0.17.0.json",
+          "phaseId": "phase-01",
+          "editedAsPlanned": [
+            "src/index.ts"
+          ],
+          "missingPlannedCreate": [
+            "text-4"
+          ],
+          "missingPlannedEdit": [
+            "text-5"
+          ],
+          "createdButPlannedEdit": [
+            "text-6"
+          ],
+          "editedButPlannedCreate": [
+            "text-7"
+          ],
+          "unplannedCreated": [
+            "text-8"
+          ],
+          "unplannedEdited": [
+            "text-9"
+          ],
+          "optionalTouched": [
+            "README.md"
+          ],
+          "deletions": [
+            "text-11"
+          ],
+          "renames": [
+            {
+              "from": "src/old.ts",
+              "to": "src/new.ts"
+            }
+          ],
+          "hasDeviations": false
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "createdAsPlanned: is missing"
+        }
+      },
+      {
+        "name": "constraint createdButPlannedEdit required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-file-reconciliation/0.17.0.json",
+          "phaseId": "phase-01",
+          "createdAsPlanned": [
+            "src/example.ts"
+          ],
+          "editedAsPlanned": [
+            "src/index.ts"
+          ],
+          "missingPlannedCreate": [
+            "text-4"
+          ],
+          "missingPlannedEdit": [
+            "text-5"
+          ],
+          "editedButPlannedCreate": [
+            "text-7"
+          ],
+          "unplannedCreated": [
+            "text-8"
+          ],
+          "unplannedEdited": [
+            "text-9"
+          ],
+          "optionalTouched": [
+            "README.md"
+          ],
+          "deletions": [
+            "text-11"
+          ],
+          "renames": [
+            {
+              "from": "src/old.ts",
+              "to": "src/new.ts"
+            }
+          ],
+          "hasDeviations": false
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "createdButPlannedEdit: is missing"
+        }
+      },
+      {
+        "name": "constraint deletions required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-file-reconciliation/0.17.0.json",
+          "phaseId": "phase-01",
+          "createdAsPlanned": [
+            "src/example.ts"
+          ],
+          "editedAsPlanned": [
+            "src/index.ts"
+          ],
+          "missingPlannedCreate": [
+            "text-4"
+          ],
+          "missingPlannedEdit": [
+            "text-5"
+          ],
+          "createdButPlannedEdit": [
+            "text-6"
+          ],
+          "editedButPlannedCreate": [
+            "text-7"
+          ],
+          "unplannedCreated": [
+            "text-8"
+          ],
+          "unplannedEdited": [
+            "text-9"
+          ],
+          "optionalTouched": [
+            "README.md"
+          ],
+          "renames": [
+            {
+              "from": "src/old.ts",
+              "to": "src/new.ts"
+            }
+          ],
+          "hasDeviations": false
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "deletions: is missing"
+        }
+      },
+      {
+        "name": "constraint editedAsPlanned required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-file-reconciliation/0.17.0.json",
+          "phaseId": "phase-01",
+          "createdAsPlanned": [
+            "src/example.ts"
+          ],
+          "missingPlannedCreate": [
+            "text-4"
+          ],
+          "missingPlannedEdit": [
+            "text-5"
+          ],
+          "createdButPlannedEdit": [
+            "text-6"
+          ],
+          "editedButPlannedCreate": [
+            "text-7"
+          ],
+          "unplannedCreated": [
+            "text-8"
+          ],
+          "unplannedEdited": [
+            "text-9"
+          ],
+          "optionalTouched": [
+            "README.md"
+          ],
+          "deletions": [
+            "text-11"
+          ],
+          "renames": [
+            {
+              "from": "src/old.ts",
+              "to": "src/new.ts"
+            }
+          ],
+          "hasDeviations": false
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "editedAsPlanned: is missing"
+        }
+      },
+      {
+        "name": "constraint editedButPlannedCreate required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-file-reconciliation/0.17.0.json",
+          "phaseId": "phase-01",
+          "createdAsPlanned": [
+            "src/example.ts"
+          ],
+          "editedAsPlanned": [
+            "src/index.ts"
+          ],
+          "missingPlannedCreate": [
+            "text-4"
+          ],
+          "missingPlannedEdit": [
+            "text-5"
+          ],
+          "createdButPlannedEdit": [
+            "text-6"
+          ],
+          "unplannedCreated": [
+            "text-8"
+          ],
+          "unplannedEdited": [
+            "text-9"
+          ],
+          "optionalTouched": [
+            "README.md"
+          ],
+          "deletions": [
+            "text-11"
+          ],
+          "renames": [
+            {
+              "from": "src/old.ts",
+              "to": "src/new.ts"
+            }
+          ],
+          "hasDeviations": false
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "editedButPlannedCreate: is missing"
+        }
+      },
+      {
+        "name": "constraint hasDeviations required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-file-reconciliation/0.17.0.json",
+          "phaseId": "phase-01",
+          "createdAsPlanned": [
+            "src/example.ts"
+          ],
+          "editedAsPlanned": [
+            "src/index.ts"
+          ],
+          "missingPlannedCreate": [
+            "text-4"
+          ],
+          "missingPlannedEdit": [
+            "text-5"
+          ],
+          "createdButPlannedEdit": [
+            "text-6"
+          ],
+          "editedButPlannedCreate": [
+            "text-7"
+          ],
+          "unplannedCreated": [
+            "text-8"
+          ],
+          "unplannedEdited": [
+            "text-9"
+          ],
+          "optionalTouched": [
+            "README.md"
+          ],
+          "deletions": [
+            "text-11"
+          ],
+          "renames": [
+            {
+              "from": "src/old.ts",
+              "to": "src/new.ts"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "hasDeviations: is missing"
+        }
+      },
+      {
+        "name": "constraint missingPlannedCreate required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-file-reconciliation/0.17.0.json",
+          "phaseId": "phase-01",
+          "createdAsPlanned": [
+            "src/example.ts"
+          ],
+          "editedAsPlanned": [
+            "src/index.ts"
+          ],
+          "missingPlannedEdit": [
+            "text-5"
+          ],
+          "createdButPlannedEdit": [
+            "text-6"
+          ],
+          "editedButPlannedCreate": [
+            "text-7"
+          ],
+          "unplannedCreated": [
+            "text-8"
+          ],
+          "unplannedEdited": [
+            "text-9"
+          ],
+          "optionalTouched": [
+            "README.md"
+          ],
+          "deletions": [
+            "text-11"
+          ],
+          "renames": [
+            {
+              "from": "src/old.ts",
+              "to": "src/new.ts"
+            }
+          ],
+          "hasDeviations": false
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "missingPlannedCreate: is missing"
+        }
+      },
+      {
+        "name": "constraint missingPlannedEdit required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-file-reconciliation/0.17.0.json",
+          "phaseId": "phase-01",
+          "createdAsPlanned": [
+            "src/example.ts"
+          ],
+          "editedAsPlanned": [
+            "src/index.ts"
+          ],
+          "missingPlannedCreate": [
+            "text-4"
+          ],
+          "createdButPlannedEdit": [
+            "text-6"
+          ],
+          "editedButPlannedCreate": [
+            "text-7"
+          ],
+          "unplannedCreated": [
+            "text-8"
+          ],
+          "unplannedEdited": [
+            "text-9"
+          ],
+          "optionalTouched": [
+            "README.md"
+          ],
+          "deletions": [
+            "text-11"
+          ],
+          "renames": [
+            {
+              "from": "src/old.ts",
+              "to": "src/new.ts"
+            }
+          ],
+          "hasDeviations": false
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "missingPlannedEdit: is missing"
+        }
+      },
+      {
+        "name": "constraint optionalTouched required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-file-reconciliation/0.17.0.json",
+          "phaseId": "phase-01",
+          "createdAsPlanned": [
+            "src/example.ts"
+          ],
+          "editedAsPlanned": [
+            "src/index.ts"
+          ],
+          "missingPlannedCreate": [
+            "text-4"
+          ],
+          "missingPlannedEdit": [
+            "text-5"
+          ],
+          "createdButPlannedEdit": [
+            "text-6"
+          ],
+          "editedButPlannedCreate": [
+            "text-7"
+          ],
+          "unplannedCreated": [
+            "text-8"
+          ],
+          "unplannedEdited": [
+            "text-9"
+          ],
+          "deletions": [
+            "text-11"
+          ],
+          "renames": [
+            {
+              "from": "src/old.ts",
+              "to": "src/new.ts"
+            }
+          ],
+          "hasDeviations": false
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "optionalTouched: is missing"
+        }
+      },
+      {
+        "name": "constraint phaseId minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-file-reconciliation/0.17.0.json",
+          "phaseId": "",
+          "createdAsPlanned": [
+            "src/example.ts"
+          ],
+          "editedAsPlanned": [
+            "src/index.ts"
+          ],
+          "missingPlannedCreate": [
+            "text-4"
+          ],
+          "missingPlannedEdit": [
+            "text-5"
+          ],
+          "createdButPlannedEdit": [
+            "text-6"
+          ],
+          "editedButPlannedCreate": [
+            "text-7"
+          ],
+          "unplannedCreated": [
+            "text-8"
+          ],
+          "unplannedEdited": [
+            "text-9"
+          ],
+          "optionalTouched": [
+            "README.md"
+          ],
+          "deletions": [
+            "text-11"
+          ],
+          "renames": [
+            {
+              "from": "src/old.ts",
+              "to": "src/new.ts"
+            }
+          ],
+          "hasDeviations": false
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phaseId: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint phaseId required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-file-reconciliation/0.17.0.json",
+          "createdAsPlanned": [
+            "src/example.ts"
+          ],
+          "editedAsPlanned": [
+            "src/index.ts"
+          ],
+          "missingPlannedCreate": [
+            "text-4"
+          ],
+          "missingPlannedEdit": [
+            "text-5"
+          ],
+          "createdButPlannedEdit": [
+            "text-6"
+          ],
+          "editedButPlannedCreate": [
+            "text-7"
+          ],
+          "unplannedCreated": [
+            "text-8"
+          ],
+          "unplannedEdited": [
+            "text-9"
+          ],
+          "optionalTouched": [
+            "README.md"
+          ],
+          "deletions": [
+            "text-11"
+          ],
+          "renames": [
+            {
+              "from": "src/old.ts",
+              "to": "src/new.ts"
+            }
+          ],
+          "hasDeviations": false
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phaseId: is missing"
+        }
+      },
+      {
+        "name": "constraint renames required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-file-reconciliation/0.17.0.json",
+          "phaseId": "phase-01",
+          "createdAsPlanned": [
+            "src/example.ts"
+          ],
+          "editedAsPlanned": [
+            "src/index.ts"
+          ],
+          "missingPlannedCreate": [
+            "text-4"
+          ],
+          "missingPlannedEdit": [
+            "text-5"
+          ],
+          "createdButPlannedEdit": [
+            "text-6"
+          ],
+          "editedButPlannedCreate": [
+            "text-7"
+          ],
+          "unplannedCreated": [
+            "text-8"
+          ],
+          "unplannedEdited": [
+            "text-9"
+          ],
+          "optionalTouched": [
+            "README.md"
+          ],
+          "deletions": [
+            "text-11"
+          ],
+          "hasDeviations": false
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "renames: is missing"
+        }
+      },
+      {
+        "name": "constraint renames[].from required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-file-reconciliation/0.17.0.json",
+          "phaseId": "phase-01",
+          "createdAsPlanned": [
+            "src/example.ts"
+          ],
+          "editedAsPlanned": [
+            "src/index.ts"
+          ],
+          "missingPlannedCreate": [
+            "text-4"
+          ],
+          "missingPlannedEdit": [
+            "text-5"
+          ],
+          "createdButPlannedEdit": [
+            "text-6"
+          ],
+          "editedButPlannedCreate": [
+            "text-7"
+          ],
+          "unplannedCreated": [
+            "text-8"
+          ],
+          "unplannedEdited": [
+            "text-9"
+          ],
+          "optionalTouched": [
+            "README.md"
+          ],
+          "deletions": [
+            "text-11"
+          ],
+          "renames": [
+            {
+              "to": "src/new.ts"
+            }
+          ],
+          "hasDeviations": false
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "renames[0].from: is missing"
+        }
+      },
+      {
+        "name": "constraint renames[].to required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-file-reconciliation/0.17.0.json",
+          "phaseId": "phase-01",
+          "createdAsPlanned": [
+            "src/example.ts"
+          ],
+          "editedAsPlanned": [
+            "src/index.ts"
+          ],
+          "missingPlannedCreate": [
+            "text-4"
+          ],
+          "missingPlannedEdit": [
+            "text-5"
+          ],
+          "createdButPlannedEdit": [
+            "text-6"
+          ],
+          "editedButPlannedCreate": [
+            "text-7"
+          ],
+          "unplannedCreated": [
+            "text-8"
+          ],
+          "unplannedEdited": [
+            "text-9"
+          ],
+          "optionalTouched": [
+            "README.md"
+          ],
+          "deletions": [
+            "text-11"
+          ],
+          "renames": [
+            {
+              "from": "src/old.ts"
+            }
+          ],
+          "hasDeviations": false
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "renames[0].to: is missing"
+        }
+      },
+      {
+        "name": "constraint unplannedCreated required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-file-reconciliation/0.17.0.json",
+          "phaseId": "phase-01",
+          "createdAsPlanned": [
+            "src/example.ts"
+          ],
+          "editedAsPlanned": [
+            "src/index.ts"
+          ],
+          "missingPlannedCreate": [
+            "text-4"
+          ],
+          "missingPlannedEdit": [
+            "text-5"
+          ],
+          "createdButPlannedEdit": [
+            "text-6"
+          ],
+          "editedButPlannedCreate": [
+            "text-7"
+          ],
+          "unplannedEdited": [
+            "text-9"
+          ],
+          "optionalTouched": [
+            "README.md"
+          ],
+          "deletions": [
+            "text-11"
+          ],
+          "renames": [
+            {
+              "from": "src/old.ts",
+              "to": "src/new.ts"
+            }
+          ],
+          "hasDeviations": false
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "unplannedCreated: is missing"
+        }
+      },
+      {
+        "name": "constraint unplannedEdited required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-file-reconciliation/0.17.0.json",
+          "phaseId": "phase-01",
+          "createdAsPlanned": [
+            "src/example.ts"
+          ],
+          "editedAsPlanned": [
+            "src/index.ts"
+          ],
+          "missingPlannedCreate": [
+            "text-4"
+          ],
+          "missingPlannedEdit": [
+            "text-5"
+          ],
+          "createdButPlannedEdit": [
+            "text-6"
+          ],
+          "editedButPlannedCreate": [
+            "text-7"
+          ],
+          "unplannedCreated": [
+            "text-8"
+          ],
+          "optionalTouched": [
+            "README.md"
+          ],
+          "deletions": [
+            "text-11"
+          ],
+          "renames": [
+            {
+              "from": "src/old.ts",
+              "to": "src/new.ts"
+            }
+          ],
+          "hasDeviations": false
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "unplannedEdited: is missing"
         }
       }
     ]

@@ -1,0 +1,251 @@
+{
+  "subject": "encode/brief-record",
+  "cases": [
+    {
+      "name": "accepts a typical document",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-record/0.21.0.json",
+        "moment": "pulled",
+        "request": {
+          "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+          "phase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "terminal": false,
+          "phases": [
+            {
+              "id": "phase-01",
+              "files": [
+                "src/example.ts",
+                "tests/example.test.ts"
+              ]
+            },
+            {
+              "id": "phase-02",
+              "files": [
+                "src/other.ts"
+              ]
+            }
+          ],
+          "files": [
+            "src/example.ts",
+            "src/missing.ts"
+          ]
+        },
+        "outcome": {
+          "kind": "answered",
+          "answer": {
+            "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json",
+            "rules": [
+              {
+                "rule": "a module under src/ imports no node: module",
+                "files": [
+                  "src/example.ts",
+                  "src/missing.ts"
+                ],
+                "guide": {
+                  "summary": "keep I/O in the caller",
+                  "read": "guides/example.md"
+                }
+              }
+            ],
+            "findings": [
+              {
+                "id": "example-no-io src/example.ts node:fs",
+                "rule": "a module under src/ imports no node: module",
+                "location": {
+                  "file": "src/example.ts",
+                  "lines": null
+                },
+                "message": "imports node:fs",
+                "related": [],
+                "guide": null,
+                "due": "this-phase"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/brief-record/0.21.0.json",
+          "moment": "pulled",
+          "outcome": {
+            "answer": {
+              "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json",
+              "findings": [
+                {
+                  "due": "this-phase",
+                  "guide": null,
+                  "id": "example-no-io src/example.ts node:fs",
+                  "location": {
+                    "file": "src/example.ts",
+                    "lines": null
+                  },
+                  "message": "imports node:fs",
+                  "related": [],
+                  "rule": "a module under src/ imports no node: module"
+                }
+              ],
+              "rules": [
+                {
+                  "files": [
+                    "src/example.ts",
+                    "src/missing.ts"
+                  ],
+                  "guide": {
+                    "read": "guides/example.md",
+                    "summary": "keep I/O in the caller"
+                  },
+                  "rule": "a module under src/ imports no node: module"
+                }
+              ]
+            },
+            "kind": "answered"
+          },
+          "request": {
+            "$schema": "https://docs.phax.run/schemas/brief-request/0.20.0.json",
+            "base": "0123456789abcdef0123456789abcdef01234567",
+            "files": [
+              "src/example.ts",
+              "src/missing.ts"
+            ],
+            "phase": "phase-02",
+            "phases": [
+              {
+                "files": [
+                  "src/example.ts",
+                  "tests/example.test.ts"
+                ],
+                "id": "phase-01"
+              },
+              {
+                "files": [
+                  "src/other.ts"
+                ],
+                "id": "phase-02"
+              }
+            ],
+            "terminal": false
+          }
+        }
+      }
+    },
+    {
+      "name": "accepts a document setting every field",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-record/0.21.0.json",
+        "moment": "pulled",
+        "request": {
+          "$schema": "https://docs.phax.run/schemas/brief-request/0.21.0.json",
+          "phase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "terminal": false,
+          "phases": [
+            {
+              "id": "phase-01",
+              "files": [
+                "src/example.ts"
+              ]
+            }
+          ],
+          "files": [
+            "src/example.ts"
+          ]
+        },
+        "outcome": {
+          "kind": "failed",
+          "reason": "text-6"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/brief-record/0.21.0.json",
+          "moment": "pulled",
+          "outcome": {
+            "kind": "failed",
+            "reason": "text-6"
+          },
+          "request": {
+            "$schema": "https://docs.phax.run/schemas/brief-request/0.21.0.json",
+            "base": "0123456789abcdef0123456789abcdef01234567",
+            "files": [
+              "src/example.ts"
+            ],
+            "phase": "phase-02",
+            "phases": [
+              {
+                "files": [
+                  "src/example.ts"
+                ],
+                "id": "phase-01"
+              }
+            ],
+            "terminal": false
+          }
+        }
+      }
+    },
+    {
+      "name": "accepts a document with only its required fields",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/brief-record/0.21.0.json",
+        "moment": "pulled",
+        "request": {
+          "$schema": "https://docs.phax.run/schemas/brief-request/0.21.0.json",
+          "phase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "terminal": false,
+          "phases": [
+            {
+              "id": "phase-01",
+              "files": [
+                "src/example.ts"
+              ]
+            }
+          ],
+          "files": [
+            "src/example.ts"
+          ]
+        },
+        "outcome": {
+          "kind": "answered",
+          "answer": {
+            "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json"
+          }
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/brief-record/0.21.0.json",
+          "moment": "pulled",
+          "outcome": {
+            "answer": {
+              "$schema": "https://docs.phax.run/schemas/brief-report/0.21.0.json"
+            },
+            "kind": "answered"
+          },
+          "request": {
+            "$schema": "https://docs.phax.run/schemas/brief-request/0.21.0.json",
+            "base": "0123456789abcdef0123456789abcdef01234567",
+            "files": [
+              "src/example.ts"
+            ],
+            "phase": "phase-02",
+            "phases": [
+              {
+                "files": [
+                  "src/example.ts"
+                ],
+                "id": "phase-01"
+              }
+            ],
+            "terminal": false
+          }
+        }
+      }
+    }
+  ]
+}

@@ -305,6 +305,301 @@
         "ok": false,
         "refusal": "body: Expected a non empty string, actual \"\""
       }
+    },
+    {
+      "name": "constraint $schema pattern",
+      "input": {
+        "$schema": "",
+        "body": "# Architecture — example",
+        "parts": [
+          {
+            "id": "core-decide",
+            "name": "core · decide",
+            "description": "The pure decision logic.",
+            "globs": [
+              "src/core/decide/**"
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: expected https://docs.phax.run/schemas/<format-id>/<X.Y.Z>.json, got \"\""
+      }
+    },
+    {
+      "name": "constraint $schema required",
+      "input": {
+        "body": "# Architecture — example",
+        "parts": [
+          {
+            "id": "core-decide",
+            "name": "core · decide",
+            "description": "The pure decision logic.",
+            "globs": [
+              "src/core/decide/**"
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: architecture report has no $schema — every architecture report is written with one"
+      }
+    },
+    {
+      "name": "constraint body minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/architecture-report/0.26.0.json",
+        "body": "",
+        "parts": [
+          {
+            "id": "core-decide",
+            "name": "core · decide",
+            "description": "The pure decision logic.",
+            "globs": [
+              "src/core/decide/**"
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "body: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint body required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/architecture-report/0.26.0.json",
+        "parts": [
+          {
+            "id": "core-decide",
+            "name": "core · decide",
+            "description": "The pure decision logic.",
+            "globs": [
+              "src/core/decide/**"
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "body: is missing"
+      }
+    },
+    {
+      "name": "constraint parts required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/architecture-report/0.26.0.json",
+        "body": "# Architecture — example"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "parts: is missing"
+      }
+    },
+    {
+      "name": "constraint parts[].description minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/architecture-report/0.26.0.json",
+        "body": "# Architecture — example",
+        "parts": [
+          {
+            "id": "core-decide",
+            "name": "core · decide",
+            "description": "",
+            "globs": [
+              "src/core/decide/**"
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "parts.0.description: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint parts[].description required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/architecture-report/0.26.0.json",
+        "body": "# Architecture — example",
+        "parts": [
+          {
+            "id": "core-decide",
+            "name": "core · decide",
+            "globs": [
+              "src/core/decide/**"
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "parts.0.description: is missing"
+      }
+    },
+    {
+      "name": "constraint parts[].globs minItems",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/architecture-report/0.26.0.json",
+        "body": "# Architecture — example",
+        "parts": [
+          {
+            "id": "core-decide",
+            "name": "core · decide",
+            "description": "The pure decision logic.",
+            "globs": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "parts.0.globs.0: is missing"
+      }
+    },
+    {
+      "name": "constraint parts[].globs required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/architecture-report/0.26.0.json",
+        "body": "# Architecture — example",
+        "parts": [
+          {
+            "id": "core-decide",
+            "name": "core · decide",
+            "description": "The pure decision logic."
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "parts.0.globs: is missing"
+      }
+    },
+    {
+      "name": "constraint parts[].globs[] minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/architecture-report/0.26.0.json",
+        "body": "# Architecture — example",
+        "parts": [
+          {
+            "id": "core-decide",
+            "name": "core · decide",
+            "description": "The pure decision logic.",
+            "globs": [
+              ""
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "parts.0.globs.0: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint parts[].id minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/architecture-report/0.26.0.json",
+        "body": "# Architecture — example",
+        "parts": [
+          {
+            "id": "",
+            "name": "core · decide",
+            "description": "The pure decision logic.",
+            "globs": [
+              "src/core/decide/**"
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "parts.0.id: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint parts[].id pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/architecture-report/0.26.0.json",
+        "body": "# Architecture — example",
+        "parts": [
+          {
+            "id": "",
+            "name": "core · decide",
+            "description": "The pure decision logic.",
+            "globs": [
+              "src/core/decide/**"
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "parts.0.id: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint parts[].id required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/architecture-report/0.26.0.json",
+        "body": "# Architecture — example",
+        "parts": [
+          {
+            "name": "core · decide",
+            "description": "The pure decision logic.",
+            "globs": [
+              "src/core/decide/**"
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "parts.0.id: is missing"
+      }
+    },
+    {
+      "name": "constraint parts[].name minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/architecture-report/0.26.0.json",
+        "body": "# Architecture — example",
+        "parts": [
+          {
+            "id": "core-decide",
+            "name": "",
+            "description": "The pure decision logic.",
+            "globs": [
+              "src/core/decide/**"
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "parts.0.name: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint parts[].name required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/architecture-report/0.26.0.json",
+        "body": "# Architecture — example",
+        "parts": [
+          {
+            "id": "core-decide",
+            "description": "The pure decision logic.",
+            "globs": [
+              "src/core/decide/**"
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "parts.0.name: is missing"
+      }
     }
   ],
   "shapes": {}

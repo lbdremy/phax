@@ -1,0 +1,95 @@
+{
+  "subject": "encode/plan-lint",
+  "cases": [
+    {
+      "name": "accepts a typical document",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/plan-lint/0.34.0.json",
+        "plan": "docs/plans/2611011300-garden-sync-plan.md",
+        "findings": [
+          {
+            "severity": "error",
+            "check": "structure",
+            "phase": "phase-02",
+            "message": "phase-02 has no gate"
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/plan-lint/0.34.0.json",
+          "findings": [
+            {
+              "check": "structure",
+              "message": "phase-02 has no gate",
+              "phase": "phase-02",
+              "severity": "error"
+            }
+          ],
+          "plan": "docs/plans/2611011300-garden-sync-plan.md"
+        }
+      }
+    },
+    {
+      "name": "accepts a document setting every field",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/plan-lint/0.34.0.json",
+        "plan": "docs/plans/2611011300-garden-sync-plan.md",
+        "findings": [
+          {
+            "severity": "error",
+            "check": "structure",
+            "phase": "phase-02",
+            "message": "phase-02 has no gate"
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/plan-lint/0.34.0.json",
+          "findings": [
+            {
+              "check": "structure",
+              "message": "phase-02 has no gate",
+              "phase": "phase-02",
+              "severity": "error"
+            }
+          ],
+          "plan": "docs/plans/2611011300-garden-sync-plan.md"
+        }
+      }
+    },
+    {
+      "name": "accepts a document with only its required fields",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/plan-lint/0.34.0.json",
+        "plan": "docs/plans/2611011300-garden-sync-plan.md",
+        "findings": [
+          {
+            "severity": "error",
+            "check": "structure",
+            "phase": "phase-02",
+            "message": "phase-02 has no gate"
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/plan-lint/0.34.0.json",
+          "findings": [
+            {
+              "check": "structure",
+              "message": "phase-02 has no gate",
+              "phase": "phase-02",
+              "severity": "error"
+            }
+          ],
+          "plan": "docs/plans/2611011300-garden-sync-plan.md"
+        }
+      }
+    }
+  ]
+}

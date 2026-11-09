@@ -1,0 +1,497 @@
+{
+  "subject": "encode/plan-overview",
+  "cases": [
+    {
+      "name": "accepts a typical document",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/plan-overview/0.34.0.json",
+        "plan": "docs/plans/2611011300-garden-sync-plan.md",
+        "name": "garden-sync",
+        "title": "Garden sync",
+        "frontmatter": {
+          "kind": "decoded",
+          "status": "Draft"
+        },
+        "sourceSpec": null,
+        "architecture": {
+          "kind": "none"
+        },
+        "phases": [
+          {
+            "id": "phase-01",
+            "title": "Sync the garden",
+            "model": "claude-sonnet-5-5",
+            "effort": "medium",
+            "mode": "headless",
+            "acceptanceRole": {
+              "kind": "none"
+            },
+            "placement": [
+              {
+                "part": null,
+                "files": [
+                  "src/garden.ts"
+                ]
+              }
+            ],
+            "testLines": [
+              {
+                "guarantee": "the garden is synced",
+                "size": "small",
+                "technique": "example",
+                "oracle": "the synced rows",
+                "loop": "in-phase",
+                "criterion": null
+              }
+            ]
+          }
+        ],
+        "coverage": {
+          "kind": "no-source-spec"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/plan-overview/0.34.0.json",
+          "architecture": {
+            "kind": "none"
+          },
+          "coverage": {
+            "kind": "no-source-spec"
+          },
+          "frontmatter": {
+            "kind": "decoded",
+            "status": "Draft"
+          },
+          "name": "garden-sync",
+          "phases": [
+            {
+              "acceptanceRole": {
+                "kind": "none"
+              },
+              "effort": "medium",
+              "id": "phase-01",
+              "mode": "headless",
+              "model": "claude-sonnet-5-5",
+              "placement": [
+                {
+                  "files": [
+                    "src/garden.ts"
+                  ],
+                  "part": null
+                }
+              ],
+              "testLines": [
+                {
+                  "criterion": null,
+                  "guarantee": "the garden is synced",
+                  "loop": "in-phase",
+                  "oracle": "the synced rows",
+                  "size": "small",
+                  "technique": "example"
+                }
+              ],
+              "title": "Sync the garden"
+            }
+          ],
+          "plan": "docs/plans/2611011300-garden-sync-plan.md",
+          "sourceSpec": null,
+          "title": "Garden sync"
+        }
+      }
+    },
+    {
+      "name": "accepts a document setting every field",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/plan-overview/0.34.0.json",
+        "plan": "docs/plans/2611011300-garden-sync-plan.md",
+        "name": "garden-sync",
+        "title": "Garden sync",
+        "frontmatter": {
+          "kind": "undecodable",
+          "problem": "text-4"
+        },
+        "sourceSpec": {
+          "path": "text-5",
+          "slug": "text-6"
+        },
+        "architecture": {
+          "kind": "failed",
+          "message": "text-7"
+        },
+        "phases": [
+          {
+            "id": "phase-01",
+            "title": "Sync the garden",
+            "model": "claude-sonnet-5-5",
+            "effort": "medium",
+            "mode": "headless",
+            "acceptanceRole": {
+              "kind": "acceptance",
+              "passedBy": "text-12"
+            },
+            "placement": [
+              {
+                "part": null,
+                "files": [
+                  "src/garden.ts"
+                ]
+              }
+            ],
+            "testLines": [
+              {
+                "guarantee": "the garden is synced",
+                "size": "small",
+                "technique": "example",
+                "oracle": "the synced rows",
+                "loop": "in-phase",
+                "criterion": null
+              }
+            ]
+          }
+        ],
+        "coverage": {
+          "kind": "criteria",
+          "spec": "text-16",
+          "slug": "text-17",
+          "criteria": [
+            {
+              "id": "text-18",
+              "lines": [
+                {
+                  "phase": "text-19",
+                  "loop": "acceptance"
+                }
+              ]
+            }
+          ],
+          "uncovered": [
+            "text-20"
+          ]
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/plan-overview/0.34.0.json",
+          "architecture": {
+            "kind": "failed",
+            "message": "text-7"
+          },
+          "coverage": {
+            "criteria": [
+              {
+                "id": "text-18",
+                "lines": [
+                  {
+                    "loop": "acceptance",
+                    "phase": "text-19"
+                  }
+                ]
+              }
+            ],
+            "kind": "criteria",
+            "slug": "text-17",
+            "spec": "text-16",
+            "uncovered": [
+              "text-20"
+            ]
+          },
+          "frontmatter": {
+            "kind": "undecodable",
+            "problem": "text-4"
+          },
+          "name": "garden-sync",
+          "phases": [
+            {
+              "acceptanceRole": {
+                "kind": "acceptance",
+                "passedBy": "text-12"
+              },
+              "effort": "medium",
+              "id": "phase-01",
+              "mode": "headless",
+              "model": "claude-sonnet-5-5",
+              "placement": [
+                {
+                  "files": [
+                    "src/garden.ts"
+                  ],
+                  "part": null
+                }
+              ],
+              "testLines": [
+                {
+                  "criterion": null,
+                  "guarantee": "the garden is synced",
+                  "loop": "in-phase",
+                  "oracle": "the synced rows",
+                  "size": "small",
+                  "technique": "example"
+                }
+              ],
+              "title": "Sync the garden"
+            }
+          ],
+          "plan": "docs/plans/2611011300-garden-sync-plan.md",
+          "sourceSpec": {
+            "path": "text-5",
+            "slug": "text-6"
+          },
+          "title": "Garden sync"
+        }
+      }
+    },
+    {
+      "name": "accepts a document setting every field, variant 2",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/plan-overview/0.34.0.json",
+        "plan": "docs/plans/2611011300-garden-sync-plan.md",
+        "name": "garden-sync",
+        "title": "Garden sync",
+        "frontmatter": {
+          "kind": "decoded",
+          "status": "Draft"
+        },
+        "sourceSpec": null,
+        "architecture": {
+          "kind": "none"
+        },
+        "phases": [
+          {
+            "id": "phase-01",
+            "title": "Sync the garden",
+            "model": "claude-sonnet-5-5",
+            "effort": "medium",
+            "mode": "headless",
+            "acceptanceRole": {
+              "kind": "passing",
+              "acceptancePhase": "text-9"
+            },
+            "placement": [
+              {
+                "part": null,
+                "files": [
+                  "src/garden.ts"
+                ]
+              }
+            ],
+            "testLines": [
+              {
+                "guarantee": "the garden is synced",
+                "size": "small",
+                "technique": "example",
+                "oracle": "the synced rows",
+                "loop": "in-phase",
+                "criterion": null
+              }
+            ]
+          }
+        ],
+        "coverage": {
+          "kind": "no-criterion-ids",
+          "spec": "text-13",
+          "reason": "not-a-spec-path",
+          "message": "text-14"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/plan-overview/0.34.0.json",
+          "architecture": {
+            "kind": "none"
+          },
+          "coverage": {
+            "kind": "no-criterion-ids",
+            "message": "text-14",
+            "reason": "not-a-spec-path",
+            "spec": "text-13"
+          },
+          "frontmatter": {
+            "kind": "decoded",
+            "status": "Draft"
+          },
+          "name": "garden-sync",
+          "phases": [
+            {
+              "acceptanceRole": {
+                "acceptancePhase": "text-9",
+                "kind": "passing"
+              },
+              "effort": "medium",
+              "id": "phase-01",
+              "mode": "headless",
+              "model": "claude-sonnet-5-5",
+              "placement": [
+                {
+                  "files": [
+                    "src/garden.ts"
+                  ],
+                  "part": null
+                }
+              ],
+              "testLines": [
+                {
+                  "criterion": null,
+                  "guarantee": "the garden is synced",
+                  "loop": "in-phase",
+                  "oracle": "the synced rows",
+                  "size": "small",
+                  "technique": "example"
+                }
+              ],
+              "title": "Sync the garden"
+            }
+          ],
+          "plan": "docs/plans/2611011300-garden-sync-plan.md",
+          "sourceSpec": null,
+          "title": "Garden sync"
+        }
+      }
+    },
+    {
+      "name": "accepts a document with only its required fields",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/plan-overview/0.34.0.json",
+        "plan": "docs/plans/2611011300-garden-sync-plan.md",
+        "name": "garden-sync",
+        "title": "Garden sync",
+        "frontmatter": {
+          "kind": "decoded",
+          "status": "Draft"
+        },
+        "sourceSpec": {
+          "path": "text-5",
+          "slug": "text-6"
+        },
+        "architecture": {
+          "kind": "failed",
+          "message": "text-7"
+        },
+        "phases": [
+          {
+            "id": "phase-01",
+            "title": "Sync the garden",
+            "model": "claude-sonnet-5-5",
+            "effort": "medium",
+            "mode": "headless",
+            "acceptanceRole": {
+              "kind": "acceptance",
+              "passedBy": "text-12"
+            },
+            "placement": [
+              {
+                "part": null,
+                "files": [
+                  "src/garden.ts"
+                ]
+              }
+            ],
+            "testLines": [
+              {
+                "guarantee": "the garden is synced",
+                "size": "small",
+                "technique": "example",
+                "oracle": "the synced rows",
+                "loop": "in-phase",
+                "criterion": null
+              }
+            ]
+          }
+        ],
+        "coverage": {
+          "kind": "criteria",
+          "spec": "text-16",
+          "slug": "text-17",
+          "criteria": [
+            {
+              "id": "text-18",
+              "lines": [
+                {
+                  "phase": "text-19",
+                  "loop": "acceptance"
+                }
+              ]
+            }
+          ],
+          "uncovered": [
+            "text-20"
+          ]
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/plan-overview/0.34.0.json",
+          "architecture": {
+            "kind": "failed",
+            "message": "text-7"
+          },
+          "coverage": {
+            "criteria": [
+              {
+                "id": "text-18",
+                "lines": [
+                  {
+                    "loop": "acceptance",
+                    "phase": "text-19"
+                  }
+                ]
+              }
+            ],
+            "kind": "criteria",
+            "slug": "text-17",
+            "spec": "text-16",
+            "uncovered": [
+              "text-20"
+            ]
+          },
+          "frontmatter": {
+            "kind": "decoded",
+            "status": "Draft"
+          },
+          "name": "garden-sync",
+          "phases": [
+            {
+              "acceptanceRole": {
+                "kind": "acceptance",
+                "passedBy": "text-12"
+              },
+              "effort": "medium",
+              "id": "phase-01",
+              "mode": "headless",
+              "model": "claude-sonnet-5-5",
+              "placement": [
+                {
+                  "files": [
+                    "src/garden.ts"
+                  ],
+                  "part": null
+                }
+              ],
+              "testLines": [
+                {
+                  "criterion": null,
+                  "guarantee": "the garden is synced",
+                  "loop": "in-phase",
+                  "oracle": "the synced rows",
+                  "size": "small",
+                  "technique": "example"
+                }
+              ],
+              "title": "Sync the garden"
+            }
+          ],
+          "plan": "docs/plans/2611011300-garden-sync-plan.md",
+          "sourceSpec": {
+            "path": "text-5",
+            "slug": "text-6"
+          },
+          "title": "Garden sync"
+        }
+      }
+    }
+  ]
+}

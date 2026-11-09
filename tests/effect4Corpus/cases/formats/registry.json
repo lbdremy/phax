@@ -444,6 +444,467 @@
           ]
         }
       }
+    },
+    {
+      "name": "constraint $schema pattern",
+      "input": {
+        "$schema": "",
+        "runs": [
+          {
+            "namespace": "example",
+            "shortName": "example-run",
+            "runId": "run-0001",
+            "state": "running",
+            "branch": "phax/example-run",
+            "projectName": "example-repo",
+            "phasesCount": 2,
+            "createdAt": "2026-01-01T09:00:00.000Z",
+            "updatedAt": "2026-01-01T09:30:00.000Z"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: expected https://docs.phax.run/schemas/<format-id>/<X.Y.Z>.json, got \"\""
+      }
+    },
+    {
+      "name": "constraint $schema required",
+      "input": {
+        "runs": [
+          {
+            "namespace": "example",
+            "shortName": "example-run",
+            "runId": "run-0001",
+            "state": "running",
+            "branch": "phax/example-run",
+            "projectName": "example-repo",
+            "phasesCount": 2,
+            "createdAt": "2026-01-01T09:00:00.000Z",
+            "updatedAt": "2026-01-01T09:30:00.000Z"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "version: run registry older than phax 0.17.0, the first supported release — not supported (is missing)"
+      }
+    },
+    {
+      "name": "constraint runs required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/registry/0.26.0.json"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "runs: is missing"
+      }
+    },
+    {
+      "name": "constraint runs[].archivePath minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/registry/0.26.0.json",
+        "runs": [
+          {
+            "namespace": "example",
+            "shortName": "example-run",
+            "runId": "run-0001",
+            "state": "running",
+            "branch": "phax/example-run",
+            "projectName": "example-repo",
+            "phasesCount": 2,
+            "createdAt": "2026-01-01T09:00:00.000Z",
+            "updatedAt": "2026-01-01T09:30:00.000Z",
+            "archivePath": ""
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "runs.0.archivePath: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint runs[].branch minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/registry/0.26.0.json",
+        "runs": [
+          {
+            "namespace": "example",
+            "shortName": "example-run",
+            "runId": "run-0001",
+            "state": "running",
+            "branch": "",
+            "projectName": "example-repo",
+            "phasesCount": 2,
+            "createdAt": "2026-01-01T09:00:00.000Z",
+            "updatedAt": "2026-01-01T09:30:00.000Z"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "runs.0.branch: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint runs[].branch required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/registry/0.26.0.json",
+        "runs": [
+          {
+            "namespace": "example",
+            "shortName": "example-run",
+            "runId": "run-0001",
+            "state": "running",
+            "projectName": "example-repo",
+            "phasesCount": 2,
+            "createdAt": "2026-01-01T09:00:00.000Z",
+            "updatedAt": "2026-01-01T09:30:00.000Z"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "runs.0.branch: is missing"
+      }
+    },
+    {
+      "name": "constraint runs[].createdAt minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/registry/0.26.0.json",
+        "runs": [
+          {
+            "namespace": "example",
+            "shortName": "example-run",
+            "runId": "run-0001",
+            "state": "running",
+            "branch": "phax/example-run",
+            "projectName": "example-repo",
+            "phasesCount": 2,
+            "createdAt": "",
+            "updatedAt": "2026-01-01T09:30:00.000Z"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "runs.0.createdAt: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint runs[].createdAt required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/registry/0.26.0.json",
+        "runs": [
+          {
+            "namespace": "example",
+            "shortName": "example-run",
+            "runId": "run-0001",
+            "state": "running",
+            "branch": "phax/example-run",
+            "projectName": "example-repo",
+            "phasesCount": 2,
+            "updatedAt": "2026-01-01T09:30:00.000Z"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "runs.0.createdAt: is missing"
+      }
+    },
+    {
+      "name": "constraint runs[].namespace minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/registry/0.26.0.json",
+        "runs": [
+          {
+            "namespace": "",
+            "shortName": "example-run",
+            "runId": "run-0001",
+            "state": "running",
+            "branch": "phax/example-run",
+            "projectName": "example-repo",
+            "phasesCount": 2,
+            "createdAt": "2026-01-01T09:00:00.000Z",
+            "updatedAt": "2026-01-01T09:30:00.000Z"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "runs.0.namespace: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint runs[].namespace required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/registry/0.26.0.json",
+        "runs": [
+          {
+            "shortName": "example-run",
+            "runId": "run-0001",
+            "state": "running",
+            "branch": "phax/example-run",
+            "projectName": "example-repo",
+            "phasesCount": 2,
+            "createdAt": "2026-01-01T09:00:00.000Z",
+            "updatedAt": "2026-01-01T09:30:00.000Z"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "runs.0.namespace: is missing"
+      }
+    },
+    {
+      "name": "constraint runs[].phasesCount required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/registry/0.26.0.json",
+        "runs": [
+          {
+            "namespace": "example",
+            "shortName": "example-run",
+            "runId": "run-0001",
+            "state": "running",
+            "branch": "phax/example-run",
+            "projectName": "example-repo",
+            "createdAt": "2026-01-01T09:00:00.000Z",
+            "updatedAt": "2026-01-01T09:30:00.000Z"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "runs.0.phasesCount: is missing"
+      }
+    },
+    {
+      "name": "constraint runs[].projectName minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/registry/0.26.0.json",
+        "runs": [
+          {
+            "namespace": "example",
+            "shortName": "example-run",
+            "runId": "run-0001",
+            "state": "running",
+            "branch": "phax/example-run",
+            "projectName": "",
+            "phasesCount": 2,
+            "createdAt": "2026-01-01T09:00:00.000Z",
+            "updatedAt": "2026-01-01T09:30:00.000Z"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "runs.0.projectName: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint runs[].projectName required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/registry/0.26.0.json",
+        "runs": [
+          {
+            "namespace": "example",
+            "shortName": "example-run",
+            "runId": "run-0001",
+            "state": "running",
+            "branch": "phax/example-run",
+            "phasesCount": 2,
+            "createdAt": "2026-01-01T09:00:00.000Z",
+            "updatedAt": "2026-01-01T09:30:00.000Z"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "runs.0.projectName: is missing"
+      }
+    },
+    {
+      "name": "constraint runs[].runId minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/registry/0.26.0.json",
+        "runs": [
+          {
+            "namespace": "example",
+            "shortName": "example-run",
+            "runId": "",
+            "state": "running",
+            "branch": "phax/example-run",
+            "projectName": "example-repo",
+            "phasesCount": 2,
+            "createdAt": "2026-01-01T09:00:00.000Z",
+            "updatedAt": "2026-01-01T09:30:00.000Z"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "runs.0.runId: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint runs[].runId required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/registry/0.26.0.json",
+        "runs": [
+          {
+            "namespace": "example",
+            "shortName": "example-run",
+            "state": "running",
+            "branch": "phax/example-run",
+            "projectName": "example-repo",
+            "phasesCount": 2,
+            "createdAt": "2026-01-01T09:00:00.000Z",
+            "updatedAt": "2026-01-01T09:30:00.000Z"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "runs.0.runId: is missing"
+      }
+    },
+    {
+      "name": "constraint runs[].shortName minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/registry/0.26.0.json",
+        "runs": [
+          {
+            "namespace": "example",
+            "shortName": "",
+            "runId": "run-0001",
+            "state": "running",
+            "branch": "phax/example-run",
+            "projectName": "example-repo",
+            "phasesCount": 2,
+            "createdAt": "2026-01-01T09:00:00.000Z",
+            "updatedAt": "2026-01-01T09:30:00.000Z"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "runs.0.shortName: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint runs[].shortName required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/registry/0.26.0.json",
+        "runs": [
+          {
+            "namespace": "example",
+            "runId": "run-0001",
+            "state": "running",
+            "branch": "phax/example-run",
+            "projectName": "example-repo",
+            "phasesCount": 2,
+            "createdAt": "2026-01-01T09:00:00.000Z",
+            "updatedAt": "2026-01-01T09:30:00.000Z"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "runs.0.shortName: is missing"
+      }
+    },
+    {
+      "name": "constraint runs[].state enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/registry/0.26.0.json",
+        "runs": [
+          {
+            "namespace": "example",
+            "shortName": "example-run",
+            "runId": "run-0001",
+            "state": "bogus-value",
+            "branch": "phax/example-run",
+            "projectName": "example-repo",
+            "phasesCount": 2,
+            "createdAt": "2026-01-01T09:00:00.000Z",
+            "updatedAt": "2026-01-01T09:30:00.000Z"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "runs.0.state: Expected \"created\" | \"running\" | \"failed\" | \"review_open\" | \"completed\" | \"stopped\" | \"archived\" | \"interrupted\" | \"rate_limited\" | \"awaiting_review\", actual \"bogus-value\""
+      }
+    },
+    {
+      "name": "constraint runs[].state required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/registry/0.26.0.json",
+        "runs": [
+          {
+            "namespace": "example",
+            "shortName": "example-run",
+            "runId": "run-0001",
+            "branch": "phax/example-run",
+            "projectName": "example-repo",
+            "phasesCount": 2,
+            "createdAt": "2026-01-01T09:00:00.000Z",
+            "updatedAt": "2026-01-01T09:30:00.000Z"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "runs.0.state: is missing"
+      }
+    },
+    {
+      "name": "constraint runs[].updatedAt minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/registry/0.26.0.json",
+        "runs": [
+          {
+            "namespace": "example",
+            "shortName": "example-run",
+            "runId": "run-0001",
+            "state": "running",
+            "branch": "phax/example-run",
+            "projectName": "example-repo",
+            "phasesCount": 2,
+            "createdAt": "2026-01-01T09:00:00.000Z",
+            "updatedAt": ""
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "runs.0.updatedAt: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint runs[].updatedAt required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/registry/0.26.0.json",
+        "runs": [
+          {
+            "namespace": "example",
+            "shortName": "example-run",
+            "runId": "run-0001",
+            "state": "running",
+            "branch": "phax/example-run",
+            "projectName": "example-repo",
+            "phasesCount": 2,
+            "createdAt": "2026-01-01T09:00:00.000Z"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "runs.0.updatedAt: is missing"
+      }
     }
   ],
   "shapes": {
@@ -693,6 +1154,467 @@
             "version": 1
           }
         }
+      },
+      {
+        "name": "constraint runs required",
+        "input": {
+          "version": 1
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runs: is missing"
+        }
+      },
+      {
+        "name": "constraint runs[].archivePath minLength",
+        "input": {
+          "version": 1,
+          "runs": [
+            {
+              "namespace": "example",
+              "shortName": "example-run",
+              "runId": "run-0001",
+              "state": "running",
+              "branch": "phax/example-run",
+              "projectName": "example-repo",
+              "phasesCount": 2,
+              "createdAt": "2026-01-01T09:00:00.000Z",
+              "updatedAt": "2026-01-01T09:30:00.000Z",
+              "archivePath": ""
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runs[0].archivePath: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint runs[].branch minLength",
+        "input": {
+          "version": 1,
+          "runs": [
+            {
+              "namespace": "example",
+              "shortName": "example-run",
+              "runId": "run-0001",
+              "state": "running",
+              "branch": "",
+              "projectName": "example-repo",
+              "phasesCount": 2,
+              "createdAt": "2026-01-01T09:00:00.000Z",
+              "updatedAt": "2026-01-01T09:30:00.000Z"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runs[0].branch: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint runs[].branch required",
+        "input": {
+          "version": 1,
+          "runs": [
+            {
+              "namespace": "example",
+              "shortName": "example-run",
+              "runId": "run-0001",
+              "state": "running",
+              "projectName": "example-repo",
+              "phasesCount": 2,
+              "createdAt": "2026-01-01T09:00:00.000Z",
+              "updatedAt": "2026-01-01T09:30:00.000Z"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runs[0].branch: is missing"
+        }
+      },
+      {
+        "name": "constraint runs[].createdAt minLength",
+        "input": {
+          "version": 1,
+          "runs": [
+            {
+              "namespace": "example",
+              "shortName": "example-run",
+              "runId": "run-0001",
+              "state": "running",
+              "branch": "phax/example-run",
+              "projectName": "example-repo",
+              "phasesCount": 2,
+              "createdAt": "",
+              "updatedAt": "2026-01-01T09:30:00.000Z"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runs[0].createdAt: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint runs[].createdAt required",
+        "input": {
+          "version": 1,
+          "runs": [
+            {
+              "namespace": "example",
+              "shortName": "example-run",
+              "runId": "run-0001",
+              "state": "running",
+              "branch": "phax/example-run",
+              "projectName": "example-repo",
+              "phasesCount": 2,
+              "updatedAt": "2026-01-01T09:30:00.000Z"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runs[0].createdAt: is missing"
+        }
+      },
+      {
+        "name": "constraint runs[].namespace minLength",
+        "input": {
+          "version": 1,
+          "runs": [
+            {
+              "namespace": "",
+              "shortName": "example-run",
+              "runId": "run-0001",
+              "state": "running",
+              "branch": "phax/example-run",
+              "projectName": "example-repo",
+              "phasesCount": 2,
+              "createdAt": "2026-01-01T09:00:00.000Z",
+              "updatedAt": "2026-01-01T09:30:00.000Z"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runs[0].namespace: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint runs[].namespace required",
+        "input": {
+          "version": 1,
+          "runs": [
+            {
+              "shortName": "example-run",
+              "runId": "run-0001",
+              "state": "running",
+              "branch": "phax/example-run",
+              "projectName": "example-repo",
+              "phasesCount": 2,
+              "createdAt": "2026-01-01T09:00:00.000Z",
+              "updatedAt": "2026-01-01T09:30:00.000Z"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runs[0].namespace: is missing"
+        }
+      },
+      {
+        "name": "constraint runs[].phasesCount required",
+        "input": {
+          "version": 1,
+          "runs": [
+            {
+              "namespace": "example",
+              "shortName": "example-run",
+              "runId": "run-0001",
+              "state": "running",
+              "branch": "phax/example-run",
+              "projectName": "example-repo",
+              "createdAt": "2026-01-01T09:00:00.000Z",
+              "updatedAt": "2026-01-01T09:30:00.000Z"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runs[0].phasesCount: is missing"
+        }
+      },
+      {
+        "name": "constraint runs[].projectName minLength",
+        "input": {
+          "version": 1,
+          "runs": [
+            {
+              "namespace": "example",
+              "shortName": "example-run",
+              "runId": "run-0001",
+              "state": "running",
+              "branch": "phax/example-run",
+              "projectName": "",
+              "phasesCount": 2,
+              "createdAt": "2026-01-01T09:00:00.000Z",
+              "updatedAt": "2026-01-01T09:30:00.000Z"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runs[0].projectName: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint runs[].projectName required",
+        "input": {
+          "version": 1,
+          "runs": [
+            {
+              "namespace": "example",
+              "shortName": "example-run",
+              "runId": "run-0001",
+              "state": "running",
+              "branch": "phax/example-run",
+              "phasesCount": 2,
+              "createdAt": "2026-01-01T09:00:00.000Z",
+              "updatedAt": "2026-01-01T09:30:00.000Z"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runs[0].projectName: is missing"
+        }
+      },
+      {
+        "name": "constraint runs[].runId minLength",
+        "input": {
+          "version": 1,
+          "runs": [
+            {
+              "namespace": "example",
+              "shortName": "example-run",
+              "runId": "",
+              "state": "running",
+              "branch": "phax/example-run",
+              "projectName": "example-repo",
+              "phasesCount": 2,
+              "createdAt": "2026-01-01T09:00:00.000Z",
+              "updatedAt": "2026-01-01T09:30:00.000Z"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runs[0].runId: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint runs[].runId required",
+        "input": {
+          "version": 1,
+          "runs": [
+            {
+              "namespace": "example",
+              "shortName": "example-run",
+              "state": "running",
+              "branch": "phax/example-run",
+              "projectName": "example-repo",
+              "phasesCount": 2,
+              "createdAt": "2026-01-01T09:00:00.000Z",
+              "updatedAt": "2026-01-01T09:30:00.000Z"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runs[0].runId: is missing"
+        }
+      },
+      {
+        "name": "constraint runs[].shortName minLength",
+        "input": {
+          "version": 1,
+          "runs": [
+            {
+              "namespace": "example",
+              "shortName": "",
+              "runId": "run-0001",
+              "state": "running",
+              "branch": "phax/example-run",
+              "projectName": "example-repo",
+              "phasesCount": 2,
+              "createdAt": "2026-01-01T09:00:00.000Z",
+              "updatedAt": "2026-01-01T09:30:00.000Z"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runs[0].shortName: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint runs[].shortName required",
+        "input": {
+          "version": 1,
+          "runs": [
+            {
+              "namespace": "example",
+              "runId": "run-0001",
+              "state": "running",
+              "branch": "phax/example-run",
+              "projectName": "example-repo",
+              "phasesCount": 2,
+              "createdAt": "2026-01-01T09:00:00.000Z",
+              "updatedAt": "2026-01-01T09:30:00.000Z"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runs[0].shortName: is missing"
+        }
+      },
+      {
+        "name": "constraint runs[].state enum",
+        "input": {
+          "version": 1,
+          "runs": [
+            {
+              "namespace": "example",
+              "shortName": "example-run",
+              "runId": "run-0001",
+              "state": "bogus-value",
+              "branch": "phax/example-run",
+              "projectName": "example-repo",
+              "phasesCount": 2,
+              "createdAt": "2026-01-01T09:00:00.000Z",
+              "updatedAt": "2026-01-01T09:30:00.000Z"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runs[0].state: Expected \"created\" | \"running\" | \"failed\" | \"review_open\" | \"completed\" | \"stopped\" | \"archived\" | \"interrupted\" | \"rate_limited\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint runs[].state required",
+        "input": {
+          "version": 1,
+          "runs": [
+            {
+              "namespace": "example",
+              "shortName": "example-run",
+              "runId": "run-0001",
+              "branch": "phax/example-run",
+              "projectName": "example-repo",
+              "phasesCount": 2,
+              "createdAt": "2026-01-01T09:00:00.000Z",
+              "updatedAt": "2026-01-01T09:30:00.000Z"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runs[0].state: is missing"
+        }
+      },
+      {
+        "name": "constraint runs[].updatedAt minLength",
+        "input": {
+          "version": 1,
+          "runs": [
+            {
+              "namespace": "example",
+              "shortName": "example-run",
+              "runId": "run-0001",
+              "state": "running",
+              "branch": "phax/example-run",
+              "projectName": "example-repo",
+              "phasesCount": 2,
+              "createdAt": "2026-01-01T09:00:00.000Z",
+              "updatedAt": ""
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runs[0].updatedAt: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint runs[].updatedAt required",
+        "input": {
+          "version": 1,
+          "runs": [
+            {
+              "namespace": "example",
+              "shortName": "example-run",
+              "runId": "run-0001",
+              "state": "running",
+              "branch": "phax/example-run",
+              "projectName": "example-repo",
+              "phasesCount": 2,
+              "createdAt": "2026-01-01T09:00:00.000Z"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runs[0].updatedAt: is missing"
+        }
+      },
+      {
+        "name": "constraint version enum",
+        "input": {
+          "version": "bogus-value",
+          "runs": [
+            {
+              "namespace": "example",
+              "shortName": "example-run",
+              "runId": "run-0001",
+              "state": "running",
+              "branch": "phax/example-run",
+              "projectName": "example-repo",
+              "phasesCount": 2,
+              "createdAt": "2026-01-01T09:00:00.000Z",
+              "updatedAt": "2026-01-01T09:30:00.000Z"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "version: Expected 1, actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint version required",
+        "input": {
+          "runs": [
+            {
+              "namespace": "example",
+              "shortName": "example-run",
+              "runId": "run-0001",
+              "state": "running",
+              "branch": "phax/example-run",
+              "projectName": "example-repo",
+              "phasesCount": 2,
+              "createdAt": "2026-01-01T09:00:00.000Z",
+              "updatedAt": "2026-01-01T09:30:00.000Z"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "version: is missing"
+        }
       }
     ],
     "0.17.0": [
@@ -895,6 +1817,486 @@
               }
             ]
           }
+        }
+      },
+      {
+        "name": "constraint $schema pattern",
+        "input": {
+          "$schema": "",
+          "runs": [
+            {
+              "namespace": "example",
+              "shortName": "example-run",
+              "runId": "run-0001",
+              "state": "running",
+              "branch": "phax/example-run",
+              "projectName": "example-repo",
+              "phasesCount": 2,
+              "createdAt": "2026-01-01T09:00:00.000Z",
+              "updatedAt": "2026-01-01T09:30:00.000Z",
+              "archivePath": "text-8"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "$schema: Expected a string matching the pattern ^https:\\/\\/docs\\.phax\\.run\\/schemas\\/registry\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$, actual \"\""
+        }
+      },
+      {
+        "name": "constraint $schema required",
+        "input": {
+          "runs": [
+            {
+              "namespace": "example",
+              "shortName": "example-run",
+              "runId": "run-0001",
+              "state": "running",
+              "branch": "phax/example-run",
+              "projectName": "example-repo",
+              "phasesCount": 2,
+              "createdAt": "2026-01-01T09:00:00.000Z",
+              "updatedAt": "2026-01-01T09:30:00.000Z",
+              "archivePath": "text-8"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "$schema: is missing"
+        }
+      },
+      {
+        "name": "constraint runs required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/registry/0.17.0.json"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runs: is missing"
+        }
+      },
+      {
+        "name": "constraint runs[].archivePath minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/registry/0.17.0.json",
+          "runs": [
+            {
+              "namespace": "example",
+              "shortName": "example-run",
+              "runId": "run-0001",
+              "state": "running",
+              "branch": "phax/example-run",
+              "projectName": "example-repo",
+              "phasesCount": 2,
+              "createdAt": "2026-01-01T09:00:00.000Z",
+              "updatedAt": "2026-01-01T09:30:00.000Z",
+              "archivePath": ""
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runs[0].archivePath: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint runs[].branch minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/registry/0.17.0.json",
+          "runs": [
+            {
+              "namespace": "example",
+              "shortName": "example-run",
+              "runId": "run-0001",
+              "state": "running",
+              "branch": "",
+              "projectName": "example-repo",
+              "phasesCount": 2,
+              "createdAt": "2026-01-01T09:00:00.000Z",
+              "updatedAt": "2026-01-01T09:30:00.000Z",
+              "archivePath": "text-8"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runs[0].branch: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint runs[].branch required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/registry/0.17.0.json",
+          "runs": [
+            {
+              "namespace": "example",
+              "shortName": "example-run",
+              "runId": "run-0001",
+              "state": "running",
+              "projectName": "example-repo",
+              "phasesCount": 2,
+              "createdAt": "2026-01-01T09:00:00.000Z",
+              "updatedAt": "2026-01-01T09:30:00.000Z",
+              "archivePath": "text-8"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runs[0].branch: is missing"
+        }
+      },
+      {
+        "name": "constraint runs[].createdAt minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/registry/0.17.0.json",
+          "runs": [
+            {
+              "namespace": "example",
+              "shortName": "example-run",
+              "runId": "run-0001",
+              "state": "running",
+              "branch": "phax/example-run",
+              "projectName": "example-repo",
+              "phasesCount": 2,
+              "createdAt": "",
+              "updatedAt": "2026-01-01T09:30:00.000Z",
+              "archivePath": "text-8"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runs[0].createdAt: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint runs[].createdAt required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/registry/0.17.0.json",
+          "runs": [
+            {
+              "namespace": "example",
+              "shortName": "example-run",
+              "runId": "run-0001",
+              "state": "running",
+              "branch": "phax/example-run",
+              "projectName": "example-repo",
+              "phasesCount": 2,
+              "updatedAt": "2026-01-01T09:30:00.000Z",
+              "archivePath": "text-8"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runs[0].createdAt: is missing"
+        }
+      },
+      {
+        "name": "constraint runs[].namespace minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/registry/0.17.0.json",
+          "runs": [
+            {
+              "namespace": "",
+              "shortName": "example-run",
+              "runId": "run-0001",
+              "state": "running",
+              "branch": "phax/example-run",
+              "projectName": "example-repo",
+              "phasesCount": 2,
+              "createdAt": "2026-01-01T09:00:00.000Z",
+              "updatedAt": "2026-01-01T09:30:00.000Z",
+              "archivePath": "text-8"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runs[0].namespace: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint runs[].namespace required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/registry/0.17.0.json",
+          "runs": [
+            {
+              "shortName": "example-run",
+              "runId": "run-0001",
+              "state": "running",
+              "branch": "phax/example-run",
+              "projectName": "example-repo",
+              "phasesCount": 2,
+              "createdAt": "2026-01-01T09:00:00.000Z",
+              "updatedAt": "2026-01-01T09:30:00.000Z",
+              "archivePath": "text-8"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runs[0].namespace: is missing"
+        }
+      },
+      {
+        "name": "constraint runs[].phasesCount required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/registry/0.17.0.json",
+          "runs": [
+            {
+              "namespace": "example",
+              "shortName": "example-run",
+              "runId": "run-0001",
+              "state": "running",
+              "branch": "phax/example-run",
+              "projectName": "example-repo",
+              "createdAt": "2026-01-01T09:00:00.000Z",
+              "updatedAt": "2026-01-01T09:30:00.000Z",
+              "archivePath": "text-8"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runs[0].phasesCount: is missing"
+        }
+      },
+      {
+        "name": "constraint runs[].projectName minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/registry/0.17.0.json",
+          "runs": [
+            {
+              "namespace": "example",
+              "shortName": "example-run",
+              "runId": "run-0001",
+              "state": "running",
+              "branch": "phax/example-run",
+              "projectName": "",
+              "phasesCount": 2,
+              "createdAt": "2026-01-01T09:00:00.000Z",
+              "updatedAt": "2026-01-01T09:30:00.000Z",
+              "archivePath": "text-8"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runs[0].projectName: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint runs[].projectName required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/registry/0.17.0.json",
+          "runs": [
+            {
+              "namespace": "example",
+              "shortName": "example-run",
+              "runId": "run-0001",
+              "state": "running",
+              "branch": "phax/example-run",
+              "phasesCount": 2,
+              "createdAt": "2026-01-01T09:00:00.000Z",
+              "updatedAt": "2026-01-01T09:30:00.000Z",
+              "archivePath": "text-8"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runs[0].projectName: is missing"
+        }
+      },
+      {
+        "name": "constraint runs[].runId minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/registry/0.17.0.json",
+          "runs": [
+            {
+              "namespace": "example",
+              "shortName": "example-run",
+              "runId": "",
+              "state": "running",
+              "branch": "phax/example-run",
+              "projectName": "example-repo",
+              "phasesCount": 2,
+              "createdAt": "2026-01-01T09:00:00.000Z",
+              "updatedAt": "2026-01-01T09:30:00.000Z",
+              "archivePath": "text-8"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runs[0].runId: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint runs[].runId required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/registry/0.17.0.json",
+          "runs": [
+            {
+              "namespace": "example",
+              "shortName": "example-run",
+              "state": "running",
+              "branch": "phax/example-run",
+              "projectName": "example-repo",
+              "phasesCount": 2,
+              "createdAt": "2026-01-01T09:00:00.000Z",
+              "updatedAt": "2026-01-01T09:30:00.000Z",
+              "archivePath": "text-8"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runs[0].runId: is missing"
+        }
+      },
+      {
+        "name": "constraint runs[].shortName minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/registry/0.17.0.json",
+          "runs": [
+            {
+              "namespace": "example",
+              "shortName": "",
+              "runId": "run-0001",
+              "state": "running",
+              "branch": "phax/example-run",
+              "projectName": "example-repo",
+              "phasesCount": 2,
+              "createdAt": "2026-01-01T09:00:00.000Z",
+              "updatedAt": "2026-01-01T09:30:00.000Z",
+              "archivePath": "text-8"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runs[0].shortName: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint runs[].shortName required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/registry/0.17.0.json",
+          "runs": [
+            {
+              "namespace": "example",
+              "runId": "run-0001",
+              "state": "running",
+              "branch": "phax/example-run",
+              "projectName": "example-repo",
+              "phasesCount": 2,
+              "createdAt": "2026-01-01T09:00:00.000Z",
+              "updatedAt": "2026-01-01T09:30:00.000Z",
+              "archivePath": "text-8"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runs[0].shortName: is missing"
+        }
+      },
+      {
+        "name": "constraint runs[].state enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/registry/0.17.0.json",
+          "runs": [
+            {
+              "namespace": "example",
+              "shortName": "example-run",
+              "runId": "run-0001",
+              "state": "bogus-value",
+              "branch": "phax/example-run",
+              "projectName": "example-repo",
+              "phasesCount": 2,
+              "createdAt": "2026-01-01T09:00:00.000Z",
+              "updatedAt": "2026-01-01T09:30:00.000Z",
+              "archivePath": "text-8"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runs[0].state: Expected \"created\" | \"running\" | \"failed\" | \"review_open\" | \"completed\" | \"stopped\" | \"archived\" | \"interrupted\" | \"rate_limited\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint runs[].state required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/registry/0.17.0.json",
+          "runs": [
+            {
+              "namespace": "example",
+              "shortName": "example-run",
+              "runId": "run-0001",
+              "branch": "phax/example-run",
+              "projectName": "example-repo",
+              "phasesCount": 2,
+              "createdAt": "2026-01-01T09:00:00.000Z",
+              "updatedAt": "2026-01-01T09:30:00.000Z",
+              "archivePath": "text-8"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runs[0].state: is missing"
+        }
+      },
+      {
+        "name": "constraint runs[].updatedAt minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/registry/0.17.0.json",
+          "runs": [
+            {
+              "namespace": "example",
+              "shortName": "example-run",
+              "runId": "run-0001",
+              "state": "running",
+              "branch": "phax/example-run",
+              "projectName": "example-repo",
+              "phasesCount": 2,
+              "createdAt": "2026-01-01T09:00:00.000Z",
+              "updatedAt": "",
+              "archivePath": "text-8"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runs[0].updatedAt: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint runs[].updatedAt required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/registry/0.17.0.json",
+          "runs": [
+            {
+              "namespace": "example",
+              "shortName": "example-run",
+              "runId": "run-0001",
+              "state": "running",
+              "branch": "phax/example-run",
+              "projectName": "example-repo",
+              "phasesCount": 2,
+              "createdAt": "2026-01-01T09:00:00.000Z",
+              "archivePath": "text-8"
+            }
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runs[0].updatedAt: is missing"
         }
       }
     ]

@@ -487,6 +487,536 @@
           ]
         }
       }
+    },
+    {
+      "name": "constraint $schema const",
+      "input": {
+        "$schema": "bogus-value",
+        "corrections": [
+          {
+            "what": "Rounded per line, not per invoice.",
+            "guard": {
+              "kind": "test",
+              "ref": "tests/unit/exportRows.test.ts"
+            }
+          },
+          {
+            "what": "Renamed the row builder.",
+            "guard": {
+              "kind": "none",
+              "reason": "A rename the typechecker already guards."
+            }
+          }
+        ],
+        "patternFromNowOn": [
+          "Round each line, then sum."
+        ],
+        "nextPhasesNeedToKnow": [
+          "The credit-note rows follow the per-line rounding."
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: expected https://docs.phax.run/schemas/<format-id>/<X.Y.Z>.json, got \"bogus-value\""
+      }
+    },
+    {
+      "name": "constraint $schema enum",
+      "input": {
+        "$schema": "bogus-value",
+        "corrections": [
+          {
+            "what": "Rounded per line, not per invoice.",
+            "guard": {
+              "kind": "test",
+              "ref": "tests/unit/exportRows.test.ts"
+            }
+          },
+          {
+            "what": "Renamed the row builder.",
+            "guard": {
+              "kind": "none",
+              "reason": "A rename the typechecker already guards."
+            }
+          }
+        ],
+        "patternFromNowOn": [
+          "Round each line, then sum."
+        ],
+        "nextPhasesNeedToKnow": [
+          "The credit-note rows follow the per-line rounding."
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: expected https://docs.phax.run/schemas/<format-id>/<X.Y.Z>.json, got \"bogus-value\""
+      }
+    },
+    {
+      "name": "constraint $schema required",
+      "input": {
+        "corrections": [
+          {
+            "what": "Rounded per line, not per invoice.",
+            "guard": {
+              "kind": "test",
+              "ref": "tests/unit/exportRows.test.ts"
+            }
+          },
+          {
+            "what": "Renamed the row builder.",
+            "guard": {
+              "kind": "none",
+              "reason": "A rename the typechecker already guards."
+            }
+          }
+        ],
+        "patternFromNowOn": [
+          "Round each line, then sum."
+        ],
+        "nextPhasesNeedToKnow": [
+          "The credit-note rows follow the per-line rounding."
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: interactive handoff has no $schema — every interactive handoff is written with one"
+      }
+    },
+    {
+      "name": "constraint corrections minItems",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/interactive-handoff/0.32.0.json",
+        "corrections": [],
+        "patternFromNowOn": [
+          "Round each line, then sum."
+        ],
+        "nextPhasesNeedToKnow": [
+          "The credit-note rows follow the per-line rounding."
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "corrections.0: is missing"
+      }
+    },
+    {
+      "name": "constraint corrections required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/interactive-handoff/0.32.0.json",
+        "patternFromNowOn": [
+          "Round each line, then sum."
+        ],
+        "nextPhasesNeedToKnow": [
+          "The credit-note rows follow the per-line rounding."
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "corrections: is missing"
+      }
+    },
+    {
+      "name": "constraint corrections[].guard required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/interactive-handoff/0.32.0.json",
+        "corrections": [
+          {
+            "what": "Rounded per line, not per invoice."
+          },
+          {
+            "what": "Renamed the row builder.",
+            "guard": {
+              "kind": "none",
+              "reason": "A rename the typechecker already guards."
+            }
+          }
+        ],
+        "patternFromNowOn": [
+          "Round each line, then sum."
+        ],
+        "nextPhasesNeedToKnow": [
+          "The credit-note rows follow the per-line rounding."
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "corrections.0.guard: is missing"
+      }
+    },
+    {
+      "name": "constraint corrections[].guard.kind enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/interactive-handoff/0.32.0.json",
+        "corrections": [
+          {
+            "what": "Rounded per line, not per invoice.",
+            "guard": {
+              "kind": "bogus-value",
+              "ref": "tests/unit/exportRows.test.ts"
+            }
+          },
+          {
+            "what": "Renamed the row builder.",
+            "guard": {
+              "kind": "none",
+              "reason": "A rename the typechecker already guards."
+            }
+          }
+        ],
+        "patternFromNowOn": [
+          "Round each line, then sum."
+        ],
+        "nextPhasesNeedToKnow": [
+          "The credit-note rows follow the per-line rounding."
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "corrections.0.guard.kind: Expected \"none\", actual \"bogus-value\""
+      }
+    },
+    {
+      "name": "constraint corrections[].guard.kind required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/interactive-handoff/0.32.0.json",
+        "corrections": [
+          {
+            "what": "Rounded per line, not per invoice.",
+            "guard": {
+              "ref": "tests/unit/exportRows.test.ts"
+            }
+          },
+          {
+            "what": "Renamed the row builder.",
+            "guard": {
+              "kind": "none",
+              "reason": "A rename the typechecker already guards."
+            }
+          }
+        ],
+        "patternFromNowOn": [
+          "Round each line, then sum."
+        ],
+        "nextPhasesNeedToKnow": [
+          "The credit-note rows follow the per-line rounding."
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "corrections.0.guard.kind: is missing"
+      }
+    },
+    {
+      "name": "constraint corrections[].guard.reason pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/interactive-handoff/0.32.0.json",
+        "corrections": [
+          {
+            "what": "Rounded per line, not per invoice.",
+            "guard": {
+              "kind": "test",
+              "ref": "tests/unit/exportRows.test.ts"
+            }
+          },
+          {
+            "what": "Renamed the row builder.",
+            "guard": {
+              "kind": "none",
+              "reason": ""
+            }
+          }
+        ],
+        "patternFromNowOn": [
+          "Round each line, then sum."
+        ],
+        "nextPhasesNeedToKnow": [
+          "The credit-note rows follow the per-line rounding."
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "corrections.1.guard.reason: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint corrections[].guard.reason required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/interactive-handoff/0.32.0.json",
+        "corrections": [
+          {
+            "what": "Rounded per line, not per invoice.",
+            "guard": {
+              "kind": "test",
+              "ref": "tests/unit/exportRows.test.ts"
+            }
+          },
+          {
+            "what": "Renamed the row builder.",
+            "guard": {
+              "kind": "none"
+            }
+          }
+        ],
+        "patternFromNowOn": [
+          "Round each line, then sum."
+        ],
+        "nextPhasesNeedToKnow": [
+          "The credit-note rows follow the per-line rounding."
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "corrections.1.guard.reason: is missing"
+      }
+    },
+    {
+      "name": "constraint corrections[].guard.ref pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/interactive-handoff/0.32.0.json",
+        "corrections": [
+          {
+            "what": "Rounded per line, not per invoice.",
+            "guard": {
+              "kind": "test",
+              "ref": ""
+            }
+          },
+          {
+            "what": "Renamed the row builder.",
+            "guard": {
+              "kind": "none",
+              "reason": "A rename the typechecker already guards."
+            }
+          }
+        ],
+        "patternFromNowOn": [
+          "Round each line, then sum."
+        ],
+        "nextPhasesNeedToKnow": [
+          "The credit-note rows follow the per-line rounding."
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "corrections.0.guard.kind: Expected \"none\", actual \"test\""
+      }
+    },
+    {
+      "name": "constraint corrections[].guard.ref required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/interactive-handoff/0.32.0.json",
+        "corrections": [
+          {
+            "what": "Rounded per line, not per invoice.",
+            "guard": {
+              "kind": "test"
+            }
+          },
+          {
+            "what": "Renamed the row builder.",
+            "guard": {
+              "kind": "none",
+              "reason": "A rename the typechecker already guards."
+            }
+          }
+        ],
+        "patternFromNowOn": [
+          "Round each line, then sum."
+        ],
+        "nextPhasesNeedToKnow": [
+          "The credit-note rows follow the per-line rounding."
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "corrections.0.guard.kind: Expected \"none\", actual \"test\""
+      }
+    },
+    {
+      "name": "constraint corrections[].what pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/interactive-handoff/0.32.0.json",
+        "corrections": [
+          {
+            "what": "",
+            "guard": {
+              "kind": "test",
+              "ref": "tests/unit/exportRows.test.ts"
+            }
+          },
+          {
+            "what": "Renamed the row builder.",
+            "guard": {
+              "kind": "none",
+              "reason": "A rename the typechecker already guards."
+            }
+          }
+        ],
+        "patternFromNowOn": [
+          "Round each line, then sum."
+        ],
+        "nextPhasesNeedToKnow": [
+          "The credit-note rows follow the per-line rounding."
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "corrections.0.what: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint corrections[].what required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/interactive-handoff/0.32.0.json",
+        "corrections": [
+          {
+            "guard": {
+              "kind": "test",
+              "ref": "tests/unit/exportRows.test.ts"
+            }
+          },
+          {
+            "what": "Renamed the row builder.",
+            "guard": {
+              "kind": "none",
+              "reason": "A rename the typechecker already guards."
+            }
+          }
+        ],
+        "patternFromNowOn": [
+          "Round each line, then sum."
+        ],
+        "nextPhasesNeedToKnow": [
+          "The credit-note rows follow the per-line rounding."
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "corrections.0.what: is missing"
+      }
+    },
+    {
+      "name": "constraint nextPhasesNeedToKnow required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/interactive-handoff/0.32.0.json",
+        "corrections": [
+          {
+            "what": "Rounded per line, not per invoice.",
+            "guard": {
+              "kind": "test",
+              "ref": "tests/unit/exportRows.test.ts"
+            }
+          },
+          {
+            "what": "Renamed the row builder.",
+            "guard": {
+              "kind": "none",
+              "reason": "A rename the typechecker already guards."
+            }
+          }
+        ],
+        "patternFromNowOn": [
+          "Round each line, then sum."
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "nextPhasesNeedToKnow: is missing"
+      }
+    },
+    {
+      "name": "constraint nextPhasesNeedToKnow[] pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/interactive-handoff/0.32.0.json",
+        "corrections": [
+          {
+            "what": "Rounded per line, not per invoice.",
+            "guard": {
+              "kind": "test",
+              "ref": "tests/unit/exportRows.test.ts"
+            }
+          },
+          {
+            "what": "Renamed the row builder.",
+            "guard": {
+              "kind": "none",
+              "reason": "A rename the typechecker already guards."
+            }
+          }
+        ],
+        "patternFromNowOn": [
+          "Round each line, then sum."
+        ],
+        "nextPhasesNeedToKnow": [
+          ""
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "nextPhasesNeedToKnow.0: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint patternFromNowOn required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/interactive-handoff/0.32.0.json",
+        "corrections": [
+          {
+            "what": "Rounded per line, not per invoice.",
+            "guard": {
+              "kind": "test",
+              "ref": "tests/unit/exportRows.test.ts"
+            }
+          },
+          {
+            "what": "Renamed the row builder.",
+            "guard": {
+              "kind": "none",
+              "reason": "A rename the typechecker already guards."
+            }
+          }
+        ],
+        "nextPhasesNeedToKnow": [
+          "The credit-note rows follow the per-line rounding."
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "patternFromNowOn: is missing"
+      }
+    },
+    {
+      "name": "constraint patternFromNowOn[] pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/interactive-handoff/0.32.0.json",
+        "corrections": [
+          {
+            "what": "Rounded per line, not per invoice.",
+            "guard": {
+              "kind": "test",
+              "ref": "tests/unit/exportRows.test.ts"
+            }
+          },
+          {
+            "what": "Renamed the row builder.",
+            "guard": {
+              "kind": "none",
+              "reason": "A rename the typechecker already guards."
+            }
+          }
+        ],
+        "patternFromNowOn": [
+          ""
+        ],
+        "nextPhasesNeedToKnow": [
+          "The credit-note rows follow the per-line rounding."
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "patternFromNowOn.0: Expected a non empty string, actual \"\""
+      }
     }
   ],
   "shapes": {
@@ -724,6 +1254,399 @@
         "expected": {
           "ok": false,
           "refusal": "corrections.0: is missing"
+        }
+      },
+      {
+        "name": "constraint $schema pattern",
+        "input": {
+          "$schema": "",
+          "corrections": [
+            {
+              "what": "Rounded per line, not per invoice.",
+              "guard": {
+                "kind": "test",
+                "ref": "tests/unit/exportRows.test.ts"
+              }
+            }
+          ],
+          "patternFromNowOn": [
+            "Round each line, then sum."
+          ],
+          "nextPhasesNeedToKnow": [
+            "The credit-note rows follow the per-line rounding."
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "$schema: Expected a string matching the pattern ^https:\\/\\/docs\\.phax\\.run\\/schemas\\/interactive-handoff\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$, actual \"\""
+        }
+      },
+      {
+        "name": "constraint $schema required",
+        "input": {
+          "corrections": [
+            {
+              "what": "Rounded per line, not per invoice.",
+              "guard": {
+                "kind": "test",
+                "ref": "tests/unit/exportRows.test.ts"
+              }
+            }
+          ],
+          "patternFromNowOn": [
+            "Round each line, then sum."
+          ],
+          "nextPhasesNeedToKnow": [
+            "The credit-note rows follow the per-line rounding."
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "$schema: is missing"
+        }
+      },
+      {
+        "name": "constraint corrections minItems",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/interactive-handoff/0.26.0.json",
+          "corrections": [],
+          "patternFromNowOn": [
+            "Round each line, then sum."
+          ],
+          "nextPhasesNeedToKnow": [
+            "The credit-note rows follow the per-line rounding."
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "corrections.0: is missing"
+        }
+      },
+      {
+        "name": "constraint corrections required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/interactive-handoff/0.26.0.json",
+          "patternFromNowOn": [
+            "Round each line, then sum."
+          ],
+          "nextPhasesNeedToKnow": [
+            "The credit-note rows follow the per-line rounding."
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "corrections: is missing"
+        }
+      },
+      {
+        "name": "constraint corrections[].guard required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/interactive-handoff/0.26.0.json",
+          "corrections": [
+            {
+              "what": "Rounded per line, not per invoice."
+            }
+          ],
+          "patternFromNowOn": [
+            "Round each line, then sum."
+          ],
+          "nextPhasesNeedToKnow": [
+            "The credit-note rows follow the per-line rounding."
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "corrections.0.guard: is missing"
+        }
+      },
+      {
+        "name": "constraint corrections[].guard.kind enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/interactive-handoff/0.26.0.json",
+          "corrections": [
+            {
+              "what": "Rounded per line, not per invoice.",
+              "guard": {
+                "kind": "bogus-value",
+                "ref": "tests/unit/exportRows.test.ts"
+              }
+            }
+          ],
+          "patternFromNowOn": [
+            "Round each line, then sum."
+          ],
+          "nextPhasesNeedToKnow": [
+            "The credit-note rows follow the per-line rounding."
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "corrections.0.guard.kind: Expected \"none\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint corrections[].guard.kind required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/interactive-handoff/0.26.0.json",
+          "corrections": [
+            {
+              "what": "Rounded per line, not per invoice.",
+              "guard": {
+                "ref": "tests/unit/exportRows.test.ts"
+              }
+            }
+          ],
+          "patternFromNowOn": [
+            "Round each line, then sum."
+          ],
+          "nextPhasesNeedToKnow": [
+            "The credit-note rows follow the per-line rounding."
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "corrections.0.guard.kind: is missing"
+        }
+      },
+      {
+        "name": "constraint corrections[].guard.reason minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/interactive-handoff/0.26.0.json",
+          "corrections": [
+            {
+              "what": "Rounded per line, not per invoice.",
+              "guard": {
+                "kind": "none",
+                "reason": ""
+              }
+            }
+          ],
+          "patternFromNowOn": [
+            "Round each line, then sum."
+          ],
+          "nextPhasesNeedToKnow": [
+            "The credit-note rows follow the per-line rounding."
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "corrections.0.guard.reason: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint corrections[].guard.reason required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/interactive-handoff/0.26.0.json",
+          "corrections": [
+            {
+              "what": "Rounded per line, not per invoice.",
+              "guard": {
+                "kind": "none"
+              }
+            }
+          ],
+          "patternFromNowOn": [
+            "Round each line, then sum."
+          ],
+          "nextPhasesNeedToKnow": [
+            "The credit-note rows follow the per-line rounding."
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "corrections.0.guard.reason: is missing"
+        }
+      },
+      {
+        "name": "constraint corrections[].guard.ref minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/interactive-handoff/0.26.0.json",
+          "corrections": [
+            {
+              "what": "Rounded per line, not per invoice.",
+              "guard": {
+                "kind": "test",
+                "ref": ""
+              }
+            }
+          ],
+          "patternFromNowOn": [
+            "Round each line, then sum."
+          ],
+          "nextPhasesNeedToKnow": [
+            "The credit-note rows follow the per-line rounding."
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "corrections.0.guard.kind: Expected \"none\", actual \"test\""
+        }
+      },
+      {
+        "name": "constraint corrections[].guard.ref required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/interactive-handoff/0.26.0.json",
+          "corrections": [
+            {
+              "what": "Rounded per line, not per invoice.",
+              "guard": {
+                "kind": "test"
+              }
+            }
+          ],
+          "patternFromNowOn": [
+            "Round each line, then sum."
+          ],
+          "nextPhasesNeedToKnow": [
+            "The credit-note rows follow the per-line rounding."
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "corrections.0.guard.kind: Expected \"none\", actual \"test\""
+        }
+      },
+      {
+        "name": "constraint corrections[].what minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/interactive-handoff/0.26.0.json",
+          "corrections": [
+            {
+              "what": "",
+              "guard": {
+                "kind": "test",
+                "ref": "tests/unit/exportRows.test.ts"
+              }
+            }
+          ],
+          "patternFromNowOn": [
+            "Round each line, then sum."
+          ],
+          "nextPhasesNeedToKnow": [
+            "The credit-note rows follow the per-line rounding."
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "corrections.0.what: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint corrections[].what required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/interactive-handoff/0.26.0.json",
+          "corrections": [
+            {
+              "guard": {
+                "kind": "test",
+                "ref": "tests/unit/exportRows.test.ts"
+              }
+            }
+          ],
+          "patternFromNowOn": [
+            "Round each line, then sum."
+          ],
+          "nextPhasesNeedToKnow": [
+            "The credit-note rows follow the per-line rounding."
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "corrections.0.what: is missing"
+        }
+      },
+      {
+        "name": "constraint nextPhasesNeedToKnow required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/interactive-handoff/0.26.0.json",
+          "corrections": [
+            {
+              "what": "Rounded per line, not per invoice.",
+              "guard": {
+                "kind": "test",
+                "ref": "tests/unit/exportRows.test.ts"
+              }
+            }
+          ],
+          "patternFromNowOn": [
+            "Round each line, then sum."
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "nextPhasesNeedToKnow: is missing"
+        }
+      },
+      {
+        "name": "constraint nextPhasesNeedToKnow[] minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/interactive-handoff/0.26.0.json",
+          "corrections": [
+            {
+              "what": "Rounded per line, not per invoice.",
+              "guard": {
+                "kind": "test",
+                "ref": "tests/unit/exportRows.test.ts"
+              }
+            }
+          ],
+          "patternFromNowOn": [
+            "Round each line, then sum."
+          ],
+          "nextPhasesNeedToKnow": [
+            ""
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "nextPhasesNeedToKnow.0: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint patternFromNowOn required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/interactive-handoff/0.26.0.json",
+          "corrections": [
+            {
+              "what": "Rounded per line, not per invoice.",
+              "guard": {
+                "kind": "test",
+                "ref": "tests/unit/exportRows.test.ts"
+              }
+            }
+          ],
+          "nextPhasesNeedToKnow": [
+            "The credit-note rows follow the per-line rounding."
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "patternFromNowOn: is missing"
+        }
+      },
+      {
+        "name": "constraint patternFromNowOn[] minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/interactive-handoff/0.26.0.json",
+          "corrections": [
+            {
+              "what": "Rounded per line, not per invoice.",
+              "guard": {
+                "kind": "test",
+                "ref": "tests/unit/exportRows.test.ts"
+              }
+            }
+          ],
+          "patternFromNowOn": [
+            ""
+          ],
+          "nextPhasesNeedToKnow": [
+            "The credit-note rows follow the per-line rounding."
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "patternFromNowOn.0: Expected a non empty string, actual \"\""
         }
       }
     ]

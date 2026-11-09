@@ -1,0 +1,145 @@
+{
+  "subject": "encode/interactive-handoff",
+  "cases": [
+    {
+      "name": "accepts a typical document",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/interactive-handoff/0.32.0.json",
+        "corrections": [
+          {
+            "what": "Rounded per line, not per invoice.",
+            "guard": {
+              "kind": "test",
+              "ref": "tests/unit/exportRows.test.ts"
+            }
+          },
+          {
+            "what": "Renamed the row builder.",
+            "guard": {
+              "kind": "none",
+              "reason": "A rename the typechecker already guards."
+            }
+          }
+        ],
+        "patternFromNowOn": [
+          "Round each line, then sum."
+        ],
+        "nextPhasesNeedToKnow": [
+          "The credit-note rows follow the per-line rounding."
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/interactive-handoff/0.32.0.json",
+          "corrections": [
+            {
+              "guard": {
+                "kind": "test",
+                "ref": "tests/unit/exportRows.test.ts"
+              },
+              "what": "Rounded per line, not per invoice."
+            },
+            {
+              "guard": {
+                "kind": "none",
+                "reason": "A rename the typechecker already guards."
+              },
+              "what": "Renamed the row builder."
+            }
+          ],
+          "nextPhasesNeedToKnow": [
+            "The credit-note rows follow the per-line rounding."
+          ],
+          "patternFromNowOn": [
+            "Round each line, then sum."
+          ]
+        }
+      }
+    },
+    {
+      "name": "accepts a document setting every field",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/interactive-handoff/0.32.0.json",
+        "corrections": [
+          {
+            "what": "Rounded per line, not per invoice.",
+            "guard": {
+              "kind": "test",
+              "ref": "tests/unit/exportRows.test.ts"
+            }
+          }
+        ],
+        "patternFromNowOn": [
+          "Round each line, then sum."
+        ],
+        "nextPhasesNeedToKnow": [
+          "The credit-note rows follow the per-line rounding."
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/interactive-handoff/0.32.0.json",
+          "corrections": [
+            {
+              "guard": {
+                "kind": "test",
+                "ref": "tests/unit/exportRows.test.ts"
+              },
+              "what": "Rounded per line, not per invoice."
+            }
+          ],
+          "nextPhasesNeedToKnow": [
+            "The credit-note rows follow the per-line rounding."
+          ],
+          "patternFromNowOn": [
+            "Round each line, then sum."
+          ]
+        }
+      }
+    },
+    {
+      "name": "accepts a document with only its required fields",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/interactive-handoff/0.32.0.json",
+        "corrections": [
+          {
+            "what": "Rounded per line, not per invoice.",
+            "guard": {
+              "kind": "test",
+              "ref": "tests/unit/exportRows.test.ts"
+            }
+          }
+        ],
+        "patternFromNowOn": [
+          "Round each line, then sum."
+        ],
+        "nextPhasesNeedToKnow": [
+          "The credit-note rows follow the per-line rounding."
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/interactive-handoff/0.32.0.json",
+          "corrections": [
+            {
+              "guard": {
+                "kind": "test",
+                "ref": "tests/unit/exportRows.test.ts"
+              },
+              "what": "Rounded per line, not per invoice."
+            }
+          ],
+          "nextPhasesNeedToKnow": [
+            "The credit-note rows follow the per-line rounding."
+          ],
+          "patternFromNowOn": [
+            "Round each line, then sum."
+          ]
+        }
+      }
+    }
+  ]
+}

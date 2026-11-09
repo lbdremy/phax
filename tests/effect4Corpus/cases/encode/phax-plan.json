@@ -1,0 +1,295 @@
+{
+  "subject": "encode/phax-plan",
+  "cases": [
+    {
+      "name": "accepts a typical document",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phax-plan/0.33.0.json",
+        "run": {
+          "shortName": "example-run",
+          "title": "Example run",
+          "branch": "phax/example-run",
+          "requiredCommands": [
+            "pnpm test"
+          ]
+        },
+        "phases": [
+          {
+            "id": "phase-01",
+            "title": "Add the example module",
+            "model": "example-model",
+            "effort": "high",
+            "planMarkdownAnchor": "#phase-01-example",
+            "plannedFilesToCreate": [
+              "src/example.ts"
+            ],
+            "plannedFilesToEdit": [
+              "src/index.ts"
+            ],
+            "optionalFilesToEdit": [
+              "README.md"
+            ],
+            "mode": "headless",
+            "acceptance": null,
+            "testLines": [],
+            "commit": {
+              "subject": "feat: add the example module",
+              "body": "Adds the example module."
+            }
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/phax-plan/0.33.0.json",
+          "phases": [
+            {
+              "acceptance": null,
+              "commit": {
+                "body": "Adds the example module.",
+                "subject": "feat: add the example module"
+              },
+              "effort": "high",
+              "id": "phase-01",
+              "mode": "headless",
+              "model": "example-model",
+              "optionalFilesToEdit": [
+                "README.md"
+              ],
+              "planMarkdownAnchor": "#phase-01-example",
+              "plannedFilesToCreate": [
+                "src/example.ts"
+              ],
+              "plannedFilesToEdit": [
+                "src/index.ts"
+              ],
+              "testLines": [],
+              "title": "Add the example module"
+            }
+          ],
+          "run": {
+            "branch": "phax/example-run",
+            "requiredCommands": [
+              "pnpm test"
+            ],
+            "shortName": "example-run",
+            "title": "Example run"
+          }
+        }
+      }
+    },
+    {
+      "name": "accepts a document setting every field",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phax-plan/0.33.0.json",
+        "run": {
+          "shortName": "example-run",
+          "title": "Example run",
+          "branch": "phax/example-run",
+          "requiredCommands": [
+            "pnpm test"
+          ]
+        },
+        "phases": [
+          {
+            "id": "phase-01",
+            "title": "Add the example module",
+            "model": "example-model",
+            "effort": "high",
+            "planMarkdownAnchor": "#phase-01-example",
+            "plannedFilesToCreate": [
+              "src/example.ts"
+            ],
+            "plannedFilesToEdit": [
+              "src/index.ts"
+            ],
+            "optionalFilesToEdit": [
+              "README.md"
+            ],
+            "mode": "headless",
+            "acceptance": {
+              "passedBy": "phase-01",
+              "files": [
+                "text-13"
+              ]
+            },
+            "testLines": [
+              {
+                "guarantee": "text-14",
+                "size": "small",
+                "technique": "example",
+                "oracle": "text-15",
+                "loop": "acceptance",
+                "criterion": "text-16"
+              }
+            ],
+            "commit": {
+              "subject": "feat: add the example module",
+              "body": "Adds the example module."
+            }
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/phax-plan/0.33.0.json",
+          "phases": [
+            {
+              "acceptance": {
+                "files": [
+                  "text-13"
+                ],
+                "passedBy": "phase-01"
+              },
+              "commit": {
+                "body": "Adds the example module.",
+                "subject": "feat: add the example module"
+              },
+              "effort": "high",
+              "id": "phase-01",
+              "mode": "headless",
+              "model": "example-model",
+              "optionalFilesToEdit": [
+                "README.md"
+              ],
+              "planMarkdownAnchor": "#phase-01-example",
+              "plannedFilesToCreate": [
+                "src/example.ts"
+              ],
+              "plannedFilesToEdit": [
+                "src/index.ts"
+              ],
+              "testLines": [
+                {
+                  "criterion": "text-16",
+                  "guarantee": "text-14",
+                  "loop": "acceptance",
+                  "oracle": "text-15",
+                  "size": "small",
+                  "technique": "example"
+                }
+              ],
+              "title": "Add the example module"
+            }
+          ],
+          "run": {
+            "branch": "phax/example-run",
+            "requiredCommands": [
+              "pnpm test"
+            ],
+            "shortName": "example-run",
+            "title": "Example run"
+          }
+        }
+      }
+    },
+    {
+      "name": "accepts a document with only its required fields",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phax-plan/0.33.0.json",
+        "run": {
+          "shortName": "example-run",
+          "title": "Example run",
+          "branch": "phax/example-run",
+          "requiredCommands": [
+            "pnpm test"
+          ]
+        },
+        "phases": [
+          {
+            "id": "phase-01",
+            "title": "Add the example module",
+            "model": "example-model",
+            "effort": "high",
+            "planMarkdownAnchor": "#phase-01-example",
+            "plannedFilesToCreate": [
+              "src/example.ts"
+            ],
+            "plannedFilesToEdit": [
+              "src/index.ts"
+            ],
+            "optionalFilesToEdit": [
+              "README.md"
+            ],
+            "mode": "headless",
+            "acceptance": {
+              "passedBy": "phase-01",
+              "files": [
+                "text-13"
+              ]
+            },
+            "testLines": [
+              {
+                "guarantee": "text-14",
+                "size": "small",
+                "technique": "example",
+                "oracle": "text-15",
+                "loop": "acceptance",
+                "criterion": "text-16"
+              }
+            ],
+            "commit": {
+              "subject": "feat: add the example module",
+              "body": "Adds the example module."
+            }
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/phax-plan/0.33.0.json",
+          "phases": [
+            {
+              "acceptance": {
+                "files": [
+                  "text-13"
+                ],
+                "passedBy": "phase-01"
+              },
+              "commit": {
+                "body": "Adds the example module.",
+                "subject": "feat: add the example module"
+              },
+              "effort": "high",
+              "id": "phase-01",
+              "mode": "headless",
+              "model": "example-model",
+              "optionalFilesToEdit": [
+                "README.md"
+              ],
+              "planMarkdownAnchor": "#phase-01-example",
+              "plannedFilesToCreate": [
+                "src/example.ts"
+              ],
+              "plannedFilesToEdit": [
+                "src/index.ts"
+              ],
+              "testLines": [
+                {
+                  "criterion": "text-16",
+                  "guarantee": "text-14",
+                  "loop": "acceptance",
+                  "oracle": "text-15",
+                  "size": "small",
+                  "technique": "example"
+                }
+              ],
+              "title": "Add the example module"
+            }
+          ],
+          "run": {
+            "branch": "phax/example-run",
+            "requiredCommands": [
+              "pnpm test"
+            ],
+            "shortName": "example-run",
+            "title": "Example run"
+          }
+        }
+      }
+    }
+  ]
+}

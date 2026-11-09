@@ -1,0 +1,59 @@
+{
+  "subject": "encode/review-record-manifest",
+  "cases": [
+    {
+      "name": "accepts a typical document",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/review-record-manifest/0.29.0.json",
+        "kind": "review",
+        "runId": "2610270900-example",
+        "review": "compliance-review"
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/review-record-manifest/0.29.0.json",
+          "kind": "review",
+          "review": "compliance-review",
+          "runId": "2610270900-example"
+        }
+      }
+    },
+    {
+      "name": "accepts a document setting every field",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/review-record-manifest/0.29.0.json",
+        "kind": "review",
+        "runId": "2610270900-example",
+        "review": "compliance-review"
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/review-record-manifest/0.29.0.json",
+          "kind": "review",
+          "review": "compliance-review",
+          "runId": "2610270900-example"
+        }
+      }
+    },
+    {
+      "name": "accepts a document with only its required fields",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/review-record-manifest/0.29.0.json",
+        "kind": "review",
+        "runId": "2610270900-example",
+        "review": "compliance-review"
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/review-record-manifest/0.29.0.json",
+          "kind": "review",
+          "review": "compliance-review",
+          "runId": "2610270900-example"
+        }
+      }
+    }
+  ]
+}

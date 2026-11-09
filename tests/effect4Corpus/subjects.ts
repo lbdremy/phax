@@ -13,7 +13,9 @@
 // refusing as phax's persisted reader (src/schemas/persisted.ts) renders the
 // module's refusal, or, for a module phax never reads that way, as the
 // package's first issue.
-import { Either, Option, ParseResult } from "effect";
+// `encode/<id>` is a round trip for a format phax writes: the document decoded with
+// phax's file decoder, encoded with its writer, the encoded JSON answered.
+import { Either, Option, ParseResult, Schema } from "effect";
 import { firstRefusal } from "../../src/schemas/refusal/adapter.js";
 import { refusalMessage, refusalPath } from "../../src/schemas/refusal/render.js";
 import {
@@ -124,6 +126,89 @@ import { decodeSpecDocumentV0_17_0 } from "../../src/schemas/history/spec-docume
 import { decodeSpecDocumentV0_25_0 } from "../../src/schemas/history/spec-document/0.25.0.js";
 import { decodeSpecDocumentV0_27_0 } from "../../src/schemas/history/spec-document/0.27.0.js";
 import { decodeSpecDocumentPreSchema } from "../../src/schemas/history/spec-document/pre-schema.js";
+import {
+  decodeAcceptanceRequestFile,
+  encodeAcceptanceRequestFile,
+} from "../../src/schemas/acceptanceRequest.js";
+import {
+  decodeApprovalRecordFile,
+  decodePlanRecordFile,
+  encodeApprovalRecordFile,
+  encodePlanRecordFile,
+} from "../../src/schemas/approvalRecord.js";
+import {
+  decodeArtifactStatusFile,
+  encodeArtifactStatusFile,
+} from "../../src/schemas/artifactStatusDocument.js";
+import {
+  decodeAuthoringRecordManifestFile,
+  encodeAuthoringRecordManifest,
+} from "../../src/schemas/authoringRecord.js";
+import {
+  decodeBriefRecordFile,
+  decodeBriefRequestFile,
+  encodeBriefRecordFile,
+  encodeBriefRequestFile,
+} from "../../src/schemas/brief.js";
+import { decodeCodeReviewFile, encodeCodeReviewFile } from "../../src/schemas/codeReview.js";
+import {
+  decodeComplianceReviewFile,
+  encodeComplianceReviewFile,
+} from "../../src/schemas/complianceReview.js";
+import {
+  decodeDecisionRecordManifestFile,
+  encodeDecisionRecordManifest,
+} from "../../src/schemas/decisionRecord.js";
+import {
+  PlanExtractionAnswerSchema,
+  decodePlanExtractionAnswer,
+} from "../../src/schemas/planExtraction.js";
+import { decodeFirstReadingFile, encodeFirstReadingFile } from "../../src/schemas/firstReading.js";
+import {
+  decodeGateAttributionFile,
+  encodeGateAttributionFile,
+} from "../../src/schemas/gateAttribution.js";
+import { decodeGateRequestFile, encodeGateRequestFile } from "../../src/schemas/gateRequest.js";
+import {
+  decodeInteractiveHandoffFile,
+  encodeInteractiveHandoffFile,
+} from "../../src/schemas/interactiveHandoff.js";
+import {
+  decodeInteractiveSessionFile,
+  encodeInteractiveSessionFile,
+} from "../../src/schemas/interactiveSession.js";
+import { decodePhaxPlanFile, encodePhaxPlanFile } from "../../src/schemas/phaxPlan.js";
+import { decodePlanDocumentFile, encodePlanDocumentFile } from "../../src/schemas/planDocument.js";
+import { decodePlanLintFile, encodePlanLintFile } from "../../src/schemas/planLint.js";
+import { decodePlanOverviewFile, encodePlanOverviewFile } from "../../src/schemas/planOverview.js";
+import {
+  decodePhaseFileReconciliationFile,
+  encodePhaseFileReconciliationFile,
+} from "../../src/schemas/reconciliation.js";
+import { decodeRegistryFile, encodeRegistryFile } from "../../src/schemas/registry.js";
+import {
+  decodeReviewRecordManifestFile,
+  encodeReviewRecordManifest,
+} from "../../src/schemas/reviewRecord.js";
+import { decodeReviewStopFile, encodeReviewStopFile } from "../../src/schemas/reviewStop.js";
+import { decodeRunListFile, encodeRunListFile } from "../../src/schemas/runList.js";
+import {
+  decodeRunRecordManifestFile,
+  encodeRunRecordManifest,
+} from "../../src/schemas/runRecord.js";
+import {
+  decodeSpecApprovalRecordFile,
+  decodeSpecRecordFile,
+  encodeSpecApprovalRecordFile,
+  encodeSpecRecordFile,
+} from "../../src/schemas/specApprovalRecord.js";
+import { decodeSpecDocumentFile, encodeSpecDocumentFile } from "../../src/schemas/specDocument.js";
+import {
+  decodePhaseStatusFile,
+  decodeRunStatusFile,
+  encodePhaseStatus,
+  encodeRunStatus,
+} from "../../src/schemas/status.js";
 import { decodePhaxConfig, decodePhaxUserOverlay } from "../../src/schemas/phaxConfig.js";
 import { decodeProviderConfig } from "../../src/schemas/providerConfig.js";
 import { decodeModelRouting } from "../../src/schemas/modelRouting.js";
@@ -462,9 +547,159 @@ const FROZEN_SUBJECTS = new Map<string, Subject>([
   frozen("spec-document/pre-schema", decodeSpecDocumentPreSchema, "first"),
 ]);
 
+// ---------------------------------------------------------------------------
+// Encode subjects.
+
+// A round trip from the encoded side: the document is decoded with phax's current file
+// decoder for the format (the one its reader uses), the decoded value is encoded with
+// the format's `encode…File` writer, and the encoded JSON is the answer. An encode
+// input must decode, so a decode failure throws instead of answering a refusal.
+function roundTrip<A>(
+  decode: (input: unknown) => Either.Either<A, ParseResult.ParseError>,
+  encode: (value: A) => unknown,
+): Subject {
+  return (raw) => {
+    const decoded = decode(raw);
+    if (Either.isLeft(decoded)) {
+      throw new Error(
+        `corpus: an encode input must decode: ${ParseResult.TreeFormatter.formatErrorSync(decoded.left)}`,
+      );
+    }
+    return accepted(encode(decoded.right));
+  };
+}
+
+// The formats phax writes through a `Schema.encode*` writer; the coverage test lists the
+// formats it leaves out, with the reason.
+const WRITTEN_FORMAT_IDS = [
+  "registry",
+  "run-status",
+  "phase-status",
+  "phax-plan",
+  "compliance-review",
+  "plan-approvals",
+  "spec-approvals",
+  "phase-record-manifest",
+  "authoring-record-manifest",
+  "gate-attribution",
+  "phase-file-reconciliation",
+  "spec-document",
+  "plan-document",
+  "plan-approval-record",
+  "spec-approval-record",
+  "gate-request",
+  "brief-request",
+  "brief-record",
+  "decision-record-manifest",
+  "first-reading",
+  "interactive-handoff",
+  "interactive-session",
+  "review-stop",
+  "run-list",
+  "review-record-manifest",
+  "code-review",
+  "phax-plan-extraction",
+  "acceptance-request",
+  "artifact-status",
+  "plan-overview",
+  "plan-lint",
+] as const satisfies ReadonlyArray<FormatId>;
+
+type WrittenFormatId = (typeof WRITTEN_FORMAT_IDS)[number];
+
+// Typed over the written format ids: a written format without an entry fails to compile.
+// Each entry names the phax decoder it reads with and the writer it encodes with.
+const ENCODE_SUBJECTS: { readonly [F in WrittenFormatId]: Subject } = {
+  // registry.json: decodeRegistryFile on read, encodeRegistryFile on write.
+  registry: roundTrip(decodeRegistryFile, encodeRegistryFile),
+  // a run's status file: decodeRunStatusFile on read, encodeRunStatus on write.
+  "run-status": roundTrip(decodeRunStatusFile, encodeRunStatus),
+  // a phase's status file: decodePhaseStatusFile on read, encodePhaseStatus on write.
+  "phase-status": roundTrip(decodePhaseStatusFile, encodePhaseStatus),
+  // phax-plan.json: decodePhaxPlanFile on read, encodePhaxPlanFile on write.
+  "phax-plan": roundTrip(decodePhaxPlanFile, encodePhaxPlanFile),
+  // the compliance review: decodeComplianceReviewFile, encodeComplianceReviewFile.
+  "compliance-review": roundTrip(decodeComplianceReviewFile, encodeComplianceReviewFile),
+  // docs/plans/approvals.json, the old ledger (phax reads it to migrate it): decodeApprovalRecordFile,
+  // encodeApprovalRecordFile.
+  "plan-approvals": roundTrip(decodeApprovalRecordFile, encodeApprovalRecordFile),
+  // docs/specs/approvals.json, the old ledger: decodeSpecApprovalRecordFile, encodeSpecApprovalRecordFile.
+  "spec-approvals": roundTrip(decodeSpecApprovalRecordFile, encodeSpecApprovalRecordFile),
+  // a phase's record.json: decodeRunRecordManifestFile, encodeRunRecordManifest.
+  "phase-record-manifest": roundTrip(decodeRunRecordManifestFile, encodeRunRecordManifest),
+  // an authoring record.json: decodeAuthoringRecordManifestFile, encodeAuthoringRecordManifest.
+  "authoring-record-manifest": roundTrip(
+    decodeAuthoringRecordManifestFile,
+    encodeAuthoringRecordManifest,
+  ),
+  // gate attribution: decodeGateAttributionFile, encodeGateAttributionFile.
+  "gate-attribution": roundTrip(decodeGateAttributionFile, encodeGateAttributionFile),
+  // file reconciliation: decodePhaseFileReconciliationFile, encodePhaseFileReconciliationFile.
+  "phase-file-reconciliation": roundTrip(
+    decodePhaseFileReconciliationFile,
+    encodePhaseFileReconciliationFile,
+  ),
+  // the spec document: decodeSpecDocumentFile, encodeSpecDocumentFile.
+  "spec-document": roundTrip(decodeSpecDocumentFile, encodeSpecDocumentFile),
+  // the plan document: decodePlanDocumentFile, encodePlanDocumentFile.
+  "plan-document": roundTrip(decodePlanDocumentFile, encodePlanDocumentFile),
+  // docs/plans/approvals/<plan>.json: decodePlanRecordFile, encodePlanRecordFile.
+  "plan-approval-record": roundTrip(decodePlanRecordFile, encodePlanRecordFile),
+  // docs/specs/approvals/<spec>.json: decodeSpecRecordFile, encodeSpecRecordFile.
+  "spec-approval-record": roundTrip(decodeSpecRecordFile, encodeSpecRecordFile),
+  // the gate request: decodeGateRequestFile, encodeGateRequestFile.
+  "gate-request": roundTrip(decodeGateRequestFile, encodeGateRequestFile),
+  // the brief request: decodeBriefRequestFile, encodeBriefRequestFile.
+  "brief-request": roundTrip(decodeBriefRequestFile, encodeBriefRequestFile),
+  // the brief record: decodeBriefRecordFile, encodeBriefRecordFile.
+  "brief-record": roundTrip(decodeBriefRecordFile, encodeBriefRecordFile),
+  // the decision record: decodeDecisionRecordManifestFile, encodeDecisionRecordManifest.
+  "decision-record-manifest": roundTrip(
+    decodeDecisionRecordManifestFile,
+    encodeDecisionRecordManifest,
+  ),
+  // the first reading: decodeFirstReadingFile, encodeFirstReadingFile.
+  "first-reading": roundTrip(decodeFirstReadingFile, encodeFirstReadingFile),
+  // the interactive handoff: decodeInteractiveHandoffFile, encodeInteractiveHandoffFile.
+  "interactive-handoff": roundTrip(decodeInteractiveHandoffFile, encodeInteractiveHandoffFile),
+  // the interactive session: decodeInteractiveSessionFile, encodeInteractiveSessionFile.
+  "interactive-session": roundTrip(decodeInteractiveSessionFile, encodeInteractiveSessionFile),
+  // the review stop: decodeReviewStopFile, encodeReviewStopFile.
+  "review-stop": roundTrip(decodeReviewStopFile, encodeReviewStopFile),
+  // the run list: decodeRunListFile, encodeRunListFile.
+  "run-list": roundTrip(decodeRunListFile, encodeRunListFile),
+  // the review record: decodeReviewRecordManifestFile, encodeReviewRecordManifest.
+  "review-record-manifest": roundTrip(decodeReviewRecordManifestFile, encodeReviewRecordManifest),
+  // the code review: decodeCodeReviewFile, encodeCodeReviewFile.
+  "code-review": roundTrip(decodeCodeReviewFile, encodeCodeReviewFile),
+  // the plan extraction answer: decodePlanExtractionAnswer (src/schemas/planExtraction.ts, how
+  // readPlanExtractionAnswer reads it). phax only reads this format and has no writer for it:
+  // the encoder is the answer schema's own, `Schema.encodeSync(PlanExtractionAnswerSchema)`.
+  // (src/app/planCacheStore.ts's `encodeExtractedPlanCacheEntry` writes a different file, the
+  // extraction cache entry, which is not this format.)
+  "phax-plan-extraction": roundTrip(
+    decodePlanExtractionAnswer,
+    Schema.encodeSync(PlanExtractionAnswerSchema),
+  ),
+  // the acceptance request: decodeAcceptanceRequestFile, encodeAcceptanceRequestFile.
+  "acceptance-request": roundTrip(decodeAcceptanceRequestFile, encodeAcceptanceRequestFile),
+  // the artifact status answer: decodeArtifactStatusFile, encodeArtifactStatusFile.
+  "artifact-status": roundTrip(decodeArtifactStatusFile, encodeArtifactStatusFile),
+  // the plans overview answer: decodePlanOverviewFile, encodePlanOverviewFile.
+  "plan-overview": roundTrip(decodePlanOverviewFile, encodePlanOverviewFile),
+  // the plans lint answer: decodePlanLintFile, encodePlanLintFile.
+  "plan-lint": roundTrip(decodePlanLintFile, encodePlanLintFile),
+};
+
+function isWrittenFormatId(id: string): id is WrittenFormatId {
+  return Object.hasOwn(ENCODE_SUBJECTS, id);
+}
+
 function subjectFor(subject: string): Subject | undefined {
   const known = SUBJECTS.get(subject) ?? FROZEN_SUBJECTS.get(subject);
   if (known !== undefined) return known;
+  const written = subject.startsWith("encode/") ? subject.slice("encode/".length) : "";
+  if (isWrittenFormatId(written)) return ENCODE_SUBJECTS[written];
   const id = subject.startsWith("format:") ? subject.slice("format:".length) : "";
   return isFormatId(id) ? formatSubject(id) : undefined;
 }
