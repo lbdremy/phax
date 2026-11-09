@@ -339,7 +339,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "state: Expected \"created\", actual \"bogus-value\""
+        "refusal": "state: Expected \"created\" | \"running\" | \"failed\" | \"review_open\" | \"completed\" | \"stopped\" | \"archived\" | \"interrupted\" | \"rate_limited\" | \"awaiting_review\", actual \"bogus-value\""
       }
     },
     {

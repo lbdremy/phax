@@ -2526,7 +2526,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "runs.0.state: Expected \"created\", actual \"bogus-value\""
+        "refusal": "runs.0.state: Expected \"created\" | \"running\" | \"failed\" | \"review_open\" | \"completed\" | \"stopped\" | \"archived\" | \"interrupted\" | \"rate_limited\" | \"awaiting_review\", actual \"bogus-value\""
       }
     },
     {
@@ -2638,7 +2638,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "runs.0.qualifiedName: Expected The run's qualified name: `<namespace>.<short name>`., actual \"\""
+        "refusal": "runs.0.qualifiedName: Expected a non empty string, actual \"\""
       }
     },
     {
@@ -4343,7 +4343,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "runs.0.state: Expected \"created\", actual \"bogus-value\""
+          "refusal": "runs.0.state: Expected \"created\" | \"running\" | \"failed\" | \"review_open\" | \"completed\" | \"stopped\" | \"archived\" | \"interrupted\" | \"rate_limited\" | \"awaiting_review\", actual \"bogus-value\""
         }
       },
       {
@@ -4446,7 +4446,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "runs.0.qualifiedName: Expected The run's qualified name: `<namespace>.<short name>`., actual \"\""
+          "refusal": "runs.0.qualifiedName: Expected a non empty string, actual \"\""
         }
       }
     ],
@@ -5752,7 +5752,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "runs.0.state: Expected \"created\", actual \"bogus-value\""
+          "refusal": "runs.0.state: Expected \"created\" | \"running\" | \"failed\" | \"review_open\" | \"completed\" | \"stopped\" | \"archived\" | \"interrupted\" | \"rate_limited\" | \"awaiting_review\", actual \"bogus-value\""
         }
       },
       {
@@ -5855,7 +5855,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "runs.0.qualifiedName: Expected The run's qualified name: `<namespace>.<short name>`., actual \"\""
+          "refusal": "runs.0.qualifiedName: Expected a non empty string, actual \"\""
         }
       }
     ]

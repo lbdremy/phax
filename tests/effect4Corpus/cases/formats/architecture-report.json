@@ -303,7 +303,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "body: Expected Markdown for the agent to read. phax prints it as is, before the parts, and never parses it., actual \"\""
+        "refusal": "body: Expected a non empty string, actual \"\""
       }
     }
   ],

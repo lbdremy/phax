@@ -584,7 +584,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "plan.phases.0.effort: Expected \"none\", actual \"bogus-value\""
+        "refusal": "plan.phases.0.effort: Expected \"none\" | \"off\" | \"low\" | \"medium\" | \"high\" | \"xhigh\" | \"max\" | \"ultracode\" | \"ultra\", actual \"bogus-value\""
       }
     },
     {
@@ -1073,7 +1073,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "plan.phases.0.effort: Expected \"none\", actual \"bogus-value\""
+          "refusal": "plan.phases.0.effort: Expected \"none\" | \"off\" | \"low\" | \"medium\" | \"high\" | \"xhigh\" | \"max\" | \"ultracode\" | \"ultra\", actual \"bogus-value\""
         }
       },
       {

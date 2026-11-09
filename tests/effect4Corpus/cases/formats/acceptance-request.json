@@ -247,7 +247,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "verdict: Expected Which judgment the provider gives: the acceptance phase's tests are authored. | Which judgment the provider gives: the passing phase left no acceptance marker., actual \"bogus-value\""
+        "refusal": "verdict: Expected \"authored\" | \"passed\", actual \"bogus-value\""
       }
     },
     {
@@ -264,7 +264,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "phase: Expected The gated phase., actual \"\""
+        "refusal": "phase: Expected a string matching the pattern ^phase-\\d{2}$, actual \"\""
       }
     }
   ],

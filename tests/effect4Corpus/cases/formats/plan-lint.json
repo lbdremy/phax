@@ -273,7 +273,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "findings.0.severity: Expected \"error\", actual \"bogus-value\""
+        "refusal": "findings.0.severity: Expected \"error\" | \"warning\", actual \"bogus-value\""
       }
     }
   ],

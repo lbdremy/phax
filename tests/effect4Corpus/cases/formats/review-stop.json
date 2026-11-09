@@ -2065,7 +2065,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "run: Expected The run's qualified name., actual \"\""
+        "refusal": "run: Expected a non empty string, actual \"\""
       }
     },
     {

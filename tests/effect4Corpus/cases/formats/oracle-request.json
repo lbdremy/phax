@@ -230,7 +230,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "verdict: Expected Which judgment the provider gives: the oracle phase's tests are authored. | Which judgment the provider gives: the discharging phase left no oracle marker., actual \"bogus-value\""
+        "refusal": "verdict: Expected \"authored\" | \"discharged\", actual \"bogus-value\""
       }
     },
     {
@@ -247,7 +247,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "phase: Expected The gated phase., actual \"\""
+        "refusal": "phase: Expected a string matching the pattern ^phase-\\d{2}$, actual \"\""
       }
     },
     {
@@ -407,7 +407,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "verdict: Expected Which judgment the provider gives: the oracle phase's tests are authored. | Which judgment the provider gives: the discharging phase left no oracle marker., actual \"bogus-value\""
+          "refusal": "verdict: Expected \"authored\" | \"discharged\", actual \"bogus-value\""
         }
       },
       {
@@ -425,7 +425,7 @@
         },
         "expected": {
           "ok": false,
-          "refusal": "phase: Expected The gated phase, the pair's discharger., actual \"\""
+          "refusal": "phase: Expected a string matching the pattern ^phase-\\d{2}$, actual \"\""
         }
       }
     ]

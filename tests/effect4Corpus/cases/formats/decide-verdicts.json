@@ -313,7 +313,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "artifact: Expected The repo-relative path of the artifact the verdicts are for. phax compares it with the artifact argument and never reads the artifact from it., actual \"\""
+        "refusal": "artifact: Expected a non empty string, actual \"\""
       }
     }
   ],

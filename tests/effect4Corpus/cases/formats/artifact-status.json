@@ -632,7 +632,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "kind: Expected \"spec\", actual \"bogus-value\""
+        "refusal": "kind: Expected \"spec\" | \"plan\", actual \"bogus-value\""
       }
     },
     {
@@ -667,7 +667,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "path: Expected The artifact's repo-relative path., actual \"\""
+        "refusal": "path: Expected a non empty string, actual \"\""
       }
     }
   ],

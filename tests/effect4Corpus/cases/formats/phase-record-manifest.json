@@ -799,7 +799,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "shape: Expected \"full\", actual \"bogus-value\""
+        "refusal": "shape: Expected \"full\" | \"skeleton\", actual \"bogus-value\""
       }
     },
     {

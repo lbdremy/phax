@@ -338,7 +338,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "runs.0.state: Expected \"created\", actual \"bogus-value\""
+        "refusal": "runs.0.state: Expected \"created\" | \"running\" | \"failed\" | \"review_open\" | \"completed\" | \"stopped\" | \"archived\" | \"interrupted\" | \"rate_limited\" | \"awaiting_review\", actual \"bogus-value\""
       }
     },
     {

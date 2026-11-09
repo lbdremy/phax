@@ -704,7 +704,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "verdict: Expected \"conformant\", actual \"bogus-value\""
+        "refusal": "verdict: Expected \"conformant\" | \"conformant-with-deviations\" | \"divergent\", actual \"bogus-value\""
       }
     },
     {
