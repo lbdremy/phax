@@ -16,20 +16,13 @@ Effect 4 migration (spec `effect-4-migration`, four plans, #195, #196, #198, #19
 In order. Briefs of work done live in `docs/briefs/archive/`; `docs/briefs/` holds only the
 briefs of live or unspecced work.
 
-### 1. In flight
-
-- [ ] **Finish `acceptance-tests`** (released in 0.33.0). Left: `phax skills install` for the
-      copies outside this repository (`~/.claude/skills/phax-planning` still teaches oracle
-      phases). Optional: no skill teaches that the criterion ids `acceptance`, `in-phase` and
-      `oracle` are reserved; only lint reports it.
-
-### 2. Revise a Draft artifact
+### 1. Revise a Draft artifact
 
 - [ ] **`artifact-revise`** — `docs/specs/2610271505-artifact-revise.md`, Draft with 2 open
       questions: revise an authored spec or plan through its kept session. Moved up 2026-11-10
       (operator): revising an authored artifact is needed often.
 
-### 3. Security: the user layer
+### 2. Security: the user layer
 
 - [ ] **Follow-up: an opt-out for the user layer** — to brief. Project-only sources also drop the
       operator's own `permissions.deny` rules and hooks, so in unsafe mode nothing else blocks
@@ -38,7 +31,7 @@ briefs of live or unspecced work.
       (accepted by the operator 2026-11-06). The follow-up weighs a recorded opt-out (`loaded`)
       and detecting the account switch (the spec's `q-opt-out`, kept out of the first slice).
 
-### 4. The review line
+### 3. The review line
 
 - [ ] **`finding-ids-and-fates`** — spec Approved (2026-11-04), no plan yet. Review findings get
       stable ids and a recorded fate; the operator's interactive flow first.
@@ -47,7 +40,7 @@ briefs of live or unspecced work.
       acceptance tests, phases that needed fixes, the run's review notes) and gives it to the
       review session. `headless-review` was abandoned 2026-11-05 in favour of this line.
 
-### 5. The project doctrine
+### 4. The project doctrine
 
 - [ ] **`project-doctrine`** — `docs/specs/2611051057-project-doctrine.md`, Draft (2026-11-05),
       10 open questions, kept for the operator to think over (brief:
@@ -62,7 +55,7 @@ briefs of live or unspecced work.
       reaches only decide, after the choice, and the operator's rules live in `CLAUDE.md` and an
       assistant's memory.
 
-### 6. What `command-contracts` unblocks
+### 5. What `command-contracts` unblocks
 
 `command-contracts` is complete (plans 1 to 4, #184, #185, #187, #188, merged 2026-11-05):
 every command answers through the runner, and the bridge is gone.
@@ -78,7 +71,7 @@ every command answers through the runner, and the bridge is gone.
       inbox, specs, plans and runs, read from phax's versioned JSON, writing nothing. It needs a
       coverage level (§9 Q1), and can read the knowledge index once it exists.
 
-### 7. Before 1.0
+### 6. Before 1.0
 
 - [ ] The **CLI contract freeze** and the **persisted-format stability promise** (see "Road to
       1.0.0" below). The Effect 4 migration they waited on is done: spec `effect-4-migration`
@@ -87,7 +80,7 @@ every command answers through the runner, and the bridge is gone.
       protections; the behaviour corpus stays as `tests/behaviourCorpus/`). The schema-guide
       pitfalls it found went upstream as Effect-TS/effect#10525.
 
-### 8. Later
+### 7. Later
 
 - [ ] **`code-repository`** — `docs/briefs/code-repository.md` (2026-11-02), spec to author: a
       project whose process lives in one repository and whose code in another, checked out
@@ -182,6 +175,11 @@ desktop — none is promised by the announcement.
 
 ## Small follow-ups
 
+- [ ] **Teach the reserved test-line words.** Left from `acceptance-tests` (0.33.0): no skill says
+      that a spec's criterion ids cannot be the loop words `acceptance` or `in-phase` (nor the
+      retired `oracle`); only the schemas refuse them. One line in phax-spec's acceptance-criteria
+      rules. (The other leftover, stale user copies of the skills, is done: `~/.claude/skills`
+      matches the repository's, checked 2026-11-10.)
 - [ ] **A phase whose agent is blocked commits nothing and is then skipped.** Found 2026-11-10 on
       `remove-the-effect-4-migration-tooling`. The phase-02 agent could not run `git rm` (not a
       granted command), stopped and asked for approval. phax paused the run as "produced no
