@@ -31,6 +31,6 @@
     "@fontsource/ibm-plex-mono",
     "react"
   ],
-  "ignoreFiles": ["tests/e2e/fixtures/**", "tests/unit/effect4Codemod/__fixtures__/**"],
+  "ignoreFiles": ["tests/e2e/fixtures/**"],
   "ignoreBinaries": ["claude", "gh", "usage", "vibe"]
 }
