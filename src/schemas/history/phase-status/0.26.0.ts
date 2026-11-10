@@ -4,7 +4,7 @@
 // edit this module: packages/schemas/history.lock.json pins its bytes. In
 // phax, only src/schemas/persisted.ts may import it; the schemas package lists
 // it as the format's 0.26.0 release.
-import { Predicate, Result, Schema, SchemaIssue } from "effect";
+import { Schema, SchemaTransformation } from "effect";
 
 // `Schema.isPattern` whose JSON Schema is the RegExp's source, whatever its
 // flags: Effect 4 exports a pattern only for a RegExp with the `u` flag.
@@ -86,13 +86,31 @@ const FullCommitShaSchema = Schema.String.check(
 
 const PhaseModeSchema = Schema.Literals(["headless", "interactive"]);
 
-// A stop refuses any key it does not name (`decodePhaseStatusV0_26_0`
-// decodes it again with `onExcessProperty: "error"`); its JSON Schema names
-// its keys, with a check that refuses nothing when decoding.
+// A stop refuses any key it does not name: every other name is a rest of
+// `never`, refused as the unexpected key it is, on the encoded side only, so
+// the decoded type is the struct's own. The annotation key is the one
+// src/schemas/refusal/adapter.ts reads, written out here because a frozen
+// module imports only effect.
 function closed<S extends Schema.Struct<Schema.Struct.Fields>>(struct: S) {
   const keys = Object.keys(struct.fields);
-  return struct.check(
-    Schema.makeFilter(() => true, { toJsonSchema: () => ({ propertyNames: { enum: keys } }) }),
+  const expected = keys.map((key) => JSON.stringify(key)).join(" | ");
+  const otherKey = Schema.String.check(
+    Schema.makeFilter((key: string) => !keys.includes(key), {
+      toJsonSchema: () => ({ not: { enum: keys } }),
+    }),
+  );
+  const unexpected = Schema.Never.annotate({
+    phaxRefusalOverride: () => `is unexpected, expected: ${expected}`,
+  });
+  // Its JSON Schema names the keys: a document rendered leaving unknown keys
+  // open drops the rest, so a check that refuses nothing when decoding closes it.
+  const namesItsKeys = Schema.makeFilter(() => true, {
+    toJsonSchema: () => ({ propertyNames: { enum: keys } }),
+  });
+  return Schema.StructWithRest(struct, [Schema.Record(otherKey, unexpected)]).check(namesItsKeys).pipe(
+    // The value passes unchanged: the rest refused every other key, so what
+    // decoded is exactly the struct (Effect cannot see that through the generic).
+    Schema.decodeTo(struct, SchemaTransformation.passthrough({ strict: false })),
   );
 }
 
@@ -186,20 +204,7 @@ export const PhaseStatusV0_26_0Schema = Schema.Struct({
 
 export type PhaseStatusV0_26_0 = Schema.Schema.Type<typeof PhaseStatusV0_26_0Schema>;
 
-const decodeLenient = Schema.decodeUnknownResult(PhaseStatusV0_26_0Schema, { reportInput: true });
-const decodeStrictStop = Schema.decodeUnknownResult(PhaseStopSchema, {
-  onExcessProperty: "error",
+/** Ignores unknown keys except on the stop, which names its own. */
+export const decodePhaseStatusV0_26_0 = Schema.decodeUnknownResult(PhaseStatusV0_26_0Schema, {
   reportInput: true,
 });
-
-/** Ignores unknown keys except on the stop, whose first violation is the file's, at `stop`. */
-export const decodePhaseStatusV0_26_0 = (
-  input: unknown,
-): Result.Result<PhaseStatusV0_26_0, Schema.SchemaError> => {
-  const decoded = decodeLenient(input);
-  if (Result.isFailure(decoded) || !Predicate.hasProperty(input, "stop")) return decoded;
-  const stop = decodeStrictStop(input.stop);
-  return Result.isFailure(stop)
-    ? Result.fail(new Schema.SchemaError(new SchemaIssue.Pointer(["stop"], stop.failure.issue)))
-    : decoded;
-};

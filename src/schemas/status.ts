@@ -1,6 +1,7 @@
-import { Predicate, Result, Schema, SchemaIssue, type Types } from "effect";
+import { Schema, SchemaTransformation, type Types } from "effect";
 import { BranchNameSchema } from "../domain/branded.js";
 import { PhaseModeSchema } from "./phaxPlan.js";
+import { refusalOverride } from "./refusal/adapter.js";
 import { schemaUrlField } from "./schemaUrl.js";
 import { isExportedPattern } from "./strictString.js";
 
@@ -120,16 +121,34 @@ export const FullCommitShaSchema = Schema.String.check(
   }),
 );
 
-// The decoder refuses any other key on a stop (`decodePhaseStatusFile`), so
-// the published JSON Schema does too, although the rest of status.json allows
-// unknown keys. Effect's JSON Schema takes one excess-property strategy per
-// document, so a stop names its keys: a check that refuses nothing when
-// decoding, whose JSON Schema is `propertyNames`.
+// A stop refuses any key it does not name, although the rest of status.json
+// allows unknown keys: every other name is a rest of `never`, refused as the
+// unexpected key it is. The rest lives on the encoded side only, so the decoded
+// type is the struct's own, and the JSON Schema closes the stop
+// (`additionalProperties: false`).
 function closed<S extends Schema.Struct<Schema.Struct.Fields>>(struct: S) {
   const keys = Object.keys(struct.fields);
-  return struct.check(
-    Schema.makeFilter(() => true, { toJsonSchema: () => ({ propertyNames: { enum: keys } }) }),
+  const expected = keys.map((key) => JSON.stringify(key)).join(" | ");
+  const otherKey = Schema.String.check(
+    Schema.makeFilter((key: string) => !keys.includes(key), {
+      toJsonSchema: () => ({ not: { enum: keys } }),
+    }),
   );
+  const unexpected = Schema.Never.annotate(
+    refusalOverride(() => `is unexpected, expected: ${expected}`),
+  );
+  // Its JSON Schema names the keys: a document rendered leaving unknown keys
+  // open drops the rest, so a check that refuses nothing when decoding closes it.
+  const namesItsKeys = Schema.makeFilter(() => true, {
+    toJsonSchema: () => ({ propertyNames: { enum: keys } }),
+  });
+  return Schema.StructWithRest(struct, [Schema.Record(otherKey, unexpected)])
+    .check(namesItsKeys)
+    .pipe(
+      // The value passes unchanged: the rest refused every other key, so what
+      // decoded is exactly the struct (Effect cannot see that through the generic).
+      Schema.decodeTo(struct, SchemaTransformation.passthrough({ strict: false })),
+    );
 }
 
 const ClosedBySchema = closed(
@@ -243,28 +262,8 @@ export const PhaseStatusFileSchema = Schema.Struct({
 
 export type PhaseStatusFile = Schema.Schema.Type<typeof PhaseStatusFileSchema>;
 
-const decodeLenientPhaseStatusFile = Schema.decodeUnknownResult(PhaseStatusFileSchema, {
+/** Decodes a `status.json`, ignoring unknown keys except on its stop, which names its own. */
+export const decodePhaseStatusFile = Schema.decodeUnknownResult(PhaseStatusFileSchema, {
   reportInput: true,
 });
-const decodeStrictStop = Schema.decodeUnknownResult(PhaseStopSchema, {
-  onExcessProperty: "error",
-  reportInput: true,
-});
-
-/**
- * Decodes a `status.json`, ignoring unknown keys except on its stop: Effect 4
- * takes one excess-property strategy per decode, so the stop, once the file
- * decodes, is decoded again with `onExcessProperty: "error"`, and its first
- * violation is the file's, at `stop`.
- */
-export const decodePhaseStatusFile = (
-  input: unknown,
-): Result.Result<PhaseStatusFile, Schema.SchemaError> => {
-  const decoded = decodeLenientPhaseStatusFile(input);
-  if (Result.isFailure(decoded) || !Predicate.hasProperty(input, "stop")) return decoded;
-  const stop = decodeStrictStop(input.stop);
-  return Result.isFailure(stop)
-    ? Result.fail(new Schema.SchemaError(new SchemaIssue.Pointer(["stop"], stop.failure.issue)))
-    : decoded;
-};
 export const encodePhaseStatus = Schema.encodeSync(PhaseStatusFileSchema);
