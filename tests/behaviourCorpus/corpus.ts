@@ -1,10 +1,10 @@
-// The behaviour corpus of the Effect 4 migration: case files whose expectations
-// were captured on Effect 3, replayed on every later tree. This module is
-// Effect-free and stays byte-identical through the migration: it holds the
-// case-file shape and its guard, the input envelopes a subject reads, the
-// canonical encoder both sides of a comparison go through, and `captureFile`,
-// which fills only the expectations still null. `subjects.ts` is the one
-// corpus module that touches Effect.
+// The behaviour corpus: case files whose expectations were captured on Effect 3
+// during the Effect 4 migration, replayed on every later tree. This module is
+// Effect-free: it holds the case-file shape and its guard, the input envelopes a
+// subject reads, the canonical encoder both sides of a comparison go through,
+// and `captureFile`, which fills only the expectations still null and refuses
+// any effect major but 3. No script calls it any more (see CONTRIBUTING.md, "The
+// behaviour corpus"). `subjects.ts` is the one corpus module that touches Effect.
 import { readdirSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 
@@ -16,7 +16,7 @@ export type Expected =
   | { readonly ok: true; readonly value: unknown; readonly shape?: string }
   | { readonly ok: false; readonly refusal: string };
 
-/** One input of a subject. `expected` is null until the capture script fills it. */
+/** One input of a subject. `expected` is null until a capture fills it. */
 interface Case {
   readonly name: string;
   readonly input: unknown;
@@ -318,7 +318,7 @@ export function captureCorpusFile(
   return { kind: "captured", file: { format: file.format, current, shapes }, filled };
 }
 
-/** A case file's text as the capture script writes it. */
+/** A case file's text as a capture writes it. */
 export function caseFileText(file: CorpusFile): string {
   return JSON.stringify(file, null, 2) + "\n";
 }
