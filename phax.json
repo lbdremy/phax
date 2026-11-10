@@ -47,16 +47,6 @@
   },
   "acceptance": { "command": "node examples/vitest-acceptance/main.mjs" },
   "gateProfiles": {
-    "effect-migration": [
-      { "command": "pnpm format", "surface": "local", "firing": "every-phase" },
-      { "command": "pnpm codemod:effect4 --ratchet", "surface": "local", "firing": "every-phase" },
-      { "command": "pnpm lint", "surface": "local", "firing": "every-phase" },
-      { "command": "pnpm check:full", "surface": "local", "firing": "terminal" },
-      { "command": "pnpm build", "surface": "product", "firing": "terminal" },
-      { "command": "pnpm site:build", "surface": "product", "firing": "terminal" },
-      { "command": "pnpm deno:smoke", "surface": "product", "firing": "terminal" },
-      { "command": "pnpm deno:smoke-binary", "surface": "product", "firing": "terminal" }
-    ],
     "standard": [
       { "command": "pnpm format", "surface": "local", "firing": "every-phase" },
       { "command": "pnpm typecheck", "surface": "local", "firing": "every-phase" },
@@ -71,6 +61,16 @@
         "surface": "structural",
         "firing": "every-phase"
       },
+      { "command": "pnpm build", "surface": "product", "firing": "terminal" },
+      { "command": "pnpm site:build", "surface": "product", "firing": "terminal" },
+      { "command": "pnpm deno:smoke", "surface": "product", "firing": "terminal" },
+      { "command": "pnpm deno:smoke-binary", "surface": "product", "firing": "terminal" }
+    ],
+    "effect-migration": [
+      { "command": "pnpm format", "surface": "local", "firing": "every-phase" },
+      { "command": "pnpm codemod:effect4 --ratchet", "surface": "local", "firing": "every-phase" },
+      { "command": "pnpm lint", "surface": "local", "firing": "every-phase" },
+      { "command": "pnpm check:full", "surface": "local", "firing": "terminal" },
       { "command": "pnpm build", "surface": "product", "firing": "terminal" },
       { "command": "pnpm site:build", "surface": "product", "firing": "terminal" },
       { "command": "pnpm deno:smoke", "surface": "product", "firing": "terminal" },

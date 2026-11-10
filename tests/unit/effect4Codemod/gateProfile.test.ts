@@ -20,10 +20,8 @@ describe("phax.json", () => {
     expect(() => decoded()).not.toThrow();
   });
 
-  // `phax run` takes the first profile, so the operator lists effect-migration first for the
-  // run that installs Effect 4 and puts standard back first at its merge (2026-11-09).
-  it("keeps the standard profile beside effect-migration, listed first for the migration run", () => {
-    expect(Object.keys(decoded().gateProfiles)).toEqual(["effect-migration", "standard"]);
+  it("keeps the standard profile and adds effect-migration", () => {
+    expect(Object.keys(decoded().gateProfiles)).toEqual(["standard", "effect-migration"]);
   });
 
   it("runs format, the ratchet and lint every phase", () => {
