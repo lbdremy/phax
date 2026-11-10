@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2611071052-effect-4-migration.md
 completes-spec: true
+approved:
+  date: 2026-11-10
+  baseline: 5c8ef90
 ---
 # Remove the Effect 4 migration tooling
 

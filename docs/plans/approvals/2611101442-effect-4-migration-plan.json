@@ -1,0 +1,15 @@
+{
+  "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+  "artifact": "docs/plans/2611101442-effect-4-migration-plan.md",
+  "planFingerprint": "487a7e1f1baeb7409304a4f1853a4fd179079fd9855ab0eca076742b2574e0fe",
+  "approvedAt": "2026-11-10T14:55:18.007Z",
+  "baseline": "5c8ef90a0a781837e6bea421e8831fb583d1f531",
+  "sourceSpec": {
+    "path": "docs/specs/2611071052-effect-4-migration.md",
+    "fingerprint": "ed931fc9417598779ea470b69f17a1ecca61e8f81cf9c905b9940db4f073dcd0"
+  },
+  "approvedBy": {
+    "kind": "operator",
+    "name": "Rémy Loubradou"
+  }
+}
