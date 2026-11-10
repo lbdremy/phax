@@ -75,8 +75,8 @@ These load on demand. Reach for the matching one before editing that area:
 
 ## Conventions
 
-- TypeScript 7 (native compiler) + Effect (v3) throughout; Effect handles dependency injection and effects.
-- Schemas pin to specific library versions — when checking an Effect / `@effect/platform`
+- TypeScript 7 (native compiler) + Effect 4 throughout; Effect handles dependency injection and effects.
+- Schemas pin to specific library versions — when checking an Effect
   API, cross-check against `package.json`; installed versions may differ from training data.
 - No back-compat shims in persisted schemas: new fields are required, not optional.
 - Prefer explicit per-variant enums over a permissive superset.

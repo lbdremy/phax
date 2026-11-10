@@ -44,15 +44,15 @@ type PhaseState =
 ## Transition functions
 
 Each transition function takes the current state and returns
-`Either<NewState, InvalidTransitionError>`. Call-sites must handle the `Left`
-(invalid transition) case.
+`Result.Result<NewState, InvalidTransitionError>`. Call-sites must handle the
+`Failure` (invalid transition) case.
 
 ```typescript
 import { startRun, failRun, openRunReview } from "../domain/state.js";
-import { Either } from "effect";
+import { Result } from "effect";
 
 const next = startRun(currentState);
-if (Either.isLeft(next)) {
+if (Result.isFailure(next)) {
   // surface InvalidTransitionError — never silently swallow it
 }
 ```
@@ -63,14 +63,14 @@ Direct string assignment bypasses the transition guard. This means illegal
 state sequences (e.g., `archived → running`) become possible, which corrupts
 `registry.json` and `run-status.json` in ways that are hard to detect.
 
-The `Either`-returning pattern forces callers to handle illegal transitions
+The `Result`-returning pattern forces callers to handle illegal transitions
 explicitly rather than producing silent corrupt state.
 
 ## How to fix a violation
 
 1. Find the direct state field assignment (e.g., `status.runState = "running"`).
 2. Replace with the appropriate transition function from `src/domain/state.ts`.
-3. Handle the `Left` case and surface the `InvalidTransitionError`.
+3. Handle the `Failure` case and surface the `InvalidTransitionError`.
 
 ## Audit rule
 

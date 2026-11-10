@@ -10,6 +10,8 @@ import {
   JSON_SCHEMA_FORMATS,
   renderJsonSchemas,
 } from "../../../packages/schemas/build/jsonSchemas.js";
+import { judgeEquivalence } from "../../../packages/schemas/build/equivalence.js";
+import { readCorpusDocuments } from "../../../scripts/schemas-check.js";
 import {
   ANSWER_FORMATS,
   answerJsonSchema,
@@ -29,6 +31,8 @@ const snapshotsDir = resolve(
   "schemas",
   "snapshots",
 );
+
+const corpusDocuments = readCorpusDocuments(resolve(snapshotsDir, "..", "..", ".."));
 
 describe("answerJsonSchema", () => {
   it("registers the nine answer formats", () => {
@@ -52,15 +56,19 @@ describe("answerJsonSchema", () => {
   });
 
   // The current snapshot is next.schema.json while the release is open, and the
-  // release-named file once the cut renames it.
+  // release-named file once the cut renames it. Equal by the corpus documents
+  // both accept and refuse, as the schemas check judges it, not by text (§5.19).
   it.each(ANSWER_IDS)("%s: is the schema its current snapshot records", (id) => {
     const next = join(snapshotsDir, id, "next.schema.json");
     const current = existsSync(next)
       ? next
       : join(snapshotsDir, id, `${CURRENT_STAMPS[id]}.schema.json`);
-    expect(`${JSON.stringify(answerJsonSchema(id), null, 2)}\n`).toBe(
-      readFileSync(current, "utf8"),
-    );
+    const verdict = judgeEquivalence({
+      released: JSON.parse(readFileSync(current, "utf8")),
+      generated: answerJsonSchema(id),
+      documents: corpusDocuments.get(id) ?? [],
+    });
+    expect(verdict).toEqual({ equivalent: true, disagreements: [], problem: null });
   });
 
   it.each(ANSWER_IDS)("%s: carries the label of its format definition", (id) => {

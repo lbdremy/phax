@@ -1,5 +1,5 @@
 import { Effect, Schema } from "effect";
-import { draft07JsonSchema } from "./schemaUrl.js";
+import { editorJsonSchema } from "./schemaUrl.js";
 import { SecurityConfigSchema, type ResolvedSecurityConfig } from "./securityConfig.js";
 import { RecordsConfigSchema, type ResolvedRecordsConfig } from "./recordsConfig.js";
 import { SurfaceSchema } from "./surface.js";
@@ -135,11 +135,10 @@ const GateStepSchema = Schema.Struct({
   command: Schema.NonEmptyString,
   surface: SurfaceSchema,
   firing: FiringSchema,
-  output: GateOutputSchema.pipe(
+  // The description rides the literal: the generator drops one on the key of a defaulted field.
+  output: GateOutputSchema.annotate({ description: GATE_OUTPUT_DESCRIPTION }).pipe(
     Schema.withDecodingDefaultType(Effect.succeed("log" as const)),
-  ).annotateKey({
-    description: GATE_OUTPUT_DESCRIPTION,
-  }),
+  ),
   // phax's refusal never reads a description, so the literal carries it.
   input: Schema.optionalKey(
     Schema.Literal("gate-request").annotate({ description: GATE_INPUT_DESCRIPTION }),
@@ -385,7 +384,7 @@ export const decodePhaxConfig = Schema.decodeUnknownResult(PhaxConfigSchema, {
 });
 
 export function getPhaxConfigJsonSchema(): object {
-  return draft07JsonSchema(PhaxConfigSchema);
+  return editorJsonSchema(PhaxConfigSchema);
 }
 
 export const PhaxUserOverlaySchema = Schema.Struct({
@@ -444,5 +443,5 @@ export const decodePhaxUserOverlay = Schema.decodeUnknownResult(PhaxUserOverlayS
 });
 
 export function getPhaxUserOverlayJsonSchema(): object {
-  return draft07JsonSchema(PhaxUserOverlaySchema);
+  return editorJsonSchema(PhaxUserOverlaySchema);
 }

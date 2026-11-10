@@ -3,835 +3,459 @@
   "type": "object",
   "properties": {
     "state": {
-      "anyOf": [
-        {
-          "type": "object",
-          "properties": {
-            "root": {
-              "type": "string",
-              "minLength": 1
-            }
-          },
-          "required": ["root"],
-          "additionalProperties": false
-        },
-        {
-          "type": "null"
+      "type": "object",
+      "properties": {
+        "root": {
+          "type": "string",
+          "minLength": 1
         }
-      ]
+      },
+      "required": ["root"],
+      "additionalProperties": false
     },
     "agent": {
-      "anyOf": [
-        {
+      "type": "object",
+      "properties": {
+        "maxFixAttempts": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10
+        },
+        "extractPlan": {
           "type": "object",
           "properties": {
-            "maxFixAttempts": {
-              "anyOf": [
-                {
-                  "type": "integer",
-                  "minimum": 1,
-                  "maximum": 10
-                },
-                {
-                  "type": "null"
-                }
-              ]
+            "model": {
+              "type": "string",
+              "minLength": 1
             },
-            "extractPlan": {
-              "anyOf": [
-                {
-                  "type": "object",
-                  "properties": {
-                    "model": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "effort": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "enum": ["low", "medium", "high"]
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    }
-                  },
-                  "additionalProperties": false
-                },
-                {
-                  "type": "null"
-                }
-              ]
+            "effort": {
+              "type": "string",
+              "enum": ["low", "medium", "high"]
             }
           },
           "additionalProperties": false
-        },
-        {
-          "type": "null"
         }
-      ]
+      },
+      "additionalProperties": false
     },
     "commands": {
-      "anyOf": [
-        {
+      "type": "object",
+      "properties": {
+        "setup": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "cleanup": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "fileReconciliation": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["report_only", "warn"]
+        }
+      },
+      "required": ["mode"],
+      "additionalProperties": false
+    },
+    "security": {
+      "type": "object",
+      "properties": {
+        "profile": {
+          "type": "string",
+          "enum": ["secure", "unsafe", "isolated"]
+        },
+        "filesystem": {
           "type": "object",
           "properties": {
-            "setup": {
-              "anyOf": [
-                {
-                  "type": "array",
-                  "minItems": 1,
-                  "items": {
-                    "type": "string",
-                    "minLength": 1
-                  }
-                },
-                {
-                  "type": "null"
-                }
-              ]
+            "allowRead": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
             },
-            "cleanup": {
-              "anyOf": [
-                {
-                  "type": "array",
-                  "minItems": 1,
-                  "items": {
-                    "type": "string",
-                    "minLength": 1
-                  }
-                },
-                {
-                  "type": "null"
-                }
-              ]
+            "allowWrite": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
             }
           },
           "additionalProperties": false
         },
-        {
-          "type": "null"
-        }
-      ]
-    },
-    "fileReconciliation": {
-      "anyOf": [
-        {
+        "network": {
+          "type": "object",
+          "properties": {
+            "profile": {
+              "type": "string",
+              "enum": ["provider-only", "dev-allowlist", "open"]
+            }
+          },
+          "additionalProperties": false
+        },
+        "mcp": {
           "type": "object",
           "properties": {
             "mode": {
               "type": "string",
-              "enum": ["report_only", "warn"]
-            }
-          },
-          "required": ["mode"],
-          "additionalProperties": false
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
-    "security": {
-      "anyOf": [
-        {
-          "type": "object",
-          "properties": {
-            "profile": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "enum": ["secure", "unsafe", "isolated"]
-                },
-                {
-                  "type": "null"
-                }
-              ]
+              "enum": ["disabled", "local-only", "allowlist", "provider-default"]
             },
-            "filesystem": {
-              "anyOf": [
-                {
-                  "type": "object",
-                  "properties": {
-                    "allowRead": {
-                      "anyOf": [
-                        {
-                          "type": "array",
-                          "items": {
-                            "type": "string",
-                            "minLength": 1
-                          }
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "allowWrite": {
-                      "anyOf": [
-                        {
-                          "type": "array",
-                          "items": {
-                            "type": "string",
-                            "minLength": 1
-                          }
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    }
-                  },
-                  "additionalProperties": false
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "network": {
-              "anyOf": [
-                {
-                  "type": "object",
-                  "properties": {
-                    "profile": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "enum": ["provider-only", "dev-allowlist", "open"]
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    }
-                  },
-                  "additionalProperties": false
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "mcp": {
-              "anyOf": [
-                {
-                  "type": "object",
-                  "properties": {
-                    "mode": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "enum": ["disabled", "local-only", "allowlist", "provider-default"]
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "allow": {
-                      "anyOf": [
-                        {
-                          "type": "array",
-                          "items": {
-                            "type": "string",
-                            "minLength": 1
-                          }
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    }
-                  },
-                  "additionalProperties": false
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "agentCommands": {
-              "anyOf": [
-                {
-                  "type": "array",
-                  "items": {
-                    "type": "string",
-                    "minLength": 1
-                  }
-                },
-                {
-                  "type": "null"
-                }
-              ]
+            "allow": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
             }
           },
           "additionalProperties": false
         },
-        {
-          "type": "null"
-        }
-      ]
-    },
-    "publish": {
-      "anyOf": [
-        {
-          "type": "object",
-          "properties": {
-            "auto": {
-              "type": "boolean"
-            },
-            "remote": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "minLength": 1
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "provider": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "enum": ["github"]
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "pushBranch": {
-              "anyOf": [
-                {
-                  "type": "boolean"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "createPullRequest": {
-              "anyOf": [
-                {
-                  "type": "boolean"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "baseBranch": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "minLength": 1
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "title": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "minLength": 1
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            }
-          },
-          "required": ["auto"],
-          "additionalProperties": false
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
-    "brief": {
-      "anyOf": [
-        {
-          "type": "object",
-          "properties": {
-            "command": {
-              "type": "string",
-              "minLength": 1,
-              "description": "The brief provider command, split on whitespace with no shell. phax writes a brief request on its stdin and reads a brief report {\"$schema\": \"https://docs.phax.run/schemas/brief-report/<release>.json\", \"rules\", \"findings\"} on stdout: the rules over the requested paths, and the findings there with their due. A provider that declines to run exits non-zero. A brief informs and never blocks. Full contract: `phax --usage`, cmd brief."
-            },
-            "push": {
-              "type": "string",
-              "enum": ["findings", "findings-and-rules"],
-              "allOf": [
-                {
-                  "description": "What the phase's first prompt lists from the phase's brief, at most 50 lines. \"findings\": the findings due in this phase. \"findings-and-rules\": those findings, then the rules over the phase's planned files, with their files and guides. Required, with no default, in every layer that declares brief."
-                }
-              ]
-            }
-          },
-          "required": ["command", "push"],
-          "additionalProperties": false
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "allOf": [
-        {
-          "description": "The brief provider: a command that answers, for any paths, the rules over them and what fails there. phax pushes the phase's brief into the phase's first prompt and serves `phax brief`."
-        }
-      ]
-    },
-    "planAuditor": {
-      "anyOf": [
-        {
-          "type": "object",
-          "properties": {
-            "command": {
-              "type": "string",
-              "minLength": 1,
-              "description": "The plan auditor command. The string is split on whitespace with no shell — use a wrapper script for paths with spaces or pipelines. phax writes the plan projection ({\"phases\": [{\"id\", \"files\"}]}) to the provider's stdin from `phax plans lint` whenever the plan's deterministic extraction succeeds, and expects exit 0 with {\"findings\": [{\"message\", \"phases\": [...]}]} on stdout. Every finding is a warning on the lint's advisory check, one per phase it names; a failing auditor is one warning, and the command is capped at 30s; findings never set the exit code. `phax run` never queries it. Full contract: `phax --usage`, cmd plans lint."
-            }
-          },
-          "required": ["command"],
-          "additionalProperties": false
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
-    "architecture": {
-      "anyOf": [
-        {
-          "type": "object",
-          "properties": {
-            "command": {
-              "type": "string",
-              "minLength": 1,
-              "description": "The architecture provider command. The string is split on whitespace with no shell — use a wrapper script for paths with spaces or pipelines. phax writes an architecture request {\"$schema\": \"https://docs.phax.run/schemas/architecture-request/<release>.json\", \"files\"} to its stdin and reads an architecture report {\"$schema\": \"https://docs.phax.run/schemas/architecture-report/<release>.json\", \"body\", \"parts\"} on stdout, which phax renders to Markdown; a provider that declines exits non-zero. Full contract: `phax --usage`, cmd architecture."
-            }
-          },
-          "required": ["command"],
-          "additionalProperties": false
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "allOf": [
-        {
-          "description": "The architecture provider: a command that answers, for the whole repository or for some paths, the repository's architecture as a report (a Markdown body, then the parts of the code with their globs), which phax renders to Markdown. Serves `phax architecture`."
-        }
-      ]
-    },
-    "acceptance": {
-      "anyOf": [
-        {
-          "type": "object",
-          "properties": {
-            "command": {
-              "type": "string",
-              "minLength": 1,
-              "description": "The acceptance provider command. The string is split on whitespace with no shell — use a wrapper script for paths with spaces or pipelines. At the gate of an acceptance phase or its passing phase only, phax writes an acceptance request {\"$schema\": \"https://docs.phax.run/schemas/acceptance-request/<release>.json\", \"verdict\", \"phase\", \"acceptancePhase\", \"base\", \"files\"} (plus \"acceptanceCommit\" on a \"passed\" request) to its stdin, and judges the gate report the provider prints on stdout exactly like an `output: \"gate-report\"` step, with a fixed 120 s limit. `phax plans lint`, `phax validate`, the run preflight and authoring never run it. Full contract: `phax --usage`, cmd run."
-            }
-          },
-          "required": ["command"],
-          "additionalProperties": false
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "allOf": [
-        {
-          "description": "The acceptance provider: a command that judges the acceptance tests an acceptance phase writes and its passing phase passes."
-        }
-      ]
-    },
-    "review": {
-      "anyOf": [
-        {
-          "type": "object",
-          "properties": {
-            "compliance": {
-              "anyOf": [
-                {
-                  "type": "object",
-                  "properties": {
-                    "enabled": {
-                      "type": "boolean"
-                    },
-                    "model": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "effort": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "enum": ["low", "medium", "high"]
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    }
-                  },
-                  "required": ["enabled"],
-                  "additionalProperties": false
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "code": {
-              "anyOf": [
-                {
-                  "type": "object",
-                  "properties": {
-                    "enabled": {
-                      "anyOf": [
-                        {
-                          "type": "boolean"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ],
-                      "allOf": [
-                        {
-                          "description": "Run the headless code review when a run reaches review, after the compliance review and before the pull request. False when absent."
-                        }
-                      ]
-                    },
-                    "model": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "effort": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "enum": ["low", "medium", "high"]
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    }
-                  },
-                  "additionalProperties": false
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            }
-          },
-          "additionalProperties": false
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
-    "authoring": {
-      "anyOf": [
-        {
-          "type": "object",
-          "properties": {
-            "spec": {
-              "anyOf": [
-                {
-                  "type": "object",
-                  "properties": {
-                    "model": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "effort": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "enum": ["low", "medium", "high"]
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    }
-                  },
-                  "additionalProperties": false
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "plan": {
-              "anyOf": [
-                {
-                  "type": "object",
-                  "properties": {
-                    "model": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "effort": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "enum": ["low", "medium", "high"]
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    }
-                  },
-                  "additionalProperties": false
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            }
-          },
-          "additionalProperties": false
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
-    "gateProfiles": {
-      "anyOf": [
-        {
-          "type": "object",
-          "propertyNames": {
+        "agentCommands": {
+          "type": "array",
+          "items": {
             "type": "string",
             "minLength": 1
-          },
-          "additionalProperties": {
-            "type": "array",
-            "minItems": 1,
-            "items": {
-              "type": "object",
-              "properties": {
-                "command": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "surface": {
-                  "type": "string",
-                  "enum": ["local", "structural", "product"]
-                },
-                "firing": {
-                  "type": "string",
-                  "enum": ["every-phase", "terminal"]
-                },
-                "output": {
-                  "anyOf": [
-                    {
-                      "type": "string",
-                      "enum": ["log", "gate-report"]
-                    },
-                    {
-                      "type": "null"
-                    }
-                  ]
-                },
-                "input": {
-                  "type": "string",
-                  "enum": ["gate-request"],
-                  "description": "Absent: the step's stdin is not connected. \"gate-request\": phax writes the gate request {$schema, phase, base, terminal, phases} on the step's stdin and saves it as checks-attempt-NN.request.json."
-                },
-                "partial": {
-                  "type": "object",
-                  "properties": {
-                    "files": {
-                      "type": "string",
-                      "minLength": 1,
-                      "description": "Checks the files the agent chooses. Holds a <name> placeholder (a lowercase word in angle brackets, for example <files>) that the agent replaces with those files. Commands are joined with | only."
-                    },
-                    "diff": {
-                      "type": "string",
-                      "minLength": 1,
-                      "description": "Checks the phase's current, uncommitted changes. Holds no placeholder. Commands are joined with | only."
-                    }
-                  },
-                  "additionalProperties": false,
-                  "description": "Commands that check part of what this step checks. phax shows them in the phase prompt under the step and allows them in secure mode like the step, and never runs them.",
-                  "anyOf": [
-                    {
-                      "required": ["files"]
-                    },
-                    {
-                      "required": ["diff"]
-                    }
-                  ]
-                }
-              },
-              "required": ["command", "surface", "firing"],
-              "additionalProperties": false
-            }
           }
-        },
-        {
-          "type": "null"
         }
-      ]
+      },
+      "additionalProperties": false
     },
-    "workspaces": {
-      "anyOf": [
-        {
+    "publish": {
+      "type": "object",
+      "properties": {
+        "auto": {
+          "type": "boolean"
+        },
+        "remote": {
+          "type": "string",
+          "minLength": 1
+        },
+        "provider": {
+          "type": "string",
+          "enum": ["github"]
+        },
+        "pushBranch": {
+          "type": "boolean"
+        },
+        "createPullRequest": {
+          "type": "boolean"
+        },
+        "baseBranch": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": ["auto"],
+      "additionalProperties": false
+    },
+    "brief": {
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The brief provider command, split on whitespace with no shell. phax writes a brief request on its stdin and reads a brief report {\"$schema\": \"https://docs.phax.run/schemas/brief-report/<release>.json\", \"rules\", \"findings\"} on stdout: the rules over the requested paths, and the findings there with their due. A provider that declines to run exits non-zero. A brief informs and never blocks. Full contract: `phax --usage`, cmd brief."
+        },
+        "push": {
+          "type": "string",
+          "enum": ["findings", "findings-and-rules"],
+          "description": "What the phase's first prompt lists from the phase's brief, at most 50 lines. \"findings\": the findings due in this phase. \"findings-and-rules\": those findings, then the rules over the phase's planned files, with their files and guides. Required, with no default, in every layer that declares brief."
+        }
+      },
+      "required": ["command", "push"],
+      "additionalProperties": false,
+      "description": "The brief provider: a command that answers, for any paths, the rules over them and what fails there. phax pushes the phase's brief into the phase's first prompt and serves `phax brief`."
+    },
+    "planAuditor": {
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The plan auditor command. The string is split on whitespace with no shell — use a wrapper script for paths with spaces or pipelines. phax writes the plan projection ({\"phases\": [{\"id\", \"files\"}]}) to the provider's stdin from `phax plans lint` whenever the plan's deterministic extraction succeeds, and expects exit 0 with {\"findings\": [{\"message\", \"phases\": [...]}]} on stdout. Every finding is a warning on the lint's advisory check, one per phase it names; a failing auditor is one warning, and the command is capped at 30s; findings never set the exit code. `phax run` never queries it. Full contract: `phax --usage`, cmd plans lint."
+        }
+      },
+      "required": ["command"],
+      "additionalProperties": false
+    },
+    "architecture": {
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The architecture provider command. The string is split on whitespace with no shell — use a wrapper script for paths with spaces or pipelines. phax writes an architecture request {\"$schema\": \"https://docs.phax.run/schemas/architecture-request/<release>.json\", \"files\"} to its stdin and reads an architecture report {\"$schema\": \"https://docs.phax.run/schemas/architecture-report/<release>.json\", \"body\", \"parts\"} on stdout, which phax renders to Markdown; a provider that declines exits non-zero. Full contract: `phax --usage`, cmd architecture."
+        }
+      },
+      "required": ["command"],
+      "additionalProperties": false,
+      "description": "The architecture provider: a command that answers, for the whole repository or for some paths, the repository's architecture as a report (a Markdown body, then the parts of the code with their globs), which phax renders to Markdown. Serves `phax architecture`."
+    },
+    "acceptance": {
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The acceptance provider command. The string is split on whitespace with no shell — use a wrapper script for paths with spaces or pipelines. At the gate of an acceptance phase or its passing phase only, phax writes an acceptance request {\"$schema\": \"https://docs.phax.run/schemas/acceptance-request/<release>.json\", \"verdict\", \"phase\", \"acceptancePhase\", \"base\", \"files\"} (plus \"acceptanceCommit\" on a \"passed\" request) to its stdin, and judges the gate report the provider prints on stdout exactly like an `output: \"gate-report\"` step, with a fixed 120 s limit. `phax plans lint`, `phax validate`, the run preflight and authoring never run it. Full contract: `phax --usage`, cmd run."
+        }
+      },
+      "required": ["command"],
+      "additionalProperties": false,
+      "description": "The acceptance provider: a command that judges the acceptance tests an acceptance phase writes and its passing phase passes."
+    },
+    "review": {
+      "type": "object",
+      "properties": {
+        "compliance": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "model": {
+              "type": "string",
+              "minLength": 1
+            },
+            "effort": {
+              "type": "string",
+              "enum": ["low", "medium", "high"]
+            }
+          },
+          "required": ["enabled"],
+          "additionalProperties": false
+        },
+        "code": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Run the headless code review when a run reaches review, after the compliance review and before the pull request. False when absent."
+            },
+            "model": {
+              "type": "string",
+              "minLength": 1
+            },
+            "effort": {
+              "type": "string",
+              "enum": ["low", "medium", "high"]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "authoring": {
+      "type": "object",
+      "properties": {
+        "spec": {
+          "type": "object",
+          "properties": {
+            "model": {
+              "type": "string",
+              "minLength": 1
+            },
+            "effort": {
+              "type": "string",
+              "enum": ["low", "medium", "high"]
+            }
+          },
+          "additionalProperties": false
+        },
+        "plan": {
+          "type": "object",
+          "properties": {
+            "model": {
+              "type": "string",
+              "minLength": 1
+            },
+            "effort": {
+              "type": "string",
+              "enum": ["low", "medium", "high"]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "gateProfiles": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "minLength": 1
+      },
+      "properties": {},
+      "patternProperties": {
+        "": {
           "type": "array",
+          "minItems": 1,
           "items": {
             "type": "object",
             "properties": {
-              "id": {
+              "command": {
                 "type": "string",
                 "minLength": 1
               },
-              "name": {
+              "surface": {
                 "type": "string",
-                "minLength": 1
+                "enum": ["local", "structural", "product"]
               },
-              "path": {
+              "firing": {
                 "type": "string",
-                "minLength": 1
+                "enum": ["every-phase", "terminal"]
               },
-              "gateProfiles": {
+              "output": {
+                "type": "string",
+                "enum": ["log", "gate-report"],
+                "description": "\"log\" (default) streams raw command output. \"gate-report\": phax reads a gate report {\"$schema\": \"https://docs.phax.run/schemas/gate-report/<release>.json\", \"outcome\": \"checked\", \"findings\", \"review\"} on stdout, judges the step from it and saves it as printed as checks-attempt-NN.report-SS.json, SS being the step's position among the steps the attempt runs. Any finding fails the step whatever the exit code; an empty list passes on exit 0; anything else is a broken step that fails with the raw log. A report step does not have to declare input."
+              },
+              "input": {
+                "type": "string",
+                "enum": ["gate-request"],
+                "description": "Absent: the step's stdin is not connected. \"gate-request\": phax writes the gate request {$schema, phase, base, terminal, phases} on the step's stdin and saves it as checks-attempt-NN.request.json."
+              },
+              "partial": {
+                "type": "object",
+                "properties": {
+                  "files": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Checks the files the agent chooses. Holds a <name> placeholder (a lowercase word in angle brackets, for example <files>) that the agent replaces with those files. Commands are joined with | only."
+                  },
+                  "diff": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Checks the phase's current, uncommitted changes. Holds no placeholder. Commands are joined with | only."
+                  }
+                },
+                "additionalProperties": false,
+                "description": "Commands that check part of what this step checks. phax shows them in the phase prompt under the step and allows them in secure mode like the step, and never runs them.",
                 "anyOf": [
                   {
-                    "type": "object",
-                    "propertyNames": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "additionalProperties": {
-                      "type": "array",
-                      "minItems": 1,
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "command": {
-                            "type": "string",
-                            "minLength": 1
-                          },
-                          "surface": {
-                            "type": "string",
-                            "enum": ["local", "structural", "product"]
-                          },
-                          "firing": {
-                            "type": "string",
-                            "enum": ["every-phase", "terminal"]
-                          },
-                          "output": {
-                            "anyOf": [
-                              {
-                                "type": "string",
-                                "enum": ["log", "gate-report"]
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "input": {
-                            "type": "string",
-                            "enum": ["gate-request"],
-                            "description": "Absent: the step's stdin is not connected. \"gate-request\": phax writes the gate request {$schema, phase, base, terminal, phases} on the step's stdin and saves it as checks-attempt-NN.request.json."
-                          },
-                          "partial": {
-                            "type": "object",
-                            "properties": {
-                              "files": {
-                                "type": "string",
-                                "minLength": 1,
-                                "description": "Checks the files the agent chooses. Holds a <name> placeholder (a lowercase word in angle brackets, for example <files>) that the agent replaces with those files. Commands are joined with | only."
-                              },
-                              "diff": {
-                                "type": "string",
-                                "minLength": 1,
-                                "description": "Checks the phase's current, uncommitted changes. Holds no placeholder. Commands are joined with | only."
-                              }
-                            },
-                            "additionalProperties": false,
-                            "description": "Commands that check part of what this step checks. phax shows them in the phase prompt under the step and allows them in secure mode like the step, and never runs them.",
-                            "anyOf": [
-                              {
-                                "required": ["files"]
-                              },
-                              {
-                                "required": ["diff"]
-                              }
-                            ]
-                          }
-                        },
-                        "required": ["command", "surface", "firing"],
-                        "additionalProperties": false
-                      }
-                    }
+                    "required": ["files"]
                   },
                   {
-                    "type": "null"
+                    "required": ["diff"]
                   }
                 ]
               }
             },
-            "required": ["id", "name", "path"],
+            "required": ["command", "surface", "firing"],
             "additionalProperties": false
           }
-        },
-        {
-          "type": "null"
         }
-      ]
+      }
+    },
+    "workspaces": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "gateProfiles": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "minLength": 1
+            },
+            "properties": {},
+            "patternProperties": {
+              "": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "command": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "surface": {
+                      "type": "string",
+                      "enum": ["local", "structural", "product"]
+                    },
+                    "firing": {
+                      "type": "string",
+                      "enum": ["every-phase", "terminal"]
+                    },
+                    "output": {
+                      "type": "string",
+                      "enum": ["log", "gate-report"],
+                      "description": "\"log\" (default) streams raw command output. \"gate-report\": phax reads a gate report {\"$schema\": \"https://docs.phax.run/schemas/gate-report/<release>.json\", \"outcome\": \"checked\", \"findings\", \"review\"} on stdout, judges the step from it and saves it as printed as checks-attempt-NN.report-SS.json, SS being the step's position among the steps the attempt runs. Any finding fails the step whatever the exit code; an empty list passes on exit 0; anything else is a broken step that fails with the raw log. A report step does not have to declare input."
+                    },
+                    "input": {
+                      "type": "string",
+                      "enum": ["gate-request"],
+                      "description": "Absent: the step's stdin is not connected. \"gate-request\": phax writes the gate request {$schema, phase, base, terminal, phases} on the step's stdin and saves it as checks-attempt-NN.request.json."
+                    },
+                    "partial": {
+                      "type": "object",
+                      "properties": {
+                        "files": {
+                          "type": "string",
+                          "minLength": 1,
+                          "description": "Checks the files the agent chooses. Holds a <name> placeholder (a lowercase word in angle brackets, for example <files>) that the agent replaces with those files. Commands are joined with | only."
+                        },
+                        "diff": {
+                          "type": "string",
+                          "minLength": 1,
+                          "description": "Checks the phase's current, uncommitted changes. Holds no placeholder. Commands are joined with | only."
+                        }
+                      },
+                      "additionalProperties": false,
+                      "description": "Commands that check part of what this step checks. phax shows them in the phase prompt under the step and allows them in secure mode like the step, and never runs them.",
+                      "anyOf": [
+                        {
+                          "required": ["files"]
+                        },
+                        {
+                          "required": ["diff"]
+                        }
+                      ]
+                    }
+                  },
+                  "required": ["command", "surface", "firing"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        },
+        "required": ["id", "name", "path"],
+        "additionalProperties": false
+      }
     }
   },
   "additionalProperties": false

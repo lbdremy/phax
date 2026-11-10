@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { spawnSync, type SpawnSyncReturns } from "node:child_process";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { phaxHomeEnv } from "../helpers/isolatePhaxHome.js";
@@ -21,14 +21,20 @@ function isUsageAvailable(): boolean {
 }
 
 function pathWithoutUsage(): string {
-  // Locate `usage` by searching PATH directories, then exclude that directory.
-  // Uses only Node.js fs — no shell `which` invocation.
-  const pathDirs = (process.env["PATH"] ?? "").split(":");
-  const usageDir = pathDirs.find((dir) => existsSync(join(dir, "usage")));
-  if (usageDir === undefined) {
-    return process.env["PATH"] ?? "/usr/bin:/bin";
+  // Only what the spawn needs: the repo's bins (tsx), node's own directory and
+  // the system tools tsx's shim calls. Probing every PATH directory would reach
+  // the ancestors' node_modules/.bin pnpm adds, which lie inside ~/.phax when
+  // the suite runs in a phax worktree.
+  const dirs = [
+    join(repoRoot, "node_modules", ".bin"),
+    dirname(process.execPath),
+    "/usr/bin",
+    "/bin",
+  ];
+  for (const dir of dirs) {
+    if (existsSync(join(dir, "usage"))) throw new Error(`usage is installed in ${dir}`);
   }
-  return pathDirs.filter((p) => p !== usageDir).join(":");
+  return dirs.join(":");
 }
 
 describe("phax completions", () => {

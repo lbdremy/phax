@@ -24,6 +24,6 @@ const any = parseDocument(raw); // { ok, format, shape, value } or { ok: false, 
 - A parse failure is a value, never an exception.
 - Every file written from phax 0.17.0 on stays readable; an older shape is upgraded in memory by the format's `toLatest*` function, marking a fact it did not carry as `{ kind: "unknown" }`. A file written before 0.17.0 is read if its format's pre-0.17.0 shape accepts it, and reported unsupported otherwise. A file stamped with a release newer than the package asks you to upgrade the package.
 - One draft-07 JSON Schema per format ships in `json/<format>.schema.json`.
-- The package is published at the same version as the phax release that produced it, and depends only on `effect`.
+- The package is published at the same version as the phax release that produced it, and depends only on `effect`. The exported Schema values (`RegistrySchema`, `PhaxPlanSchema`, …) are Effect 4 values: code that composes them needs `effect ^4.1.2`, and code that only calls the parse functions needs nothing more.
 
 The full list of formats, their files and parse functions, and how to read a record from the `phax/records/v1` branch, are in phax's README: [Read phax files from code](https://github.com/lbdremy/phax#read-phax-files-from-code).

@@ -153,9 +153,27 @@ describe("the records branch the smoke builds", () => {
 describe("strayPackages", () => {
   const effectClosure = dependencyClosure(repoRoot, "effect");
 
+  // Effect 4 declares no dependency, so its own closure is just itself: the
+  // walk through installed manifests is shown on a made-up tree.
   it("computes effect's closure from its installed manifests", () => {
     expect(effectClosure.has("effect")).toBe(true);
-    expect(effectClosure.size).toBeGreaterThan(1);
+    const root = mkdtempSync(join(tmpdir(), "phax-closure-"));
+    try {
+      const manifest = (name: string, dependencies: Record<string, string>): void => {
+        mkdirSync(join(root, "node_modules", name), { recursive: true });
+        writeFileSync(
+          join(root, "node_modules", name, "package.json"),
+          JSON.stringify({ name, dependencies }),
+        );
+      };
+      manifest("top", { middle: "1.0.0" });
+      manifest("middle", { leaf: "1.0.0" });
+      manifest("leaf", {});
+      manifest("unrelated", {});
+      expect([...dependencyClosure(root, "top")].toSorted()).toEqual(["leaf", "middle", "top"]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it("passes the package, effect, effect's closure and npm's own entries", () => {

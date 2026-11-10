@@ -11,7 +11,7 @@ description: Wire OpenTelemetry through the SystemTelemetry port — domain prod
 
 ```
 src/domain/telemetry/   ← pure semantic types, NO Effect, NO OTel, NO IO
-src/ports/systemTelemetry.ts  ← Effect service (Context.Tag) — the app talks here
+src/ports/systemTelemetry.ts  ← Effect service (Context.Service) — the app talks here
 src/infra/telemetry/    ← implementations (OTel, file, in-memory, composite)
 ```
 

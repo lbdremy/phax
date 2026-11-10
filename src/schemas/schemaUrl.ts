@@ -285,6 +285,78 @@ export function draft07JsonSchema(schema: Schema.Top): object {
   };
 }
 
+const ANNOTATION_KEYS: ReadonlySet<string> = new Set(["description", "title"]);
+
+function isNullType(node: unknown): boolean {
+  return isJsonObject(node) && Object.keys(node).length === 1 && node["type"] === "null";
+}
+
+/** `X | null` as `X`, its own annotations kept; any other node unchanged. */
+function withoutNull(node: unknown): unknown {
+  if (!isJsonObject(node)) return node;
+  const anyOf = node["anyOf"];
+  if (!Array.isArray(anyOf) || anyOf.length !== 2 || !anyOf.some(isNullType)) return node;
+  const kept = anyOf.find((member) => !isNullType(member));
+  const { anyOf: _nullable, ...rest } = node;
+  return isJsonObject(kept) ? { ...kept, ...rest } : node;
+}
+
+/**
+ * One node of an editor schema. Effect renders an optional key as `X | null`
+ * (its `undefined` has no JSON form), a description on a key under `allOf`,
+ * and a record as `propertyNames` plus `additionalProperties`. No config key
+ * accepts `null`, so the editor reads a key that may be absent as `X`, a
+ * description beside it, and a record as `patternProperties`, as every
+ * released editor schema wrote them. Only a key outside `required` loses its
+ * `null`: a config key that came to accept `null` would have to be required
+ * to keep it.
+ */
+function editorNode(node: unknown): unknown {
+  if (Array.isArray(node)) return node.map(editorNode);
+  if (!isJsonObject(node)) return node;
+  let out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(node)) out[key] = editorNode(value);
+
+  const allOf = out["allOf"];
+  if (
+    Array.isArray(allOf) &&
+    allOf.every(
+      (member) => isJsonObject(member) && Object.keys(member).every((k) => ANNOTATION_KEYS.has(k)),
+    )
+  ) {
+    const { allOf: _annotations, ...rest } = out;
+    out = Object.assign({}, rest, ...allOf);
+  }
+
+  const properties = out["properties"];
+  if (isJsonObject(properties)) {
+    const required = new Set(Array.isArray(out["required"]) ? out["required"] : []);
+    out = {
+      ...out,
+      properties: Object.fromEntries(
+        Object.entries(properties).map(([name, property]) => [
+          name,
+          required.has(name) ? property : withoutNull(property),
+        ]),
+      ),
+    };
+  }
+
+  const additional = out["additionalProperties"];
+  if (isJsonObject(out["propertyNames"]) && isJsonObject(additional)) {
+    const { additionalProperties: _values, ...rest } = out;
+    return { ...rest, properties: {}, patternProperties: { "": additional } };
+  }
+  return out;
+}
+
+/** A config schema as the editor reads it: `draft07JsonSchema` in the form the editor schemas were always written. */
+export function editorJsonSchema(schema: Schema.Top): object {
+  const document = draft07JsonSchema(schema);
+  const normalised = editorNode(document);
+  return isJsonObject(normalised) ? normalised : document;
+}
+
 /** Orders two `X.Y.Z` releases numerically: negative, zero or positive. */
 export function compareReleases(a: string, b: string): number {
   const left = a.split(".").map(Number);
