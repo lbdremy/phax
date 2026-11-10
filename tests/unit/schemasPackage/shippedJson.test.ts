@@ -105,7 +105,7 @@ describe("the answer schemas phax hands a model", () => {
 describe("the released snapshots", () => {
   it("keep the digests the corpus captured", () => {
     const digests: unknown = JSON.parse(
-      readFileSync(join(repoRoot, "tests/effect4Corpus/baseline/snapshot-digests.json"), "utf8"),
+      readFileSync(join(repoRoot, "tests/behaviourCorpus/baseline/snapshot-digests.json"), "utf8"),
     );
     if (typeof digests !== "object" || digests === null) throw new Error("no digest map");
     const entries = Object.entries(digests);

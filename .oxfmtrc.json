@@ -18,7 +18,7 @@
     "site/generated",
     "site/retired-schemas",
     "site/doc_build",
-    "tests/effect4Corpus/cases",
-    "tests/effect4Corpus/baseline"
+    "tests/behaviourCorpus/cases",
+    "tests/behaviourCorpus/baseline"
   ]
 }

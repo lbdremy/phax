@@ -22,11 +22,9 @@ pnpm test:e2e:real       # opt-in end-to-end runs with the installed provider CL
 
 The end-to-end suite runs only when `PHAX_E2E_RUN=1` is set. It has one real flow per provider (Claude Code, Mistral Vibe, Codex), each forced with `--provider-priority` and skipped when that provider's CLI is not installed. [`docs/e2e-testing.md`](docs/e2e-testing.md) covers its prerequisites, its isolation and how to read a failure.
 
-## The Effect 4 migration
+## The behaviour corpus
 
-phax runs on Effect 4.
-
-`tests/effect4Corpus/` holds the behaviour corpus: the answers phax gave on Effect 3 for every format, frozen decoder, config layer and provider answer. `pnpm exec tsx scripts/effect4-corpus-capture.ts` fills only the cases whose `expected` is null and refuses to run on any Effect major but 3. The baseline is never re-captured, and a case file only on Effect 3: the second migration plan re-captured exactly the lines phax's refusal model moved (listed in [`docs/upgrading.md`](docs/upgrading.md)) and added constraint and encode cases. Once Effect 4 is installed, a case file that disagrees after a change means the change is wrong. Only `tests/effect4Corpus/subjects.ts` is migrated.
+`tests/behaviourCorpus/` holds the answers phax gave on Effect 3 for every format, frozen decoder, config layer and provider answer, with the schemas package's baseline. `pnpm test` replays it through `tests/unit/behaviourCorpus/`, and the schemas check judges each generated JSON Schema against the latest released snapshot by its documents. A captured expectation is never changed, and a case that disagrees after a change means the change is wrong. When an Effect API moves, only `tests/behaviourCorpus/subjects.ts` adapts. No capture script remains, so a new case has to bring its own way of writing its expectation.
 
 ## The state machine
 

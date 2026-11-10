@@ -228,32 +228,32 @@ describe("getPhaxConfigJsonSchema", () => {
 // definitions, no generated descriptions, keys reordered). Their contract is
 // 0.35.0's: the same once each `$ref` is written in place, annotations are
 // dropped and `required` is read as a set.
+function contract(schema: unknown): unknown {
+  const document = schema as Record<string, unknown>;
+  const defs = (document["$defs"] ?? {}) as Record<string, unknown>;
+  const inline = (node: unknown): unknown => {
+    if (Array.isArray(node)) return node.map(inline);
+    if (node === null || typeof node !== "object") return node;
+    const { $ref, ...rest } = node as Record<string, unknown>;
+    const entries = Object.entries(rest)
+      .filter(
+        ([key, value]) =>
+          key !== "$defs" && !(key === "required" && Array.isArray(value) && value.length === 0),
+      )
+      .map(([key, value]) => [
+        key,
+        key === "required" && Array.isArray(value) ? value.toSorted() : inline(value),
+      ]);
+    const own = Object.fromEntries(entries) as Record<string, unknown>;
+    return typeof $ref === "string"
+      ? { ...(inline(defs[$ref.slice("#/$defs/".length)]) as object), ...own }
+      : own;
+  };
+  return withoutAnnotations(inline(document));
+}
+
 describe("the editor schemas against 0.35.0's", () => {
   const fixtures = join(import.meta.dirname, "../fixtures/editorSchemas/0.35.0");
-
-  function contract(schema: unknown): unknown {
-    const document = schema as Record<string, unknown>;
-    const defs = (document["$defs"] ?? {}) as Record<string, unknown>;
-    const inline = (node: unknown): unknown => {
-      if (Array.isArray(node)) return node.map(inline);
-      if (node === null || typeof node !== "object") return node;
-      const { $ref, ...rest } = node as Record<string, unknown>;
-      const entries = Object.entries(rest)
-        .filter(
-          ([key, value]) =>
-            key !== "$defs" && !(key === "required" && Array.isArray(value) && value.length === 0),
-        )
-        .map(([key, value]) => [
-          key,
-          key === "required" && Array.isArray(value) ? value.toSorted() : inline(value),
-        ]);
-      const own = Object.fromEntries(entries) as Record<string, unknown>;
-      return typeof $ref === "string"
-        ? { ...(inline(defs[$ref.slice("#/$defs/".length)]) as object), ...own }
-        : own;
-    };
-    return withoutAnnotations(inline(document));
-  }
 
   it.each([
     ["phax.schema.json", getPhaxConfigJsonSchema],
