@@ -5,7 +5,7 @@ completes-spec: true
 ---
 # Remove the Effect 4 migration tooling
 
-phax has run on Effect 4.1.2 since #198. This is the spec's last plan, and its run completes the spec. It removes the tooling that only the migration needed and keeps what still guards phax's behaviour. First, while the codemod still exists, it corrects the codemod's one remaining false positive (`Schema.ReadonlySet` already wrapped in `Schema.toCodecJson`, at `src/cli/definitions/plansOverlap.ts:25`) and proves §5.12 ("Nothing of v3 left"): `--check` lists no v3 symbol, and `pnpm typecheck` and `pnpm test:type` report zero errors. Second, it removes the codemod with its records, the `codemod:effect4` script, the `ts-morph` devDependency (offline, from both lockfiles), the codemod's tests, the vendored Effect migration material under `docs/vendor/`, `docs/effect-4-mapping.md`, the five `effect4-*` skills and their test. Third, it renames the behaviour corpus from `tests/effect4Corpus/` to `tests/behaviourCorpus/` (and `tests/unit/effect4Corpus/` to `tests/unit/behaviourCorpus/`), moving every case and baseline file byte for byte and updating every reader of the old paths. It also removes the corpus capture and densify scripts and replaces CONTRIBUTING.md's migration section with a short behaviour-corpus section.
+phax has run on Effect 4.1.2 since #198. This is the spec's last plan, and its run completes the spec. It removes the tooling that only the migration needed and keeps what still guards phax's behaviour. First, while the codemod still exists, it corrects the codemod's one remaining false positive (`Schema.ReadonlySet` already wrapped in `Schema.toCodecJson`, at `src/cli/definitions/plansOverlap.ts:25`) and proves §5.12 ("Nothing of v3 left"): `--check` lists no v3 symbol, and `pnpm typecheck` and `pnpm test:type` report zero errors. Second, it removes the codemod with its records, the `codemod:effect4` script, the `ts-morph` devDependency (from `package.json`; the installer rewrites the lockfile), the codemod's tests, the vendored Effect migration material under `docs/vendor/`, `docs/effect-4-mapping.md`, the five `effect4-*` skills and their test. Third, it renames the behaviour corpus from `tests/effect4Corpus/` to `tests/behaviourCorpus/` (and `tests/unit/effect4Corpus/` to `tests/unit/behaviourCorpus/`), moving every case and baseline file byte for byte and updating every reader of the old paths. It also removes the corpus capture and densify scripts and replaces CONTRIBUTING.md's migration section with a short behaviour-corpus section.
 
 Settled before this plan, not reopened: q-keep decided remove-at-end. The operator has already lifted the migration's protections in `phax.json` on main (no `protectedPaths`, no `effect-migration` profile, `tests/unit/effect4Codemod/gateProfile.test.ts` deleted), and this plan does not touch `phax.json`. The behaviour corpus stays under its new name. The rendered JSON Schemas keep Effect 4's rendering and are compared by documents.
 
@@ -20,8 +20,8 @@ Constraints every phase holds: no behaviour change. No source under `src/` or `p
 ## Technical arbitrations
 
 - Corpus capture and densify scripts: removed with the migration (`scripts/effect4-corpus-capture.ts`, `scripts/effect4-corpus-densify.ts`). The other option kept them under the corpus's name without the Effect 3 guard, so a new case could be captured from phax's current answers. Its loss decided against it: the guard's refusal of every effect major but 3 is itself an expectation in the corpus's capture test, so dropping it would move a test expectation. It would also let phax's current answer, right or wrong, become a case's expectation, which turns the corpus from a record of Effect 3's answers into a mirror of today's. Loss accepted: there is no tool to fill a new case's expectation, so the follow-up that adds cases (refused "NaN" strings, null optional keys) brings its own way of writing them. The capture primitives in `corpus.ts` (`captureCorpusFile`, `captureFile`) and their tests move byte for byte with the corpus: removing them would edit the corpus's tests, which this plan does not do.
-- Phase count and order: three phases. (1) The false-positive fix and the §5.12 proof stay alone, because the proof needs the codemod present and the removal commit cannot carry it. Loss accepted: one commit changes code that the next commit deletes. (2) The codemod, `ts-morph`, the vendored reference, the mapping doc and the five skills go in one commit, because `tests/unit/effect4Skills.test.ts` imports `scripts/effect4-codemod/owners.ts` and reads the vendored reference, so any split leaves a red tree. Loss accepted: one large deletion-only diff. (3) The corpus rename comes last and is the terminal phase. It is independent of the codemod, so every commit stays green, and the full `standard` profile then judges the final tree. The next phase's worktree setup (`pnpm install`) also exercises the lockfiles phase-02 edits by hand.
-- Offline removal of `ts-morph`: no agent command can run `pnpm remove` or `pnpm install`, and granting one would change `phax.json`, which is out of scope. So phase-02 edits the lockfiles by hand. In `pnpm-lock.yaml` it removes the root importer's `ts-morph` devDependency and the `packages:` and `snapshots:` entries of `ts-morph@28.0.0` and of each package only ts-morph's closure reaches (at plan time `@ts-morph/common@0.29.0`, `code-block-writer@13.0.3`, `path-browserify@1.0.1`, `minimatch@10.2.6` and `brace-expansion@5.0.12`, but not `tinyglobby@0.2.17`, which vite and vitest use). In `deno.lock` it removes the `npm:ts-morph@28.0.0` specifier, the workspace `packageJson` entry and the same closure's `npm` entries. An entry is pruned only when a search of the lockfile shows no other dependent. If the phase cannot settle whether an entry is exclusive, it keeps that entry and lists it in the handoff, so the operator can settle it with `pnpm install --offline` in the main checkout before merge. Loss accepted: no pnpm run validates the hand-edited lock inside the phase. The next phase's setup install is the first check.
+- Phase count and order: three phases. (1) The false-positive fix and the §5.12 proof stay alone, because the proof needs the codemod present and the removal commit cannot carry it. Loss accepted: one commit changes code that the next commit deletes. (2) The codemod, `ts-morph`, the vendored reference, the mapping doc and the five skills go in one commit, because `tests/unit/effect4Skills.test.ts` imports `scripts/effect4-codemod/owners.ts` and reads the vendored reference, so any split leaves a red tree. Loss accepted: one large deletion-only diff. (3) The corpus rename comes last and is the terminal phase. It is independent of the codemod, so every commit stays green, and the full `standard` profile then judges the final tree. The next phase's worktree setup (`pnpm install`) also rewrites `pnpm-lock.yaml` to match phase-02's `package.json`.
+- Removal of `ts-morph` from the lockfiles: no lockfile is edited by hand (operator decision, 2026-11-10). Phase-02 removes `ts-morph` from `package.json` only. Phase-03's worktree setup runs `pnpm install` (the `commands.setup` step in `phax.json`), which rewrites `pnpm-lock.yaml` without `ts-morph` and the packages only it reached, and phase-03 commits that rewrite. `deno.lock` is not edited by hand either: if a terminal Deno step rewrites it, phase-03 commits the rewrite, and otherwise the operator settles it at review. Loss accepted: phase-02's commit alone has a `package.json` and a `pnpm-lock.yaml` that disagree, so a frozen install fails at that commit; the pull request carries both, and every later commit agrees.
 - Vendored material: the removal also takes `docs/vendor/effect-skills/effect-v3-to-v4/` (the official skill's copy, its SOURCE and LICENSE). Its only reader is the `effect4-lookup` skill this plan deletes, and it is the same migration's vendored reference in the spec's sense. Loss accepted: the official skill's text and licence at the pinned version survive only in git history.
 - §5.10 ("each phase names one skill") bounds phases that migrate code. This plan migrates none, so each phase's first instruction names its source of scope instead: the codemod for phase-01, q-keep for phase-02, and the operator's rename decision for phase-03, since no topic skill exists after phase-02.
 - Model and effort follow the planning skill's policy. Phases that conform carry no reason, and the one departure states its reason on its own phase.
@@ -107,14 +107,14 @@ This is the codemod's last change. The next commit removes it.
 **Recommended model:** claude-sonnet-5-5
 **Recommended effort:** medium
 
-Delete everything that existed only to carry out the migration: the codemod with its records and tests, the `codemod:effect4` script, the `ts-morph` devDependency (removed offline from both lockfiles), the vendored Effect migration material, `docs/effect-4-mapping.md`, and the five `effect4-*` skills with their test. The tree then holds no tool that can run the migration, and `pnpm knip` reports nothing left behind.
+Delete everything that existed only to carry out the migration: the codemod with its records and tests, the `codemod:effect4` script, the `ts-morph` devDependency (from `package.json` only), the vendored Effect migration material, `docs/effect-4-mapping.md`, and the five `effect4-*` skills with their test. The tree then holds no tool that can run the migration, and `pnpm knip` reports nothing left behind.
 
 ### Detailed instructions
 
 - Follows: q-keep (remove-at-end) from the source spec. Delete only what that decision names, plus the config entries and docs that point at it. No topic skill applies, and this phase deletes them.
 - Delete with `git rm -r`: `scripts/effect4-codemod/` (every file, including `type-error-counts.json` and `passing-tests.json`), `tests/unit/effect4Codemod/` (every test and every fixture, including `__fixtures__/vitest-project/`; also remove any untracked `node_modules/` left under it), the six integration tests `tests/integration/effect4CodemodCli.test.ts`, `effect4CodemodRun.test.ts`, `effect4Counts.test.ts`, `effect4FailsMarkers.test.ts`, `effect4Ratchet.test.ts` and `effect4TestRatchet.test.ts`, `tests/unit/effect4Skills.test.ts`, the five skills `.claude/skills/effect4-core/`, `effect4-errors/`, `effect4-lookup/`, `effect4-schema/` and `effect4-services/`, the whole `docs/vendor/` tree (`effect-migration/effect@4.1.2/` and `effect-skills/effect-v3-to-v4/`), and `docs/effect-4-mapping.md`. The planned file lists enumerate every tracked file. Run `git ls-files` on each directory first, and report any tracked file the lists miss.
 - `package.json`: remove the `codemod:effect4` script and the `ts-morph` devDependency. Change nothing else.
-- Remove `ts-morph` from the lockfiles offline, by hand. Do not run `pnpm install`, `pnpm remove`, `deno install` or anything that reaches the network: none is a granted command, and phase sessions have no network. In `pnpm-lock.yaml`, remove the root importer's `ts-morph` devDependency entry, then the `packages:` and `snapshots:` entries of `ts-morph@28.0.0` and of every package that only ts-morph's closure reaches. At plan time that closure is `@ts-morph/common@0.29.0`, `code-block-writer@13.0.3`, `path-browserify@1.0.1`, `minimatch@10.2.6` and `brace-expansion@5.0.12`. `tinyglobby@0.2.17` stays, because vite and vitest depend on it. Before removing each entry, search the lockfile for another dependent at that version. In `deno.lock`, remove the `npm:ts-morph@28.0.0` specifier line, the `npm:ts-morph@28.0.0` line in the workspace `packageJson` dependencies, and the `npm` entries of the same closure, after the same check. Keep YAML indentation and JSON syntax exact, and touch no other entry. If you cannot settle whether an entry is exclusive, keep it and list it in the handoff for the operator to settle with `pnpm install --offline` in the main checkout.
+- Do not edit `pnpm-lock.yaml` or `deno.lock`, and run no installer (operator decision, 2026-11-10). Phase-03's worktree setup runs `pnpm install`, which rewrites `pnpm-lock.yaml` to match the `package.json` this phase commits.
 - `knip.json`: remove `tests/unit/effect4Codemod/__fixtures__/**` from `ignoreFiles`, keeping `tests/e2e/fixtures/**`.
 - `.oxfmtrc.json`: remove the `tests/unit/effect4Codemod/__fixtures__` ignore pattern. Leave the two `tests/effect4Corpus/...` patterns, which phase-03 renames.
 - `tsconfig.test.json`: remove `scripts/effect4-codemod/**/*.ts` from `include` and `tests/unit/effect4Codemod/__fixtures__` from `exclude`. Leave `scripts/effect4-corpus-capture.ts`, which phase-03 removes.
@@ -129,8 +129,6 @@ Delete everything that existed only to carry out the migration: the codemod with
 ### Planned files to edit
 
 - `package.json`
-- `pnpm-lock.yaml`
-- `deno.lock`
 - `knip.json`
 - `.oxfmtrc.json`
 - `tsconfig.test.json`
@@ -224,14 +222,14 @@ Delete everything that existed only to carry out the migration: the codemod with
 
 - the unit, integration and type test suites pass without the codemod and its tests — medium · smoke · pnpm test, pnpm typecheck and pnpm test:type passing · in-phase
 - nothing is left behind by the removal: no unused file, export or dependency — medium · smoke · pnpm knip's empty report · in-phase
-- ts-morph and the packages only it reached are gone from both lockfiles, every other entry unchanged — small · example · the diffs of pnpm-lock.yaml and deno.lock holding only removed lines for that closure · in-phase
+- ts-morph is gone from package.json and both lockfiles are untouched — small · example · the diff of package.json removing only the codemod:effect4 script and the ts-morph devDependency, and no diff of pnpm-lock.yaml or deno.lock · in-phase
 - CLAUDE.md and the remaining skills name Effect 4 and none of the removed skills, the codemod or the vendored reference — small · example · git grep for the removed names returning only archived records under docs/specs, docs/plans, docs/briefs, docs/upgrading.md and NEXT_STEPS.md · in-phase · ac-guidance
 
 ### Implementation order
 
 1. Delete the skills, their test, the codemod's tests and the integration tests.
 2. Delete `scripts/effect4-codemod/`, `docs/vendor/` and `docs/effect-4-mapping.md`.
-3. Edit `package.json`, then both lockfiles by hand.
+3. Edit `package.json`; leave both lockfiles.
 4. Edit `knip.json`, `.oxfmtrc.json` and `tsconfig.test.json`.
 5. Trim `CONTRIBUTING.md`, then run the leftover search.
 
@@ -239,7 +237,7 @@ Delete everything that existed only to carry out the migration: the codemod with
 
 - The corpus rename, the capture and densify scripts, and the corpus's CONTRIBUTING paragraph (phase-03).
 - Any change to `phax.json`, `src/`, `packages/` or the corpus.
-- Any dependency upgrade, or a lockfile change beyond ts-morph's closure.
+- Any dependency upgrade, and any lockfile change (phase-03 commits the installer's rewrite).
 - Editing archived specs, plans, briefs, `docs/upgrading.md` or `NEXT_STEPS.md`.
 
 ### Verification
@@ -248,7 +246,7 @@ The `standard` gate profile in `phax.json`, every-phase steps.
 
 ### Expected handoff content
 
-The exact lockfile entries removed from `pnpm-lock.yaml` and `deno.lock`, and any entry kept because its exclusivity could not be settled, so the operator can resolve it with `pnpm install --offline` in the main checkout. Any tracked file found under a deleted directory that the planned list missed. The leftover search's result. A note that phase-03 still owns `tests/effect4Corpus/`, `tests/unit/effect4Corpus/`, the two corpus scripts, the `tsconfig.test.json` capture entry, the two corpus patterns in `.oxfmtrc.json` and the corpus paragraph in `CONTRIBUTING.md`. Any deviation from the planned file lists, with the reason.
+Confirmation that neither lockfile changed. Any tracked file found under a deleted directory that the planned list missed. The leftover search's result. A note that phase-03 still owns `tests/effect4Corpus/`, `tests/unit/effect4Corpus/`, the two corpus scripts, the `tsconfig.test.json` capture entry, the two corpus patterns in `.oxfmtrc.json` and the corpus paragraph in `CONTRIBUTING.md`. Any deviation from the planned file lists, with the reason.
 
 ### Commit subject
 
@@ -258,7 +256,7 @@ The exact lockfile entries removed from `pnpm-lock.yaml` and `deno.lock`, and an
 
 The Effect 4 migration is complete, and the spec's q-keep decision (remove-at-end) has its last plan remove the tooling. This removes the codemod under scripts/effect4-codemod/ with its type-error counts and passing-tests records, the codemod:effect4 script, the ts-morph devDependency, the codemod's unit and integration tests, the vendored Effect migration reference and official skill copy under docs/vendor/, docs/effect-4-mapping.md, and the five effect4-* skills with their test. knip.json, .oxfmtrc.json and tsconfig.test.json lose their entries for the codemod's fixtures, and CONTRIBUTING.md loses its paragraphs on the codemod, the ratchet, the lifted protections and the skills.
 
-ts-morph is removed from pnpm-lock.yaml and deno.lock by hand, offline, together with the packages only it reached. No other entry changes. Git history and the earlier commit bodies keep the codemod's record. No source, test expectation, snapshot or history lock changes.
+ts-morph leaves package.json only: the next commit carries the lockfile the installer rewrites. Git history and the earlier commit bodies keep the codemod's record. No source, test expectation, snapshot or history lock changes.
 
 ---
 
@@ -273,7 +271,7 @@ The behaviour corpus that still guards phax's refusal lines, frozen decoders, pa
 ### Detailed instructions
 
 - Follows: the operator's rename decision (2026-11-10) and the capture-script arbitration in this plan's preamble. No topic skill remains: phase-02 removed them.
-- First check that `pnpm-lock.yaml` and `deno.lock` are unchanged after the worktree setup's `pnpm install`. If the install rewrote either one (phase-02 edited both by hand), commit that rewrite in this phase and explain it in the handoff. Make no other lockfile change.
+- The worktree setup's `pnpm install` rewrites `pnpm-lock.yaml` without `ts-morph`, which phase-02 removed from `package.json`. Check that the rewrite removes only `ts-morph` and the packages only it reached, and commit it in this phase. Edit neither lockfile by hand. If a terminal Deno step rewrites `deno.lock`, commit that rewrite too. Explain both in the handoff.
 - Move the corpus with `git mv tests/effect4Corpus tests/behaviourCorpus`. Every file under `cases/` and `baseline/`, plus `corpus.ts` and `subjects.ts`, keeps its bytes. Their relative imports into `src/` and `packages/` sit at the same depth, so none changes. Do not reformat, re-sort or re-capture anything.
 - Move the corpus tests with `git mv tests/unit/effect4Corpus tests/unit/behaviourCorpus`. In each moved test, change only the old paths: `../../effect4Corpus/` becomes `../../behaviourCorpus/` in imports and `new URL(...)` paths, `"effect4Corpus"` becomes `"behaviourCorpus"` in `join(...)` segments, and `tests/effect4Corpus/` becomes `tests/behaviourCorpus/` in path strings and comments. In `replay.test.ts`, the message for a case with no captured expectation names the removed capture script. Rewrite it to say the case has no captured expectation and that the corpus records Effect 3's answers (see CONTRIBUTING.md, "The behaviour corpus"). In `package.test.ts`, the header comment names the capture script. Say instead that the baseline was captured on Effect 3. Change no `describe`/`it` name, assertion or expected value.
 - Update every other reader of the old paths: `scripts/schemas-check.ts` (the `corpus.js` import, the doc comment and `CORPUS_FORMATS_DIR`), `tests/unit/schemasPackage/effect4Exports.test.ts` and `tests/unit/schemasPackage/shippedJson.test.ts` (their baseline paths), and `tests/unit/schemas/refusal/formatters.test.ts` (the corpus directory it scans). Keep the file names `effect4Exports.test.ts` and the rest: renaming them is not in scope.
@@ -392,6 +390,7 @@ The behaviour corpus that still guards phax's refusal lines, frozen decoders, pa
 - `.oxfmtrc.json`
 - `tsconfig.test.json`
 - `CONTRIBUTING.md`
+- `pnpm-lock.yaml`
 - `scripts/effect4-corpus-capture.ts`
 - `scripts/effect4-corpus-densify.ts`
 - `tests/effect4Corpus/corpus.ts`
@@ -493,7 +492,7 @@ The behaviour corpus that still guards phax's refusal lines, frozen decoders, pa
 
 ### Optional files that may be edited
 
-- (none)
+- `deno.lock`
 
 ### Boundary contracts
 
@@ -512,7 +511,7 @@ The schemas check (`scripts/schemas-check.ts`, the consumer) reads the corpus's 
 
 ### Implementation order
 
-1. Check the lockfiles after setup.
+1. Check and keep the setup install's lockfile rewrite.
 2. `git mv` both corpus directories.
 3. Update the moved tests' paths and the two comment and message lines.
 4. Update `scripts/schemas-check.ts`, the schemas package tests and the formatters test.
@@ -532,7 +531,7 @@ The `standard` gate profile in `phax.json`, every-phase and terminal steps: `che
 
 ### Expected handoff content
 
-The `git diff --find-renames --stat` summary showing every corpus file as a 100% rename. The list of readers updated. Whether the setup install rewrote either lockfile, and what was committed if it did. The CONTRIBUTING.md section's final heading. The terminal profile's result, step by step. Any deviation from the planned file lists, with the reason.
+The `git diff --find-renames --stat` summary showing every corpus file as a 100% rename. The list of readers updated. What the setup install removed from `pnpm-lock.yaml`, and whether `deno.lock` changed and was committed. The CONTRIBUTING.md section's final heading. The terminal profile's result, step by step. Any deviation from the planned file lists, with the reason.
 
 ### Commit subject
 
