@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2611071052-effect-4-migration.md
 completes-spec: true
 approved:
