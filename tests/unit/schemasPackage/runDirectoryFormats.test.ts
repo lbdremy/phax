@@ -1,4 +1,4 @@
-import { Result, type Schema } from "effect";
+import { Result, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import { FORMAT_DEFINITIONS } from "../../../packages/schemas/build/jsonSchemas.js";
 import { CURRENT_SHAPES, PACKAGE_VERSION } from "../../../packages/schemas/src/generated/index.js";
@@ -7,6 +7,7 @@ import {
   parseDocument,
   parsePhaseStatus,
   parsePhaxPlan,
+  PhaseStatusSchema,
   parseRegistry,
   parseRunStatus,
   toLatestComplianceReview,
@@ -208,6 +209,26 @@ describe.each([
 
   it("rejects a document that carries both $schema and version", () => {
     expect(parse(withKey(written, "version", 1)).ok).toBe(false);
+  });
+});
+
+// The exported Schema value refuses an unknown key on a stop by itself, as
+// Effect 3's per-node option did: a consumer composing it needs no decode option.
+describe("the exported PhaseStatusSchema's stop", () => {
+  const waiting = { ...validDocuments["phase-status"], stop: { cause: "held", status: "waiting" } };
+
+  it("accepts a stop that names only its own keys", () => {
+    expect(Result.isSuccess(Schema.decodeUnknownResult(PhaseStatusSchema)(waiting))).toBe(true);
+  });
+
+  it("refuses an unknown key on the stop, with no decode option", () => {
+    const extra = { ...waiting, stop: { ...waiting.stop, extra: 1 } };
+    expect(Result.isFailure(Schema.decodeUnknownResult(PhaseStatusSchema)(extra))).toBe(true);
+  });
+
+  it("still ignores an unknown key outside the stop", () => {
+    const extra = { ...waiting, extra: 1 };
+    expect(Result.isSuccess(Schema.decodeUnknownResult(PhaseStatusSchema)(extra))).toBe(true);
   });
 });
 
