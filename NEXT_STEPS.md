@@ -22,25 +22,13 @@ briefs of live or unspecced work.
       questions: revise an authored spec or plan through its kept session. Moved up 2026-11-10
       (operator): revising an authored artifact is needed often.
 
-### 2. Security: the user layer
+### 2. Review findings: ids and fates
 
-- [ ] **Follow-up: an opt-out for the user layer** — to brief. Project-only sources also drop the
-      operator's own `permissions.deny` rules and hooks, so in unsafe mode nothing else blocks
-      what they blocked; and a Bedrock, Vertex or gateway setup in user settings switches silently
-      to another credential when one is available. Both are documented in `docs/security.md`
-      (accepted by the operator 2026-11-06). The follow-up weighs a recorded opt-out (`loaded`)
-      and detecting the account switch (the spec's `q-opt-out`, kept out of the first slice).
-
-### 3. The review line
 
 - [ ] **`finding-ids-and-fates`** — spec Approved (2026-11-04), no plan yet. Review findings get
       stable ids and a recorded fate; the operator's interactive flow first.
-- [ ] **`review-map`** — `docs/briefs/review-map.md` (2026-10-23), spec to author. phax computes,
-      without a model, where review attention belongs (criteria no test proves, skipped
-      acceptance tests, phases that needed fixes, the run's review notes) and gives it to the
-      review session. `headless-review` was abandoned 2026-11-05 in favour of this line.
 
-### 4. The project doctrine
+### 3. The project doctrine
 
 - [ ] **`project-doctrine`** — `docs/specs/2611051057-project-doctrine.md`, Draft (2026-11-05),
       10 open questions, kept for the operator to think over (brief:
@@ -55,10 +43,7 @@ briefs of live or unspecced work.
       reaches only decide, after the choice, and the operator's rules live in `CLAUDE.md` and an
       assistant's memory.
 
-### 5. What `command-contracts` unblocks
-
-`command-contracts` is complete (plans 1 to 4, #184, #185, #187, #188, merged 2026-11-05):
-every command answers through the runner, and the bridge is gone.
+### 4. The knowledge index
 
 - [ ] **`knowledge-index`** — `docs/briefs/knowledge-index.md` (2026-11-04), spec to author. A local,
       rebuildable index (SQLite, FTS5) of what the repository and its runs hold — specs, plans,
@@ -66,10 +51,17 @@ every command answers through the runner, and the bridge is gone.
       command line in versioned JSON instead of grep; Git stays the source of truth. Milestone 2,
       out of its scope: a shared service mirroring a team's repositories and records, exposed as a
       remote MCP server.
-- [ ] **`claude-code-mod`** — `docs/briefs/claude-code-mod.md` (2026-11-03), spec to author. The
-      cockpit starts as a Claude Code mod: a pane and a band showing the current repository's
-      inbox, specs, plans and runs, read from phax's versioned JSON, writing nothing. It needs a
-      coverage level (§9 Q1), and can read the knowledge index once it exists.
+      After `project-doctrine` (operator, 2026-11-10): the doctrine's entries are among what it
+      indexes.
+
+### 5. Security: the user layer
+
+- [ ] **Follow-up: an opt-out for the user layer** — to brief. Project-only sources also drop the
+      operator's own `permissions.deny` rules and hooks, so in unsafe mode nothing else blocks
+      what they blocked; and a Bedrock, Vertex or gateway setup in user settings switches silently
+      to another credential when one is available. Both are documented in `docs/security.md`
+      (accepted by the operator 2026-11-06). The follow-up weighs a recorded opt-out (`loaded`)
+      and detecting the account switch (the spec's `q-opt-out`, kept out of the first slice).
 
 ### 6. Before 1.0
 
@@ -85,7 +77,21 @@ every command answers through the runner, and the bridge is gone.
 - [ ] **`code-repository`** — `docs/briefs/code-repository.md` (2026-11-02), spec to author: a
       project whose process lives in one repository and whose code in another, checked out
       inside it.
+- [ ] **`review-map`** — `docs/briefs/review-map.md` (2026-10-23), spec to author. phax computes,
+      without a model, where review attention belongs (criteria no test proves, skipped
+      acceptance tests, phases that needed fixes, the run's review notes) and gives it to the
+      review session. `headless-review` was abandoned 2026-11-05 in favour of this line.
+      Deprioritised 2026-11-10 (operator): wait until steme is well advanced.
 - [ ] The small follow-ups below, in batches.
+
+## A parallel track: the cockpit
+
+- [ ] **`claude-code-mod`** — `docs/briefs/claude-code-mod.md` (2026-11-03), spec to author. The
+      cockpit starts as a Claude Code mod: a pane and a band showing the current repository's
+      inbox, specs, plans and runs, read from phax's versioned JSON, writing nothing. It needs a
+      coverage level (§9 Q1), and can read the knowledge index once it exists.
+      Its own track since 2026-11-10 (operator): `command-contracts` already gives it the
+      versioned JSON it reads, so it runs beside the main queue, not after it.
 
 ## Model policy tracking
 
