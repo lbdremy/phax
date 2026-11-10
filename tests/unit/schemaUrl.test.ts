@@ -1,3 +1,5 @@
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import { Result, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import { findJsonSchemaGaps } from "../../packages/schemas/build/jsonSchemas.js";
@@ -184,5 +186,59 @@ describe("compareReleases", () => {
     expect(compareReleases("1.0.0", "0.99.99")).toBeGreaterThan(0);
     expect(compareReleases("0.16.2", "0.16.10")).toBeLessThan(0);
     expect(compareReleases("0.16.0", "0.16.0")).toBe(0);
+  });
+});
+
+// The published JSON Schema describes what phax's decoders accept, not the
+// encoded side of Effect's JSON codec.
+describe("draft07JsonSchema as the decoders read it", () => {
+  const properties = (schema: Schema.Top): Record<string, unknown> =>
+    (draft07JsonSchema(schema) as { properties: Record<string, unknown> }).properties;
+
+  it("refuses the strings NaN and Infinity in a number, as the decoder does", () => {
+    const Subject = Schema.Struct({ count: Schema.Number });
+    expect(properties(Subject)["count"]).toEqual({ type: "number" });
+    expect(Result.isFailure(Schema.decodeUnknownResult(Subject)({ count: "NaN" }))).toBe(true);
+  });
+
+  it("refuses null in an optional key, as the decoder does", () => {
+    const Subject = Schema.Struct({ note: Schema.optional(Schema.String) });
+    expect(properties(Subject)["note"]).toEqual({ type: "string" });
+    expect(Result.isFailure(Schema.decodeUnknownResult(Subject)({ note: null }))).toBe(true);
+  });
+
+  it("keeps null where the decoder accepts it: a required nullable key and an optional nullable one", () => {
+    const Subject = Schema.Struct({
+      reason: Schema.NullOr(Schema.String),
+      code: Schema.optional(Schema.NullOr(Schema.Number)),
+    });
+    expect(properties(Subject)).toEqual({
+      reason: { anyOf: [{ type: "string" }, { type: "null" }] },
+      code: { anyOf: [{ type: "number" }, { type: "null" }] },
+    });
+    expect(
+      Result.isSuccess(Schema.decodeUnknownResult(Subject)({ reason: null, code: null })),
+    ).toBe(true);
+  });
+
+  // `optionalKey(NullOr(X))` renders with one `null`, which the published form
+  // cannot tell from an optional key's `undefined`, so it would lose it.
+  // `optional(NullOr(X))` renders with two and keeps one.
+  it("finds no optionalKey(NullOr(…)) in the sources, whose null the published form would drop", () => {
+    const root = join(import.meta.dirname, "../..");
+    const sources = (dir: string): ReadonlyArray<string> =>
+      readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
+        entry.isDirectory()
+          ? sources(join(dir, entry.name))
+          : entry.name.endsWith(".ts")
+            ? [join(dir, entry.name)]
+            : [],
+      );
+    const offenders = [join(root, "src"), join(root, "packages/schemas/src")]
+      .flatMap(sources)
+      .filter((file) =>
+        /optionalKey\(\s*(Schema\.)?(NullOr|NullishOr)\(/.test(readFileSync(file, "utf8")),
+      );
+    expect(offenders).toEqual([]);
   });
 });
