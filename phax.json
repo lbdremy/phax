@@ -21,6 +21,8 @@
       "git cat-file",
       "git ls-tree",
       "git grep",
+      "git rm",
+      "git mv",
       "pnpm test:integration",
       "node"
     ]
