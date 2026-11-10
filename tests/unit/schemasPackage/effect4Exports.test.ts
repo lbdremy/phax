@@ -11,7 +11,7 @@ import * as schemasPackage from "../../../packages/schemas/src/index.js";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const baseline: unknown = JSON.parse(
-  readFileSync(join(repoRoot, "tests/effect4Corpus/baseline/package-exports.json"), "utf8"),
+  readFileSync(join(repoRoot, "tests/behaviourCorpus/baseline/package-exports.json"), "utf8"),
 );
 const names = Array.isArray(baseline)
   ? baseline.filter((name): name is string => typeof name === "string")

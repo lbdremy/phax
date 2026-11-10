@@ -1,9 +1,9 @@
-// The schemas package, frozen at its Effect 3 state for the migration: its runtime
-// export names and the bytes of its released JSON Schema snapshots are those captured
-// by scripts/effect4-corpus-capture.ts into tests/effect4Corpus/baseline/. Moving to
-// Effect 4 changes how the package is built, never what it exports or what its released
-// shapes are, so this test stays byte-identical through the migration. It imports no
-// Effect module itself; the package it reads does.
+// The schemas package, frozen at its Effect 3 state: its runtime export names and the
+// bytes of its released JSON Schema snapshots are the baseline captured on Effect 3, kept
+// in tests/behaviourCorpus/baseline/. Moving to Effect 4 changes how the package is built,
+// never what it exports or what its released shapes are, so this test stays
+// byte-identical through the migration. It imports no Effect module itself; the package
+// it reads does.
 import { createHash } from "node:crypto";
 import { readFileSync, readdirSync } from "node:fs";
 import { join, relative, sep } from "node:path";
@@ -12,7 +12,7 @@ import { describe, expect, it } from "vitest";
 import * as schemasPackage from "../../../packages/schemas/src/index.js";
 
 const repoRoot = fileURLToPath(new URL("../../../", import.meta.url));
-const baselineRoot = join(repoRoot, "tests", "effect4Corpus", "baseline");
+const baselineRoot = join(repoRoot, "tests", "behaviourCorpus", "baseline");
 const snapshotsRoot = join(repoRoot, "packages", "schemas", "snapshots");
 
 function readBaseline(name: string): unknown {

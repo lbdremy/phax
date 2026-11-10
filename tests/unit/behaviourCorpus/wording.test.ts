@@ -6,9 +6,9 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { listCaseFiles, parseCaseFile } from "../../effect4Corpus/corpus.js";
+import { listCaseFiles, parseCaseFile } from "../../behaviourCorpus/corpus.js";
 
-const casesRoot = fileURLToPath(new URL("../../effect4Corpus/cases/", import.meta.url));
+const casesRoot = fileURLToPath(new URL("../../behaviourCorpus/cases/", import.meta.url));
 // Effect's descriptions of a whole type: an object or array type, a tuple, or one
 // side of a transformed struct.
 const WHOLE_TYPE = /Expected (\{ |ReadonlyArray<|readonly \[)|\((Encoded|Type) side\)/;

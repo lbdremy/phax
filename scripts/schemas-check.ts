@@ -51,7 +51,7 @@ import {
   type SnapshotFormat,
 } from "../packages/schemas/build/snapshots.js";
 import { FORMAT_IDS, type FormatId } from "../src/schemas/schemaUrl.js";
-import { isCaseFile, parseCorpusFile } from "../tests/effect4Corpus/corpus.js";
+import { isCaseFile, parseCorpusFile } from "../tests/behaviourCorpus/corpus.js";
 
 const PACKAGE_DIR = "packages/schemas";
 const GENERATED_INDEX = "src/generated/index.ts";
@@ -82,7 +82,7 @@ export interface SchemasState {
   readonly formats: ReadonlyArray<SnapshotFormat>;
   /**
    * Format id (and `record-manifest`) → its corpus documents, the inputs of
-   * tests/effect4Corpus/cases/formats/<id>.json, which judge a generated
+   * tests/behaviourCorpus/cases/formats/<id>.json, which judge a generated
    * schema against a released one. An injected state may leave them out.
    */
   readonly documents?: ReadonlyMap<string, ReadonlyArray<unknown>>;
@@ -146,7 +146,7 @@ function listFiles(root: string): string[] {
   );
 }
 
-const CORPUS_FORMATS_DIR = "tests/effect4Corpus/cases/formats";
+const CORPUS_FORMATS_DIR = "tests/behaviourCorpus/cases/formats";
 /** The repository this script belongs to. */
 const OWN_ROOT = join(fileURLToPath(import.meta.url), "../..");
 

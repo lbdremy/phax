@@ -174,7 +174,7 @@ describe("the source", () => {
     const trees = [
       ...["schemas", "domain", "app", "cli"].flatMap((layer) => sources(join(root, "src", layer))),
       ...sources(join(root, "packages/schemas/src")),
-      ...sources(join(root, "tests/effect4Corpus")),
+      ...sources(join(root, "tests/behaviourCorpus")),
     ];
     const offenders = trees
       .filter((path) => !path.endsWith(join("schemas", "refusal", "adapter.ts")))

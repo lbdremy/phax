@@ -16,7 +16,7 @@ import {
   type Expected,
   type FormatCaseFile,
   type Replay,
-} from "../../effect4Corpus/corpus.js";
+} from "../../behaviourCorpus/corpus.js";
 
 const captured: Expected = { ok: false, refusal: "kept: is missing" };
 

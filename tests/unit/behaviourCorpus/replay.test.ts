@@ -1,8 +1,8 @@
-// Replays the behaviour corpus: every case under tests/effect4Corpus/cases/
+// Replays the behaviour corpus: every case under tests/behaviourCorpus/cases/
 // decodes to the expectation captured on Effect 3, compared through the
 // canonical encoder. Effect-free and subject-free: it walks the case files, so a
 // case file added later is replayed without an edit here. Later plans keep this
-// file byte-identical; only tests/effect4Corpus/subjects.ts migrates.
+// file byte-identical; only tests/behaviourCorpus/subjects.ts migrates.
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -12,10 +12,10 @@ import {
   parseCaseFile,
   subjectOfPath,
   type CaseFile,
-} from "../../effect4Corpus/corpus.js";
-import { replay } from "../../effect4Corpus/subjects.js";
+} from "../../behaviourCorpus/corpus.js";
+import { replay } from "../../behaviourCorpus/subjects.js";
 
-const casesRoot = fileURLToPath(new URL("../../effect4Corpus/cases/", import.meta.url));
+const casesRoot = fileURLToPath(new URL("../../behaviourCorpus/cases/", import.meta.url));
 
 const files: ReadonlyArray<{ readonly path: string; readonly file: CaseFile }> = listCaseFiles(
   casesRoot,
@@ -37,7 +37,7 @@ describe("behaviour corpus", () => {
       it(`${file.subject} ${c.name}`, () => {
         if (c.expected === null) {
           throw new Error(
-            `${file.subject} ${c.name}: no captured expectation; run pnpm exec tsx scripts/effect4-corpus-capture.ts on Effect 3`,
+            `${file.subject} ${c.name}: no captured expectation; the corpus records Effect 3's answers (see CONTRIBUTING.md, "The behaviour corpus")`,
           );
         }
         expect(canonicalJson(replay(file.subject, c.input))).toBe(canonicalJson(c.expected));

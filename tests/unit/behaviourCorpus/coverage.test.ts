@@ -20,10 +20,10 @@ import {
   parseCorpusFile,
   type CorpusFile,
   type FormatCaseFile,
-} from "../../effect4Corpus/corpus.js";
+} from "../../behaviourCorpus/corpus.js";
 
 const repoRoot = fileURLToPath(new URL("../../../", import.meta.url));
-const formatsRoot = `${repoRoot}tests/effect4Corpus/cases/formats/`;
+const formatsRoot = `${repoRoot}tests/behaviourCorpus/cases/formats/`;
 const snapshotsRoot = `${repoRoot}packages/schemas/snapshots/`;
 
 type JsonObject = Readonly<Record<string, unknown>>;
@@ -299,7 +299,7 @@ const WRITTEN_FORMATS = [
   "plan-lint",
 ];
 
-const encodeRoot = `${repoRoot}tests/effect4Corpus/cases/encode/`;
+const encodeRoot = `${repoRoot}tests/behaviourCorpus/cases/encode/`;
 
 const ids = formatIds();
 const modules = frozenModules();

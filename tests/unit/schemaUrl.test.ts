@@ -191,10 +191,20 @@ describe("compareReleases", () => {
 
 // The published JSON Schema describes what phax's decoders accept, not the
 // encoded side of Effect's JSON codec.
-describe("draft07JsonSchema as the decoders read it", () => {
-  const properties = (schema: Schema.Top): Record<string, unknown> =>
-    (draft07JsonSchema(schema) as { properties: Record<string, unknown> }).properties;
+const properties = (schema: Schema.Top): Record<string, unknown> =>
+  (draft07JsonSchema(schema) as { properties: Record<string, unknown> }).properties;
 
+// Every `.ts` file under `dir`, recursively.
+const sources = (dir: string): ReadonlyArray<string> =>
+  readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
+    entry.isDirectory()
+      ? sources(join(dir, entry.name))
+      : entry.name.endsWith(".ts")
+        ? [join(dir, entry.name)]
+        : [],
+  );
+
+describe("draft07JsonSchema as the decoders read it", () => {
   it("refuses the strings NaN and Infinity in a number, as the decoder does", () => {
     const Subject = Schema.Struct({ count: Schema.Number });
     expect(properties(Subject)["count"]).toEqual({ type: "number" });
@@ -226,14 +236,6 @@ describe("draft07JsonSchema as the decoders read it", () => {
   // `optional(NullOr(X))` renders with two and keeps one.
   it("finds no optionalKey(NullOr(…)) in the sources, whose null the published form would drop", () => {
     const root = join(import.meta.dirname, "../..");
-    const sources = (dir: string): ReadonlyArray<string> =>
-      readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
-        entry.isDirectory()
-          ? sources(join(dir, entry.name))
-          : entry.name.endsWith(".ts")
-            ? [join(dir, entry.name)]
-            : [],
-      );
     const offenders = [join(root, "src"), join(root, "packages/schemas/src")]
       .flatMap(sources)
       .filter((file) =>
