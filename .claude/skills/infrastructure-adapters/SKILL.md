@@ -15,9 +15,9 @@ side effects (filesystem, shell, git, Claude, editor, clock) are allowed.
 
 | Port (`src/ports/`)      | Adapter (`src/infra/`)            | What it wraps                                                    |
 | ------------------------ | --------------------------------- | ---------------------------------------------------------------- |
-| `fs.ts` (FileSystem)     | `fs.ts` (NodeFileSystem)          | `@effect/platform/FileSystem`; `writeAtomic` uses temp-rename    |
-| `git.ts` (Git)           | `git.ts` (NodeGit)                | `git` CLI via `@effect/platform/Command`                         |
-| `shell.ts` (Shell)       | `shell.ts` (NodeShell)            | `@effect/platform/Command`; opaque argv arrays, no interpolation |
+| `fs.ts` (FileSystem)     | `fs.ts` (NodeFileSystem)          | `node:fs/promises`; `writeAtomic` uses temp-rename               |
+| `git.ts` (Git)           | `git.ts` (NodeGit)                | `git` CLI via `node:child_process` `execFile`                    |
+| `shell.ts` (Shell)       | `shell.ts` (NodeShell)            | `node:child_process` `spawn`; opaque argv arrays, no interpolation |
 | `backend.ts` (Backend)   | `claudeCli.ts` (ClaudeCliBackend) | `claude` CLI; streams JSONL, captures session id                 |
 | `editor.ts` (Editor)     | `editor.ts` (NodeEditor)          | Configured editor command                                        |
 | `lock.ts` (Lock)         | `lock.ts` (FileLock)              | Lock files under `~/.phax/locks/`                                |
@@ -51,7 +51,7 @@ in the default test suite.
 
 ## How to write a new adapter
 
-1. Define the port interface in `src/ports/<name>.ts` as an Effect `Context.Tag`.
+1. Define the port interface in `src/ports/<name>.ts` as an Effect `Context.Service`.
 2. Implement the adapter in `src/infra/<name>.ts` as a `Layer`.
 3. Add a fake in `src/infra/fakes/Fake<Name>.ts` implementing the same tag.
 4. Provide the real adapter layer in `cli/main.ts`; provide the fake in tests.

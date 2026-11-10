@@ -73,7 +73,9 @@ import {
   registryFormat,
   runStatusFormat,
 } from "../../../packages/schemas/src/formats/runDirectory.js";
+import { judgeEquivalence } from "../../../packages/schemas/build/equivalence.js";
 import { CURRENT_SHAPES } from "../../../packages/schemas/src/generated/index.js";
+import { readCorpusDocuments } from "../../../scripts/schemas-check.js";
 import { writeJsonSchemas } from "../../../scripts/schemas-json.js";
 import { BranchNameSchema } from "../../../src/domain/branded.js";
 import { decodeRecordManifestFile } from "../../../src/schemas/authoringRecord.js";
@@ -291,11 +293,17 @@ describe("renderJsonSchemas over the real table", () => {
   });
 
   // A headless authoring session answers the published document schema
-  // itself: the answer schema phax states and prints is the current snapshot.
+  // itself: the answer schema phax states and prints is the current snapshot,
+  // equal by the corpus documents both accept and refuse (§5.19).
   it.each(["spec-document", "plan-document"] as const)(
     "%s: the authoring answer schema is its current file snapshot",
     (format) => {
-      expect(answerJsonSchema(format)).toEqual(readSnapshot(format, CURRENT_SHAPES[format]));
+      const verdict = judgeEquivalence({
+        released: readSnapshot(format, CURRENT_SHAPES[format]),
+        generated: answerJsonSchema(format),
+        documents: readCorpusDocuments(join(import.meta.dirname, "../../..")).get(format) ?? [],
+      });
+      expect(verdict).toEqual({ equivalent: true, disagreements: [], problem: null });
     },
   );
 });

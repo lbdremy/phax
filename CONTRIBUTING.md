@@ -24,7 +24,7 @@ The end-to-end suite runs only when `PHAX_E2E_RUN=1` is set. It has one real flo
 
 ## The Effect 4 migration
 
-These tools exist for the Effect 3 to 4 migration and leave with its last plan.
+phax now runs on Effect 4. These tools exist for the Effect 3 to 4 migration and stay, described here, until its last plan removes them.
 
 `pnpm codemod:effect4` rewrites the TypeScript under `src`, `tests`, `scripts`, `site` and `packages/schemas`. It prints the rewrites per rule, one line per v3 symbol it left, by file and line and prefixed with the `effect4-*` skill that owns it, and the type-error counts of `src` and of the test suite before and after. `pnpm codemod:effect4 --check` writes nothing and exits 1 when any file would change. `pnpm codemod:effect4 --ratchet` compares the measured counts with `scripts/effect4-codemod/type-error-counts.json` as committed at `HEAD`, fails when either count went up or when `package.json`'s scripts differ from `HEAD`'s, and otherwise writes the new counts for the next phase. It is the only writer of that file. The codemod needs no network and never reformats, so run `pnpm format` after it.
 
