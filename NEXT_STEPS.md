@@ -5,14 +5,13 @@ codebase history, and retired artifacts live in `docs/plans/archive/` and
 `docs/specs/archive/`. Tick items off as they land, prune them once they are in the
 history, and delete this file when it is empty.
 
-Last pruned 2026-10-25. Since the previous prune (2026-10-19, v0.25.0), 0.26.0 shipped, and
-these specs landed and were completed: `planning-skill-defaults` (two plans), `assignment-bounds`
-(three plans), `oracle-phases` (three plans) and `interactive-phases` (three plans), all in
-0.26.0; then `surface-summary` (#162) and the specless `small-fixes-0-27` plan (#163), both for
-0.27.0. `phase-model-assignment`, `upgrade-hints`, `auto-migrate` and the first drafts of
-`oracle-phases` and `interactive-phases` were abandoned.
+Last pruned 2026-11-10. Since the previous prune (2026-10-25), these landed and left the
+queue: the harness items `phase-prompt-names-the-gate` (#189) and `gate-step-partial-commands`
+(#191), `project-only-claude-sessions` (#190, which also answered the 1.0 check on Claude Code
+mods in phase sessions), `commit-trailers-paths` (#193), `records-branch-tip` (#194), and the
+Effect 4 migration (spec `effect-4-migration`, four plans, #195, #196, #198, #199).
 
-## The queue, as of 2026-11-05
+## The queue, as of 2026-11-10
 
 In order. Briefs of work done live in `docs/briefs/archive/`; `docs/briefs/` holds only the
 briefs of live or unspecced work.
@@ -24,23 +23,14 @@ briefs of live or unspecced work.
       phases). Optional: no skill teaches that the criterion ids `acceptance`, `in-phase` and
       `oracle` are reserved; only lint reports it.
 
-### 2. The harness, from the records (`docs/ideas/harness-from-records.md`)
+### 2. Revise a Draft artifact
 
-Cheap, and every run gains from it: the phase prompt says what the gate runs, and the project
-names the narrow check of each step.
+- [ ] **`artifact-revise`** — `docs/specs/2610271505-artifact-revise.md`, Draft with 2 open
+      questions: revise an authored spec or plan through its kept session. Moved up 2026-11-10
+      (operator): revising an authored artifact is needed often.
 
-- [x] **`phase-prompt-names-the-gate`** — merged 2026-11-05 (#189): the phase prompt's `## Gate`
-      section lists the steps the gate runs after the session.
-- [x] **`gate-step-partial-commands`** — merged 2026-11-06 (#191): a gate step's `partial`
-      names cheaper `files` and `diff` commands, shown in the `## Gate` section and allowed
-      per pipe segment in secure mode; `phax validate` and the dry-run list what they allow.
+### 3. Security: the user layer
 
-### 3. Security: project-only Claude sessions
-
-- [x] **`project-only-claude-sessions`** — merged 2026-11-06 (#190): headless Claude Code
-      sessions launch with `--setting-sources project` and auto-memory off, records say
-      `userConfig`, and a lost authentication fails as `not-authenticated`. It answers the 1.0
-      item "user-installed Claude Code mods in phase sessions".
 - [ ] **Follow-up: an opt-out for the user layer** — to brief. Project-only sources also drop the
       operator's own `permissions.deny` rules and hooks, so in unsafe mode nothing else blocks
       what they blocked; and a Bedrock, Vertex or gateway setup in user settings switches silently
@@ -48,16 +38,7 @@ names the narrow check of each step.
       (accepted by the operator 2026-11-06). The follow-up weighs a recorded opt-out (`loaded`)
       and detecting the account switch (the spec's `q-opt-out`, kept out of the first slice).
 
-### 4. Small briefs to spec
-
-- [x] **`commit-trailers-paths`** — `docs/briefs/commit-trailers-paths-plan.md` (2026-11-04; straight to a plan, no spec). Merged #193. The
-      `Worktree:` and `Gate-Log:` trailers put the operator's home path into every repository's
-      history.
-- [x] **`records-branch-tip`** — `docs/briefs/records-branch-tip.md` (2026-11-04). Merged #194. A record
-      written into a fresh records clone has no common history with the remote, so the push of
-      `phax/records/v1` fails.
-
-### 5. The review line
+### 4. The review line
 
 - [ ] **`finding-ids-and-fates`** — spec Approved (2026-11-04), no plan yet. Review findings get
       stable ids and a recorded fate; the operator's interactive flow first.
@@ -66,7 +47,7 @@ names the narrow check of each step.
       acceptance tests, phases that needed fixes, the run's review notes) and gives it to the
       review session. `headless-review` was abandoned 2026-11-05 in favour of this line.
 
-### 6. The project doctrine
+### 5. The project doctrine
 
 - [ ] **`project-doctrine`** — `docs/specs/2611051057-project-doctrine.md`, Draft (2026-11-05),
       10 open questions, kept for the operator to think over (brief:
@@ -81,7 +62,7 @@ names the narrow check of each step.
       reaches only decide, after the choice, and the operator's rules live in `CLAUDE.md` and an
       assistant's memory.
 
-### 7. What `command-contracts` unblocks
+### 6. What `command-contracts` unblocks
 
 `command-contracts` is complete (plans 1 to 4, #184, #185, #187, #188, merged 2026-11-05):
 every command answers through the runner, and the bridge is gone.
@@ -97,7 +78,7 @@ every command answers through the runner, and the bridge is gone.
       inbox, specs, plans and runs, read from phax's versioned JSON, writing nothing. It needs a
       coverage level (§9 Q1), and can read the knowledge index once it exists.
 
-### 8. Before 1.0
+### 7. Before 1.0
 
 - [ ] The **CLI contract freeze** and the **persisted-format stability promise** (see "Road to
       1.0.0" below). The Effect 4 migration they waited on is done: spec `effect-4-migration`
@@ -106,13 +87,11 @@ every command answers through the runner, and the bridge is gone.
       protections; the behaviour corpus stays as `tests/behaviourCorpus/`). The schema-guide
       pitfalls it found went upstream as Effect-TS/effect#10525.
 
-### 9. Later
+### 8. Later
 
 - [ ] **`code-repository`** — `docs/briefs/code-repository.md` (2026-11-02), spec to author: a
       project whose process lives in one repository and whose code in another, checked out
       inside it.
-- [ ] **`artifact-revise`** — `docs/specs/2610271505-artifact-revise.md`, Draft with 2 open
-      questions: revise an authored spec or plan through its kept session.
 - [ ] The small follow-ups below, in batches.
 
 ## Model policy tracking
@@ -186,31 +165,6 @@ except `isolated` mode, which the post itself disclaims. The feature surface is 
 - [ ] **CLI contract freeze.** Land the last renames from `docs/vocabulary-review.md` §"Top
       fixes" (at least 1, 2 and 4 — they change output and flag values) *before* 1.0, then hold
       the contract for one or two 0.x releases.
-- [x] **Migrate to Effect 4, before the freeze.** Done 2026-11-10 (#195, #196, #198, #199). Effect 4.0 shipped 2026-10-06 (`effect@4.0.1`):
-      a rewrite, one lockstep `effect` package, `@effect/platform` merged into it. Effect 3.x gets
-      fixes until at least September 2029, but `@lbdremy/phax-schemas` exports Effect 3 `Schema`
-      values and depends on `effect ^3.14`, so moving after 1.0 would be a breaking major of the
-      package and of the cockpit. Its own spec (decided 2026-10-06).
-      **Sized 2026-10-07** by a spike (nothing committed): 1,502 type errors in 224 `src` files
-      and 2,910 in 443 test files, mostly from about ten mechanical root causes — `Either` gone
-      (`Effect.either`, `decodeUnknownEither` → `decodeUnknownExit`), `Context.Tag` →
-      `Context.Service` on the ports, the Schema filters → `.check(…)`, `Schema.optionalWith`,
-      `Effect.catchAll`/`orElse` → `Effect.catch`, `ParseResult` → `SchemaIssue`. The two
-      platform packages are unused in `src` and can go. Not mechanical: the JSON Schema
-      generator changes every snapshot's text (every format gets a `next` snapshot), the
-      parse-error wording behind refusals (`formatFirstViolation`) changes, and the frozen
-      decoders under `src/schemas/history/` must keep their exact behaviour. Guide:
-      `https://github.com/Effect-TS/effect/blob/main/MIGRATION.md`.
-- [x] **Check whether user-installed Claude Code mods run in phase sessions.** Raised
-      2026-10-08. Mods are plugin code running inside Claude Code, unsandboxed, and plugins load
-      in `claude -p` too; a mod that approves tool calls can step around secure mode's command
-      allowlist. Find out what a phase session loads, then decide how secure mode keeps the
-      operator's mods out (e.g. `--safe-mode` or `--bare`, checked against what those also turn
-      off). Docs: `https://code.claude.com/docs/en/plugins/mods/overview`. A secure-mode
-      boundary, so before the freeze. Done by `project-only-claude-sessions` (#190, 2026-11-06):
-      headless sessions launch with `--setting-sources project`, so user and marketplace plugins
-      (mods included) no longer load; the real-session e2e saw a planted user plugin load under
-      today's flags and not under phax's. Interactive sessions keep them, by design.
 - [ ] **Distribution polish.** macOS binaries are neither signed nor notarized
       (`docs/release.md`); npm install works, the raw binary is Gatekeeper-blocked. Either
       sign, or make npm the only documented install path for 1.0.
