@@ -474,12 +474,39 @@ function rewriteSource(
     return (candidates.find((binding) => !binding.typeOnly) ?? candidates[0])?.local;
   };
 
+  // A use already in its reference target's shape: `Schema.ReadonlySet(...)` as an
+  // argument of `Schema.toCodecJson(...)`, both resolved to the same `effect` module.
+  const inOwnWrapper = (
+    v3Symbol: string,
+    chain: ReadonlyArray<Member>,
+    binding: Binding,
+  ): boolean => {
+    const wrapper = reference.wrapperOf(v3Symbol);
+    const used = chain[0];
+    if (wrapper === null || used === undefined || chain.length !== 1) return false;
+    const [wrapperModule, wrapperMember] = wrapper.split(".");
+    if (wrapperModule !== binding.module || wrapperMember === undefined) return false;
+    const call = used.access.getParent();
+    if (!Node.isCallExpression(call) || call.getExpression() !== used.access) return false;
+    const outer = call.getParent();
+    if (!Node.isCallExpression(outer) || !outer.getArguments().includes(call)) return false;
+    const callee = outer.getExpression();
+    if (!Node.isPropertyAccessExpression(callee) || callee.getName() !== wrapperMember) {
+      return false;
+    }
+    const base = callee.getExpression();
+    return (
+      Node.isIdentifier(base) &&
+      bindings.some((other) => other.local === base.getText() && other.module === binding.module)
+    );
+  };
+
   const planUse = (id: Identifier, binding: Binding): UsePlan => {
     const line = id.getStartLineNumber();
     const chain = memberChain(id);
     const [first, second] = chain;
     const unrewritten = (v3Symbol: string): UsePlan =>
-      reportable(v3Symbol, binding.module)
+      reportable(v3Symbol, binding.module) && !inOwnWrapper(v3Symbol, chain, binding)
         ? { kind: "leftover", v3Symbol, line }
         : { kind: "keep" };
     if (first === undefined) return unrewritten(`effect/${binding.module}`);

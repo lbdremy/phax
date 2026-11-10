@@ -6,7 +6,9 @@
 //
 // Acceptance tests passed by phase-05: every test is marked `.fails` until the codemod
 // exists. Each test is written out, never generated, so its marker reads statically.
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { rewriteFiles, type CodemodResult } from "../../../scripts/effect4-codemod/codemod.js";
@@ -86,5 +88,47 @@ describe("effect4 codemod report", () => {
         blockedBy: null,
       },
     ]);
+  });
+});
+
+describe("effect4 codemod report: a use already in its reference target's shape", () => {
+  const referenceLine = 14692;
+  const setReferenceLine = 14750;
+  const header = 'import { Schema } from "effect";';
+
+  /** The leftovers of one inline source, written to a scratch root and run through the codemod. */
+  function leftoversOf(statement: string): CodemodResult["leftovers"] {
+    const root = mkdtempSync(join(tmpdir(), "effect4-report-"));
+    try {
+      writeFileSync(join(root, "input.ts"), `${header}\n${statement}\n`);
+      return rewriteFiles({ root, files: ["input.ts"] }).leftovers;
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  }
+
+  it("reports no leftover for Schema.ReadonlySet inside Schema.toCodecJson", () => {
+    const statement =
+      "export const PathSet = Schema.toCodecJson(Schema.ReadonlySet(Schema.String));";
+    expect(leftoversOf(statement)).toEqual([]);
+  });
+
+  it("still reports a bare Schema.ReadonlySet, with its reference line", () => {
+    const statement = "export const PathSet = Schema.ReadonlySet(Schema.String);";
+    expect(leftoversOf(statement)).toMatchObject([
+      { v3Symbol: "Schema.ReadonlySet", line: 2, referenceLine },
+    ]);
+  });
+
+  it("still reports Schema.Set inside Schema.toCodecJson, with its reference line", () => {
+    const statement = "export const PathSet = Schema.toCodecJson(Schema.Set(Schema.String));";
+    expect(leftoversOf(statement)).toMatchObject([
+      { v3Symbol: "Schema.Set", line: 2, referenceLine: setReferenceLine },
+    ]);
+  });
+
+  it("still reports Schema.ReadonlySet inside some other call", () => {
+    const statement = "export const PathSet = Schema.optional(Schema.ReadonlySet(Schema.String));";
+    expect(leftoversOf(statement)).toMatchObject([{ v3Symbol: "Schema.ReadonlySet", line: 2 }]);
   });
 });

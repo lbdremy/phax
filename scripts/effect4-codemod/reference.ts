@@ -50,6 +50,10 @@ export type Reference = {
   /** The v3 symbols whose entry maps them to a different symbol, to `none`, or to no
    *  stated target: every symbol a migration has to touch. */
   readonly movedSymbols: ReadonlySet<string>;
+  /** For a moved symbol whose target wraps a call to the symbol itself
+   *  (`Schema.ReadonlySet` -> `Schema.toCodecJson(Schema.ReadonlySet(value))`), the name
+   *  of that outer symbol (`Schema.toCodecJson`); else null. */
+  readonly wrapperOf: (v3Symbol: string) => string | null;
 };
 
 const ENTRY = /^- `([^`]+)`(.*)$/;
@@ -252,7 +256,20 @@ function indexReference(
     entryOf,
     lineOf: (v3Symbol) => entryOf(v3Symbol)?.line ?? null,
     movedSymbols,
+    wrapperOf: (v3Symbol) => wrapperName(entryOf(v3Symbol)),
   };
+}
+
+// The outer name of a target whose call arguments name the entry's own symbol.
+function wrapperName(entry: ReferenceEntry | undefined): string | null {
+  if (entry === undefined) return null;
+  for (const target of entry.targets ?? []) {
+    const open = target.indexOf("(");
+    if (open === -1) continue;
+    const inner = target.slice(open + 1);
+    if (inner.includes(`${entry.v3Symbol}(`)) return target.slice(0, open).trim();
+  }
+  return null;
 }
 
 let loaded: Reference | undefined;
