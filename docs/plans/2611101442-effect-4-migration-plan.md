@@ -1,0 +1,547 @@
+---
+status: Draft
+source-spec: docs/specs/2611071052-effect-4-migration.md
+completes-spec: true
+---
+# Remove the Effect 4 migration tooling
+
+phax has run on Effect 4.1.2 since #198. This is the spec's last plan, and its run completes the spec. It removes the tooling that only the migration needed and keeps what still guards phax's behaviour. First, while the codemod still exists, it corrects the codemod's one remaining false positive (`Schema.ReadonlySet` already wrapped in `Schema.toCodecJson`, at `src/cli/definitions/plansOverlap.ts:25`) and proves §5.12 ("Nothing of v3 left"): `--check` lists no v3 symbol, and `pnpm typecheck` and `pnpm test:type` report zero errors. Second, it removes the codemod with its records, the `codemod:effect4` script, the `ts-morph` devDependency (offline, from both lockfiles), the codemod's tests, the vendored Effect migration material under `docs/vendor/`, `docs/effect-4-mapping.md`, the five `effect4-*` skills and their test. Third, it renames the behaviour corpus from `tests/effect4Corpus/` to `tests/behaviourCorpus/` (and `tests/unit/effect4Corpus/` to `tests/unit/behaviourCorpus/`), moving every case and baseline file byte for byte and updating every reader of the old paths. It also removes the corpus capture and densify scripts and replaces CONTRIBUTING.md's migration section with a short behaviour-corpus section.
+
+Settled before this plan, not reopened: q-keep decided remove-at-end. The operator has already lifted the migration's protections in `phax.json` on main (no `protectedPaths`, no `effect-migration` profile, `tests/unit/effect4Codemod/gateProfile.test.ts` deleted), and this plan does not touch `phax.json`. The behaviour corpus stays under its new name. The rendered JSON Schemas keep Effect 4's rendering and are compared by documents.
+
+Constraints every phase holds: no behaviour change. No source under `src/` or `packages/schemas/src/` changes, and only `scripts/schemas-check.ts` and tests change, where they read a moved path. No test expectation moves. No snapshot, fixture or corpus case is edited. No persisted format is bumped and `packages/schemas/history.lock.json` does not change. Nothing is fetched over the network. The archived specs, plans and briefs under `docs/specs/`, `docs/plans/` and `docs/briefs/`, plus `docs/upgrading.md` and `NEXT_STEPS.md`, keep their text: they are records.
+
+## Required commands
+
+- `pnpm exec tsx`
+
+`pnpm exec tsx` is already in `security.agentCommands`. Phase-01 runs the codemod's check through it (`pnpm exec tsx scripts/effect4-codemod/main.ts --check`, the exact command behind `pnpm codemod:effect4 --check`), because the `codemod:effect4` script is not a granted command now that the `effect-migration` profile is gone. No `phax.json` change is needed, and the plan grants nothing new. `pnpm typecheck` and `pnpm test:type` are steps of the `standard` gate profile.
+
+## Technical arbitrations
+
+- Corpus capture and densify scripts: removed with the migration (`scripts/effect4-corpus-capture.ts`, `scripts/effect4-corpus-densify.ts`). The other option kept them under the corpus's name without the Effect 3 guard, so a new case could be captured from phax's current answers. Its loss decided against it: the guard's refusal of every effect major but 3 is itself an expectation in the corpus's capture test, so dropping it would move a test expectation. It would also let phax's current answer, right or wrong, become a case's expectation, which turns the corpus from a record of Effect 3's answers into a mirror of today's. Loss accepted: there is no tool to fill a new case's expectation, so the follow-up that adds cases (refused "NaN" strings, null optional keys) brings its own way of writing them. The capture primitives in `corpus.ts` (`captureCorpusFile`, `captureFile`) and their tests move byte for byte with the corpus: removing them would edit the corpus's tests, which this plan does not do.
+- Phase count and order: three phases. (1) The false-positive fix and the §5.12 proof stay alone, because the proof needs the codemod present and the removal commit cannot carry it. Loss accepted: one commit changes code that the next commit deletes. (2) The codemod, `ts-morph`, the vendored reference, the mapping doc and the five skills go in one commit, because `tests/unit/effect4Skills.test.ts` imports `scripts/effect4-codemod/owners.ts` and reads the vendored reference, so any split leaves a red tree. Loss accepted: one large deletion-only diff. (3) The corpus rename comes last and is the terminal phase. It is independent of the codemod, so every commit stays green, and the full `standard` profile then judges the final tree. The next phase's worktree setup (`pnpm install`) also exercises the lockfiles phase-02 edits by hand.
+- Offline removal of `ts-morph`: no agent command can run `pnpm remove` or `pnpm install`, and granting one would change `phax.json`, which is out of scope. So phase-02 edits the lockfiles by hand. In `pnpm-lock.yaml` it removes the root importer's `ts-morph` devDependency and the `packages:` and `snapshots:` entries of `ts-morph@28.0.0` and of each package only ts-morph's closure reaches (at plan time `@ts-morph/common@0.29.0`, `code-block-writer@13.0.3`, `path-browserify@1.0.1`, `minimatch@10.2.6` and `brace-expansion@5.0.12`, but not `tinyglobby@0.2.17`, which vite and vitest use). In `deno.lock` it removes the `npm:ts-morph@28.0.0` specifier, the workspace `packageJson` entry and the same closure's `npm` entries. An entry is pruned only when a search of the lockfile shows no other dependent. If the phase cannot settle whether an entry is exclusive, it keeps that entry and lists it in the handoff, so the operator can settle it with `pnpm install --offline` in the main checkout before merge. Loss accepted: no pnpm run validates the hand-edited lock inside the phase. The next phase's setup install is the first check.
+- Vendored material: the removal also takes `docs/vendor/effect-skills/effect-v3-to-v4/` (the official skill's copy, its SOURCE and LICENSE). Its only reader is the `effect4-lookup` skill this plan deletes, and it is the same migration's vendored reference in the spec's sense. Loss accepted: the official skill's text and licence at the pinned version survive only in git history.
+- §5.10 ("each phase names one skill") bounds phases that migrate code. This plan migrates none, so each phase's first instruction names its source of scope instead: the codemod for phase-01, q-keep for phase-02, and the operator's rename decision for phase-03, since no topic skill exists after phase-02.
+- Model and effort follow the planning skill's policy. Phases that conform carry no reason, and the one departure states its reason on its own phase.
+
+---
+
+## phase-01 — Correct the codemod's last false positive and prove nothing of v3 is left {#phase-01-codemod-last-false-positive}
+
+**Recommended model:** claude-sonnet-5-5
+**Recommended effort:** medium
+
+Make `pnpm codemod:effect4 --check` list no v3 symbol on the migrated tree. A `Schema.ReadonlySet` use already wrapped in `Schema.toCodecJson`, the v4 shape the reference names, stops being reported as a leftover. Then record that the codemod's report is empty and that both type checks report zero errors (§5.12, "Nothing of v3 left"). This is the codemod's last change: phase-02 deletes it.
+
+### Detailed instructions
+
+- Follows: the codemod (`scripts/effect4-codemod/`). No topic skill applies. Change only the codemod's leftover reporting and its report test.
+- The false positive: `src/cli/definitions/plansOverlap.ts:25` reads `const PathSet = Schema.toCodecJson(Schema.ReadonlySet(Schema.String));`. The vendored reference, `docs/vendor/effect-migration/effect@4.1.2/migration/v3-to-v4.md` line 14692, maps `Schema.ReadonlySet` to `Schema.toCodecJson(Schema.ReadonlySet(value))`. `isMoved` in `scripts/effect4-codemod/reference.ts` takes a target's name up to its first `(` (`Schema.toCodecJson`), so it counts `Schema.ReadonlySet` as moved. `planUse`/`reportable` in `scripts/effect4-codemod/codemod.ts` then report every unrewritten use as a leftover, including one already written in the target's shape.
+- The correction: an unrewritten use of a moved symbol is no leftover when the symbol appears inside its own reference target as the argument of an outer call (for example `Schema.ReadonlySet` inside `Schema.toCodecJson(...)`), and the use sits as an argument of a call whose callee is that outer symbol, resolved to the same `effect` module through the file's import bindings, as the codemod already resolves origin. Expose what the target wraps from `reference.ts` if that is cleaner (for example the outer name of a target whose inner call names the entry's own symbol), and apply the check at the use site in `codemod.ts`. Keep it narrow. A bare `Schema.ReadonlySet(...)` stays a leftover. So does `Schema.Set(...)` inside `Schema.toCodecJson`, because `Schema.Set` does not appear inside its own target. So does a use inside some other call.
+- Add the cases to `tests/unit/effect4Codemod/report.test.ts`: the wrapped use gives no leftover, and the bare `Schema.ReadonlySet` and the `Schema.Set` inside `Schema.toCodecJson` are still reported with their reference lines. Write the sources inline, the way that file writes its other cases, or extend `tests/unit/effect4Codemod/__fixtures__/v4-shaped/input.ts`. Create no new fixture file. Change no existing assertion.
+- Run the codemod's check through the granted command: `pnpm exec tsx scripts/effect4-codemod/main.ts --check` (exactly what `pnpm codemod:effect4 --check` runs). It must report `0 files would change` and `left to phases (0):`. If it lists another symbol, correct it the same way only if it is also a use already in its target's shape. Otherwise change nothing else and describe it in the handoff: the commit body below must not claim what did not hold.
+- Run `pnpm typecheck` and `pnpm test:type`. Both must report zero errors. Copy the three commands' outputs (the `--check` summary lines and the two error counts) into the handoff.
+- Change nothing under `src/`, `packages/`, `tests/effect4Corpus/` or `tests/unit/effect4Corpus/`. `plansOverlap.ts` is already correct.
+
+### Planned files to create
+
+- (none)
+
+### Planned files to edit
+
+- `scripts/effect4-codemod/codemod.ts`
+- `tests/unit/effect4Codemod/report.test.ts`
+
+### Optional files that may be edited
+
+- `scripts/effect4-codemod/reference.ts`
+- `tests/unit/effect4Codemod/reference.test.ts`
+- `tests/unit/effect4Codemod/__fixtures__/v4-shaped/input.ts`
+
+### Test strategy
+
+- a Schema.ReadonlySet use already wrapped in Schema.toCodecJson, the v4 shape the reference names, is no leftover — small · example · an empty leftover list for that source · in-phase
+- a bare Schema.ReadonlySet, and a Schema.Set inside Schema.toCodecJson, are still reported — small · boundary · the leftover list naming each symbol with its v3-to-v4.md line · in-phase
+- on the migrated tree the codemod's report lists no v3 symbol and both type checks report zero errors — medium · smoke · 0 files would change and left to phases (0) from --check, 0 errors from pnpm typecheck and pnpm test:type · in-phase · ac-complete
+
+### Implementation order
+
+1. Reproduce the leftover with the `--check` run.
+2. Add the failing report-test cases.
+3. Correct the leftover check (reference.ts helper if needed, then the use-site check in codemod.ts).
+4. Re-run `--check`, `pnpm typecheck` and `pnpm test:type`, and record their outputs in the handoff.
+
+### Excluded scope
+
+- Deleting the codemod or anything else (phase-02).
+- Any change to `src/cli/definitions/plansOverlap.ts` or any other source under `src/` or `packages/schemas/src/`.
+- New rewrite rules, or any change to what the codemod rewrites.
+- Any change to `phax.json`.
+
+### Verification
+
+The `standard` gate profile in `phax.json`, every-phase steps.
+
+### Expected handoff content
+
+The correction's shape: which function decides that a wrapped use is no leftover, and the reference line it reads. The literal outputs of `pnpm exec tsx scripts/effect4-codemod/main.ts --check`, `pnpm typecheck` and `pnpm test:type`. Confirmation that no file under `src/` or `packages/` changed. Any deviation from the planned file lists, with the reason.
+
+### Commit subject
+
+`fix(effect4-codemod): stop reporting Schema.ReadonlySet already in its v4 JSON codec`
+
+### Commit body
+
+The reference maps Schema.ReadonlySet to Schema.toCodecJson(Schema.ReadonlySet(value)), and the codemod counted every unrewritten use as a leftover, including src/cli/definitions/plansOverlap.ts:25, which already has that shape. A use that sits inside its own target's outer call is now no leftover. Bare uses and Schema.Set inside toCodecJson are still reported.
+
+This closes the acceptance criterion "Nothing of v3 left" (spec section 5.12): pnpm codemod:effect4 --check (run as pnpm exec tsx scripts/effect4-codemod/main.ts --check) reports 0 files would change and no v3 symbol left to phases, and pnpm typecheck and pnpm test:type report zero errors. The phase handoff holds the three outputs.
+
+This is the codemod's last change. The next commit removes it.
+
+---
+
+## phase-02 — Remove the codemod, ts-morph, the vendored reference and the migration skills {#phase-02-remove-codemod-reference-skills}
+
+**Recommended model:** claude-sonnet-5-5
+**Recommended effort:** medium
+
+Delete everything that existed only to carry out the migration: the codemod with its records and tests, the `codemod:effect4` script, the `ts-morph` devDependency (removed offline from both lockfiles), the vendored Effect migration material, `docs/effect-4-mapping.md`, and the five `effect4-*` skills with their test. The tree then holds no tool that can run the migration, and `pnpm knip` reports nothing left behind.
+
+### Detailed instructions
+
+- Follows: q-keep (remove-at-end) from the source spec. Delete only what that decision names, plus the config entries and docs that point at it. No topic skill applies, and this phase deletes them.
+- Delete with `git rm -r`: `scripts/effect4-codemod/` (every file, including `type-error-counts.json` and `passing-tests.json`), `tests/unit/effect4Codemod/` (every test and every fixture, including `__fixtures__/vitest-project/`; also remove any untracked `node_modules/` left under it), the six integration tests `tests/integration/effect4CodemodCli.test.ts`, `effect4CodemodRun.test.ts`, `effect4Counts.test.ts`, `effect4FailsMarkers.test.ts`, `effect4Ratchet.test.ts` and `effect4TestRatchet.test.ts`, `tests/unit/effect4Skills.test.ts`, the five skills `.claude/skills/effect4-core/`, `effect4-errors/`, `effect4-lookup/`, `effect4-schema/` and `effect4-services/`, the whole `docs/vendor/` tree (`effect-migration/effect@4.1.2/` and `effect-skills/effect-v3-to-v4/`), and `docs/effect-4-mapping.md`. The planned file lists enumerate every tracked file. Run `git ls-files` on each directory first, and report any tracked file the lists miss.
+- `package.json`: remove the `codemod:effect4` script and the `ts-morph` devDependency. Change nothing else.
+- Remove `ts-morph` from the lockfiles offline, by hand. Do not run `pnpm install`, `pnpm remove`, `deno install` or anything that reaches the network: none is a granted command, and phase sessions have no network. In `pnpm-lock.yaml`, remove the root importer's `ts-morph` devDependency entry, then the `packages:` and `snapshots:` entries of `ts-morph@28.0.0` and of every package that only ts-morph's closure reaches. At plan time that closure is `@ts-morph/common@0.29.0`, `code-block-writer@13.0.3`, `path-browserify@1.0.1`, `minimatch@10.2.6` and `brace-expansion@5.0.12`. `tinyglobby@0.2.17` stays, because vite and vitest depend on it. Before removing each entry, search the lockfile for another dependent at that version. In `deno.lock`, remove the `npm:ts-morph@28.0.0` specifier line, the `npm:ts-morph@28.0.0` line in the workspace `packageJson` dependencies, and the `npm` entries of the same closure, after the same check. Keep YAML indentation and JSON syntax exact, and touch no other entry. If you cannot settle whether an entry is exclusive, keep it and list it in the handoff for the operator to settle with `pnpm install --offline` in the main checkout.
+- `knip.json`: remove `tests/unit/effect4Codemod/__fixtures__/**` from `ignoreFiles`, keeping `tests/e2e/fixtures/**`.
+- `.oxfmtrc.json`: remove the `tests/unit/effect4Codemod/__fixtures__` ignore pattern. Leave the two `tests/effect4Corpus/...` patterns, which phase-03 renames.
+- `tsconfig.test.json`: remove `scripts/effect4-codemod/**/*.ts` from `include` and `tests/unit/effect4Codemod/__fixtures__` from `exclude`. Leave `scripts/effect4-corpus-capture.ts`, which phase-03 removes.
+- `CONTRIBUTING.md`, section "The Effect 4 migration": delete the paragraphs on `pnpm codemod:effect4` and its `--ratchet`, on the passing-tests ratchet, on the `effect-migration` gate profile and `protectedPaths` (already lifted from `phax.json` by the operator), and on the vendored reference and the `effect4-*` skills. Reduce the intro sentence to the fact that phax runs on Effect 4. Keep the behaviour-corpus paragraph as it is: phase-03 rewrites it under a new heading.
+- Check with `git grep` that, outside `docs/specs/`, `docs/plans/`, `docs/briefs/`, `docs/upgrading.md` and `NEXT_STEPS.md`, nothing still names `effect4-codemod`, `codemod:effect4`, `ts-morph`, `docs/vendor`, `effect-4-mapping` or any of the five skill names. In particular, `CLAUDE.md` and every remaining skill under `.claude/skills/` name none of them. The corpus paths (`effect4Corpus`, `effect4-corpus-*`) are phase-03's.
+- Change nothing under `src/`, `packages/`, `tests/effect4Corpus/` or `tests/unit/effect4Corpus/`, and do not touch `phax.json`.
+
+### Planned files to create
+
+- (none)
+
+### Planned files to edit
+
+- `package.json`
+- `pnpm-lock.yaml`
+- `deno.lock`
+- `knip.json`
+- `.oxfmtrc.json`
+- `tsconfig.test.json`
+- `CONTRIBUTING.md`
+- `docs/effect-4-mapping.md`
+- `scripts/effect4-codemod/codemod.ts`
+- `scripts/effect4-codemod/counts.ts`
+- `scripts/effect4-codemod/main.ts`
+- `scripts/effect4-codemod/owners.ts`
+- `scripts/effect4-codemod/passingTests.ts`
+- `scripts/effect4-codemod/ratchet.ts`
+- `scripts/effect4-codemod/reference.ts`
+- `scripts/effect4-codemod/rules.ts`
+- `scripts/effect4-codemod/passing-tests.json`
+- `scripts/effect4-codemod/type-error-counts.json`
+- `tests/unit/effect4Codemod/counts.test.ts`
+- `tests/unit/effect4Codemod/noEffectReexports.test.ts`
+- `tests/unit/effect4Codemod/offline.test.ts`
+- `tests/unit/effect4Codemod/origin.test.ts`
+- `tests/unit/effect4Codemod/passingTests.test.ts`
+- `tests/unit/effect4Codemod/ratchet.test.ts`
+- `tests/unit/effect4Codemod/reference.test.ts`
+- `tests/unit/effect4Codemod/report.test.ts`
+- `tests/unit/effect4Codemod/rules.test.ts`
+- `tests/unit/effect4Codemod/__fixtures__/blocked/input.ts`
+- `tests/unit/effect4Codemod/__fixtures__/namesakes/input.ts`
+- `tests/unit/effect4Codemod/__fixtures__/reexport/effectReexport.ts`
+- `tests/unit/effect4Codemod/__fixtures__/reexport/expected-uses.ts`
+- `tests/unit/effect4Codemod/__fixtures__/reexport/uses.ts`
+- `tests/unit/effect4Codemod/__fixtures__/rules/catch-all/expected.ts`
+- `tests/unit/effect4Codemod/__fixtures__/rules/catch-all/input.ts`
+- `tests/unit/effect4Codemod/__fixtures__/rules/context-tag/expected.ts`
+- `tests/unit/effect4Codemod/__fixtures__/rules/context-tag/input.ts`
+- `tests/unit/effect4Codemod/__fixtures__/rules/effect-either/expected.ts`
+- `tests/unit/effect4Codemod/__fixtures__/rules/effect-either/input.ts`
+- `tests/unit/effect4Codemod/__fixtures__/rules/either-to-result/expected.ts`
+- `tests/unit/effect4Codemod/__fixtures__/rules/either-to-result/input.ts`
+- `tests/unit/effect4Codemod/__fixtures__/rules/parse-result-issues/expected.ts`
+- `tests/unit/effect4Codemod/__fixtures__/rules/parse-result-issues/input.ts`
+- `tests/unit/effect4Codemod/__fixtures__/rules/schema-decode-either/expected.ts`
+- `tests/unit/effect4Codemod/__fixtures__/rules/schema-decode-either/input.ts`
+- `tests/unit/effect4Codemod/__fixtures__/rules/schema-filters/expected.ts`
+- `tests/unit/effect4Codemod/__fixtures__/rules/schema-filters/input.ts`
+- `tests/unit/effect4Codemod/__fixtures__/rules/schema-optional-with/expected.ts`
+- `tests/unit/effect4Codemod/__fixtures__/rules/schema-optional-with/input.ts`
+- `tests/unit/effect4Codemod/__fixtures__/uncovered/input.ts`
+- `tests/unit/effect4Codemod/__fixtures__/v4-shaped/input.ts`
+- `tests/unit/effect4Codemod/__fixtures__/vitest-project/failing.check.ts`
+- `tests/unit/effect4Codemod/__fixtures__/vitest-project/flaky.check.ts`
+- `tests/unit/effect4Codemod/__fixtures__/vitest-project/passing.check.ts`
+- `tests/unit/effect4Codemod/__fixtures__/vitest-project/skipped.check.ts`
+- `tests/unit/effect4Codemod/__fixtures__/vitest-project/vitest.config.ts`
+- `tests/integration/effect4CodemodCli.test.ts`
+- `tests/integration/effect4CodemodRun.test.ts`
+- `tests/integration/effect4Counts.test.ts`
+- `tests/integration/effect4FailsMarkers.test.ts`
+- `tests/integration/effect4Ratchet.test.ts`
+- `tests/integration/effect4TestRatchet.test.ts`
+- `tests/unit/effect4Skills.test.ts`
+- `.claude/skills/effect4-core/SKILL.md`
+- `.claude/skills/effect4-errors/SKILL.md`
+- `.claude/skills/effect4-lookup/SKILL.md`
+- `.claude/skills/effect4-schema/SKILL.md`
+- `.claude/skills/effect4-services/SKILL.md`
+- `docs/vendor/effect-migration/effect@4.1.2/SOURCE`
+- `docs/vendor/effect-migration/effect@4.1.2/LICENSE`
+- `docs/vendor/effect-migration/effect@4.1.2/MIGRATION.md`
+- `docs/vendor/effect-migration/effect@4.1.2/migration/cause.md`
+- `docs/vendor/effect-migration/effect@4.1.2/migration/equality.md`
+- `docs/vendor/effect-migration/effect@4.1.2/migration/error-handling.md`
+- `docs/vendor/effect-migration/effect@4.1.2/migration/fiber-keep-alive.md`
+- `docs/vendor/effect-migration/effect@4.1.2/migration/fiberref.md`
+- `docs/vendor/effect-migration/effect@4.1.2/migration/forking.md`
+- `docs/vendor/effect-migration/effect@4.1.2/migration/generators.md`
+- `docs/vendor/effect-migration/effect@4.1.2/migration/layer-memoization.md`
+- `docs/vendor/effect-migration/effect@4.1.2/migration/runtime.md`
+- `docs/vendor/effect-migration/effect@4.1.2/migration/schema.md`
+- `docs/vendor/effect-migration/effect@4.1.2/migration/scope.md`
+- `docs/vendor/effect-migration/effect@4.1.2/migration/services.md`
+- `docs/vendor/effect-migration/effect@4.1.2/migration/v3-to-v4.md`
+- `docs/vendor/effect-migration/effect@4.1.2/migration/yieldable.md`
+- `docs/vendor/effect-skills/effect-v3-to-v4/SKILL.md`
+- `docs/vendor/effect-skills/effect-v3-to-v4/LICENSE`
+- `docs/vendor/effect-skills/effect-v3-to-v4/SOURCE`
+
+### Optional files that may be edited
+
+- (none)
+
+### Test strategy
+
+- the unit, integration and type test suites pass without the codemod and its tests — medium · smoke · pnpm test, pnpm typecheck and pnpm test:type passing · in-phase
+- nothing is left behind by the removal: no unused file, export or dependency — medium · smoke · pnpm knip's empty report · in-phase
+- ts-morph and the packages only it reached are gone from both lockfiles, every other entry unchanged — small · example · the diffs of pnpm-lock.yaml and deno.lock holding only removed lines for that closure · in-phase
+- CLAUDE.md and the remaining skills name Effect 4 and none of the removed skills, the codemod or the vendored reference — small · example · git grep for the removed names returning only archived records under docs/specs, docs/plans, docs/briefs, docs/upgrading.md and NEXT_STEPS.md · in-phase · ac-guidance
+
+### Implementation order
+
+1. Delete the skills, their test, the codemod's tests and the integration tests.
+2. Delete `scripts/effect4-codemod/`, `docs/vendor/` and `docs/effect-4-mapping.md`.
+3. Edit `package.json`, then both lockfiles by hand.
+4. Edit `knip.json`, `.oxfmtrc.json` and `tsconfig.test.json`.
+5. Trim `CONTRIBUTING.md`, then run the leftover search.
+
+### Excluded scope
+
+- The corpus rename, the capture and densify scripts, and the corpus's CONTRIBUTING paragraph (phase-03).
+- Any change to `phax.json`, `src/`, `packages/` or the corpus.
+- Any dependency upgrade, or a lockfile change beyond ts-morph's closure.
+- Editing archived specs, plans, briefs, `docs/upgrading.md` or `NEXT_STEPS.md`.
+
+### Verification
+
+The `standard` gate profile in `phax.json`, every-phase steps.
+
+### Expected handoff content
+
+The exact lockfile entries removed from `pnpm-lock.yaml` and `deno.lock`, and any entry kept because its exclusivity could not be settled, so the operator can resolve it with `pnpm install --offline` in the main checkout. Any tracked file found under a deleted directory that the planned list missed. The leftover search's result. A note that phase-03 still owns `tests/effect4Corpus/`, `tests/unit/effect4Corpus/`, the two corpus scripts, the `tsconfig.test.json` capture entry, the two corpus patterns in `.oxfmtrc.json` and the corpus paragraph in `CONTRIBUTING.md`. Any deviation from the planned file lists, with the reason.
+
+### Commit subject
+
+`chore(effect4): remove the migration codemod, its reference and its skills`
+
+### Commit body
+
+The Effect 4 migration is complete, and the spec's q-keep decision (remove-at-end) has its last plan remove the tooling. This removes the codemod under scripts/effect4-codemod/ with its type-error counts and passing-tests records, the codemod:effect4 script, the ts-morph devDependency, the codemod's unit and integration tests, the vendored Effect migration reference and official skill copy under docs/vendor/, docs/effect-4-mapping.md, and the five effect4-* skills with their test. knip.json, .oxfmtrc.json and tsconfig.test.json lose their entries for the codemod's fixtures, and CONTRIBUTING.md loses its paragraphs on the codemod, the ratchet, the lifted protections and the skills.
+
+ts-morph is removed from pnpm-lock.yaml and deno.lock by hand, offline, together with the packages only it reached. No other entry changes. Git history and the earlier commit bodies keep the codemod's record. No source, test expectation, snapshot or history lock changes.
+
+---
+
+## phase-03 — Rename the Effect 4 corpus to the behaviour corpus {#phase-03-rename-behaviour-corpus}
+
+**Recommended model:** claude-haiku-5-5
+**Recommended effort:** medium
+**Assignment reason:** The phase is a mechanical rename that the configured gates check end to end: typecheck and test:type catch every stale import, the replay and schemas tests catch every stale path, and knip catches anything left behind. The lighter model's policy line covers it.
+
+The behaviour corpus that still guards phax's refusal lines, frozen decoders, package exports and JSON Schema equivalence lives under a name that outlasts the migration: `tests/behaviourCorpus/`, replayed by `tests/unit/behaviourCorpus/`. Every case and baseline file moves byte for byte, and every reader follows the move. The Effect 3-only capture and densify scripts are removed, and CONTRIBUTING.md describes the corpus in a short section of its own. As the terminal phase, it passes the full `standard` profile.
+
+### Detailed instructions
+
+- Follows: the operator's rename decision (2026-11-10) and the capture-script arbitration in this plan's preamble. No topic skill remains: phase-02 removed them.
+- First check that `pnpm-lock.yaml` and `deno.lock` are unchanged after the worktree setup's `pnpm install`. If the install rewrote either one (phase-02 edited both by hand), commit that rewrite in this phase and explain it in the handoff. Make no other lockfile change.
+- Move the corpus with `git mv tests/effect4Corpus tests/behaviourCorpus`. Every file under `cases/` and `baseline/`, plus `corpus.ts` and `subjects.ts`, keeps its bytes. Their relative imports into `src/` and `packages/` sit at the same depth, so none changes. Do not reformat, re-sort or re-capture anything.
+- Move the corpus tests with `git mv tests/unit/effect4Corpus tests/unit/behaviourCorpus`. In each moved test, change only the old paths: `../../effect4Corpus/` becomes `../../behaviourCorpus/` in imports and `new URL(...)` paths, `"effect4Corpus"` becomes `"behaviourCorpus"` in `join(...)` segments, and `tests/effect4Corpus/` becomes `tests/behaviourCorpus/` in path strings and comments. In `replay.test.ts`, the message for a case with no captured expectation names the removed capture script. Rewrite it to say the case has no captured expectation and that the corpus records Effect 3's answers (see CONTRIBUTING.md, "The behaviour corpus"). In `package.test.ts`, the header comment names the capture script. Say instead that the baseline was captured on Effect 3. Change no `describe`/`it` name, assertion or expected value.
+- Update every other reader of the old paths: `scripts/schemas-check.ts` (the `corpus.js` import, the doc comment and `CORPUS_FORMATS_DIR`), `tests/unit/schemasPackage/effect4Exports.test.ts` and `tests/unit/schemasPackage/shippedJson.test.ts` (their baseline paths), and `tests/unit/schemas/refusal/formatters.test.ts` (the corpus directory it scans). Keep the file names `effect4Exports.test.ts` and the rest: renaming them is not in scope.
+- `.oxfmtrc.json`: rename `tests/effect4Corpus/cases` and `tests/effect4Corpus/baseline` to `tests/behaviourCorpus/cases` and `tests/behaviourCorpus/baseline`.
+- Delete `scripts/effect4-corpus-capture.ts` and `scripts/effect4-corpus-densify.ts`, and remove `scripts/effect4-corpus-capture.ts` from `include` in `tsconfig.test.json`. Keep the capture primitives in `corpus.ts` (`captureCorpusFile`, `captureFile`) and their tests in `capture.test.ts` exactly as they are: the Effect 3 guard is one of their expectations.
+- `CONTRIBUTING.md`: replace what remains of the section "The Effect 4 migration" with a short section, "The behaviour corpus". It says that `tests/behaviourCorpus/` holds the answers phax gave on Effect 3 for every format, frozen decoder, config layer and provider answer, with the schemas package's baseline. `pnpm test` replays it through `tests/unit/behaviourCorpus/`, and the schemas check judges each generated JSON Schema against the latest released snapshot by its documents. A captured expectation is never changed, and a case that disagrees after a change means the change is wrong. When an Effect API moves, only `subjects.ts` adapts. No capture script remains, so a new case has to bring its own way of writing its expectation. Keep the voice and length of the file's other sections.
+- Search with `git grep` for `effect4Corpus` and `effect4-corpus` outside `docs/specs/`, `docs/plans/`, `docs/briefs/`, `docs/upgrading.md` and `NEXT_STEPS.md`. Nothing may remain.
+- Change nothing under `src/` or `packages/schemas/src/`, do not touch `phax.json`, `packages/schemas/history.lock.json`, `packages/schemas/snapshots/` or `src/schemas/release.ts`, and add no corpus case.
+- This phase is terminal: the full `standard` profile runs, including `pnpm build`, `pnpm site:build`, `pnpm deno:smoke` and `pnpm deno:smoke-binary`. If a terminal step fails for a reason this run did not cause, report it in the handoff rather than changing unrelated code.
+
+### Planned files to create
+
+- `tests/behaviourCorpus/corpus.ts`
+- `tests/behaviourCorpus/subjects.ts`
+- `tests/behaviourCorpus/baseline/package-exports.json`
+- `tests/behaviourCorpus/baseline/snapshot-digests.json`
+- `tests/behaviourCorpus/cases/answers/authoring-answer.json`
+- `tests/behaviourCorpus/cases/answers/claude-output.json`
+- `tests/behaviourCorpus/cases/answers/claude-stream.json`
+- `tests/behaviourCorpus/cases/answers/codex-output.json`
+- `tests/behaviourCorpus/cases/answers/plan-audit.json`
+- `tests/behaviourCorpus/cases/answers/plan-extraction.json`
+- `tests/behaviourCorpus/cases/answers/vibe-export.json`
+- `tests/behaviourCorpus/cases/answers/vibe-output.json`
+- `tests/behaviourCorpus/cases/config/model-routing.json`
+- `tests/behaviourCorpus/cases/config/phax-config.json`
+- `tests/behaviourCorpus/cases/config/phax-user-overlay.json`
+- `tests/behaviourCorpus/cases/config/provider-config.json`
+- `tests/behaviourCorpus/cases/config/telemetry-config.json`
+- `tests/behaviourCorpus/cases/config/vibe-config.json`
+- `tests/behaviourCorpus/cases/documents/artifact-frontmatter.json`
+- `tests/behaviourCorpus/cases/encode/acceptance-request.json`
+- `tests/behaviourCorpus/cases/encode/artifact-status.json`
+- `tests/behaviourCorpus/cases/encode/authoring-record-manifest.json`
+- `tests/behaviourCorpus/cases/encode/brief-record.json`
+- `tests/behaviourCorpus/cases/encode/brief-request.json`
+- `tests/behaviourCorpus/cases/encode/code-review.json`
+- `tests/behaviourCorpus/cases/encode/compliance-review.json`
+- `tests/behaviourCorpus/cases/encode/decision-record-manifest.json`
+- `tests/behaviourCorpus/cases/encode/first-reading.json`
+- `tests/behaviourCorpus/cases/encode/gate-attribution.json`
+- `tests/behaviourCorpus/cases/encode/gate-request.json`
+- `tests/behaviourCorpus/cases/encode/interactive-handoff.json`
+- `tests/behaviourCorpus/cases/encode/interactive-session.json`
+- `tests/behaviourCorpus/cases/encode/phase-file-reconciliation.json`
+- `tests/behaviourCorpus/cases/encode/phase-record-manifest.json`
+- `tests/behaviourCorpus/cases/encode/phase-status.json`
+- `tests/behaviourCorpus/cases/encode/phax-plan-extraction.json`
+- `tests/behaviourCorpus/cases/encode/phax-plan.json`
+- `tests/behaviourCorpus/cases/encode/plan-approval-record.json`
+- `tests/behaviourCorpus/cases/encode/plan-approvals.json`
+- `tests/behaviourCorpus/cases/encode/plan-document.json`
+- `tests/behaviourCorpus/cases/encode/plan-lint.json`
+- `tests/behaviourCorpus/cases/encode/plan-overview.json`
+- `tests/behaviourCorpus/cases/encode/registry.json`
+- `tests/behaviourCorpus/cases/encode/review-record-manifest.json`
+- `tests/behaviourCorpus/cases/encode/review-stop.json`
+- `tests/behaviourCorpus/cases/encode/run-list.json`
+- `tests/behaviourCorpus/cases/encode/run-status.json`
+- `tests/behaviourCorpus/cases/encode/spec-approval-record.json`
+- `tests/behaviourCorpus/cases/encode/spec-approvals.json`
+- `tests/behaviourCorpus/cases/encode/spec-document.json`
+- `tests/behaviourCorpus/cases/formats/acceptance-request.json`
+- `tests/behaviourCorpus/cases/formats/architecture-report.json`
+- `tests/behaviourCorpus/cases/formats/architecture-request.json`
+- `tests/behaviourCorpus/cases/formats/artifact-status.json`
+- `tests/behaviourCorpus/cases/formats/authoring-record-manifest.json`
+- `tests/behaviourCorpus/cases/formats/brief-record.json`
+- `tests/behaviourCorpus/cases/formats/brief-report.json`
+- `tests/behaviourCorpus/cases/formats/brief-request.json`
+- `tests/behaviourCorpus/cases/formats/code-review.json`
+- `tests/behaviourCorpus/cases/formats/compliance-review.json`
+- `tests/behaviourCorpus/cases/formats/cost-ledger.json`
+- `tests/behaviourCorpus/cases/formats/decide-verdicts.json`
+- `tests/behaviourCorpus/cases/formats/decision-record-manifest.json`
+- `tests/behaviourCorpus/cases/formats/first-reading.json`
+- `tests/behaviourCorpus/cases/formats/gate-attribution.json`
+- `tests/behaviourCorpus/cases/formats/gate-report.json`
+- `tests/behaviourCorpus/cases/formats/gate-request.json`
+- `tests/behaviourCorpus/cases/formats/hand-decision-answer.json`
+- `tests/behaviourCorpus/cases/formats/interactive-handoff.json`
+- `tests/behaviourCorpus/cases/formats/interactive-session.json`
+- `tests/behaviourCorpus/cases/formats/oracle-request.json`
+- `tests/behaviourCorpus/cases/formats/phase-file-reconciliation.json`
+- `tests/behaviourCorpus/cases/formats/phase-record-manifest.json`
+- `tests/behaviourCorpus/cases/formats/phase-status.json`
+- `tests/behaviourCorpus/cases/formats/phax-plan-extraction.json`
+- `tests/behaviourCorpus/cases/formats/phax-plan.json`
+- `tests/behaviourCorpus/cases/formats/plan-approval-record.json`
+- `tests/behaviourCorpus/cases/formats/plan-approvals.json`
+- `tests/behaviourCorpus/cases/formats/plan-document.json`
+- `tests/behaviourCorpus/cases/formats/plan-hand-decision-answer.json`
+- `tests/behaviourCorpus/cases/formats/plan-lint.json`
+- `tests/behaviourCorpus/cases/formats/plan-overview.json`
+- `tests/behaviourCorpus/cases/formats/registry.json`
+- `tests/behaviourCorpus/cases/formats/review-record-manifest.json`
+- `tests/behaviourCorpus/cases/formats/review-stop.json`
+- `tests/behaviourCorpus/cases/formats/run-list.json`
+- `tests/behaviourCorpus/cases/formats/run-status.json`
+- `tests/behaviourCorpus/cases/formats/spec-approval-record.json`
+- `tests/behaviourCorpus/cases/formats/spec-approvals.json`
+- `tests/behaviourCorpus/cases/formats/spec-document.json`
+- `tests/behaviourCorpus/cases/formats/spec-hand-decision-answer.json`
+- `tests/unit/behaviourCorpus/capture.test.ts`
+- `tests/unit/behaviourCorpus/coverage.test.ts`
+- `tests/unit/behaviourCorpus/package.test.ts`
+- `tests/unit/behaviourCorpus/replay.test.ts`
+- `tests/unit/behaviourCorpus/wording.test.ts`
+
+### Planned files to edit
+
+- `scripts/schemas-check.ts`
+- `tests/unit/schemasPackage/effect4Exports.test.ts`
+- `tests/unit/schemasPackage/shippedJson.test.ts`
+- `tests/unit/schemas/refusal/formatters.test.ts`
+- `.oxfmtrc.json`
+- `tsconfig.test.json`
+- `CONTRIBUTING.md`
+- `scripts/effect4-corpus-capture.ts`
+- `scripts/effect4-corpus-densify.ts`
+- `tests/effect4Corpus/corpus.ts`
+- `tests/effect4Corpus/subjects.ts`
+- `tests/effect4Corpus/baseline/package-exports.json`
+- `tests/effect4Corpus/baseline/snapshot-digests.json`
+- `tests/effect4Corpus/cases/answers/authoring-answer.json`
+- `tests/effect4Corpus/cases/answers/claude-output.json`
+- `tests/effect4Corpus/cases/answers/claude-stream.json`
+- `tests/effect4Corpus/cases/answers/codex-output.json`
+- `tests/effect4Corpus/cases/answers/plan-audit.json`
+- `tests/effect4Corpus/cases/answers/plan-extraction.json`
+- `tests/effect4Corpus/cases/answers/vibe-export.json`
+- `tests/effect4Corpus/cases/answers/vibe-output.json`
+- `tests/effect4Corpus/cases/config/model-routing.json`
+- `tests/effect4Corpus/cases/config/phax-config.json`
+- `tests/effect4Corpus/cases/config/phax-user-overlay.json`
+- `tests/effect4Corpus/cases/config/provider-config.json`
+- `tests/effect4Corpus/cases/config/telemetry-config.json`
+- `tests/effect4Corpus/cases/config/vibe-config.json`
+- `tests/effect4Corpus/cases/documents/artifact-frontmatter.json`
+- `tests/effect4Corpus/cases/encode/acceptance-request.json`
+- `tests/effect4Corpus/cases/encode/artifact-status.json`
+- `tests/effect4Corpus/cases/encode/authoring-record-manifest.json`
+- `tests/effect4Corpus/cases/encode/brief-record.json`
+- `tests/effect4Corpus/cases/encode/brief-request.json`
+- `tests/effect4Corpus/cases/encode/code-review.json`
+- `tests/effect4Corpus/cases/encode/compliance-review.json`
+- `tests/effect4Corpus/cases/encode/decision-record-manifest.json`
+- `tests/effect4Corpus/cases/encode/first-reading.json`
+- `tests/effect4Corpus/cases/encode/gate-attribution.json`
+- `tests/effect4Corpus/cases/encode/gate-request.json`
+- `tests/effect4Corpus/cases/encode/interactive-handoff.json`
+- `tests/effect4Corpus/cases/encode/interactive-session.json`
+- `tests/effect4Corpus/cases/encode/phase-file-reconciliation.json`
+- `tests/effect4Corpus/cases/encode/phase-record-manifest.json`
+- `tests/effect4Corpus/cases/encode/phase-status.json`
+- `tests/effect4Corpus/cases/encode/phax-plan-extraction.json`
+- `tests/effect4Corpus/cases/encode/phax-plan.json`
+- `tests/effect4Corpus/cases/encode/plan-approval-record.json`
+- `tests/effect4Corpus/cases/encode/plan-approvals.json`
+- `tests/effect4Corpus/cases/encode/plan-document.json`
+- `tests/effect4Corpus/cases/encode/plan-lint.json`
+- `tests/effect4Corpus/cases/encode/plan-overview.json`
+- `tests/effect4Corpus/cases/encode/registry.json`
+- `tests/effect4Corpus/cases/encode/review-record-manifest.json`
+- `tests/effect4Corpus/cases/encode/review-stop.json`
+- `tests/effect4Corpus/cases/encode/run-list.json`
+- `tests/effect4Corpus/cases/encode/run-status.json`
+- `tests/effect4Corpus/cases/encode/spec-approval-record.json`
+- `tests/effect4Corpus/cases/encode/spec-approvals.json`
+- `tests/effect4Corpus/cases/encode/spec-document.json`
+- `tests/effect4Corpus/cases/formats/acceptance-request.json`
+- `tests/effect4Corpus/cases/formats/architecture-report.json`
+- `tests/effect4Corpus/cases/formats/architecture-request.json`
+- `tests/effect4Corpus/cases/formats/artifact-status.json`
+- `tests/effect4Corpus/cases/formats/authoring-record-manifest.json`
+- `tests/effect4Corpus/cases/formats/brief-record.json`
+- `tests/effect4Corpus/cases/formats/brief-report.json`
+- `tests/effect4Corpus/cases/formats/brief-request.json`
+- `tests/effect4Corpus/cases/formats/code-review.json`
+- `tests/effect4Corpus/cases/formats/compliance-review.json`
+- `tests/effect4Corpus/cases/formats/cost-ledger.json`
+- `tests/effect4Corpus/cases/formats/decide-verdicts.json`
+- `tests/effect4Corpus/cases/formats/decision-record-manifest.json`
+- `tests/effect4Corpus/cases/formats/first-reading.json`
+- `tests/effect4Corpus/cases/formats/gate-attribution.json`
+- `tests/effect4Corpus/cases/formats/gate-report.json`
+- `tests/effect4Corpus/cases/formats/gate-request.json`
+- `tests/effect4Corpus/cases/formats/hand-decision-answer.json`
+- `tests/effect4Corpus/cases/formats/interactive-handoff.json`
+- `tests/effect4Corpus/cases/formats/interactive-session.json`
+- `tests/effect4Corpus/cases/formats/oracle-request.json`
+- `tests/effect4Corpus/cases/formats/phase-file-reconciliation.json`
+- `tests/effect4Corpus/cases/formats/phase-record-manifest.json`
+- `tests/effect4Corpus/cases/formats/phase-status.json`
+- `tests/effect4Corpus/cases/formats/phax-plan-extraction.json`
+- `tests/effect4Corpus/cases/formats/phax-plan.json`
+- `tests/effect4Corpus/cases/formats/plan-approval-record.json`
+- `tests/effect4Corpus/cases/formats/plan-approvals.json`
+- `tests/effect4Corpus/cases/formats/plan-document.json`
+- `tests/effect4Corpus/cases/formats/plan-hand-decision-answer.json`
+- `tests/effect4Corpus/cases/formats/plan-lint.json`
+- `tests/effect4Corpus/cases/formats/plan-overview.json`
+- `tests/effect4Corpus/cases/formats/registry.json`
+- `tests/effect4Corpus/cases/formats/review-record-manifest.json`
+- `tests/effect4Corpus/cases/formats/review-stop.json`
+- `tests/effect4Corpus/cases/formats/run-list.json`
+- `tests/effect4Corpus/cases/formats/run-status.json`
+- `tests/effect4Corpus/cases/formats/spec-approval-record.json`
+- `tests/effect4Corpus/cases/formats/spec-approvals.json`
+- `tests/effect4Corpus/cases/formats/spec-document.json`
+- `tests/effect4Corpus/cases/formats/spec-hand-decision-answer.json`
+- `tests/unit/effect4Corpus/capture.test.ts`
+- `tests/unit/effect4Corpus/coverage.test.ts`
+- `tests/unit/effect4Corpus/package.test.ts`
+- `tests/unit/effect4Corpus/replay.test.ts`
+- `tests/unit/effect4Corpus/wording.test.ts`
+
+### Optional files that may be edited
+
+- (none)
+
+### Boundary contracts
+
+The schemas check (`scripts/schemas-check.ts`, the consumer) reads the corpus's format documents and its `corpus.ts` parser (the producer) from `tests/behaviourCorpus/`. The contract is unchanged, the same `isCaseFile`/`parseCorpusFile` functions over the same case files, and only the path moves. The schemas package tests read the baseline files `package-exports.json` and `snapshot-digests.json` from `tests/behaviourCorpus/baseline/` with the same contents.
+
+### Test strategy
+
+- every case and baseline file, corpus.ts and subjects.ts move byte for byte — small · example · git diff --find-renames against the phase base showing R100 for every file under tests/behaviourCorpus · in-phase · ac-tests
+- the corpus replays from its new path with every captured refusal line, including $schema: is missing; version: is unexpected — small · table · the expectations held in the moved case files · in-phase · ac-refusal
+- every frozen decoder still accepts and refuses its captured inputs from the new path — small · table · the captured values and refusal lines in the moved case files · in-phase · ac-frozen
+- the schemas check reads its documents from the new path and gives each generated JSON Schema the released snapshot's verdicts — medium · metamorphic · ajv verdicts on both schemas agreeing for every corpus document · in-phase · ac-json-schema
+- the package's export names and released snapshot digests still match the moved baseline — small · example · tests/behaviourCorpus/baseline/package-exports.json and snapshot-digests.json · in-phase · ac-package
+- no format stamp moves, no next snapshot appears and the history lock is unchanged — small · example · an empty diff against the run's base for packages/schemas/snapshots, packages/schemas/history.lock.json and src/schemas/release.ts · in-phase · ac-no-bump
+- commands answer as before on the final tree — medium · smoke · pnpm check:full passing with the integration suite's expectations as on the run's base · in-phase · ac-cli
+- the run's last phase passes the full standard profile — large · smoke · every step of the standard gate profile, terminal steps included, passing · in-phase · ac-green
+
+### Implementation order
+
+1. Check the lockfiles after setup.
+2. `git mv` both corpus directories.
+3. Update the moved tests' paths and the two comment and message lines.
+4. Update `scripts/schemas-check.ts`, the schemas package tests and the formatters test.
+5. Update `.oxfmtrc.json` and `tsconfig.test.json`, and delete the two corpus scripts.
+6. Rewrite CONTRIBUTING.md's corpus section, then run the leftover search.
+
+### Excluded scope
+
+- New corpus cases (refused "NaN" strings, null optional keys): a follow-up.
+- Renaming `tests/unit/schemasPackage/effect4Exports.test.ts` or any test name.
+- Any change to `phax.json`, `src/`, `packages/schemas/src/`, snapshots or the history lock.
+- The `realFlow` Codex secure test, the refusal label of `decisionId`-style leaves, and any dependency upgrade.
+
+### Verification
+
+The `standard` gate profile in `phax.json`, every-phase and terminal steps: `check:full`, the build, the site and the Deno smokes.
+
+### Expected handoff content
+
+The `git diff --find-renames --stat` summary showing every corpus file as a 100% rename. The list of readers updated. Whether the setup install rewrote either lockfile, and what was committed if it did. The CONTRIBUTING.md section's final heading. The terminal profile's result, step by step. Any deviation from the planned file lists, with the reason.
+
+### Commit subject
+
+`refactor(tests): rename the Effect 4 corpus to the behaviour corpus`
+
+### Commit body
+
+The corpus captured on Effect 3 keeps guarding phax's refusal lines, frozen decoders, package exports and the schemas check's documents after the migration, so it now lives under a name that does not tie it to the migration: tests/effect4Corpus/ becomes tests/behaviourCorpus/ and tests/unit/effect4Corpus/ becomes tests/unit/behaviourCorpus/. Every case and baseline file moves byte for byte. Only the readers' paths change, in scripts/schemas-check.ts, the corpus tests, the schemas package tests, the refusal formatters test and .oxfmtrc.json.
+
+The capture and densify scripts are removed. They refused to run on any effect major but 3, and a captured expectation is never changed. The capture primitives in corpus.ts stay with their tests. CONTRIBUTING.md replaces its Effect 4 migration section with a short section on the behaviour corpus.
+
+This is the last commit of the Effect 4 migration spec. No source, test expectation, snapshot, format stamp or history lock changes.
