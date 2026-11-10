@@ -1,9 +1,0 @@
-The official Effect v3 → v4 migration skill, vendored byte for byte so phax's own migration skills
-can quote its discipline with its source and version offline (spec effect-4-migration, decision
-q-skills own-cite; plan effect-4-migration 1, decision q-official-text). Do not edit; remove it with
-the vendored reference at the end of the migration (decision q-keep).
-
-repository: https://github.com/Effect-TS/skills
-path:       skills/effect-v3-to-v4/SKILL.md
-commit:     155c50c911f9c99c294ef8a4461981c5bbe6453e
-licence:    MIT (LICENSE, copied from the repository at that commit)
