@@ -127,6 +127,9 @@ beforeEach(() => {
 
   cli = makeFakeProviderCli(root);
   for (const [name, value] of Object.entries(cli.env)) vi.stubEnv(name, value);
+  // A suite run inside a phax-launched Claude Code session inherits the variable
+  // phax sets for that provider, which would hide it from `addedTo`.
+  vi.stubEnv("CLAUDE_CODE_DISABLE_AUTO_MEMORY", undefined);
 });
 
 afterEach(() => {
