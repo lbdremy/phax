@@ -105,10 +105,12 @@ const REWORDED_JSON: ReadonlyArray<string> = [
  *  `artifact decide`'s verdicts paragraph says a bad verdicts file is refused with 64 and its
  *  `--json` object is indented and carries `written` and `record`; `resume`'s first sentence no
  *  longer says it prompts (without --yes it prints its preview and exits 0); `validate` lists
- *  the prefixes partial commands allow. */
+ *  the prefixes partial commands allow; `artifact schema`'s printed schema is rendered from the
+ *  decoder, the same documents as the published one, no longer its bytes (Effect 4). */
 const REWORDED_LONG_HELP: ReadonlyArray<string> = [
   "ls",
   "artifact decide",
+  "artifact schema",
   "plans overview",
   "resume",
   "validate",

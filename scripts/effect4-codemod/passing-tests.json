@@ -3777,6 +3777,7 @@
     "archived plan sidecars > 2611061508-records-branch-tip-plan.json reads",
     "archived plan sidecars > 2611071140-effect-4-migration-plan.json reads",
     "archived plan sidecars > 2611090945-effect-4-migration-plan.json reads",
+    "archived plan sidecars > 2611091400-effect-4-migration-plan.json reads",
     "archived plan sidecars > finds sidecars stamped 0.20.0 and sidecars stamped 0.25.0",
     "archived plan sidecars > lifts the 0.26.0 surface-summary sidecar, whose test strategies follow the line format",
     "archived plan sidecars > refuses the lift of every 0.25.0 sidecar, whose test strategies are prose"
@@ -14418,7 +14419,9 @@
     "getPhaxConfigJsonSchema > lists output on a gate step with the closed enum and does not require it",
     "getPhaxConfigJsonSchema > lists planAuditor.command as present, not required, with a description naming findings",
     "getPhaxConfigJsonSchema > restates the glob dialect for the globs bound, and says where assignments are accepted",
-    "getPhaxConfigJsonSchema > returns a JSON-serializable object"
+    "getPhaxConfigJsonSchema > returns a JSON-serializable object",
+    "the editor schemas against 0.35.0's > phax.schema.json states 0.35.0's contract",
+    "the editor schemas against 0.35.0's > phax.user.schema.json states 0.35.0's contract"
   ],
   "tests/unit/phaxHomeGuard.test.ts": [
     "isInsidePhaxHome > a deep path below the root",
@@ -16748,6 +16751,10 @@
   ],
   "tests/unit/schemaUrl.test.ts": [
     "compareReleases > orders numeric triples, not strings",
+    "draft07JsonSchema as the decoders read it > finds no optionalKey(NullOr(…)) in the sources, whose null the published form would drop",
+    "draft07JsonSchema as the decoders read it > keeps null where the decoder accepts it: a required nullable key and an optional nullable one",
+    "draft07JsonSchema as the decoders read it > refuses null in an optional key, as the decoder does",
+    "draft07JsonSchema as the decoders read it > refuses the strings NaN and Infinity in a number, as the decoder does",
     "parseSchemaUrl > accepts an id this build does not know, so it stays reportable",
     "parseSchemaUrl > rejects a leading zero",
     "parseSchemaUrl > rejects a nested path",
@@ -19736,6 +19743,9 @@
     "the compliance review's ledger history > refuses a 0.17.0 document that carries a ledger",
     "the compliance review's ledger history > refuses a current document without unmetPromises",
     "the compliance review's ledger history > refuses a current document without unplannedChanges",
+    "the exported PhaseStatusSchema's stop > accepts a stop that names only its own keys",
+    "the exported PhaseStatusSchema's stop > refuses an unknown key on the stop, with no decode option",
+    "the exported PhaseStatusSchema's stop > still ignores an unknown key outside the stop",
     "the phase status's base history > never keeps a base that is not a full commit sha",
     "the phase status's base history > parses a 0.17.0 document as shape 0.17.0 through the frozen module",
     "the phase status's base history > parses a 0.20.0 document as shape 0.20.0 and lifts it as headless and never stopped",
