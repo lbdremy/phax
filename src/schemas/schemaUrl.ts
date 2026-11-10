@@ -239,6 +239,77 @@ function published(node: unknown): unknown {
   return out;
 }
 
+const NON_FINITE: ReadonlySet<unknown> = new Set(["NaN", "Infinity", "-Infinity"]);
+
+function isNullType(node: unknown): boolean {
+  return isJsonObject(node) && Object.keys(node).length === 1 && node["type"] === "null";
+}
+
+/** Effect's JSON form of a non-finite number: a string enum of `NaN`, `Infinity` and `-Infinity`. */
+function isNonFiniteString(node: unknown): boolean {
+  if (!isJsonObject(node) || node["type"] !== "string") return false;
+  const values = node["enum"];
+  return (
+    Array.isArray(values) &&
+    values.length === NON_FINITE.size &&
+    values.every((value) => NON_FINITE.has(value)) &&
+    Object.keys(node).length === 2
+  );
+}
+
+/** A node with its `anyOf` members filtered, written as the one member left when only one is. */
+function keepMembers(
+  node: Readonly<Record<string, unknown>>,
+  keep: (members: ReadonlyArray<unknown>) => ReadonlyArray<unknown>,
+): Readonly<Record<string, unknown>> {
+  const anyOf = node["anyOf"];
+  if (!Array.isArray(anyOf)) return node;
+  const kept = keep(anyOf);
+  if (kept.length === anyOf.length) return node;
+  const { anyOf: _members, ...rest } = node;
+  const [only] = kept;
+  return kept.length === 1 && isJsonObject(only) ? { ...only, ...rest } : { ...rest, anyOf: kept };
+}
+
+/** An optional key's schema without the one `null` Effect adds for its `undefined`. */
+function withoutUndefined(node: unknown): unknown {
+  if (!isJsonObject(node)) return node;
+  return keepMembers(node, (members) => {
+    const index = members.findLastIndex(isNullType);
+    return index === -1 ? members : members.filter((_, at) => at !== index);
+  });
+}
+
+/**
+ * A node as phax's decoders read it. Effect renders the JSON codec's encoded
+ * side, which a decoder of the type side does not accept: a number may also
+ * be the string `NaN`, `Infinity` or `-Infinity`, and an optional key may also
+ * be `null` (its `undefined`). phax decodes the type side, so both go: the
+ * non-finite strings from every `anyOf`, and from a key outside `required`
+ * exactly one `null`, the last, so `optional(NullOr(X))`, which Effect renders
+ * with two, keeps the one its value accepts.
+ */
+function decoderShaped(node: unknown): unknown {
+  if (Array.isArray(node)) return node.map(decoderShaped);
+  if (!isJsonObject(node)) return node;
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(node)) out[key] = decoderShaped(value);
+  const properties = out["properties"];
+  const required = new Set(Array.isArray(out["required"]) ? out["required"] : []);
+  const shaped = isJsonObject(properties)
+    ? {
+        ...out,
+        properties: Object.fromEntries(
+          Object.entries(properties).map(([name, property]) => [
+            name,
+            required.has(name) ? property : withoutUndefined(property),
+          ]),
+        ),
+      }
+    : out;
+  return keepMembers(shaped, (members) => members.filter((member) => !isNonFiniteString(member)));
+}
+
 /** The root schema and the `$defs` its `$ref`s name, in phax's published draft-07 form. */
 export interface Draft07Document {
   readonly schema: Readonly<Record<string, unknown>>;
@@ -264,8 +335,8 @@ export function draft07Document(schema: Schema.Top, excess: Excess): Draft07Docu
       includeAnnotationKey: (key) => NODE_KEYWORDS.has(key),
     }),
   );
-  const root = published(document.schema);
-  const defs = published(document.definitions);
+  const root = decoderShaped(published(document.schema));
+  const defs = decoderShaped(published(document.definitions));
   return {
     schema: isJsonObject(root) ? root : {},
     defs: isJsonObject(defs) ? defs : {},
@@ -287,29 +358,11 @@ export function draft07JsonSchema(schema: Schema.Top): object {
 
 const ANNOTATION_KEYS: ReadonlySet<string> = new Set(["description", "title"]);
 
-function isNullType(node: unknown): boolean {
-  return isJsonObject(node) && Object.keys(node).length === 1 && node["type"] === "null";
-}
-
-/** `X | null` as `X`, its own annotations kept; any other node unchanged. */
-function withoutNull(node: unknown): unknown {
-  if (!isJsonObject(node)) return node;
-  const anyOf = node["anyOf"];
-  if (!Array.isArray(anyOf) || anyOf.length !== 2 || !anyOf.some(isNullType)) return node;
-  const kept = anyOf.find((member) => !isNullType(member));
-  const { anyOf: _nullable, ...rest } = node;
-  return isJsonObject(kept) ? { ...kept, ...rest } : node;
-}
-
 /**
- * One node of an editor schema. Effect renders an optional key as `X | null`
- * (its `undefined` has no JSON form), a description on a key under `allOf`,
- * and a record as `propertyNames` plus `additionalProperties`. No config key
- * accepts `null`, so the editor reads a key that may be absent as `X`, a
- * description beside it, and a record as `patternProperties`, as every
- * released editor schema wrote them. Only a key outside `required` loses its
- * `null`: a config key that came to accept `null` would have to be required
- * to keep it.
+ * One node of an editor schema. Effect renders a description on a key under
+ * `allOf`, and a record as `propertyNames` plus `additionalProperties`; the
+ * editor reads a description beside its key, and a record as
+ * `patternProperties`, as every released editor schema wrote them.
  */
 function editorNode(node: unknown): unknown {
   if (Array.isArray(node)) return node.map(editorNode);
@@ -326,20 +379,6 @@ function editorNode(node: unknown): unknown {
   ) {
     const { allOf: _annotations, ...rest } = out;
     out = Object.assign({}, rest, ...allOf);
-  }
-
-  const properties = out["properties"];
-  if (isJsonObject(properties)) {
-    const required = new Set(Array.isArray(out["required"]) ? out["required"] : []);
-    out = {
-      ...out,
-      properties: Object.fromEntries(
-        Object.entries(properties).map(([name, property]) => [
-          name,
-          required.has(name) ? property : withoutNull(property),
-        ]),
-      ),
-    };
   }
 
   const additional = out["additionalProperties"];
