@@ -28,7 +28,14 @@ briefs of live or unspecced work.
 - [ ] **`finding-ids-and-fates`** — spec Approved (2026-11-04), no plan yet. Review findings get
       stable ids and a recorded fate; the operator's interactive flow first.
 
-### 3. The project doctrine
+### 3. Process and code in two repositories
+
+- [ ] **`code-repository`** — `docs/briefs/code-repository.md` (2026-11-02), spec to author: a
+      project whose process lives in one repository and whose code in another, checked out
+      inside it.
+      Moved up 2026-11-10 (operator): right after `finding-ids-and-fates`.
+
+### 4. The project doctrine
 
 - [ ] **`project-doctrine`** — `docs/specs/2611051057-project-doctrine.md`, Draft (2026-11-05),
       10 open questions, kept for the operator to think over (brief:
@@ -43,7 +50,7 @@ briefs of live or unspecced work.
       reaches only decide, after the choice, and the operator's rules live in `CLAUDE.md` and an
       assistant's memory.
 
-### 4. The knowledge index
+### 5. The knowledge index
 
 - [ ] **`knowledge-index`** — `docs/briefs/knowledge-index.md` (2026-11-04), spec to author. A local,
       rebuildable index (SQLite, FTS5) of what the repository and its runs hold — specs, plans,
@@ -54,7 +61,7 @@ briefs of live or unspecced work.
       After `project-doctrine` (operator, 2026-11-10): the doctrine's entries are among what it
       indexes.
 
-### 5. Security: the user layer
+### 6. Security: the user layer
 
 - [ ] **Follow-up: an opt-out for the user layer** — to brief. Project-only sources also drop the
       operator's own `permissions.deny` rules and hooks, so in unsafe mode nothing else blocks
@@ -63,7 +70,7 @@ briefs of live or unspecced work.
       (accepted by the operator 2026-11-06). The follow-up weighs a recorded opt-out (`loaded`)
       and detecting the account switch (the spec's `q-opt-out`, kept out of the first slice).
 
-### 6. Before 1.0
+### 7. Before 1.0
 
 - [ ] The **CLI contract freeze** and the **persisted-format stability promise** (see "Road to
       1.0.0" below). The Effect 4 migration they waited on is done: spec `effect-4-migration`
@@ -72,11 +79,8 @@ briefs of live or unspecced work.
       protections; the behaviour corpus stays as `tests/behaviourCorpus/`). The schema-guide
       pitfalls it found went upstream as Effect-TS/effect#10525.
 
-### 7. Later
+### 8. Later
 
-- [ ] **`code-repository`** — `docs/briefs/code-repository.md` (2026-11-02), spec to author: a
-      project whose process lives in one repository and whose code in another, checked out
-      inside it.
 - [ ] **`review-map`** — `docs/briefs/review-map.md` (2026-10-23), spec to author. phax computes,
       without a model, where review attention belongs (criteria no test proves, skipped
       acceptance tests, phases that needed fixes, the run's review notes) and gives it to the
