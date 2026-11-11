@@ -523,7 +523,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "$schema: phase-record-manifest 9.0.0 is newer than @lbdremy/phax-schemas 0.36.0 — upgrade the package"
+        "refusal": "$schema: phase-record-manifest 9.0.0 is newer than @lbdremy/phax-schemas {package-version} — upgrade the package"
       }
     },
     {

@@ -178,7 +178,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "$schema: plan-approvals 9.0.0 is newer than @lbdremy/phax-schemas 0.36.0 — upgrade the package"
+        "refusal": "$schema: plan-approvals 9.0.0 is newer than @lbdremy/phax-schemas {package-version} — upgrade the package"
       }
     },
     {

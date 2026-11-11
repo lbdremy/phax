@@ -24,7 +24,7 @@ The end-to-end suite runs only when `PHAX_E2E_RUN=1` is set. It has one real flo
 
 ## The behaviour corpus
 
-`tests/behaviourCorpus/` holds the answers phax gave on Effect 3 for every format, frozen decoder, config layer and provider answer, with the schemas package's baseline. `pnpm test` replays it through `tests/unit/behaviourCorpus/`, and the schemas check judges each generated JSON Schema against the latest released snapshot by its documents. A captured expectation is never changed, and a case that disagrees after a change means the change is wrong. When an Effect API moves, only `tests/behaviourCorpus/subjects.ts` adapts. No capture script remains, so a new case has to bring its own way of writing its expectation.
+`tests/behaviourCorpus/` holds the answers phax gave on Effect 3 for every format, frozen decoder, config layer and provider answer, with the schemas package's baseline. `pnpm test` replays it through `tests/unit/behaviourCorpus/`, and the schemas check judges each generated JSON Schema against the latest released snapshot by its documents. A captured expectation is never changed, and a case that disagrees after a change means the change is wrong. A refusal that names the running schemas package's version writes `{package-version}` in its place, and the replay fills in the version the tree runs, so a release opening changes no case. When an Effect API moves, only `tests/behaviourCorpus/subjects.ts` adapts. No capture script remains, so a new case has to bring its own way of writing its expectation.
 
 ## The state machine
 
