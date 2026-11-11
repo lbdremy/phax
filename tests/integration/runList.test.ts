@@ -10,7 +10,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Either } from "effect";
+import { Result } from "effect";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { parseRunList } from "../../packages/schemas/src/index.js";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
@@ -97,7 +97,7 @@ beforeEach(async () => {
     }),
   );
   const { loadConfig } = await import("../../src/app/loadConfig.js");
-  vi.mocked(loadConfig).mockReturnValue(Either.right(held.config));
+  vi.mocked(loadConfig).mockReturnValue(Result.succeed(held.config));
 }, 30_000);
 
 afterEach(() => {
@@ -126,7 +126,7 @@ describe("phax ls --json is a versioned run list", () => {
 
     expect(document.$schema).toMatch(FORMAT_URL);
     expect(document.$schema).toBe(currentSchemaUrl("run-list"));
-    expect(Either.isRight(decodeRunListFile(document))).toBe(true);
+    expect(Result.isSuccess(decodeRunListFile(document))).toBe(true);
     expect(parseRunList(document).ok).toBe(true);
     expect(document.runs).toHaveLength(3);
 
@@ -232,7 +232,7 @@ describe("phax ls --json carries the pull request phax opened", () => {
     expect(row(document.runs, SHORT)["pullRequest"]).toBe(PULL_REQUEST);
     expect(row(document.runs, "credit-notes")["pullRequest"]).toBeNull();
     expect(row(document.runs, "payments-fix")["pullRequest"]).toBeNull();
-    expect(Either.isRight(decodeRunListFile(document))).toBe(true);
+    expect(Result.isSuccess(decodeRunListFile(document))).toBe(true);
   });
 
   it("gives null for a publication that opened no pull request or cannot be read", async () => {

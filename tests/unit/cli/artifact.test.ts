@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { phaxProgram } from "../../../src/cli/definitions/program.js";
 import { call } from "../commandLibrary/commander/support/memoryIo.js";
 import { answerJsonSchema } from "../../../src/schemas/answerSchemas.js";
@@ -933,7 +933,7 @@ describe("artifact new --headless", () => {
 
   async function mockHappyPathConfig(authoring?: ResolvedConfig["authoring"]): Promise<void> {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
-    loadConfig.mockReturnValue(Either.right(makeHeadlessConfig(authoring)));
+    loadConfig.mockReturnValue(Result.succeed(makeHeadlessConfig(authoring)));
 
     const { loadModelRouting, loadProviderConfig } = vi.mocked(
       await import("../../../src/app/loadRouting.js"),

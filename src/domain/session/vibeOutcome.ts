@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { decodeVibeOutcomeText, type VibeOutcomeExport } from "../../schemas/vibeExport.js";
 import { findVibeResultEvent, findVibeStreamHead } from "../../schemas/vibeOutput.js";
 import type { EndedSession, SessionFailure, SessionOutcome, VibeExportRead } from "./outcome.js";
@@ -106,19 +106,19 @@ export function readVibeOutcome(ended: EndedSession, exported: VibeExportRead): 
   }
 
   const decoded = decodeVibeOutcomeText(exported.text);
-  if (Either.isLeft(decoded)) {
+  if (Result.isFailure(decoded)) {
     return unreadExportOutcome(
       ended,
-      `invalid Vibe export at ${exported.path} (${decoded.left.reason}): ${decoded.left.detail}`,
+      `invalid Vibe export at ${exported.path} (${decoded.failure.reason}): ${decoded.failure.detail}`,
       streamSessionId,
     );
   }
 
-  const sessionId = decoded.right.session_id ?? streamSessionId;
-  if (decoded.right.outcome === "finished") {
+  const sessionId = decoded.success.session_id ?? streamSessionId;
+  if (decoded.success.outcome === "finished") {
     return found === undefined
       ? providerError(NO_ANSWER, sessionId)
       : { kind: "answer", provider: PROVIDER, text: found.finalText, structured: null, sessionId };
   }
-  return { kind: "failure", failure: exportFailure(decoded.right, ended.stderr, sessionId) };
+  return { kind: "failure", failure: exportFailure(decoded.success, ended.stderr, sessionId) };
 }

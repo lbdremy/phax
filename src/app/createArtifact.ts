@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { ArtifactCreationError } from "../domain/errors.js";
 import type { ArtifactKind } from "../domain/artifact/status.js";
@@ -121,10 +121,10 @@ function resolveSourceSpec(
 
     const specMd = yield* fs.readText(sourceSpecPath);
     const validated = validateArtifact(sourceSpecPath, specMd);
-    if (Either.isLeft(validated)) {
+    if (Result.isFailure(validated)) {
       return yield* Effect.fail(
         new ArtifactCreationError({
-          message: `--spec ${sourceSpecPath} is not a valid spec: ${validated.left.message}`,
+          message: `--spec ${sourceSpecPath} is not a valid spec: ${validated.failure.message}`,
         }),
       );
     }
@@ -149,10 +149,10 @@ export function resolveArtifactTarget(
         last: input.completion.last,
         notLast: input.completion.notLast,
       });
-      if (Either.isLeft(resolved)) {
-        return yield* Effect.fail(new ArtifactCreationError({ message: resolved.left }));
+      if (Result.isFailure(resolved)) {
+        return yield* Effect.fail(new ArtifactCreationError({ message: resolved.failure }));
       }
-      completesSpec = resolved.right;
+      completesSpec = resolved.success;
     }
 
     if (!isSlug(input.slug)) {

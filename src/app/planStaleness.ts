@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { Backend } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
@@ -229,17 +229,23 @@ function approvedPlansReport(
       const planPath = `docs/plans/${entry}`;
       const planMd = yield* fs.readText(planPath);
       const validated = validateArtifact(planPath, planMd);
-      if (Either.isLeft(validated)) {
-        report.push({ path: planPath, result: { kind: "error", message: validated.left.message } });
+      if (Result.isFailure(validated)) {
+        report.push({
+          path: planPath,
+          result: { kind: "error", message: validated.failure.message },
+        });
         continue;
       }
-      if (validated.right.status !== "Approved") continue;
+      if (validated.success.status !== "Approved") continue;
 
-      const verdict = yield* Effect.either(computePlanStaleness(planPath, opts));
-      if (Either.isLeft(verdict)) {
-        report.push({ path: planPath, result: { kind: "error", message: verdict.left.message } });
+      const verdict = yield* Effect.result(computePlanStaleness(planPath, opts));
+      if (Result.isFailure(verdict)) {
+        report.push({
+          path: planPath,
+          result: { kind: "error", message: verdict.failure.message },
+        });
       } else {
-        report.push({ path: planPath, result: verdict.right });
+        report.push({ path: planPath, result: verdict.success });
       }
     }
 

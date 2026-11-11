@@ -6,22 +6,32 @@
 // 0.21.0 release.
 import { Schema } from "effect";
 
-const SchemaUrlSchema = Schema.String.pipe(
-  Schema.pattern(
+// `Schema.isPattern` whose JSON Schema is the RegExp's source, whatever its
+// flags: Effect 4 exports a pattern only for a RegExp with the `u` flag.
+function isExportedPattern(regExp: RegExp, annotations?: Schema.Annotations.Filter) {
+  return Schema.isPattern(regExp, {
+    toJsonSchema: () => ({ pattern: regExp.source }),
+    ...annotations,
+  });
+}
+
+const SchemaUrlSchema = Schema.String.check(
+  isExportedPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/gate-attribution\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
-  Schema.annotations({
+).pipe(
+  Schema.annotate({
     description:
       "The gate-attribution format and the phax release that wrote this file: https://docs.phax.run/schemas/gate-attribution/<X.Y.Z>.json",
   }),
 );
 
-const SurfaceSchema = Schema.Literal("local", "structural", "product");
+const SurfaceSchema = Schema.Literals(["local", "structural", "product"]);
 
 const GateStepResultSchema = Schema.Struct({
   command: Schema.NonEmptyString,
   surface: SurfaceSchema,
-  result: Schema.Literal("pass", "fail", "refused"),
+  result: Schema.Literals(["pass", "fail", "refused"]),
 });
 
 export const GateAttributionV0_21_0Schema = Schema.Struct({
@@ -32,6 +42,7 @@ export const GateAttributionV0_21_0Schema = Schema.Struct({
 
 export type GateAttributionV0_21_0 = Schema.Schema.Type<typeof GateAttributionV0_21_0Schema>;
 
-export const decodeGateAttributionV0_21_0 = Schema.decodeUnknownEither(
+export const decodeGateAttributionV0_21_0 = Schema.decodeUnknownResult(
   GateAttributionV0_21_0Schema,
+  { reportInput: true },
 );

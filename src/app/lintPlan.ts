@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import type { ArtifactValidationError, ConfigValidationError } from "../domain/errors.js";
 import type { ResolvedConfig } from "../schemas/phaxConfig.js";
@@ -115,7 +115,7 @@ export function lintPlan(
 
     if (classifyArtifactPath(repoRelPath) !== null) {
       const validated = validateArtifact(repoRelPath, planMd);
-      if (Either.isLeft(validated)) return yield* Effect.fail(validated.left);
+      if (Result.isFailure(validated)) return yield* Effect.fail(validated.failure);
       const planSlug = parseArtifactName("plan", fileNameOf(repoRelPath))?.slug;
       if (planSlug !== undefined) {
         findings.push(...lineageFindings(planSlug, sourceSpecSlug(planMd)));
@@ -123,7 +123,7 @@ export function lintPlan(
     }
 
     const extracted = readPlanDeterministic(planMd);
-    if (Either.isLeft(extracted)) {
+    if (Result.isFailure(extracted)) {
       // Every later check needs a parsed plan; the structural errors already
       // say why it could not be parsed.
       findings.push(
@@ -134,13 +134,13 @@ export function lintPlan(
       return { plan: reportPath, findings };
     }
 
-    const finalized = finalizeExtractedPlan(extracted.right.plan, planMd);
-    if (Either.isLeft(finalized)) {
+    const finalized = finalizeExtractedPlan(extracted.success.plan, planMd);
+    if (Result.isFailure(finalized)) {
       findings.push({
         severity: "error",
         check: "structure",
         phase: null,
-        message: finalized.left.message,
+        message: finalized.failure.message,
       });
       findings.push(
         ...interactiveFindings({ headers, phases: null }),
@@ -150,7 +150,7 @@ export function lintPlan(
       return { plan: reportPath, findings };
     }
 
-    const { plan, warnings } = finalized.right;
+    const { plan, warnings } = finalized.success;
     findings.push(
       ...interactiveFindings({ headers, phases: plan.phases }),
       ...acceptanceFindings({ ...acceptanceInput, phases: plan.phases }),
@@ -158,12 +158,12 @@ export function lintPlan(
     );
     // The rules on the kept lines, numbered by their source items.
     const criteria = yield* readSourceSpecCriteria({ planMd, repoRoot: config.repoRoot });
-    const itemsOf = new Map(extracted.right.lineItems.map((l) => [l.phase, l.items]));
+    const itemsOf = new Map(extracted.success.lineItems.map((l) => [l.phase, l.items]));
     const retiredHeaders = new Set(
       headers.filter((h) => h.hasOraclePhaseLine || h.hasOracleFilesLine).map((h) => h.phase),
     );
     const retiredLoops = new Set(
-      extracted.right.departures
+      extracted.success.departures
         .filter(({ departure }) => departure.kind === "retired-loop")
         .map(({ phase }) => phase),
     );
@@ -224,9 +224,9 @@ export function lintPlan(
         config.repoRoot,
       );
       findings.push(
-        ...(Either.isRight(audited)
-          ? advisoryFindings(audited.right)
-          : [auditorFailureFinding(audited.left)]),
+        ...(Result.isSuccess(audited)
+          ? advisoryFindings(audited.success)
+          : [auditorFailureFinding(audited.failure)]),
       );
     }
 

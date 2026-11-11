@@ -1,4 +1,4 @@
-import { Either, type ParseResult } from "effect";
+import { Result, type Schema } from "effect";
 import { isMap, parseDocument, type Document } from "yaml";
 import { formatParseError } from "../../schemas/formatError.js";
 import {
@@ -49,65 +49,65 @@ export type FrontmatterEdit =
       readonly value: { readonly date: string; readonly baseline: string };
     };
 
-function parseYamlMapping(yamlText: string): Either.Either<Document, FrontmatterProblem> {
+function parseYamlMapping(yamlText: string): Result.Result<Document, FrontmatterProblem> {
   const doc = parseDocument(yamlText);
   if (doc.errors.length > 0) {
-    return Either.left({
+    return Result.fail({
       kind: "yaml-syntax",
       detail: doc.errors.map((error) => error.message).join("; "),
     });
   }
   if (!isMap(doc.contents)) {
-    return Either.left({
+    return Result.fail({
       kind: "yaml-syntax",
       detail: "frontmatter block is not a YAML mapping",
     });
   }
-  return Either.right(doc);
+  return Result.succeed(doc);
 }
 
 export function decodeArtifactFrontmatter(
   kind: "spec",
   md: string,
-): Either.Either<SpecFrontmatter, FrontmatterProblem>;
+): Result.Result<SpecFrontmatter, FrontmatterProblem>;
 export function decodeArtifactFrontmatter(
   kind: "plan",
   md: string,
-): Either.Either<PlanFrontmatter, FrontmatterProblem>;
+): Result.Result<PlanFrontmatter, FrontmatterProblem>;
 export function decodeArtifactFrontmatter(
   kind: ArtifactKind,
   md: string,
-): Either.Either<SpecFrontmatter | PlanFrontmatter, FrontmatterProblem>;
+): Result.Result<SpecFrontmatter | PlanFrontmatter, FrontmatterProblem>;
 export function decodeArtifactFrontmatter(
   kind: ArtifactKind,
   md: string,
-): Either.Either<SpecFrontmatter | PlanFrontmatter, FrontmatterProblem> {
+): Result.Result<SpecFrontmatter | PlanFrontmatter, FrontmatterProblem> {
   const split = splitFrontmatter(md);
-  if (split === null) return Either.left({ kind: "missing-block" });
+  if (split === null) return Result.fail({ kind: "missing-block" });
 
   const docE = parseYamlMapping(split.yamlText);
-  if (Either.isLeft(docE)) return Either.left(docE.left);
+  if (Result.isFailure(docE)) return Result.fail(docE.failure);
 
-  const value: unknown = docE.right.toJS();
-  const decoded: Either.Either<SpecFrontmatter | PlanFrontmatter, ParseResult.ParseError> =
+  const value: unknown = docE.success.toJS();
+  const decoded: Result.Result<SpecFrontmatter | PlanFrontmatter, Schema.SchemaError> =
     kind === "spec" ? decodeSpecFrontmatter(value) : decodePlanFrontmatter(value);
-  if (Either.isLeft(decoded)) {
-    return Either.left({ kind: "schema", detail: formatParseError(decoded.left) });
+  if (Result.isFailure(decoded)) {
+    return Result.fail({ kind: "schema", detail: formatParseError(decoded.failure) });
   }
-  return Either.right(decoded.right);
+  return Result.succeed(decoded.success);
 }
 
 export function setFrontmatterKeys(
   md: string,
   edits: readonly FrontmatterEdit[],
-): Either.Either<string, FrontmatterProblem> {
+): Result.Result<string, FrontmatterProblem> {
   const split = splitFrontmatter(md);
-  if (split === null) return Either.left({ kind: "missing-block" });
+  if (split === null) return Result.fail({ kind: "missing-block" });
 
   const docE = parseYamlMapping(split.yamlText);
-  if (Either.isLeft(docE)) return Either.left(docE.left);
+  if (Result.isFailure(docE)) return Result.fail(docE.failure);
 
-  const doc = docE.right;
+  const doc = docE.success;
   for (const edit of edits) {
     if (edit.key === "status") {
       doc.set("status", edit.value);
@@ -116,7 +116,7 @@ export function setFrontmatterKeys(
     }
   }
 
-  return Either.right(`${DELIMITER}\n${doc.toString()}${DELIMITER}\n${split.body}`);
+  return Result.succeed(`${DELIMITER}\n${doc.toString()}${DELIMITER}\n${split.body}`);
 }
 
 /**
@@ -128,19 +128,19 @@ export function setFrontmatterKeys(
 export function removeFrontmatterKeys(
   md: string,
   keys: readonly string[],
-): Either.Either<string, FrontmatterProblem> {
+): Result.Result<string, FrontmatterProblem> {
   const split = splitFrontmatter(md);
-  if (split === null) return Either.left({ kind: "missing-block" });
+  if (split === null) return Result.fail({ kind: "missing-block" });
 
   const docE = parseYamlMapping(split.yamlText);
-  if (Either.isLeft(docE)) return Either.left(docE.left);
+  if (Result.isFailure(docE)) return Result.fail(docE.failure);
 
-  const doc = docE.right;
+  const doc = docE.success;
   for (const key of keys) {
     doc.delete(key);
   }
 
-  return Either.right(`${DELIMITER}\n${doc.toString()}${DELIMITER}\n${split.body}`);
+  return Result.succeed(`${DELIMITER}\n${doc.toString()}${DELIMITER}\n${split.body}`);
 }
 
 /**
@@ -155,9 +155,9 @@ export function fingerprintSource(md: string): string {
   if (split === null) return md;
 
   const docE = parseYamlMapping(split.yamlText);
-  if (Either.isLeft(docE)) return md;
+  if (Result.isFailure(docE)) return md;
 
-  const doc = docE.right;
+  const doc = docE.success;
   doc.delete("status");
   doc.delete("approved");
 

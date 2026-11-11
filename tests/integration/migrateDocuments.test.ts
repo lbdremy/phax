@@ -11,7 +11,7 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Effect, Either, Layer, Option } from "effect";
+import { Effect, Result, Layer, Option } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { artifactFingerprint } from "../../src/app/approvalRecordStore.js";
 import { transitionArtifactBy } from "../../src/app/artifactStatus.js";
@@ -308,8 +308,8 @@ function planFrontmatter(status: string, sourceSpec: string | null, approved = "
 function writeOlderPlan(sourceSpec: string | null, frontmatter: string): string {
   const sidecar = { $schema: schemaUrl("plan-document", "0.20.0"), ...olderPlan(sourceSpec) };
   const lifted = readPlanDocumentFile(sidecarOf(PLAN), sidecar);
-  if (Either.isLeft(lifted)) throw new Error(lifted.left.message);
-  const md = frontmatter + renderPlanBody(lifted.right);
+  if (Result.isFailure(lifted)) throw new Error(lifted.failure.message);
+  const md = frontmatter + renderPlanBody(lifted.success);
   writeRepoFile(PLAN, md);
   writeRepoFile(sidecarOf(PLAN), json(sidecar));
   return md;
@@ -416,7 +416,7 @@ function layer() {
 
 function migrate() {
   return Effect.runPromise(
-    Effect.either(
+    Effect.result(
       migrateDocuments({
         repoRoot: repoDir,
         stateRoot,
@@ -430,13 +430,13 @@ function migrate() {
 
 async function migrated() {
   const result = await migrate();
-  if (Either.isLeft(result)) throw new Error(`migration failed: ${result.left.message}`);
-  return result.right;
+  if (Result.isFailure(result)) throw new Error(`migration failed: ${result.failure.message}`);
+  return result.success;
 }
 
 function approve(path: string) {
   return Effect.runPromise(
-    Effect.either(
+    Effect.result(
       transitionArtifactBy(path, "Approved", {
         repoRoot: repoDir,
         nowIso: NOW,
@@ -524,13 +524,13 @@ describe("migrate-documents — plan documents in flight", { timeout: 30_000 }, 
 
     // The re-seeded cache holds the plan's projection: a run finds it without extraction.
     const lifted = readPlanDocumentFile(sidecarOf(PLAN), sidecar);
-    if (Either.isLeft(lifted)) throw new Error(lifted.left.message);
+    if (Result.isFailure(lifted)) throw new Error(lifted.failure.message);
     const cached = await Effect.runPromise(
       readCacheEntry(stateRoot, planCacheKey(md, MODEL, EFFORT)).pipe(
         Effect.provide(makeRootedNodeFileSystemLayer(repoDir)),
       ),
     );
-    expect(Option.getOrNull(cached)).toEqual(projectExtractedPlan(lifted.right));
+    expect(Option.getOrNull(cached)).toEqual(projectExtractedPlan(lifted.success));
     expect(Option.getOrNull(cached)?.phases.map((phase) => [phase.model, phase.effort])).toEqual([
       ["claude-opus-5-5", "high"],
       ["claude-sonnet-5", "medium"],
@@ -628,10 +628,10 @@ describe("migrate-documents — plan documents in flight", { timeout: 30_000 }, 
 
     const result = await migrate();
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(DocumentMigrationRefusedError);
-      expect(result.left.message).toContain(
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toBeInstanceOf(DocumentMigrationRefusedError);
+      expect(result.failure.message).toContain(
         `${PLAN} is not its sidecar's plan-document 0.25.0 rendering — a hand edit would be overwritten`,
       );
     }
@@ -725,10 +725,10 @@ describe("migrate-documents — plan documents in flight", { timeout: 30_000 }, 
 
     const result = await migrate();
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(DocumentMigrationRefusedError);
-      expect(result.left.message).toContain(
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toBeInstanceOf(DocumentMigrationRefusedError);
+      expect(result.failure.message).toContain(
         `${PLAN} phase-01 testStrategy line 1 departs from the test line format: "Write \`tests/unit/hold.test.ts\` first."\n` +
           "  Rewrite each phase's test strategy in the line format, in the sidecar and plan.md alike, or re-author the plan, then rerun.",
       );
@@ -756,14 +756,14 @@ describe("migrate-documents — plan documents in flight", { timeout: 30_000 }, 
     );
 
     const result = await migrate();
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(DocumentMigrationRefusedError);
-      expect(exitCodeForAuthoringError(result.left)).toBe(12);
-      expect(result.left.message).toMatch(
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toBeInstanceOf(DocumentMigrationRefusedError);
+      expect(exitCodeForAuthoringError(result.failure)).toBe(12);
+      expect(result.failure.message).toMatch(
         new RegExp(`^migrate refused: ${PLAN} has an invalid sidecar \\(.*completesSpec`),
       );
-      expect(result.left.message).not.toContain(PLAN_PRUNE);
+      expect(result.failure.message).not.toContain(PLAN_PRUNE);
     }
     expect(headSha()).toBe(head);
     expect(porcelain()).toBe("");
@@ -811,11 +811,11 @@ describe("migrate-documents — spec documents in flight", { timeout: 30_000 }, 
 
     const head = headSha();
     const refused = await approve(LOG_ROTATION);
-    expect(Either.isLeft(refused)).toBe(true);
-    if (Either.isLeft(refused)) {
-      expect(refused.left).toBeInstanceOf(DocumentMigrationRequiredError);
-      expect(exitCodeForError(refused.left)).toBe(12);
-      expect(refused.left.message).toBe(
+    expect(Result.isFailure(refused)).toBe(true);
+    if (Result.isFailure(refused)) {
+      expect(refused.failure).toBeInstanceOf(DocumentMigrationRequiredError);
+      expect(exitCodeForError(refused.failure)).toBe(12);
+      expect(refused.failure.message).toBe(
         `Approval refused: ${sidecarOf(LOG_ROTATION)} is stamped spec-document 0.17.0 — run \`phax artifact migrate-documents\` first`,
       );
     }
@@ -949,11 +949,11 @@ describe(
 
       const result = await migrate();
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        expect(result.left).toBeInstanceOf(DocumentMigrationRefusedError);
-        expect(exitCodeForAuthoringError(result.left)).toBe(12);
-        expect(result.left.message.split("\n")[0]).toBe(
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
+        expect(result.failure).toBeInstanceOf(DocumentMigrationRefusedError);
+        expect(exitCodeForAuthoringError(result.failure)).toBe(12);
+        expect(result.failure.message.split("\n")[0]).toBe(
           `migrate refused: ${PLAN_PRUNE} is not its sidecar's spec-document 0.25.0 rendering — a hand edit would be overwritten`,
         );
       }
@@ -1000,11 +1000,11 @@ describe("migrate-documents — never overwrites a hand edit", { timeout: 30_000
 
     // 1. The hand-edited spec is named with both remedies; nothing moves.
     const first = await migrate();
-    expect(Either.isLeft(first)).toBe(true);
-    if (Either.isLeft(first)) {
-      expect(first.left).toBeInstanceOf(DocumentMigrationRefusedError);
-      expect(exitCodeForAuthoringError(first.left)).toBe(12);
-      expect(first.left.message.split("\n")).toEqual([
+    expect(Result.isFailure(first)).toBe(true);
+    if (Result.isFailure(first)) {
+      expect(first.failure).toBeInstanceOf(DocumentMigrationRefusedError);
+      expect(exitCodeForAuthoringError(first.failure)).toBe(12);
+      expect(first.failure.message.split("\n")).toEqual([
         `migrate refused: ${LOG_ROTATION} is not its sidecar's spec-document 0.17.0 rendering — a hand edit would be overwritten`,
         "  Re-author it headless (remove the artifact and its sidecar, then run " +
           "`phax artifact new spec log-rotation --headless --brief <file|->`), " +
@@ -1022,11 +1022,11 @@ describe("migrate-documents — never overwrites a hand edit", { timeout: 30_000
     writeRepoFile(sidecarOf(CACHE_KEYS), reformatted);
     const head2 = headSha();
     const second = await migrate();
-    expect(Either.isLeft(second)).toBe(true);
-    if (Either.isLeft(second)) {
-      expect(second.left).toBeInstanceOf(ArtifactDirtyWriteSetError);
-      expect(exitCodeForAuthoringError(second.left)).toBe(12);
-      expect(second.left.message).toContain(sidecarOf(CACHE_KEYS));
+    expect(Result.isFailure(second)).toBe(true);
+    if (Result.isFailure(second)) {
+      expect(second.failure).toBeInstanceOf(ArtifactDirtyWriteSetError);
+      expect(exitCodeForAuthoringError(second.failure)).toBe(12);
+      expect(second.failure.message).toContain(sidecarOf(CACHE_KEYS));
     }
     expect(headSha()).toBe(head2);
     expect(readRepoFile(LOG_ROTATION)).toBe(editedMd);
@@ -1197,11 +1197,11 @@ describe("migrate-documents — an unreadable sidecar", { timeout: 30_000 }, () 
     const head = headSha();
 
     const result = await migrate();
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(DocumentMigrationRefusedError);
-      expect(exitCodeForAuthoringError(result.left)).toBe(12);
-      expect(result.left.message).toContain(
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toBeInstanceOf(DocumentMigrationRefusedError);
+      expect(exitCodeForAuthoringError(result.failure)).toBe(12);
+      expect(result.failure.message).toContain(
         `migrate refused: ${LOG_ROTATION} has an invalid sidecar`,
       );
     }
@@ -1231,10 +1231,10 @@ describe("migrate-documents — commit failure", { timeout: 30_000 }, () => {
 
     const result = await migrate();
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(ArtifactCommitFailedError);
-      expect(exitCodeForAuthoringError(result.left)).toBe(12);
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toBeInstanceOf(ArtifactCommitFailedError);
+      expect(exitCodeForAuthoringError(result.failure)).toBe(12);
     }
     expect(headSha()).toBe(head);
     expect(JSON.parse(readRepoFile(sidecarOf(LOG_ROTATION)))).toMatchObject({
@@ -1416,10 +1416,10 @@ describe("migrate-documents — the acceptance loop", { timeout: 30_000 }, () =>
 
     const result = await migrate();
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(DocumentMigrationRefusedError);
-      expect(result.left.message.split("\n")[0]).toBe(
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toBeInstanceOf(DocumentMigrationRefusedError);
+      expect(result.failure.message.split("\n")[0]).toBe(
         `migrate refused: ${PLAN} is not its sidecar's plan-document 0.32.0 rendering — a hand edit would be overwritten`,
       );
     }
@@ -1435,11 +1435,11 @@ describe("migrate-documents — the acceptance loop", { timeout: 30_000 }, () =>
 
     const refused = await approve(PLAN);
 
-    expect(Either.isLeft(refused)).toBe(true);
-    if (Either.isLeft(refused)) {
-      expect(refused.left).toBeInstanceOf(DocumentMigrationRequiredError);
-      expect(exitCodeForError(refused.left)).toBe(12);
-      expect(refused.left.message).toBe(
+    expect(Result.isFailure(refused)).toBe(true);
+    if (Result.isFailure(refused)) {
+      expect(refused.failure).toBeInstanceOf(DocumentMigrationRequiredError);
+      expect(exitCodeForError(refused.failure)).toBe(12);
+      expect(refused.failure.message).toBe(
         `Approval refused: ${sidecarOf(PLAN)} is stamped plan-document 0.32.0 — run \`phax artifact migrate-documents\` first`,
       );
     }

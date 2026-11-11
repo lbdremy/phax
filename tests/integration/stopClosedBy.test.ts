@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildHeldReviewCommitBody } from "../../src/app/commit.js";
 import { closeStop, type CloseReport } from "../../src/app/closeStop.js";
@@ -160,7 +160,7 @@ async function close(options: { readonly resume?: boolean } = {}) {
   return Effect.runPromise(
     Effect.gen(function* () {
       if (options.resume !== false) yield* resumeRequested();
-      return yield* Effect.either(closeStop(closeInput()));
+      return yield* Effect.result(closeStop(closeInput()));
     }).pipe(
       Effect.provide(
         Layer.mergeAll(
@@ -175,15 +175,15 @@ async function close(options: { readonly resume?: boolean } = {}) {
   );
 }
 
-const report = (result: Either.Either<CloseReport, unknown>): CloseReport => {
-  if (Either.isLeft(result)) throw new Error(`close refused: ${String(result.left)}`);
-  return result.right;
+const report = (result: Result.Result<CloseReport, unknown>): CloseReport => {
+  if (Result.isFailure(result)) throw new Error(`close refused: ${String(result.failure)}`);
+  return result.success;
 };
 
 const statusStop = () => {
   const decoded = decodePhaseStatusFile(readJson(join(phaseFolder(), "status.json")));
-  if (Either.isLeft(decoded)) throw new Error("status.json does not decode");
-  return decoded.right.stop;
+  if (Result.isFailure(decoded)) throw new Error("status.json does not decode");
+  return decoded.success.stop;
 };
 
 describe("who closed a held stop", () => {
@@ -272,9 +272,9 @@ describe("who closed a held stop", () => {
 
     const result = await close();
 
-    if (Either.isRight(result)) throw new Error("the close was not refused");
-    expect(result.left).toBeInstanceOf(StopCloseRefusedError);
-    const refused = result.left as StopCloseRefusedError;
+    if (Result.isSuccess(result)) throw new Error("the close was not refused");
+    expect(result.failure).toBeInstanceOf(StopCloseRefusedError);
+    const refused = result.failure as StopCloseRefusedError;
     expect(refused.lastClose).toMatchObject({ result: "close-error", exitCode: 1, step: "commit" });
     expect(refused.lastClose).toMatchObject({
       detail: expect.stringContaining("set user.name and user.email"),

@@ -8,37 +8,47 @@
 // cannot move it.
 import { Schema } from "effect";
 
-const InteractiveHandoffSchemaUrlSchema = Schema.String.pipe(
-  Schema.pattern(
+// `Schema.isPattern` whose JSON Schema is the RegExp's source, whatever its
+// flags: Effect 4 exports a pattern only for a RegExp with the `u` flag.
+function isExportedPattern(regExp: RegExp, annotations?: Schema.Annotations.Filter) {
+  return Schema.isPattern(regExp, {
+    toJsonSchema: () => ({ pattern: regExp.source }),
+    ...annotations,
+  });
+}
+
+const InteractiveHandoffSchemaUrlSchema = Schema.String.check(
+  isExportedPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/interactive-handoff\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
-  Schema.annotations({
+).pipe(
+  Schema.annotate({
     description:
       "The interactive-handoff format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): https://docs.phax.run/schemas/interactive-handoff/<X.Y.Z>.json",
   }),
 );
 
-const GuardSchema = Schema.Union(
+const GuardSchema = Schema.Union([
   Schema.Struct({
-    kind: Schema.Literal("test", "lint", "gate-step").annotations({
+    kind: Schema.Literals(["test", "lint", "gate-step"]).annotate({
       description: "What now guards the correction.",
     }),
-    ref: Schema.NonEmptyString.annotations({
+    ref: Schema.NonEmptyString.annotate({
       description: "The test, lint rule or gate step that guards it.",
     }),
   }),
   Schema.Struct({
     kind: Schema.Literal("none"),
-    reason: Schema.NonEmptyString.annotations({ description: "Why nothing guards it." }),
+    reason: Schema.NonEmptyString.annotate({ description: "Why nothing guards it." }),
   }),
-);
+]);
 
 /** A 0.26.0 `interactive-handoff` document. Exactly these keys; any other is refused. */
 export const InteractiveHandoffV0_26_0Schema = Schema.Struct({
   $schema: InteractiveHandoffSchemaUrlSchema,
   corrections: Schema.NonEmptyArray(
     Schema.Struct({
-      what: Schema.NonEmptyString.annotations({ description: "What was corrected." }),
+      what: Schema.NonEmptyString.annotate({ description: "What was corrected." }),
       guard: GuardSchema,
     }),
   ),
@@ -48,7 +58,7 @@ export const InteractiveHandoffV0_26_0Schema = Schema.Struct({
 
 export type InteractiveHandoffV0_26_0 = Schema.Schema.Type<typeof InteractiveHandoffV0_26_0Schema>;
 
-export const decodeInteractiveHandoffV0_26_0 = Schema.decodeUnknownEither(
+export const decodeInteractiveHandoffV0_26_0 = Schema.decodeUnknownResult(
   InteractiveHandoffV0_26_0Schema,
-  { onExcessProperty: "error" },
+  { onExcessProperty: "error", reportInput: true },
 );

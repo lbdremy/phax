@@ -9,12 +9,12 @@ import {
 import type { PhaxEvent, PhaxEventType } from "../../src/domain/events.js";
 import type { RunReviewInfo } from "../../src/domain/runReviewInfo.js";
 import { AgentSessionFailedError, RateLimitError } from "../../src/domain/errors.js";
-import { Either } from "effect";
+import { Result } from "effect";
 import { reviewStop } from "../helpers/phaseStatusFixture.js";
 
-function unwrap<T>(e: Either.Either<T, unknown>): T {
-  if (Either.isLeft(e)) throw new Error("decode failed");
-  return e.right;
+function unwrap<T>(e: Result.Result<T, unknown>): T {
+  if (Result.isFailure(e)) throw new Error("decode failed");
+  return e.success;
 }
 
 const runId = unwrap(decodeRunId("run-1"));

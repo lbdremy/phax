@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   readPhaseBase,
@@ -51,13 +51,13 @@ describe("readPhaseBase", () => {
     fakeFs.impl.setFile(`${phaseFolderPath}/status.json`, JSON.stringify(withoutBase));
 
     const result = await Effect.runPromise(
-      Effect.either(readPhaseBase(phaseFolderPath).pipe(Effect.provide(fakeFs.layer))),
+      Effect.result(readPhaseBase(phaseFolderPath).pipe(Effect.provide(fakeFs.layer))),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(FsError);
-      expect(result.left.message).toContain(`${phaseFolderPath}/status.json`);
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toBeInstanceOf(FsError);
+      expect(result.failure.message).toContain(`${phaseFolderPath}/status.json`);
     }
   });
 });
@@ -69,28 +69,28 @@ describe("readPhaseCommit", () => {
     const fakeFs = makeFakeFileSystem();
     fakeFs.impl.setFile(`${phaseFolderPath}/status.json`, makePhaseStatusJson(extra));
     return Effect.runPromise(
-      Effect.either(readPhaseCommit(phaseFolderPath).pipe(Effect.provide(fakeFs.layer))),
+      Effect.result(readPhaseCommit(phaseFolderPath).pipe(Effect.provide(fakeFs.layer))),
     );
   }
 
   it("reads the noted full commit back from status.json, with the phase and its state", async () => {
     expect(await read({ state: "committed", commitHash })).toEqual(
-      Either.right({ phaseId: "phase-01", state: "committed", commit: commitHash }),
+      Result.succeed({ phaseId: "phase-01", state: "committed", commit: commitHash }),
     );
   });
 
   it("reads null when no commit is noted, as for a skipped phase", async () => {
     expect(await read({ state: "skipped" })).toEqual(
-      Either.right({ phaseId: "phase-01", state: "skipped", commit: null }),
+      Result.succeed({ phaseId: "phase-01", state: "skipped", commit: null }),
     );
   });
 
   it("fails naming the phase when the noted commit is abbreviated", async () => {
     const result = await read({ state: "committed", commitHash: "0123456" });
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left.message).toContain("phase-01");
-      expect(result.left.message).toContain("0123456");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure.message).toContain("phase-01");
+      expect(result.failure.message).toContain("0123456");
     }
   });
 });
@@ -136,10 +136,10 @@ describe("recordPhaseWorktreeAndBranch", () => {
 
     const raw = fakeFs.impl.getFile(`${phaseFolderPath}/status.json`);
     const decoded = decodePhaseStatusFile(JSON.parse(raw!));
-    expect(Either.isRight(decoded)).toBe(true);
-    if (Either.isRight(decoded)) {
-      expect(decoded.right.branchName).toBe("ai/my-run--phase-01");
-      expect(decoded.right.worktreePath).toBe("/fake/worktrees/my-run/phase-01");
+    expect(Result.isSuccess(decoded)).toBe(true);
+    if (Result.isSuccess(decoded)) {
+      expect(decoded.success.branchName).toBe("ai/my-run--phase-01");
+      expect(decoded.success.worktreePath).toBe("/fake/worktrees/my-run/phase-01");
     }
   });
 
@@ -168,13 +168,13 @@ describe("recordPhaseWorktreeAndBranch", () => {
     const branchName = "ai/my-run--phase-01" as BranchName;
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         recordPhaseWorktreeAndBranch(phaseFolderPath, worktreePath, branchName).pipe(
           Effect.provide(fakeFs.layer),
         ),
       ),
     );
     // FsError expected when file is missing
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 });

@@ -3,7 +3,7 @@
 // after the compliance review and before the pull request, and a review that
 // goes wrong never fails the run. Drives executePlan with fake ports; nothing
 // reaches GitHub: every test uses makeFakeGitHub().
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { existsSync, readFileSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -57,7 +57,7 @@ const HANDOFF_CONTENT = [
 const NAMESPACE = "test-project";
 const SHORT_NAME = "code-review-run";
 const GATE = "node scripts/example-check.mjs";
-const shortName = Either.getOrThrow(decodeShortName(SHORT_NAME));
+const shortName = Result.getOrThrow(decodeShortName(SHORT_NAME));
 
 const RECORDS: ResolvedRecordsConfig = {
   enabled: true,
@@ -163,7 +163,7 @@ describe("headless code review at run end", () => {
       readonly verbose?: boolean;
     } = {},
   ) {
-    const plan = Either.getOrThrow(
+    const plan = Result.getOrThrow(
       liftFixturePhaxPlanToCurrent("phax-plan.json", {
         version: 1,
         run: {
@@ -274,7 +274,7 @@ describe("headless code review at run end", () => {
       return true;
     });
     const outcome = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: opts.output ?? processOutput,
@@ -316,7 +316,7 @@ describe("headless code review at run end", () => {
   it("runs the session after compliance-review.json and before the pull request, and lists the findings", async () => {
     const r = await runOnce({ answer: answerOf(finding()) });
 
-    expect(Either.isRight(r.outcome)).toBe(true);
+    expect(Result.isSuccess(r.outcome)).toBe(true);
     expect(r.sessions).toEqual(["compliance", "code-review"]);
     expect(r.atCodeReviewStart).toEqual([{ complianceJson: true, pullRequests: 0 }]);
     expect(r.pullRequests).toBe(1);
@@ -336,7 +336,7 @@ describe("headless code review at run end", () => {
     };
     const r = await runOnce({ answer: answerOf(finding()), output, verbose: true });
 
-    expect(Either.isRight(r.outcome)).toBe(true);
+    expect(Result.isSuccess(r.outcome)).toBe(true);
     expect(r.pullRequests).toBe(1);
     // `phax run --json` hands the runner's port: nothing may reach the process's streams around it.
     expect(r.stdout).toBe("");
@@ -357,7 +357,7 @@ describe("headless code review at run end", () => {
       answer: answerOf(finding()),
     });
 
-    expect(Either.isRight(r.outcome)).toBe(true);
+    expect(Result.isSuccess(r.outcome)).toBe(true);
     expect(r.sessions).toEqual(["compliance"]);
     expect(existsSync(join(r.runPath, "code-review.json"))).toBe(false);
     expect(r.prBody).toBeDefined();
@@ -375,7 +375,7 @@ describe("headless code review at run end", () => {
     async (_n, answer) => {
       const r = await runOnce({ answer, retryAnswer: answer });
 
-      expect(Either.isRight(r.outcome)).toBe(true);
+      expect(Result.isSuccess(r.outcome)).toBe(true);
       expect(r.stderr).toContain("code review failed: code-review answer rejected twice");
       expect(existsSync(join(r.runPath, "code-review.json"))).toBe(false);
       expect(existsSync(join(r.runPath, "code-review-session.json"))).toBe(false);
@@ -392,7 +392,7 @@ describe("headless code review at run end", () => {
       retryAnswer: answerOf(finding({ message: "from the retry" })),
     });
 
-    expect(Either.isRight(r.outcome)).toBe(true);
+    expect(Result.isSuccess(r.outcome)).toBe(true);
     expect(r.stderr).toContain("[phax] Warning: code-review answer refused — ");
     expect(r.stderr).toContain("resuming the session once to ask for the whole answer again");
     const file = JSON.parse(readFileSync(join(r.runPath, "code-review.json"), "utf8")) as {
@@ -409,7 +409,7 @@ describe("headless code review at run end", () => {
   it("leaves the run review_open, the pull request written and neither review file when the session fails", async () => {
     const r = await runOnce({ codeSession: false });
 
-    expect(Either.isRight(r.outcome)).toBe(true);
+    expect(Result.isSuccess(r.outcome)).toBe(true);
     expect(await runState(r.runPath)).toBe("review_open");
     expect(r.pullRequests).toBe(1);
     expect(existsSync(join(r.runPath, "code-review.json"))).toBe(false);
@@ -436,7 +436,7 @@ describe("headless code review at run end", () => {
   it("skips the review with a warning when the bundled skill was not given", async () => {
     const r = await runOnce({ withoutSkill: true, answer: answerOf(finding()) });
 
-    expect(Either.isRight(r.outcome)).toBe(true);
+    expect(Result.isSuccess(r.outcome)).toBe(true);
     expect(r.sessions).toEqual(["compliance"]);
     expect(r.stderr).toContain(
       "[phax] Warning: code review not run: the bundled phax-review skill was not given",
@@ -450,7 +450,7 @@ describe("headless code review at run end", () => {
       onCodeReview: (git) => git.impl.failNextWriteTreeCommit("disk full"),
     });
 
-    expect(Either.isRight(r.outcome)).toBe(true);
+    expect(Result.isSuccess(r.outcome)).toBe(true);
     expect(existsSync(join(r.runPath, "code-review.json"))).toBe(true);
     expect(await runState(r.runPath)).toBe("review_open");
     expect(r.stderr).toContain("[phax] Warning: the code-review entry was not committed");

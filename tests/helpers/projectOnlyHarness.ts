@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, expect, vi } from "vitest";
 import { executePlan } from "../../src/app/executePlan.js";
 import { createRunFolder } from "../../src/app/runFolder.js";
@@ -189,7 +189,7 @@ export interface PlanRunOptions {
 export interface PlanRun {
   readonly repoRoot: string;
   readonly runId: RunId;
-  readonly result: Either.Either<unknown, unknown>;
+  readonly result: Result.Result<unknown, unknown>;
 }
 
 function planOf(phases: readonly PlannedPhase[]): { plan: PhaxPlan; planMd: string } {
@@ -323,14 +323,14 @@ export async function runHeadlessPlan(fake: FakeClaude, options: PlanRunOptions)
   git("commit", "-m", "chore: start");
 
   const { plan, planMd } = planOf(options.phases);
-  const shortName = Either.getOrThrow(decodeShortName(RUN_SHORT));
+  const shortName = Result.getOrThrow(decodeShortName(RUN_SHORT));
   const config = configOf(repoRoot, stateRoot, options);
   const { runPath, runId } = await Effect.runPromise(
     createRunFolder(shortName, planMd, plan, config).pipe(Effect.provide(NodeFileSystemLayer)),
   );
   const providerConfig = providerConfigOf(fake.cli);
   const result = await Effect.runPromise(
-    Effect.either(
+    Effect.result(
       executePlan({
         phaxVersion: "0.0.0-test",
         output: processOutput,

@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { InvalidTransitionError } from "../../src/domain/errors.js";
 import {
@@ -25,17 +25,17 @@ import {
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 import { decodePhaseStatusFile } from "../../src/schemas/status.js";
 
-function assertRight<T>(result: Either.Either<T, unknown>, expected: T): void {
-  expect(Either.isRight(result)).toBe(true);
-  if (Either.isRight(result)) {
-    expect(result.right).toBe(expected);
+function assertRight<T>(result: Result.Result<T, unknown>, expected: T): void {
+  expect(Result.isSuccess(result)).toBe(true);
+  if (Result.isSuccess(result)) {
+    expect(result.success).toBe(expected);
   }
 }
 
-function assertLeft(result: Either.Either<unknown, unknown>): void {
-  expect(Either.isLeft(result)).toBe(true);
-  if (Either.isLeft(result)) {
-    expect(result.left).toBeInstanceOf(InvalidTransitionError);
+function assertLeft(result: Result.Result<unknown, unknown>): void {
+  expect(Result.isFailure(result)).toBe(true);
+  if (Result.isFailure(result)) {
+    expect(result.failure).toBeInstanceOf(InvalidTransitionError);
   }
 }
 
@@ -156,9 +156,9 @@ describe("Run state transitions", () => {
 
   it("InvalidTransitionError message contains from/to states", () => {
     const result = startRun("running");
-    if (Either.isLeft(result)) {
-      expect(result.left.message).toContain("running");
-      expect(result.left.message).toContain("running");
+    if (Result.isFailure(result)) {
+      expect(result.failure.message).toContain("running");
+      expect(result.failure.message).toContain("running");
     }
   });
 });
@@ -273,9 +273,9 @@ describe("gates_exhausted phase state", () => {
       stop: null,
     };
     const result = decodePhaseStatusFile(raw);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.state).toBe("gates_exhausted");
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success.state).toBe("gates_exhausted");
     }
   });
 });

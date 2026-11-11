@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import type { RunId, ShortName } from "../domain/branded.js";
 import { countCompletedPhases } from "../domain/completedPhases.js";
 import { holdsPhase } from "../domain/hold.js";
@@ -68,7 +68,7 @@ export interface ResumeFacts {
 
 /** The resume decision, with the count of the run's phases that committed. */
 export interface ResumeInspection {
-  readonly decision: Either.Either<ResumeDecision, ResumeRefusal>;
+  readonly decision: Result.Result<ResumeDecision, ResumeRefusal>;
   /** `countCompletedPhases` of the run's statuses, for a run already at review. */
   readonly completedPhaseCount: number;
 }
@@ -279,7 +279,7 @@ function handoffUnrecoverable(
 export function inspectResumeFromInfo(
   info: RunReviewInfo,
   facts: ResumeFacts,
-): Either.Either<ResumeDecision, ResumeRefusal> {
+): Result.Result<ResumeDecision, ResumeRefusal> {
   const { shortName } = info;
   const { hold, owedHandoffs, presentWorktrees } = facts;
 
@@ -294,7 +294,7 @@ export function inspectResumeFromInfo(
   });
 
   if (disposition.kind !== "Handled" && disposition.kind !== "Ignored") {
-    return Either.left({
+    return Result.fail({
       reason: state.run as ResumeRefusalReason,
       message: refusalMessageForRunState(shortName, state.run as RunStatus["state"]),
     });
@@ -302,7 +302,7 @@ export function inspectResumeFromInfo(
 
   const nextPhase = findNextResumablePhase(info.phaseStatuses, info.planPhases, hold, owedHandoffs);
   if (!nextPhase) {
-    return Either.left({
+    return Result.fail({
       reason: "no_pending_phases",
       message: `No resumable phases found for run "${shortName}". All phases are committed or skipped.`,
     });
@@ -322,7 +322,7 @@ export function inspectResumeFromInfo(
       owingStatus.phaseId === finalPhaseId,
       presentWorktrees,
     );
-    if (refusal !== null) return Either.left(refusal);
+    if (refusal !== null) return Result.fail(refusal);
   }
 
   if (
@@ -330,7 +330,7 @@ export function inspectResumeFromInfo(
     nextPhase.worktreePath !== undefined &&
     !presentWorktrees.has(nextPhase.worktreePath)
   ) {
-    return Either.left({
+    return Result.fail({
       reason: "missing_worktree",
       message: `Worktree for phase "${nextPhase.phaseId}" at "${nextPhase.worktreePath}" no longer exists. The run cannot be resumed automatically.`,
     });
@@ -340,7 +340,7 @@ export function inspectResumeFromInfo(
     .filter((p) => p.state === "skipped" && p.phaseIndex < nextPhase.phaseIndex)
     .map((p) => p.phaseId);
 
-  return Either.right({
+  return Result.succeed({
     shortName,
     nextPhaseId: nextPhase.phaseId,
     nextPhaseIndex: nextPhase.phaseIndex,
@@ -375,22 +375,22 @@ export function inspectResume(
   namespace: string,
   shortName: ShortName,
   stateRoot: string,
-): Effect.Effect<Either.Either<ResumeDecision, ResumeRefusal>, never, FileSystem> {
+): Effect.Effect<Result.Result<ResumeDecision, ResumeRefusal>, never, FileSystem> {
   const infoResult = resolveRun(namespace, shortName, stateRoot);
-  if (Either.isLeft(infoResult)) {
+  if (Result.isFailure(infoResult)) {
     return Effect.succeed(
-      Either.left({
+      Result.fail({
         reason: "run_not_found",
-        message: `Run "${shortName}" not found: ${infoResult.left}`,
+        message: `Run "${shortName}" not found: ${infoResult.failure}`,
       }),
     );
   }
-  const info = infoResult.right;
+  const info = infoResult.success;
   return readRunHold(info.runPath).pipe(
     Effect.flatMap((hold) => inspectResumeOfRun(info, hold)),
     Effect.match({
-      onFailure: (error): Either.Either<ResumeDecision, ResumeRefusal> =>
-        Either.left({ reason: "run_not_found", message: error.message }),
+      onFailure: (error): Result.Result<ResumeDecision, ResumeRefusal> =>
+        Result.fail({ reason: "run_not_found", message: error.message }),
       onSuccess: (inspection) => inspection.decision,
     }),
   );
@@ -448,9 +448,9 @@ export function readRunHold(runPath: string): Effect.Effect<RunHold, FsError, Fi
       catch: () => new FsError({ message: `${path}: not valid JSON` }),
     });
     const decoded = readRunStatusFile(path, parsed);
-    if (Either.isLeft(decoded)) {
-      return yield* Effect.fail(new FsError({ message: decoded.left.message }));
+    if (Result.isFailure(decoded)) {
+      return yield* Effect.fail(new FsError({ message: decoded.failure.message }));
     }
-    return decoded.right.hold;
+    return decoded.success.hold;
   });
 }

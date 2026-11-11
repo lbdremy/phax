@@ -58,4 +58,4 @@ export interface FileSystemOps {
   rootedAt(root: string): FileSystemOps;
 }
 
-export class FileSystem extends Context.Tag("phax/FileSystem")<FileSystem, FileSystemOps>() {}
+export class FileSystem extends Context.Service<FileSystem, FileSystemOps>()("phax/FileSystem") {}

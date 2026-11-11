@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type DecideArtifactInput, decideArtifact } from "../../src/app/decideArtifact.js";
 import { exitCodeForAuthoringError } from "../../src/cli/commands/runLayers.js";
@@ -200,7 +200,7 @@ function harness(answers: readonly string[]) {
   );
   const run = (overrides: Partial<DecideArtifactInput> = {}) =>
     Effect.runPromise(
-      Effect.either(
+      Effect.result(
         decideArtifact({
           path: SPEC,
           question: null,
@@ -274,7 +274,7 @@ describe("decide — a hand-authored artifact decided in place", { timeout: 30_0
 
     const result = await h.run();
 
-    expect(Either.getOrThrow(result)).toMatchObject({
+    expect(Result.getOrThrow(result)).toMatchObject({
       kind: "committed",
       paths: [SPEC],
       decided: ["Q1"],
@@ -323,12 +323,12 @@ describe("decide — a hand-authored artifact decided in place", { timeout: 30_0
 
     const result = await h.run({ path: BOLD_SPEC });
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toMatchObject({ _tag: "DecideRefusedError", reason: "hand-format" });
-      expect(exitCodeForAuthoringError(result.left)).toBe(12);
-      expect(result.left.message).toContain(`${BOLD_SPEC} line 11 departs from the §9 format`);
-      expect(result.left.message).toContain("**Q1 — Text or JSON lines?**");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toMatchObject({ _tag: "DecideRefusedError", reason: "hand-format" });
+      expect(exitCodeForAuthoringError(result.failure)).toBe(12);
+      expect(result.failure.message).toContain(`${BOLD_SPEC} line 11 departs from the §9 format`);
+      expect(result.failure.message).toContain("**Q1 — Text or JSON lines?**");
     }
     expect(h.session.invocations).toEqual([]);
     expect(headSha()).toBe(head);
@@ -346,11 +346,11 @@ describe("decide — a hand-authored artifact decided in place", { timeout: 30_0
 
     const result = await h.run();
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toMatchObject({ _tag: "DecideRefusedError", reason: "hand-format" });
-      expect(exitCodeForAuthoringError(result.left)).toBe(12);
-      expect(result.left.message).toContain("Q1 lists the reserved option id other");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toMatchObject({ _tag: "DecideRefusedError", reason: "hand-format" });
+      expect(exitCodeForAuthoringError(result.failure)).toBe(12);
+      expect(result.failure.message).toContain("Q1 lists the reserved option id other");
     }
     expect(h.session.invocations).toEqual([]);
     expect(h.backend.resumeCalls).toEqual([]);
@@ -379,7 +379,7 @@ describe("decide — a hand-authored artifact decided in place", { timeout: 30_0
 
     const result = await h.run();
 
-    expect(Either.getOrThrow(result)).toMatchObject({ kind: "committed", decided: ["Q1"] });
+    expect(Result.getOrThrow(result)).toMatchObject({ kind: "committed", decided: ["Q1"] });
     const md = readRepoFile(SPEC);
     expect(md).toContain("Decision: other — by operator (Grace Hopper), 2026-10-16");
     expect(md.slice(md.indexOf("Decision: other"))).toMatch(/^[^\n]*\nWhy: /);
@@ -407,7 +407,7 @@ describe("decide — a hand-authored artifact decided in place", { timeout: 30_0
 
     const result = await h.run({ path: PLAN });
 
-    expect(Either.getOrThrow(result)).toMatchObject({ kind: "committed", paths: [PLAN] });
+    expect(Result.getOrThrow(result)).toMatchObject({ kind: "committed", paths: [PLAN] });
     const md = readRepoFile(PLAN);
     expect(md.indexOf("## Arbitrated questions")).toBeLessThan(md.indexOf("## phase-01"));
     expect(md.indexOf("## Decision log")).toBeLessThan(md.indexOf("## phase-01"));
@@ -431,10 +431,12 @@ describe("decide — a hand-authored artifact decided in place", { timeout: 30_0
 
     const result = await h.run();
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(exitCodeForAuthoringError(result.left)).toBe(5);
-      expect(result.left.message).toContain("retry: markdown: the open questions section differs");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(exitCodeForAuthoringError(result.failure)).toBe(5);
+      expect(result.failure.message).toContain(
+        "retry: markdown: the open questions section differs",
+      );
     }
     expect(headSha()).toBe(head);
     expect(readRepoFile(SPEC)).toBe(HAND_SPEC);

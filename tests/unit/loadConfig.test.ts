@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, writeFileSync, rmSync, realpathSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync, execSync } from "node:child_process";
-import { Either } from "effect";
+import { Result } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { loadConfig, describeConfigSources } from "../../src/app/loadConfig.js";
 import { isolateGit } from "../helpers/isolateGit.js";
@@ -52,9 +52,9 @@ describe("loadConfig namespace resolution", () => {
   it("exposes namespace from top-level name field", () => {
     writePhaxJson(baseConfig);
     const result = loadConfig(repoDir);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.namespace).toBe("test");
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success.namespace).toBe("test");
     }
   });
 
@@ -62,45 +62,45 @@ describe("loadConfig namespace resolution", () => {
     const { name: _, ...noName } = baseConfig;
     writePhaxJson(noName);
     const result = loadConfig(repoDir);
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left.path).toBe("name");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure.path).toBe("name");
     }
   });
 
   it("returns ConfigValidationError with path 'name' when name is empty", () => {
     writePhaxJson({ ...baseConfig, name: "" });
     const result = loadConfig(repoDir);
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left.path).toBe("name");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure.path).toBe("name");
     }
   });
 
   it("returns ConfigValidationError with path 'name' when name contains a dot", () => {
     writePhaxJson({ ...baseConfig, name: "my.project" });
     const result = loadConfig(repoDir);
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left.path).toBe("name");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure.path).toBe("name");
     }
   });
 
   it("returns ConfigValidationError with path 'name' when name has uppercase", () => {
     writePhaxJson({ ...baseConfig, name: "MyProject" });
     const result = loadConfig(repoDir);
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left.path).toBe("name");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure.path).toBe("name");
     }
   });
 
   it("returns ConfigValidationError with path 'name' when name starts with a digit", () => {
     writePhaxJson({ ...baseConfig, name: "1project" });
     const result = loadConfig(repoDir);
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left.path).toBe("name");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure.path).toBe("name");
     }
   });
 
@@ -108,9 +108,9 @@ describe("loadConfig namespace resolution", () => {
     const { name: _, ...noName } = baseConfig;
     writePhaxJson(noName);
     const result = loadConfig(repoDir);
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left.message).toContain("PHAX project name is missing");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure.message).toContain("PHAX project name is missing");
     }
   });
 });
@@ -125,10 +125,10 @@ describe("loadConfig gate step output", () => {
   it("refuses a diagnostics step in a project profile, naming the step and both values", () => {
     writePhaxJson({ ...baseConfig, gateProfiles: { fast: [auditStep("diagnostics")] } });
     const result = loadConfig(repoDir);
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(ConfigValidationError);
-      expect(result.left.message).toContain(OUTPUT_REFUSAL);
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toBeInstanceOf(ConfigValidationError);
+      expect(result.failure.message).toContain(OUTPUT_REFUSAL);
     }
   });
 
@@ -150,18 +150,18 @@ describe("loadConfig gate step output", () => {
       ],
     });
     const result = loadConfig(repoDir);
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left.message).toContain(OUTPUT_REFUSAL);
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure.message).toContain(OUTPUT_REFUSAL);
     }
   });
 
   it("loads a gate-report step that declares no input", () => {
     writePhaxJson({ ...baseConfig, gateProfiles: { fast: [auditStep("gate-report")] } });
     const result = loadConfig(repoDir);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.raw.gateProfiles["fast"]?.[0]).toEqual({
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success.raw.gateProfiles["fast"]?.[0]).toEqual({
         command: "node ./audit.mjs",
         surface: "local",
         firing: "every-phase",
@@ -184,13 +184,13 @@ describe("loadConfig duplicate gate commands", () => {
       },
     });
     const result = loadConfig(repoDir);
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(ConfigValidationError);
-      expect(result.left.message).toBe(
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toBeInstanceOf(ConfigValidationError);
+      expect(result.failure.message).toBe(
         'gateProfiles.default lists the command "pnpm test" twice (steps 1 and 3)',
       );
-      expect(result.left.path).toBe("gateProfiles.default");
+      expect(result.failure.path).toBe("gateProfiles.default");
     }
   });
 
@@ -207,12 +207,12 @@ describe("loadConfig duplicate gate commands", () => {
       ],
     });
     const result = loadConfig(repoDir);
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left.message).toBe(
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure.message).toBe(
         'workspaces[ui].gateProfiles.fast lists the command "pnpm lint" twice (steps 1 and 2)',
       );
-      expect(result.left.path).toBe("workspaces[ui].gateProfiles.fast");
+      expect(result.failure.path).toBe("workspaces[ui].gateProfiles.fast");
     }
   });
 
@@ -224,7 +224,7 @@ describe("loadConfig duplicate gate commands", () => {
         fast: [logStep("pnpm test")],
       },
     });
-    expect(Either.isRight(loadConfig(repoDir))).toBe(true);
+    expect(Result.isSuccess(loadConfig(repoDir))).toBe(true);
   });
 });
 
@@ -239,11 +239,11 @@ describe("loadConfig brief.push", () => {
     (_n, brief) => {
       writePhaxJson({ ...baseConfig, brief });
       const result = loadConfig(repoDir);
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        expect(result.left).toBeInstanceOf(ConfigValidationError);
-        expect(result.left.message).toContain(join(repoDir, "phax.json"));
-        expect(result.left.message).toContain(PUSH_REFUSAL);
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
+        expect(result.failure).toBeInstanceOf(ConfigValidationError);
+        expect(result.failure.message).toContain(join(repoDir, "phax.json"));
+        expect(result.failure.message).toContain(PUSH_REFUSAL);
       }
     },
   );
@@ -251,7 +251,7 @@ describe("loadConfig brief.push", () => {
   it("loads a brief that pushes findings", () => {
     writePhaxJson({ ...baseConfig, brief: { command: "node ./brief.mjs", push: "findings" } });
     const result = loadConfig(repoDir);
-    expect(Either.isRight(result) && result.right.brief).toEqual({
+    expect(Result.isSuccess(result) && result.success.brief).toEqual({
       command: "node ./brief.mjs",
       push: "findings",
     });
@@ -262,10 +262,10 @@ describe("loadConfig extractPlan resolution", () => {
   it("defaults to DEFAULT_EXTRACT_MODEL and low effort when no extractPlan config", () => {
     writePhaxJson(baseConfig);
     const result = loadConfig(repoDir);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.extractPlanModel).toBe(DEFAULT_EXTRACT_MODEL);
-      expect(result.right.extractPlanEffort).toBe("low");
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success.extractPlanModel).toBe(DEFAULT_EXTRACT_MODEL);
+      expect(result.success.extractPlanEffort).toBe("low");
     }
   });
 
@@ -277,10 +277,10 @@ describe("loadConfig extractPlan resolution", () => {
       },
     });
     const result = loadConfig(repoDir);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.extractPlanModel).toBe("claude-sonnet-4-6");
-      expect(result.right.extractPlanEffort).toBe("low");
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success.extractPlanModel).toBe("claude-sonnet-4-6");
+      expect(result.success.extractPlanEffort).toBe("low");
     }
   });
 
@@ -292,10 +292,10 @@ describe("loadConfig extractPlan resolution", () => {
       },
     });
     const result = loadConfig(repoDir);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.extractPlanModel).toBe(DEFAULT_EXTRACT_MODEL);
-      expect(result.right.extractPlanEffort).toBe("medium");
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success.extractPlanModel).toBe(DEFAULT_EXTRACT_MODEL);
+      expect(result.success.extractPlanEffort).toBe("medium");
     }
   });
 
@@ -307,10 +307,10 @@ describe("loadConfig extractPlan resolution", () => {
       },
     });
     const result = loadConfig(repoDir);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.extractPlanModel).toBe("claude-opus-4-7");
-      expect(result.right.extractPlanEffort).toBe("high");
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success.extractPlanModel).toBe("claude-opus-4-7");
+      expect(result.success.extractPlanEffort).toBe("high");
     }
   });
 
@@ -322,7 +322,7 @@ describe("loadConfig extractPlan resolution", () => {
       },
     });
     const result = loadConfig(repoDir);
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 });
 
@@ -330,27 +330,27 @@ describe("loadConfig fileReconciliation resolution", () => {
   it("defaults fileReconciliationMode to report_only when not set", () => {
     writePhaxJson(baseConfig);
     const result = loadConfig(repoDir);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.fileReconciliationMode).toBe("report_only");
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success.fileReconciliationMode).toBe("report_only");
     }
   });
 
   it("resolves fileReconciliationMode to warn when configured", () => {
     writePhaxJson({ ...baseConfig, fileReconciliation: { mode: "warn" } });
     const result = loadConfig(repoDir);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.fileReconciliationMode).toBe("warn");
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success.fileReconciliationMode).toBe("warn");
     }
   });
 
   it("resolves fileReconciliationMode to report_only when explicitly set", () => {
     writePhaxJson({ ...baseConfig, fileReconciliation: { mode: "report_only" } });
     const result = loadConfig(repoDir);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.fileReconciliationMode).toBe("report_only");
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success.fileReconciliationMode).toBe("report_only");
     }
   });
 });
@@ -401,39 +401,39 @@ describe("loadConfig security resolution", () => {
   it("defaults security profile to secure when no security block", () => {
     writePhaxJson(baseConfig);
     const result = loadConfig(repoDir);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.security.profile).toBe("secure");
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success.security.profile).toBe("secure");
     }
   });
 
   it("uses the profile from the security block when set", () => {
     writePhaxJson({ ...baseConfig, security: { profile: "secure" } });
     const result = loadConfig(repoDir);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.security.profile).toBe("secure");
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success.security.profile).toBe("secure");
     }
   });
 
   it("defaults network profile to provider-only and mcp mode to disabled", () => {
     writePhaxJson(baseConfig);
     const result = loadConfig(repoDir);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.security.network.profile).toBe("provider-only");
-      expect(result.right.security.mcp.mode).toBe("disabled");
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success.security.network.profile).toBe("provider-only");
+      expect(result.success.security.mcp.mode).toBe("disabled");
     }
   });
 
   it("defaults all allow-lists to empty arrays", () => {
     writePhaxJson(baseConfig);
     const result = loadConfig(repoDir);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.security.filesystem.allowRead).toEqual([]);
-      expect(result.right.security.filesystem.allowWrite).toEqual([]);
-      expect(result.right.security.mcp.allow).toEqual([]);
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success.security.filesystem.allowRead).toEqual([]);
+      expect(result.success.security.filesystem.allowWrite).toEqual([]);
+      expect(result.success.security.mcp.allow).toEqual([]);
     }
   });
 
@@ -443,9 +443,9 @@ describe("loadConfig security resolution", () => {
       security: { filesystem: { allowWrite: ["relative/path"] } },
     });
     const result = loadConfig(repoDir);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      const write = result.right.security.filesystem.allowWrite;
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      const write = result.success.security.filesystem.allowWrite;
       // Use realpathSync to resolve macOS /tmp → /private/tmp symlink
       const realRepoDir = realpathSync(repoDir);
       expect(write.length).toBe(1);
@@ -456,7 +456,7 @@ describe("loadConfig security resolution", () => {
   it("rejects an unknown security profile value", () => {
     writePhaxJson({ ...baseConfig, security: { profile: "super-safe" } });
     const result = loadConfig(repoDir);
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 });
 
@@ -472,30 +472,30 @@ describe("loadConfig codeReview defaults", () => {
   it("resolves codeReview to DEFAULT_CODE_REVIEW_MODEL and high effort when no review.code block", () => {
     writePhaxJson(baseConfig);
     const result = loadConfig(repoDir);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.codeReview.model).toBe(DEFAULT_CODE_REVIEW_MODEL);
-      expect(result.right.codeReview.effort).toBe("high");
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success.codeReview.model).toBe(DEFAULT_CODE_REVIEW_MODEL);
+      expect(result.success.codeReview.effort).toBe("high");
     }
   });
 
   it("honors review.code.model when set", () => {
     writePhaxJson({ ...baseConfig, review: { code: { model: "claude-sonnet-4-6" } } });
     const result = loadConfig(repoDir);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.codeReview.model).toBe("claude-sonnet-4-6");
-      expect(result.right.codeReview.effort).toBe("high");
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success.codeReview.model).toBe("claude-sonnet-4-6");
+      expect(result.success.codeReview.effort).toBe("high");
     }
   });
 
   it("honors review.code.effort when set", () => {
     writePhaxJson({ ...baseConfig, review: { code: { effort: "medium" } } });
     const result = loadConfig(repoDir);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.codeReview.model).toBe(DEFAULT_CODE_REVIEW_MODEL);
-      expect(result.right.codeReview.effort).toBe("medium");
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success.codeReview.model).toBe(DEFAULT_CODE_REVIEW_MODEL);
+      expect(result.success.codeReview.effort).toBe("medium");
     }
   });
 
@@ -503,7 +503,7 @@ describe("loadConfig codeReview defaults", () => {
     writePhaxJson({ ...baseConfig, review: { code: { enabled: true } } });
     writeFileSync(join(repoDir, "phax.local.json"), JSON.stringify({ publish: { auto: false } }));
     const result = loadConfig(repoDir);
-    expect(Either.isRight(result) && result.right.codeReview.enabled).toBe(true);
+    expect(Result.isSuccess(result) && result.success.codeReview.enabled).toBe(true);
   });
 
   it("takes review.code.enabled from phax.local.json alone", () => {
@@ -513,7 +513,7 @@ describe("loadConfig codeReview defaults", () => {
       JSON.stringify({ review: { code: { enabled: true } } }),
     );
     const result = loadConfig(repoDir);
-    expect(Either.isRight(result) && result.right.codeReview.enabled).toBe(true);
+    expect(Result.isSuccess(result) && result.success.codeReview.enabled).toBe(true);
   });
 });
 
@@ -521,42 +521,42 @@ describe("loadConfig authoring defaults", () => {
   it("resolves authoring.spec and authoring.plan to catalog defaults when no authoring block", () => {
     writePhaxJson(baseConfig);
     const result = loadConfig(repoDir);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.authoring.spec.model).toBe(DEFAULT_AUTHORING_MODEL);
-      expect(result.right.authoring.spec.effort).toBe(DEFAULT_AUTHORING_EFFORT);
-      expect(result.right.authoring.plan.model).toBe(DEFAULT_AUTHORING_MODEL);
-      expect(result.right.authoring.plan.effort).toBe(DEFAULT_AUTHORING_EFFORT);
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success.authoring.spec.model).toBe(DEFAULT_AUTHORING_MODEL);
+      expect(result.success.authoring.spec.effort).toBe(DEFAULT_AUTHORING_EFFORT);
+      expect(result.success.authoring.plan.model).toBe(DEFAULT_AUTHORING_MODEL);
+      expect(result.success.authoring.plan.effort).toBe(DEFAULT_AUTHORING_EFFORT);
     }
   });
 
   it("honors authoring.spec.model while keeping the effort default", () => {
     writePhaxJson({ ...baseConfig, authoring: { spec: { model: "claude-sonnet-5" } } });
     const result = loadConfig(repoDir);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.authoring.spec.model).toBe("claude-sonnet-5");
-      expect(result.right.authoring.spec.effort).toBe(DEFAULT_AUTHORING_EFFORT);
-      expect(result.right.authoring.plan.model).toBe(DEFAULT_AUTHORING_MODEL);
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success.authoring.spec.model).toBe("claude-sonnet-5");
+      expect(result.success.authoring.spec.effort).toBe(DEFAULT_AUTHORING_EFFORT);
+      expect(result.success.authoring.plan.model).toBe(DEFAULT_AUTHORING_MODEL);
     }
   });
 
   it("honors authoring.plan.effort independently of authoring.spec", () => {
     writePhaxJson({ ...baseConfig, authoring: { plan: { effort: "medium" } } });
     const result = loadConfig(repoDir);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.authoring.plan.effort).toBe("medium");
-      expect(result.right.authoring.plan.model).toBe(DEFAULT_AUTHORING_MODEL);
-      expect(result.right.authoring.spec.effort).toBe(DEFAULT_AUTHORING_EFFORT);
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success.authoring.plan.effort).toBe("medium");
+      expect(result.success.authoring.plan.model).toBe(DEFAULT_AUTHORING_MODEL);
+      expect(result.success.authoring.spec.effort).toBe(DEFAULT_AUTHORING_EFFORT);
     }
   });
 });
 
 function loadFailure(cwd: string): ConfigValidationError {
   const result = loadConfig(cwd);
-  if (Either.isRight(result)) throw new Error("expected loadConfig to refuse the config");
-  return result.left;
+  if (Result.isSuccess(result)) throw new Error("expected loadConfig to refuse the config");
+  return result.failure;
 }
 
 // phax.json `protectedPaths`: the files whose change is the operator's decision.
@@ -564,14 +564,14 @@ describe("loadConfig protectedPaths", () => {
   it("resolves no list for a project that declares none", () => {
     writePhaxJson(baseConfig);
     const result = loadConfig(repoDir);
-    expect(Either.isRight(result)).toBe(true);
-    expect(Either.isRight(result) && result.right.protectedPaths).toBeUndefined();
+    expect(Result.isSuccess(result)).toBe(true);
+    expect(Result.isSuccess(result) && result.success.protectedPaths).toBeUndefined();
   });
 
   it("resolves the declared globs, then the loaded phax.json by its repo-relative path", () => {
     writePhaxJson({ ...baseConfig, protectedPaths: ["**/steme.baseline.json", "docs/*.md"] });
     const result = loadConfig(repoDir);
-    expect(Either.isRight(result) && result.right.protectedPaths).toEqual([
+    expect(Result.isSuccess(result) && result.success.protectedPaths).toEqual([
       { glob: "**/steme.baseline.json", entry: "protectedPaths[0]" },
       { glob: "docs/*.md", entry: "protectedPaths[1]" },
       { glob: "phax.json", entry: "phax.json" },
@@ -581,7 +581,7 @@ describe("loadConfig protectedPaths", () => {
   it("does not repeat phax.json when a declared glob is exactly its path", () => {
     writePhaxJson({ ...baseConfig, protectedPaths: ["phax.json"] });
     const result = loadConfig(repoDir);
-    expect(Either.isRight(result) && result.right.protectedPaths).toEqual([
+    expect(Result.isSuccess(result) && result.success.protectedPaths).toEqual([
       { glob: "phax.json", entry: "protectedPaths[0]" },
     ]);
   });
@@ -593,7 +593,7 @@ describe("loadConfig protectedPaths", () => {
       JSON.stringify({ ...baseConfig, protectedPaths: ["**/steme.baseline.json"] }),
     );
     const result = loadConfig(join(repoDir, "pkg"));
-    const list = Either.isRight(result) ? result.right.protectedPaths : undefined;
+    const list = Result.isSuccess(result) ? result.success.protectedPaths : undefined;
     expect(list).toEqual([
       { glob: "**/steme.baseline.json", entry: "protectedPaths[0]" },
       { glob: "pkg/phax.json", entry: "pkg/phax.json" },
@@ -674,13 +674,13 @@ describe("loadConfig protectedPaths", () => {
       ...baseConfig,
       protectedPaths: ["vendor/rules/a.json", "vendor/rules/**", "vendor/rule?", "absent/dir"],
     });
-    expect(Either.isRight(loadConfig(repoDir))).toBe(true);
+    expect(Result.isSuccess(loadConfig(repoDir))).toBe(true);
   });
 
   it("accepts globs outside every submodule", () => {
     writeFileSync(join(repoDir, ".gitmodules"), '[submodule "a"]\n\tpath = vendor/lint-rules\n');
     writePhaxJson({ ...baseConfig, protectedPaths: ["vendor/other/**", "**/lint-rules.json"] });
-    expect(Either.isRight(loadConfig(repoDir))).toBe(true);
+    expect(Result.isSuccess(loadConfig(repoDir))).toBe(true);
   });
 
   it("refuses protectedPaths in phax.local.json, naming the overlay file", () => {

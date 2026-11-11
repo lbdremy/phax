@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 import { generateGlobalReconciliation } from "../../src/app/generateGlobalReconciliation.js";
 import { ReviewHandoffArtifactMissingError } from "../../src/domain/errors.js";
@@ -61,8 +61,8 @@ const HELD_CORRECTED: PhaseStop = {
   closedBy: { name: "Ada Example", email: "ada@example.com" },
 };
 
-function runWith<A, E>(effect: Effect.Effect<A, E, never>): Promise<Either.Either<A, E>> {
-  return Effect.runPromise(Effect.either(effect));
+function runWith<A, E>(effect: Effect.Effect<A, E, never>): Promise<Result.Result<A, E>> {
+  return Effect.runPromise(Effect.result(effect));
 }
 
 describe("generateGlobalReconciliation", () => {
@@ -90,10 +90,10 @@ describe("generateGlobalReconciliation", () => {
       }).pipe(Effect.provide(layers)),
     );
 
-    expect(Either.isRight(result)).toBe(true);
-    if (!Either.isRight(result)) return;
-    expect(result.right.files.find((f) => f.path === "src/foo.ts")?.status).toBe("matched");
-    expect(result.right.unplanned.map((f) => f.path)).toEqual(["src/extra.ts"]);
+    expect(Result.isSuccess(result)).toBe(true);
+    if (!Result.isSuccess(result)) return;
+    expect(result.success.files.find((f) => f.path === "src/foo.ts")?.status).toBe("matched");
+    expect(result.success.unplanned.map((f) => f.path)).toEqual(["src/extra.ts"]);
   });
 
   it("reads a 0.17.0 reconciliation and a stop's review corrections", async () => {
@@ -127,15 +127,15 @@ describe("generateGlobalReconciliation", () => {
       }).pipe(Effect.provide(layers)),
     );
 
-    expect(Either.isRight(result)).toBe(true);
-    if (!Either.isRight(result)) return;
-    const credit = result.right.files.find((f) => f.path === "src/credit.ts");
+    expect(Result.isSuccess(result)).toBe(true);
+    if (!Result.isSuccess(result)) return;
+    const credit = result.success.files.find((f) => f.path === "src/credit.ts");
     expect(credit?.status).toBe("matched");
     expect(credit?.reviewCorrectedInPhases).toEqual(["phase-02"]);
-    const invoice = result.right.files.find((f) => f.path === "src/invoice.ts");
+    const invoice = result.success.files.find((f) => f.path === "src/invoice.ts");
     expect(invoice?.status).toBe("review-corrected");
     expect(invoice?.attention).toBe("ok");
-    expect(result.right.unplanned).toEqual([]);
+    expect(result.success.unplanned).toEqual([]);
   });
 
   it("happy path: aggregates phases and writes both global artifacts", async () => {
@@ -169,10 +169,10 @@ describe("generateGlobalReconciliation", () => {
       }).pipe(Effect.provide(layers)),
     );
 
-    expect(Either.isRight(result)).toBe(true);
-    if (!Either.isRight(result)) return;
+    expect(Result.isSuccess(result)).toBe(true);
+    if (!Result.isSuccess(result)) return;
 
-    const global = result.right;
+    const global = result.success;
     expect(global.files).toHaveLength(3); // foo.ts, bar.ts, extra.ts
 
     // bar.ts: planned only in phase-01, but also touched in phase-02 → extra-touch
@@ -222,11 +222,11 @@ describe("generateGlobalReconciliation", () => {
       }).pipe(Effect.provide(layers)),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (!Either.isLeft(result)) return;
+    expect(Result.isFailure(result)).toBe(true);
+    if (!Result.isFailure(result)) return;
 
-    expect(result.left).toBeInstanceOf(ReviewHandoffArtifactMissingError);
-    const err = result.left as ReviewHandoffArtifactMissingError;
+    expect(result.failure).toBeInstanceOf(ReviewHandoffArtifactMissingError);
+    const err = result.failure as ReviewHandoffArtifactMissingError;
     expect(err.missingPhases).toContain("phase-02");
     expect(err.missingPaths).toContain(`${RUN_PATH}/phase-02/file-reconciliation.json`);
 
@@ -254,10 +254,10 @@ describe("generateGlobalReconciliation", () => {
       }).pipe(Effect.provide(layers)),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (!Either.isLeft(result)) return;
-    expect(result.left).toBeInstanceOf(ReviewHandoffArtifactMissingError);
-    const err = result.left as ReviewHandoffArtifactMissingError;
+    expect(Result.isFailure(result)).toBe(true);
+    if (!Result.isFailure(result)) return;
+    expect(result.failure).toBeInstanceOf(ReviewHandoffArtifactMissingError);
+    const err = result.failure as ReviewHandoffArtifactMissingError;
     expect(err.missingPhases).toContain("phase-01");
   });
 
@@ -281,11 +281,11 @@ describe("generateGlobalReconciliation", () => {
       }).pipe(Effect.provide(layers)),
     );
 
-    expect(Either.isRight(result)).toBe(true);
-    if (!Either.isRight(result)) return;
+    expect(Result.isSuccess(result)).toBe(true);
+    if (!Result.isSuccess(result)) return;
 
     // Aggregation over phase-01 only
-    const global = result.right;
+    const global = result.success;
     expect(global.files).toHaveLength(1);
     expect(global.files[0]?.path).toBe("src/foo.ts");
 
@@ -334,15 +334,15 @@ describe("generateGlobalReconciliation", () => {
         }).pipe(Effect.provide(Layer.mergeAll(layer, NoopSystemTelemetryLayer))),
       );
 
-      expect(Either.isRight(result)).toBe(true);
-      if (!Either.isRight(result)) return;
-      const header = result.right.files.find((f) => f.path === "src/header.ts");
+      expect(Result.isSuccess(result)).toBe(true);
+      if (!Result.isSuccess(result)) return;
+      const header = result.success.files.find((f) => f.path === "src/header.ts");
       expect(header?.status).toBe("review-corrected");
       expect(header?.reviewCorrectedInPhases).toEqual(["phase-02"]);
-      const row = result.right.files.find((f) => f.path === "src/row.ts");
+      const row = result.success.files.find((f) => f.path === "src/row.ts");
       expect(row?.status).toBe("matched");
       expect(row?.reviewCorrectedInPhases).toEqual(["phase-02"]);
-      expect(result.right.unplanned).toEqual([]);
+      expect(result.success.unplanned).toEqual([]);
     });
 
     it("counts a missing correction reconciliation as a missing reconciliation", async () => {
@@ -368,15 +368,15 @@ describe("generateGlobalReconciliation", () => {
         );
 
       const refused = await run(false);
-      expect(Either.isLeft(refused)).toBe(true);
-      if (!Either.isLeft(refused)) return;
-      expect(refused.left).toBeInstanceOf(ReviewHandoffArtifactMissingError);
-      const error = refused.left as ReviewHandoffArtifactMissingError;
+      expect(Result.isFailure(refused)).toBe(true);
+      if (!Result.isFailure(refused)) return;
+      expect(refused.failure).toBeInstanceOf(ReviewHandoffArtifactMissingError);
+      const error = refused.failure as ReviewHandoffArtifactMissingError;
       expect(error.missingPhases).toEqual(["phase-02"]);
       expect(error.missingPaths).toEqual([`${RUN_PATH}/phase-02/correction-reconciliation.json`]);
 
       const partial = await run(true);
-      expect(Either.isRight(partial)).toBe(true);
+      expect(Result.isSuccess(partial)).toBe(true);
       expect(impl.getFile(`${RUN_PATH}/global-file-reconciliation.md`)).toContain("PARTIAL");
     });
 
@@ -398,7 +398,7 @@ describe("generateGlobalReconciliation", () => {
         }).pipe(Effect.provide(Layer.mergeAll(layer, NoopSystemTelemetryLayer))),
       );
 
-      expect(Either.isLeft(result)).toBe(true);
+      expect(Result.isFailure(result)).toBe(true);
     });
 
     it("reads no correction reconciliation for an unchanged held close or a declared one", async () => {
@@ -444,7 +444,7 @@ describe("generateGlobalReconciliation", () => {
         }).pipe(Effect.provide(Layer.mergeAll(layer, NoopSystemTelemetryLayer))),
       );
 
-      expect(Either.isRight(result)).toBe(true);
+      expect(Result.isSuccess(result)).toBe(true);
     });
   });
 
@@ -462,10 +462,10 @@ describe("generateGlobalReconciliation", () => {
       }).pipe(Effect.provide(layers)),
     );
 
-    expect(Either.isRight(result)).toBe(true);
-    if (!Either.isRight(result)) return;
+    expect(Result.isSuccess(result)).toBe(true);
+    if (!Result.isSuccess(result)) return;
 
-    const global = result.right;
+    const global = result.success;
     expect(global.files).toHaveLength(0);
     expect(global.unplanned).toHaveLength(0);
     expect(global.missing).toHaveLength(0);

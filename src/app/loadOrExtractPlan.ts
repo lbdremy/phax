@@ -1,4 +1,4 @@
-import { Effect, Either, Option } from "effect";
+import { Effect, Result, Option } from "effect";
 import { Backend } from "../ports/backend.js";
 import { FileSystem } from "../ports/fs.js";
 import type { PhaxPlan } from "../schemas/phaxPlan.js";
@@ -52,17 +52,17 @@ export function loadOrExtractPlan(
 
     // Attempt deterministic extraction first: pure, instant, no cache access.
     const deterministicResult = extractPlanDeterministic(planMd);
-    if (Either.isRight(deterministicResult)) {
-      const finalized = finalizeExtractedPlan(deterministicResult.right, planMd);
-      if (Either.isLeft(finalized)) {
-        return yield* Effect.fail(finalized.left);
+    if (Result.isSuccess(deterministicResult)) {
+      const finalized = finalizeExtractedPlan(deterministicResult.success, planMd);
+      if (Result.isFailure(finalized)) {
+        return yield* Effect.fail(finalized.failure);
       }
-      const { plan, warnings, detectedAnchors } = finalized.right;
+      const { plan, warnings, detectedAnchors } = finalized.success;
       return { plan, warnings, detectedAnchors, fromCache: false };
     }
 
     // Deterministic parse failed; record the reason so it surfaces as a warning.
-    const fallbackWarning = `Deterministic extraction failed (${deterministicResult.left.message}); fell back to LLM.`;
+    const fallbackWarning = `Deterministic extraction failed (${deterministicResult.failure.message}); fell back to LLM.`;
 
     const key = planCacheKey(planMd, opts.model, opts.effort);
 
@@ -70,10 +70,10 @@ export function loadOrExtractPlan(
       const cached = yield* readCacheEntry(opts.stateRoot, key);
       if (Option.isSome(cached)) {
         const finalized = finalizeExtractedPlan(cached.value, planMd);
-        if (Either.isLeft(finalized)) {
-          return yield* Effect.fail(finalized.left);
+        if (Result.isFailure(finalized)) {
+          return yield* Effect.fail(finalized.failure);
         }
-        const { plan, warnings, detectedAnchors } = finalized.right;
+        const { plan, warnings, detectedAnchors } = finalized.success;
         return { plan, warnings: [...warnings, fallbackWarning], detectedAnchors, fromCache: true };
       }
     }
@@ -99,11 +99,11 @@ export function loadOrExtractPlan(
     });
 
     const finalized = finalizeExtractedPlan(extracted, planMd);
-    if (Either.isLeft(finalized)) {
-      return yield* Effect.fail(finalized.left);
+    if (Result.isFailure(finalized)) {
+      return yield* Effect.fail(finalized.failure);
     }
 
-    const { plan, warnings, detectedAnchors } = finalized.right;
+    const { plan, warnings, detectedAnchors } = finalized.success;
     return { plan, warnings: [...warnings, fallbackWarning], detectedAnchors, fromCache: false };
   });
 }

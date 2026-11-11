@@ -29,7 +29,7 @@ export const plansOverviewCommand = defineCommand({
     "phax plans overview docs/plans/2609101200-foo-plan.md --json",
   ],
   input: { args: PlanArgs },
-  output: reject(PlanOverviewFileSchema.annotations(publishedFormat("plan-overview"))),
+  output: reject(PlanOverviewFileSchema.annotate(publishedFormat("plan-overview"))),
   run: ({ input }) =>
     Effect.gen(function* () {
       const config = yield* configured();
@@ -51,7 +51,7 @@ export const plansOverviewCommand = defineCommand({
   errors: {
     ConfigValidationError: MessageFields,
     PlanOverviewFailedError: Schema.Struct({
-      kind: Schema.Literal("unreadable", "unparsable", "invalid-artifact"),
+      kind: Schema.Literals(["unreadable", "unparsable", "invalid-artifact"]),
       line: Schema.String,
     }),
   },

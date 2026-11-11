@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import type { NonEmptyReadonlyArray } from "effect/Array";
 import { isAbsolute, join, relative, sep } from "node:path";
 import { decodeBranchName, type BranchName } from "./branded.js";
@@ -19,16 +19,16 @@ export type PruneSelection =
 export function parsePruneSelection(
   names: readonly string[],
   all: boolean,
-): Either.Either<PruneSelection, string> {
+): Result.Result<PruneSelection, string> {
   const forms = "use `phax prune <short-name>...` or `phax prune --all`";
   if (names.length > 0 && all) {
-    return Either.left(`give run names or --all, not both — ${forms}`);
+    return Result.fail(`give run names or --all, not both — ${forms}`);
   }
   if (names.length === 0 && !all) {
-    return Either.left(`no run selected — ${forms}`);
+    return Result.fail(`no run selected — ${forms}`);
   }
-  if (all) return Either.right({ kind: "all" });
-  return Either.right({ kind: "names", refs: Array.from(new Set(names)) });
+  if (all) return Result.succeed({ kind: "all" });
+  return Result.succeed({ kind: "names", refs: Array.from(new Set(names)) });
 }
 
 /** Why one named run cannot be pruned. One refusal refuses the whole selection. */
@@ -72,9 +72,9 @@ export function selectPruneRuns(
   entries: readonly RegistryEntry[],
   namespace: string,
   selection: PruneSelection,
-): Either.Either<readonly RegistryEntry[], NonEmptyReadonlyArray<PruneRefusal>> {
+): Result.Result<readonly RegistryEntry[], NonEmptyReadonlyArray<PruneRefusal>> {
   if (selection.kind === "all") {
-    return Either.right(
+    return Result.succeed(
       entries.filter((entry) => entry.namespace === namespace && entry.state === "archived"),
     );
   }
@@ -82,12 +82,12 @@ export function selectPruneRuns(
   const selected: RegistryEntry[] = [];
   for (const ref of selection.refs) {
     const parsed = parseRunRef(ref);
-    if (Either.isLeft(parsed)) {
-      refusals.push({ kind: "invalid", ref, message: parsed.left });
+    if (Result.isFailure(parsed)) {
+      refusals.push({ kind: "invalid", ref, message: parsed.failure });
       continue;
     }
-    const { shortName } = parsed.right;
-    const refNamespace = parsed.right.namespace ?? namespace;
+    const { shortName } = parsed.success;
+    const refNamespace = parsed.success.namespace ?? namespace;
     const qualifiedName = runKey(refNamespace, shortName);
     if (refNamespace !== namespace) {
       refusals.push({ kind: "other-namespace", ref, qualifiedName, namespace: refNamespace });
@@ -105,8 +105,8 @@ export function selectPruneRuns(
     if (!selected.includes(entry)) selected.push(entry);
   }
   const [first, ...rest] = refusals;
-  if (first !== undefined) return Either.left([first, ...rest]);
-  return Either.right(selected);
+  if (first !== undefined) return Result.fail([first, ...rest]);
+  return Result.succeed(selected);
 }
 
 // ── Branches, remote refs and worktree roots ─────────────────────────────────
@@ -140,7 +140,7 @@ export function expectedRunBranches(
   const names = [entry.branch, ...Array.from(phases).toSorted()];
   return names.flatMap((name) => {
     const decoded = decodeBranchName(name);
-    return Either.isRight(decoded) ? [decoded.right] : [];
+    return Result.isSuccess(decoded) ? [decoded.success] : [];
   });
 }
 

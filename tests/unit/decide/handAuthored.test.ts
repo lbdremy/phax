@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   type ParsedHandQuestions,
@@ -198,8 +198,8 @@ function write(
     parsed: parsedOf(kind, md),
     reArbitrated: typeof options.reArbitrated === "string" ? [options.reArbitrated] : [],
   });
-  if (Either.isLeft(written)) throw new Error(written.left);
-  return written.right;
+  if (Result.isFailure(written)) throw new Error(written.failure);
+  return written.success;
 }
 
 describe("handAnswerStampViolation", () => {
@@ -286,17 +286,17 @@ describe("stampHandVerdicts and decodeHandAnswer", () => {
       operator: OPERATOR,
       atIso: AT,
     });
-    if (Either.isLeft(decoded)) throw new Error(decoded.left.message);
-    expect(decoded.right).not.toHaveProperty("$schema");
-    expect(decoded.right.decisions[1]?.verdict.by.name).toBe("Grace Hopper");
+    if (Result.isFailure(decoded)) throw new Error(decoded.failure.message);
+    expect(decoded.success).not.toHaveProperty("$schema");
+    expect(decoded.success.decisions[1]?.verdict.by.name).toBe("Grace Hopper");
   });
 
   it("refuses a wrong stamp at $schema and a schema violation by path", () => {
     const context = { kind: "spec" as const, scope: SCOPE_ALL, operator: OPERATOR, atIso: AT };
     const stamp = decodeHandAnswer({ ...raw, $schema: currentSchemaUrl("spec-document") }, context);
-    expect(Either.isLeft(stamp) && stamp.left.path).toBe("$schema");
+    expect(Result.isFailure(stamp) && stamp.failure.path).toBe("$schema");
     const unknown = decodeHandAnswer({ ...raw, note: "extra" }, context);
-    expect(Either.isLeft(unknown) && unknown.left.path).toBe("note");
+    expect(Result.isFailure(unknown) && unknown.failure.path).toBe("note");
   });
 
   it("refuses a spec verdict carrying a phase, and a plan verdict without one, by their own format", () => {
@@ -304,7 +304,7 @@ describe("stampHandVerdicts and decodeHandAnswer", () => {
     const [first] = raw.decisions;
     const phased = { ...first!, verdict: { ...first!.verdict, phase: "phase-01" } };
     const spec = decodeHandAnswer({ ...raw, decisions: [phased] }, context);
-    expect(Either.isLeft(spec) && spec.left.path).toBe("decisions[0].verdict.phase");
+    expect(Result.isFailure(spec) && spec.failure.path).toBe("decisions[0].verdict.phase");
     const plan = decodeHandAnswer(
       {
         ...raw,
@@ -314,7 +314,7 @@ describe("stampHandVerdicts and decodeHandAnswer", () => {
       },
       { ...context, kind: "plan" },
     );
-    expect(Either.isLeft(plan) && plan.left.path).toBe("decisions[0].verdict.phase");
+    expect(Result.isFailure(plan) && plan.failure.path).toBe("decisions[0].verdict.phase");
   });
 });
 
@@ -741,6 +741,6 @@ describe("writeHandDecisions", () => {
       parsed: parsedOf("spec", SPEC_ARBITRATED),
       reArbitrated: [],
     });
-    expect(Either.isLeft(written)).toBe(true);
+    expect(Result.isFailure(written)).toBe(true);
   });
 });

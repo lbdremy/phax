@@ -3,7 +3,7 @@
 // required, and an unknown key, a role and phase that do not match, an
 // out-of-range utilization and a missing $schema are refused. Every document
 // is made up.
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { decodeCostLedgerFile } from "../../../src/schemas/costLedger.js";
 import { currentSchemaUrl, readCostLedgerFile } from "../../../src/schemas/persisted.js";
@@ -61,7 +61,7 @@ function sample(utilization: number): ReadonlyArray<Doc> {
 }
 
 function accepts(input: unknown): boolean {
-  return Either.isRight(decodeCostLedgerFile(input));
+  return Result.isSuccess(decodeCostLedgerFile(input));
 }
 
 describe("cost-ledger", () => {
@@ -72,10 +72,10 @@ describe("cost-ledger", () => {
 
   it("is read through the bridge without its $schema", () => {
     const read = readCostLedgerFile("cost-ledger.json", ledger([handoffEntry()]));
-    expect(Either.isRight(read)).toBe(true);
-    if (Either.isRight(read)) {
-      expect(Object.keys(read.right)).toEqual(["entries"]);
-      expect(read.right.entries[0]?.role).toBe("handoff");
+    expect(Result.isSuccess(read)).toBe(true);
+    if (Result.isSuccess(read)) {
+      expect(Object.keys(read.success)).toEqual(["entries"]);
+      expect(read.success.entries[0]?.role).toBe("handoff");
     }
   });
 
@@ -125,8 +125,8 @@ describe("cost-ledger", () => {
     const { $schema: _schema, ...unstamped } = ledger([]);
     expect(accepts(unstamped)).toBe(false);
     const read = readCostLedgerFile("cost-ledger.json", unstamped);
-    expect(Either.isLeft(read)).toBe(true);
-    if (Either.isLeft(read)) expect(read.left.message).toContain("has no $schema");
+    expect(Result.isFailure(read)).toBe(true);
+    if (Result.isFailure(read)) expect(read.failure.message).toContain("has no $schema");
   });
 
   it("refuses through the bridge a ledger stamped newer than this phax", () => {
@@ -135,7 +135,7 @@ describe("cost-ledger", () => {
       $schema: "https://docs.phax.run/schemas/cost-ledger/99.0.0.json",
     };
     const read = readCostLedgerFile("cost-ledger.json", newer);
-    expect(Either.isLeft(read)).toBe(true);
-    if (Either.isLeft(read)) expect(read.left.message).toContain("newer than this phax");
+    expect(Result.isFailure(read)).toBe(true);
+    if (Result.isFailure(read)) expect(read.failure.message).toContain("newer than this phax");
   });
 });

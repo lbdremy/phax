@@ -6,6 +6,7 @@
 // is, then its parts.
 import { Schema } from "effect";
 import { schemaUrlField } from "./schemaUrl.js";
+import { isExportedPattern } from "./strictString.js";
 
 // ── architecture request
 
@@ -15,7 +16,7 @@ import { schemaUrlField } from "./schemaUrl.js";
  */
 export const ArchitectureRequestFileSchema = Schema.Struct({
   $schema: schemaUrlField("architecture-request"),
-  files: Schema.NullOr(Schema.NonEmptyArray(Schema.NonEmptyString)).annotations({
+  files: Schema.NullOr(Schema.NonEmptyArray(Schema.NonEmptyString)).annotate({
     description:
       "Null for the whole repository. Otherwise working-tree-root-relative paths, deduplicated, in the order given, never checked for existence.",
   }),
@@ -26,9 +27,9 @@ export type ArchitectureRequestFile = Schema.Schema.Type<typeof ArchitectureRequ
 /** An architecture request, without `$schema`. */
 export type ArchitectureRequest = Omit<ArchitectureRequestFile, "$schema">;
 
-export const decodeArchitectureRequestFile = Schema.decodeUnknownEither(
+export const decodeArchitectureRequestFile = Schema.decodeUnknownResult(
   ArchitectureRequestFileSchema,
-  { onExcessProperty: "error" },
+  { onExcessProperty: "error", reportInput: true },
 );
 
 // ── architecture report
@@ -63,12 +64,11 @@ export const GLOB_DIALECT =
   "working-tree-root-relative POSIX paths, matched case-sensitively and the same on every host. `**` as a whole segment matches zero or more segments, `*` matches zero or more characters within a segment, `?` matches one character other than `/`. A leading dot is not special. Every other character is literal, `[`, `]` and `!` included. Braces are refused. A glob covers files: write `src/core/**` to cover a directory.";
 
 /** One glob in phax's dialect: a report part's globs and a phax.json globs bound share it. */
-export const ArchitectureGlobSchema = Schema.NonEmptyString.pipe(
-  Schema.filter((glob) => architectureGlobProblem(glob), {
-    jsonSchema: {
-      description:
-        "Checked by phax's parser: no leading /, backslash, brace, backtick or control character, no empty, . or .. segment, and ** only as a whole segment.",
-    },
+export const ArchitectureGlobSchema = Schema.NonEmptyString.check(
+  Schema.makeFilter((glob) => architectureGlobProblem(glob), {
+    description:
+      "Checked by phax's parser: no leading /, backslash, brace, backtick or control character, no empty, . or .. segment, and ** only as a whole segment.",
+    toJsonSchema: () => ({}),
   }),
 );
 
@@ -83,24 +83,24 @@ function firstRepeatedPartId(parts: ReadonlyArray<{ readonly id: string }>): str
 
 /** One part of the code an architecture report describes. */
 /** A part id: a kebab-case slug, as a report declares it and a phax.json bound names it. */
-export const ArchitecturePartIdSchema = Schema.NonEmptyString.pipe(
-  Schema.pattern(/^[a-z0-9]+(-[a-z0-9]+)*$/, {
-    message: () => "a kebab-case slug: lowercase letters and digits, single hyphens between",
+export const ArchitecturePartIdSchema = Schema.NonEmptyString.check(
+  isExportedPattern(/^[a-z0-9]+(-[a-z0-9]+)*$/, {
+    message: "a kebab-case slug: lowercase letters and digits, single hyphens between",
   }),
 );
 
 const ArchitecturePartSchema = Schema.Struct({
-  id: ArchitecturePartIdSchema.annotations({
+  id: ArchitecturePartIdSchema.annotate({
     description:
       "The part's stable id, a kebab-case slug unique within the report. A phax.json bound names a part by it.",
   }),
-  name: Schema.NonEmptyString.annotations({
+  name: Schema.NonEmptyString.annotate({
     description: "The part's name, shown to the agent and never interpreted by phax.",
   }),
-  description: Schema.NonEmptyString.annotations({
+  description: Schema.NonEmptyString.annotate({
     description: "One sentence on what the part holds.",
   }),
-  globs: Schema.NonEmptyArray(ArchitectureGlobSchema).annotations({
+  globs: Schema.NonEmptyArray(ArchitectureGlobSchema).annotate({
     description: `The files the part holds, as globs: ${GLOB_DIALECT}`,
   }),
 });
@@ -111,12 +111,12 @@ const ArchitecturePartSchema = Schema.Struct({
  */
 export const ArchitectureReportFileSchema = Schema.Struct({
   $schema: schemaUrlField("architecture-report"),
-  body: Schema.NonEmptyString.annotations({
+  body: Schema.NonEmptyString.annotate({
     description:
       "Markdown for the agent to read. phax prints it as is, before the parts, and never parses it.",
   }),
-  parts: Schema.Array(ArchitecturePartSchema).pipe(
-    Schema.filter(
+  parts: Schema.Array(ArchitecturePartSchema).check(
+    Schema.makeFilter(
       (parts) => {
         const repeated = firstRepeatedPartId(parts);
         return repeated === undefined
@@ -124,10 +124,9 @@ export const ArchitectureReportFileSchema = Schema.Struct({
           : `part id ${JSON.stringify(repeated)} is used twice`;
       },
       {
-        jsonSchema: {
-          description:
-            "The parts of the code the report describes, possibly empty. No two parts share an id (checked by phax's parser). A part names no model or effort: the repository's owner binds those in phax.json.",
-        },
+        description:
+          "The parts of the code the report describes, possibly empty. No two parts share an id (checked by phax's parser). A part names no model or effort: the repository's owner binds those in phax.json.",
+        toJsonSchema: () => ({}),
       },
     ),
   ),
@@ -138,7 +137,7 @@ export type ArchitectureReportFile = Schema.Schema.Type<typeof ArchitectureRepor
 /** An architecture report, without `$schema`. */
 export type ArchitectureReport = Omit<ArchitectureReportFile, "$schema">;
 
-export const decodeArchitectureReportFile = Schema.decodeUnknownEither(
+export const decodeArchitectureReportFile = Schema.decodeUnknownResult(
   ArchitectureReportFileSchema,
-  { onExcessProperty: "error" },
+  { onExcessProperty: "error", reportInput: true },
 );

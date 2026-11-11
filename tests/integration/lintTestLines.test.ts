@@ -10,7 +10,7 @@ import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { lintPlan, type LintReport } from "../../src/app/lintPlan.js";
 import { hasLintErrors } from "../../src/domain/plan/lint.js";
 import { readPlanDeterministic } from "../../src/domain/plan/parsePlanMarkdown.js";
-import { Either } from "effect";
+import { Result } from "effect";
 import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
 import { withSchemaUrl } from "../../src/schemas/persisted.js";
 import { encodeSpecDocumentFile, type SpecDocument } from "../../src/schemas/specDocument.js";
@@ -250,8 +250,8 @@ describe("lint's test-line rules (acceptance)", () => {
       expect(hasLintErrors(report.findings)).toBe(false);
 
       const reading = readPlanDeterministic(plan);
-      if (Either.isLeft(reading)) throw new Error(reading.left.message);
-      expect(reading.right.plan.phases[0].testLines).toEqual([
+      if (Result.isFailure(reading)) throw new Error(reading.failure.message);
+      expect(reading.success.plan.phases[0].testLines).toEqual([
         {
           guarantee: "every (state, transition) pair is accepted or refused as the table says",
           size: "small",

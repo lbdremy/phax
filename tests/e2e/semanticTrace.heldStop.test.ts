@@ -20,7 +20,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { executePlan } from "../../src/app/executePlan.js";
 import { withRunLock } from "../../src/app/lock.js";
@@ -299,7 +299,7 @@ describe.skipIf(!shouldRun)("E2E semantic trace — held stop snapshot", () => {
   });
 
   it("pins the trace of a run held at phase-02, then of the resume that closes it", async () => {
-    const shortName = Either.getOrThrow(decodeShortName(SHORT));
+    const shortName = Result.getOrThrow(decodeShortName(SHORT));
     const { plan, planMd } = planOf();
     const config = configOf();
     const { runPath, runId } = await Effect.runPromise(
@@ -339,14 +339,14 @@ describe.skipIf(!shouldRun)("E2E semantic trace — held stop snapshot", () => {
         makeFakeGitHub().layer,
         lock.layer,
       );
-      return Effect.runPromise(Effect.either(program.pipe(Effect.provide(layers)))).then(
+      return Effect.runPromise(Effect.result(program.pipe(Effect.provide(layers)))).then(
         (result) => ({ result, snapshot: telemetry.impl.getSemanticTraceSnapshot() }),
       );
     };
 
     // phax run: phase-01 commits, phase-02 commits and stops held.
     const stopped = await execute(0, runId);
-    expect(Either.isLeft(stopped.result) && stopped.result.left).toBeInstanceOf(
+    expect(Result.isFailure(stopped.result) && stopped.result.failure).toBeInstanceOf(
       AwaitingReviewStopError,
     );
     expectNoUnstableFields(stopped.snapshot);
@@ -358,10 +358,10 @@ describe.skipIf(!shouldRun)("E2E semantic trace — held stop snapshot", () => {
       CORRECTED_DOLLAR,
     );
     const decision = await inspectResumeOnDisk(NAMESPACE, shortName, stateRoot);
-    if (Either.isLeft(decision)) throw new Error(decision.left.message);
-    const closed = await execute(decision.right.nextPhaseIndex, runId);
-    if (Either.isLeft(closed.result)) {
-      throw new Error(`the resume failed: ${String(closed.result.left)}`);
+    if (Result.isFailure(decision)) throw new Error(decision.failure.message);
+    const closed = await execute(decision.success.nextPhaseIndex, runId);
+    if (Result.isFailure(closed.result)) {
+      throw new Error(`the resume failed: ${String(closed.result.failure)}`);
     }
     expectNoUnstableFields(closed.snapshot);
     expect(stable(closed.snapshot)).toMatchSnapshot("held-stop-resume-semantic-trace");

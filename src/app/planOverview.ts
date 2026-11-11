@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { FileSystem } from "../ports/fs.js";
 import { Shell } from "../ports/shell.js";
 import { classifyArtifactPath, validateArtifact } from "../domain/artifact/document.js";
@@ -57,22 +57,22 @@ export function planOverview(
   const { planMdPath, reportPath, repoRelPath, config } = opts;
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
-    const readPlan = yield* fs.readText(planMdPath).pipe(Effect.either);
-    if (Either.isLeft(readPlan)) {
+    const readPlan = yield* fs.readText(planMdPath).pipe(Effect.result);
+    if (Result.isFailure(readPlan)) {
       return yield* Effect.fail({
         kind: "unreadable",
-        line: onOneLine(`${reportPath}: cannot be read (${readPlan.left.message})`),
+        line: onOneLine(`${reportPath}: cannot be read (${readPlan.failure.message})`),
       } satisfies PlanOverviewFailure);
     }
-    const planMd = readPlan.right;
+    const planMd = readPlan.success;
 
     const artifact = classifyArtifactPath(repoRelPath) !== null;
     if (artifact) {
       const validated = validateArtifact(repoRelPath, planMd);
-      if (Either.isLeft(validated)) {
+      if (Result.isFailure(validated)) {
         return yield* Effect.fail({
           kind: "invalid-artifact",
-          line: onOneLine(`${reportPath}: ${validated.left.message}`),
+          line: onOneLine(`${reportPath}: ${validated.failure.message}`),
         } satisfies PlanOverviewFailure);
       }
     }
@@ -85,10 +85,10 @@ export function planOverview(
       line: `${reportPath}: the plan does not parse — run phax plans lint ${reportPath}`,
     };
     const extracted = extractPlanDeterministic(planMd);
-    if (Either.isLeft(extracted)) return yield* Effect.fail(unparsable);
-    const finalized = finalizeExtractedPlan(extracted.right, planMd);
-    if (Either.isLeft(finalized)) return yield* Effect.fail(unparsable);
-    const { plan } = finalized.right;
+    if (Result.isFailure(extracted)) return yield* Effect.fail(unparsable);
+    const finalized = finalizeExtractedPlan(extracted.success, planMd);
+    if (Result.isFailure(finalized)) return yield* Effect.fail(unparsable);
+    const { plan } = finalized.success;
 
     const criteria = yield* readSourceSpecCriteria({ planMd, repoRoot: config.repoRoot });
     const declaration = frontmatter.kind === "decoded" ? frontmatter.sourceSpec : null;

@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -36,7 +36,7 @@ const HANDOFF_CONTENT = [
   "Proceed.",
 ].join("\n");
 
-const shortName = Either.getOrThrow(decodeShortName("recon-run"));
+const shortName = Result.getOrThrow(decodeShortName("recon-run"));
 
 const rawPlan = {
   version: 1,
@@ -77,7 +77,7 @@ describe("reconcilePhaseFiles — lifecycle wiring", () => {
   });
 
   it("writes file-reconciliation.json and .md with correct classification", async () => {
-    const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
 
     const config: ResolvedConfig = {
       raw: {
@@ -165,7 +165,7 @@ describe("reconcilePhaseFiles — lifecycle wiring", () => {
     );
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -183,7 +183,7 @@ describe("reconcilePhaseFiles — lifecycle wiring", () => {
       ),
     );
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
 
     const jsonPath = join(runPath, "phase-01", "file-reconciliation.json");
     const mdPath = join(runPath, "phase-01", "file-reconciliation.md");
@@ -208,7 +208,7 @@ describe("reconcilePhaseFiles — lifecycle wiring", () => {
   });
 
   it("writes no-deviation report when actual changes match planned exactly", async () => {
-    const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
 
     const config: ResolvedConfig = {
       raw: {
@@ -293,7 +293,7 @@ describe("reconcilePhaseFiles — lifecycle wiring", () => {
     );
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -311,7 +311,7 @@ describe("reconcilePhaseFiles — lifecycle wiring", () => {
       ),
     );
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
 
     const jsonContent = JSON.parse(
       await readFile(join(runPath, "phase-01", "file-reconciliation.json"), "utf8"),

@@ -6,7 +6,7 @@
  * the phase; a resume restores the request file without asking again. Fake
  * git, shell and backend; real filesystem in a temp dir. Every value is made up.
  */
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -51,7 +51,7 @@ const HANDOFF_CONTENT = [
   "Ready to proceed.",
 ].join("\n");
 
-const shortName = Either.getOrThrow(decodeShortName("my-run"));
+const shortName = Result.getOrThrow(decodeShortName("my-run"));
 const RUN_BRANCH = "ai/my-run";
 const BRIEF_COMMAND = "node ./brief.mjs";
 const BRIEF: BriefConfig = { command: BRIEF_COMMAND, push: "findings" };
@@ -283,14 +283,14 @@ async function seedHandoffs(phaseIds: readonly string[]): Promise<void> {
 }
 
 async function startRun(rawPlan: unknown, brief: BriefConfig | undefined, layers: Fakes["layers"]) {
-  const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+  const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
   const config = makeConfig(brief);
   const { runPath, runId } = await Effect.runPromise(
     createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(layers)),
   );
   const execute = (withLayers: Fakes["layers"], startIndex = 0) =>
     Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -342,7 +342,7 @@ describe("executePlan pushes the phase's brief", () => {
     const { runPath, execute } = await startRun(threePhaseRawPlan, BRIEF, layers);
     const result = await execute(layers);
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     const calls = briefCalls(fakeShell);
     expect(calls).toHaveLength(3);
     for (const [n, phaseId] of phaseIds.entries()) {
@@ -392,7 +392,7 @@ describe("executePlan pushes the phase's brief", () => {
       { command: "node ./b.mjs", push: "findings" },
       layers,
     );
-    expect(Either.isRight(await execute(layers))).toBe(true);
+    expect(Result.isSuccess(await execute(layers))).toBe(true);
 
     expect(briefCalls(fakeShell, "node ./b.mjs").map((call) => call.command)).toEqual([
       ["node", "./b.mjs"],
@@ -406,7 +406,7 @@ describe("executePlan pushes the phase's brief", () => {
     fakeGit.impl.enqueueWorktreeIsClean(worktreeOf("phase-01"), false);
     addSessions(fakeBackend, ["sess-01"]);
     const { runPath, execute } = await startRun(singlePhaseRawPlan, brief, layers);
-    expect(Either.isRight(await execute(layers))).toBe(true);
+    expect(Result.isSuccess(await execute(layers))).toBe(true);
     return readFile(join(runPath, "phase-01", "prompt.md"), "utf8");
   }
 
@@ -435,7 +435,7 @@ describe("executePlan pushes the phase's brief", () => {
     addSessions(fakeBackend, ["sess-01"]);
 
     const { runPath, execute } = await startRun(singlePhaseRawPlan, undefined, layers);
-    expect(Either.isRight(await execute(layers))).toBe(true);
+    expect(Result.isSuccess(await execute(layers))).toBe(true);
 
     expect(briefCalls(fakeShell)).toHaveLength(0);
     const prompt = await readFile(join(runPath, "phase-01", "prompt.md"), "utf8");
@@ -550,9 +550,9 @@ describe("a failing pushed brief never blocks the phase", () => {
       // The same run without `brief` ends the same way.
       await rm(join(stateRoot, "runs"), { recursive: true, force: true });
       const without = await runOnce(undefined, brief);
-      expect(Either.isRight(withBrief.result)).toBe(Either.isRight(without.result));
-      if (Either.isRight(withBrief.result) && Either.isRight(without.result)) {
-        expect(withBrief.result.right).toEqual(without.result.right);
+      expect(Result.isSuccess(withBrief.result)).toBe(Result.isSuccess(without.result));
+      if (Result.isSuccess(withBrief.result) && Result.isSuccess(without.result)) {
+        expect(withBrief.result.success).toEqual(without.result.success);
       }
       expect(stateWithBrief).toBe(await runState(without.runPath));
     });
@@ -576,8 +576,8 @@ describe("re-entering a phase asks no new brief", () => {
     });
     const { runPath, execute } = await startRun(singlePhaseRawPlan, BRIEF, first.layers);
     const paused = await execute(first.layers);
-    expect(Either.isLeft(paused)).toBe(true);
-    if (Either.isLeft(paused)) expect(paused.left).toBeInstanceOf(GateAttemptsExhaustedError);
+    expect(Result.isFailure(paused)).toBe(true);
+    if (Result.isFailure(paused)) expect(paused.failure).toBeInstanceOf(GateAttemptsExhaustedError);
     expect(briefCalls(first.fakeShell)).toHaveLength(1);
 
     const recordPath = join(runPath, "phase-01", "brief-00.json");
@@ -599,7 +599,7 @@ describe("re-entering a phase asks no new brief", () => {
     });
     const resumed = await execute(second.layers);
 
-    expect(Either.isRight(resumed)).toBe(true);
+    expect(Result.isSuccess(resumed)).toBe(true);
     expect(briefCalls(second.fakeShell)).toHaveLength(0);
     expect(second.fakeBackend.impl.runCalls).toHaveLength(0);
     expect(await readFile(recordPath, "utf8")).toBe(recordBytes);
@@ -619,8 +619,8 @@ describe("re-entering a phase asks no new brief", () => {
     first.fakeBackend.impl.failRunWithRateLimit(1, { kind: "rate_limit" });
     const { runPath, execute } = await startRun(twoPhaseRawPlan, BRIEF, first.layers);
     const limited = await execute(first.layers);
-    expect(Either.isLeft(limited)).toBe(true);
-    if (Either.isLeft(limited)) expect(limited.left).toBeInstanceOf(RateLimitError);
+    expect(Result.isFailure(limited)).toBe(true);
+    if (Result.isFailure(limited)) expect(limited.failure).toBeInstanceOf(RateLimitError);
     expect(briefCalls(first.fakeShell)).toHaveLength(2);
     const recordPath = join(runPath, "phase-02", "brief-00.json");
     const recordBytes = await readFile(recordPath, "utf8");
@@ -633,7 +633,7 @@ describe("re-entering a phase asks no new brief", () => {
     addSessions(second.fakeBackend, ["sess-02"]);
     const reentered = await execute(second.layers, 1);
 
-    expect(Either.isRight(reentered)).toBe(true);
+    expect(Result.isSuccess(reentered)).toBe(true);
     expect(briefCalls(second.fakeShell)).toHaveLength(0);
     expect(await readFile(recordPath, "utf8")).toBe(recordBytes);
     const prompt = second.fakeBackend.impl.runCalls[0]?.prompt ?? "";

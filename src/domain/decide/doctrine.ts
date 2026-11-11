@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { Either } from "effect";
+import { Result } from "effect";
 import type { ArtifactKind } from "../artifact/status.js";
 import { PHAX_DECIDE_PLAN_SKILL, PHAX_DECIDE_SPEC_SKILL } from "../skills/catalog.js";
 
@@ -86,7 +86,7 @@ function fingerprint(text: string): string {
 export function assembleDoctrine(input: {
   readonly skill: DoctrineSkillInput;
   readonly file: DoctrineFileInput | null;
-}): Either.Either<Doctrine, string> {
+}): Result.Result<Doctrine, string> {
   const { skill, file } = input;
   const skillIds = principleIdsOf(skill.text);
   const skillSource: DoctrineSource = {
@@ -96,7 +96,7 @@ export function assembleDoctrine(input: {
     fingerprint: fingerprint(skill.text),
   };
   if (file === null) {
-    return Either.right({
+    return Result.succeed({
       text: skill.text,
       principleIds: new Set(skillIds),
       sources: [skillSource],
@@ -104,19 +104,19 @@ export function assembleDoctrine(input: {
   }
   const fileIds = principleIdsOf(file.text);
   if (fileIds.length === 0) {
-    return Either.left(
+    return Result.fail(
       `doctrine file ${file.path} defines no principle id: no list item opens with a backticked id`,
     );
   }
   const skillIdSet = new Set(skillIds);
   const overlap = fileIds.filter((id) => skillIdSet.has(id));
   if (overlap.length > 0) {
-    return Either.left(
+    return Result.fail(
       `doctrine file ${file.path} redefines ${overlap.map((id) => `\`${id}\``).join(", ")}, already defined by the ${skill.name} skill`,
     );
   }
   const separator = skill.text.endsWith("\n") ? "\n" : "\n\n";
-  return Either.right({
+  return Result.succeed({
     text: `${skill.text}${separator}## Project doctrine (${file.path})\n\n${file.text}`,
     principleIds: new Set([...skillIds, ...fileIds]),
     sources: [skillSource, { kind: "file", path: file.path, fingerprint: fingerprint(file.text) }],

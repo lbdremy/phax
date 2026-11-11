@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { PlanValidationError } from "../../src/domain/errors.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
@@ -231,13 +231,13 @@ describe("loadOrExtractPlan — noExtract: true on a miss", () => {
         noExtract: true,
       })
         .pipe(Effect.provide(makeLayer(fakeFs, fakeBackend)))
-        .pipe(Effect.either),
+        .pipe(Effect.result),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(PlanValidationError);
-      expect((result.left as PlanValidationError).message).toContain("--no-extract");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toBeInstanceOf(PlanValidationError);
+      expect((result.failure as PlanValidationError).message).toContain("--no-extract");
     }
     expect(fakeBackend.impl.completeCalls).toHaveLength(0);
   });
@@ -272,12 +272,12 @@ describe("loadOrExtractPlan — noExtract: true on a miss", () => {
         noExtract: true,
       })
         .pipe(Effect.provide(makeLayer(fakeFs, fakeBackend)))
-        .pipe(Effect.either),
+        .pipe(Effect.result),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect((result.left as PlanValidationError).message).toContain("--no-extract");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect((result.failure as PlanValidationError).message).toContain("--no-extract");
     }
     expect(fakeBackend.impl.completeCalls).toHaveLength(0);
   });
@@ -328,7 +328,7 @@ describe("loadOrExtractPlan — a departing test line", () => {
         stateRoot: STATE_ROOT,
         nowIso: NOW_ISO,
         refresh: opts.refresh,
-      }).pipe(Effect.provide(makeLayer(fakeFs, fakeBackend)), Effect.either),
+      }).pipe(Effect.provide(makeLayer(fakeFs, fakeBackend)), Effect.result),
     );
     return { result, fakeFs, fakeBackend, filesBefore };
   }
@@ -337,10 +337,10 @@ describe("loadOrExtractPlan — a departing test line", () => {
     const { result, fakeFs, fakeBackend, filesBefore } = run();
     const either = await result;
 
-    expect(Either.isLeft(either)).toBe(true);
-    if (Either.isLeft(either)) {
-      expect(either.left).toBeInstanceOf(PlanValidationError);
-      expect((either.left as PlanValidationError).message).toBe(
+    expect(Result.isFailure(either)).toBe(true);
+    if (Result.isFailure(either)) {
+      expect(either.failure).toBeInstanceOf(PlanValidationError);
+      expect((either.failure as PlanValidationError).message).toBe(
         `${PLAN_MD_PATH}: phase-01 test line 2 departs from the format: "add unit tests for the exporter" — run phax plans lint ${PLAN_MD_PATH}`,
       );
     }
@@ -351,7 +351,7 @@ describe("loadOrExtractPlan — a departing test line", () => {
   it("refuses with refresh too, never asking the model", async () => {
     const { result, fakeBackend } = run({ refresh: true });
 
-    expect(Either.isLeft(await result)).toBe(true);
+    expect(Result.isFailure(await result)).toBe(true);
     expect(fakeBackend.impl.completeCalls).toHaveLength(0);
   });
 });

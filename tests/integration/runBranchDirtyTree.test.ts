@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -30,10 +30,10 @@ import { processOutput } from "../helpers/processOutput.js";
 
 const DIRTY_MESSAGE = "Working tree is not clean. Commit or stash changes, or pass --allow-dirty.";
 
-const shortName = Either.getOrThrow(decodeShortName("dirty-run"));
+const shortName = Result.getOrThrow(decodeShortName("dirty-run"));
 
 function makePlan(): PhaxPlan {
-  return Either.getOrThrow(
+  return Result.getOrThrow(
     liftFixturePhaxPlanToCurrent("phax-plan.json", {
       version: 1,
       run: {
@@ -119,7 +119,7 @@ describe("phax run — dirty tree at branch creation is still refused (spec Q2)"
     // The fresh-run preflight sees a clean tree. Its routing load reads an
     // in-memory filesystem, so the developer's ~/.phax is never consulted.
     const preflight = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         freshRunPreflight({
           plan,
           planMd: planMdFor(plan),
@@ -137,9 +137,9 @@ describe("phax run — dirty tree at branch creation is still refused (spec Q2)"
         ),
       ),
     );
-    expect(Either.isRight(preflight)).toBe(true);
-    if (Either.isLeft(preflight)) return;
-    const { routing, providerConfig } = preflight.right;
+    expect(Result.isSuccess(preflight)).toBe(true);
+    if (Result.isFailure(preflight)) return;
+    const { routing, providerConfig } = preflight.success;
 
     // The tree turns dirty between the preflight and branch creation.
     fakeGit.impl.setRepoIsClean(false);
@@ -153,7 +153,7 @@ describe("phax run — dirty tree at branch creation is still refused (spec Q2)"
       NoopSystemTelemetryLayer,
     );
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         createRunFolder(shortName, planMdFor(plan), plan, config).pipe(
           Effect.flatMap(({ runPath, runId }) =>
             executePlan({
@@ -178,11 +178,11 @@ describe("phax run — dirty tree at branch creation is still refused (spec Q2)"
       ),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(UnsafeGitStateError);
-      expect(result.left.message).toBe(DIRTY_MESSAGE);
-      expect(exitCodeForError(result.left)).toBe(3);
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toBeInstanceOf(UnsafeGitStateError);
+      expect(result.failure.message).toBe(DIRTY_MESSAGE);
+      expect(exitCodeForError(result.failure)).toBe(3);
     }
     expect(fakeGit.impl.calls.filter((c) => c.method === "createBranch")).toEqual([]);
     expect(fakeBackend.impl.runCalls).toHaveLength(0);

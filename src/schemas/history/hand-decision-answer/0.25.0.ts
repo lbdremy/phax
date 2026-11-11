@@ -10,20 +10,29 @@
 // src/schemas/questions.ts cannot move it.
 import { Schema } from "effect";
 
-const SchemaUrlSchema = Schema.String.pipe(
-  Schema.pattern(
+// `Schema.isPattern` whose JSON Schema is the RegExp's source, whatever its
+// flags: Effect 4 exports a pattern only for a RegExp with the `u` flag.
+function isExportedPattern(regExp: RegExp, annotations?: Schema.Annotations.Filter) {
+  return Schema.isPattern(regExp, {
+    toJsonSchema: () => ({ pattern: regExp.source }),
+    ...annotations,
+  });
+}
+
+const SchemaUrlSchema = Schema.String.check(
+  isExportedPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/hand-decision-answer\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
-  Schema.annotations({
+).pipe(
+  Schema.annotate({
     description:
       "The hand-decision-answer format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): https://docs.phax.run/schemas/hand-decision-answer/<X.Y.Z>.json",
   }),
 );
 
-const TimestampSchema = Schema.String.pipe(
-  Schema.pattern(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/),
-  Schema.annotations({ description: "An ISO-8601 UTC timestamp." }),
-);
+const TimestampSchema = Schema.String.check(
+  isExportedPattern(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/),
+).pipe(Schema.annotate({ description: "An ISO-8601 UTC timestamp." }));
 
 const decidedVerdictFields = {
   kind: Schema.Literal("decided"),
@@ -32,7 +41,7 @@ const decidedVerdictFields = {
   why: Schema.NonEmptyString,
   advocate: Schema.NonEmptyString,
   principles: Schema.Array(Schema.NonEmptyString),
-  reversibility: Schema.Literal("cheap", "costly", "irreversible"),
+  reversibility: Schema.Literals(["cheap", "costly", "irreversible"]),
   by: Schema.Struct({ kind: Schema.Literal("operator"), name: Schema.NonEmptyString }),
   at: TimestampSchema,
   revised: Schema.Array(Schema.NonEmptyString),
@@ -44,16 +53,15 @@ const SpecDecidedVerdictSchema = Schema.Struct(decidedVerdictFields);
 /** A plan question decided by the operator: a spec's decided verdict, plus the phase it bears on. */
 const PlanDecidedVerdictSchema = Schema.Struct({
   ...decidedVerdictFields,
-  phase: Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/)),
+  phase: Schema.String.check(isExportedPattern(/^phase-\d{2}$/)),
 });
 
 // A question id, as the §9 format reads it back: no whitespace.
-const QuestionIdSchema = Schema.String.pipe(
-  Schema.pattern(/^\S+$/),
-  Schema.annotations({ description: "A question id of the artifact: no whitespace." }),
+const QuestionIdSchema = Schema.String.check(isExportedPattern(/^\S+$/)).pipe(
+  Schema.annotate({ description: "A question id of the artifact: no whitespace." }),
 );
 
-const MarkdownSchema = Schema.NonEmptyString.annotations({
+const MarkdownSchema = Schema.NonEmptyString.annotate({
   description:
     "The artifact's whole revised Markdown, frontmatter included. Only edits outside the frontmatter, the question sections and the decision log are kept; phax writes those.",
 });
@@ -71,7 +79,7 @@ const PlanHandDecisionSchema = Schema.Struct({
 const SpecHandDecisionAnswerSchema = Schema.Struct({
   $schema: SchemaUrlSchema,
   kind: Schema.Literal("spec"),
-  decisions: Schema.Array(SpecHandDecisionSchema).annotations({
+  decisions: Schema.Array(SpecHandDecisionSchema).annotate({
     description: "The verdicts decided in the session, one per question id; empty when none.",
   }),
   markdown: MarkdownSchema,
@@ -80,7 +88,7 @@ const SpecHandDecisionAnswerSchema = Schema.Struct({
 const PlanHandDecisionAnswerSchema = Schema.Struct({
   $schema: SchemaUrlSchema,
   kind: Schema.Literal("plan"),
-  decisions: Schema.Array(PlanHandDecisionSchema).annotations({
+  decisions: Schema.Array(PlanHandDecisionSchema).annotate({
     description:
       "The verdicts decided in the session, one per question id, each naming the plan phase it bears on; empty when none.",
   }),
@@ -91,14 +99,14 @@ const PlanHandDecisionAnswerSchema = Schema.Struct({
  * A `hand-decision-answer` document: `$schema`, then the keys of one kind.
  * Every key is required; any other key is refused, at any level.
  */
-export const HandDecisionAnswerV0_25_0Schema = Schema.Union(
+export const HandDecisionAnswerV0_25_0Schema = Schema.Union([
   SpecHandDecisionAnswerSchema,
   PlanHandDecisionAnswerSchema,
-);
+]);
 
 export type HandDecisionAnswerV0_25_0 = Schema.Schema.Type<typeof HandDecisionAnswerV0_25_0Schema>;
 
-export const decodeHandDecisionAnswerV0_25_0 = Schema.decodeUnknownEither(
+export const decodeHandDecisionAnswerV0_25_0 = Schema.decodeUnknownResult(
   HandDecisionAnswerV0_25_0Schema,
-  { onExcessProperty: "error" },
+  { onExcessProperty: "error", reportInput: true },
 );

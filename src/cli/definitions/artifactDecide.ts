@@ -9,7 +9,7 @@
 // under `--json`), its warnings are progress lines, and the record's and push's warnings notes. A
 // call that would wait on a person (no `--verdicts`, or no `--by`) is refused under `--json`.
 import { join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import * as Schema from "effect/Schema";
 import { decideArtifact, readArtifact } from "../../app/decideArtifact.js";
 import { type DecideVerdictsResult, decideVerdicts } from "../../app/decideVerdicts.js";
@@ -78,46 +78,45 @@ export interface ArtifactDecideDeps {
 }
 
 const PathArg = reject(
-  Schema.Tuple(
-    Schema.String.annotations({
+  Schema.Tuple([
+    Schema.String.annotate({
       identifier: "path",
       description: "Path to a spec or plan file under docs/specs/ or docs/plans/",
     }),
-  ),
+  ]),
 );
 
-const optional = <S extends Schema.Schema.Any>(schema: S) =>
-  Schema.optionalWith(schema, { exact: true });
+const optional = <S extends Schema.Top>(schema: S) => Schema.optionalKey(schema);
 
 const DecideFlags = reject(
   Schema.Struct({
     question: optional(
-      Schema.String.annotations({
+      Schema.String.annotate({
         identifier: "id",
         description: "Present this question alone: an open one, or re-arbitrate one",
       }),
     ),
     by: optional(
-      Schema.String.annotations({
+      Schema.String.annotate({
         identifier: "arbiter",
         description:
           "operator: who gave the verdicts; required without a terminal (with --verdicts)",
       }),
     ),
     doctrine: optional(
-      Schema.String.annotations({
+      Schema.String.annotate({
         identifier: "file",
         description: "Append this doctrine file after the decide skill",
       }),
     ),
     model: optional(
-      Schema.String.annotations({
+      Schema.String.annotate({
         identifier: "model",
         description: "Override the decide model (interactive: a Claude Code model)",
       }),
     ),
     effort: optional(
-      Schema.String.annotations({
+      Schema.String.annotate({
         identifier: "effort",
         description: "Override the decide effort",
       }),
@@ -128,7 +127,7 @@ const DecideFlags = reject(
 /** `--verdicts <file|->`: a decide-verdicts document, read by the runner from the file named or
  *  from stdin, and decoded before anything runs. */
 const VerdictsStdin = reject(
-  DecideVerdictsFileSchema.annotations({
+  DecideVerdictsFileSchema.annotate({
     identifier: "decide-verdicts",
     description: "Decide from a verdicts file, or - for stdin, without an interactive session",
   }),
@@ -140,7 +139,7 @@ const Commit = Schema.Struct({ hash: Schema.String, subject: Schema.String });
 const VerdictsOutput = Schema.Struct({
   artifact: Schema.String,
   status: Schema.Literal("Draft"),
-  session: Schema.Literal("new", "resumed-authoring"),
+  session: Schema.Literals(["new", "resumed-authoring"]),
   provider: Schema.String,
   model: Schema.String,
   requestedModel: Schema.String,
@@ -165,7 +164,7 @@ const VerdictsOutput = Schema.Struct({
 });
 
 const InteractiveOutput = Schema.Struct({
-  kind: Schema.Literal("nothing", "undecided", "declined", "committed"),
+  kind: Schema.Literals(["nothing", "undecided", "declined", "committed"]),
   path: Schema.String,
   commit: Schema.NullOr(Commit),
   written: Schema.Array(Written),
@@ -173,7 +172,7 @@ const InteractiveOutput = Schema.Struct({
 });
 
 /** What decide answers: the verdicts report, or an interactive session's outcome. */
-const DecideOutput = Schema.Union(VerdictsOutput, InteractiveOutput);
+const DecideOutput = Schema.Union([VerdictsOutput, InteractiveOutput]);
 
 type DecideOutput = typeof DecideOutput.Type;
 type VerdictsOutput = typeof VerdictsOutput.Type;
@@ -340,24 +339,27 @@ function runDecide(call: DecideCall, deps: ArtifactDecideDeps) {
       return yield* Effect.fail(sessionCommandRefusal(12, `✗ ${flagRefusal}`));
     }
     const configResult = loadConfig(process.cwd());
-    if (Either.isLeft(configResult)) {
+    if (Result.isFailure(configResult)) {
       return yield* Effect.fail(
-        sessionCommandRefusal(1, `Config error: ${configResult.left.message}`),
+        sessionCommandRefusal(1, `Config error: ${configResult.failure.message}`),
       );
     }
-    const config = configResult.right;
+    const config = configResult.success;
     const repoRoot = config.repoRoot;
     const fsLayer = makeRootedNodeFileSystemLayer(repoRoot);
-    const providerConfig = yield* Effect.either(loadProviderConfig().pipe(Effect.provide(fsLayer)));
-    if (Either.isLeft(providerConfig)) {
+    const providerConfig = yield* Effect.result(loadProviderConfig().pipe(Effect.provide(fsLayer)));
+    if (Result.isFailure(providerConfig)) {
       return yield* Effect.fail(
-        sessionCommandRefusal(1, `Failed to load routing config: ${providerConfig.left.message}`),
+        sessionCommandRefusal(
+          1,
+          `Failed to load routing config: ${providerConfig.failure.message}`,
+        ),
       );
     }
     const layer = Layer.mergeAll(
       fsLayer,
       makeNodeGitLayer(),
-      deps.backendLayer ?? makeProviderBackendLayer(providerConfig.right),
+      deps.backendLayer ?? makeProviderBackendLayer(providerConfig.success),
       deps.sessionLayer ?? makeNodeSessionLayer(),
       deps.promptLayer ?? makeClackPromptLayer(),
       deps.terminalLayer ?? NodeTerminalLayer,
@@ -414,7 +416,7 @@ function runDecide(call: DecideCall, deps: ArtifactDecideDeps) {
           ...(flags.by === undefined ? [] : ["--by", flags.by]),
           ...sharedFlags,
         ]) + (source === "-" ? " (pipe the same verdicts again)" : "");
-      const decided = yield* Effect.either(
+      const decided = yield* Effect.result(
         Effect.gen(function* () {
           const routing = yield* loadModelRouting();
           return yield* decideVerdicts({
@@ -423,15 +425,17 @@ function runDecide(call: DecideCall, deps: ArtifactDecideDeps) {
             label,
             by: flags.by,
             routing,
-            providerConfig: providerConfig.right,
+            providerConfig: providerConfig.success,
             bundledSkills: yield* bundledSkills,
           });
         }).pipe(Effect.provide(layer)),
       );
-      if (Either.isLeft(decided)) {
-        return yield* Effect.fail(yield* sessionFailure(decided.left, causeLines(retry), repoRoot));
+      if (Result.isFailure(decided)) {
+        return yield* Effect.fail(
+          yield* sessionFailure(decided.failure, causeLines(retry), repoRoot),
+        );
       }
-      const result = decided.right;
+      const result = decided.success;
       const answer: VerdictsOutput = {
         ...verdictsReportJson(result),
         written: yield* writtenRecords(result.paths, repoRoot),
@@ -447,7 +451,7 @@ function runDecide(call: DecideCall, deps: ArtifactDecideDeps) {
       ...(flags.question === undefined ? [] : ["--question", flags.question]),
       ...sharedFlags,
     ]);
-    const decided = yield* Effect.either(
+    const decided = yield* Effect.result(
       Effect.gen(function* () {
         return yield* decideArtifact({
           ...common,
@@ -456,10 +460,12 @@ function runDecide(call: DecideCall, deps: ArtifactDecideDeps) {
         });
       }).pipe(Effect.provide(layer)),
     );
-    if (Either.isLeft(decided)) {
-      return yield* Effect.fail(yield* sessionFailure(decided.left, causeLines(retry), repoRoot));
+    if (Result.isFailure(decided)) {
+      return yield* Effect.fail(
+        yield* sessionFailure(decided.failure, causeLines(retry), repoRoot),
+      );
     }
-    const result = decided.right;
+    const result = decided.success;
     const answer: DecideOutput = {
       kind: result.kind,
       path: result.path,
@@ -504,16 +510,16 @@ function checkVerdicts(call: {
       );
     }
     const config = loadConfig(process.cwd());
-    if (Either.isLeft(config)) return;
-    const repoRoot = config.right.repoRoot;
+    if (Result.isFailure(config)) return;
+    const repoRoot = config.success.repoRoot;
     const path = repoPaths(call.pathArg, repoRoot).repoRelPath;
-    const snapshot = yield* Effect.either(
+    const snapshot = yield* Effect.result(
       readArtifact({ path, repoRoot }).pipe(
         Effect.provide(Layer.merge(makeRootedNodeFileSystemLayer(repoRoot), makeNodeGitLayer())),
       ),
     );
-    if (Either.isLeft(snapshot)) return;
-    const { authored } = snapshot.right;
+    if (Result.isFailure(snapshot)) return;
+    const { authored } = snapshot.success;
     const questions =
       authored.variant === "headless"
         ? questionFactsOfDocument(authored.document)
@@ -522,8 +528,8 @@ function checkVerdicts(call: {
           : questionFactsOfHand(authored.parsed);
     const label = labelOf(document);
     const bound = bindVerdictsAt({ file, artifactPath: path, questions, label });
-    if (Either.isRight(bound)) return;
-    const refusal = bound.left;
+    if (Result.isSuccess(bound)) return;
+    const refusal = bound.failure;
     return yield* Effect.fail(
       new Refused({
         source: "stdin",

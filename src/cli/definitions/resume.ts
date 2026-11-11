@@ -11,7 +11,7 @@
 // its entry in the architectural guard's direct-I/O allowlist says so.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { Effect, Either, type Layer } from "effect";
+import { Effect, Result, type Layer } from "effect";
 import * as Schema from "effect/Schema";
 import { executePlan } from "../../app/executePlan.js";
 import { loadConfig } from "../../app/loadConfig.js";
@@ -88,23 +88,21 @@ const SKIP_ORACLE_RETIRED = "--skip-oracle is no longer read: write --skip-accep
 
 const ResumeFlags = reject(
   Schema.Struct({
-    yes: Schema.optionalWith(Schema.Boolean, { exact: true }).annotations({
+    yes: Schema.optionalKey(Schema.Boolean).annotateKey({
       description: "Proceed without confirmation",
       [AliasAnnotationId]: "y",
     }),
-    providerPriority: Schema.optionalWith(
-      Schema.String.annotations({
+    providerPriority: Schema.optionalKey(
+      Schema.String.annotate({
         identifier: "list",
         description: "Comma-separated provider priority override (e.g. mistral-vibe,claude-code)",
       }),
-      { exact: true },
     ),
-    skipAcceptance: Schema.optionalWith(
-      Schema.Boolean.annotations({
+    skipAcceptance: Schema.optionalKey(
+      Schema.Boolean.annotate({
         description:
           "Skip the acceptance step of the phase this resume restarts at; its configured gate still runs",
       }),
-      { exact: true },
     ),
   }),
 );
@@ -131,27 +129,28 @@ function runResumeCommand(
   return Effect.gen(function* () {
     const out = outputPortOf(call);
     const configResult = loadConfig(process.cwd());
-    if (Either.isLeft(configResult)) return yield* refuse(1, configErrorText(configResult.left));
-    const config = configResult.right;
+    if (Result.isFailure(configResult))
+      return yield* refuse(1, configErrorText(configResult.failure));
+    const config = configResult.success;
     const { stateRoot } = config;
 
     const telemetryConfigResult = loadTelemetryConfig();
-    if (Either.isLeft(telemetryConfigResult)) {
-      return yield* refuse(1, configErrorText(telemetryConfigResult.left));
+    if (Result.isFailure(telemetryConfigResult)) {
+      return yield* refuse(1, configErrorText(telemetryConfigResult.failure));
     }
-    const telemetryEnabled = telemetryConfigResult.right.enabled;
+    const telemetryEnabled = telemetryConfigResult.success.enabled;
 
     const resolvedResult = resolveRunRef(call.runRefArg, config, stateRoot);
-    if (Either.isLeft(resolvedResult)) return yield* refuse(1, resolvedResult.left.message);
-    const { namespace, info, crossProject } = resolvedResult.right;
-    const shortNameStr = resolvedResult.right.shortName;
+    if (Result.isFailure(resolvedResult)) return yield* refuse(1, resolvedResult.failure.message);
+    const { namespace, info, crossProject } = resolvedResult.success;
+    const shortNameStr = resolvedResult.success.shortName;
     const qualifiedName = runKey(namespace, shortNameStr);
     // Safe: resolveRunRef already validated the shortName via decodeShortName.
     const shortNameResult = decodeShortName(shortNameStr);
-    if (Either.isLeft(shortNameResult)) {
+    if (Result.isFailure(shortNameResult)) {
       return yield* refuse(1, `Internal error: resolved shortName "${shortNameStr}" is invalid.`);
     }
-    const shortName = shortNameResult.right;
+    const shortName = shortNameResult.success;
 
     let priorityOverride: NonEmptyArray<ProviderId> | undefined;
     if (call.providerPriority !== undefined) {
@@ -174,18 +173,18 @@ function runResumeCommand(
       );
     }
     const runStatusResult = readRunStatusFile(runStatusPath, runStatusRaw);
-    if (Either.isLeft(runStatusResult)) return yield* refuse(2, runStatusResult.left.message);
-    const runStatus = runStatusResult.right;
+    if (Result.isFailure(runStatusResult)) return yield* refuse(2, runStatusResult.failure.message);
+    const runStatus = runStatusResult.success;
 
-    const inspectionResult = yield* Effect.either(inspectResumeOfRun(info, runStatus.hold)).pipe(
+    const inspectionResult = yield* Effect.result(inspectResumeOfRun(info, runStatus.hold)).pipe(
       Effect.provide(makeRepoRootedFileSystemLayer(config)),
     );
-    if (Either.isLeft(inspectionResult)) {
-      return yield* refuse(2, `Cannot read the run's phases: ${inspectionResult.left.message}`);
+    if (Result.isFailure(inspectionResult)) {
+      return yield* refuse(2, `Cannot read the run's phases: ${inspectionResult.failure.message}`);
     }
-    const { decision: decisionResult, completedPhaseCount } = inspectionResult.right;
-    if (Either.isLeft(decisionResult)) {
-      const refusal = decisionResult.left;
+    const { decision: decisionResult, completedPhaseCount } = inspectionResult.success;
+    if (Result.isFailure(decisionResult)) {
+      const refusal = decisionResult.failure;
       if (refusal.reason === "review_open") {
         let prUrl: string | null = null;
         try {
@@ -193,8 +192,8 @@ function runResumeCommand(
             readFileSync(join(info.runPath, "publication.json"), "utf8"),
           ) as unknown;
           const pubResult = decodePublication(pubRaw);
-          if (Either.isRight(pubResult) && pubResult.right.pullRequestUrl !== undefined) {
-            prUrl = pubResult.right.pullRequestUrl;
+          if (Result.isSuccess(pubResult) && pubResult.success.pullRequestUrl !== undefined) {
+            prUrl = pubResult.success.pullRequestUrl;
           }
         } catch {
           // no publication.json or unreadable — no pull request to name
@@ -214,7 +213,7 @@ function runResumeCommand(
       return yield* refuse(1, refusal.message);
     }
 
-    const decision = decisionResult.right;
+    const decision = decisionResult.success;
     for (const skippedId of decision.skippedPhaseIds) {
       yield* call.say(`  Skipping ${skippedId} (produced no changes).`);
     }
@@ -223,9 +222,9 @@ function runResumeCommand(
     const planPath = join(runPath, "phax-plan.json");
     const planMdPath = join(runPath, "plan.md");
     const planResult = loadPlan(planPath, { run: qualifiedName });
-    if (Either.isLeft(planResult))
-      return yield* refuse(2, `Plan error: ${planResult.left.message}`);
-    const plan = planResult.right;
+    if (Result.isFailure(planResult))
+      return yield* refuse(2, `Plan error: ${planResult.failure.message}`);
+    const plan = planResult.success;
 
     if (call.skipAcceptance) {
       const skipRefusal =
@@ -282,18 +281,18 @@ function runResumeCommand(
     }
 
     const runIdResult = decodeRunId(runStatus.runId);
-    if (Either.isLeft(runIdResult)) return yield* refuse(2, `Invalid runId in run-status.json`);
-    const runId = runIdResult.right;
+    if (Result.isFailure(runIdResult)) return yield* refuse(2, `Invalid runId in run-status.json`);
+    const runId = runIdResult.success;
 
     const profiles = config.raw.gateProfiles;
     const gateProfileId = runStatus.gateProfileId ?? Object.keys(profiles)[0] ?? null;
     if (gateProfileId === null) return yield* refuse(2, "No gate profiles configured in phax.json");
 
-    const routingResult = yield* Effect.either(
+    const routingResult = yield* Effect.result(
       Effect.all({ routing: loadModelRouting(), providerConfig: loadProviderConfig() }),
     ).pipe(Effect.provide(makeRepoRootedFileSystemLayer(config)));
-    const { routing: loadedRouting, providerConfig } = Either.isRight(routingResult)
-      ? routingResult.right
+    const { routing: loadedRouting, providerConfig } = Result.isSuccess(routingResult)
+      ? routingResult.success
       : { routing: undefined, providerConfig: DEFAULT_PROVIDER_CONFIG };
 
     const routing =
@@ -349,12 +348,12 @@ function runResumeCommand(
     );
 
     setRunInterruptContext(shortName, namespace, stateRoot, (text) => out.warn(text));
-    const result = yield* Effect.either(
+    const result = yield* Effect.result(
       provideRunLayers(program, config, telemetryLayer, providerConfig, deps),
     ).pipe(Effect.ensuring(Effect.sync(clearRunInterruptContext)));
 
-    if (Either.isLeft(result)) {
-      const { cause: err, followUps } = splitFollowUps(result.left);
+    if (Result.isFailure(result)) {
+      const { cause: err, followUps } = splitFollowUps(result.failure);
       if (err instanceof AwaitingReviewStopError) {
         const answer: RunAnswer = { qualifiedName, crossProject, outcome: stoppedOutcome(err) };
         return answer;
@@ -396,7 +395,7 @@ function runResumeCommand(
       );
     }
 
-    const execResult = result.right;
+    const execResult = result.success;
     const answer: RunAnswer = {
       qualifiedName,
       crossProject,
@@ -425,7 +424,7 @@ export function makeResumeCommand(deps: ResumeDeps = {}) {
       "phax resume usage-cli --yes",
       "phax resume refunds --yes --skip-acceptance",
     ],
-    input: { args: reject(Schema.Tuple(ShortNameArg)), flags: ResumeFlags },
+    input: { args: reject(Schema.Tuple([ShortNameArg])), flags: ResumeFlags },
     output: reject(RunAnswer),
     retiredOptions: { "skip-oracle": SKIP_ORACLE_RETIRED },
     run: ({ input, program, say, progress }) =>

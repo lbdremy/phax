@@ -7,20 +7,19 @@
 // (`readCostLedgerFile`) and writes it with `withSchemaUrl`.
 import { Schema } from "effect";
 import { schemaUrlField } from "./schemaUrl.js";
+import { isExportedPattern } from "./strictString.js";
 
-const PhaseIdSchema = Schema.String.pipe(
-  Schema.pattern(/^phase-\d{2}$/),
-  Schema.annotations({ description: "The phase the invocation ran for." }),
+const PhaseIdSchema = Schema.String.check(isExportedPattern(/^phase-\d{2}$/)).pipe(
+  Schema.annotate({ description: "The phase the invocation ran for." }),
 );
 
-const InstantSchema = Schema.String.pipe(
-  Schema.pattern(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/),
-  Schema.annotations({ description: "An ISO-8601 UTC instant." }),
-);
+const InstantSchema = Schema.String.check(
+  isExportedPattern(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/),
+).pipe(Schema.annotate({ description: "An ISO-8601 UTC instant." }));
 
-const TokensSchema = Schema.NonNegativeInt;
+const TokensSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0));
 
-const UsdSchema = Schema.NonNegative.annotations({
+const UsdSchema = Schema.Number.check(Schema.isGreaterThanOrEqualTo(0)).annotate({
   description: "USD at Anthropic's API list prices, rounded to 6 decimals.",
 });
 
@@ -33,50 +32,49 @@ const ModelCostSchema = Schema.Struct({
 });
 
 const RateLimitSampleSchema = Schema.Struct({
-  window: Schema.Literal("five-hour", "seven-day"),
-  utilization: Schema.Number.pipe(
-    Schema.between(0, 100),
-    Schema.annotations({ description: "The window's utilization, in percent." }),
+  window: Schema.Literals(["five-hour", "seven-day"]),
+  utilization: Schema.Number.check(Schema.isBetween({ minimum: 0, maximum: 100 })).pipe(
+    Schema.annotate({ description: "The window's utilization, in percent." }),
   ),
-  resetsAt: InstantSchema.annotations({ description: "When the window resets." }),
-  runCostUsd: UsdSchema.annotations({
+  resetsAt: InstantSchema.annotate({ description: "When the window resets." }),
+  runCostUsd: UsdSchema.annotate({
     description:
       "The run's cumulative API-list cost when the stream reported the window: the earlier entries plus this invocation's priced messages so far.",
   }),
 });
 
 const entryFields = {
-  completeness: Schema.Literal("complete", "partial").annotations({
+  completeness: Schema.Literals(["complete", "partial"]).annotate({
     description:
       "complete: read from the invocation's result event; partial: it ended without one, and its assistant messages were priced.",
   }),
   provider: Schema.Literal("claude-code"),
   sessionId: Schema.NonEmptyString,
-  models: Schema.Record({ key: Schema.NonEmptyString, value: ModelCostSchema }).annotations({
+  models: Schema.Record(Schema.NonEmptyString, ModelCostSchema).annotate({
     description: "The invocation's own tokens and API-list cost, by model id.",
   }),
-  costUsd: UsdSchema.annotations({ description: "The sum of the models' costUsd." }),
-  agentMs: Schema.NonNegativeInt.annotations({
+  costUsd: UsdSchema.annotate({ description: "The sum of the models' costUsd." }),
+  agentMs: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)).annotate({
     description:
       "The agent's duration in milliseconds: the result's duration_ms, or the wall-clock time phax measured for a partial entry.",
   }),
-  endedAt: InstantSchema.annotations({ description: "When the invocation ended." }),
+  endedAt: InstantSchema.annotate({ description: "When the invocation ended." }),
   rateLimitSamples: Schema.Array(RateLimitSampleSchema),
 };
 
 const PhaseEntrySchema = Schema.Struct({
-  role: Schema.Literal("phase", "fix", "handoff", "first-turn", "closing-turn"),
+  role: Schema.Literals(["phase", "fix", "handoff", "first-turn", "closing-turn"]),
   phase: PhaseIdSchema,
   ...entryFields,
 });
 
 const RunEntrySchema = Schema.Struct({
-  role: Schema.Literal("compliance", "code-review"),
+  role: Schema.Literals(["compliance", "code-review"]),
   phase: Schema.Null,
   ...entryFields,
 });
 
-const CostLedgerEntrySchema = Schema.Union(PhaseEntrySchema, RunEntrySchema);
+const CostLedgerEntrySchema = Schema.Union([PhaseEntrySchema, RunEntrySchema]);
 
 /**
  * A `cost-ledger` document: `$schema`, then the run's entries in the order
@@ -105,6 +103,7 @@ export type CostLedgerRole = CostLedgerEntry["role"];
 /** One reading of a subscription window. */
 export type RateLimitSample = Schema.Schema.Type<typeof RateLimitSampleSchema>;
 
-export const decodeCostLedgerFile = Schema.decodeUnknownEither(CostLedgerFileSchema, {
+export const decodeCostLedgerFile = Schema.decodeUnknownResult(CostLedgerFileSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });

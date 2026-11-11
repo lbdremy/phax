@@ -4,7 +4,7 @@
  * resolved for `createRunFolder`. Fake filesystem, git and shell: the routing
  * load reads an in-memory filesystem, so the developer's ~/.phax is never read.
  */
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { freshRunPreflight, type FreshRunPreflightInput } from "../../src/app/runPreflight.js";
 import { HoldPreflightError } from "../../src/domain/errors.js";
@@ -115,7 +115,7 @@ async function preflight(hold: HoldRequest, plan: PhaxPlan = makePlan()) {
     hold,
   };
   const result = await Effect.runPromise(
-    Effect.either(
+    Effect.result(
       freshRunPreflight(input).pipe(
         Effect.provide(fs.layer),
         Effect.provide(git.layer),
@@ -129,15 +129,15 @@ async function preflight(hold: HoldRequest, plan: PhaxPlan = makePlan()) {
 describe("the hold step of freshRunPreflight", () => {
   it("resolves no hold to none", async () => {
     const { result } = await preflight({ kind: "none" });
-    expect(Either.isRight(result) && result.right.hold).toEqual({ selection: "none" });
+    expect(Result.isSuccess(result) && result.success.hold).toEqual({ selection: "none" });
   });
 
   it("resolves a list to the phases in plan order, ready for createRunFolder", async () => {
     const { result } = await preflight({ kind: "listed", phases: ["phase-04", "phase-01"] });
     // phase-04 is the final phase, so this is refused; see the next test for the valid case.
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
     const ok = await preflight({ kind: "listed", phases: ["phase-01"] });
-    expect(Either.isRight(ok.result) && ok.result.right.hold).toEqual({
+    expect(Result.isSuccess(ok.result) && ok.result.success.hold).toEqual({
       selection: "listed",
       phases: ["phase-01"],
     });
@@ -145,12 +145,12 @@ describe("the hold step of freshRunPreflight", () => {
 
   it("resolves oracle and the pair's phases with no finding", async () => {
     const oracle = await preflight({ kind: "acceptance" });
-    expect(Either.isRight(oracle.result) && oracle.result.right.hold).toEqual({
+    expect(Result.isSuccess(oracle.result) && oracle.result.success.hold).toEqual({
       selection: "acceptance",
       phases: ["phase-02"],
     });
     const pair = await preflight({ kind: "listed", phases: ["phase-03", "phase-02"] });
-    expect(Either.isRight(pair.result) && pair.result.right.hold).toEqual({
+    expect(Result.isSuccess(pair.result) && pair.result.success.hold).toEqual({
       selection: "listed",
       phases: ["phase-02", "phase-03"],
     });
@@ -161,10 +161,10 @@ describe("the hold step of freshRunPreflight", () => {
       kind: "listed",
       phases: ["phase-09", "phase-04", "phase-02"],
     });
-    if (Either.isRight(result)) throw new Error("expected a refusal");
-    expect(result.left).toBeInstanceOf(HoldPreflightError);
-    expect(exitCodeForError(result.left)).toBe(11);
-    expect(result.left.message).toBe(
+    if (Result.isSuccess(result)) throw new Error("expected a refusal");
+    expect(result.failure).toBeInstanceOf(HoldPreflightError);
+    expect(exitCodeForError(result.failure)).toBe(11);
+    expect(result.failure.message).toBe(
       [
         "Hold preflight failed: 2 error(s).",
         "  phase-09  is not a phase of this plan",
@@ -178,8 +178,8 @@ describe("the hold step of freshRunPreflight", () => {
   it("prints a dash for a selection-wide error", async () => {
     const plan = { ...makePlan(), phases: [makePlan().phases[0]!] } as PhaxPlan;
     const { result } = await preflight({ kind: "all" }, plan);
-    if (Either.isRight(result)) throw new Error("expected a refusal");
-    expect(result.left.message).toBe(
+    if (Result.isSuccess(result)) throw new Error("expected a refusal");
+    expect(result.failure.message).toBe(
       [
         "Hold preflight failed: 1 error(s).",
         "  -  --hold selects no phase: the plan has no headless phase before its final phase",

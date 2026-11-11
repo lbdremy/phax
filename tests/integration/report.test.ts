@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { report } from "../../src/app/report.js";
@@ -33,13 +33,13 @@ async function runReport(
   fs: ReturnType<typeof makeFakeFileSystem>,
   github: ReturnType<typeof makeFakeGitHub>,
 ): Promise<
-  Either.Either<
+  Result.Result<
     string,
     import("../../src/ports/fs.js").FsError | import("../../src/ports/github.js").GitHubError
   >
 > {
   const layer = Layer.mergeAll(fs.layer, github.layer);
-  return Effect.runPromise(Effect.either(report(input).pipe(Effect.provide(layer))));
+  return Effect.runPromise(Effect.result(report(input).pipe(Effect.provide(layer))));
 }
 
 describe("report (integration)", () => {
@@ -56,9 +56,9 @@ describe("report (integration)", () => {
       { impl: github, layer: githubLayer },
     );
 
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right).toContain("github.com");
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success).toContain("github.com");
     }
 
     const issueCalls = github.calls.filter((c) => c.method === "createIssue");
@@ -84,7 +84,7 @@ describe("report (integration)", () => {
       { impl: github, layer: githubLayer },
     );
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     const issueCalls = github.calls.filter((c) => c.method === "createIssue");
     expect(issueCalls).toHaveLength(1);
     const issueCall = issueCalls[0] as Extract<
@@ -112,7 +112,7 @@ describe("report (integration)", () => {
       { impl: github, layer: githubLayer },
     );
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
 
     const gistCalls = github.calls.filter((c) => c.method === "createGist");
     expect(gistCalls).toHaveLength(1);
@@ -149,7 +149,7 @@ describe("report (integration)", () => {
       { impl: github, layer: githubLayer },
     );
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     const gistCalls = github.calls.filter((c) => c.method === "createGist");
     expect(gistCalls).toHaveLength(0);
   });
@@ -166,9 +166,9 @@ describe("report (integration)", () => {
       { impl: github, layer: githubLayer },
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left.message).toContain("No telemetry journal files found");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure.message).toContain("No telemetry journal files found");
     }
   });
 
@@ -187,9 +187,9 @@ describe("report (integration)", () => {
       { impl: github, layer: githubLayer },
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left.message).toContain("not logged in");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure.message).toContain("not logged in");
     }
   });
 });

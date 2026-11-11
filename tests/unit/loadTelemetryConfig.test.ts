@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Either } from "effect";
+import { Result } from "effect";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { loadTelemetryConfig } from "../../src/app/loadTelemetryConfig.js";
 
@@ -23,9 +23,9 @@ describe("loadTelemetryConfig", () => {
 
     const result = loadTelemetryConfig(configPath);
 
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.enabled).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success.enabled).toBe(true);
     }
 
     expect(existsSync(configPath)).toBe(true);
@@ -39,9 +39,9 @@ describe("loadTelemetryConfig", () => {
 
     const result = loadTelemetryConfig(configPath);
 
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.enabled).toBe(false);
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success.enabled).toBe(false);
     }
     // file unchanged
     expect(readFileSync(configPath, "utf8")).toBe(custom);
@@ -52,9 +52,9 @@ describe("loadTelemetryConfig", () => {
 
     const result = loadTelemetryConfig(configPath);
 
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.enabled).toBe(false);
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success.enabled).toBe(false);
     }
   });
 
@@ -63,9 +63,9 @@ describe("loadTelemetryConfig", () => {
 
     const result = loadTelemetryConfig(configPath);
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left.message).toContain("Invalid telemetry.json");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure.message).toContain("Invalid telemetry.json");
     }
   });
 
@@ -74,9 +74,9 @@ describe("loadTelemetryConfig", () => {
 
     const result = loadTelemetryConfig(configPath);
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left.message).toContain("Failed to read or parse");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure.message).toContain("Failed to read or parse");
     }
   });
 });

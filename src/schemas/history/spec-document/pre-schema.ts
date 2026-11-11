@@ -5,13 +5,22 @@
 // schema and type.
 import { Schema } from "effect";
 
-const RequirementPatternSchema = Schema.Literal(
+// `Schema.isPattern` whose JSON Schema is the RegExp's source, whatever its
+// flags: Effect 4 exports a pattern only for a RegExp with the `u` flag.
+function isExportedPattern(regExp: RegExp, annotations?: Schema.Annotations.Filter) {
+  return Schema.isPattern(regExp, {
+    toJsonSchema: () => ({ pattern: regExp.source }),
+    ...annotations,
+  });
+}
+
+const RequirementPatternSchema = Schema.Literals([
   "ubiquitous",
   "event",
   "state",
   "unwanted",
   "optional",
-);
+]);
 
 const GroundEntrySchema = Schema.Struct({
   path: Schema.NonEmptyString,
@@ -31,8 +40,8 @@ const RequirementSchema = Schema.Struct({
 });
 
 const SurfaceElementSchema = Schema.Struct({
-  surface: Schema.String.pipe(Schema.pattern(/^(cli|config|file|api|package|internal): /)),
-  binding: Schema.Literal("normative", "indicative"),
+  surface: Schema.String.check(isExportedPattern(/^(cli|config|file|api|package|internal): /)),
+  binding: Schema.Literals(["normative", "indicative"]),
   before: Schema.NullOr(Schema.String),
   after: Schema.NonEmptyString,
 });
@@ -57,7 +66,7 @@ const QuestionOptionSchema = Schema.Struct({
 const OpenQuestionSchema = Schema.Struct({
   id: Schema.NonEmptyString,
   question: Schema.NonEmptyString,
-  options: Schema.Array(QuestionOptionSchema).pipe(Schema.minItems(2)),
+  options: Schema.Array(QuestionOptionSchema).check(Schema.isMinLength(2)),
   recommendation: Schema.NonEmptyString,
   rationale: Schema.NonEmptyString,
 });
@@ -68,7 +77,7 @@ const PlanningNoteSchema = Schema.Struct({
   constraints: Schema.Array(Schema.NonEmptyString),
 });
 
-const DocsPageSchema = Schema.Union(
+const DocsPageSchema = Schema.Union([
   Schema.Struct({
     kind: Schema.Literal("page"),
     page: Schema.NonEmptyString,
@@ -79,7 +88,7 @@ const DocsPageSchema = Schema.Union(
     kind: Schema.Literal("none"),
     why: Schema.NonEmptyString,
   }),
-);
+]);
 
 const SpecDocumentStruct = Schema.Struct({
   version: Schema.Literal(1),
@@ -100,13 +109,18 @@ const SpecDocumentStruct = Schema.Struct({
   openQuestions: Schema.Array(OpenQuestionSchema),
   planningNote: PlanningNoteSchema,
   docsPage: DocsPageSchema,
-}).annotations({ title: "phax spec document (experimental)" });
+}).annotate({ title: "phax spec document (experimental)" });
 
 type SpecDocumentStructType = Schema.Schema.Type<typeof SpecDocumentStruct>;
 
 interface Violation {
   readonly path: ReadonlyArray<PropertyKey>;
   readonly message: string;
+}
+
+// A violation as a check's failure: its message at its path; none when it is undefined.
+function violationIssue(violation: Violation | undefined) {
+  return violation === undefined ? undefined : { path: violation.path, issue: violation.message };
 }
 
 function firstDuplicateId(
@@ -184,14 +198,15 @@ function firstTraceabilityViolation(doc: SpecDocumentStructType): Violation | un
 const TRACEABILITY_DESCRIPTION =
   "Checked by phax's parser, not by this JSON Schema: requirement ids, question ids and each question's option ids are unique; every acceptance criterion `refs` entry names an existing requirement; every requirement is referenced by at least one acceptance criterion; and each open question's `recommendation` names one of its options.";
 
-export const SpecDocumentPreSchemaSchema = SpecDocumentStruct.pipe(
-  Schema.filter(firstTraceabilityViolation, {
-    jsonSchema: { description: TRACEABILITY_DESCRIPTION },
+export const SpecDocumentPreSchemaSchema = SpecDocumentStruct.check(
+  Schema.makeFilter((doc) => violationIssue(firstTraceabilityViolation(doc)), {
+    toJsonSchema: () => ({ description: TRACEABILITY_DESCRIPTION }),
   }),
 );
 
 export type SpecDocumentPreSchema = Schema.Schema.Type<typeof SpecDocumentPreSchemaSchema>;
 
-export const decodeSpecDocumentPreSchema = Schema.decodeUnknownEither(SpecDocumentPreSchemaSchema, {
+export const decodeSpecDocumentPreSchema = Schema.decodeUnknownResult(SpecDocumentPreSchemaSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });

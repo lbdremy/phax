@@ -1,7 +1,7 @@
 // The phax-plan-extraction answer: the plan the fallback model extracted, or why
 // it found the plan incomplete, exactly one of the two. A refusal names every
 // root-level issue, `$schema` first.
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { readPlanExtractionAnswer } from "../../../src/schemas/planExtraction.js";
 import { CURRENT_STAMPS } from "../../../src/schemas/release.js";
@@ -28,14 +28,14 @@ const plan = {
 
 function refusal(parsed: unknown): string {
   const read = readPlanExtractionAnswer(parsed);
-  if (Either.isRight(read)) throw new Error(`accepted: ${JSON.stringify(read.right)}`);
-  return read.left;
+  if (Result.isSuccess(read)) throw new Error(`accepted: ${JSON.stringify(read.success)}`);
+  return read.failure;
 }
 
 describe("readPlanExtractionAnswer", () => {
   it("reads a plan, with incomplete null", () => {
     const read = readPlanExtractionAnswer({ $schema: STAMP, plan, incomplete: null });
-    expect(read).toEqual(Either.right({ kind: "plan", plan }));
+    expect(read).toEqual(Result.succeed({ kind: "plan", plan }));
   });
 
   it("reads an incomplete report, with plan null", () => {
@@ -45,7 +45,7 @@ describe("readPlanExtractionAnswer", () => {
       incomplete: "phase-02 has no commit subject",
     });
     expect(read).toEqual(
-      Either.right({ kind: "incomplete", reason: "phase-02 has no commit subject" }),
+      Result.succeed({ kind: "incomplete", reason: "phase-02 has no commit subject" }),
     );
   });
 
@@ -95,6 +95,6 @@ describe("readPlanExtractionAnswer", () => {
   });
 
   it.each([null, [], "text", 3])("refuses the non-object %j", (parsed) => {
-    expect(Either.isLeft(readPlanExtractionAnswer(parsed))).toBe(true);
+    expect(Result.isFailure(readPlanExtractionAnswer(parsed))).toBe(true);
   });
 });

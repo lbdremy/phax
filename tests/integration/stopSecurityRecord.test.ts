@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readPhasePosture } from "../../src/app/interactiveFiles.js";
 import { AwaitingReviewStopError } from "../../src/domain/errors.js";
@@ -67,9 +67,9 @@ afterEach(() => {
   world.cleanup();
 });
 
-function stoppedAtReview(result: Either.Either<unknown, unknown>): void {
-  if (Either.isRight(result)) throw new Error("the run did not stop");
-  expect(result.left).toBeInstanceOf(AwaitingReviewStopError);
+function stoppedAtReview(result: Result.Result<unknown, unknown>): void {
+  if (Result.isSuccess(result)) throw new Error("the run did not stop");
+  expect(result.failure).toBeInstanceOf(AwaitingReviewStopError);
 }
 
 const securityPath = (run: HeldRun, phaseId: string): string =>
@@ -129,7 +129,7 @@ describe(
       const provider = securityOf(run, "phase-03")["provider"] as string;
       correctPhase03(run);
 
-      expect(Either.isRight(await resumeHeldRun(run))).toBe(true);
+      expect(Result.isSuccess(await resumeHeldRun(run))).toBe(true);
 
       const turns = turnStreamNames(run, "phase-03");
       expect(turns.length).toBeGreaterThan(0);
@@ -152,7 +152,7 @@ describe(
       const postureBefore = await postureOn(run, "phase-03");
       correctPhase03(run);
 
-      expect(Either.isRight(await resumeHeldRun(run))).toBe(true);
+      expect(Result.isSuccess(await resumeHeldRun(run))).toBe(true);
 
       const after = securityText(run, "phase-03");
       const cut = before.lastIndexOf('"stop": null');
@@ -169,7 +169,7 @@ describe(
       const granted = securityOf(run, "phase-03")["agentCommands"];
       correctPhase03(run);
 
-      expect(Either.isRight(await resumeHeldRun(run))).toBe(true);
+      expect(Result.isSuccess(await resumeHeldRun(run))).toBe(true);
 
       const doc = securityOf(run, "phase-03");
       expect(doc["agentCommands"]).toEqual(granted);
@@ -185,7 +185,7 @@ describe(
       writeFileSync(securityPath(run, "phase-03"), JSON.stringify({ ...v1, version: 1 }, null, 2));
       correctPhase03(run);
 
-      expect(Either.isRight(await resumeHeldRun(run))).toBe(true);
+      expect(Result.isSuccess(await resumeHeldRun(run))).toBe(true);
 
       const after = securityOf(run, "phase-03");
       expect(after["version"]).toBe(3);
@@ -198,7 +198,7 @@ describe(
     it("names exactly the turn streams the phase folder holds, so writing the step again gives the same stop", async () => {
       const run = await declaredAtPhase03();
       correctPhase03(run);
-      expect(Either.isRight(await resumeHeldRun(run))).toBe(true);
+      expect(Result.isSuccess(await resumeHeldRun(run))).toBe(true);
 
       // The step computes the stop from the folder as it stands: nothing in
       // the folder has moved since, so a repeat would write these same bytes.

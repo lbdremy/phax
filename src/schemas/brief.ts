@@ -10,12 +10,12 @@ import { schemaUrlField } from "./schemaUrl.js";
 
 const BriefPathsSchema = Schema.NonEmptyArray(Schema.NonEmptyString);
 
-const phaseFiles = Schema.NullOr(BriefPathsSchema).annotations({
+const phaseFiles = Schema.NullOr(BriefPathsSchema).annotate({
   description:
     "Null for the phase's brief: the phase's planned files. Otherwise working-tree-root-relative paths, deduplicated, in the order given, never checked for existence.",
 });
 
-const outsideFiles = BriefPathsSchema.annotations({
+const outsideFiles = BriefPathsSchema.annotate({
   description:
     "Working-tree-root-relative paths, deduplicated, in the order given, never checked for existence.",
 });
@@ -42,10 +42,10 @@ export const OutsideBriefRequestFileSchema = Schema.Struct({
  * as `request` in a brief record. Exactly the keys of one variant; any other
  * key is refused.
  */
-export const BriefRequestFileSchema = Schema.Union(
+export const BriefRequestFileSchema = Schema.Union([
   PhaseBriefRequestFileSchema,
   OutsideBriefRequestFileSchema,
-);
+]);
 
 export type PhaseBriefRequestFile = Schema.Schema.Type<typeof PhaseBriefRequestFileSchema>;
 export type OutsideBriefRequestFile = Schema.Schema.Type<typeof OutsideBriefRequestFileSchema>;
@@ -58,8 +58,9 @@ export type OutsideBriefRequest = Omit<OutsideBriefRequestFile, "$schema">;
 /** A brief request, without `$schema`. */
 export type BriefRequest = PhaseBriefRequest | OutsideBriefRequest;
 
-export const decodeBriefRequestFile = Schema.decodeUnknownEither(BriefRequestFileSchema, {
+export const decodeBriefRequestFile = Schema.decodeUnknownResult(BriefRequestFileSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });
 
 export const encodeBriefRequestFile = Schema.encodeSync(BriefRequestFileSchema);
@@ -68,7 +69,7 @@ export const encodeBriefRequestFile = Schema.encodeSync(BriefRequestFileSchema);
 
 const AnsweredOutcomeSchema = Schema.Struct({
   kind: Schema.Literal("answered"),
-  answer: Schema.Record({ key: Schema.String, value: Schema.Unknown }).annotations({
+  answer: Schema.Record(Schema.String, Schema.Unknown).annotate({
     description:
       "The brief report as the provider printed it, its own $schema included and every key in its printed order, never re-stamped or re-shaped. It decodes by its own $schema, with parseBriefReport.",
   }),
@@ -76,7 +77,7 @@ const AnsweredOutcomeSchema = Schema.Struct({
 
 const FailedOutcomeSchema = Schema.Struct({
   kind: Schema.Literal("failed"),
-  reason: Schema.NonEmptyString.annotations({
+  reason: Schema.NonEmptyString.annotate({
     description: "Why the brief call gave no answer, in one line.",
   }),
 });
@@ -89,13 +90,13 @@ const FailedOutcomeSchema = Schema.Struct({
  */
 export const BriefRecordFileSchema = Schema.Struct({
   $schema: schemaUrlField("brief-record"),
-  moment: Schema.Literal("pushed", "pulled").annotations({
+  moment: Schema.Literals(["pushed", "pulled"]).annotate({
     description: "pushed for the phase's brief at phase start (brief-00 only), pulled otherwise.",
   }),
-  request: BriefRequestFileSchema.annotations({
+  request: BriefRequestFileSchema.annotate({
     description: "The brief request as phax sent it on the provider's stdin.",
   }),
-  outcome: Schema.Union(AnsweredOutcomeSchema, FailedOutcomeSchema),
+  outcome: Schema.Union([AnsweredOutcomeSchema, FailedOutcomeSchema]),
 });
 
 export type BriefRecordFile = Schema.Schema.Type<typeof BriefRecordFileSchema>;
@@ -103,8 +104,9 @@ export type BriefRecordFile = Schema.Schema.Type<typeof BriefRecordFileSchema>;
 /** A brief record, without its own top-level `$schema`. */
 export type BriefRecord = Omit<BriefRecordFile, "$schema">;
 
-export const decodeBriefRecordFile = Schema.decodeUnknownEither(BriefRecordFileSchema, {
+export const decodeBriefRecordFile = Schema.decodeUnknownResult(BriefRecordFileSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });
 
 export const encodeBriefRecordFile = Schema.encodeSync(BriefRecordFileSchema);

@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { NodeGitLayer } from "../../src/infra/git.js";
 import { Git, type GitError, type GitOps, type WriteTreeCommitInput } from "../../src/ports/git.js";
 import { decodeBranchName, type BranchName } from "../../src/domain/branded.js";
@@ -12,8 +12,8 @@ import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js"
 
 const RECORDS_BRANCH = ((): BranchName => {
   const decoded = decodeBranchName("phax/records/v1");
-  if (Either.isLeft(decoded)) throw new Error("phax/records/v1 must be a valid branch name");
-  return decoded.right;
+  if (Result.isFailure(decoded)) throw new Error("phax/records/v1 must be a valid branch name");
+  return decoded.success;
 })();
 
 function git(args: readonly string[], cwd: string): string {
@@ -195,7 +195,7 @@ describe("NodeGitLayer object plumbing", () => {
     expect(git(["rev-parse", "refs/heads/phax/records/v1"], repoDir).trim()).toBe(onBase);
 
     const stale = await run(
-      Effect.either(
+      Effect.result(
         Effect.flatMap(Git, (g) =>
           g.writeTreeCommit({
             repo: repoDir,
@@ -208,7 +208,7 @@ describe("NodeGitLayer object plumbing", () => {
         ),
       ),
     );
-    expect(Either.isLeft(stale)).toBe(true);
+    expect(Result.isFailure(stale)).toBe(true);
     expect(git(["rev-parse", "refs/heads/phax/records/v1"], repoDir).trim()).toBe(onBase);
   });
 

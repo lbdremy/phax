@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { decodeRecordManifestFile } from "../../src/schemas/authoringRecord.js";
 import {
@@ -38,7 +38,7 @@ describe("the review record manifest", () => {
     expect(Object.keys(written)).toEqual(["$schema", "kind", "runId", "review"]);
     expect(written["$schema"]).toBe(currentSchemaUrl("review-record-manifest"));
     expect(written["$schema"]).toBe(schemaUrl("review-record-manifest", "0.29.0"));
-    expect(Either.isRight(decodeReviewRecordManifestFile(written))).toBe(true);
+    expect(Result.isSuccess(decodeReviewRecordManifestFile(written))).toBe(true);
   });
 
   it("names each review's file by its kind", () => {
@@ -60,7 +60,7 @@ describe("the review record manifest", () => {
     ["a wrong kind", { ...file("code-review"), kind: "decision" }],
     ["no $schema", { ...file("code-review"), $schema: undefined }],
   ])("refuses %s", (_label, input) => {
-    expect(Either.isLeft(decodeReviewRecordManifestFile(input))).toBe(true);
+    expect(Result.isFailure(decodeReviewRecordManifestFile(input))).toBe(true);
   });
 
   it("is told apart by its kind, and read by the bridge reader without its $schema", () => {
@@ -69,13 +69,13 @@ describe("the review record manifest", () => {
     expect(isReviewRecordManifest({})).toBe(false);
     for (const review of REVIEWS) {
       const read = readRecordManifestFile("record.json", file(review));
-      expect(Either.isRight(read) && read.right).toEqual(manifest(review));
-      expect(Either.isRight(decodeRecordManifestFile(file(review)))).toBe(true);
+      expect(Result.isSuccess(read) && read.success).toEqual(manifest(review));
+      expect(Result.isSuccess(decodeRecordManifestFile(file(review)))).toBe(true);
     }
   });
 
   it("is born with $schema: the reader refuses a manifest without one", () => {
     const { $schema: _schema, ...bare } = file("compliance-review");
-    expect(Either.isLeft(readRecordManifestFile("record.json", bare))).toBe(true);
+    expect(Result.isFailure(readRecordManifestFile("record.json", bare))).toBe(true);
   });
 });

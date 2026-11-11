@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { aggregateVerifiedSurfaces } from "../../src/app/gateAttribution.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
@@ -109,7 +109,7 @@ describe("aggregateVerifiedSurfaces", () => {
         phase: "phase-01",
         steps,
       });
-      expect(read).toEqual(Either.right({ phase: "phase-01", steps, protectedPaths: null }));
+      expect(read).toEqual(Result.succeed({ phase: "phase-01", steps, protectedPaths: null }));
     }
   });
 
@@ -119,7 +119,7 @@ describe("aggregateVerifiedSurfaces", () => {
       phase: "phase-01",
       steps,
     });
-    expect(read).toEqual(Either.right({ phase: "phase-01", steps, protectedPaths: null }));
+    expect(read).toEqual(Result.succeed({ phase: "phase-01", steps, protectedPaths: null }));
   });
 
   it("round-trips a 0.33.0 attribution that passed and one that failed the check", () => {
@@ -143,7 +143,7 @@ describe("aggregateVerifiedSurfaces", () => {
       );
       expect(written.$schema).toBe(schemaUrl("gate-attribution", "0.33.0"));
       expect(readGateAttributionFile("gate-attribution.json", written)).toEqual(
-        Either.right(attribution),
+        Result.succeed(attribution),
       );
     }
   });
@@ -157,7 +157,7 @@ describe("aggregateVerifiedSurfaces", () => {
         protectedPaths: { result: "fail", changes: [] },
       }),
     );
-    expect(Either.isLeft(read)).toBe(true);
+    expect(Result.isFailure(read)).toBe(true);
   });
 
   it("leaves acceptance off the run when a later phase skipped the step another one verified", async () => {

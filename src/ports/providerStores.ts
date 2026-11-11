@@ -11,7 +11,7 @@ import {
  * Vibe has no root: phax never reads its home directory. The default holds no
  * root: a store read then finds nothing.
  */
-export class ProviderStoreRoots extends Context.Reference<ProviderStoreRoots>()(
+export const ProviderStoreRoots = Context.Reference<ProviderStoreRootsValue>(
   "phax/ProviderStoreRoots",
   { defaultValue: (): ProviderStoreRootsValue => NO_PROVIDER_STORE_ROOTS },
-) {}
+);

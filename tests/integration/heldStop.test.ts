@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderStop } from "../../src/cli/commands/stopOutput.js";
 import { exitCodeForError } from "../../src/cli/commands/runLayers.js";
@@ -53,13 +53,13 @@ afterEach(() => {
   world.cleanup();
 });
 
-function heldStop(result: Either.Either<unknown, unknown>): {
+function heldStop(result: Result.Result<unknown, unknown>): {
   error: AwaitingReviewStopError;
   report: HeldStopReport;
 } {
-  if (Either.isRight(result)) throw new Error("the run did not stop");
-  expect(result.left).toBeInstanceOf(AwaitingReviewStopError);
-  const error = result.left as AwaitingReviewStopError;
+  if (Result.isSuccess(result)) throw new Error("the run did not stop");
+  expect(result.failure).toBeInstanceOf(AwaitingReviewStopError);
+  const error = result.failure as AwaitingReviewStopError;
   if (error.report.cause !== "held") throw new Error("the run stopped, but not held");
   return { error, report: error.report };
 }
@@ -157,8 +157,8 @@ describe("a run holding phase-02", { timeout: 30_000 }, () => {
     expect(raw["$schema"]).toMatch(SCHEMA_URL("review-stop"));
     expect(raw).not.toHaveProperty("firstReading");
     const decoded = decodeReviewStopFile(raw);
-    if (Either.isLeft(decoded)) throw new Error(String(decoded.left));
-    const stop = decoded.right;
+    if (Result.isFailure(decoded)) throw new Error(String(decoded.failure));
+    const stop = decoded.success;
     if (stop.cause !== "held") throw new Error("not the held variant");
     expect(stop).toMatchObject({
       run: SHORT,

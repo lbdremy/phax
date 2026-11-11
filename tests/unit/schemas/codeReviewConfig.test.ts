@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   decodePhaxConfig,
@@ -33,8 +33,8 @@ describe("review.code.enabled", () => {
       ...minimalValidPhaxConfig,
       review: { code: { enabled: true } },
     });
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) expect(result.right.review?.code?.enabled).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) expect(result.success.review?.code?.enabled).toBe(true);
   });
 
   it.each(["true", 1, null])("refuses %j in phax.json", (value) => {
@@ -42,17 +42,17 @@ describe("review.code.enabled", () => {
       ...minimalValidPhaxConfig,
       review: { code: { enabled: value } },
     });
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 
   it("decodes in the user overlay", () => {
     const result = decodePhaxUserOverlay({ review: { code: { enabled: true } } });
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) expect(result.right.review?.code?.enabled).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) expect(result.success.review?.code?.enabled).toBe(true);
   });
 
   it.each(["true", 1, null])("refuses %j in the user overlay", (value) => {
     const result = decodePhaxUserOverlay({ review: { code: { enabled: value } } });
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 });

@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 import { join } from "node:path";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
@@ -297,14 +297,14 @@ describe("archive — unfinished runs", () => {
         const result = await Effect.runPromise(
           archive(namespace, shortName, stateRoot, repoRoot, {}).pipe(
             Effect.provide(layer),
-            Effect.either,
+            Effect.result,
           ),
         );
 
-        expect(Either.isLeft(result)).toBe(true);
-        if (!Either.isLeft(result)) return;
-        expect(result.left instanceof ArchiveRefusedError).toBe(true);
-        const err = result.left as ArchiveRefusedError;
+        expect(Result.isFailure(result)).toBe(true);
+        if (!Result.isFailure(result)) return;
+        expect(result.failure instanceof ArchiveRefusedError).toBe(true);
+        const err = result.failure as ArchiveRefusedError;
         expect(err.message).toContain(runState);
         expect(err.message).toContain("--force");
 
@@ -401,14 +401,14 @@ describe("archive — unfinished runs", () => {
     const result = await Effect.runPromise(
       archive(namespace, shortName, stateRoot, repoRoot, {}).pipe(
         Effect.provide(layer),
-        Effect.either,
+        Effect.result,
       ),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (!Either.isLeft(result)) return;
-    expect(result.left instanceof ArchiveRefusedError).toBe(true);
-    expect(result.left instanceof ArchiveBlockedByDirtyWorktreeError).toBe(false);
+    expect(Result.isFailure(result)).toBe(true);
+    if (!Result.isFailure(result)) return;
+    expect(result.failure instanceof ArchiveRefusedError).toBe(true);
+    expect(result.failure instanceof ArchiveBlockedByDirtyWorktreeError).toBe(false);
   });
 
   it("running with force:true → Left ArchiveRefusedError (running is always refused)", async () => {
@@ -418,13 +418,13 @@ describe("archive — unfinished runs", () => {
     const result = await Effect.runPromise(
       archive(namespace, shortName, stateRoot, repoRoot, { force: true }).pipe(
         Effect.provide(layer),
-        Effect.either,
+        Effect.result,
       ),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (!Either.isLeft(result)) return;
-    expect(result.left instanceof ArchiveRefusedError).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
+    if (!Result.isFailure(result)) return;
+    expect(result.failure instanceof ArchiveRefusedError).toBe(true);
 
     // run-status still unchanged
     const { fakeFs } = seed;
@@ -445,14 +445,14 @@ describe("archive — unfinished runs", () => {
     const result = await Effect.runPromise(
       archive(namespace, shortName, stateRoot, repoRoot, { force: true }).pipe(
         Effect.provide(layer),
-        Effect.either,
+        Effect.result,
       ),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (!Either.isLeft(result)) return;
-    expect(result.left instanceof LockConflictError).toBe(true);
-    const err = result.left as LockConflictError;
+    expect(Result.isFailure(result)).toBe(true);
+    if (!Result.isFailure(result)) return;
+    expect(result.failure instanceof LockConflictError).toBe(true);
+    const err = result.failure as LockConflictError;
     expect(err.lockingPid).toBe(12345);
   });
 
@@ -463,14 +463,14 @@ describe("archive — unfinished runs", () => {
     const result = await Effect.runPromise(
       archive(namespace, shortName, stateRoot, repoRoot, {}).pipe(
         Effect.provide(layer),
-        Effect.either,
+        Effect.result,
       ),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (!Either.isLeft(result)) return;
-    expect(result.left instanceof ArchiveRefusedError).toBe(true);
-    const err = result.left as ArchiveRefusedError;
+    expect(Result.isFailure(result)).toBe(true);
+    if (!Result.isFailure(result)) return;
+    expect(result.failure instanceof ArchiveRefusedError).toBe(true);
+    const err = result.failure as ArchiveRefusedError;
     expect(err.message).toContain("already archived");
   });
 
@@ -481,14 +481,14 @@ describe("archive — unfinished runs", () => {
     const result = await Effect.runPromise(
       archive(namespace, shortName, stateRoot, repoRoot, { force: true }).pipe(
         Effect.provide(layer),
-        Effect.either,
+        Effect.result,
       ),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (!Either.isLeft(result)) return;
-    expect(result.left instanceof ArchiveRefusedError).toBe(true);
-    const err = result.left as ArchiveRefusedError;
+    expect(Result.isFailure(result)).toBe(true);
+    if (!Result.isFailure(result)) return;
+    expect(result.failure instanceof ArchiveRefusedError).toBe(true);
+    const err = result.failure as ArchiveRefusedError;
     expect(err.message).toContain("already archived");
   });
 
@@ -610,13 +610,13 @@ describe("archive — unfinished runs", () => {
       const result = await Effect.runPromise(
         archive(namespace, shortName, tempStateRoot, repoRoot, {}).pipe(
           Effect.provide(layer),
-          Effect.either,
+          Effect.result,
         ),
       );
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (!Either.isLeft(result)) return;
-      expect(result.left instanceof ArchiveBlockedByDirtyWorktreeError).toBe(true);
+      expect(Result.isFailure(result)).toBe(true);
+      if (!Result.isFailure(result)) return;
+      expect(result.failure instanceof ArchiveBlockedByDirtyWorktreeError).toBe(true);
     } finally {
       rmSync(tempStateRoot, { recursive: true, force: true });
     }
@@ -646,15 +646,15 @@ describe("archive — a run awaiting review", () => {
     const result = await Effect.runPromise(
       archive(namespace, shortName, stateRoot, repoRoot, {}).pipe(
         Effect.provide(layer),
-        Effect.either,
+        Effect.result,
       ),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (!Either.isLeft(result)) return;
-    expect(result.left).toBeInstanceOf(ArchiveRefusedError);
-    expect(result.left.message).toContain("awaiting_review");
-    expect(result.left.message).toContain("--force");
+    expect(Result.isFailure(result)).toBe(true);
+    if (!Result.isFailure(result)) return;
+    expect(result.failure).toBeInstanceOf(ArchiveRefusedError);
+    expect(result.failure.message).toContain("awaiting_review");
+    expect(result.failure.message).toContain("--force");
     expect(seed.fakeFs.impl.getFile(join(runPath, "review-stop.json"))).toBeDefined();
   });
 

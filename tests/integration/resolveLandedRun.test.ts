@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { resolveLandedRun } from "../../src/app/resolveLandedRun.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { withSchemaUrl } from "../../src/schemas/persisted.js";
@@ -35,16 +35,16 @@ function setup(runs: RegistryEntry[] | undefined) {
   const resolve = (landed: string) =>
     Effect.runPromise(
       resolveLandedRun({ landed, namespace: NAMESPACE, stateRoot: STATE_ROOT }).pipe(
-        Effect.either,
+        Effect.result,
         Effect.provide(layer),
       ),
     );
   return { impl, resolve };
 }
 
-function expectRefusal(result: Either.Either<unknown, { readonly message: string }>): string {
-  expect(Either.isLeft(result)).toBe(true);
-  return Either.isLeft(result) ? result.left.message : "";
+function expectRefusal(result: Result.Result<unknown, { readonly message: string }>): string {
+  expect(Result.isFailure(result)).toBe(true);
+  return Result.isFailure(result) ? result.failure.message : "";
 }
 
 describe("resolveLandedRun", () => {
@@ -53,7 +53,7 @@ describe("resolveLandedRun", () => {
     impl.setFile(`${STATE_ROOT}/runs/acme.alpha/run-status.json`, "{}");
 
     expect(await resolve("alpha")).toEqual(
-      Either.right({
+      Result.succeed({
         key: "acme.alpha",
         runPath: `${STATE_ROOT}/runs/acme.alpha`,
         archived: false,
@@ -66,7 +66,7 @@ describe("resolveLandedRun", () => {
     impl.setFile(`${STATE_ROOT}/runs/acme.alpha/run-status.json`, "{}");
 
     expect(await resolve("acme.alpha")).toEqual(
-      Either.right({
+      Result.succeed({
         key: "acme.alpha",
         runPath: `${STATE_ROOT}/runs/acme.alpha`,
         archived: false,
@@ -79,7 +79,7 @@ describe("resolveLandedRun", () => {
     impl.setFile(`${STATE_ROOT}/runs/other.alpha/run-status.json`, "{}");
 
     expect(await resolve("other.alpha")).toEqual(
-      Either.right({
+      Result.succeed({
         key: "other.alpha",
         runPath: `${STATE_ROOT}/runs/other.alpha`,
         archived: false,
@@ -93,7 +93,7 @@ describe("resolveLandedRun", () => {
     impl.setFile(`${archivePath}/runs/global-file-reconciliation.json`, "{}");
 
     expect(await resolve("beta")).toEqual(
-      Either.right({ key: "acme.beta", runPath: `${archivePath}/runs`, archived: true }),
+      Result.succeed({ key: "acme.beta", runPath: `${archivePath}/runs`, archived: true }),
     );
   });
 

@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import type { ResolvedConfig } from "../schemas/phaxConfig.js";
@@ -34,7 +34,7 @@ function readRegistrySync(stateRoot: string): Registry | undefined {
   try {
     const raw = JSON.parse(readFileSync(path, "utf8")) as unknown;
     const decoded = readRegistryFile(path, raw);
-    return Either.isRight(decoded) ? decoded.right : undefined;
+    return Result.isSuccess(decoded) ? decoded.success : undefined;
   } catch {
     return undefined;
   }
@@ -77,13 +77,13 @@ export function resolveRunRef(
   rawArg: string,
   config: ResolvedConfig | undefined,
   stateRoot: string,
-): Either.Either<ResolveRunRefResult, ResolveRunRefRefusal> {
+): Result.Result<ResolveRunRefResult, ResolveRunRefRefusal> {
   const parseResult = parseRunRef(rawArg);
-  if (Either.isLeft(parseResult)) {
-    return Either.left({ variant: "not-found", message: parseResult.left });
+  if (Result.isFailure(parseResult)) {
+    return Result.fail({ variant: "not-found", message: parseResult.failure });
   }
 
-  const ref = parseResult.right;
+  const ref = parseResult.success;
 
   if (ref.namespace === undefined) {
     // Unqualified short name
@@ -97,33 +97,33 @@ export function resolveRunRef(
         candidates.length > 0
           ? `Run "${ref.shortName}" is ambiguous outside a project. Matching runs: ${candidates.join(", ")}. Use the qualified name.`
           : `Run "${ref.shortName}" not found. No PHAX project is active. Use a qualified name like <namespace>.${ref.shortName}.`;
-      return Either.left({ variant: "ambiguous-outside-project", message, candidates });
+      return Result.fail({ variant: "ambiguous-outside-project", message, candidates });
     }
 
     // Inside a project: resolve against current namespace
     const namespace = config.namespace;
     const infoResult = resolveRun(namespace, ref.shortName as ShortName, stateRoot);
-    if (Either.isLeft(infoResult)) {
+    if (Result.isFailure(infoResult)) {
       const entry = findRegistryEntry(stateRoot, namespace, ref.shortName);
-      return Either.left(
+      return Result.fail(
         entry === undefined
           ? {
               variant: "not-found",
               message: `Run "${runKey(namespace, ref.shortName)}" not found.`,
             }
-          : unresolvableRefusal(namespace, ref.shortName, infoResult.left),
+          : unresolvableRefusal(namespace, ref.shortName, infoResult.failure),
       );
     }
 
-    const info = infoResult.right;
+    const info = infoResult.success;
     if (info.namespace !== namespace) {
-      return Either.left({
+      return Result.fail({
         variant: "not-found",
         message: `Run "${ref.shortName}" not found in namespace "${namespace}".`,
       });
     }
 
-    return Either.right({ namespace, shortName: ref.shortName, info, crossProject: false });
+    return Result.succeed({ namespace, shortName: ref.shortName, info, crossProject: false });
   }
 
   // Qualified: resolve exact (namespace, shortName)
@@ -133,17 +133,17 @@ export function resolveRunRef(
   const entry = findRegistryEntry(stateRoot, namespace, shortName);
 
   if (entry === undefined) {
-    return Either.left({
+    return Result.fail({
       variant: "not-found",
       message: `Run "${runKey(namespace, shortName)}" not found.`,
     });
   }
 
   const infoResult = resolveRun(namespace, shortName as ShortName, stateRoot);
-  if (Either.isLeft(infoResult)) {
-    return Either.left(unresolvableRefusal(namespace, shortName, infoResult.left));
+  if (Result.isFailure(infoResult)) {
+    return Result.fail(unresolvableRefusal(namespace, shortName, infoResult.failure));
   }
 
   const crossProject = config !== undefined && config.namespace !== namespace;
-  return Either.right({ namespace, shortName, info: infoResult.right, crossProject });
+  return Result.succeed({ namespace, shortName, info: infoResult.success, crossProject });
 }

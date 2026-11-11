@@ -12,7 +12,7 @@
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { phaxCall } from "../helpers/runnerCall.js";
 import { loadConfig } from "../../src/app/loadConfig.js";
@@ -58,7 +58,7 @@ vi.mock("node:os", async (importOriginal) =>
 vi.mock("../../src/app/loadTelemetryConfig.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../src/app/loadTelemetryConfig.js")>();
   const effect = await import("effect");
-  return { ...actual, loadTelemetryConfig: vi.fn(() => effect.Either.right({ enabled: false })) };
+  return { ...actual, loadTelemetryConfig: vi.fn(() => effect.Result.succeed({ enabled: false })) };
 });
 // The routing loaders read ~/.phax; serve the built-in defaults instead.
 vi.mock("../../src/app/loadRouting.js", async (importOriginal) => {
@@ -109,7 +109,7 @@ const ALL_PROVIDERS_DISABLED: ProviderConfig = {
  * phase-02.
  */
 async function pauseAfterPhase01(roots: PreflightRepo): Promise<string> {
-  const config = Either.getOrThrow(loadConfig(roots.repo));
+  const config = Result.getOrThrow(loadConfig(roots.repo));
   const planMdPath = join(roots.repo, "plan.md");
   const planMd = readFileSync(planMdPath, "utf8");
   const { plan } = await Effect.runPromise(
@@ -121,7 +121,7 @@ async function pauseAfterPhase01(roots: PreflightRepo): Promise<string> {
       nowIso: new Date().toISOString(),
     }).pipe(Effect.provide(Layer.merge(NodeFileSystemLayer, makeFakeBackend().layer))),
   );
-  const shortName = Either.getOrThrow(decodeShortName(plan.run.shortName));
+  const shortName = Result.getOrThrow(decodeShortName(plan.run.shortName));
   const { runPath } = await Effect.runPromise(
     createRunFolder(shortName, planMd, plan, config, "plan.md").pipe(
       Effect.provide(NodeFileSystemLayer),
@@ -394,7 +394,7 @@ describe("phax resume — re-checks the inputs that can change before any worktr
     process.chdir(r.repo);
     // Guard: every write below must land in the temporary state root.
     const config = loadConfig(r.repo);
-    expect(Either.isRight(config) && config.right.stateRoot).toBe(r.stateRoot);
+    expect(Result.isSuccess(config) && config.success.stateRoot).toBe(r.stateRoot);
     // The records clone only has to exist for the run preflight to pass.
     await mkdir(join(r.stateRoot, "records", r.namespace), { recursive: true });
 
@@ -453,7 +453,7 @@ describe("phax resume — re-checks the inputs that can change before any worktr
     roots = r;
     process.chdir(r.repo);
     const config = loadConfig(r.repo);
-    expect(Either.isRight(config) && config.right.stateRoot).toBe(r.stateRoot);
+    expect(Result.isSuccess(config) && config.success.stateRoot).toBe(r.stateRoot);
 
     const shortName = await pauseAfterPhase01(r);
 

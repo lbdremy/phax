@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   decodeBranchName,
@@ -16,9 +16,9 @@ import type { RunReviewInfo } from "../../src/domain/runReviewInfo.js";
 import type { PhaxState, PhaxStateName } from "../../src/domain/state.js";
 import { reviewStop } from "../helpers/phaseStatusFixture.js";
 
-function unwrap<T>(e: Either.Either<T, unknown>): T {
-  if (Either.isLeft(e)) throw new Error("decode failed");
-  return e.right;
+function unwrap<T>(e: Result.Result<T, unknown>): T {
+  if (Result.isFailure(e)) throw new Error("decode failed");
+  return e.success;
 }
 
 const runId = unwrap(decodeRunId("run-1"));

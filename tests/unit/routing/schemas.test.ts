@@ -1,4 +1,4 @@
-import { Either, Schema } from "effect";
+import { Result, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_MODEL_ROUTING,
@@ -19,10 +19,10 @@ import type {
   ThinkingLevel,
 } from "../../../src/domain/routing/types.js";
 
-const decodeProviderId = Schema.decodeUnknownEither(ProviderIdSchema);
-const decodeModelFamily = Schema.decodeUnknownEither(ModelFamilySchema);
-const decodeThinkingLevel = Schema.decodeUnknownEither(ThinkingLevelSchema);
-const decodeRelationship = Schema.decodeUnknownEither(RelationshipSchema);
+const decodeProviderId = Schema.decodeUnknownResult(ProviderIdSchema, { reportInput: true });
+const decodeModelFamily = Schema.decodeUnknownResult(ModelFamilySchema, { reportInput: true });
+const decodeThinkingLevel = Schema.decodeUnknownResult(ThinkingLevelSchema, { reportInput: true });
+const decodeRelationship = Schema.decodeUnknownResult(RelationshipSchema, { reportInput: true });
 
 const validModelRouting = {
   version: 2,
@@ -85,12 +85,12 @@ describe("literal schemas", () => {
   it("ProviderIdSchema accepts all valid provider ids", () => {
     const ids: ProviderId[] = ["claude-code", "mistral-vibe", "codex-cli"];
     for (const id of ids) {
-      expect(Either.isRight(decodeProviderId(id))).toBe(true);
+      expect(Result.isSuccess(decodeProviderId(id))).toBe(true);
     }
   });
 
   it("ProviderIdSchema rejects an invalid provider id", () => {
-    expect(Either.isLeft(decodeProviderId("not-a-provider"))).toBe(true);
+    expect(Result.isFailure(decodeProviderId("not-a-provider"))).toBe(true);
   });
 
   it("ModelFamilySchema accepts all valid families", () => {
@@ -102,12 +102,12 @@ describe("literal schemas", () => {
       "openai-gpt",
     ];
     for (const f of families) {
-      expect(Either.isRight(decodeModelFamily(f))).toBe(true);
+      expect(Result.isSuccess(decodeModelFamily(f))).toBe(true);
     }
   });
 
   it("ModelFamilySchema rejects an invalid family", () => {
-    expect(Either.isLeft(decodeModelFamily("gpt-unknown"))).toBe(true);
+    expect(Result.isFailure(decodeModelFamily("gpt-unknown"))).toBe(true);
   });
 
   it("ThinkingLevelSchema accepts all valid levels", () => {
@@ -122,12 +122,12 @@ describe("literal schemas", () => {
       "ultracode",
     ];
     for (const l of levels) {
-      expect(Either.isRight(decodeThinkingLevel(l))).toBe(true);
+      expect(Result.isSuccess(decodeThinkingLevel(l))).toBe(true);
     }
   });
 
   it("ThinkingLevelSchema rejects an invalid level", () => {
-    expect(Either.isLeft(decodeThinkingLevel("insane"))).toBe(true);
+    expect(Result.isFailure(decodeThinkingLevel("insane"))).toBe(true);
   });
 
   it("RelationshipSchema accepts every relation including upgrade", () => {
@@ -140,27 +140,27 @@ describe("literal schemas", () => {
       "no_equivalent",
     ];
     for (const r of rels) {
-      expect(Either.isRight(decodeRelationship(r))).toBe(true);
+      expect(Result.isSuccess(decodeRelationship(r))).toBe(true);
     }
   });
 
   it("RelationshipSchema rejects an invalid relationship", () => {
-    expect(Either.isLeft(decodeRelationship("close-enough"))).toBe(true);
+    expect(Result.isFailure(decodeRelationship("close-enough"))).toBe(true);
   });
 });
 
 describe("ModelRoutingSchema (v2)", () => {
   it("decodes a minimal valid v2 config", () => {
-    expect(Either.isRight(decodeModelRouting(validModelRouting))).toBe(true);
+    expect(Result.isSuccess(decodeModelRouting(validModelRouting))).toBe(true);
   });
 
   it("decodes the shipped DEFAULT_MODEL_ROUTING", () => {
-    expect(Either.isRight(decodeModelRouting(DEFAULT_MODEL_ROUTING))).toBe(true);
+    expect(Result.isSuccess(decodeModelRouting(DEFAULT_MODEL_ROUTING))).toBe(true);
   });
 
   it("rejects a version-1 config outright (version literal is 2)", () => {
     const result = decodeModelRouting({ ...validModelRouting, version: 1 });
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 
   it("rejects the legacy tier scale — tiers is not a recognized key", () => {
@@ -168,7 +168,7 @@ describe("ModelRoutingSchema (v2)", () => {
       ...validModelRouting,
       tiers: { standard: { "claude-code": { family: "claude-sonnet" } } },
     };
-    expect(Either.isLeft(decodeModelRouting(legacy))).toBe(true);
+    expect(Result.isFailure(decodeModelRouting(legacy))).toBe(true);
   });
 
   it("rejects the legacy normalization / defaultTier fields", () => {
@@ -177,12 +177,12 @@ describe("ModelRoutingSchema (v2)", () => {
       defaultTier: "standard",
       normalization: { "claude-sonnet": { medium: "standard" } },
     };
-    expect(Either.isLeft(decodeModelRouting(legacy))).toBe(true);
+    expect(Result.isFailure(decodeModelRouting(legacy))).toBe(true);
   });
 
   it("rejects unknown top-level keys", () => {
     const result = decodeModelRouting({ ...validModelRouting, unknownKey: "surprise" });
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 
   it("rejects an invalid provider id in providerPriority", () => {
@@ -190,7 +190,7 @@ describe("ModelRoutingSchema (v2)", () => {
       ...validModelRouting,
       providerPriority: ["not-a-provider"],
     });
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 
   it("rejects an invalid model family in requestedModelNormalization value", () => {
@@ -198,7 +198,7 @@ describe("ModelRoutingSchema (v2)", () => {
       ...validModelRouting,
       requestedModelNormalization: { "my-model": "gpt-unknown" },
     });
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 
   it("rejects an equivalence edge with an invalid ThinkingLevel", () => {
@@ -210,7 +210,7 @@ describe("ModelRoutingSchema (v2)", () => {
         },
       },
     });
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 
   it("rejects an equivalence edge with an invalid relation", () => {
@@ -222,22 +222,22 @@ describe("ModelRoutingSchema (v2)", () => {
         },
       },
     });
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 });
 
 describe("ProviderConfigSchema (per-entry efforts)", () => {
   it("decodes the shipped DEFAULT_PROVIDER_CONFIG", () => {
-    expect(Either.isRight(decodeProviderConfig(DEFAULT_PROVIDER_CONFIG))).toBe(true);
+    expect(Result.isSuccess(decodeProviderConfig(DEFAULT_PROVIDER_CONFIG))).toBe(true);
   });
 
   it("decodes the spec §13 example", () => {
-    expect(Either.isRight(decodeProviderConfig(validProviderConfig))).toBe(true);
+    expect(Result.isSuccess(decodeProviderConfig(validProviderConfig))).toBe(true);
   });
 
   it("rejects unknown top-level keys", () => {
     const result = decodeProviderConfig({ ...validProviderConfig, extra: true });
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 
   it("rejects a provider entry with a non-boolean enabled field", () => {
@@ -246,7 +246,7 @@ describe("ProviderConfigSchema (per-entry efforts)", () => {
         "claude-code": { enabled: "yes", executable: "claude" },
       },
     });
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 
   it("rejects a provider entry with an empty executable", () => {
@@ -255,7 +255,7 @@ describe("ProviderConfigSchema (per-entry efforts)", () => {
         "claude-code": { enabled: true, executable: "" },
       },
     });
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 
   it("accepts a provider entry with all optional fields omitted", () => {
@@ -264,7 +264,7 @@ describe("ProviderConfigSchema (per-entry efforts)", () => {
         "claude-code": { enabled: true, executable: "claude" },
       },
     });
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
   });
 
   it("rejects unknown keys inside a provider entry", () => {
@@ -273,7 +273,7 @@ describe("ProviderConfigSchema (per-entry efforts)", () => {
         "claude-code": { enabled: true, executable: "claude", unknownField: "oops" },
       },
     });
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 
   it("rejects a family entry with an empty models array", () => {
@@ -286,7 +286,7 @@ describe("ProviderConfigSchema (per-entry efforts)", () => {
         },
       },
     });
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 
   it("rejects a catalog entry with an unknown status", () => {
@@ -303,7 +303,7 @@ describe("ProviderConfigSchema (per-entry efforts)", () => {
         },
       },
     });
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 
   it("accepts coexisting versions as distinct catalog entries", () => {
@@ -331,6 +331,6 @@ describe("ProviderConfigSchema (per-entry efforts)", () => {
         },
       },
     });
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
   });
 });

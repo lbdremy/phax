@@ -5,12 +5,12 @@
 // schema and type.
 import { Schema } from "effect";
 
-const SurfaceSchema = Schema.Literal("local", "structural", "product");
+const SurfaceSchema = Schema.Literals(["local", "structural", "product"]);
 
 const GateStepResultSchema = Schema.Struct({
   command: Schema.NonEmptyString,
   surface: SurfaceSchema,
-  result: Schema.Literal("pass", "fail", "pending"),
+  result: Schema.Literals(["pass", "fail", "pending"]),
 });
 
 export const GateAttributionPreSchemaSchema = Schema.Struct({
@@ -20,6 +20,7 @@ export const GateAttributionPreSchemaSchema = Schema.Struct({
 
 export type GateAttributionPreSchema = Schema.Schema.Type<typeof GateAttributionPreSchemaSchema>;
 
-export const decodeGateAttributionPreSchema = Schema.decodeUnknownEither(
+export const decodeGateAttributionPreSchema = Schema.decodeUnknownResult(
   GateAttributionPreSchemaSchema,
+  { reportInput: true },
 );

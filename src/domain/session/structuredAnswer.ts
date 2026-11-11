@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { parseFinalMessageJson } from "../authoring/retry.js";
 import type { StructuredValue } from "./outcome.js";
 
@@ -11,7 +11,7 @@ import type { StructuredValue } from "./outcome.js";
 export function answerJson(result: {
   readonly finalText: string;
   readonly structured: StructuredValue | null;
-}): Either.Either<unknown, string> {
-  if (result.structured !== null) return Either.right(result.structured.value);
+}): Result.Result<unknown, string> {
+  if (result.structured !== null) return Result.succeed(result.structured.value);
   return parseFinalMessageJson(result.finalText);
 }

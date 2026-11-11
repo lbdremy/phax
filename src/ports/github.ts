@@ -54,4 +54,4 @@ export interface GitHubOps {
   }): Effect.Effect<string, GitHubError>;
 }
 
-export class GitHub extends Context.Tag("phax/GitHub")<GitHub, GitHubOps>() {}
+export class GitHub extends Context.Service<GitHub, GitHubOps>()("phax/GitHub") {}

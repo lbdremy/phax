@@ -1,0 +1,938 @@
+{
+  "format": "oracle-request",
+  "current": [
+    {
+      "name": "accepts a typical document",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+        "verdict": "authored",
+        "phase": "phase-02",
+        "oraclePhase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "files": [
+          "tests/prune.test.ts"
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.26.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "files": [
+            "tests/prune.test.ts"
+          ],
+          "oraclePhase": "phase-02",
+          "phase": "phase-02",
+          "verdict": "authored"
+        }
+      }
+    },
+    {
+      "name": "accepts a document setting every field",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+        "verdict": "discharged",
+        "phase": "phase-02",
+        "oraclePhase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "oracleCommit": "0123456789abcdef0123456789abcdef01234567",
+        "files": [
+          "tests/prune.test.ts"
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.26.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "files": [
+            "tests/prune.test.ts"
+          ],
+          "oracleCommit": "0123456789abcdef0123456789abcdef01234567",
+          "oraclePhase": "phase-02",
+          "phase": "phase-02",
+          "verdict": "discharged"
+        }
+      }
+    },
+    {
+      "name": "accepts a document with only its required fields",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+        "verdict": "discharged",
+        "phase": "phase-02",
+        "oraclePhase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "oracleCommit": "0123456789abcdef0123456789abcdef01234567",
+        "files": [
+          "tests/prune.test.ts"
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.26.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "files": [
+            "tests/prune.test.ts"
+          ],
+          "oracleCommit": "0123456789abcdef0123456789abcdef01234567",
+          "oraclePhase": "phase-02",
+          "phase": "phase-02",
+          "verdict": "discharged"
+        }
+      }
+    },
+    {
+      "name": "refuses a document that is not an object",
+      "input": [
+        "not",
+        "an",
+        "object"
+      ],
+      "expected": {
+        "ok": false,
+        "refusal": ": a document is a JSON object, got an array"
+      }
+    },
+    {
+      "name": "refuses a malformed $schema",
+      "input": {
+        "$schema": "not a schema url",
+        "verdict": "authored",
+        "phase": "phase-02",
+        "oraclePhase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "files": [
+          "tests/prune.test.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: expected https://docs.phax.run/schemas/<format-id>/<X.Y.Z>.json, got \"not a schema url\""
+      }
+    },
+    {
+      "name": "refuses a stamp newer than the package",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/oracle-request/9.0.0.json",
+        "verdict": "authored",
+        "phase": "phase-02",
+        "oraclePhase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "files": [
+          "tests/prune.test.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: oracle-request 9.0.0 is newer than @lbdremy/phax-schemas {package-version} — upgrade the package"
+      }
+    },
+    {
+      "name": "refuses a stamp below the first supported release",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/oracle-request/0.1.0.json",
+        "verdict": "authored",
+        "phase": "phase-02",
+        "oraclePhase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "files": [
+          "tests/prune.test.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: https://docs.phax.run/schemas/oracle-request/0.1.0.json was written by a development build of phax before 0.17.0, the first supported release — not supported"
+      }
+    },
+    {
+      "name": "refuses a document without $schema",
+      "input": {
+        "verdict": "authored",
+        "phase": "phase-02",
+        "oraclePhase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "files": [
+          "tests/prune.test.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: missing $schema — a pre-schema document is identified by where it lives; read it with its format's parse function (for example, parsePhaseRecordManifest or parseGateAttribution)"
+      }
+    },
+    {
+      "name": "refuses a document missing verdict",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+        "phase": "phase-02",
+        "oraclePhase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "files": [
+          "tests/prune.test.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "verdict: is missing"
+      }
+    },
+    {
+      "name": "refuses an unexpected key",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+        "verdict": "authored",
+        "phase": "phase-02",
+        "oraclePhase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "files": [
+          "tests/prune.test.ts"
+        ],
+        "unexpectedKey": 1
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "unexpectedKey: is unexpected, expected: \"$schema\" | \"verdict\" | \"phase\" | \"oraclePhase\" | \"base\" | \"files\""
+      }
+    },
+    {
+      "name": "refuses phase of the wrong type",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+        "verdict": "authored",
+        "phase": 42,
+        "oraclePhase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "files": [
+          "tests/prune.test.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "phase: Expected string, actual 42"
+      }
+    },
+    {
+      "name": "refuses verdict outside its value",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+        "verdict": "bogus-value",
+        "phase": "phase-02",
+        "oraclePhase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "files": [
+          "tests/prune.test.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "verdict: Expected \"authored\" | \"discharged\", actual \"bogus-value\""
+      }
+    },
+    {
+      "name": "refuses phase that breaks its pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+        "verdict": "authored",
+        "phase": "",
+        "oraclePhase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "files": [
+          "tests/prune.test.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "phase: Expected a string matching the pattern ^phase-\\d{2}$, actual \"\""
+      }
+    },
+    {
+      "name": "reads a document stamped 0.26.0",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+        "verdict": "discharged",
+        "phase": "phase-02",
+        "oraclePhase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "oracleCommit": "0123456789abcdef0123456789abcdef01234567",
+        "files": [
+          "tests/prune.test.ts"
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.26.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "files": [
+            "tests/prune.test.ts"
+          ],
+          "oracleCommit": "0123456789abcdef0123456789abcdef01234567",
+          "oraclePhase": "phase-02",
+          "phase": "phase-02",
+          "verdict": "discharged"
+        }
+      }
+    },
+    {
+      "name": "constraint $schema pattern",
+      "input": {
+        "$schema": "",
+        "verdict": "authored",
+        "phase": "phase-02",
+        "oraclePhase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "files": [
+          "tests/prune.test.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: expected https://docs.phax.run/schemas/<format-id>/<X.Y.Z>.json, got \"\""
+      }
+    },
+    {
+      "name": "constraint $schema required",
+      "input": {
+        "verdict": "authored",
+        "phase": "phase-02",
+        "oraclePhase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "files": [
+          "tests/prune.test.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: missing $schema — a pre-schema document is identified by where it lives; read it with its format's parse function (for example, parsePhaseRecordManifest or parseGateAttribution)"
+      }
+    },
+    {
+      "name": "constraint base pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+        "verdict": "authored",
+        "phase": "phase-02",
+        "oraclePhase": "phase-02",
+        "base": "",
+        "files": [
+          "tests/prune.test.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "base: Expected a string matching the pattern ^[0-9a-f]{40}([0-9a-f]{24})?$, actual \"\""
+      }
+    },
+    {
+      "name": "constraint base required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+        "verdict": "authored",
+        "phase": "phase-02",
+        "oraclePhase": "phase-02",
+        "files": [
+          "tests/prune.test.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "base: is missing"
+      }
+    },
+    {
+      "name": "constraint files minItems",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+        "verdict": "authored",
+        "phase": "phase-02",
+        "oraclePhase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "files": []
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "files.0: is missing"
+      }
+    },
+    {
+      "name": "constraint files required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+        "verdict": "authored",
+        "phase": "phase-02",
+        "oraclePhase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "files: is missing"
+      }
+    },
+    {
+      "name": "constraint files[] minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+        "verdict": "authored",
+        "phase": "phase-02",
+        "oraclePhase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "files": [
+          ""
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "files.0: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint oracleCommit pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+        "verdict": "discharged",
+        "phase": "phase-02",
+        "oraclePhase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "oracleCommit": "",
+        "files": [
+          "tests/prune.test.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "oracleCommit: Expected a string matching the pattern ^[0-9a-f]{40}([0-9a-f]{24})?$, actual \"\""
+      }
+    },
+    {
+      "name": "constraint oracleCommit required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+        "verdict": "discharged",
+        "phase": "phase-02",
+        "oraclePhase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "files": [
+          "tests/prune.test.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "oracleCommit: is missing"
+      }
+    },
+    {
+      "name": "constraint oraclePhase pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+        "verdict": "authored",
+        "phase": "phase-02",
+        "oraclePhase": "",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "files": [
+          "tests/prune.test.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "oraclePhase: Expected a string matching the pattern ^phase-\\d{2}$, actual \"\""
+      }
+    },
+    {
+      "name": "constraint oraclePhase required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+        "verdict": "authored",
+        "phase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "files": [
+          "tests/prune.test.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "oraclePhase: is missing"
+      }
+    },
+    {
+      "name": "constraint phase pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+        "verdict": "authored",
+        "phase": "",
+        "oraclePhase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "files": [
+          "tests/prune.test.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "phase: Expected a string matching the pattern ^phase-\\d{2}$, actual \"\""
+      }
+    },
+    {
+      "name": "constraint phase required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+        "verdict": "authored",
+        "oraclePhase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "files": [
+          "tests/prune.test.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "phase: is missing"
+      }
+    },
+    {
+      "name": "constraint verdict enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+        "verdict": "bogus-value",
+        "phase": "phase-02",
+        "oraclePhase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "files": [
+          "tests/prune.test.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "verdict: Expected \"authored\" | \"discharged\", actual \"bogus-value\""
+      }
+    },
+    {
+      "name": "constraint verdict required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+        "phase": "phase-02",
+        "oraclePhase": "phase-02",
+        "base": "0123456789abcdef0123456789abcdef01234567",
+        "files": [
+          "tests/prune.test.ts"
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "verdict: is missing"
+      }
+    }
+  ],
+  "shapes": {
+    "0.26.0": [
+      {
+        "name": "accepts a document setting every field",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+          "verdict": "discharged",
+          "phase": "phase-02",
+          "oraclePhase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "oracleCommit": "0123456789abcdef0123456789abcdef01234567",
+          "files": [
+            "tests/prune.test.ts"
+          ]
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+            "base": "0123456789abcdef0123456789abcdef01234567",
+            "files": [
+              "tests/prune.test.ts"
+            ],
+            "oracleCommit": "0123456789abcdef0123456789abcdef01234567",
+            "oraclePhase": "phase-02",
+            "phase": "phase-02",
+            "verdict": "discharged"
+          }
+        }
+      },
+      {
+        "name": "accepts a document with only its required fields",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+          "verdict": "discharged",
+          "phase": "phase-02",
+          "oraclePhase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "oracleCommit": "0123456789abcdef0123456789abcdef01234567",
+          "files": [
+            "tests/prune.test.ts"
+          ]
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+            "base": "0123456789abcdef0123456789abcdef01234567",
+            "files": [
+              "tests/prune.test.ts"
+            ],
+            "oracleCommit": "0123456789abcdef0123456789abcdef01234567",
+            "oraclePhase": "phase-02",
+            "phase": "phase-02",
+            "verdict": "discharged"
+          }
+        }
+      },
+      {
+        "name": "refuses a document missing verdict",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+          "phase": "phase-02",
+          "oraclePhase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "oracleCommit": "0123456789abcdef0123456789abcdef01234567",
+          "files": [
+            "tests/prune.test.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "verdict: is missing"
+        }
+      },
+      {
+        "name": "refuses an unexpected key",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+          "verdict": "discharged",
+          "phase": "phase-02",
+          "oraclePhase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "oracleCommit": "0123456789abcdef0123456789abcdef01234567",
+          "files": [
+            "tests/prune.test.ts"
+          ],
+          "unexpectedKey": 1
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "unexpectedKey: is unexpected, expected: \"$schema\" | \"verdict\" | \"phase\" | \"oraclePhase\" | \"base\" | \"oracleCommit\" | \"files\""
+        }
+      },
+      {
+        "name": "refuses phase of the wrong type",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+          "verdict": "discharged",
+          "phase": 42,
+          "oraclePhase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "oracleCommit": "0123456789abcdef0123456789abcdef01234567",
+          "files": [
+            "tests/prune.test.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phase: Expected string, actual 42"
+        }
+      },
+      {
+        "name": "refuses verdict outside its value",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+          "verdict": "bogus-value",
+          "phase": "phase-02",
+          "oraclePhase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "oracleCommit": "0123456789abcdef0123456789abcdef01234567",
+          "files": [
+            "tests/prune.test.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "verdict: Expected \"authored\" | \"discharged\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "refuses phase that breaks its pattern",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+          "verdict": "discharged",
+          "phase": "",
+          "oraclePhase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "oracleCommit": "0123456789abcdef0123456789abcdef01234567",
+          "files": [
+            "tests/prune.test.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phase: Expected a string matching the pattern ^phase-\\d{2}$, actual \"\""
+        }
+      },
+      {
+        "name": "constraint $schema pattern",
+        "input": {
+          "$schema": "",
+          "verdict": "discharged",
+          "phase": "phase-02",
+          "oraclePhase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "oracleCommit": "0123456789abcdef0123456789abcdef01234567",
+          "files": [
+            "tests/prune.test.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "$schema: Expected a string matching the pattern ^https:\\/\\/docs\\.phax\\.run\\/schemas\\/oracle-request\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$, actual \"\""
+        }
+      },
+      {
+        "name": "constraint $schema required",
+        "input": {
+          "verdict": "discharged",
+          "phase": "phase-02",
+          "oraclePhase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "oracleCommit": "0123456789abcdef0123456789abcdef01234567",
+          "files": [
+            "tests/prune.test.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "$schema: is missing"
+        }
+      },
+      {
+        "name": "constraint base pattern",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+          "verdict": "discharged",
+          "phase": "phase-02",
+          "oraclePhase": "phase-02",
+          "base": "",
+          "oracleCommit": "0123456789abcdef0123456789abcdef01234567",
+          "files": [
+            "tests/prune.test.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "base: Expected a string matching the pattern ^[0-9a-f]{40}([0-9a-f]{24})?$, actual \"\""
+        }
+      },
+      {
+        "name": "constraint base required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+          "verdict": "discharged",
+          "phase": "phase-02",
+          "oraclePhase": "phase-02",
+          "oracleCommit": "0123456789abcdef0123456789abcdef01234567",
+          "files": [
+            "tests/prune.test.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "base: is missing"
+        }
+      },
+      {
+        "name": "constraint files minItems",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+          "verdict": "discharged",
+          "phase": "phase-02",
+          "oraclePhase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "oracleCommit": "0123456789abcdef0123456789abcdef01234567",
+          "files": []
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "files.0: is missing"
+        }
+      },
+      {
+        "name": "constraint files required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+          "verdict": "discharged",
+          "phase": "phase-02",
+          "oraclePhase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "oracleCommit": "0123456789abcdef0123456789abcdef01234567"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "files: is missing"
+        }
+      },
+      {
+        "name": "constraint files[] minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+          "verdict": "discharged",
+          "phase": "phase-02",
+          "oraclePhase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "oracleCommit": "0123456789abcdef0123456789abcdef01234567",
+          "files": [
+            ""
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "files.0: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint oracleCommit pattern",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+          "verdict": "discharged",
+          "phase": "phase-02",
+          "oraclePhase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "oracleCommit": "",
+          "files": [
+            "tests/prune.test.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "oracleCommit: Expected a string matching the pattern ^[0-9a-f]{40}([0-9a-f]{24})?$, actual \"\""
+        }
+      },
+      {
+        "name": "constraint oracleCommit required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+          "verdict": "discharged",
+          "phase": "phase-02",
+          "oraclePhase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "files": [
+            "tests/prune.test.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "oracleCommit: is missing"
+        }
+      },
+      {
+        "name": "constraint oraclePhase pattern",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+          "verdict": "discharged",
+          "phase": "phase-02",
+          "oraclePhase": "",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "oracleCommit": "0123456789abcdef0123456789abcdef01234567",
+          "files": [
+            "tests/prune.test.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "oraclePhase: Expected a string matching the pattern ^phase-\\d{2}$, actual \"\""
+        }
+      },
+      {
+        "name": "constraint oraclePhase required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+          "verdict": "discharged",
+          "phase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "oracleCommit": "0123456789abcdef0123456789abcdef01234567",
+          "files": [
+            "tests/prune.test.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "oraclePhase: is missing"
+        }
+      },
+      {
+        "name": "constraint phase pattern",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+          "verdict": "discharged",
+          "phase": "",
+          "oraclePhase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "oracleCommit": "0123456789abcdef0123456789abcdef01234567",
+          "files": [
+            "tests/prune.test.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phase: Expected a string matching the pattern ^phase-\\d{2}$, actual \"\""
+        }
+      },
+      {
+        "name": "constraint phase required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+          "verdict": "discharged",
+          "oraclePhase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "oracleCommit": "0123456789abcdef0123456789abcdef01234567",
+          "files": [
+            "tests/prune.test.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phase: is missing"
+        }
+      },
+      {
+        "name": "constraint verdict enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+          "verdict": "bogus-value",
+          "phase": "phase-02",
+          "oraclePhase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "oracleCommit": "0123456789abcdef0123456789abcdef01234567",
+          "files": [
+            "tests/prune.test.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "verdict: Expected \"authored\" | \"discharged\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint verdict required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/oracle-request/0.26.0.json",
+          "phase": "phase-02",
+          "oraclePhase": "phase-02",
+          "base": "0123456789abcdef0123456789abcdef01234567",
+          "oracleCommit": "0123456789abcdef0123456789abcdef01234567",
+          "files": [
+            "tests/prune.test.ts"
+          ]
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "verdict: is missing"
+        }
+      }
+    ]
+  }
+}

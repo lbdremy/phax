@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { extractVibeExportUsage } from "../../src/domain/records/usage.js";
 import { decodeVibeExportText, decodeVibeOutcomeText } from "../../src/schemas/vibeExport.js";
@@ -11,15 +11,15 @@ import {
 
 function refusalOf(text: string) {
   const decoded = decodeVibeExportText(text);
-  if (Either.isRight(decoded)) throw new Error("expected a refusal");
-  return decoded.left;
+  if (Result.isSuccess(decoded)) throw new Error("expected a refusal");
+  return decoded.failure;
 }
 
 describe("decodeVibeExportText", () => {
   it("decodes the probe's exports with their config, ignoring limits, steps, journal_dir and timestamps", () => {
     const decoded = decodeVibeExportText(vibe3ExportText(VIBE3_EXPORT_LONG));
-    if (Either.isLeft(decoded)) throw new Error(decoded.left.detail);
-    expect(decoded.right).toEqual({
+    if (Result.isFailure(decoded)) throw new Error(decoded.failure.detail);
+    expect(decoded.success).toEqual({
       schema_version: 1,
       session_id: VIBE3_SESSION_ID,
       usage: {
@@ -48,7 +48,7 @@ describe("decodeVibeExportText", () => {
       exit_code,
       vibe_version,
     };
-    expect(Either.isRight(decodeVibeExportText(JSON.stringify(minimal)))).toBe(true);
+    expect(Result.isSuccess(decodeVibeExportText(JSON.stringify(minimal)))).toBe(true);
   });
 
   it.each([
@@ -136,8 +136,8 @@ describe("decodeVibeOutcomeText", () => {
 
   it("decodes a failure export whose session id, usage, cost, steps and config are null", () => {
     const decoded = decodeVibeOutcomeText(JSON.stringify(failureExport));
-    if (Either.isLeft(decoded)) throw new Error(decoded.left.detail);
-    expect(decoded.right).toEqual({
+    if (Result.isFailure(decoded)) throw new Error(decoded.failure.detail);
+    expect(decoded.success).toEqual({
       schema_version: 1,
       session_id: null,
       usage: null,
@@ -155,9 +155,10 @@ describe("decodeVibeOutcomeText", () => {
       JSON.stringify({ ...failureExport, error: { message: "boom", code: null } }),
     );
     const noError = decodeVibeOutcomeText(JSON.stringify({ ...failureExport, error: null }));
-    if (Either.isLeft(noCode) || Either.isLeft(noError)) throw new Error("expected both to decode");
-    expect(noCode.right.error).toEqual({ message: "boom", code: null });
-    expect(noError.right.error).toBeNull();
+    if (Result.isFailure(noCode) || Result.isFailure(noError))
+      throw new Error("expected both to decode");
+    expect(noCode.success.error).toEqual({ message: "boom", code: null });
+    expect(noError.success.error).toBeNull();
   });
 
   it("decodes every export decodeVibeExportText decodes, with the same values", () => {
@@ -165,8 +166,8 @@ describe("decodeVibeOutcomeText", () => {
       const text = vibe3ExportText(exported);
       const strict = decodeVibeExportText(text);
       const outcome = decodeVibeOutcomeText(text);
-      if (Either.isLeft(strict) || Either.isLeft(outcome)) throw new Error("expected both");
-      expect(outcome.right).toEqual(strict.right);
+      if (Result.isFailure(strict) || Result.isFailure(outcome)) throw new Error("expected both");
+      expect(outcome.success).toEqual(strict.success);
     }
   });
 
@@ -176,16 +177,16 @@ describe("decodeVibeOutcomeText", () => {
     ["an empty session_id", { ...failureExport, session_id: "" }],
     ["a missing outcome", { ...failureExport, outcome: undefined }],
   ])("refuses %s", (_name, exported) => {
-    expect(Either.isLeft(decodeVibeOutcomeText(JSON.stringify(exported)))).toBe(true);
+    expect(Result.isFailure(decodeVibeOutcomeText(JSON.stringify(exported)))).toBe(true);
   });
 
   it("refuses text that is not JSON", () => {
-    expect(Either.isLeft(decodeVibeOutcomeText("{ not json"))).toBe(true);
+    expect(Result.isFailure(decodeVibeOutcomeText("{ not json"))).toBe(true);
   });
 
   it("leaves the strict decode, and the usage read from it, as they were", () => {
     const text = JSON.stringify(failureExport);
-    expect(Either.isLeft(decodeVibeExportText(text))).toBe(true);
+    expect(Result.isFailure(decodeVibeExportText(text))).toBe(true);
     expect(extractVibeExportUsage(text)).toBeUndefined();
     expect(extractVibeExportUsage(vibe3ExportText(VIBE3_EXPORT_SHORT))).toEqual({
       provider: "mistral-vibe",
@@ -205,13 +206,13 @@ describe("decodeVibeExportText fuzz", () => {
       let text = valid;
       for (let step = 0; step <= Math.floor(next() * 4); step++) text = mutate(text, next);
       const decoded = decodeVibeExportText(text);
-      expect(Either.isLeft(decoded) || Either.isRight(decoded)).toBe(true);
+      expect(Result.isFailure(decoded) || Result.isSuccess(decoded)).toBe(true);
     }
     for (let round = 0; round < 200; round++) {
       const length = Math.floor(next() * 64);
       let text = "";
       for (let at = 0; at < length; at++) text += String.fromCharCode(Math.floor(next() * 0xffff));
-      expect(Either.isLeft(decodeVibeExportText(text))).toBe(true);
+      expect(Result.isFailure(decodeVibeExportText(text))).toBe(true);
     }
   });
 });

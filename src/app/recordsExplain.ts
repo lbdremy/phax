@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { Git, GitError, type GitOps } from "../ports/git.js";
 import { Shell, type ShellError } from "../ports/shell.js";
 import { ORIGIN } from "./recordsSync.js";
@@ -145,8 +145,8 @@ function lastAcceptanceStep(
     return null;
   }
   const read = readGateAttributionFile("gate-attribution.json", parsed);
-  if (Either.isLeft(read)) return null;
-  const step = read.right.steps.findLast(
+  if (Result.isFailure(read)) return null;
+  const step = read.success.steps.findLast(
     (s): s is AcceptanceStepResult => s.surface === "acceptance",
   );
   return step === undefined ? null : { command: step.command, result: step.result };
@@ -433,8 +433,8 @@ function decisionCommitOf(file: string, bytes: Uint8Array): string | null | unde
     return undefined;
   }
   const decoded = readRecordManifestFile(file, json);
-  return Either.isRight(decoded) && isDecisionRecordManifest(decoded.right)
-    ? decoded.right.commit
+  return Result.isSuccess(decoded) && isDecisionRecordManifest(decoded.success)
+    ? decoded.success.commit
     : undefined;
 }
 
@@ -487,12 +487,12 @@ function loadRecord(
       `${recordCommitSha}:${manifestEntry.path}`,
       manifestJson,
     );
-    if (Either.isLeft(decoded)) {
+    if (Result.isFailure(decoded)) {
       return yield* Effect.fail(
-        new GitError({ message: decoded.left.message, command: "records explain" }),
+        new GitError({ message: decoded.failure.message, command: "records explain" }),
       );
     }
-    const manifest = decoded.right;
+    const manifest = decoded.success;
 
     const artifacts = new Map<string, Uint8Array>();
     for (const entry of relevant) {
@@ -524,14 +524,14 @@ function explainPhaseRecord(
   recordCommitSha: string,
   foundVia: "local" | "remote-refresh",
   prefix: string,
-): Either.Either<ExplainedRecord, GitError> {
+): Result.Result<ExplainedRecord, GitError> {
   const { manifest, artifacts } = loaded;
   if (
     isAuthoringRecordManifest(manifest) ||
     isDecisionRecordManifest(manifest) ||
     isReviewRecordManifest(manifest)
   ) {
-    return Either.left(
+    return Result.fail(
       malformed(prefix, recordCommitSha, `${manifestKindLabel(manifest)} under a phase key`),
     );
   }
@@ -540,7 +540,7 @@ function explainPhaseRecord(
   ).length;
   const promptBytes = artifacts.get("prompt.md");
   const diffBytes = artifacts.get("diff.patch");
-  return Either.right({
+  return Result.succeed({
     runId: address.runId,
     phaseId: address.phaseId,
     addressedBy: address.addressedBy,
@@ -565,16 +565,16 @@ function explainAuthoringRecord(
   recordCommitSha: string,
   foundVia: "local" | "remote-refresh",
   prefix: string,
-): Either.Either<ExplainedAuthoringRecord, GitError> {
+): Result.Result<ExplainedAuthoringRecord, GitError> {
   const { manifest, artifacts } = loaded;
   if (!isAuthoringRecordManifest(manifest)) {
-    return Either.left(
+    return Result.fail(
       malformed(prefix, recordCommitSha, `${manifestKindLabel(manifest)} under an authoring key`),
     );
   }
   const briefBytes = artifacts.get("brief.md");
   const promptBytes = artifacts.get("prompt.md");
-  return Either.right({
+  return Result.succeed({
     authoringId,
     manifest,
     recordCommitSha,
@@ -595,14 +595,14 @@ function explainDecisionRecord(
   recordCommitSha: string,
   foundVia: "local" | "remote-refresh",
   prefix: string,
-): Either.Either<ExplainedDecisionRecord, GitError> {
+): Result.Result<ExplainedDecisionRecord, GitError> {
   const { manifest, artifacts } = loaded;
   if (!isDecisionRecordManifest(manifest)) {
-    return Either.left(
+    return Result.fail(
       malformed(prefix, recordCommitSha, `${manifestKindLabel(manifest)} under a decision key`),
     );
   }
-  return Either.right({
+  return Result.succeed({
     decisionId,
     manifest,
     recordCommitSha,
@@ -669,8 +669,8 @@ export function explainRecord(
     }
 
     if (recordCommitSha === null) {
-      const fetchResult = yield* Effect.either(git.fetchRemote(remote, localPath));
-      if (Either.isLeft(fetchResult)) {
+      const fetchResult = yield* Effect.result(git.fetchRemote(remote, localPath));
+      if (Result.isFailure(fetchResult)) {
         return { kind: "not-found", key, sourceSha: resolvedSha, remoteConsulted: false } as const;
       }
 
@@ -698,8 +698,8 @@ export function explainRecord(
     const prefix = `${key}/`;
     if (address.kind === "phase") {
       const record = explainPhaseRecord(loaded, address, recordCommitSha, foundVia, prefix);
-      if (Either.isLeft(record)) return yield* Effect.fail(record.left);
-      return { kind: "found", record: record.right } as const;
+      if (Result.isFailure(record)) return yield* Effect.fail(record.failure);
+      return { kind: "found", record: record.success } as const;
     }
     if (address.kind === "decision") {
       const record = explainDecisionRecord(
@@ -709,8 +709,8 @@ export function explainRecord(
         foundVia,
         prefix,
       );
-      if (Either.isLeft(record)) return yield* Effect.fail(record.left);
-      return { kind: "found-decision", record: record.right } as const;
+      if (Result.isFailure(record)) return yield* Effect.fail(record.failure);
+      return { kind: "found-decision", record: record.success } as const;
     }
     const record = explainAuthoringRecord(
       loaded,
@@ -719,7 +719,7 @@ export function explainRecord(
       foundVia,
       prefix,
     );
-    if (Either.isLeft(record)) return yield* Effect.fail(record.left);
-    return { kind: "found-authoring", record: record.right } as const;
+    if (Result.isFailure(record)) return yield* Effect.fail(record.failure);
+    return { kind: "found-authoring", record: record.success } as const;
   });
 }

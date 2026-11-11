@@ -1,7 +1,7 @@
 // The held cause in the reducer (plan held-stop-and-oracle-pair-reviews,
 // phase-02): reaching a held stop, closing it with HeldStopClosed, and pausing
 // a failed hold point. Fixtures are made up: the invoice-export run.
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { decodePhaseId, decodeRunId, decodeWorktreePath } from "../../src/domain/branded.js";
 import type { PhaxEvent, PhaxEventType } from "../../src/domain/events.js";
@@ -11,9 +11,9 @@ import type { PhaxState, PhaxStateName } from "../../src/domain/state.js";
 import type { LastClose } from "../../src/schemas/reviewStop.js";
 import { heldReviewStop, reviewStop } from "../helpers/phaseStatusFixture.js";
 
-function unwrap<T>(e: Either.Either<T, unknown>): T {
-  if (Either.isLeft(e)) throw new Error("decode failed");
-  return e.right;
+function unwrap<T>(e: Result.Result<T, unknown>): T {
+  if (Result.isFailure(e)) throw new Error("decode failed");
+  return e.success;
 }
 
 const run = unwrap(decodeRunId("invoice-export"));

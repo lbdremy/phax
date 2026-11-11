@@ -10,7 +10,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { executePlan, type ClosedStop } from "../../src/app/executePlan.js";
 import { withRunLock } from "../../src/app/lock.js";
@@ -388,8 +388,8 @@ async function startRun(
     assignments?: Assignments;
     readOnlyBackend?: BackendOps;
   } = {},
-): Promise<{ harness: Harness; result: Either.Either<unknown, unknown> }> {
-  const shortName = Either.getOrThrow(decodeShortName(SHORT));
+): Promise<{ harness: Harness; result: Result.Result<unknown, unknown> }> {
+  const shortName = Result.getOrThrow(decodeShortName(SHORT));
   const { plan, planMd } = planOf(specs);
   const config = configOf(opts.assignments !== undefined ? { assignments: opts.assignments } : {});
   const turns: Turn[] = [];
@@ -440,7 +440,7 @@ async function execute(harness: Harness, startIndex: number) {
     }),
   );
   return Effect.runPromise(
-    Effect.either(
+    Effect.result(
       program.pipe(
         Effect.provide(
           Layer.mergeAll(
@@ -461,8 +461,8 @@ async function execute(harness: Harness, startIndex: number) {
 /** `phax resume --yes`: the start phase as the resume command decides it. */
 async function resume(harness: Harness) {
   const decision = await inspectResumeOnDisk(NAMESPACE, harness.shortName, world.stateRoot);
-  if (Either.isLeft(decision)) throw new Error(decision.left.message);
-  return execute(harness, decision.right.nextPhaseIndex);
+  if (Result.isFailure(decision)) throw new Error(decision.failure.message);
+  return execute(harness, decision.success.nextPhaseIndex);
 }
 
 const worktreeOf = (phaseId: string): string =>
@@ -478,14 +478,14 @@ const runState = (h: Harness) => readJson(join(h.runPath, "run-status.json"))["s
 const phaseStatus = (h: Harness, phaseId: string) =>
   readJson(join(h.runPath, phaseId, "status.json"));
 
-function stopError(result: Either.Either<unknown, unknown>): AwaitingReviewStopError {
-  if (Either.isRight(result)) throw new Error("the run did not stop");
-  expect(result.left).toBeInstanceOf(AwaitingReviewStopError);
-  return result.left as AwaitingReviewStopError;
+function stopError(result: Result.Result<unknown, unknown>): AwaitingReviewStopError {
+  if (Result.isSuccess(result)) throw new Error("the run did not stop");
+  expect(result.failure).toBeInstanceOf(AwaitingReviewStopError);
+  return result.failure as AwaitingReviewStopError;
 }
 
-function expectSucceeded(result: Either.Either<unknown, unknown>): void {
-  if (Either.isLeft(result)) throw new Error(`the run failed: ${String(result.left)}`);
+function expectSucceeded(result: Result.Result<unknown, unknown>): void {
+  if (Result.isFailure(result)) throw new Error(`the run failed: ${String(result.failure)}`);
 }
 
 const correct = (): void =>
@@ -646,12 +646,12 @@ describe("phax resume at a declared stop", { timeout: 30_000 }, () => {
     const reviewStop = readFileSync(join(harness.runPath, "review-stop.json"), "utf8");
     // The worktree goes after the resume command's own check passed.
     const decision = await inspectResumeOnDisk(NAMESPACE, harness.shortName, world.stateRoot);
-    if (Either.isLeft(decision)) throw new Error(decision.left.message);
+    if (Result.isFailure(decision)) throw new Error(decision.failure.message);
     renameSync(stopTree, `${stopTree}.moved`);
 
-    const refused = await execute(harness, decision.right.nextPhaseIndex);
+    const refused = await execute(harness, decision.success.nextPhaseIndex);
 
-    expect(Either.isLeft(refused) && refused.left).toBeInstanceOf(WorktreeCreationError);
+    expect(Result.isFailure(refused) && refused.failure).toBeInstanceOf(WorktreeCreationError);
     expect(runState(harness)).toBe("awaiting_review");
     expect(phaseStatus(harness, "phase-03")["state"]).toBe("awaiting_review");
     expect(readFileSync(join(harness.runPath, "review-stop.json"), "utf8")).toBe(reviewStop);
@@ -672,7 +672,7 @@ describe("phax resume at a declared stop", { timeout: 30_000 }, () => {
     correct();
 
     const reset = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         resetPhase({
           namespace: NAMESPACE,
           shortName: harness.shortName,
@@ -692,7 +692,7 @@ describe("phax resume at a declared stop", { timeout: 30_000 }, () => {
         ),
       ),
     );
-    expect(Either.isRight(reset)).toBe(true);
+    expect(Result.isSuccess(reset)).toBe(true);
     const turnsBefore = turnsAt(harness, "phase-03").length;
 
     const again = stopError(await resume(harness));
@@ -721,7 +721,7 @@ describe("phax resume at a declared stop", { timeout: 30_000 }, () => {
 
     const paused = await resume(harness);
 
-    expect(Either.isLeft(paused) && paused.left).toBeInstanceOf(CleanupPausedError);
+    expect(Result.isFailure(paused) && paused.failure).toBeInstanceOf(CleanupPausedError);
     expect(phaseStatus(harness, "phase-03")["state"]).toBe("cleaning_up");
     expect(phaseStatus(harness, "phase-03")["claudeSessionId"]).toBeUndefined();
     expect(runState(harness)).toBe("interrupted");
@@ -796,8 +796,8 @@ describe("an interactive phase under the assignment bounds", { timeout: 30_000 }
     );
     const { harness, result } = await startRun(specs, { assignments: EXPORT_BOUND });
 
-    expect(Either.isLeft(result) && result.left).toBeInstanceOf(AssignmentPreflightError);
-    const message = (result as Either.Left<AssignmentPreflightError, unknown>).left.message;
+    expect(Result.isFailure(result) && result.failure).toBeInstanceOf(AssignmentPreflightError);
+    const message = (result as Result.Failure<unknown, AssignmentPreflightError>).failure.message;
     expect(message).toContain("phase-03 (gpt-6-luna/medium)");
     expect(message).toContain("assignments[0]");
     expect(harness.turns).toEqual([]);

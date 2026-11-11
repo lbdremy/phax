@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { composePhaxState } from "../../src/app/phaxState.js";
 import {
@@ -50,15 +50,15 @@ const registryEntry = {
   updatedAt: at,
 };
 
-function message(result: Either.Either<unknown, { readonly message: string }>): string {
-  return Either.isLeft(result) ? result.left.message : "";
+function message(result: Result.Result<unknown, { readonly message: string }>): string {
+  return Result.isFailure(result) ? result.failure.message : "";
 }
 
 describe("phase status readers", () => {
   it("lifts a 0.20.0 status as a headless phase that never stopped", () => {
     const document = { $schema: schemaUrl("phase-status", "0.20.0"), ...fields };
     expect(readPhaseStatusFile("status.json", document)).toEqual(
-      Either.right(phaseStatus({ ...fields, mode: "headless", stop: null })),
+      Result.succeed(phaseStatus({ ...fields, mode: "headless", stop: null })),
     );
   });
 
@@ -68,7 +68,7 @@ describe("phase status readers", () => {
       ...fields,
       state: "awaiting_review",
     };
-    expect(Either.isLeft(readPhaseStatusFile("status.json", document))).toBe(true);
+    expect(Result.isFailure(readPhaseStatusFile("status.json", document))).toBe(true);
   });
 
   it.each([
@@ -126,7 +126,7 @@ describe("phase status readers", () => {
     });
     const read = readPhaseStatusFile("status.json", JSON.parse(JSON.stringify(document)));
     const { $schema: _schema, ...status } = document;
-    expect(read).toEqual(Either.right(status));
+    expect(read).toEqual(Result.succeed(status));
   });
 
   it.each([
@@ -158,7 +158,7 @@ describe("phase status readers", () => {
       ...phaseStatusFile({ ...fields, state: "awaiting_review", mode: "interactive" }),
       stop: { cause: "paused", status: "waiting" },
     };
-    expect(Either.isLeft(readPhaseStatusFile("status.json", document))).toBe(true);
+    expect(Result.isFailure(readPhaseStatusFile("status.json", document))).toBe(true);
   });
 
   it("refuses a closed stop without its outcome", () => {
@@ -166,7 +166,7 @@ describe("phase status readers", () => {
       ...phaseStatusFile({ ...fields, state: "committed", mode: "interactive" }),
       stop: { cause: "declared", status: "closed" },
     };
-    expect(Either.isLeft(readPhaseStatusFile("status.json", document))).toBe(true);
+    expect(Result.isFailure(readPhaseStatusFile("status.json", document))).toBe(true);
   });
 
   it.each([
@@ -256,7 +256,7 @@ describe("phase status readers", () => {
       ...phaseStatusFile({ ...fields, state: "committed", mode: "interactive" }),
       stop,
     };
-    expect(Either.isLeft(readPhaseStatusFile("status.json", document))).toBe(true);
+    expect(Result.isFailure(readPhaseStatusFile("status.json", document))).toBe(true);
   });
 
   it("refuses a current status without mode or stop", () => {
@@ -271,7 +271,7 @@ describe("phase status readers", () => {
     const older = { $schema: schemaUrl("phase-status", "0.17.0"), ...noBase };
     expect(message(readPhaseStatusFile("status.json", older))).toContain("base");
     const preSchema = { version: 1, ...noBase };
-    expect(Either.isLeft(readPhaseStatusFile("status.json", preSchema))).toBe(true);
+    expect(Result.isFailure(readPhaseStatusFile("status.json", preSchema))).toBe(true);
   });
 });
 
@@ -305,7 +305,7 @@ describe("composePhaxState at a stop", () => {
 describe("run status readers", () => {
   it("reads a 0.17.0 run status unchanged", () => {
     const document = { $schema: schemaUrl("run-status", "0.17.0"), ...runStatus };
-    expect(readRunStatusFile("run-status.json", document)).toEqual(Either.right(runStatus));
+    expect(readRunStatusFile("run-status.json", document)).toEqual(Result.succeed(runStatus));
   });
 
   it("refuses a 0.17.0 run status at awaiting_review", () => {
@@ -314,13 +314,13 @@ describe("run status readers", () => {
       ...runStatus,
       state: "awaiting_review",
     };
-    expect(Either.isLeft(readRunStatusFile("run-status.json", document))).toBe(true);
+    expect(Result.isFailure(readRunStatusFile("run-status.json", document))).toBe(true);
   });
 
   it("reads a current run status at awaiting_review", () => {
     const status = { ...runStatus, state: "awaiting_review", stoppedReason: "awaiting_review" };
     const document = { $schema: currentSchemaUrl("run-status"), ...status };
-    expect(readRunStatusFile("run-status.json", document)).toEqual(Either.right(status));
+    expect(readRunStatusFile("run-status.json", document)).toEqual(Result.succeed(status));
   });
 });
 
@@ -328,13 +328,13 @@ describe("registry readers", () => {
   it("reads a 0.17.0 registry unchanged", () => {
     const document = { $schema: schemaUrl("registry", "0.17.0"), runs: [registryEntry] };
     expect(readRegistryFile("registry.json", document)).toEqual(
-      Either.right({ runs: [registryEntry] }),
+      Result.succeed({ runs: [registryEntry] }),
     );
   });
 
   it("reads a current registry with a run awaiting review", () => {
     const runs = [{ ...registryEntry, state: "awaiting_review" }];
     const document = { $schema: currentSchemaUrl("registry"), runs };
-    expect(readRegistryFile("registry.json", document)).toEqual(Either.right({ runs }));
+    expect(readRegistryFile("registry.json", document)).toEqual(Result.succeed({ runs }));
   });
 });

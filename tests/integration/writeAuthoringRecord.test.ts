@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { NodeGitLayer } from "../../src/infra/git.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
@@ -163,9 +163,9 @@ describe("writeAuthoringRecord (real git)", () => {
     expect(Object.keys(written)[0]).toBe("$schema");
     expect(written).not.toHaveProperty("version");
     const decoded = decodeAuthoringRecordManifestFile(written);
-    expect(Either.isRight(decoded)).toBe(true);
-    if (Either.isLeft(decoded)) return;
-    expect(decoded.right).toEqual({
+    expect(Result.isSuccess(decoded)).toBe(true);
+    if (Result.isFailure(decoded)) return;
+    expect(decoded.success).toEqual({
       $schema: currentSchemaUrl("authoring-record-manifest"),
       kind: "authoring",
       authoringId: AUTHORING_ID,
@@ -405,7 +405,7 @@ describe("writeAuthoringRecord (real git)", () => {
       );
 
       const manifest = readManifest() as Record<string, unknown>;
-      expect(Either.isRight(decodeAuthoringRecordManifestFile(manifest))).toBe(true);
+      expect(Result.isSuccess(decodeAuthoringRecordManifestFile(manifest))).toBe(true);
       expect(manifest["usage"]).toEqual({
         available: true,
         usage: {

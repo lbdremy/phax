@@ -4,7 +4,7 @@
 // code. The plan is read through the FileSystem port, its path resolved against the invocation
 // directory.
 import { join, resolve } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import * as Schema from "effect/Schema";
 import { readAgentBinding } from "../../app/agentBinding.js";
 import { landedRunRefusal, prepareAdjustPlanSession } from "../../app/adjustPlan.js";
@@ -48,8 +48,7 @@ export interface AdjustPlanDeps {
 const ADJUST_PLAN_HELP =
   "Opens an interactive, pre-prompted session to help you adjust a plan.md after a landed run has introduced drift. The session establishes which of the plan's declared files, line references, and decisions are invalidated by the landed run's actual changes, asks clarifying questions where needed, proposes concrete edits and waits for your explicit approval, and only then edits and commits the plan — all interactively within the session. The command itself mutates nothing.\n\nInput: the path to the plan.md to adjust and --landed <run> (the run whose actual changes drive the adjustment). The landed run must have a global-file-reconciliation.json (i.e. it must have reached review); a run in awaiting_review is refused until it lands. Re-invocation without --new-session resumes the same session; --new-session starts a fresh one.\n\nSide effects: spawns a long-lived interactive provider session (network I/O); the session may, after developer approval, edit and commit the plan.md.";
 
-const optional = <S extends Schema.Schema.Any>(schema: S) =>
-  Schema.optionalWith(schema, { exact: true });
+const optional = <S extends Schema.Top>(schema: S) => Schema.optionalKey(schema);
 
 export function makeAdjustPlanCommand(deps: AdjustPlanDeps = {}) {
   return defineCommand({
@@ -59,32 +58,32 @@ export function makeAdjustPlanCommand(deps: AdjustPlanDeps = {}) {
     examples: ["phax adjust-plan docs/plans/2609101030-plan-prune-plan.md --landed my-feature"],
     input: {
       args: reject(
-        Schema.Tuple(
-          Schema.String.annotations({
+        Schema.Tuple([
+          Schema.String.annotate({
             identifier: "plan",
             description: "Path to the plan.md to adjust",
           }),
-        ),
+        ]),
       ),
       flags: reject(
         Schema.Struct({
-          landed: Schema.String.annotations({
+          landed: Schema.String.annotate({
             identifier: "run",
             description: "The landed run whose actual changes drive the adjustment",
           }),
           newSession: optional(
-            Schema.Boolean.annotations({
+            Schema.Boolean.annotate({
               description: "Start a fresh adjustment session instead of resuming",
             }),
           ),
           model: optional(
-            Schema.String.annotations({
+            Schema.String.annotate({
               identifier: "model",
               description: "Override the model (default: claude-opus-5-5)",
             }),
           ),
           effort: optional(
-            Schema.String.annotations({
+            Schema.String.annotate({
               identifier: "effort",
               description: "Override the effort (low | medium | high)",
             }),
@@ -100,12 +99,12 @@ export function makeAdjustPlanCommand(deps: AdjustPlanDeps = {}) {
         const planPathArg = input.args[0];
         const flags = input.flags;
         const loaded = loadConfig(process.cwd());
-        if (Either.isLeft(loaded)) {
+        if (Result.isFailure(loaded)) {
           return yield* Effect.fail(
-            new HandoverRefusedError({ message: `Config error: ${loaded.left.message}` }),
+            new HandoverRefusedError({ message: `Config error: ${loaded.failure.message}` }),
           );
         }
-        const config = loaded.right;
+        const config = loaded.success;
         if (flags.effort !== undefined && !isValidEffort(flags.effort)) {
           return yield* Effect.fail(
             new HandoverRefusedError({
@@ -140,9 +139,12 @@ export function makeAdjustPlanCommand(deps: AdjustPlanDeps = {}) {
         const binding = yield* Effect.promise(() =>
           readAgentBinding(join(info.runPath, info.finalPhaseId)),
         );
-        if (Either.isLeft(binding)) {
+        if (Result.isFailure(binding)) {
           return yield* Effect.fail(
-            failedFor(target, `No agent binding found for run "${qualifiedName}": ${binding.left}`),
+            failedFor(
+              target,
+              `No agent binding found for run "${qualifiedName}": ${binding.failure}`,
+            ),
           );
         }
 
@@ -151,7 +153,7 @@ export function makeAdjustPlanCommand(deps: AdjustPlanDeps = {}) {
           planMarkdown,
           runPath: info.runPath,
           runKey: qualifiedName,
-          provider: binding.right.provider,
+          provider: binding.success.provider,
           cwd: process.cwd(),
           extract: {
             model: config.extractPlanModel,

@@ -12,7 +12,7 @@ export function rootsUnder(home: string): ProviderStoreRootsValue {
 }
 
 /** Provide the store roots under a test's own HOME, so a suite reads only its own stores. */
-export function providerStoreRootsUnder(home: string): Layer.Layer<ProviderStoreRoots> {
+export function providerStoreRootsUnder(home: string): Layer.Layer<never> {
   return Layer.succeed(ProviderStoreRoots, rootsUnder(home));
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Either, Schema } from "effect";
+import { Result, Schema } from "effect";
 import { answerJsonSchema } from "../../src/schemas/answerSchemas.js";
 import {
   decodeAuthoredPlanDocument,
@@ -134,25 +134,26 @@ function withPreamble(questions: { openQuestions?: unknown[]; arbitratedQuestion
   return { ...doc, preamble: { ...doc.preamble, ...questions } };
 }
 
-const decodeExtractedStrict = Schema.decodeUnknownEither(ExtractedPhaxPlanSchema, {
+const decodeExtractedStrict = Schema.decodeUnknownResult(ExtractedPhaxPlanSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });
 
 function fileRejection(doc: unknown): string {
   const result = decodePlanDocumentFile(doc);
-  if (Either.isRight(result)) throw new Error("expected the sidecar to be rejected");
-  return formatFirstViolation(result.left);
+  if (Result.isSuccess(result)) throw new Error("expected the sidecar to be rejected");
+  return formatFirstViolation(result.failure);
 }
 
 function rejection(doc: unknown): string {
   const result = decodePlanDocument(doc);
-  if (Either.isRight(result)) throw new Error("expected the document to be rejected");
-  return result.left;
+  if (Result.isSuccess(result)) throw new Error("expected the document to be rejected");
+  return result.failure;
 }
 
 describe("decodeAuthoredPlanDocument", () => {
   it("decodes a full valid plan document", () => {
-    expect(Either.isRight(decodePlanDocument(validPlanDocument()))).toBe(true);
+    expect(Result.isSuccess(decodePlanDocument(validPlanDocument()))).toBe(true);
   });
 
   it("requires kind to be plan", () => {
@@ -186,12 +187,12 @@ describe("decodeAuthoredPlanDocument", () => {
 
   it("accepts both legal lineage pairs: a spec path with a boolean, null with null", () => {
     for (const completesSpec of [true, false]) {
-      expect(Either.isRight(decodePlanDocument({ ...validPlanDocument(), completesSpec }))).toBe(
+      expect(Result.isSuccess(decodePlanDocument({ ...validPlanDocument(), completesSpec }))).toBe(
         true,
       );
     }
     const specLess = { ...validPlanDocument(), sourceSpec: null, completesSpec: null };
-    expect(Either.isRight(decodePlanDocument(specLess))).toBe(true);
+    expect(Result.isSuccess(decodePlanDocument(specLess))).toBe(true);
   });
 
   it("rejects a document without completesSpec", () => {
@@ -223,7 +224,7 @@ describe("decodeAuthoredPlanDocument", () => {
 
   it("accepts an authoring answer with an open question", () => {
     expect(
-      Either.isRight(decodePlanDocument(withPreamble({ openQuestions: [openQuestion()] }))),
+      Result.isSuccess(decodePlanDocument(withPreamble({ openQuestions: [openQuestion()] }))),
     ).toBe(true);
   });
 
@@ -262,22 +263,22 @@ describe("decodePlanDocumentFile", () => {
   it("accepts the legal lineage pairs and refuses the cross pairs and a missing completesSpec", () => {
     const spec = "docs/specs/2609230835-headless-authoring.md";
     expect(
-      Either.isRight(decodePlanDocumentFile(fileDoc({ sourceSpec: spec, completesSpec: false }))),
+      Result.isSuccess(decodePlanDocumentFile(fileDoc({ sourceSpec: spec, completesSpec: false }))),
     ).toBe(true);
     expect(
-      Either.isRight(decodePlanDocumentFile(fileDoc({ sourceSpec: null, completesSpec: null }))),
+      Result.isSuccess(decodePlanDocumentFile(fileDoc({ sourceSpec: null, completesSpec: null }))),
     ).toBe(true);
     expect(
-      Either.isLeft(decodePlanDocumentFile(fileDoc({ sourceSpec: null, completesSpec: false }))),
+      Result.isFailure(decodePlanDocumentFile(fileDoc({ sourceSpec: null, completesSpec: false }))),
     ).toBe(true);
     expect(
-      Either.isLeft(decodePlanDocumentFile(fileDoc({ sourceSpec: spec, completesSpec: null }))),
+      Result.isFailure(decodePlanDocumentFile(fileDoc({ sourceSpec: spec, completesSpec: null }))),
     ).toBe(true);
     const { completesSpec: _dropped, ...missing } = fileDoc({
       sourceSpec: spec,
       completesSpec: true,
     });
-    expect(Either.isLeft(decodePlanDocumentFile(missing))).toBe(true);
+    expect(Result.isFailure(decodePlanDocumentFile(missing))).toBe(true);
   });
 
   function fileWithQuestions(arbitratedQuestions: unknown[]) {
@@ -287,7 +288,7 @@ describe("decodePlanDocumentFile", () => {
 
   it("accepts lifted and decided verdicts naming one of its phases", () => {
     const doc = fileWithQuestions([liftedQuestion(), decidedQuestion("phase-02")]);
-    expect(Either.isRight(decodePlanDocumentFile(doc))).toBe(true);
+    expect(Result.isSuccess(decodePlanDocumentFile(doc))).toBe(true);
   });
 
   it("rejects a decided verdict naming a phase the plan does not have", () => {
@@ -316,11 +317,11 @@ describe("decodePlanDocumentFile", () => {
 
 describe("projectExtractedPlan", () => {
   it("projects to an extracted plan that decodes strictly and carries every extracted field", () => {
-    const doc = Either.getOrThrow(decodePlanDocument(validPlanDocument()));
+    const doc = Result.getOrThrow(decodePlanDocument(validPlanDocument()));
     const projected = projectExtractedPlan(doc);
 
     const strict = decodeExtractedStrict(projected);
-    expect(Either.isRight(strict)).toBe(true);
+    expect(Result.isSuccess(strict)).toBe(true);
     expect(projected).toEqual({
       version: 1,
       run: {
@@ -346,7 +347,7 @@ describe("projectExtractedPlan", () => {
   });
 
   it("projects the test strategy as testLines, directly after acceptance, and [] for a phase with none", () => {
-    const doc = Either.getOrThrow(
+    const doc = Result.getOrThrow(
       decodePlanDocument({
         ...validPlanDocument(),
         phases: [validPhase(1), { ...validPhase(2), testStrategy: [] }],
@@ -360,7 +361,7 @@ describe("projectExtractedPlan", () => {
 
   it("projects mode and acceptance unchanged, directly after optionalFilesToEdit", () => {
     const acceptance = { passedBy: "phase-02", files: ["tests/a.test.ts"] };
-    const doc = Either.getOrThrow(
+    const doc = Result.getOrThrow(
       decodePlanDocument({
         ...validPlanDocument(),
         phases: [{ ...validPhase(1), mode: "interactive", acceptance }, validPhase(2)],
@@ -379,8 +380,8 @@ describe("projectExtractedPlan", () => {
   });
 
   it("never carries a question into the projection", () => {
-    const plain = Either.getOrThrow(decodePlanDocument(validPlanDocument()));
-    const questioned = Either.getOrThrow(
+    const plain = Result.getOrThrow(decodePlanDocument(validPlanDocument()));
+    const questioned = Result.getOrThrow(
       decodePlanDocument(withPreamble({ openQuestions: [openQuestion()] })),
     );
     expect(projectExtractedPlan(questioned)).toEqual(projectExtractedPlan(plain));
@@ -479,9 +480,9 @@ describe("a phase's assignmentReason", () => {
       { ...validPhase(1), acceptance: { passedBy: "phase-03" } },
       { ...validPhase(1), acceptance: { dischargedBy: "phase-03", files: [] } },
     ]) {
-      expect(Either.isLeft(decodePlanDocument({ ...validPlanDocument(), phases: [phase] }))).toBe(
-        true,
-      );
+      expect(
+        Result.isFailure(decodePlanDocument({ ...validPlanDocument(), phases: [phase] })),
+      ).toBe(true);
     }
   });
 
@@ -491,8 +492,8 @@ describe("a phase's assignmentReason", () => {
       ...validPlanDocument(),
       phases: [{ ...rest, oracle: acceptance }],
     });
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) expect(String(result.left)).toContain("oracle");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) expect(String(result.failure)).toContain("oracle");
   });
 
   it("admits a reason and null, in the authoring answer and the sidecar", () => {
@@ -500,28 +501,28 @@ describe("a phase's assignmentReason", () => {
       ...validPlanDocument(),
       phases: [{ ...validPhase(1), assignmentReason: "Designs a state machine." }],
     };
-    expect(Either.isRight(decodePlanDocument(reasoned))).toBe(true);
-    expect(Either.isRight(decodePlanDocument(validPlanDocument()))).toBe(true);
-    expect(Either.isRight(decodePlanDocumentFile(reasoned))).toBe(true);
+    expect(Result.isSuccess(decodePlanDocument(reasoned))).toBe(true);
+    expect(Result.isSuccess(decodePlanDocument(validPlanDocument()))).toBe(true);
+    expect(Result.isSuccess(decodePlanDocumentFile(reasoned))).toBe(true);
   });
 
   it("refuses the old key modelReason as an unknown key, with no alias", () => {
     const { assignmentReason: _reason, ...rest } = validPhase(1);
     const old = { ...validPlanDocument(), phases: [{ ...rest, modelReason: null }] };
-    expect(Either.isLeft(decodePlanDocument(old))).toBe(true);
+    expect(Result.isFailure(decodePlanDocument(old))).toBe(true);
     const sidecar = {
       ...validPlanDocument(),
       phases: [{ ...validPhase(1), modelReason: null }],
     };
-    expect(Either.isLeft(decodePlanDocumentFile(sidecar))).toBe(true);
+    expect(Result.isFailure(decodePlanDocumentFile(sidecar))).toBe(true);
   });
 
   it("is required, and an empty string is not a reason", () => {
     const { assignmentReason: _reason, ...withoutReason } = validPhase(1);
     const missing = { ...validPlanDocument(), phases: [withoutReason] };
-    expect(Either.isLeft(decodePlanDocument(missing))).toBe(true);
+    expect(Result.isFailure(decodePlanDocument(missing))).toBe(true);
     const empty = { ...validPlanDocument(), phases: [{ ...validPhase(1), assignmentReason: "" }] };
-    expect(Either.isLeft(decodePlanDocument(empty))).toBe(true);
+    expect(Result.isFailure(decodePlanDocument(empty))).toBe(true);
   });
 
   it("never reaches the projection", () => {
@@ -529,7 +530,7 @@ describe("a phase's assignmentReason", () => {
       ...validPlanDocument(),
       phases: [{ ...validPhase(1), assignmentReason: "Designs a state machine." }],
     };
-    const projected = projectExtractedPlan(Either.getOrThrow(decodePlanDocument(reasoned)));
+    const projected = projectExtractedPlan(Result.getOrThrow(decodePlanDocument(reasoned)));
     expect(JSON.stringify(projected)).not.toContain("assignmentReason");
   });
 });
@@ -537,8 +538,8 @@ describe("a phase's assignmentReason", () => {
 // The refusal of a plan document, as `formatPlanDocumentViolation` names it.
 function refusal(doc: unknown): string {
   const result = decodePlanDocument(doc);
-  if (Either.isRight(result)) throw new Error("expected the document to be refused");
-  return result.left;
+  if (Result.isSuccess(result)) throw new Error("expected the document to be refused");
+  return result.failure;
 }
 
 describe("a phase's test lines", () => {
@@ -568,7 +569,7 @@ describe("a phase's test lines", () => {
       ...TECHNIQUES.map((technique) => testLine(`by ${technique}`, { technique })),
       ...LOOPS.map((loop) => testLine(`looped ${loop}`, { loop, criterion: "ac-one" })),
     ];
-    expect(Either.isRight(decodePlanDocument(withPhase02Lines(lines)))).toBe(true);
+    expect(Result.isSuccess(decodePlanDocument(withPhase02Lines(lines)))).toBe(true);
     const unit = lines.map((line, i) => (i === 4 ? { ...line, size: "unit" } : line));
     expect(refusal(withPhase02Lines(unit))).toMatch(/^phase-02 test line 5 size: /);
   });
@@ -614,8 +615,8 @@ describe("a phase's test lines", () => {
 
   it("names the phase by its index when the input holds no string id there", () => {
     const result = decodePlanDocumentFile(withPhase02Lines([testLine("x", { size: "unit" })]));
-    if (Either.isRight(result)) throw new Error("expected the document to be refused");
-    expect(formatPlanDocumentViolation({ phases: [{}, {}] }, result.left)).toMatch(
+    if (Result.isSuccess(result)) throw new Error("expected the document to be refused");
+    expect(formatPlanDocumentViolation({ phases: [{}, {}] }, result.failure)).toMatch(
       /^phases\[1\] test line 1 size: /,
     );
   });
@@ -626,7 +627,7 @@ describe("a phase's test lines", () => {
   });
 
   it("accepts [] as a phase that tests nothing", () => {
-    expect(Either.isRight(decodePlanDocument(withPhase02Lines([])))).toBe(true);
+    expect(Result.isSuccess(decodePlanDocument(withPhase02Lines([])))).toBe(true);
   });
 
   describe("in the exported JSON Schema", () => {

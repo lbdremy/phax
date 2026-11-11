@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { decodePhaseId, decodeRunId, decodeWorktreePath } from "../../src/domain/branded.js";
 import { RateLimitError } from "../../src/domain/errors.js";
@@ -8,9 +8,9 @@ import type { PhaxState } from "../../src/domain/state.js";
 import type { LastClose } from "../../src/schemas/reviewStop.js";
 import { reviewStop } from "../helpers/phaseStatusFixture.js";
 
-function unwrap<T>(e: Either.Either<T, unknown>): T {
-  if (Either.isLeft(e)) throw new Error("decode failed");
-  return e.right;
+function unwrap<T>(e: Result.Result<T, unknown>): T {
+  if (Result.isFailure(e)) throw new Error("decode failed");
+  return e.success;
 }
 
 const run = unwrap(decodeRunId("invoice-export"));

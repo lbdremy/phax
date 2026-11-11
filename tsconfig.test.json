@@ -10,8 +10,6 @@
     "tests/**/*",
     "packages/schemas/**/*",
     "site/**/*",
-    "scripts/effect4-corpus-capture.ts",
-    "scripts/effect4-codemod/**/*.ts",
     "scripts/release-notes.ts",
     "scripts/rerender-spec.ts",
     "scripts/schemas-smoke.ts"
@@ -21,7 +19,6 @@
     "dist",
     "packages/schemas/dist",
     "tests/e2e/fixtures",
-    "tests/unit/effect4Codemod/__fixtures__",
     "site/generated",
     "site/doc_build"
   ]

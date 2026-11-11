@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 import { decodeRunId } from "../../../src/domain/branded.js";
 import {
@@ -11,7 +11,7 @@ import { makeSystemTelemetryLayer } from "../../../src/infra/telemetry/layer.js"
 import { SystemTelemetry } from "../../../src/ports/systemTelemetry.js";
 import type { OutputPort } from "../../../src/ports/output.js";
 
-const runId = Either.getOrThrow(decodeRunId("factory-test-001"));
+const runId = Result.getOrThrow(decodeRunId("factory-test-001"));
 
 const makeTestOutput = (): { out: OutputPort; lines: string[]; errors: string[] } => {
   const lines: string[] = [];

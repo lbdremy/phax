@@ -7,7 +7,7 @@
 // with exit 1 (7 for a held run lock), its `Target:` line first on stdout as it was printed before
 // the work began; a failure of the hand-over itself comes after the `Target:` line was said.
 import { join } from "node:path";
-import { Data, Effect, Either, Layer } from "effect";
+import { Data, Effect, Result, Layer } from "effect";
 import * as Schema from "effect/Schema";
 import { readAgentBinding } from "../../app/agentBinding.js";
 import { enterPhase } from "../../app/enterPhase.js";
@@ -128,13 +128,13 @@ export function resolveTarget(ref: string, config?: ResolvedConfig | undefined) 
   return Effect.suspend(() => {
     const loaded = config === undefined ? loadConfig(process.cwd()) : undefined;
     const project =
-      loaded === undefined ? config : Either.isRight(loaded) ? loaded.right : undefined;
+      loaded === undefined ? config : Result.isSuccess(loaded) ? loaded.success : undefined;
     const stateRoot = effectiveStateRoot(project);
     const resolved = resolveRunRef(ref, project, stateRoot);
-    if (Either.isLeft(resolved)) {
-      return Effect.fail(new HandoverRefusedError({ message: resolved.left.message }));
+    if (Result.isFailure(resolved)) {
+      return Effect.fail(new HandoverRefusedError({ message: resolved.failure.message }));
     }
-    const { namespace, shortName, info, crossProject } = resolved.right;
+    const { namespace, shortName, info, crossProject } = resolved.success;
     const target: ResolvedTarget = {
       config: project,
       stateRoot,
@@ -203,7 +203,7 @@ export function makeEnterCommand(deps: EnterDeps = {}) {
     summary: "Resume the final phase's agent session interactively",
     help: ENTER_HELP,
     examples: ["phax enter usage-cli"],
-    input: { args: reject(Schema.Tuple(ShortNameArg)) },
+    input: { args: reject(Schema.Tuple([ShortNameArg])) },
     output: reject(HandedOver),
     // The session is a person's terminal.
     prompts: () => true,
@@ -215,13 +215,16 @@ export function makeEnterCommand(deps: EnterDeps = {}) {
         const binding = yield* Effect.promise(() =>
           readAgentBinding(join(info.runPath, info.finalPhaseId)),
         );
-        if (Either.isLeft(binding)) {
+        if (Result.isFailure(binding)) {
           return yield* Effect.fail(
-            failedFor(target, `No agent binding found for run "${qualifiedName}": ${binding.left}`),
+            failedFor(
+              target,
+              `No agent binding found for run "${qualifiedName}": ${binding.failure}`,
+            ),
           );
         }
-        const invocation = getSessionAdapter(binding.right.provider).buildResumeInvocation(
-          binding.right,
+        const invocation = getSessionAdapter(binding.success.provider).buildResumeInvocation(
+          binding.success,
         );
         if ("unsupported" in invocation) {
           return yield* Effect.fail(failedFor(target, invocation.unsupported));
@@ -275,22 +278,21 @@ export function makeEnterPhaseCommand(deps: EnterPhaseDeps = {}) {
     ],
     input: {
       args: reject(
-        Schema.Tuple(
+        Schema.Tuple([
           ShortNameArg,
-          Schema.String.annotations({
+          Schema.String.annotate({
             identifier: "phase-id",
             description: "Phase identifier, e.g. phase-02",
           }),
-        ),
+        ]),
       ),
       flags: reject(
         Schema.Struct({
-          newSession: Schema.optionalWith(
-            Schema.Boolean.annotations({
+          newSession: Schema.optionalKey(
+            Schema.Boolean.annotate({
               description:
                 "At a stopped phase, run a new read-only first turn and continue its session",
             }),
-            { exact: true },
           ),
         }),
       ),
@@ -389,7 +391,7 @@ export function makeShellCommand(deps: EnterDeps = {}) {
     summary: "Open a shell in the final worktree",
     help: SHELL_HELP,
     examples: ["phax shell usage-cli"],
-    input: { args: reject(Schema.Tuple(ShortNameArg)) },
+    input: { args: reject(Schema.Tuple([ShortNameArg])) },
     output: reject(HandedOver),
     prompts: () => true,
     unprompted: "phax path <run> --json names the worktree",
@@ -442,7 +444,7 @@ export function makeOpenCommand(deps: OpenDeps = {}) {
     summary: "Open the final worktree in the configured editor",
     help: OPEN_HELP,
     examples: ["phax open usage-cli"],
-    input: { args: reject(Schema.Tuple(ShortNameArg)) },
+    input: { args: reject(Schema.Tuple([ShortNameArg])) },
     output: reject(OpenOutput),
     // The configured editor may be a terminal one.
     prompts: () => true,

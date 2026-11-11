@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { enterPhase, planEnterPhase } from "../../src/app/enterPhase.js";
 import { writeAgentBinding } from "../../src/app/agentBinding.js";
@@ -61,7 +61,7 @@ beforeEach(async () => {
   fakeSession = makeFakeSession();
   session.current = fakeSession as unknown as { layer: unknown };
   const { loadConfig } = await import("../../src/app/loadConfig.js");
-  vi.mocked(loadConfig).mockReturnValue(Either.right(resolvedConfig(world)));
+  vi.mocked(loadConfig).mockReturnValue(Result.succeed(resolvedConfig(world)));
 });
 
 afterEach(() => {
@@ -284,7 +284,7 @@ describe("planEnterPhase and a closed interactive phase", () => {
         closedBy: { name: "Ada Example", email: "ada@example.com" },
       },
     });
-    const info = Either.getOrThrow(
+    const info = Result.getOrThrow(
       resolveRun(NAMESPACE, run.shortName as ShortName, world.stateRoot),
     );
 
@@ -324,7 +324,7 @@ function layers(
 
 describe("phax enter-phase --new-session", () => {
   function request(run: StoppedRun) {
-    const info = Either.getOrThrow(
+    const info = Result.getOrThrow(
       resolveRun(NAMESPACE, run.shortName as ShortName, world.stateRoot),
     );
     return {
@@ -401,13 +401,13 @@ describe("phax enter-phase --new-session", () => {
     const backend = answering(SESSION_X2);
 
     const outcome = await Effect.runPromise(
-      Effect.either(enterPhase(request(run)).pipe(Effect.provide(layers(backend, lock.layer)))),
+      Effect.result(enterPhase(request(run)).pipe(Effect.provide(layers(backend, lock.layer)))),
     );
 
-    expect(Either.isLeft(outcome)).toBe(true);
-    if (Either.isRight(outcome)) return;
-    expect(outcome.left).toMatchObject({ _tag: "LockConflictError" });
-    expect(exitCodeForError(outcome.left)).toBe(7);
+    expect(Result.isFailure(outcome)).toBe(true);
+    if (Result.isSuccess(outcome)) return;
+    expect(outcome.failure).toMatchObject({ _tag: "LockConflictError" });
+    expect(exitCodeForError(outcome.failure)).toBe(7);
     expect(backend.impl.runCalls).toHaveLength(0);
   });
 
@@ -421,7 +421,7 @@ describe("phax enter-phase --new-session", () => {
       acquire: (k: string) =>
         Effect.sync(() =>
           patchJson(join(run.runPath, "run-status.json"), { state: "running" }),
-        ).pipe(Effect.zipRight(fake.impl.acquire(k))),
+        ).pipe(Effect.andThen(fake.impl.acquire(k))),
       release: (k: string) => fake.impl.release(k),
       renew: (k: string) => fake.impl.renew(k),
       status: (k: string) => fake.impl.status(k),

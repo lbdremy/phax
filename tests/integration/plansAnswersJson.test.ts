@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Either } from "effect";
+import { Result } from "effect";
 import { decodePlanLintFile } from "../../src/schemas/planLint.js";
 import { decodePlanOverviewFile } from "../../src/schemas/planOverview.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
@@ -105,7 +105,7 @@ describe("phax plans overview --json", () => {
     expect(result.stdout.startsWith("{\n")).toBe(true);
     const stamp = `  "$schema": "${schemaUrl("plan-overview", "0.34.0")}",\n`;
     expect(result.stdout.slice(2)).toBe(stamp + PLANS_OVERVIEW_JSON_BEFORE.slice(2));
-    expect(Either.isRight(decodePlanOverviewFile(JSON.parse(result.stdout)))).toBe(true);
+    expect(Result.isSuccess(decodePlanOverviewFile(JSON.parse(result.stdout)))).toBe(true);
   });
 });
 
@@ -121,7 +121,7 @@ describe("phax plans lint", () => {
     const document = JSON.parse(json.stdout) as Record<string, unknown>;
     expect(Object.keys(document)[0]).toBe("$schema");
     expect(document["$schema"]).toBe(schemaUrl("plan-lint", "0.34.0"));
-    expect(Either.isRight(decodePlanLintFile(document))).toBe(true);
+    expect(Result.isSuccess(decodePlanLintFile(document))).toBe(true);
     const stamp = `  "$schema": "${schemaUrl("plan-lint", "0.34.0")}",\n`;
     expect(json.stdout.slice(2)).toBe(stamp + PLANS_LINT_JSON_BEFORE.slice(2));
   });

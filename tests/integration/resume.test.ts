@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { existsSync, readFileSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -55,7 +55,7 @@ vi.mock("node:os", async (importOriginal) =>
 vi.mock("../../src/app/loadTelemetryConfig.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../src/app/loadTelemetryConfig.js")>();
   const effect = await import("effect");
-  return { ...actual, loadTelemetryConfig: vi.fn(() => effect.Either.right({ enabled: false })) };
+  return { ...actual, loadTelemetryConfig: vi.fn(() => effect.Result.succeed({ enabled: false })) };
 });
 
 let home: ReturnType<typeof isolatePhaxHome>;
@@ -77,7 +77,7 @@ const HANDOFF_CONTENT = [
   "Ready to proceed.",
 ].join("\n");
 
-const shortName = Either.getOrThrow(decodeShortName("my-run"));
+const shortName = Result.getOrThrow(decodeShortName("my-run"));
 
 const rawPlan = {
   version: 1,
@@ -125,7 +125,7 @@ describe("executePlan — resume from startIndex: 1", () => {
   });
 
   it("continues from phase-02 and drives the run to review_open", async () => {
-    const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
 
     const config: ResolvedConfig = {
       raw: {
@@ -290,7 +290,7 @@ describe("executePlan — resume from startIndex: 1", () => {
     );
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -308,7 +308,7 @@ describe("executePlan — resume from startIndex: 1", () => {
       ),
     );
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
 
     const phase02Status = JSON.parse(
       await readFile(join(runPath, "phase-02", "status.json"), "utf8"),
@@ -329,7 +329,7 @@ describe("executePlan — resume from startIndex: 1", () => {
   });
 
   it("does not call prepareRunBranch when startIndex > 0", async () => {
-    const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
 
     const config: ResolvedConfig = {
       raw: {
@@ -492,7 +492,7 @@ describe("executePlan — resume from startIndex: 1", () => {
     );
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -514,7 +514,7 @@ describe("executePlan — resume from startIndex: 1", () => {
     const isCleanCalls = fakeGit.impl.calls.filter((c) => c.method === "isClean");
     expect(isCleanCalls).toHaveLength(0);
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
   });
 });
 
@@ -571,7 +571,7 @@ describe.each(OLDER_PLAN_SHAPES)(
      * or stamped 0.26.0 with no phase carrying testLines.
      */
     async function pauseWithOlderPlan(r: PreflightRepo): Promise<string> {
-      const config = Either.getOrThrow(loadConfig(r.repo));
+      const config = Result.getOrThrow(loadConfig(r.repo));
       const planMdPath = join(r.repo, "plan.md");
       const { plan } = await Effect.runPromise(
         loadOrExtractPlan({
@@ -582,7 +582,7 @@ describe.each(OLDER_PLAN_SHAPES)(
           nowIso: new Date().toISOString(),
         }).pipe(Effect.provide(Layer.merge(NodeFileSystemLayer, makeFakeBackend().layer))),
       );
-      const runShortName = Either.getOrThrow(decodeShortName(plan.run.shortName));
+      const runShortName = Result.getOrThrow(decodeShortName(plan.run.shortName));
       const { runPath } = await Effect.runPromise(
         createRunFolder(
           runShortName,

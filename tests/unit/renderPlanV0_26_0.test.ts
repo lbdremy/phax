@@ -2,7 +2,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { Either } from "effect";
+import { Result } from "effect";
 import { decideDocumentMigration } from "../../src/domain/artifact/documentMigration.js";
 import { artifactBody } from "../../src/domain/artifact/sidecar.js";
 import { renderPlanBodyV0_26_0 } from "../../src/domain/authoring/renderPlanV0_26_0.js";
@@ -31,8 +31,8 @@ function archived(name: string): { readonly md: string; readonly sidecarText: st
 
 function frozenValue(sidecarText: string): PlanDocumentV0_26_0Value {
   const decoded = decodePlanDocumentV0_26_0(JSON.parse(sidecarText));
-  if (Either.isLeft(decoded)) throw new Error(decoded.left.message);
-  const { $schema: _schema, ...value } = decoded.right;
+  if (Result.isFailure(decoded)) throw new Error(decoded.failure.message);
+  const { $schema: _schema, ...value } = decoded.success;
   return value;
 }
 

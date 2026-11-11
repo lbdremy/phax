@@ -6,7 +6,7 @@ import { Data, Effect } from "effect";
 import * as Schema from "effect/Schema";
 import { defineCommand, reject, strip } from "../../../../src/cli/commandLibrary/contract/index.js";
 
-export const RenameTodoArgs = Schema.Tuple(Schema.String);
+export const RenameTodoArgs = Schema.Tuple([Schema.String]);
 export const RenameTodoFlags = Schema.Struct({
   to: Schema.String,
   dryRun: Schema.optional(Schema.Boolean),

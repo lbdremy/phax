@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { decideCommitMessage } from "../../../src/app/decideArtifact.js";
 import type { SidecarDocument } from "../../../src/domain/artifact/sidecar.js";
@@ -116,8 +116,8 @@ function doctrine(): Doctrine {
     },
     file: { path: "docs/doctrine.md", text: "- `X1` Prefer the cheaper option.\n" },
   });
-  if (Either.isLeft(assembled)) throw new Error(assembled.left);
-  return assembled.right;
+  if (Result.isFailure(assembled)) throw new Error(assembled.failure);
+  return assembled.success;
 }
 
 // A hand-authored spec: no sidecar, its questions in its §9 sections.
@@ -697,7 +697,7 @@ describe("interactive decide, as shipped", () => {
 
   it("defaults the model to claude-opus-5-5 / high from the catalog", () => {
     expect(resolveDecideModel(undefined, undefined)).toEqual(
-      Either.right({
+      Result.succeed({
         model: "claude-opus-5-5",
         effort: "high",
         modelSource: "catalog default",
@@ -708,10 +708,10 @@ describe("interactive decide, as shipped", () => {
 
   it("refuses a model outside Claude Code, naming Claude Code", () => {
     const refused = resolveDecideModel("gpt-6-luna", undefined);
-    expect(Either.isLeft(refused)).toBe(true);
-    if (Either.isLeft(refused)) {
-      expect(refused.left).toContain("gpt-6-luna");
-      expect(refused.left).toContain("Claude Code");
+    expect(Result.isFailure(refused)).toBe(true);
+    if (Result.isFailure(refused)) {
+      expect(refused.failure).toContain("gpt-6-luna");
+      expect(refused.failure).toContain("Claude Code");
     }
   });
 

@@ -14,7 +14,7 @@ export const PhaseFileReconciliationSchema = Schema.Struct({
   optionalTouched: Schema.Array(Schema.String),
   deletions: Schema.Array(Schema.String),
   renames: Schema.Array(Schema.Struct({ from: Schema.String, to: Schema.String })),
-  reviewCorrections: Schema.Array(Schema.String).annotations({
+  reviewCorrections: Schema.Array(Schema.String).annotate({
     description: "Paths a person changed at an interactive stop: never a deviation.",
   }),
   hasDeviations: Schema.Boolean,
@@ -35,8 +35,9 @@ export type PhaseFileReconciliationFile = Schema.Schema.Type<
   typeof PhaseFileReconciliationFileSchema
 >;
 
-export const decodePhaseFileReconciliationFile = Schema.decodeUnknownEither(
+export const decodePhaseFileReconciliationFile = Schema.decodeUnknownResult(
   PhaseFileReconciliationFileSchema,
+  { reportInput: true },
 );
 export const encodePhaseFileReconciliationFile = Schema.encodeSync(
   PhaseFileReconciliationFileSchema,

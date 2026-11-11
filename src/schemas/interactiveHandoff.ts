@@ -8,20 +8,20 @@ import { Schema } from "effect";
 import { answerSchemaUrlField } from "./answerStamp.js";
 import { NonEmptyString } from "./strictString.js";
 
-const GuardSchema = Schema.Union(
+const GuardSchema = Schema.Union([
   Schema.Struct({
-    kind: Schema.Literal("test", "lint", "gate-step").annotations({
+    kind: Schema.Literals(["test", "lint", "gate-step"]).annotate({
       description: "What now guards the correction.",
     }),
-    ref: NonEmptyString.annotations({
+    ref: NonEmptyString.annotate({
       description: "The test, lint rule or gate step that guards it.",
     }),
   }),
   Schema.Struct({
     kind: Schema.Literal("none"),
-    reason: NonEmptyString.annotations({ description: "Why nothing guards it." }),
+    reason: NonEmptyString.annotate({ description: "Why nothing guards it." }),
   }),
-);
+]);
 
 /**
  * An `interactive-handoff` document: the corrections a person made at a stop,
@@ -32,7 +32,7 @@ export const InteractiveHandoffFileSchema = Schema.Struct({
   $schema: answerSchemaUrlField("interactive-handoff"),
   corrections: Schema.NonEmptyArray(
     Schema.Struct({
-      what: NonEmptyString.annotations({ description: "What was corrected." }),
+      what: NonEmptyString.annotate({ description: "What was corrected." }),
       guard: GuardSchema,
     }),
   ),
@@ -45,9 +45,9 @@ export type InteractiveHandoffFile = Schema.Schema.Type<typeof InteractiveHandof
 /** An interactive handoff, without `$schema`. */
 export type InteractiveHandoff = Omit<InteractiveHandoffFile, "$schema">;
 
-export const decodeInteractiveHandoffFile = Schema.decodeUnknownEither(
+export const decodeInteractiveHandoffFile = Schema.decodeUnknownResult(
   InteractiveHandoffFileSchema,
-  { onExcessProperty: "error" },
+  { onExcessProperty: "error", reportInput: true },
 );
 
 export const encodeInteractiveHandoffFile = Schema.encodeSync(InteractiveHandoffFileSchema);

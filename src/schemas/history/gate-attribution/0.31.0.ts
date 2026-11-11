@@ -7,11 +7,21 @@
 // lists it as the format's 0.31.0 release.
 import { Schema } from "effect";
 
-const SchemaUrlSchema = Schema.String.pipe(
-  Schema.pattern(
+// `Schema.isPattern` whose JSON Schema is the RegExp's source, whatever its
+// flags: Effect 4 exports a pattern only for a RegExp with the `u` flag.
+function isExportedPattern(regExp: RegExp, annotations?: Schema.Annotations.Filter) {
+  return Schema.isPattern(regExp, {
+    toJsonSchema: () => ({ pattern: regExp.source }),
+    ...annotations,
+  });
+}
+
+const SchemaUrlSchema = Schema.String.check(
+  isExportedPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/gate-attribution\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
-  Schema.annotations({
+).pipe(
+  Schema.annotate({
     description:
       "The gate-attribution format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): https://docs.phax.run/schemas/gate-attribution/<X.Y.Z>.json",
   }),
@@ -19,26 +29,26 @@ const SchemaUrlSchema = Schema.String.pipe(
 
 const ConfiguredStepResultSchema = Schema.Struct({
   command: Schema.NonEmptyString,
-  surface: Schema.Literal("local", "structural", "product"),
-  result: Schema.Literal("pass", "fail", "refused"),
+  surface: Schema.Literals(["local", "structural", "product"]),
+  result: Schema.Literals(["pass", "fail", "refused"]),
 });
 
 const OracleStepResultSchema = Schema.Struct({
   command: Schema.NonEmptyString,
   surface: Schema.Literal("oracle"),
-  result: Schema.Literal("pass", "fail", "refused", "skipped"),
+  result: Schema.Literals(["pass", "fail", "refused", "skipped"]),
 });
 
-const GateStepResultSchema = Schema.Union(ConfiguredStepResultSchema, OracleStepResultSchema);
+const GateStepResultSchema = Schema.Union([ConfiguredStepResultSchema, OracleStepResultSchema]);
 
-const ProtectedChangeKindSchema = Schema.Literal(
+const ProtectedChangeKindSchema = Schema.Literals([
   "created",
   "edited",
   "deleted",
   "renamed",
   "symlink",
   "nested-repository",
-);
+]);
 
 const ProtectedChangeSchema = Schema.Struct({
   path: Schema.NonEmptyString,
@@ -47,13 +57,13 @@ const ProtectedChangeSchema = Schema.Struct({
 });
 
 const ProtectedPathsResultSchema = Schema.NullOr(
-  Schema.Union(
-    Schema.Struct({ result: Schema.Literal("pass"), changes: Schema.Tuple() }),
+  Schema.Union([
+    Schema.Struct({ result: Schema.Literal("pass"), changes: Schema.Tuple([]) }),
     Schema.Struct({
       result: Schema.Literal("fail"),
       changes: Schema.NonEmptyArray(ProtectedChangeSchema),
     }),
-  ),
+  ]),
 );
 
 export const GateAttributionV0_31_0Schema = Schema.Struct({
@@ -65,6 +75,7 @@ export const GateAttributionV0_31_0Schema = Schema.Struct({
 
 export type GateAttributionV0_31_0 = Schema.Schema.Type<typeof GateAttributionV0_31_0Schema>;
 
-export const decodeGateAttributionV0_31_0 = Schema.decodeUnknownEither(
+export const decodeGateAttributionV0_31_0 = Schema.decodeUnknownResult(
   GateAttributionV0_31_0Schema,
+  { reportInput: true },
 );

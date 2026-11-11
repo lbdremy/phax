@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { authorArtifact, type AuthorArtifactInput } from "../../src/app/authorArtifact.js";
 import { closeStop } from "../../src/app/closeStop.js";
@@ -168,7 +168,7 @@ describe("a headless authoring session that ends with exhausted structured-outpu
       output: { warn: () => undefined },
     };
     return Effect.runPromise(
-      Effect.either(
+      Effect.result(
         authorArtifact(input).pipe(
           Effect.provide(
             Layer.mergeAll(
@@ -192,8 +192,8 @@ describe("a headless authoring session that ends with exhausted structured-outpu
 
     const result = await author();
 
-    if (Either.isRight(result)) throw new Error("authoring did not fail");
-    const error = result.left;
+    if (Result.isSuccess(result)) throw new Error("authoring did not fail");
+    const error = result.failure;
     expect(error).toBeInstanceOf(AgentSessionFailedError);
     expect(exitCodeForAuthoringError(error)).toBe(5);
     const [line] = renderSessionFailure(error as AgentSessionFailedError, null);
@@ -286,7 +286,7 @@ describe("a resumed closing turn", () => {
   beforeEach(async () => {
     world = createWorld();
     const { loadConfig } = await import("../../src/app/loadConfig.js");
-    vi.mocked(loadConfig).mockReturnValue(Either.right(resolvedConfig(world)));
+    vi.mocked(loadConfig).mockReturnValue(Result.succeed(resolvedConfig(world)));
   });
 
   afterEach(() => {
@@ -320,7 +320,7 @@ describe("a resumed closing turn", () => {
           phaseId: "phase-03",
         },
       );
-      return yield* Effect.either(
+      return yield* Effect.result(
         closeStop({
           runId: run.runId as RunId,
           shortName: run.shortName,
@@ -362,9 +362,9 @@ describe("a resumed closing turn", () => {
 
     const result = await close(run, backend);
 
-    if (Either.isRight(result)) throw new Error("the close was not refused");
-    expect(result.left).toBeInstanceOf(StopCloseRefusedError);
-    const error = result.left as StopCloseRefusedError;
+    if (Result.isSuccess(result)) throw new Error("the close was not refused");
+    expect(result.failure).toBeInstanceOf(StopCloseRefusedError);
+    const error = result.failure as StopCloseRefusedError;
     expect(exitCodeForError(error)).toBe(5);
     expect(error.lastClose).toMatchObject({
       result: "close-error",
@@ -404,6 +404,6 @@ describe("a resumed closing turn", () => {
     expect(backend.runCalls[0]?.options.outputJsonlPath).toBe(
       join(run.phaseFolder, "closing-turn-02.jsonl"),
     );
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
   });
 });

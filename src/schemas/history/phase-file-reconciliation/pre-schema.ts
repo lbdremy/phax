@@ -25,6 +25,7 @@ export type PhaseFileReconciliationPreSchema = Schema.Schema.Type<
   typeof PhaseFileReconciliationPreSchemaSchema
 >;
 
-export const decodePhaseFileReconciliationPreSchema = Schema.decodeUnknownEither(
+export const decodePhaseFileReconciliationPreSchema = Schema.decodeUnknownResult(
   PhaseFileReconciliationPreSchemaSchema,
+  { reportInput: true },
 );

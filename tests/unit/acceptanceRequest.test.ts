@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   acceptanceRequestPathFor,
@@ -94,7 +94,7 @@ describe("makeAcceptanceRequest", () => {
         acceptanceCommit: commit,
       });
       expect(
-        Either.isRight(decodeAcceptanceRequestFile(withSchemaUrl("acceptance-request", request))),
+        Result.isSuccess(decodeAcceptanceRequestFile(withSchemaUrl("acceptance-request", request))),
       ).toBe(true);
     }
   });
@@ -116,7 +116,7 @@ describe("makeReviewAcceptanceRequest", () => {
     expect(between).toEqual({ ...request, phase: "phase-07" });
     expect(Object.keys(between)).toEqual(["verdict", "phase", "acceptancePhase", "base", "files"]);
     expect(
-      Either.isRight(decodeAcceptanceRequestFile(withSchemaUrl("acceptance-request", between))),
+      Result.isSuccess(decodeAcceptanceRequestFile(withSchemaUrl("acceptance-request", between))),
     ).toBe(true);
   });
 });

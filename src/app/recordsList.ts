@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { Git, type GitError } from "../ports/git.js";
 import { Shell, type ShellError } from "../ports/shell.js";
 import { ORIGIN } from "./recordsSync.js";
@@ -128,8 +128,8 @@ export function listRecords(
         continue;
       }
       const decoded = readRecordManifestFile(`${sha}:${manifestEntry.path}`, json);
-      if (Either.isLeft(decoded)) continue;
-      const manifest = decoded.right;
+      if (Result.isFailure(decoded)) continue;
+      const manifest = decoded.success;
       if (isAuthoringRecordManifest(manifest)) {
         records.push({
           kind: "authoring",

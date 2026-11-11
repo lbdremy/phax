@@ -6,7 +6,7 @@
 // Run with: pnpm exec tsx scripts/rerender-spec.ts docs/specs/<name>.md [--check]
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { Either } from "effect";
+import { Result } from "effect";
 import { readDocumentSidecar } from "../src/schemas/persisted.js";
 import { renderSpecBody } from "../src/domain/authoring/renderSpec.js";
 import { splitFrontmatter } from "../src/domain/artifact/frontmatter.js";
@@ -23,17 +23,17 @@ export function rerenderSpec(
   md: string,
   sidecarPath: string,
   sidecar: unknown,
-): Either.Either<string, string> {
+): Result.Result<string, string> {
   const split = splitFrontmatter(md);
-  if (split === null) return Either.left(`${mdPath}: no frontmatter block`);
+  if (split === null) return Result.fail(`${mdPath}: no frontmatter block`);
   const read = readDocumentSidecar("spec", sidecarPath, sidecar);
-  if (Either.isLeft(read)) return Either.left(read.left.message);
-  if (read.right.shape !== "current") {
-    return Either.left(
-      `${sidecarPath}: stamped ${describeStampedShape("spec-document", read.right.shape)} — run \`phax artifact migrate-documents\` first`,
+  if (Result.isFailure(read)) return Result.fail(read.failure.message);
+  if (read.success.shape !== "current") {
+    return Result.fail(
+      `${sidecarPath}: stamped ${describeStampedShape("spec-document", read.success.shape)} — run \`phax artifact migrate-documents\` first`,
     );
   }
-  return Either.right(`---\n${split.yamlText}\n---\n${renderSpecBody(read.right.document)}`);
+  return Result.succeed(`---\n${split.yamlText}\n---\n${renderSpecBody(read.success.document)}`);
 }
 
 const isMain = process.argv[1] === fileURLToPath(import.meta.url);
@@ -53,12 +53,12 @@ if (isMain) {
     sidecarPath,
     JSON.parse(readFileSync(sidecarPath, "utf8")),
   );
-  if (Either.isLeft(rendered)) {
-    console.error(rendered.left);
+  if (Result.isFailure(rendered)) {
+    console.error(rendered.failure);
     process.exit(1);
   }
 
-  const next = rendered.right;
+  const next = rendered.success;
   if (flag === "--check") {
     console.log(next === md ? "unchanged" : "would change");
     process.exit(next === md ? 0 : 1);

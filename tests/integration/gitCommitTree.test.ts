@@ -10,7 +10,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { NodeGitLayer } from "../../src/infra/git.js";
 import { Git, GitError, type GitOps } from "../../src/ports/git.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
@@ -22,7 +22,7 @@ const withGit = <A>(f: (ops: GitOps) => Effect.Effect<A, unknown>): Promise<A> =
   Effect.runPromise(Effect.flatMap(Git, f).pipe(Effect.provide(NodeGitLayer)));
 
 const withGitEither = <A>(f: (ops: GitOps) => Effect.Effect<A, unknown>) =>
-  Effect.runPromise(Effect.either(Effect.flatMap(Git, f)).pipe(Effect.provide(NodeGitLayer)));
+  Effect.runPromise(Effect.result(Effect.flatMap(Git, f)).pipe(Effect.provide(NodeGitLayer)));
 
 let repo: string;
 let hooks: string;
@@ -134,9 +134,9 @@ describe("NodeGitLayer.commitTree", () => {
 
     const result = await withGitEither((ops) => ops.commitTree(repo, tree, "s", "b"));
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result))
-      expect(String((result.left as Error).message)).toContain("lint failed");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result))
+      expect(String((result.failure as Error).message)).toContain("lint failed");
     expect(git("rev-parse", "HEAD").trim()).toBe(head);
     expect(realIndex()).toBe(index);
   });
@@ -148,10 +148,10 @@ describe("NodeGitLayer.commitTree", () => {
 
     const result = await withGitEither((ops) => ops.commitTree(repo, tree, "s", "b"));
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(GitError);
-      expect((result.left as GitError).message).toContain("src/invoiceRow.ts");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toBeInstanceOf(GitError);
+      expect((result.failure as GitError).message).toContain("src/invoiceRow.ts");
     }
     expect(git("rev-parse", "HEAD").trim()).toBe(head);
     expect(git("rev-parse", "refs/heads/main").trim()).toBe(head);

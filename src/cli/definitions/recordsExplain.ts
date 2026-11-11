@@ -46,13 +46,12 @@ class RecordNotFoundError extends Data.TaggedError("RecordNotFoundError")<{
   readonly message: string;
 }> {}
 
-const Shape = Schema.Literal("full", "skeleton");
+const Shape = Schema.Literals(["full", "skeleton"]);
 const Text = Schema.NullOr(Schema.String);
 const NamedText = Schema.Struct({ name: Schema.String, text: Schema.String });
 
 /** The artifacts a flag asked for, by flag, as text. A flag not given has no key. */
-const optional = <S extends Schema.Schema.Any>(schema: S) =>
-  Schema.optionalWith(schema, { exact: true });
+const optional = <S extends Schema.Top>(schema: S) => Schema.optionalKey(schema);
 
 const PhaseRequested = Schema.Struct({
   prompt: optional(Text),
@@ -88,13 +87,13 @@ const PhaseExplained = Schema.Struct({
   model: Schema.String,
   effort: Schema.String,
   /** Whether the commit explained is the phase's own or a held phase's review commit. */
-  addressedBy: Schema.Literal("phase-commit", "review-commit"),
+  addressedBy: Schema.Literals(["phase-commit", "review-commit"]),
   stop: RecordStopSchema,
   shape: Shape,
   /** The size of the transcript the record carries, 0 when it carries none. */
   transcriptBytes: Schema.Number,
   usage: TokenUsageSchema,
-  outcome: Schema.Literal("committed", "failed", "abandoned", "interrupted"),
+  outcome: Schema.Literals(["committed", "failed", "abandoned", "interrupted"]),
   checksAttemptCount: Schema.Number,
   verifiedSurfaces: Schema.Array(Schema.String),
   acceptance: RecordAcceptanceRoleSchema,
@@ -116,7 +115,7 @@ const AuthoringExplained = Schema.Struct({
   model: Schema.String,
   effort: Schema.String,
   artifact: Schema.String,
-  artifactKind: Schema.Literal("spec", "plan"),
+  artifactKind: Schema.Literals(["spec", "plan"]),
   shape: Shape,
   transcriptBytes: Schema.Number,
   usage: TokenUsageSchema,
@@ -129,11 +128,11 @@ const AuthoringExplained = Schema.Struct({
   requested: SessionRequested,
 });
 
-const Doctrine = Schema.Union(
+const Doctrine = Schema.Union([
   Schema.Struct({
     kind: Schema.Literal("skill"),
     name: Schema.String,
-    source: Schema.Literal("bundled", "project"),
+    source: Schema.Literals(["bundled", "project"]),
     fingerprint: Schema.String,
   }),
   Schema.Struct({
@@ -141,7 +140,7 @@ const Doctrine = Schema.Union(
     path: Schema.String,
     fingerprint: Schema.String,
   }),
-);
+]);
 
 const DecisionExplained = Schema.Struct({
   kind: Schema.Literal("decision"),
@@ -150,9 +149,9 @@ const DecisionExplained = Schema.Struct({
   model: Schema.String,
   effort: Schema.String,
   artifact: Schema.String,
-  artifactKind: Schema.Literal("spec", "plan"),
-  mode: Schema.Literal("interactive", "verdicts"),
-  session: Schema.Literal("new", "resumed-authoring"),
+  artifactKind: Schema.Literals(["spec", "plan"]),
+  mode: Schema.Literals(["interactive", "verdicts"]),
+  session: Schema.Literals(["new", "resumed-authoring"]),
   shape: Shape,
   transcriptBytes: Schema.Number,
   usage: TokenUsageSchema,
@@ -177,7 +176,7 @@ const DecisionExplained = Schema.Struct({
 });
 
 /** The answer of `phax records explain`. */
-const ExplainOutput = Schema.Union(
+const ExplainOutput = Schema.Union([
   Schema.Struct({ kind: Schema.Literal("records-disabled") }),
   Schema.Struct({
     kind: Schema.Literal("review-entry"),
@@ -190,26 +189,26 @@ const ExplainOutput = Schema.Union(
   PhaseExplained,
   AuthoringExplained,
   DecisionExplained,
-);
+]);
 
-const ExplainArgs = Schema.Tuple(
-  Schema.String.annotations({
+const ExplainArgs = Schema.Tuple([
+  Schema.String.annotate({
     identifier: "sha",
     description: "Commit sha in the source repository (a phase commit or an artifact commit)",
   }),
-);
+]);
 
 const ExplainFlags = Schema.Struct({
-  prompt: optional(Schema.Boolean.annotations({ description: "Print the full prompt" })),
-  diff: optional(Schema.Boolean.annotations({ description: "Print the full diff" })),
-  transcript: optional(Schema.Boolean.annotations({ description: "Print the full transcript" })),
+  prompt: optional(Schema.Boolean.annotate({ description: "Print the full prompt" })),
+  diff: optional(Schema.Boolean.annotate({ description: "Print the full diff" })),
+  transcript: optional(Schema.Boolean.annotate({ description: "Print the full transcript" })),
   gates: optional(
-    Schema.Boolean.annotations({
+    Schema.Boolean.annotate({
       description: "Print the gate check logs, each followed by its gate request",
     }),
   ),
   briefs: optional(
-    Schema.Boolean.annotations({
+    Schema.Boolean.annotate({
       description: "Print the phase's brief records (brief-NN.json) in number order",
     }),
   ),

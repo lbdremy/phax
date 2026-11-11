@@ -1,4 +1,4 @@
-import { Either, Schema } from "effect";
+import { Result, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   ComplianceReviewConfigSchema,
@@ -10,8 +10,9 @@ import {
 import { entryFor } from "../../../src/domain/routing/catalog.js";
 import { DEFAULT_PROVIDER_CONFIG } from "../../../src/domain/routing/defaults.js";
 
-const decodeComplianceReviewConfig = Schema.decodeUnknownEither(ComplianceReviewConfigSchema, {
+const decodeComplianceReviewConfig = Schema.decodeUnknownResult(ComplianceReviewConfigSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });
 
 const minimalValidPhaxConfig = {
@@ -28,32 +29,32 @@ describe("ComplianceReviewConfigSchema", () => {
       model: "claude-opus-4-8",
       effort: "high",
     });
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.enabled).toBe(true);
-      expect(result.right.model).toBe("claude-opus-4-8");
-      expect(result.right.effort).toBe("high");
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success.enabled).toBe(true);
+      expect(result.success.model).toBe("claude-opus-4-8");
+      expect(result.success.effort).toBe("high");
     }
   });
 
   it("decodes a minimal compliance review config (only enabled)", () => {
     const result = decodeComplianceReviewConfig({ enabled: false });
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.enabled).toBe(false);
-      expect(result.right.model).toBeUndefined();
-      expect(result.right.effort).toBeUndefined();
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success.enabled).toBe(false);
+      expect(result.success.model).toBeUndefined();
+      expect(result.success.effort).toBeUndefined();
     }
   });
 
   it("rejects an invalid effort value", () => {
     const result = decodeComplianceReviewConfig({ enabled: true, effort: "xhigh" });
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 
   it("rejects unknown keys", () => {
     const result = decodeComplianceReviewConfig({ enabled: true, bogus: "value" });
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 });
 
@@ -95,17 +96,17 @@ describe("PhaxConfigSchema with review.compliance block", () => {
       ...minimalValidPhaxConfig,
       review: { compliance: { enabled: true, model: "claude-opus-4-8" } },
     });
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.review?.compliance?.enabled).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success.review?.compliance?.enabled).toBe(true);
     }
   });
 
   it("decodes phax.json without review block", () => {
     const result = decodePhaxConfig(minimalValidPhaxConfig);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.review).toBeUndefined();
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success.review).toBeUndefined();
     }
   });
 
@@ -114,7 +115,7 @@ describe("PhaxConfigSchema with review.compliance block", () => {
       ...minimalValidPhaxConfig,
       review: { compliance: { enabled: true, bogus: "value" } },
     });
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 
   it("rejects invalid effort under review.compliance", () => {
@@ -122,7 +123,7 @@ describe("PhaxConfigSchema with review.compliance block", () => {
       ...minimalValidPhaxConfig,
       review: { compliance: { enabled: true, effort: "xhigh" } },
     });
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 });
 

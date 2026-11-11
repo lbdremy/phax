@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { NodeGitLayer } from "../../src/infra/git.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
@@ -163,7 +163,7 @@ describe("writeDecisionRecord (real git)", () => {
     const manifest = JSON.parse(show("record.json")) as Record<string, unknown>;
     expect(Object.keys(manifest)[0]).toBe("$schema");
     expect(manifest["$schema"]).toBe(currentSchemaUrl("decision-record-manifest"));
-    expect(Either.isRight(decodeDecisionRecordManifestFile(manifest))).toBe(true);
+    expect(Result.isSuccess(decodeDecisionRecordManifestFile(manifest))).toBe(true);
     expect(manifest).toMatchObject({
       kind: "decision",
       decisionId: DECISION_ID,
@@ -283,7 +283,7 @@ describe("writeDecisionRecord (real git)", () => {
       );
       expect(show("verdicts.json")).toBe('{"verdicts":[]}\n');
       const manifest = JSON.parse(show("record.json")) as Record<string, unknown>;
-      expect(Either.isRight(decodeDecisionRecordManifestFile(manifest))).toBe(true);
+      expect(Result.isSuccess(decodeDecisionRecordManifestFile(manifest))).toBe(true);
       expect(manifest).toMatchObject({
         mode: "verdicts",
         outcome: "committed",

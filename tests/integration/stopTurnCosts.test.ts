@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { closeStop, type CloseReport } from "../../src/app/closeStop.js";
 import { nextLedger } from "../../src/app/costLedger.js";
@@ -177,7 +177,7 @@ function seedEntry(
   const ledgerPath = join(runPath, "cost-ledger.json");
   let ledger: CostLedger = { entries: [] };
   try {
-    ledger = Either.getOrThrow(
+    ledger = Result.getOrThrow(
       readCostLedgerFile(ledgerPath, JSON.parse(readFileSync(ledgerPath, "utf8"))),
     );
   } catch {
@@ -404,7 +404,7 @@ describe("a held stop closed by a turn that resumes its builder", { timeout: 30_
           phaseId: "phase-02",
         },
       );
-      return yield* Effect.either(
+      return yield* Effect.result(
         closeStop({
           runId: run.runId,
           shortName: SHORT,
@@ -436,8 +436,8 @@ describe("a held stop closed by a turn that resumes its builder", { timeout: 30_
       ),
     );
 
-    if (Either.isLeft(result)) throw new Error(`close refused: ${String(result.left)}`);
-    expect(result.right).toMatchObject({ cause: "held", handoffSource: "closing-turn-resumed" });
+    if (Result.isFailure(result)) throw new Error(`close refused: ${String(result.failure)}`);
+    expect(result.success).toMatchObject({ cause: "held", handoffSource: "closing-turn-resumed" });
     const [call, ...more] = cli.invocations();
     expect(more).toEqual([]);
     expect(call!.argv).toContain("--resume");

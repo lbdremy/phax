@@ -1,26 +1,25 @@
-import { Brand, Either, ParseResult, Schema } from "effect";
+import { Brand, Result, Schema } from "effect";
+import { isExportedPattern } from "../schemas/strictString.js";
 
-type ParseError = ParseResult.ParseError;
+type ParseError = Schema.SchemaError;
 
 export type Namespace = string & Brand.Brand<"Namespace">;
-const NamespaceSchema = Schema.String.pipe(
-  Schema.minLength(1),
-  Schema.maxLength(64),
-  Schema.pattern(/^[a-z][a-z0-9-]*$/),
-  Schema.brand("Namespace"),
-);
-export const decodeNamespace = (u: unknown): Either.Either<Namespace, ParseError> =>
-  Schema.decodeUnknownEither(NamespaceSchema)(u);
+const NamespaceSchema = Schema.String.check(
+  Schema.isMinLength(1),
+  Schema.isMaxLength(64),
+  isExportedPattern(/^[a-z][a-z0-9-]*$/),
+).pipe(Schema.brand("Namespace"));
+export const decodeNamespace = (u: unknown): Result.Result<Namespace, ParseError> =>
+  Schema.decodeUnknownResult(NamespaceSchema, { reportInput: true })(u);
 
 export type ShortName = string & Brand.Brand<"ShortName">;
-const ShortNameSchema = Schema.String.pipe(
-  Schema.minLength(1),
-  Schema.maxLength(64),
-  Schema.pattern(/^[a-z][a-z0-9-]*$/),
-  Schema.brand("ShortName"),
-);
-export const decodeShortName = (u: unknown): Either.Either<ShortName, ParseError> =>
-  Schema.decodeUnknownEither(ShortNameSchema)(u);
+const ShortNameSchema = Schema.String.check(
+  Schema.isMinLength(1),
+  Schema.isMaxLength(64),
+  isExportedPattern(/^[a-z][a-z0-9-]*$/),
+).pipe(Schema.brand("ShortName"));
+export const decodeShortName = (u: unknown): Result.Result<ShortName, ParseError> =>
+  Schema.decodeUnknownResult(ShortNameSchema, { reportInput: true })(u);
 
 /**
  * Normalize arbitrary text into a valid ShortName slug. The model is asked for a
@@ -41,14 +40,16 @@ export function slugifyShortName(raw: string): string {
 }
 
 export type RunId = string & Brand.Brand<"RunId">;
-const RunIdSchema = Schema.String.pipe(Schema.minLength(1), Schema.brand("RunId"));
-export const decodeRunId = (u: unknown): Either.Either<RunId, ParseError> =>
-  Schema.decodeUnknownEither(RunIdSchema)(u);
+const RunIdSchema = Schema.String.check(Schema.isMinLength(1)).pipe(Schema.brand("RunId"));
+export const decodeRunId = (u: unknown): Result.Result<RunId, ParseError> =>
+  Schema.decodeUnknownResult(RunIdSchema, { reportInput: true })(u);
 
 export type PhaseId = string & Brand.Brand<"PhaseId">;
-const PhaseIdSchema = Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/), Schema.brand("PhaseId"));
-export const decodePhaseId = (u: unknown): Either.Either<PhaseId, ParseError> =>
-  Schema.decodeUnknownEither(PhaseIdSchema)(u);
+const PhaseIdSchema = Schema.String.check(isExportedPattern(/^phase-\d{2}$/)).pipe(
+  Schema.brand("PhaseId"),
+);
+export const decodePhaseId = (u: unknown): Result.Result<PhaseId, ParseError> =>
+  Schema.decodeUnknownResult(PhaseIdSchema, { reportInput: true })(u);
 
 function isSafeBranchName(s: string): boolean {
   if (s.length === 0 || s[0] === "-") return false;
@@ -64,37 +65,41 @@ export type BranchName = string & Brand.Brand<"BranchName">;
 // Rejects empty, leading `-` (arg-injection vector), and ASCII whitespace/controls.
 // Accepts all other chars including `/`, `.`, and `-` in non-leading position.
 // The JSON Schema pattern accepts exactly what `isSafeBranchName` accepts.
-export const BranchNameSchema = Schema.String.pipe(
-  Schema.minLength(1),
-  Schema.maxLength(255),
-  Schema.filter(isSafeBranchName, {
-    message: () => "branch name must not start with '-' or contain whitespace/control characters",
-    jsonSchema: { pattern: "^[^\\x00-\\x20\\x7f-][^\\x00-\\x20\\x7f]*$" },
+export const BranchNameSchema = Schema.String.check(
+  Schema.isMinLength(1),
+  Schema.isMaxLength(255),
+  Schema.makeFilter(isSafeBranchName, {
+    message: "branch name must not start with '-' or contain whitespace/control characters",
+    toJsonSchema: () => ({ pattern: "^[^\\x00-\\x20\\x7f-][^\\x00-\\x20\\x7f]*$" }),
   }),
-  Schema.brand("BranchName"),
-);
-export const decodeBranchName = (u: unknown): Either.Either<BranchName, ParseError> =>
-  Schema.decodeUnknownEither(BranchNameSchema)(u);
+).pipe(Schema.brand("BranchName"));
+export const decodeBranchName = (u: unknown): Result.Result<BranchName, ParseError> =>
+  Schema.decodeUnknownResult(BranchNameSchema, { reportInput: true })(u);
 
 export type WorktreePath = string & Brand.Brand<"WorktreePath">;
-const WorktreePathSchema = Schema.String.pipe(Schema.minLength(1), Schema.brand("WorktreePath"));
-export const decodeWorktreePath = (u: unknown): Either.Either<WorktreePath, ParseError> =>
-  Schema.decodeUnknownEither(WorktreePathSchema)(u);
+const WorktreePathSchema = Schema.String.check(Schema.isMinLength(1)).pipe(
+  Schema.brand("WorktreePath"),
+);
+export const decodeWorktreePath = (u: unknown): Result.Result<WorktreePath, ParseError> =>
+  Schema.decodeUnknownResult(WorktreePathSchema, { reportInput: true })(u);
 
 export type ClaudeSessionId = string & Brand.Brand<"ClaudeSessionId">;
-const ClaudeSessionIdSchema = Schema.String.pipe(
-  Schema.minLength(1),
+const ClaudeSessionIdSchema = Schema.String.check(Schema.isMinLength(1)).pipe(
   Schema.brand("ClaudeSessionId"),
 );
-export const decodeClaudeSessionId = (u: unknown): Either.Either<ClaudeSessionId, ParseError> =>
-  Schema.decodeUnknownEither(ClaudeSessionIdSchema)(u);
+export const decodeClaudeSessionId = (u: unknown): Result.Result<ClaudeSessionId, ParseError> =>
+  Schema.decodeUnknownResult(ClaudeSessionIdSchema, { reportInput: true })(u);
 
 export type GateProfileId = string & Brand.Brand<"GateProfileId">;
-const GateProfileIdSchema = Schema.String.pipe(Schema.minLength(1), Schema.brand("GateProfileId"));
-export const decodeGateProfileId = (u: unknown): Either.Either<GateProfileId, ParseError> =>
-  Schema.decodeUnknownEither(GateProfileIdSchema)(u);
+const GateProfileIdSchema = Schema.String.check(Schema.isMinLength(1)).pipe(
+  Schema.brand("GateProfileId"),
+);
+export const decodeGateProfileId = (u: unknown): Result.Result<GateProfileId, ParseError> =>
+  Schema.decodeUnknownResult(GateProfileIdSchema, { reportInput: true })(u);
 
 export type WorkspaceId = string & Brand.Brand<"WorkspaceId">;
-const WorkspaceIdSchema = Schema.String.pipe(Schema.minLength(1), Schema.brand("WorkspaceId"));
-export const decodeWorkspaceId = (u: unknown): Either.Either<WorkspaceId, ParseError> =>
-  Schema.decodeUnknownEither(WorkspaceIdSchema)(u);
+const WorkspaceIdSchema = Schema.String.check(Schema.isMinLength(1)).pipe(
+  Schema.brand("WorkspaceId"),
+);
+export const decodeWorkspaceId = (u: unknown): Result.Result<WorkspaceId, ParseError> =>
+  Schema.decodeUnknownResult(WorkspaceIdSchema, { reportInput: true })(u);

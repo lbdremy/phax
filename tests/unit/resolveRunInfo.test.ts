@@ -2,7 +2,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { Either } from "effect";
+import { Result } from "effect";
 import { decodeShortName } from "../../src/domain/branded.js";
 import { resolveRun } from "../../src/app/resolveRunInfo.js";
 import type { RunStatus } from "../../src/schemas/status.js";
@@ -64,41 +64,41 @@ describe("resolveRun — qualified key lookup", () => {
   it("resolves a run at the qualified key <namespace>.<shortName>", () => {
     writeRun(stateRoot, "my-project", "fix-bug");
 
-    const shortName = Either.getOrThrow(decodeShortName("fix-bug"));
+    const shortName = Result.getOrThrow(decodeShortName("fix-bug"));
     const result = resolveRun("my-project", shortName, stateRoot);
 
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isLeft(result)) throw new Error("expected success");
-    expect(result.right.namespace).toBe("my-project");
-    expect(result.right.shortName).toBe("fix-bug");
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isFailure(result)) throw new Error("expected success");
+    expect(result.success.namespace).toBe("my-project");
+    expect(result.success.shortName).toBe("fix-bug");
   });
 
   it("two runs with the same shortName in different namespaces resolve independently", () => {
     writeRun(stateRoot, "ns-a", "shared-name");
     writeRun(stateRoot, "ns-b", "shared-name");
 
-    const shortName = Either.getOrThrow(decodeShortName("shared-name"));
+    const shortName = Result.getOrThrow(decodeShortName("shared-name"));
 
     const resultA = resolveRun("ns-a", shortName, stateRoot);
     const resultB = resolveRun("ns-b", shortName, stateRoot);
 
-    expect(Either.isRight(resultA)).toBe(true);
-    expect(Either.isRight(resultB)).toBe(true);
+    expect(Result.isSuccess(resultA)).toBe(true);
+    expect(Result.isSuccess(resultB)).toBe(true);
 
-    if (Either.isLeft(resultA) || Either.isLeft(resultB))
+    if (Result.isFailure(resultA) || Result.isFailure(resultB))
       throw new Error("expected both to succeed");
-    expect(resultA.right.namespace).toBe("ns-a");
-    expect(resultB.right.namespace).toBe("ns-b");
-    expect(resultA.right.runPath).not.toBe(resultB.right.runPath);
+    expect(resultA.success.namespace).toBe("ns-a");
+    expect(resultB.success.namespace).toBe("ns-b");
+    expect(resultA.success.runPath).not.toBe(resultB.success.runPath);
   });
 
   it("returns Left when run folder does not exist for the given namespace", () => {
     writeRun(stateRoot, "ns-b", "fix-bug");
 
-    const shortName = Either.getOrThrow(decodeShortName("fix-bug"));
+    const shortName = Result.getOrThrow(decodeShortName("fix-bug"));
     const result = resolveRun("ns-a", shortName, stateRoot);
 
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 });
 
@@ -113,7 +113,7 @@ describe("resolveRun — a phase status phax cannot read", () => {
     rmSync(stateRoot, { recursive: true, force: true });
   });
 
-  const shortName = Either.getOrThrow(decodeShortName("fix-bug"));
+  const shortName = Result.getOrThrow(decodeShortName("fix-bug"));
   const statusPath = (): string =>
     join(stateRoot, "runs", "my-project.fix-bug", "phase-01", "status.json");
 
@@ -124,9 +124,9 @@ describe("resolveRun — a phase status phax cannot read", () => {
 
     const result = resolveRun("my-project", shortName, stateRoot);
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isRight(result)) throw new Error("expected a refusal");
-    expect(result.left).toMatch(new RegExp(`^${statusPath()}: .*base`));
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isSuccess(result)) throw new Error("expected a refusal");
+    expect(result.failure).toMatch(new RegExp(`^${statusPath()}: .*base`));
   });
 
   it("still skips a phase folder without status.json", () => {
@@ -135,7 +135,7 @@ describe("resolveRun — a phase status phax cannot read", () => {
 
     const result = resolveRun("my-project", shortName, stateRoot);
 
-    if (Either.isLeft(result)) throw new Error(`expected success: ${result.left}`);
-    expect(result.right.phaseStatuses.map((p) => p.phaseId)).toEqual(["phase-01"]);
+    if (Result.isFailure(result)) throw new Error(`expected success: ${result.failure}`);
+    expect(result.success.phaseStatuses.map((p) => p.phaseId)).toEqual(["phase-01"]);
   });
 });

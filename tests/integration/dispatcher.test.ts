@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 import { dispatch, type DispatcherContext } from "../../src/app/dispatcher.js";
 import type { PhaxEvent } from "../../src/domain/events.js";
@@ -279,14 +279,14 @@ describe("dispatch — invalid persisted state", () => {
     const event: PhaxEvent = { type: "RunStarted", ...baseEventFields };
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         dispatch(event, { ...ctx, phaseFolderPath: undefined, phaseId: undefined }).pipe(
           Effect.provide(layer),
         ),
       ),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 });
 
@@ -303,8 +303,8 @@ function readJson(fakeFs: Fs, path: string): object {
 
 function readStop(fakeFs: Fs, path: string) {
   const decoded = readReviewStopFile(path, readJson(fakeFs, path));
-  if (Either.isLeft(decoded)) throw new Error(decoded.left.message);
-  return decoded.right;
+  if (Result.isFailure(decoded)) throw new Error(decoded.failure.message);
+  return decoded.success;
 }
 
 describe("dispatch — review-stop.json lifecycle", () => {

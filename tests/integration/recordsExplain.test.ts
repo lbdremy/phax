@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { runner } from "../../src/cli/commandLibrary/commander/index.js";
 import type { ExitCode } from "../../src/cli/commandLibrary/contract/index.js";
 import { phaxProgram as guardedProgram } from "../../src/cli/definitions/program.js";
@@ -42,7 +42,7 @@ vi.mock("node:os", async (importOriginal) =>
   (await import("../helpers/isolatePhaxHome.js")).isolatedOs(await importOriginal()),
 );
 
-const RECORDS_BRANCH: BranchName = Either.getOrThrow(decodeBranchName("phax/records/v1"));
+const RECORDS_BRANCH: BranchName = Result.getOrThrow(decodeBranchName("phax/records/v1"));
 const LAYER = Layer.mergeAll(NodeGitLayer, NodeShellLayer);
 
 function bytes(text: string): Uint8Array {
@@ -940,13 +940,13 @@ describe("records explain and list (real git)", () => {
     );
 
     const outcome = await run(
-      Effect.either(
+      Effect.result(
         explainRecord({ sha, repoRoot: repoDir, records: IN_REPO_CONFIG, publishRemote: "origin" }),
       ),
     );
-    if (Either.isRight(outcome)) throw new Error("expected a failure");
-    expect(outcome.left.message).toContain(`${runId}/${phaseId}/record.json`);
-    expect(outcome.left.message).toContain(
+    if (Result.isSuccess(outcome)) throw new Error("expected a failure");
+    expect(outcome.failure.message).toContain(`${runId}/${phaseId}/record.json`);
+    expect(outcome.failure.message).toContain(
       "phase record manifest without $schema is not in the pre-schema shape — older than the first release that writes $schema, or damaged",
     );
 
@@ -1419,7 +1419,7 @@ describe("records explain and list (real git)", () => {
       );
 
       const outcome = await Effect.runPromise(
-        Effect.either(
+        Effect.result(
           explainRecord({
             sha,
             repoRoot: repoDir,
@@ -1429,9 +1429,9 @@ describe("records explain and list (real git)", () => {
         ),
       );
 
-      expect(Either.isLeft(outcome)).toBe(true);
-      if (Either.isLeft(outcome)) {
-        expect(outcome.left.message).toContain("an authoring manifest under a decision key");
+      expect(Result.isFailure(outcome)).toBe(true);
+      if (Result.isFailure(outcome)) {
+        expect(outcome.failure.message).toContain("an authoring manifest under a decision key");
       }
     });
 
@@ -1650,7 +1650,7 @@ describe("records explain and list (real git)", () => {
       );
 
       const outcome = await Effect.runPromise(
-        Effect.either(
+        Effect.result(
           Effect.provide(
             explainRecord({
               sha: sourceSha,
@@ -1663,9 +1663,9 @@ describe("records explain and list (real git)", () => {
         ),
       );
 
-      expect(Either.isLeft(outcome)).toBe(true);
-      if (Either.isLeft(outcome)) {
-        expect(outcome.left.message).toContain("a review manifest under a phase key");
+      expect(Result.isFailure(outcome)).toBe(true);
+      if (Result.isFailure(outcome)) {
+        expect(outcome.failure.message).toContain("a review manifest under a phase key");
       }
     });
   });

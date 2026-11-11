@@ -5,17 +5,27 @@
 // lists it as the format's 0.17.0 release.
 import { Schema } from "effect";
 
-const SchemaUrlSchema = Schema.String.pipe(
-  Schema.pattern(
+// `Schema.isPattern` whose JSON Schema is the RegExp's source, whatever its
+// flags: Effect 4 exports a pattern only for a RegExp with the `u` flag.
+function isExportedPattern(regExp: RegExp, annotations?: Schema.Annotations.Filter) {
+  return Schema.isPattern(regExp, {
+    toJsonSchema: () => ({ pattern: regExp.source }),
+    ...annotations,
+  });
+}
+
+const SchemaUrlSchema = Schema.String.check(
+  isExportedPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/registry\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
-  Schema.annotations({
+).pipe(
+  Schema.annotate({
     description:
       "The registry format and the phax release that wrote this file: https://docs.phax.run/schemas/registry/<X.Y.Z>.json",
   }),
 );
 
-const RunStateSchema = Schema.Union(
+const RunStateSchema = Schema.Union([
   Schema.Literal("created"),
   Schema.Literal("running"),
   Schema.Literal("failed"),
@@ -25,7 +35,7 @@ const RunStateSchema = Schema.Union(
   Schema.Literal("archived"),
   Schema.Literal("interrupted"),
   Schema.Literal("rate_limited"),
-);
+]);
 
 const RegistryEntryV0_17_0Schema = Schema.Struct({
   namespace: Schema.NonEmptyString,
@@ -37,7 +47,7 @@ const RegistryEntryV0_17_0Schema = Schema.Struct({
   phasesCount: Schema.Number,
   createdAt: Schema.NonEmptyString,
   updatedAt: Schema.NonEmptyString,
-  archivePath: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
+  archivePath: Schema.optionalKey(Schema.NonEmptyString),
 });
 
 export const RegistryV0_17_0Schema = Schema.Struct({
@@ -47,4 +57,6 @@ export const RegistryV0_17_0Schema = Schema.Struct({
 
 export type RegistryV0_17_0 = Schema.Schema.Type<typeof RegistryV0_17_0Schema>;
 
-export const decodeRegistryV0_17_0 = Schema.decodeUnknownEither(RegistryV0_17_0Schema);
+export const decodeRegistryV0_17_0 = Schema.decodeUnknownResult(RegistryV0_17_0Schema, {
+  reportInput: true,
+});

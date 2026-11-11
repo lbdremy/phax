@@ -9,7 +9,7 @@
  * Gate: set PHAX_E2E_RUN=1 to run.
  */
 
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { access, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -52,7 +52,7 @@ const HANDOFF_CONTENT = [
 
 const shouldRun = process.env["PHAX_E2E_RUN"] === "1";
 
-const shortName = Either.getOrThrow(decodeShortName("my-run"));
+const shortName = Result.getOrThrow(decodeShortName("my-run"));
 
 const rawPlan = {
   version: 1,
@@ -91,7 +91,7 @@ describe.skipIf(!shouldRun)("E2E reset-phase → resume fresh re-execution", () 
   });
 
   it("resets a gates_exhausted phase, archives its folder, removes worktree and branch, then resumes fresh", async () => {
-    const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
 
     const config: ResolvedConfig = {
       raw: {
@@ -164,7 +164,7 @@ describe.skipIf(!shouldRun)("E2E reset-phase → resume fresh re-execution", () 
     );
 
     const firstResult = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -182,9 +182,9 @@ describe.skipIf(!shouldRun)("E2E reset-phase → resume fresh re-execution", () 
       ),
     );
 
-    expect(Either.isLeft(firstResult)).toBe(true);
-    if (Either.isLeft(firstResult)) {
-      expect(firstResult.left).toBeInstanceOf(GateAttemptsExhaustedError);
+    expect(Result.isFailure(firstResult)).toBe(true);
+    if (Result.isFailure(firstResult)) {
+      expect(firstResult.failure).toBeInstanceOf(GateAttemptsExhaustedError);
     }
 
     const phaseStatus1 = JSON.parse(
@@ -205,7 +205,7 @@ describe.skipIf(!shouldRun)("E2E reset-phase → resume fresh re-execution", () 
     const layers2 = Layer.mergeAll(fakeGit2.layer, NodeFileSystemLayer, NoopSystemTelemetryLayer);
 
     const resetResult = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         resetPhase({
           namespace: "test-project",
           shortName,
@@ -220,9 +220,9 @@ describe.skipIf(!shouldRun)("E2E reset-phase → resume fresh re-execution", () 
       ),
     );
 
-    expect(Either.isRight(resetResult)).toBe(true);
-    if (Either.isRight(resetResult)) {
-      const r = resetResult.right;
+    expect(Result.isSuccess(resetResult)).toBe(true);
+    if (Result.isSuccess(resetResult)) {
+      const r = resetResult.success;
       expect(r.phaseId).toBe("phase-01");
       expect(r.archivedPath).toBeDefined();
       expect(r.branchDeleted).toBe(true);
@@ -290,7 +290,7 @@ describe.skipIf(!shouldRun)("E2E reset-phase → resume fresh re-execution", () 
     );
 
     const resumeResult = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -308,7 +308,7 @@ describe.skipIf(!shouldRun)("E2E reset-phase → resume fresh re-execution", () 
       ),
     );
 
-    expect(Either.isRight(resumeResult)).toBe(true);
+    expect(Result.isSuccess(resumeResult)).toBe(true);
 
     // Fresh agent run call — confirms the phase re-executed from scratch.
     expect(fakeBackend3.impl.runCalls).toHaveLength(1);

@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Effect, Number as Num, Option, SchemaGetter, SchemaIssue } from "effect";
 import * as Schema from "effect/Schema";
 import { describe, expect, it, vi } from "vitest";
 import { defineCommand, reject, strip } from "../../../../src/cli/commandLibrary/contract/index.js";
@@ -7,16 +7,30 @@ import { makeTodos, programOf } from "./support/todos.js";
 
 const env = { TODOS_DB: "db", PATH: "/bin" };
 
+/** A number written as a string, refused when it reads as no number (`x`), as Effect 3's
+ *  `NumberFromString` decoded (Effect 4's decodes `x` to NaN). */
+const NumberFromString = Schema.String.pipe(
+  Schema.decodeTo(Schema.Number, {
+    decode: SchemaGetter.transformEffect((s: string) =>
+      Option.match(Num.parse(s), {
+        onNone: () => Effect.fail(new SchemaIssue.InvalidValue()),
+        onSome: Effect.succeed,
+      }),
+    ),
+    encode: SchemaGetter.String(),
+  }),
+);
+
 /** A command whose flags convert a string, and whose second argument is optional. It decodes
- *  `count` with Effect 3's `NumberFromString`, which refuses `x` (it is not a number). */
+ *  `count` with a string-to-number codec that refuses `x` (it is not a number). */
 function makeCounting() {
   const run = vi.fn((_input: unknown) => Effect.succeed("counted"));
   const count = defineCommand({
     name: "count",
     summary: "count things",
     input: {
-      args: reject(Schema.Tuple(Schema.String, Schema.optionalElement(Schema.String))),
-      flags: reject(Schema.Struct({ count: Schema.NumberFromString })),
+      args: reject(Schema.Tuple([Schema.String, Schema.optionalKey(Schema.String)])),
+      flags: reject(Schema.Struct({ count: NumberFromString })),
     },
     exits: {},
     run: ({ input }) => run(input),

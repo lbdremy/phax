@@ -7,7 +7,7 @@
 // A failed session is a declared error with today's lines and code; a failed commit lists the
 // artifact and its sidecar it left written.
 import { join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import * as Schema from "effect/Schema";
 import { authorArtifact, recordPushWarning, recordWarning } from "../../app/authorArtifact.js";
 import { type CompletionFlags, createArtifact } from "../../app/createArtifact.js";
@@ -76,32 +76,31 @@ const SKILL_SOURCE_DIR_FOR_KIND: Readonly<Record<ArtifactKind, string>> = {
 const NO_COMPLETION_FLAGS: CompletionFlags = { last: false, notLast: false };
 
 const SlugArg = reject(
-  Schema.Tuple(
-    Schema.String.annotations({
+  Schema.Tuple([
+    Schema.String.annotate({
       identifier: "slug",
       description: "Slug matching `[a-z0-9]+(-[a-z0-9]+)*`",
     }),
-  ),
+  ]),
 );
 
-const optional = <S extends Schema.Schema.Any>(schema: S) =>
-  Schema.optionalWith(schema, { exact: true });
+const optional = <S extends Schema.Top>(schema: S) => Schema.optionalKey(schema);
 
 const headlessFields = {
   headless: optional(
-    Schema.Boolean.annotations({
+    Schema.Boolean.annotate({
       description:
         "Author via a recorded agent session from a brief instead of a blank skeleton (experimental)",
     }),
   ),
   model: optional(
-    Schema.String.annotations({
+    Schema.String.annotate({
       identifier: "model",
       description: "Override the authoring model (default: flag → config → catalog)",
     }),
   ),
   effort: optional(
-    Schema.String.annotations({
+    Schema.String.annotate({
       identifier: "effort",
       description: "Override the authoring effort (low|medium|high)",
     }),
@@ -113,18 +112,18 @@ const SpecFlags = reject(Schema.Struct(headlessFields));
 const PlanFlags = reject(
   Schema.Struct({
     spec: optional(
-      Schema.String.annotations({
+      Schema.String.annotate({
         identifier: "path",
         description: "Path to the source spec to bind as source-spec",
       }),
     ),
     last: optional(
-      Schema.Boolean.annotations({
+      Schema.Boolean.annotate({
         description: "This plan is its spec's last: its run completes the spec",
       }),
     ),
     notLast: optional(
-      Schema.Boolean.annotations({
+      Schema.Boolean.annotate({
         description: "More plans of the spec follow: its run leaves the spec live",
       }),
     ),
@@ -134,7 +133,7 @@ const PlanFlags = reject(
 
 /** `--brief <file|->`: the brief's text, read by the runner from the file named or from stdin. */
 const BriefStdin = reject(
-  Schema.String.annotations({
+  Schema.String.annotate({
     identifier: "brief",
     description: "Path to a brief file, or - to read the brief from stdin",
   }),
@@ -143,7 +142,7 @@ const BriefStdin = reject(
 
 const BlankOutput = Schema.Struct({
   path: Schema.String,
-  kind: Schema.Literal("spec", "plan"),
+  kind: Schema.Literals(["spec", "plan"]),
   sourceSpec: Schema.NullOr(Schema.String),
   completesSpec: Schema.NullOr(Schema.Boolean),
   written: Schema.Array(Written),
@@ -158,7 +157,7 @@ const HeadlessOutput = Schema.Struct({
 });
 
 /** What `artifact new` answers: a blank skeleton, or (with `--headless`) an authored artifact. */
-const NewOutput = Schema.Union(BlankOutput, HeadlessOutput);
+const NewOutput = Schema.Union([BlankOutput, HeadlessOutput]);
 
 type NewOutput = typeof NewOutput.Type;
 
@@ -256,12 +255,12 @@ function author(context: NewContext) {
     const flagEffort = flags.effort as Effort | undefined;
 
     const configResult = loadConfig(process.cwd());
-    if (Either.isLeft(configResult)) {
+    if (Result.isFailure(configResult)) {
       return yield* Effect.fail(
-        sessionCommandRefusal(1, `Config error: ${configResult.left.message}`),
+        sessionCommandRefusal(1, `Config error: ${configResult.failure.message}`),
       );
     }
-    const config = configResult.right;
+    const config = configResult.success;
     const repoRoot = config.repoRoot;
     const briefPath =
       brief.origin.kind === "file" ? repoPaths(brief.origin.path, repoRoot).repoRelPath : null;
@@ -281,17 +280,17 @@ function author(context: NewContext) {
       makeNodeGitLayer(),
       NodeTerminalLayer,
     );
-    const routed = yield* Effect.either(
+    const routed = yield* Effect.result(
       Effect.all({ routing: loadModelRouting(), providerConfig: loadProviderConfig() }).pipe(
         Effect.provide(fsGitLayer),
       ),
     );
-    if (Either.isLeft(routed)) {
+    if (Result.isFailure(routed)) {
       return yield* Effect.fail(
-        sessionCommandRefusal(1, `Failed to load routing config: ${routed.left.message}`),
+        sessionCommandRefusal(1, `Failed to load routing config: ${routed.failure.message}`),
       );
     }
-    const { routing, providerConfig } = routed.right;
+    const { routing, providerConfig } = routed.success;
     const resolution = resolveModel(
       { model: selection.model, effort: selection.effort },
       routing,
@@ -305,7 +304,7 @@ function author(context: NewContext) {
       context.githubLayer ?? NodeGitHubLayer,
     );
     const warn = (text: string): void => Effect.runSync(context.progress(text));
-    const authored = yield* Effect.either(
+    const authored = yield* Effect.result(
       Effect.gen(function* () {
         const fs = yield* FileSystem;
         const skillPath = join(defaultBundleRoot(), SKILL_SOURCE_DIR_FOR_KIND[kind], "SKILL.md");
@@ -338,11 +337,11 @@ function author(context: NewContext) {
         });
       }).pipe(Effect.provide(layer)),
     );
-    if (Either.isLeft(authored)) {
+    if (Result.isFailure(authored)) {
       const retry = retryOf(context, brief.origin.kind === "file" ? brief.origin.path : "-");
       return yield* Effect.fail(
         yield* sessionFailure(
-          authored.left,
+          authored.failure,
           (cause) =>
             isSessionFailureError(cause)
               ? renderSessionFailure(cause, retry)
@@ -351,7 +350,7 @@ function author(context: NewContext) {
         ),
       );
     }
-    const { path, sidecarPath, commit, record, recordPush } = authored.right;
+    const { path, sidecarPath, commit, record, recordPush } = authored.success;
     const output: NewOutput = {
       path,
       sidecarPath,

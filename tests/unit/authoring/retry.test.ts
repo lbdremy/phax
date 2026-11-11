@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   RETRY_PROMPT_FILENAME,
@@ -11,8 +11,8 @@ import {
 
 function refusal(finalText: string): string {
   const parsed = parseFinalMessageJson(finalText);
-  if (Either.isRight(parsed)) throw new Error(`expected a refusal for ${finalText}`);
-  return parsed.left;
+  if (Result.isSuccess(parsed)) throw new Error(`expected a refusal for ${finalText}`);
+  return parsed.failure;
 }
 
 // A made-up document with a stray code expression after one of its values.
@@ -21,9 +21,9 @@ const STRAY_AT = STRAY_EXPRESSION.indexOf(".replace");
 
 describe("parseFinalMessageJson", () => {
   it("parses a document, fenced or amid prose, as extractJsonDocumentText picks it", () => {
-    expect(parseFinalMessageJson('{"a":1}')).toEqual(Either.right({ a: 1 }));
-    expect(parseFinalMessageJson('```json\n{"a":1}\n```')).toEqual(Either.right({ a: 1 }));
-    expect(parseFinalMessageJson('Writing it now.\n{"a":1}')).toEqual(Either.right({ a: 1 }));
+    expect(parseFinalMessageJson('{"a":1}')).toEqual(Result.succeed({ a: 1 }));
+    expect(parseFinalMessageJson('```json\n{"a":1}\n```')).toEqual(Result.succeed({ a: 1 }));
+    expect(parseFinalMessageJson('Writing it now.\n{"a":1}')).toEqual(Result.succeed({ a: 1 }));
   });
 
   it("names the parser error and the position of a stray .replace(...) expression", () => {

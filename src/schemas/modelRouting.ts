@@ -1,17 +1,17 @@
 import { Schema } from "effect";
 
-export const ProviderIdSchema = Schema.Literal("claude-code", "mistral-vibe", "codex-cli");
+export const ProviderIdSchema = Schema.Literals(["claude-code", "mistral-vibe", "codex-cli"]);
 
-export const ModelFamilySchema = Schema.Literal(
+export const ModelFamilySchema = Schema.Literals([
   "claude-haiku",
   "claude-sonnet",
   "claude-opus",
   "claude-fable",
   "mistral-medium",
   "openai-gpt",
-);
+]);
 
-export const ThinkingLevelSchema = Schema.Literal(
+export const ThinkingLevelSchema = Schema.Literals([
   "none",
   "off",
   "low",
@@ -21,16 +21,16 @@ export const ThinkingLevelSchema = Schema.Literal(
   "max",
   "ultracode",
   "ultra",
-);
+]);
 
-export const RelationshipSchema = Schema.Literal(
+export const RelationshipSchema = Schema.Literals([
   "exact",
   "equivalent",
   "upgrade",
   "fallback",
   "downgrade",
   "no_equivalent",
-);
+]);
 
 // A single directed edge from a non-Claude ("spoke") catalog entry at a given
 // effort to a Claude ("hub") catalog entry at a given effort. The relation is
@@ -46,27 +46,19 @@ const EquivalenceEdgeSchema = Schema.Struct({
 // spoke entries support only a subset of efforts. Modeling the key as
 // Schema.String keeps the decoded type Record-shaped without forcing every
 // effort to be present.
-const EquivalenceSpokeSchema = Schema.Record({
-  key: Schema.String,
-  value: EquivalenceEdgeSchema,
-});
+const EquivalenceSpokeSchema = Schema.Record(Schema.String, EquivalenceEdgeSchema);
 
 export const ModelRoutingSchema = Schema.Struct({
   version: Schema.Literal(2),
   providerPriority: Schema.NonEmptyArray(ProviderIdSchema),
   allowDowngrade: Schema.Boolean,
-  equivalence: Schema.Record({
-    key: Schema.String,
-    value: EquivalenceSpokeSchema,
-  }),
-  requestedModelNormalization: Schema.Record({
-    key: Schema.String,
-    value: ModelFamilySchema,
-  }),
+  equivalence: Schema.Record(Schema.String, EquivalenceSpokeSchema),
+  requestedModelNormalization: Schema.Record(Schema.String, ModelFamilySchema),
 });
 
 export type ModelRouting = Schema.Schema.Type<typeof ModelRoutingSchema>;
 
-export const decodeModelRouting = Schema.decodeUnknownEither(ModelRoutingSchema, {
+export const decodeModelRouting = Schema.decodeUnknownResult(ModelRoutingSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });

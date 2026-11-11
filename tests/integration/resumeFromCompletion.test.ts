@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -40,7 +40,7 @@ const HANDOFF_CONTENT = [
   "Ready to proceed.",
 ].join("\n");
 
-const shortName = Either.getOrThrow(decodeShortName("my-run"));
+const shortName = Result.getOrThrow(decodeShortName("my-run"));
 
 const PLAN_REL = "docs/plans/2609101270-run-carry-plan.md";
 const PLAN_ARCHIVE = "docs/plans/archive/2609101270-run-carry-plan.md";
@@ -215,10 +215,10 @@ async function runResume(opts: {
   runPath: string;
   runId: RunId;
 }) {
-  const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+  const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
   const config = makeConfig(opts.stateRoot);
   return Effect.runPromise(
-    Effect.either(
+    Effect.result(
       executePlan({
         phaxVersion: "0.0.0-test",
         output: processOutput,
@@ -250,7 +250,7 @@ describe("executePlan — resume from completion-paused (committed final phase)"
   });
 
   it("re-enters at the completion step, spawning no agent and re-running no gate", async () => {
-    const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
     const config = makeConfig(stateRoot);
 
     const setupLayers = Layer.mergeAll(
@@ -298,9 +298,9 @@ describe("executePlan — resume from completion-paused (committed final phase)"
 
     const result = await runResume({ stateRoot, layers, runPath, runId });
 
-    if (Either.isLeft(result)) console.error("FAILED:", result.left);
-    expect(Either.isRight(result)).toBe(true);
-    if (!Either.isRight(result)) return;
+    if (Result.isFailure(result)) console.error("FAILED:", result.failure);
+    expect(Result.isSuccess(result)).toBe(true);
+    if (!Result.isSuccess(result)) return;
 
     // No agent invocation and no handoff resume on a completion re-entry.
     expect(fakeBackend.impl.runCalls).toHaveLength(0);
@@ -310,7 +310,7 @@ describe("executePlan — resume from completion-paused (committed final phase)"
     expect(gateCalls).toHaveLength(0);
 
     // The plan is completed on the branch and reported.
-    const planTransition = result.right.artifactCompletions?.transitions.find(
+    const planTransition = result.success.artifactCompletions?.transitions.find(
       (t) => t.kind === "plan",
     );
     expect(planTransition).toMatchObject({
@@ -327,7 +327,7 @@ describe("executePlan — resume from completion-paused (committed final phase)"
   });
 
   it("creates no second commit when the plan on the branch is already Completed", async () => {
-    const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
     const config = makeConfig(stateRoot);
 
     const setupLayers = Layer.mergeAll(
@@ -370,15 +370,15 @@ describe("executePlan — resume from completion-paused (committed final phase)"
 
     const result = await runResume({ stateRoot, layers, runPath, runId });
 
-    if (Either.isLeft(result)) console.error("FAILED:", result.left);
-    expect(Either.isRight(result)).toBe(true);
-    if (!Either.isRight(result)) return;
+    if (Result.isFailure(result)) console.error("FAILED:", result.failure);
+    expect(Result.isSuccess(result)).toBe(true);
+    if (!Result.isSuccess(result)) return;
 
     // No commit is created on the idempotent re-entry.
     const commitCalls = fakeGit.impl.calls.filter((c) => c.method === "commitPaths");
     expect(commitCalls).toHaveLength(0);
     // The plan is reported as already complete.
-    expect(result.right.artifactCompletions?.transitions).toEqual([
+    expect(result.success.artifactCompletions?.transitions).toEqual([
       { kind: "plan", path: PLAN_ARCHIVE, alreadyComplete: true },
     ]);
 

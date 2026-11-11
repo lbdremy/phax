@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { makeNodeBackendLayer } from "../../infra/claudeCli.js";
 import { NodeFileSystemLayer, makeRootedNodeFileSystemLayer } from "../../infra/fs.js";
 import type { ProviderConfig } from "../../schemas/providerConfig.js";
@@ -18,7 +18,6 @@ import { FileSystem } from "../../ports/fs.js";
 import { Git } from "../../ports/git.js";
 import { GitHub } from "../../ports/github.js";
 import { Lock } from "../../ports/lock.js";
-import type { ProviderStoreRoots } from "../../ports/providerStores.js";
 import { Shell } from "../../ports/shell.js";
 import type { OutputPort } from "../../ports/output.js";
 import { NoopSystemTelemetryLayer, SystemTelemetry } from "../../ports/systemTelemetry.js";
@@ -109,7 +108,9 @@ export function makeRepoRootedFileSystemLayer(config: ResolvedConfig): Layer.Lay
  */
 export function makeGlobalTelemetryJournalLayerOrNoop(): Layer.Layer<SystemTelemetry> {
   const telemetryConfig = loadTelemetryConfig(TELEMETRY_CONFIG_PATH);
-  const telemetryEnabled = Either.isRight(telemetryConfig) ? telemetryConfig.right.enabled : true;
+  const telemetryEnabled = Result.isSuccess(telemetryConfig)
+    ? telemetryConfig.success.enabled
+    : true;
   return telemetryEnabled
     ? makeGlobalTelemetryJournalLayer(PHAX_HOME_DIR).pipe(Layer.provide(NodeFileSystemLayer))
     : NoopSystemTelemetryLayer;
@@ -123,9 +124,7 @@ export function makeGlobalTelemetryJournalLayerOrNoop(): Layer.Layer<SystemTelem
  * (vibe has none: its turns are read from their stream and export). Every command that runs a provider or writes a record
  * builds its backend through this.
  */
-export function makeProviderBackendLayer(
-  providerConfig: ProviderConfig,
-): Layer.Layer<Backend | ProviderStoreRoots> {
+export function makeProviderBackendLayer(providerConfig: ProviderConfig): Layer.Layer<Backend> {
   return makeNodeBackendLayer(providerConfig).pipe(Layer.provideMerge(ProviderStoreRootsLive));
 }
 

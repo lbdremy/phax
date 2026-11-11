@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { Either } from "effect";
+import { Result } from "effect";
 import { decodePublication } from "../schemas/publication.js";
 import type { ShortName } from "../domain/branded.js";
 import { decodeBranchName } from "../domain/branded.js";
@@ -57,7 +57,7 @@ function tryReadJson(path: string): unknown {
  */
 export function readPullRequestUrl(runPath: string): string | undefined {
   const decoded = decodePublication(tryReadJson(join(runPath, "publication.json")));
-  return Either.isRight(decoded) ? decoded.right.pullRequestUrl : undefined;
+  return Result.isSuccess(decoded) ? decoded.success.pullRequestUrl : undefined;
 }
 
 /**
@@ -71,27 +71,27 @@ export function readArchivedPullRequestUrl(archivePath: string): string | undefi
 function loadRunReviewInfo(
   runPath: string,
   stateRoot: string,
-): Either.Either<RunReviewInfo, string> {
+): Result.Result<RunReviewInfo, string> {
   const runStatusPath = join(runPath, "run-status.json");
   if (!existsSync(runStatusPath)) {
-    return Either.left(`No run-status.json at "${runPath}"`);
+    return Result.fail(`No run-status.json at "${runPath}"`);
   }
 
   const rawRunStatus = tryReadJson(runStatusPath);
   if (rawRunStatus === undefined) {
-    return Either.left(`run-status.json at "${runPath}" is not valid JSON`);
+    return Result.fail(`run-status.json at "${runPath}" is not valid JSON`);
   }
   const runStatusResult = readRunStatusFile(runStatusPath, rawRunStatus);
-  if (Either.isLeft(runStatusResult)) {
-    return Either.left(runStatusResult.left.message);
+  if (Result.isFailure(runStatusResult)) {
+    return Result.fail(runStatusResult.failure.message);
   }
-  const runStatus = runStatusResult.right;
+  const runStatus = runStatusResult.success;
 
   const planPath = join(runPath, "phax-plan.json");
   const planResult = readPhaxPlanFile(planPath, tryReadJson(planPath));
   // Display only: an older shape is read lifted, whatever the shape, without test lines.
-  const plan: AnyShapePhaxPlan | undefined = Either.isRight(planResult)
-    ? planResult.right.plan
+  const plan: AnyShapePhaxPlan | undefined = Result.isSuccess(planResult)
+    ? planResult.success.plan
     : undefined;
 
   const branch = plan?.run.branch ?? "(unknown)";
@@ -114,8 +114,8 @@ function loadRunReviewInfo(
     // without `base`) refuses the whole run: skipping it would make resume
     // take that phase as never started.
     const decoded = readPhaseStatusFile(statusPath, raw);
-    if (Either.isLeft(decoded)) return Either.left(decoded.left.message);
-    phaseStatuses.push(decoded.right);
+    if (Result.isFailure(decoded)) return Result.fail(decoded.failure.message);
+    phaseStatuses.push(decoded.success);
   }
 
   const finalPhaseStatus = phaseStatuses.toSorted((a, b) => b.phaseIndex - a.phaseIndex)[0];
@@ -126,20 +126,20 @@ function loadRunReviewInfo(
     // when the plan is also unavailable, since there is nothing to derive from.
     const lastPlanPhase = planPhases.at(-1);
     if (!lastPlanPhase) {
-      return Either.left(`No phase statuses found at "${runPath}"`);
+      return Result.fail(`No phase statuses found at "${runPath}"`);
     }
     const finalPhaseBranchResult = decodeBranchName(`${branch}--${lastPlanPhase.id}`);
-    if (Either.isLeft(finalPhaseBranchResult)) {
-      return Either.left(`Cannot compute final phase branch for run at "${runPath}"`);
+    if (Result.isFailure(finalPhaseBranchResult)) {
+      return Result.fail(`Cannot compute final phase branch for run at "${runPath}"`);
     }
-    return Either.right({
+    return Result.succeed({
       namespace: runStatus.namespace,
       shortName: runStatus.shortName,
       runId: runStatus.runId,
       runState: runStatus.state,
       branch,
       runTitle,
-      finalPhaseBranch: finalPhaseBranchResult.right,
+      finalPhaseBranch: finalPhaseBranchResult.success,
       stateRoot,
       runPath,
       finalPhaseId: lastPlanPhase.id,
@@ -158,12 +158,12 @@ function loadRunReviewInfo(
   const finalPlanPhase = planPhases.find((p) => p.id === finalPhaseStatus.phaseId);
 
   const finalPhaseBranchResult = decodeBranchName(`${branch}--${finalPhaseStatus.phaseId}`);
-  if (Either.isLeft(finalPhaseBranchResult)) {
-    return Either.left(`Cannot compute final phase branch for run at "${runPath}"`);
+  if (Result.isFailure(finalPhaseBranchResult)) {
+    return Result.fail(`Cannot compute final phase branch for run at "${runPath}"`);
   }
-  const finalPhaseBranch = finalPhaseBranchResult.right;
+  const finalPhaseBranch = finalPhaseBranchResult.success;
 
-  return Either.right({
+  return Result.succeed({
     namespace: runStatus.namespace,
     shortName: runStatus.shortName,
     runId: runStatus.runId,
@@ -190,7 +190,7 @@ export function resolveRun(
   namespace: string,
   shortName: ShortName,
   stateRoot: string,
-): Either.Either<RunReviewInfo, string> {
+): Result.Result<RunReviewInfo, string> {
   return loadRunReviewInfo(join(stateRoot, "runs", runKey(namespace, shortName)), stateRoot);
 }
 
@@ -199,18 +199,18 @@ export function resolvePhaseInfo(
   shortName: ShortName,
   phaseId: string,
   stateRoot: string,
-): Either.Either<PhaseInfo, string> {
+): Result.Result<PhaseInfo, string> {
   const runPath = join(stateRoot, "runs", runKey(namespace, shortName));
   const infoResult = loadRunReviewInfo(runPath, stateRoot);
-  if (Either.isLeft(infoResult)) return Either.left(infoResult.left);
-  const info = infoResult.right;
+  if (Result.isFailure(infoResult)) return Result.fail(infoResult.failure);
+  const info = infoResult.success;
 
   const phaseStatus = info.phaseStatuses.find((p) => p.phaseId === phaseId);
   if (!phaseStatus) {
-    return Either.left(`Phase "${phaseId}" not found in run "${shortName}"`);
+    return Result.fail(`Phase "${phaseId}" not found in run "${shortName}"`);
   }
 
-  return Either.right({
+  return Result.succeed({
     shortName: info.shortName,
     runId: info.runId,
     runState: info.runState,

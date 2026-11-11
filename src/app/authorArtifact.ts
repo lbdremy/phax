@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { join } from "node:path";
 import type { ClaudeSessionId } from "../domain/branded.js";
 import { Backend, type AgentRunOptions, type AgentRunResult } from "../ports/backend.js";
@@ -192,14 +192,14 @@ export function authoringCommitMessage(input: {
 function parseAuthoredDocument(
   kind: ArtifactKind,
   result: AgentRunResult,
-): Either.Either<AuthoredDocument, string> {
+): Result.Result<AuthoredDocument, string> {
   const parsed = answerJson(result);
-  if (Either.isLeft(parsed)) return Either.left(parsed.left);
+  if (Result.isFailure(parsed)) return Result.fail(parsed.failure);
 
   if (kind === "spec") {
-    return Either.map(decodeAuthoredSpecDocument(parsed.right), (doc) => ({ kind, doc }));
+    return Result.map(decodeAuthoredSpecDocument(parsed.success), (doc) => ({ kind, doc }));
   }
-  return Either.map(decodeAuthoredPlanDocument(parsed.right), (doc) => ({ kind, doc }));
+  return Result.map(decodeAuthoredPlanDocument(parsed.success), (doc) => ({ kind, doc }));
 }
 
 /** What the record needs to know of the session once the agent has returned. */
@@ -266,16 +266,16 @@ function retryRefusedDocument(
     yield* keepAuthoringSession(session.folder, options, session.observed);
 
     const parsed = parseAuthoredDocument(input.kind, retried);
-    if (Either.isLeft(parsed)) {
+    if (Result.isFailure(parsed)) {
       return yield* Effect.fail(
         new AuthoringDocumentError({
           kind: input.kind,
           slug: input.slug,
-          message: refusedTwiceMessage(input.kind, firstRefusal, parsed.left),
+          message: refusedTwiceMessage(input.kind, firstRefusal, parsed.failure),
         }),
       );
     }
-    return parsed.right;
+    return parsed.success;
   });
 }
 
@@ -359,14 +359,14 @@ function runAuthoringSession(
     yield* keepAuthoringSession(session.folder, options, session.observed);
 
     const firstAnswer = parseAuthoredDocument(input.kind, agentResult);
-    const accepted = Either.isRight(firstAnswer)
-      ? firstAnswer.right
+    const accepted = Result.isSuccess(firstAnswer)
+      ? firstAnswer.success
       : yield* retryRefusedDocument(
           input,
           session,
           agentResult.sessionId,
           options,
-          firstAnswer.left,
+          firstAnswer.failure,
         );
 
     // `--spec` and `--last`/`--not-last` are authoritative for a plan's lineage:
@@ -420,12 +420,12 @@ function runAuthoringSession(
       effort: input.effort,
     });
     const paths = [target.path, sidecarPath];
-    const committed = yield* Effect.either(git.commitPaths(input.repoRoot, paths, subject, body));
-    if (Either.isLeft(committed)) {
+    const committed = yield* Effect.result(git.commitPaths(input.repoRoot, paths, subject, body));
+    if (Result.isFailure(committed)) {
       return yield* Effect.fail(
         new ArtifactCommitFailedError({
           paths,
-          cause: committed.left.message,
+          cause: committed.failure.message,
           commitMessage: { subject, body },
         }),
       );
@@ -509,7 +509,7 @@ export function authorArtifact(
       effort: input.resolution.selected.thinking ?? input.effort,
     };
     const observed: ObservedSession = { retry: "none" };
-    const outcome = yield* Effect.either(
+    const outcome = yield* Effect.result(
       runAuthoringSession(input, target, { authoringId, folder, prompt, binding, observed }),
     );
 
@@ -524,7 +524,7 @@ export function authorArtifact(
       artifact: target.path,
       binding,
       observed,
-      sourceSha: Either.isRight(outcome) ? outcome.right.commit.hash : undefined,
+      sourceSha: Result.isSuccess(outcome) ? outcome.success.commit.hash : undefined,
     });
     // A written record is shared like publish shares phase records.
     const recordPush: AuthoringRecordPush =
@@ -536,16 +536,16 @@ export function authorArtifact(
             recordsClonePath: input.recordsClonePath,
           })
         : { kind: "no-record" };
-    if (Either.isLeft(outcome)) {
+    if (Result.isFailure(outcome)) {
       // The cause prints first: the record's warnings ride on the error.
       return yield* Effect.fail(
-        failWithFollowUps(outcome.left, [
-          recordWarning(record, isSessionFailureCause(outcome.left)),
+        failWithFollowUps(outcome.failure, [
+          recordWarning(record, isSessionFailureCause(outcome.failure)),
           recordPushWarning(recordPush),
         ]),
       );
     }
-    return { ...outcome.right, record, recordPush };
+    return { ...outcome.success, record, recordPush };
   });
 }
 
@@ -587,7 +587,7 @@ function recordSession(
     ...(sessionId !== undefined ? { sessionId } : {}),
     ...(retrySessionId !== undefined ? { retrySessionId } : {}),
   }).pipe(
-    Effect.catchAll((e) => Effect.succeed({ kind: "write-failed", message: e.message } as const)),
+    Effect.catch((e) => Effect.succeed({ kind: "write-failed", message: e.message } as const)),
   );
 }
 

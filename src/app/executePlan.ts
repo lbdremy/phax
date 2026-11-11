@@ -1,4 +1,4 @@
-import { Array as Arr, Effect, Either } from "effect";
+import { Array as Arr, Effect, Result } from "effect";
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
@@ -292,12 +292,12 @@ function readClosedStop(
     const status = yield* readPhaseStatus(phaseFolderPath);
     const session = yield* readInteractiveSession(phaseFolderPath);
     const stop = recordStopFromPersisted(status.stop, session);
-    if (Either.isLeft(stop)) {
+    if (Result.isFailure(stop)) {
       return yield* Effect.fail(
-        new FsError({ message: `Cannot record the stop of ${phaseId}: ${stop.left}` }),
+        new FsError({ message: `Cannot record the stop of ${phaseId}: ${stop.failure}` }),
       );
     }
-    return stop.right;
+    return stop.success;
   });
 }
 
@@ -317,7 +317,7 @@ function writeBriefRequestOrWarn(
   request: BriefRequestFile,
 ): Effect.Effect<void, never, FileSystem> {
   return writePhaseBriefRequest(worktreePath, request).pipe(
-    Effect.catchAll((e) =>
+    Effect.catch((e) =>
       Effect.sync(() => {
         output.warn(
           `[phax] Warning: phase "${phaseId}" — failed to write ${PHASE_BRIEF_REQUEST_FILE} (${e.message}).`,
@@ -537,7 +537,7 @@ export function executePlan(
         ...(args.sourceSha !== undefined ? { sourceSha: args.sourceSha } : {}),
       }).pipe(
         // A record-write I/O failure never fails the run — it degrades to a warning.
-        Effect.catchAll((e) =>
+        Effect.catch((e) =>
           Effect.sync(() => {
             output.warn(
               `[phax] Warning: phase "${args.phaseId}" — failed to write record (${e instanceof Error ? e.message : String(e)}).`,
@@ -613,7 +613,7 @@ export function executePlan(
       outcome: "committed",
       sourceSha: args.sourceSha,
     }).pipe(
-      Effect.catchAll((refused) =>
+      Effect.catch((refused) =>
         Effect.gen(function* () {
           yield* dispatch(
             {
@@ -626,7 +626,7 @@ export function executePlan(
               reason: refused.message,
             },
             dispatchCtx(args.phaseFolderPath, phase.id),
-          ).pipe(Effect.catchAll(() => Effect.void));
+          ).pipe(Effect.catch(() => Effect.void));
           return yield* Effect.fail(
             new StopRecordPausedError({
               message: refused.message,
@@ -894,7 +894,7 @@ export function executePlan(
         skillEditGrants: [...args.skillEditGrants],
         // A declared list always holds the loaded phax.json, so it is never empty.
         protectedPaths:
-          config.protectedPaths !== undefined && Arr.isNonEmptyReadonlyArray(config.protectedPaths)
+          config.protectedPaths !== undefined && Arr.isReadonlyArrayNonEmpty(config.protectedPaths)
             ? {
                 globs: Arr.map(config.protectedPaths, (entry) => entry.glob),
                 enforcement: protectedEnforcement(
@@ -951,7 +951,7 @@ export function executePlan(
       shortName: shortName as string,
       phaseId: phase.id,
     }).pipe(
-      Effect.catchAll((e) =>
+      Effect.catch((e) =>
         Effect.gen(function* () {
           const reason = e instanceof Error ? e.message : String(e);
           yield* dispatch(
@@ -989,15 +989,20 @@ export function executePlan(
         return [];
       }
       const infoResult = resolveRun(namespace, shortName, config.stateRoot);
-      if (Either.isLeft(infoResult)) {
+      if (Result.isFailure(infoResult)) {
         return yield* Effect.fail(
           new RegistryCorruptionError({
-            message: `Failed to resolve run "${shortName}" for its review corrections: ${infoResult.left}`,
+            message: `Failed to resolve run "${shortName}" for its review corrections: ${infoResult.failure}`,
             registryPath: join(config.stateRoot, "registry.json"),
           }),
         );
       }
-      return yield* readReviewCorrections(runPath, plan.phases, i, infoResult.right.phaseStatuses);
+      return yield* readReviewCorrections(
+        runPath,
+        plan.phases,
+        i,
+        infoResult.success.phaseStatuses,
+      );
     });
   }
 
@@ -1011,10 +1016,10 @@ export function executePlan(
   ): Effect.Effect<StopRecordInputs, FsError | RegistryCorruptionError, FileSystem> {
     return Effect.gen(function* () {
       const binding = yield* Effect.promise(() => readAgentBinding(phaseFolderPath));
-      if (Either.isLeft(binding)) {
+      if (Result.isFailure(binding)) {
         return yield* Effect.fail(
           new RegistryCorruptionError({
-            message: `Cannot resume phase "${phaseId}" of run "${shortName}": agent-binding.json is missing or unreadable (${binding.left}).`,
+            message: `Cannot resume phase "${phaseId}" of run "${shortName}": agent-binding.json is missing or unreadable (${binding.failure}).`,
             registryPath: join(phaseFolderPath, "agent-binding.json"),
           }),
         );
@@ -1037,9 +1042,9 @@ export function executePlan(
           ? { kind: "none" }
           : { kind: "recorded", usage: session.builderUsage };
       return {
-        provider: binding.right.provider,
-        model: binding.right.model,
-        effort: binding.right.effort,
+        provider: binding.success.provider,
+        model: binding.success.model,
+        effort: binding.success.effort,
         usage,
         sourceSha: commit,
         closedStop: closed ? yield* readClosedStop(phaseFolderPath, phaseId) : undefined,
@@ -1096,7 +1101,7 @@ export function executePlan(
       const fs = yield* FileSystem;
       const branchStr = `${plan.run.branch}--${phaseId}`;
       const phaseBranch = decodeBranchName(branchStr);
-      if (Either.isLeft(phaseBranch)) {
+      if (Result.isFailure(phaseBranch)) {
         return yield* Effect.fail(
           new UnsafeGitStateError({
             message: `Invalid phase branch "${branchStr}"`,
@@ -1107,34 +1112,34 @@ export function executePlan(
       let worktree: WorktreePath | null = null;
       if (worktreePath !== undefined && (yield* fs.exists(worktreePath))) {
         const decoded = decodeWorktreePath(worktreePath);
-        if (Either.isLeft(decoded)) {
+        if (Result.isFailure(decoded)) {
           return yield* Effect.fail(
             new WorktreeCreationError({
               message: `Invalid worktree path "${worktreePath}"`,
-              branch: phaseBranch.right,
+              branch: phaseBranch.success,
               path: worktreePath,
             }),
           );
         }
-        worktree = decoded.right;
+        worktree = decoded.success;
       }
       let assignment: PostHandoffInputs["assignment"] = null;
       if (config.records.enabled) {
         const binding = yield* Effect.promise(() => readAgentBinding(phaseFolderPath));
-        if (Either.isLeft(binding)) {
+        if (Result.isFailure(binding)) {
           return yield* Effect.fail(
             new RegistryCorruptionError({
-              message: `Cannot resume phase "${phaseId}" of run "${shortName}": agent-binding.json is missing or unreadable (${binding.left}).`,
+              message: `Cannot resume phase "${phaseId}" of run "${shortName}": agent-binding.json is missing or unreadable (${binding.failure}).`,
               registryPath: join(phaseFolderPath, "agent-binding.json"),
             }),
           );
         }
-        const { provider, model, effort } = binding.right;
+        const { provider, model, effort } = binding.success;
         assignment = { provider, model, effort };
       }
       // A back-reference only, as the committed path's HEAD lookup is.
       const { commitHash } = yield* readPhaseStatus(phaseFolderPath);
-      return { branch: phaseBranch.right, worktree, assignment, sourceSha: commitHash };
+      return { branch: phaseBranch.success, worktree, assignment, sourceSha: commitHash };
     });
   }
 
@@ -1198,7 +1203,7 @@ export function executePlan(
       yield* recordGateProfileInRunStatus(runPath, gateProfileId);
     } else {
       const branchResult = decodeBranchName(plan.run.branch);
-      if (Either.isLeft(branchResult)) {
+      if (Result.isFailure(branchResult)) {
         return yield* Effect.fail(
           new UnsafeGitStateError({
             message: `Invalid branch name "${plan.run.branch}": must be non-empty`,
@@ -1206,7 +1211,7 @@ export function executePlan(
           }),
         );
       }
-      branch = branchResult.right;
+      branch = branchResult.success;
     }
 
     // `previousPhaseBranch` tracks the ref each new phase branches off.
@@ -1219,7 +1224,7 @@ export function executePlan(
       if (prevPhase !== undefined) {
         const prevBranchStr = `${plan.run.branch}--${prevPhase.id}`;
         const prevBranchResult = decodeBranchName(prevBranchStr);
-        if (Either.isLeft(prevBranchResult)) {
+        if (Result.isFailure(prevBranchResult)) {
           return yield* Effect.fail(
             new UnsafeGitStateError({
               message: `Invalid branch name "${prevBranchStr}": must be non-empty`,
@@ -1227,7 +1232,7 @@ export function executePlan(
             }),
           );
         }
-        previousPhaseBranch = prevBranchResult.right;
+        previousPhaseBranch = prevBranchResult.success;
       }
     }
 
@@ -1268,8 +1273,8 @@ export function executePlan(
     reentryReading = true;
     if (resumePhase !== undefined) {
       const infoResult = resolveRun(namespace, shortName, config.stateRoot);
-      if (Either.isRight(infoResult)) {
-        const phaseStatus = infoResult.right.phaseStatuses.find(
+      if (Result.isSuccess(infoResult)) {
+        const phaseStatus = infoResult.success.phaseStatuses.find(
           (p) => p.phaseId === resumePhase.id,
         );
         const owesHeldStop =
@@ -1386,7 +1391,7 @@ export function executePlan(
         }
         const branchStr = `${plan.run.branch}--${phaseId}`;
         const phaseBranch = decodeBranchName(branchStr);
-        if (Either.isLeft(phaseBranch)) {
+        if (Result.isFailure(phaseBranch)) {
           return yield* Effect.fail(
             new UnsafeGitStateError({
               message: `Invalid phase branch "${branchStr}"`,
@@ -1395,16 +1400,16 @@ export function executePlan(
           );
         }
         const worktree = decodeWorktreePath(worktreePath);
-        if (Either.isLeft(worktree)) {
+        if (Result.isFailure(worktree)) {
           return yield* Effect.fail(
             new WorktreeCreationError({
               message: `Invalid worktree path "${worktreePath}"`,
-              branch: phaseBranch.right,
+              branch: phaseBranch.success,
               path: worktreePath,
             }),
           );
         }
-        return { branch: phaseBranch.right, worktree: worktree.right };
+        return { branch: phaseBranch.success, worktree: worktree.success };
       });
     }
 
@@ -1433,10 +1438,10 @@ export function executePlan(
           );
         }
         const binding = yield* Effect.promise(() => readAgentBinding(phaseFolderPath));
-        if (Either.isLeft(binding)) {
-          return yield* Effect.fail(new FsError({ message: binding.left }));
+        if (Result.isFailure(binding)) {
+          return yield* Effect.fail(new FsError({ message: binding.failure }));
         }
-        const { provider, model, effort, sessionId } = binding.right;
+        const { provider, model, effort, sessionId } = binding.success;
         const posture = yield* readPhasePosture(phaseFolderPath);
         return yield* stopAtHeldPhase({
           runId,
@@ -1462,7 +1467,7 @@ export function executePlan(
         });
       });
       return reach.pipe(
-        Effect.catchAll((e) =>
+        Effect.catch((e) =>
           Effect.gen(function* () {
             const reason = e instanceof Error ? e.message : String(e);
             yield* dispatch(
@@ -1477,7 +1482,7 @@ export function executePlan(
                 reason,
               },
               dispatchCtx(phaseFolderPath, phase.id),
-            ).pipe(Effect.catchAll(() => Effect.void));
+            ).pipe(Effect.catch(() => Effect.void));
             return yield* Effect.fail(
               new HoldPointPausedError({
                 message: `Hold point failed for phase "${phase.id}": ${reason}`,
@@ -1599,7 +1604,7 @@ export function executePlan(
       // Resolve the phase branch before creating the phase folder so the
       // initial status.json can include branchName (required by the schema).
       const phaseIdResult = decodePhaseId(phase.id);
-      if (Either.isLeft(phaseIdResult)) {
+      if (Result.isFailure(phaseIdResult)) {
         return yield* Effect.fail(
           new WorktreeCreationError({
             message: `Invalid phase id "${phase.id}": must match phase-NN`,
@@ -1630,7 +1635,7 @@ export function executePlan(
               ? stopReentry
               : yield* interactiveReentry(phase.id, resumeWorktreePath);
           if (reentry === undefined) {
-            return yield* Effect.dieMessage(`No checked re-entry for the stop at ${phase.id}`);
+            return yield* Effect.die(new Error(`No checked re-entry for the stop at ${phase.id}`));
           }
           const reentryBranch = reentry.branch;
           const reentryWorktree = reentry.worktree;
@@ -1642,7 +1647,7 @@ export function executePlan(
           // cleanup re-entry writes no record.
           const declaredRecord = isResumeFromCleanup ? undefined : stopRecordInputs;
           if (!isResumeFromCleanup && declaredRecord === undefined) {
-            return yield* Effect.dieMessage(`No record inputs for the stop at ${phase.id}`);
+            return yield* Effect.die(new Error(`No record inputs for the stop at ${phase.id}`));
           }
           if (isResumeFromStop) {
             // A failure of the close past its commit leaves the run for a
@@ -1667,7 +1672,9 @@ export function executePlan(
             closeInFlight = false;
             opts.onStopClosed?.({ phaseId: phase.id, phaseTitle: phase.title, report });
             if (report.cause !== "declared" || declaredRecord === undefined) {
-              return yield* Effect.dieMessage(`The stop at ${phase.id} did not close as declared`);
+              return yield* Effect.die(
+                new Error(`The stop at ${phase.id} did not close as declared`),
+              );
             }
             yield* writeStopRecord({
               phase,
@@ -1682,8 +1689,8 @@ export function executePlan(
               declaredRecord?.sourceSha === undefined ||
               declaredRecord.closedStop === undefined
             ) {
-              return yield* Effect.dieMessage(
-                `No recorded stop for the closed stop at ${phase.id}`,
+              return yield* Effect.die(
+                new Error(`No recorded stop for the closed stop at ${phase.id}`),
               );
             }
             yield* writeStopRecord({
@@ -1709,7 +1716,7 @@ export function executePlan(
 
         const preparedStopBranch = yield* preparePhaseBranch(
           branch,
-          phaseIdResult.right,
+          phaseIdResult.success,
           previousPhaseBranch,
           config.repoRoot,
         );
@@ -1729,7 +1736,7 @@ export function executePlan(
         const stopWorktree = yield* createPhaseWorktree(
           namespace,
           shortName,
-          phaseIdResult.right,
+          phaseIdResult.success,
           preparedStopBranch.branch,
           config.stateRoot,
           config.repoRoot,
@@ -1800,7 +1807,9 @@ export function executePlan(
         // Its worktree and branch were checked before RunResumeRequested. No
         // agent turn, gate, commit or handoff turn: straight to the hold point.
         if (holdPointReentry === undefined) {
-          return yield* Effect.dieMessage(`No checked re-entry for the hold point of ${phase.id}`);
+          return yield* Effect.die(
+            new Error(`No checked re-entry for the hold point of ${phase.id}`),
+          );
         }
         const heldFolder = join(runPath, phase.id);
         currentPhaseId = phase.id;
@@ -1819,7 +1828,7 @@ export function executePlan(
             base: yield* notedPhaseCommit(heldFolder),
             list: config.protectedPaths,
           });
-          if (Arr.isNonEmptyReadonlyArray(changes)) {
+          if (Arr.isReadonlyArrayNonEmpty(changes)) {
             yield* dispatch(
               {
                 ...eventBase(phase.id),
@@ -1855,7 +1864,9 @@ export function executePlan(
           phaseFolderPath: heldFolder,
           worktreePath: holdPointReentry.worktree,
         });
-        return yield* Effect.dieMessage(`The hold point of ${phase.id} owed no stop on re-entry`);
+        return yield* Effect.die(
+          new Error(`The hold point of ${phase.id} owed no stop on re-entry`),
+        );
       }
 
       if (i === startIndex && (resumeFromHeldStop || resumeFromClosedStop)) {
@@ -1863,13 +1874,17 @@ export function executePlan(
         // and what its record needs were read before RunResumeRequested, and
         // nothing is read after the close: the record is written from them.
         if (stopReentry === undefined || stopRecordInputs === undefined) {
-          return yield* Effect.dieMessage(`No checked re-entry for the held stop at ${phase.id}`);
+          return yield* Effect.die(
+            new Error(`No checked re-entry for the held stop at ${phase.id}`),
+          );
         }
         const heldRecord = stopRecordInputs;
         // The phase commit, never HEAD (which is the review commit).
         const phaseCommit = heldRecord.sourceSha;
         if (phaseCommit === undefined) {
-          return yield* Effect.dieMessage(`No phase commit read for the held stop at ${phase.id}`);
+          return yield* Effect.die(
+            new Error(`No phase commit read for the held stop at ${phase.id}`),
+          );
         }
         const heldFolder = join(runPath, phase.id);
         currentPhaseId = phase.id;
@@ -1919,7 +1934,9 @@ export function executePlan(
           yield* writeHeldRecord(recordStopOf(report));
         } else if (closedStopOwesRecord) {
           if (heldRecord.closedStop === undefined) {
-            return yield* Effect.dieMessage(`No recorded stop for the closed stop at ${phase.id}`);
+            return yield* Effect.die(
+              new Error(`No recorded stop for the closed stop at ${phase.id}`),
+            );
           }
           yield* writeHeldRecord(heldRecord.closedStop);
         }
@@ -1939,8 +1956,8 @@ export function executePlan(
         // the pulled briefs, the record and the cleanup. No agent turn, gate,
         // commit or handoff turn runs.
         if (postHandoffInputs === undefined) {
-          return yield* Effect.dieMessage(
-            `No checked inputs for what follows ${phase.id}'s handoff`,
+          return yield* Effect.die(
+            new Error(`No checked inputs for what follows ${phase.id}'s handoff`),
           );
         }
         const { worktree, assignment } = postHandoffInputs;
@@ -2057,7 +2074,7 @@ export function executePlan(
         }
         const phaseBranchStr = `${plan.run.branch}--${phase.id}`;
         const phaseBranchResult = decodeBranchName(phaseBranchStr);
-        if (Either.isLeft(phaseBranchResult)) {
+        if (Result.isFailure(phaseBranchResult)) {
           return yield* Effect.fail(
             new UnsafeGitStateError({
               message: `Invalid phase branch "${phaseBranchStr}"`,
@@ -2065,10 +2082,10 @@ export function executePlan(
             }),
           );
         }
-        phaseBranch = phaseBranchResult.right;
+        phaseBranch = phaseBranchResult.success;
         phaseFolderPath = join(runPath, phase.id);
         const worktreePathResult = decodeWorktreePath(resumeWorktreePath);
-        if (Either.isLeft(worktreePathResult)) {
+        if (Result.isFailure(worktreePathResult)) {
           return yield* Effect.fail(
             new WorktreeCreationError({
               message: `Invalid worktree path "${resumeWorktreePath}"`,
@@ -2077,7 +2094,7 @@ export function executePlan(
             }),
           );
         }
-        worktreePath = worktreePathResult.right;
+        worktreePath = worktreePathResult.success;
         phaseBase = yield* readPhaseBase(phaseFolderPath);
         // Only these two re-entries run the agent again; a commit, cleanup or
         // completion re-entry runs none, so it needs no fresh copy.
@@ -2110,15 +2127,15 @@ export function executePlan(
         // absent binding means the run state is corrupt (or predates the
         // feature, which is unsupported pre-public): fail loudly, don't reroute.
         const bindingEither = yield* Effect.promise(() => readAgentBinding(phaseFolderPath));
-        if (Either.isLeft(bindingEither)) {
+        if (Result.isFailure(bindingEither)) {
           return yield* Effect.fail(
             new RegistryCorruptionError({
-              message: `Cannot resume phase "${phase.id}" of run "${shortName}": agent-binding.json is missing or unreadable (${bindingEither.left}).`,
+              message: `Cannot resume phase "${phase.id}" of run "${shortName}": agent-binding.json is missing or unreadable (${bindingEither.failure}).`,
               registryPath: join(phaseFolderPath, "agent-binding.json"),
             }),
           );
         }
-        const binding = bindingEither.right;
+        const binding = bindingEither.success;
         const resumeFrozenResult = computeFrozenAgentCommands({
           configCommands: securityPolicy.agentCommands,
           gateCommands: gateCommandStrings,
@@ -2145,7 +2162,7 @@ export function executePlan(
         // worktrees simultaneously.
         const preparedBranch = yield* preparePhaseBranch(
           branch,
-          phaseIdResult.right,
+          phaseIdResult.success,
           previousPhaseBranch,
           config.repoRoot,
         );
@@ -2180,7 +2197,7 @@ export function executePlan(
         worktreePath = yield* createPhaseWorktree(
           namespace,
           shortName,
-          phaseIdResult.right,
+          phaseIdResult.success,
           phaseBranch,
           config.stateRoot,
           config.repoRoot,
@@ -2232,8 +2249,10 @@ export function executePlan(
         // The phase-sections preflight located every phase, so a miss is a defect.
         const phaseSection = planSections.sections.get(phase.id);
         if (phaseSection === undefined) {
-          return yield* Effect.dieMessage(
-            `Phase "${phase.id}" has no located plan.md section after the phase-sections preflight`,
+          return yield* Effect.die(
+            new Error(
+              `Phase "${phase.id}" has no located plan.md section after the phase-sections preflight`,
+            ),
           );
         }
         const promptText = buildPhasePrompt({
@@ -2525,8 +2544,8 @@ export function executePlan(
           const reconPath = join(phaseFolderPath, "file-reconciliation.json");
           const reconRaw = yield* fs.readText(reconPath);
           const reconDecoded = readPhaseFileReconciliationFile(reconPath, JSON.parse(reconRaw));
-          reconciliation = Either.isRight(reconDecoded)
-            ? reconDecoded.right
+          reconciliation = Result.isSuccess(reconDecoded)
+            ? reconDecoded.success
             : {
                 createdAsPlanned: [],
                 editedAsPlanned: [],
@@ -2748,15 +2767,15 @@ export function executePlan(
         finalPhaseId = phase.id;
 
         const infoResult = resolveRun(namespace, shortName, config.stateRoot);
-        if (Either.isLeft(infoResult)) {
+        if (Result.isFailure(infoResult)) {
           return yield* Effect.fail(
             new RegistryCorruptionError({
-              message: `Failed to resolve run "${shortName}" for final review: ${infoResult.left}`,
+              message: `Failed to resolve run "${shortName}" for final review: ${infoResult.failure}`,
               registryPath: join(config.stateRoot, "registry.json"),
             }),
           );
         }
-        finalReviewStatuses = infoResult.right.phaseStatuses;
+        finalReviewStatuses = infoResult.success.phaseStatuses;
         // Run completion (spec 27): apply the plan's Approved → Completed
         // transition on the run branch — riding the source spec along where the
         // chain gate allows — BEFORE review opens, so the reviewer sees the
@@ -2774,7 +2793,7 @@ export function executePlan(
             planRepoRelPath: opts.planRepoRelPath,
             nowIso: new Date().toISOString(),
           }).pipe(
-            Effect.catchAll((e) =>
+            Effect.catch((e) =>
               Effect.gen(function* () {
                 const reason = e instanceof Error ? e.message : String(e);
                 yield* dispatch(
@@ -2804,7 +2823,7 @@ export function executePlan(
           if (sourceSpecOutcome !== undefined) {
             const fs = yield* FileSystem;
             yield* fs.writeAtomic(
-              join(infoResult.right.runPath, SOURCE_SPEC_OUTCOME_FILENAME),
+              join(infoResult.success.runPath, SOURCE_SPEC_OUTCOME_FILENAME),
               `${sourceSpecOutcome}\n`,
             );
           }
@@ -2817,7 +2836,7 @@ export function executePlan(
           {
             ...eventBase(phase.id),
             type: "FinalReviewOpened",
-            info: infoResult.right,
+            info: infoResult.success,
           },
           ctx,
         );
@@ -2830,7 +2849,7 @@ export function executePlan(
         if (config.complianceReview?.enabled) {
           const reviewPolicy = resolveSecurityPolicy({
             mode: securityMode,
-            worktreePath: infoResult.right.worktreePath,
+            worktreePath: infoResult.success.worktreePath,
             config: config.security,
           });
           const reviewResolution = resolveModel(
@@ -2842,7 +2861,7 @@ export function executePlan(
           // The entry is committed here, before publish: publish's own records
           // push carries it, so no push is made now.
           yield* reviewComplianceAndRecord(
-            infoResult.right,
+            infoResult.success,
             config.complianceReview,
             reviewResolution,
             { mode: securityMode, config: config.security },
@@ -2868,7 +2887,7 @@ export function executePlan(
                 }
               }),
             ),
-            Effect.catchAll(() => Effect.void),
+            Effect.catch(() => Effect.void),
           );
         }
 
@@ -2885,7 +2904,7 @@ export function executePlan(
           } else {
             const codeReviewPolicy = resolveSecurityPolicy({
               mode: securityMode,
-              worktreePath: infoResult.right.worktreePath,
+              worktreePath: infoResult.success.worktreePath,
               config: config.security,
             });
             const codeReviewResolution = resolveModel(
@@ -2896,7 +2915,7 @@ export function executePlan(
             );
             const retryCommand = `phax review-code ${shortName} --headless`;
             yield* reviewCodeAndRecord(
-              infoResult.right,
+              infoResult.success,
               config.codeReview,
               codeReviewResolution,
               { mode: securityMode, config: config.security },
@@ -2929,7 +2948,7 @@ export function executePlan(
                   }
                 }),
               ),
-              Effect.catchAll(() => Effect.void),
+              Effect.catch(() => Effect.void),
             );
           }
         }
@@ -2938,7 +2957,7 @@ export function executePlan(
         // Publication failure is non-fatal — the run stays in review_open and
         // failure details are recorded in publication.json / final-report.md.
         if (config.publish?.auto) {
-          const publicationResult = yield* publishRun(infoResult.right, config.publish, {
+          const publicationResult = yield* publishRun(infoResult.success, config.publish, {
             repoRoot: config.repoRoot,
             phaxVersion: opts.phaxVersion,
             records: config.records,
@@ -2947,7 +2966,7 @@ export function executePlan(
               : {}),
             ...(opts.verbose !== undefined ? { verbose: opts.verbose } : {}),
             output,
-          }).pipe(Effect.catchAll(() => Effect.succeed(undefined)));
+          }).pipe(Effect.catch(() => Effect.succeed(undefined)));
           if (publicationResult?.kind === "published" && publicationResult.prUrl !== undefined) {
             publishedPrUrl = publicationResult.prUrl;
           }
@@ -2976,9 +2995,9 @@ export function executePlan(
     // it: the count falls back to the statuses read for the final review,
     // which hold the same committed phases (the final one `committed` then).
     const completedPhaseCount = countCompletedPhases(
-      Either.match(resolveRun(namespace, shortName, config.stateRoot), {
-        onLeft: () => finalReviewStatuses,
-        onRight: (info) => info.phaseStatuses,
+      Result.match(resolveRun(namespace, shortName, config.stateRoot), {
+        onFailure: () => finalReviewStatuses,
+        onSuccess: (info) => info.phaseStatuses,
       }),
     );
 
@@ -3011,8 +3030,8 @@ export function executePlan(
         // A held phase committed before it stopped: nothing after its commit
         // writes a `failed` record for it, so a phase with a stop writes none.
         if (currentPhaseFolderPath !== undefined) {
-          const status = yield* Effect.either(readPhaseStatus(currentPhaseFolderPath));
-          if (Either.isRight(status) && status.right.stop !== null) return;
+          const status = yield* Effect.result(readPhaseStatus(currentPhaseFolderPath));
+          if (Result.isSuccess(status) && status.success.stop !== null) return;
         }
         if (
           config.brief !== undefined &&
@@ -3044,7 +3063,7 @@ export function executePlan(
             outcome: "failed",
             failOnRefusal: false,
             followingFailedSession: isSessionFailureCause(e),
-          }).pipe(Effect.catchAll(() => Effect.void));
+          }).pipe(Effect.catch(() => Effect.void));
         }
       }),
     ),
@@ -3068,7 +3087,7 @@ export function executePlan(
         };
         yield* dispatch(rateLimitEvent, dispatchCtx(currentPhaseFolderPath, currentPhaseId));
         return yield* Effect.fail(e);
-      }).pipe(Effect.catchAll(() => Effect.fail(e))),
+      }).pipe(Effect.catch(() => Effect.fail(e))),
     ),
     // A network failure pauses the run the same way: NetworkFailureDetected
     // moves run and phase to `rate_limited` and writes resume-instructions.md.
@@ -3086,7 +3105,7 @@ export function executePlan(
             sessionId: sessionId as ClaudeSessionId | undefined,
           },
           dispatchCtx(currentPhaseFolderPath, currentPhaseId),
-        ).pipe(Effect.catchAll(() => Effect.void));
+        ).pipe(Effect.catch(() => Effect.void));
         return yield* Effect.fail(
           new AgentSessionFailedError({
             message: e.message,
@@ -3202,7 +3221,7 @@ export function executePlan(
               { ...eventBase(currentPhaseId), type: "RunFailed", cause: e },
               dispatchCtx(currentPhaseFolderPath, currentPhaseId),
             );
-          }).pipe(Effect.catchAll(() => Effect.void)),
+          }).pipe(Effect.catch(() => Effect.void)),
     ),
     // The failed phase's record refusal follows its session failure: hand the
     // warning to the CLI on the error, which prints the cause first.

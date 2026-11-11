@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { describe, it, expect } from "vitest";
 import { loadOrExtractPlan } from "../../src/app/loadOrExtractPlan.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
@@ -109,8 +109,8 @@ const BASE_OPTS = {
   nowIso: "2026-07-01T00:00:00.000Z",
 } as const;
 
-function runEffect<E, A>(effect: Effect.Effect<A, E, never>): Promise<Either.Either<A, E>> {
-  return Effect.runPromise(Effect.either(effect));
+function runEffect<E, A>(effect: Effect.Effect<A, E, never>): Promise<Result.Result<A, E>> {
+  return Effect.runPromise(Effect.result(effect));
 }
 
 describe("loadOrExtractPlan — deterministic-first wiring", () => {
@@ -123,12 +123,12 @@ describe("loadOrExtractPlan — deterministic-first wiring", () => {
       loadOrExtractPlan(BASE_OPTS).pipe(Effect.provide(Layer.merge(fsLayer, backendLayer))),
     );
 
-    expect(Either.isRight(result)).toBe(true);
-    if (!Either.isRight(result)) return;
+    expect(Result.isSuccess(result)).toBe(true);
+    if (!Result.isSuccess(result)) return;
     expect(backend.completeCalls).toHaveLength(0);
-    expect(result.right.fromCache).toBe(false);
-    expect(result.right.plan.phases[0]!.id).toBe("phase-01");
-    expect(result.right.warnings.some((w) => /fell back to LLM/.test(w))).toBe(false);
+    expect(result.success.fromCache).toBe(false);
+    expect(result.success.plan.phases[0]!.id).toBe("phase-01");
+    expect(result.success.warnings.some((w) => /fell back to LLM/.test(w))).toBe(false);
   });
 
   it("falls back to the LLM for a non-conforming plan and surfaces the fallback warning", async () => {
@@ -141,10 +141,10 @@ describe("loadOrExtractPlan — deterministic-first wiring", () => {
       loadOrExtractPlan(BASE_OPTS).pipe(Effect.provide(Layer.merge(fsLayer, backendLayer))),
     );
 
-    expect(Either.isRight(result)).toBe(true);
-    if (!Either.isRight(result)) return;
+    expect(Result.isSuccess(result)).toBe(true);
+    if (!Result.isSuccess(result)) return;
     expect(backend.completeCalls).toHaveLength(1);
-    const fallbackWarning = result.right.warnings.find((w) => w.includes("fell back to LLM"));
+    const fallbackWarning = result.success.warnings.find((w) => w.includes("fell back to LLM"));
     expect(fallbackWarning).toBeDefined();
     expect(fallbackWarning).toMatch(/Deterministic extraction failed/);
     expect(fallbackWarning).toMatch(/fell back to LLM/);
@@ -161,10 +161,10 @@ describe("loadOrExtractPlan — deterministic-first wiring", () => {
       ),
     );
 
-    expect(Either.isRight(result)).toBe(true);
-    if (!Either.isRight(result)) return;
+    expect(Result.isSuccess(result)).toBe(true);
+    if (!Result.isSuccess(result)) return;
     expect(backend.completeCalls).toHaveLength(0);
-    expect(result.right.plan.phases[0]!.id).toBe("phase-01");
+    expect(result.success.plan.phases[0]!.id).toBe("phase-01");
   });
 
   it("--no-extract fails for a non-conforming plan with no cache", async () => {
@@ -178,9 +178,9 @@ describe("loadOrExtractPlan — deterministic-first wiring", () => {
       ),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (!Either.isLeft(result)) return;
-    expect(result.left.message).toMatch(/no-extract|no cached/i);
+    expect(Result.isFailure(result)).toBe(true);
+    if (!Result.isFailure(result)) return;
+    expect(result.failure.message).toMatch(/no-extract|no cached/i);
     expect(backend.completeCalls).toHaveLength(0);
   });
 });

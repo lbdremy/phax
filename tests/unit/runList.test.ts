@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { buildRunList, type LsRunRow } from "../../src/domain/runList.js";
 import { decodeRunListFile } from "../../src/schemas/runList.js";
@@ -59,28 +59,28 @@ describe("the run-list schema", () => {
   const document = () => withSchemaUrl("run-list", buildRunList([KNOWN, UNKNOWN]));
 
   it("accepts a built document", () => {
-    expect(Either.isRight(decodeRunListFile(document()))).toBe(true);
+    expect(Result.isSuccess(decodeRunListFile(document()))).toBe(true);
   });
 
   it("refuses an extra key on a row", () => {
     const doc = document();
     const bad = { ...doc, runs: [{ ...doc.runs[0], extra: 1 }] };
-    expect(Either.isLeft(decodeRunListFile(bad))).toBe(true);
+    expect(Result.isFailure(decodeRunListFile(bad))).toBe(true);
   });
 
   it("refuses a row without stop", () => {
     const doc = document();
     const { stop: _stop, ...withoutStop } = doc.runs[0]!;
-    expect(Either.isLeft(decodeRunListFile({ ...doc, runs: [withoutStop] }))).toBe(true);
+    expect(Result.isFailure(decodeRunListFile({ ...doc, runs: [withoutStop] }))).toBe(true);
   });
 
   it("refuses a row without pullRequest", () => {
     const doc = document();
     const { pullRequest: _pullRequest, ...withoutPullRequest } = doc.runs[0]!;
-    expect(Either.isLeft(decodeRunListFile({ ...doc, runs: [withoutPullRequest] }))).toBe(true);
+    expect(Result.isFailure(decodeRunListFile({ ...doc, runs: [withoutPullRequest] }))).toBe(true);
   });
 
   it("refuses a document without $schema", () => {
-    expect(Either.isLeft(decodeRunListFile(buildRunList([KNOWN])))).toBe(true);
+    expect(Result.isFailure(decodeRunListFile(buildRunList([KNOWN])))).toBe(true);
   });
 });

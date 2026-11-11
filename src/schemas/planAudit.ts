@@ -13,4 +13,6 @@ export const PlanAuditResponseSchema = Schema.Struct({
 
 export type PlanAuditResponse = Schema.Schema.Type<typeof PlanAuditResponseSchema>;
 
-export const decodePlanAuditResponse = Schema.decodeUnknownEither(PlanAuditResponseSchema);
+export const decodePlanAuditResponse = Schema.decodeUnknownResult(PlanAuditResponseSchema, {
+  reportInput: true,
+});

@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { decodeBranchName, type BranchName } from "../domain/branded.js";
 import {
   planReplay,
@@ -13,7 +13,7 @@ import type { ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
 import { ORIGIN, RECORDS_BRANCH_NAME, readRecordsBranch } from "./recordsBranch.js";
 import { reconcileRecordsSync } from "./recordsSync.js";
 
-const RECORDS_BRANCH: BranchName = Either.getOrThrow(decodeBranchName(RECORDS_BRANCH_NAME));
+const RECORDS_BRANCH: BranchName = Result.getOrThrow(decodeBranchName(RECORDS_BRANCH_NAME));
 const BRANCH_REF = `refs/heads/${RECORDS_BRANCH_NAME}`;
 
 export interface RecordsBranchSyncInput {
@@ -208,8 +208,8 @@ function fetchRecords(
         return { ...sync, remoteName: ORIGIN, repo: sync.path };
       case "nothing-to-bootstrap":
         // Only an in-repo destination answers this, and it is handled above.
-        return yield* Effect.dieMessage(
-          "reconcileRecordsSync: a dedicated clone had nothing to bootstrap",
+        return yield* Effect.die(
+          new Error("reconcileRecordsSync: a dedicated clone had nothing to bootstrap"),
         );
     }
   });

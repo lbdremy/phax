@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { decodeRunId } from "../../../src/domain/branded.js";
 import {
@@ -16,7 +16,7 @@ import {
   type SemanticTraceSnapshot,
 } from "../../../src/domain/telemetry/snapshot.js";
 
-const runId = Either.getOrThrow(decodeRunId("test-run-001"));
+const runId = Result.getOrThrow(decodeRunId("test-run-001"));
 
 const ALLOWED_SNAPSHOT_KEYS = new Set([
   "type",

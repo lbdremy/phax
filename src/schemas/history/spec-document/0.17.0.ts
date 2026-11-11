@@ -6,23 +6,33 @@
 // format's 0.17.0 release.
 import { Schema } from "effect";
 
-const SchemaUrlSchema = Schema.String.pipe(
-  Schema.pattern(
+// `Schema.isPattern` whose JSON Schema is the RegExp's source, whatever its
+// flags: Effect 4 exports a pattern only for a RegExp with the `u` flag.
+function isExportedPattern(regExp: RegExp, annotations?: Schema.Annotations.Filter) {
+  return Schema.isPattern(regExp, {
+    toJsonSchema: () => ({ pattern: regExp.source }),
+    ...annotations,
+  });
+}
+
+const SchemaUrlSchema = Schema.String.check(
+  isExportedPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/spec-document\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
-  Schema.annotations({
+).pipe(
+  Schema.annotate({
     description:
       "The spec-document format and the phax release that wrote this file: https://docs.phax.run/schemas/spec-document/<X.Y.Z>.json",
   }),
 );
 
-const RequirementPatternSchema = Schema.Literal(
+const RequirementPatternSchema = Schema.Literals([
   "ubiquitous",
   "event",
   "state",
   "unwanted",
   "optional",
-);
+]);
 
 const GroundEntrySchema = Schema.Struct({
   path: Schema.NonEmptyString,
@@ -42,8 +52,8 @@ const RequirementSchema = Schema.Struct({
 });
 
 const SurfaceElementSchema = Schema.Struct({
-  surface: Schema.String.pipe(Schema.pattern(/^(cli|config|file|api|package|internal): /)),
-  binding: Schema.Literal("normative", "indicative"),
+  surface: Schema.String.check(isExportedPattern(/^(cli|config|file|api|package|internal): /)),
+  binding: Schema.Literals(["normative", "indicative"]),
   before: Schema.NullOr(Schema.String),
   after: Schema.NonEmptyString,
 });
@@ -68,7 +78,7 @@ const QuestionOptionSchema = Schema.Struct({
 const OpenQuestionSchema = Schema.Struct({
   id: Schema.NonEmptyString,
   question: Schema.NonEmptyString,
-  options: Schema.Array(QuestionOptionSchema).pipe(Schema.minItems(2)),
+  options: Schema.Array(QuestionOptionSchema).check(Schema.isMinLength(2)),
   recommendation: Schema.NonEmptyString,
   rationale: Schema.NonEmptyString,
 });
@@ -79,7 +89,7 @@ const PlanningNoteSchema = Schema.Struct({
   constraints: Schema.Array(Schema.NonEmptyString),
 });
 
-const DocsPageSchema = Schema.Union(
+const DocsPageSchema = Schema.Union([
   Schema.Struct({
     kind: Schema.Literal("page"),
     page: Schema.NonEmptyString,
@@ -90,7 +100,7 @@ const DocsPageSchema = Schema.Union(
     kind: Schema.Literal("none"),
     why: Schema.NonEmptyString,
   }),
-);
+]);
 
 const SpecDocumentStruct = Schema.Struct({
   $schema: SchemaUrlSchema,
@@ -118,6 +128,11 @@ type SpecDocumentStructType = Schema.Schema.Type<typeof SpecDocumentStruct>;
 interface Violation {
   readonly path: ReadonlyArray<PropertyKey>;
   readonly message: string;
+}
+
+// A violation as a check's failure: its message at its path; none when it is undefined.
+function violationIssue(violation: Violation | undefined) {
+  return violation === undefined ? undefined : { path: violation.path, issue: violation.message };
 }
 
 function firstDuplicateId(
@@ -195,14 +210,15 @@ function firstTraceabilityViolation(doc: SpecDocumentStructType): Violation | un
 const TRACEABILITY_DESCRIPTION =
   "Checked by phax's parser, not by this JSON Schema: requirement ids, question ids and each question's option ids are unique; every acceptance criterion `refs` entry names an existing requirement; every requirement is referenced by at least one acceptance criterion; and each open question's `recommendation` names one of its options.";
 
-export const SpecDocumentV0_17_0Schema = SpecDocumentStruct.pipe(
-  Schema.filter(firstTraceabilityViolation, {
-    jsonSchema: { description: TRACEABILITY_DESCRIPTION },
+export const SpecDocumentV0_17_0Schema = SpecDocumentStruct.check(
+  Schema.makeFilter((doc) => violationIssue(firstTraceabilityViolation(doc)), {
+    toJsonSchema: () => ({ description: TRACEABILITY_DESCRIPTION }),
   }),
 );
 
 export type SpecDocumentV0_17_0 = Schema.Schema.Type<typeof SpecDocumentV0_17_0Schema>;
 
-export const decodeSpecDocumentV0_17_0 = Schema.decodeUnknownEither(SpecDocumentV0_17_0Schema, {
+export const decodeSpecDocumentV0_17_0 = Schema.decodeUnknownResult(SpecDocumentV0_17_0Schema, {
   onExcessProperty: "error",
+  reportInput: true,
 });

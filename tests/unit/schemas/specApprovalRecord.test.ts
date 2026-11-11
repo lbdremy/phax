@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { currentSchemaUrl } from "../../../src/schemas/persisted.js";
 import {
@@ -27,9 +27,9 @@ const sample = {
 describe("SpecApprovalRecordFileSchema", () => {
   it("round-trips decode/encode", () => {
     const decoded = decodeSpecApprovalRecordFile(sample);
-    expect(Either.isRight(decoded)).toBe(true);
-    if (Either.isRight(decoded)) {
-      expect(encodeSpecApprovalRecordFile(decoded.right)).toEqual(sample);
+    expect(Result.isSuccess(decoded)).toBe(true);
+    if (Result.isSuccess(decoded)) {
+      expect(encodeSpecApprovalRecordFile(decoded.success)).toEqual(sample);
     }
   });
 
@@ -43,7 +43,7 @@ describe("SpecApprovalRecordFileSchema", () => {
         },
       },
     };
-    expect(Either.isLeft(decodeSpecApprovalRecordFile(bad))).toBe(true);
+    expect(Result.isFailure(decodeSpecApprovalRecordFile(bad))).toBe(true);
   });
 
   it("rejects a baseline that is hex but not 40 chars", () => {
@@ -56,7 +56,7 @@ describe("SpecApprovalRecordFileSchema", () => {
         },
       },
     };
-    expect(Either.isLeft(decodeSpecApprovalRecordFile(bad))).toBe(true);
+    expect(Result.isFailure(decodeSpecApprovalRecordFile(bad))).toBe(true);
   });
 
   it("rejects an excess field in a record entry", () => {
@@ -69,18 +69,18 @@ describe("SpecApprovalRecordFileSchema", () => {
         },
       },
     };
-    expect(Either.isLeft(decodeSpecApprovalRecordFile(bad))).toBe(true);
+    expect(Result.isFailure(decodeSpecApprovalRecordFile(bad))).toBe(true);
   });
 
   it("rejects a ledger without $schema, or one that still carries version", () => {
     const { $schema: _schema, ...unstamped } = sample;
-    expect(Either.isLeft(decodeSpecApprovalRecordFile({ version: 1, ...unstamped }))).toBe(true);
-    expect(Either.isLeft(decodeSpecApprovalRecordFile({ ...sample, version: 1 }))).toBe(true);
+    expect(Result.isFailure(decodeSpecApprovalRecordFile({ version: 1, ...unstamped }))).toBe(true);
+    expect(Result.isFailure(decodeSpecApprovalRecordFile({ ...sample, version: 1 }))).toBe(true);
   });
 
   it("rejects a $schema naming another format", () => {
     const other = { ...sample, $schema: schemaUrl("plan-approvals", "0.17.0") };
-    expect(Either.isLeft(decodeSpecApprovalRecordFile(other))).toBe(true);
+    expect(Result.isFailure(decodeSpecApprovalRecordFile(other))).toBe(true);
   });
 
   it("rejects a missing required field", () => {
@@ -93,7 +93,7 @@ describe("SpecApprovalRecordFileSchema", () => {
         },
       },
     };
-    expect(Either.isLeft(decodeSpecApprovalRecordFile(bad))).toBe(true);
+    expect(Result.isFailure(decodeSpecApprovalRecordFile(bad))).toBe(true);
   });
 
   it("decodes multiple records", () => {
@@ -112,7 +112,7 @@ describe("SpecApprovalRecordFileSchema", () => {
         },
       },
     };
-    expect(Either.isRight(decodeSpecApprovalRecordFile(multi))).toBe(true);
+    expect(Result.isSuccess(decodeSpecApprovalRecordFile(multi))).toBe(true);
   });
 
   it("refuses an approvedBy in a ledger entry: only the record file names the approver", () => {
@@ -126,7 +126,7 @@ describe("SpecApprovalRecordFileSchema", () => {
         },
       },
     };
-    expect(Either.isLeft(decodeSpecApprovalRecordFile(attributed))).toBe(true);
+    expect(Result.isFailure(decodeSpecApprovalRecordFile(attributed))).toBe(true);
   });
 });
 
@@ -148,8 +148,8 @@ describe("SpecRecordFileSchema: approvedBy", () => {
     ["no one recorded", { kind: "unattributed" }],
   ])("reads %s, approvedBy last when encoded", (_label, approvedBy) => {
     const decoded = decodeSpecRecordFile({ ...record, approvedBy });
-    if (Either.isLeft(decoded)) throw new Error("record rejected");
-    const encoded = encodeSpecRecordFile(decoded.right);
+    if (Result.isFailure(decoded)) throw new Error("record rejected");
+    const encoded = encodeSpecRecordFile(decoded.success);
     expect(encoded.approvedBy).toEqual(approvedBy);
     expect(Object.keys(encoded).at(-1)).toBe("approvedBy");
   });
@@ -165,6 +165,6 @@ describe("SpecRecordFileSchema: approvedBy", () => {
     ["an operator with an empty name", { ...record, approvedBy: { kind: "operator", name: "" } }],
     ["an excess key", { ...record, approvedBy: { kind: "unattributed", name: "Ada Lovelace" } }],
   ])("refuses %s", (_label, input) => {
-    expect(Either.isLeft(decodeSpecRecordFile(input))).toBe(true);
+    expect(Result.isFailure(decodeSpecRecordFile(input))).toBe(true);
   });
 });

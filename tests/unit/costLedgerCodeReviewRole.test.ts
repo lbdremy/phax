@@ -4,7 +4,7 @@
 // ledger stamped before it (0.26.0, 0.25.0) still reads through its frozen
 // decoder and is rewritten at the current stamp when an entry is appended.
 // Every stream, session id, usage and price is made up.
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { nextLedger, type InvocationCostOptions } from "../../src/app/costLedger.js";
 import { decodeRunId } from "../../src/domain/branded.js";
@@ -77,7 +77,7 @@ describe("the code-review cost entry", () => {
         ],
       }),
     );
-    expect(Either.getOrThrow(decoded).entries.map((e) => [e.role, e.phase])).toEqual([
+    expect(Result.getOrThrow(decoded).entries.map((e) => [e.role, e.phase])).toEqual([
       ["compliance", null],
       ["code-review", null],
     ]);
@@ -89,7 +89,7 @@ describe("the code-review cost entry", () => {
         entries: [{ ...entry, role: "code-review", phase: "phase-01" }],
       }),
     );
-    expect(Either.isLeft(decoded)).toBe(true);
+    expect(Result.isFailure(decoded)).toBe(true);
   });
 });
 
@@ -140,7 +140,7 @@ describe("the code-review stream", () => {
 const CODE_REVIEW_INVOCATION: InvocationCostOptions = {
   role: "code-review",
   phase: null,
-  runId: Either.getOrThrow(decodeRunId("run-1")),
+  runId: Result.getOrThrow(decodeRunId("run-1")),
   runPath: "/run",
   provider: "claude-code",
   streamPath: "/run/code-review.session.jsonl",
@@ -187,7 +187,7 @@ describe("a ledger stamped before the code-review role", () => {
       $schema: schemaUrl("cost-ledger", "0.26.0"),
       entries: [phaseEntry, closing],
     });
-    const ledger = Either.getOrThrow(read);
+    const ledger = Result.getOrThrow(read);
     expect(ledger.entries.map((e) => e.role)).toEqual(["first-turn", "closing-turn"]);
     const rewritten = append(ledger);
     expect(rewritten.$schema).toBe(currentSchemaUrl("cost-ledger"));
@@ -204,7 +204,7 @@ describe("a ledger stamped before the code-review role", () => {
       $schema: schemaUrl("cost-ledger", "0.25.0"),
       entries: [handoff],
     });
-    const rewritten = append(Either.getOrThrow(read));
+    const rewritten = append(Result.getOrThrow(read));
     expect(rewritten.$schema).toBe(currentSchemaUrl("cost-ledger"));
     expect(rewritten.entries.map((e) => e.role)).toEqual(["handoff", "code-review"]);
 
@@ -212,6 +212,6 @@ describe("a ledger stamped before the code-review role", () => {
       $schema: schemaUrl("cost-ledger", "0.25.0"),
       entries: [phaseEntry],
     });
-    expect(Either.isLeft(refused)).toBe(true);
+    expect(Result.isFailure(refused)).toBe(true);
   });
 });

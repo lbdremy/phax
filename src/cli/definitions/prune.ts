@@ -5,7 +5,7 @@
 // by line, as it was printed. Without `--yes` or `--dry-run` the call may ask a person, so `--json`
 // is refused for it; without `--json` a declined confirmation and a missing terminal are declared
 // errors with today's sentences. Exit 3 when an applied prune kept a run; 7 for a locked run.
-import { Data, Effect, Either, Layer } from "effect";
+import { Data, Effect, Result, Layer } from "effect";
 import * as Schema from "effect/Schema";
 import { prune } from "../../app/prune.js";
 import {
@@ -109,7 +109,7 @@ const Branches = Schema.Array(
   Schema.Struct({ branch: Schema.String, unpreservedCommits: Schema.Number }),
 );
 
-const Kept = Schema.Union(
+const Kept = Schema.Union([
   Schema.Struct({ reason: Schema.Literal("unpreserved-commits"), branches: Branches }),
   Schema.Struct({
     reason: Schema.Literal("branch-checked-out"),
@@ -120,7 +120,7 @@ const Kept = Schema.Union(
     part: Schema.String,
     message: Schema.String,
   }),
-);
+]);
 
 /** Today's document, key for key. */
 const PruneOutput = Schema.Struct({
@@ -257,7 +257,7 @@ function makePruneCommand(layers: PruneLayers) {
     input: {
       args: reject(
         Schema.Array(
-          Schema.String.annotations({
+          Schema.String.annotate({
             identifier: "short-name",
             description: "Archived run short name, e.g. old-idea",
           }),
@@ -265,24 +265,21 @@ function makePruneCommand(layers: PruneLayers) {
       ),
       flags: reject(
         Schema.Struct({
-          all: Schema.optionalWith(
-            Schema.Boolean.annotations({
+          all: Schema.optionalKey(
+            Schema.Boolean.annotate({
               description: "Prune every archived run of the current namespace",
             }),
-            { exact: true },
           ),
-          force: Schema.optionalWith(
-            Schema.Boolean.annotations({
+          force: Schema.optionalKey(
+            Schema.Boolean.annotate({
               description:
                 "Also prune runs whose branches hold unpreserved commits (discards those commits)",
             }),
-            { exact: true },
           ),
-          dryRun: Schema.optionalWith(
-            Schema.Boolean.annotations({ description: "Print the preview and delete nothing" }),
-            { exact: true },
+          dryRun: Schema.optionalKey(
+            Schema.Boolean.annotate({ description: "Print the preview and delete nothing" }),
           ),
-          yes: Schema.optionalWith(Schema.Boolean, { exact: true }).annotations({
+          yes: Schema.optionalKey(Schema.Boolean).annotateKey({
             description: "Proceed without confirmation (required without a TTY)",
             [AliasAnnotationId]: "y",
           }),
@@ -303,9 +300,9 @@ function makePruneCommand(layers: PruneLayers) {
           Effect.mapError((error) => new PruneConfigError({ message: configErrorText(error) })),
         );
         const selection = parsePruneSelection(input.args, input.flags.all === true);
-        if (Either.isLeft(selection)) {
+        if (Result.isFailure(selection)) {
           return yield* Effect.fail(
-            new PruneSelectionError({ message: `✗ prune refused: ${selection.left}` }),
+            new PruneSelectionError({ message: `✗ prune refused: ${selection.failure}` }),
           );
         }
         const confirmation = confirmationMode({
@@ -318,7 +315,7 @@ function makePruneCommand(layers: PruneLayers) {
           namespace: config.namespace,
           stateRoot: config.stateRoot,
           repoRoot: config.repoRoot,
-          selection: selection.right,
+          selection: selection.success,
           force: input.flags.force === true,
           confirmation,
           onPreview: (plan) =>

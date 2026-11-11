@@ -4,7 +4,7 @@
 // schemas package re-exports its schema and type.
 import { Schema } from "effect";
 
-const RunStateSchema = Schema.Union(
+const RunStateSchema = Schema.Union([
   Schema.Literal("created"),
   Schema.Literal("running"),
   Schema.Literal("failed"),
@@ -14,7 +14,7 @@ const RunStateSchema = Schema.Union(
   Schema.Literal("archived"),
   Schema.Literal("interrupted"),
   Schema.Literal("rate_limited"),
-);
+]);
 
 export const RunStatusPreSchemaSchema = Schema.Struct({
   version: Schema.Literal(1),
@@ -25,14 +25,16 @@ export const RunStatusPreSchemaSchema = Schema.Struct({
   createdAt: Schema.NonEmptyString,
   updatedAt: Schema.NonEmptyString,
   phasesCount: Schema.Number,
-  currentPhaseIndex: Schema.optionalWith(Schema.Number, { exact: true }),
-  gateProfileId: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
-  stoppedReason: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
-  lastError: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
-  planRepoRelPath: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
-  allowSkillEdits: Schema.optionalWith(Schema.Boolean, { exact: true }),
+  currentPhaseIndex: Schema.optionalKey(Schema.Number),
+  gateProfileId: Schema.optionalKey(Schema.NonEmptyString),
+  stoppedReason: Schema.optionalKey(Schema.NonEmptyString),
+  lastError: Schema.optionalKey(Schema.NonEmptyString),
+  planRepoRelPath: Schema.optionalKey(Schema.NonEmptyString),
+  allowSkillEdits: Schema.optionalKey(Schema.Boolean),
 });
 
 export type RunStatusPreSchema = Schema.Schema.Type<typeof RunStatusPreSchemaSchema>;
 
-export const decodeRunStatusPreSchema = Schema.decodeUnknownEither(RunStatusPreSchemaSchema);
+export const decodeRunStatusPreSchema = Schema.decodeUnknownResult(RunStatusPreSchemaSchema, {
+  reportInput: true,
+});

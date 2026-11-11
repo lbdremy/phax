@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { transitionArtifactBy } from "../../src/app/artifactStatus.js";
 import { exitCodeForError } from "../../src/cli/commands/runLayers.js";
@@ -126,7 +126,7 @@ function transition(target: ArtifactStatus) {
     makeFakeTerminal(false).layer,
   );
   return Effect.runPromise(
-    Effect.either(
+    Effect.result(
       transitionArtifactBy(LIVE, target, {
         repoRoot: repoDir,
         nowIso: NOW,
@@ -175,11 +175,11 @@ describe("a spec still holding the summary placeholder", { timeout: 30_000 }, ()
 
     const result = await transition("Approved");
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(SurfaceSummariesUnwrittenError);
-      expect(exitCodeForError(result.left)).toBe(12);
-      expect(result.left.message.split("\n")).toEqual([
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toBeInstanceOf(SurfaceSummariesUnwrittenError);
+      expect(exitCodeForError(result.failure)).toBe(12);
+      expect(result.failure.message.split("\n")).toEqual([
         `Approval refused: ${LIVE} has 2 surface summaries still to write`,
         `  ${ROTATE_ONE}`,
         `  ${RECONCILE}`,
@@ -203,11 +203,11 @@ describe("a spec still holding the summary placeholder", { timeout: 30_000 }, ()
 
     const result = await transition("Completed");
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(SurfaceSummariesUnwrittenError);
-      expect(exitCodeForError(result.left)).toBe(12);
-      expect(result.left.message.split("\n")).toEqual([
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toBeInstanceOf(SurfaceSummariesUnwrittenError);
+      expect(exitCodeForError(result.failure)).toBe(12);
+      expect(result.failure.message.split("\n")).toEqual([
         `Completion refused: ${LIVE} has 1 surface summary still to write`,
         `  ${ROTATE_ONE}`,
         `  Write each one in ${LIVE_SIDECAR} and on its §6 \`Summary:\` line, then rerun.`,
@@ -227,7 +227,7 @@ describe("a spec still holding the summary placeholder", { timeout: 30_000 }, ()
 
     const result = await transition("Approved");
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     expect(readRepoFile(LIVE)).toContain("status: Approved");
     expect(existsSync(join(repoDir, "docs/specs/approvals/2610241000-log-rotation.json"))).toBe(
       true,
@@ -240,6 +240,6 @@ describe("a spec still holding the summary placeholder", { timeout: 30_000 }, ()
 
     const result = await transition("Abandoned");
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
   });
 });

@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { inspectArtifact, transitionArtifact } from "../../src/app/artifactStatus.js";
 import { completeRunArtifacts } from "../../src/app/completeRunArtifacts.js";
@@ -108,15 +108,15 @@ function repoLayer(root: string = repoDir) {
   return Layer.merge(makeRootedNodeFileSystemLayer(root), NodeGitLayer);
 }
 
-function runEither<A, E>(effect: Effect.Effect<A, E, never>): Promise<Either.Either<A, E>> {
-  return Effect.runPromise(Effect.either(effect));
+function runEither<A, E>(effect: Effect.Effect<A, E, never>): Promise<Result.Result<A, E>> {
+  return Effect.runPromise(Effect.result(effect));
 }
 
-function expectRefused(result: Either.Either<unknown, unknown>, ledgerPath: string): void {
-  expect(Either.isLeft(result)).toBe(true);
-  if (!Either.isLeft(result)) return;
-  expect(result.left).toBeInstanceOf(ApprovalLedgerMigrationRequiredError);
-  const err = result.left as ApprovalLedgerMigrationRequiredError;
+function expectRefused(result: Result.Result<unknown, unknown>, ledgerPath: string): void {
+  expect(Result.isFailure(result)).toBe(true);
+  if (!Result.isFailure(result)) return;
+  expect(result.failure).toBeInstanceOf(ApprovalLedgerMigrationRequiredError);
+  const err = result.failure as ApprovalLedgerMigrationRequiredError;
   expect(err.ledgerPath).toBe(ledgerPath);
   expect(err.message).toBe(
     `${ledgerPath} is an approval ledger from an older phax — run \`phax artifact migrate-approvals\` first`,

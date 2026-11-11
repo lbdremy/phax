@@ -9,4 +9,4 @@ export interface EditorOps {
   open(path: string): Effect.Effect<void, EditorError>;
 }
 
-export class Editor extends Context.Tag("phax/Editor")<Editor, EditorOps>() {}
+export class Editor extends Context.Service<Editor, EditorOps>()("phax/Editor") {}

@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -67,9 +67,9 @@ const failingReport = JSON.stringify({
   review: [],
 });
 
-const shortName = Either.getOrThrow(decodeShortName("greet"));
+const shortName = Result.getOrThrow(decodeShortName("greet"));
 
-const plan: PhaxPlan = Either.getOrThrow(
+const plan: PhaxPlan = Result.getOrThrow(
   liftFixturePhaxPlanToCurrent("phax-plan.json", {
     version: 1,
     run: { shortName: "greet", title: "Greet", branch: "ai/greet", requiredCommands: [] },
@@ -175,7 +175,7 @@ describe("a refused gate report", () => {
     );
     const execute = (id: RunId) =>
       Effect.runPromise(
-        Effect.either(
+        Effect.result(
           executePlan({
             phaxVersion: "0.0.0-test",
             output: processOutput,
@@ -203,9 +203,9 @@ describe("a refused gate report", () => {
 
     const result = await execute(runId);
 
-    if (Either.isRight(result)) throw new Error("expected the run to stop");
-    expect(result.left).toBeInstanceOf(GateStepRefusedError);
-    expect(result.left).toMatchObject({
+    if (Result.isSuccess(result)) throw new Error("expected the run to stop");
+    expect(result.failure).toBeInstanceOf(GateStepRefusedError);
+    expect(result.failure).toMatchObject({
       command: AUDIT,
       reason: REASON,
       remedy: REMEDY,
@@ -246,8 +246,8 @@ describe("a refused gate report", () => {
 
     const resumed = await execute(runId);
 
-    if (Either.isRight(resumed)) throw new Error("expected the resumed gate to stay red");
-    expect(resumed.left).toBeInstanceOf(GateAttemptsExhaustedError);
+    if (Result.isSuccess(resumed)) throw new Error("expected the resumed gate to stay red");
+    expect(resumed.failure).toBeInstanceOf(GateAttemptsExhaustedError);
     // No fresh agent turn: the gate ran first, then each of the 3 fix
     // attempts followed a failure and re-ran it.
     expect(fakeBackend.impl.runCalls).toHaveLength(1);

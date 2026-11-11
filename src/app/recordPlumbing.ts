@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { join } from "node:path";
 import {
   extractClaudeUsage,
@@ -39,7 +39,7 @@ import {
 
 export { RECORDS_BRANCH_NAME };
 
-const RECORDS_BRANCH: BranchName = Either.getOrThrow(decodeBranchName(RECORDS_BRANCH_NAME));
+const RECORDS_BRANCH: BranchName = Result.getOrThrow(decodeBranchName(RECORDS_BRANCH_NAME));
 
 export const RECORD_TRANSCRIPT_FILE = "output.jsonl";
 const MANIFEST_FILE = "record.json";
@@ -221,10 +221,10 @@ export function commitRecordTree(input: CommitRecordTreeInput): Effect.Effect<
           parent,
           expectedTip,
         })
-        .pipe(Effect.either);
-      if (Either.isRight(written)) {
+        .pipe(Effect.result);
+      if (Result.isSuccess(written)) {
         return {
-          commitSha: written.right,
+          commitSha: written.success,
           branch: RECORDS_BRANCH_NAME,
           fileCount: files.length,
           branchState,
@@ -234,12 +234,12 @@ export function commitRecordTree(input: CommitRecordTreeInput): Effect.Effect<
           }),
         };
       }
-      if (!isStaleTipError(written.left)) return yield* Effect.fail(written.left);
+      if (!isStaleTipError(written.failure)) return yield* Effect.fail(written.failure);
       if (attempt >= MAX_WRITE_ATTEMPTS) {
         // Said in phax's words: the raw `cannot lock ref … expected …` names no cause.
         return yield* Effect.fail(
           new GitError({
-            ...written.left,
+            ...written.failure,
             message: `the records branch kept moving under other writers in ${input.repo}; record not written after ${MAX_WRITE_ATTEMPTS} attempts`,
           }),
         );

@@ -6,7 +6,7 @@
 // line of another project's run, then today's lines. A failure is a declared error with today's
 // sentence: 7 for a held lock (its fields the run's short name and the holder's pid), 1 otherwise,
 // its `Target:` line first on stdout when the run is another project's.
-import { Data, Effect, Either, Layer } from "effect";
+import { Data, Effect, Result, Layer } from "effect";
 import * as Schema from "effect/Schema";
 import { resolveRunRef } from "../../app/resolveRunRef.js";
 import { previewResetPhase, resetPhase } from "../../app/resetPhase.js";
@@ -78,11 +78,11 @@ class LockConflictError extends Data.TaggedError("LockConflictError")<{
 }> {}
 
 const ChangedPath = Schema.Struct({
-  status: Schema.Literal("A", "M", "D", "T"),
+  status: Schema.Literals(["A", "M", "D", "T"]),
   path: Schema.String,
 });
 
-const ResetPhaseOutcome = Schema.Union(
+const ResetPhaseOutcome = Schema.Union([
   Schema.Struct({
     kind: Schema.Literal("preview"),
     /** The phase id the call named, or null for the stuck phase. */
@@ -102,7 +102,7 @@ const ResetPhaseOutcome = Schema.Union(
     branchDeleted: Schema.Boolean,
     wasStopped: Schema.Boolean,
   }),
-);
+]);
 
 const ResetPhaseOutput = Schema.Struct({
   qualifiedName: Schema.String,
@@ -191,19 +191,19 @@ export function makeResetPhaseCommand(layers: ResetPhaseLayers = {}) {
     examples: ["phax reset-phase usage-cli", "phax reset-phase usage-cli phase-02 --yes"],
     input: {
       args: reject(
-        Schema.Tuple(
+        Schema.Tuple([
           ShortNameArg,
-          Schema.optionalElement(
-            Schema.String.annotations({
+          Schema.optionalKey(
+            Schema.String.annotate({
               identifier: "phase-id",
               description: "Phase identifier to reset, e.g. phase-02; defaults to the stuck phase",
             }),
           ),
-        ),
+        ]),
       ),
       flags: reject(
         Schema.Struct({
-          yes: Schema.optionalWith(Schema.Boolean, { exact: true }).annotations({
+          yes: Schema.optionalKey(Schema.Boolean).annotateKey({
             description: "Proceed without confirmation (removes the worktree and branch)",
             [AliasAnnotationId]: "y",
           }),
@@ -220,14 +220,16 @@ export function makeResetPhaseCommand(layers: ResetPhaseLayers = {}) {
           ),
         );
         const resolved = resolveRunRef(shortNameArg, config, config.stateRoot);
-        if (Either.isLeft(resolved)) {
-          return yield* Effect.fail(new ResetPhaseRunRefError({ message: resolved.left.message }));
+        if (Result.isFailure(resolved)) {
+          return yield* Effect.fail(
+            new ResetPhaseRunRefError({ message: resolved.failure.message }),
+          );
         }
-        const { namespace, shortName: shortNameStr, crossProject } = resolved.right;
+        const { namespace, shortName: shortNameStr, crossProject } = resolved.success;
         const qualifiedName = runKey(namespace, shortNameStr);
         // Safe: resolveRunRef already validated the shortName via parseRunRef.
         const decoded = decodeShortName(shortNameStr);
-        if (Either.isLeft(decoded)) {
+        if (Result.isFailure(decoded)) {
           return yield* Effect.fail(
             new ResetPhaseFailedError({
               message: `Internal error: resolved shortName "${shortNameStr}" is invalid.`,
@@ -236,7 +238,7 @@ export function makeResetPhaseCommand(layers: ResetPhaseLayers = {}) {
             }),
           );
         }
-        const shortName = decoded.right;
+        const shortName = decoded.success;
         const options = {
           namespace,
           shortName,

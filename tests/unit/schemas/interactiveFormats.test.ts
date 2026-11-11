@@ -3,7 +3,7 @@
 // key required, refuses any other key, and has exactly the keys of its
 // variant. Fixtures are made up: the invoice-export run, its credit-note
 // phase and the session ids.
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { decodeFirstReadingFile } from "../../../src/schemas/firstReading.js";
 import { decodeInteractiveHandoffFile } from "../../../src/schemas/interactiveHandoff.js";
@@ -24,7 +24,7 @@ const WORKTREE = "/example/worktrees/invoice-export/phase-03";
 const HEAD = "0123456789abcdef0123456789abcdef01234567";
 const AT = "2026-10-22T09:10:00.000Z";
 
-const accepted = (result: Either.Either<unknown, unknown>) => Either.isRight(result);
+const accepted = (result: Result.Result<unknown, unknown>) => Result.isSuccess(result);
 
 // ── first reading
 
@@ -69,19 +69,21 @@ describe("first-reading", () => {
   it("is read as a turn's answer under its own $schema only", () => {
     expect(accepted(readFirstReadingAnswer(stampedFirstReading(firstReading)))).toBe(true);
     const missing = readFirstReadingAnswer(firstReading);
-    expect(Either.isLeft(missing) && missing.left.kind).toBe("malformed");
+    expect(Result.isFailure(missing) && missing.failure.kind).toBe("malformed");
     const other = readFirstReadingAnswer(withSchemaUrl("interactive-handoff", firstReading));
-    expect(Either.isLeft(other) && JSON.stringify(other.left)).toContain("interactive-handoff");
+    expect(Result.isFailure(other) && JSON.stringify(other.failure)).toContain(
+      "interactive-handoff",
+    );
     const newer = readFirstReadingAnswer(
       { ...firstReading, $schema: schemaUrl("first-reading", "99.0.0") },
       { current: "0.26.0", running: "0.26.0" },
     );
-    expect(Either.isLeft(newer) && newer.left.kind).toBe("newer");
+    expect(Result.isFailure(newer) && newer.failure.kind).toBe("newer");
     const older = readFirstReadingAnswer(
       { ...firstReading, $schema: schemaUrl("first-reading", "0.25.0") },
       { current: "0.26.0", running: "0.26.0" },
     );
-    expect(Either.isLeft(older) && older.left.kind).toBe("older");
+    expect(Result.isFailure(older) && older.failure.kind).toBe("older");
   });
 });
 
@@ -429,10 +431,10 @@ describe("interactive-session", () => {
       "interactive-session.json",
       stampedSession({ ...interactiveSession, firstTurns: [answered] }),
     );
-    expect(Either.getOrThrow(read).firstTurns).toEqual([answered]);
-    expect(Either.getOrThrow(read)).not.toHaveProperty("$schema");
+    expect(Result.getOrThrow(read).firstTurns).toEqual([answered]);
+    expect(Result.getOrThrow(read)).not.toHaveProperty("$schema");
     expect(
-      Either.isLeft(readInteractiveSessionFile("interactive-session.json", interactiveSession)),
+      Result.isFailure(readInteractiveSessionFile("interactive-session.json", interactiveSession)),
     ).toBe(true);
   });
 });
@@ -635,7 +637,7 @@ describe("review-stop", () => {
     });
 
     it("is read through its bridge reader as the held variant", () => {
-      const read = Either.getOrThrow(readReviewStopFile("review-stop.json", stampedStop(held)));
+      const read = Result.getOrThrow(readReviewStopFile("review-stop.json", stampedStop(held)));
       expect(read.cause).toBe("held");
       expect(read).not.toHaveProperty("$schema");
       if (read.cause === "held") expect(read.phaseCommit).toBe(HEAD);
@@ -681,8 +683,8 @@ describe("review-stop", () => {
   it("is read through its bridge reader, and writes the current stamp", () => {
     expect(currentSchemaUrl("review-stop")).toBe(stampedStop({}).$schema);
     const read = readReviewStopFile("review-stop.json", stampedStop(reviewStop));
-    expect(Either.getOrThrow(read).phase.id).toBe("phase-03");
-    expect(Either.getOrThrow(read)).not.toHaveProperty("$schema");
-    expect(Either.isLeft(readReviewStopFile("review-stop.json", reviewStop))).toBe(true);
+    expect(Result.getOrThrow(read).phase.id).toBe("phase-03");
+    expect(Result.getOrThrow(read)).not.toHaveProperty("$schema");
+    expect(Result.isFailure(readReviewStopFile("review-stop.json", reviewStop))).toBe(true);
   });
 });

@@ -10,7 +10,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { executePlan } from "../../src/app/executePlan.js";
 import { createRunFolder } from "../../src/app/runFolder.js";
@@ -309,7 +309,7 @@ interface PhaseCase {
 }
 
 interface Observed {
-  readonly result: Either.Either<unknown, unknown>;
+  readonly result: Result.Result<unknown, unknown>;
   readonly runPath: string;
   readonly phaseFolder: string;
   readonly worktree: string;
@@ -326,7 +326,7 @@ async function runPhase(input: PhaseCase): Promise<Observed> {
     })),
   );
   const { plan, planMd } = planOf();
-  const shortName = Either.getOrThrow(decodeShortName(SHORT));
+  const shortName = Result.getOrThrow(decodeShortName(SHORT));
   const config = configOf({
     globs: input.globs,
     profile: input.profile ?? "secure",
@@ -345,7 +345,7 @@ async function runPhase(input: PhaseCase): Promise<Observed> {
       ? makeNodeBackendLayer(providerConfig)
       : afterEachTurn(makeNodeBackendLayer(providerConfig), input.afterTurn);
   const result = await Effect.runPromise(
-    Effect.either(
+    Effect.result(
       executePlan({
         phaxVersion: "0.0.0-test",
         output: processOutput,
@@ -407,9 +407,9 @@ function afterEachTurn(
 }
 
 function exhaustedOf(observed: Observed): GateAttemptsExhaustedError {
-  if (Either.isRight(observed.result)) throw new Error("the phase was expected to pause");
-  expect(observed.result.left).toBeInstanceOf(GateAttemptsExhaustedError);
-  return observed.result.left as GateAttemptsExhaustedError;
+  if (Result.isSuccess(observed.result)) throw new Error("the phase was expected to pause");
+  expect(observed.result.failure).toBeInstanceOf(GateAttemptsExhaustedError);
+  return observed.result.failure as GateAttemptsExhaustedError;
 }
 
 function commitSubjects(worktree: string): string[] {
@@ -466,7 +466,7 @@ describe("a protected edit by the agent's own tools", () => {
         ],
       });
 
-      if (Either.isLeft(observed.result)) throw observed.result.left as Error;
+      if (Result.isFailure(observed.result)) throw observed.result.failure as Error;
       expect(commitSubjects(observed.worktree)).toEqual(["feat(export): step one", "chore: start"]);
       // The first attempt failed for the check alone, with its own record.
       expect(
@@ -645,8 +645,8 @@ describe("a step failure or refusal together with a protected edit", () => {
         turns: [EDIT_RUST],
       });
 
-      if (Either.isRight(observed.result)) throw new Error("the phase was expected to pause");
-      const error = observed.result.left;
+      if (Result.isSuccess(observed.result)) throw new Error("the phase was expected to pause");
+      const error = observed.result.failure;
       expect(error).toBeInstanceOf(GateStepRefusedError);
       expect(error).toMatchObject({
         command: "node scripts/refuse.js",
@@ -793,7 +793,7 @@ describe("a project that declares no protectedPaths", () => {
     });
 
     // The step rewrote a baseline, but nothing is protected here: the phase commits.
-    if (Either.isLeft(observed.result)) throw observed.result.left as Error;
+    if (Result.isFailure(observed.result)) throw observed.result.failure as Error;
     expect(observations).toBe(0);
     expect(existsSync(join(observed.phaseFolder, "gate-attribution.json"))).toBe(true);
     expect(readJson(join(observed.phaseFolder, "gate-attribution.json"))).toMatchObject({

@@ -13,7 +13,7 @@ import {
 } from "node:fs";
 import { dirname, join, sep } from "node:path";
 import { tmpdir } from "node:os";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { authorArtifact, type AuthorArtifactInput } from "../../src/app/authorArtifact.js";
 import { closeStop } from "../../src/app/closeStop.js";
@@ -246,7 +246,7 @@ async function author(options: {
     output: { warn: (message) => warnings.push(message) },
   };
   const result = await Effect.runPromise(
-    Effect.either(
+    Effect.result(
       authorArtifact(input).pipe(
         Effect.provide(
           Layer.mergeAll(
@@ -277,7 +277,7 @@ describe("ac-claude-flag: headless spec authoring on Claude Code", () => {
 
     const { result, warnings, specs, sidecars } = await author({});
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     expect(warnings[0]).toContain("spec document refused");
     const [first, retry, ...more] = cli.invocations();
     expect(more).toEqual([]);
@@ -315,7 +315,7 @@ describe("ac-claude-flag: headless spec authoring on Claude Code", () => {
 
     const { result, warnings, sidecars } = await author({});
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     expect(warnings).toHaveLength(1);
     expect(warnings[0]).toContain("spec document refused");
     expect(warnings[0]).toContain("the session's final message is not JSON");
@@ -336,9 +336,9 @@ describe("a natively handed Claude Code call whose success carries an empty resu
 
     const { result, warnings, sidecars } = await author({});
 
-    if (Either.isRight(result)) throw new Error("authoring did not fail");
-    expect(result.left).toBeInstanceOf(AgentSessionFailedError);
-    expect((result.left as AgentSessionFailedError).failure).toMatchObject({
+    if (Result.isSuccess(result)) throw new Error("authoring did not fail");
+    expect(result.failure).toBeInstanceOf(AgentSessionFailedError);
+    expect((result.failure as AgentSessionFailedError).failure).toMatchObject({
       kind: "provider-error",
       message: "success: the result carried no result text",
     });
@@ -407,7 +407,7 @@ describe("ac-codex-flag: a decide --verdicts writer routed to Codex", () => {
 
     const { result } = await decideVerdicts({ provider: "codex-cli" });
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     const [first, retry, ...more] = cli.invocations();
     expect(more).toEqual([]);
     expect(first?.argv.slice(0, 2)).toEqual(["exec", "-C"]);
@@ -442,7 +442,7 @@ describe("ac-claude-fallback: a call the table puts on the prompt schema", () =>
 
     const { result } = await decideVerdicts({ provider: "claude-code", table });
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     const [first, retry, ...more] = cli.invocations();
     expect(more).toEqual([]);
     expect(first?.argv).not.toContain("--json-schema");
@@ -464,7 +464,7 @@ describe("ac-claude-fallback: a call the table puts on the prompt schema", () =>
 
     const { h, result } = await decideVerdicts({ provider: "claude-code", table });
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     expect(h.warnings.join("\n")).toContain("not JSON");
     const [first, retry, ...more] = cli.invocations();
     expect(more).toEqual([]);
@@ -477,7 +477,7 @@ describe("ac-claude-fallback: a call the table puts on the prompt schema", () =>
 
     const { result } = await decideVerdicts({ provider: "codex-cli", table });
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     for (const call of cli.invocations()) {
       expect(call.argv).toContain("--output-schema");
       expect(JSON.parse(call.outputSchema ?? "null")).toEqual(answerJsonSchema("spec-document"));
@@ -591,7 +591,7 @@ async function driveCodeReview(provider: ProviderId, table?: StructuredCallsTabl
     lastError: undefined,
   };
   await Effect.runPromise(
-    Effect.either(
+    Effect.result(
       reviewCodeHeadless(
         info,
         { enabled: false, model: "claude-opus-5-5", effort: "high" },
@@ -662,7 +662,7 @@ async function driveComplianceReview(
   mkdirSync(runPath, { recursive: true });
   mkdirSync(worktreePath, { recursive: true });
   await Effect.runPromise(
-    Effect.either(
+    Effect.result(
       reviewCompliance(
         complianceInfo(runPath, worktreePath),
         { enabled: true, model: "claude-opus-5-5", effort: "high" },
@@ -684,7 +684,7 @@ async function driveComplianceReview(
 
 async function driveExtraction(table?: StructuredCallsTable): Promise<void> {
   await Effect.runPromise(
-    Effect.either(
+    Effect.result(
       extractPlanLlm("# Made-up plan\n", { model: "claude-sonnet-5-5", effort: "low" }).pipe(
         Effect.provide(Layer.mergeAll(backendLayer(table), NodeFileSystemLayer)),
       ),
@@ -751,7 +751,7 @@ async function driveHandDecide(path: string, table?: StructuredCallsTable): Prom
   world.writeRepoFile(path, path === HAND_PLAN_PATH ? HAND_PLAN : HAND_SPEC);
   world.commitAll();
   await Effect.runPromise(
-    Effect.either(
+    Effect.result(
       decideArtifact({
         path,
         question: null,
@@ -850,7 +850,7 @@ async function driveClosingTurn(provider: ProviderId, table?: StructuredCallsTab
       });
     });
     await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         program.pipe(
           Effect.provide(
             Layer.mergeAll(
@@ -1044,7 +1044,7 @@ describe("ac-vibe: the compliance review on Mistral Vibe", () => {
       finalText: "",
     });
     await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         reviewCompliance(
           complianceInfo(runPath, join(root, "vibe-worktree")),
           { enabled: true, model: "claude-opus-5-5", effort: "high" },

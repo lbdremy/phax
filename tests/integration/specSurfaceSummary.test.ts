@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { transitionArtifactBy } from "../../src/app/artifactStatus.js";
 import { exitCodeForError } from "../../src/cli/commands/runLayers.js";
@@ -149,7 +149,7 @@ function transition(path: string, target: ArtifactStatus, by = "operator") {
     makeFakeTerminal(false).layer,
   );
   return Effect.runPromise(
-    Effect.either(
+    Effect.result(
       transitionArtifactBy(path, target, { repoRoot: repoDir, nowIso: NOW, commit: true, by }).pipe(
         Effect.provide(layer),
       ),
@@ -193,9 +193,9 @@ describe(
 
       const result = await transition(LIVE, "Approved");
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        expect(result.left.message).toContain(
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
+        expect(result.failure.message).toContain(
           `${LIVE} has an invalid sidecar (${LIVE_SIDECAR}: surface[1].summary: is missing)`,
         );
       }
@@ -211,7 +211,7 @@ describe(
 
       const result = await transition(LIVE, "Approved");
 
-      expect(Either.isRight(result)).toBe(true);
+      expect(Result.isSuccess(result)).toBe(true);
     });
   },
 );
@@ -229,11 +229,11 @@ describe("a live 0.25.0 sidecar waits for migrate-documents", { timeout: 30_000 
     for (const path of [OTHER, PLAN]) {
       const result = await transition(path, "Approved");
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        expect(result.left).toBeInstanceOf(DocumentMigrationRequiredError);
-        expect(exitCodeForError(result.left)).toBe(12);
-        expect(result.left.message).toBe(`Approval refused: ${refusal}`);
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
+        expect(result.failure).toBeInstanceOf(DocumentMigrationRequiredError);
+        expect(exitCodeForError(result.failure)).toBe(12);
+        expect(result.failure.message).toBe(`Approval refused: ${refusal}`);
       }
       expect(headSha()).toBe(head);
       expect(git(["status", "--porcelain"]).trim()).toBe("");
@@ -249,7 +249,7 @@ describe("a live 0.25.0 sidecar waits for migrate-documents", { timeout: 30_000 
 
     const result = await transition(OTHER, "Approved");
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     expect(readRepoFile(sidecarOf(ARCHIVED))).toBe(archived);
   });
 });

@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { explainRecord } from "../../src/app/recordsExplain.js";
 import { listRecords } from "../../src/app/recordsList.js";
@@ -150,7 +150,7 @@ describe("a plan with no Mode line, run without --hold", { timeout: 60_000 }, ()
     );
 
     // The same exit: the run ends without stopping, and never failed.
-    if (Either.isLeft(result)) throw new Error(`the run failed: ${String(result.left)}`);
+    if (Result.isFailure(result)) throw new Error(`the run failed: ${String(result.failure)}`);
 
     // No prompt carries corrections.
     for (const call of run.backend.calls) {
@@ -196,8 +196,8 @@ describe("a plan with no Mode line, run without --hold", { timeout: 60_000 }, ()
     }
 
     // The review handoff has no Reviewed phases, and the compliance prompt neither.
-    const info = Either.getOrThrow(
-      resolveRun(NAMESPACE, Either.getOrThrow(decodeShortName(SHORT)), world.stateRoot),
+    const info = Result.getOrThrow(
+      resolveRun(NAMESPACE, Result.getOrThrow(decodeShortName(SHORT)), world.stateRoot),
     );
     const layers = Layer.mergeAll(NodeFileSystemLayer, NoopSystemTelemetryLayer);
     await Effect.runPromise(

@@ -1,4 +1,4 @@
-import { Either, Schema } from "effect";
+import { Result, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import { decodeRecordManifestFile } from "../../src/schemas/authoringRecord.js";
 import {
@@ -48,7 +48,7 @@ const MANIFEST: DecisionRecordManifest = {
 const FILE = withSchemaUrl("decision-record-manifest", MANIFEST) as Record<string, unknown>;
 
 function decodes(input: unknown): boolean {
-  return Either.isRight(decodeDecisionRecordManifestFile(input));
+  return Result.isSuccess(decodeDecisionRecordManifestFile(input));
 }
 
 describe("decision record manifest", () => {
@@ -56,8 +56,9 @@ describe("decision record manifest", () => {
     expect(Object.keys(FILE)[0]).toBe("$schema");
     expect(FILE["$schema"]).toBe(currentSchemaUrl("decision-record-manifest"));
     const decoded = decodeDecisionRecordManifestFile(FILE);
-    expect(Either.isRight(decoded)).toBe(true);
-    if (Either.isRight(decoded)) expect(encodeDecisionRecordManifest(decoded.right)).toEqual(FILE);
+    expect(Result.isSuccess(decoded)).toBe(true);
+    if (Result.isSuccess(decoded))
+      expect(encodeDecisionRecordManifest(decoded.success)).toEqual(FILE);
   });
 
   it.each(["declined", "undecided"] as const)(
@@ -80,7 +81,7 @@ describe("decision record manifest", () => {
 
   it("reads a failed manifest stamped 0.30.0 without a failure as refused", () => {
     const failed = { ...FILE, outcome: "failed", commit: null };
-    expect(Either.isLeft(readRecordManifestFile("sha:decision/x/01/record.json", failed))).toBe(
+    expect(Result.isFailure(readRecordManifestFile("sha:decision/x/01/record.json", failed))).toBe(
       true,
     );
   });
@@ -94,7 +95,7 @@ describe("decision record manifest", () => {
         commit: null,
       };
       expect(readRecordManifestFile("sha:decision/x/01/record.json", old), release).toEqual(
-        Either.right({ ...MANIFEST, outcome: "failed", commit: null, failure: null }),
+        Result.succeed({ ...MANIFEST, outcome: "failed", commit: null, failure: null }),
       );
     }
   });
@@ -144,8 +145,8 @@ describe("decision record manifest", () => {
 
   it("joins the record manifest union, told apart by its kind", () => {
     const decoded = decodeRecordManifestFile(FILE);
-    expect(Either.isRight(decoded)).toBe(true);
-    if (Either.isRight(decoded)) expect(isDecisionRecordManifest(decoded.right)).toBe(true);
+    expect(Result.isSuccess(decoded)).toBe(true);
+    if (Result.isSuccess(decoded)) expect(isDecisionRecordManifest(decoded.success)).toBe(true);
   });
 
   describe("modes and their outcomes", () => {
@@ -160,22 +161,38 @@ describe("decision record manifest", () => {
     });
 
     it("exports the modes and each mode's outcomes", () => {
-      expect(Either.isRight(Schema.decodeUnknownEither(DecisionRecordModeSchema)("verdicts"))).toBe(
-        true,
-      );
-      expect(Either.isLeft(Schema.decodeUnknownEither(DecisionRecordModeSchema)("headless"))).toBe(
-        true,
-      );
+      expect(
+        Result.isSuccess(
+          Schema.decodeUnknownResult(DecisionRecordModeSchema, { reportInput: true })("verdicts"),
+        ),
+      ).toBe(true);
+      expect(
+        Result.isFailure(
+          Schema.decodeUnknownResult(DecisionRecordModeSchema, { reportInput: true })("headless"),
+        ),
+      ).toBe(true);
       for (const outcome of ["committed", "declined", "undecided", "failed"]) {
         expect(
-          Either.isRight(Schema.decodeUnknownEither(InteractiveDecisionOutcomeSchema)(outcome)),
+          Result.isSuccess(
+            Schema.decodeUnknownResult(InteractiveDecisionOutcomeSchema, { reportInput: true })(
+              outcome,
+            ),
+          ),
         ).toBe(true);
       }
       expect(
-        Either.isRight(Schema.decodeUnknownEither(VerdictsDecisionOutcomeSchema)("failed")),
+        Result.isSuccess(
+          Schema.decodeUnknownResult(VerdictsDecisionOutcomeSchema, { reportInput: true })(
+            "failed",
+          ),
+        ),
       ).toBe(true);
       expect(
-        Either.isLeft(Schema.decodeUnknownEither(VerdictsDecisionOutcomeSchema)("declined")),
+        Result.isFailure(
+          Schema.decodeUnknownResult(VerdictsDecisionOutcomeSchema, { reportInput: true })(
+            "declined",
+          ),
+        ),
       ).toBe(true);
     });
 
@@ -207,29 +224,29 @@ describe("decision record manifest", () => {
 
     it("reads a verdicts manifest through the bridge as it is", () => {
       const read = readRecordManifestFile("sha:decision/x/01/record.json", verdictsFile({}));
-      expect(read).toEqual(Either.right(VERDICTS));
+      expect(read).toEqual(Result.succeed(VERDICTS));
     });
   });
 
   it("reads a 0.25.0-stamped manifest through the frozen decoder, unchanged", () => {
     const old = { ...FILE, $schema: schemaUrl("decision-record-manifest", "0.25.0") };
-    expect(Either.isRight(decodeDecisionRecordManifestV0_25_0(old))).toBe(true);
+    expect(Result.isSuccess(decodeDecisionRecordManifestV0_25_0(old))).toBe(true);
     expect(readRecordManifestFile("sha:decision/x/01/record.json", old)).toEqual(
-      Either.right(MANIFEST),
+      Result.succeed(MANIFEST),
     );
     // A 0.25.0 manifest is an interactive record: the frozen shape knows no verdicts mode.
     const verdicts = { ...old, mode: "verdicts", requestedModel: "claude-sonnet-5-5" };
-    expect(Either.isLeft(readRecordManifestFile("sha:decision/x/01/record.json", verdicts))).toBe(
-      true,
-    );
+    expect(
+      Result.isFailure(readRecordManifestFile("sha:decision/x/01/record.json", verdicts)),
+    ).toBe(true);
   });
 
   it("is read by the bridge without its $schema, and refused without one", () => {
     const read = readRecordManifestFile("sha:decision/x/01/record.json", FILE);
-    expect(read).toEqual(Either.right(MANIFEST));
+    expect(read).toEqual(Result.succeed(MANIFEST));
     const { $schema: _schema, ...bare } = FILE;
     const unstamped = readRecordManifestFile("sha:decision/x/01/record.json", bare);
-    expect(Either.isLeft(unstamped)).toBe(true);
-    if (Either.isLeft(unstamped)) expect(unstamped.left.message).toContain("has no $schema");
+    expect(Result.isFailure(unstamped)).toBe(true);
+    if (Result.isFailure(unstamped)) expect(unstamped.failure.message).toContain("has no $schema");
   });
 });

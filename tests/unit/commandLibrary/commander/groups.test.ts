@@ -24,7 +24,7 @@ function debtGroup() {
     name: "accept",
     summary: "Accept a failing condition as debt",
     input: {
-      args: reject(Schema.Tuple(Schema.String)),
+      args: reject(Schema.Tuple([Schema.String])),
       flags: reject(Schema.Struct({ why: Schema.String })),
     },
     output: strip(Schema.Struct({ id: Schema.String, why: Schema.String })),
@@ -225,9 +225,7 @@ describe("a command group", () => {
       name: "loud",
       summary: "declares --json",
       input: {
-        flags: reject(
-          Schema.Struct({ json: Schema.optionalWith(Schema.Boolean, { exact: true }) }),
-        ),
+        flags: reject(Schema.Struct({ json: Schema.optionalKey(Schema.Boolean) })),
       },
       exits: {},
       run: () => Effect.void,

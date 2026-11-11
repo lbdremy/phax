@@ -7,7 +7,7 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { dispatch } from "../../src/app/dispatcher.js";
 import { loadPlan } from "../../src/app/loadPlan.js";
@@ -95,13 +95,13 @@ describe("a run status written before $schema", () => {
   });
 
   it("is read by run info (loadRunReviewInfo)", () => {
-    const result = resolveRun(NAMESPACE, Either.getOrThrow(decodeShortName(SHORT_NAME)), stateRoot);
-    if (Either.isLeft(result)) throw new Error(result.left);
-    expect(result.right.runId).toBe("run-0001");
-    expect(result.right.runState).toBe("running");
-    expect(result.right.gateProfileId).toBe("standard");
-    expect(result.right.phaseStatuses).toHaveLength(1);
-    expect(result.right.phaseStatuses[0]).toEqual(withoutKeys(phaseStatus, "$schema"));
+    const result = resolveRun(NAMESPACE, Result.getOrThrow(decodeShortName(SHORT_NAME)), stateRoot);
+    if (Result.isFailure(result)) throw new Error(result.failure);
+    expect(result.success.runId).toBe("run-0001");
+    expect(result.success.runState).toBe("running");
+    expect(result.success.gateProfileId).toBe("standard");
+    expect(result.success.phaseStatuses).toHaveLength(1);
+    expect(result.success.phaseStatuses[0]).toEqual(withoutKeys(phaseStatus, "$schema"));
   });
 
   it("is read by the dispatcher, and one transition rewrites it with $schema first", async () => {
@@ -152,15 +152,15 @@ describe("a run status written before $schema", () => {
     );
     expect(rewritten["state"]).toBe("rate_limited");
 
-    const reread = resolveRun(NAMESPACE, Either.getOrThrow(decodeShortName(SHORT_NAME)), stateRoot);
-    expect(Either.isRight(reread)).toBe(true);
+    const reread = resolveRun(NAMESPACE, Result.getOrThrow(decodeShortName(SHORT_NAME)), stateRoot);
+    expect(Result.isSuccess(reread)).toBe(true);
   });
 
   it("fails with a message naming the file when a status file is in no known shape", () => {
     writeFileSync(runStatusPath, JSON.stringify({ ...preSchemaRunStatus, version: 7 }));
-    const result = resolveRun(NAMESPACE, Either.getOrThrow(decodeShortName(SHORT_NAME)), stateRoot);
-    if (Either.isRight(result)) throw new Error("expected a failure");
-    expect(result.left.startsWith(`${runStatusPath}: run status without $schema`)).toBe(true);
+    const result = resolveRun(NAMESPACE, Result.getOrThrow(decodeShortName(SHORT_NAME)), stateRoot);
+    if (Result.isSuccess(result)) throw new Error("expected a failure");
+    expect(result.failure.startsWith(`${runStatusPath}: run status without $schema`)).toBe(true);
   });
 });
 
@@ -271,29 +271,29 @@ describe("a run whose phax-plan.json an earlier release stamped", () => {
 
       const result = loadPlan(planPath, { run: qualified });
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isRight(result)) return;
-      expect(result.left).toBeInstanceOf(PlanValidationError);
-      expect(result.left.message).toContain(`${planPath}: phax-plan in the ${shape} shape`);
-      expect(result.left.message).toContain("an older phax wrote it");
-      expect(result.left.message).toContain(`\`phax archive ${qualified} --force\``);
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isSuccess(result)) return;
+      expect(result.failure).toBeInstanceOf(PlanValidationError);
+      expect(result.failure.message).toContain(`${planPath}: phax-plan in the ${shape} shape`);
+      expect(result.failure.message).toContain("an older phax wrote it");
+      expect(result.failure.message).toContain(`\`phax archive ${qualified} --force\``);
     },
   );
 
   it("is still read for display: resolveRun shows its phases, without test lines", () => {
     writeFileSync(planPath, JSON.stringify(plan("0.32.0"), null, 2));
 
-    const result = resolveRun(NAMESPACE, Either.getOrThrow(decodeShortName(SHORT_NAME)), stateRoot);
+    const result = resolveRun(NAMESPACE, Result.getOrThrow(decodeShortName(SHORT_NAME)), stateRoot);
 
-    if (Either.isLeft(result)) throw new Error(result.left);
-    expect(result.right.planPhases.map((p) => p.id)).toEqual(["phase-01", "phase-02"]);
-    expect(result.right.planPhases.every((p) => !("testLines" in p))).toBe(true);
+    if (Result.isFailure(result)) throw new Error(result.failure);
+    expect(result.success.planPhases.map((p) => p.id)).toEqual(["phase-01", "phase-02"]);
+    expect(result.success.planPhases.every((p) => !("testLines" in p))).toBe(true);
   });
 
   it("is listed by phax ls, with the phases its plan names", async () => {
     writeFileSync(planPath, JSON.stringify(plan("0.32.0"), null, 2));
     const { loadConfig } = await import("../../src/app/loadConfig.js");
-    vi.mocked(loadConfig).mockReturnValue(Either.right(lsConfig(stateRoot)));
+    vi.mocked(loadConfig).mockReturnValue(Result.succeed(lsConfig(stateRoot)));
 
     const { code, errLines, outLines } = await phaxCall(["ls"]);
 

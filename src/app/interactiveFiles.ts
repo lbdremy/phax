@@ -4,7 +4,7 @@
 // versions, and review-stop.json (live or parked). Every document read here is
 // decoded at the schema boundary; a document phax cannot read is an FsError
 // naming it.
-import { Effect, Either, Schema } from "effect";
+import { Effect, Result, Schema } from "effect";
 import { createHash } from "node:crypto";
 import { dirname, join } from "node:path";
 import { PERSON_HANDOFF_PATH } from "../domain/interactive/worktreeChange.js";
@@ -95,10 +95,10 @@ export function readInteractiveSession(
     if (!(yield* fs.exists(path))) return null;
     const parsed = yield* parseJson(path, yield* fs.readText(path));
     const decoded = readInteractiveSessionFile(path, parsed);
-    if (Either.isLeft(decoded)) {
-      return yield* Effect.fail(new FsError({ message: decoded.left.message }));
+    if (Result.isFailure(decoded)) {
+      return yield* Effect.fail(new FsError({ message: decoded.failure.message }));
     }
-    return decoded.right;
+    return decoded.success;
   });
 }
 
@@ -303,10 +303,10 @@ export function readReviewStop(
       if (!(yield* fs.exists(path))) continue;
       const parsed = yield* parseJson(path, yield* fs.readText(path));
       const decoded = readReviewStopFile(path, parsed);
-      if (Either.isLeft(decoded)) {
-        return yield* Effect.fail(new FsError({ message: decoded.left.message }));
+      if (Result.isFailure(decoded)) {
+        return yield* Effect.fail(new FsError({ message: decoded.failure.message }));
       }
-      return { reviewStop: decoded.right, path };
+      return { reviewStop: decoded.success, path };
     }
     return null;
   });
@@ -377,13 +377,15 @@ export function readModelResolution(
       return yield* Effect.fail(new FsError({ message: `${path}: not found` }));
     }
     const parsed = yield* parseJson(path, yield* fs.readText(path));
-    const decoded = Schema.decodeUnknownEither(ModelResolutionSelectionSchema)(parsed);
-    if (Either.isLeft(decoded)) {
+    const decoded = Schema.decodeUnknownResult(ModelResolutionSelectionSchema, {
+      reportInput: true,
+    })(parsed);
+    if (Result.isFailure(decoded)) {
       return yield* Effect.fail(
-        new FsError({ message: `${path}: ${formatParseError(decoded.left)}` }),
+        new FsError({ message: `${path}: ${formatParseError(decoded.failure)}` }),
       );
     }
-    const { provider, concreteModel, thinking } = decoded.right.selected;
+    const { provider, concreteModel, thinking } = decoded.success.selected;
     return { provider, model: concreteModel, effort: thinking };
   });
 }
@@ -405,12 +407,12 @@ export function readSecurityFile(
     }
     const parsed = yield* parseJson(path, yield* fs.readText(path));
     const decoded = readSecurityPosture(parsed);
-    if (Either.isLeft(decoded)) {
+    if (Result.isFailure(decoded)) {
       return yield* Effect.fail(
-        new FsError({ message: `${path}: ${formatParseError(decoded.left)}` }),
+        new FsError({ message: `${path}: ${formatParseError(decoded.failure)}` }),
       );
     }
-    return decoded.right;
+    return decoded.success;
   });
 }
 

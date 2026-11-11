@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { decodeCodeReviewSession } from "../../src/schemas/codeReviewSession.js";
 
@@ -16,26 +16,26 @@ const valid = {
 describe("decodeCodeReviewSession", () => {
   it("decodes a fully-valid record", () => {
     const result = decodeCodeReviewSession(valid);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.shortName).toBe("my-run");
-      expect(result.right.provider).toBe("claude-code");
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success.shortName).toBe("my-run");
+      expect(result.success.provider).toBe("claude-code");
     }
   });
 
   it("fails when a required field is missing", () => {
     const { sessionId: _, ...missing } = valid;
     const result = decodeCodeReviewSession(missing);
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 
   it("fails when an unknown key is present", () => {
     const result = decodeCodeReviewSession({ ...valid, unknownKey: "oops" });
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 
   it("fails when provider is an unknown string", () => {
     const result = decodeCodeReviewSession({ ...valid, provider: "openai" });
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 });

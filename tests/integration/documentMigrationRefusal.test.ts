@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { transitionArtifactBy } from "../../src/app/artifactStatus.js";
 import { exitCodeForError } from "../../src/cli/commands/runLayers.js";
@@ -110,7 +110,7 @@ function transition(path: string, target: ArtifactStatus, by?: string) {
     makeFakeTerminal(false).layer,
   );
   return Effect.runPromise(
-    Effect.either(
+    Effect.result(
       transitionArtifactBy(path, target, { repoRoot: repoDir, nowIso: NOW, commit: true, by }).pipe(
         Effect.provide(layer),
       ),
@@ -133,7 +133,7 @@ beforeEach(async () => {
   writeCurrentSpec(PLAN_PRUNE, "Plan prune");
   commitAll();
   const approved = await transition(PLAN_PRUNE, "Approved", "machine:roadmap-loop");
-  if (Either.isLeft(approved)) throw new Error(approved.left.message);
+  if (Result.isFailure(approved)) throw new Error(approved.failure.message);
 
   // One live sidecar stamped 0.17.0, its body the frozen rendering.
   const older = spec("Log rotation");
@@ -162,11 +162,11 @@ describe("approve and reopen wait for migrate-documents", { timeout: 30_000 }, (
 
       const result = await transition(path, target, by);
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        expect(result.left).toBeInstanceOf(DocumentMigrationRequiredError);
-        expect(exitCodeForError(result.left)).toBe(12);
-        expect(result.left.message).toBe(
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
+        expect(result.failure).toBeInstanceOf(DocumentMigrationRequiredError);
+        expect(exitCodeForError(result.failure)).toBe(12);
+        expect(result.failure.message).toBe(
           `${refused}: ${LOG_ROTATION_SIDECAR} is stamped spec-document 0.17.0 — run \`phax artifact migrate-documents\` first`,
         );
       }
@@ -177,7 +177,9 @@ describe("approve and reopen wait for migrate-documents", { timeout: 30_000 }, (
 
   it("refuses whatever --by says: an unresolvable arbiter is never reached", async () => {
     const result = await transition(CACHE_KEYS, "Approved", undefined);
-    expect(Either.isLeft(result) && result.left).toBeInstanceOf(DocumentMigrationRequiredError);
+    expect(Result.isFailure(result) && result.failure).toBeInstanceOf(
+      DocumentMigrationRequiredError,
+    );
   });
 
   it("names every unmigrated sidecar", async () => {
@@ -187,9 +189,9 @@ describe("approve and reopen wait for migrate-documents", { timeout: 30_000 }, (
 
     const result = await transition(CACHE_KEYS, "Approved", "operator");
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left.message.split("\n")).toEqual([
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure.message.split("\n")).toEqual([
         "Approval refused: 2 live sidecars are stamped below their current shape — run `phax artifact migrate-documents` first",
         "  docs/specs/2609251400-plan-prune.json is stamped spec-document written before $schema",
         `  ${LOG_ROTATION_SIDECAR} is stamped spec-document 0.17.0`,
@@ -199,13 +201,13 @@ describe("approve and reopen wait for migrate-documents", { timeout: 30_000 }, (
 
   it("does not refuse complete or abandon: they carry an older sidecar as before", async () => {
     const completed = await transition(PLAN_PRUNE, "Completed");
-    expect(Either.isRight(completed)).toBe(true);
+    expect(Result.isSuccess(completed)).toBe(true);
 
     const abandoned = await transition(CACHE_KEYS, "Abandoned");
-    expect(Either.isRight(abandoned)).toBe(true);
+    expect(Result.isSuccess(abandoned)).toBe(true);
 
     const abandonedOlder = await transition(LOG_ROTATION, "Abandoned");
-    expect(Either.isRight(abandonedOlder)).toBe(true);
+    expect(Result.isSuccess(abandonedOlder)).toBe(true);
     expect(git(["status", "--porcelain"]).trim()).toBe("");
   });
 });

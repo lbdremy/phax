@@ -17,8 +17,8 @@ import {
 } from "../../../../src/cli/commandLibrary/contract/index.js";
 import { call } from "./support/memoryIo.js";
 
-const ShortName = Schema.String.annotations({ identifier: "short-name" });
-const Switch = Schema.optionalWith(Schema.Boolean, { exact: true });
+const ShortName = Schema.String.annotate({ identifier: "short-name" });
+const Switch = Schema.optionalKey(Schema.Boolean);
 
 function makeProgram(guard?: (call: GuardedCall) => GuardRefusal | undefined) {
   const ran: unknown[] = [];
@@ -26,7 +26,7 @@ function makeProgram(guard?: (call: GuardedCall) => GuardRefusal | undefined) {
     name: "run",
     summary: "Run a plan",
     input: {
-      args: reject(Schema.Tuple(Schema.optionalElement(ShortName))),
+      args: reject(Schema.Tuple([Schema.optionalKey(ShortName)])),
       flags: reject(Schema.Struct({ dryRun: Switch })),
     },
     output: strip(Schema.String),
@@ -68,7 +68,7 @@ function makeProgram(guard?: (call: GuardedCall) => GuardRefusal | undefined) {
     },
     options: reject(
       Schema.Struct({
-        verbose: Switch.annotations({ description: "Print progress" }),
+        verbose: Switch.annotate({ description: "Print progress" }),
       }),
     ),
     refusalHint: "Run `phax --help` for usage.",

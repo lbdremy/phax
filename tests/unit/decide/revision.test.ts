@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { serializeSidecar, type SidecarDocument } from "../../../src/domain/artifact/sidecar.js";
 import { renderPlanBody } from "../../../src/domain/authoring/renderPlan.js";
@@ -179,14 +179,14 @@ function context(original: SidecarDocument, scope: DecideScope = ALL_OPEN): Deci
 
 function decode(json: unknown, ctx: DecideContext): SidecarDocument {
   const decoded = decodeRevisedDocument(json, ctx);
-  if (Either.isLeft(decoded)) throw new Error(describeRevisionRefusal(decoded.left));
-  return decoded.right;
+  if (Result.isFailure(decoded)) throw new Error(describeRevisionRefusal(decoded.failure));
+  return decoded.success;
 }
 
 function refusalOf(json: unknown, ctx: DecideContext): string {
   const decoded = decodeRevisedDocument(json, ctx);
-  if (Either.isRight(decoded)) throw new Error("expected a refusal");
-  return describeRevisionRefusal(decoded.left);
+  if (Result.isSuccess(decoded)) throw new Error("expected a refusal");
+  return describeRevisionRefusal(decoded.failure);
 }
 
 // Q1 decided (as recommended) in a session on `spec()`.
@@ -207,28 +207,28 @@ describe("decideScope", () => {
 
   it("presents every open question without --question", () => {
     expect(decideScope(questions, null)).toEqual(
-      Either.right({ presented: ["Q1", "Q2"], reArbitrated: null }),
+      Result.succeed({ presented: ["Q1", "Q2"], reArbitrated: null }),
     );
   });
 
   it("presents an open question alone", () => {
     expect(decideScope(questions, "Q2")).toEqual(
-      Either.right({ presented: ["Q2"], reArbitrated: null }),
+      Result.succeed({ presented: ["Q2"], reArbitrated: null }),
     );
   });
 
   it("presents an arbitrated question alone, re-arbitrated", () => {
     expect(decideScope(questions, "Q0")).toEqual(
-      Either.right({ presented: ["Q0"], reArbitrated: "Q0" }),
+      Result.succeed({ presented: ["Q0"], reArbitrated: "Q0" }),
     );
   });
 
   it("refuses an unknown id, naming every question id", () => {
     const scope = decideScope(questions, "Q9");
-    expect(Either.isLeft(scope)).toBe(true);
-    if (Either.isLeft(scope)) {
-      expect(scope.left).toContain("Q9");
-      expect(scope.left).toContain("Q1, Q2, Q0");
+    expect(Result.isFailure(scope)).toBe(true);
+    if (Result.isFailure(scope)) {
+      expect(scope.failure).toContain("Q9");
+      expect(scope.failure).toContain("Q1, Q2, Q0");
     }
   });
 });

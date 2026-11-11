@@ -1,4 +1,4 @@
-import { Either, Schema } from "effect";
+import { Result, Schema } from "effect";
 
 /**
  * Real `codex exec --json` events observed from codex-cli 0.136.0:
@@ -41,8 +41,12 @@ export type CodexItemCompletedAgentMessageEvent = Schema.Schema.Type<
   typeof CodexItemCompletedAgentMessageEventSchema
 >;
 
-const decodeThreadStarted = Schema.decodeUnknownEither(CodexThreadStartedEventSchema);
-const decodeItemCompleted = Schema.decodeUnknownEither(CodexItemCompletedAgentMessageEventSchema);
+const decodeThreadStarted = Schema.decodeUnknownResult(CodexThreadStartedEventSchema, {
+  reportInput: true,
+});
+const decodeItemCompleted = Schema.decodeUnknownResult(CodexItemCompletedAgentMessageEventSchema, {
+  reportInput: true,
+});
 
 function parseLine(line: string): unknown | undefined {
   if (!line.trim()) return undefined;
@@ -73,11 +77,16 @@ const CodexErrorEventSchema = Schema.Struct({
   message: Schema.String,
 });
 
-export const decodeCodexTurnCompletedEvent = Schema.decodeUnknownEither(
+export const decodeCodexTurnCompletedEvent = Schema.decodeUnknownResult(
   CodexTurnCompletedEventSchema,
+  { reportInput: true },
 );
-export const decodeCodexTurnFailedEvent = Schema.decodeUnknownEither(CodexTurnFailedEventSchema);
-export const decodeCodexErrorEvent = Schema.decodeUnknownEither(CodexErrorEventSchema);
+export const decodeCodexTurnFailedEvent = Schema.decodeUnknownResult(CodexTurnFailedEventSchema, {
+  reportInput: true,
+});
+export const decodeCodexErrorEvent = Schema.decodeUnknownResult(CodexErrorEventSchema, {
+  reportInput: true,
+});
 
 /** How the turn ended: the last `turn.completed` or `turn.failed` event. */
 type CodexTurnEnd =
@@ -104,27 +113,27 @@ export function scanCodexOutcomeEvents(lines: readonly string[]): CodexOutcomeEv
     const parsed = parseLine(line);
     if (parsed === undefined) continue;
     const started = decodeThreadStarted(parsed);
-    if (Either.isRight(started)) {
-      threadId ??= started.right.thread_id;
+    if (Result.isSuccess(started)) {
+      threadId ??= started.success.thread_id;
       continue;
     }
     const item = decodeItemCompleted(parsed);
-    if (Either.isRight(item)) {
+    if (Result.isSuccess(item)) {
       // A blank agent message is no answer.
-      if (item.right.item.text.trim().length > 0) agentMessage = item.right.item.text;
+      if (item.success.item.text.trim().length > 0) agentMessage = item.success.item.text;
       continue;
     }
-    if (Either.isRight(decodeCodexTurnCompletedEvent(parsed))) {
+    if (Result.isSuccess(decodeCodexTurnCompletedEvent(parsed))) {
       turnEnd = { kind: "completed" };
       continue;
     }
     const failed = decodeCodexTurnFailedEvent(parsed);
-    if (Either.isRight(failed)) {
-      turnEnd = { kind: "failed", message: failed.right.error?.message };
+    if (Result.isSuccess(failed)) {
+      turnEnd = { kind: "failed", message: failed.success.error?.message };
       continue;
     }
     const error = decodeCodexErrorEvent(parsed);
-    if (Either.isRight(error)) errorMessage = error.right.message;
+    if (Result.isSuccess(error)) errorMessage = error.success.message;
   }
   return { threadId, agentMessage, turnEnd, errorMessage };
 }

@@ -120,7 +120,7 @@ const AgentModelsOutput = Schema.Struct({
           models: Schema.Array(
             Schema.Struct({
               id: Schema.String,
-              status: Schema.Literal("active", "deprecated"),
+              status: Schema.Literals(["active", "deprecated"]),
               efforts: Schema.Array(ThinkingLevelSchema),
             }),
           ),
@@ -227,14 +227,13 @@ const AgentResolveOutput = Schema.Struct({
   selected: Schema.Struct({
     provider: ProviderIdSchema,
     family: ModelFamilySchema,
-    thinking: Schema.optionalWith(ThinkingLevelSchema, { exact: true }),
+    thinking: Schema.optionalKey(ThinkingLevelSchema),
     concreteModel: Schema.String,
   }),
   relationship: RelationshipSchema,
   reason: Schema.String,
-  skippedForSecurity: Schema.optionalWith(
+  skippedForSecurity: Schema.optionalKey(
     Schema.Array(Schema.Struct({ provider: ProviderIdSchema, reason: Schema.String })),
-    { exact: true },
   ),
 });
 
@@ -245,11 +244,11 @@ export function makeAgentResolveCommand(layers: AgentLayers) {
     input: {
       flags: reject(
         Schema.Struct({
-          model: Schema.String.annotations({
+          model: Schema.String.annotate({
             identifier: "id",
             description: "Requested model id (e.g. claude-sonnet-4-6)",
           }),
-          effort: Schema.String.annotations({
+          effort: Schema.String.annotate({
             identifier: "level",
             description:
               "Effort/thinking level (none|off|low|medium|high|xhigh|max|ultracode|ultra)",
@@ -369,17 +368,15 @@ function makeAgentSetupMistralVibeCommand(layers: AgentLayers) {
     input: {
       flags: reject(
         Schema.Struct({
-          dryRun: Schema.optionalWith(
-            Schema.Boolean.annotations({
+          dryRun: Schema.optionalKey(
+            Schema.Boolean.annotate({
               description: "Preview what would be appended without writing anything",
             }),
-            { exact: true },
           ),
-          installModelAliases: Schema.optionalWith(
-            Schema.Boolean.annotations({
+          installModelAliases: Schema.optionalKey(
+            Schema.Boolean.annotate({
               description: "Actually append the missing aliases and write the backup",
             }),
-            { exact: true },
           ),
         }),
       ),
@@ -476,24 +473,21 @@ function makeAgentSetupProvidersCommand(layers: AgentLayers) {
     input: {
       flags: reject(
         Schema.Struct({
-          write: Schema.optionalWith(
-            Schema.Boolean.annotations({
+          write: Schema.optionalKey(
+            Schema.Boolean.annotate({
               description: "Persist the reconciled config (writes a timestamped backup first)",
             }),
-            { exact: true },
           ),
-          prune: Schema.optionalWith(
-            Schema.Boolean.annotations({
+          prune: Schema.optionalKey(
+            Schema.Boolean.annotate({
               description: "Also disable providers whose executable is unavailable",
             }),
-            { exact: true },
           ),
-          withRouting: Schema.optionalWith(
-            Schema.Boolean.annotations({
+          withRouting: Schema.optionalKey(
+            Schema.Boolean.annotate({
               description:
                 "Scaffold ~/.phax/model-routing.json from defaults when absent (never overwrites)",
             }),
-            { exact: true },
           ),
         }),
       ),

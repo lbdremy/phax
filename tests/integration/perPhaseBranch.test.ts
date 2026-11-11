@@ -8,7 +8,7 @@
  * chained off the prior phase's branch, so all worktrees can coexist.
  */
 
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { execSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -62,7 +62,7 @@ const HANDOFF_CONTENT = [
   "Ready to proceed.",
 ].join("\n");
 
-const shortName = Either.getOrThrow(decodeShortName("my-run"));
+const shortName = Result.getOrThrow(decodeShortName("my-run"));
 
 const rawPlan = {
   version: 1,
@@ -105,9 +105,9 @@ const rawPlan = {
 describe("preparePhaseBranch — unit", () => {
   it("builds the correct branch name and calls createBranch with the right from-ref", async () => {
     const fakeGit = makeFakeGit();
-    const baseBranch = Either.getOrThrow(decodeBranchName("ai/my-run"));
-    const phase01Id = Either.getOrThrow(decodePhaseId("phase-01"));
-    const phase02Id = Either.getOrThrow(decodePhaseId("phase-02"));
+    const baseBranch = Result.getOrThrow(decodeBranchName("ai/my-run"));
+    const phase01Id = Result.getOrThrow(decodePhaseId("phase-01"));
+    const phase02Id = Result.getOrThrow(decodePhaseId("phase-02"));
 
     // Phase-01 branches off the run branch.
     fakeGit.impl.setBranchRef("ai/my-run", RUN_TIP);
@@ -147,8 +147,8 @@ describe("preparePhaseBranch — unit", () => {
     const fakeGit = makeFakeGit();
     fakeGit.impl.addExistingBranch("ai/my-run--phase-01");
 
-    const baseBranch = Either.getOrThrow(decodeBranchName("ai/my-run"));
-    const phase01Id = Either.getOrThrow(decodePhaseId("phase-01"));
+    const baseBranch = Result.getOrThrow(decodeBranchName("ai/my-run"));
+    const phase01Id = Result.getOrThrow(decodePhaseId("phase-01"));
 
     const result = await Effect.runPromise(
       preparePhaseBranch(baseBranch, phase01Id, baseBranch, "/repo").pipe(
@@ -163,8 +163,8 @@ describe("preparePhaseBranch — unit", () => {
 
   it("notes a deterministic full sha for a source branch the fake has no ref for", async () => {
     const fakeGit = makeFakeGit();
-    const baseBranch = Either.getOrThrow(decodeBranchName("ai/my-run"));
-    const phase01Id = Either.getOrThrow(decodePhaseId("phase-01"));
+    const baseBranch = Result.getOrThrow(decodeBranchName("ai/my-run"));
+    const phase01Id = Result.getOrThrow(decodePhaseId("phase-01"));
 
     const prepared = await Effect.runPromise(
       preparePhaseBranch(baseBranch, phase01Id, baseBranch, "/repo").pipe(
@@ -183,12 +183,12 @@ describe("preparePhaseBranch — unit", () => {
 describe("the noted base — real git", () => {
   let repoDir: string;
   let runPath: string;
-  const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+  const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
   const phase01 = plan.phases[0];
   const phase02 = plan.phases[1]!;
-  const runBranch = Either.getOrThrow(decodeBranchName("ai/my-run"));
-  const phase01Id = Either.getOrThrow(decodePhaseId("phase-01"));
-  const phase02Id = Either.getOrThrow(decodePhaseId("phase-02"));
+  const runBranch = Result.getOrThrow(decodeBranchName("ai/my-run"));
+  const phase01Id = Result.getOrThrow(decodePhaseId("phase-01"));
+  const phase02Id = Result.getOrThrow(decodePhaseId("phase-02"));
   const layers = Layer.mergeAll(NodeGitLayer, NodeFileSystemLayer);
 
   function git(args: string): string {
@@ -215,7 +215,7 @@ describe("the noted base — real git", () => {
   function readStatus(phaseId: string): PhaseStatus {
     const file = join(runPath, phaseId, "status.json");
     const raw = JSON.parse(readFileSync(file, "utf8")) as unknown;
-    return Either.getOrThrow(readPhaseStatusFile(file, raw));
+    return Result.getOrThrow(readPhaseStatusFile(file, raw));
   }
 
   const run = <A, E>(effect: Effect.Effect<A, E, Git | FileSystem>): Promise<A> =>
@@ -308,12 +308,12 @@ describe("the noted base — real git", () => {
 
     const prepared = await run(prepare(phase01Id, runBranch));
     expect(prepared.kind).toBe("existing");
-    const result = await run(Effect.either(noteBase(phase01, 0, prepared)));
+    const result = await run(Effect.result(noteBase(phase01, 0, prepared)));
 
-    if (Either.isRight(result)) throw new Error("expected a refusal");
-    expect(result.left).toBeInstanceOf(UnsafeGitStateError);
-    expect(result.left.message).toContain('"ai/my-run--phase-01"');
-    expect(result.left.message).toContain("git branch -D ai/my-run--phase-01");
+    if (Result.isSuccess(result)) throw new Error("expected a refusal");
+    expect(result.failure).toBeInstanceOf(UnsafeGitStateError);
+    expect(result.failure.message).toContain('"ai/my-run--phase-01"');
+    expect(result.failure.message).toContain("git branch -D ai/my-run--phase-01");
     expect(existsSync(join(runPath, "phase-01", "status.json"))).toBe(false);
   });
 });
@@ -334,7 +334,7 @@ describe("executePlan — per-phase branch regression", () => {
   });
 
   it("creates two addWorktree calls with distinct branches and correct createBranch chain", async () => {
-    const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
 
     const config: ResolvedConfig = {
       raw: {
@@ -431,7 +431,7 @@ describe("executePlan — per-phase branch regression", () => {
     );
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -450,8 +450,8 @@ describe("executePlan — per-phase branch regression", () => {
     );
 
     expect(
-      Either.isRight(result),
-      Either.isLeft(result) ? `executePlan failed: ${String(result.left)}` : "",
+      Result.isSuccess(result),
+      Result.isFailure(result) ? `executePlan failed: ${String(result.failure)}` : "",
     ).toBe(true);
 
     // (a) Exactly two addWorktree calls — one per phase, since no pre-created dirs.
@@ -491,7 +491,7 @@ describe("executePlan — per-phase branch regression", () => {
   });
 
   it("seeds previousPhaseBranch correctly on resume: createBranch only for phase-02", async () => {
-    const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
 
     const config: ResolvedConfig = {
       raw: {
@@ -641,7 +641,7 @@ describe("executePlan — per-phase branch regression", () => {
     );
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -660,8 +660,8 @@ describe("executePlan — per-phase branch regression", () => {
     );
 
     expect(
-      Either.isRight(result),
-      Either.isLeft(result) ? `executePlan resume failed: ${String(result.left)}` : "",
+      Result.isSuccess(result),
+      Result.isFailure(result) ? `executePlan resume failed: ${String(result.failure)}` : "",
     ).toBe(true);
 
     // On resume from startIndex=1, prepareRunBranch is NOT called (isClean not checked).

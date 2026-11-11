@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -24,7 +24,7 @@ import { planMdFor } from "../helpers/planMarkdown.js";
 import { liftFixturePhaxPlanToCurrent } from "../helpers/liftFixturePhaxPlan.js";
 import { processOutput } from "../helpers/processOutput.js";
 
-const shortName = Either.getOrThrow(decodeShortName("preflight-run"));
+const shortName = Result.getOrThrow(decodeShortName("preflight-run"));
 
 function makeConfig(stateRoot: string): ResolvedConfig {
   return {
@@ -117,7 +117,7 @@ describe("executePlan — model preflight", () => {
       ],
     } as const;
 
-    const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
     const config = makeConfig(stateRoot);
     const { layer, fakeBackend } = makeLayers();
 
@@ -126,7 +126,7 @@ describe("executePlan — model preflight", () => {
     );
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -144,10 +144,10 @@ describe("executePlan — model preflight", () => {
       ),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(ModelPreflightError);
-      const err = result.left as ModelPreflightError;
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toBeInstanceOf(ModelPreflightError);
+      const err = result.failure as ModelPreflightError;
       expect(err.failures).toHaveLength(1);
       expect(err.failures[0]?.phaseId).toBe("phase-01");
       expect(err.failures[0]?.model).toBe("completely-unknown-model-xyz");
@@ -183,7 +183,7 @@ describe("executePlan — model preflight", () => {
       ],
     } as const;
 
-    const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
     const config = makeConfig(stateRoot);
     const { layer, fakeBackend } = makeLayers();
 
@@ -192,7 +192,7 @@ describe("executePlan — model preflight", () => {
     );
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -210,10 +210,10 @@ describe("executePlan — model preflight", () => {
       ),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(ModelPreflightError);
-      const err = result.left as ModelPreflightError;
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toBeInstanceOf(ModelPreflightError);
+      const err = result.failure as ModelPreflightError;
       expect(err.failures[0]?.reasons[0]).toContain("ultracode");
       expect(err.failures[0]?.reasons[0]).toContain("not supported");
       // The structured failure carries the catalog-derived alternatives so a
@@ -252,7 +252,7 @@ describe("executePlan — model preflight", () => {
       ],
     } as const;
 
-    const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
     const config = makeConfig(stateRoot);
     const { layer } = makeLayers();
 
@@ -261,7 +261,7 @@ describe("executePlan — model preflight", () => {
     );
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -281,8 +281,8 @@ describe("executePlan — model preflight", () => {
 
     // The run may fail for other reasons (no backend responses) but never
     // with a ModelPreflightError since the model is valid.
-    if (Either.isLeft(result)) {
-      expect(result.left).not.toBeInstanceOf(ModelPreflightError);
+    if (Result.isFailure(result)) {
+      expect(result.failure).not.toBeInstanceOf(ModelPreflightError);
     }
   });
 
@@ -321,7 +321,7 @@ describe("executePlan — model preflight", () => {
       ],
     } as const;
 
-    const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
     const config = makeConfig(stateRoot);
     const { layer, fakeBackend } = makeLayers();
 
@@ -330,7 +330,7 @@ describe("executePlan — model preflight", () => {
     );
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -348,10 +348,10 @@ describe("executePlan — model preflight", () => {
       ),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(ModelPreflightError);
-      const err = result.left as ModelPreflightError;
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toBeInstanceOf(ModelPreflightError);
+      const err = result.failure as ModelPreflightError;
       expect(err.failures).toHaveLength(2);
       const phaseIds = err.failures.map((f) => f.phaseId);
       expect(phaseIds).toContain("phase-01");

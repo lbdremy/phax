@@ -9,21 +9,31 @@
 // cannot move it.
 import { Schema } from "effect";
 
-const ComplianceReviewSchemaUrlSchema = Schema.String.pipe(
-  Schema.pattern(
+// `Schema.isPattern` whose JSON Schema is the RegExp's source, whatever its
+// flags: Effect 4 exports a pattern only for a RegExp with the `u` flag.
+function isExportedPattern(regExp: RegExp, annotations?: Schema.Annotations.Filter) {
+  return Schema.isPattern(regExp, {
+    toJsonSchema: () => ({ pattern: regExp.source }),
+    ...annotations,
+  });
+}
+
+const ComplianceReviewSchemaUrlSchema = Schema.String.check(
+  isExportedPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/compliance-review\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
-  Schema.annotations({
+).pipe(
+  Schema.annotate({
     description:
       "The compliance-review format and the phax release that wrote this file: https://docs.phax.run/schemas/compliance-review/<X.Y.Z>.json",
   }),
 );
 
-const VerdictSchema = Schema.Literal("conformant", "conformant-with-deviations", "divergent");
+const VerdictSchema = Schema.Literals(["conformant", "conformant-with-deviations", "divergent"]);
 
-const SeveritySchema = Schema.Literal("info", "deviation", "concern");
+const SeveritySchema = Schema.Literals(["info", "deviation", "concern"]);
 
-const DimensionSchema = Schema.Literal(
+const DimensionSchema = Schema.Literals([
   "objective",
   "excluded-scope",
   "files",
@@ -31,7 +41,7 @@ const DimensionSchema = Schema.Literal(
   "boundaries",
   "commit",
   "handoff",
-);
+]);
 
 const FindingSchema = Schema.Struct({
   dimension: DimensionSchema,
@@ -57,7 +67,7 @@ export const ComplianceReviewV0_17_0Schema = Schema.Struct({
 
 export type ComplianceReviewV0_17_0 = Schema.Schema.Type<typeof ComplianceReviewV0_17_0Schema>;
 
-export const decodeComplianceReviewV0_17_0 = Schema.decodeUnknownEither(
+export const decodeComplianceReviewV0_17_0 = Schema.decodeUnknownResult(
   ComplianceReviewV0_17_0Schema,
-  { onExcessProperty: "error" },
+  { onExcessProperty: "error", reportInput: true },
 );

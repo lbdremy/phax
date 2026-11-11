@@ -5,7 +5,7 @@
 // changed either is refused, its versions kept aside and the worktree
 // restored, so no one's edit is lost. The session id always comes from the
 // turn's stream. Nothing here reads stdin.
-import { Cause, Effect, Either, Exit } from "effect";
+import { Cause, Effect, Result, Exit } from "effect";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import type { PhaseId, RunId, WorktreePath } from "../domain/branded.js";
@@ -165,11 +165,11 @@ function failedAttempt(error: unknown): TurnAttempt {
   };
 }
 
-function decodeAnswer(result: AgentRunResult): Either.Either<FirstReading, string> {
-  return Either.flatMap(answerJson(result), (parsed) =>
-    Either.match(readFirstReadingAnswer(parsed), {
-      onLeft: (error) => Either.left(describeReportError(error)),
-      onRight: ({ $schema: _schema, ...reading }) => Either.right(reading),
+function decodeAnswer(result: AgentRunResult): Result.Result<FirstReading, string> {
+  return Result.flatMap(answerJson(result), (parsed) =>
+    Result.match(readFirstReadingAnswer(parsed), {
+      onFailure: (error) => Result.fail(describeReportError(error)),
+      onSuccess: ({ $schema: _schema, ...reading }) => Result.succeed(reading),
     }),
   );
 }
@@ -216,7 +216,7 @@ function attemptTurn(
       );
 
     const firstStream = `${label}.jsonl`;
-    const first = yield* Effect.either(
+    const first = yield* Effect.result(
       costed(
         backend.runAgent(
           firstTurnPrompt({
@@ -230,33 +230,33 @@ function attemptTurn(
         "agent.run",
       ),
     );
-    if (Either.isLeft(first)) return failedAttempt(first.left);
-    const answer = decodeAnswer(first.right);
-    if (Either.isRight(answer)) {
-      return { kind: "answered", sessionId: first.right.sessionId, reading: answer.right };
+    if (Result.isFailure(first)) return failedAttempt(first.failure);
+    const answer = decodeAnswer(first.success);
+    if (Result.isSuccess(answer)) {
+      return { kind: "answered", sessionId: first.success.sessionId, reading: answer.success };
     }
 
     const retryStream = `${label}-retry.jsonl`;
-    const retry = yield* Effect.either(
+    const retry = yield* Effect.result(
       costed(
         backend.resumeAgentSession(
-          first.right.sessionId,
-          correctivePrompt(answer.left, currentSchemaUrl("first-reading")),
+          first.success.sessionId,
+          correctivePrompt(answer.failure, currentSchemaUrl("first-reading")),
           options(retryStream),
         ),
         retryStream,
         "agent.resume",
       ),
     );
-    if (Either.isLeft(retry)) return failedAttempt(retry.left);
-    const retried = decodeAnswer(retry.right);
-    if (Either.isRight(retried)) {
-      return { kind: "answered", sessionId: retry.right.sessionId, reading: retried.right };
+    if (Result.isFailure(retry)) return failedAttempt(retry.failure);
+    const retried = decodeAnswer(retry.success);
+    if (Result.isSuccess(retried)) {
+      return { kind: "answered", sessionId: retry.success.sessionId, reading: retried.success };
     }
     return {
       kind: "failed",
       reason: "invalid-answer",
-      detail: `the first answer was refused (${answer.left}); the corrective answer was refused too (${retried.left})`,
+      detail: `the first answer was refused (${answer.failure}); the corrective answer was refused too (${retried.failure})`,
       resetAt: null,
     };
   });
@@ -484,8 +484,8 @@ export function runFirstTurn(
           ? exit.value
           : {
               kind: "failed",
-              reason: Exit.isInterrupted(exit) ? "interrupted" : "provider-error",
-              detail: Exit.isInterrupted(exit)
+              reason: Exit.hasInterrupts(exit) ? "interrupted" : "provider-error",
+              detail: Exit.hasInterrupts(exit)
                 ? "the turn was interrupted before it ended"
                 : Cause.pretty(exit.cause) || "the turn failed",
               resetAt: null,
@@ -600,8 +600,10 @@ function buildStopCommands(input: {
     );
     // A phase worktree is always a writable root, so no adapter refuses it.
     if (freshStart === null) {
-      return yield* Effect.dieMessage(
-        `No fresh-start command for ${input.provider} at ${input.phaseId}: its posture names no writable root`,
+      return yield* Effect.die(
+        new Error(
+          `No fresh-start command for ${input.provider} at ${input.phaseId}: its posture names no writable root`,
+        ),
       );
     }
     return {

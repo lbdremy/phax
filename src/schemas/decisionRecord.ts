@@ -7,6 +7,7 @@ import {
   type FrozenTokenUsage,
 } from "./runRecord.js";
 import { schemaUrlField } from "./schemaUrl.js";
+import { isExportedPattern } from "./strictString.js";
 
 /**
  * How an interactive decide session that spawned ended: its decisions landed
@@ -15,12 +16,12 @@ import { schemaUrlField } from "./schemaUrl.js";
  * failed (a refused document, a limit, a change during the session, a failed
  * write or commit). Only a `committed` record names a commit.
  */
-export const InteractiveDecisionOutcomeSchema = Schema.Literal(
+export const InteractiveDecisionOutcomeSchema = Schema.Literals([
   "committed",
   "declined",
   "undecided",
   "failed",
-);
+]);
 
 /**
  * How a verdicts-mode decide that spawned its writer session ended: the
@@ -29,7 +30,7 @@ export const InteractiveDecisionOutcomeSchema = Schema.Literal(
  * no operator to decline a diff and no verdict left undecided. Only a
  * `committed` record names a commit.
  */
-export const VerdictsDecisionOutcomeSchema = Schema.Literal("committed", "failed");
+export const VerdictsDecisionOutcomeSchema = Schema.Literals(["committed", "failed"]);
 
 /**
  * Why a failed decide failed: the failed session's kind, `answer-refused` (a
@@ -39,7 +40,7 @@ export const VerdictsDecisionOutcomeSchema = Schema.Literal("committed", "failed
  * domain module; a type test keeps it equal to the reader's kinds plus the
  * three.
  */
-export const DecisionFailureSchema = Schema.Literal(
+export const DecisionFailureSchema = Schema.Literals([
   "network",
   "rate-limit",
   "usage-limit",
@@ -51,17 +52,17 @@ export const DecisionFailureSchema = Schema.Literal(
   "answer-refused",
   "artifact-changed",
   "commit-failed",
-);
+]);
 
 export type DecisionFailure = Schema.Schema.Type<typeof DecisionFailureSchema>;
 
 /** How a decide that spawned a session ended, in either mode. */
-export const DecisionRecordOutcomeSchema = Schema.Literal(
+export const DecisionRecordOutcomeSchema = Schema.Literals([
   "committed",
   "declined",
   "undecided",
   "failed",
-);
+]);
 
 export type DecisionRecordOutcome = Schema.Schema.Type<typeof DecisionRecordOutcomeSchema>;
 
@@ -69,24 +70,23 @@ export type DecisionRecordOutcome = Schema.Schema.Type<typeof DecisionRecordOutc
  * Who decided: `interactive` is an operator's session, `verdicts` a verdicts
  * file transcribed by a headless writer session.
  */
-export const DecisionRecordModeSchema = Schema.Literal("interactive", "verdicts");
+export const DecisionRecordModeSchema = Schema.Literals(["interactive", "verdicts"]);
 
 export type DecisionRecordMode = Schema.Schema.Type<typeof DecisionRecordModeSchema>;
 
 /** Whether the session resumed the artifact's kept authoring session or started a new one. */
-export const DecisionRecordSessionSchema = Schema.Literal("new", "resumed-authoring");
+export const DecisionRecordSessionSchema = Schema.Literals(["new", "resumed-authoring"]);
 
-const FingerprintSchema = Schema.String.pipe(
-  Schema.pattern(/^[0-9a-f]{64}$/),
-  Schema.annotations({ description: "The sha256 hex of the source's text." }),
+const FingerprintSchema = Schema.String.check(isExportedPattern(/^[0-9a-f]{64}$/)).pipe(
+  Schema.annotate({ description: "The sha256 hex of the source's text." }),
 );
 
 /** Where the session's doctrine came from: the doctrine skill, then the `--doctrine` file. */
-const DoctrineSourceSchema = Schema.Union(
+const DoctrineSourceSchema = Schema.Union([
   Schema.Struct({
     kind: Schema.Literal("skill"),
     name: Schema.NonEmptyString,
-    source: Schema.Literal("bundled", "project"),
+    source: Schema.Literals(["bundled", "project"]),
     fingerprint: FingerprintSchema,
   }),
   Schema.Struct({
@@ -94,9 +94,9 @@ const DoctrineSourceSchema = Schema.Union(
     path: Schema.NonEmptyString,
     fingerprint: FingerprintSchema,
   }),
-);
+]);
 
-const CountSchema = Schema.Int.pipe(Schema.nonNegative());
+const CountSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0));
 
 /**
  * The manifest (`record.json`) of one decide session, keyed
@@ -109,13 +109,12 @@ const CountSchema = Schema.Int.pipe(Schema.nonNegative());
 const decisionRecordManifestFields = {
   kind: Schema.Literal("decision"),
   /** `<stamp>-<slug>/<NN>`: the record key's tail and the `Decision-Id` trailer. */
-  decisionId: Schema.String.pipe(
-    Schema.pattern(/^[^/\s]+\/\d{2,}$/),
-    Schema.annotations({ description: "`<stamp>-<slug>/<NN>`, the Decision-Id trailer." }),
+  decisionId: Schema.String.check(isExportedPattern(/^[^/\s]+\/\d{2,}$/)).pipe(
+    Schema.annotate({ description: "`<stamp>-<slug>/<NN>`, the Decision-Id trailer." }),
   ),
   /** Repo-relative path of the artifact decided. */
   artifact: Schema.NonEmptyString,
-  artifactKind: Schema.Literal("spec", "plan"),
+  artifactKind: Schema.Literals(["spec", "plan"]),
   session: DecisionRecordSessionSchema,
   doctrine: Schema.Array(DoctrineSourceSchema),
   /** The question ids presented (interactive) or named by the verdicts file (verdicts), in order. */
@@ -150,7 +149,7 @@ const InteractiveCommittedFields = {
 const InteractiveUnsettledFields = {
   ...decisionRecordManifestFields,
   mode: Schema.Literal("interactive"),
-  outcome: Schema.Literal("declined", "undecided"),
+  outcome: Schema.Literals(["declined", "undecided"]),
   commit: Schema.Null,
   ...usageField,
 };
@@ -207,7 +206,7 @@ export type DecisionRecordManifest =
  * failed; verdicts: committed, failed), and `commit` is a string exactly when
  * the outcome is `committed`.
  */
-export const DecisionRecordManifestFileSchema = Schema.Union(
+export const DecisionRecordManifestFileSchema = Schema.Union([
   Schema.Struct({
     $schema: schemaUrlField("decision-record-manifest"),
     ...InteractiveCommittedFields,
@@ -228,7 +227,7 @@ export const DecisionRecordManifestFileSchema = Schema.Union(
     $schema: schemaUrlField("decision-record-manifest"),
     ...VerdictsFailedFields,
   }),
-);
+]);
 
 export type DecisionRecordManifestFile = Schema.Schema.Type<
   typeof DecisionRecordManifestFileSchema
@@ -244,9 +243,9 @@ export type WrittenDecisionRecordManifest = DecisionRecordManifestFile extends i
     : never
   : never;
 
-export const decodeDecisionRecordManifestFile = Schema.decodeUnknownEither(
+export const decodeDecisionRecordManifestFile = Schema.decodeUnknownResult(
   DecisionRecordManifestFileSchema,
-  { onExcessProperty: "error" },
+  { onExcessProperty: "error", reportInput: true },
 );
 
 export const encodeDecisionRecordManifest = Schema.encodeSync(DecisionRecordManifestFileSchema);

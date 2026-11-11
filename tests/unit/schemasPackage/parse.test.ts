@@ -1,4 +1,4 @@
-import { Either, Schema } from "effect";
+import { Result, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import { CURRENT_SHAPES } from "../../../packages/schemas/src/generated/index.js";
 import { parsePhaseRecordManifest, parseRunStatus } from "../../../packages/schemas/src/index.js";
@@ -80,12 +80,13 @@ describe("parseRunStatus", () => {
 });
 
 describe("fromEither", () => {
-  const decode = Schema.decodeUnknownEither(
+  const decode = Schema.decodeUnknownResult(
     Schema.Struct({ a: Schema.Struct({ b: Schema.Number }) }),
+    { reportInput: true },
   );
 
   it("maps a right to ok", () => {
-    expect(fromEither(Either.right(1) as Either.Either<number, never>)).toEqual({
+    expect(fromEither(Result.succeed(1) as Result.Result<number, never>)).toEqual({
       ok: true,
       value: 1,
     });
@@ -99,8 +100,9 @@ describe("fromEither", () => {
   });
 
   it("reports an array index as a path segment", () => {
-    const decodeList = Schema.decodeUnknownEither(
+    const decodeList = Schema.decodeUnknownResult(
       Schema.Struct({ xs: Schema.Array(Schema.Number) }),
+      { reportInput: true },
     );
     const result = fromEither(decodeList({ xs: [1, "two"] }));
     expect(result.ok).toBe(false);

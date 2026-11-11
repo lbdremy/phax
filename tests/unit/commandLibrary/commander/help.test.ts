@@ -62,7 +62,7 @@ function withTagTodo() {
     name: "tag-todo",
     summary: "tag a todo",
     input: {
-      args: reject(Schema.Tuple(Schema.String)),
+      args: reject(Schema.Tuple([Schema.String])),
       flags: strip(Schema.Struct({ to: Schema.String })),
     },
     exits: {},

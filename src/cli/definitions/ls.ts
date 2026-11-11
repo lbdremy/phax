@@ -1,7 +1,7 @@
 // `phax ls` as the runner reads it: the run-list document, and today's table as its text,
 // rendered from the document alone. `--complete` answers `short-name:state` lines through the
 // `document` hook, a text document with no format, so completion never reaches the render.
-import { Effect, Either, Layer, Schema as EffectSchema } from "effect";
+import { Effect, Result, Layer, Schema as EffectSchema } from "effect";
 import * as Schema from "effect/Schema";
 import { computeRecordsPending, pendingCountsByRunId } from "../../app/recordsStatus.js";
 import { recordsClonePath } from "../../app/recordsSync.js";
@@ -30,8 +30,7 @@ import { configured, exposeMessage, MessageFields, publishedFormat } from "./sha
 
 const isRunState = EffectSchema.is(RunStateSchema);
 
-const flag = (description: string) =>
-  Schema.optionalWith(Schema.Boolean.annotations({ description }), { exact: true });
+const flag = (description: string) => Schema.optionalKey(Schema.Boolean.annotate({ description }));
 
 const LsFlags = Schema.Struct({
   active: flag("Show only active runs (created or running)"),
@@ -80,12 +79,12 @@ function reconcileEntry(
   };
 
   const shortNameResult = decodeShortName(entry.shortName);
-  if (Either.isLeft(shortNameResult)) return { row: fallback, info: undefined };
+  if (Result.isFailure(shortNameResult)) return { row: fallback, info: undefined };
 
-  const infoResult = resolveRun(entry.namespace, shortNameResult.right, stateRoot);
-  if (Either.isLeft(infoResult)) return { row: fallback, info: undefined };
+  const infoResult = resolveRun(entry.namespace, shortNameResult.success, stateRoot);
+  if (Result.isFailure(infoResult)) return { row: fallback, info: undefined };
 
-  const info = infoResult.right;
+  const info = infoResult.success;
   const total = info.planPhases.length || entry.phasesCount;
   const current = findCurrentPhase(info.phaseStatuses);
   const reached = current ?? info.phaseStatuses.toSorted((a, b) => b.phaseIndex - a.phaseIndex)[0];
@@ -128,10 +127,10 @@ function lockStateOf(
   lockLayer: Layer.Layer<Lock>,
 ): Effect.Effect<RunListRow["lockState"]> {
   const shortName = decodeShortName(entry.shortName);
-  if (Either.isLeft(shortName)) return Effect.succeed("none");
+  if (Result.isFailure(shortName)) return Effect.succeed("none");
   return Effect.gen(function* () {
     const lock = yield* Lock;
-    return yield* lock.status(runKey(entry.namespace, shortName.right));
+    return yield* lock.status(runKey(entry.namespace, shortName.success));
   }).pipe(
     Effect.provide(lockLayer),
     Effect.map((status) =>
@@ -186,7 +185,7 @@ function listRuns(flags: LsFlags) {
         config.records.destination.kind === "repo"
           ? recordsClonePath(config.stateRoot, config.namespace)
           : undefined;
-      const pending = yield* Effect.either(
+      const pending = yield* Effect.result(
         computeRecordsPending({
           records: config.records,
           repoRoot: config.repoRoot,
@@ -194,7 +193,7 @@ function listRuns(flags: LsFlags) {
           ...(clonePath !== undefined ? { recordsClonePath: clonePath } : {}),
         }).pipe(Effect.provide(NodeGitLayer)),
       );
-      if (Either.isRight(pending)) pendingCounts = pendingCountsByRunId(pending.right);
+      if (Result.isSuccess(pending)) pendingCounts = pendingCountsByRunId(pending.success);
     }
 
     const rows: LsRunRow[] = [];
@@ -311,7 +310,7 @@ export const lsCommand = defineCommand({
     "phax ls --failed --json",
   ],
   input: { flags: reject(LsFlags) },
-  output: reject(RunListFileSchema.annotations(publishedFormat("run-list"))),
+  output: reject(RunListFileSchema.annotate(publishedFormat("run-list"))),
   run: ({ input }) => listRuns(input.flags).pipe(Effect.mapError(exposeMessage)),
   exits: { ConfigValidationError: 1, FsError: 1, RegistryCorruptionError: 1 },
   errors: {

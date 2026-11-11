@@ -542,10 +542,16 @@ describe("release script invariants", () => {
     expect(releaseScript.slice(skip, cutCall)).toContain("exit 0");
   });
 
-  it("stops a rehearsal before committing", () => {
-    const stop = releaseScript.indexOf('if [[ "$REHEARSE" == true ]]; then\n  echo "done:');
+  it("stops a rehearsal before committing, once the opening that follows the cut passes the unit tests", () => {
+    const stop = releaseScript.indexOf('if [[ "$REHEARSE" == true ]]; then\n  # The opening');
     expect(stop).toBeGreaterThan(-1);
     expect(stop).toBeLessThan(releaseCommit);
+    const rehearsal = releaseScript.slice(stop, releaseCommit);
+    const opening = rehearsal.indexOf('pnpm exec tsx scripts/release-open.ts "${NEXT_VERSION}"');
+    expect(opening).toBeGreaterThan(-1);
+    const tests = rehearsal.indexOf("pnpm exec vitest run tests/unit", opening);
+    expect(tests).toBeGreaterThan(opening);
+    expect(rehearsal.indexOf("exit 0", tests)).toBeGreaterThan(tests);
   });
 
   it("leaves the version bump to the opening", () => {

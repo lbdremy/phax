@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { Either } from "effect";
+import { Result } from "effect";
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -105,8 +105,9 @@ describe.skipIf(!shouldRun)("ac-claude-real: claude-code piped partial command",
 
   it("runs the piped diff command, denies a pipe into an unlisted command and the nested $(…) form", () => {
     const parsed = parsePartialCommand(DIFF_COMMAND, "diff");
-    if (Either.isLeft(parsed)) throw new Error(`the diff command was refused: ${parsed.left.kind}`);
-    const prefixes = parsed.right.segments.map((segment) => segment.prefix);
+    if (Result.isFailure(parsed))
+      throw new Error(`the diff command was refused: ${parsed.failure.kind}`);
+    const prefixes = parsed.success.segments.map((segment) => segment.prefix);
     expect(prefixes).toEqual(["git diff --name-only --diff-filter=d", "xargs wc -l"]);
 
     const security: SecurityPolicy = {

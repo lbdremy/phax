@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { execFile, spawn } from "node:child_process";
 import { createWriteStream, realpathSync } from "node:fs";
 import { access, mkdir, readdir, readFile, rm } from "node:fs/promises";
@@ -521,8 +521,8 @@ export function runVibeAgent(
     // an answer's always, a failure's whenever its export decodes with one. A
     // mismatch refuses the turn, whatever the reader made of it.
     const decoded = exportRead.kind === "text" ? decodeVibeOutcomeText(exportRead.text) : undefined;
-    if (decoded !== undefined && Either.isRight(decoded)) {
-      const { config } = decoded.right;
+    if (decoded !== undefined && Result.isSuccess(decoded)) {
+      const { config } = decoded.success;
       if (outcome.kind === "answer" || (config !== undefined && config !== null)) {
         const mismatch = vibeConfigMismatch(flagsInput, config);
         if (mismatch !== undefined) {
@@ -546,18 +546,18 @@ export function runVibeAgent(
       return yield* Effect.fail(failSession(outcome.failure, failed));
     }
     const sessionIdResult = answerSessionId(outcome);
-    if (Either.isLeft(sessionIdResult)) {
+    if (Result.isFailure(sessionIdResult)) {
       const failure =
         outcome.sessionId === null
-          ? sessionIdResult.left
+          ? sessionIdResult.failure
           : {
-              ...sessionIdResult.left,
+              ...sessionIdResult.failure,
               message: `Invalid session_id in the Vibe export at ${exportPath}: "${outcome.sessionId}"`,
             };
       return yield* Effect.fail(failSession(failure, failed));
     }
 
-    const capturedSessionId = sessionIdResult.right;
+    const capturedSessionId = sessionIdResult.success;
 
     if (options.phaseFolderPath !== undefined) {
       yield* Effect.tryPromise({

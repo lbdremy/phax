@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { tmpdir } from "node:os";
 import { extractPlanLlm } from "../../src/app/extractPlan.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
@@ -54,14 +54,14 @@ describe("extractPlanLlm — sealed completion path", () => {
     fakeBackend.impl.addCompletionResponse({ finalText: validJson() });
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         extractPlanLlm(PLAN_MD, { model: "claude-sonnet-4-6", effort: "low" }).pipe(
           Effect.provide(layer),
         ),
       ),
     );
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     expect(fakeBackend.impl.completeCalls).toHaveLength(1);
     expect(fakeBackend.impl.runCalls).toHaveLength(0);
   });
@@ -71,7 +71,7 @@ describe("extractPlanLlm — sealed completion path", () => {
     fakeBackend.impl.addCompletionResponse({ finalText: validJson() });
 
     await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         extractPlanLlm(PLAN_MD, { model: "claude-sonnet-4-6", effort: "low" }).pipe(
           Effect.provide(layer),
         ),
@@ -90,7 +90,7 @@ describe("extractPlanLlm — sealed completion path", () => {
     fakeBackend.impl.addCompletionResponse({ finalText: validJson() });
 
     await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         extractPlanLlm(PLAN_MD, { model: "claude-sonnet-4-6", effort: "low" }).pipe(
           Effect.provide(layer),
         ),
@@ -106,15 +106,15 @@ describe("extractPlanLlm — sealed completion path", () => {
     fakeBackend.impl.failCompleteWithRateLimit(0, { kind: "rate_limit" });
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         extractPlanLlm(PLAN_MD, { model: "claude-sonnet-4-6", effort: "low" }).pipe(
           Effect.provide(layer),
         ),
       ),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    expect(result).toSatisfy((r) => Either.isLeft(r) && r.left instanceof RateLimitError);
+    expect(Result.isFailure(result)).toBe(true);
+    expect(result).toSatisfy((r) => Result.isFailure(r) && r.failure instanceof RateLimitError);
 
     const cwd = fakeBackend.impl.completeCalls[0]?.options.cwd!;
     expect(fakeFs.impl.dirs.has(cwd)).toBe(false);
@@ -125,7 +125,7 @@ describe("extractPlanLlm — sealed completion path", () => {
     fakeBackend.impl.addCompletionResponse({ finalText: validJson() });
 
     await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         extractPlanLlm(PLAN_MD, { model: "my-model", effort: "high" }).pipe(Effect.provide(layer)),
       ),
     );
@@ -141,7 +141,7 @@ describe("extractPlanLlm — sealed completion path", () => {
     fakeBackend.impl.addCompletionResponse({ finalText: validJson() });
 
     await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         extractPlanLlm(PLAN_MD, { model: "claude-haiku-5-5", effort: "low" }).pipe(
           Effect.provide(layer),
         ),
@@ -164,7 +164,7 @@ describe("extractPlanLlm — sealed completion path", () => {
     });
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         extractPlanLlm(PLAN_MD, { model: "claude-haiku-5-5", effort: "low" }).pipe(
           Effect.provide(layer),
         ),
@@ -172,7 +172,7 @@ describe("extractPlanLlm — sealed completion path", () => {
     );
 
     expect(result).toEqual(
-      Either.left(
+      Result.fail(
         new PlanValidationError({
           message:
             "The extraction model found the plan incomplete: phase-01 is missing commit.subject",

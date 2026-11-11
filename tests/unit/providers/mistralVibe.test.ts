@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -394,25 +394,25 @@ describe("runVibeAgent against a fake vibe", () => {
     resumeSessionId?: string,
   ) =>
     Effect.runPromise(
-      Effect.either(runVibeAgent("print ok", options, entryOf(executable), resumeSessionId)),
+      Effect.result(runVibeAgent("print ok", options, entryOf(executable), resumeSessionId)),
     );
   const failureOf = async (
     executable: string,
     options: AgentRunOptions = optionsFor(),
   ): Promise<AgentInvocationError> => {
     const result = await run(executable, options);
-    if (Either.isRight(result)) throw new Error("expected the turn to fail");
-    expect(result.left).toBeInstanceOf(AgentInvocationError);
-    return result.left as AgentInvocationError;
+    if (Result.isSuccess(result)) throw new Error("expected the turn to fail");
+    expect(result.failure).toBeInstanceOf(AgentInvocationError);
+    return result.failure as AgentInvocationError;
   };
   const sessionFailureOf = async (
     executable: string,
     options: AgentRunOptions = optionsFor(),
   ): Promise<AgentSessionFailedError> => {
     const result = await run(executable, options);
-    if (Either.isRight(result)) throw new Error("expected the turn to fail");
-    expect(result.left).toBeInstanceOf(AgentSessionFailedError);
-    return result.left as AgentSessionFailedError;
+    if (Result.isSuccess(result)) throw new Error("expected the turn to fail");
+    expect(result.failure).toBeInstanceOf(AgentSessionFailedError);
+    return result.failure as AgentSessionFailedError;
   };
 
   it("answers with the stream's PONG and the export's session id, and keeps both beside each other", async () => {
@@ -420,9 +420,9 @@ describe("runVibeAgent against a fake vibe", () => {
 
     const result = await run(fake.executable);
 
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isLeft(result)) return;
-    expect(result.right).toMatchObject({
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isFailure(result)) return;
+    expect(result.success).toMatchObject({
       finalText: "PONG",
       sessionId: VIBE3_SESSION_ID,
       outputPath: transcript,
@@ -454,7 +454,7 @@ describe("runVibeAgent against a fake vibe", () => {
 
     try {
       const result = await run(fake.executable, options);
-      expect(Either.isRight(result)).toBe(true);
+      expect(Result.isSuccess(result)).toBe(true);
     } finally {
       vi.unstubAllEnvs();
     }
@@ -488,7 +488,7 @@ describe("runVibeAgent against a fake vibe", () => {
         agentCommands: commands,
       });
 
-      expect(Either.isRight(result)).toBe(true);
+      expect(Result.isSuccess(result)).toBe(true);
       const turn = fake.invocations().find((line) => line.startsWith("-p ")) ?? "";
       expect(turn).toContain("--agent accept-edits --enabled-tools read_file --enabled-tools grep");
       expect(turn.includes("--enabled-tools bash")).toBe(bash);
@@ -510,9 +510,9 @@ describe("runVibeAgent against a fake vibe", () => {
     const readOnlyOptions = (): AgentRunOptions => ({ ...optionsFor(), readOnly: true });
     const securityRefusalOf = async (executable: string, options: AgentRunOptions) => {
       const result = await run(executable, options);
-      if (Either.isRight(result)) throw new Error("expected the turn to be refused");
-      expect(result.left).toBeInstanceOf(SecurityEnforcementError);
-      return result.left as SecurityEnforcementError;
+      if (Result.isSuccess(result)) throw new Error("expected the turn to be refused");
+      expect(result.failure).toBeInstanceOf(SecurityEnforcementError);
+      return result.failure as SecurityEnforcementError;
     };
     const withAcceptEditsProfile = () => {
       const vibeHome = join(root, "vibe-home");
@@ -546,7 +546,7 @@ describe("runVibeAgent against a fake vibe", () => {
       withAcceptEditsProfile();
       const fake = fakeIn({ exportText: vibe3ExportText(VIBE3_EXPORT_SHORT) });
 
-      expect(Either.isRight(await run(fake.executable))).toBe(true);
+      expect(Result.isSuccess(await run(fake.executable))).toBe(true);
     });
 
     it.each([".vibe", ".agents"])(
@@ -574,7 +574,7 @@ describe("runVibeAgent against a fake vibe", () => {
         security: { ...securePolicy, filesystem: { allowRead: [root], allowWrite: [root, extra] } },
       });
 
-      expect(Either.isRight(result)).toBe(true);
+      expect(Result.isSuccess(result)).toBe(true);
       expect(fake.invocations().find((line) => line.startsWith("-p "))).not.toContain("--add-dir");
     });
 
@@ -629,7 +629,7 @@ describe("runVibeAgent against a fake vibe", () => {
   describe("runVibeCompletion", () => {
     const complete = (executable: string) =>
       Effect.runPromise(
-        Effect.either(
+        Effect.result(
           runVibeCompletion(
             "say PONG",
             { provider: "mistral-vibe", model: "mistral-large", effort: "medium", cwd: root },
@@ -643,7 +643,7 @@ describe("runVibeAgent against a fake vibe", () => {
 
       const result = await complete(fake.executable);
 
-      expect(Either.isRight(result) && result.right.finalText).toBe("PONG");
+      expect(Result.isSuccess(result) && result.success.finalText).toBe("PONG");
       const turn = fake.invocations().find((line) => line.startsWith("-p ")) ?? "";
       expect(turn).toContain("--agent accept-edits --disabled-tools *");
       expect(turn).toContain(`--workdir ${root}`);
@@ -661,11 +661,11 @@ describe("runVibeAgent against a fake vibe", () => {
 
       const result = await complete(fake.executable);
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        expect(result.left).toBeInstanceOf(AgentSessionFailedError);
-        expect(result.left.message).toContain("mistral-vibe session failed (provider-error): ");
-        expect(result.left.message).toContain("no completion answer");
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
+        expect(result.failure).toBeInstanceOf(AgentSessionFailedError);
+        expect(result.failure.message).toContain("mistral-vibe session failed (provider-error): ");
+        expect(result.failure.message).toContain("no completion answer");
       }
     });
   });
@@ -707,7 +707,7 @@ describe("runVibeAgent against a fake vibe", () => {
       VIBE3_SESSION_ID,
     );
 
-    expect(Either.isRight(resumed) && resumed.right.finalText).toBe("DONE");
+    expect(Result.isSuccess(resumed) && resumed.success.finalText).toBe("DONE");
     expect(readFileSync(join(phaseFolder, "output.vibe-export", "export.json"), "utf8")).toBe(
       vibe3ExportText(VIBE3_EXPORT_SHORT),
     );
@@ -770,7 +770,7 @@ describe("runVibeAgent against a fake vibe", () => {
 
     const result = await run(fake.executable);
 
-    expect(Either.isRight(result) && result.right.finalText).toBe("PONG");
+    expect(Result.isSuccess(result) && result.success.finalText).toBe("PONG");
   });
 
   it("fails a turn whose export reports a backend error with the provider's own text", async () => {
@@ -871,7 +871,7 @@ describe("runVibeAgent against a fake vibe", () => {
 
         const result = await run(fake.executable);
 
-        expect(Either.isRight(result)).toBe(true);
+        expect(Result.isSuccess(result)).toBe(true);
         expect(fake.turns()).toBe(1);
       },
     );
@@ -900,7 +900,7 @@ describe("runVibeAgent against a fake vibe", () => {
       // The failed read is not remembered: once the binary exists the session runs.
       const fake = writeFakeVibe(join(root, "no-such-dir"), { exportText });
       expect(fake.executable).toBe(missing);
-      expect(Either.isRight(await run(missing))).toBe(true);
+      expect(Result.isSuccess(await run(missing))).toBe(true);
     });
   });
 });

@@ -4,17 +4,27 @@
 // it; the schemas package lists it as the format's 0.17.0 release.
 import { Schema } from "effect";
 
-const SchemaUrlSchema = Schema.String.pipe(
-  Schema.pattern(
+// `Schema.isPattern` whose JSON Schema is the RegExp's source, whatever its
+// flags: Effect 4 exports a pattern only for a RegExp with the `u` flag.
+function isExportedPattern(regExp: RegExp, annotations?: Schema.Annotations.Filter) {
+  return Schema.isPattern(regExp, {
+    toJsonSchema: () => ({ pattern: regExp.source }),
+    ...annotations,
+  });
+}
+
+const SchemaUrlSchema = Schema.String.check(
+  isExportedPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/phase-status\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
-  Schema.annotations({
+).pipe(
+  Schema.annotate({
     description:
       "The phase-status format and the phax release that wrote this file: https://docs.phax.run/schemas/phase-status/<X.Y.Z>.json",
   }),
 );
 
-const PhaseStateSchema = Schema.Union(
+const PhaseStateSchema = Schema.Union([
   Schema.Literal("pending"),
   Schema.Literal("setting_up_worktree"),
   Schema.Literal("running"),
@@ -30,9 +40,9 @@ const PhaseStateSchema = Schema.Union(
   Schema.Literal("handoff_failed"),
   Schema.Literal("skipped"),
   Schema.Literal("rate_limited"),
-);
+]);
 
-const EffortSchema = Schema.Union(
+const EffortSchema = Schema.Union([
   Schema.Literal("none"),
   Schema.Literal("off"),
   Schema.Literal("low"),
@@ -42,7 +52,7 @@ const EffortSchema = Schema.Union(
   Schema.Literal("max"),
   Schema.Literal("ultracode"),
   Schema.Literal("ultra"),
-);
+]);
 
 function isSafeBranchName(s: string): boolean {
   if (s.length === 0 || s[0] === "-") return false;
@@ -54,15 +64,14 @@ function isSafeBranchName(s: string): boolean {
   return true;
 }
 
-const BranchNameSchema = Schema.String.pipe(
-  Schema.minLength(1),
-  Schema.maxLength(255),
-  Schema.filter(isSafeBranchName, {
-    message: () => "branch name must not start with '-' or contain whitespace/control characters",
-    jsonSchema: { pattern: "^[^\\x00-\\x20\\x7f-][^\\x00-\\x20\\x7f]*$" },
+const BranchNameSchema = Schema.String.check(
+  Schema.isMinLength(1),
+  Schema.isMaxLength(255),
+  Schema.makeFilter(isSafeBranchName, {
+    message: "branch name must not start with '-' or contain whitespace/control characters",
+    toJsonSchema: () => ({ pattern: "^[^\\x00-\\x20\\x7f-][^\\x00-\\x20\\x7f]*$" }),
   }),
-  Schema.brand("BranchName"),
-);
+).pipe(Schema.brand("BranchName"));
 
 export const PhaseStatusV0_17_0Schema = Schema.Struct({
   $schema: SchemaUrlSchema,
@@ -74,11 +83,13 @@ export const PhaseStatusV0_17_0Schema = Schema.Struct({
   createdAt: Schema.NonEmptyString,
   updatedAt: Schema.NonEmptyString,
   branchName: BranchNameSchema,
-  worktreePath: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
-  claudeSessionId: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
-  commitHash: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
+  worktreePath: Schema.optionalKey(Schema.NonEmptyString),
+  claudeSessionId: Schema.optionalKey(Schema.NonEmptyString),
+  commitHash: Schema.optionalKey(Schema.NonEmptyString),
 });
 
 export type PhaseStatusV0_17_0 = Schema.Schema.Type<typeof PhaseStatusV0_17_0Schema>;
 
-export const decodePhaseStatusV0_17_0 = Schema.decodeUnknownEither(PhaseStatusV0_17_0Schema);
+export const decodePhaseStatusV0_17_0 = Schema.decodeUnknownResult(PhaseStatusV0_17_0Schema, {
+  reportInput: true,
+});

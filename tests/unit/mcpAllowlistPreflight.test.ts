@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { mcpAllowlistPreflight } from "../../src/app/runPreflight.js";
 import { SecurityPreflightError } from "../../src/domain/errors.js";
@@ -10,16 +10,16 @@ describe("mcpAllowlistPreflight", () => {
     // neither "nx-mcp" nor "shadcn" is a file in the fake fs
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         mcpAllowlistPreflight({ mode: "allowlist", allow: ["nx-mcp", "shadcn"] }).pipe(
           Effect.provide(fakeFs.layer),
         ),
       ),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      const err = result.left;
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      const err = result.failure;
       expect(err).toBeInstanceOf(SecurityPreflightError);
       expect(err.message).toContain('"nx-mcp"');
       expect(err.message).toContain('"shadcn"');
@@ -33,7 +33,7 @@ describe("mcpAllowlistPreflight", () => {
     fakeFs.impl.setFile("/configs/mcp-real.json", "{}");
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         mcpAllowlistPreflight({
           mode: "allowlist",
           allow: ["/configs/mcp-real.json", "nx-mcp"],
@@ -41,10 +41,10 @@ describe("mcpAllowlistPreflight", () => {
       ),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left.missing).toEqual(["nx-mcp"]);
-      expect(result.left.message).not.toContain("/configs/mcp-real.json");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure.missing).toEqual(["nx-mcp"]);
+      expect(result.failure.message).not.toContain("/configs/mcp-real.json");
     }
   });
 

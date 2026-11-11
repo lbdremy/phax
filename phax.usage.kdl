@@ -3,7 +3,7 @@
 
 name phax
 bin phax
-version "0.36.0"
+version "0.37.0"
 license "Apache-2.0"
 min_usage_version "1.0.0"
 about "Drive AI coding agents through isolated, gated phases"
@@ -324,7 +324,7 @@ cmd artifact help="Inspect and transition the lifecycle status of a spec or plan
             arg <slug> help="Slug matching `[a-z0-9]+(-[a-z0-9]+)*`"
         }
     }
-    cmd schema help="Print the JSON Schema of the spec or plan document, or of a decide verdicts file (experimental)" long_help="Prints the JSON Schema of the experimental spec document (kind spec) or plan document (kind plan), or of a decide verdicts file (kind verdicts, the input of `phax artifact decide --verdicts`), pretty-printed to stdout, so a consumer can read the contract a headless authoring session must satisfy, or the file to write, without a model call.\n\nThe spec and plan document formats are experimental: outside the version 1 stability promise, they may change between releases. The printed spec or plan schema is the published answer schema a headless authoring session answers, its `$schema` a const naming the current stamp; the plan document's extracted fields are the extracted-plan shape phax run reads. phax checks, when it decodes a document, what the schema does not express: traceability (every acceptance criterion references existing requirements, every requirement is covered), the question checks (unique question ids, a recommendation among a question's options), the plan's sourceSpec/completesSpec pairing, and an authoring answer's empty arbitratedQuestions.\n\nSide effects: none — read-only." {
+    cmd schema help="Print the JSON Schema of the spec or plan document, or of a decide verdicts file (experimental)" long_help="Prints the JSON Schema of the experimental spec document (kind spec) or plan document (kind plan), or of a decide verdicts file (kind verdicts, the input of `phax artifact decide --verdicts`), pretty-printed to stdout, so a consumer can read the contract a headless authoring session must satisfy, or the file to write, without a model call.\n\nThe spec and plan document formats are experimental: outside the version 1 stability promise, they may change between releases. The printed spec or plan schema is the answer schema a headless authoring session answers, rendered from the decoder: it accepts and refuses the same documents as the published one, its `$schema` a const naming the current stamp; the plan document's extracted fields are the extracted-plan shape phax run reads. phax checks, when it decodes a document, what the schema does not express: traceability (every acceptance criterion references existing requirements, every requirement is covered), the question checks (unique question ids, a recommendation among a question's options), the plan's sourceSpec/completesSpec pairing, and an authoring answer's empty arbitratedQuestions.\n\nSide effects: none — read-only." {
         example "phax artifact schema spec"
         example "phax artifact schema plan"
         example "phax artifact schema verdicts"

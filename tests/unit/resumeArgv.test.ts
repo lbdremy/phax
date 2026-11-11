@@ -1,7 +1,7 @@
 // How the runner reads `phax resume`'s words: the resume definition's input, with its run swapped
 // for a spy, through tests/helpers/runnerCall.ts over the memory Io. The program's `--verbose` and
 // `--trace` are phaxProgram's options, read wherever they stand in the call.
-import { Effect } from "effect";
+import { Effect, Predicate } from "effect";
 import { describe, expect, it } from "vitest";
 import type { Command } from "../../src/cli/commandLibrary/contract/index.js";
 import { phaxProgram } from "../../src/cli/definitions/program.js";
@@ -36,7 +36,13 @@ function spiedResume(): { readonly command: Command<never>; readonly seen: Seen[
     ...makeResumeCommand(),
     run: ({ input, program }) =>
       Effect.sync(() => {
-        seen.push({ args: input["args"], flags: input["flags"], program });
+        // A runner-erased command reads its decoded input as unknown values.
+        const args = input["args"];
+        const flags = input["flags"];
+        if (!Array.isArray(args) || !Predicate.isReadonlyObject(flags)) {
+          throw new Error("the runner decoded no args array or flags object");
+        }
+        seen.push({ args, flags, program });
         return PREVIEW;
       }),
   };

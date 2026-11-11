@@ -1,7 +1,7 @@
 // Acceptance criteria carry a `then` key (given/when/then) — data, never awaited.
 /* eslint-disable unicorn/no-thenable */
 import { describe, expect, it } from "vitest";
-import { Either } from "effect";
+import { Result } from "effect";
 import { answerJsonSchema } from "../../src/schemas/answerSchemas.js";
 import {
   decodeAuthoredSpecDocument,
@@ -104,8 +104,8 @@ type Mutable = ReturnType<typeof validSpecDocument> & Record<string, unknown>;
 
 function rejection(doc: unknown): string {
   const result = decodeSpecDocument(doc);
-  if (Either.isRight(result)) throw new Error("expected the document to be rejected");
-  return result.left;
+  if (Result.isSuccess(result)) throw new Error("expected the document to be rejected");
+  return result.failure;
 }
 
 // The valid document with its first surface element's summary replaced.
@@ -123,8 +123,8 @@ describe("decodeAuthoredSpecDocument", () => {
 
   it("decodes a full valid spec document", () => {
     const result = decodeSpecDocument(validSpecDocument());
-    expect(Either.isRight(result)).toBe(true);
-    const doc = Either.getOrThrow(result) satisfies SpecDocument;
+    expect(Result.isSuccess(result)).toBe(true);
+    const doc = Result.getOrThrow(result) satisfies SpecDocument;
     expect(doc.requirements.map((r) => r.id)).toEqual(["5.1", "5.2"]);
     expect(doc.docsPage.kind).toBe("page");
   });
@@ -132,7 +132,7 @@ describe("decodeAuthoredSpecDocument", () => {
   it("accepts the `none` docs-page variant", () => {
     const doc: Mutable = validSpecDocument();
     doc.docsPage = { kind: "none", why: "an internal change with no reader" } as never;
-    expect(Either.isRight(decodeSpecDocument(doc))).toBe(true);
+    expect(Result.isSuccess(decodeSpecDocument(doc))).toBe(true);
   });
 
   it("rejects a criterion ref naming no requirement, naming the path", () => {
@@ -252,11 +252,13 @@ describe("decodeAuthoredSpecDocument", () => {
 
   it("decodes a long one-line summary", () => {
     const summary = `An operator can ${"free the slug of an archived run and ".repeat(40)}done.`;
-    expect(Either.isRight(decodeSpecDocument(withSummary(summary)))).toBe(true);
+    expect(Result.isSuccess(decodeSpecDocument(withSummary(summary)))).toBe(true);
   });
 
   it("accepts the summary placeholder", () => {
-    expect(Either.isRight(decodeSpecDocument(withSummary(SURFACE_SUMMARY_PLACEHOLDER)))).toBe(true);
+    expect(Result.isSuccess(decodeSpecDocument(withSummary(SURFACE_SUMMARY_PLACEHOLDER)))).toBe(
+      true,
+    );
   });
 
   it("rejects an authoring answer carrying an arbitrated question, at its first entry (§5.60)", () => {
@@ -311,8 +313,8 @@ function decidedVerdict() {
 
 function fileRejection(doc: unknown): string {
   const result = decodeSpecDocumentFile(doc);
-  if (Either.isRight(result)) throw new Error("expected the sidecar to be rejected");
-  return formatFirstViolation(result.left);
+  if (Result.isSuccess(result)) throw new Error("expected the sidecar to be rejected");
+  return formatFirstViolation(result.failure);
 }
 
 describe("decodeSpecDocumentFile", () => {
@@ -325,7 +327,7 @@ describe("decodeSpecDocumentFile", () => {
       history: [liftedQuestion().verdict],
     };
     expect(
-      Either.isRight(decodeSpecDocumentFile(sidecar([liftedQuestion(), decided, rearbitrated]))),
+      Result.isSuccess(decodeSpecDocumentFile(sidecar([liftedQuestion(), decided, rearbitrated]))),
     ).toBe(true);
   });
 

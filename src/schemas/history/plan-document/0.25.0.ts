@@ -7,17 +7,27 @@
 // src/schemas/questions.ts cannot move it.
 import { Schema } from "effect";
 
-const SchemaUrlSchema = Schema.String.pipe(
-  Schema.pattern(
+// `Schema.isPattern` whose JSON Schema is the RegExp's source, whatever its
+// flags: Effect 4 exports a pattern only for a RegExp with the `u` flag.
+function isExportedPattern(regExp: RegExp, annotations?: Schema.Annotations.Filter) {
+  return Schema.isPattern(regExp, {
+    toJsonSchema: () => ({ pattern: regExp.source }),
+    ...annotations,
+  });
+}
+
+const SchemaUrlSchema = Schema.String.check(
+  isExportedPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/plan-document\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
-  Schema.annotations({
+).pipe(
+  Schema.annotate({
     description:
       "The plan-document format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): https://docs.phax.run/schemas/plan-document/<X.Y.Z>.json",
   }),
 );
 
-const EffortSchema = Schema.Literal(
+const EffortSchema = Schema.Literals([
   "none",
   "off",
   "low",
@@ -27,10 +37,10 @@ const EffortSchema = Schema.Literal(
   "max",
   "ultracode",
   "ultra",
-);
+]);
 
 const ExtractedPhaseFields = {
-  id: Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/)),
+  id: Schema.String.check(isExportedPattern(/^phase-\d{2}$/)),
   model: Schema.NonEmptyString,
   effort: EffortSchema,
   planMarkdownAnchor: Schema.NonEmptyString,
@@ -52,9 +62,8 @@ const ExtractedRunSchema = Schema.Struct({
 // A question or option id: a run of characters without whitespace, so the §9
 // format's `### <id> — …`, `- <id> — …`, Recommendation and Decision lines
 // read it back.
-const QuestionIdSchema = Schema.String.pipe(
-  Schema.pattern(/^\S+$/),
-  Schema.annotations({ description: "An id: a run of characters without whitespace." }),
+const QuestionIdSchema = Schema.String.check(isExportedPattern(/^\S+$/)).pipe(
+  Schema.annotate({ description: "An id: a run of characters without whitespace." }),
 );
 
 const QuestionOptionSchema = Schema.Struct({
@@ -66,22 +75,20 @@ const QuestionOptionSchema = Schema.Struct({
 const OpenQuestionSchema = Schema.Struct({
   id: QuestionIdSchema,
   question: Schema.NonEmptyString,
-  options: Schema.Array(QuestionOptionSchema).pipe(Schema.minItems(2)),
+  options: Schema.Array(QuestionOptionSchema).check(Schema.isMinLength(2)),
   recommendation: Schema.NonEmptyString,
   rationale: Schema.NonEmptyString,
 });
 
 type OpenQuestion = Schema.Schema.Type<typeof OpenQuestionSchema>;
 
-const DateSchema = Schema.String.pipe(
-  Schema.pattern(/^\d{4}-\d{2}-\d{2}$/),
-  Schema.annotations({ description: "A date, YYYY-MM-DD." }),
+const DateSchema = Schema.String.check(isExportedPattern(/^\d{4}-\d{2}-\d{2}$/)).pipe(
+  Schema.annotate({ description: "A date, YYYY-MM-DD." }),
 );
 
-const TimestampSchema = Schema.String.pipe(
-  Schema.pattern(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/),
-  Schema.annotations({ description: "An ISO-8601 UTC timestamp." }),
-);
+const TimestampSchema = Schema.String.check(
+  isExportedPattern(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/),
+).pipe(Schema.annotate({ description: "An ISO-8601 UTC timestamp." }));
 
 /**
  * A verdict lifted from a document written before verdicts existed: the
@@ -104,7 +111,7 @@ const decidedVerdictFields = {
   why: Schema.NonEmptyString,
   advocate: Schema.NonEmptyString,
   principles: Schema.Array(Schema.NonEmptyString),
-  reversibility: Schema.Literal("cheap", "costly", "irreversible"),
+  reversibility: Schema.Literals(["cheap", "costly", "irreversible"]),
   by: Schema.Struct({ kind: Schema.Literal("operator"), name: Schema.NonEmptyString }),
   at: TimestampSchema,
   revised: Schema.Array(Schema.NonEmptyString),
@@ -113,10 +120,10 @@ const decidedVerdictFields = {
 /** A plan question decided by the operator: the decided fields, plus the phase it bears on. */
 const PlanDecidedVerdictSchema = Schema.Struct({
   ...decidedVerdictFields,
-  phase: Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/)),
+  phase: Schema.String.check(isExportedPattern(/^phase-\d{2}$/)),
 });
 
-const PlanVerdictSchema = Schema.Union(PlanDecidedVerdictSchema, LiftedVerdictSchema);
+const PlanVerdictSchema = Schema.Union([PlanDecidedVerdictSchema, LiftedVerdictSchema]);
 
 type PlanVerdict = Schema.Schema.Type<typeof PlanVerdictSchema>;
 
@@ -133,6 +140,11 @@ type PlanArbitratedQuestion = Schema.Schema.Type<typeof PlanArbitratedQuestionSc
 interface QuestionViolation {
   readonly path: ReadonlyArray<PropertyKey>;
   readonly message: string;
+}
+
+// A violation as a check's failure: its message at its path; none when it is undefined.
+function violationIssue(violation: QuestionViolation | undefined) {
+  return violation === undefined ? undefined : { path: violation.path, issue: violation.message };
 }
 
 /** The two question arrays of a document, and where they sit in it. */
@@ -299,7 +311,7 @@ const PlanDocumentPhaseSchema = Schema.Struct({
   verification: Schema.NonEmptyString,
   expectedHandoff: Schema.NonEmptyString,
   commit: ExtractedPhaseFields.commit,
-  modelReason: Schema.NullOr(Schema.NonEmptyString).annotations({
+  modelReason: Schema.NullOr(Schema.NonEmptyString).annotate({
     description:
       "Why this phase departs from the phax-planning skill's default phase assignment; null when it takes the default. Rendered as a **Model reason:** line, never extracted.",
   }),
@@ -311,7 +323,7 @@ const PlanDocumentStruct = Schema.Struct({
   $schema: SchemaUrlSchema,
   kind: Schema.Literal("plan"),
   sourceSpec: Schema.NullOr(Schema.NonEmptyString),
-  completesSpec: Schema.NullOr(Schema.Boolean).annotations({
+  completesSpec: Schema.NullOr(Schema.Boolean).annotate({
     description:
       "Whether this plan's run completes its source spec: true when it is the spec's last plan, false when more plans of the spec follow. A boolean beside a sourceSpec path; null beside sourceSpec: null.",
   }),
@@ -353,21 +365,20 @@ function firstPlanQuestionViolation(doc: QuestionBearing) {
 }
 
 const QUESTIONS_FILTER_OPTIONS = {
-  jsonSchema: {
+  toJsonSchema: () => ({
     description: `Checked by phax's parser, not by this JSON Schema, in the preamble: ${QUESTION_CHECKS_DESCRIPTION}; and a decided verdict's \`phase\` names one of the plan's phases.`,
-  },
+  }),
 };
 
 // The lineage check: a boolean `completesSpec` beside a `sourceSpec` path,
 // null beside `sourceSpec: null`.
-export const PlanDocumentV0_25_0Schema = PlanDocumentStruct.pipe(
-  Schema.filter(
+export const PlanDocumentV0_25_0Schema = PlanDocumentStruct.pipe(Schema.refine(
     (doc: PlanDocumentStructType): doc is PlanDocumentStructType & PlanDocumentLineage =>
       (doc.sourceSpec === null) === (doc.completesSpec === null),
     {
-      message: () =>
+      message:
         "completesSpec is a boolean beside a sourceSpec path and null beside sourceSpec: null",
-      jsonSchema: {
+      toJsonSchema: () => ({
         allOf: [
           {
             oneOf: [
@@ -381,14 +392,16 @@ export const PlanDocumentV0_25_0Schema = PlanDocumentStruct.pipe(
             ],
           },
         ],
-      },
+      }),
     },
-  ),
-  Schema.filter(firstPlanQuestionViolation, QUESTIONS_FILTER_OPTIONS),
-);
+  )).check(Schema.makeFilter(
+    (doc) => violationIssue(firstPlanQuestionViolation(doc)),
+    QUESTIONS_FILTER_OPTIONS,
+  ));
 
 export type PlanDocumentV0_25_0 = Schema.Schema.Type<typeof PlanDocumentV0_25_0Schema>;
 
-export const decodePlanDocumentV0_25_0 = Schema.decodeUnknownEither(PlanDocumentV0_25_0Schema, {
+export const decodePlanDocumentV0_25_0 = Schema.decodeUnknownResult(PlanDocumentV0_25_0Schema, {
   onExcessProperty: "error",
+  reportInput: true,
 });

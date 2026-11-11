@@ -2,11 +2,11 @@
 // stop's close and the provider stores' lookups build paths from it.
 import { Schema } from "effect";
 import { SAFE_SESSION_ID } from "../domain/sessionId.js";
+import { isExportedPattern } from "./strictString.js";
 
 /** A session id that starts with a letter or digit and holds only letters, digits, `.`, `_` and `-`. */
-export const SafeSessionIdSchema = Schema.String.pipe(
-  Schema.pattern(SAFE_SESSION_ID),
-  Schema.annotations({
+export const SafeSessionIdSchema = Schema.String.check(isExportedPattern(SAFE_SESSION_ID)).pipe(
+  Schema.annotate({
     identifier: "SafeSessionId",
     description:
       "A provider session id: a letter or digit, then letters, digits, `.`, `_` or `-`. `.`, `..` and any slash are refused.",

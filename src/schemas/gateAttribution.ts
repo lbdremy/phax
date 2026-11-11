@@ -6,7 +6,7 @@ import { SurfaceSchema } from "./surface.js";
 const ConfiguredStepResultSchema = Schema.Struct({
   command: Schema.NonEmptyString,
   surface: SurfaceSchema,
-  result: Schema.Literal("pass", "fail", "refused"),
+  result: Schema.Literals(["pass", "fail", "refused"]),
 });
 
 /**
@@ -17,12 +17,12 @@ const ConfiguredStepResultSchema = Schema.Struct({
 const AcceptanceStepResultSchema = Schema.Struct({
   command: Schema.NonEmptyString,
   surface: Schema.Literal("acceptance"),
-  result: Schema.Literal("pass", "fail", "refused", "skipped"),
+  result: Schema.Literals(["pass", "fail", "refused", "skipped"]),
 });
 
 export type AcceptanceStepResult = Schema.Schema.Type<typeof AcceptanceStepResultSchema>;
 
-const GateStepResultSchema = Schema.Union(ConfiguredStepResultSchema, AcceptanceStepResultSchema);
+const GateStepResultSchema = Schema.Union([ConfiguredStepResultSchema, AcceptanceStepResultSchema]);
 
 export type GateStepResult = Schema.Schema.Type<typeof GateStepResultSchema>;
 
@@ -32,14 +32,14 @@ export type GateStepResult = Schema.Schema.Type<typeof GateStepResultSchema>;
  * repository a protected glob could reach below, which the check cannot see
  * through.
  */
-export const ProtectedChangeKindSchema = Schema.Literal(
+export const ProtectedChangeKindSchema = Schema.Literals([
   "created",
   "edited",
   "deleted",
   "renamed",
   "symlink",
   "nested-repository",
-);
+]);
 
 const ProtectedChangeSchema = Schema.Struct({
   path: Schema.NonEmptyString,
@@ -55,13 +55,13 @@ export type ProtectedChange = Schema.Schema.Type<typeof ProtectedChangeSchema>;
  * least one.
  */
 const ProtectedPathsResultSchema = Schema.NullOr(
-  Schema.Union(
-    Schema.Struct({ result: Schema.Literal("pass"), changes: Schema.Tuple() }),
+  Schema.Union([
+    Schema.Struct({ result: Schema.Literal("pass"), changes: Schema.Tuple([]) }),
     Schema.Struct({
       result: Schema.Literal("fail"),
       changes: Schema.NonEmptyArray(ProtectedChangeSchema),
     }),
-  ),
+  ]),
 );
 
 export type ProtectedPathsResult = Schema.Schema.Type<typeof ProtectedPathsResultSchema>;
@@ -87,5 +87,7 @@ export const GateAttributionFileSchema = Schema.Struct({
 
 export type GateAttributionFile = Schema.Schema.Type<typeof GateAttributionFileSchema>;
 
-export const decodeGateAttributionFile = Schema.decodeUnknownEither(GateAttributionFileSchema);
+export const decodeGateAttributionFile = Schema.decodeUnknownResult(GateAttributionFileSchema, {
+  reportInput: true,
+});
 export const encodeGateAttributionFile = Schema.encodeSync(GateAttributionFileSchema);

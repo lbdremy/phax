@@ -1,4 +1,4 @@
-import { Effect, Either, Schema } from "effect";
+import { Effect, Result, Schema } from "effect";
 import { join } from "node:path";
 import type { BranchName, WorktreePath } from "../domain/branded.js";
 import { FileSystem, FsError } from "../ports/fs.js";
@@ -60,10 +60,10 @@ export function readPhaseStatus(
       catch: () => new FsError({ message: `${statusPath}: not valid JSON` }),
     });
     const decoded = readPhaseStatusFile(statusPath, parsed);
-    if (Either.isLeft(decoded)) {
-      return yield* Effect.fail(new FsError({ message: decoded.left.message }));
+    if (Result.isFailure(decoded)) {
+      return yield* Effect.fail(new FsError({ message: decoded.failure.message }));
     }
-    return decoded.right;
+    return decoded.success;
   });
 }
 
@@ -85,9 +85,9 @@ export function recordPhaseWorktreeAndBranch(
     }
 
     const decoded = readPhaseStatusFile(statusPath, parsed);
-    if (Either.isRight(decoded)) {
+    if (Result.isSuccess(decoded)) {
       const updated = {
-        ...decoded.right,
+        ...decoded.success,
         worktreePath: worktreePath as string,
         branchName,
         updatedAt: new Date().toISOString(),

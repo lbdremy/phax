@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 import type { BranchName, PhaseId, RunId, WorktreePath } from "../../src/domain/branded.js";
 import type { PhaxEventBase } from "../../src/domain/events.js";
@@ -142,7 +142,7 @@ describe("adaptAgentRun", () => {
     // no responses queued → AgentInvocationError
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         adaptAgentRun(
           "prompt",
           { provider: "claude-code" as const, model: "m", effort: "low", cwd: "/", security },
@@ -151,9 +151,9 @@ describe("adaptAgentRun", () => {
       ),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(AgentInvocationError);
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toBeInstanceOf(AgentInvocationError);
     }
   });
 });
@@ -229,7 +229,7 @@ describe("adaptAgentResume", () => {
     const { layer } = makeFakeBackend();
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         adaptAgentResume(
           sessionId,
           "prompt",
@@ -239,9 +239,9 @@ describe("adaptAgentResume", () => {
       ),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(AgentInvocationError);
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toBeInstanceOf(AgentInvocationError);
     }
   });
 });
@@ -383,14 +383,14 @@ describe("adaptCommit", () => {
     );
 
     const result = await Effect.runPromise(
-      Effect.either(adaptCommit(commitOpts, base).pipe(Effect.provide(layer))),
+      Effect.result(adaptCommit(commitOpts, base).pipe(Effect.provide(layer))),
     );
 
     // Should fail with PhaseHadNoChangesError
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(PhaseHadNoChangesError);
-      const err = result.left as PhaseHadNoChangesError;
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toBeInstanceOf(PhaseHadNoChangesError);
+      const err = result.failure as PhaseHadNoChangesError;
       expect(err.phaseId).toBe("phase-01");
     }
 

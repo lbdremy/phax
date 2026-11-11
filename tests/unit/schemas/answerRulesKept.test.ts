@@ -11,7 +11,7 @@
 // module: its fixtures record the verdicts of the answer it replaces. The
 // stricter parts — the `$schema` const, the unknown `version` — are covered in
 // their own tests.
-import { Either, ParseResult } from "effect";
+import { Result, SchemaIssue, type Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import { decodeCodeReviewFile } from "../../../src/schemas/codeReview.js";
 import { decodeComplianceReviewFile } from "../../../src/schemas/complianceReview.js";
@@ -43,12 +43,12 @@ import {
 } from "../../../src/schemas/specDocument.js";
 import { validDocuments, withOracleKey } from "../schemasPackage/documents.js";
 
-type Decode = (input: unknown) => Either.Either<unknown, ParseResult.ParseError>;
+type Decode = (input: unknown) => Result.Result<unknown, Schema.SchemaError>;
 type Body = Readonly<Record<string, unknown>>;
 
 /** The path of a decode's first violation, `findings[0].lens` style. */
-function firstPath(error: ParseResult.ParseError): string {
-  const [first] = ParseResult.ArrayFormatter.formatErrorSync(error);
+function firstPath(error: Schema.SchemaError): string {
+  const [first] = SchemaIssue.makeFormatterStandardSchemaV1()(error.issue).issues;
   return (first?.path ?? [])
     .map((segment, i) =>
       typeof segment === "number" ? `[${segment}]` : `${i === 0 ? "" : "."}${String(segment)}`,
@@ -471,27 +471,29 @@ describe.each(ANSWERS)(
         ...(answer.forFrozen?.(body) ?? body),
       });
       const current = answer.current({ $schema: stamp, ...(answer.forCurrent?.(body) ?? body) });
-      if (Either.isLeft(frozen)) {
-        expect(Either.isLeft(current)).toBe(true);
-        if (Either.isLeft(current)) {
+      if (Result.isFailure(frozen)) {
+        expect(Result.isFailure(current)).toBe(true);
+        if (Result.isFailure(current)) {
           // The frozen hand-decision union reports its first member's issue,
           // so only the verdict is shared there; the per-kind table below
           // names the paths.
           if (!answer.id.endsWith("-hand-decision-answer")) {
-            expect(firstPath(current.left)).toBe(firstPath(frozen.left));
+            expect(firstPath(current.failure)).toBe(firstPath(frozen.failure));
           }
           if (answer.sameMessage === true && answer.rewordedMessages?.includes(_name) !== true) {
-            expect(formatFirstViolation(current.left)).toBe(formatFirstViolation(frozen.left));
+            expect(formatFirstViolation(current.failure)).toBe(
+              formatFirstViolation(frozen.failure),
+            );
           }
         }
       } else {
-        expect(Either.isRight(current)).toBe(true);
+        expect(Result.isSuccess(current)).toBe(true);
       }
     });
 
     it("is a table of both verdicts", () => {
       const verdicts = answer.fixtures.map(([, body]) =>
-        Either.isLeft(
+        Result.isFailure(
           answer.frozen({ $schema: answer.frozenStamp, ...(answer.forFrozen?.(body) ?? body) }),
         ),
       );
@@ -572,10 +574,10 @@ describe("phax-plan-extraction: keeps the verdicts of the extraction answer it r
   it.each(fixtures)("%s", (_name, parsed, refusedAt) => {
     const read = readPlanExtractionAnswer(parsed);
     if (refusedAt === null) {
-      expect(Either.isRight(read)).toBe(true);
+      expect(Result.isSuccess(read)).toBe(true);
     } else {
-      expect(Either.isLeft(read)).toBe(true);
-      if (Either.isLeft(read)) expect(read.left).toContain(refusedAt);
+      expect(Result.isFailure(read)).toBe(true);
+      if (Result.isFailure(read)) expect(read.failure).toContain(refusedAt);
     }
   });
 });
@@ -596,14 +598,14 @@ describe("an authoring answer with an arbitrated question", () => {
       arbitratedQuestions: [arbitrated, arbitrated],
     });
     expect(authoredSpec).toEqual(
-      Either.left(`arbitratedQuestions[0]: ${AUTHORING_ARBITRATED_MESSAGE}`),
+      Result.fail(`arbitratedQuestions[0]: ${AUTHORING_ARBITRATED_MESSAGE}`),
     );
     const authoredPlan = decodeAuthoredPlanDocument({
       ...validDocuments["plan-document"],
       preamble: { ...(planBody["preamble"] as Body), arbitratedQuestions: [arbitrated] },
     });
     expect(authoredPlan).toEqual(
-      Either.left(`preamble.arbitratedQuestions[0]: ${AUTHORING_ARBITRATED_MESSAGE}`),
+      Result.fail(`preamble.arbitratedQuestions[0]: ${AUTHORING_ARBITRATED_MESSAGE}`),
     );
   });
 
@@ -613,7 +615,7 @@ describe("an authoring answer with an arbitrated question", () => {
       arbitratedQuestions: [{}],
     });
     expect(authored).toEqual(
-      Either.left(`arbitratedQuestions[0]: ${AUTHORING_ARBITRATED_MESSAGE}`),
+      Result.fail(`arbitratedQuestions[0]: ${AUTHORING_ARBITRATED_MESSAGE}`),
     );
   });
 });
@@ -640,9 +642,9 @@ describe("the hand decision answers' verdict phase", () => {
     "refuses %s, naming decisions[0].verdict.phase",
     (_name, decode: Decode, id, decisions, body) => {
       const decoded = decode({ $schema: schemaUrl(id, CURRENT_STAMPS[id]), ...body, decisions });
-      expect(Either.isLeft(decoded)).toBe(true);
-      if (Either.isLeft(decoded))
-        expect(firstPath(decoded.left)).toBe("decisions[0].verdict.phase");
+      expect(Result.isFailure(decoded)).toBe(true);
+      if (Result.isFailure(decoded))
+        expect(firstPath(decoded.failure)).toBe("decisions[0].verdict.phase");
     },
   );
 });
@@ -686,17 +688,17 @@ describe("a test line's edge strings", () => {
       $schema: validDocuments["plan-document"]["$schema"],
       ...body,
     });
-    expect(Either.isLeft(current)).toBe(Either.isLeft(frozen));
+    expect(Result.isFailure(current)).toBe(Result.isFailure(frozen));
     const reworded = coordinate === "criterion" && (value === "oracle" || value === "in-phase");
-    if (Either.isLeft(frozen) && Either.isLeft(current) && !reworded) {
-      expect(formatFirstViolation(current.left)).toBe(formatFirstViolation(frozen.left));
+    if (Result.isFailure(frozen) && Result.isFailure(current) && !reworded) {
+      expect(formatFirstViolation(current.failure)).toBe(formatFirstViolation(frozen.failure));
     }
   });
 
   it("holds both verdicts on every coordinate", () => {
     for (const coordinate of COORDINATES) {
       const verdicts = EDGES.map(([, value]) =>
-        Either.isLeft(
+        Result.isFailure(
           decodePlanDocumentFile({
             $schema: validDocuments["plan-document"]["$schema"],
             ...withTestLine(coordinate, value),

@@ -1,7 +1,7 @@
 // Acceptance criteria carry a `then` key (given/when/then) — data, never awaited.
 /* eslint-disable unicorn/no-thenable */
 import { describe, expect, it } from "vitest";
-import { Either } from "effect";
+import { Result } from "effect";
 import { renderSpecBody } from "../../src/domain/authoring/renderSpec.js";
 import { currentSchemaUrl, withSchemaUrl } from "../../src/schemas/persisted.js";
 import {
@@ -12,8 +12,8 @@ import {
 
 function decoded(raw: unknown): SpecDocument {
   const result = decodeAuthoredSpecDocument(raw);
-  if (Either.isLeft(result)) throw new Error(`fixture does not decode: ${result.left}`);
-  const { $schema: _schema, ...document } = result.right;
+  if (Result.isFailure(result)) throw new Error(`fixture does not decode: ${result.failure}`);
+  const { $schema: _schema, ...document } = result.success;
   return document;
 }
 
@@ -173,8 +173,8 @@ function withArbitrated(): SpecDocument {
       ],
     }),
   );
-  if (Either.isLeft(file)) throw new Error(`fixture does not decode: ${file.left.message}`);
-  const { $schema: _schema, ...doc } = file.right;
+  if (Result.isFailure(file)) throw new Error(`fixture does not decode: ${file.failure.message}`);
+  const { $schema: _schema, ...doc } = file.success;
   return doc;
 }
 

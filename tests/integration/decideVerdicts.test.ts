@@ -1,6 +1,6 @@
 import { chmodSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { describe, expect, it, vi } from "vitest";
 import { explainRecord } from "../../src/app/recordsExplain.js";
 import { serializeSidecar } from "../../src/domain/artifact/sidecar.js";
@@ -168,7 +168,7 @@ describe("decide --verdicts — verdicts land headless", { timeout: 30_000 }, ()
 
     const result = await h.run();
 
-    const done = Either.getOrThrow(result);
+    const done = Result.getOrThrow(result);
     expect(done).toMatchObject({
       kind: "committed",
       path: SPEC_PATH,
@@ -272,7 +272,7 @@ describe("decide --verdicts — verdicts land headless", { timeout: 30_000 }, ()
     seed(FILE_REVERSED);
     const h = world.harness({ runAnswers: [JSON.stringify(ANSWER_FOLLOW)] });
 
-    const done = Either.getOrThrow(await h.run());
+    const done = Result.getOrThrow(await h.run());
 
     expect(done.verdicts.map((v) => v.question)).toEqual(["q-keep", "q-scope"]);
     expect(done.commit.subject).toBe("docs(specs): decide log-rotation q-keep, q-scope");
@@ -287,7 +287,7 @@ describe("decide --verdicts — verdicts land headless", { timeout: 30_000 }, ()
       terminal: false,
     });
 
-    const done = Either.getOrThrow(
+    const done = Result.getOrThrow(
       await h.run({ verdicts: { kind: "stdin" }, label: "stdin", by: "operator" }),
     );
 
@@ -334,7 +334,7 @@ describe("decide --verdicts — a departing verdict revises the body", { timeout
     seed(fileOf([{ question: "q-keep", chosen: "keep-20", note }]));
     const h = world.harness({ runAnswers: [JSON.stringify(ANSWER_DEPARTS)] });
 
-    const done = Either.getOrThrow(await h.run());
+    const done = Result.getOrThrow(await h.run());
 
     expect(done.verdicts).toEqual([
       {
@@ -370,7 +370,7 @@ describe("decide --verdicts — a choice off the menu: other", { timeout: 30_000
     seed(fileOf([{ question: "q-names", chosen: "other", note }]));
     const h = world.harness({ runAnswers: [JSON.stringify(ANSWER_OTHER)] });
 
-    const done = Either.getOrThrow(await h.run());
+    const done = Result.getOrThrow(await h.run());
 
     expect(done.verdicts).toMatchObject([
       { question: "q-names", chosen: "other", departs: true, why: note, revised: ["5.3"] },
@@ -442,7 +442,7 @@ describe(
       seed(fileOf([{ question: "q-keep", chosen: "keep-10" }]), SPEC_KEEP_20_DECIDED);
       const h = world.harness({ runAnswers: [JSON.stringify(ANSWER_RESTORE_KEEP)] });
 
-      const done = Either.getOrThrow(await h.run());
+      const done = Result.getOrThrow(await h.run());
 
       expect(done.verdicts).toEqual([
         {
@@ -467,7 +467,7 @@ describe(
       seed(fileOf([{ question: "q-keep", chosen: "keep-10" }]), SPEC_KEEP_20_UNREVISED);
       const h = world.harness({ runAnswers: [JSON.stringify(ANSWER_RESTORE_UNREVISED)] });
 
-      const done = Either.getOrThrow(await h.run());
+      const done = Result.getOrThrow(await h.run());
 
       expect(done.verdicts).toMatchObject([{ question: "q-keep", departs: false, revised: [] }]);
     });
@@ -601,7 +601,7 @@ describe("decide --verdicts — a writer's answer is checked", { timeout: 30_000
       resumeAnswers: [JSON.stringify(ANSWER_DEPARTS)],
     });
 
-    const done = Either.getOrThrow(await h.run({ records: RECORDS_ON }));
+    const done = Result.getOrThrow(await h.run({ records: RECORDS_ON }));
 
     expect(done.kind).toBe("committed");
     expect(h.backend.runCalls).toHaveLength(1);
@@ -793,10 +793,10 @@ describe("decide --verdicts — preconditions as interactive decide's", { timeou
 
     const result = await h.run();
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toMatchObject({ _tag: "DecideRefusedError", reason: "dirty" });
-      expect((result.left as { message: string }).message).toContain("has uncommitted changes");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toMatchObject({ _tag: "DecideRefusedError", reason: "dirty" });
+      expect((result.failure as { message: string }).message).toContain("has uncommitted changes");
     }
     expect(world.porcelain()).toBe(`M ${SPEC_PATH}`);
     expectNoWriter(world, h);
@@ -862,7 +862,7 @@ describe(
       const before = sidecarJson();
       const h = world.harness({ runAnswers: [JSON.stringify(ANSWER_REARBITRATE_KEEP_20)] });
 
-      const done = Either.getOrThrow(await h.run());
+      const done = Result.getOrThrow(await h.run());
 
       expect(done.verdicts).toMatchObject([{ question: "q-keep", chosen: "keep-20", why: note }]);
       expect(done.open).toEqual(["q-scope", "q-names"]);
@@ -883,7 +883,7 @@ describe(
       seed(fileOf([{ question: "q-keep", chosen: "keep-10" }]), SPEC_KEEP_DECIDED);
       const h = world.harness({ runAnswers: [JSON.stringify(ANSWER_REARBITRATE_SAME)] });
 
-      Either.getOrThrow(await h.run());
+      Result.getOrThrow(await h.run());
 
       const [keep] = arbitratedOf();
       expect(keep?.verdict).toMatchObject({
@@ -959,7 +959,7 @@ describe("decide --verdicts — who decides", { timeout: 30_000 }, () => {
     seed(FILE_VALID);
     const h = world.harness({ runAnswers: [JSON.stringify(ANSWER_FOLLOW)], terminal });
 
-    const done = Either.getOrThrow(await h.run({ by }));
+    const done = Result.getOrThrow(await h.run({ by }));
 
     expect(done.verdicts.map((v) => v.by)).toEqual([
       { kind: "operator", name: OPERATOR },
@@ -979,7 +979,7 @@ describe("decide --verdicts — the writer's session and model", { timeout: 30_0
     world.keepAuthoringSession(AUTHORING_ID);
     const h = world.harness({ resumeAnswers: [JSON.stringify(ANSWER_FOLLOW)] });
 
-    const done = Either.getOrThrow(await h.run());
+    const done = Result.getOrThrow(await h.run());
 
     expect(done.session).toBe("resumed-authoring");
     expect(h.lines[0]).toBe(
@@ -1002,7 +1002,7 @@ describe("decide --verdicts — the writer's session and model", { timeout: 30_0
     world.keepAuthoringSession(AUTHORING_ID, { retrySessionId: null });
     const h = world.harness({ resumeAnswers: [JSON.stringify(ANSWER_FOLLOW)] });
 
-    Either.getOrThrow(await h.run());
+    Result.getOrThrow(await h.run());
 
     expect(h.backend.resumeCalls[0]?.sessionId).toBe(KEPT_FIRST_SESSION);
   });
@@ -1015,7 +1015,7 @@ describe("decide --verdicts — the writer's session and model", { timeout: 30_0
     world.keepAuthoringSession(AUTHORING_ID, keep);
     const h = world.harness({ runAnswers: [JSON.stringify(ANSWER_FOLLOW)] });
 
-    const done = Either.getOrThrow(await h.run());
+    const done = Result.getOrThrow(await h.run());
 
     expect(done.session).toBe("new");
     expect(h.lines[0]).toContain("headless, new session");
@@ -1030,7 +1030,7 @@ describe("decide --verdicts — the writer's session and model", { timeout: 30_0
     writeFileSync(join(folder, "session.json"), "{ not json");
     const h = world.harness({ runAnswers: [JSON.stringify(ANSWER_FOLLOW)] });
 
-    const done = Either.getOrThrow(await h.run());
+    const done = Result.getOrThrow(await h.run());
 
     expect(done.session).toBe("new");
   });
@@ -1046,7 +1046,7 @@ describe("decide --verdicts — the writer's session and model", { timeout: 30_0
     };
     const h = world.harness({ runAnswers: [JSON.stringify(ANSWER_FOLLOW)] });
 
-    const done = Either.getOrThrow(
+    const done = Result.getOrThrow(
       await h.run({ model: "gpt-6-luna", providerConfig: codexEnabled }),
     );
 
@@ -1080,7 +1080,7 @@ describe("decide --verdicts — the writer's session and model", { timeout: 30_0
     };
     const h = world.harness({ resumeAnswers: [JSON.stringify(ANSWER_FOLLOW)] });
 
-    const done = Either.getOrThrow(
+    const done = Result.getOrThrow(
       await h.run({ model: "gpt-6-luna", providerConfig: codexEnabled }),
     );
 
@@ -1098,7 +1098,7 @@ describe("decide --verdicts — the writer's session and model", { timeout: 30_0
     };
     const h = world.harness({ runAnswers: [JSON.stringify(ANSWER_FOLLOW)] });
 
-    const done = Either.getOrThrow(
+    const done = Result.getOrThrow(
       await h.run({ model: "claude-sonnet-4-6", providerConfig: vibeEnabled }),
     );
 
@@ -1113,7 +1113,7 @@ describe("decide --verdicts — the writer's session and model", { timeout: 30_0
     seed(FILE_VALID);
     const h = world.harness({ runAnswers: [JSON.stringify(ANSWER_FOLLOW)] });
 
-    const done = Either.getOrThrow(await h.run({ model: "claude-opus-5-5", effort: "high" }));
+    const done = Result.getOrThrow(await h.run({ model: "claude-opus-5-5", effort: "high" }));
 
     expect(done).toMatchObject({
       model: "claude-opus-5-5",
@@ -1132,7 +1132,7 @@ describe("decide --verdicts — the writer's session and model", { timeout: 30_0
     };
     const h = world.harness({ runAnswers: [JSON.stringify(ANSWER_FOLLOW)] });
 
-    const done = Either.getOrThrow(await h.run({ model: "mystery-1", routing }));
+    const done = Result.getOrThrow(await h.run({ model: "mystery-1", routing }));
 
     expect(done.requestedModel).toBe("mystery-1");
     expect(done.model).toMatch(/^claude-sonnet/);
@@ -1221,9 +1221,9 @@ describe(
 
       const result = await h.run();
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        expect(result.left).toMatchObject({ _tag: "DecideRefusedError", reason: "changed" });
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
+        expect(result.failure).toMatchObject({ _tag: "DecideRefusedError", reason: "changed" });
       }
       expect(world.readRepoFile(SPEC_PATH)).toBe(`${md}\nEdited meanwhile.\n`);
       expect(world.headSha()).toBe(head);
@@ -1240,9 +1240,9 @@ describe(
 
       const result = await h.run({ records: RECORDS_ON });
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        expect(result.left).toMatchObject({ _tag: "ArtifactCommitFailedError" });
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
+        expect(result.failure).toMatchObject({ _tag: "ArtifactCommitFailedError" });
       }
       expect(world.headSha()).toBe(head);
       expect(world.readRepoFile(SPEC_PATH)).toContain("## 9b. Arbitrated questions");
@@ -1282,7 +1282,7 @@ describe("decide --verdicts — the decision record", { timeout: 30_000 }, () =>
     const h = world.harness({ resumeAnswers: [JSON.stringify(answer)] });
     playTranscripts(h);
 
-    const done = Either.getOrThrow(await h.run({ records: RECORDS_ON }));
+    const done = Result.getOrThrow(await h.run({ records: RECORDS_ON }));
 
     expect(done.record).toMatchObject({
       kind: "written",
@@ -1352,7 +1352,7 @@ describe("decide --verdicts — the decision record", { timeout: 30_000 }, () =>
     };
     const h = world.harness({ runAnswers: [JSON.stringify(ANSWER_FOLLOW)] });
 
-    const done = Either.getOrThrow(
+    const done = Result.getOrThrow(
       await h.run({ model: "mystery-1", routing, records: RECORDS_ON }),
     );
 

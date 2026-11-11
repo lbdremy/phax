@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   decodeAcceptanceRequestFile,
@@ -41,8 +41,8 @@ describe("AcceptanceRequestFileSchema", () => {
       new RegExp(`^${SCHEMA_URL_BASE}/acceptance-request/\\d+\\.\\d+\\.\\d+\\.json$`),
     );
     const decoded = decodeAcceptanceRequestFile(encoded);
-    expect(Either.isRight(decoded)).toBe(true);
-    if (Either.isRight(decoded)) expect(decoded.right).toEqual(stamped(request));
+    expect(Result.isSuccess(decoded)).toBe(true);
+    if (Result.isSuccess(decoded)) expect(decoded.success).toEqual(stamped(request));
   });
 
   it("is stamped 0.33.0", () => {
@@ -51,7 +51,7 @@ describe("AcceptanceRequestFileSchema", () => {
 
   it("keeps the declaration order of files", () => {
     const decoded = decodeAcceptanceRequestFile(stamped({ ...authored, files: ["b.ts", "a.ts"] }));
-    expect(Either.isRight(decoded) && decoded.right.files).toEqual(["b.ts", "a.ts"]);
+    expect(Result.isSuccess(decoded) && decoded.success.files).toEqual(["b.ts", "a.ts"]);
   });
 
   it.each([
@@ -96,8 +96,8 @@ describe("AcceptanceRequestFileSchema", () => {
     ],
   ])("refuses %s", (_name, document, key) => {
     const decoded = decodeAcceptanceRequestFile(document);
-    expect(Either.isLeft(decoded)).toBe(true);
-    if (Either.isLeft(decoded)) expect(String(decoded.left)).toContain(key);
+    expect(Result.isFailure(decoded)).toBe(true);
+    if (Result.isFailure(decoded)) expect(String(decoded.failure)).toContain(key);
   });
 });
 
@@ -113,12 +113,12 @@ describe("OracleRequestV0_26_0Schema, frozen", () => {
   };
 
   it("still decodes a request phax 0.32.0 wrote", () => {
-    expect(Either.isRight(decodeOracleRequestV0_26_0(oracleDocument))).toBe(true);
+    expect(Result.isSuccess(decodeOracleRequestV0_26_0(oracleDocument))).toBe(true);
   });
 
   it("refuses a request in the acceptance names", () => {
     expect(
-      Either.isLeft(decodeOracleRequestV0_26_0({ ...oracleDocument, verdict: "passed" })),
+      Result.isFailure(decodeOracleRequestV0_26_0({ ...oracleDocument, verdict: "passed" })),
     ).toBe(true);
   });
 });

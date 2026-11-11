@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   summariesToWrite,
@@ -29,14 +29,14 @@ function specSidecar(summaries: readonly string[]): DocumentSidecar {
     ...withSurfaceSummary(validDocuments["spec-document"], WRITTEN),
     surface,
   });
-  if (Either.isLeft(read)) throw new Error(read.left.message);
-  return read.right;
+  if (Result.isFailure(read)) throw new Error(read.failure.message);
+  return read.success;
 }
 
 function planSidecar(): DocumentSidecar {
   const read = readDocumentSidecar("plan", "docs/plans/x.json", validDocuments["plan-document"]);
-  if (Either.isLeft(read)) throw new Error(read.left.message);
-  return read.right;
+  if (Result.isFailure(read)) throw new Error(read.failure.message);
+  return read.success;
 }
 
 // An older-stamped sidecar as the reader lifts it: every element holds the

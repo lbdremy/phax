@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -39,10 +39,10 @@ const HANDOFF_CONTENT = [
 
 const SKILL_FILE = ".claude/skills/foo/SKILL.md";
 
-const shortName = Either.getOrThrow(decodeShortName("grant-run"));
+const shortName = Result.getOrThrow(decodeShortName("grant-run"));
 
 function makePlan(plannedFilesToEdit: readonly string[]): PhaxPlan {
-  return Either.getOrThrow(
+  return Result.getOrThrow(
     liftFixturePhaxPlanToCurrent("phax-plan.json", {
       version: 1,
       run: {
@@ -161,7 +161,7 @@ describe("executePlan — skill edit grants wiring", () => {
       ),
     );
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -192,7 +192,7 @@ describe("executePlan — skill edit grants wiring", () => {
         }).pipe(Effect.provide(layer)),
       ),
     );
-    const posture = Either.getOrThrow(
+    const posture = Result.getOrThrow(
       decodeSecurityPosture(
         JSON.parse(await readFile(join(runPath, "phase-01", "security.json"), "utf8")),
       ),
@@ -205,7 +205,7 @@ describe("executePlan — skill edit grants wiring", () => {
       plan: makePlan([SKILL_FILE, "src/x.ts"]),
     });
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     expect(fakeBackend.impl.runCalls[0]?.options.skillEditGrants).toEqual([SKILL_FILE]);
     expect(posture.skillEditGrants).toEqual([SKILL_FILE]);
   });

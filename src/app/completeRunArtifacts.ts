@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { type Git, type GitError } from "../ports/git.js";
 import type {
@@ -167,10 +167,10 @@ function completeInWorktree(
     }
     const specMd = yield* fs.readText(specPath);
     const specValidated = validateArtifact(specPath, specMd);
-    if (Either.isLeft(specValidated)) {
-      return yield* Effect.fail(specValidated.left);
+    if (Result.isFailure(specValidated)) {
+      return yield* Effect.fail(specValidated.failure);
     }
-    const specStatus = specValidated.right.status;
+    const specStatus = specValidated.success.status;
     if (specStatus === "Completed") {
       transitions.push({ kind: "spec", path: specPath, alreadyComplete: true });
       return { transitions };
@@ -181,20 +181,20 @@ function completeInWorktree(
 
     // The chain gate is evaluated by transitionArtifact itself; a live dependent
     // surfaces as SpecRetirementBlockedError, which becomes a kept-spec report.
-    const specResult = yield* Effect.either(transitionArtifact(specPath, "Completed", opts));
-    if (Either.isLeft(specResult)) {
-      if (specResult.left instanceof SpecRetirementBlockedError) {
+    const specResult = yield* Effect.result(transitionArtifact(specPath, "Completed", opts));
+    if (Result.isFailure(specResult)) {
+      if (specResult.failure instanceof SpecRetirementBlockedError) {
         return {
           transitions,
-          keptSpec: { reason: "blocked", path: specPath, blockedBy: specResult.left.dependents },
+          keptSpec: { reason: "blocked", path: specPath, blockedBy: specResult.failure.dependents },
         };
       }
-      return yield* Effect.fail(specResult.left);
+      return yield* Effect.fail(specResult.failure);
     }
     transitions.push({
       kind: "spec",
-      path: specResult.right.path,
-      ...(specResult.right.commit !== undefined ? { commit: specResult.right.commit } : {}),
+      path: specResult.success.path,
+      ...(specResult.success.commit !== undefined ? { commit: specResult.success.commit } : {}),
       alreadyComplete: false,
     });
     return { transitions };

@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { executePlan, type ClosedStop } from "../../src/app/executePlan.js";
 import { withRunLock } from "../../src/app/lock.js";
 import { inspectResumeOnDisk } from "./inspectResume.js";
@@ -468,7 +468,7 @@ async function createHeldRun(
   hold: RunHold,
   opts: HeldRunOptions = {},
 ): Promise<HeldRun> {
-  const shortName = Either.getOrThrow(decodeShortName(SHORT));
+  const shortName = Result.getOrThrow(decodeShortName(SHORT));
   const { plan, planMd } = opts.plan ?? invoiceExportPlan();
   const config = configOf(world, opts.records ?? false, opts.acceptance);
   const { runPath, runId } = await Effect.runPromise(
@@ -513,8 +513,8 @@ function faultyFileSystem(run: HeldRun) {
 function executeHeldRun(
   run: HeldRun,
   startIndex: number,
-): Promise<Either.Either<unknown, unknown>> {
-  const shortName = Either.getOrThrow(decodeShortName(SHORT));
+): Promise<Result.Result<unknown, unknown>> {
+  const shortName = Result.getOrThrow(decodeShortName(SHORT));
   const program = withRunLock(
     RUN_KEY,
     executePlan({
@@ -536,7 +536,7 @@ function executeHeldRun(
     }),
   );
   return Effect.runPromise(
-    Effect.either(
+    Effect.result(
       program.pipe(
         Effect.provide(
           Layer.mergeAll(
@@ -561,21 +561,21 @@ export async function startHeldRun(
   world: HeldWorld,
   hold: RunHold,
   opts: HeldRunOptions & { readonly prepare?: (run: HeldRun) => void } = {},
-): Promise<{ run: HeldRun; result: Either.Either<unknown, unknown> }> {
+): Promise<{ run: HeldRun; result: Result.Result<unknown, unknown> }> {
   const run = await createHeldRun(world, hold, opts);
   opts.prepare?.(run);
   return { run, result: await executeHeldRun(run, 0) };
 }
 
 /** `phax resume --yes`: the start phase as the resume decision names it. */
-export async function resumeHeldRun(run: HeldRun): Promise<Either.Either<unknown, unknown>> {
+export async function resumeHeldRun(run: HeldRun): Promise<Result.Result<unknown, unknown>> {
   const decision = await inspectResumeOnDisk(
     NAMESPACE,
-    Either.getOrThrow(decodeShortName(SHORT)),
+    Result.getOrThrow(decodeShortName(SHORT)),
     run.world.stateRoot,
   );
-  if (Either.isLeft(decision)) throw new Error(decision.left.message);
-  return executeHeldRun(run, decision.right.nextPhaseIndex);
+  if (Result.isFailure(decision)) throw new Error(decision.failure.message);
+  return executeHeldRun(run, decision.success.nextPhaseIndex);
 }
 
 // ── Reading ────────────────────────────────────────────────────────────────

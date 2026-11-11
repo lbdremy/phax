@@ -1,4 +1,4 @@
-import { Effect, Either, ParseResult, Schema } from "effect";
+import { Result, Schema, SchemaIssue } from "effect";
 import { describe, expect, it } from "vitest";
 import { decodeCodeReviewV0_29_0 } from "../../../../src/schemas/history/code-review/0.29.0.js";
 import { decodeRunStatusV0_26_0 } from "../../../../src/schemas/history/run-status/0.26.0.js";
@@ -17,9 +17,9 @@ type Exception =
   | { readonly collapse: RefusalPath; readonly into: Pick<Refusal, "kind"> & { expected: string } }
   | { readonly drop: RefusalPath };
 
-function refused(result: Either.Either<unknown, ParseResult.ParseError>): ParseResult.ParseError {
-  if (Either.isRight(result)) throw new Error("expected a refusal");
-  return result.left;
+function refused(result: Result.Result<unknown, Schema.SchemaError>): Schema.SchemaError {
+  if (Result.isSuccess(result)) throw new Error("expected a refusal");
+  return result.failure;
 }
 
 const same = (a: RefusalPath, b: RefusalPath): boolean =>
@@ -41,18 +41,22 @@ function expectedPaths(
   return kept;
 }
 
-function checkOrder(error: ParseResult.ParseError, exceptions: ReadonlyArray<Exception>): void {
-  const formatted = ParseResult.ArrayFormatter.formatErrorSync(error).map(({ path }) => path);
+function checkOrder(error: Schema.SchemaError, exceptions: ReadonlyArray<Exception>): void {
+  // A Standard Schema path segment may be an object holding its key.
+  const formatted = SchemaIssue.makeFormatterStandardSchemaV1()(error.issue).issues.map(
+    ({ path = [] }) => path.map((segment) => (typeof segment === "object" ? segment.key : segment)),
+  );
   const refusals = refusalsOf(error);
   expect(refusals.map(({ path }) => path)).toEqual(expectedPaths(formatted, exceptions));
   for (const exception of exceptions) {
     if ("drop" in exception) {
-      // ArrayFormatter has the shallow member's issue; the adapter has none.
-      expect(formatted.some((path) => same(path, exception.drop))).toBe(true);
+      // The adapter has no refusal for the shallow member. (Effect 3's ArrayFormatter
+      // had its issue; Effect 4's formatter reports none either.)
       expect(refusals.some(({ path }) => same(path, exception.drop))).toBe(false);
     } else {
-      // ArrayFormatter has one issue per member; the adapter has one refusal.
-      expect(formatted.filter((path) => same(path, exception.collapse)).length).toBeGreaterThan(1);
+      // The adapter has one refusal for the union. (Effect 3's ArrayFormatter had one
+      // issue per member; Effect 4's formatter reports a literal union once.)
+      expect(formatted.filter((path) => same(path, exception.collapse)).length).toBeGreaterThan(0);
       const at = refusals.filter(({ path }) => same(path, exception.collapse));
       expect(at).toHaveLength(1);
       expect(at[0]).toMatchObject(exception.into);
@@ -111,7 +115,11 @@ const typicalPlanDocument = {
 describe("refusalsOf on phax's real decoders", () => {
   it("decodes the typical plan document the cases below mutate", () => {
     expect(
-      Either.isRight(Schema.decodeUnknownEither(PlanDocumentFileSchema)(typicalPlanDocument)),
+      Result.isSuccess(
+        Schema.decodeUnknownResult(PlanDocumentFileSchema, { reportInput: true })(
+          typicalPlanDocument,
+        ),
+      ),
     ).toBe(true);
   });
 
@@ -157,9 +165,10 @@ describe("refusalsOf on phax's real decoders", () => {
     const [phase] = typicalPlanDocument.phases;
     const [line] = phase!.testStrategy;
     const error = refused(
-      Schema.decodeUnknownEither(PlanDocumentFileSchema, {
+      Schema.decodeUnknownResult(PlanDocumentFileSchema, {
         errors: "all",
         onExcessProperty: "error",
+        reportInput: true,
       })({
         ...typicalPlanDocument,
         kind: "spec",
@@ -224,13 +233,12 @@ describe("refusalsOf on phax's real decoders", () => {
 
 describe("refusalsOf on a Forbidden issue", () => {
   it("gives an invalid-value refusal, never a crash", () => {
-    const Async = Schema.transformOrFail(Schema.String, Schema.String, {
-      strict: true,
-      decode: (s) => Effect.as(Effect.sleep("1 millis"), s),
-      encode: ParseResult.succeed,
-    });
-    const error = refused(Schema.decodeUnknownEither(Async)("x"));
-    expect(error.issue).toBeInstanceOf(ParseResult.Forbidden);
+    // Effect 4's synchronous decoders die on an asynchronous step rather than
+    // report it, so the Forbidden issue is built as Effect builds one.
+    const error = new Schema.SchemaError(
+      new SchemaIssue.Forbidden(undefined, "x", { reportInput: true }),
+    );
+    expect(error.issue).toBeInstanceOf(SchemaIssue.Forbidden);
     expect(refusalsOf(error)).toEqual([
       {
         kind: "invalid-value",

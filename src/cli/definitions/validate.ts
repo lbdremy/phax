@@ -2,7 +2,7 @@
 // comes to when it decodes, and today's lines as its text. A config or plan that does not decode
 // is a declared error, exit 2, with today's sentence.
 import { resolve } from "node:path";
-import { Data, Effect, Either } from "effect";
+import { Data, Effect, Result } from "effect";
 import * as Schema from "effect/Schema";
 import { invalidBoundMessages } from "../../app/assignmentBounds.js";
 import { describeConfigSources, loadConfig } from "../../app/loadConfig.js";
@@ -55,12 +55,11 @@ const ValidateOutput = Schema.Struct({
 });
 
 const ValidateFlags = Schema.Struct({
-  plan: Schema.optionalWith(
-    Schema.String.annotations({
+  plan: Schema.optionalKey(
+    Schema.String.annotate({
       identifier: "path",
       description: "Also validate a phax-plan.json at this path",
     }),
-    { exact: true },
   ),
 });
 
@@ -81,23 +80,23 @@ export const validateCommand = defineCommand({
     Effect.gen(function* () {
       const cwd = process.cwd();
       const loaded = loadConfig(cwd);
-      if (Either.isLeft(loaded)) {
+      if (Result.isFailure(loaded)) {
         return yield* Effect.fail(
-          new ConfigInvalidError({ message: loaded.left.message, path: loaded.left.path }),
+          new ConfigInvalidError({ message: loaded.failure.message, path: loaded.failure.path }),
         );
       }
-      const config = loaded.right;
+      const config = loaded.success;
       const sources = describeConfigSources(cwd);
 
       // The bounds are checked before the config is reported valid, so a bad bound never follows
       // a success line.
       if (config.assignments !== undefined) {
-        const checked = yield* Effect.either(
+        const checked = yield* Effect.result(
           invalidBoundMessages(config).pipe(Effect.provide(makeRepoRootedFileSystemLayer(config))),
         );
-        const problems = Either.isRight(checked) ? checked.right : [checked.left.message];
+        const problems = Result.isSuccess(checked) ? checked.success : [checked.failure.message];
         if (problems.length > 0) {
-          const at = Either.isRight(checked) ? sources?.project : checked.left.path;
+          const at = Result.isSuccess(checked) ? sources?.project : checked.failure.path;
           return yield* Effect.fail(
             new BoundsInvalidError({ message: problems.join("\n"), problems, at }),
           );
@@ -137,21 +136,21 @@ export const validateCommand = defineCommand({
         // loadPlan's underlying read to do it implicitly.
         const resolvedPlanPath = resolve(cwd, typed);
         const planResult = loadPlan(resolvedPlanPath);
-        if (Either.isLeft(planResult)) {
+        if (Result.isFailure(planResult)) {
           // loadPlan's message embeds the resolved absolute path; swap back to what the user
           // typed so the error names a path they wrote.
           return yield* Effect.fail(
             new PlanInvalidError({
-              message: planResult.left.message.split(resolvedPlanPath).join(typed),
-              path: planResult.left.path ? typed : undefined,
+              message: planResult.failure.message.split(resolvedPlanPath).join(typed),
+              path: planResult.failure.path ? typed : undefined,
               config: validated,
             }),
           );
         }
         plan = {
           path: typed,
-          shortName: planResult.right.run.shortName,
-          phases: planResult.right.phases.length,
+          shortName: planResult.success.run.shortName,
+          phases: planResult.success.phases.length,
         };
       }
 

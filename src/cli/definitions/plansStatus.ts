@@ -18,7 +18,7 @@ import { defineCommand, reject, Written, written } from "../commandLibrary/contr
 import { makeProviderBackendLayer, makeRepoRootedFileSystemLayer } from "../commands/runLayers.js";
 import { configured, exposeMessage, MessageFields } from "./shared.js";
 
-const Evidence = Schema.Union(
+const Evidence = Schema.Union([
   Schema.Struct({ reason: Schema.Literal("spec-changed"), specPath: Schema.String }),
   Schema.Struct({
     reason: Schema.Literal("ground-changed"),
@@ -26,20 +26,20 @@ const Evidence = Schema.Union(
     files: Schema.Array(Schema.String),
   }),
   Schema.Struct({ reason: Schema.Literal("self-changed") }),
-);
+]);
 
-const Verdict = Schema.Union(
+const Verdict = Schema.Union([
   Schema.Struct({ kind: Schema.Literal("fresh") }),
   Schema.Struct({ kind: Schema.Literal("stale"), evidence: Schema.Array(Evidence) }),
   Schema.Struct({ kind: Schema.Literal("missing-record"), detail: Schema.String }),
-);
+]);
 
 const ReportEntry = Schema.Struct({
   path: Schema.String,
-  result: Schema.Union(
+  result: Schema.Union([
     Verdict,
     Schema.Struct({ kind: Schema.Literal("error"), message: Schema.String }),
-  ),
+  ]),
 });
 
 const OrphanRecord = Schema.Struct({ recordFile: Schema.String, artifact: Schema.String });
@@ -48,7 +48,7 @@ const Flip = Schema.Struct({ path: Schema.String, verdict: Verdict });
 
 /** The answer of `phax plans status`, as `--json` prints it: the unversioned object of today,
  *  carrying `applied` and `written` after the report only under `--apply`. */
-const PlansStatusOutput = Schema.Union(
+const PlansStatusOutput = Schema.Union([
   Schema.Struct({
     report: Schema.Array(ReportEntry),
     orphanRecords: Schema.Array(OrphanRecord),
@@ -59,12 +59,11 @@ const PlansStatusOutput = Schema.Union(
     report: Schema.Array(ReportEntry),
     orphanRecords: Schema.Array(OrphanRecord),
   }),
-);
+]);
 
 const PlansStatusFlags = Schema.Struct({
-  apply: Schema.optionalWith(
-    Schema.Boolean.annotations({ description: "Flip stale-computed plans Approved -> Stale" }),
-    { exact: true },
+  apply: Schema.optionalKey(
+    Schema.Boolean.annotate({ description: "Flip stale-computed plans Approved -> Stale" }),
   ),
 });
 

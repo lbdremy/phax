@@ -1,5 +1,5 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { Either } from "effect";
+import { Result } from "effect";
 import {
   decodeSecurityPosture,
   encodeSecurityPosture,
@@ -113,47 +113,47 @@ describe("SecurityPostureSchema", () => {
   describe("accepts valid postures", () => {
     it("accepts secure mode with claude-code", () => {
       const result = decodeSecurityPosture(baseSecurePosture);
-      expect(Either.isRight(result)).toBe(true);
-      if (Either.isRight(result)) {
-        expect(result.right.mode).toBe("secure");
-        expect(result.right.provider).toBe("claude-code");
-        expect(result.right.sandboxEnabled).toBe(true);
+      expect(Result.isSuccess(result)).toBe(true);
+      if (Result.isSuccess(result)) {
+        expect(result.success.mode).toBe("secure");
+        expect(result.success.provider).toBe("claude-code");
+        expect(result.success.sandboxEnabled).toBe(true);
       }
     });
 
     it("accepts unsafe mode", () => {
       const result = decodeSecurityPosture(unsafePosture);
-      expect(Either.isRight(result)).toBe(true);
-      if (Either.isRight(result)) {
-        expect(result.right.mode).toBe("unsafe");
-        expect(result.right.sandboxEnabled).toBe(false);
+      expect(Result.isSuccess(result)).toBe(true);
+      if (Result.isSuccess(result)) {
+        expect(result.success.mode).toBe("unsafe");
+        expect(result.success.sandboxEnabled).toBe(false);
       }
     });
 
     it("accepts isolated mode", () => {
       const isolated = { ...baseSecurePosture, mode: "isolated" as const };
       const result = decodeSecurityPosture(isolated);
-      expect(Either.isRight(result)).toBe(true);
-      if (Either.isRight(result)) {
-        expect(result.right.mode).toBe("isolated");
+      expect(Result.isSuccess(result)).toBe(true);
+      if (Result.isSuccess(result)) {
+        expect(result.success.mode).toBe("isolated");
       }
     });
 
     it("accepts downgraded posture with marks", () => {
       const result = decodeSecurityPosture(downgradedVibePosture);
-      expect(Either.isRight(result)).toBe(true);
-      if (Either.isRight(result)) {
-        expect(result.right.downgraded).toBe(true);
-        expect(result.right.marks).toEqual(["partial-filesystem", "mcp-unenforced"]);
+      expect(Result.isSuccess(result)).toBe(true);
+      if (Result.isSuccess(result)) {
+        expect(result.success.downgraded).toBe(true);
+        expect(result.success.marks).toEqual(["partial-filesystem", "mcp-unenforced"]);
       }
     });
 
     it("accepts posture with skipped providers", () => {
       const result = decodeSecurityPosture(withSkippedProviders);
-      expect(Either.isRight(result)).toBe(true);
-      if (Either.isRight(result)) {
-        expect(result.right.providerSkippedForSecurity).toHaveLength(1);
-        expect(result.right.providerSkippedForSecurity[0]?.provider).toBe("mistral-vibe");
+      expect(Result.isSuccess(result)).toBe(true);
+      if (Result.isSuccess(result)) {
+        expect(result.success.providerSkippedForSecurity).toHaveLength(1);
+        expect(result.success.providerSkippedForSecurity[0]?.provider).toBe("mistral-vibe");
       }
     });
 
@@ -161,7 +161,7 @@ describe("SecurityPostureSchema", () => {
       for (const provider of ["claude-code", "codex-cli", "mistral-vibe"] as const) {
         const posture = { ...baseSecurePosture, provider };
         const result = decodeSecurityPosture(posture);
-        expect(Either.isRight(result), `should accept provider ${provider}`).toBe(true);
+        expect(Result.isSuccess(result), `should accept provider ${provider}`).toBe(true);
       }
     });
 
@@ -172,7 +172,7 @@ describe("SecurityPostureSchema", () => {
           network: { ...baseSecurePosture.network, profile },
         };
         const result = decodeSecurityPosture(posture);
-        expect(Either.isRight(result), `should accept profile ${profile}`).toBe(true);
+        expect(Result.isSuccess(result), `should accept profile ${profile}`).toBe(true);
       }
     });
 
@@ -180,7 +180,7 @@ describe("SecurityPostureSchema", () => {
       for (const mode of ["disabled", "local-only", "allowlist", "provider-default"] as const) {
         const posture = { ...baseSecurePosture, mcp: { ...baseSecurePosture.mcp, mode } };
         const result = decodeSecurityPosture(posture);
-        expect(Either.isRight(result), `should accept mcp mode ${mode}`).toBe(true);
+        expect(Result.isSuccess(result), `should accept mcp mode ${mode}`).toBe(true);
       }
     });
   });
@@ -189,25 +189,25 @@ describe("SecurityPostureSchema", () => {
     it("rejects missing version", () => {
       const invalid = { ...baseSecurePosture, version: undefined };
       const result = decodeSecurityPosture(invalid);
-      expect(Either.isLeft(result)).toBe(true);
+      expect(Result.isFailure(result)).toBe(true);
     });
 
     it("rejects wrong version", () => {
       const invalid = { ...baseSecurePosture, version: 2 };
       const result = decodeSecurityPosture(invalid);
-      expect(Either.isLeft(result)).toBe(true);
+      expect(Result.isFailure(result)).toBe(true);
     });
 
     it("rejects invalid mode", () => {
       const invalid = { ...baseSecurePosture, mode: "custom" as const };
       const result = decodeSecurityPosture(invalid);
-      expect(Either.isLeft(result)).toBe(true);
+      expect(Result.isFailure(result)).toBe(true);
     });
 
     it("rejects invalid provider", () => {
       const invalid = { ...baseSecurePosture, provider: "custom-provider" as const };
       const result = decodeSecurityPosture(invalid);
-      expect(Either.isLeft(result)).toBe(true);
+      expect(Result.isFailure(result)).toBe(true);
     });
 
     it("rejects empty filesystem allowRead array", () => {
@@ -218,13 +218,13 @@ describe("SecurityPostureSchema", () => {
         filesystem: { ...baseSecurePosture.filesystem, allowRead: "not-an-array" },
       };
       const result = decodeSecurityPosture(invalid);
-      expect(Either.isLeft(result)).toBe(true);
+      expect(Result.isFailure(result)).toBe(true);
     });
 
     it("rejects missing required field sandboxEnabled", () => {
       const invalid = { ...baseSecurePosture, sandboxEnabled: undefined };
       const result = decodeSecurityPosture(invalid);
-      expect(Either.isLeft(result)).toBe(true);
+      expect(Result.isFailure(result)).toBe(true);
     });
 
     it("rejects empty providerSkippedForSecurity entry reason", () => {
@@ -233,7 +233,7 @@ describe("SecurityPostureSchema", () => {
         providerSkippedForSecurity: [{ provider: "claude-code" as const, reason: "" }],
       };
       const result = decodeSecurityPosture(invalid);
-      expect(Either.isLeft(result)).toBe(true);
+      expect(Result.isFailure(result)).toBe(true);
     });
   });
 
@@ -241,36 +241,36 @@ describe("SecurityPostureSchema", () => {
     it("round-trips base secure posture", () => {
       const encoded = encodeSecurityPosture(baseSecurePosture);
       const decoded = decodeSecurityPosture(encoded);
-      expect(Either.isRight(decoded)).toBe(true);
-      if (Either.isRight(decoded)) {
-        expect(decoded.right).toEqual(baseSecurePosture);
+      expect(Result.isSuccess(decoded)).toBe(true);
+      if (Result.isSuccess(decoded)) {
+        expect(decoded.success).toEqual(baseSecurePosture);
       }
     });
 
     it("round-trips unsafe posture", () => {
       const encoded = encodeSecurityPosture(unsafePosture);
       const decoded = decodeSecurityPosture(encoded);
-      expect(Either.isRight(decoded)).toBe(true);
-      if (Either.isRight(decoded)) {
-        expect(decoded.right).toEqual(unsafePosture);
+      expect(Result.isSuccess(decoded)).toBe(true);
+      if (Result.isSuccess(decoded)) {
+        expect(decoded.success).toEqual(unsafePosture);
       }
     });
 
     it("round-trips downgraded vibe posture", () => {
       const encoded = encodeSecurityPosture(downgradedVibePosture);
       const decoded = decodeSecurityPosture(encoded);
-      expect(Either.isRight(decoded)).toBe(true);
-      if (Either.isRight(decoded)) {
-        expect(decoded.right).toEqual(downgradedVibePosture);
+      expect(Result.isSuccess(decoded)).toBe(true);
+      if (Result.isSuccess(decoded)) {
+        expect(decoded.success).toEqual(downgradedVibePosture);
       }
     });
 
     it("round-trips posture with skipped providers", () => {
       const encoded = encodeSecurityPosture(withSkippedProviders);
       const decoded = decodeSecurityPosture(encoded);
-      expect(Either.isRight(decoded)).toBe(true);
-      if (Either.isRight(decoded)) {
-        expect(decoded.right).toEqual(withSkippedProviders);
+      expect(Result.isSuccess(decoded)).toBe(true);
+      if (Result.isSuccess(decoded)) {
+        expect(decoded.success).toEqual(withSkippedProviders);
       }
     });
   });
@@ -299,15 +299,15 @@ describe("SecurityPostureSchema", () => {
         ],
       };
       const result = decodeSecurityPosture(posture);
-      expect(Either.isRight(result)).toBe(true);
-      if (Either.isRight(result)) {
-        expect(result.right.agentCommands).toHaveLength(2);
-        expect(result.right.agentCommands[0]?.command).toBe("deno fmt");
-        expect(result.right.agentCommands[0]?.source).toBe("config");
-        expect(result.right.agentCommands[0]?.explicit).toBe(true);
-        expect(result.right.agentCommands[0]?.requiredByPlan).toBe(true);
-        expect(result.right.agentCommands[0]?.enforcement).toBe("prefix");
-        expect(result.right.agentCommands[0]?.degraded).toBe(false);
+      expect(Result.isSuccess(result)).toBe(true);
+      if (Result.isSuccess(result)) {
+        expect(result.success.agentCommands).toHaveLength(2);
+        expect(result.success.agentCommands[0]?.command).toBe("deno fmt");
+        expect(result.success.agentCommands[0]?.source).toBe("config");
+        expect(result.success.agentCommands[0]?.explicit).toBe(true);
+        expect(result.success.agentCommands[0]?.requiredByPlan).toBe(true);
+        expect(result.success.agentCommands[0]?.enforcement).toBe("prefix");
+        expect(result.success.agentCommands[0]?.degraded).toBe(false);
       }
     });
 
@@ -327,10 +327,10 @@ describe("SecurityPostureSchema", () => {
         ],
       };
       const result = decodeSecurityPosture(posture);
-      expect(Either.isRight(result)).toBe(true);
-      if (Either.isRight(result)) {
-        expect(result.right.agentCommands[0]?.degraded).toBe(true);
-        expect(result.right.agentCommands[0]?.enforcement).toBe("none");
+      expect(Result.isSuccess(result)).toBe(true);
+      if (Result.isSuccess(result)) {
+        expect(result.success.agentCommands[0]?.degraded).toBe(true);
+        expect(result.success.agentCommands[0]?.enforcement).toBe("none");
       }
     });
 
@@ -350,7 +350,7 @@ describe("SecurityPostureSchema", () => {
         // agentCommands intentionally omitted
       };
       const result = decodeSecurityPosture(invalid);
-      expect(Either.isLeft(result)).toBe(true);
+      expect(Result.isFailure(result)).toBe(true);
     });
 
     it("rejects agentCommands entry with empty command string", () => {
@@ -368,7 +368,7 @@ describe("SecurityPostureSchema", () => {
         ],
       };
       const result = decodeSecurityPosture(posture);
-      expect(Either.isLeft(result)).toBe(true);
+      expect(Result.isFailure(result)).toBe(true);
     });
 
     const postureWithSource = (source: string) => ({
@@ -387,15 +387,15 @@ describe("SecurityPostureSchema", () => {
 
     it.each(["config", "gate"])("accepts agentCommands source %s", (source) => {
       const result = decodeSecurityPosture(postureWithSource(source));
-      expect(Either.isRight(result)).toBe(true);
-      if (Either.isRight(result)) {
-        expect(result.right.agentCommands[0]?.source).toBe(source);
+      expect(Result.isSuccess(result)).toBe(true);
+      if (Result.isSuccess(result)) {
+        expect(result.success.agentCommands[0]?.source).toBe(source);
       }
     });
 
     it("rejects an agentCommands source outside config and gate", () => {
       const result = decodeSecurityPosture(postureWithSource("plugin"));
-      expect(Either.isLeft(result)).toBe(true);
+      expect(Result.isFailure(result)).toBe(true);
     });
 
     it("round-trips posture with agentCommands", () => {
@@ -414,9 +414,9 @@ describe("SecurityPostureSchema", () => {
       };
       const encoded = encodeSecurityPosture(posture);
       const decoded = decodeSecurityPosture(encoded);
-      expect(Either.isRight(decoded)).toBe(true);
-      if (Either.isRight(decoded)) {
-        expect(decoded.right).toEqual(posture);
+      expect(Result.isSuccess(decoded)).toBe(true);
+      if (Result.isSuccess(decoded)) {
+        expect(decoded.success).toEqual(posture);
       }
     });
   });
@@ -428,20 +428,20 @@ describe("SecurityPostureSchema", () => {
         skillEditGrants: [".claude/skills/foo/SKILL.md"],
       };
       const decoded = decodeSecurityPosture(encodeSecurityPosture(posture));
-      expect(Either.isRight(decoded)).toBe(true);
-      if (Either.isRight(decoded)) {
-        expect(decoded.right.skillEditGrants).toEqual([".claude/skills/foo/SKILL.md"]);
+      expect(Result.isSuccess(decoded)).toBe(true);
+      if (Result.isSuccess(decoded)) {
+        expect(decoded.success.skillEditGrants).toEqual([".claude/skills/foo/SKILL.md"]);
       }
     });
 
     it("rejects posture missing skillEditGrants field", () => {
       const { skillEditGrants: _omitted, ...invalid } = baseSecurePosture;
-      expect(Either.isLeft(decodeSecurityPosture(invalid))).toBe(true);
+      expect(Result.isFailure(decodeSecurityPosture(invalid))).toBe(true);
     });
 
     it("rejects an empty grant path", () => {
       const posture = { ...baseSecurePosture, skillEditGrants: [""] };
-      expect(Either.isLeft(decodeSecurityPosture(posture))).toBe(true);
+      expect(Result.isFailure(decodeSecurityPosture(posture))).toBe(true);
     });
   });
 
@@ -452,9 +452,9 @@ describe("SecurityPostureSchema", () => {
         marks: ["command-precision"] as const,
       };
       const result = decodeSecurityPosture(posture);
-      expect(Either.isRight(result)).toBe(true);
-      if (Either.isRight(result)) {
-        expect(result.right.marks).toContain("command-precision");
+      expect(Result.isSuccess(result)).toBe(true);
+      if (Result.isSuccess(result)) {
+        expect(result.success.marks).toContain("command-precision");
       }
     });
 
@@ -464,9 +464,9 @@ describe("SecurityPostureSchema", () => {
         marks: ["partial-filesystem", "mcp-unenforced", "command-precision"] as const,
       };
       const result = decodeSecurityPosture(posture);
-      expect(Either.isRight(result)).toBe(true);
-      if (Either.isRight(result)) {
-        expect(result.right.marks).toHaveLength(3);
+      expect(Result.isSuccess(result)).toBe(true);
+      if (Result.isSuccess(result)) {
+        expect(result.success.marks).toHaveLength(3);
       }
     });
 
@@ -487,9 +487,9 @@ describe("SecurityPostureSchema", () => {
       };
       const encoded = encodeSecurityPosture(posture);
       const decoded = decodeSecurityPosture(encoded);
-      expect(Either.isRight(decoded)).toBe(true);
-      if (Either.isRight(decoded)) {
-        expect(decoded.right.marks).toContain("command-precision");
+      expect(Result.isSuccess(decoded)).toBe(true);
+      if (Result.isSuccess(decoded)) {
+        expect(decoded.success.marks).toContain("command-precision");
       }
     });
   });
@@ -532,7 +532,7 @@ describe("SecurityPostureSchema", () => {
     it("round-trips a closed stop", () => {
       const posture = { ...baseSecurePosture, stop: closedStop };
       const decoded = decodeSecurityPosture(encodeSecurityPosture(posture));
-      expect(Either.isRight(decoded) && decoded.right.stop).toEqual(closedStop);
+      expect(Result.isSuccess(decoded) && decoded.success.stop).toEqual(closedStop);
     });
 
     // oxlint-disable-next-line no-unused-vars
@@ -576,20 +576,20 @@ describe("SecurityPostureSchema", () => {
       ["a version-2 file with an extra key", { ...v2, extra: true }],
       ["a version-4 file", { ...baseSecurePosture, version: 4 }],
     ])("readSecurityPosture refuses %s", (_label, input) => {
-      expect(Either.isLeft(readSecurityPosture(input))).toBe(true);
+      expect(Result.isFailure(readSecurityPosture(input))).toBe(true);
     });
 
     it("readSecurityPosture lifts a version-1 file with protectedPaths and stop null", () => {
       const read = readSecurityPosture(v1);
-      expect(Either.isRight(read)).toBe(true);
-      if (Either.isRight(read)) {
-        expect(read.right).toEqual({ ...baseSecurePosture, stop: null, protectedPaths: null });
+      expect(Result.isSuccess(read)).toBe(true);
+      if (Result.isSuccess(read)) {
+        expect(read.success).toEqual({ ...baseSecurePosture, stop: null, protectedPaths: null });
       }
     });
 
     it("readSecurityPosture lifts a version-2 file with protectedPaths null, keeping its stop", () => {
       const read = readSecurityPosture({ ...v2, stop: closedStop });
-      expect(Either.isRight(read) && read.right).toEqual({
+      expect(Result.isSuccess(read) && read.success).toEqual({
         ...baseSecurePosture,
         stop: closedStop,
         protectedPaths: null,
@@ -602,7 +602,7 @@ describe("SecurityPostureSchema", () => {
         protectedPaths: { globs: ["**/steme.baseline.json", "phax.json"], enforcement: "enforced" },
       } as const;
       const read = readSecurityPosture(encodeSecurityPosture(posture));
-      expect(Either.isRight(read) && read.right).toEqual(posture);
+      expect(Result.isSuccess(read) && read.success).toEqual(posture);
     });
 
     it("keeps the keys in order, protectedPaths before providerSkippedForSecurity", () => {
@@ -615,7 +615,7 @@ describe("SecurityPostureSchema", () => {
     it("readSecurityPosture reads a version-3 file as decodeSecurityPosture does", () => {
       const posture = { ...baseSecurePosture, stop: closedStop };
       const read = readSecurityPosture(encodeSecurityPosture(posture));
-      expect(Either.isRight(read) && read.right).toEqual(posture);
+      expect(Result.isSuccess(read) && read.success).toEqual(posture);
     });
   });
 });

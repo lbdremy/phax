@@ -39,7 +39,7 @@ class AlreadyInitializedError extends Data.TaggedError("AlreadyInitializedError"
 /** The wizard failed: its error's sentence. */
 class InitFailedError extends Data.TaggedError("InitFailedError")<{ readonly message: string }> {}
 
-const InitOutput = Schema.Union(
+const InitOutput = Schema.Union([
   Schema.Struct({
     kind: Schema.Literal("created"),
     configPath: Schema.String,
@@ -49,7 +49,7 @@ const InitOutput = Schema.Union(
     written: Schema.Array(Written),
   }),
   Schema.Struct({ kind: Schema.Literal("aborted") }),
-);
+]);
 
 function makeInitCommand(layers: InitLayers) {
   return defineCommand({
@@ -60,17 +60,15 @@ function makeInitCommand(layers: InitLayers) {
     input: {
       flags: reject(
         Schema.Struct({
-          force: Schema.optionalWith(
-            Schema.Boolean.annotations({
+          force: Schema.optionalKey(
+            Schema.Boolean.annotate({
               description: "Overwrite and reconfigure an existing phax.json",
             }),
-            { exact: true },
           ),
-          yes: Schema.optionalWith(
-            Schema.Boolean.annotations({
+          yes: Schema.optionalKey(
+            Schema.Boolean.annotate({
               description: "Accept detected defaults without prompting",
             }),
-            { exact: true },
           ),
         }),
       ),
@@ -94,7 +92,7 @@ function makeInitCommand(layers: InitLayers) {
             (error) => error instanceof PromptCancelled,
             () => Effect.succeed({ cancelled: true as const }),
           ),
-          Effect.catchAll((error) => Effect.fail(new InitFailedError({ message: error.message }))),
+          Effect.catch((error) => Effect.fail(new InitFailedError({ message: error.message }))),
         );
         if (outcome.cancelled) return { kind: "aborted" as const };
         const result = outcome.result;

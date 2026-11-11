@@ -1,6 +1,6 @@
 // Acceptance criteria carry a `then` key (given/when/then) — data, never awaited.
 /* eslint-disable unicorn/no-thenable */
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   authorArtifact,
@@ -262,7 +262,7 @@ function setup(finalText?: string) {
   git.impl.setHeadCommit("a1b2c3d4".repeat(5));
   const layer = Layer.mergeAll(fs.layer, git.layer, backend.layer, github.layer);
   const run = (i: AuthorArtifactInput) =>
-    Effect.runPromise(Effect.either(authorArtifact(i).pipe(Effect.provide(layer))));
+    Effect.runPromise(Effect.result(authorArtifact(i).pipe(Effect.provide(layer))));
   return { fs: fs.impl, git: git.impl, backend: backend.impl, run };
 }
 
@@ -282,9 +282,9 @@ describe("authorArtifact — spec", () => {
 
     const result = await run(input());
 
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isLeft(result)) return;
-    expect(result.right).toEqual({
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isFailure(result)) return;
+    expect(result.success).toEqual({
       path: SPEC_PATH,
       sidecarPath: SPEC_SIDECAR,
       commit: { hash: "a1b2c3d4".repeat(5), subject: "docs(specs): draft plan-prune" },
@@ -295,11 +295,11 @@ describe("authorArtifact — spec", () => {
     });
 
     const doc = decodeAuthoredSpecDocument(SPEC_DOCUMENT);
-    if (Either.isLeft(doc)) throw new Error("fixture does not decode");
+    if (Result.isFailure(doc)) throw new Error("fixture does not decode");
     const md = fs.getFile(SPEC_PATH) ?? "";
     expect(md).toContain("status: Draft");
     expect(md).toContain("date: 2026-09-23");
-    expect(splitFrontmatter(md)?.body).toBe(renderSpecBody(doc.right));
+    expect(splitFrontmatter(md)?.body).toBe(renderSpecBody(doc.success));
 
     // The sidecar and the session's document.json: $schema first, no version.
     const sidecar = fs.getFile(SPEC_SIDECAR) ?? "";
@@ -311,7 +311,7 @@ describe("authorArtifact — spec", () => {
     // At the current shape: every question open, none arbitrated.
     expect(written["$schema"]).toBe(currentSchemaUrl("spec-document"));
     expect(written["arbitratedQuestions"]).toEqual([]);
-    expect(Either.isRight(decodeSpecDocumentFile(written))).toBe(true);
+    expect(Result.isSuccess(decodeSpecDocumentFile(written))).toBe(true);
 
     const commits = git.calls.filter((call) => call.method === "commitPaths");
     expect(commits).toHaveLength(1);
@@ -376,7 +376,7 @@ describe("authorArtifact — spec", () => {
 
     const result = await run(input());
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     expect(fs.getFile(SPEC_SIDECAR)).toBeDefined();
   });
 
@@ -387,7 +387,7 @@ describe("authorArtifact — spec", () => {
 
     const result = await run(input());
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     expect(fs.getFile(SPEC_PATH)).toBeDefined();
     expect(fs.getFile(SPEC_SIDECAR)).toBeDefined();
     const commit = git.calls.find((call) => call.method === "commitPaths");
@@ -404,7 +404,7 @@ describe("authorArtifact — the session kept for decide (§5.2)", () => {
 
     const result = await run(input());
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     expect(SPEC_PATH).toContain(`/${SESSION_FOLDER.slice(SESSION_FOLDER.lastIndexOf("/") + 1)}.md`);
     expect(JSON.parse(fs.getFile(`${SESSION_FOLDER}/session.json`) ?? "null")).toEqual({
       version: 1,
@@ -430,7 +430,7 @@ describe("authorArtifact — the session kept for decide (§5.2)", () => {
 
     const result = await run(input());
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     expect(JSON.parse(fs.getFile(`${SESSION_FOLDER}/session.json`) ?? "null")).toEqual({
       version: 1,
       provider: "claude-code",
@@ -445,7 +445,7 @@ describe("authorArtifact — the session kept for decide (§5.2)", () => {
 
     const result = await run(input());
 
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
     expect(JSON.parse(fs.getFile(`${SESSION_FOLDER}/session.json`) ?? "null")).toMatchObject({
       sessionId: "sess-authoring",
       retrySessionId: "sess-authoring",
@@ -460,17 +460,17 @@ describe("authorArtifact — plan", () => {
 
     const result = await run(input({ kind: "plan", sourceSpec: SOURCE_SPEC, completion: LAST }));
 
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isLeft(result)) return;
-    expect(result.right.path).toBe(PLAN_PATH);
-    expect(result.right.sidecarPath).toBe(PLAN_SIDECAR);
-    expect(result.right.commit.subject).toBe("docs(plans): draft plan-prune");
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isFailure(result)) return;
+    expect(result.success.path).toBe(PLAN_PATH);
+    expect(result.success.sidecarPath).toBe(PLAN_SIDECAR);
+    expect(result.success.commit.subject).toBe("docs(plans): draft plan-prune");
 
     const doc = decodeAuthoredPlanDocument(PLAN_DOCUMENT);
-    if (Either.isLeft(doc)) throw new Error("fixture does not decode");
+    if (Result.isFailure(doc)) throw new Error("fixture does not decode");
     const md = fs.getFile(PLAN_PATH) ?? "";
     expect(md).toContain(`source-spec: ${SOURCE_SPEC}\ncompletes-spec: true\n`);
-    expect(splitFrontmatter(md)?.body).toBe(renderPlanBody(doc.right));
+    expect(splitFrontmatter(md)?.body).toBe(renderPlanBody(doc.success));
     const sidecar = fs.getFile(PLAN_SIDECAR) ?? "";
     const written: Record<string, unknown> = JSON.parse(sidecar);
     expect(Object.keys(written)[0]).toBe("$schema");
@@ -479,19 +479,19 @@ describe("authorArtifact — plan", () => {
     // At the current shape: both preamble question arrays, empty.
     expect(written["$schema"]).toBe(currentSchemaUrl("plan-document"));
     expect(written["preamble"]).toMatchObject({ openQuestions: [], arbitratedQuestions: [] });
-    expect(Either.isRight(decodePlanDocumentFile(written))).toBe(true);
+    expect(Result.isSuccess(decodePlanDocumentFile(written))).toBe(true);
 
     const key = planCacheKey(md, "claude-sonnet-5", "medium");
     const entryText = fs.getFile(cacheEntryPath(STATE_ROOT, key));
     expect(entryText).toBeDefined();
     const entry = decodeExtractedPlanCacheEntry(JSON.parse(entryText ?? ""));
-    expect(Either.isRight(entry)).toBe(true);
-    if (Either.isRight(entry)) {
-      expect(entry.right.extracted).toEqual(projectExtractedPlan(doc.right));
-      expect(entry.right.model).toBe("claude-sonnet-5");
-      expect(entry.right.effort).toBe("medium");
-      expect(entry.right.extractorVersion).toBe(EXTRACTOR_VERSION);
-      expect(entry.right.extractedAt).toBe(NOW);
+    expect(Result.isSuccess(entry)).toBe(true);
+    if (Result.isSuccess(entry)) {
+      expect(entry.success.extracted).toEqual(projectExtractedPlan(doc.success));
+      expect(entry.success.model).toBe("claude-sonnet-5");
+      expect(entry.success.effort).toBe("medium");
+      expect(entry.success.extractorVersion).toBe(EXTRACTOR_VERSION);
+      expect(entry.success.extractedAt).toBe(NOW);
     }
 
     const commit = git.calls.find((call) => call.method === "commitPaths");
@@ -551,7 +551,7 @@ describe("authorArtifact — plan", () => {
 
     const result = await run(input({ kind: "plan", sourceSpec: SOURCE_SPEC, completion: LAST }));
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     const sidecar = JSON.parse(fs.getFile(PLAN_SIDECAR) ?? "");
     expect(sidecar.sourceSpec).toBe(SOURCE_SPEC);
     expect(sidecar.completesSpec).toBe(true);
@@ -574,10 +574,10 @@ describe("authorArtifact — plan", () => {
       input({ kind: "plan", sourceSpec: SOURCE_SPEC, completion: NOT_LAST }),
     );
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     const md = fs.getFile(PLAN_PATH) ?? "";
     expect(md).toContain(`source-spec: ${SOURCE_SPEC}\ncompletes-spec: false\n`);
-    expect(Either.isRight(validateArtifact(PLAN_PATH, md))).toBe(true);
+    expect(Result.isSuccess(validateArtifact(PLAN_PATH, md))).toBe(true);
     const sidecar = fs.getFile(PLAN_SIDECAR) ?? "";
     const notLast = { ...PLAN_DOCUMENT, completesSpec: false };
     expect(JSON.parse(sidecar)).toEqual(stamped("plan-document", notLast));
@@ -591,7 +591,7 @@ describe("authorArtifact — plan", () => {
 
     const result = await run(input({ kind: "plan", sourceSpec: null, completion: NO_FLAGS }));
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     const sidecar = JSON.parse(fs.getFile(PLAN_SIDECAR) ?? "");
     expect(sidecar.sourceSpec).toBeNull();
     expect(sidecar.completesSpec).toBeNull();
@@ -609,7 +609,7 @@ describe("authorArtifact — the architecture provider", () => {
 
     const result = await run(planInput({ architectureProvider: true }));
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     const options = backend.runCalls[0]?.options;
     expect(options?.agentCommands).toEqual(["phax architecture"]);
     expect(options?.security.agentCommands).toEqual(["git", "phax architecture"]);
@@ -627,7 +627,7 @@ describe("authorArtifact — the architecture provider", () => {
 
     const result = await run(planInput({ architectureProvider: false, assignmentBounds: true }));
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     const options = backend.runCalls[0]?.options;
     expect(options?.agentCommands).toEqual(["phax architecture"]);
     expect(options?.security.agentCommands).toEqual(["git", "phax architecture"]);
@@ -643,7 +643,7 @@ describe("authorArtifact — the architecture provider", () => {
 
     const result = await run(planInput({ architectureProvider: false }));
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     const options = backend.runCalls[0]?.options;
     expect(options).toBeDefined();
     expect(options).not.toHaveProperty("agentCommands");
@@ -657,7 +657,7 @@ describe("authorArtifact — the architecture provider", () => {
   it("a plan is told whether an oracles provider is configured, and is granted nothing for it", async () => {
     const configured = setup(JSON.stringify(PLAN_DOCUMENT));
     configured.fs.setFile(SOURCE_SPEC, APPROVED_SPEC);
-    expect(Either.isRight(await configured.run(planInput({ acceptanceProvider: true })))).toBe(
+    expect(Result.isSuccess(await configured.run(planInput({ acceptanceProvider: true })))).toBe(
       true,
     );
     expect(configured.backend.runCalls[0]?.prompt).toContain(
@@ -668,7 +668,7 @@ describe("authorArtifact — the architecture provider", () => {
 
     const absent = setup(JSON.stringify(PLAN_DOCUMENT));
     absent.fs.setFile(SOURCE_SPEC, APPROVED_SPEC);
-    expect(Either.isRight(await absent.run(planInput({ acceptanceProvider: false })))).toBe(true);
+    expect(Result.isSuccess(await absent.run(planInput({ acceptanceProvider: false })))).toBe(true);
     expect(absent.backend.runCalls[0]?.prompt).toContain("No acceptance provider is configured");
   });
 
@@ -677,7 +677,7 @@ describe("authorArtifact — the architecture provider", () => {
 
     const result = await run(input({ architectureProvider: true }));
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     const options = backend.runCalls[0]?.options;
     expect(options).not.toHaveProperty("agentCommands");
     expect(options?.security.agentCommands).toEqual(["git"]);
@@ -691,12 +691,12 @@ describe("authorArtifact — failures land nothing", () => {
 
     const result = await run(input());
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isRight(result)) return;
-    expect(result.left).toBeInstanceOf(AuthoringDocumentError);
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isSuccess(result)) return;
+    expect(result.failure).toBeInstanceOf(AuthoringDocumentError);
     const refusal =
       "the session's final message is not JSON (Unexpected token 'H' at position 0): Here is your spec: it is great.";
-    expect(result.left.message).toBe(
+    expect(result.failure.message).toBe(
       `spec document rejected twice — first answer: ${refusal}; retry: ${refusal}`,
     );
     expect(repoFiles(fs)).toEqual([]);
@@ -713,11 +713,11 @@ describe("authorArtifact — failures land nothing", () => {
 
     const result = await run(input());
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isRight(result)) return;
-    expect(result.left).toBeInstanceOf(AuthoringDocumentError);
-    expect(result.left.message).toContain("spec document rejected twice — ");
-    expect(result.left.message).toContain("acceptanceCriteria[0].refs[0]");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isSuccess(result)) return;
+    expect(result.failure).toBeInstanceOf(AuthoringDocumentError);
+    expect(result.failure.message).toContain("spec document rejected twice — ");
+    expect(result.failure.message).toContain("acceptanceCriteria[0].refs[0]");
     expect(repoFiles(fs)).toEqual([]);
     expect(fs.getFile(`${SESSION_FOLDER}/document.json`)).toBeUndefined();
     expect(git.calls.some((call) => call.method === "commitPaths")).toBe(false);
@@ -734,11 +734,11 @@ describe("authorArtifact — failures land nothing", () => {
 
     const result = await run(input());
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isRight(result)) return;
-    expect(result.left).toBeInstanceOf(AuthoringDocumentError);
-    expect(result.left.message).toContain("spec document rejected twice — ");
-    expect(result.left.message).toContain("surface[1].summary");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isSuccess(result)) return;
+    expect(result.failure).toBeInstanceOf(AuthoringDocumentError);
+    expect(result.failure.message).toContain("spec document rejected twice — ");
+    expect(result.failure.message).toContain("surface[1].summary");
     expect(repoFiles(fs)).toEqual([]);
     expect(fs.getFile(`${SESSION_FOLDER}/document.json`)).toBeUndefined();
     expect(git.calls.some((call) => call.method === "commitPaths")).toBe(false);
@@ -753,11 +753,11 @@ describe("authorArtifact — failures land nothing", () => {
 
       const result = await run(input({ kind: "plan", sourceSpec: SOURCE_SPEC, completion: LAST }));
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isRight(result)) return;
-      expect(result.left).toBeInstanceOf(AuthoringDocumentError);
-      expect(result.left.message).toContain("plan document rejected twice — ");
-      expect(result.left.message).toContain("completesSpec");
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isSuccess(result)) return;
+      expect(result.failure).toBeInstanceOf(AuthoringDocumentError);
+      expect(result.failure.message).toContain("plan document rejected twice — ");
+      expect(result.failure.message).toContain("completesSpec");
       expect(repoFiles(fs)).toEqual([SOURCE_SPEC]);
       expect(fs.getFile(`${SESSION_FOLDER}/document.json`)).toBeUndefined();
       expect(git.calls.some((call) => call.method === "commitPaths")).toBe(false);
@@ -799,14 +799,14 @@ describe("authorArtifact — failures land nothing", () => {
           : input({ kind: "plan", sourceSpec: SOURCE_SPEC, completion: LAST }),
       );
 
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isRight(result)) return;
-      expect(result.left).toBeInstanceOf(AuthoringDocumentError);
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isSuccess(result)) return;
+      expect(result.failure).toBeInstanceOf(AuthoringDocumentError);
       const path = kind === "spec" ? refusal : `preamble.${refusal}`;
-      expect(result.left.message).toBe(
+      expect(result.failure.message).toBe(
         `${kind} document rejected twice — first answer: ${path}; retry: ${path}`,
       );
-      expect(exitCodeForAuthoringError(result.left)).toBe(5);
+      expect(exitCodeForAuthoringError(result.failure)).toBe(5);
       expect(backend.resumeCalls).toHaveLength(1);
       expect(repoFiles(fs)).toEqual([SOURCE_SPEC]);
       expect(fs.getFile(`${SESSION_FOLDER}/document.json`)).toBeUndefined();
@@ -841,13 +841,15 @@ describe("authorArtifact — failures land nothing", () => {
 
       const result = await run(input());
 
-      expect(Either.isLeft(result), name).toBe(true);
-      if (Either.isRight(result)) return;
-      expect(result.left).toBeInstanceOf(AuthoringDocumentError);
-      expect(result.left.message).toContain(path);
-      expect(result.left.message).toContain(`${first.id}`);
-      expect(result.left.message).toContain('"other" is reserved and implicit on every question');
-      expect(exitCodeForAuthoringError(result.left)).toBe(5);
+      expect(Result.isFailure(result), name).toBe(true);
+      if (Result.isSuccess(result)) return;
+      expect(result.failure).toBeInstanceOf(AuthoringDocumentError);
+      expect(result.failure.message).toContain(path);
+      expect(result.failure.message).toContain(`${first.id}`);
+      expect(result.failure.message).toContain(
+        '"other" is reserved and implicit on every question',
+      );
+      expect(exitCodeForAuthoringError(result.failure)).toBe(5);
       expect(backend.resumeCalls).toHaveLength(1);
       expect(repoFiles(fs)).toEqual([]);
       expect(git.calls.some((call) => call.method === "commitPaths")).toBe(false);
@@ -859,8 +861,8 @@ describe("authorArtifact — failures land nothing", () => {
 
     const result = await run(input());
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) expect(result.left).toBeInstanceOf(AuthoringDocumentError);
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) expect(result.failure).toBeInstanceOf(AuthoringDocumentError);
     expect(repoFiles(fs)).toEqual([]);
   });
 
@@ -870,10 +872,10 @@ describe("authorArtifact — failures land nothing", () => {
 
     const result = await run(input());
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(ArtifactCreationError);
-      expect(result.left.message).toContain(SPEC_PATH);
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toBeInstanceOf(ArtifactCreationError);
+      expect(result.failure.message).toContain(SPEC_PATH);
     }
     expect(backend.runCalls.length).toBe(0);
     expect(fs.getFile(`${SESSION_FOLDER}/brief.md`)).toBeUndefined();
@@ -885,10 +887,10 @@ describe("authorArtifact — failures land nothing", () => {
 
     const result = await run(input());
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(ArtifactCreationError);
-      expect(result.left.message).toContain(SPEC_SIDECAR);
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toBeInstanceOf(ArtifactCreationError);
+      expect(result.failure.message).toContain(SPEC_SIDECAR);
     }
     expect(backend.runCalls.length).toBe(0);
     expect(fs.getFile(SPEC_PATH)).toBeUndefined();
@@ -897,16 +899,18 @@ describe("authorArtifact — failures land nothing", () => {
   it("a bad slug or a missing --spec is refused before the session is spawned", async () => {
     const bad = setup(JSON.stringify(SPEC_DOCUMENT));
     const badSlug = await bad.run(input({ slug: "Plan_Prune" }));
-    expect(Either.isLeft(badSlug) && badSlug.left instanceof ArtifactCreationError).toBe(true);
+    expect(Result.isFailure(badSlug) && badSlug.failure instanceof ArtifactCreationError).toBe(
+      true,
+    );
     expect(bad.backend.runCalls.length).toBe(0);
 
     const missing = setup(JSON.stringify(PLAN_DOCUMENT));
     const missingSpec = await missing.run(
       input({ kind: "plan", sourceSpec: SOURCE_SPEC, completion: LAST }),
     );
-    expect(Either.isLeft(missingSpec) && missingSpec.left instanceof ArtifactCreationError).toBe(
-      true,
-    );
+    expect(
+      Result.isFailure(missingSpec) && missingSpec.failure instanceof ArtifactCreationError,
+    ).toBe(true);
     expect(missing.backend.runCalls.length).toBe(0);
   });
 
@@ -922,7 +926,9 @@ describe("authorArtifact — failures land nothing", () => {
 
       const result = await run(input(overrides));
 
-      expect(Either.isLeft(result) && result.left instanceof ArtifactCreationError).toBe(true);
+      expect(Result.isFailure(result) && result.failure instanceof ArtifactCreationError).toBe(
+        true,
+      );
       expect(backend.runCalls.length).toBe(0);
       expect(repoFiles(fs)).toEqual([SOURCE_SPEC]);
       expect(fs.getFile(`${SESSION_FOLDER}/brief.md`)).toBeUndefined();
@@ -935,8 +941,8 @@ describe("authorArtifact — failures land nothing", () => {
 
     const result = await run(input());
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) expect(result.left).toBeInstanceOf(RateLimitError);
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) expect(result.failure).toBeInstanceOf(RateLimitError);
     expect(repoFiles(fs)).toEqual([]);
   });
 
@@ -946,17 +952,17 @@ describe("authorArtifact — failures land nothing", () => {
 
     const result = await run(input());
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(ArtifactCommitFailedError);
-      if (result.left instanceof ArtifactCommitFailedError) {
-        expect(result.left.paths).toEqual([SPEC_PATH, SPEC_SIDECAR]);
-        expect(result.left.cause).toContain("pre-commit hook failed");
-        expect(result.left.commitMessage.subject).toBe("docs(specs): draft plan-prune");
-        expect(result.left.commitMessage.body).toMatch(/\nAuthoring-Id: 2609230835-plan-prune$/);
-        expect(result.left.message).toContain("-m 'docs(specs): draft plan-prune'");
-        expect(result.left.message).toContain("Authoring-Id: 2609230835-plan-prune'");
-        expect(result.left.message).toContain(
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toBeInstanceOf(ArtifactCommitFailedError);
+      if (result.failure instanceof ArtifactCommitFailedError) {
+        expect(result.failure.paths).toEqual([SPEC_PATH, SPEC_SIDECAR]);
+        expect(result.failure.cause).toContain("pre-commit hook failed");
+        expect(result.failure.commitMessage.subject).toBe("docs(specs): draft plan-prune");
+        expect(result.failure.commitMessage.body).toMatch(/\nAuthoring-Id: 2609230835-plan-prune$/);
+        expect(result.failure.message).toContain("-m 'docs(specs): draft plan-prune'");
+        expect(result.failure.message).toContain("Authoring-Id: 2609230835-plan-prune'");
+        expect(result.failure.message).toContain(
           `Formatting the JSON sidecar (${SPEC_SIDECAR}) is safe`,
         );
       }
@@ -978,8 +984,8 @@ describe("authorArtifact — authoring record", () => {
 
     const result = await run(input({ records: RECORDS_IN_REPO }));
 
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isLeft(result)) return;
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isFailure(result)) return;
     const writes = recordWrites(git);
     expect(writes).toHaveLength(1);
     const [write] = writes;
@@ -1002,7 +1008,7 @@ describe("authorArtifact — authoring record", () => {
     expect(commitIndex).toBeGreaterThanOrEqual(0);
     expect(recordIndex).toBeGreaterThan(commitIndex);
 
-    expect(result.right.record).toMatchObject({
+    expect(result.success.record).toMatchObject({
       kind: "written",
       key: "authoring/2609230835-plan-prune",
       shape: "full",
@@ -1015,8 +1021,8 @@ describe("authorArtifact — authoring record", () => {
 
     const result = await run(input({ records: RECORDS_IN_REPO }));
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) expect(result.left).toBeInstanceOf(AuthoringDocumentError);
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) expect(result.failure).toBeInstanceOf(AuthoringDocumentError);
     expect(git.calls.some((call) => call.method === "commitPaths")).toBe(false);
     const writes = recordWrites(git);
     expect(writes).toHaveLength(1);
@@ -1031,7 +1037,7 @@ describe("authorArtifact — authoring record", () => {
 
     const result = await run(input({ records: RECORDS_IN_REPO }));
 
-    expect(Either.isLeft(result) && result.left instanceof RateLimitError).toBe(true);
+    expect(Result.isFailure(result) && result.failure instanceof RateLimitError).toBe(true);
     const writes = recordWrites(git);
     expect(writes).toHaveLength(1);
     expect(writes[0]?.message).toMatch(/^records\(authoring\): failed\n/);
@@ -1051,11 +1057,11 @@ describe("authorArtifact — authoring record", () => {
       }),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
     expect(warnings).toEqual([
       `spec document refused — ${NOT_JSON_REFUSAL}\n  resuming the session once to ask for the whole document again`,
     ]);
-    const error = Either.isLeft(result) ? result.left : undefined;
+    const error = Result.isFailure(result) ? result.failure : undefined;
     expect(error).toBeInstanceOf(FailureWithFollowUpsError);
     expect(error instanceof FailureWithFollowUpsError && error.cause).toBeInstanceOf(
       AuthoringDocumentError,
@@ -1071,7 +1077,7 @@ describe("authorArtifact — authoring record", () => {
 
     const result = await run(input({ records: RECORDS_IN_REPO }));
 
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
     expect(recordWrites(git)).toHaveLength(0);
   });
 
@@ -1080,7 +1086,7 @@ describe("authorArtifact — authoring record", () => {
 
     const result = await run(input());
 
-    expect(Either.isRight(result) && result.right.record.kind).toBe("records-off");
+    expect(Result.isSuccess(result) && result.success.record.kind).toBe("records-off");
     expect(recordWrites(git)).toHaveLength(0);
   });
 
@@ -1096,9 +1102,9 @@ describe("authorArtifact — authoring record", () => {
       }),
     );
 
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.record).toEqual({ kind: "deferred-destination", destination: "repo" });
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success.record).toEqual({ kind: "deferred-destination", destination: "repo" });
     }
     expect(git.calls.some((call) => call.method === "commitPaths")).toBe(true);
     expect(recordWrites(git)).toHaveLength(0);
@@ -1123,8 +1129,8 @@ describe("authorArtifact — authoring record push", () => {
 
     const result = await run(input({ records: AUTO_PUSH_IN_REPO, publishRemote: PUBLISH_REMOTE }));
 
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isLeft(result)) return;
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isFailure(result)) return;
     expect(recordPushes(git)).toEqual([
       { method: "pushBranch", branch: "phax/records/v1", remote: PUBLISH_REMOTE, repo: REPO_ROOT },
     ]);
@@ -1132,12 +1138,12 @@ describe("authorArtifact — authoring record push", () => {
     const writeIndex = git.calls.findIndex((call) => call.method === "writeTreeCommit");
     const pushIndex = git.calls.findIndex((call) => call.method === "pushBranch");
     expect(pushIndex).toBeGreaterThan(writeIndex);
-    expect(result.right.recordPush).toEqual({
+    expect(result.success.recordPush).toEqual({
       kind: "pushed",
       remote: PUBLISH_REMOTE,
       path: REPO_ROOT,
     });
-    expect(recordPushWarning(result.right.recordPush)).toBeUndefined();
+    expect(recordPushWarning(result.success.recordPush)).toBeUndefined();
   });
 
   it("a dedicated repo destination pushes to origin at the records clone", async () => {
@@ -1151,7 +1157,7 @@ describe("authorArtifact — authoring record push", () => {
       }),
     );
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     expect(recordPushes(git)).toEqual([
       { method: "pushBranch", branch: "phax/records/v1", remote: "origin", repo: CLONE_PATH },
     ]);
@@ -1162,7 +1168,9 @@ describe("authorArtifact — authoring record push", () => {
 
     const result = await run(input({ records: RECORDS_IN_REPO, publishRemote: PUBLISH_REMOTE }));
 
-    expect(Either.isRight(result) && result.right.recordPush).toEqual({ kind: "not-configured" });
+    expect(Result.isSuccess(result) && result.success.recordPush).toEqual({
+      kind: "not-configured",
+    });
     expect(recordPushes(git)).toHaveLength(0);
   });
 
@@ -1173,7 +1181,7 @@ describe("authorArtifact — authoring record push", () => {
       input({ records: { ...RECORDS_OFF, autoPush: true }, publishRemote: PUBLISH_REMOTE }),
     );
 
-    expect(Either.isRight(result) && result.right.recordPush).toEqual({ kind: "no-record" });
+    expect(Result.isSuccess(result) && result.success.recordPush).toEqual({ kind: "no-record" });
     expect(recordPushes(git)).toHaveLength(0);
   });
 
@@ -1182,7 +1190,7 @@ describe("authorArtifact — authoring record push", () => {
 
     const result = await run(input({ records: AUTO_PUSH_IN_REPO, publishRemote: PUBLISH_REMOTE }));
 
-    expect(Either.isLeft(result) && result.left instanceof AuthoringDocumentError).toBe(true);
+    expect(Result.isFailure(result) && result.failure instanceof AuthoringDocumentError).toBe(true);
     expect(recordWrites(git)).toHaveLength(1);
     expect(recordPushes(git)).toEqual([
       { method: "pushBranch", branch: "phax/records/v1", remote: PUBLISH_REMOTE, repo: REPO_ROOT },
@@ -1195,10 +1203,10 @@ describe("authorArtifact — authoring record push", () => {
 
     const result = await run(input({ records: AUTO_PUSH_IN_REPO, publishRemote: PUBLISH_REMOTE }));
 
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isLeft(result)) return;
-    expect(result.right.commit.subject).toBe("docs(specs): draft plan-prune");
-    expect(result.right.recordPush).toEqual({
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isFailure(result)) return;
+    expect(result.success.commit.subject).toBe("docs(specs): draft plan-prune");
+    expect(result.success.recordPush).toEqual({
       kind: "failed",
       remote: PUBLISH_REMOTE,
       path: REPO_ROOT,
@@ -1206,7 +1214,7 @@ describe("authorArtifact — authoring record push", () => {
       // The branch read after the refusal: a local record, nothing on the remote.
       branch: { state: "no-remote-branch", localTip: expect.any(String), remoteTip: null },
     });
-    expect(recordPushWarning(result.right.recordPush)).toBe(
+    expect(recordPushWarning(result.success.recordPush)).toBe(
       `authoring record not pushed to ${PUBLISH_REMOTE} (remote rejected) — it stays pending (\`phax records status\` lists it); share it with \`git -C ${REPO_ROOT} push ${PUBLISH_REMOTE} phax/records/v1\``,
     );
   });
@@ -1224,11 +1232,11 @@ describe("authorArtifact — authoring record push", () => {
       }),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
     expect(warnings).toEqual([
       `spec document refused — ${NOT_JSON_REFUSAL}\n  resuming the session once to ask for the whole document again`,
     ]);
-    const error = Either.isLeft(result) ? result.left : undefined;
+    const error = Result.isFailure(result) ? result.failure : undefined;
     expect(error instanceof FailureWithFollowUpsError && error.followUps).toEqual([
       `authoring record not pushed to ${PUBLISH_REMOTE} (network unreachable) — it stays pending (\`phax records status\` lists it); share it with \`git -C ${REPO_ROOT} push ${PUBLISH_REMOTE} phax/records/v1\``,
     ]);
@@ -1251,8 +1259,8 @@ describe("authorArtifact — authoring record push", () => {
   });
 });
 
-function code(result: Either.Either<unknown, unknown>): number {
-  return Either.isLeft(result) ? exitCodeForAuthoringError(result.left) : 0;
+function code(result: Result.Result<unknown, unknown>): number {
+  return Result.isFailure(result) ? exitCodeForAuthoringError(result.failure) : 0;
 }
 
 describe("authorArtifact — exit codes", () => {

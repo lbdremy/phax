@@ -8,30 +8,40 @@
 // package lists it as the format's 0.33.0 release.
 import { Schema } from "effect";
 
-const SchemaUrlSchema = Schema.String.pipe(
-  Schema.pattern(
+// `Schema.isPattern` whose JSON Schema is the RegExp's source, whatever its
+// flags: Effect 4 exports a pattern only for a RegExp with the `u` flag.
+function isExportedPattern(regExp: RegExp, annotations?: Schema.Annotations.Filter) {
+  return Schema.isPattern(regExp, {
+    toJsonSchema: () => ({ pattern: regExp.source }),
+    ...annotations,
+  });
+}
+
+const SchemaUrlSchema = Schema.String.check(
+  isExportedPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/phase-record-manifest\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
-  Schema.annotations({
+).pipe(
+  Schema.annotate({
     description:
       "The phase-record-manifest format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): https://docs.phax.run/schemas/phase-record-manifest/<X.Y.Z>.json",
   }),
 );
 
-const ProviderIdSchema = Schema.Union(
+const ProviderIdSchema = Schema.Union([
   Schema.Literal("claude-code"),
   Schema.Literal("codex-cli"),
   Schema.Literal("mistral-vibe"),
-);
+]);
 
-const RecordShapeSchema = Schema.Union(Schema.Literal("full"), Schema.Literal("skeleton"));
+const RecordShapeSchema = Schema.Union([Schema.Literal("full"), Schema.Literal("skeleton")]);
 
-const RecordPhaseOutcomeSchema = Schema.Union(
+const RecordPhaseOutcomeSchema = Schema.Union([
   Schema.Literal("committed"),
   Schema.Literal("failed"),
   Schema.Literal("abandoned"),
   Schema.Literal("interrupted"),
-);
+]);
 
 const ClaudeTokenUsageSchema = Schema.Struct({
   provider: Schema.Literal("claude-code"),
@@ -58,40 +68,42 @@ const VibeTokenUsageSchema = Schema.Struct({
   costUsd: Schema.Number,
 });
 
-const ProviderTokenUsageSchema = Schema.Union(
+const ProviderTokenUsageSchema = Schema.Union([
   ClaudeTokenUsageSchema,
   CodexTokenUsageSchema,
   VibeTokenUsageSchema,
-);
+]);
 
-const TokenUsageSchema = Schema.Union(
+const TokenUsageSchema = Schema.Union([
   Schema.Struct({ available: Schema.Literal(true), usage: ProviderTokenUsageSchema }),
   Schema.Struct({ available: Schema.Literal(false) }),
-);
+]);
 
-const PhaseIdSchema = Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/));
+const PhaseIdSchema = Schema.String.check(isExportedPattern(/^phase-\d{2}$/));
 
 const RecordAcceptanceRoleSchema = Schema.NullOr(
-  Schema.Union(
+  Schema.Union([
     Schema.Struct({ role: Schema.Literal("acceptance"), passedBy: PhaseIdSchema }),
     Schema.Struct({ role: Schema.Literal("passing"), acceptancePhase: PhaseIdSchema }),
-  ),
+  ]),
 );
 
-const RecordedSurfaceSchema = Schema.Literal("local", "structural", "product", "acceptance");
+const RecordedSurfaceSchema = Schema.Literals(["local", "structural", "product", "acceptance"]);
 
-const PhaseModeSchema = Schema.Literal("headless", "interactive");
+const PhaseModeSchema = Schema.Literals(["headless", "interactive"]);
 
-const FullCommitShaSchema = Schema.String.pipe(
-  Schema.pattern(/^[0-9a-f]{40}([0-9a-f]{24})?$/),
-  Schema.annotations({
+const FullCommitShaSchema = Schema.String.check(
+  isExportedPattern(/^[0-9a-f]{40}([0-9a-f]{24})?$/),
+).pipe(
+  Schema.annotate({
     description: "A commit's full object name: 40 lowercase hex digits (SHA-1) or 64 (SHA-256).",
   }),
 );
 
-const SafeSessionIdSchema = Schema.String.pipe(
-  Schema.pattern(/^[A-Za-z0-9][A-Za-z0-9._-]*$/),
-  Schema.annotations({
+const SafeSessionIdSchema = Schema.String.check(
+  isExportedPattern(/^[A-Za-z0-9][A-Za-z0-9._-]*$/),
+).pipe(
+  Schema.annotate({
     identifier: "SafeSessionId",
     description:
       "A provider session id: a letter or digit, then letters, digits, `.`, `_` or `-`. `.`, `..` and any slash are refused.",
@@ -101,31 +113,30 @@ const SafeSessionIdSchema = Schema.String.pipe(
 const RecordClosedBySchema = Schema.Struct({
   name: Schema.NonEmptyString,
   email: Schema.NonEmptyString,
-}).annotations({
+}).annotate({
   description: "The git identity of the checkout that closed the stop.",
 });
 
-const RecordTranscriptSchema = Schema.Union(
+const RecordTranscriptSchema = Schema.Union([
   Schema.Struct({
     status: Schema.Literal("captured"),
-    sha256: Schema.String.pipe(
-      Schema.pattern(/^[0-9a-f]{64}$/),
-      Schema.annotations({ description: "The sha256 of the transcript copy's bytes." }),
+    sha256: Schema.String.check(isExportedPattern(/^[0-9a-f]{64}$/)).pipe(
+      Schema.annotate({ description: "The sha256 of the transcript copy's bytes." }),
     ),
   }),
   Schema.Struct({
     status: Schema.Literal("missing"),
-    reason: Schema.Literal("not-found", "unreadable"),
+    reason: Schema.Literals(["not-found", "unreadable"]),
     detail: Schema.NonEmptyString,
   }),
-);
+]);
 
 const RecordStopSessionSchema = Schema.Struct({
   provider: ProviderIdSchema,
   model: Schema.NonEmptyString,
   effort: Schema.NonEmptyString,
   sessionId: SafeSessionIdSchema,
-  origin: Schema.Literal("first-turn", "new-session", "builder"),
+  origin: Schema.Literals(["first-turn", "new-session", "builder"]),
   transcript: RecordTranscriptSchema,
 });
 
@@ -135,7 +146,7 @@ const stopRecordFields = {
 };
 
 const RecordStopSchema = Schema.NullOr(
-  Schema.Union(
+  Schema.Union([
     Schema.Struct({
       cause: Schema.Literal("declared"),
       outcome: Schema.Literal("corrected"),
@@ -157,7 +168,7 @@ const RecordStopSchema = Schema.NullOr(
       outcome: Schema.Literal("unchanged"),
       ...stopRecordFields,
     }),
-  ),
+  ]),
 );
 
 export const PhaseRecordManifestV0_33_0Schema = Schema.Struct({
@@ -181,7 +192,7 @@ export type PhaseRecordManifestV0_33_0 = Schema.Schema.Type<
   typeof PhaseRecordManifestV0_33_0Schema
 >;
 
-export const decodePhaseRecordManifestV0_33_0 = Schema.decodeUnknownEither(
+export const decodePhaseRecordManifestV0_33_0 = Schema.decodeUnknownResult(
   PhaseRecordManifestV0_33_0Schema,
-  { onExcessProperty: "error" },
+  { onExcessProperty: "error", reportInput: true },
 );

@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { dirname, join } from "node:path";
 import { decodeBranchName, type BranchName } from "../domain/branded.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
@@ -9,7 +9,7 @@ import { ORIGIN, RECORDS_BRANCH_NAME, readRecordsBranch } from "./recordsBranch.
 
 export { ORIGIN };
 
-const RECORDS_BRANCH: BranchName = Either.getOrThrow(decodeBranchName(RECORDS_BRANCH_NAME));
+const RECORDS_BRANCH: BranchName = Result.getOrThrow(decodeBranchName(RECORDS_BRANCH_NAME));
 
 /**
  * The local records clone's path for a dedicated `repo` destination, keyed by
@@ -191,8 +191,8 @@ export function pushRecordsBranch(
     }
 
     const git = yield* Git;
-    const pushResult = yield* Effect.either(git.pushBranch(RECORDS_BRANCH, remote, path));
-    if (Either.isLeft(pushResult)) {
+    const pushResult = yield* Effect.result(git.pushBranch(RECORDS_BRANCH, remote, path));
+    if (Result.isFailure(pushResult)) {
       // Only after a refusal: learn what the remote now holds so the failure can name the branch
       // state. A failed fetch (no network) leaves the stale remote tip to classify against.
       yield* Effect.ignore(git.fetchBranch(path, remote, RECORDS_BRANCH));
@@ -201,7 +201,7 @@ export function pushRecordsBranch(
         kind: "failed",
         remote,
         path,
-        message: pushResult.left.stderr ?? pushResult.left.message,
+        message: pushResult.failure.stderr ?? pushResult.failure.message,
         branch,
       } as const;
     }

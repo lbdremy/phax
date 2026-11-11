@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { explainRecord } from "../../src/app/recordsExplain.js";
 import { loadConfig } from "../../src/app/loadConfig.js";
@@ -88,15 +88,15 @@ afterEach(() => {
   for (const other of others) other.cleanup();
 });
 
-function stoppedAtReview(result: Either.Either<unknown, unknown>): void {
-  if (Either.isRight(result)) throw new Error("the run did not stop");
-  expect(result.left).toBeInstanceOf(AwaitingReviewStopError);
+function stoppedAtReview(result: Result.Result<unknown, unknown>): void {
+  if (Result.isSuccess(result)) throw new Error("the run did not stop");
+  expect(result.failure).toBeInstanceOf(AwaitingReviewStopError);
 }
 
 /** Runs `phax records explain <sha>` through the command runner over a memory Io, in-process, on
  *  `run`'s repository. */
 async function explain(run: HeldRun, sha: string, ...flags: string[]) {
-  vi.mocked(loadConfig).mockReturnValue(Either.right(run.config));
+  vi.mocked(loadConfig).mockReturnValue(Result.succeed(run.config));
   const memory = memoryIo({ argv: ["records", "explain", sha, ...flags] });
   const code = await Effect.runPromise(
     runner.run(phaxProgram, memory.io) as Effect.Effect<ExitCode>,
@@ -210,8 +210,8 @@ describe(
       const failedTurn = await declaredAtPhase03({ firstTurnFails: true, in: second });
       correctPhase03(withX1);
 
-      expect(Either.isRight(await resumeHeldRun(withX1))).toBe(true);
-      expect(Either.isRight(await resumeHeldRun(failedTurn))).toBe(true);
+      expect(Result.isSuccess(await resumeHeldRun(withX1))).toBe(true);
+      expect(Result.isSuccess(await resumeHeldRun(failedTurn))).toBe(true);
 
       const first = await explain(
         withX1,
@@ -238,7 +238,7 @@ describe(
 
 describe("explain's address: which trailers name a record", () => {
   let repoDir: string;
-  const RECORDS_BRANCH: BranchName = Either.getOrThrow(decodeBranchName("phax/records/v1"));
+  const RECORDS_BRANCH: BranchName = Result.getOrThrow(decodeBranchName("phax/records/v1"));
   const CONFIG: ResolvedRecordsConfig = {
     enabled: true,
     transcript: false,

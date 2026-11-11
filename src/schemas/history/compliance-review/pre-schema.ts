@@ -5,11 +5,11 @@
 // schema and type.
 import { Schema } from "effect";
 
-const VerdictSchema = Schema.Literal("conformant", "conformant-with-deviations", "divergent");
+const VerdictSchema = Schema.Literals(["conformant", "conformant-with-deviations", "divergent"]);
 
-const SeveritySchema = Schema.Literal("info", "deviation", "concern");
+const SeveritySchema = Schema.Literals(["info", "deviation", "concern"]);
 
-const DimensionSchema = Schema.Literal(
+const DimensionSchema = Schema.Literals([
   "objective",
   "excluded-scope",
   "files",
@@ -17,7 +17,7 @@ const DimensionSchema = Schema.Literal(
   "boundaries",
   "commit",
   "handoff",
-);
+]);
 
 const FindingSchema = Schema.Struct({
   dimension: DimensionSchema,
@@ -42,7 +42,7 @@ export const ComplianceReviewPreSchemaSchema = Schema.Struct({
 
 export type ComplianceReviewPreSchema = Schema.Schema.Type<typeof ComplianceReviewPreSchemaSchema>;
 
-export const decodeComplianceReviewPreSchema = Schema.decodeUnknownEither(
+export const decodeComplianceReviewPreSchema = Schema.decodeUnknownResult(
   ComplianceReviewPreSchemaSchema,
-  { onExcessProperty: "error" },
+  { onExcessProperty: "error", reportInput: true },
 );

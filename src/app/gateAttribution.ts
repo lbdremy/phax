@@ -1,4 +1,4 @@
-import { Array as Arr, Effect, Either } from "effect";
+import { Array as Arr, Effect, Result } from "effect";
 import { join } from "node:path";
 import type { ProtectedChange } from "../domain/security/protectedPaths.js";
 import { FileSystem, FsError } from "../ports/fs.js";
@@ -18,7 +18,7 @@ function readPhaseAttribution(
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const path = join(runPath, phaseId, "gate-attribution.json");
-    const raw = yield* fs.readText(path).pipe(Effect.catchAll(() => Effect.succeed(undefined)));
+    const raw = yield* fs.readText(path).pipe(Effect.catch(() => Effect.succeed(undefined)));
     if (raw === undefined) return undefined;
 
     let parsed: unknown;
@@ -29,7 +29,7 @@ function readPhaseAttribution(
     }
 
     const decoded = readGateAttributionFile(path, parsed);
-    return Either.isRight(decoded) ? decoded.right : undefined;
+    return Result.isSuccess(decoded) ? decoded.success : undefined;
   });
 }
 
@@ -54,7 +54,7 @@ export function aggregateVerifiedSurfaces(
 /** The record's form of a check's result: a pass with no change, else a fail naming each. */
 function protectedPathsResult(changes: readonly ProtectedChange[]): ProtectedPathsResult {
   const recorded = changes.map(({ path, kind, entry }) => ({ path, kind, entry }));
-  return Arr.isNonEmptyReadonlyArray(recorded)
+  return Arr.isReadonlyArrayNonEmpty(recorded)
     ? { result: "fail", changes: recorded }
     : { result: "pass", changes: [] };
 }
@@ -79,14 +79,14 @@ export function recordProtectedPaths(input: {
         new FsError({ message: `${input.stepRecordPath} is not JSON: ${String(cause)}`, cause }),
     });
     const record = readGateAttributionFile(input.stepRecordPath, parsed);
-    if (Either.isLeft(record)) {
+    if (Result.isFailure(record)) {
       return yield* Effect.fail(
         new FsError({ message: `${input.stepRecordPath} is not a gate attribution` }),
       );
     }
     const attribution: GateAttribution = {
-      phase: record.right.phase,
-      steps: record.right.steps,
+      phase: record.success.phase,
+      steps: record.success.steps,
       protectedPaths: protectedPathsResult(input.changes),
     };
     const document = JSON.stringify(

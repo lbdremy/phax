@@ -6,17 +6,27 @@
 // it as the format's 0.26.0 release.
 import { Schema } from "effect";
 
-const SchemaUrlSchema = Schema.String.pipe(
-  Schema.pattern(
+// `Schema.isPattern` whose JSON Schema is the RegExp's source, whatever its
+// flags: Effect 4 exports a pattern only for a RegExp with the `u` flag.
+function isExportedPattern(regExp: RegExp, annotations?: Schema.Annotations.Filter) {
+  return Schema.isPattern(regExp, {
+    toJsonSchema: () => ({ pattern: regExp.source }),
+    ...annotations,
+  });
+}
+
+const SchemaUrlSchema = Schema.String.check(
+  isExportedPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/run-status\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
-  Schema.annotations({
+).pipe(
+  Schema.annotate({
     description:
       "The run-status format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): https://docs.phax.run/schemas/run-status/<X.Y.Z>.json",
   }),
 );
 
-const RunStateSchema = Schema.Union(
+const RunStateSchema = Schema.Union([
   Schema.Literal("created"),
   Schema.Literal("running"),
   Schema.Literal("failed"),
@@ -27,16 +37,18 @@ const RunStateSchema = Schema.Union(
   Schema.Literal("interrupted"),
   Schema.Literal("rate_limited"),
   Schema.Literal("awaiting_review"),
+]);
+
+const HoldPhasesSchema = Schema.NonEmptyArray(
+  Schema.String.check(isExportedPattern(/^phase-\d{2}$/)),
 );
 
-const HoldPhasesSchema = Schema.NonEmptyArray(Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/)));
-
-const RunHoldSchema = Schema.Union(
+const RunHoldSchema = Schema.Union([
   Schema.Struct({ selection: Schema.Literal("none") }),
   Schema.Struct({ selection: Schema.Literal("all"), phases: HoldPhasesSchema }),
   Schema.Struct({ selection: Schema.Literal("listed"), phases: HoldPhasesSchema }),
   Schema.Struct({ selection: Schema.Literal("oracle"), phases: HoldPhasesSchema }),
-);
+]);
 
 export const RunStatusV0_26_0Schema = Schema.Struct({
   $schema: SchemaUrlSchema,
@@ -47,15 +59,17 @@ export const RunStatusV0_26_0Schema = Schema.Struct({
   createdAt: Schema.NonEmptyString,
   updatedAt: Schema.NonEmptyString,
   phasesCount: Schema.Number,
-  currentPhaseIndex: Schema.optionalWith(Schema.Number, { exact: true }),
-  gateProfileId: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
-  stoppedReason: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
-  lastError: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
-  planRepoRelPath: Schema.optionalWith(Schema.NonEmptyString, { exact: true }),
-  allowSkillEdits: Schema.optionalWith(Schema.Boolean, { exact: true }),
+  currentPhaseIndex: Schema.optionalKey(Schema.Number),
+  gateProfileId: Schema.optionalKey(Schema.NonEmptyString),
+  stoppedReason: Schema.optionalKey(Schema.NonEmptyString),
+  lastError: Schema.optionalKey(Schema.NonEmptyString),
+  planRepoRelPath: Schema.optionalKey(Schema.NonEmptyString),
+  allowSkillEdits: Schema.optionalKey(Schema.Boolean),
   hold: RunHoldSchema,
 });
 
 export type RunStatusV0_26_0 = Schema.Schema.Type<typeof RunStatusV0_26_0Schema>;
 
-export const decodeRunStatusV0_26_0 = Schema.decodeUnknownEither(RunStatusV0_26_0Schema);
+export const decodeRunStatusV0_26_0 = Schema.decodeUnknownResult(RunStatusV0_26_0Schema, {
+  reportInput: true,
+});

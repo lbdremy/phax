@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { rerenderSpec } from "../../scripts/rerender-spec.js";
 import { renderSpecBody } from "../../src/domain/authoring/renderSpec.js";
@@ -21,8 +21,8 @@ function frozenSpecDocument(): unknown {
 
 function specMarkdown(sidecar: unknown): string {
   const doc = readSpecDocumentFile(SIDECAR_PATH, sidecar);
-  if (Either.isLeft(doc)) throw new Error(doc.left.message);
-  return FRONTMATTER + renderSpecBody(doc.right);
+  if (Result.isFailure(doc)) throw new Error(doc.failure.message);
+  return FRONTMATTER + renderSpecBody(doc.success);
 }
 
 describe("rerenderSpec", () => {
@@ -31,16 +31,16 @@ describe("rerenderSpec", () => {
   it("re-renders from a $schema sidecar, keeping the frontmatter", () => {
     const sidecar = validDocuments["spec-document"];
     const md = specMarkdown(sidecar);
-    expect(rerenderSpec(MD_PATH, md, SIDECAR_PATH, sidecar)).toEqual(Either.right(md));
+    expect(rerenderSpec(MD_PATH, md, SIDECAR_PATH, sidecar)).toEqual(Result.succeed(md));
   });
 
   it("renders a current sidecar in the current layout: §9 and §9b by id", () => {
     const sidecar = validDocuments["spec-document"];
     const result = rerenderSpec(MD_PATH, FRONTMATTER, SIDECAR_PATH, sidecar);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right).toContain("\n## 9. Open questions\n");
-      expect(result.right).toContain("\n## 9b. Arbitrated questions\n");
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success).toContain("\n## 9. Open questions\n");
+      expect(result.success).toContain("\n## 9b. Arbitrated questions\n");
     }
   });
 
@@ -54,7 +54,7 @@ describe("rerenderSpec", () => {
     ["a 0.17.0 sidecar", frozenSpecDocument(), "spec-document 0.17.0"],
   ])("refuses %s, naming migrate-documents", (_label, sidecar, shape) => {
     expect(rerenderSpec(MD_PATH, FRONTMATTER, SIDECAR_PATH, sidecar)).toEqual(
-      Either.left(
+      Result.fail(
         `${SIDECAR_PATH}: stamped ${shape} — run \`phax artifact migrate-documents\` first`,
       ),
     );
@@ -65,18 +65,18 @@ describe("rerenderSpec", () => {
     const before = specMarkdown(sidecar);
     const edited = withKey(sidecar, "title", "An edited title");
     const result = rerenderSpec(MD_PATH, before, SIDECAR_PATH, edited);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right).not.toBe(before);
-      expect(result.right.startsWith(FRONTMATTER)).toBe(true);
-      expect(result.right).toContain("An edited title");
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success).not.toBe(before);
+      expect(result.success.startsWith(FRONTMATTER)).toBe(true);
+      expect(result.success).toContain("An edited title");
     }
   });
 
   it("refuses an invalid sidecar, naming it", () => {
     const result = rerenderSpec(MD_PATH, FRONTMATTER, SIDECAR_PATH, { title: 1 });
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) expect(result.left.startsWith(SIDECAR_PATH)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) expect(result.failure.startsWith(SIDECAR_PATH)).toBe(true);
   });
 
   it("refuses a spec with no frontmatter", () => {
@@ -86,6 +86,6 @@ describe("rerenderSpec", () => {
       SIDECAR_PATH,
       validDocuments["spec-document"],
     );
-    expect(result).toEqual(Either.left(`${MD_PATH}: no frontmatter block`));
+    expect(result).toEqual(Result.fail(`${MD_PATH}: no frontmatter block`));
   });
 });

@@ -1,4 +1,4 @@
-import { Either, type ParseResult } from "effect";
+import { Result, type Schema } from "effect";
 import { firstRefusal } from "../../../src/schemas/refusal/adapter.js";
 import { refusalMessage, refusalPath } from "../../../src/schemas/refusal/render.js";
 
@@ -64,13 +64,13 @@ export function failure(path: string, message: string): ParseFailure {
 }
 
 /**
- * Maps a decoder's `Either` to `Parsed`. The failure reports the first issue
+ * Maps a decoder's `Result` to `Parsed`. The failure reports the first issue
  * phax's refusal model yields: its path joined with `.` (`""` at the root) and
  * its message in phax's words.
  */
-export function fromEither<T>(result: Either.Either<T, ParseResult.ParseError>): Parsed<T> {
-  if (Either.isRight(result)) return { ok: true, value: result.right };
-  const first = firstRefusal(result.left);
+export function fromEither<T>(result: Result.Result<T, Schema.SchemaError>): Parsed<T> {
+  if (Result.isSuccess(result)) return { ok: true, value: result.success };
+  const first = firstRefusal(result.failure);
   return failure(
     first === undefined ? "" : refusalPath(first.path, "dotted"),
     first === undefined ? "invalid document" : refusalMessage(first),

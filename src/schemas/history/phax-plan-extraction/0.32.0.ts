@@ -11,21 +11,38 @@
 // strictString.ts or phaxPlan.ts cannot move it.
 import { Schema } from "effect";
 
-const SCHEMA_URL = "https://docs.phax.run/schemas/phax-plan-extraction/0.32.0.json";
+// `Schema.isPattern` whose JSON Schema is the RegExp's source, whatever its
+// flags: Effect 4 exports a pattern only for a RegExp with the `u` flag.
+function isExportedPattern(regExp: RegExp, annotations?: Schema.Annotations.Filter) {
+  return Schema.isPattern(regExp, {
+    toJsonSchema: () => ({ pattern: regExp.source }),
+    ...annotations,
+  });
+}
 
-const SchemaUrlSchema = Schema.Literal(SCHEMA_URL).annotations({
-  jsonSchema: { const: SCHEMA_URL },
-  description: `The phax-plan-extraction format's shape, exactly: ${SCHEMA_URL}`,
+// phax's own refusal text for a refused value, computed from it. The annotation key is the
+// one src/schemas/refusal/adapter.ts reads, written out here because a frozen module imports
+// only effect.
+const refusalMessage = (message: (actual: unknown) => string) => ({
+  phaxRefusalMessage: message,
 });
 
-const NonEmptyString = Schema.String.pipe(
-  Schema.pattern(/^[\s\S]+$/, {
+const SCHEMA_URL = "https://docs.phax.run/schemas/phax-plan-extraction/0.32.0.json";
+
+const SchemaUrlSchema = Schema.Literal(SCHEMA_URL).annotate({
+  description: `The phax-plan-extraction format's shape, exactly: ${SCHEMA_URL}`,
+  const: SCHEMA_URL,
+});
+
+const NonEmptyString = Schema.String.check(
+  isExportedPattern(/^[\s\S]+$/, {
     identifier: "NonEmptyString",
-    message: (issue) => `Expected a non empty string, actual ${JSON.stringify(issue.actual)}`,
+    // The pattern refuses the empty string alone, so the refused value is always "".
+    message: 'Expected a non empty string, actual ""',
   }),
 );
 
-const EffortSchema = Schema.Literal(
+const EffortSchema = Schema.Literals([
   "none",
   "off",
   "low",
@@ -35,9 +52,9 @@ const EffortSchema = Schema.Literal(
   "max",
   "ultracode",
   "ultra",
-);
+]);
 
-const PhaseIdSchema = Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/));
+const PhaseIdSchema = Schema.String.check(isExportedPattern(/^phase-\d{2}$/));
 
 // ── test lines
 
@@ -50,16 +67,18 @@ const ONE_LINE = new RegExp(`^${ONE_LINE_CHAR}*$`);
 const ONE_LINE_TRIMMED = new RegExp(`^${ONE_LINE_EDGE}(?:${ONE_LINE_CHAR}*${ONE_LINE_EDGE})?$`);
 
 const oneLineText = (coordinate: string) =>
-  Schema.String.pipe(
-    Schema.pattern(ONE_LINE_TRIMMED, {
-      message: (issue) =>
-        typeof issue.actual === "string" && !ONE_LINE.test(issue.actual)
+  Schema.String.check(
+    isExportedPattern(
+      ONE_LINE_TRIMMED,
+      refusalMessage((actual) =>
+        typeof actual === "string" && !ONE_LINE.test(actual)
           ? `a ${coordinate} is one line: no line break, U+2028, U+2029, U+0085 or other control character`
           : `a ${coordinate} is non-empty and trimmed: no leading or trailing whitespace`,
-    }),
+      ),
+    ),
   );
 
-const GuaranteeSchema = oneLineText("guarantee").annotations({
+const GuaranteeSchema = oneLineText("guarantee").annotate({
   description: "What the test guarantees: one non-empty, trimmed line.",
 });
 
@@ -78,38 +97,39 @@ function oracleViolation(oracle: string): string | undefined {
   return undefined;
 }
 
-const OracleSchema = oneLineText("oracle").pipe(
-  Schema.filter((oracle) => oracleViolation(oracle) ?? true, {
-    jsonSchema: {
+const OracleSchema = oneLineText("oracle").check(
+  Schema.makeFilter((oracle) => oracleViolation(oracle) ?? true, {
+    toJsonSchema: () => ({
       description: `What the test compares against: one non-empty, trimmed line, ${ORACLE_RULES} (these three checked by phax, not by this JSON Schema).`,
-    },
+    }),
   }),
 );
 
 const LOOPS: ReadonlyArray<string> = ["oracle", "in-phase"];
 
-const CriterionSchema = Schema.String.pipe(
+const CriterionSchema = Schema.String.check(
   // eslint-disable-next-line no-control-regex
-  Schema.pattern(/^[^\s`\x00-\x1F\x7F-\x9F]+$/, {
-    message: () =>
+  isExportedPattern(/^[^\s`\x00-\x1F\x7F-\x9F]+$/, {
+    message:
       "a criterion is a run of non-whitespace characters holding no backtick and no control character",
   }),
-  Schema.filter(
+  Schema.makeFilter(
     (criterion) =>
-      !LOOPS.includes(criterion) || "a criterion is neither 'oracle' nor 'in-phase', the loop values",
+      !LOOPS.includes(criterion) ||
+      "a criterion is neither 'oracle' nor 'in-phase', the loop values",
     {
-      jsonSchema: {
+      toJsonSchema: () => ({
         description:
           "An acceptance criterion id from the source spec's JSON sidecar: a run of non-whitespace characters, no backtick, neither 'oracle' nor 'in-phase' (that last checked by phax, not by this JSON Schema).",
-      },
+      }),
     },
   ),
 );
 
 const TestLineSchema = Schema.Struct({
   guarantee: GuaranteeSchema,
-  size: Schema.Literal("small", "medium", "large"),
-  technique: Schema.Literal(
+  size: Schema.Literals(["small", "medium", "large"]),
+  technique: Schema.Literals([
     "example",
     "table",
     "property",
@@ -118,11 +138,11 @@ const TestLineSchema = Schema.Struct({
     "fuzz",
     "contract",
     "smoke",
-  ),
+  ]),
   oracle: OracleSchema,
-  loop: Schema.Literal("oracle", "in-phase"),
+  loop: Schema.Literals(["oracle", "in-phase"]),
   criterion: Schema.NullOr(CriterionSchema),
-}).annotations({
+}).annotate({
   description:
     "One test line of a phase's test strategy, rendered as `- <guarantee> — <size> · <technique> · <oracle> · <loop>[ · <criterion>]`, one per line under the phase's `### Test strategy` heading. `criterion` is an acceptance criterion id from the source spec's JSON sidecar, or null.",
 });
@@ -159,23 +179,26 @@ const EXACTLY_ONE = "plan and incomplete: exactly one of them is null";
 
 export const PhaxPlanExtractionV0_32_0Schema = Schema.Struct({
   $schema: SchemaUrlSchema,
-  plan: Schema.NullOr(ExtractionPlanSchema).annotations({
+  plan: Schema.NullOr(ExtractionPlanSchema).annotate({
     description: "The extracted plan, or null when the plan is incomplete.",
   }),
-  incomplete: Schema.NullOr(NonEmptyString).annotations({
+  incomplete: Schema.NullOr(NonEmptyString).annotate({
     description:
       "What is missing from the plan, or a test strategy item not in the line format; null when the plan is extracted.",
   }),
-}).pipe(
-  Schema.filter((answer) => (answer.plan === null) !== (answer.incomplete === null) || EXACTLY_ONE, {
-    jsonSchema: {},
-    description: "Exactly one of plan and incomplete is null.",
-  }),
+}).check(
+  Schema.makeFilter(
+    (answer) => (answer.plan === null) !== (answer.incomplete === null) || EXACTLY_ONE,
+    {
+      toJsonSchema: () => ({}),
+      description: "Exactly one of plan and incomplete is null.",
+    },
+  ),
 );
 
 export type PhaxPlanExtractionV0_32_0 = Schema.Schema.Type<typeof PhaxPlanExtractionV0_32_0Schema>;
 
-export const decodePhaxPlanExtractionV0_32_0 = Schema.decodeUnknownEither(
+export const decodePhaxPlanExtractionV0_32_0 = Schema.decodeUnknownResult(
   PhaxPlanExtractionV0_32_0Schema,
-  { onExcessProperty: "error" },
+  { onExcessProperty: "error", reportInput: true },
 );

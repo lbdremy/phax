@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { collectPlanStructureErrors, type PhaseTestStrategy } from "./parsePlanMarkdown.js";
 import { departureMessage } from "./testLineGrammar.js";
 import type { PhaseHeader } from "./phaseHeader.js";
@@ -94,7 +94,7 @@ export function unlocatableFindings(
   phases: readonly LocatablePhase[],
 ): readonly LintFinding[] {
   const located = locatePlanSections(planMd, phases);
-  return Either.isLeft(located) ? located.left.map(missingSectionFinding) : [];
+  return Result.isFailure(located) ? located.failure.map(missingSectionFinding) : [];
 }
 
 /**

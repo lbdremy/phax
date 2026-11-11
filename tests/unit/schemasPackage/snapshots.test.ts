@@ -25,7 +25,7 @@ const PRE_SCHEMA_PATH = `${SNAPSHOTS_DIR}/${ID}/pre-schema.schema.json`;
 const NEXT_PATH = `${SNAPSHOTS_DIR}/${ID}/next.schema.json`;
 
 /** What `renderJsonSchemas` renders for a toy struct under the id `phase-record-manifest`. */
-function render(schema: Schema.Schema.Any): string {
+function render(schema: Schema.Top): string {
   const { files, failures } = renderJsonSchemas([
     { format: ID, fileName: `${ID}.schema.json`, title: "toy", schema, excess: "error" },
   ]);
@@ -211,19 +211,21 @@ describe("annotations in the snapshot gate", () => {
   /** A toy shape with annotations on the struct, a nested property and a union member. */
   function annotated(notes: { top?: string; nested?: string; member?: string; title?: string }) {
     const nested = Schema.Struct({
-      label: Schema.String.annotations(
+      label: Schema.String.annotate(
         notes.nested === undefined ? {} : { description: notes.nested },
       ),
     });
-    const member = Schema.Number.annotations(
+    // Effect 4 renders Schema.Number through a JSON encoding that drops its
+    // annotations; Schema.Finite renders as a plain JSON number.
+    const member = Schema.Finite.annotate(
       notes.member === undefined ? {} : { description: notes.member, examples: [1, 2] },
     );
     return render(
       Schema.Struct({
         name: Schema.String,
         nested,
-        either: Schema.Union(Schema.String, member),
-      }).annotations({
+        either: Schema.Union([Schema.String, member]),
+      }).annotate({
         ...(notes.top === undefined ? {} : { description: notes.top }),
         ...(notes.title === undefined ? {} : { title: notes.title }),
       }),
@@ -264,7 +266,7 @@ describe("annotations in the snapshot gate", () => {
       Schema.Struct({
         name: Schema.Number,
         nested: Schema.Struct({ label: Schema.String }),
-        either: Schema.Union(Schema.String, Schema.Number),
+        either: Schema.Union([Schema.String, Schema.Number]),
       }),
     );
     const state = input(format(retyped, "0.17.0"), { "0.17.0.schema.json": base });

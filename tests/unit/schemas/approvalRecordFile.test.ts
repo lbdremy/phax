@@ -3,7 +3,7 @@
 // the record it replaces, born with `$schema`, and since spec artifact-decide
 // §5.43–§5.45 `approvedBy`; a 0.19.0 record is lifted to unattributed. Every
 // record is made up.
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   parsePlanApprovalRecord,
@@ -67,18 +67,18 @@ function without(doc: object, key: string): Record<string, unknown> {
 describe("PlanRecordFileSchema", () => {
   it("decodes a record with a source spec and round-trips through the encoder", () => {
     const decoded = decodePlanRecordFile(planFile);
-    if (Either.isLeft(decoded)) throw new Error("record rejected");
-    expect(encodePlanRecordFile(decoded.right)).toEqual(planFile);
+    if (Result.isFailure(decoded)) throw new Error("record rejected");
+    expect(encodePlanRecordFile(decoded.success)).toEqual(planFile);
   });
 
   it("decodes a record with a null source spec", () => {
-    expect(Either.isRight(decodePlanRecordFile({ ...planFile, sourceSpec: null }))).toBe(true);
+    expect(Result.isSuccess(decodePlanRecordFile({ ...planFile, sourceSpec: null }))).toBe(true);
   });
 
   it("keys the file exactly $schema, artifact, planFingerprint, approvedAt, baseline, sourceSpec, approvedBy", () => {
     const decoded = decodePlanRecordFile(planFile);
-    if (Either.isLeft(decoded)) throw new Error("record rejected");
-    expect(Object.keys(encodePlanRecordFile(decoded.right))).toEqual([
+    if (Result.isFailure(decoded)) throw new Error("record rejected");
+    expect(Object.keys(encodePlanRecordFile(decoded.success))).toEqual([
       "$schema",
       "artifact",
       "planFingerprint",
@@ -114,15 +114,15 @@ describe("PlanRecordFileSchema", () => {
     ],
     ["a missing $schema", without(planFile, "$schema")],
   ])("rejects %s", (_label, input) => {
-    expect(Either.isLeft(decodePlanRecordFile(input))).toBe(true);
+    expect(Result.isFailure(decodePlanRecordFile(input))).toBe(true);
   });
 });
 
 describe("SpecRecordFileSchema", () => {
   it("decodes a record and round-trips through the encoder, keys in order", () => {
     const decoded = decodeSpecRecordFile(specFile);
-    if (Either.isLeft(decoded)) throw new Error("record rejected");
-    const encoded = encodeSpecRecordFile(decoded.right);
+    if (Result.isFailure(decoded)) throw new Error("record rejected");
+    const encoded = encodeSpecRecordFile(decoded.success);
     expect(encoded).toEqual(specFile);
     expect(Object.keys(encoded)).toEqual([
       "$schema",
@@ -150,17 +150,17 @@ describe("SpecRecordFileSchema", () => {
     ],
     ["a missing $schema", without(specFile, "$schema")],
   ])("rejects %s", (_label, input) => {
-    expect(Either.isLeft(decodeSpecRecordFile(input))).toBe(true);
+    expect(Result.isFailure(decodeSpecRecordFile(input))).toBe(true);
   });
 });
 
-type AnyReader = (file: string, input: unknown) => Either.Either<object, PersistedReadError>;
+type AnyReader = (file: string, input: unknown) => Result.Result<object, PersistedReadError>;
 
 // Each format's frozen 0.19.0 decoder: a hand-built older record must be that shape.
 const FROZEN_V0_19_0: Readonly<
   Record<
     "plan-approval-record" | "spec-approval-record",
-    (input: unknown) => Either.Either<object, unknown>
+    (input: unknown) => Result.Result<object, unknown>
   >
 > = {
   "plan-approval-record": decodePlanApprovalRecordV0_19_0,
@@ -186,14 +186,14 @@ describe.each(READERS)("read%sRecordFile", (kind, read, file, record, path, form
 
   function message(input: unknown): string {
     const result = read(path, input);
-    if (Either.isRight(result)) throw new Error("expected the reader to refuse");
-    expect(result.left).toMatchObject({ _tag: "PersistedReadError", file: path, format });
-    expect(result.left.message.startsWith(`${path}: `)).toBe(true);
-    return result.left.message;
+    if (Result.isSuccess(result)) throw new Error("expected the reader to refuse");
+    expect(result.failure).toMatchObject({ _tag: "PersistedReadError", file: path, format });
+    expect(result.failure.message.startsWith(`${path}: `)).toBe(true);
+    return result.failure.message;
   }
 
   it("reads the file as the record without $schema", () => {
-    expect(read(path, file)).toEqual(Either.right(record));
+    expect(read(path, file)).toEqual(Result.succeed(record));
   });
 
   it("refuses a document without $schema, naming the file", () => {
@@ -230,9 +230,9 @@ describe.each(READERS)("read%sRecordFile", (kind, read, file, record, path, form
   };
 
   it("lifts a 0.19.0 record to unattributed, never to an operator", () => {
-    expect(Either.isRight(FROZEN_V0_19_0[format](older))).toBe(true);
+    expect(Result.isSuccess(FROZEN_V0_19_0[format](older))).toBe(true);
     expect(read(path, older)).toEqual(
-      Either.right({ ...without(record, "approvedBy"), approvedBy: { kind: "unattributed" } }),
+      Result.succeed({ ...without(record, "approvedBy"), approvedBy: { kind: "unattributed" } }),
     );
   });
 

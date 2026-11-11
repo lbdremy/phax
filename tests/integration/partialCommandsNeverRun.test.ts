@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -30,7 +30,7 @@ import { processOutput } from "../helpers/processOutput.js";
 // tests' harness): the executed list is its recorded calls, and a partial
 // command that ran would also show up there.
 
-const shortName = Either.getOrThrow(decodeShortName("my-run"));
+const shortName = Result.getOrThrow(decodeShortName("my-run"));
 
 const STEPS: readonly GateStep[] = [
   {
@@ -90,7 +90,7 @@ describe("partial commands are never run", () => {
         },
       ],
     };
-    const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
     const planMd = planMdFor(rawPlan);
     const worktree = join(root, "worktrees", "test-project.my-run", "phase-01");
     await mkdir(join(worktree, ".phax-context"), { recursive: true });
@@ -184,7 +184,7 @@ describe("partial commands are never run", () => {
       createRunFolder(shortName, planMd, plan, config).pipe(Effect.provide(layers)),
     );
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -201,7 +201,7 @@ describe("partial commands are never run", () => {
         }).pipe(Effect.provide(layers)),
       ),
     );
-    expect(result, JSON.stringify(result)).toMatchObject({ _tag: "Right" });
+    expect(result, JSON.stringify(result)).toMatchObject({ _tag: "Success" });
 
     // The gate failed once and ran again after the fix attempt.
     expect(testRuns).toBe(2);

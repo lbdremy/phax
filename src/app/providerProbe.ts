@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import type { ProviderConfig } from "../schemas/providerConfig.js";
 import { Shell } from "../ports/shell.js";
 import type { ProviderProbeResult } from "../domain/routing/providerSetup.js";
@@ -6,10 +6,10 @@ import type { ProviderProbeResult } from "../domain/routing/providerSetup.js";
 const probeOne = (provider: string, executable: string) =>
   Effect.gen(function* () {
     const shell = yield* Shell;
-    const result = yield* Effect.either(
+    const result = yield* Effect.result(
       shell.run({ command: [executable, "--version"], cwd: process.cwd() }),
     );
-    const available = Either.isRight(result) && result.right.exitCode === 0;
+    const available = Result.isSuccess(result) && result.success.exitCode === 0;
     return { provider, available } satisfies ProviderProbeResult;
   });
 

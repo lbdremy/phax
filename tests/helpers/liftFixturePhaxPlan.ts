@@ -1,4 +1,4 @@
-import { Array as Arr, Either } from "effect";
+import { Array as Arr, Result } from "effect";
 import { readPhaxPlanFile, type PhaxPlanRead } from "../../src/schemas/persisted.js";
 
 type CurrentPhaxPlanRead = Extract<PhaxPlanRead, { readonly shape: "current" }>;
@@ -12,8 +12,8 @@ type CurrentPhaxPlanRead = Extract<PhaxPlanRead, { readonly shape: "current" }>;
 export function liftFixturePhaxPlanToCurrent(
   file: string,
   input: unknown,
-): Either.Either<CurrentPhaxPlanRead, unknown> {
-  return Either.map(readPhaxPlanFile(file, input), (read): CurrentPhaxPlanRead => {
+): Result.Result<CurrentPhaxPlanRead, unknown> {
+  return Result.map(readPhaxPlanFile(file, input), (read): CurrentPhaxPlanRead => {
     if (read.shape === "current") return read;
     const { run, phases } = read.plan;
     return {

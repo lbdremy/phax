@@ -37,7 +37,7 @@ const lines = (written: ReadonlyArray<string>): ReadonlyArray<unknown> =>
     .filter((each) => each !== "")
     .map((each): unknown => JSON.parse(each));
 
-const Yes = Schema.optionalWith(Schema.Boolean, { exact: true }).annotations({
+const Yes = Schema.optionalKey(Schema.Boolean).annotateKey({
   description: "Proceed without confirmation",
   [AliasAnnotationId]: "y",
 });
@@ -87,7 +87,7 @@ describe("a short alias", () => {
   });
 });
 
-const read = (contract: Schema.Schema.Any) =>
+const read = (contract: Schema.Top) =>
   defineCommand({
     name: "decide",
     summary: "Decide",
@@ -101,7 +101,7 @@ const read = (contract: Schema.Schema.Any) =>
 describe("a stdin flag's help", () => {
   it("is the contract's description in help and the usage spec", async () => {
     const command = read(
-      Schema.Struct({ verdicts: Schema.Array(Schema.String) }).annotations({
+      Schema.Struct({ verdicts: Schema.Array(Schema.String) }).annotate({
         description: "Decide from a verdicts file, or - for stdin",
       }),
     );

@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { exitCodeForError } from "../../src/cli/commands/runLayers.js";
 import { syncSaveInterruptedRun } from "../../src/cli/interruptHandler.js";
@@ -54,13 +54,13 @@ afterEach(() => {
   world.cleanup();
 });
 
-function failedWith<E>(result: Either.Either<unknown, unknown>, type: new (...a: never[]) => E): E {
-  if (Either.isRight(result)) throw new Error("the run did not stop");
-  expect(result.left).toBeInstanceOf(type);
-  return result.left as E;
+function failedWith<E>(result: Result.Result<unknown, unknown>, type: new (...a: never[]) => E): E {
+  if (Result.isSuccess(result)) throw new Error("the run did not stop");
+  expect(result.failure).toBeInstanceOf(type);
+  return result.failure as E;
 }
 
-function expectHeldStop(run: HeldRun, result: Either.Either<unknown, unknown>): void {
+function expectHeldStop(run: HeldRun, result: Result.Result<unknown, unknown>): void {
   const error = failedWith(result, AwaitingReviewStopError);
   expect(error.report.cause).toBe("held");
   expect(error.phase).toBe("phase-02");

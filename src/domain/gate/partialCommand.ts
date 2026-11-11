@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import type { GateStep } from "../../schemas/phaxConfig.js";
 
 export type PartialVariant = "files" | "diff";
@@ -72,24 +72,24 @@ function segmentPrefix(text: string): string {
 export function parsePartialCommand(
   command: string,
   variant: PartialVariant,
-): Either.Either<ParsedPartialCommand, PartialCommandRefusal> {
-  if (command.trim() === "") return Either.left({ kind: "empty-command" });
+): Result.Result<ParsedPartialCommand, PartialCommandRefusal> {
+  if (command.trim() === "") return Result.fail({ kind: "empty-command" });
   const construct = findConstruct(command);
-  if (construct === MALFORMED) return Either.left({ kind: "malformed-placeholder" });
-  if (construct !== undefined) return Either.left({ kind: "construct", construct });
+  if (construct === MALFORMED) return Result.fail({ kind: "malformed-placeholder" });
+  if (construct !== undefined) return Result.fail({ kind: "construct", construct });
   const texts = command.split("|").map((segment) => segment.trim().split(/\s+/).join(" "));
-  if (texts.some((text) => text === "")) return Either.left({ kind: "empty-segment" });
+  if (texts.some((text) => text === "")) return Result.fail({ kind: "empty-segment" });
   // A placeholder anywhere in a segment's first word (`<files>`, `x<files>`,
   // `"<files>"`) leaves it no prefix to allow.
   if (texts.some((text) => HAS_PLACEHOLDER.test(text.split(" ")[0] ?? ""))) {
-    return Either.left({ kind: "leading-placeholder" });
+    return Result.fail({ kind: "leading-placeholder" });
   }
   const holdsPlaceholder = HAS_PLACEHOLDER.test(command);
-  if (variant === "files" && !holdsPlaceholder) return Either.left({ kind: "needs-placeholder" });
+  if (variant === "files" && !holdsPlaceholder) return Result.fail({ kind: "needs-placeholder" });
   if (variant === "diff" && holdsPlaceholder) {
-    return Either.left({ kind: "no-placeholder-allowed" });
+    return Result.fail({ kind: "no-placeholder-allowed" });
   }
-  return Either.right({
+  return Result.succeed({
     segments: texts.map((text) => ({ text, prefix: segmentPrefix(text) })),
   });
 }
@@ -128,12 +128,12 @@ export function partialAllowPrefixes(steps: readonly GateStep[]): readonly strin
       const command = step.partial?.[variant];
       if (command === undefined) continue;
       const parsed = parsePartialCommand(command, variant);
-      if (Either.isLeft(parsed)) {
+      if (Result.isFailure(parsed)) {
         throw new Error(
-          `partial.${variant} of "${step.command}" was not refused at load: ${describePartialRefusal(parsed.left)}`,
+          `partial.${variant} of "${step.command}" was not refused at load: ${describePartialRefusal(parsed.failure)}`,
         );
       }
-      for (const segment of parsed.right.segments) {
+      for (const segment of parsed.success.segments) {
         if (!prefixes.includes(segment.prefix)) prefixes.push(segment.prefix);
       }
     }

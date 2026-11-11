@@ -8,40 +8,52 @@
 // format's 0.30.0 release.
 import { Schema } from "effect";
 
-const RunListSchemaUrlSchema = Schema.String.pipe(
-  Schema.pattern(
+// `Schema.isPattern` whose JSON Schema is the RegExp's source, whatever its
+// flags: Effect 4 exports a pattern only for a RegExp with the `u` flag.
+function isExportedPattern(regExp: RegExp, annotations?: Schema.Annotations.Filter) {
+  return Schema.isPattern(regExp, {
+    toJsonSchema: () => ({ pattern: regExp.source }),
+    ...annotations,
+  });
+}
+
+const RunListSchemaUrlSchema = Schema.String.check(
+  isExportedPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/run-list\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
-  Schema.annotations({
+).pipe(
+  Schema.annotate({
     description:
       "The run-list format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): https://docs.phax.run/schemas/run-list/<X.Y.Z>.json",
   }),
 );
 
-const ReviewStopSchemaUrlSchema = Schema.String.pipe(
-  Schema.pattern(
+const ReviewStopSchemaUrlSchema = Schema.String.check(
+  isExportedPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/review-stop\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
-  Schema.annotations({
+).pipe(
+  Schema.annotate({
     description:
       "The review-stop format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): https://docs.phax.run/schemas/review-stop/<X.Y.Z>.json",
   }),
 );
 
-const ProviderIdSchema = Schema.Union(
+const ProviderIdSchema = Schema.Union([
   Schema.Literal("claude-code"),
   Schema.Literal("codex-cli"),
   Schema.Literal("mistral-vibe"),
-);
+]);
 
-const FullCommitShaSchema = Schema.String.pipe(
-  Schema.pattern(/^[0-9a-f]{40}([0-9a-f]{24})?$/),
-  Schema.annotations({
+const FullCommitShaSchema = Schema.String.check(
+  isExportedPattern(/^[0-9a-f]{40}([0-9a-f]{24})?$/),
+).pipe(
+  Schema.annotate({
     description: "A commit's full object name: 40 lowercase hex digits (SHA-1) or 64 (SHA-256).",
   }),
 );
 
-const RunStateSchema = Schema.Union(
+const RunStateSchema = Schema.Union([
   Schema.Literal("created"),
   Schema.Literal("running"),
   Schema.Literal("failed"),
@@ -52,19 +64,19 @@ const RunStateSchema = Schema.Union(
   Schema.Literal("interrupted"),
   Schema.Literal("rate_limited"),
   Schema.Literal("awaiting_review"),
-);
+]);
 
-const PhaseIdSchema = Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/));
+const PhaseIdSchema = Schema.String.check(isExportedPattern(/^phase-\d{2}$/));
 
-const InstantSchema = Schema.NonEmptyString.annotations({ description: "An ISO-8601 instant." });
+const InstantSchema = Schema.NonEmptyString.annotate({ description: "An ISO-8601 instant." });
 
 const CommandSchema = Schema.Struct({
   cwd: Schema.NonEmptyString,
   argv: Schema.NonEmptyArray(Schema.String),
-  env: Schema.Record({ key: Schema.String, value: Schema.String }),
+  env: Schema.Record(Schema.String, Schema.String),
 });
 
-const LastCloseSchema = Schema.Union(
+const LastCloseSchema = Schema.Union([
   Schema.Struct({
     result: Schema.Literal("gate-failed"),
     at: InstantSchema,
@@ -101,14 +113,12 @@ const LastCloseSchema = Schema.Union(
     exitCode: Schema.Literal(8),
     resetAt: Schema.NullOr(Schema.String),
   }),
-  // A closing turn that could not reach the provider: `detail` is the provider's message.
   Schema.Struct({
     result: Schema.Literal("network"),
     at: InstantSchema,
     exitCode: Schema.Literal(14),
     detail: Schema.NonEmptyString,
   }),
-  // A provider error in the closing session exits 5; a Git, file or shell error exits 1.
   Schema.Struct({
     result: Schema.Literal("close-error"),
     at: InstantSchema,
@@ -120,7 +130,7 @@ const LastCloseSchema = Schema.Union(
     result: Schema.Literal("close-error"),
     at: InstantSchema,
     exitCode: Schema.Literal(1),
-    step: Schema.Literal("gate", "commit", "files"),
+    step: Schema.Literals(["gate", "commit", "files"]),
     detail: Schema.NonEmptyString,
   }),
   Schema.Struct({
@@ -128,13 +138,13 @@ const LastCloseSchema = Schema.Union(
     at: InstantSchema,
     exitCode: Schema.Literal(130),
   }),
-);
+]);
 
-const RunNameSchema = Schema.NonEmptyString.annotations({
+const RunNameSchema = Schema.NonEmptyString.annotate({
   description: "The run's qualified name.",
 });
 
-const PositionSchema = Schema.Int.pipe(Schema.greaterThanOrEqualTo(1));
+const PositionSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(1));
 
 const CommandsSchema = Schema.Struct({
   continue: Schema.NullOr(CommandSchema),
@@ -144,7 +154,7 @@ const CommandsSchema = Schema.Struct({
   reset: CommandSchema,
 });
 
-const CloseBaseSchema = Schema.NullOr(Schema.NonEmptyString).annotations({
+const CloseBaseSchema = Schema.NullOr(Schema.NonEmptyString).annotate({
   description: "The HEAD sha a close recorded before its gate, or null before any close.",
 });
 
@@ -162,7 +172,7 @@ const DeclaredReviewStopSchema = Schema.Struct({
     position: PositionSchema,
     of: PositionSchema,
   }),
-  firstReading: Schema.NullOr(Schema.String).annotations({
+  firstReading: Schema.NullOr(Schema.String).annotate({
     description: "The path of first-reading.md, or null when no first turn answered.",
   }),
   worktree: Schema.NonEmptyString,
@@ -171,14 +181,14 @@ const DeclaredReviewStopSchema = Schema.Struct({
     Schema.Struct({
       provider: ProviderIdSchema,
       sessionId: Schema.NonEmptyString,
-      origin: Schema.Literal("first-turn", "new-session"),
-      interactiveResume: Schema.Literal("verified", "unverified"),
+      origin: Schema.Literals(["first-turn", "new-session"]),
+      interactiveResume: Schema.Literals(["verified", "unverified"]),
     }),
   ),
   commands: CommandsSchema,
   lastClose: Schema.NullOr(LastCloseSchema),
   closeBase: CloseBaseSchema,
-}).annotations(strictKeys);
+}).annotate(strictKeys);
 
 const HeldReviewStopSchema = Schema.Struct({
   $schema: ReviewStopSchemaUrlSchema,
@@ -192,7 +202,7 @@ const HeldReviewStopSchema = Schema.Struct({
     position: PositionSchema,
     of: PositionSchema,
   }),
-  phaseCommit: FullCommitShaSchema.annotations({
+  phaseCommit: FullCommitShaSchema.annotate({
     description: "The full object name of the phase's commit, which the stop holds.",
   }),
   worktree: Schema.NonEmptyString,
@@ -201,57 +211,58 @@ const HeldReviewStopSchema = Schema.Struct({
     Schema.Struct({
       provider: ProviderIdSchema,
       sessionId: Schema.NonEmptyString,
-      origin: Schema.Literal("builder", "new-session"),
-      interactiveResume: Schema.Literal("verified", "unverified"),
+      origin: Schema.Literals(["builder", "new-session"]),
+      interactiveResume: Schema.Literals(["verified", "unverified"]),
     }),
   ),
   commands: CommandsSchema,
   lastClose: Schema.NullOr(LastCloseSchema),
   closeBase: CloseBaseSchema,
-}).annotations(strictKeys);
+}).annotate(strictKeys);
 
-const ReviewStopSchema = Schema.Union(DeclaredReviewStopSchema, HeldReviewStopSchema).annotations(
+const ReviewStopSchema = Schema.Union([DeclaredReviewStopSchema, HeldReviewStopSchema]).annotate(
   strictKeys,
 );
 
 const RunListRowV0_30_0Schema = Schema.Struct({
-  qualifiedName: Schema.NonEmptyString.annotations({
+  qualifiedName: Schema.NonEmptyString.annotate({
     description: "The run's qualified name: `<namespace>.<short name>`.",
   }),
   namespace: Schema.String,
   shortName: Schema.NonEmptyString,
   state: RunStateSchema,
   branch: Schema.String,
-  currentPhase: Schema.NullOr(Schema.String).annotations({
+  currentPhase: Schema.NullOr(Schema.String).annotate({
     description: "The phase the run reached as `<n>/<total>`, or null when unknown.",
   }),
-  gateProfile: Schema.NullOr(Schema.String).annotations({
+  gateProfile: Schema.NullOr(Schema.String).annotate({
     description: "The run's gate profile, or null when unknown.",
   }),
-  updatedAt: Schema.String.annotations({
+  updatedAt: Schema.String.annotate({
     description: "The run's last update, as `YYYY-MM-DD HH:MM`.",
   }),
-  lockState: Schema.Literal("none", "active", "stale"),
-  recordsPending: Schema.NullOr(Schema.Int.pipe(Schema.greaterThanOrEqualTo(0))).annotations({
+  lockState: Schema.Literals(["none", "active", "stale"]),
+  recordsPending: Schema.NullOr(Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))).annotate({
     description: "The count of pending records, or null when records are off or not readable here.",
   }),
-  archivePath: Schema.NullOr(Schema.String).annotations({
+  archivePath: Schema.NullOr(Schema.String).annotate({
     description: "Where an archived run was moved, or null.",
   }),
-  stop: Schema.NullOr(ReviewStopSchema).annotations({
+  stop: Schema.NullOr(ReviewStopSchema).annotate({
     description:
       "The run's review-stop document while it awaits review; null when the run is not awaiting review, or when its review-stop document cannot be read.",
   }),
-}).annotations(strictKeys);
+}).annotate(strictKeys);
 
 /** A 0.30.0 `run-list` document: the rows of `phax ls --json`. */
 export const RunListV0_30_0Schema = Schema.Struct({
   $schema: RunListSchemaUrlSchema,
   runs: Schema.Array(RunListRowV0_30_0Schema),
-}).annotations(strictKeys);
+}).annotate(strictKeys);
 
 export type RunListV0_30_0 = Schema.Schema.Type<typeof RunListV0_30_0Schema>;
 
-export const decodeRunListV0_30_0 = Schema.decodeUnknownEither(RunListV0_30_0Schema, {
+export const decodeRunListV0_30_0 = Schema.decodeUnknownResult(RunListV0_30_0Schema, {
   onExcessProperty: "error",
+  reportInput: true,
 });

@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Either } from "effect";
+import { Result } from "effect";
 import { artifactFingerprint } from "../../src/app/approvalRecordStore.js";
 import { renderSpecBody } from "../../src/domain/authoring/renderSpec.js";
 import { decodeArtifactStatusFile } from "../../src/schemas/artifactStatusDocument.js";
@@ -114,14 +114,14 @@ function draftSidecar(): string {
 
 function draftSpecMd(sidecar: string): string {
   const decoded = decodeSpecDocumentFile(JSON.parse(sidecar));
-  if (Either.isLeft(decoded)) throw new Error("the fixture's sidecar must decode");
+  if (Result.isFailure(decoded)) throw new Error("the fixture's sidecar must decode");
   return `---
 status: Draft
 date: 2026-11-01
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
 ---
-${renderSpecBody(decoded.right)}`;
+${renderSpecBody(decoded.success)}`;
 }
 
 const APPROVED_MD = `---
@@ -188,7 +188,7 @@ function answer(path: string): Record<string, unknown> {
   expect(result.status, result.stderr).toBe(0);
   const parsed: unknown = JSON.parse(result.stdout);
   const decoded = decodeArtifactStatusFile(parsed);
-  expect(Either.isRight(decoded), JSON.stringify(parsed)).toBe(true);
+  expect(Result.isSuccess(decoded), JSON.stringify(parsed)).toBe(true);
   return parsed as Record<string, unknown>;
 }
 

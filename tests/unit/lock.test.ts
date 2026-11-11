@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { makeFakeLock } from "../../src/infra/fakes/lock.js";
 import { runKey } from "../../src/domain/runRef.js";
 
@@ -52,11 +52,11 @@ describe("Lock – qualified-key scoping", () => {
 
     await Effect.runPromise(fakeLock.impl.acquire(key));
 
-    const result = await Effect.runPromise(Effect.either(fakeLock.impl.acquire(key)));
+    const result = await Effect.runPromise(Effect.result(fakeLock.impl.acquire(key)));
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left.message).toContain("is locked");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure.message).toContain("is locked");
     }
   });
 

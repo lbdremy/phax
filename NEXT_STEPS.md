@@ -5,68 +5,37 @@ codebase history, and retired artifacts live in `docs/plans/archive/` and
 `docs/specs/archive/`. Tick items off as they land, prune them once they are in the
 history, and delete this file when it is empty.
 
-Last pruned 2026-10-25. Since the previous prune (2026-10-19, v0.25.0), 0.26.0 shipped, and
-these specs landed and were completed: `planning-skill-defaults` (two plans), `assignment-bounds`
-(three plans), `oracle-phases` (three plans) and `interactive-phases` (three plans), all in
-0.26.0; then `surface-summary` (#162) and the specless `small-fixes-0-27` plan (#163), both for
-0.27.0. `phase-model-assignment`, `upgrade-hints`, `auto-migrate` and the first drafts of
-`oracle-phases` and `interactive-phases` were abandoned.
+Last pruned 2026-11-10. Since the previous prune (2026-10-25), these landed and left the
+queue: the harness items `phase-prompt-names-the-gate` (#189) and `gate-step-partial-commands`
+(#191), `project-only-claude-sessions` (#190, which also answered the 1.0 check on Claude Code
+mods in phase sessions), `commit-trailers-paths` (#193), `records-branch-tip` (#194), and the
+Effect 4 migration (spec `effect-4-migration`, four plans, #195, #196, #198, #199).
 
-## The queue, as of 2026-11-05
+## The queue, as of 2026-11-10
 
 In order. Briefs of work done live in `docs/briefs/archive/`; `docs/briefs/` holds only the
 briefs of live or unspecced work.
 
-### 1. In flight
+### 1. Revise a Draft artifact
 
-- [ ] **Finish `acceptance-tests`** (released in 0.33.0). Left: `phax skills install` for the
-      copies outside this repository (`~/.claude/skills/phax-planning` still teaches oracle
-      phases). Optional: no skill teaches that the criterion ids `acceptance`, `in-phase` and
-      `oracle` are reserved; only lint reports it.
+- [ ] **`artifact-revise`** — `docs/specs/2610271505-artifact-revise.md`, Draft with 2 open
+      questions: revise an authored spec or plan through its kept session. Moved up 2026-11-10
+      (operator): revising an authored artifact is needed often.
 
-### 2. The harness, from the records (`docs/ideas/harness-from-records.md`)
+### 2. Review findings: ids and fates
 
-Cheap, and every run gains from it: the phase prompt says what the gate runs, and the project
-names the narrow check of each step.
-
-- [x] **`phase-prompt-names-the-gate`** — merged 2026-11-05 (#189): the phase prompt's `## Gate`
-      section lists the steps the gate runs after the session.
-- [x] **`gate-step-partial-commands`** — merged 2026-11-06 (#191): a gate step's `partial`
-      names cheaper `files` and `diff` commands, shown in the `## Gate` section and allowed
-      per pipe segment in secure mode; `phax validate` and the dry-run list what they allow.
-
-### 3. Security: project-only Claude sessions
-
-- [x] **`project-only-claude-sessions`** — merged 2026-11-06 (#190): headless Claude Code
-      sessions launch with `--setting-sources project` and auto-memory off, records say
-      `userConfig`, and a lost authentication fails as `not-authenticated`. It answers the 1.0
-      item "user-installed Claude Code mods in phase sessions".
-- [ ] **Follow-up: an opt-out for the user layer** — to brief. Project-only sources also drop the
-      operator's own `permissions.deny` rules and hooks, so in unsafe mode nothing else blocks
-      what they blocked; and a Bedrock, Vertex or gateway setup in user settings switches silently
-      to another credential when one is available. Both are documented in `docs/security.md`
-      (accepted by the operator 2026-11-06). The follow-up weighs a recorded opt-out (`loaded`)
-      and detecting the account switch (the spec's `q-opt-out`, kept out of the first slice).
-
-### 4. Small briefs to spec
-
-- [x] **`commit-trailers-paths`** — `docs/briefs/commit-trailers-paths-plan.md` (2026-11-04; straight to a plan, no spec). Merged #193. The
-      `Worktree:` and `Gate-Log:` trailers put the operator's home path into every repository's
-      history.
-- [x] **`records-branch-tip`** — `docs/briefs/records-branch-tip.md` (2026-11-04). Merged #194. A record
-      written into a fresh records clone has no common history with the remote, so the push of
-      `phax/records/v1` fails.
-
-### 5. The review line
 
 - [ ] **`finding-ids-and-fates`** — spec Approved (2026-11-04), no plan yet. Review findings get
       stable ids and a recorded fate; the operator's interactive flow first.
-- [ ] **`review-map`** — `docs/briefs/review-map.md` (2026-10-23), spec to author. phax computes,
-      without a model, where review attention belongs (criteria no test proves, skipped
-      acceptance tests, phases that needed fixes, the run's review notes) and gives it to the
-      review session. `headless-review` was abandoned 2026-11-05 in favour of this line.
 
-### 6. The project doctrine
+### 3. Process and code in two repositories
+
+- [ ] **`code-repository`** — `docs/briefs/code-repository.md` (2026-11-02), spec to author: a
+      project whose process lives in one repository and whose code in another, checked out
+      inside it.
+      Moved up 2026-11-10 (operator): right after `finding-ids-and-fates`.
+
+### 4. The project doctrine
 
 - [ ] **`project-doctrine`** — `docs/specs/2611051057-project-doctrine.md`, Draft (2026-11-05),
       10 open questions, kept for the operator to think over (brief:
@@ -81,10 +50,7 @@ names the narrow check of each step.
       reaches only decide, after the choice, and the operator's rules live in `CLAUDE.md` and an
       assistant's memory.
 
-### 7. What `command-contracts` unblocks
-
-`command-contracts` is complete (plans 1 to 4, #184, #185, #187, #188, merged 2026-11-05):
-every command answers through the runner, and the bridge is gone.
+### 5. The knowledge index
 
 - [ ] **`knowledge-index`** — `docs/briefs/knowledge-index.md` (2026-11-04), spec to author. A local,
       rebuildable index (SQLite, FTS5) of what the repository and its runs hold — specs, plans,
@@ -92,31 +58,44 @@ every command answers through the runner, and the bridge is gone.
       command line in versioned JSON instead of grep; Git stays the source of truth. Milestone 2,
       out of its scope: a shared service mirroring a team's repositories and records, exposed as a
       remote MCP server.
+      After `project-doctrine` (operator, 2026-11-10): the doctrine's entries are among what it
+      indexes.
+
+### 6. Security: the user layer
+
+- [ ] **Follow-up: an opt-out for the user layer** — to brief. Project-only sources also drop the
+      operator's own `permissions.deny` rules and hooks, so in unsafe mode nothing else blocks
+      what they blocked; and a Bedrock, Vertex or gateway setup in user settings switches silently
+      to another credential when one is available. Both are documented in `docs/security.md`
+      (accepted by the operator 2026-11-06). The follow-up weighs a recorded opt-out (`loaded`)
+      and detecting the account switch (the spec's `q-opt-out`, kept out of the first slice).
+
+### 7. Before 1.0
+
+- [ ] The **CLI contract freeze** and the **persisted-format stability promise** (see "Road to
+      1.0.0" below). The Effect 4 migration they waited on is done: spec `effect-4-migration`
+      completed 2026-11-10, in four plans (#195 and #196 the groundwork on Effect 3, #198 the
+      migration to Effect 4.1.2, #199 the removal of its codemod, reference, skills and
+      protections; the behaviour corpus stays as `tests/behaviourCorpus/`). The schema-guide
+      pitfalls it found went upstream as Effect-TS/effect#10525.
+
+### 8. Later
+
+- [ ] **`review-map`** — `docs/briefs/review-map.md` (2026-10-23), spec to author. phax computes,
+      without a model, where review attention belongs (criteria no test proves, skipped
+      acceptance tests, phases that needed fixes, the run's review notes) and gives it to the
+      review session. `headless-review` was abandoned 2026-11-05 in favour of this line.
+      Deprioritised 2026-11-10 (operator): wait until steme is well advanced.
+- [ ] The small follow-ups below, in batches.
+
+## A parallel track: the cockpit
+
 - [ ] **`claude-code-mod`** — `docs/briefs/claude-code-mod.md` (2026-11-03), spec to author. The
       cockpit starts as a Claude Code mod: a pane and a band showing the current repository's
       inbox, specs, plans and runs, read from phax's versioned JSON, writing nothing. It needs a
       coverage level (§9 Q1), and can read the knowledge index once it exists.
-
-### 8. Before 1.0
-
-- [ ] **Migrate to Effect 4**, then the **CLI contract freeze** and the **persisted-format
-      stability promise** (see "Road to 1.0.0" below). Every command moved onto the runner adds
-      to the migration, so do not leave it long after `command-contracts`.
-      Spec `effect-4-migration` approved 2026-11-07. Plan 1, the groundwork on Effect 3 (corpus,
-      codemod, skills, ratchet), merged #195 on 2026-11-09. Plan 2, the second groundwork
-      (phax's own refusal model, a denser corpus, a ratchet on passing tests):
-      `docs/briefs/effect-4-migration-plan-2.md`, merged #196 on 2026-11-09. Next: Effect 4 is
-      installed and the codemod applied (the first counts and passing tests recorded), then one
-      topic per skill, schema first.
-
-### 9. Later
-
-- [ ] **`code-repository`** — `docs/briefs/code-repository.md` (2026-11-02), spec to author: a
-      project whose process lives in one repository and whose code in another, checked out
-      inside it.
-- [ ] **`artifact-revise`** — `docs/specs/2610271505-artifact-revise.md`, Draft with 2 open
-      questions: revise an authored spec or plan through its kept session.
-- [ ] The small follow-ups below, in batches.
+      Its own track since 2026-11-10 (operator): `command-contracts` already gives it the
+      versioned JSON it reads, so it runs beside the main queue, not after it.
 
 ## Model policy tracking
 
@@ -168,6 +147,8 @@ A rise in execution defects on default phases is the signal to tighten the polic
 | 2026-11-07 | `records-branch-tip` (#194) | 6 × sonnet-5-5 (phase-03 and the acceptance tests at high), 1 × opus-5-5 / medium (sync and replay), with one acceptance pair (phase-04's tests, passed by phase-05); the headless code review on; spec and plan authored at opus-5-5 / medium, not reviewed by an agent | $12.95 ($9.54 for the phases and handoffs; two fix attempts, $1.29; $1.86 for the code review; $0.27 for the compliance review; one pause on the five-hour limit, and a gate hung 13 h on a `spawnSync` with no timeout, now a Small follow-up) | 4 / 8 | The plan let a concurrent record write fail on its compare-and-swap (the operator chose a bounded retry before the run); the spec's §5.8 refused every replay on a shared key, a dead end for a decision taken on two machines (decision keys are numbered per machine), amended on the operator's choice to skip a record the remote holds file for file and replay the rest; the plan's arbitration listed record files by their diff against the parent, which hides a record identical to its parent's; and both-missing tips read as in sync, so `status` said every record was pushed before anything was fetched. Execution printed the refused-push sentence only under `--verbose`; let `listCommitFiles` follow the user's `log.showRoot`, `core.quotePath` and signature config; tested no `records sync` text; carried the diverged-branch note in `pushWarning`; left the sync summary and `--replay`'s "nothing replayed" line unwritten; surfaced git's raw `cannot lock ref` after three lost swaps; and left the branch-tip fixture without a git identity, red on CI only. The headless code review: 5 findings, all addressed; the outside-in review (real repositories, 20,000 records) 6 more. The real e2e passed (`realFlow` 20/21, its Codex secure test red on main too; both `semanticTrace` stops write records in-repo through the new parent rule). |
 | 2026-11-09 | `effect-4-migration-groundwork`, Effect 4 migration plan 1 (#195) | 2 × sonnet-5-5 / medium (with phase-02 a declared review stop), 3 × sonnet-5-5 / high, 3 × opus-5-5 / high (the corpus harness, the codemod's acceptance tests and the codemod); the headless code review on; spec and plan authored at opus-5-5 / medium, not reviewed by an agent | $24.66 ($18.56 for the phases, $1.73 handoffs, $0.70 for one fix attempt, $3.26 for the code review, $0.27 for the compliance review; one pause on the weekly limit, and phase-06's gates ran 4 h and 7.5 h under a machine load of 60+, where the same gates take 5 min) | 4 / 9 | The spec kept Effect 3's refusal wording as the goal, but Effect 4 rewords every message, so the operator gave phax its own refusal model, due in plan 2. The reference maps `decode*Either` to `Exit` while the same pass turns every consumer into a `Result` consumer: retargeted to `decodeUnknownResult`. The plan's corpus had no refused case per constraint and no encode subject, so a loosened constraint would replay green (moved to plan 2). `Either.getOrThrow` had no rule and held back 738 covered uses: added after review, which brings the leftovers from 2,097 to 1,206. Execution: the reference parser called unchanged names moved; leftovers did not name their blocker; `main.ts` ran on import and skipped `site/`; the type-check runner had no timeout and read a crash as zero errors; the ratchet could be fooled by a `package.json` script edit; `protectedPaths` left the ratchet code and the tsconfigs open; the skills' scopes left `.left`/`.right`, `.annotations(` and `packages/schemas` out; and `issueMessage` reworded objects and arrays but not tuples, unions or the encoded side. The operator's delegate corrected phase-02 (whole types worded `an object` / `an array`). The headless code review and the outside-in review found them all, and all were fixed on the branch except the corpus gaps and the `issueMessage` shapes, which move to plan 2. |
 | 2026-11-09 | `effect-4-migration-groundwork-2`, Effect 4 migration plan 2 (#196) | 3 × opus-5-5 / high (the refusal model's acceptance tests, the renderer and adapter, the test ratchet), 2 × sonnet-5-5 / high (the formatters, the denser corpus), 4 × sonnet-5-5 / medium (with phase-04 a declared review stop); the headless code review on; plan authored at opus-5-5 / medium, not reviewed by an agent | $20.83 ($15.11 for the phases, $0.66 handoffs, $0.91 for fix attempts, $3.66 for the code review, $0.34 for the compliance review; one pause on a network drop) | 7 / 5 | Plan: the label rule labelled `minLength(1)` from its data (`a string at least 1 character(s) long`, 49 lines), counted `undefined` as a keyword (`one of … \| undefined`) and called `NonEmptyArray` a tuple; the operator's review at phase-04 set `a non empty string`, `undefined` as a literal and a rest tuple as an array. The union rule kept the deeper members in Effect 3's order, so a tagged union of objects printed the other variant's tag (`outcome: Expected "failed"` for a committed record): 493 of 4,734 constraint cases refused at another path, and the coverage oracle checked only the case's name. The test record counted a test by name, so `it.fails` passed it. The plan protected the ratchet's own record, which every migration phase rewrites (caught before the run). Execution: a failed transformation printed its identifier (`Expected NumberFromString`); five fallbacks still returned Effect's tree text, behind a source guard that searched names only; a stale `rewordedMessages` exemption; the upgrading list's first group fused into its paragraph; and the adapter called `SchemaAST.getSchemaIdAnnotation`, `@since 3.14.2`, under a declared `^3.14.0`, so `parseDocument` threw on 3.14.0. The headless code review found 5, the outside-in review 2; all fixed on the branch (a give-way rule for tagged unions moved 14 existing corpus lines onto their field and 456 constraint cases onto their path). Real e2e: `realFlow` 20/21 (its Codex secure test red on main too), `gateExhaustionResume`, `headlessAuthoring`, `resetPhase`, `semanticTrace` pass. |
+| 2026-11-10 | `effect-4-migration`, Effect 4 migration plan 3 (#198) | 3 × opus-5-5 / high (the current schemas and refusal adapter, the errors topic, the package and its JSON Schemas), 2 × sonnet-5-5 / high (the frozen decoders, the services topic), 4 × sonnet-5-5 / medium (with phase-03 a declared review stop, closed unchanged); the `effect-migration` gate profile (ratchets every phase, the full gate at the end); the headless code review on; plan authored at opus-5-5 / medium, not reviewed by an agent | $98.04 ($90.27 for the phases, of it $30.39 for phase-02 and $45.53 for phase-08, while the codemod left phase-06 and phase-07 under $1 each; $1.39 handoffs, $1.97 for fix attempts, $3.81 for the code review, $0.44 for the compliance review; the terminal gate hung about 2 h once on `completions.test.ts`, a hang earlier runs show too) | 2 / 5 | Plan: the spec and plan held the rendered JSON Schemas to their Effect 3 bytes, but Effect 4's generator drops the generated descriptions and renders `$ref`s and unions differently. The operator kept Effect 4's rendering for `phax artifact schema`, the answer schemas and the editor schemas (same documents accepted and refused), compared them by the corpus judge, and added an upgrading note and a test against 0.35.0's editor schemas. Execution: the generator rendered the codec's encoded side, so a number field took `"NaN"` and an optional key took `null` (the corpus had no such refused document); the phase-09 normaliser stripped every `null`, required keys' included; the exported `PhaseStatusSchema` lost Effect 3's per-node strict stop; phase-08 refreshed the history lock without naming it and claimed check:full passed while 20 tests failed; the help text still called the rendered schema the published bytes. The headless code review found 5 of them; all fixed on the branch but the commit bodies (recorded on the PR). Real e2e: 26 of 27 named tests pass (`realFlow`'s Codex secure test red on main too). |
+| 2026-11-10 | `remove-the-effect-4-migration-tooling`, Effect 4 migration plan 4 (#199), the spec's last | 2 × sonnet-5-5 / medium (the codemod's last false positive, the removals), 1 × haiku-5-5 / medium (the corpus rename, with a reason); the headless code review on; plan authored at opus-5-5 / medium, not reviewed by an agent | $2.94 ($0.98 for the phases, $0.10 handoffs, $0.12 for one fix attempt, $1.47 for the code review, $0.27 for the compliance review), plus $0.59 for a first attempt that was pruned | 1 / 1 | Plan: phase-02 and phase-03 used `git rm` and `git mv`, which no agent could run, and the plan's Required commands named neither, so `plans lint` passed it. The phase-02 agent refused to work around it and committed nothing; `phax resume` then skipped the phase as "no changes" and started phase-03, `reset-phase` refused the skipped phase, and the run was archived, pruned and started again with both commands granted (the operator kept `git mv` after the merge). The operator also had the installer rewrite the lockfile rather than a hand edit. Execution: `corpus.ts` moved byte for byte, as planned, so its comments still named the deleted capture script. The headless code review found that and a test, `protectedPathsAdditive`, that failed for every phase agent running `pnpm test` inside a phax-launched Claude Code session (an inherited `CLAUDE_CODE_DISABLE_AUTO_MEMORY`); both fixed on the branch. The review re-ran the codemod's `--check` at phase-01's commit for §5.12: no v3 symbol left. |
 
 ## Road to 1.0.0 — assessed 2026-09-15 at v0.14.0, rechecked 2026-10-05 at v0.18.0
 
@@ -187,31 +168,6 @@ except `isolated` mode, which the post itself disclaims. The feature surface is 
 - [ ] **CLI contract freeze.** Land the last renames from `docs/vocabulary-review.md` §"Top
       fixes" (at least 1, 2 and 4 — they change output and flag values) *before* 1.0, then hold
       the contract for one or two 0.x releases.
-- [ ] **Migrate to Effect 4, before the freeze.** Effect 4.0 shipped 2026-10-06 (`effect@4.0.1`):
-      a rewrite, one lockstep `effect` package, `@effect/platform` merged into it. Effect 3.x gets
-      fixes until at least September 2029, but `@lbdremy/phax-schemas` exports Effect 3 `Schema`
-      values and depends on `effect ^3.14`, so moving after 1.0 would be a breaking major of the
-      package and of the cockpit. Its own spec (decided 2026-10-06).
-      **Sized 2026-10-07** by a spike (nothing committed): 1,502 type errors in 224 `src` files
-      and 2,910 in 443 test files, mostly from about ten mechanical root causes — `Either` gone
-      (`Effect.either`, `decodeUnknownEither` → `decodeUnknownExit`), `Context.Tag` →
-      `Context.Service` on the ports, the Schema filters → `.check(…)`, `Schema.optionalWith`,
-      `Effect.catchAll`/`orElse` → `Effect.catch`, `ParseResult` → `SchemaIssue`. The two
-      platform packages are unused in `src` and can go. Not mechanical: the JSON Schema
-      generator changes every snapshot's text (every format gets a `next` snapshot), the
-      parse-error wording behind refusals (`formatFirstViolation`) changes, and the frozen
-      decoders under `src/schemas/history/` must keep their exact behaviour. Guide:
-      `https://github.com/Effect-TS/effect/blob/main/MIGRATION.md`.
-- [x] **Check whether user-installed Claude Code mods run in phase sessions.** Raised
-      2026-10-08. Mods are plugin code running inside Claude Code, unsandboxed, and plugins load
-      in `claude -p` too; a mod that approves tool calls can step around secure mode's command
-      allowlist. Find out what a phase session loads, then decide how secure mode keeps the
-      operator's mods out (e.g. `--safe-mode` or `--bare`, checked against what those also turn
-      off). Docs: `https://code.claude.com/docs/en/plugins/mods/overview`. A secure-mode
-      boundary, so before the freeze. Done by `project-only-claude-sessions` (#190, 2026-11-06):
-      headless sessions launch with `--setting-sources project`, so user and marketplace plugins
-      (mods included) no longer load; the real-session e2e saw a planted user plugin load under
-      today's flags and not under phax's. Interactive sessions keep them, by design.
 - [ ] **Distribution polish.** macOS binaries are neither signed nor notarized
       (`docs/release.md`); npm install works, the raw binary is Gatekeeper-blocked. Either
       sign, or make npm the only documented install path for 1.0.
@@ -229,6 +185,30 @@ desktop — none is promised by the announcement.
 
 ## Small follow-ups
 
+- [ ] **Teach the reserved test-line words.** Left from `acceptance-tests` (0.33.0): no skill says
+      that a spec's criterion ids cannot be the loop words `acceptance` or `in-phase` (nor the
+      retired `oracle`); only the schemas refuse them. One line in phax-spec's acceptance-criteria
+      rules. (The other leftover, stale user copies of the skills, is done: `~/.claude/skills`
+      matches the repository's, checked 2026-11-10.)
+- [ ] **A phase whose agent is blocked commits nothing and is then skipped.** Found 2026-11-10 on
+      `remove-the-effect-4-migration-tooling`. The phase-02 agent could not run `git rm` (not a
+      granted command), stopped and asked for approval. phax paused the run as "produced no
+      changes", `phax resume --yes` then skipped the phase and started the next one, and
+      `phax reset-phase` refuses a skipped phase, so the only way back was to archive, prune and
+      start the run again. A phase that planned file changes and made none should fail, not be
+      skipped, and `reset-phase` should take a skipped phase.
+- [ ] **`plans lint` misses commands named only in a phase's instructions.** Same run: the plan
+      told phase-02 to `git rm -r` and phase-03 to `git mv`, but listed only `pnpm exec tsx` under
+      Required commands, and the commands check reads that section alone. Flag a backticked
+      command in Detailed instructions that neither Required commands, the agent commands nor the
+      gate profile allows.
+- [ ] **Behaviour corpus: refused `"NaN"` and `null` documents.** From #198's review: the schemas
+      check's judge called Effect 4's looser JSON Schemas equivalent because no corpus document
+      had a non-finite string in a `Schema.Number` field or `null` in an optional key. #198 fixed
+      the generator; add such refused cases, with a way to write their expectation now that no
+      capture script remains (#199).
+- [ ] **Refusal labels of identifier-like leaves.** From #198: a leaf such as `decisionId` prints
+      its regex in a refusal instead of a label; restore an identifier annotation.
 - [ ] **Security: allowed shell commands run unconfined on Claude Code and Vibe.** Found 2026-10-30
       reviewing #176. Only Codex runs a session in an OS sandbox. On Claude Code and Vibe the filesystem
       limit covers the file-editing tools; an allowed command runs with the user's rights. Reproduced:

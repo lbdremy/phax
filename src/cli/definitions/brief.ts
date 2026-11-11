@@ -2,7 +2,7 @@
 // answered, with the files asked about, and today's rendering as its text. The record warning of
 // a pull that could not record itself is a note. Every refusal and failure is a declared error
 // with today's `✗ …` sentence and exit 1; an invalid config is exit 2.
-import { Data, Effect, Either, Layer } from "effect";
+import { Data, Effect, Result, Layer } from "effect";
 import * as Schema from "effect/Schema";
 import { loadConfig, locateWorkingTree } from "../../app/loadConfig.js";
 import { pullBrief } from "../../app/pullBrief.js";
@@ -44,7 +44,7 @@ const BriefOutput = Schema.Struct({
   recordWarning: Schema.NullOr(Schema.String),
 });
 
-const PathArg = Schema.String.annotations({
+const PathArg = Schema.String.annotate({
   identifier: "path",
   description: "Paths to brief, existing or not, relative to the current directory",
 });
@@ -76,8 +76,8 @@ function makeBriefCommand(cwdOf: () => string) {
           );
         }
         const configResult = loadConfig(tree.mainRoot);
-        if (Either.isLeft(configResult)) return yield* Effect.fail(configResult.left);
-        const { brief } = configResult.right;
+        if (Result.isFailure(configResult)) return yield* Effect.fail(configResult.failure);
+        const { brief } = configResult.success;
         if (brief === undefined) {
           return yield* Effect.fail(
             new NoBriefProviderError({

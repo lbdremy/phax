@@ -3,7 +3,7 @@
 // <stateRoot>/cost-ledgers/<namespace>.<short-name>.<run-id>.json. A dry run
 // copies nothing, and a failed copy keeps the run with part `cost ledger`.
 // Fake ports and a made-up state root; the ledger content is made up.
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 import { prune, type PruneInput } from "../../src/app/prune.js";
 import type { PruneResult } from "../../src/domain/prune.js";
@@ -60,7 +60,7 @@ function makeEnv(opts: { failKeptWrite?: boolean } = {}) {
 
   const run = (input: Partial<PruneInput> = {}) =>
     Effect.runPromise(
-      Effect.either(
+      Effect.result(
         prune({
           namespace: ns,
           stateRoot,
@@ -77,8 +77,8 @@ function makeEnv(opts: { failKeptWrite?: boolean } = {}) {
   return { fs, run };
 }
 
-function applied(result: Either.Either<PruneResult, unknown>) {
-  const value = Either.getOrThrow(result);
+function applied(result: Result.Result<PruneResult, unknown>) {
+  const value = Result.getOrThrow(result);
   if (value.kind !== "applied") throw new Error(`expected applied, got ${value.kind}`);
   return value;
 }
@@ -97,7 +97,7 @@ describe("prune keeps the cost ledger", () => {
   it("copies nothing on a dry run", async () => {
     const env = makeEnv();
 
-    const result = Either.getOrThrow(await env.run({ confirmation: "dry-run" }));
+    const result = Result.getOrThrow(await env.run({ confirmation: "dry-run" }));
 
     expect(result.kind).toBe("previewed");
     expect(env.fs.impl.getFile(keptPath)).toBeUndefined();

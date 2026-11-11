@@ -3,7 +3,7 @@
 // its text is the `Target:` line of another project's run, then the success sentence. A refusal
 // or a failure of the use case is a declared error with exit 1, its text preceded on stdout by the
 // `Target:` line when the run is another project's, as it was printed before the archive began.
-import { Data, Effect, Either, Layer } from "effect";
+import { Data, Effect, Result, Layer } from "effect";
 import * as Schema from "effect/Schema";
 import { archive } from "../../app/archive.js";
 import { resolveRunRef } from "../../app/resolveRunRef.js";
@@ -70,15 +70,14 @@ export const archiveCommand = defineCommand({
     "phax archive plan-27 --force  # give up an interrupted run",
   ],
   input: {
-    args: reject(Schema.Tuple(ShortNameArg)),
+    args: reject(Schema.Tuple([ShortNameArg])),
     flags: reject(
       Schema.Struct({
-        force: Schema.optionalWith(
-          Schema.Boolean.annotations({
+        force: Schema.optionalKey(
+          Schema.Boolean.annotate({
             description:
               "Archive even if the run is unfinished or a worktree has uncommitted changes",
           }),
-          { exact: true },
         ),
       }),
     ),
@@ -92,17 +91,17 @@ export const archiveCommand = defineCommand({
         ),
       );
       const resolved = resolveRunRef(input.args[0], config, config.stateRoot);
-      if (Either.isLeft(resolved)) {
-        return yield* Effect.fail(new ArchiveRunRefError({ message: resolved.left.message }));
+      if (Result.isFailure(resolved)) {
+        return yield* Effect.fail(new ArchiveRunRefError({ message: resolved.failure.message }));
       }
-      const { namespace, shortName, crossProject } = resolved.right;
+      const { namespace, shortName, crossProject } = resolved.success;
       const qualifiedName = runKey(namespace, shortName);
       const decoded = decodeShortName(shortName);
-      if (Either.isLeft(decoded)) {
+      if (Result.isFailure(decoded)) {
         return yield* Effect.die(`Internal error: resolved shortName "${shortName}" is invalid.`);
       }
       const options = input.flags.force === true ? { force: true } : {};
-      yield* archive(namespace, decoded.right, config.stateRoot, config.repoRoot, options).pipe(
+      yield* archive(namespace, decoded.success, config.stateRoot, config.repoRoot, options).pipe(
         Effect.provide(
           Layer.mergeAll(
             makeRepoRootedFileSystemLayer(config),

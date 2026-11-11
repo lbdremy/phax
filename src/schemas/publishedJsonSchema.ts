@@ -1,43 +1,31 @@
-// The one renderer of a format's published JSON Schema, shared by the build
-// that writes packages/schemas/json/<format>.schema.json and by the prompts and
-// provider flags that hand an answer's schema to a model. Imports only effect.
-import { JSONSchema, type Schema } from "effect";
+// The renderer of a format's JSON Schema as Effect 4 generates it, shared by
+// the build (packages/schemas/build/jsonSchemas.ts) and the schemas check.
+// Imports only effect and ./schemaUrl.ts, whose `draft07Document` is the one
+// call into Effect's generator.
+import { JsonSchema, type Schema } from "effect";
+import { draft07Document, type Draft07Document, type Excess } from "./schemaUrl.js";
 
-const DRAFT_07 = "http://json-schema.org/draft-07/schema#";
-
-/**
- * How a format's decoder treats a key its schema does not name: `error`
- * rejects it, `ignore` accepts and drops it. The JSON Schema follows suit.
- */
-export type Excess = "error" | "ignore";
+export type { Excess };
 
 /**
- * `JSONSchema.fromAST` with the format's excess-property strategy, which only
- * `fromAST` takes: draft-07 `$schema`, the root `title`, then `$defs` and the
- * schema's own keys.
+ * A format's generated JSON Schema: the draft-07 `$schema`, the root `title`,
+ * then the schema's own keys and its `$defs` when there are any.
  */
 export function renderPublishedJsonSchema({
   schema,
   title,
   excess,
 }: {
-  readonly schema: Schema.Schema.Any;
+  readonly schema: Schema.Top;
   readonly title: string;
   readonly excess: Excess;
 }): Record<string, unknown> {
-  const definitions: Record<string, JSONSchema.JsonSchema7> = {};
-  const rendered: Record<string, unknown> = {
-    ...JSONSchema.fromAST(schema.ast, {
-      definitions,
-      target: "jsonSchema7",
-      additionalPropertiesStrategy: excess === "ignore" ? "allow" : "strict",
-    }),
-  };
-  const { title: _ownTitle, ...body } = rendered;
+  const document: Draft07Document = draft07Document(schema, excess);
+  const { title: _ownTitle, ...body } = document.schema;
   return {
-    $schema: DRAFT_07,
+    $schema: JsonSchema.META_SCHEMA_URI_DRAFT_07,
     title,
-    ...(Object.keys(definitions).length > 0 ? { $defs: definitions } : {}),
     ...body,
+    ...(Object.keys(document.defs).length > 0 ? { $defs: document.defs } : {}),
   };
 }

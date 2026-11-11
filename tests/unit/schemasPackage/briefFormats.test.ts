@@ -2,7 +2,7 @@
 // shape. Both refuse unknown keys, as phax's decoders do, except inside a
 // record's answer, which is kept as printed. Every document comes from
 // documents.ts or below and is made up.
-import { Either, type ParseResult } from "effect";
+import { Result, type Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import { CURRENT_SHAPES, PACKAGE_VERSION } from "../../../packages/schemas/src/generated/index.js";
 import {
@@ -19,7 +19,7 @@ import { CURRENT_STAMPS } from "../../../src/schemas/release.js";
 import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
 import { validDocuments, withKey, withoutKey } from "./documents.js";
 
-type Decode = (input: unknown) => Either.Either<unknown, ParseResult.ParseError>;
+type Decode = (input: unknown) => Result.Result<unknown, Schema.SchemaError>;
 type Parse = (
   input: unknown,
 ) =>
@@ -64,8 +64,8 @@ describe.each(FORMATS)("$id, born with $schema", ({ id, label, parse, phax, toLa
   it("parses the document phax writes as its current shape, with phax's value", () => {
     expect(Object.keys(document)).toEqual(keys);
     const decoded = phax(document);
-    if (Either.isLeft(decoded)) throw new Error("document rejected by phax");
-    expect(parse(document)).toEqual({ ok: true, shape: current, value: decoded.right });
+    if (Result.isFailure(decoded)) throw new Error("document rejected by phax");
+    expect(parse(document)).toEqual({ ok: true, shape: current, value: decoded.success });
   });
 
   it("is identified by parseDocument from its $schema", () => {
@@ -102,7 +102,7 @@ it("refuses unknown keys in a request and a record, as phax's strict decoders do
   for (const [parse, phax, id] of strict) {
     const extra = withKey(validDocuments[id], "owner", "example");
     expect(parse(extra).ok, id).toBe(false);
-    expect(Either.isLeft(phax(extra)), id).toBe(true);
+    expect(Result.isFailure(phax(extra)), id).toBe(true);
   }
 });
 

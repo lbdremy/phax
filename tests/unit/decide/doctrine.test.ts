@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   DECIDE_SKILL_FOR_KIND,
@@ -65,11 +65,11 @@ describe("assembleDoctrine", () => {
 
   it("returns the skill alone when no file is given", () => {
     const result = assembleDoctrine({ skill, file: null });
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isLeft(result)) return;
-    expect(result.right.text).toBe(SKILL);
-    expect([...result.right.principleIds]).toEqual(["G0", "G1", "K1", "K2", "K3", "K4"]);
-    expect(result.right.sources).toEqual([
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isFailure(result)) return;
+    expect(result.success.text).toBe(SKILL);
+    expect([...result.success.principleIds]).toEqual(["G0", "G1", "K1", "K2", "K3", "K4"]);
+    expect(result.success.sources).toEqual([
       { kind: "skill", name: "phax-decide-spec", source: "bundled", fingerprint: sha(SKILL) },
     ]);
   });
@@ -80,13 +80,13 @@ describe("assembleDoctrine", () => {
       skill: { ...skill, source: "project" },
       file: { path: "docs/doctrine/spec.md", text: fileText },
     });
-    if (Either.isLeft(result)) throw new Error(result.left);
-    expect(result.right.text).toBe(
+    if (Result.isFailure(result)) throw new Error(result.failure);
+    expect(result.success.text).toBe(
       `${SKILL}\n\n## Project doctrine (docs/doctrine/spec.md)\n\n${fileText}`,
     );
-    expect(result.right.principleIds.has("X1")).toBe(true);
-    expect(result.right.principleIds.has("K1")).toBe(true);
-    expect(result.right.sources).toEqual([
+    expect(result.success.principleIds.has("X1")).toBe(true);
+    expect(result.success.principleIds.has("K1")).toBe(true);
+    expect(result.success.sources).toEqual([
       { kind: "skill", name: "phax-decide-spec", source: "project", fingerprint: sha(SKILL) },
       { kind: "file", path: "docs/doctrine/spec.md", fingerprint: sha(fileText) },
     ]);
@@ -97,10 +97,10 @@ describe("assembleDoctrine", () => {
       skill,
       file: { path: "docs/doctrine/empty.md", text: "Prose naming `X1` only.\n" },
     });
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isRight(result)) return;
-    expect(result.left).toContain("docs/doctrine/empty.md");
-    expect(result.left).toContain("defines no principle id");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isSuccess(result)) return;
+    expect(result.failure).toContain("docs/doctrine/empty.md");
+    expect(result.failure).toContain("defines no principle id");
   });
 
   it("refuses a file that redefines skill ids, naming every overlap", () => {
@@ -108,11 +108,11 @@ describe("assembleDoctrine", () => {
       skill,
       file: { path: "docs/doctrine/clash.md", text: "- `K1` mine\n- `X1` ok\n- `K3` mine too\n" },
     });
-    if (Either.isRight(result)) throw new Error("expected a refusal");
-    expect(result.left).toContain("docs/doctrine/clash.md");
-    expect(result.left).toContain("`K1`");
-    expect(result.left).toContain("`K3`");
-    expect(result.left).not.toContain("`X1`");
+    if (Result.isSuccess(result)) throw new Error("expected a refusal");
+    expect(result.failure).toContain("docs/doctrine/clash.md");
+    expect(result.failure).toContain("`K1`");
+    expect(result.failure).toContain("`K3`");
+    expect(result.failure).not.toContain("`X1`");
   });
 });
 

@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { decodeNamespace } from "../../src/domain/branded.js";
 import {
@@ -44,7 +44,7 @@ describe("slugify", () => {
     for (const raw of cases) {
       const s = slugify(raw);
       if (s) {
-        expect(Either.isRight(decodeNamespace(s))).toBe(true);
+        expect(Result.isSuccess(decodeNamespace(s))).toBe(true);
       }
     }
   });
@@ -68,7 +68,7 @@ describe("detectName", () => {
 
   it("output satisfies the Namespace brand", () => {
     const name = detectName({ name: "My App" }, "fallback");
-    expect(Either.isRight(decodeNamespace(name))).toBe(true);
+    expect(Result.isSuccess(decodeNamespace(name))).toBe(true);
   });
 });
 
@@ -210,21 +210,21 @@ describe("decodePackageJson", () => {
       author: "Alice",
     };
     const result = decodePackageJson(raw);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.name).toBe("@my-org/my-app");
-      expect(result.right.packageManager).toBe("pnpm@10.0.0");
-      expect(result.right.scripts?.["typecheck"]).toBe("tsc --noEmit");
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success.name).toBe("@my-org/my-app");
+      expect(result.success.packageManager).toBe("pnpm@10.0.0");
+      expect(result.success.scripts?.["typecheck"]).toBe("tsc --noEmit");
     }
   });
 
   it("decodes a minimal package.json with no relevant fields", () => {
     const result = decodePackageJson({ name: "bare", version: "0.0.1", private: true });
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
   });
 
   it("decodes an empty object", () => {
     const result = decodePackageJson({});
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
   });
 });

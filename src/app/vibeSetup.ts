@@ -1,6 +1,6 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { FileSystem, FsError } from "../ports/fs.js";
 import { ConfigValidationError } from "../domain/errors.js";
 import {
@@ -60,12 +60,12 @@ export function vibeSetup(
     );
 
     const baseResult = extractBaseModel(originalContent, baseAlias);
-    if (Either.isLeft(baseResult)) {
+    if (Result.isFailure(baseResult)) {
       return yield* Effect.fail(
-        new ConfigValidationError({ message: baseResult.left, path: VIBE_CONFIG_PATH }),
+        new ConfigValidationError({ message: baseResult.failure, path: VIBE_CONFIG_PATH }),
       );
     }
-    const base = baseResult.right;
+    const base = baseResult.success;
 
     const missing: PhaxAliasLevel[] = [];
     const present: PhaxAliasLevel[] = [];

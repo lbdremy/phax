@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { Either } from "effect";
+import { Result } from "effect";
 import { exitCodeForError } from "../../../src/cli/commands/runLayers.js";
 import { ConfigValidationError, PlanValidationError } from "../../../src/domain/errors.js";
 import type { ResolvedConfig } from "../../../src/schemas/phaxConfig.js";
@@ -113,7 +113,7 @@ describe("runValidate", () => {
       await import("../../../src/app/loadConfig.js"),
     );
     const { loadPlan } = vi.mocked(await import("../../../src/app/loadPlan.js"));
-    loadConfig.mockReturnValue(Either.right(makeConfig()));
+    loadConfig.mockReturnValue(Result.succeed(makeConfig()));
     describeConfigSources.mockReturnValue({
       project: "/repo/phax.json",
       localOverlay: "/repo/phax.local.json",
@@ -135,7 +135,7 @@ describe("runValidate", () => {
       await import("../../../src/app/loadConfig.js"),
     );
     loadConfig.mockReturnValue(
-      Either.right({
+      Result.succeed({
         ...makeConfig(),
         protectedPaths: [
           { glob: "**/steme.baseline.json", entry: "protectedPaths[0]" },
@@ -174,7 +174,7 @@ describe("runValidate", () => {
       },
     };
     loadConfig.mockReturnValue(
-      Either.right({
+      Result.succeed({
         ...makeConfig(),
         raw: { gateProfiles: { quick: [], standard: [lint] } } as never,
       }),
@@ -198,7 +198,7 @@ describe("runValidate", () => {
     const { loadConfig, describeConfigSources } = vi.mocked(
       await import("../../../src/app/loadConfig.js"),
     );
-    loadConfig.mockReturnValue(Either.right(makeConfig()));
+    loadConfig.mockReturnValue(Result.succeed(makeConfig()));
     describeConfigSources.mockReturnValue(undefined);
 
     const { outLines: lines } = await phaxCall(["validate"]);
@@ -210,7 +210,7 @@ describe("runValidate", () => {
     const { loadConfig } = vi.mocked(await import("../../../src/app/loadConfig.js"));
     const { loadPlan } = vi.mocked(await import("../../../src/app/loadPlan.js"));
     loadConfig.mockReturnValue(
-      Either.left(
+      Result.fail(
         new ConfigValidationError({ message: "no phax.json found", path: "/repo/phax.json" }),
       ),
     );
@@ -228,13 +228,13 @@ describe("runValidate", () => {
       await import("../../../src/app/loadConfig.js"),
     );
     const { loadPlan } = vi.mocked(await import("../../../src/app/loadPlan.js"));
-    loadConfig.mockReturnValue(Either.right(makeConfig()));
+    loadConfig.mockReturnValue(Result.succeed(makeConfig()));
     describeConfigSources.mockReturnValue({
       project: "/repo/phax.json",
       localOverlay: undefined,
       globalOverlay: undefined,
     });
-    loadPlan.mockReturnValue(Either.right(makePlan("myrun", 3)));
+    loadPlan.mockReturnValue(Result.succeed(makePlan("myrun", 3)));
 
     const { code, outLines: lines } = await phaxCall(["validate", "--plan", "phax-plan.json"]);
 
@@ -251,10 +251,10 @@ describe("runValidate", () => {
       await import("../../../src/app/loadConfig.js"),
     );
     const { loadPlan } = vi.mocked(await import("../../../src/app/loadPlan.js"));
-    loadConfig.mockReturnValue(Either.right(makeConfig()));
+    loadConfig.mockReturnValue(Result.succeed(makeConfig()));
     describeConfigSources.mockReturnValue(undefined);
     loadPlan.mockReturnValue(
-      Either.left(
+      Result.fail(
         new PlanValidationError({ message: "invalid plan schema", path: "phax-plan.json" }),
       ),
     );
@@ -303,7 +303,7 @@ describe("runValidate", () => {
       const actual = await vi.importActual<typeof import("../../../src/app/loadPlan.js")>(
         "../../../src/app/loadPlan.js",
       );
-      loadConfig.mockReturnValue(Either.right(makeConfig()));
+      loadConfig.mockReturnValue(Result.succeed(makeConfig()));
       describeConfigSources.mockReturnValue(undefined);
       loadPlan.mockImplementation(actual.loadPlan);
 
@@ -341,7 +341,7 @@ describe("runValidate", () => {
     const { loadConfig, describeConfigSources } = vi.mocked(
       await import("../../../src/app/loadConfig.js"),
     );
-    loadConfig.mockReturnValue(Either.right(makeConfig()));
+    loadConfig.mockReturnValue(Result.succeed(makeConfig()));
     describeConfigSources.mockReturnValue(undefined);
 
     const { code, outLines: lines } = await phaxCall(["validate"]);
@@ -362,9 +362,9 @@ describe("runValidate", () => {
         await import("../../../src/app/loadConfig.js"),
       );
       const { loadPlan } = vi.mocked(await import("../../../src/app/loadPlan.js"));
-      loadConfig.mockReturnValue(Either.right(makeConfig()));
+      loadConfig.mockReturnValue(Result.succeed(makeConfig()));
       describeConfigSources.mockReturnValue(undefined);
-      loadPlan.mockReturnValue(Either.right(makePlan("myrun", 1)));
+      loadPlan.mockReturnValue(Result.succeed(makePlan("myrun", 1)));
       cwdSpy = vi.spyOn(process, "cwd").mockReturnValue("/some/other/dir");
 
       const { code, outLines: lines } = await phaxCall([
@@ -384,12 +384,12 @@ describe("runValidate", () => {
         await import("../../../src/app/loadConfig.js"),
       );
       const { loadPlan } = vi.mocked(await import("../../../src/app/loadPlan.js"));
-      loadConfig.mockReturnValue(Either.right(makeConfig()));
+      loadConfig.mockReturnValue(Result.succeed(makeConfig()));
       describeConfigSources.mockReturnValue(undefined);
       cwdSpy = vi.spyOn(process, "cwd").mockReturnValue("/repo/nested");
       const resolvedPath = resolve("/repo/nested", "phax-plan.json");
       loadPlan.mockReturnValue(
-        Either.left(
+        Result.fail(
           new PlanValidationError({
             message: `Failed to read or parse "${resolvedPath}": ENOENT`,
             path: resolvedPath,
@@ -454,9 +454,9 @@ describe("runValidate", () => {
         "../../../src/app/loadConfig.js",
       );
       const refused = loadConfig(repoDir);
-      expect(Either.isLeft(refused)).toBe(true);
-      if (Either.isLeft(refused)) {
-        expect(exitCodeForError(refused.left)).toBe(2);
+      expect(Result.isFailure(refused)).toBe(true);
+      if (Result.isFailure(refused)) {
+        expect(exitCodeForError(refused.failure)).toBe(2);
       }
 
       const { code, errLines: errors } = await phaxCall(["validate"]);
@@ -481,9 +481,9 @@ describe("runValidate", () => {
         "../../../src/app/loadConfig.js",
       );
       const refused = loadConfig(repoDir);
-      expect(Either.isLeft(refused)).toBe(true);
-      if (Either.isLeft(refused)) {
-        expect(exitCodeForError(refused.left)).toBe(2);
+      expect(Result.isFailure(refused)).toBe(true);
+      if (Result.isFailure(refused)) {
+        expect(exitCodeForError(refused.failure)).toBe(2);
       }
 
       const { code, errLines: errors } = await phaxCall(["validate"]);

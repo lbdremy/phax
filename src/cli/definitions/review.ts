@@ -6,7 +6,7 @@
 // wrote on this call. review-code opens an interactive session unless `--headless`: it prompts, so
 // `--json` refuses it before anything is read, and the session's exit is the command's exit.
 import { join } from "node:path";
-import { Data, Effect, Either, Layer } from "effect";
+import { Data, Effect, Result, Layer } from "effect";
 import * as Schema from "effect/Schema";
 import { loadModelRouting, loadProviderConfig } from "../../app/loadRouting.js";
 import { effectiveStateRoot } from "../../app/projectContext.js";
@@ -112,9 +112,9 @@ export function reviewConfigured() {
 /** A run reference resolved, or `ReviewRunRefError` with the resolver's sentence. */
 export function reviewResolved(ref: string, config: ResolvedConfig, stateRoot: string) {
   const resolved = resolveRunRef(ref, config, stateRoot);
-  return Either.isLeft(resolved)
-    ? Effect.fail(new ReviewRunRefError({ message: resolved.left.message }))
-    : Effect.succeed(resolved.right);
+  return Result.isFailure(resolved)
+    ? Effect.fail(new ReviewRunRefError({ message: resolved.failure.message }))
+    : Effect.succeed(resolved.success);
 }
 
 /** The refusal of a run that is not in review_open, naming the command. */
@@ -214,7 +214,7 @@ const withTarget = (
   lines: ReadonlyArray<string>,
 ): string => (value.crossProject ? [`Target: ${value.qualifiedName}`, ...lines] : lines).join("\n");
 
-const nullable = <S extends Schema.Schema.Any>(schema: S) => Schema.NullOr(schema);
+const nullable = <S extends Schema.Top>(schema: S) => Schema.NullOr(schema);
 
 // ── review-handoff ──────────────────────────────────────────────────────────────
 
@@ -230,14 +230,13 @@ export function makeReviewHandoffCommand() {
     name: "review-handoff",
     summary: "Regenerate review-handoff.md and global file reconciliation for a review_open run",
     input: {
-      args: reject(Schema.Tuple(ShortNameArg)),
+      args: reject(Schema.Tuple([ShortNameArg])),
       flags: reject(
         Schema.Struct({
-          allowPartial: Schema.optionalWith(
-            Schema.Boolean.annotations({
+          allowPartial: Schema.optionalKey(
+            Schema.Boolean.annotate({
               description: "Generate a partial document when some phase artifacts are missing",
             }),
-            { exact: true },
           ),
         }),
       ),
@@ -347,7 +346,7 @@ export function makeReviewComplianceCommand(deps: ReviewDeps = {}) {
     summary: "Run a plan-compliance review for a review_open run and record its result",
     help: REVIEW_COMPLIANCE_HELP,
     examples: ["phax review-compliance usage-cli"],
-    input: { args: reject(Schema.Tuple(ShortNameArg)) },
+    input: { args: reject(Schema.Tuple([ShortNameArg])) },
     output: reject(ReviewComplianceOutput),
     run: ({ input, program, say, progress }) =>
       Effect.gen(function* () {
@@ -373,15 +372,15 @@ export function makeReviewComplianceCommand(deps: ReviewDeps = {}) {
           );
         }
 
-        const routingResult = yield* Effect.either(
+        const routingResult = yield* Effect.result(
           Effect.all({ routing: loadModelRouting(), providerConfig: loadProviderConfig() }).pipe(
             Effect.provide(makeRepoRootedFileSystemLayer(config)),
           ),
         );
-        if (Either.isLeft(routingResult)) {
-          return yield* fail(`Failed to load routing config: ${routingResult.left.message}`);
+        if (Result.isFailure(routingResult)) {
+          return yield* fail(`Failed to load routing config: ${routingResult.failure.message}`);
         }
-        const { routing, providerConfig } = routingResult.right;
+        const { routing, providerConfig } = routingResult.success;
         const resolution = resolveModel(
           { model: config.complianceReview.model, effort: config.complianceReview.effort },
           routing,
@@ -397,7 +396,7 @@ export function makeReviewComplianceCommand(deps: ReviewDeps = {}) {
           deps.githubLayer ?? NodeGitHubLayer,
         );
         const verbose = program["verbose"];
-        const result = yield* Effect.either(
+        const result = yield* Effect.result(
           reviewComplianceAndRecord(
             info,
             config.complianceReview,
@@ -410,11 +409,13 @@ export function makeReviewComplianceCommand(deps: ReviewDeps = {}) {
             },
           ).pipe(Effect.provide(layer)),
         );
-        if (Either.isLeft(result)) {
-          return yield* fail(`Unexpected error during compliance review: ${result.left.message}`);
+        if (Result.isFailure(result)) {
+          return yield* fail(
+            `Unexpected error during compliance review: ${result.failure.message}`,
+          );
         }
 
-        const outcome = result.right;
+        const outcome = result.success;
         const review = outcome.review;
         // The command as the operator typed the run: the run key when it belongs to another
         // project. The failure line and the records warnings both name it.
@@ -520,35 +521,34 @@ const HandedOverOutput = Schema.Struct({
   exit: Schema.Number,
 });
 
-const ReviewCodeOutput = Schema.Union(HeadlessOutput, HandedOverOutput);
+const ReviewCodeOutput = Schema.Union([HeadlessOutput, HandedOverOutput]);
 type ReviewCodeOutput = typeof ReviewCodeOutput.Type;
 
-const optional = <S extends Schema.Schema.Any>(schema: S) =>
-  Schema.optionalWith(schema, { exact: true });
+const optional = <S extends Schema.Top>(schema: S) => Schema.optionalKey(schema);
 
 const ReviewCodeFlags = reject(
   Schema.Struct({
     newSession: optional(
-      Schema.Boolean.annotations({
+      Schema.Boolean.annotate({
         description: "Start a fresh review session instead of resuming the existing one",
       }),
     ),
     model: optional(
-      Schema.String.annotations({
+      Schema.String.annotate({
         identifier: "model",
         description:
           "Override the model, including on resume (default: review.code.model, else claude-opus-5-5)",
       }),
     ),
     effort: optional(
-      Schema.String.annotations({
+      Schema.String.annotate({
         identifier: "effort",
         description:
           "Override the effort (low | medium | high), including on resume (default: review.code.effort, else high)",
       }),
     ),
     headless: optional(
-      Schema.Boolean.annotations({
+      Schema.Boolean.annotate({
         description:
           "Run the code review without a person: write code-review.json and record the session for review-code to resume; runs whether or not review.code.enabled is set",
       }),
@@ -576,15 +576,15 @@ function runHeadless(call: HeadlessCall, deps: ReviewDeps) {
     const fail = (message: string) =>
       Effect.fail(new ReviewFailedError({ message, qualifiedName, crossProject }));
 
-    const routingResult = yield* Effect.either(
+    const routingResult = yield* Effect.result(
       Effect.all({ routing: loadModelRouting(), providerConfig: loadProviderConfig() }).pipe(
         Effect.provide(makeRepoRootedFileSystemLayer(config)),
       ),
     );
-    if (Either.isLeft(routingResult)) {
-      return yield* fail(`Failed to load routing config: ${routingResult.left.message}`);
+    if (Result.isFailure(routingResult)) {
+      return yield* fail(`Failed to load routing config: ${routingResult.failure.message}`);
     }
-    const { routing, providerConfig } = routingResult.right;
+    const { routing, providerConfig } = routingResult.success;
     const resolution = resolveModel(
       { model: effectiveConfig.model, effort: effectiveConfig.effort },
       routing,
@@ -592,7 +592,7 @@ function runHeadless(call: HeadlessCall, deps: ReviewDeps) {
       () => ({ allowed: true }),
     );
 
-    const reviewed = yield* Effect.either(
+    const reviewed = yield* Effect.result(
       Effect.gen(function* () {
         const fs = yield* FileSystem;
         const bundledReviewSkill = yield* fs.readText(
@@ -618,10 +618,10 @@ function runHeadless(call: HeadlessCall, deps: ReviewDeps) {
         ),
       ),
     );
-    if (Either.isLeft(reviewed)) {
-      return yield* fail(`Unexpected error during code review: ${reviewed.left.message}`);
+    if (Result.isFailure(reviewed)) {
+      return yield* fail(`Unexpected error during code review: ${reviewed.failure.message}`);
     }
-    const outcome = reviewed.right;
+    const outcome = reviewed.success;
     const review = outcome.review;
     if (review.kind === "failed") {
       if (review.sessionFailure != null) {
@@ -666,7 +666,7 @@ function runInteractive(
     const fail = (message: string) =>
       Effect.fail(new ReviewFailedError({ message, qualifiedName, crossProject }));
 
-    const prepared = yield* Effect.either(
+    const prepared = yield* Effect.result(
       Effect.gen(function* () {
         const fs = yield* FileSystem;
         const bundledReviewSkill = yield* fs.readText(
@@ -685,12 +685,12 @@ function runInteractive(
         ),
       ),
     );
-    if (Either.isLeft(prepared)) {
+    if (Result.isFailure(prepared)) {
       return yield* fail(
-        `Unexpected error during review-code preparation: ${prepared.left.message}`,
+        `Unexpected error during review-code preparation: ${prepared.failure.message}`,
       );
     }
-    const result = prepared.right;
+    const result = prepared.success;
     if (result.kind === "unsupported" || result.kind === "refused") {
       return yield* fail(result.message);
     }
@@ -704,16 +704,16 @@ function runInteractive(
         : `Resuming code review session in ${invocation.cwd}`,
     );
 
-    const exit = yield* Effect.either(
+    const exit = yield* Effect.result(
       Effect.gen(function* () {
         const session = yield* Session;
         return yield* session.resume({ ...invocation, env: {} });
       }).pipe(Effect.provide(deps.sessionLayer ?? makeNodeSessionLayer())),
     );
-    if (Either.isLeft(exit)) {
+    if (Result.isFailure(exit)) {
       return yield* Effect.fail(
         new ReviewLaunchError({
-          message: `Failed to launch ${invocation.executable}: ${exit.left.message}`,
+          message: `Failed to launch ${invocation.executable}: ${exit.failure.message}`,
           qualifiedName,
           crossProject,
         }),
@@ -724,7 +724,7 @@ function runInteractive(
       crossProject,
       executable: invocation.executable,
       cwd: invocation.cwd,
-      exit: exit.right,
+      exit: exit.success,
     };
     return answer;
   });
@@ -737,7 +737,7 @@ export function makeReviewCodeCommand(deps: ReviewDeps = {}) {
       "Open an interactive, pre-prompted code-review session for a review_open run, or run the review headless with --headless",
     help: REVIEW_CODE_HELP,
     examples: ["phax review-code usage-cli", "phax review-code usage-cli --headless"],
-    input: { args: reject(Schema.Tuple(ShortNameArg)), flags: ReviewCodeFlags },
+    input: { args: reject(Schema.Tuple([ShortNameArg])), flags: ReviewCodeFlags },
     output: reject(ReviewCodeOutput),
     // The interactive review hands the terminal to a session; the headless one never waits.
     prompts: (input) => input.flags.headless !== true,

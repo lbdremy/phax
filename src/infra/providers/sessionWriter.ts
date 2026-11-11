@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { mkdir, open, readFile, rename } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { randomBytes } from "node:crypto";
@@ -32,9 +32,9 @@ export async function persistSessionId(
   try {
     const text = await readFile(statusPath, "utf8");
     const decoded = readPhaseStatusFile(statusPath, JSON.parse(text) as unknown);
-    if (Either.isRight(decoded)) {
+    if (Result.isSuccess(decoded)) {
       const updated = {
-        ...decoded.right,
+        ...decoded.success,
         claudeSessionId: sessionId,
         updatedAt: new Date().toISOString(),
       };

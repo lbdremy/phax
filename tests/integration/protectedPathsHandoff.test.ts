@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   AwaitingReviewStopError,
@@ -70,10 +70,10 @@ const declare = (held: HeldRun): void => {
   Object.assign(held.config, { protectedPaths: protectedList([GLOB], "phax.json") });
 };
 
-function failedWith<E>(result: Either.Either<unknown, unknown>, type: new (...a: never[]) => E): E {
-  if (Either.isRight(result)) throw new Error("the run did not pause");
-  expect(result.left).toBeInstanceOf(type);
-  return result.left as E;
+function failedWith<E>(result: Result.Result<unknown, unknown>, type: new (...a: never[]) => E): E {
+  if (Result.isSuccess(result)) throw new Error("the run did not pause");
+  expect(result.failure).toBeInstanceOf(type);
+  return result.failure as E;
 }
 
 const writeBaseline = (run: HeldRun, phaseId: string, content: string): void => {

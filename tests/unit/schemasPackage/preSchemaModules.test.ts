@@ -1,8 +1,9 @@
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Either, ParseResult, type Schema } from "effect";
+import { Result, SchemaIssue, type Schema } from "effect";
 import { describe, expect, it } from "vitest";
+import { judgeEquivalence } from "../../../packages/schemas/build/equivalence.js";
 import {
   JSON_SCHEMA_FORMATS,
   renderJsonSchemas,
@@ -23,6 +24,7 @@ import {
   parseSpecDocument,
 } from "../../../packages/schemas/src/index.js";
 import type { ParseFailure } from "../../../packages/schemas/src/parsed.js";
+import { readCorpusDocuments } from "../../../scripts/schemas-check.js";
 import * as authoringRecordManifest from "../../../src/schemas/history/authoring-record-manifest/pre-schema.js";
 import * as complianceReview from "../../../src/schemas/history/compliance-review/pre-schema.js";
 import * as gateAttribution from "../../../src/schemas/history/gate-attribution/pre-schema.js";
@@ -44,8 +46,8 @@ import {
 import { preSchemaDocuments, withKey, withoutKey } from "./documents.js";
 
 interface FrozenModule {
-  readonly schema: Schema.Schema.Any;
-  readonly decode: (input: unknown) => Either.Either<unknown, ParseResult.ParseError>;
+  readonly schema: Schema.Top;
+  readonly decode: (input: unknown) => Result.Result<unknown, Schema.SchemaError>;
   readonly parse: (input: unknown) => { readonly ok: true; readonly shape: string } | ParseFailure;
 }
 
@@ -161,11 +163,15 @@ function pascal(id: FormatId): string {
 }
 
 /** The path of a decoder's first violation, joined with `.`. */
-function firstViolationPath(result: Either.Either<unknown, ParseResult.ParseError>): string {
-  if (Either.isRight(result)) throw new Error("expected the frozen decoder to reject");
-  const [first] = ParseResult.ArrayFormatter.formatErrorSync(result.left);
-  return first === undefined ? "" : first.path.map(String).join(".");
+function firstViolationPath(result: Result.Result<unknown, Schema.SchemaError>): string {
+  if (Result.isSuccess(result)) throw new Error("expected the frozen decoder to reject");
+  const [first] = SchemaIssue.makeFormatterStandardSchemaV1()(result.failure.issue).issues;
+  return first === undefined ? "" : (first.path ?? []).map(String).join(".");
 }
+
+const corpusDocuments = readCorpusDocuments(
+  resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", ".."),
+);
 
 describe("the frozen pre-schema modules", () => {
   it.each(PRE_SCHEMA_FORMAT_IDS)(
@@ -184,7 +190,15 @@ describe("the frozen pre-schema modules", () => {
     const rendered = files.get(entry.fileName);
     expect(rendered).toBeDefined();
     const snapshot = readFileSync(join(snapshotsDir, id, "pre-schema.schema.json"), "utf8");
-    expect(JSON.parse(rendered ?? "null")).toEqual(JSON.parse(snapshot));
+    // Effect 4's generator renders the snapshot's contract in its own form: the
+    // equivalence judge holds the two equal over the format's corpus documents.
+    const verdict = judgeEquivalence({
+      released: JSON.parse(snapshot),
+      generated: JSON.parse(rendered ?? "null"),
+      documents: corpusDocuments.get(id) ?? [],
+    });
+    expect(verdict.disagreements).toEqual([]);
+    expect(verdict.equivalent).toBe(true);
   });
 
   it.each(PRE_SCHEMA_FORMAT_IDS)(
@@ -219,7 +233,7 @@ describe("the frozen pre-schema modules", () => {
       if (tableEntry(id).excess === "error") {
         expect(firstViolationPath(FROZEN[id].decode(extra))).toBe("unexpectedKey");
       } else {
-        expect(Either.isRight(FROZEN[id].decode(extra))).toBe(true);
+        expect(Result.isSuccess(FROZEN[id].decode(extra))).toBe(true);
       }
     },
   );

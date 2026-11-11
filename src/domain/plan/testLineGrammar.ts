@@ -1,4 +1,4 @@
-import { Either, Schema } from "effect";
+import { Result, Schema } from "effect";
 import { liftTestLoop, type TestLineToLift } from "../../schemas/acceptanceLift.js";
 import {
   TEST_LOOPS,
@@ -49,7 +49,10 @@ export function renderTestLine(line: TestLine | TestLineToLift): string {
   return `${line.guarantee}${DASH}${coordinates}`;
 }
 
-const decodeTestLine = Schema.decodeUnknownEither(TestLineSchema, { onExcessProperty: "error" });
+const decodeTestLine = Schema.decodeUnknownResult(TestLineSchema, {
+  onExcessProperty: "error",
+  reportInput: true,
+});
 
 const COORDINATES_START = new RegExp(
   `^(?:${TEST_SIZES.join("|")})${DOT}(?:${TEST_TECHNIQUES.join("|")})${DOT}`,
@@ -121,7 +124,7 @@ export function parseTestLine(text: string, options: TestLineReadOptions = {}): 
     loop,
     criterion,
   });
-  return Either.isRight(decoded) ? decoded.right : null;
+  return Result.isSuccess(decoded) ? decoded.success : null;
 }
 
 // `[\s\S]`, not `.`, which stops at U+2028 and U+2029: an entry holding one is

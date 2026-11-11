@@ -4,7 +4,7 @@
 // artifact-decide-verdicts §11).
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { makeArtifactDecideCommand } from "../../src/cli/definitions/artifactDecide.js";
 import { decodeDecideVerdictsFile } from "../../src/schemas/decideVerdicts.js";
@@ -20,9 +20,9 @@ describe("docs/arbitration.md", () => {
     expect(example).toBeDefined();
     const parsed: unknown = JSON.parse(example ?? "");
     const decoded = decodeDecideVerdictsFile(parsed);
-    expect(Either.isRight(decoded)).toBe(true);
-    if (Either.isRight(decoded)) {
-      expect(decoded.right.$schema).toBe(currentSchemaUrl("decide-verdicts"));
+    expect(Result.isSuccess(decoded)).toBe(true);
+    if (Result.isSuccess(decoded)) {
+      expect(decoded.success.$schema).toBe(currentSchemaUrl("decide-verdicts"));
     }
   });
 

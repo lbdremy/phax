@@ -1,11 +1,12 @@
-import { Either, Schema } from "effect";
+import { Result, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import { AssignmentsSchema } from "../../../src/schemas/assignments.js";
 import { formatConfigParseError } from "../../../src/schemas/formatError.js";
 import { decodePhaxConfig } from "../../../src/schemas/phaxConfig.js";
 
-const decodeAssignments = Schema.decodeUnknownEither(AssignmentsSchema, {
+const decodeAssignments = Schema.decodeUnknownResult(AssignmentsSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });
 
 // The spec §6 example, for a made-up acme-billing repository.
@@ -36,19 +37,19 @@ function configRefusal(assignments: unknown): string {
     assignments,
   };
   const decoded = decodePhaxConfig(raw);
-  return Either.isLeft(decoded) ? formatConfigParseError(raw, decoded.left) : "OK";
+  return Result.isFailure(decoded) ? formatConfigParseError(raw, decoded.failure) : "OK";
 }
 
 describe("AssignmentsSchema", () => {
   it("decodes the spec §6 example in list order", () => {
     const decoded = decodeAssignments(EXAMPLE);
-    expect(Either.isRight(decoded)).toBe(true);
-    if (Either.isRight(decoded)) expect(decoded.right).toEqual(EXAMPLE);
+    expect(Result.isSuccess(decoded)).toBe(true);
+    if (Result.isSuccess(decoded)) expect(decoded.success).toEqual(EXAMPLE);
   });
 
   it("admits a range whose min equals its max", () => {
     expect(
-      Either.isRight(decodeAssignments([{ ...PART, effort: { min: "high", max: "high" } }])),
+      Result.isSuccess(decodeAssignments([{ ...PART, effort: { min: "high", max: "high" } }])),
     ).toBe(true);
   });
 
@@ -66,7 +67,7 @@ describe("AssignmentsSchema", () => {
     ["a part id that is not a kebab-case slug", [{ ...PART, part: "Core-Decide" }]],
     ["a part id with a backtick", [{ ...PART, part: "core`decide" }]],
   ])("refuses %s", (_label, assignments) => {
-    expect(Either.isLeft(decodeAssignments(assignments))).toBe(true);
+    expect(Result.isFailure(decodeAssignments(assignments))).toBe(true);
   });
 });
 
@@ -118,7 +119,7 @@ describe("phax.json assignments decode messages", () => {
       gateProfiles: { fast: [{ command: "pnpm test", surface: "nowhere", firing: "every-phase" }] },
     };
     const decoded = decodePhaxConfig(raw);
-    expect(Either.isLeft(decoded) && formatConfigParseError(raw, decoded.left)).toMatch(
+    expect(Result.isFailure(decoded) && formatConfigParseError(raw, decoded.failure)).toMatch(
       /^ {2}gateProfiles\.fast\.0\.surface: /,
     );
   });

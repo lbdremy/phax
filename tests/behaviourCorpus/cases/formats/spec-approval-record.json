@@ -1,0 +1,865 @@
+{
+  "format": "spec-approval-record",
+  "current": [
+    {
+      "name": "accepts a typical document",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
+        "artifact": "docs/specs/example.md",
+        "specFingerprint": "spec-fingerprint-0001",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "approvedBy": {
+          "kind": "operator",
+          "name": "Ada Lovelace"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.25.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "approvedBy": {
+            "kind": "operator",
+            "name": "Ada Lovelace"
+          },
+          "artifact": "docs/specs/example.md",
+          "baseline": "0123456789abcdef0123456789abcdef01234567",
+          "specFingerprint": "spec-fingerprint-0001"
+        }
+      }
+    },
+    {
+      "name": "accepts a document setting every field",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
+        "artifact": "docs/specs/example.md",
+        "specFingerprint": "spec-fingerprint-0001",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "approvedBy": {
+          "kind": "machine",
+          "grant": "slug"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.25.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "approvedBy": {
+            "grant": "slug",
+            "kind": "machine"
+          },
+          "artifact": "docs/specs/example.md",
+          "baseline": "0123456789abcdef0123456789abcdef01234567",
+          "specFingerprint": "spec-fingerprint-0001"
+        }
+      }
+    },
+    {
+      "name": "accepts a document with only its required fields",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
+        "artifact": "docs/specs/example.md",
+        "specFingerprint": "spec-fingerprint-0001",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "approvedBy": {
+          "kind": "machine",
+          "grant": "slug"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.25.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "approvedBy": {
+            "grant": "slug",
+            "kind": "machine"
+          },
+          "artifact": "docs/specs/example.md",
+          "baseline": "0123456789abcdef0123456789abcdef01234567",
+          "specFingerprint": "spec-fingerprint-0001"
+        }
+      }
+    },
+    {
+      "name": "refuses a document that is not an object",
+      "input": [
+        "not",
+        "an",
+        "object"
+      ],
+      "expected": {
+        "ok": false,
+        "refusal": ": a spec approval record is a JSON object, got an array"
+      }
+    },
+    {
+      "name": "refuses a stamp naming another format",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/registry/0.17.0.json",
+        "artifact": "docs/specs/example.md",
+        "specFingerprint": "spec-fingerprint-0001",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "approvedBy": {
+          "kind": "operator",
+          "name": "Ada Lovelace"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: https://docs.phax.run/schemas/registry/0.17.0.json is a registry document, not a spec-approval-record"
+      }
+    },
+    {
+      "name": "refuses a malformed $schema",
+      "input": {
+        "$schema": "not a schema url",
+        "artifact": "docs/specs/example.md",
+        "specFingerprint": "spec-fingerprint-0001",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "approvedBy": {
+          "kind": "operator",
+          "name": "Ada Lovelace"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: expected https://docs.phax.run/schemas/<format-id>/<X.Y.Z>.json, got \"not a schema url\""
+      }
+    },
+    {
+      "name": "refuses a stamp newer than the package",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/spec-approval-record/9.0.0.json",
+        "artifact": "docs/specs/example.md",
+        "specFingerprint": "spec-fingerprint-0001",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "approvedBy": {
+          "kind": "operator",
+          "name": "Ada Lovelace"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: spec-approval-record 9.0.0 is newer than @lbdremy/phax-schemas {package-version} — upgrade the package"
+      }
+    },
+    {
+      "name": "refuses a stamp below the first supported release",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.1.0.json",
+        "artifact": "docs/specs/example.md",
+        "specFingerprint": "spec-fingerprint-0001",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "approvedBy": {
+          "kind": "operator",
+          "name": "Ada Lovelace"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: https://docs.phax.run/schemas/spec-approval-record/0.1.0.json was written by a development build of phax before 0.17.0, the first supported release — not supported"
+      }
+    },
+    {
+      "name": "refuses a document without $schema",
+      "input": {
+        "artifact": "docs/specs/example.md",
+        "specFingerprint": "spec-fingerprint-0001",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "approvedBy": {
+          "kind": "operator",
+          "name": "Ada Lovelace"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: spec approval record has no $schema — every spec approval record is written with one"
+      }
+    },
+    {
+      "name": "refuses a document missing artifact",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
+        "specFingerprint": "spec-fingerprint-0001",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "approvedBy": {
+          "kind": "operator",
+          "name": "Ada Lovelace"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "artifact: is missing"
+      }
+    },
+    {
+      "name": "refuses an unexpected key",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
+        "artifact": "docs/specs/example.md",
+        "specFingerprint": "spec-fingerprint-0001",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "approvedBy": {
+          "kind": "operator",
+          "name": "Ada Lovelace"
+        },
+        "unexpectedKey": 1
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "unexpectedKey: is unexpected, expected: \"$schema\" | \"artifact\" | \"specFingerprint\" | \"approvedAt\" | \"baseline\" | \"approvedBy\""
+      }
+    },
+    {
+      "name": "refuses artifact of the wrong type",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
+        "artifact": 42,
+        "specFingerprint": "spec-fingerprint-0001",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "approvedBy": {
+          "kind": "operator",
+          "name": "Ada Lovelace"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "artifact: Expected string, actual 42"
+      }
+    },
+    {
+      "name": "refuses approvedBy.kind outside its value",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
+        "artifact": "docs/specs/example.md",
+        "specFingerprint": "spec-fingerprint-0001",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "approvedBy": {
+          "kind": "bogus-value",
+          "name": "Ada Lovelace"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "approvedBy.kind: Expected \"machine\" | \"operator\" | \"unattributed\", actual \"bogus-value\""
+      }
+    },
+    {
+      "name": "refuses artifact when empty",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
+        "artifact": "",
+        "specFingerprint": "spec-fingerprint-0001",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "approvedBy": {
+          "kind": "operator",
+          "name": "Ada Lovelace"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "artifact: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "reads a document stamped 0.19.0",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.19.0.json",
+        "artifact": "docs/specs/example.md",
+        "specFingerprint": "spec-fingerprint-0001",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "0123456789abcdef0123456789abcdef01234567"
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.19.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.19.0.json",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "artifact": "docs/specs/example.md",
+          "baseline": "0123456789abcdef0123456789abcdef01234567",
+          "specFingerprint": "spec-fingerprint-0001"
+        }
+      }
+    },
+    {
+      "name": "constraint $schema pattern",
+      "input": {
+        "$schema": "",
+        "artifact": "docs/specs/example.md",
+        "specFingerprint": "spec-fingerprint-0001",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "approvedBy": {
+          "kind": "operator",
+          "name": "Ada Lovelace"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: expected https://docs.phax.run/schemas/<format-id>/<X.Y.Z>.json, got \"\""
+      }
+    },
+    {
+      "name": "constraint $schema required",
+      "input": {
+        "artifact": "docs/specs/example.md",
+        "specFingerprint": "spec-fingerprint-0001",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "approvedBy": {
+          "kind": "operator",
+          "name": "Ada Lovelace"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: spec approval record has no $schema — every spec approval record is written with one"
+      }
+    },
+    {
+      "name": "constraint approvedAt minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
+        "artifact": "docs/specs/example.md",
+        "specFingerprint": "spec-fingerprint-0001",
+        "approvedAt": "",
+        "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "approvedBy": {
+          "kind": "operator",
+          "name": "Ada Lovelace"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "approvedAt: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint approvedAt required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
+        "artifact": "docs/specs/example.md",
+        "specFingerprint": "spec-fingerprint-0001",
+        "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "approvedBy": {
+          "kind": "operator",
+          "name": "Ada Lovelace"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "approvedAt: is missing"
+      }
+    },
+    {
+      "name": "constraint approvedBy required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
+        "artifact": "docs/specs/example.md",
+        "specFingerprint": "spec-fingerprint-0001",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "0123456789abcdef0123456789abcdef01234567"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "approvedBy: is missing"
+      }
+    },
+    {
+      "name": "constraint approvedBy.grant pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
+        "artifact": "docs/specs/example.md",
+        "specFingerprint": "spec-fingerprint-0001",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "approvedBy": {
+          "kind": "machine",
+          "grant": ""
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "approvedBy.grant: Expected a string matching the pattern ^[a-z0-9]+(-[a-z0-9]+)*$, actual \"\""
+      }
+    },
+    {
+      "name": "constraint approvedBy.grant required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
+        "artifact": "docs/specs/example.md",
+        "specFingerprint": "spec-fingerprint-0001",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "approvedBy": {
+          "kind": "machine"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "approvedBy.grant: is missing"
+      }
+    },
+    {
+      "name": "constraint approvedBy.kind enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
+        "artifact": "docs/specs/example.md",
+        "specFingerprint": "spec-fingerprint-0001",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "approvedBy": {
+          "kind": "bogus-value",
+          "name": "Ada Lovelace"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "approvedBy.kind: Expected \"machine\" | \"operator\" | \"unattributed\", actual \"bogus-value\""
+      }
+    },
+    {
+      "name": "constraint approvedBy.kind required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
+        "artifact": "docs/specs/example.md",
+        "specFingerprint": "spec-fingerprint-0001",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "approvedBy": {
+          "name": "Ada Lovelace"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "approvedBy.kind: is missing"
+      }
+    },
+    {
+      "name": "constraint approvedBy.name minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
+        "artifact": "docs/specs/example.md",
+        "specFingerprint": "spec-fingerprint-0001",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "approvedBy": {
+          "kind": "operator",
+          "name": ""
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "approvedBy.name: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint approvedBy.name required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
+        "artifact": "docs/specs/example.md",
+        "specFingerprint": "spec-fingerprint-0001",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "approvedBy": {
+          "kind": "operator"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "approvedBy.name: is missing"
+      }
+    },
+    {
+      "name": "constraint artifact minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
+        "artifact": "",
+        "specFingerprint": "spec-fingerprint-0001",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "approvedBy": {
+          "kind": "operator",
+          "name": "Ada Lovelace"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "artifact: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint artifact required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
+        "specFingerprint": "spec-fingerprint-0001",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "approvedBy": {
+          "kind": "operator",
+          "name": "Ada Lovelace"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "artifact: is missing"
+      }
+    },
+    {
+      "name": "constraint baseline minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
+        "artifact": "docs/specs/example.md",
+        "specFingerprint": "spec-fingerprint-0001",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "",
+        "approvedBy": {
+          "kind": "operator",
+          "name": "Ada Lovelace"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "baseline: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint baseline pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
+        "artifact": "docs/specs/example.md",
+        "specFingerprint": "spec-fingerprint-0001",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "",
+        "approvedBy": {
+          "kind": "operator",
+          "name": "Ada Lovelace"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "baseline: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint baseline required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
+        "artifact": "docs/specs/example.md",
+        "specFingerprint": "spec-fingerprint-0001",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "approvedBy": {
+          "kind": "operator",
+          "name": "Ada Lovelace"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "baseline: is missing"
+      }
+    },
+    {
+      "name": "constraint specFingerprint minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
+        "artifact": "docs/specs/example.md",
+        "specFingerprint": "",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "approvedBy": {
+          "kind": "operator",
+          "name": "Ada Lovelace"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "specFingerprint: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint specFingerprint required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
+        "artifact": "docs/specs/example.md",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "approvedBy": {
+          "kind": "operator",
+          "name": "Ada Lovelace"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "specFingerprint: is missing"
+      }
+    }
+  ],
+  "shapes": {
+    "0.19.0": [
+      {
+        "name": "accepts a document setting every field",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.19.0.json",
+          "artifact": "docs/specs/example.md",
+          "specFingerprint": "spec-fingerprint-0001",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "baseline": "0123456789abcdef0123456789abcdef01234567"
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.19.0.json",
+            "approvedAt": "2026-01-01T09:00:00.000Z",
+            "artifact": "docs/specs/example.md",
+            "baseline": "0123456789abcdef0123456789abcdef01234567",
+            "specFingerprint": "spec-fingerprint-0001"
+          }
+        }
+      },
+      {
+        "name": "accepts a document with only its required fields",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.19.0.json",
+          "artifact": "docs/specs/example.md",
+          "specFingerprint": "spec-fingerprint-0001",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "baseline": "0123456789abcdef0123456789abcdef01234567"
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.19.0.json",
+            "approvedAt": "2026-01-01T09:00:00.000Z",
+            "artifact": "docs/specs/example.md",
+            "baseline": "0123456789abcdef0123456789abcdef01234567",
+            "specFingerprint": "spec-fingerprint-0001"
+          }
+        }
+      },
+      {
+        "name": "refuses a document missing artifact",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.19.0.json",
+          "specFingerprint": "spec-fingerprint-0001",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "baseline": "0123456789abcdef0123456789abcdef01234567"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "artifact: is missing"
+        }
+      },
+      {
+        "name": "refuses an unexpected key",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.19.0.json",
+          "artifact": "docs/specs/example.md",
+          "specFingerprint": "spec-fingerprint-0001",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "baseline": "0123456789abcdef0123456789abcdef01234567",
+          "unexpectedKey": 1
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "unexpectedKey: is unexpected, expected: \"$schema\" | \"artifact\" | \"specFingerprint\" | \"approvedAt\" | \"baseline\""
+        }
+      },
+      {
+        "name": "refuses artifact of the wrong type",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.19.0.json",
+          "artifact": 42,
+          "specFingerprint": "spec-fingerprint-0001",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "baseline": "0123456789abcdef0123456789abcdef01234567"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "artifact: Expected string, actual 42"
+        }
+      },
+      {
+        "name": "refuses artifact when empty",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.19.0.json",
+          "artifact": "",
+          "specFingerprint": "spec-fingerprint-0001",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "baseline": "0123456789abcdef0123456789abcdef01234567"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "artifact: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint $schema pattern",
+        "input": {
+          "$schema": "",
+          "artifact": "docs/specs/example.md",
+          "specFingerprint": "spec-fingerprint-0001",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "baseline": "0123456789abcdef0123456789abcdef01234567"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "$schema: Expected a string matching the pattern ^https:\\/\\/docs\\.phax\\.run\\/schemas\\/spec-approval-record\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$, actual \"\""
+        }
+      },
+      {
+        "name": "constraint $schema required",
+        "input": {
+          "artifact": "docs/specs/example.md",
+          "specFingerprint": "spec-fingerprint-0001",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "baseline": "0123456789abcdef0123456789abcdef01234567"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "$schema: is missing"
+        }
+      },
+      {
+        "name": "constraint approvedAt minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.19.0.json",
+          "artifact": "docs/specs/example.md",
+          "specFingerprint": "spec-fingerprint-0001",
+          "approvedAt": "",
+          "baseline": "0123456789abcdef0123456789abcdef01234567"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "approvedAt: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint approvedAt required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.19.0.json",
+          "artifact": "docs/specs/example.md",
+          "specFingerprint": "spec-fingerprint-0001",
+          "baseline": "0123456789abcdef0123456789abcdef01234567"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "approvedAt: is missing"
+        }
+      },
+      {
+        "name": "constraint artifact minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.19.0.json",
+          "artifact": "",
+          "specFingerprint": "spec-fingerprint-0001",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "baseline": "0123456789abcdef0123456789abcdef01234567"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "artifact: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint artifact required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.19.0.json",
+          "specFingerprint": "spec-fingerprint-0001",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "baseline": "0123456789abcdef0123456789abcdef01234567"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "artifact: is missing"
+        }
+      },
+      {
+        "name": "constraint baseline minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.19.0.json",
+          "artifact": "docs/specs/example.md",
+          "specFingerprint": "spec-fingerprint-0001",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "baseline": ""
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "baseline: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint baseline pattern",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.19.0.json",
+          "artifact": "docs/specs/example.md",
+          "specFingerprint": "spec-fingerprint-0001",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "baseline": ""
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "baseline: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint baseline required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.19.0.json",
+          "artifact": "docs/specs/example.md",
+          "specFingerprint": "spec-fingerprint-0001",
+          "approvedAt": "2026-01-01T09:00:00.000Z"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "baseline: is missing"
+        }
+      },
+      {
+        "name": "constraint specFingerprint minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.19.0.json",
+          "artifact": "docs/specs/example.md",
+          "specFingerprint": "",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "baseline": "0123456789abcdef0123456789abcdef01234567"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "specFingerprint: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint specFingerprint required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.19.0.json",
+          "artifact": "docs/specs/example.md",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "baseline": "0123456789abcdef0123456789abcdef01234567"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "specFingerprint: is missing"
+        }
+      }
+    ]
+  }
+}

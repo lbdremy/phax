@@ -8,17 +8,27 @@
 // change to src/schemas/testLine.ts cannot move it.
 import { Schema } from "effect";
 
-const SchemaUrlSchema = Schema.String.pipe(
-  Schema.pattern(
+// `Schema.isPattern` whose JSON Schema is the RegExp's source, whatever its
+// flags: Effect 4 exports a pattern only for a RegExp with the `u` flag.
+function isExportedPattern(regExp: RegExp, annotations?: Schema.Annotations.Filter) {
+  return Schema.isPattern(regExp, {
+    toJsonSchema: () => ({ pattern: regExp.source }),
+    ...annotations,
+  });
+}
+
+const SchemaUrlSchema = Schema.String.check(
+  isExportedPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/phax-plan\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
-  Schema.annotations({
+).pipe(
+  Schema.annotate({
     description:
       "The phax-plan format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): https://docs.phax.run/schemas/phax-plan/<X.Y.Z>.json",
   }),
 );
 
-const EffortSchema = Schema.Literal(
+const EffortSchema = Schema.Literals([
   "none",
   "off",
   "low",
@@ -28,9 +38,9 @@ const EffortSchema = Schema.Literal(
   "max",
   "ultracode",
   "ultra",
-);
+]);
 
-const PhaseIdSchema = Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/));
+const PhaseIdSchema = Schema.String.check(isExportedPattern(/^phase-\d{2}$/));
 
 // No line break and no control character: C0, DEL, C1 (U+0085 among them),
 // U+2028 and U+2029.
@@ -40,48 +50,51 @@ const ONE_LINE = new RegExp("^[^\\x00-\\x1F\\x7F-\\x9F\\u2028\\u2029]*$");
 const TRIMMED = /^(?!\s)[\s\S]*\S$/;
 
 const oneLineText = (coordinate: string) =>
-  Schema.String.pipe(
-    Schema.pattern(ONE_LINE, {
-      message: () =>
-        `a ${coordinate} is one line: no line break, U+2028, U+2029, U+0085 or other control character`,
+  Schema.String.check(
+    isExportedPattern(ONE_LINE, {
+      message: `a ${coordinate} is one line: no line break, U+2028, U+2029, U+0085 or other control character`,
     }),
-    Schema.pattern(TRIMMED, {
-      message: () => `a ${coordinate} is non-empty and trimmed: no leading or trailing whitespace`,
+    isExportedPattern(TRIMMED, {
+      message: `a ${coordinate} is non-empty and trimmed: no leading or trailing whitespace`,
     }),
   );
 
-const GuaranteeSchema = oneLineText("guarantee").annotations({
+const GuaranteeSchema = oneLineText("guarantee").annotate({
   description: "What the test guarantees: one non-empty, trimmed line.",
 });
 
-const OracleSchema = oneLineText("oracle").pipe(
-  Schema.pattern(/^(?![\s\S]* — )/, {
-    message: () => "an oracle never contains ' — ' (a space, an em dash, a space)",
-  }),
-  Schema.pattern(/^(?!— )/, {
-    message: () =>
-      "an oracle never starts with '— ' (an em dash and a space): it would read back as another line",
-  }),
-  Schema.pattern(/^(?![\s\S]* ·$)/, {
-    message: () =>
-      "an oracle never ends with ' ·' (a space and a middle dot): it would read back as another line",
-  }),
-  Schema.annotations({
-    description:
-      "What the test compares against: one non-empty, trimmed line, never holding ' — ', never starting with '— ' and never ending with ' ·'.",
-  }),
-);
+const OracleSchema = oneLineText("oracle")
+  .check(
+    isExportedPattern(/^(?![\s\S]* — )/, {
+      message: "an oracle never contains ' — ' (a space, an em dash, a space)",
+    }),
+    isExportedPattern(/^(?!— )/, {
+      message:
+        "an oracle never starts with '— ' (an em dash and a space): it would read back as another line",
+    }),
+    isExportedPattern(/^(?![\s\S]* ·$)/, {
+      message:
+        "an oracle never ends with ' ·' (a space and a middle dot): it would read back as another line",
+    }),
+  )
+  .pipe(
+    Schema.annotate({
+      description:
+        "What the test compares against: one non-empty, trimmed line, never holding ' — ', never starting with '— ' and never ending with ' ·'.",
+    }),
+  );
 
-const CriterionSchema = Schema.String.pipe(
+const CriterionSchema = Schema.String.check(
   // eslint-disable-next-line no-control-regex
-  Schema.pattern(/^[^\s`\x00-\x1F\x7F-\x9F]+$/, {
-    message: () =>
+  isExportedPattern(/^[^\s`\x00-\x1F\x7F-\x9F]+$/, {
+    message:
       "a criterion is a run of non-whitespace characters holding no backtick and no control character",
   }),
-  Schema.pattern(/^(?!(?:oracle|in-phase)$)/, {
-    message: () => "a criterion is neither 'oracle' nor 'in-phase', the loop values",
+  isExportedPattern(/^(?!(?:oracle|in-phase)$)/, {
+    message: "a criterion is neither 'oracle' nor 'in-phase', the loop values",
   }),
-  Schema.annotations({
+).pipe(
+  Schema.annotate({
     description:
       "An acceptance criterion id from the source spec's JSON sidecar: a run of non-whitespace characters, no backtick, neither 'oracle' nor 'in-phase'.",
   }),
@@ -89,8 +102,8 @@ const CriterionSchema = Schema.String.pipe(
 
 const TestLineSchema = Schema.Struct({
   guarantee: GuaranteeSchema,
-  size: Schema.Literal("small", "medium", "large"),
-  technique: Schema.Literal(
+  size: Schema.Literals(["small", "medium", "large"]),
+  technique: Schema.Literals([
     "example",
     "table",
     "property",
@@ -99,11 +112,11 @@ const TestLineSchema = Schema.Struct({
     "fuzz",
     "contract",
     "smoke",
-  ),
+  ]),
   oracle: OracleSchema,
-  loop: Schema.Literal("oracle", "in-phase"),
+  loop: Schema.Literals(["oracle", "in-phase"]),
   criterion: Schema.NullOr(CriterionSchema),
-}).annotations({
+}).annotate({
   description:
     "One test line of a phase's test strategy, rendered as `- <guarantee> — <size> · <technique> · <oracle> · <loop>[ · <criterion>]`, one per line under the phase's `### Test strategy` heading. `criterion` is an acceptance criterion id from the source spec's JSON sidecar, or null.",
 });
@@ -117,7 +130,7 @@ const PhaseSchema = Schema.Struct({
   plannedFilesToCreate: Schema.Array(Schema.String),
   plannedFilesToEdit: Schema.Array(Schema.String),
   optionalFilesToEdit: Schema.Array(Schema.String),
-  mode: Schema.Literal("headless", "interactive"),
+  mode: Schema.Literals(["headless", "interactive"]),
   oracle: Schema.NullOr(
     Schema.Struct({
       dischargedBy: PhaseIdSchema,
@@ -144,6 +157,7 @@ export const PhaxPlanV0_28_0Schema = Schema.Struct({
 
 export type PhaxPlanV0_28_0 = Schema.Schema.Type<typeof PhaxPlanV0_28_0Schema>;
 
-export const decodePhaxPlanV0_28_0 = Schema.decodeUnknownEither(PhaxPlanV0_28_0Schema, {
+export const decodePhaxPlanV0_28_0 = Schema.decodeUnknownResult(PhaxPlanV0_28_0Schema, {
   onExcessProperty: "error",
+  reportInput: true,
 });

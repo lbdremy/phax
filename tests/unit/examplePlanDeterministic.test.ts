@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { Either } from "effect";
+import { Result } from "effect";
 import { extractPlanDeterministic } from "../../src/domain/plan/parsePlanMarkdown.js";
 
 const EXAMPLE_PLAN_PATH = resolve(
@@ -13,9 +13,9 @@ describe("examples/hello-world/plan.md — deterministic extraction", () => {
   it("parses without the LLM", () => {
     const planMd = readFileSync(EXAMPLE_PLAN_PATH, "utf8");
     const result = extractPlanDeterministic(planMd);
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isLeft(result)) throw new Error(result.left.message);
-    const plan = result.right;
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isFailure(result)) throw new Error(result.failure.message);
+    const plan = result.success;
 
     expect(plan.run.requiredCommands).toEqual([]);
     expect(plan.phases).toHaveLength(3);

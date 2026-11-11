@@ -1,4 +1,4 @@
-import { Either, type ParseResult } from "effect";
+import { Result, type Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import { CURRENT_SHAPES } from "../../../packages/schemas/src/generated/index.js";
 import {
@@ -114,7 +114,7 @@ import {
   type Doc,
 } from "./documents.js";
 
-type Decode = (input: unknown) => Either.Either<unknown, ParseResult.ParseError>;
+type Decode = (input: unknown) => Result.Result<unknown, Schema.SchemaError>;
 type Parse = (input: unknown) => { readonly ok: boolean; readonly value?: unknown };
 type Verdict = "accepted" | "rejected";
 type Case = readonly [string, unknown, Verdict];
@@ -122,9 +122,9 @@ type Case = readonly [string, unknown, Verdict];
 function expectParity(parse: Parse, phax: Decode, input: unknown, verdict: Verdict) {
   const decoded = phax(input);
   const result = parse(input);
-  expect(Either.isRight(decoded)).toBe(verdict === "accepted");
+  expect(Result.isSuccess(decoded)).toBe(verdict === "accepted");
   expect(result.ok).toBe(verdict === "accepted");
-  if (result.ok && Either.isRight(decoded)) expect(result.value).toEqual(decoded.right);
+  if (result.ok && Result.isSuccess(decoded)) expect(result.value).toEqual(decoded.success);
 }
 
 interface FormatParity {
@@ -583,7 +583,7 @@ describe("parity: the held cause", () => {
 describe("parity: one unknown key", () => {
   it("is rejected by both for a phase record manifest, at the key", () => {
     const input = withKey(validDocuments["phase-record-manifest"], "reviewer", "human");
-    expect(Either.isLeft(decodeRunRecordManifestFile(input))).toBe(true);
+    expect(Result.isFailure(decodeRunRecordManifestFile(input))).toBe(true);
     const result = parsePhaseRecordManifest(input);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.path).toBe("reviewer");
@@ -591,7 +591,7 @@ describe("parity: one unknown key", () => {
 
   it("is accepted by both for a registry, and dropped from the value", () => {
     const input = withKey(validDocuments.registry, "owner", "example");
-    expect(Either.isRight(decodeRegistryFile(input))).toBe(true);
+    expect(Result.isSuccess(decodeRegistryFile(input))).toBe(true);
     const result = parseRegistry(input);
     expect(result).toMatchObject({ ok: true, shape: CURRENT_SHAPES.registry });
     if (result.ok) expect(Object.hasOwn(result.value, "owner")).toBe(false);
@@ -842,15 +842,15 @@ describe("parity: parseRecordManifest agrees with phax's union", () => {
   it.each(RECORD_MANIFEST_CASES)("%s", (_label, input) => {
     const decoded = decodeRecordManifestFile(input);
     const result = parseRecordManifest(input);
-    expect(result.ok).toBe(Either.isRight(decoded));
-    if (result.ok && Either.isRight(decoded)) {
-      expect(result.value).toEqual(decoded.right);
+    expect(result.ok).toBe(Result.isSuccess(decoded));
+    if (result.ok && Result.isSuccess(decoded)) {
+      expect(result.value).toEqual(decoded.success);
       expect(result.format).toBe(
-        isReviewRecordManifest(decoded.right)
+        isReviewRecordManifest(decoded.success)
           ? "review-record-manifest"
-          : isDecisionRecordManifest(decoded.right)
+          : isDecisionRecordManifest(decoded.success)
             ? "decision-record-manifest"
-            : isAuthoringRecordManifest(decoded.right)
+            : isAuthoringRecordManifest(decoded.success)
               ? "authoring-record-manifest"
               : "phase-record-manifest",
       );

@@ -17,7 +17,7 @@ import {
 // ---------------------------------------------------------------- rename-todo.command.ts
 // A command as the contract has it: its sources decoded, its output reduced, an exit per error.
 
-export const RenameTodoArgs = Schema.Tuple(Schema.String);
+export const RenameTodoArgs = Schema.Tuple([Schema.String]);
 export const RenameTodoFlags = Schema.Struct({
   to: Schema.String,
   dryRun: Schema.optional(Schema.Boolean),
@@ -89,7 +89,7 @@ export const exit: Effect.Effect<number, never, Todos> = runner.run(program, io)
 // ---------------------------------------------------------------- the gains
 
 /** An argument naming a run, with its completer. */
-const ShortName = Schema.String.annotations({
+const ShortName = Schema.String.annotate({
   identifier: "short-name",
   description: "The run's short name",
   [CompleterAnnotationId]: { run: "todos ls --complete", descriptions: true },
@@ -103,7 +103,7 @@ export const lintTodo = defineCommand({
   name: "lint",
   summary: "lint a todo",
   input: {
-    args: reject(Schema.Tuple(ShortName)),
+    args: reject(Schema.Tuple([ShortName])),
     stdin: reject(Schema.Struct({ rules: Schema.Array(Schema.String) }), {
       flag: "rules",
       required: true,
@@ -142,7 +142,7 @@ export const gained = defineProgram({
   version: "1.0.0",
   exits: { refused: 64, defect: 70 },
   usage: { flag: "usage", format: "usage-format", jsonSchema: "program" },
-  options: reject(Schema.Struct({ verbose: Schema.optionalWith(Schema.Boolean, { exact: true }) })),
+  options: reject(Schema.Struct({ verbose: Schema.optionalKey(Schema.Boolean) })),
   commands: [
     renameTodo,
     defineGroup({

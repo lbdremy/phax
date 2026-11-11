@@ -4,7 +4,7 @@
 // failure never fails the review. Run-end tests drive executePlan with fake
 // ports; the by-hand tests use real git, a temporary repository and a bare
 // remote. Nothing reaches GitHub: every test uses makeFakeGitHub().
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -77,7 +77,7 @@ const HANDOFF_CONTENT = [
 const NAMESPACE = "test-project";
 const SHORT_NAME = "review-entry-run";
 const GATE = "node scripts/example-check.mjs";
-const shortName = Either.getOrThrow(decodeShortName(SHORT_NAME));
+const shortName = Result.getOrThrow(decodeShortName(SHORT_NAME));
 
 const RECORDS: ResolvedRecordsConfig = {
   enabled: true,
@@ -153,7 +153,7 @@ describe("compliance review entry at run end", () => {
     readonly review: "accepted" | "refused-twice";
     readonly onReview?: (git: ReturnType<typeof makeFakeGit>) => void;
   }) {
-    const plan = Either.getOrThrow(
+    const plan = Result.getOrThrow(
       liftFixturePhaxPlanToCurrent("phax-plan.json", {
         version: 1,
         run: {
@@ -238,7 +238,7 @@ describe("compliance review entry at run end", () => {
       return true;
     });
     const outcome = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -260,7 +260,7 @@ describe("compliance review entry at run end", () => {
 
   it("commits the generated compliance-review.json as an entry after the phase records", async () => {
     const { git, runPath, runId, outcome } = await runOnce({ review: "accepted" });
-    expect(Either.isRight(outcome)).toBe(true);
+    expect(Result.isSuccess(outcome)).toBe(true);
 
     const commits = recordCommits(git);
     expect(commits).toHaveLength(2);
@@ -282,7 +282,7 @@ describe("compliance review entry at run end", () => {
       review: "accepted",
       onReview: (fake) => fake.impl.failNextWriteTreeCommit("disk full"),
     });
-    expect(Either.isRight(outcome)).toBe(true);
+    expect(Result.isSuccess(outcome)).toBe(true);
 
     const state = JSON.parse(await readFile(join(runPath, "run-status.json"), "utf8")) as {
       readonly state?: string;
@@ -302,7 +302,7 @@ describe("compliance review entry at run end", () => {
 
   it("commits no entry, writes no file and warns when the review is refused twice, and the run stays in review_open", async () => {
     const { git, runPath, outcome, stderr } = await runOnce({ review: "refused-twice" });
-    expect(Either.isRight(outcome)).toBe(true);
+    expect(Result.isSuccess(outcome)).toBe(true);
     expect(recordCommits(git)).toHaveLength(1);
 
     const state = JSON.parse(await readFile(join(runPath, "run-status.json"), "utf8")) as {
@@ -546,8 +546,8 @@ describe("compliance review entry by hand (real git)", () => {
 
     function configOfA(): ResolvedConfig {
       const loaded = loadConfig(projectA);
-      if (Either.isLeft(loaded)) throw new Error(loaded.left.message);
-      return loaded.right;
+      if (Result.isFailure(loaded)) throw new Error(loaded.failure.message);
+      return loaded.success;
     }
 
     it("records the review in the run's own project, never the one the command runs from", async () => {

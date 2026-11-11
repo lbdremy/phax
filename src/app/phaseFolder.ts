@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { join } from "node:path";
 import { UnsafeGitStateError } from "../domain/errors.js";
 import { FileSystem, FsError } from "../ports/fs.js";
@@ -62,11 +62,11 @@ export function createPhaseFolder(
         catch: () => new FsError({ message: `${statusPath}: not valid JSON` }),
       });
       const decoded = readPhaseStatusFile(statusPath, parsed);
-      if (Either.isLeft(decoded)) {
-        return yield* Effect.fail(new FsError({ message: decoded.left.message }));
+      if (Result.isFailure(decoded)) {
+        return yield* Effect.fail(new FsError({ message: decoded.failure.message }));
       }
       yield* writePhaseStatus(statusPath, {
-        ...decoded.right,
+        ...decoded.success,
         branchName: prepared.branch,
         base: prepared.base,
         updatedAt: nowIso(),

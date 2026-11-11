@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { closeStop } from "../../src/app/closeStop.js";
 import { dispatch } from "../../src/app/dispatcher.js";
@@ -95,10 +95,10 @@ const tree = (run: HeldRun, phaseId = "phase-02"): string => worktreeOf(run, pha
 const phaseFolder = (run: HeldRun, phaseId = "phase-02"): string => join(run.runPath, phaseId);
 const headOf = (cwd: string): string => gitIn(cwd, "rev-parse", "HEAD");
 
-function failedWith<E>(result: Either.Either<unknown, unknown>, type: new (...a: never[]) => E): E {
-  if (Either.isRight(result)) throw new Error("the run did not stop");
-  expect(result.left).toBeInstanceOf(type);
-  return result.left as E;
+function failedWith<E>(result: Result.Result<unknown, unknown>, type: new (...a: never[]) => E): E {
+  if (Result.isSuccess(result)) throw new Error("the run did not stop");
+  expect(result.failure).toBeInstanceOf(type);
+  return result.failure as E;
 }
 
 /** The person's correction at phase-02, left uncommitted in its worktree. */
@@ -220,8 +220,8 @@ describe("closing a held stop by phax resume", { timeout: 60_000 }, () => {
 
     const refused = await resumeHeldRun(run);
 
-    expect(Either.isLeft(refused)).toBe(true);
-    expect(exitCodeForError((refused as Either.Left<unknown, unknown>).left)).toBe(4);
+    expect(Result.isFailure(refused)).toBe(true);
+    expect(exitCodeForError((refused as Result.Failure<unknown, unknown>).failure)).toBe(4);
     expect(readRunStatus(run)["state"]).toBe("awaiting_review");
     expect(readPhaseStatus(run, "phase-02")).toMatchObject({
       state: "awaiting_review",
@@ -491,7 +491,7 @@ describe("the record of a held phase", { timeout: 60_000 }, () => {
 
     const failed = await resumeHeldRun(run);
 
-    expect(Either.isLeft(failed)).toBe(true);
+    expect(Result.isFailure(failed)).toBe(true);
     expect(run.failWrite).toBeUndefined();
     expect(readRunStatus(run)["state"]).not.toBe("failed");
     expect(readPhaseStatus(run, "phase-02")).toMatchObject({
@@ -554,7 +554,7 @@ describe("the hold stays fixed for the run", { timeout: 60_000 }, () => {
 
     // phase-05 does not stop: the run ends past it.
     const last = await resumeHeldRun(run);
-    if (Either.isLeft(last)) expect(last.left).not.toBeInstanceOf(AwaitingReviewStopError);
+    if (Result.isFailure(last)) expect(last.failure).not.toBeInstanceOf(AwaitingReviewStopError);
     expect(readPhaseStatus(run, "phase-05")).toMatchObject({ stop: null });
     expect(hold()).toBe(before);
   });
@@ -586,7 +586,7 @@ describe("the hold stays fixed for the run", { timeout: 60_000 }, () => {
 
     // phase-04 closes; phase-05 does not stop.
     const last = await resumeHeldRun(run);
-    if (Either.isLeft(last)) expect(last.left).not.toBeInstanceOf(AwaitingReviewStopError);
+    if (Result.isFailure(last)) expect(last.failure).not.toBeInstanceOf(AwaitingReviewStopError);
     expect(readPhaseStatus(run, "phase-05")).toMatchObject({ stop: null });
     expect(hold()).toBe(before);
   });
@@ -668,7 +668,7 @@ describe("reset at a held stop", { timeout: 60_000 }, () => {
   it("runs the phase again from phase-01's commit and holds it again", async () => {
     const { run } = await heldAtPhase02();
     const { loadConfig } = await import("../../src/app/loadConfig.js");
-    vi.mocked(loadConfig).mockReturnValue(Either.right(run.config));
+    vi.mocked(loadConfig).mockReturnValue(Result.succeed(run.config));
     const phase01Tip = gitIn(world.repoRoot, "rev-parse", `phax/${SHORT}--phase-01`);
 
     expect((await phaxCall(["reset-phase", SHORT, "phase-02", "--yes"])).code).toBe(0);

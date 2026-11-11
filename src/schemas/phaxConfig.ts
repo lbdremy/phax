@@ -1,4 +1,5 @@
-import { JSONSchema, Schema } from "effect";
+import { Effect, Schema } from "effect";
+import { editorJsonSchema } from "./schemaUrl.js";
 import { SecurityConfigSchema, type ResolvedSecurityConfig } from "./securityConfig.js";
 import { RecordsConfigSchema, type ResolvedRecordsConfig } from "./recordsConfig.js";
 import { SurfaceSchema } from "./surface.js";
@@ -18,15 +19,15 @@ export const PublishConfigSchema = Schema.Struct({
 
 export type PublishConfig = Schema.Schema.Type<typeof PublishConfigSchema>;
 
-const BriefPushSchema = Schema.Literal("findings", "findings-and-rules");
+const BriefPushSchema = Schema.Literals(["findings", "findings-and-rules"]);
 export type BriefPush = Schema.Schema.Type<typeof BriefPushSchema>;
 
 export const BriefConfigSchema = Schema.Struct({
-  command: Schema.NonEmptyString.annotations({
+  command: Schema.NonEmptyString.annotate({
     description:
       'The brief provider command, split on whitespace with no shell. phax writes a brief request on its stdin and reads a brief report {"$schema": "https://docs.phax.run/schemas/brief-report/<release>.json", "rules", "findings"} on stdout: the rules over the requested paths, and the findings there with their due. A provider that declines to run exits non-zero. A brief informs and never blocks. Full contract: `phax --usage`, cmd brief.',
   }),
-  push: Schema.propertySignature(BriefPushSchema).annotations({
+  push: BriefPushSchema.annotateKey({
     description:
       'What the phase\'s first prompt lists from the phase\'s brief, at most 50 lines. "findings": the findings due in this phase. "findings-and-rules": those findings, then the rules over the phase\'s planned files, with their files and guides. Required, with no default, in every layer that declares brief.',
   }),
@@ -35,7 +36,7 @@ export const BriefConfigSchema = Schema.Struct({
 export type BriefConfig = Schema.Schema.Type<typeof BriefConfigSchema>;
 
 export const PlanAuditorConfigSchema = Schema.Struct({
-  command: Schema.NonEmptyString.annotations({
+  command: Schema.NonEmptyString.annotate({
     description:
       'The plan auditor command. The string is split on whitespace with no shell — use a wrapper script for paths with spaces or pipelines. phax writes the plan projection ({"phases": [{"id", "files"}]}) to the provider\'s stdin from `phax plans lint` whenever the plan\'s deterministic extraction succeeds, and expects exit 0 with {"findings": [{"message", "phases": [...]}]} on stdout. Every finding is a warning on the lint\'s advisory check, one per phase it names; a failing auditor is one warning, and the command is capped at 30s; findings never set the exit code. `phax run` never queries it. Full contract: `phax --usage`, cmd plans lint.',
   }),
@@ -44,7 +45,7 @@ export const PlanAuditorConfigSchema = Schema.Struct({
 export type PlanAuditorConfig = Schema.Schema.Type<typeof PlanAuditorConfigSchema>;
 
 export const ArchitectureConfigSchema = Schema.Struct({
-  command: Schema.NonEmptyString.annotations({
+  command: Schema.NonEmptyString.annotate({
     description:
       'The architecture provider command. The string is split on whitespace with no shell — use a wrapper script for paths with spaces or pipelines. phax writes an architecture request {"$schema": "https://docs.phax.run/schemas/architecture-request/<release>.json", "files"} to its stdin and reads an architecture report {"$schema": "https://docs.phax.run/schemas/architecture-report/<release>.json", "body", "parts"} on stdout, which phax renders to Markdown; a provider that declines exits non-zero. Full contract: `phax --usage`, cmd architecture.',
   }),
@@ -53,7 +54,7 @@ export const ArchitectureConfigSchema = Schema.Struct({
 export type ArchitectureConfig = Schema.Schema.Type<typeof ArchitectureConfigSchema>;
 
 export const AcceptanceConfigSchema = Schema.Struct({
-  command: Schema.NonEmptyString.annotations({
+  command: Schema.NonEmptyString.annotate({
     description:
       'The acceptance provider command. The string is split on whitespace with no shell — use a wrapper script for paths with spaces or pipelines. At the gate of an acceptance phase or its passing phase only, phax writes an acceptance request {"$schema": "https://docs.phax.run/schemas/acceptance-request/<release>.json", "verdict", "phase", "acceptancePhase", "base", "files"} (plus "acceptanceCommit" on a "passed" request) to its stdin, and judges the gate report the provider prints on stdout exactly like an `output: "gate-report"` step, with a fixed 120 s limit. `phax plans lint`, `phax validate`, the run preflight and authoring never run it. Full contract: `phax --usage`, cmd run.',
   }),
@@ -85,10 +86,10 @@ export function resolvePublishConfig(raw: PublishConfig | undefined): ResolvedPu
 
 const NonEmptyCommandArray = Schema.NonEmptyArray(Schema.NonEmptyString);
 
-const FiringSchema = Schema.Literal("every-phase", "terminal");
+const FiringSchema = Schema.Literals(["every-phase", "terminal"]);
 export type Firing = Schema.Schema.Type<typeof FiringSchema>;
 
-const GateOutputSchema = Schema.Literal("log", "gate-report");
+const GateOutputSchema = Schema.Literals(["log", "gate-report"]);
 export type GateOutput = Schema.Schema.Type<typeof GateOutputSchema>;
 
 const GATE_OUTPUT_DESCRIPTION =
@@ -108,58 +109,48 @@ const PARTIAL_DIFF_DESCRIPTION =
 
 // The loader refuses a malformed partial with the step's path before this
 // decode; the schema declares the structure for the type and the editor schema.
+// The editor schema states the at-least-one rule on the object itself: the
+// struct's `anyOf` annotation (a key `draft07Document` copies), so the filter
+// adds no JSON Schema of its own.
 const PartialSchema = Schema.Struct({
-  files: Schema.optionalWith(
-    Schema.NonEmptyString.annotations({ jsonSchema: { description: PARTIAL_FILES_DESCRIPTION } }),
-    { exact: true },
+  files: Schema.optionalKey(
+    Schema.NonEmptyString.annotate({ description: PARTIAL_FILES_DESCRIPTION }),
   ),
-  diff: Schema.optionalWith(
-    Schema.NonEmptyString.annotations({ jsonSchema: { description: PARTIAL_DIFF_DESCRIPTION } }),
-    { exact: true },
+  diff: Schema.optionalKey(
+    Schema.NonEmptyString.annotate({ description: PARTIAL_DIFF_DESCRIPTION }),
   ),
-}).pipe(
-  Schema.filter((value) => value.files !== undefined || value.diff !== undefined, {
-    message: () => 'declare "files", "diff" or both',
-    // A jsonSchema annotation on a refinement replaces the struct's generated
-    // schema, so the whole object is spelled out here.
-    jsonSchema: {
-      type: "object",
-      description: PARTIAL_DESCRIPTION,
-      properties: {
-        files: { type: "string", minLength: 1, description: PARTIAL_FILES_DESCRIPTION },
-        diff: { type: "string", minLength: 1, description: PARTIAL_DIFF_DESCRIPTION },
-      },
-      additionalProperties: false,
-      anyOf: [{ required: ["files"] }, { required: ["diff"] }],
-    },
-  }),
-);
+})
+  .annotate({
+    description: PARTIAL_DESCRIPTION,
+    anyOf: [{ required: ["files"] }, { required: ["diff"] }],
+  })
+  .check(
+    Schema.makeFilter((value) => value.files !== undefined || value.diff !== undefined, {
+      message: 'declare "files", "diff" or both',
+      toJsonSchema: () => ({}),
+    }),
+  );
 
 const GateStepSchema = Schema.Struct({
   command: Schema.NonEmptyString,
   surface: SurfaceSchema,
   firing: FiringSchema,
-  output: Schema.optionalWith(GateOutputSchema, { default: () => "log" as const }).annotations({
-    description: GATE_OUTPUT_DESCRIPTION,
-  }),
-  // The description rides the jsonSchema annotation: a plain `description` on
-  // the literal would replace `Expected "gate-request"` in the config refusal,
-  // and one on the property signature is dropped from this transformed
-  // struct's JSON Schema.
-  input: Schema.optionalWith(
-    Schema.Literal("gate-request").annotations({
-      jsonSchema: { description: GATE_INPUT_DESCRIPTION },
-    }),
-    { exact: true },
+  // The description rides the literal: the generator drops one on the key of a defaulted field.
+  output: GateOutputSchema.annotate({ description: GATE_OUTPUT_DESCRIPTION }).pipe(
+    Schema.withDecodingDefaultType(Effect.succeed("log" as const)),
   ),
-  partial: Schema.optionalWith(PartialSchema, { exact: true }),
+  // phax's refusal never reads a description, so the literal carries it.
+  input: Schema.optionalKey(
+    Schema.Literal("gate-request").annotate({ description: GATE_INPUT_DESCRIPTION }),
+  ),
+  partial: Schema.optionalKey(PartialSchema),
 });
 export type GateStep = Schema.Schema.Type<typeof GateStepSchema>;
 
-const GateProfilesSchema = Schema.Record({
-  key: Schema.NonEmptyString,
-  value: Schema.NonEmptyArray(GateStepSchema),
-});
+const GateProfilesSchema = Schema.Record(
+  Schema.NonEmptyString,
+  Schema.NonEmptyArray(GateStepSchema),
+);
 
 const WorkspaceSchema = Schema.Struct({
   id: Schema.NonEmptyString,
@@ -168,7 +159,7 @@ const WorkspaceSchema = Schema.Struct({
   gateProfiles: Schema.optional(GateProfilesSchema),
 });
 
-const EffortLiteral = Schema.Literal("low", "medium", "high");
+const EffortLiteral = Schema.Literals(["low", "medium", "high"]);
 export type Effort = Schema.Schema.Type<typeof EffortLiteral>;
 
 const ExtractPlanConfigSchema = Schema.Struct({
@@ -183,7 +174,7 @@ export const ComplianceReviewConfigSchema = Schema.Struct({
 });
 
 export const CodeReviewConfigSchema = Schema.Struct({
-  enabled: Schema.optional(Schema.Boolean).annotations({
+  enabled: Schema.optional(Schema.Boolean).annotateKey({
     description:
       "Run the headless code review when a run reaches review, after the compliance review and before the pull request. False when absent.",
   }),
@@ -273,7 +264,7 @@ export function resolveComplianceReviewConfig(
 }
 
 const FileReconciliationConfigSchema = Schema.Struct({
-  mode: Schema.Literal("report_only", "warn"),
+  mode: Schema.Literals(["report_only", "warn"]),
 });
 
 export const PhaxConfigSchema = Schema.Struct({
@@ -287,7 +278,9 @@ export const PhaxConfigSchema = Schema.Struct({
   ),
   agent: Schema.optional(
     Schema.Struct({
-      maxFixAttempts: Schema.optional(Schema.Int.pipe(Schema.between(1, 10))),
+      maxFixAttempts: Schema.optional(
+        Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 10 })),
+      ),
       extractPlan: Schema.optional(ExtractPlanConfigSchema),
     }),
   ),
@@ -300,16 +293,16 @@ export const PhaxConfigSchema = Schema.Struct({
   fileReconciliation: Schema.optional(FileReconciliationConfigSchema),
   security: Schema.optional(SecurityConfigSchema),
   publish: Schema.optional(PublishConfigSchema),
-  brief: Schema.optional(BriefConfigSchema).annotations({
+  brief: Schema.optional(BriefConfigSchema).annotateKey({
     description:
       "The brief provider: a command that answers, for any paths, the rules over them and what fails there. phax pushes the phase's brief into the phase's first prompt and serves `phax brief`.",
   }),
   planAuditor: Schema.optional(PlanAuditorConfigSchema),
-  architecture: Schema.optional(ArchitectureConfigSchema).annotations({
+  architecture: Schema.optional(ArchitectureConfigSchema).annotateKey({
     description:
       "The architecture provider: a command that answers, for the whole repository or for some paths, the repository's architecture as a report (a Markdown body, then the parts of the code with their globs), which phax renders to Markdown. Serves `phax architecture`.",
   }),
-  acceptance: Schema.optional(AcceptanceConfigSchema).annotations({
+  acceptance: Schema.optional(AcceptanceConfigSchema).annotateKey({
     description:
       "The acceptance provider: a command that judges the acceptance tests an acceptance phase writes and its passing phase passes.",
   }),
@@ -323,11 +316,11 @@ export const PhaxConfigSchema = Schema.Struct({
   gateProfiles: GateProfilesSchema,
   workspaces: Schema.optional(Schema.Array(WorkspaceSchema)),
   records: Schema.optional(RecordsConfigSchema),
-  assignments: Schema.optional(AssignmentsSchema).annotations({
+  assignments: Schema.optional(AssignmentsSchema).annotateKey({
     description:
       "The repository owner's assignment bounds: an ordered, non-empty list of part and globs bounds, each with a model and an effort range, from most to least demanding. The first bound that matches any of a phase's planned files governs it; `phax plans lint` and the `phax run` / `phax resume` start preflight hold every phase to it. Accepted in phax.json only: a user overlay that carries it is refused.",
   }),
-  protectedPaths: Schema.optional(Schema.NonEmptyArray(ArchitectureGlobSchema)).annotations({
+  protectedPaths: Schema.optional(Schema.NonEmptyArray(ArchitectureGlobSchema)).annotateKey({
     description: `The files whose change is the operator's decision, which no phase of a run may create, change, delete or rename. The phax.json phax loads is protected too, by its repo-relative path. Accepted in phax.json only: a user overlay that carries it is refused. Globs are written in phax's glob dialect but matched ignoring letter case: ${GLOB_DIALECT}`,
   }),
 });
@@ -384,13 +377,14 @@ export interface ResolvedConfig {
 
 export type { ResolvedSecurityConfig, ResolvedRecordsConfig };
 
-export const decodePhaxConfig = Schema.decodeUnknownEither(PhaxConfigSchema, {
+export const decodePhaxConfig = Schema.decodeUnknownResult(PhaxConfigSchema, {
   onExcessProperty: "error",
   errors: "all",
+  reportInput: true,
 });
 
 export function getPhaxConfigJsonSchema(): object {
-  return JSONSchema.make(PhaxConfigSchema);
+  return editorJsonSchema(PhaxConfigSchema);
 }
 
 export const PhaxUserOverlaySchema = Schema.Struct({
@@ -401,7 +395,9 @@ export const PhaxUserOverlaySchema = Schema.Struct({
   ),
   agent: Schema.optional(
     Schema.Struct({
-      maxFixAttempts: Schema.optional(Schema.Int.pipe(Schema.between(1, 10))),
+      maxFixAttempts: Schema.optional(
+        Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 10 })),
+      ),
       extractPlan: Schema.optional(ExtractPlanConfigSchema),
     }),
   ),
@@ -414,16 +410,16 @@ export const PhaxUserOverlaySchema = Schema.Struct({
   fileReconciliation: Schema.optional(FileReconciliationConfigSchema),
   security: Schema.optional(SecurityConfigSchema),
   publish: Schema.optional(PublishConfigSchema),
-  brief: Schema.optional(BriefConfigSchema).annotations({
+  brief: Schema.optional(BriefConfigSchema).annotateKey({
     description:
       "The brief provider: a command that answers, for any paths, the rules over them and what fails there. phax pushes the phase's brief into the phase's first prompt and serves `phax brief`.",
   }),
   planAuditor: Schema.optional(PlanAuditorConfigSchema),
-  architecture: Schema.optional(ArchitectureConfigSchema).annotations({
+  architecture: Schema.optional(ArchitectureConfigSchema).annotateKey({
     description:
       "The architecture provider: a command that answers, for the whole repository or for some paths, the repository's architecture as a report (a Markdown body, then the parts of the code with their globs), which phax renders to Markdown. Serves `phax architecture`.",
   }),
-  acceptance: Schema.optional(AcceptanceConfigSchema).annotations({
+  acceptance: Schema.optional(AcceptanceConfigSchema).annotateKey({
     description:
       "The acceptance provider: a command that judges the acceptance tests an acceptance phase writes and its passing phase passes.",
   }),
@@ -440,11 +436,12 @@ export const PhaxUserOverlaySchema = Schema.Struct({
 
 export type PhaxUserOverlay = Schema.Schema.Type<typeof PhaxUserOverlaySchema>;
 
-export const decodePhaxUserOverlay = Schema.decodeUnknownEither(PhaxUserOverlaySchema, {
+export const decodePhaxUserOverlay = Schema.decodeUnknownResult(PhaxUserOverlaySchema, {
   onExcessProperty: "error",
   errors: "all",
+  reportInput: true,
 });
 
 export function getPhaxUserOverlayJsonSchema(): object {
-  return JSONSchema.make(PhaxUserOverlaySchema);
+  return editorJsonSchema(PhaxUserOverlaySchema);
 }

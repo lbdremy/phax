@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { readdirSync } from "node:fs";
 import { access, mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -49,7 +49,7 @@ const HANDOFF_CONTENT = [
   "Ready to proceed.",
 ].join("\n");
 
-const shortName = Either.getOrThrow(decodeShortName("my-run"));
+const shortName = Result.getOrThrow(decodeShortName("my-run"));
 
 // Seed a run that is paused in `interrupted` with phase-01 in `gates_exhausted`,
 // mirroring the on-disk shape the reducer / dispatcher would leave behind after
@@ -180,7 +180,7 @@ describe("executePlan — happy-path 2-phase run", () => {
   });
 
   it("drives both phases to review_open and writes all expected artifacts", async () => {
-    const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
 
     const config: ResolvedConfig = {
       raw: {
@@ -274,7 +274,7 @@ describe("executePlan — happy-path 2-phase run", () => {
     );
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -292,7 +292,7 @@ describe("executePlan — happy-path 2-phase run", () => {
       ),
     );
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
 
     // Phase-04: every backend.runAgent call receives a resolved SecurityPolicy.
     // Default profile is `unsafe`, so failClosed is false and the allow-lists are empty.
@@ -334,22 +334,22 @@ describe("executePlan — happy-path 2-phase run", () => {
 
     // agent-binding.json must exist in each phase folder with correct locked provider/model.
     const phase01Binding = await readAgentBinding(join(runPath, "phase-01"));
-    expect(Either.isRight(phase01Binding)).toBe(true);
-    if (Either.isRight(phase01Binding)) {
-      expect(phase01Binding.right.provider).toBe("claude-code");
-      expect(phase01Binding.right.adapter).toBe("claude");
-      expect(phase01Binding.right.model).toBe("claude-sonnet-4-6");
-      expect(phase01Binding.right.sessionId).toBe("sess-01");
-      expect(phase01Binding.right.status).toBe("completed");
-      expect(phase01Binding.right.phaseId).toBe("phase-01");
+    expect(Result.isSuccess(phase01Binding)).toBe(true);
+    if (Result.isSuccess(phase01Binding)) {
+      expect(phase01Binding.success.provider).toBe("claude-code");
+      expect(phase01Binding.success.adapter).toBe("claude");
+      expect(phase01Binding.success.model).toBe("claude-sonnet-4-6");
+      expect(phase01Binding.success.sessionId).toBe("sess-01");
+      expect(phase01Binding.success.status).toBe("completed");
+      expect(phase01Binding.success.phaseId).toBe("phase-01");
     }
 
     const phase02Binding = await readAgentBinding(join(runPath, "phase-02"));
-    expect(Either.isRight(phase02Binding)).toBe(true);
-    if (Either.isRight(phase02Binding)) {
-      expect(phase02Binding.right.sessionId).toBe("sess-02");
-      expect(phase02Binding.right.status).toBe("awaiting_manual_review");
-      expect(phase02Binding.right.phaseId).toBe("phase-02");
+    expect(Result.isSuccess(phase02Binding)).toBe(true);
+    if (Result.isSuccess(phase02Binding)) {
+      expect(phase02Binding.success.sessionId).toBe("sess-02");
+      expect(phase02Binding.success.status).toBe("awaiting_manual_review");
+      expect(phase02Binding.success.phaseId).toBe("phase-02");
     }
 
     // Cleanup must not remove intermediate-phase worktrees — they persist until archive.
@@ -358,7 +358,7 @@ describe("executePlan — happy-path 2-phase run", () => {
   });
 
   it("returns committed phase ids and final worktree path", async () => {
-    const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
 
     const config: ResolvedConfig = {
       raw: {
@@ -450,7 +450,7 @@ describe("executePlan — happy-path 2-phase run", () => {
     );
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -468,11 +468,11 @@ describe("executePlan — happy-path 2-phase run", () => {
       ),
     );
 
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.completedPhaseCount).toBe(2);
-      expect(result.right.finalPhaseId).toBe("phase-02");
-      expect(result.right.finalWorktreePath).toBe(phase02WorktreePath);
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success.completedPhaseCount).toBe(2);
+      expect(result.success.finalPhaseId).toBe("phase-02");
+      expect(result.success.finalWorktreePath).toBe(phase02WorktreePath);
     }
   });
 
@@ -482,7 +482,7 @@ describe("executePlan — happy-path 2-phase run", () => {
     // persistSessionId (called by real providers during streaming) no longer patches
     // agent-binding.json. This test would fail if the patchAgentBindingSession call
     // were removed from executePlan, proving the app-layer owns binding mutations.
-    const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
 
     const config: ResolvedConfig = {
       raw: {
@@ -573,7 +573,7 @@ describe("executePlan — happy-path 2-phase run", () => {
     );
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -591,25 +591,25 @@ describe("executePlan — happy-path 2-phase run", () => {
       ),
     );
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
 
     const p1Binding = await readAgentBinding(join(runPath, "phase-01"));
-    expect(Either.isRight(p1Binding)).toBe(true);
-    if (Either.isRight(p1Binding)) {
-      expect(p1Binding.right.status).toBe("completed");
-      expect(p1Binding.right.sessionId).toBe("sess-p1");
+    expect(Result.isSuccess(p1Binding)).toBe(true);
+    if (Result.isSuccess(p1Binding)) {
+      expect(p1Binding.success.status).toBe("completed");
+      expect(p1Binding.success.sessionId).toBe("sess-p1");
     }
 
     const p2Binding = await readAgentBinding(join(runPath, "phase-02"));
-    expect(Either.isRight(p2Binding)).toBe(true);
-    if (Either.isRight(p2Binding)) {
-      expect(p2Binding.right.status).toBe("awaiting_manual_review");
-      expect(p2Binding.right.sessionId).toBe("sess-p2");
+    expect(Result.isSuccess(p2Binding)).toBe(true);
+    if (Result.isSuccess(p2Binding)) {
+      expect(p2Binding.success.status).toBe("awaiting_manual_review");
+      expect(p2Binding.success.sessionId).toBe("sess-p2");
     }
   });
 
   it("writes agent-binding.json with status launching before agent runs (pre-agent write guarantee)", async () => {
-    const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
 
     const config: ResolvedConfig = {
       raw: {
@@ -669,7 +669,7 @@ describe("executePlan — happy-path 2-phase run", () => {
     );
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -688,17 +688,17 @@ describe("executePlan — happy-path 2-phase run", () => {
     );
 
     // Run must fail because the backend has no responses.
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
 
     // agent-binding.json must exist with sessionId null — proving it was written
     // before the agent invocation. Status is 'failed' because tapError patches it
     // after the agent invocation fails.
     const binding = await readAgentBinding(join(runPath, "phase-01"));
-    expect(Either.isRight(binding)).toBe(true);
-    if (Either.isRight(binding)) {
-      expect(binding.right.status).toBe("failed");
-      expect(binding.right.sessionId).toBeNull();
-      expect(binding.right.provider).toBe("claude-code");
+    expect(Result.isSuccess(binding)).toBe(true);
+    if (Result.isSuccess(binding)) {
+      expect(binding.success.status).toBe("failed");
+      expect(binding.success.sessionId).toBeNull();
+      expect(binding.success.provider).toBe("claude-code");
     }
   });
 });
@@ -760,7 +760,7 @@ describe("executePlan — firing scheduling", () => {
   });
 
   it("runs only every-phase steps before the terminal phase, and both at the terminal phase", async () => {
-    const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
 
     const config: ResolvedConfig = {
       raw: {
@@ -860,7 +860,7 @@ describe("executePlan — firing scheduling", () => {
     );
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -878,7 +878,7 @@ describe("executePlan — firing scheduling", () => {
       ),
     );
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
 
     const phase01Log = await readFile(join(runPath, "phase-01", "checks-attempt-01.log"), "utf8");
     expect(phase01Log).toContain("$ true");
@@ -928,7 +928,7 @@ describe("executePlan — binding status lifecycle", () => {
   });
 
   it("sets binding status to awaiting_manual_review for the single (final) phase on success", async () => {
-    const plan = Either.getOrThrow(
+    const plan = Result.getOrThrow(
       liftFixturePhaxPlanToCurrent("phax-plan.json", singlePhaseRawPlanStatus),
     ).plan;
     const config = makeStatusTestConfig(stateRoot);
@@ -973,7 +973,7 @@ describe("executePlan — binding status lifecycle", () => {
     );
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -991,18 +991,18 @@ describe("executePlan — binding status lifecycle", () => {
       ),
     );
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
 
     const binding = await readAgentBinding(join(runPath, "phase-01"));
-    expect(Either.isRight(binding)).toBe(true);
-    if (Either.isRight(binding)) {
-      expect(binding.right.status).toBe("awaiting_manual_review");
-      expect(binding.right.sessionId).toBe("sess-01");
+    expect(Result.isSuccess(binding)).toBe(true);
+    if (Result.isSuccess(binding)) {
+      expect(binding.success.status).toBe("awaiting_manual_review");
+      expect(binding.success.sessionId).toBe("sess-01");
     }
   });
 
   it("sets binding status to failed when the agent invocation fails", async () => {
-    const plan = Either.getOrThrow(
+    const plan = Result.getOrThrow(
       liftFixturePhaxPlanToCurrent("phax-plan.json", singlePhaseRawPlanStatus),
     ).plan;
     const config = makeStatusTestConfig(stateRoot);
@@ -1028,7 +1028,7 @@ describe("executePlan — binding status lifecycle", () => {
     );
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -1046,12 +1046,12 @@ describe("executePlan — binding status lifecycle", () => {
       ),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
 
     const binding = await readAgentBinding(join(runPath, "phase-01"));
-    expect(Either.isRight(binding)).toBe(true);
-    if (Either.isRight(binding)) {
-      expect(binding.right.status).toBe("failed");
+    expect(Result.isSuccess(binding)).toBe(true);
+    if (Result.isSuccess(binding)) {
+      expect(binding.success.status).toBe("failed");
     }
   });
 });
@@ -1097,7 +1097,7 @@ describe("executePlan — handoff prompt deviation injection", () => {
   });
 
   it("injects the named deviating files into the handoff prompt passed to the backend", async () => {
-    const plan = Either.getOrThrow(
+    const plan = Result.getOrThrow(
       liftFixturePhaxPlanToCurrent("phax-plan.json", deviationRawPlan),
     ).plan;
     const config = makeStatusTestConfig(stateRoot);
@@ -1149,7 +1149,7 @@ describe("executePlan — handoff prompt deviation injection", () => {
     );
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -1167,7 +1167,7 @@ describe("executePlan — handoff prompt deviation injection", () => {
       ),
     );
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
 
     // The handoff is produced by resuming the agent session; find that resume by
     // its output path. The reorder (commit -> reconcile -> handoff) means the
@@ -1189,7 +1189,7 @@ describe("executePlan — handoff prompt deviation injection", () => {
   });
 
   it("renders the no-deviation line when the commit matches the plan exactly", async () => {
-    const plan = Either.getOrThrow(
+    const plan = Result.getOrThrow(
       liftFixturePhaxPlanToCurrent("phax-plan.json", deviationRawPlan),
     ).plan;
     const config = makeStatusTestConfig(stateRoot);
@@ -1239,7 +1239,7 @@ describe("executePlan — handoff prompt deviation injection", () => {
     );
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -1257,7 +1257,7 @@ describe("executePlan — handoff prompt deviation injection", () => {
       ),
     );
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
 
     const handoffResume = fakeBackend.impl.resumeCalls.find((c) =>
       c.options.outputJsonlPath?.includes("handoff-generation.jsonl"),
@@ -1343,7 +1343,7 @@ describe("executePlan — resume from gates_exhausted", () => {
   });
 
   it("re-enters the gate loop without invoking the implementation agent when the human's fix made the gate pass", async () => {
-    const plan = Either.getOrThrow(
+    const plan = Result.getOrThrow(
       liftFixturePhaxPlanToCurrent("phax-plan.json", singlePhaseRawPlan),
     ).plan;
     const config = baseConfig();
@@ -1389,7 +1389,7 @@ describe("executePlan — resume from gates_exhausted", () => {
     });
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -1407,7 +1407,7 @@ describe("executePlan — resume from gates_exhausted", () => {
       ),
     );
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     // The implementation agent must NOT be invoked on a gate-first resume.
     expect(fakeBackend.impl.runCalls).toHaveLength(0);
     // No fix attempts were needed because the human-applied fix made the gate pass.
@@ -1427,7 +1427,7 @@ describe("executePlan — resume from gates_exhausted", () => {
   });
 
   it("pauses the run again (does not fail it) when the gate keeps failing on resume", async () => {
-    const plan = Either.getOrThrow(
+    const plan = Result.getOrThrow(
       liftFixturePhaxPlanToCurrent("phax-plan.json", singlePhaseRawPlan),
     ).plan;
     const config = baseConfig();
@@ -1467,7 +1467,7 @@ describe("executePlan — resume from gates_exhausted", () => {
     });
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -1485,9 +1485,9 @@ describe("executePlan — resume from gates_exhausted", () => {
       ),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(GateAttemptsExhaustedError);
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toBeInstanceOf(GateAttemptsExhaustedError);
     }
     // No implementation-agent call ever happens on a gate-first resume.
     expect(fakeBackend.impl.runCalls).toHaveLength(0);
@@ -1511,7 +1511,7 @@ describe("executePlan — resume from gates_exhausted", () => {
   });
 
   it("fails loudly with a reset-phase-directing error when the persisted Claude session id is missing", async () => {
-    const plan = Either.getOrThrow(
+    const plan = Result.getOrThrow(
       liftFixturePhaxPlanToCurrent("phax-plan.json", singlePhaseRawPlan),
     ).plan;
     const config = baseConfig();
@@ -1541,7 +1541,7 @@ describe("executePlan — resume from gates_exhausted", () => {
     });
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -1559,10 +1559,10 @@ describe("executePlan — resume from gates_exhausted", () => {
       ),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(AgentSessionIdMissingError);
-      expect((result.left as AgentSessionIdMissingError).message).toContain("phax reset-phase");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toBeInstanceOf(AgentSessionIdMissingError);
+      expect((result.failure as AgentSessionIdMissingError).message).toContain("phax reset-phase");
     }
     // The implementation agent must not be started blindly when the session is lost.
     expect(fakeBackend.impl.runCalls).toHaveLength(0);
@@ -1570,7 +1570,7 @@ describe("executePlan — resume from gates_exhausted", () => {
   });
 
   it("uses the locked binding provider/model on resume, ignoring routing config", async () => {
-    const plan = Either.getOrThrow(
+    const plan = Result.getOrThrow(
       liftFixturePhaxPlanToCurrent("phax-plan.json", singlePhaseRawPlan),
     ).plan;
     const config = baseConfig();
@@ -1640,7 +1640,7 @@ describe("executePlan — resume from gates_exhausted", () => {
     await writeFile(join(phaseFolder, "agent-binding.json"), JSON.stringify(binding, null, 2));
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -1658,7 +1658,7 @@ describe("executePlan — resume from gates_exhausted", () => {
       ),
     );
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     // The implementation agent must not run on a gate-first resume.
     expect(fakeBackend.impl.runCalls).toHaveLength(0);
     // The bound provider/model must be used in the gate loop, not routing's "claude-code".
@@ -1787,7 +1787,7 @@ describe("executePlan — auto-publish after final review", () => {
   });
 
   it("publishes PR and writes publication.json when publish.auto is true", async () => {
-    const plan = Either.getOrThrow(
+    const plan = Result.getOrThrow(
       liftFixturePhaxPlanToCurrent("phax-plan.json", autoPublishRawPlan),
     ).plan;
     const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
@@ -1811,7 +1811,7 @@ describe("executePlan — auto-publish after final review", () => {
     );
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -1829,7 +1829,7 @@ describe("executePlan — auto-publish after final review", () => {
       ),
     );
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
 
     const runStatus = JSON.parse(await readFile(join(runPath, "run-status.json"), "utf8")) as {
       state: string;
@@ -1851,7 +1851,7 @@ describe("executePlan — auto-publish after final review", () => {
   });
 
   it("run stays review_open when gh is unavailable (non-fatal failure)", async () => {
-    const plan = Either.getOrThrow(
+    const plan = Result.getOrThrow(
       liftFixturePhaxPlanToCurrent("phax-plan.json", autoPublishRawPlan),
     ).plan;
     const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
@@ -1875,7 +1875,7 @@ describe("executePlan — auto-publish after final review", () => {
     );
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -1894,7 +1894,7 @@ describe("executePlan — auto-publish after final review", () => {
     );
 
     // Run must succeed even though publication failed
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
 
     const runStatus = JSON.parse(await readFile(join(runPath, "run-status.json"), "utf8")) as {
       state: string;
@@ -1915,7 +1915,7 @@ describe("executePlan — auto-publish after final review", () => {
   });
 
   it("no publication side effects when publish.auto is false", async () => {
-    const plan = Either.getOrThrow(
+    const plan = Result.getOrThrow(
       liftFixturePhaxPlanToCurrent("phax-plan.json", autoPublishRawPlan),
     ).plan;
     const worktreePath = join(stateRoot, "worktrees", "test-project.my-run", "phase-01");
@@ -1938,7 +1938,7 @@ describe("executePlan — auto-publish after final review", () => {
     );
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -1956,7 +1956,7 @@ describe("executePlan — auto-publish after final review", () => {
       ),
     );
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
 
     const runStatus = JSON.parse(await readFile(join(runPath, "run-status.json"), "utf8")) as {
       state: string;
@@ -2006,7 +2006,7 @@ describe("executePlan — security preflight", () => {
       ],
     } as const;
 
-    const plan = Either.getOrThrow(
+    const plan = Result.getOrThrow(
       liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlanWithRequired),
     ).plan;
 
@@ -2065,7 +2065,7 @@ describe("executePlan — security preflight", () => {
     );
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -2083,10 +2083,10 @@ describe("executePlan — security preflight", () => {
       ),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(SecurityPreflightError);
-      const err = result.left as SecurityPreflightError;
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toBeInstanceOf(SecurityPreflightError);
+      const err = result.failure as SecurityPreflightError;
       expect(err.missing).toContain("deno fmt");
     }
 
@@ -2134,7 +2134,7 @@ describe("executePlan — security preflight", () => {
       ],
     } as const;
 
-    const plan = Either.getOrThrow(
+    const plan = Result.getOrThrow(
       liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlanWithCoveredRequired),
     ).plan;
 
@@ -2212,7 +2212,7 @@ describe("executePlan — security preflight", () => {
     );
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -2230,7 +2230,7 @@ describe("executePlan — security preflight", () => {
       ),
     );
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     // Agent ran once
     expect(fakeBackend.impl.runCalls).toHaveLength(1);
   });
@@ -2294,7 +2294,7 @@ describe("executePlan — records destination refusal", () => {
       ],
     } as const;
 
-    const plan = Either.getOrThrow(
+    const plan = Result.getOrThrow(
       liftFixturePhaxPlanToCurrent("phax-plan.json", rawRecordsRefusalPlan),
     ).plan;
 
@@ -2380,7 +2380,7 @@ describe("executePlan — records destination refusal", () => {
     );
 
     return Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: opts.output,
@@ -2406,10 +2406,10 @@ describe("executePlan — records destination refusal", () => {
       output: processOutput,
     });
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(RecordsDestinationRefusedError);
-      expect(exitCodeForError(result.left)).not.toBe(0);
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toBeInstanceOf(RecordsDestinationRefusedError);
+      expect(exitCodeForError(result.failure)).not.toBe(0);
     }
   });
 
@@ -2434,8 +2434,8 @@ describe("executePlan — records destination refusal", () => {
     });
 
     // The record stands and the run is not failed by it.
-    if (Either.isLeft(result))
-      expect(result.left).not.toBeInstanceOf(RecordsDestinationRefusedError);
+    if (Result.isFailure(result))
+      expect(result.failure).not.toBeInstanceOf(RecordsDestinationRefusedError);
     const warning = warnings.find((line) => line.includes("unrelated"));
     expect(warning).toMatch(
       /^\[phax\] Warning: phase "phase-01" — record kept on the local records branch, which is unrelated to origin's \(local [0-9a-f]{7}, origin [0-9a-f]{7}\); run `phax records sync --replay`, then push\.$/,
@@ -2487,7 +2487,7 @@ interface AgentLaunch {
 // `pnpm test`. The gate starts failing once phase-02's agent launches, so a
 // plain start pauses with phase-02 in gates_exhausted.
 function makeBaselineScenario(root: string) {
-  const plan = Either.getOrThrow(
+  const plan = Result.getOrThrow(
     liftFixturePhaxPlanToCurrent("phax-plan.json", baselineRawPlan),
   ).plan;
   const base = makeStatusTestConfig(root);
@@ -2562,7 +2562,7 @@ function makeBaselineScenario(root: string) {
 
   const execute = (runPath: string, runId: RunId, startIndex: number) =>
     Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -2639,7 +2639,7 @@ describe("executePlan — phase start on the no-provider baseline", () => {
     const { runPath, runId, result } = await s.startRun();
 
     // phase-02's gate never passes, so the run pauses there.
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
     expect(s.launches.map((l) => l.phaseId)).toEqual(["phase-01", "phase-02"]);
 
     for (const launch of s.launches) {
@@ -2685,9 +2685,9 @@ describe("executePlan — phase start on the no-provider baseline", () => {
       finalText: "",
     });
     const firstResume = await s.execute(runPath, runId, 1);
-    expect(Either.isLeft(firstResume)).toBe(true);
-    if (Either.isLeft(firstResume)) {
-      expect(firstResume.left).toBeInstanceOf(GateAttemptsExhaustedError);
+    expect(Result.isFailure(firstResume)).toBe(true);
+    if (Result.isFailure(firstResume)) {
+      expect(firstResume.failure).toBeInstanceOf(GateAttemptsExhaustedError);
     }
     expect(s.launches).toHaveLength(2);
     expect(
@@ -2700,7 +2700,7 @@ describe("executePlan — phase start on the no-provider baseline", () => {
     expect(await s.phaseState(runPath, "phase-02")).toBe("gates_exhausted");
 
     const reset = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         resetPhase({
           shortName,
           namespace: "test-project",
@@ -2710,7 +2710,7 @@ describe("executePlan — phase start on the no-provider baseline", () => {
         }).pipe(Effect.provide(s.layers), Effect.provide(makeFakeLock().layer)),
       ),
     );
-    expect(Either.isRight(reset)).toBe(true);
+    expect(Result.isSuccess(reset)).toBe(true);
 
     // Resume after the reset: phase-02 starts fresh and, with the gate fixed,
     // the run proceeds through phase-03 to review.
@@ -2730,7 +2730,7 @@ describe("executePlan — phase start on the no-provider baseline", () => {
       });
     }
     const secondResume = await s.execute(runPath, runId, 1);
-    expect(Either.isRight(secondResume)).toBe(true);
+    expect(Result.isSuccess(secondResume)).toBe(true);
 
     const freshLaunch = s.launches[2];
     expect(freshLaunch?.phaseId).toBe("phase-02");
@@ -2767,7 +2767,7 @@ describe("executePlan — phase start on the no-provider baseline", () => {
       finalText: "",
     });
     const resumed = await s.execute(runPath, runId, 1);
-    expect(Either.isLeft(resumed)).toBe(true);
+    expect(Result.isFailure(resumed)).toBe(true);
     expect(await s.phaseState(runPath, "phase-02")).toBe("gates_exhausted");
     expect(await readFile(phasePlanPath, "utf8")).toBe(runPlanMd);
   });
@@ -2787,7 +2787,7 @@ describe("executePlan — resumed-session prompts", () => {
   });
 
   it("pins the fix-attempt and handoff prompts of a phase whose gate fails once", async () => {
-    const plan = Either.getOrThrow(
+    const plan = Result.getOrThrow(
       liftFixturePhaxPlanToCurrent("phax-plan.json", {
         ...baselineRawPlan,
         phases: [baselineRawPlan.phases[0]],
@@ -2854,7 +2854,7 @@ describe("executePlan — resumed-session prompts", () => {
     );
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -2872,7 +2872,7 @@ describe("executePlan — resumed-session prompts", () => {
       ),
     );
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     const [fixAttempt, handoff] = fakeBackend.impl.resumeCalls;
     expect(fakeBackend.impl.resumeCalls).toHaveLength(2);
     expect(normalizeRunText(fixAttempt!.prompt, stateRoot, runPath, runId)).toMatchSnapshot(
@@ -2897,7 +2897,7 @@ describe("executePlan — a green gate-report gate", () => {
   });
 
   it("prints exactly what a passing gate with no findings printed before, on every phase", async () => {
-    const plan = Either.getOrThrow(
+    const plan = Result.getOrThrow(
       liftFixturePhaxPlanToCurrent("phax-plan.json", baselineRawPlan),
     ).plan;
     const base = makeStatusTestConfig(stateRoot);
@@ -2991,7 +2991,7 @@ describe("executePlan — a green gate-report gate", () => {
     vi.spyOn(process.stdout, "write").mockImplementation(capture);
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -3010,7 +3010,7 @@ describe("executePlan — a green gate-report gate", () => {
     );
     vi.restoreAllMocks();
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     // A passing gate with no findings prints nothing, as it did before the
     // change (derived from the code at the time, not captured from a run).
     expect(printed.join("")).toBe(GREEN_GATE_GOLDEN);

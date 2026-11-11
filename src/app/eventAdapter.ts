@@ -42,7 +42,7 @@ export function eventify<A, E, R>(
 ): Effect.Effect<PhaxEvent, E, R> {
   return eff.pipe(
     Effect.map(ok),
-    Effect.catchAll((e) => {
+    Effect.catch((e) => {
       const event = fail(e);
       return event !== null ? Effect.succeed(event) : Effect.fail(e);
     }),

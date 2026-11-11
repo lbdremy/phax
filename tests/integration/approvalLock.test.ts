@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { transitionArtifactBy } from "../../src/app/artifactStatus.js";
 import { exitCodeForError } from "../../src/cli/commands/runLayers.js";
@@ -235,7 +235,7 @@ function approve(path: string) {
     makeFakeTerminal(true).layer,
   );
   return Effect.runPromise(
-    Effect.either(
+    Effect.result(
       transitionArtifactBy(path, "Approved", {
         repoRoot: repoDir,
         nowIso: NOW,
@@ -248,12 +248,12 @@ function approve(path: string) {
 
 // A refusal: exit 12, nothing written, HEAD unchanged; returns the error.
 function expectRefused(result: Awaited<ReturnType<typeof approve>>, head: string): unknown {
-  expect(Either.isLeft(result)).toBe(true);
+  expect(Result.isFailure(result)).toBe(true);
   expect(headSha()).toBe(head);
   expect(porcelain()).toBe("");
-  if (Either.isRight(result)) return undefined;
-  expect(exitCodeForError(result.left)).toBe(12);
-  return result.left;
+  if (Result.isSuccess(result)) return undefined;
+  expect(exitCodeForError(result.failure)).toBe(12);
+  return result.failure;
 }
 
 beforeEach(() => {
@@ -302,7 +302,7 @@ describe("Approval waits for no open question", { timeout: 30_000 }, () => {
 
     const result = await approve(SPEC);
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     expect(readRepoFile(SPEC)).toContain("status: Approved");
     expect(porcelain()).toBe("");
   });
@@ -313,7 +313,7 @@ describe("Approval waits for no open question", { timeout: 30_000 }, () => {
 
     const result = await approve(SPEC);
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     expect(readRepoFile(SPEC)).toContain("status: Approved");
   });
 

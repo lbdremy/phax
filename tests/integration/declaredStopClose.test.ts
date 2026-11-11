@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { Deferred, Effect, Either, Fiber, Layer } from "effect";
+import { Deferred, Effect, Result, Fiber, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { closeStop, type CloseReport } from "../../src/app/closeStop.js";
 import { dispatch } from "../../src/app/dispatcher.js";
@@ -119,7 +119,7 @@ let world: World;
 beforeEach(async () => {
   world = createWorld();
   const { loadConfig } = await import("../../src/app/loadConfig.js");
-  vi.mocked(loadConfig).mockReturnValue(Either.right(resolvedConfig(world)));
+  vi.mocked(loadConfig).mockReturnValue(Result.succeed(resolvedConfig(world)));
 });
 
 afterEach(() => {
@@ -245,7 +245,7 @@ async function close(run: StoppedRun, options: CloseOptions = {}) {
   });
   const program = Effect.gen(function* () {
     if (options.resume !== false) yield* resumeRequested(run);
-    return yield* Effect.either(closeStop(closeInput(run)));
+    return yield* Effect.result(closeStop(closeInput(run)));
   });
   const result = await Effect.runPromise(
     program.pipe(Effect.provide(layers(options, order, backend))),
@@ -255,16 +255,16 @@ async function close(run: StoppedRun, options: CloseOptions = {}) {
 
 type DeclaredReport = Extract<CloseReport, { readonly cause: "declared" }>;
 
-const report = (result: Either.Either<CloseReport, unknown>): DeclaredReport => {
-  if (Either.isLeft(result)) throw new Error(`close refused: ${String(result.left)}`);
-  if (result.right.cause !== "declared") throw new Error("the close was not a declared stop's");
-  return result.right;
+const report = (result: Result.Result<CloseReport, unknown>): DeclaredReport => {
+  if (Result.isFailure(result)) throw new Error(`close refused: ${String(result.failure)}`);
+  if (result.success.cause !== "declared") throw new Error("the close was not a declared stop's");
+  return result.success;
 };
 
-const refusal = (result: Either.Either<CloseReport, unknown>): StopCloseRefusedError => {
-  if (Either.isRight(result)) throw new Error("the close was not refused");
-  expect(result.left).toBeInstanceOf(StopCloseRefusedError);
-  return result.left as StopCloseRefusedError;
+const refusal = (result: Result.Result<CloseReport, unknown>): StopCloseRefusedError => {
+  if (Result.isSuccess(result)) throw new Error("the close was not refused");
+  expect(result.failure).toBeInstanceOf(StopCloseRefusedError);
+  return result.failure as StopCloseRefusedError;
 };
 
 // The refusal's lastClose, narrowed to the variant `result` names.
@@ -576,7 +576,7 @@ describe("a refused close", () => {
     const result = await Effect.runPromise(
       Effect.gen(function* () {
         yield* resumeRequested(run);
-        return yield* Effect.either(
+        return yield* Effect.result(
           closeStop({
             ...closeInput(run),
             gateRequest: Effect.fail(new FsError({ message: "status.json: not valid JSON" })),
@@ -988,13 +988,13 @@ describe("a close taken up again", () => {
         _options: AgentRunOptions,
       ): Effect.Effect<AgentRunResult, never> {
         write(run, "src/export/labels.ts", "export const labels = {};\n");
-        return Deferred.succeed(started, undefined).pipe(Effect.zipRight(Effect.never));
+        return Deferred.succeed(started, undefined).pipe(Effect.andThen(Effect.never));
       }
     }
     await Effect.runPromise(
       Effect.gen(function* () {
         yield* resumeRequested(run);
-        const fiber = yield* Effect.fork(closeStop(closeInput(run)));
+        const fiber = yield* Effect.forkChild(closeStop(closeInput(run)));
         yield* Deferred.await(started);
         yield* Fiber.interrupt(fiber);
       }).pipe(Effect.provide(layers({}, [], new HangingBackend()))),

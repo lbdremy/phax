@@ -14,15 +14,14 @@
 import { Schema } from "effect";
 import { answerSchemaUrlField } from "./answerStamp.js";
 import { PlanDecidedVerdictSchema, SpecDecidedVerdictSchema } from "./questions.js";
-import { NonEmptyString } from "./strictString.js";
+import { NonEmptyString, isExportedPattern } from "./strictString.js";
 
 // A question id, as the §9 format reads it back: no whitespace.
-const QuestionIdSchema = Schema.String.pipe(
-  Schema.pattern(/^\S+$/),
-  Schema.annotations({ description: "A question id of the artifact: no whitespace." }),
+const QuestionIdSchema = Schema.String.check(isExportedPattern(/^\S+$/)).pipe(
+  Schema.annotate({ description: "A question id of the artifact: no whitespace." }),
 );
 
-const MarkdownSchema = NonEmptyString.annotations({
+const MarkdownSchema = NonEmptyString.annotate({
   description:
     "The artifact's whole revised Markdown, frontmatter included. Only edits outside the frontmatter, the question sections and the decision log are kept; phax writes those.",
 });
@@ -45,7 +44,7 @@ const PlanHandDecisionSchema = Schema.Struct({
 export const SpecHandDecisionAnswerFileSchema = Schema.Struct({
   $schema: answerSchemaUrlField("spec-hand-decision-answer"),
   kind: Schema.Literal("spec"),
-  decisions: Schema.Array(SpecHandDecisionSchema).annotations({
+  decisions: Schema.Array(SpecHandDecisionSchema).annotate({
     description: "The verdicts decided in the session, one per question id; empty when none.",
   }),
   markdown: MarkdownSchema,
@@ -59,7 +58,7 @@ export const SpecHandDecisionAnswerFileSchema = Schema.Struct({
 export const PlanHandDecisionAnswerFileSchema = Schema.Struct({
   $schema: answerSchemaUrlField("plan-hand-decision-answer"),
   kind: Schema.Literal("plan"),
-  decisions: Schema.Array(PlanHandDecisionSchema).annotations({
+  decisions: Schema.Array(PlanHandDecisionSchema).annotate({
     description:
       "The verdicts decided in the session, one per question id, each naming the plan phase it bears on; empty when none.",
   }),
@@ -84,12 +83,12 @@ export type HandDecisionAnswer = SpecHandDecisionAnswer | PlanHandDecisionAnswer
 /** One decided verdict of a hand decision answer. */
 export type HandDecision = HandDecisionAnswer["decisions"][number];
 
-export const decodeSpecHandDecisionAnswerFile = Schema.decodeUnknownEither(
+export const decodeSpecHandDecisionAnswerFile = Schema.decodeUnknownResult(
   SpecHandDecisionAnswerFileSchema,
-  { onExcessProperty: "error" },
+  { onExcessProperty: "error", reportInput: true },
 );
 
-export const decodePlanHandDecisionAnswerFile = Schema.decodeUnknownEither(
+export const decodePlanHandDecisionAnswerFile = Schema.decodeUnknownResult(
   PlanHandDecisionAnswerFileSchema,
-  { onExcessProperty: "error" },
+  { onExcessProperty: "error", reportInput: true },
 );

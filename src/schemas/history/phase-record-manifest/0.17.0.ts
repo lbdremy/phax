@@ -6,32 +6,42 @@
 // lists it as the format's 0.17.0 release.
 import { Schema } from "effect";
 
-const SchemaUrlSchema = Schema.String.pipe(
-  Schema.pattern(
+// `Schema.isPattern` whose JSON Schema is the RegExp's source, whatever its
+// flags: Effect 4 exports a pattern only for a RegExp with the `u` flag.
+function isExportedPattern(regExp: RegExp, annotations?: Schema.Annotations.Filter) {
+  return Schema.isPattern(regExp, {
+    toJsonSchema: () => ({ pattern: regExp.source }),
+    ...annotations,
+  });
+}
+
+const SchemaUrlSchema = Schema.String.check(
+  isExportedPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/phase-record-manifest\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
-  Schema.annotations({
+).pipe(
+  Schema.annotate({
     description:
       "The phase-record-manifest format and the phax release that wrote this file: https://docs.phax.run/schemas/phase-record-manifest/<X.Y.Z>.json",
   }),
 );
 
-const ProviderIdSchema = Schema.Union(
+const ProviderIdSchema = Schema.Union([
   Schema.Literal("claude-code"),
   Schema.Literal("codex-cli"),
   Schema.Literal("mistral-vibe"),
-);
+]);
 
-const SurfaceSchema = Schema.Literal("local", "structural", "product");
+const SurfaceSchema = Schema.Literals(["local", "structural", "product"]);
 
-const RecordShapeSchema = Schema.Union(Schema.Literal("full"), Schema.Literal("skeleton"));
+const RecordShapeSchema = Schema.Union([Schema.Literal("full"), Schema.Literal("skeleton")]);
 
-const RecordPhaseOutcomeSchema = Schema.Union(
+const RecordPhaseOutcomeSchema = Schema.Union([
   Schema.Literal("committed"),
   Schema.Literal("failed"),
   Schema.Literal("abandoned"),
   Schema.Literal("interrupted"),
-);
+]);
 
 const ClaudeTokenUsageSchema = Schema.Struct({
   provider: Schema.Literal("claude-code"),
@@ -61,16 +71,16 @@ const VibeTokenUsageSchema = Schema.Struct({
   toolCallsSucceeded: Schema.Number,
 });
 
-const ProviderTokenUsageSchema = Schema.Union(
+const ProviderTokenUsageSchema = Schema.Union([
   ClaudeTokenUsageSchema,
   CodexTokenUsageSchema,
   VibeTokenUsageSchema,
-);
+]);
 
-const TokenUsageSchema = Schema.Union(
+const TokenUsageSchema = Schema.Union([
   Schema.Struct({ available: Schema.Literal(true), usage: ProviderTokenUsageSchema }),
   Schema.Struct({ available: Schema.Literal(false) }),
-);
+]);
 
 export const PhaseRecordManifestV0_17_0Schema = Schema.Struct({
   $schema: SchemaUrlSchema,
@@ -90,7 +100,7 @@ export type PhaseRecordManifestV0_17_0 = Schema.Schema.Type<
   typeof PhaseRecordManifestV0_17_0Schema
 >;
 
-export const decodePhaseRecordManifestV0_17_0 = Schema.decodeUnknownEither(
+export const decodePhaseRecordManifestV0_17_0 = Schema.decodeUnknownResult(
   PhaseRecordManifestV0_17_0Schema,
-  { onExcessProperty: "error" },
+  { onExcessProperty: "error", reportInput: true },
 );

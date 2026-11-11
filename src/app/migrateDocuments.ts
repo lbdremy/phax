@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import {
   type ApprovalLedgerMigrationRequiredError,
   type ApprovalRecordUnreadableError,
@@ -101,7 +101,7 @@ function plansLeftStale(
       if (!entry.endsWith(".md")) continue; // skips archive/ and approvals/
       const planPath = `docs/plans/${entry}`;
       const validated = validateArtifact(planPath, yield* fs.readText(planPath));
-      if (Either.isLeft(validated) || validated.right.status !== "Approved") continue;
+      if (Result.isFailure(validated) || validated.success.status !== "Approved") continue;
       const record = yield* readPlanApprovalRecord(planPath);
       const recordedSpec = record?.sourceSpec ?? null;
       if (recordedSpec === null) continue;
@@ -190,12 +190,12 @@ export function migrateDocuments(
 
     const subject = DOCUMENT_MIGRATION_COMMIT_SUBJECT;
     const body = documentMigrationCommitBody(migrations);
-    const committed = yield* Effect.either(git.commitPaths(opts.repoRoot, paths, subject, body));
-    if (Either.isLeft(committed)) {
+    const committed = yield* Effect.result(git.commitPaths(opts.repoRoot, paths, subject, body));
+    if (Result.isFailure(committed)) {
       return yield* Effect.fail(
         new ArtifactCommitFailedError({
           paths,
-          cause: committed.left.message,
+          cause: committed.failure.message,
           commitMessage: { subject, body },
         }),
       );

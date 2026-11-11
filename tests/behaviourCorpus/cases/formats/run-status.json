@@ -1,0 +1,3225 @@
+{
+  "format": "run-status",
+  "current": [
+    {
+      "name": "accepts a typical document",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/run-status/0.33.0.json",
+        "namespace": "example",
+        "shortName": "example-run",
+        "runId": "run-0001",
+        "state": "running",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "phasesCount": 2,
+        "currentPhaseIndex": 0,
+        "gateProfileId": "standard",
+        "hold": {
+          "selection": "none"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.33.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.33.0.json",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "hold": {
+            "selection": "none"
+          },
+          "namespace": "example",
+          "phasesCount": 2,
+          "runId": "run-0001",
+          "shortName": "example-run",
+          "state": "running",
+          "updatedAt": "2026-01-01T09:30:00.000Z"
+        }
+      }
+    },
+    {
+      "name": "accepts a document setting every field",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/run-status/0.33.0.json",
+        "namespace": "example",
+        "shortName": "example-run",
+        "runId": "run-0001",
+        "state": "running",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "phasesCount": 2,
+        "currentPhaseIndex": 0,
+        "gateProfileId": "standard",
+        "stoppedReason": "text-7",
+        "lastError": "text-8",
+        "planRepoRelPath": "text-9",
+        "allowSkillEdits": true,
+        "hold": {
+          "selection": "all",
+          "phases": [
+            "phase-01"
+          ]
+        }
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.33.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.33.0.json",
+          "allowSkillEdits": true,
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "hold": {
+            "phases": [
+              "phase-01"
+            ],
+            "selection": "all"
+          },
+          "lastError": "text-8",
+          "namespace": "example",
+          "phasesCount": 2,
+          "planRepoRelPath": "text-9",
+          "runId": "run-0001",
+          "shortName": "example-run",
+          "state": "running",
+          "stoppedReason": "text-7",
+          "updatedAt": "2026-01-01T09:30:00.000Z"
+        }
+      }
+    },
+    {
+      "name": "accepts a document with only its required fields",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/run-status/0.33.0.json",
+        "namespace": "example",
+        "shortName": "example-run",
+        "runId": "run-0001",
+        "state": "running",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "phasesCount": 2,
+        "hold": {
+          "selection": "all",
+          "phases": [
+            "phase-01"
+          ]
+        }
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.33.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.33.0.json",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "hold": {
+            "phases": [
+              "phase-01"
+            ],
+            "selection": "all"
+          },
+          "namespace": "example",
+          "phasesCount": 2,
+          "runId": "run-0001",
+          "shortName": "example-run",
+          "state": "running",
+          "updatedAt": "2026-01-01T09:30:00.000Z"
+        }
+      }
+    },
+    {
+      "name": "refuses a document that is not an object",
+      "input": [
+        "not",
+        "an",
+        "object"
+      ],
+      "expected": {
+        "ok": false,
+        "refusal": ": a run status is a JSON object, got an array"
+      }
+    },
+    {
+      "name": "refuses a stamp naming another format",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/registry/0.17.0.json",
+        "namespace": "example",
+        "shortName": "example-run",
+        "runId": "run-0001",
+        "state": "running",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "phasesCount": 2,
+        "currentPhaseIndex": 0,
+        "gateProfileId": "standard",
+        "hold": {
+          "selection": "none"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: https://docs.phax.run/schemas/registry/0.17.0.json is a registry document, not a run-status"
+      }
+    },
+    {
+      "name": "refuses a malformed $schema",
+      "input": {
+        "$schema": "not a schema url",
+        "namespace": "example",
+        "shortName": "example-run",
+        "runId": "run-0001",
+        "state": "running",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "phasesCount": 2,
+        "currentPhaseIndex": 0,
+        "gateProfileId": "standard",
+        "hold": {
+          "selection": "none"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: expected https://docs.phax.run/schemas/<format-id>/<X.Y.Z>.json, got \"not a schema url\""
+      }
+    },
+    {
+      "name": "refuses a stamp newer than the package",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/run-status/9.0.0.json",
+        "namespace": "example",
+        "shortName": "example-run",
+        "runId": "run-0001",
+        "state": "running",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "phasesCount": 2,
+        "currentPhaseIndex": 0,
+        "gateProfileId": "standard",
+        "hold": {
+          "selection": "none"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: run-status 9.0.0 is newer than @lbdremy/phax-schemas {package-version} — upgrade the package"
+      }
+    },
+    {
+      "name": "refuses a stamp below the first supported release",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/run-status/0.1.0.json",
+        "namespace": "example",
+        "shortName": "example-run",
+        "runId": "run-0001",
+        "state": "running",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "phasesCount": 2,
+        "currentPhaseIndex": 0,
+        "gateProfileId": "standard",
+        "hold": {
+          "selection": "none"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: https://docs.phax.run/schemas/run-status/0.1.0.json was written by a development build of phax before 0.17.0, the first supported release — not supported"
+      }
+    },
+    {
+      "name": "reads a document written before $schema",
+      "input": {
+        "version": 1,
+        "namespace": "example",
+        "shortName": "example-run",
+        "runId": "run-0001",
+        "state": "running",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "phasesCount": 2,
+        "currentPhaseIndex": 0,
+        "gateProfileId": "standard"
+      },
+      "expected": {
+        "ok": true,
+        "shape": "pre-schema",
+        "value": {
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "namespace": "example",
+          "phasesCount": 2,
+          "runId": "run-0001",
+          "shortName": "example-run",
+          "state": "running",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "version": 1
+        }
+      }
+    },
+    {
+      "name": "refuses a pre-schema document missing a key",
+      "input": {
+        "namespace": "example",
+        "shortName": "example-run",
+        "runId": "run-0001",
+        "state": "running",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "phasesCount": 2,
+        "currentPhaseIndex": 0,
+        "gateProfileId": "standard"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "version: run status older than phax 0.17.0, the first supported release — not supported (is missing)"
+      }
+    },
+    {
+      "name": "refuses a document missing namespace",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/run-status/0.33.0.json",
+        "shortName": "example-run",
+        "runId": "run-0001",
+        "state": "running",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "phasesCount": 2,
+        "currentPhaseIndex": 0,
+        "gateProfileId": "standard",
+        "hold": {
+          "selection": "none"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "namespace: is missing"
+      }
+    },
+    {
+      "name": "refuses namespace of the wrong type",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/run-status/0.33.0.json",
+        "namespace": 42,
+        "shortName": "example-run",
+        "runId": "run-0001",
+        "state": "running",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "phasesCount": 2,
+        "currentPhaseIndex": 0,
+        "gateProfileId": "standard",
+        "hold": {
+          "selection": "none"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "namespace: Expected string, actual 42"
+      }
+    },
+    {
+      "name": "refuses state outside its values",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/run-status/0.33.0.json",
+        "namespace": "example",
+        "shortName": "example-run",
+        "runId": "run-0001",
+        "state": "bogus-value",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "phasesCount": 2,
+        "currentPhaseIndex": 0,
+        "gateProfileId": "standard",
+        "hold": {
+          "selection": "none"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "state: Expected \"created\" | \"running\" | \"failed\" | \"review_open\" | \"completed\" | \"stopped\" | \"archived\" | \"interrupted\" | \"rate_limited\" | \"awaiting_review\", actual \"bogus-value\""
+      }
+    },
+    {
+      "name": "refuses namespace when empty",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/run-status/0.33.0.json",
+        "namespace": "",
+        "shortName": "example-run",
+        "runId": "run-0001",
+        "state": "running",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "phasesCount": 2,
+        "currentPhaseIndex": 0,
+        "gateProfileId": "standard",
+        "hold": {
+          "selection": "none"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "namespace: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "accepts an unexpected key without reading it",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/run-status/0.33.0.json",
+        "namespace": "example",
+        "shortName": "example-run",
+        "runId": "run-0001",
+        "state": "running",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "phasesCount": 2,
+        "currentPhaseIndex": 0,
+        "gateProfileId": "standard",
+        "hold": {
+          "selection": "none"
+        },
+        "unexpectedKey": 1
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.33.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.33.0.json",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "hold": {
+            "selection": "none"
+          },
+          "namespace": "example",
+          "phasesCount": 2,
+          "runId": "run-0001",
+          "shortName": "example-run",
+          "state": "running",
+          "updatedAt": "2026-01-01T09:30:00.000Z"
+        }
+      }
+    },
+    {
+      "name": "reads a document stamped 0.17.0",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/run-status/0.17.0.json",
+        "namespace": "example",
+        "shortName": "example-run",
+        "runId": "run-0001",
+        "state": "running",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "phasesCount": 2,
+        "currentPhaseIndex": 0,
+        "gateProfileId": "standard",
+        "stoppedReason": "text-7",
+        "lastError": "text-8",
+        "planRepoRelPath": "text-9",
+        "allowSkillEdits": true
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.17.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.17.0.json",
+          "allowSkillEdits": true,
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "lastError": "text-8",
+          "namespace": "example",
+          "phasesCount": 2,
+          "planRepoRelPath": "text-9",
+          "runId": "run-0001",
+          "shortName": "example-run",
+          "state": "running",
+          "stoppedReason": "text-7",
+          "updatedAt": "2026-01-01T09:30:00.000Z"
+        }
+      }
+    },
+    {
+      "name": "reads a document stamped 0.26.0",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/run-status/0.26.0.json",
+        "namespace": "example",
+        "shortName": "example-run",
+        "runId": "run-0001",
+        "state": "running",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "phasesCount": 2,
+        "currentPhaseIndex": 0,
+        "gateProfileId": "standard",
+        "stoppedReason": "text-7",
+        "lastError": "text-8",
+        "planRepoRelPath": "text-9",
+        "allowSkillEdits": true,
+        "hold": {
+          "selection": "all",
+          "phases": [
+            "phase-01"
+          ]
+        }
+      },
+      "expected": {
+        "ok": true,
+        "shape": "0.26.0",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.26.0.json",
+          "allowSkillEdits": true,
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "hold": {
+            "phases": [
+              "phase-01"
+            ],
+            "selection": "all"
+          },
+          "lastError": "text-8",
+          "namespace": "example",
+          "phasesCount": 2,
+          "planRepoRelPath": "text-9",
+          "runId": "run-0001",
+          "shortName": "example-run",
+          "state": "running",
+          "stoppedReason": "text-7",
+          "updatedAt": "2026-01-01T09:30:00.000Z"
+        }
+      }
+    },
+    {
+      "name": "constraint $schema pattern",
+      "input": {
+        "$schema": "",
+        "namespace": "example",
+        "shortName": "example-run",
+        "runId": "run-0001",
+        "state": "running",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "phasesCount": 2,
+        "currentPhaseIndex": 0,
+        "gateProfileId": "standard",
+        "hold": {
+          "selection": "none"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: expected https://docs.phax.run/schemas/<format-id>/<X.Y.Z>.json, got \"\""
+      }
+    },
+    {
+      "name": "constraint $schema required",
+      "input": {
+        "namespace": "example",
+        "shortName": "example-run",
+        "runId": "run-0001",
+        "state": "running",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "phasesCount": 2,
+        "currentPhaseIndex": 0,
+        "gateProfileId": "standard",
+        "hold": {
+          "selection": "none"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "version: run status older than phax 0.17.0, the first supported release — not supported (is missing)"
+      }
+    },
+    {
+      "name": "constraint createdAt minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/run-status/0.33.0.json",
+        "namespace": "example",
+        "shortName": "example-run",
+        "runId": "run-0001",
+        "state": "running",
+        "createdAt": "",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "phasesCount": 2,
+        "currentPhaseIndex": 0,
+        "gateProfileId": "standard",
+        "hold": {
+          "selection": "none"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "createdAt: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint createdAt required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/run-status/0.33.0.json",
+        "namespace": "example",
+        "shortName": "example-run",
+        "runId": "run-0001",
+        "state": "running",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "phasesCount": 2,
+        "currentPhaseIndex": 0,
+        "gateProfileId": "standard",
+        "hold": {
+          "selection": "none"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "createdAt: is missing"
+      }
+    },
+    {
+      "name": "constraint gateProfileId minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/run-status/0.33.0.json",
+        "namespace": "example",
+        "shortName": "example-run",
+        "runId": "run-0001",
+        "state": "running",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "phasesCount": 2,
+        "currentPhaseIndex": 0,
+        "gateProfileId": "",
+        "hold": {
+          "selection": "none"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "gateProfileId: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint hold required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/run-status/0.33.0.json",
+        "namespace": "example",
+        "shortName": "example-run",
+        "runId": "run-0001",
+        "state": "running",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "phasesCount": 2,
+        "currentPhaseIndex": 0,
+        "gateProfileId": "standard"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "hold: is missing"
+      }
+    },
+    {
+      "name": "constraint hold.phases minItems",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/run-status/0.33.0.json",
+        "namespace": "example",
+        "shortName": "example-run",
+        "runId": "run-0001",
+        "state": "running",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "phasesCount": 2,
+        "currentPhaseIndex": 0,
+        "gateProfileId": "standard",
+        "stoppedReason": "text-7",
+        "lastError": "text-8",
+        "planRepoRelPath": "text-9",
+        "allowSkillEdits": true,
+        "hold": {
+          "selection": "all",
+          "phases": []
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "hold.phases.0: is missing"
+      }
+    },
+    {
+      "name": "constraint hold.phases required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/run-status/0.33.0.json",
+        "namespace": "example",
+        "shortName": "example-run",
+        "runId": "run-0001",
+        "state": "running",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "phasesCount": 2,
+        "currentPhaseIndex": 0,
+        "gateProfileId": "standard",
+        "stoppedReason": "text-7",
+        "lastError": "text-8",
+        "planRepoRelPath": "text-9",
+        "allowSkillEdits": true,
+        "hold": {
+          "selection": "all"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "hold.phases: is missing"
+      }
+    },
+    {
+      "name": "constraint hold.phases[] pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/run-status/0.33.0.json",
+        "namespace": "example",
+        "shortName": "example-run",
+        "runId": "run-0001",
+        "state": "running",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "phasesCount": 2,
+        "currentPhaseIndex": 0,
+        "gateProfileId": "standard",
+        "stoppedReason": "text-7",
+        "lastError": "text-8",
+        "planRepoRelPath": "text-9",
+        "allowSkillEdits": true,
+        "hold": {
+          "selection": "all",
+          "phases": [
+            ""
+          ]
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "hold.phases.0: Expected a string matching the pattern ^phase-\\d{2}$, actual \"\""
+      }
+    },
+    {
+      "name": "constraint hold.selection enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/run-status/0.33.0.json",
+        "namespace": "example",
+        "shortName": "example-run",
+        "runId": "run-0001",
+        "state": "running",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "phasesCount": 2,
+        "currentPhaseIndex": 0,
+        "gateProfileId": "standard",
+        "hold": {
+          "selection": "bogus-value"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "hold.selection: Expected \"none\" | \"all\" | \"listed\" | \"acceptance\", actual \"bogus-value\""
+      }
+    },
+    {
+      "name": "constraint hold.selection required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/run-status/0.33.0.json",
+        "namespace": "example",
+        "shortName": "example-run",
+        "runId": "run-0001",
+        "state": "running",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "phasesCount": 2,
+        "currentPhaseIndex": 0,
+        "gateProfileId": "standard",
+        "hold": {}
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "hold.selection: is missing"
+      }
+    },
+    {
+      "name": "constraint lastError minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/run-status/0.33.0.json",
+        "namespace": "example",
+        "shortName": "example-run",
+        "runId": "run-0001",
+        "state": "running",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "phasesCount": 2,
+        "currentPhaseIndex": 0,
+        "gateProfileId": "standard",
+        "stoppedReason": "text-7",
+        "lastError": "",
+        "planRepoRelPath": "text-9",
+        "allowSkillEdits": true,
+        "hold": {
+          "selection": "all",
+          "phases": [
+            "phase-01"
+          ]
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "lastError: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint namespace minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/run-status/0.33.0.json",
+        "namespace": "",
+        "shortName": "example-run",
+        "runId": "run-0001",
+        "state": "running",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "phasesCount": 2,
+        "currentPhaseIndex": 0,
+        "gateProfileId": "standard",
+        "hold": {
+          "selection": "none"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "namespace: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint namespace required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/run-status/0.33.0.json",
+        "shortName": "example-run",
+        "runId": "run-0001",
+        "state": "running",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "phasesCount": 2,
+        "currentPhaseIndex": 0,
+        "gateProfileId": "standard",
+        "hold": {
+          "selection": "none"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "namespace: is missing"
+      }
+    },
+    {
+      "name": "constraint phasesCount required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/run-status/0.33.0.json",
+        "namespace": "example",
+        "shortName": "example-run",
+        "runId": "run-0001",
+        "state": "running",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "currentPhaseIndex": 0,
+        "gateProfileId": "standard",
+        "hold": {
+          "selection": "none"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "phasesCount: is missing"
+      }
+    },
+    {
+      "name": "constraint planRepoRelPath minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/run-status/0.33.0.json",
+        "namespace": "example",
+        "shortName": "example-run",
+        "runId": "run-0001",
+        "state": "running",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "phasesCount": 2,
+        "currentPhaseIndex": 0,
+        "gateProfileId": "standard",
+        "stoppedReason": "text-7",
+        "lastError": "text-8",
+        "planRepoRelPath": "",
+        "allowSkillEdits": true,
+        "hold": {
+          "selection": "all",
+          "phases": [
+            "phase-01"
+          ]
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "planRepoRelPath: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint runId minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/run-status/0.33.0.json",
+        "namespace": "example",
+        "shortName": "example-run",
+        "runId": "",
+        "state": "running",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "phasesCount": 2,
+        "currentPhaseIndex": 0,
+        "gateProfileId": "standard",
+        "hold": {
+          "selection": "none"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "runId: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint runId required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/run-status/0.33.0.json",
+        "namespace": "example",
+        "shortName": "example-run",
+        "state": "running",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "phasesCount": 2,
+        "currentPhaseIndex": 0,
+        "gateProfileId": "standard",
+        "hold": {
+          "selection": "none"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "runId: is missing"
+      }
+    },
+    {
+      "name": "constraint shortName minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/run-status/0.33.0.json",
+        "namespace": "example",
+        "shortName": "",
+        "runId": "run-0001",
+        "state": "running",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "phasesCount": 2,
+        "currentPhaseIndex": 0,
+        "gateProfileId": "standard",
+        "hold": {
+          "selection": "none"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "shortName: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint shortName required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/run-status/0.33.0.json",
+        "namespace": "example",
+        "runId": "run-0001",
+        "state": "running",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "phasesCount": 2,
+        "currentPhaseIndex": 0,
+        "gateProfileId": "standard",
+        "hold": {
+          "selection": "none"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "shortName: is missing"
+      }
+    },
+    {
+      "name": "constraint state enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/run-status/0.33.0.json",
+        "namespace": "example",
+        "shortName": "example-run",
+        "runId": "run-0001",
+        "state": "bogus-value",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "phasesCount": 2,
+        "currentPhaseIndex": 0,
+        "gateProfileId": "standard",
+        "hold": {
+          "selection": "none"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "state: Expected \"created\" | \"running\" | \"failed\" | \"review_open\" | \"completed\" | \"stopped\" | \"archived\" | \"interrupted\" | \"rate_limited\" | \"awaiting_review\", actual \"bogus-value\""
+      }
+    },
+    {
+      "name": "constraint state required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/run-status/0.33.0.json",
+        "namespace": "example",
+        "shortName": "example-run",
+        "runId": "run-0001",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "phasesCount": 2,
+        "currentPhaseIndex": 0,
+        "gateProfileId": "standard",
+        "hold": {
+          "selection": "none"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "state: is missing"
+      }
+    },
+    {
+      "name": "constraint stoppedReason minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/run-status/0.33.0.json",
+        "namespace": "example",
+        "shortName": "example-run",
+        "runId": "run-0001",
+        "state": "running",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "2026-01-01T09:30:00.000Z",
+        "phasesCount": 2,
+        "currentPhaseIndex": 0,
+        "gateProfileId": "standard",
+        "stoppedReason": "",
+        "lastError": "text-8",
+        "planRepoRelPath": "text-9",
+        "allowSkillEdits": true,
+        "hold": {
+          "selection": "all",
+          "phases": [
+            "phase-01"
+          ]
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "stoppedReason: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint updatedAt minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/run-status/0.33.0.json",
+        "namespace": "example",
+        "shortName": "example-run",
+        "runId": "run-0001",
+        "state": "running",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "updatedAt": "",
+        "phasesCount": 2,
+        "currentPhaseIndex": 0,
+        "gateProfileId": "standard",
+        "hold": {
+          "selection": "none"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "updatedAt: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint updatedAt required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/run-status/0.33.0.json",
+        "namespace": "example",
+        "shortName": "example-run",
+        "runId": "run-0001",
+        "state": "running",
+        "createdAt": "2026-01-01T09:00:00.000Z",
+        "phasesCount": 2,
+        "currentPhaseIndex": 0,
+        "gateProfileId": "standard",
+        "hold": {
+          "selection": "none"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "updatedAt: is missing"
+      }
+    }
+  ],
+  "shapes": {
+    "pre-schema": [
+      {
+        "name": "accepts a typical document",
+        "input": {
+          "version": 1,
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard"
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "createdAt": "2026-01-01T09:00:00.000Z",
+            "currentPhaseIndex": 0,
+            "gateProfileId": "standard",
+            "namespace": "example",
+            "phasesCount": 2,
+            "runId": "run-0001",
+            "shortName": "example-run",
+            "state": "running",
+            "updatedAt": "2026-01-01T09:30:00.000Z",
+            "version": 1
+          }
+        }
+      },
+      {
+        "name": "accepts a document setting every field",
+        "input": {
+          "version": 1,
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "allowSkillEdits": true,
+            "createdAt": "2026-01-01T09:00:00.000Z",
+            "currentPhaseIndex": 0,
+            "gateProfileId": "standard",
+            "lastError": "text-8",
+            "namespace": "example",
+            "phasesCount": 2,
+            "planRepoRelPath": "text-9",
+            "runId": "run-0001",
+            "shortName": "example-run",
+            "state": "running",
+            "stoppedReason": "text-7",
+            "updatedAt": "2026-01-01T09:30:00.000Z",
+            "version": 1
+          }
+        }
+      },
+      {
+        "name": "accepts a document with only its required fields",
+        "input": {
+          "version": 1,
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "createdAt": "2026-01-01T09:00:00.000Z",
+            "namespace": "example",
+            "phasesCount": 2,
+            "runId": "run-0001",
+            "shortName": "example-run",
+            "state": "running",
+            "updatedAt": "2026-01-01T09:30:00.000Z",
+            "version": 1
+          }
+        }
+      },
+      {
+        "name": "refuses a document missing version",
+        "input": {
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "version: is missing"
+        }
+      },
+      {
+        "name": "refuses version of the wrong type",
+        "input": {
+          "version": "forty-two",
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "version: Expected 1, actual \"forty-two\""
+        }
+      },
+      {
+        "name": "refuses version outside its value",
+        "input": {
+          "version": "bogus-value",
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "version: Expected 1, actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "refuses namespace when empty",
+        "input": {
+          "version": 1,
+          "namespace": "",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "namespace: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "accepts an unexpected key without reading it",
+        "input": {
+          "version": 1,
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "unexpectedKey": 1
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "createdAt": "2026-01-01T09:00:00.000Z",
+            "currentPhaseIndex": 0,
+            "gateProfileId": "standard",
+            "namespace": "example",
+            "phasesCount": 2,
+            "runId": "run-0001",
+            "shortName": "example-run",
+            "state": "running",
+            "updatedAt": "2026-01-01T09:30:00.000Z",
+            "version": 1
+          }
+        }
+      },
+      {
+        "name": "constraint createdAt minLength",
+        "input": {
+          "version": 1,
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "createdAt: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint createdAt required",
+        "input": {
+          "version": 1,
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "createdAt: is missing"
+        }
+      },
+      {
+        "name": "constraint gateProfileId minLength",
+        "input": {
+          "version": 1,
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": ""
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "gateProfileId: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint lastError minLength",
+        "input": {
+          "version": 1,
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "lastError: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint namespace minLength",
+        "input": {
+          "version": 1,
+          "namespace": "",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "namespace: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint namespace required",
+        "input": {
+          "version": 1,
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "namespace: is missing"
+        }
+      },
+      {
+        "name": "constraint phasesCount required",
+        "input": {
+          "version": 1,
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phasesCount: is missing"
+        }
+      },
+      {
+        "name": "constraint planRepoRelPath minLength",
+        "input": {
+          "version": 1,
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "",
+          "allowSkillEdits": true
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "planRepoRelPath: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint runId minLength",
+        "input": {
+          "version": 1,
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runId: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint runId required",
+        "input": {
+          "version": 1,
+          "namespace": "example",
+          "shortName": "example-run",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runId: is missing"
+        }
+      },
+      {
+        "name": "constraint shortName minLength",
+        "input": {
+          "version": 1,
+          "namespace": "example",
+          "shortName": "",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "shortName: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint shortName required",
+        "input": {
+          "version": 1,
+          "namespace": "example",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "shortName: is missing"
+        }
+      },
+      {
+        "name": "constraint state enum",
+        "input": {
+          "version": 1,
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "bogus-value",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "state: Expected \"created\" | \"running\" | \"failed\" | \"review_open\" | \"completed\" | \"stopped\" | \"archived\" | \"interrupted\" | \"rate_limited\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint state required",
+        "input": {
+          "version": 1,
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "state: is missing"
+        }
+      },
+      {
+        "name": "constraint stoppedReason minLength",
+        "input": {
+          "version": 1,
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stoppedReason: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint updatedAt minLength",
+        "input": {
+          "version": 1,
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "updatedAt: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint updatedAt required",
+        "input": {
+          "version": 1,
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "updatedAt: is missing"
+        }
+      },
+      {
+        "name": "constraint version enum",
+        "input": {
+          "version": "bogus-value",
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "version: Expected 1, actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint version required",
+        "input": {
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "version: is missing"
+        }
+      }
+    ],
+    "0.17.0": [
+      {
+        "name": "accepts a document setting every field",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.17.0.json",
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/run-status/0.17.0.json",
+            "allowSkillEdits": true,
+            "createdAt": "2026-01-01T09:00:00.000Z",
+            "currentPhaseIndex": 0,
+            "gateProfileId": "standard",
+            "lastError": "text-8",
+            "namespace": "example",
+            "phasesCount": 2,
+            "planRepoRelPath": "text-9",
+            "runId": "run-0001",
+            "shortName": "example-run",
+            "state": "running",
+            "stoppedReason": "text-7",
+            "updatedAt": "2026-01-01T09:30:00.000Z"
+          }
+        }
+      },
+      {
+        "name": "accepts a document with only its required fields",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.17.0.json",
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/run-status/0.17.0.json",
+            "createdAt": "2026-01-01T09:00:00.000Z",
+            "namespace": "example",
+            "phasesCount": 2,
+            "runId": "run-0001",
+            "shortName": "example-run",
+            "state": "running",
+            "updatedAt": "2026-01-01T09:30:00.000Z"
+          }
+        }
+      },
+      {
+        "name": "refuses a document missing namespace",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.17.0.json",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "namespace: is missing"
+        }
+      },
+      {
+        "name": "refuses namespace of the wrong type",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.17.0.json",
+          "namespace": 42,
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "namespace: Expected string, actual 42"
+        }
+      },
+      {
+        "name": "refuses state outside its values",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.17.0.json",
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "bogus-value",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "state: Expected \"created\" | \"running\" | \"failed\" | \"review_open\" | \"completed\" | \"stopped\" | \"archived\" | \"interrupted\" | \"rate_limited\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "refuses namespace when empty",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.17.0.json",
+          "namespace": "",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "namespace: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "accepts an unexpected key without reading it",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.17.0.json",
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true,
+          "unexpectedKey": 1
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/run-status/0.17.0.json",
+            "allowSkillEdits": true,
+            "createdAt": "2026-01-01T09:00:00.000Z",
+            "currentPhaseIndex": 0,
+            "gateProfileId": "standard",
+            "lastError": "text-8",
+            "namespace": "example",
+            "phasesCount": 2,
+            "planRepoRelPath": "text-9",
+            "runId": "run-0001",
+            "shortName": "example-run",
+            "state": "running",
+            "stoppedReason": "text-7",
+            "updatedAt": "2026-01-01T09:30:00.000Z"
+          }
+        }
+      },
+      {
+        "name": "constraint $schema pattern",
+        "input": {
+          "$schema": "",
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "$schema: Expected a string matching the pattern ^https:\\/\\/docs\\.phax\\.run\\/schemas\\/run-status\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$, actual \"\""
+        }
+      },
+      {
+        "name": "constraint $schema required",
+        "input": {
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "$schema: is missing"
+        }
+      },
+      {
+        "name": "constraint createdAt minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.17.0.json",
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "createdAt: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint createdAt required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.17.0.json",
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "createdAt: is missing"
+        }
+      },
+      {
+        "name": "constraint gateProfileId minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.17.0.json",
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "gateProfileId: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint lastError minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.17.0.json",
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "lastError: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint namespace minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.17.0.json",
+          "namespace": "",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "namespace: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint namespace required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.17.0.json",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "namespace: is missing"
+        }
+      },
+      {
+        "name": "constraint phasesCount required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.17.0.json",
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phasesCount: is missing"
+        }
+      },
+      {
+        "name": "constraint planRepoRelPath minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.17.0.json",
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "",
+          "allowSkillEdits": true
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "planRepoRelPath: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint runId minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.17.0.json",
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runId: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint runId required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.17.0.json",
+          "namespace": "example",
+          "shortName": "example-run",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runId: is missing"
+        }
+      },
+      {
+        "name": "constraint shortName minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.17.0.json",
+          "namespace": "example",
+          "shortName": "",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "shortName: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint shortName required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.17.0.json",
+          "namespace": "example",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "shortName: is missing"
+        }
+      },
+      {
+        "name": "constraint state enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.17.0.json",
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "bogus-value",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "state: Expected \"created\" | \"running\" | \"failed\" | \"review_open\" | \"completed\" | \"stopped\" | \"archived\" | \"interrupted\" | \"rate_limited\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint state required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.17.0.json",
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "state: is missing"
+        }
+      },
+      {
+        "name": "constraint stoppedReason minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.17.0.json",
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stoppedReason: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint updatedAt minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.17.0.json",
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "updatedAt: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint updatedAt required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.17.0.json",
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "updatedAt: is missing"
+        }
+      }
+    ],
+    "0.26.0": [
+      {
+        "name": "accepts a document setting every field",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.26.0.json",
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true,
+          "hold": {
+            "selection": "all",
+            "phases": [
+              "phase-01"
+            ]
+          }
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/run-status/0.26.0.json",
+            "allowSkillEdits": true,
+            "createdAt": "2026-01-01T09:00:00.000Z",
+            "currentPhaseIndex": 0,
+            "gateProfileId": "standard",
+            "hold": {
+              "phases": [
+                "phase-01"
+              ],
+              "selection": "all"
+            },
+            "lastError": "text-8",
+            "namespace": "example",
+            "phasesCount": 2,
+            "planRepoRelPath": "text-9",
+            "runId": "run-0001",
+            "shortName": "example-run",
+            "state": "running",
+            "stoppedReason": "text-7",
+            "updatedAt": "2026-01-01T09:30:00.000Z"
+          }
+        }
+      },
+      {
+        "name": "accepts a document with only its required fields",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.26.0.json",
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "hold": {
+            "selection": "all",
+            "phases": [
+              "phase-01"
+            ]
+          }
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/run-status/0.26.0.json",
+            "createdAt": "2026-01-01T09:00:00.000Z",
+            "hold": {
+              "phases": [
+                "phase-01"
+              ],
+              "selection": "all"
+            },
+            "namespace": "example",
+            "phasesCount": 2,
+            "runId": "run-0001",
+            "shortName": "example-run",
+            "state": "running",
+            "updatedAt": "2026-01-01T09:30:00.000Z"
+          }
+        }
+      },
+      {
+        "name": "refuses a document missing namespace",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.26.0.json",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true,
+          "hold": {
+            "selection": "all",
+            "phases": [
+              "phase-01"
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "namespace: is missing"
+        }
+      },
+      {
+        "name": "refuses namespace of the wrong type",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.26.0.json",
+          "namespace": 42,
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true,
+          "hold": {
+            "selection": "all",
+            "phases": [
+              "phase-01"
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "namespace: Expected string, actual 42"
+        }
+      },
+      {
+        "name": "refuses state outside its values",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.26.0.json",
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "bogus-value",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true,
+          "hold": {
+            "selection": "all",
+            "phases": [
+              "phase-01"
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "state: Expected \"created\" | \"running\" | \"failed\" | \"review_open\" | \"completed\" | \"stopped\" | \"archived\" | \"interrupted\" | \"rate_limited\" | \"awaiting_review\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "refuses namespace when empty",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.26.0.json",
+          "namespace": "",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true,
+          "hold": {
+            "selection": "all",
+            "phases": [
+              "phase-01"
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "namespace: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "accepts an unexpected key without reading it",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.26.0.json",
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true,
+          "hold": {
+            "selection": "all",
+            "phases": [
+              "phase-01"
+            ]
+          },
+          "unexpectedKey": 1
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/run-status/0.26.0.json",
+            "allowSkillEdits": true,
+            "createdAt": "2026-01-01T09:00:00.000Z",
+            "currentPhaseIndex": 0,
+            "gateProfileId": "standard",
+            "hold": {
+              "phases": [
+                "phase-01"
+              ],
+              "selection": "all"
+            },
+            "lastError": "text-8",
+            "namespace": "example",
+            "phasesCount": 2,
+            "planRepoRelPath": "text-9",
+            "runId": "run-0001",
+            "shortName": "example-run",
+            "state": "running",
+            "stoppedReason": "text-7",
+            "updatedAt": "2026-01-01T09:30:00.000Z"
+          }
+        }
+      },
+      {
+        "name": "constraint $schema pattern",
+        "input": {
+          "$schema": "",
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true,
+          "hold": {
+            "selection": "all",
+            "phases": [
+              "phase-01"
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "$schema: Expected a string matching the pattern ^https:\\/\\/docs\\.phax\\.run\\/schemas\\/run-status\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$, actual \"\""
+        }
+      },
+      {
+        "name": "constraint $schema required",
+        "input": {
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true,
+          "hold": {
+            "selection": "all",
+            "phases": [
+              "phase-01"
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "$schema: is missing"
+        }
+      },
+      {
+        "name": "constraint createdAt minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.26.0.json",
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true,
+          "hold": {
+            "selection": "all",
+            "phases": [
+              "phase-01"
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "createdAt: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint createdAt required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.26.0.json",
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true,
+          "hold": {
+            "selection": "all",
+            "phases": [
+              "phase-01"
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "createdAt: is missing"
+        }
+      },
+      {
+        "name": "constraint gateProfileId minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.26.0.json",
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true,
+          "hold": {
+            "selection": "all",
+            "phases": [
+              "phase-01"
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "gateProfileId: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint hold required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.26.0.json",
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "hold: is missing"
+        }
+      },
+      {
+        "name": "constraint hold.phases minItems",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.26.0.json",
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true,
+          "hold": {
+            "selection": "all",
+            "phases": []
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "hold.phases[0]: is missing"
+        }
+      },
+      {
+        "name": "constraint hold.phases required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.26.0.json",
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true,
+          "hold": {
+            "selection": "all"
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "hold.phases: is missing"
+        }
+      },
+      {
+        "name": "constraint hold.phases[] pattern",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.26.0.json",
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true,
+          "hold": {
+            "selection": "all",
+            "phases": [
+              ""
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "hold.phases[0]: Expected a string matching the pattern ^phase-\\d{2}$, actual \"\""
+        }
+      },
+      {
+        "name": "constraint hold.selection enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.26.0.json",
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true,
+          "hold": {
+            "selection": "bogus-value",
+            "phases": [
+              "phase-01"
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "hold.selection: Expected \"none\" | \"all\" | \"listed\" | \"oracle\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint hold.selection required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.26.0.json",
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true,
+          "hold": {
+            "phases": [
+              "phase-01"
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "hold.selection: is missing"
+        }
+      },
+      {
+        "name": "constraint lastError minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.26.0.json",
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true,
+          "hold": {
+            "selection": "all",
+            "phases": [
+              "phase-01"
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "lastError: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint namespace minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.26.0.json",
+          "namespace": "",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true,
+          "hold": {
+            "selection": "all",
+            "phases": [
+              "phase-01"
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "namespace: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint namespace required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.26.0.json",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true,
+          "hold": {
+            "selection": "all",
+            "phases": [
+              "phase-01"
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "namespace: is missing"
+        }
+      },
+      {
+        "name": "constraint phasesCount required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.26.0.json",
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true,
+          "hold": {
+            "selection": "all",
+            "phases": [
+              "phase-01"
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phasesCount: is missing"
+        }
+      },
+      {
+        "name": "constraint planRepoRelPath minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.26.0.json",
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "",
+          "allowSkillEdits": true,
+          "hold": {
+            "selection": "all",
+            "phases": [
+              "phase-01"
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "planRepoRelPath: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint runId minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.26.0.json",
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true,
+          "hold": {
+            "selection": "all",
+            "phases": [
+              "phase-01"
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runId: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint runId required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.26.0.json",
+          "namespace": "example",
+          "shortName": "example-run",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true,
+          "hold": {
+            "selection": "all",
+            "phases": [
+              "phase-01"
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runId: is missing"
+        }
+      },
+      {
+        "name": "constraint shortName minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.26.0.json",
+          "namespace": "example",
+          "shortName": "",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true,
+          "hold": {
+            "selection": "all",
+            "phases": [
+              "phase-01"
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "shortName: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint shortName required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.26.0.json",
+          "namespace": "example",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true,
+          "hold": {
+            "selection": "all",
+            "phases": [
+              "phase-01"
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "shortName: is missing"
+        }
+      },
+      {
+        "name": "constraint state enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.26.0.json",
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "bogus-value",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true,
+          "hold": {
+            "selection": "all",
+            "phases": [
+              "phase-01"
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "state: Expected \"created\" | \"running\" | \"failed\" | \"review_open\" | \"completed\" | \"stopped\" | \"archived\" | \"interrupted\" | \"rate_limited\" | \"awaiting_review\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint state required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.26.0.json",
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true,
+          "hold": {
+            "selection": "all",
+            "phases": [
+              "phase-01"
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "state: is missing"
+        }
+      },
+      {
+        "name": "constraint stoppedReason minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.26.0.json",
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "2026-01-01T09:30:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true,
+          "hold": {
+            "selection": "all",
+            "phases": [
+              "phase-01"
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stoppedReason: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint updatedAt minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.26.0.json",
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "updatedAt": "",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true,
+          "hold": {
+            "selection": "all",
+            "phases": [
+              "phase-01"
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "updatedAt: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint updatedAt required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/run-status/0.26.0.json",
+          "namespace": "example",
+          "shortName": "example-run",
+          "runId": "run-0001",
+          "state": "running",
+          "createdAt": "2026-01-01T09:00:00.000Z",
+          "phasesCount": 2,
+          "currentPhaseIndex": 0,
+          "gateProfileId": "standard",
+          "stoppedReason": "text-7",
+          "lastError": "text-8",
+          "planRepoRelPath": "text-9",
+          "allowSkillEdits": true,
+          "hold": {
+            "selection": "all",
+            "phases": [
+              "phase-01"
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "updatedAt: is missing"
+        }
+      }
+    ]
+  }
+}

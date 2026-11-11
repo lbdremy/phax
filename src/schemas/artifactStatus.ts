@@ -1,20 +1,20 @@
 import { Schema } from "effect";
 import type { PlanStatus, SpecStatus } from "../domain/artifact/status.js";
 
-export const SpecStatusSchema = Schema.Union(
+export const SpecStatusSchema = Schema.Union([
   Schema.Literal("Draft"),
   Schema.Literal("Approved"),
   Schema.Literal("Abandoned"),
   Schema.Literal("Completed"),
-);
+]);
 
-export const PlanStatusSchema = Schema.Union(
+export const PlanStatusSchema = Schema.Union([
   Schema.Literal("Draft"),
   Schema.Literal("Approved"),
   Schema.Literal("Stale"),
   Schema.Literal("Abandoned"),
   Schema.Literal("Completed"),
-);
+]);
 
 type SpecStatusSchemaType = Schema.Schema.Type<typeof SpecStatusSchema>;
 type PlanStatusSchemaType = Schema.Schema.Type<typeof PlanStatusSchema>;
@@ -36,5 +36,5 @@ type AssertPlanStatus = PlanStatusSchemaType extends PlanStatus
 const assertPlanStatus: AssertPlanStatus = true as const;
 void assertPlanStatus;
 
-export const decodeSpecStatus = Schema.decodeUnknownEither(SpecStatusSchema);
-export const decodePlanStatus = Schema.decodeUnknownEither(PlanStatusSchema);
+export const decodeSpecStatus = Schema.decodeUnknownResult(SpecStatusSchema, { reportInput: true });
+export const decodePlanStatus = Schema.decodeUnknownResult(PlanStatusSchema, { reportInput: true });

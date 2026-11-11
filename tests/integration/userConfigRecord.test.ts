@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import {
@@ -62,7 +62,7 @@ describe("ac-record", () => {
         records: true,
       });
 
-      expect(Either.isRight(run.result)).toBe(true);
+      expect(Result.isSuccess(run.result)).toBe(true);
       expect(fake.launches().map((launch) => launch.executable)).toEqual([
         "claude",
         "claude",

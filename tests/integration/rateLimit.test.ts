@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -40,7 +40,7 @@ const HANDOFF_CONTENT = [
   "Ready to proceed.",
 ].join("\n");
 
-const shortName = Either.getOrThrow(decodeShortName("my-run"));
+const shortName = Result.getOrThrow(decodeShortName("my-run"));
 
 const rawPlan = {
   version: 1,
@@ -127,7 +127,7 @@ describe("executePlan — rate-limit detection and resume", () => {
   });
 
   it("stops the run as rate_limited and writes resume-instructions.md", async () => {
-    const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
     const config = makeConfig(stateRoot);
 
     const fakeGit = makeFakeGit();
@@ -157,7 +157,7 @@ describe("executePlan — rate-limit detection and resume", () => {
     );
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -176,10 +176,10 @@ describe("executePlan — rate-limit detection and resume", () => {
     );
 
     // The limit error is re-raised so the CLI still exits non-zero.
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(RateLimitError);
-      expect(exitCodeForError(result.left)).toBe(8);
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toBeInstanceOf(RateLimitError);
+      expect(exitCodeForError(result.failure)).toBe(8);
     }
 
     const runStatus = JSON.parse(await readFile(join(runPath, "run-status.json"), "utf8")) as {
@@ -204,7 +204,7 @@ describe("executePlan — rate-limit detection and resume", () => {
   });
 
   it("classifies a usage limit and exits with code 8", async () => {
-    const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
     const config = makeConfig(stateRoot);
 
     const fakeGit = makeFakeGit();
@@ -228,7 +228,7 @@ describe("executePlan — rate-limit detection and resume", () => {
     );
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -246,17 +246,17 @@ describe("executePlan — rate-limit detection and resume", () => {
       ),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(UsageLimitError);
-      expect(exitCodeForError(result.left)).toBe(8);
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toBeInstanceOf(UsageLimitError);
+      expect(exitCodeForError(result.failure)).toBe(8);
     }
     const instructions = await readFile(join(runPath, "resume-instructions.md"), "utf8");
     expect(instructions).toContain("Usage limit");
   });
 
   it("resumes a rate-limited run to review_open without re-running committed phases", async () => {
-    const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
     const config = makeConfig(stateRoot);
 
     const setupLayers = Layer.mergeAll(
@@ -367,11 +367,11 @@ describe("executePlan — rate-limit detection and resume", () => {
 
     // `phax resume` resolves the next resumable phase from the rate-limited run.
     const decision = await inspectResumeOnDisk("test-project", shortName, stateRoot);
-    expect(Either.isRight(decision)).toBe(true);
-    if (Either.isLeft(decision)) throw new Error("expected resumable run");
-    expect(decision.right.fromState).toBe("rate_limited");
-    expect(decision.right.nextPhaseId).toBe("phase-02");
-    expect(decision.right.nextPhaseIndex).toBe(1);
+    expect(Result.isSuccess(decision)).toBe(true);
+    if (Result.isFailure(decision)) throw new Error("expected resumable run");
+    expect(decision.success.fromState).toBe("rate_limited");
+    expect(decision.success.nextPhaseId).toBe("phase-02");
+    expect(decision.success.nextPhaseIndex).toBe(1);
 
     const fakeGit = makeFakeGit();
     fakeGit.impl.enqueueWorktreeIsClean(phase02WorktreePath, false);
@@ -407,7 +407,7 @@ describe("executePlan — rate-limit detection and resume", () => {
     );
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -420,12 +420,12 @@ describe("executePlan — rate-limit detection and resume", () => {
           allowDirty: true,
           runPath,
           runId,
-          startIndex: decision.right.nextPhaseIndex,
+          startIndex: decision.success.nextPhaseIndex,
         }).pipe(Effect.provide(resumeLayers)),
       ),
     );
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
 
     // phase-01 was not touched — still committed, no worktree re-created.
     const phase01Status = JSON.parse(
@@ -450,7 +450,7 @@ describe("executePlan — rate-limit detection and resume", () => {
   });
 
   it("continues gate attempt numbering after a fix attempt hit a rate limit, overwriting nothing", async () => {
-    const plan = Either.getOrThrow(
+    const plan = Result.getOrThrow(
       liftFixturePhaxPlanToCurrent("phax-plan.json", { ...rawPlan, phases: [rawPlan.phases[0]] }),
     ).plan;
     const gateCommand = "node scripts/check.mjs";
@@ -514,9 +514,9 @@ describe("executePlan — rate-limit detection and resume", () => {
     };
 
     const first = await Effect.runPromise(
-      Effect.either(executePlan(executeOptions).pipe(Effect.provide(firstLayers))),
+      Effect.result(executePlan(executeOptions).pipe(Effect.provide(firstLayers))),
     );
-    expect(Either.isLeft(first) && first.left instanceof RateLimitError).toBe(true);
+    expect(Result.isFailure(first) && first.failure instanceof RateLimitError).toBe(true);
     expect(firstBackend.impl.resumeCalls.map((call) => call.options.outputJsonlPath)).toEqual([
       join(runPath, "phase-01", "fix-attempt-01.jsonl"),
       join(runPath, "phase-01", "fix-attempt-02.jsonl"),
@@ -539,8 +539,8 @@ describe("executePlan — rate-limit detection and resume", () => {
 
     // `phax resume` re-enters the rate-limited phase; the gate now passes.
     const decision = await inspectResumeOnDisk("test-project", shortName, stateRoot);
-    if (Either.isLeft(decision)) throw new Error("expected resumable run");
-    expect(decision.right.nextPhaseId).toBe("phase-01");
+    if (Result.isFailure(decision)) throw new Error("expected resumable run");
+    expect(decision.success.nextPhaseId).toBe("phase-01");
 
     const phaseStatus = JSON.parse(await readFile(join(phaseFolder, "status.json"), "utf8")) as {
       worktreePath: string;
@@ -575,8 +575,8 @@ describe("executePlan — rate-limit detection and resume", () => {
     });
 
     const resumed = await Effect.runPromise(
-      Effect.either(
-        executePlan({ ...executeOptions, startIndex: decision.right.nextPhaseIndex }).pipe(
+      Effect.result(
+        executePlan({ ...executeOptions, startIndex: decision.success.nextPhaseIndex }).pipe(
           Effect.provide(
             Layer.mergeAll(
               resumeGit.layer,
@@ -590,7 +590,7 @@ describe("executePlan — rate-limit detection and resume", () => {
         ),
       ),
     );
-    expect(Either.isRight(resumed)).toBe(true);
+    expect(Result.isSuccess(resumed)).toBe(true);
 
     // The re-entry's gate ran as attempt 03; the first entry's files are as they were.
     expect(existsSync(join(phaseFolder, "checks-attempt-03.log"))).toBe(true);
@@ -600,7 +600,7 @@ describe("executePlan — rate-limit detection and resume", () => {
   });
 
   it("counts every committed phase of the run after a limit at phase-02 of three, not this invocation's", async () => {
-    const plan = Either.getOrThrow(
+    const plan = Result.getOrThrow(
       liftFixturePhaxPlanToCurrent("phax-plan.json", {
         ...rawPlan,
         phases: [
@@ -678,13 +678,13 @@ describe("executePlan — rate-limit detection and resume", () => {
       startIndex: 0,
     };
     const first = await Effect.runPromise(
-      Effect.either(executePlan(executeOptions).pipe(Effect.provide(firstLayers))),
+      Effect.result(executePlan(executeOptions).pipe(Effect.provide(firstLayers))),
     );
-    expect(Either.isLeft(first) && first.left).toBeInstanceOf(UsageLimitError);
+    expect(Result.isFailure(first) && first.failure).toBeInstanceOf(UsageLimitError);
 
     const decision = await inspectResumeOnDisk("test-project", shortName, stateRoot);
-    if (Either.isLeft(decision)) throw new Error(decision.left.message);
-    expect(decision.right.nextPhaseId).toBe("phase-02");
+    if (Result.isFailure(decision)) throw new Error(decision.failure.message);
+    expect(decision.success.nextPhaseId).toBe("phase-02");
 
     // The resume commits phase-02 and phase-03 only.
     const resumeGit = makeFakeGit();
@@ -704,15 +704,15 @@ describe("executePlan — rate-limit detection and resume", () => {
       });
     }
     const resumed = await Effect.runPromise(
-      Effect.either(
-        executePlan({ ...executeOptions, startIndex: decision.right.nextPhaseIndex }).pipe(
+      Effect.result(
+        executePlan({ ...executeOptions, startIndex: decision.success.nextPhaseIndex }).pipe(
           Effect.provide(layersFor(resumeBackend, resumeGit)),
         ),
       ),
     );
 
-    if (Either.isLeft(resumed)) throw resumed.left;
+    if (Result.isFailure(resumed)) throw resumed.failure;
     expect(resumeGit.impl.calls.filter((c) => c.method === "commit")).toHaveLength(2);
-    expect(resumed.right.completedPhaseCount).toBe(3);
+    expect(resumed.success.completedPhaseCount).toBe(3);
   });
 });

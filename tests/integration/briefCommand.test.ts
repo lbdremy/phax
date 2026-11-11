@@ -12,7 +12,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Either } from "effect";
+import { Result } from "effect";
 import { serializeBriefRequest, stampBriefRequest } from "../../src/app/briefProvider.js";
 import { phaseBriefRequest } from "../../src/domain/brief/request.js";
 import { readBriefRecordFile } from "../../src/schemas/persisted.js";
@@ -222,8 +222,8 @@ function readRecord(name: string) {
     name,
     JSON.parse(readFileSync(join(briefsDir(), name), "utf8")) as unknown,
   );
-  if (Either.isLeft(read)) throw new Error(read.left.message);
-  return read.right;
+  if (Result.isFailure(read)) throw new Error(read.failure.message);
+  return read.success;
 }
 
 describe("phax brief — inside a phase worktree", () => {

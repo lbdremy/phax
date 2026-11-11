@@ -5,17 +5,27 @@
 // schemas package lists it as the format's 0.17.0 release.
 import { Schema } from "effect";
 
-const SchemaUrlSchema = Schema.String.pipe(
-  Schema.pattern(
+// `Schema.isPattern` whose JSON Schema is the RegExp's source, whatever its
+// flags: Effect 4 exports a pattern only for a RegExp with the `u` flag.
+function isExportedPattern(regExp: RegExp, annotations?: Schema.Annotations.Filter) {
+  return Schema.isPattern(regExp, {
+    toJsonSchema: () => ({ pattern: regExp.source }),
+    ...annotations,
+  });
+}
+
+const SchemaUrlSchema = Schema.String.check(
+  isExportedPattern(
     /^https:\/\/docs\.phax\.run\/schemas\/phax-plan\/(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.json$/,
   ),
-  Schema.annotations({
+).pipe(
+  Schema.annotate({
     description:
       "The phax-plan format and the phax release that wrote this file: https://docs.phax.run/schemas/phax-plan/<X.Y.Z>.json",
   }),
 );
 
-const EffortSchema = Schema.Literal(
+const EffortSchema = Schema.Literals([
   "none",
   "off",
   "low",
@@ -25,10 +35,10 @@ const EffortSchema = Schema.Literal(
   "max",
   "ultracode",
   "ultra",
-);
+]);
 
 const PhaseSchema = Schema.Struct({
-  id: Schema.String.pipe(Schema.pattern(/^phase-\d{2}$/)),
+  id: Schema.String.check(isExportedPattern(/^phase-\d{2}$/)),
   title: Schema.NonEmptyString,
   model: Schema.NonEmptyString,
   effort: EffortSchema,
@@ -55,6 +65,7 @@ export const PhaxPlanV0_17_0Schema = Schema.Struct({
 
 export type PhaxPlanV0_17_0 = Schema.Schema.Type<typeof PhaxPlanV0_17_0Schema>;
 
-export const decodePhaxPlanV0_17_0 = Schema.decodeUnknownEither(PhaxPlanV0_17_0Schema, {
+export const decodePhaxPlanV0_17_0 = Schema.decodeUnknownResult(PhaxPlanV0_17_0Schema, {
   onExcessProperty: "error",
+  reportInput: true,
 });

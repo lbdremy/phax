@@ -1,4 +1,4 @@
-import { Either, SchemaAST } from "effect";
+import { Result, SchemaAST } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   makeAdapterCallFailedTelemetryEvent,
@@ -20,7 +20,7 @@ import {
   SemanticTelemetryEventSchema,
 } from "../../../src/schemas/telemetryEvents.js";
 
-const runId = Either.getOrThrow(decodeRunId("test-run-001"));
+const runId = Result.getOrThrow(decodeRunId("test-run-001"));
 
 describe("makeStateTransitionTelemetryEvent", () => {
   it("produces a value the schema accepts", () => {
@@ -31,7 +31,7 @@ describe("makeStateTransitionTelemetryEvent", () => {
       stateAfter: "running",
       dispatcher: "dispatcher.ts",
     });
-    expect(Either.isRight(decodeSemanticTelemetryEvent(event))).toBe(true);
+    expect(Result.isSuccess(decodeSemanticTelemetryEvent(event))).toBe(true);
   });
 
   it("sets type to state.transition", () => {
@@ -65,7 +65,7 @@ describe("makeAdapterCallStartedTelemetryEvent", () => {
       adapter: "git",
       operation: "worktree.create",
     });
-    expect(Either.isRight(decodeSemanticTelemetryEvent(event))).toBe(true);
+    expect(Result.isSuccess(decodeSemanticTelemetryEvent(event))).toBe(true);
   });
 
   it("sets type to adapter.call.started", () => {
@@ -85,7 +85,7 @@ describe("makeAdapterCallSucceededTelemetryEvent", () => {
       adapter: "git",
       operation: "worktree.create",
     });
-    expect(Either.isRight(decodeSemanticTelemetryEvent(event))).toBe(true);
+    expect(Result.isSuccess(decodeSemanticTelemetryEvent(event))).toBe(true);
   });
 });
 
@@ -98,7 +98,7 @@ describe("makeAdapterCallFailedTelemetryEvent", () => {
       exitCode: 1,
       stderrExcerpt: "error TS2345",
     });
-    expect(Either.isRight(decodeSemanticTelemetryEvent(event))).toBe(true);
+    expect(Result.isSuccess(decodeSemanticTelemetryEvent(event))).toBe(true);
   });
 
   it("includes optional expected and actual when provided", () => {
@@ -113,14 +113,14 @@ describe("makeAdapterCallFailedTelemetryEvent", () => {
     });
     expect(event.expected).toBe("exit 0");
     expect(event.actual).toBe("exit 1");
-    expect(Either.isRight(decodeSemanticTelemetryEvent(event))).toBe(true);
+    expect(Result.isSuccess(decodeSemanticTelemetryEvent(event))).toBe(true);
   });
 });
 
 describe("makeStepStartedTelemetryEvent", () => {
   it("produces a value the schema accepts", () => {
     const event = makeStepStartedTelemetryEvent({ runId, step: "config.discover" });
-    expect(Either.isRight(decodeSemanticTelemetryEvent(event))).toBe(true);
+    expect(Result.isSuccess(decodeSemanticTelemetryEvent(event))).toBe(true);
     expect(event.type).toBe("step.started");
   });
 });
@@ -132,7 +132,7 @@ describe("makeStepCompletedTelemetryEvent", () => {
       step: "config.discover",
       result: "success",
     });
-    expect(Either.isRight(decodeSemanticTelemetryEvent(event))).toBe(true);
+    expect(Result.isSuccess(decodeSemanticTelemetryEvent(event))).toBe(true);
   });
 
   it("produces a value the schema accepts for failure", () => {
@@ -141,7 +141,7 @@ describe("makeStepCompletedTelemetryEvent", () => {
       step: "config.discover",
       result: "failure",
     });
-    expect(Either.isRight(decodeSemanticTelemetryEvent(event))).toBe(true);
+    expect(Result.isSuccess(decodeSemanticTelemetryEvent(event))).toBe(true);
   });
 });
 
@@ -152,7 +152,7 @@ describe("makeGateEvaluatedTelemetryEvent", () => {
       gate: "typecheck",
       result: "accepted",
     });
-    expect(Either.isRight(decodeSemanticTelemetryEvent(event))).toBe(true);
+    expect(Result.isSuccess(decodeSemanticTelemetryEvent(event))).toBe(true);
   });
 
   it("includes optional reason when provided", () => {
@@ -163,7 +163,7 @@ describe("makeGateEvaluatedTelemetryEvent", () => {
       reason: "type errors found",
     });
     expect(event.reason).toBe("type errors found");
-    expect(Either.isRight(decodeSemanticTelemetryEvent(event))).toBe(true);
+    expect(Result.isSuccess(decodeSemanticTelemetryEvent(event))).toBe(true);
   });
 });
 
@@ -174,7 +174,7 @@ describe("makeArtifactGeneratedTelemetryEvent", () => {
       artifact: "claude-session-id",
       path: "/tmp/session.txt",
     });
-    expect(Either.isRight(decodeSemanticTelemetryEvent(event))).toBe(true);
+    expect(Result.isSuccess(decodeSemanticTelemetryEvent(event))).toBe(true);
     expect(event.type).toBe("artifact.generated");
   });
 });
@@ -191,7 +191,7 @@ describe("makeSecurityPolicyAppliedTelemetryEvent", () => {
       downgraded: false,
       skippedForSecurity: [],
     });
-    expect(Either.isRight(decodeSemanticTelemetryEvent(event))).toBe(true);
+    expect(Result.isSuccess(decodeSemanticTelemetryEvent(event))).toBe(true);
   });
 
   it("sets type to security.policy.applied", () => {
@@ -234,7 +234,7 @@ describe("makeSecurityPolicyAppliedTelemetryEvent", () => {
       downgraded: true,
       skippedForSecurity: [{ provider: "codex-cli", reason: "cannot satisfy strict secure mode" }],
     });
-    expect(Either.isRight(decodeSemanticTelemetryEvent(event))).toBe(true);
+    expect(Result.isSuccess(decodeSemanticTelemetryEvent(event))).toBe(true);
   });
 
   it("accepts unsafe mode", () => {
@@ -248,7 +248,7 @@ describe("makeSecurityPolicyAppliedTelemetryEvent", () => {
       downgraded: false,
       skippedForSecurity: [],
     });
-    expect(Either.isRight(decodeSemanticTelemetryEvent(event))).toBe(true);
+    expect(Result.isSuccess(decodeSemanticTelemetryEvent(event))).toBe(true);
   });
 });
 
@@ -260,7 +260,7 @@ describe("makeAcceptanceEditsUnjudgedTelemetryEvent", () => {
       files: ["tests/export/invoiceRow.test.ts"],
     });
     expect(event.type).toBe("acceptance.edits.unjudged");
-    expect(Either.isRight(decodeSemanticTelemetryEvent(event))).toBe(true);
+    expect(Result.isSuccess(decodeSemanticTelemetryEvent(event))).toBe(true);
     expect(projectEvent(event)).toEqual({
       type: "acceptance.edits.unjudged",
       operationId: "phase-03",
@@ -279,7 +279,7 @@ describe("makeStopTranscriptTelemetryEvent", () => {
       outcome: "captured",
     });
     expect(captured.type).toBe("stop.transcript");
-    expect(Either.isRight(decodeSemanticTelemetryEvent(captured))).toBe(true);
+    expect(Result.isSuccess(decodeSemanticTelemetryEvent(captured))).toBe(true);
     expect(projectEvent(captured)).toEqual({
       type: "stop.transcript",
       operationId: "phase-03",
@@ -298,7 +298,7 @@ describe("makeStopTranscriptTelemetryEvent", () => {
       outcome: "missing",
       reason: "not-found",
     });
-    expect(Either.isRight(decodeSemanticTelemetryEvent(missing))).toBe(true);
+    expect(Result.isSuccess(decodeSemanticTelemetryEvent(missing))).toBe(true);
     expect(projectEvent(missing)).toMatchObject({ outcome: "missing", reason: "not-found" });
   });
 });
@@ -308,7 +308,7 @@ describe("SemanticTelemetryEventSchema accepted types", () => {
     const union = SemanticTelemetryEventSchema.ast;
     if (!SchemaAST.isUnion(union)) throw new Error("expected a union schema");
     const types = union.types.map((member) => {
-      if (!SchemaAST.isTypeLiteral(member)) throw new Error("expected a struct member");
+      if (!SchemaAST.isObjects(member)) throw new Error("expected a struct member");
       const typeField = member.propertySignatures.find((p) => p.name === "type");
       if (typeField === undefined || !SchemaAST.isLiteral(typeField.type)) {
         throw new Error("expected a literal type field");
@@ -336,12 +336,14 @@ describe("SemanticTelemetryEventSchema accepted types", () => {
 
 describe("schema rejection", () => {
   it("rejects an unknown event type", () => {
-    expect(Either.isLeft(decodeSemanticTelemetryEvent({ type: "unknown.event", runId }))).toBe(
+    expect(Result.isFailure(decodeSemanticTelemetryEvent({ type: "unknown.event", runId }))).toBe(
       true,
     );
   });
 
   it("rejects missing required field", () => {
-    expect(Either.isLeft(decodeSemanticTelemetryEvent({ type: "step.started", runId }))).toBe(true);
+    expect(Result.isFailure(decodeSemanticTelemetryEvent({ type: "step.started", runId }))).toBe(
+      true,
+    );
   });
 });

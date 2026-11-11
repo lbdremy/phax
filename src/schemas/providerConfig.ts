@@ -1,7 +1,7 @@
 import { Schema } from "effect";
 import { ThinkingLevelSchema } from "./modelRouting.js";
 
-export const CatalogEntryStatusSchema = Schema.Literal("active", "deprecated");
+export const CatalogEntryStatusSchema = Schema.Literals(["active", "deprecated"]);
 
 const CatalogEntrySchema = Schema.Struct({
   id: Schema.NonEmptyString,
@@ -23,24 +23,19 @@ const ProviderEntrySchema = Schema.Struct({
     // The key is a ModelFamily string but each provider serves only a subset
     // of families. Modeling the key as Schema.String keeps the decoded type
     // Record-shaped without forcing every family to be present.
-    Schema.Record({
-      key: Schema.String,
-      value: ProviderFamilyEntrySchema,
-    }),
+    Schema.Record(Schema.String, ProviderFamilyEntrySchema),
   ),
 });
 
 export const ProviderConfigSchema = Schema.Struct({
-  providers: Schema.Record({
-    key: Schema.String,
-    value: ProviderEntrySchema,
-  }),
+  providers: Schema.Record(Schema.String, ProviderEntrySchema),
 });
 
 export type ProviderConfig = Schema.Schema.Type<typeof ProviderConfigSchema>;
 export type CatalogEntry = Schema.Schema.Type<typeof CatalogEntrySchema>;
 export type ProviderFamilyEntry = Schema.Schema.Type<typeof ProviderFamilyEntrySchema>;
 
-export const decodeProviderConfig = Schema.decodeUnknownEither(ProviderConfigSchema, {
+export const decodeProviderConfig = Schema.decodeUnknownResult(ProviderConfigSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });

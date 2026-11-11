@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   extractBaseModel,
@@ -50,24 +50,24 @@ function findBackupFile(files: Map<string, string>): { path: string; content: st
 describe("extractBaseModel", () => {
   it("extracts scalar fields from a matching block", () => {
     const result = extractBaseModel(BASE_CONFIG, "mistral-medium-3.5");
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right).toEqual(EXPECTED_BASE);
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success).toEqual(EXPECTED_BASE);
     }
   });
 
   it("returns Left when the base alias is not found", () => {
     const result = extractBaseModel(BASE_CONFIG, "nonexistent-model");
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toContain("not found");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toContain("not found");
     }
   });
 
   it("returns Left when a required scalar is missing", () => {
     const incomplete = `[[models]]\nalias = "incomplete"\nname = "No Provider"\ntemperature = 0.5\n`;
     const result = extractBaseModel(incomplete, "incomplete");
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 
   it("ignores non-matching blocks and finds the target block", () => {
@@ -90,9 +90,9 @@ output_price = 2
 auto_compact_threshold = 0.9
 `;
     const result = extractBaseModel(config, "mistral-medium-3.5");
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right).toEqual(EXPECTED_BASE);
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success).toEqual(EXPECTED_BASE);
     }
   });
 });

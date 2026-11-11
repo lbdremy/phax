@@ -5,7 +5,7 @@
 // through requestTransition and the run's states through the reducer, so a
 // transition the state machine no longer allows fails the build instead of
 // showing on the site.
-import { Either } from "effect";
+import { Result } from "effect";
 import {
   requestTransition,
   type ArtifactKind,
@@ -46,9 +46,9 @@ export const LIVE_RUN_NAME = "greet";
 export const LIVE_RUN_PHASES = ["phase-01", "phase-02", "phase-03"] as const;
 const VERDICT: Verdict = "conformant";
 
-function decoded<A, E>(value: Either.Either<A, E>, what: string): A {
-  if (Either.isLeft(value)) throw new Error(`live run: ${what} does not decode`);
-  return value.right;
+function decoded<A, E>(value: Result.Result<A, E>, what: string): A {
+  if (Result.isFailure(value)) throw new Error(`live run: ${what} does not decode`);
+  return value.success;
 }
 
 /** `running:pending`, as phax's semantic trace writes a state. */
@@ -63,7 +63,7 @@ function artifactLine<K extends ArtifactKind>(
   to: StatusFor<K>,
 ): LiveRunLine {
   const result = requestTransition(kind, from, to);
-  if (Either.isLeft(result)) {
+  if (Result.isFailure(result)) {
     throw new Error(`live run: ${kind} ${from} → ${to} is not an artifact transition phax allows`);
   }
   return { stage, kind: "artifact", label: `${kind} ${LIVE_RUN_NAME}`, before: from, after: to };

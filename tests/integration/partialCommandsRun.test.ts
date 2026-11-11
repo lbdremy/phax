@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -49,7 +49,7 @@ const HANDOFF_CONTENT = [
   "Ready to proceed.",
 ].join("\n");
 
-const shortName = Either.getOrThrow(decodeShortName("my-run"));
+const shortName = Result.getOrThrow(decodeShortName("my-run"));
 const PHASE_IDS = ["phase-01", "phase-02"] as const;
 
 const rawPlanFor = (model: string) => ({
@@ -178,7 +178,7 @@ function makeRun(
   opts: { failCommand?: string; model?: string; provider?: string; secure?: boolean } = {},
 ) {
   const runPlan = rawPlanFor(opts.model ?? "claude-sonnet-4-6");
-  const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", runPlan)).plan;
+  const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", runPlan)).plan;
   const planMd = planMdFor(runPlan);
   const worktreeOf = (phaseId: string) => join(root, "worktrees", "test-project.my-run", phaseId);
 
@@ -219,7 +219,7 @@ function makeRun(
 
   const execute = (runPath: string, runId: RunId, startIndex: number) =>
     Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -271,7 +271,7 @@ const readPrompt = (runPath: string, phaseId: string) =>
   readFile(join(runPath, phaseId, "prompt.md"), "utf8");
 
 async function readPosture(runPath: string, phaseId = "phase-01") {
-  return Either.getOrThrow(
+  return Result.getOrThrow(
     decodeSecurityPosture(
       JSON.parse(await readFile(join(runPath, phaseId, "security.json"), "utf8")),
     ),
@@ -326,7 +326,7 @@ describe("partial commands in a run (acceptance)", () => {
   async function runFull() {
     const s = makeRun(root, makeConfig(root));
     const { runPath, result } = await s.startRun();
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     return {
       first: gateSectionOf(await readPrompt(runPath, "phase-01")),
       second: gateSectionOf(await readPrompt(runPath, "phase-02")),
@@ -380,7 +380,7 @@ describe("partial commands in a run (acceptance)", () => {
   it("ac-claude-rules: one Claude allow rule per partial segment, none with a placeholder or pipe", async () => {
     const s = makeRun(root, makeConfig(root, { secure: true }), { secure: true });
     const { result } = await s.startRun();
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     const rules = allowedToolsOf(s);
     for (const prefix of PARTIAL_PREFIXES) {
       expect(rules).toContain(`Bash(${prefix}:*)`);
@@ -394,7 +394,7 @@ describe("partial commands in a run (acceptance)", () => {
     const config = makeConfig(root, { secure: true, agentCommands: ["pnpm exec oxlint"] });
     const s = makeRun(root, config, { secure: true });
     const { runPath, result } = await s.startRun();
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     const records = (await readPosture(runPath)).agentCommands;
 
     const partials = records.filter((r) => r.source === "partial");
@@ -429,7 +429,7 @@ describe("partial commands in a run (acceptance)", () => {
 
     await recordSessionId(runPath, "sess-01");
     const reset = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         resetPhase({
           shortName,
           namespace: "test-project",
@@ -439,7 +439,7 @@ describe("partial commands in a run (acceptance)", () => {
         }).pipe(Effect.provide(s.layers), Effect.provide(makeFakeLock().layer)),
       ),
     );
-    expect(Either.isRight(reset)).toBe(true);
+    expect(Result.isSuccess(reset)).toBe(true);
 
     s.fakeShell.impl.setResponse("pnpm test", { exitCode: 0, stdout: "", stderr: "" });
     s.fakeGit.impl.enqueueWorktreeIsClean(s.worktreeOf("phase-01"), false, true);
@@ -458,7 +458,7 @@ describe("partial commands in a run (acceptance)", () => {
     }
     const callsBefore = s.fakeBackend.impl.runCalls.length;
     const resumed = await s.execute(runPath, runId, 0);
-    expect(Either.isRight(resumed)).toBe(true);
+    expect(Result.isSuccess(resumed)).toBe(true);
 
     expect(gateSectionOf(await readFile(promptPath, "utf8"))).toBe(firstSection);
     const relaunch = s.fakeBackend.impl.runCalls[callsBefore];
@@ -503,7 +503,7 @@ describe("partial commands in a run (acceptance)", () => {
       await mkdir(at, { recursive: true });
       const s = makeRun(at, makeConfig(at), { model, provider });
       const { result } = await s.startRun();
-      expect(Either.isRight(result)).toBe(true);
+      expect(Result.isSuccess(result)).toBe(true);
       const first = s.fakeBackend.impl.runCalls[0];
       expect(first?.options.provider).toBe(provider);
       const section = gateSectionOf(first?.prompt ?? "");

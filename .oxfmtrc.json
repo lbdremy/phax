@@ -12,13 +12,13 @@
     "src/schemas/release.ts",
     "packages/schemas/history.lock.json",
     "packages/schemas/json",
+    "packages/schemas/shipped-json.json",
     "packages/schemas/snapshots",
     "packages/schemas/releases.json",
     "site/generated",
     "site/retired-schemas",
     "site/doc_build",
-    "tests/effect4Corpus/cases",
-    "tests/effect4Corpus/baseline",
-    "tests/unit/effect4Codemod/__fixtures__"
+    "tests/behaviourCorpus/cases",
+    "tests/behaviourCorpus/baseline"
   ]
 }

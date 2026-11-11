@@ -1,4 +1,4 @@
-import { Either, ParseResult } from "effect";
+import { Result, type Schema } from "effect";
 import type { HandDecision, HandDecisionAnswer } from "../../schemas/handDecisionAnswer.js";
 import { decodeCurrentHandDecisionAnswer } from "../../schemas/persisted.js";
 import { OTHER_OPTION_ID } from "../../schemas/questions.js";
@@ -123,7 +123,7 @@ export interface HandDecideContext {
   readonly atIso: string;
 }
 
-function firstParseIssue(error: ParseResult.ParseError): RevisionRefusal {
+function firstParseIssue(error: Schema.SchemaError): RevisionRefusal {
   const first = firstRefusal(error);
   if (first === undefined) return { path: "", message: UNDESCRIBED_REFUSAL };
   return refusal(first.path, refusalMessage(first));
@@ -139,12 +139,12 @@ function firstParseIssue(error: ParseResult.ParseError): RevisionRefusal {
 export function decodeHandAnswer(
   json: unknown,
   context: HandDecideContext,
-): Either.Either<HandDecisionAnswer, RevisionRefusal> {
+): Result.Result<HandDecisionAnswer, RevisionRefusal> {
   const stampViolation = handAnswerStampViolation(json, context.kind);
   if (stampViolation !== undefined) {
-    return Either.left({ path: isObject(json) ? "$schema" : "", message: stampViolation });
+    return Result.fail({ path: isObject(json) ? "$schema" : "", message: stampViolation });
   }
-  return Either.mapLeft(
+  return Result.mapError(
     decodeCurrentHandDecisionAnswer(
       stampHandVerdicts(json, context.scope, context.operator, context.atIso),
       context.kind,
@@ -545,20 +545,20 @@ function noneLine(lines: readonly string[], section: ParsedSection): number | un
  * Left when it does not parse, or its open and arbitrated ids are not the
  * expected ones.
  */
-export function writeHandDecisions(input: HandWriteInput): Either.Either<string, string> {
+export function writeHandDecisions(input: HandWriteInput): Result.Result<string, string> {
   const { kind, answer, parsed, reArbitrated } = input;
   const decisions: ReadonlyArray<HandDecision> = answer.decisions;
   const base = decisions.every(({ verdict }) => verdict.revised.length === 0)
     ? input.md
     : answer.markdown;
-  if (decisions.length === 0) return Either.right(base);
+  if (decisions.length === 0) return Result.succeed(base);
 
   const current = parseHandAuthoredQuestions(kind, base);
   if (current.kind !== "parsed") {
-    return Either.left("the revised Markdown has no question section phax can write to");
+    return Result.fail("the revised Markdown has no question section phax can write to");
   }
   if (!sameIds(current.open, parsed.open) || !sameIds(current.arbitrated, parsed.arbitrated)) {
-    return Either.left("the revised Markdown's questions are not the artifact's");
+    return Result.fail("the revised Markdown's questions are not the artifact's");
   }
 
   const verdictOf = new Map(decisions.map((d) => [d.id, d.verdict]));
@@ -569,7 +569,7 @@ export function writeHandDecisions(input: HandWriteInput): Either.Either<string,
   const written = new Set([...moved, ...rearbitrated].map((q) => q.id));
   const unwritten = decisions.find((d) => !written.has(d.id));
   if (unwritten !== undefined) {
-    return Either.left(`"${unwritten.id}" is neither an open question nor the re-arbitrated one`);
+    return Result.fail(`"${unwritten.id}" is neither an open question nor the re-arbitrated one`);
   }
 
   const lines = splitLines(base);
@@ -601,7 +601,7 @@ export function writeHandDecisions(input: HandWriteInput): Either.Either<string,
   // Every other line of its block stays where it is.
   for (const question of rearbitrated) {
     const verdict = verdictOf.get(question.id);
-    if (verdict === undefined) return Either.left(`"${question.id}" has no verdict`);
+    if (verdict === undefined) return Result.fail(`"${question.id}" has no verdict`);
     const from = question.decisionLine - 1;
     const block = decisionBlockOf(lines, question);
     const previous = `Earlier decision: ${block.decision.slice("Decision: ".length)}`;
@@ -642,7 +642,7 @@ export function writeHandDecisions(input: HandWriteInput): Either.Either<string,
       logPlaced = withLog.length > 0;
       insert(openSection.range.end, [...created, ...withLog], true);
     } else {
-      return Either.left("the artifact has no open questions section to move questions from");
+      return Result.fail("the artifact has no open questions section to move questions from");
     }
   }
 
@@ -661,7 +661,7 @@ export function writeHandDecisions(input: HandWriteInput): Either.Either<string,
       insert(lines.length, logSection, true);
     } else {
       const after = arbitratedSection ?? openSection;
-      if (after === null) return Either.left("the plan has no question section to log after");
+      if (after === null) return Result.fail("the plan has no question section to log after");
       insert(after.range.end, [...logSection, ""], true);
     }
   }
@@ -682,7 +682,7 @@ export function writeHandDecisions(input: HandWriteInput): Either.Either<string,
 
   const reparsed = parseHandAuthoredQuestions(kind, result);
   if (reparsed.kind !== "parsed") {
-    return Either.left(
+    return Result.fail(
       reparsed.kind === "departs"
         ? `the written Markdown departs from the §9 format at line ${reparsed.line}: ${reparsed.text}`
         : "the written Markdown has no question section",
@@ -696,17 +696,17 @@ export function writeHandDecisions(input: HandWriteInput): Either.Either<string,
     openIds.join("\n") !== expectedOpen.join("\n") ||
     arbitratedIds.join("\n") !== expectedArbitrated.join("\n")
   ) {
-    return Either.left(
+    return Result.fail(
       `the written Markdown holds open ${openIds.join(", ") || "none"} and arbitrated ${arbitratedIds.join(", ") || "none"}, not open ${expectedOpen.join(", ") || "none"} and arbitrated ${expectedArbitrated.join(", ") || "none"}`,
     );
   }
   for (const q of reparsed.arbitrated) {
     const verdict = verdictOf.get(q.id);
     if (verdict !== undefined && (q.chosen !== verdict.chosen || q.lifted)) {
-      return Either.left(
+      return Result.fail(
         `the written Decision line of "${q.id}" does not choose "${verdict.chosen}"`,
       );
     }
   }
-  return Either.right(result);
+  return Result.succeed(result);
 }

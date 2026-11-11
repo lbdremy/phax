@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { spawn } from "node:child_process";
 import { createWriteStream, realpathSync } from "node:fs";
 import { mkdir, realpath } from "node:fs/promises";
@@ -516,11 +516,11 @@ export function runClaudeAgent(
       return yield* Effect.fail(failSession(outcome.failure, failed));
     }
     const sessionIdResult = answerSessionId(outcome);
-    if (Either.isLeft(sessionIdResult)) {
-      return yield* Effect.fail(failSession(sessionIdResult.left, failed));
+    if (Result.isFailure(sessionIdResult)) {
+      return yield* Effect.fail(failSession(sessionIdResult.failure, failed));
     }
 
-    const capturedSessionId = sessionIdResult.right;
+    const capturedSessionId = sessionIdResult.success;
 
     if (options.phaseFolderPath !== undefined) {
       yield* Effect.tryPromise({

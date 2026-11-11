@@ -1,7 +1,7 @@
-import { Either, type ParseResult, Schema } from "effect";
+import { Result, Schema } from "effect";
 import { formatFirstViolation } from "./formatError.js";
 
-const TokenCountSchema = Schema.Number.pipe(Schema.finite(), Schema.nonNegative());
+const TokenCountSchema = Schema.Number.check(Schema.isFinite(), Schema.isGreaterThanOrEqualTo(0));
 
 const VibeUsageSchema = Schema.Struct({
   input_tokens: TokenCountSchema,
@@ -23,7 +23,7 @@ const VibeExportSchema = Schema.Struct({
   schema_version: Schema.Literal(1),
   session_id: Schema.NonEmptyString,
   usage: VibeUsageSchema,
-  cost_usd: Schema.Number.pipe(Schema.finite()),
+  cost_usd: Schema.Number.check(Schema.isFinite()),
   outcome: Schema.String,
   exit_code: Schema.Number,
   vibe_version: Schema.String,
@@ -42,7 +42,7 @@ const VibeOutcomeExportSchema = Schema.Struct({
   schema_version: Schema.Literal(1),
   session_id: Schema.NullOr(Schema.NonEmptyString),
   usage: Schema.NullOr(VibeUsageSchema),
-  cost_usd: Schema.NullOr(Schema.Number.pipe(Schema.finite())),
+  cost_usd: Schema.NullOr(Schema.Number.check(Schema.isFinite())),
   outcome: Schema.String,
   exit_code: Schema.Number,
   error: Schema.optional(
@@ -65,31 +65,33 @@ interface VibeExportRefusal {
   readonly detail: string;
 }
 
-const decodeVibeExport = Schema.decodeUnknownEither(VibeExportSchema);
-const decodeVibeOutcomeExport = Schema.decodeUnknownEither(VibeOutcomeExportSchema);
+const decodeVibeExport = Schema.decodeUnknownResult(VibeExportSchema, { reportInput: true });
+const decodeVibeOutcomeExport = Schema.decodeUnknownResult(VibeOutcomeExportSchema, {
+  reportInput: true,
+});
 
 function decodeExportText<A>(
-  decode: (input: unknown) => Either.Either<A, ParseResult.ParseError>,
+  decode: (input: unknown) => Result.Result<A, Schema.SchemaError>,
   text: string,
-): Either.Either<A, VibeExportRefusal> {
+): Result.Result<A, VibeExportRefusal> {
   let parsed: unknown;
   try {
     parsed = JSON.parse(text) as unknown;
   } catch (error) {
-    return Either.left({
+    return Result.fail({
       reason: "not-json",
       detail: error instanceof Error ? error.message : String(error),
     });
   }
   const decoded = decode(parsed);
-  if (Either.isLeft(decoded)) {
-    return Either.left({ reason: "not-an-export", detail: formatFirstViolation(decoded.left) });
+  if (Result.isFailure(decoded)) {
+    return Result.fail({ reason: "not-an-export", detail: formatFirstViolation(decoded.failure) });
   }
-  return Either.right(decoded.right);
+  return Result.succeed(decoded.success);
 }
 
 /** Reads an `export.json`'s text. Never throws: a refusal names what was wrong. */
-export function decodeVibeExportText(text: string): Either.Either<VibeExport, VibeExportRefusal> {
+export function decodeVibeExportText(text: string): Result.Result<VibeExport, VibeExportRefusal> {
   return decodeExportText(decodeVibeExport, text);
 }
 
@@ -99,6 +101,6 @@ export function decodeVibeExportText(text: string): Either.Either<VibeExport, Vi
  */
 export function decodeVibeOutcomeText(
   text: string,
-): Either.Either<VibeOutcomeExport, VibeExportRefusal> {
+): Result.Result<VibeOutcomeExport, VibeExportRefusal> {
   return decodeExportText(decodeVibeOutcomeExport, text);
 }

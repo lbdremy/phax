@@ -1,4 +1,6 @@
-import { Either, JSONSchema, Schema } from "effect";
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+import { Result, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import { findJsonSchemaGaps } from "../../packages/schemas/build/jsonSchemas.js";
 import {
@@ -7,6 +9,7 @@ import {
   SCHEMA_BORN_FORMAT_IDS,
   SCHEMA_URL_BASE,
   compareReleases,
+  draft07JsonSchema,
   isFormatId,
   parseSchemaUrl,
   schemaUrl,
@@ -100,12 +103,12 @@ describe("schemaUrl", () => {
 });
 
 describe("schemaUrlField", () => {
-  const decode = Schema.decodeUnknownEither(schemaUrlField("registry"));
+  const decode = Schema.decodeUnknownResult(schemaUrlField("registry"), { reportInput: true });
 
   it.each(["0.16.0", "0.17.0", "1.0.0", "12.34.56"])(
     "accepts the format's own URL at release %s",
     (release) => {
-      expect(Either.isRight(decode(schemaUrl("registry", release)))).toBe(true);
+      expect(Result.isSuccess(decode(schemaUrl("registry", release)))).toBe(true);
     },
   );
 
@@ -119,11 +122,11 @@ describe("schemaUrlField", () => {
     ["no .json suffix", `${SCHEMA_URL_BASE}/registry/0.17.0`],
     ["a trailing suffix", `${schemaUrl("registry", "0.17.0")}x`],
   ])("rejects %s", (_label, value) => {
-    expect(Either.isLeft(decode(value))).toBe(true);
+    expect(Result.isFailure(decode(value))).toBe(true);
   });
 
   it.each([42, null, undefined, {}, ["x"]])("rejects the non-string %j", (value) => {
-    expect(Either.isLeft(decode(value))).toBe(true);
+    expect(Result.isFailure(decode(value))).toBe(true);
   });
 
   it.each(FORMAT_IDS.map((id) => [id]))(
@@ -131,7 +134,7 @@ describe("schemaUrlField", () => {
     (id) => {
       const field = schemaUrlField(id);
       expect(findJsonSchemaGaps(field)).toEqual([]);
-      const rendered = JSONSchema.make(field) as { pattern?: string; description?: string };
+      const rendered = draft07JsonSchema(field) as { pattern?: string; description?: string };
       expect(rendered.description).toContain(id);
       expect(new RegExp(rendered.pattern ?? "^$").test(schemaUrl(id, "0.17.0"))).toBe(true);
     },
@@ -140,7 +143,7 @@ describe("schemaUrlField", () => {
   it.each(FORMAT_IDS.map((id) => [id]))(
     "says the %s stamp names the release that last changed the format's shape",
     (id) => {
-      const rendered = JSONSchema.make(schemaUrlField(id)) as { description?: string };
+      const rendered = draft07JsonSchema(schemaUrlField(id)) as { description?: string };
       expect(rendered.description).toBe(
         `The ${id} format's shape, named by the phax release that last changed it ` +
           `(not necessarily the release that wrote this file): ${SCHEMA_URL_BASE}/${id}/<X.Y.Z>.json`,
@@ -183,5 +186,61 @@ describe("compareReleases", () => {
     expect(compareReleases("1.0.0", "0.99.99")).toBeGreaterThan(0);
     expect(compareReleases("0.16.2", "0.16.10")).toBeLessThan(0);
     expect(compareReleases("0.16.0", "0.16.0")).toBe(0);
+  });
+});
+
+// The published JSON Schema describes what phax's decoders accept, not the
+// encoded side of Effect's JSON codec.
+const properties = (schema: Schema.Top): Record<string, unknown> =>
+  (draft07JsonSchema(schema) as { properties: Record<string, unknown> }).properties;
+
+// Every `.ts` file under `dir`, recursively.
+const sources = (dir: string): ReadonlyArray<string> =>
+  readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
+    entry.isDirectory()
+      ? sources(join(dir, entry.name))
+      : entry.name.endsWith(".ts")
+        ? [join(dir, entry.name)]
+        : [],
+  );
+
+describe("draft07JsonSchema as the decoders read it", () => {
+  it("refuses the strings NaN and Infinity in a number, as the decoder does", () => {
+    const Subject = Schema.Struct({ count: Schema.Number });
+    expect(properties(Subject)["count"]).toEqual({ type: "number" });
+    expect(Result.isFailure(Schema.decodeUnknownResult(Subject)({ count: "NaN" }))).toBe(true);
+  });
+
+  it("refuses null in an optional key, as the decoder does", () => {
+    const Subject = Schema.Struct({ note: Schema.optional(Schema.String) });
+    expect(properties(Subject)["note"]).toEqual({ type: "string" });
+    expect(Result.isFailure(Schema.decodeUnknownResult(Subject)({ note: null }))).toBe(true);
+  });
+
+  it("keeps null where the decoder accepts it: a required nullable key and an optional nullable one", () => {
+    const Subject = Schema.Struct({
+      reason: Schema.NullOr(Schema.String),
+      code: Schema.optional(Schema.NullOr(Schema.Number)),
+    });
+    expect(properties(Subject)).toEqual({
+      reason: { anyOf: [{ type: "string" }, { type: "null" }] },
+      code: { anyOf: [{ type: "number" }, { type: "null" }] },
+    });
+    expect(
+      Result.isSuccess(Schema.decodeUnknownResult(Subject)({ reason: null, code: null })),
+    ).toBe(true);
+  });
+
+  // `optionalKey(NullOr(X))` renders with one `null`, which the published form
+  // cannot tell from an optional key's `undefined`, so it would lose it.
+  // `optional(NullOr(X))` renders with two and keeps one.
+  it("finds no optionalKey(NullOr(…)) in the sources, whose null the published form would drop", () => {
+    const root = join(import.meta.dirname, "../..");
+    const offenders = [join(root, "src"), join(root, "packages/schemas/src")]
+      .flatMap(sources)
+      .filter((file) =>
+        /optionalKey\(\s*(Schema\.)?(NullOr|NullishOr)\(/.test(readFileSync(file, "utf8")),
+      );
+    expect(offenders).toEqual([]);
   });
 });

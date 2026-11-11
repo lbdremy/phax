@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { dirname, join } from "node:path";
 import type { RunId } from "../domain/branded.js";
 import type { PhaxCommand } from "../domain/effects.js";
@@ -51,8 +51,8 @@ function persistState(
         return;
       }
       const decoded = readRunStatusFile(path, parsed);
-      if (Either.isRight(decoded)) {
-        const updated = { ...decoded.right, ...cmd.patch.run, updatedAt: now };
+      if (Result.isSuccess(decoded)) {
+        const updated = { ...decoded.success, ...cmd.patch.run, updatedAt: now };
         yield* fs.writeAtomic(
           path,
           JSON.stringify(encodeRunStatus(withSchemaUrl("run-status", updated)), null, 2),
@@ -70,8 +70,8 @@ function persistState(
         return;
       }
       const decoded = readPhaseStatusFile(path, parsed);
-      if (Either.isRight(decoded)) {
-        const updated = { ...decoded.right, ...cmd.patch.phase, updatedAt: now };
+      if (Result.isSuccess(decoded)) {
+        const updated = { ...decoded.success, ...cmd.patch.phase, updatedAt: now };
         yield* fs.writeAtomic(
           path,
           JSON.stringify(encodePhaseStatus(withSchemaUrl("phase-status", updated)), null, 2),
@@ -147,10 +147,10 @@ function restoreReviewStop(
       catch: () => new FsError({ message: `${source}: not valid JSON` }),
     });
     const decoded = readReviewStopFile(source, parsed);
-    if (Either.isLeft(decoded)) {
-      return yield* Effect.fail(new FsError({ message: decoded.left.message }));
+    if (Result.isFailure(decoded)) {
+      return yield* Effect.fail(new FsError({ message: decoded.failure.message }));
     }
-    yield* writeReviewStop(ctx, { ...decoded.right, lastClose });
+    yield* writeReviewStop(ctx, { ...decoded.success, lastClose });
     if (source === parked) yield* fs.remove(parked);
   });
 }
@@ -184,7 +184,7 @@ function stoppedPhaseWorktree(
     const raw = yield* fs.readText(path);
     const parsed = yield* Effect.try(() => JSON.parse(raw) as unknown);
     const decoded = readPhaseStatusFile(path, parsed);
-    return Either.isRight(decoded) ? decoded.right.worktreePath : undefined;
+    return Result.isSuccess(decoded) ? decoded.success.worktreePath : undefined;
   }).pipe(Effect.orElseSucceed(() => undefined));
 }
 

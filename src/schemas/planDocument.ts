@@ -1,4 +1,4 @@
-import { Array as Arr, Either, Schema, type Types } from "effect";
+import { Array as Arr, Result, Schema, type Types } from "effect";
 import { answerSchemaUrlField } from "./answerStamp.js";
 import { formatPlanDocumentViolation, formatViolationAt } from "./formatError.js";
 import { ExtractedPhaseFields, ExtractedRunSchema, type ExtractedPhaxPlan } from "./phaxPlan.js";
@@ -8,6 +8,7 @@ import {
   QUESTION_CHECKS_DESCRIPTION,
   authoringArbitratedViolation,
   firstQuestionViolation,
+  violationIssue,
   type OpenQuestion,
   type PlanArbitratedQuestion,
 } from "./questions.js";
@@ -43,7 +44,7 @@ const PlanDocumentPhaseSchema = Schema.Struct({
   // Null for a phase that crosses no boundary: the phax-planning skill omits the
   // section rather than filling it.
   boundaryContracts: Schema.NullOr(NonEmptyString),
-  testStrategy: Schema.Array(TestLineSchema).annotations({
+  testStrategy: Schema.Array(TestLineSchema).annotate({
     description:
       "The phase's test lines. Each renders as one `- <guarantee> — <size> · <technique> · <oracle> · <loop>[ · <criterion>]` line under `### Test strategy`; `[]` is a phase that tests nothing, rendered `- (none)`.",
   }),
@@ -52,7 +53,7 @@ const PlanDocumentPhaseSchema = Schema.Struct({
   verification: NonEmptyString,
   expectedHandoff: NonEmptyString,
   commit: ExtractedPhaseFields.commit,
-  assignmentReason: Schema.NullOr(NonEmptyString).annotations({
+  assignmentReason: Schema.NullOr(NonEmptyString).annotate({
     description:
       "Why this phase's model and effort depart from the assignment the phax-planning skill gives it; null when they do not. Rendered as an **Assignment reason:** line, never extracted.",
   }),
@@ -71,7 +72,7 @@ const preambleFields = {
 const planDocumentFields = {
   kind: Schema.Literal("plan"),
   sourceSpec: Schema.NullOr(NonEmptyString),
-  completesSpec: Schema.NullOr(Schema.Boolean).annotations({
+  completesSpec: Schema.NullOr(Schema.Boolean).annotate({
     description:
       "Whether this plan's run completes its source spec: true when it is the spec's last plan, false when more plans of the spec follow. A boolean beside a sourceSpec path; null beside sourceSpec: null.",
   }),
@@ -103,11 +104,13 @@ function isLineage(doc: {
 // pairing is a coherence check phax runs, not a schema construct: a root
 // `oneOf` is outside a provider's strict structured output. Its JSON Schema is
 // a description only; the root description (`ROOT_DESCRIPTION`) names it.
-const lineageFilter = <A extends Parameters<typeof isLineage>[0]>() =>
-  Schema.filter((doc: A): doc is A & PlanDocumentLineage => isLineage(doc), {
-    message: () => LINEAGE_MESSAGE,
-    jsonSchema: { description: ROOT_DESCRIPTION },
-  });
+const lineageFilter = <
+  S extends Schema.Constraint & { readonly Type: Parameters<typeof isLineage>[0] },
+>() =>
+  Schema.refine<S, S["Type"] & PlanDocumentLineage>(
+    (doc): doc is S["Type"] & PlanDocumentLineage => isLineage(doc),
+    { message: LINEAGE_MESSAGE, description: ROOT_DESCRIPTION, toJsonSchema: () => ({}) },
+  );
 
 interface QuestionBearing {
   readonly preamble: {
@@ -118,8 +121,10 @@ interface QuestionBearing {
 }
 
 // Every check this module runs that JSON Schema does not express, in one root
-// description (Effect keeps only the last root filter's): the lineage pairing,
-// the question checks, and an authoring answer's empty arbitrated questions.
+// description, which the lineage filter carries: the lineage pairing, the
+// question checks, and an authoring answer's empty arbitrated questions. A
+// second root description would land under `allOf`, outside a provider's
+// strict structured output.
 const ROOT_DESCRIPTION = `Checked by phax's parser, not by this JSON Schema: ${LINEAGE_MESSAGE}; in the preamble, ${QUESTION_CHECKS_DESCRIPTION}, and a decided verdict's \`phase\` names one of the plan's phases; and an authoring session's answer leaves every question open, so its preamble.arbitratedQuestions is [].`;
 
 // The shared question checks, plus a decided verdict's phase.
@@ -150,9 +155,10 @@ const PlanDocumentFileStruct = Schema.Struct({
  * the lineage and question checks. Unknown keys are rejected.
  */
 export const PlanDocumentFileSchema = PlanDocumentFileStruct.pipe(
-  lineageFilter<typeof PlanDocumentFileStruct.Type>(),
-  Schema.filter(firstPlanQuestionViolation, {
-    jsonSchema: { description: ROOT_DESCRIPTION },
+  lineageFilter<typeof PlanDocumentFileStruct>(),
+).check(
+  Schema.makeFilter((doc) => violationIssue(firstPlanQuestionViolation(doc)), {
+    toJsonSchema: () => ({}),
   }),
 );
 
@@ -161,8 +167,9 @@ export type PlanDocumentFile = Schema.Schema.Type<typeof PlanDocumentFileSchema>
 /** The document an authoring session returns: the sidecar's own shape, `$schema` included. */
 export type AuthoredPlanDocument = PlanDocumentFile;
 
-export const decodePlanDocumentFile = Schema.decodeUnknownEither(PlanDocumentFileSchema, {
+export const decodePlanDocumentFile = Schema.decodeUnknownResult(PlanDocumentFileSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });
 export const encodePlanDocumentFile = Schema.encodeSync(PlanDocumentFileSchema);
 
@@ -175,7 +182,7 @@ export const encodePlanDocumentFile = Schema.encodeSync(PlanDocumentFileSchema);
  */
 export function decodeAuthoredPlanDocument(
   input: unknown,
-): Either.Either<AuthoredPlanDocument, string> {
+): Result.Result<AuthoredPlanDocument, string> {
   const preamble =
     typeof input === "object" && input !== null
       ? (input as { readonly preamble?: unknown }).preamble
@@ -184,10 +191,10 @@ export function decodeAuthoredPlanDocument(
     const arbitrated = (preamble as { readonly arbitratedQuestions?: unknown }).arbitratedQuestions;
     if (Array.isArray(arbitrated)) {
       const violation = authoringArbitratedViolation(arbitrated, ["preamble"]);
-      if (violation !== undefined) return Either.left(formatViolationAt(violation));
+      if (violation !== undefined) return Result.fail(formatViolationAt(violation));
     }
   }
-  return Either.mapLeft(decodePlanDocumentFile(input), (error) =>
+  return Result.mapError(decodePlanDocumentFile(input), (error) =>
     formatPlanDocumentViolation(input, error),
   );
 }

@@ -1,4 +1,4 @@
-import { Either, Schema, type Types } from "effect";
+import { Result, Schema, type Types } from "effect";
 import { answerSchemaUrlField } from "./answerStamp.js";
 import { formatFirstViolation, formatViolationAt } from "./formatError.js";
 import {
@@ -7,8 +7,9 @@ import {
   SpecArbitratedQuestionSchema,
   authoringArbitratedViolation,
   firstQuestionViolation,
+  violationIssue,
 } from "./questions.js";
-import { NonEmptyString } from "./strictString.js";
+import { NonEmptyString, isExportedPattern } from "./strictString.js";
 
 // The spec document: a spec's JSON sidecar, and the JSON a headless spec
 // authoring session returns (the same published shape), from which phax
@@ -18,13 +19,13 @@ import { NonEmptyString } from "./strictString.js";
 // empty list or an explicit variant (`before: null`, `docsPage.kind: "none"`),
 // never a missing key.
 
-const RequirementPatternSchema = Schema.Literal(
+const RequirementPatternSchema = Schema.Literals([
   "ubiquitous",
   "event",
   "state",
   "unwanted",
   "optional",
-);
+]);
 
 const GroundEntrySchema = Schema.Struct({
   path: NonEmptyString,
@@ -56,15 +57,14 @@ export const SURFACE_SUMMARY_PLACEHOLDER =
 // `$ref`-plus-`pattern` pair in the exported JSON Schema would have its
 // pattern ignored by draft-07 validators.
 const SurfaceElementSchema = Schema.Struct({
-  surface: Schema.String.pipe(Schema.pattern(/^(cli|config|file|api|package|internal): /)),
-  summary: Schema.String.pipe(
-    Schema.pattern(/^[^\n\r\u0085\u2028\u2029]+$/),
-    Schema.annotations({
+  surface: Schema.String.check(isExportedPattern(/^(cli|config|file|api|package|internal): /)),
+  summary: Schema.String.check(isExportedPattern(/^[^\n\r\u0085\u2028\u2029]+$/)).pipe(
+    Schema.annotate({
       description:
         "One sentence, in the consumer's words: what whoever consumes this element can now do or sees differently. Never where it lives or how it is built.",
     }),
   ),
-  binding: Schema.Literal("normative", "indicative"),
+  binding: Schema.Literals(["normative", "indicative"]),
   before: Schema.NullOr(Schema.String),
   after: NonEmptyString,
 });
@@ -86,7 +86,7 @@ const PlanningNoteSchema = Schema.Struct({
   constraints: Schema.Array(NonEmptyString),
 });
 
-const DocsPageSchema = Schema.Union(
+const DocsPageSchema = Schema.Union([
   Schema.Struct({
     kind: Schema.Literal("page"),
     page: NonEmptyString,
@@ -97,7 +97,7 @@ const DocsPageSchema = Schema.Union(
     kind: Schema.Literal("none"),
     why: NonEmptyString,
   }),
-);
+]);
 
 const specDocumentFields = {
   kind: Schema.Literal("spec"),
@@ -203,9 +203,10 @@ const TRACEABILITY_DESCRIPTION = `Checked by phax's parser, not by this JSON Sch
 export const SpecDocumentFileSchema = Schema.Struct({
   $schema: answerSchemaUrlField("spec-document"),
   ...specDocumentFields,
-}).pipe(
-  Schema.filter(firstTraceabilityViolation, {
-    jsonSchema: { description: TRACEABILITY_DESCRIPTION },
+}).check(
+  Schema.makeFilter((doc) => violationIssue(firstTraceabilityViolation(doc)), {
+    description: TRACEABILITY_DESCRIPTION,
+    toJsonSchema: () => ({}),
   }),
 );
 
@@ -214,8 +215,9 @@ export type SpecDocumentFile = Schema.Schema.Type<typeof SpecDocumentFileSchema>
 /** The document an authoring session returns: the sidecar's own shape, `$schema` included. */
 export type AuthoredSpecDocument = SpecDocumentFile;
 
-export const decodeSpecDocumentFile = Schema.decodeUnknownEither(SpecDocumentFileSchema, {
+export const decodeSpecDocumentFile = Schema.decodeUnknownResult(SpecDocumentFileSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });
 export const encodeSpecDocumentFile = Schema.encodeSync(SpecDocumentFileSchema);
 
@@ -227,7 +229,7 @@ export const encodeSpecDocumentFile = Schema.encodeSync(SpecDocumentFileSchema);
  */
 export function decodeAuthoredSpecDocument(
   input: unknown,
-): Either.Either<AuthoredSpecDocument, string> {
+): Result.Result<AuthoredSpecDocument, string> {
   if (
     typeof input === "object" &&
     input !== null &&
@@ -236,7 +238,7 @@ export function decodeAuthoredSpecDocument(
     const arbitrated = (input as { readonly arbitratedQuestions: ReadonlyArray<unknown> })
       .arbitratedQuestions;
     const violation = authoringArbitratedViolation(arbitrated, []);
-    if (violation !== undefined) return Either.left(formatViolationAt(violation));
+    if (violation !== undefined) return Result.fail(formatViolationAt(violation));
   }
-  return Either.mapLeft(decodeSpecDocumentFile(input), formatFirstViolation);
+  return Result.mapError(decodeSpecDocumentFile(input), formatFirstViolation);
 }

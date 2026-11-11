@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -49,7 +49,7 @@ const HANDOFF_CONTENT = [
   "Ready to proceed.",
 ].join("\n");
 
-const shortName = Either.getOrThrow(decodeShortName("my-run"));
+const shortName = Result.getOrThrow(decodeShortName("my-run"));
 
 const GIT_COMMIT_LINE =
   "Do not run `git commit` yourself — phax commits your changes after gates pass.";
@@ -114,7 +114,7 @@ function expectedLines(steps: readonly GateStep[]): string[] {
 
 async function standardProfile(): Promise<readonly GateStep[]> {
   const raw: unknown = JSON.parse(await readFile(join(process.cwd(), "phax.json"), "utf8"));
-  const config = Either.getOrThrow(decodePhaxConfig(raw));
+  const config = Result.getOrThrow(decodePhaxConfig(raw));
   const steps = config.gateProfiles["standard"];
   if (steps === undefined) throw new Error("phax.json has no standard gate profile");
   return steps;
@@ -168,7 +168,7 @@ function makeRun(
   opts: { failCommand?: string; model?: string; provider?: string } = {},
 ) {
   const runPlan = opts.model === undefined ? rawPlan : rawPlanFor(opts.model);
-  const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", runPlan)).plan;
+  const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", runPlan)).plan;
   const planMd = planMdFor(runPlan);
   const worktreeOf = (phaseId: string) => join(root, "worktrees", "test-project.my-run", phaseId);
 
@@ -228,7 +228,7 @@ function makeRun(
 
   const execute = (runPath: string, runId: RunId, startIndex: number) =>
     Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -302,7 +302,7 @@ describe("phase prompt names the gate (acceptance)", () => {
     expect(terminal).toHaveLength(4);
     const s = makeRun(root, makeConfig(root, { full: profile as never }));
     const { runPath, result } = await s.startRun();
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     return { profile, everyPhase, terminal, prompts: await readPrompts(runPath) };
   }
 
@@ -353,7 +353,7 @@ describe("phase prompt names the gate (acceptance)", () => {
     ]);
     const s = makeRun(root, config, "ws");
     const { runPath, result } = await s.startRun();
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     const prompts = await readPrompts(runPath);
 
     for (const phaseId of PHASE_IDS) {
@@ -415,7 +415,7 @@ describe("phase prompt names the gate (acceptance)", () => {
     await writeFile(statusPath, JSON.stringify({ ...status, claudeSessionId: "sess-01" }));
 
     const reset = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         resetPhase({
           shortName,
           namespace: "test-project",
@@ -425,7 +425,7 @@ describe("phase prompt names the gate (acceptance)", () => {
         }).pipe(Effect.provide(s.layers), Effect.provide(makeFakeLock().layer)),
       ),
     );
-    expect(Either.isRight(reset)).toBe(true);
+    expect(Result.isSuccess(reset)).toBe(true);
 
     // With the gate fixed, resuming starts phase-01 fresh and regenerates its prompt.
     s.fakeShell.impl.setResponse("pnpm test", { exitCode: 0, stdout: "", stderr: "" });
@@ -444,7 +444,7 @@ describe("phase prompt names the gate (acceptance)", () => {
       });
     }
     const resumed = await s.execute(runPath, runId, 0);
-    expect(Either.isRight(resumed)).toBe(true);
+    expect(Result.isSuccess(resumed)).toBe(true);
 
     expect(gateSectionOf(await readFile(promptPath, "utf8"))).toBe(firstSection);
   });
@@ -465,7 +465,7 @@ describe("phase prompt names the gate (acceptance)", () => {
         provider,
       });
       const { result } = await s.startRun();
-      expect(Either.isRight(result)).toBe(true);
+      expect(Result.isSuccess(result)).toBe(true);
       const first = s.fakeBackend.impl.runCalls[0];
       expect(first?.options.provider).toBe(provider);
       received.set(provider, gateSectionOf(first?.prompt ?? ""));

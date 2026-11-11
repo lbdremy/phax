@@ -1,5 +1,6 @@
 import { Effect, Layer } from "effect";
-import { Backend } from "../../ports/backend.js";
+import { Backend, type BackendOps } from "../../ports/backend.js";
+import type { ProviderStoreRootsValue } from "../../domain/session/storeRoots.js";
 import { AgentInvocationError } from "../../domain/errors.js";
 import { ProviderStoreRoots } from "../../ports/providerStores.js";
 import {
@@ -53,9 +54,9 @@ export function makeNodeBackendLayer(
 
 function nodeBackend(
   providerConfig: ProviderConfig,
-  roots: ProviderStoreRoots["Type"],
+  roots: ProviderStoreRootsValue,
   table: StructuredCallsTable,
-): Backend["Type"] {
+): BackendOps {
   return {
     runAgent: (prompt, options) =>
       afterArchivingPreviousFailure(options, () => {

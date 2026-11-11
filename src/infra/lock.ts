@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { open as nodeOpen, readFile, rm, mkdir } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { Lock, decodeLockFile, type LockFile, type LockStatus } from "../ports/lock.js";
@@ -35,7 +35,7 @@ async function readLockFile(path: string): Promise<LockFile | undefined> {
   try {
     const content = await readFile(path, "utf8");
     const decoded = decodeLockFile(JSON.parse(content) as unknown);
-    return Either.isRight(decoded) ? decoded.right : undefined;
+    return Result.isSuccess(decoded) ? decoded.success : undefined;
   } catch {
     return undefined;
   }

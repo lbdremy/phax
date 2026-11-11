@@ -191,4 +191,4 @@ export interface BackendOps {
   captureTranscript(request: TranscriptRequest): Effect.Effect<TranscriptRead, never>;
 }
 
-export class Backend extends Context.Tag("phax/Backend")<Backend, BackendOps>() {}
+export class Backend extends Context.Service<Backend, BackendOps>()("phax/Backend") {}

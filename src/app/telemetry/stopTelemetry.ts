@@ -2,7 +2,7 @@
 // calls, the closing gate (with its acceptance step), the review commit and a
 // held passing phase's unjudged acceptance edits, emitted as a headless phase's are
 // (executePlan, fixLoop). The dispatcher traces the stop's state transitions.
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import type { RunId } from "../../domain/branded.js";
 import { GateFailedError, GateStepRefusedError } from "../../domain/errors.js";
 import type { TranscriptOutcome } from "../../domain/interactive/transcripts.js";
@@ -72,12 +72,12 @@ export function tracedStep<A, E, R>(
     const telemetry = yield* SystemTelemetry;
     const at = { runId: ctx.runId as RunId, operationId: ctx.phaseId, step: ctx.step };
     yield* telemetry.recordEvent(makeStepStartedTelemetryEvent(at));
-    const outcome = yield* Effect.either(step);
-    const ok = Either.isRight(outcome) && succeeded(outcome.right);
+    const outcome = yield* Effect.result(step);
+    const ok = Result.isSuccess(outcome) && succeeded(outcome.success);
     yield* telemetry.recordEvent(
       makeStepCompletedTelemetryEvent({ ...at, result: ok ? "success" : "failure" }),
     );
-    return yield* outcome;
+    return yield* Effect.fromResult(outcome);
   });
 }
 
@@ -112,17 +112,17 @@ export function tracedCloseGate<A, E, R>(
     const runId = ctx.runId as RunId;
     const at = { runId, operationId: ctx.phaseId };
     yield* telemetry.recordEvent(makeStepStartedTelemetryEvent({ ...at, step: "gate.run" }));
-    const outcome = yield* Effect.either(gate);
-    if (Either.isRight(outcome)) {
+    const outcome = yield* Effect.result(gate);
+    if (Result.isSuccess(outcome)) {
       yield* telemetry.recordEvent(
         makeStepCompletedTelemetryEvent({ ...at, step: "gate.run", result: "success" }),
       );
       yield* telemetry.recordEvent(
         makeGateEvaluatedTelemetryEvent({ ...at, gate: "checks", result: "accepted" }),
       );
-      return outcome.right;
+      return outcome.success;
     }
-    const error = outcome.left;
+    const error = outcome.failure;
     yield* telemetry.recordEvent(
       makeStepCompletedTelemetryEvent({ ...at, step: "gate.run", result: "failure" }),
     );
@@ -196,12 +196,12 @@ export function tracedReviewCommit<A, E, R>(
       adapter: "git",
       operation: "commit.create",
     };
-    const outcome = yield* Effect.either(commit);
-    if (Either.isRight(outcome)) {
+    const outcome = yield* Effect.result(commit);
+    if (Result.isSuccess(outcome)) {
       yield* telemetry.recordEvent(makeAdapterCallSucceededTelemetryEvent(at));
-      return outcome.right;
+      return outcome.success;
     }
-    const error = outcome.left;
+    const error = outcome.failure;
     const reason = error instanceof Error ? error.message : String(error);
     yield* telemetry.recordEvent(
       makeAdapterCallFailedTelemetryEvent({

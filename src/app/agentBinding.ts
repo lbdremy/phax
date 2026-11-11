@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { open, readFile, rename } from "node:fs/promises";
 import { join } from "node:path";
 import { randomBytes } from "node:crypto";
@@ -40,9 +40,9 @@ export async function patchAgentBindingSession(
   try {
     const text = await readFile(filePath, "utf8");
     const decoded = decodePhaseAgentBinding(JSON.parse(text) as unknown);
-    if (Either.isRight(decoded)) {
+    if (Result.isSuccess(decoded)) {
       const updated: PhaseAgentBinding = {
-        ...decoded.right,
+        ...decoded.success,
         sessionId: patch.sessionId,
         status: patch.status,
       };
@@ -61,8 +61,8 @@ export async function patchAgentBindingStatus(
   try {
     const text = await readFile(filePath, "utf8");
     const decoded = decodePhaseAgentBinding(JSON.parse(text) as unknown);
-    if (Either.isRight(decoded)) {
-      const updated: PhaseAgentBinding = { ...decoded.right, status };
+    if (Result.isSuccess(decoded)) {
+      const updated: PhaseAgentBinding = { ...decoded.success, status };
       await writeAtomic(filePath, JSON.stringify(encodePhaseAgentBinding(updated), null, 2));
     }
   } catch {
@@ -72,17 +72,17 @@ export async function patchAgentBindingStatus(
 
 export async function readAgentBinding(
   phaseFolderPath: string,
-): Promise<Either.Either<PhaseAgentBinding, string>> {
+): Promise<Result.Result<PhaseAgentBinding, string>> {
   const filePath = join(phaseFolderPath, "agent-binding.json");
   try {
     const text = await readFile(filePath, "utf8");
     const decoded = decodePhaseAgentBinding(JSON.parse(text) as unknown);
-    if (Either.isRight(decoded)) {
-      return Either.right(decoded.right);
+    if (Result.isSuccess(decoded)) {
+      return Result.succeed(decoded.success);
     }
-    return Either.left(`Failed to decode agent-binding.json: ${String(decoded.left)}`);
+    return Result.fail(`Failed to decode agent-binding.json: ${String(decoded.failure)}`);
   } catch (err) {
-    return Either.left(
+    return Result.fail(
       `Cannot read agent-binding.json: ${err instanceof Error ? err.message : String(err)}`,
     );
   }

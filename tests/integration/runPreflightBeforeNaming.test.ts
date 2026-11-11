@@ -13,7 +13,7 @@
 import { mkdtempSync, readFileSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { loadConfig } from "../../src/app/loadConfig.js";
 import { resolveGateProfile } from "../../src/app/gates.js";
@@ -71,7 +71,7 @@ vi.mock("node:os", async (importOriginal) =>
 vi.mock("../../src/app/loadTelemetryConfig.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../src/app/loadTelemetryConfig.js")>();
   const effect = await import("effect");
-  return { ...actual, loadTelemetryConfig: vi.fn(() => effect.Either.right({ enabled: true })) };
+  return { ...actual, loadTelemetryConfig: vi.fn(() => effect.Result.succeed({ enabled: true })) };
 });
 // The routing loaders read ~/.phax; serve the built-in defaults instead.
 vi.mock("../../src/app/loadRouting.js", async (importOriginal) => {
@@ -430,7 +430,7 @@ describe("phax run — a preflight refusal precedes naming", () => {
     process.chdir(roots.repo);
     // Guard: every write below must land in the temporary state root.
     const config = loadConfig(roots.repo);
-    expect(Either.isRight(config) && config.right.stateRoot).toBe(roots.stateRoot);
+    expect(Result.isSuccess(config) && config.success.stateRoot).toBe(roots.stateRoot);
     return roots;
   }
 
@@ -476,7 +476,7 @@ describe("phax run — a preflight refusal precedes naming", () => {
       // The use case behind `phax records sync`, on real git and filesystem
       // layers. phax.json only admits network remotes, so the sync is pointed
       // at a local bare repository standing in for RECORDS_REMOTE.
-      const config = Either.getOrThrow(loadConfig(r.repo));
+      const config = Result.getOrThrow(loadConfig(r.repo));
       const synced = await Effect.runPromise(
         reconcileRecordsSync({
           records: { ...config.records, destination: { kind: "repo", remote } },
@@ -643,7 +643,7 @@ describe("phax run — a preflight refusal precedes naming", () => {
     "lint and the run preflight report the same acceptance rows: %s",
     async (_label, fixture) => {
       const r = enter(fixture);
-      const config = Either.getOrThrow(loadConfig(r.repo));
+      const config = Result.getOrThrow(loadConfig(r.repo));
       const report = await Effect.runPromise(
         lintPlan({
           planMdPath: join(r.repo, "plan.md"),
@@ -670,7 +670,7 @@ describe("phax run — a preflight refusal precedes naming", () => {
 
   it("lint exits with the interactive error the run preflight refuses on", async () => {
     const r = enter({ plan: { phases: LAST_INTERACTIVE_PHASES } });
-    const config = Either.getOrThrow(loadConfig(r.repo));
+    const config = Result.getOrThrow(loadConfig(r.repo));
     const report = await Effect.runPromise(
       lintPlan({
         planMdPath: join(r.repo, "plan.md"),

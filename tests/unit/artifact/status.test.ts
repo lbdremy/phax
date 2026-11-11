@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { InvalidArtifactTransitionError } from "../../../src/domain/errors.js";
 import {
@@ -11,17 +11,17 @@ import {
   SPEC_STATUSES,
 } from "../../../src/domain/artifact/status.js";
 
-function assertRight<T>(result: Either.Either<T, unknown>, expected: T): void {
-  expect(Either.isRight(result)).toBe(true);
-  if (Either.isRight(result)) {
-    expect(result.right).toBe(expected);
+function assertRight<T>(result: Result.Result<T, unknown>, expected: T): void {
+  expect(Result.isSuccess(result)).toBe(true);
+  if (Result.isSuccess(result)) {
+    expect(result.success).toBe(expected);
   }
 }
 
-function assertLeft(result: Either.Either<unknown, unknown>): void {
-  expect(Either.isLeft(result)).toBe(true);
-  if (Either.isLeft(result)) {
-    expect(result.left).toBeInstanceOf(InvalidArtifactTransitionError);
+function assertLeft(result: Result.Result<unknown, unknown>): void {
+  expect(Result.isFailure(result)).toBe(true);
+  if (Result.isFailure(result)) {
+    expect(result.failure).toBeInstanceOf(InvalidArtifactTransitionError);
   }
 }
 
@@ -47,8 +47,8 @@ describe("spec transitions", () => {
       if (legal.has(to)) continue;
       const result = requestTransition("spec", from, to);
       assertLeft(result);
-      if (Either.isLeft(result)) {
-        expect(result.left.legalTargets).toEqual(legalTargetsFrom("spec", from));
+      if (Result.isFailure(result)) {
+        expect(result.failure.legalTargets).toEqual(legalTargetsFrom("spec", from));
       }
     }
   });
@@ -66,7 +66,7 @@ describe("spec transitions", () => {
     (from) => {
       const result = requestTransition("spec", from, "Draft");
       assertLeft(result);
-      if (Either.isLeft(result)) expect(result.left.message).toContain(`from ${from}`);
+      if (Result.isFailure(result)) expect(result.failure.message).toContain(`from ${from}`);
     },
   );
 
@@ -112,8 +112,8 @@ describe("plan transitions", () => {
       if (legal.has(to)) continue;
       const result = requestTransition("plan", from, to);
       assertLeft(result);
-      if (Either.isLeft(result)) {
-        expect(result.left.legalTargets).toEqual(legalTargetsFrom("plan", from));
+      if (Result.isFailure(result)) {
+        expect(result.failure.legalTargets).toEqual(legalTargetsFrom("plan", from));
       }
     }
   });
@@ -127,7 +127,7 @@ describe("plan transitions", () => {
     (from) => {
       const result = requestTransition("plan", from, "Draft");
       assertLeft(result);
-      if (Either.isLeft(result)) expect(result.left.message).toContain(`from ${from}`);
+      if (Result.isFailure(result)) expect(result.failure.message).toContain(`from ${from}`);
     },
   );
 

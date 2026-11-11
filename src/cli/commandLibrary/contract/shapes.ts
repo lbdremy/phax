@@ -1,17 +1,17 @@
-import { Either, Option } from "effect";
+import { Result } from "effect";
 import * as Schema from "effect/Schema";
 import * as SchemaAST from "effect/SchemaAST";
 import type { Command, StructContract, TupleContract } from "./command.js";
 
 /** Gain carried for upstream (completers): the key of the annotation an argument's element
  *  declares its completer under, beside its `identifier`:
- *  `Schema.String.annotations({ identifier: "short-name", [CompleterAnnotationId]: { run, descriptions } })`.
+ *  `Schema.String.annotate({ identifier: "short-name", [CompleterAnnotationId]: { run, descriptions } })`.
  *  The usage spec writes one `complete "<identifier>"` node per identifier. */
 export const CompleterAnnotationId: unique symbol = Symbol.for("cli-command/annotation/Completer");
 
 /** Gain carried for upstream (a short alias): the key of the annotation an option's field declares
  *  its one-letter alias under, on the field or on its type:
- *  `Schema.optionalWith(Schema.Boolean, { exact: true }).annotations({ [AliasAnnotationId]: "y" })`.
+ *  `Schema.optionalKey(Schema.Boolean).annotateKey({ [AliasAnnotationId]: "y" })`.
  *  The option is then given as `-y` or `--yes` alike; help shows `-y, --yes`, the catalogue's
  *  property `x-alias: "-y"`, and the usage spec `flag "--yes -y"`. */
 export const AliasAnnotationId: unique symbol = Symbol.for("cli-command/annotation/Alias");
@@ -19,8 +19,8 @@ export const AliasAnnotationId: unique symbol = Symbol.for("cli-command/annotati
 /** Gain carried for upstream (an option with an optional value): the key of the annotation an
  *  option's field declares, on the field or on its type, when its value may be left out. The
  *  field's schema is a union of `true` and a string:
- *  `Schema.optionalWith(Schema.Union(Schema.Literal(true), Schema.String), { exact: true })
- *  .annotations({ identifier: "selection", [OptionalValueAnnotationId]: true })`.
+ *  `Schema.optionalKey(Schema.Union([Schema.Literal(true), Schema.String]))
+ *  .annotateKey({ identifier: "selection", [OptionalValueAnnotationId]: true })`.
  *  The option then decodes to `true` when given bare (`--hold`) and to its value when given one
  *  (`--hold phase-02`, `--hold=phase-02`); help shows `--hold [selection]`, the catalogue the
  *  union, and the usage spec `flag "--hold [selection]"`. */
@@ -97,40 +97,16 @@ export function fullName(command: Command<unknown>): ReadonlyArray<string> {
 
 /** The members of a union that are not `undefined`; the node itself when it is no union. */
 const defined = (ast: SchemaAST.AST): ReadonlyArray<SchemaAST.AST> =>
-  SchemaAST.isUnion(ast)
-    ? ast.types.filter((member) => !SchemaAST.isUndefinedKeyword(member))
-    : [ast];
+  SchemaAST.isUnion(ast) ? ast.types.filter((member) => !SchemaAST.isUndefined(member)) : [ast];
 
 function isBooleanSide(ast: SchemaAST.AST): boolean {
   const members = defined(ast);
-  return members.length > 0 && members.every(SchemaAST.isBooleanKeyword);
+  return members.length > 0 && members.every(SchemaAST.isBoolean);
 }
 
-/** Effect 3's own keywords, each with the guard that recognises it: their descriptions
- *  (`Schema.String` is "a string") are not a help anyone wrote. */
-const KEYWORDS: ReadonlyArray<readonly [(ast: SchemaAST.AST) => boolean, SchemaAST.AST]> = [
-  [SchemaAST.isStringKeyword, SchemaAST.stringKeyword],
-  [SchemaAST.isNumberKeyword, SchemaAST.numberKeyword],
-  [SchemaAST.isBooleanKeyword, SchemaAST.booleanKeyword],
-  [SchemaAST.isBigIntKeyword, SchemaAST.bigIntKeyword],
-  [SchemaAST.isSymbolKeyword, SchemaAST.symbolKeyword],
-  [SchemaAST.isObjectKeyword, SchemaAST.objectKeyword],
-  [SchemaAST.isUndefinedKeyword, SchemaAST.undefinedKeyword],
-  [SchemaAST.isVoidKeyword, SchemaAST.voidKeyword],
-  [SchemaAST.isUnknownKeyword, SchemaAST.unknownKeyword],
-  [SchemaAST.isAnyKeyword, SchemaAST.anyKeyword],
-  [SchemaAST.isNeverKeyword, SchemaAST.neverKeyword],
-];
-
-const descriptionOf = (annotated: SchemaAST.Annotated): string | undefined =>
-  Option.getOrUndefined(SchemaAST.getDescriptionAnnotation(annotated));
-
-/** The description written on a node, not the one Effect gives its keyword. */
-function writtenOn(ast: SchemaAST.AST): string | undefined {
-  const description = descriptionOf(ast);
-  const keyword = KEYWORDS.find(([is]) => is(ast))?.[1];
-  return keyword !== undefined && descriptionOf(keyword) === description ? undefined : description;
-}
+/** The description written on a node (on its last check, where Effect's `annotate` puts it on
+ *  a checked node). Effect 4 gives its keywords none, so every description is one someone wrote. */
+const writtenOn = (ast: SchemaAST.AST): string | undefined => SchemaAST.resolveDescription(ast);
 
 /** The description written on this node, or on the one member of its union with `undefined`. */
 function helpOf(ast: SchemaAST.AST): string | undefined {
@@ -155,17 +131,17 @@ function choicesOf(ast: SchemaAST.AST): ReadonlyArray<string> | undefined {
  *  not expose a default as data, so the schema is decoded once, with nothing given. A value that
  *  is not a string, a number or a bigint is not shown. */
 function defaultOf(
-  schema: Schema.Schema.Any,
+  schema: Schema.Top,
   empty: unknown,
   pick: (decoded: unknown) => unknown,
 ): string | undefined {
   let decoded: unknown;
   try {
-    const result = Schema.decodeUnknownEither(schema as Schema.Schema<unknown, unknown, never>)(
+    const result = Schema.decodeUnknownResult(Schema.make<Schema.Codec<unknown>>(schema.ast))(
       empty,
     );
-    if (Either.isLeft(result)) return undefined;
-    decoded = result.right;
+    if (Result.isFailure(result)) return undefined;
+    decoded = result.success;
   } catch {
     // A default that needs a service or an asynchronous read is not a default to show.
     return undefined;
@@ -176,50 +152,76 @@ function defaultOf(
     : undefined;
 }
 
-/** The tuple node under a contract's refinements and transformations: the side `from` holds. */
-function tupleOf(ast: SchemaAST.AST): SchemaAST.TupleType | undefined {
-  if (SchemaAST.isTupleType(ast)) return ast;
-  if (SchemaAST.isRefinement(ast) || SchemaAST.isTransformation(ast)) return tupleOf(ast.from);
-  return undefined;
+/** The tuple node of a contract, or the side its first transformation decodes from. */
+function tupleOf(ast: SchemaAST.AST): SchemaAST.Arrays | undefined {
+  if (SchemaAST.isArrays(ast)) return ast;
+  const from = ast.encoding?.[0].to;
+  return from === undefined ? undefined : tupleOf(from);
 }
 
-/** The object node under a contract's refinements and transformations: the side `from` holds,
- *  where a field with a default is still declared as written. */
-function literalOf(ast: SchemaAST.AST): SchemaAST.TypeLiteral | undefined {
-  if (SchemaAST.isTypeLiteral(ast)) return ast;
-  if (SchemaAST.isRefinement(ast) || SchemaAST.isTransformation(ast)) return literalOf(ast.from);
-  return undefined;
+/** The object node of a contract, or the side its first transformation decodes from, where a
+ *  field with a default is still declared as written. */
+function objectsOf(ast: SchemaAST.AST): SchemaAST.Objects | undefined {
+  if (SchemaAST.isObjects(ast)) return ast;
+  const from = ast.encoding?.[0].to;
+  return from === undefined ? undefined : objectsOf(from);
 }
 
-/** A tuple's element or its rest: a type, with the annotations written on its place. */
+/** A tuple element, a rest element or a struct field: its type, the annotations written on its
+ *  place (its key's annotations), and whether it may be absent. */
 interface Placed {
   readonly type: SchemaAST.AST;
-  readonly annotations: SchemaAST.Annotations;
+  readonly annotations: Schema.Annotations.Annotations;
+  readonly isOptional: boolean;
+}
+
+const placed = (type: SchemaAST.AST): Placed => ({
+  type,
+  annotations: type.context?.annotations ?? {},
+  isOptional: type.context?.isOptional ?? false,
+});
+
+/** An annotation by its key: on the place, else on the type (or its last check). */
+function declaredOn(element: Placed, key: symbol): unknown {
+  return Reflect.get(element.annotations, key) ?? annotationOf(element.type, key);
+}
+
+/** An annotation by its key on a node, or on its last check where `annotate` puts it. */
+function annotationOf(ast: SchemaAST.AST, key: symbol): unknown {
+  const last = ast.checks?.at(-1);
+  return (
+    (last?.annotations === undefined ? undefined : Reflect.get(last.annotations, key)) ??
+    (ast.annotations === undefined ? undefined : Reflect.get(ast.annotations, key))
+  );
 }
 
 function completerOf(element: Placed): Completer | undefined {
-  const declared: unknown =
-    element.annotations[CompleterAnnotationId] ?? element.type.annotations[CompleterAnnotationId];
+  const declared = declaredOn(element, CompleterAnnotationId);
   if (typeof declared !== "object" || declared === null) return undefined;
   const run: unknown = Reflect.get(declared, "run");
   const descriptions: unknown = Reflect.get(declared, "descriptions");
   return typeof run === "string" ? { run, descriptions: descriptions === true } : undefined;
 }
 
+/** The `description` written on a place. */
+const descriptionOf = (element: Placed): string | undefined => {
+  const description = element.annotations["description"];
+  return typeof description === "string" ? description : undefined;
+};
+
 /** The `identifier` written on a place, else on its type. */
-const identifierOf = (element: Placed): string | undefined =>
-  Option.getOrUndefined(
-    Option.orElse(SchemaAST.getIdentifierAnnotation(element), () =>
-      SchemaAST.getIdentifierAnnotation(element.type),
-    ),
-  );
+const identifierOf = (element: Placed): string | undefined => {
+  const identifier = element.annotations["identifier"];
+  return typeof identifier === "string" ? identifier : SchemaAST.resolveIdentifier(element.type);
+};
 
 export function argShapes(contract: TupleContract): ReadonlyArray<ArgShape> {
   const tuple = tupleOf(contract.ast);
-  const encodedTuple = tupleOf(SchemaAST.encodedAST(contract.ast));
-  const elements = tuple?.elements ?? [];
-  const encoded = encodedTuple?.elements ?? [];
-  const rest = tuple?.rest[0];
+  const encodedTuple = tupleOf(SchemaAST.toEncoded(contract.ast));
+  const elements = (tuple?.elements ?? []).map(placed);
+  const encoded = (encodedTuple?.elements ?? []).map(placed);
+  const restType = tuple?.rest[0];
+  const rest = restType === undefined ? undefined : placed(restType);
   // Gain (variadic arguments): a required last element of the rest's own schema is folded into
   // the rest, which is then required.
   const last = elements.at(-1);
@@ -242,7 +244,7 @@ export function argShapes(contract: TupleContract): ReadonlyArray<ArgShape> {
       help: descriptionOf(element) ?? helpOf(element.type),
       choices: choicesOf(encodedType),
       default: optional
-        ? defaultOf(Schema.make(new SchemaAST.TupleType([element], [], true)), [], (decoded) =>
+        ? defaultOf(Schema.make(new SchemaAST.Arrays(false, [element.type], [])), [], (decoded) =>
             Array.isArray(decoded) ? decoded[0] : undefined,
           )
         : undefined,
@@ -256,7 +258,7 @@ export function argShapes(contract: TupleContract): ReadonlyArray<ArgShape> {
     name: nameOf(named, declared.length),
     optional: !folded,
     help: descriptionOf(rest) ?? helpOf(rest.type),
-    choices: choicesOf(encodedTuple?.rest[0]?.type ?? rest.type),
+    choices: choicesOf(encodedTuple?.rest[0] ?? rest.type),
     default: undefined,
     completer: named === undefined ? undefined : completerOf(rest),
     variadic: true,
@@ -264,39 +266,38 @@ export function argShapes(contract: TupleContract): ReadonlyArray<ArgShape> {
   return shapes;
 }
 
-/** The alias declared on a field: on its place, else on its type, else on the one member of its
- *  union with `undefined`. */
-function aliasOf(written: SchemaAST.PropertySignature | undefined): string | undefined {
-  if (written === undefined) return undefined;
+/** An annotation declared on a field: on its place, else on its type, else on the one member of
+ *  its union with `undefined`. */
+function fieldAnnotation(written: Placed, key: symbol): unknown {
   const members = defined(written.type);
   const only = members.length === 1 ? members[0] : undefined;
-  const declared: unknown =
-    written.annotations[AliasAnnotationId] ??
-    written.type.annotations[AliasAnnotationId] ??
-    only?.annotations[AliasAnnotationId];
+  return declaredOn(written, key) ?? (only === undefined ? undefined : annotationOf(only, key));
+}
+
+/** The alias declared on a field. */
+function aliasOf(written: Placed | undefined): string | undefined {
+  const declared = written === undefined ? undefined : fieldAnnotation(written, AliasAnnotationId);
   return typeof declared === "string" ? declared : undefined;
 }
 
-/** Whether a field declares its value optional: on its place, else on its type, else on the one
- *  member of its union with `undefined`. */
-function valueOptionalOf(written: SchemaAST.PropertySignature | undefined): boolean {
-  if (written === undefined) return false;
-  const members = defined(written.type);
-  const only = members.length === 1 ? members[0] : undefined;
-  const declared: unknown =
-    written.annotations[OptionalValueAnnotationId] ??
-    written.type.annotations[OptionalValueAnnotationId] ??
-    only?.annotations[OptionalValueAnnotationId];
-  return declared === true;
+/** Whether a field declares its value optional. */
+function valueOptionalOf(written: Placed | undefined): boolean {
+  return written !== undefined && fieldAnnotation(written, OptionalValueAnnotationId) === true;
+}
+
+/** A struct node's field by name, as placed. */
+function fieldOf(node: SchemaAST.Objects | undefined, field: string): Placed | undefined {
+  const signature = node?.propertySignatures.find((candidate) => candidate.name === field);
+  return signature === undefined ? undefined : placed(signature.type);
 }
 
 export function flagShapes(contract: StructContract): ReadonlyArray<FlagShape> {
-  const declared = literalOf(contract.ast)?.propertySignatures ?? [];
-  const encoded = literalOf(SchemaAST.encodedAST(contract.ast))?.propertySignatures ?? [];
+  const declared = objectsOf(contract.ast);
+  const encoded = objectsOf(SchemaAST.toEncoded(contract.ast));
   return Object.entries(contract.fields).map(([field, schema]) => {
-    const written = declared.find((signature) => signature.name === field);
-    const side = encoded.find((signature) => signature.name === field);
-    const encodedType = side?.type ?? written?.type ?? SchemaAST.neverKeyword;
+    const written = fieldOf(declared, field);
+    const side = fieldOf(encoded, field);
+    const encodedType = side?.type ?? written?.type ?? SchemaAST.never;
     const isSwitch = isBooleanSide(encodedType);
     return {
       field,
@@ -323,6 +324,6 @@ export function flagShapes(contract: StructContract): ReadonlyArray<FlagShape> {
  *  stdin read bound to a flag, which help and the usage spec give the flag in place of the
  *  library's own sentence; undefined when the contract carries none (Effect's own descriptions of
  *  its keywords are not one). */
-export function stdinFlagHelp(contract: Schema.Schema.Any): string | undefined {
+export function stdinFlagHelp(contract: Schema.Top): string | undefined {
   return helpOf(contract.ast);
 }

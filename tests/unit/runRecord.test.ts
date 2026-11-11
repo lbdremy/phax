@@ -1,4 +1,4 @@
-import { Either, Schema } from "effect";
+import { Result, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   decodeRunRecordManifestFile,
@@ -8,8 +8,9 @@ import {
 } from "../../src/schemas/runRecord.js";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 
-const decodeTokenUsage = Schema.decodeUnknownEither(TokenUsageSchema, {
+const decodeTokenUsage = Schema.decodeUnknownResult(TokenUsageSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });
 
 const baseManifest = {
@@ -31,7 +32,7 @@ const baseManifest = {
 
 describe("TokenUsageSchema", () => {
   it("decodes the unavailable variant", () => {
-    expect(Either.isRight(decodeTokenUsage({ available: false }))).toBe(true);
+    expect(Result.isSuccess(decodeTokenUsage({ available: false }))).toBe(true);
   });
 
   it("decodes an available Claude usage", () => {
@@ -46,7 +47,7 @@ describe("TokenUsageSchema", () => {
         totalCostUsd: 0.42,
       },
     });
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
   });
 
   it("decodes an available codex usage", () => {
@@ -60,7 +61,7 @@ describe("TokenUsageSchema", () => {
         reasoningOutputTokens: 0,
       },
     });
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
   });
 
   it("decodes an available vibe usage", () => {
@@ -74,7 +75,7 @@ describe("TokenUsageSchema", () => {
         costUsd: 0.05,
       },
     });
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
   });
 
   it("rejects a vibe usage that still carries the session cost and tool-call counts", () => {
@@ -91,25 +92,25 @@ describe("TokenUsageSchema", () => {
         toolCallsSucceeded: 3,
       },
     });
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 
   it("rejects an available usage reported as a bare number (never zero-as-unavailable)", () => {
     // A record must never encode "usage: 0" for an unavailable value — the
     // shape forces either the unavailable variant or a full provider object.
-    expect(Either.isLeft(decodeTokenUsage(0))).toBe(true);
-    expect(Either.isLeft(decodeTokenUsage({ available: true, usage: 0 }))).toBe(true);
+    expect(Result.isFailure(decodeTokenUsage(0))).toBe(true);
+    expect(Result.isFailure(decodeTokenUsage({ available: true, usage: 0 }))).toBe(true);
   });
 
   it("rejects a struct mixing available: true with no usage payload", () => {
-    expect(Either.isLeft(decodeTokenUsage({ available: true }))).toBe(true);
+    expect(Result.isFailure(decodeTokenUsage({ available: true }))).toBe(true);
   });
 });
 
 describe("RunRecordManifestSchema", () => {
   it("decodes a minimal skeleton manifest with unavailable usage", () => {
     const result = decodeRunRecordManifestFile(baseManifest);
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
   });
 
   it("decodes a full manifest with a source sha and available usage", () => {
@@ -129,35 +130,35 @@ describe("RunRecordManifestSchema", () => {
         },
       },
     });
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
   });
 
   it("decodes a manifest for a phase that never committed (no sourceSha)", () => {
     const result = decodeRunRecordManifestFile({ ...baseManifest, outcome: "failed" });
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.sourceSha).toBeUndefined();
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success.sourceSha).toBeUndefined();
     }
   });
 
   it("rejects an unknown outcome", () => {
     const result = decodeRunRecordManifestFile({ ...baseManifest, outcome: "bogus" });
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 
   it("rejects an unknown shape", () => {
     const result = decodeRunRecordManifestFile({ ...baseManifest, shape: "partial" });
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 
   it("rejects unknown top-level keys", () => {
     const result = decodeRunRecordManifestFile({ ...baseManifest, bogus: "value" });
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 
   it("rejects a surface outside the closed enum", () => {
     const result = decodeRunRecordManifestFile({ ...baseManifest, verifiedSurfaces: ["bogus"] });
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 
   it("decodes a manifest naming verified surfaces", () => {
@@ -165,7 +166,7 @@ describe("RunRecordManifestSchema", () => {
       ...baseManifest,
       verifiedSurfaces: ["local", "product"],
     });
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
   });
 
   it("decodes the acceptance surface among the verified surfaces, and refuses oracle", () => {
@@ -173,20 +174,20 @@ describe("RunRecordManifestSchema", () => {
       ...baseManifest,
       verifiedSurfaces: ["acceptance", "local"],
     });
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     const old = decodeRunRecordManifestFile({ ...baseManifest, verifiedSurfaces: ["oracle"] });
-    expect(Either.isLeft(old)).toBe(true);
+    expect(Result.isFailure(old)).toBe(true);
   });
 
   it("requires the acceptance role, null or one of the two variants", () => {
     const { acceptance: _acceptance, ...withoutRole } = baseManifest;
-    expect(Either.isLeft(decodeRunRecordManifestFile(withoutRole))).toBe(true);
+    expect(Result.isFailure(decodeRunRecordManifestFile(withoutRole))).toBe(true);
     for (const acceptance of [
       null,
       { role: "acceptance", passedBy: "phase-04" },
       { role: "passing", acceptancePhase: "phase-02" },
     ]) {
-      expect(Either.isRight(decodeRunRecordManifestFile({ ...baseManifest, acceptance }))).toBe(
+      expect(Result.isSuccess(decodeRunRecordManifestFile({ ...baseManifest, acceptance }))).toBe(
         true,
       );
     }
@@ -203,7 +204,7 @@ describe("RunRecordManifestSchema", () => {
       { role: "oracle", dischargedBy: "phase-04" },
       { role: "discharging", oraclePhase: "phase-02" },
     ]) {
-      expect(Either.isLeft(decodeRunRecordManifestFile({ ...baseManifest, acceptance }))).toBe(
+      expect(Result.isFailure(decodeRunRecordManifestFile({ ...baseManifest, acceptance }))).toBe(
         true,
       );
     }
@@ -212,20 +213,20 @@ describe("RunRecordManifestSchema", () => {
   it("requires userConfig, refusing a manifest without it by naming the field", () => {
     const { userConfig: _userConfig, ...withoutUserConfig } = baseManifest;
     const result = decodeRunRecordManifestFile(withoutUserConfig);
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) expect(String(result.left)).toContain("userConfig");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) expect(String(result.failure)).toContain("userConfig");
   });
 
   it.each(["excluded", "loaded"] as const)("decodes userConfig %s as recorded", (userConfig) => {
     const result = decodeRunRecordManifestFile({ ...baseManifest, userConfig });
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) expect(result.right.userConfig).toBe(userConfig);
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) expect(result.success.userConfig).toBe(userConfig);
   });
 
   it.each(["included", "", null, true, "Loaded"])("refuses the unknown userConfig %j", (value) => {
-    expect(Either.isLeft(decodeRunRecordManifestFile({ ...baseManifest, userConfig: value }))).toBe(
-      true,
-    );
+    expect(
+      Result.isFailure(decodeRunRecordManifestFile({ ...baseManifest, userConfig: value })),
+    ).toBe(true);
   });
 
   it("writes userConfig right after provider", () => {
@@ -236,15 +237,19 @@ describe("RunRecordManifestSchema", () => {
   it("rejects a v1 manifest (no verifiedSurfaces field)", () => {
     const { verifiedSurfaces: _verifiedSurfaces, ...v1Manifest } = baseManifest;
     const result = decodeRunRecordManifestFile({ ...v1Manifest, version: 1 });
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 
   it("rejects a manifest without $schema, with a version, or naming another format", () => {
     const { $schema: _schema, ...withoutSchema } = baseManifest;
-    expect(Either.isLeft(decodeRunRecordManifestFile({ ...withoutSchema, version: 2 }))).toBe(true);
-    expect(Either.isLeft(decodeRunRecordManifestFile({ ...baseManifest, version: 2 }))).toBe(true);
+    expect(Result.isFailure(decodeRunRecordManifestFile({ ...withoutSchema, version: 2 }))).toBe(
+      true,
+    );
+    expect(Result.isFailure(decodeRunRecordManifestFile({ ...baseManifest, version: 2 }))).toBe(
+      true,
+    );
     expect(
-      Either.isLeft(
+      Result.isFailure(
         decodeRunRecordManifestFile({
           ...baseManifest,
           $schema: currentSchemaUrl("authoring-record-manifest"),
@@ -256,9 +261,9 @@ describe("RunRecordManifestSchema", () => {
   it("round-trips through encode/decode", () => {
     const encoded = encodeRunRecordManifest(baseManifest);
     const decoded = decodeRunRecordManifestFile(encoded);
-    expect(Either.isRight(decoded)).toBe(true);
-    if (Either.isRight(decoded)) {
-      expect(decoded.right).toEqual(baseManifest);
+    expect(Result.isSuccess(decoded)).toBe(true);
+    if (Result.isSuccess(decoded)) {
+      expect(decoded.success).toEqual(baseManifest);
     }
   });
 });

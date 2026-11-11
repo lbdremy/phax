@@ -6,7 +6,7 @@
 // read is never overwritten. A signal exits the process before `onExit` runs,
 // so the invocation running now is also kept for the CLI's signal handler,
 // which records it with `nextLedger`.
-import { Cause, Clock, Effect, Either } from "effect";
+import { Cause, Clock, Effect, Result } from "effect";
 import { join } from "node:path";
 import type { RunId } from "../domain/branded.js";
 import { appendEntry, ledgerEntryFor, type InvocationRole } from "../domain/cost/ledger.js";
@@ -49,10 +49,10 @@ function readLedger(path: string): Effect.Effect<CostLedger, unknown, FileSystem
       catch: () => new LedgerFailure(`${path}: not JSON — left as it is`),
     });
     const read = readCostLedgerFile(path, parsed);
-    if (Either.isLeft(read)) {
-      return yield* Effect.fail(new LedgerFailure(`${read.left.message} — left as it is`));
+    if (Result.isFailure(read)) {
+      return yield* Effect.fail(new LedgerFailure(`${read.failure.message} — left as it is`));
     }
-    return read.right;
+    return read.success;
   });
 }
 
@@ -146,7 +146,7 @@ export function withInvocationCost<A, E, R>(
           const elapsedMs = (yield* Clock.currentTimeMillis) - startedAt;
           yield* recordEntry(opts, elapsedMs);
         }).pipe(
-          Effect.catchAllCause((cause) =>
+          Effect.catchCause((cause) =>
             Effect.gen(function* () {
               const telemetry = yield* SystemTelemetry;
               const message = failureMessage(cause);

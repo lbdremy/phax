@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { architectureRequest } from "../domain/architecture/request.js";
 import { onOneLine } from "../domain/reportText.js";
 import { resolveTreePaths } from "../domain/treePaths.js";
@@ -61,10 +61,10 @@ export function pullArchitecture(input: {
         root: input.root,
         paths: [first, ...rest],
       });
-      if (Either.isLeft(resolved)) {
-        return { kind: "refused", message: onOneLine(resolved.left.refused) } as const;
+      if (Result.isFailure(resolved)) {
+        return { kind: "refused", message: onOneLine(resolved.failure.refused) } as const;
       }
-      files = resolved.right;
+      files = resolved.success;
     }
 
     const request = withSchemaUrl("architecture-request", architectureRequest(files));
@@ -73,21 +73,21 @@ export function pullArchitecture(input: {
       input.command,
       input.root,
       request,
-      (raw: unknown) => Either.right(raw),
+      (raw: unknown) => Result.succeed(raw),
       (failure) => failure,
       { timeoutMs: input.timeoutMs ?? ARCHITECTURE_TIMEOUT_MS },
     );
-    if (Either.isLeft(ran)) {
-      return { kind: "failed", reason: onOneLine(failureReason(ran.left)) } as const;
+    if (Result.isFailure(ran)) {
+      return { kind: "failed", reason: onOneLine(failureReason(ran.failure)) } as const;
     }
-    const report = readArchitectureReport(ran.right);
-    if (Either.isLeft(report)) {
+    const report = readArchitectureReport(ran.success);
+    if (Result.isFailure(report)) {
       return {
         kind: "failed",
-        reason: onOneLine(`architecture provider: ${describeReportError(report.left)}`),
+        reason: onOneLine(`architecture provider: ${describeReportError(report.failure)}`),
       } as const;
     }
-    const { body, parts } = report.right;
+    const { body, parts } = report.success;
     return { kind: "answered", report: { body, parts } } as const;
   });
 }

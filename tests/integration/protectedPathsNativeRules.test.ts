@@ -9,7 +9,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { executePlan } from "../../src/app/executePlan.js";
 import { createRunFolder } from "../../src/app/runFolder.js";
@@ -290,7 +290,7 @@ async function runPhase(
       ? (["claude-sonnet-4-6", "high"] as const)
       : (["claude-sonnet-5-5", "medium"] as const);
   const { plan, planMd } = planOf(model, effort);
-  const shortName = Either.getOrThrow(decodeShortName(SHORT));
+  const shortName = Result.getOrThrow(decodeShortName(SHORT));
   const config = configOf(globs, profile);
   const { runPath, runId } = await Effect.runPromise(
     createRunFolder(shortName, planMd, plan, config, undefined, true).pipe(
@@ -300,7 +300,7 @@ async function runPhase(
 
   const providerConfig = providerConfigOf(provider, vibe.executable);
   const result = await Effect.runPromise(
-    Effect.either(
+    Effect.result(
       executePlan({
         phaxVersion: "0.0.0-test",
         output: processOutput,
@@ -331,7 +331,7 @@ async function runPhase(
       ),
     ),
   );
-  if (Either.isLeft(result)) throw result.left as Error;
+  if (Result.isFailure(result)) throw result.failure as Error;
 
   const worktree = join(world.stateRoot, "worktrees", `${NAMESPACE}.${SHORT}`, "phase-01");
   const realWorktree = join(world.realStateRoot, "worktrees", `${NAMESPACE}.${SHORT}`, "phase-01");

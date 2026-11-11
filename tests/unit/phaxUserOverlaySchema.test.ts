@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   decodePhaxUserOverlay,
@@ -8,30 +8,30 @@ import {
 describe("decodePhaxUserOverlay", () => {
   it("accepts an empty object", () => {
     const result = decodePhaxUserOverlay({});
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
   });
 
   it("accepts only state.root", () => {
     const result = decodePhaxUserOverlay({ state: { root: "~/.mystate" } });
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.state?.root).toBe("~/.mystate");
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success.state?.root).toBe("~/.mystate");
     }
   });
 
   it("accepts only security.profile", () => {
     const result = decodePhaxUserOverlay({ security: { profile: "unsafe" } });
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.security?.profile).toBe("unsafe");
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success.security?.profile).toBe("unsafe");
     }
   });
 
   it("accepts a partial agent block", () => {
     const result = decodePhaxUserOverlay({ agent: { maxFixAttempts: 3 } });
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.agent?.maxFixAttempts).toBe(3);
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success.agent?.maxFixAttempts).toBe(3);
     }
   });
 
@@ -39,10 +39,10 @@ describe("decodePhaxUserOverlay", () => {
     const result = decodePhaxUserOverlay({
       agent: { extractPlan: { model: "claude-sonnet-4-6", effort: "high" } },
     });
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.agent?.extractPlan?.model).toBe("claude-sonnet-4-6");
-      expect(result.right.agent?.extractPlan?.effort).toBe("high");
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success.agent?.extractPlan?.model).toBe("claude-sonnet-4-6");
+      expect(result.success.agent?.extractPlan?.effort).toBe("high");
     }
   });
 
@@ -53,11 +53,11 @@ describe("decodePhaxUserOverlay", () => {
         plan: { effort: "medium" },
       },
     });
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.authoring?.spec?.model).toBe("claude-sonnet-5");
-      expect(result.right.authoring?.spec?.effort).toBe("high");
-      expect(result.right.authoring?.plan?.effort).toBe("medium");
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success.authoring?.spec?.model).toBe("claude-sonnet-5");
+      expect(result.success.authoring?.spec?.effort).toBe("high");
+      expect(result.success.authoring?.plan?.effort).toBe("medium");
     }
   });
 
@@ -67,7 +67,7 @@ describe("decodePhaxUserOverlay", () => {
         fast: [{ command: "pnpm test:unit", surface: "local", firing: "every-phase" }],
       },
     });
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
   });
 
   it("accepts a full overlay with multiple fields", () => {
@@ -77,37 +77,37 @@ describe("decodePhaxUserOverlay", () => {
       security: { profile: "secure", filesystem: { allowWrite: ["dist/"] } },
       fileReconciliation: { mode: "warn" },
     });
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
   });
 
   it("rejects an overlay carrying version", () => {
     const result = decodePhaxUserOverlay({ version: 1 });
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 
   it("rejects an overlay carrying name", () => {
     const result = decodePhaxUserOverlay({ name: "myproject" });
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 
   it("rejects an overlay carrying $schema", () => {
     const result = decodePhaxUserOverlay({ $schema: "./phax.schema.json" });
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 
   it("rejects an overlay with an unknown excess property", () => {
     const result = decodePhaxUserOverlay({ unknownField: "value" });
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 
   it("rejects an invalid agent.maxFixAttempts value (out of range)", () => {
     const result = decodePhaxUserOverlay({ agent: { maxFixAttempts: 0 } });
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 
   it("rejects an invalid security profile value", () => {
     const result = decodePhaxUserOverlay({ security: { profile: "super-safe" } });
-    expect(Either.isLeft(result)).toBe(true);
+    expect(Result.isFailure(result)).toBe(true);
   });
 });
 

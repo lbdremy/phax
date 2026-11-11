@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -26,9 +26,9 @@ function fakeGh(script: string): void {
   vi.stubEnv("PATH", `${binDir}:${process.env["PATH"] ?? "/usr/bin:/bin"}`);
 }
 
-function realRepoWebUrl(): Promise<Either.Either<string, GitHubError>> {
+function realRepoWebUrl(): Promise<Result.Result<string, GitHubError>> {
   return Effect.runPromise(
-    Effect.either(
+    Effect.result(
       Effect.flatMap(GitHub, (gh: GitHubOps) => gh.repoWebUrl(binDir)).pipe(
         Effect.provide(NodeGitHubLayer),
       ),
@@ -37,8 +37,8 @@ function realRepoWebUrl(): Promise<Either.Either<string, GitHubError>> {
 }
 
 // The failure the contract promises: a GitHubError, whose message holds `part`.
-function expectGitHubError(result: Either.Either<string, unknown>, part = ""): void {
-  const error = Either.flip(result).pipe(Either.getOrNull);
+function expectGitHubError(result: Result.Result<string, unknown>, part = ""): void {
+  const error = Result.flip(result).pipe(Result.getOrNull);
   expect(error).toBeInstanceOf(GitHubError);
   expect((error as GitHubError).message).toContain(part);
 }
@@ -61,12 +61,12 @@ const implementations = [
     answers: (url: string) => {
       const { impl } = makeFakeGitHub();
       impl.setWebUrl(url);
-      return Effect.runPromise(Effect.either(impl.repoWebUrl(binDir)));
+      return Effect.runPromise(Effect.result(impl.repoWebUrl(binDir)));
     },
     fails: () => {
       const { impl } = makeFakeGitHub();
       impl.failNextRepoWebUrl("no git remotes found");
-      return Effect.runPromise(Effect.either(impl.repoWebUrl(binDir)));
+      return Effect.runPromise(Effect.result(impl.repoWebUrl(binDir)));
     },
   },
 ];
@@ -74,7 +74,7 @@ const implementations = [
 describe.each(implementations)("repoWebUrl contract: $name", ({ answers, fails }) => {
   it("returns the repository's web URL", async () => {
     expect(await answers("https://github.com/example/repo")).toEqual(
-      Either.right("https://github.com/example/repo"),
+      Result.succeed("https://github.com/example/repo"),
     );
   });
 

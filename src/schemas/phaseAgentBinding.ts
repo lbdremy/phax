@@ -1,26 +1,27 @@
 import { Schema } from "effect";
 import { ProviderIdSchema } from "./providerId.js";
+import { isExportedPattern } from "./strictString.js";
 
-const AdapterSchema = Schema.Union(
+const AdapterSchema = Schema.Union([
   Schema.Literal("claude"),
   Schema.Literal("codex"),
   Schema.Literal("mistral"),
-);
+]);
 
-const BindingStatusSchema = Schema.Union(
+const BindingStatusSchema = Schema.Union([
   Schema.Literal("launching"),
   Schema.Literal("running"),
   Schema.Literal("awaiting_manual_review"),
   Schema.Literal("failed"),
   Schema.Literal("completed"),
   Schema.Literal("archived"),
-);
+]);
 
 export const PhaseAgentBindingSchema = Schema.Struct({
   version: Schema.Literal(1),
   shortName: Schema.NonEmptyString,
   runId: Schema.NonEmptyString,
-  phaseId: Schema.NonEmptyString.pipe(Schema.pattern(/^phase-\d{2}$/)),
+  phaseId: Schema.NonEmptyString.check(isExportedPattern(/^phase-\d{2}$/)),
   phaseIndex: Schema.Number,
   phaseName: Schema.NonEmptyString,
   provider: ProviderIdSchema,
@@ -37,5 +38,7 @@ export const PhaseAgentBindingSchema = Schema.Struct({
 
 export type PhaseAgentBinding = Schema.Schema.Type<typeof PhaseAgentBindingSchema>;
 
-export const decodePhaseAgentBinding = Schema.decodeUnknownEither(PhaseAgentBindingSchema);
+export const decodePhaseAgentBinding = Schema.decodeUnknownResult(PhaseAgentBindingSchema, {
+  reportInput: true,
+});
 export const encodePhaseAgentBinding = Schema.encodeSync(PhaseAgentBindingSchema);

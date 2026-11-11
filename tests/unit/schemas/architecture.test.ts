@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   decodeArchitectureReportFile,
@@ -13,14 +13,14 @@ const REPORT = schemaUrl("architecture-report", "1.2.3");
 
 describe("architecture request", () => {
   it("decodes with files null", () => {
-    expect(Either.isRight(decodeArchitectureRequestFile({ $schema: REQUEST, files: null }))).toBe(
+    expect(Result.isSuccess(decodeArchitectureRequestFile({ $schema: REQUEST, files: null }))).toBe(
       true,
     );
   });
 
   it("decodes with a list of paths", () => {
     expect(
-      Either.isRight(
+      Result.isSuccess(
         decodeArchitectureRequestFile({ $schema: REQUEST, files: ["src/core/billing/totals.ts"] }),
       ),
     ).toBe(true);
@@ -34,7 +34,7 @@ describe("architecture request", () => {
     ["a $schema naming another format", { $schema: REPORT, files: null }],
     ["an extra key", { $schema: REQUEST, files: null, phase: "phase-01" }],
   ])("refuses %s", (_name, input) => {
-    expect(Either.isLeft(decodeArchitectureRequestFile(input))).toBe(true);
+    expect(Result.isFailure(decodeArchitectureRequestFile(input))).toBe(true);
   });
 });
 
@@ -69,7 +69,7 @@ const BAD_GLOBS = [
 
 describe("architecture report", () => {
   it("decodes { $schema, body, parts: [] }", () => {
-    expect(Either.isRight(decodeArchitectureReportFile(report([])))).toBe(true);
+    expect(Result.isSuccess(decodeArchitectureReportFile(report([])))).toBe(true);
   });
 
   it("decodes a report with three parts", () => {
@@ -83,7 +83,7 @@ describe("architecture report", () => {
       },
       { id: "docs", name: "docs", description: "The docs.", globs: ["docs/**", "*.md"] },
     ];
-    expect(Either.isRight(decodeArchitectureReportFile(report(parts)))).toBe(true);
+    expect(Result.isSuccess(decodeArchitectureReportFile(report(parts)))).toBe(true);
   });
 
   const refused: ReadonlyArray<readonly [string, unknown]> = [
@@ -107,12 +107,12 @@ describe("architecture report", () => {
   ];
 
   it.each(refused)("refuses %s", (_name, input) => {
-    expect(Either.isLeft(decodeArchitectureReportFile(input))).toBe(true);
+    expect(Result.isFailure(decodeArchitectureReportFile(input))).toBe(true);
   });
 
   it("names the repeated id", () => {
     const decoded = decodeArchitectureReportFile(report([PART, PART]));
-    expect(Either.isLeft(decoded) && String(decoded.left)).toContain(
+    expect(Result.isFailure(decoded) && String(decoded.failure)).toContain(
       'part id "core-decide" is used twice',
     );
   });
@@ -121,7 +121,7 @@ describe("architecture report", () => {
     "accepts the glob %s",
     (glob) => {
       expect(
-        Either.isRight(decodeArchitectureReportFile(report([{ ...PART, globs: [glob] }]))),
+        Result.isSuccess(decodeArchitectureReportFile(report([{ ...PART, globs: [glob] }]))),
       ).toBe(true);
     },
   );
@@ -130,9 +130,9 @@ describe("architecture report", () => {
 describe("readArchitectureReport", () => {
   it("names the architecture-report URL it reads when $schema is missing", () => {
     const read = readArchitectureReport({ body: "x", parts: [] });
-    expect(Either.isLeft(read)).toBe(true);
-    if (Either.isLeft(read)) {
-      expect(read.left.reads).toMatch(/architecture-report\/\d+\.\d+\.\d+\.json$/);
+    expect(Result.isFailure(read)).toBe(true);
+    if (Result.isFailure(read)) {
+      expect(read.failure.reads).toMatch(/architecture-report\/\d+\.\d+\.\d+\.json$/);
     }
   });
 
@@ -141,13 +141,13 @@ describe("readArchitectureReport", () => {
       $schema: schemaUrl("architecture-report", CURRENT_STAMPS["architecture-report"]),
       body: "x",
     });
-    expect(Either.isLeft(read)).toBe(true);
-    if (Either.isLeft(read)) expect(describeReportError(read.left)).toContain("parts");
+    expect(Result.isFailure(read)).toBe(true);
+    if (Result.isFailure(read)) expect(describeReportError(read.failure)).toContain("parts");
   });
 
   it("refuses a report in another format", () => {
-    expect(Either.isLeft(readArchitectureReport({ $schema: REQUEST, body: "x", parts: [] }))).toBe(
-      true,
-    );
+    expect(
+      Result.isFailure(readArchitectureReport({ $schema: REQUEST, body: "x", parts: [] })),
+    ).toBe(true);
   });
 });

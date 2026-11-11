@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildHeldReviewCommitBody } from "../../src/app/commit.js";
 import { closeStop, type CloseReport } from "../../src/app/closeStop.js";
@@ -247,7 +247,7 @@ async function close(options: CloseOptions = {}) {
   }
   const program = Effect.gen(function* () {
     if (options.resume !== false) yield* resumeRequested(r);
-    return yield* Effect.either(closeStop(closeInput(r)));
+    return yield* Effect.result(closeStop(closeInput(r)));
   });
   const result = await Effect.runPromise(
     program.pipe(
@@ -267,16 +267,16 @@ async function close(options: CloseOptions = {}) {
 
 type HeldReport = Extract<CloseReport, { readonly cause: "held" }>;
 
-const report = (result: Either.Either<CloseReport, unknown>): HeldReport => {
-  if (Either.isLeft(result)) throw new Error(`close refused: ${String(result.left)}`);
-  if (result.right.cause !== "held") throw new Error("the close was not a held stop's");
-  return result.right;
+const report = (result: Result.Result<CloseReport, unknown>): HeldReport => {
+  if (Result.isFailure(result)) throw new Error(`close refused: ${String(result.failure)}`);
+  if (result.success.cause !== "held") throw new Error("the close was not a held stop's");
+  return result.success;
 };
 
-const refusal = (result: Either.Either<CloseReport, unknown>): StopCloseRefusedError => {
-  if (Either.isRight(result)) throw new Error("the close was not refused");
-  expect(result.left).toBeInstanceOf(StopCloseRefusedError);
-  return result.left as StopCloseRefusedError;
+const refusal = (result: Result.Result<CloseReport, unknown>): StopCloseRefusedError => {
+  if (Result.isSuccess(result)) throw new Error("the close was not refused");
+  expect(result.failure).toBeInstanceOf(StopCloseRefusedError);
+  return result.failure as StopCloseRefusedError;
 };
 
 function lastCloseOf<R extends RefusedClose["result"]>(
@@ -828,7 +828,7 @@ describe(
             }),
         });
         const { loadConfig } = await import("../../src/app/loadConfig.js");
-        vi.mocked(loadConfig).mockReturnValue(Either.right(entered.config));
+        vi.mocked(loadConfig).mockReturnValue(Result.succeed(entered.config));
         expect((await phaxCall(["enter-phase", SHORT, "phase-02"])).code).toBe(0);
 
         for (const r of [run, entered]) write(PERSON_HANDOFF_PATH, PERSON_HANDOFF, r);

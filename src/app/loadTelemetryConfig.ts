@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { homedir } from "node:os";
-import { Either } from "effect";
+import { Result } from "effect";
 import { ConfigValidationError } from "../domain/errors.js";
 import { decodeTelemetryConfig, type TelemetryConfig } from "../schemas/telemetryConfig.js";
 import { formatParseError } from "../schemas/formatError.js";
@@ -16,7 +16,7 @@ export type LoadTelemetryConfigError = ConfigValidationError;
 
 export function loadTelemetryConfig(
   configPath: string = TELEMETRY_CONFIG_PATH,
-): Either.Either<TelemetryConfig, LoadTelemetryConfigError> {
+): Result.Result<TelemetryConfig, LoadTelemetryConfigError> {
   if (!existsSync(configPath)) {
     try {
       mkdirSync(dirname(configPath), { recursive: true });
@@ -25,14 +25,14 @@ export function loadTelemetryConfig(
     } catch {
       // swallow: another process may have scaffolded the file between existsSync and writeFileSync
     }
-    return Either.right(DEFAULT_TELEMETRY_CONFIG);
+    return Result.succeed(DEFAULT_TELEMETRY_CONFIG);
   }
 
   let raw: unknown;
   try {
     raw = JSON.parse(readFileSync(configPath, "utf8"));
   } catch (err) {
-    return Either.left(
+    return Result.fail(
       new ConfigValidationError({
         message: `Failed to read or parse "${configPath}": ${String(err)}`,
         path: configPath,
@@ -41,14 +41,14 @@ export function loadTelemetryConfig(
   }
 
   const decoded = decodeTelemetryConfig(raw);
-  if (Either.isLeft(decoded)) {
-    return Either.left(
+  if (Result.isFailure(decoded)) {
+    return Result.fail(
       new ConfigValidationError({
-        message: `Invalid telemetry.json at "${configPath}":\n${formatParseError(decoded.left)}`,
+        message: `Invalid telemetry.json at "${configPath}":\n${formatParseError(decoded.failure)}`,
         path: configPath,
       }),
     );
   }
 
-  return Either.right(decoded.right);
+  return Result.succeed(decoded.success);
 }

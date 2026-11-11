@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { RunReviewInfo } from "../domain/runReviewInfo.js";
@@ -90,7 +90,7 @@ function loadRecordedPlanPath(
     const path = join(runPath, RUN_STATUS_FILENAME);
     const raw = yield* fs.readText(path);
     const parsed = yield* Effect.try(() => JSON.parse(raw) as unknown);
-    const status = yield* readRunStatusFile(path, parsed);
+    const status = yield* Effect.fromResult(readRunStatusFile(path, parsed));
     return status.planRepoRelPath ?? null;
   });
 }
@@ -187,7 +187,7 @@ function loadAgentGroups(
     for (const phaseId of phaseIds) {
       const binding = yield* fs.readText(join(runPath, phaseId, AGENT_BINDING_FILENAME)).pipe(
         Effect.flatMap((raw) => Effect.try(() => JSON.parse(raw) as unknown)),
-        Effect.map((parsed) => Either.getOrNull(decodePhaseAgentBinding(parsed))),
+        Effect.map((parsed) => Result.getOrNull(decodePhaseAgentBinding(parsed))),
         Effect.orElseSucceed(() => null),
       );
       if (binding !== null) {
@@ -211,7 +211,7 @@ function loadCompliance(
     const raw = yield* fs.readText(path);
     const parsed = yield* Effect.try(() => JSON.parse(raw) as unknown);
     // Only the fields every shape carries: the ledgers are not read here.
-    const { review } = yield* readComplianceReviewFile(path, parsed);
+    const { review } = yield* Effect.fromResult(readComplianceReviewFile(path, parsed));
     return { kind: "reviewed", review } as const;
   }).pipe(Effect.orElseSucceed(() => notReviewed));
 }
@@ -228,7 +228,7 @@ function loadCodeReview(
     if (!(yield* fs.exists(path))) return notReviewed;
     const raw = yield* fs.readText(path);
     const parsed = yield* Effect.try(() => JSON.parse(raw) as unknown);
-    const review = yield* readCodeReviewFile(path, parsed);
+    const review = yield* Effect.fromResult(readCodeReviewFile(path, parsed));
     return { kind: "reviewed", review } as const;
   }).pipe(Effect.orElseSucceed(() => notReviewed));
 }
@@ -366,17 +366,17 @@ export function publishRun(
       );
     }
 
-    const branchExistsResult = yield* Effect.either(
+    const branchExistsResult = yield* Effect.result(
       git.branchExists(info.finalPhaseBranch, opts.repoRoot),
     );
-    if (Either.isLeft(branchExistsResult)) {
+    if (Result.isFailure(branchExistsResult)) {
       return yield* fail(
-        `Cannot inspect branch ${branchString}: ${branchExistsResult.left.message}`,
+        `Cannot inspect branch ${branchString}: ${branchExistsResult.failure.message}`,
         "not_attempted",
         "not_attempted",
       );
     }
-    if (!branchExistsResult.right) {
+    if (!branchExistsResult.success) {
       return yield* fail(
         `Final phase branch ${branchString} does not exist`,
         "not_attempted",
@@ -384,17 +384,17 @@ export function publishRun(
       );
     }
 
-    const remoteExistsResult = yield* Effect.either(
+    const remoteExistsResult = yield* Effect.result(
       git.remoteExists(publish.remote, opts.repoRoot),
     );
-    if (Either.isLeft(remoteExistsResult)) {
+    if (Result.isFailure(remoteExistsResult)) {
       return yield* fail(
-        `Cannot inspect remote ${publish.remote}: ${remoteExistsResult.left.message}`,
+        `Cannot inspect remote ${publish.remote}: ${remoteExistsResult.failure.message}`,
         "not_attempted",
         "not_attempted",
       );
     }
-    if (!remoteExistsResult.right) {
+    if (!remoteExistsResult.success) {
       return yield* fail(
         `Remote "${publish.remote}" is not configured`,
         "not_attempted",
@@ -402,15 +402,15 @@ export function publishRun(
       );
     }
 
-    const ghAvailableResult = yield* Effect.either(github.isAvailable());
-    if (Either.isLeft(ghAvailableResult)) {
+    const ghAvailableResult = yield* Effect.result(github.isAvailable());
+    if (Result.isFailure(ghAvailableResult)) {
       return yield* fail(
-        `gh availability check failed: ${ghAvailableResult.left.message}`,
+        `gh availability check failed: ${ghAvailableResult.failure.message}`,
         "not_attempted",
         "not_attempted",
       );
     }
-    if (!ghAvailableResult.right) {
+    if (!ghAvailableResult.success) {
       return yield* fail(
         "GitHub CLI (gh) is not available on PATH",
         "not_attempted",
@@ -418,15 +418,15 @@ export function publishRun(
       );
     }
 
-    const ghAuthedResult = yield* Effect.either(github.isAuthenticated(opts.repoRoot));
-    if (Either.isLeft(ghAuthedResult)) {
+    const ghAuthedResult = yield* Effect.result(github.isAuthenticated(opts.repoRoot));
+    if (Result.isFailure(ghAuthedResult)) {
       return yield* fail(
-        `gh authentication check failed: ${ghAuthedResult.left.message}`,
+        `gh authentication check failed: ${ghAuthedResult.failure.message}`,
         "not_attempted",
         "not_attempted",
       );
     }
-    if (!ghAuthedResult.right) {
+    if (!ghAuthedResult.success) {
       return yield* fail(
         "GitHub CLI (gh) is not authenticated. Run `gh auth login`.",
         "not_attempted",
@@ -434,15 +434,15 @@ export function publishRun(
       );
     }
 
-    const ghRepoResult = yield* Effect.either(github.repoRecognized(opts.repoRoot));
-    if (Either.isLeft(ghRepoResult)) {
+    const ghRepoResult = yield* Effect.result(github.repoRecognized(opts.repoRoot));
+    if (Result.isFailure(ghRepoResult)) {
       return yield* fail(
-        `gh repo check failed: ${ghRepoResult.left.message}`,
+        `gh repo check failed: ${ghRepoResult.failure.message}`,
         "not_attempted",
         "not_attempted",
       );
     }
-    if (!ghRepoResult.right) {
+    if (!ghRepoResult.success) {
       return yield* fail(
         `GitHub CLI does not recognize the repository at "${opts.repoRoot}"`,
         "not_attempted",
@@ -462,22 +462,22 @@ export function publishRun(
           operation: "pushBranch",
         }),
       );
-      const pushResult = yield* Effect.either(
+      const pushResult = yield* Effect.result(
         git.pushBranch(info.finalPhaseBranch, publish.remote, opts.repoRoot),
       );
-      if (Either.isLeft(pushResult)) {
+      if (Result.isFailure(pushResult)) {
         yield* telemetry.recordEvent(
           makeAdapterCallFailedTelemetryEvent({
             runId,
             operationId: info.shortName,
             adapter: "git",
             operation: "pushBranch",
-            exitCode: pushResult.left.exitCode ?? -1,
-            stderrExcerpt: pushResult.left.stderrExcerpt ?? pushResult.left.stderr ?? "",
+            exitCode: pushResult.failure.exitCode ?? -1,
+            stderrExcerpt: pushResult.failure.stderrExcerpt ?? pushResult.failure.stderr ?? "",
           }),
         );
         return yield* fail(
-          `git push failed: ${pushResult.left.stderr ?? pushResult.left.message}`,
+          `git push failed: ${pushResult.failure.stderr ?? pushResult.failure.message}`,
           "failed",
           "not_attempted",
         );
@@ -517,34 +517,34 @@ export function publishRun(
 
     let baseBranch = publish.baseBranch;
     if (baseBranch === undefined) {
-      const baseResult = yield* Effect.either(github.defaultBaseBranch(opts.repoRoot));
-      if (Either.isLeft(baseResult)) {
+      const baseResult = yield* Effect.result(github.defaultBaseBranch(opts.repoRoot));
+      if (Result.isFailure(baseResult)) {
         return yield* fail(
-          `Could not resolve default base branch: ${baseResult.left.message}`,
+          `Could not resolve default base branch: ${baseResult.failure.message}`,
           pushStatus,
           "not_attempted",
         );
       }
-      baseBranch = baseResult.right;
+      baseBranch = baseResult.success;
     }
 
     // Reuse-or-create PR
 
     yield* logVerbose(opts.output, verbose, "Creating GitHub pull request…");
 
-    const existingResult = yield* Effect.either(
+    const existingResult = yield* Effect.result(
       github.findPullRequestForBranch(info.finalPhaseBranch, opts.repoRoot),
     );
-    if (Either.isLeft(existingResult)) {
+    if (Result.isFailure(existingResult)) {
       return yield* fail(
-        `Could not query existing pull request: ${existingResult.left.message}`,
+        `Could not query existing pull request: ${existingResult.failure.message}`,
         pushStatus,
         "failed",
         { baseBranch },
       );
     }
 
-    const existingUrl = existingResult.right;
+    const existingUrl = existingResult.success;
     if (existingUrl !== null) {
       const record: PublicationRecord = {
         ...baseRecord,
@@ -567,21 +567,21 @@ export function publishRun(
       return { kind: "published", record, prUrl: existingUrl } satisfies PublicationResult;
     }
 
-    const loadResult = yield* Effect.either(loadReviewHandoffInputs(info));
-    if (Either.isLeft(loadResult)) {
+    const loadResult = yield* Effect.result(loadReviewHandoffInputs(info));
+    if (Result.isFailure(loadResult)) {
       return yield* fail(
-        `Could not load review handoff inputs: ${loadResult.left.message}`,
+        `Could not load review handoff inputs: ${loadResult.failure.message}`,
         pushStatus,
         "failed",
         { baseBranch },
       );
     }
-    const { global, phaseContents, sourceSpecOutcomeMd, reviewNoteGroups } = loadResult.right;
+    const { global, phaseContents, sourceSpecOutcomeMd, reviewNoteGroups } = loadResult.success;
 
-    const planResult = yield* Effect.either(loadRecordedPlanPath(info.runPath));
-    if (Either.isLeft(planResult)) {
+    const planResult = yield* Effect.result(loadRecordedPlanPath(info.runPath));
+    if (Result.isFailure(planResult)) {
       return yield* fail(
-        `Could not load run status: ${planResult.left.message}`,
+        `Could not load run status: ${planResult.failure.message}`,
         pushStatus,
         "failed",
         { baseBranch },
@@ -621,7 +621,7 @@ export function publishRun(
     const head = yield* loadHeadFacts(info, opts.repoRoot, pushStatus);
     const footer = {
       version: opts.phaxVersion,
-      plan: planRefAtHead(planResult.right, head),
+      plan: planRefAtHead(planResult.success, head),
       spec: yield* loadSpecRef(info.runPath, head),
       agents: yield* loadAgentGroups(
         info.runPath,
@@ -662,7 +662,7 @@ export function publishRun(
       }),
     );
 
-    const createResult = yield* Effect.either(
+    const createResult = yield* Effect.result(
       github.createPullRequest({
         branch: info.finalPhaseBranch,
         base: baseBranch,
@@ -672,19 +672,19 @@ export function publishRun(
       }),
     );
 
-    if (Either.isLeft(createResult)) {
+    if (Result.isFailure(createResult)) {
       yield* telemetry.recordEvent(
         makeAdapterCallFailedTelemetryEvent({
           runId,
           operationId: info.shortName,
           adapter: "github",
           operation: "createPullRequest",
-          exitCode: createResult.left.exitCode ?? -1,
-          stderrExcerpt: createResult.left.stderr ?? "",
+          exitCode: createResult.failure.exitCode ?? -1,
+          stderrExcerpt: createResult.failure.stderr ?? "",
         }),
       );
       return yield* fail(
-        `gh pr create failed: ${createResult.left.stderr ?? createResult.left.message}`,
+        `gh pr create failed: ${createResult.failure.stderr ?? createResult.failure.message}`,
         pushStatus,
         "failed",
         { baseBranch },
@@ -700,7 +700,7 @@ export function publishRun(
       }),
     );
 
-    const prUrl = createResult.right;
+    const prUrl = createResult.success;
     const record: PublicationRecord = {
       ...baseRecord,
       baseBranch,

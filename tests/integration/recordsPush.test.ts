@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { NodeGitLayer } from "../../src/infra/git.js";
 import { Git, type GitError } from "../../src/ports/git.js";
 import { decodeBranchName, type BranchName } from "../../src/domain/branded.js";
@@ -22,7 +22,7 @@ import { runStatus } from "../helpers/runStatusFixture.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 import { processOutput } from "../helpers/processOutput.js";
 
-const RECORDS_BRANCH: BranchName = Either.getOrThrow(decodeBranchName("phax/records/v1"));
+const RECORDS_BRANCH: BranchName = Result.getOrThrow(decodeBranchName("phax/records/v1"));
 
 function execGit(args: readonly string[], cwd: string): string {
   return execFileSync("git", [...args], { cwd, encoding: "utf8" });

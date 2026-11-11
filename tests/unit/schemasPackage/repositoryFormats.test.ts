@@ -1,4 +1,4 @@
-import { Either, JSONSchema, type ParseResult } from "effect";
+import { Result, type Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import { FORMAT_DEFINITIONS } from "../../../packages/schemas/build/jsonSchemas.js";
 import { CURRENT_SHAPES, PACKAGE_VERSION } from "../../../packages/schemas/src/generated/index.js";
@@ -54,8 +54,9 @@ import {
   EXAMPLE_TEST_LINES,
   type Doc,
 } from "./documents.js";
+import { draft07JsonSchema } from "../../../src/schemas/schemaUrl.js";
 
-type Decode = (input: unknown) => Either.Either<unknown, ParseResult.ParseError>;
+type Decode = (input: unknown) => Result.Result<unknown, Schema.SchemaError>;
 
 interface RepositoryFormat {
   readonly id: PreSchemaFormatId;
@@ -109,8 +110,8 @@ describe.each(FORMATS)("$id", (format) => {
 
   it("parses the document phax writes as its current shape, with phax's value", () => {
     const phax = format.phax(document);
-    if (Either.isLeft(phax)) throw new Error("document rejected by phax");
-    expect(format.parse(document)).toEqual({ ok: true, shape: current, value: phax.right });
+    if (Result.isFailure(phax)) throw new Error("document rejected by phax");
+    expect(format.parse(document)).toEqual({ ok: true, shape: current, value: phax.success });
   });
 
   it("is identified by its $schema alone as its current shape (ac-identify-alone)", () => {
@@ -157,7 +158,7 @@ describe.each(FORMATS)("$id", (format) => {
 
   it("rejects an unknown key, as phax's strict decoder does", () => {
     expect(format.parse(withKey(document, "extra", true)).ok).toBe(false);
-    expect(Either.isLeft(format.phax(withKey(document, "extra", true)))).toBe(true);
+    expect(Result.isFailure(format.phax(withKey(document, "extra", true)))).toBe(true);
   });
 
   it("rejects a document that carries both $schema and version", () => {
@@ -233,8 +234,8 @@ describe.each(RECORD_FORMATS)("$id, born with $schema", (format) => {
 
   it("parses the document phax writes as shape next, with phax's value", () => {
     const phax = format.phax(document);
-    if (Either.isLeft(phax)) throw new Error("document rejected by phax");
-    expect(format.parse(document)).toEqual({ ok: true, shape: current, value: phax.right });
+    if (Result.isFailure(phax)) throw new Error("document rejected by phax");
+    expect(format.parse(document)).toEqual({ ok: true, shape: current, value: phax.success });
     expect(parseDocument(document)).toMatchObject({ ok: true, format: format.id, shape: current });
   });
 
@@ -253,7 +254,7 @@ describe.each(RECORD_FORMATS)("$id, born with $schema", (format) => {
   it("rejects an unknown key and a missing artifact, as phax's strict decoder does", () => {
     for (const input of [withKey(document, "extra", true), withoutKey(document, "artifact")]) {
       expect(format.parse(input).ok).toBe(false);
-      expect(Either.isLeft(format.phax(input))).toBe(true);
+      expect(Result.isFailure(format.phax(input))).toBe(true);
     }
   });
 
@@ -593,11 +594,11 @@ describe("the spec document's traceability", () => {
       expect(result.error.path).toBe("acceptanceCriteria.0.refs.0");
       expect(result.error.message).toContain('"no-such-requirement" names no requirement');
     }
-    expect(Either.isLeft(decodeSpecDocumentFile(dangling))).toBe(true);
+    expect(Result.isFailure(decodeSpecDocumentFile(dangling))).toBe(true);
   });
 
   it("declares the checks JSON Schema cannot express, in the root description", () => {
-    const file = JSONSchema.make(SpecDocumentFileSchema) as { description?: string };
+    const file = draft07JsonSchema(SpecDocumentFileSchema) as { description?: string };
     expect(file.description).toContain("`refs` entry names an existing requirement");
   });
 });

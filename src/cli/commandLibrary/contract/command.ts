@@ -3,6 +3,7 @@
 /* oxlint-disable typescript/no-explicit-any */
 import type { Effect } from "effect";
 import type * as Schema from "effect/Schema";
+import type * as SchemaAST from "effect/SchemaAST";
 import type { Refused } from "./define.js";
 import type { Written } from "./written.js";
 
@@ -16,7 +17,7 @@ export type Undeclared = "reject" | "strip";
  *  whether the document is required (`required`): the runner then reads that flag itself, from
  *  the call's words, and reads the document from stdin or from the file attached to the flag. */
 export interface Source<
-  S extends Schema.Schema.Any,
+  S extends Schema.Top,
   U extends Undeclared = Undeclared,
   F extends string | undefined = string | undefined,
   Q extends boolean = boolean,
@@ -38,10 +39,11 @@ export interface Source<
 /** A `Schema.Struct`, read by its shape: a schema with its fields. Effect 3's
  *  `Schema.Struct<Fields>` is invariant in its fields (through its `annotations` method), so the
  *  port names the struct a source holds by what the library reads of it. */
-export type StructContract = Schema.Schema.Any & { readonly fields: Schema.Struct.Fields };
+export type StructContract = Schema.Top & { readonly fields: Schema.Struct.Fields };
 
-/** A `Schema.Tuple`, read by its shape: a schema with its elements (see `StructContract`). */
-export type TupleContract = Schema.Schema.Any & { readonly elements: Schema.TupleType.Elements };
+/** A `Schema.Tuple` or a `Schema.Array`, read by its shape: a schema whose node holds elements
+ *  (see `StructContract`). */
+export type TupleContract = Schema.Top & { readonly ast: SchemaAST.Arrays };
 
 /** The sources a command reads, each a named Effect Schema with its policy, decoded before run. */
 export interface Inputs {
@@ -50,7 +52,7 @@ export interface Inputs {
   /** The options, `--name value`. */
   readonly flags?: Source<StructContract>;
   /** What another tool writes to the standard input, as JSON (or as text, see `Source.text`). */
-  readonly stdin?: Source<Schema.Schema.Any>;
+  readonly stdin?: Source<Schema.Top>;
   /** The variables of the environment the command reads. */
   readonly env?: Source<StructContract>;
 }
@@ -162,7 +164,7 @@ export interface CommandDef<
   I extends Inputs,
   A,
   E extends Tagged,
-  O extends Source<Schema.Schema.Any> | undefined,
+  O extends Source<Schema.Top> | undefined,
   R,
 > {
   readonly name: string;
@@ -182,7 +184,7 @@ export interface CommandDef<
   /** The fields of each error, as a schema, for the contracts catalogue. An error that declares
    *  none lists `{}`. The runner owns the field `written` (an array of written-file records): it
    *  is lifted out of the fields into the `error` line's `written`. */
-  readonly errors?: { readonly [K in E["_tag"]]?: Schema.Schema.Any };
+  readonly errors?: { readonly [K in E["_tag"]]?: Schema.Top };
   /** Gain carried for upstream (a declared error's text form): the sentence a person reads for an
    *  error, by its tag, written on stderr without `--json` in place of the runner's own. Under
    *  `--json` the `error` line alone is written. The errors are inferred from `run`, in the

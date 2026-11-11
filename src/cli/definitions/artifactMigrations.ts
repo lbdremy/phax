@@ -29,7 +29,7 @@ import {
 
 const Commit = Schema.Struct({ hash: Schema.String, subject: Schema.String });
 
-const ApprovalMigrationOutput = Schema.Union(
+const ApprovalMigrationOutput = Schema.Union([
   Schema.Struct({
     kind: Schema.Literal("nothing-to-migrate"),
     written: Schema.Array(Written),
@@ -43,7 +43,7 @@ const ApprovalMigrationOutput = Schema.Union(
     commit: Commit,
     written: Schema.Array(Written),
   }),
-);
+]);
 
 const QuestionCounts = Schema.Struct({
   open: Schema.Array(Schema.String),
@@ -51,7 +51,7 @@ const QuestionCounts = Schema.Struct({
   lifted: Schema.Number,
 });
 
-const DocumentMigrationOutput = Schema.Union(
+const DocumentMigrationOutput = Schema.Union([
   Schema.Struct({
     kind: Schema.Literal("nothing-to-migrate"),
     written: Schema.Array(Written),
@@ -60,13 +60,13 @@ const DocumentMigrationOutput = Schema.Union(
     kind: Schema.Literal("migrated"),
     groups: Schema.Array(
       Schema.Struct({
-        format: Schema.Literal("spec-document", "plan-document"),
+        format: Schema.Literals(["spec-document", "plan-document"]),
         fromShape: Schema.String,
         toShape: Schema.String,
         artifacts: Schema.Array(
           Schema.Struct({
             path: Schema.String,
-            status: Schema.Literal("Draft", "Approved", "Stale", "Abandoned", "Completed"),
+            status: Schema.Literals(["Draft", "Approved", "Stale", "Abandoned", "Completed"]),
             questions: QuestionCounts,
             summariesToWrite: Schema.Number,
             bodyChanged: Schema.Boolean,
@@ -79,7 +79,7 @@ const DocumentMigrationOutput = Schema.Union(
     commit: Commit,
     written: Schema.Array(Written),
   }),
-);
+]);
 
 const sentence = (error: { readonly message: string }): string => error.message;
 

@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { join } from "node:path";
 import { renderBriefSection } from "../domain/brief/render.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
@@ -60,18 +60,18 @@ function replayRecordedBrief(
 ): Effect.Effect<string, never, FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
-    const raw = yield* Effect.either(fs.readText(recordPath));
-    if (Either.isLeft(raw)) {
+    const raw = yield* Effect.result(fs.readText(recordPath));
+    if (Result.isFailure(raw)) {
       return unavailable(
         output,
         phaseId,
-        `${PUSHED_BRIEF_RECORD} is unreadable: ${raw.left.message}`,
+        `${PUSHED_BRIEF_RECORD} is unreadable: ${raw.failure.message}`,
         push,
       );
     }
     let parsed: unknown;
     try {
-      parsed = JSON.parse(raw.right) as unknown;
+      parsed = JSON.parse(raw.success) as unknown;
     } catch {
       return unavailable(
         output,
@@ -81,21 +81,21 @@ function replayRecordedBrief(
       );
     }
     const record = readBriefRecordFile(recordPath, parsed);
-    if (Either.isLeft(record)) {
+    if (Result.isFailure(record)) {
       return unavailable(
         output,
         phaseId,
-        `${PUSHED_BRIEF_RECORD} is unreadable: ${record.left.message}`,
+        `${PUSHED_BRIEF_RECORD} is unreadable: ${record.failure.message}`,
         push,
       );
     }
-    const { outcome } = record.right;
+    const { outcome } = record.success;
     if (outcome.kind === "failed") {
       return renderBriefSection({ kind: "failed", reason: outcome.reason }, push);
     }
     const report = readPrintedBriefReport(outcome.answer);
-    if (Either.isLeft(report)) return unavailable(output, phaseId, report.left, push);
-    return renderBriefSection({ kind: "answered", report: report.right }, push);
+    if (Result.isFailure(report)) return unavailable(output, phaseId, report.failure, push);
+    return renderBriefSection({ kind: "answered", report: report.success }, push);
   });
 }
 
@@ -129,7 +129,7 @@ export function pushBrief(input: {
       cwd: input.worktreePath,
     });
     yield* fs.writeAtomic(recordPath, serializeBriefRecord("pushed", input.request, outcome)).pipe(
-      Effect.catchAll((e) =>
+      Effect.catch((e) =>
         Effect.sync(() => {
           input.output.warn(
             `[phax] Warning: phase "${input.phaseId}" — failed to write ${PUSHED_BRIEF_RECORD} (${e.message}).`,

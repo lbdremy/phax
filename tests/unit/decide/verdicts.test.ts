@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { parseHandAuthoredQuestions } from "../../../src/domain/artifact/questions.js";
 import {
@@ -59,15 +59,15 @@ import {
 
 const READ_URL = currentSchemaUrl("decide-verdicts");
 
-function leftOf<A, E>(either: Either.Either<A, E>): E {
-  if (Either.isRight(either)) throw new Error("expected a refusal");
-  return either.left;
+function leftOf<A, E>(either: Result.Result<A, E>): E {
+  if (Result.isSuccess(either)) throw new Error("expected a refusal");
+  return either.failure;
 }
 
-function rightOf<A, E>(either: Either.Either<A, E>): A {
-  if (Either.isLeft(either))
-    throw new Error(`expected a value, got ${JSON.stringify(either.left)}`);
-  return either.right;
+function rightOf<A, E>(either: Result.Result<A, E>): A {
+  if (Result.isFailure(either))
+    throw new Error(`expected a value, got ${JSON.stringify(either.failure)}`);
+  return either.success;
 }
 
 function file(...verdicts: GivenVerdict[]): VerdictsFile {

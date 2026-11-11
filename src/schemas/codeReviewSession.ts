@@ -14,8 +14,9 @@ export const CodeReviewSessionSchema = Schema.Struct({
 
 export type CodeReviewSession = Schema.Schema.Type<typeof CodeReviewSessionSchema>;
 
-export const decodeCodeReviewSession = Schema.decodeUnknownEither(CodeReviewSessionSchema, {
+export const decodeCodeReviewSession = Schema.decodeUnknownResult(CodeReviewSessionSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });
 
 export const encodeCodeReviewSession = Schema.encodeSync(CodeReviewSessionSchema);

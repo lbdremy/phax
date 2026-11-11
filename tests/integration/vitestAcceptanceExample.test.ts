@@ -3,7 +3,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
-import { Either } from "effect";
+import { Result } from "effect";
 import { parseGateReport } from "../../packages/schemas/src/index.js";
 import { serializeAcceptanceRequest } from "../../src/app/gates.js";
 import { makeAcceptanceRequest } from "../../src/domain/gate/acceptanceRequest.js";
@@ -88,8 +88,8 @@ function answerOf(stdout: string): GateReport {
   expect(parseGateReport(printed).ok).toBe(true);
   expect((printed as { $schema: string }).$schema).toBe(currentSchemaUrl("gate-report"));
   const result = readGateReport(printed);
-  if (Either.isLeft(result)) throw new Error(describeReportError(result.left));
-  return result.right;
+  if (Result.isFailure(result)) throw new Error(describeReportError(result.failure));
+  return result.success;
 }
 
 function checkedFindings(report: GateReport) {
@@ -658,8 +658,8 @@ describe("examples/vitest-acceptance, stability", () => {
 describe("phax's own acceptance declaration", () => {
   it("declares the example as the acceptance command and the example answers there", () => {
     const decoded = decodePhaxConfig(JSON.parse(readFileSync(join(repoRoot, "phax.json"), "utf8")));
-    if (Either.isLeft(decoded)) throw new Error("phax.json does not decode");
-    const command = decoded.right.acceptance?.command;
+    if (Result.isFailure(decoded)) throw new Error("phax.json does not decode");
+    const command = decoded.success.acceptance?.command;
     expect(command).toBe("node examples/vitest-acceptance/main.mjs");
 
     const [file, ...args] = (command ?? "").split(/\s+/);

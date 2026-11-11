@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { decideDocumentMigration } from "../../src/domain/artifact/documentMigration.js";
 import { artifactBody } from "../../src/domain/artifact/sidecar.js";
@@ -40,8 +40,8 @@ const STAMPED_0_32_0 = stampedPlans(ARCHIVE, "0.32.0");
 
 function frozen28(sidecarText: string): PlanDocumentV0_32_0Value {
   const decoded = decodePlanDocumentV0_28_0(JSON.parse(sidecarText));
-  if (Either.isLeft(decoded)) throw new Error(decoded.left.message);
-  const { $schema: _schema, ...value } = decoded.right;
+  if (Result.isFailure(decoded)) throw new Error(decoded.failure.message);
+  const { $schema: _schema, ...value } = decoded.success;
   return value;
 }
 
@@ -88,8 +88,8 @@ describe("renderPlanBodyV0_32_0", () => {
     const decoded = decodePlanDocumentV0_32_0(
       JSON.parse(readFileSync(join(ARCHIVE, `${name}.json`), "utf8")),
     );
-    if (Either.isLeft(decoded)) throw new Error(decoded.left.message);
-    const { $schema: _schema, ...value } = decoded.right;
+    if (Result.isFailure(decoded)) throw new Error(decoded.failure.message);
+    const { $schema: _schema, ...value } = decoded.success;
     expect(renderPlanBodyV0_32_0(value)).toBe(artifactBody(md));
   });
 

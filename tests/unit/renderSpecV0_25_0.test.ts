@@ -1,7 +1,7 @@
 // Acceptance criteria carry a `then` key (given/when/then) — data, never awaited.
 /* eslint-disable unicorn/no-thenable */
 import { describe, expect, it } from "vitest";
-import { Either } from "effect";
+import { Result } from "effect";
 import { renderSpecBodyV0_25_0 } from "../../src/domain/authoring/renderSpecV0_25_0.js";
 import { decodeSpecDocumentV0_25_0 } from "../../src/schemas/history/spec-document/0.25.0.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
@@ -96,8 +96,9 @@ function fixture(): SpecDocumentV0_25_0Value {
       example: "phax prune usage-cli",
     },
   });
-  if (Either.isLeft(result)) throw new Error(`fixture does not decode: ${result.left.message}`);
-  const { $schema: _schema, ...value } = result.right;
+  if (Result.isFailure(result))
+    throw new Error(`fixture does not decode: ${result.failure.message}`);
+  const { $schema: _schema, ...value } = result.success;
   return value;
 }
 

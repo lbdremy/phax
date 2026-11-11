@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import type { ArtifactKind } from "../domain/artifact/status.js";
 import {
   DECIDE_SKILL_FOR_KIND,
@@ -52,12 +52,12 @@ export function resolveDoctrine(
           };
 
     const assembled = assembleDoctrine({ skill, file });
-    if (Either.isLeft(assembled)) {
+    if (Result.isFailure(assembled)) {
       return yield* new DecideRefusedError({
         reason: "doctrine",
-        message: `Decide refused: ${assembled.left}`,
+        message: `Decide refused: ${assembled.failure}`,
       });
     }
-    return assembled.right;
+    return assembled.success;
   });
 }

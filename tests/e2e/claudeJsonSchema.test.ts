@@ -3,8 +3,8 @@ import { spawnSync } from "node:child_process";
 import { mkdtempSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Effect, Either, Schema } from "effect";
-import { Backend, type AgentRunOptions } from "../../src/ports/backend.js";
+import { Effect, Result, Schema } from "effect";
+import { Backend, type AgentRunOptions, type BackendOps } from "../../src/ports/backend.js";
 import type { ClaudeSessionId } from "../../src/domain/branded.js";
 import { resolveReviewSecurityPolicy } from "../../src/domain/security/resolveReviewPolicy.js";
 import { readClaudeOutcome } from "../../src/domain/session/outcome.js";
@@ -91,11 +91,11 @@ const askFor = (answer: unknown): string =>
 
 function expectDecodes(format: AnswerFormatId, structured: { readonly value: unknown } | null) {
   expect(structured, "the result carries structured_output").not.toBeNull();
-  const decoded = Schema.decodeUnknownEither(
-    ANSWER_FORMATS[format].schema as Schema.Schema<unknown, unknown>,
-    { onExcessProperty: "error" },
+  const decoded = Schema.decodeUnknownResult(
+    ANSWER_FORMATS[format].schema as Schema.Codec<unknown, unknown>,
+    { onExcessProperty: "error", reportInput: true },
   )(structured?.value);
-  expect(Either.isRight(decoded) ? "" : String(decoded.left)).toBe("");
+  expect(Result.isSuccess(decoded) ? "" : String(decoded.failure)).toBe("");
 }
 
 function expectBounds(structured: { readonly value: unknown } | null) {
@@ -109,7 +109,7 @@ describe.skipIf(!shouldRun)("claude-code --json-schema (real provider)", () => {
   let repoDir: string;
 
   const layer = makeNodeBackendLayer(DEFAULT_PROVIDER_CONFIG);
-  const run = <A, E>(use: (backend: Backend["Type"]) => Effect.Effect<A, E, never>) =>
+  const run = <A, E>(use: (backend: BackendOps) => Effect.Effect<A, E, never>) =>
     Effect.runPromise(
       Effect.flatMap(Backend, use).pipe(
         Effect.provide(layer),

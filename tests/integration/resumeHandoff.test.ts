@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -42,7 +42,7 @@ const HANDOFF_CONTENT = [
   "Ready to proceed.",
 ].join("\n");
 
-const shortName = Either.getOrThrow(decodeShortName("my-run"));
+const shortName = Result.getOrThrow(decodeShortName("my-run"));
 
 const rawPlan = {
   version: 1,
@@ -229,7 +229,7 @@ describe("executePlan — resume from handoff_failed", () => {
   });
 
   it("re-runs only the handoff and continues to the next phase — no second commit", async () => {
-    const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
     const config = makeConfig(stateRoot);
 
     const setupLayers = Layer.mergeAll(
@@ -303,7 +303,7 @@ describe("executePlan — resume from handoff_failed", () => {
     );
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -321,7 +321,7 @@ describe("executePlan — resume from handoff_failed", () => {
       ),
     );
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
 
     // Phase-01 agent body must NOT be re-invoked — only phase-02 body runs.
     expect(fakeBackend.impl.runCalls).toHaveLength(1);
@@ -353,7 +353,7 @@ describe("executePlan — resume from handoff_failed", () => {
   });
 
   it("pauses again (interrupted) when the handoff re-run fails a second time", async () => {
-    const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
     const config = makeConfig(stateRoot);
 
     const setupLayers = Layer.mergeAll(
@@ -397,7 +397,7 @@ describe("executePlan — resume from handoff_failed", () => {
     );
 
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -416,9 +416,9 @@ describe("executePlan — resume from handoff_failed", () => {
     );
 
     // The run pauses again — HandoffPausedError is the clean-pause sentinel.
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(HandoffPausedError);
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toBeInstanceOf(HandoffPausedError);
     }
 
     // Run remains interrupted (not failed) so it can be resumed again.
@@ -483,7 +483,7 @@ describe("executePlan — a limit inside a committed phase's handoff turn", () =
       },
     ],
   };
-  const plan = Either.getOrThrow(
+  const plan = Result.getOrThrow(
     liftFixturePhaxPlanToCurrent("phax-plan.json", threePhasePlan),
   ).plan;
   const RESUMED_HANDOFF = HANDOFF_CONTENT.replace(
@@ -574,7 +574,7 @@ describe("executePlan — a limit inside a committed phase's handoff turn", () =
       fakeBackend.impl.failResumeWithRateLimit(opts.limitAtTurn, { kind: "usage_limit" });
     }
     const result = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -623,7 +623,7 @@ describe("executePlan — a limit inside a committed phase's handoff turn", () =
       cleanups: [],
       handoff: HANDOFF_CONTENT,
     });
-    expect(Either.isLeft(result) && result.left).toBeInstanceOf(UsageLimitError);
+    expect(Result.isFailure(result) && result.failure).toBeInstanceOf(UsageLimitError);
   }
 
   async function decide() {
@@ -638,19 +638,19 @@ describe("executePlan — a limit inside a committed phase's handoff turn", () =
     expect(existsSync(worktreeOf("phase-01"))).toBe(true);
 
     const decision = await decide();
-    if (Either.isLeft(decision)) throw new Error(decision.left.message);
-    expect(decision.right.nextPhaseId).toBe("phase-01");
+    if (Result.isFailure(decision)) throw new Error(decision.failure.message);
+    expect(decision.success.nextPhaseId).toBe("phase-01");
 
     const { result, fakeBackend, fakeGit } = await invoke({
-      startIndex: decision.right.nextPhaseIndex,
+      startIndex: decision.success.nextPhaseIndex,
       bodies: ["phase-02", "phase-03"],
       handoffTurns: 3,
       cleanups: ["phase-01", "phase-02"],
       handoff: RESUMED_HANDOFF,
     });
 
-    if (Either.isLeft(result)) throw result.left;
-    expect(result.right.completedPhaseCount).toBe(3);
+    if (Result.isFailure(result)) throw result.failure;
+    expect(result.success.completedPhaseCount).toBe(3);
     // Only the handoff turn of phase-01 ran again, in its own session.
     expect(fakeBackend.impl.resumeCalls[0]?.sessionId).toBe("sess-phase-01");
     expect(fakeBackend.impl.runCalls.map((c) => c.options.phaseFolderPath)).toEqual([
@@ -674,24 +674,24 @@ describe("executePlan — a limit inside a committed phase's handoff turn", () =
       cleanups: ["phase-01", "phase-02"],
       handoff: HANDOFF_CONTENT,
     });
-    expect(Either.isLeft(first) && first.left).toBeInstanceOf(UsageLimitError);
+    expect(Result.isFailure(first) && first.failure).toBeInstanceOf(UsageLimitError);
     expect((await readJson(join(runPath, "phase-03", "status.json")))["state"]).toBe("committed");
     expect(existsSync(runHandoffOf("phase-03"))).toBe(false);
 
     const decision = await decide();
-    if (Either.isLeft(decision)) throw new Error(decision.left.message);
-    expect(decision.right.nextPhaseId).toBe("phase-03");
+    if (Result.isFailure(decision)) throw new Error(decision.failure.message);
+    expect(decision.success.nextPhaseId).toBe("phase-03");
 
     const { result } = await invoke({
-      startIndex: decision.right.nextPhaseIndex,
+      startIndex: decision.success.nextPhaseIndex,
       bodies: [],
       handoffTurns: 1,
       cleanups: [],
       handoff: RESUMED_HANDOFF,
     });
 
-    if (Either.isLeft(result)) throw result.left;
-    expect(result.right.completedPhaseCount).toBe(3);
+    if (Result.isFailure(result)) throw result.failure;
+    expect(result.success.completedPhaseCount).toBe(3);
     expect(validateHandoffSections(await readFile(runHandoffOf("phase-03"), "utf8"))).toEqual([]);
     expect(existsSync(join(runPath, "review-handoff.md"))).toBe(true);
     expect((await readJson(join(runPath, "run-status.json")))["state"]).toBe("review_open");
@@ -708,22 +708,22 @@ describe("executePlan — a limit inside a committed phase's handoff turn", () =
       cleanups: [],
       handoff: RESUMED_HANDOFF,
     });
-    expect(Either.isLeft(second) && second.left).toBeInstanceOf(UsageLimitError);
+    expect(Result.isFailure(second) && second.failure).toBeInstanceOf(UsageLimitError);
     expect((await readJson(join(runPath, "phase-01", "status.json")))["state"]).toBe("committed");
     expect(existsSync(runHandoffOf("phase-01"))).toBe(false);
 
     const decision = await decide();
-    if (Either.isLeft(decision)) throw new Error(decision.left.message);
-    expect(decision.right.nextPhaseId).toBe("phase-01");
+    if (Result.isFailure(decision)) throw new Error(decision.failure.message);
+    expect(decision.success.nextPhaseId).toBe("phase-01");
 
     const { result } = await invoke({
-      startIndex: decision.right.nextPhaseIndex,
+      startIndex: decision.success.nextPhaseIndex,
       bodies: ["phase-02", "phase-03"],
       handoffTurns: 3,
       cleanups: ["phase-01", "phase-02"],
       handoff: RESUMED_HANDOFF,
     });
-    if (Either.isLeft(result)) throw result.left;
+    if (Result.isFailure(result)) throw result.failure;
     expect(validateHandoffSections(await readFile(runHandoffOf("phase-01"), "utf8"))).toEqual([]);
     expect((await readJson(join(runPath, "run-status.json")))["state"]).toBe("review_open");
   });
@@ -765,16 +765,16 @@ describe("executePlan — a limit inside a committed phase's handoff turn", () =
     };
 
     const refused = await decide();
-    if (Either.isRight(refused)) throw new Error("expected a refusal");
-    expect(refused.left.reason).toBe("handoff_unrecoverable");
-    expect(refused.left.message).toContain(
+    if (Result.isSuccess(refused)) throw new Error("expected a refusal");
+    expect(refused.failure.reason).toBe("handoff_unrecoverable");
+    expect(refused.failure.message).toContain(
       `its worktree "${worktreeOf("phase-01")}" no longer exists`,
     );
     expect(await readFile(join(runPath, "run-status.json"), "utf8")).toBe(before.run);
     expect(await readFile(join(runPath, "phase-01", "status.json"), "utf8")).toBe(before.phase);
 
     // The remedy's git commands, run as the message names them.
-    const commands = [...refused.left.message.matchAll(/`(git [^`]+)`/g)].map((m) => m[1] ?? "");
+    const commands = [...refused.failure.message.matchAll(/`(git [^`]+)`/g)].map((m) => m[1] ?? "");
     expect(commands).toEqual([
       "git worktree prune",
       `git worktree add ${worktreeOf("phase-01")} ai/my-run--phase-01`,
@@ -786,17 +786,17 @@ describe("executePlan — a limit inside a committed phase's handoff turn", () =
 
     await mkdir(join(worktreeOf("phase-01"), ".phax-context"), { recursive: true });
     const decision = await decide();
-    if (Either.isLeft(decision)) throw new Error(decision.left.message);
-    expect(decision.right.nextPhaseId).toBe("phase-01");
+    if (Result.isFailure(decision)) throw new Error(decision.failure.message);
+    expect(decision.success.nextPhaseId).toBe("phase-01");
 
     const { result } = await invoke({
-      startIndex: decision.right.nextPhaseIndex,
+      startIndex: decision.success.nextPhaseIndex,
       bodies: ["phase-02", "phase-03"],
       handoffTurns: 3,
       cleanups: ["phase-01", "phase-02"],
       handoff: RESUMED_HANDOFF,
     });
-    if (Either.isLeft(result)) throw result.left;
+    if (Result.isFailure(result)) throw result.failure;
     expect(validateHandoffSections(await readFile(runHandoffOf("phase-01"), "utf8"))).toEqual([]);
   }
 
@@ -812,11 +812,11 @@ describe("executePlan — a limit inside a committed phase's handoff turn", () =
     await dropSessionId("phase-01");
 
     const refused = await decide();
-    if (Either.isRight(refused)) throw new Error("expected a refusal");
-    expect(refused.left.reason).toBe("handoff_unrecoverable");
-    expect(refused.left.message).toContain("no session id is recorded for it");
-    expect(refused.left.message).toContain(`Write ${runHandoffOf("phase-01")} by hand`);
-    expect(refused.left.message).not.toContain("git worktree add");
+    if (Result.isSuccess(refused)) throw new Error("expected a refusal");
+    expect(refused.failure.reason).toBe("handoff_unrecoverable");
+    expect(refused.failure.message).toContain("no session id is recorded for it");
+    expect(refused.failure.message).toContain(`Write ${runHandoffOf("phase-01")} by hand`);
+    expect(refused.failure.message).not.toContain("git worktree add");
   });
 
   it("(e) a final phase with its worktree and session id gone also names git worktree add", async () => {
@@ -828,16 +828,16 @@ describe("executePlan — a limit inside a committed phase's handoff turn", () =
       cleanups: ["phase-01", "phase-02"],
       handoff: HANDOFF_CONTENT,
     });
-    expect(Either.isLeft(first)).toBe(true);
+    expect(Result.isFailure(first)).toBe(true);
     await dropSessionId("phase-03");
     await rm(worktreeOf("phase-03"), { recursive: true, force: true });
 
     const refused = await decide();
-    if (Either.isRight(refused)) throw new Error("expected a refusal");
-    expect(refused.left.reason).toBe("handoff_unrecoverable");
-    expect(refused.left.message).toContain("no session id is recorded for it");
-    expect(refused.left.message).toContain(`Write ${runHandoffOf("phase-03")} by hand`);
-    expect(refused.left.message).toContain(
+    if (Result.isSuccess(refused)) throw new Error("expected a refusal");
+    expect(refused.failure.reason).toBe("handoff_unrecoverable");
+    expect(refused.failure.message).toContain("no session id is recorded for it");
+    expect(refused.failure.message).toContain(`Write ${runHandoffOf("phase-03")} by hand`);
+    expect(refused.failure.message).toContain(
       `git worktree add ${worktreeOf("phase-03")} ai/my-run--phase-03`,
     );
   });
@@ -851,17 +851,17 @@ describe("executePlan — a limit inside a committed phase's handoff turn", () =
     config = { ...config, records: { ...config.records, enabled: true } };
 
     const decision = await decide();
-    if (Either.isLeft(decision)) throw new Error(decision.left.message);
-    expect(decision.right).toMatchObject({ nextPhaseId: "phase-01", owedStep: "post-handoff" });
+    if (Result.isFailure(decision)) throw new Error(decision.failure.message);
+    expect(decision.success).toMatchObject({ nextPhaseId: "phase-01", owedStep: "post-handoff" });
 
     const { result, fakeBackend, fakeGit } = await invoke({
-      startIndex: decision.right.nextPhaseIndex,
+      startIndex: decision.success.nextPhaseIndex,
       bodies: ["phase-02", "phase-03"],
       handoffTurns: 2,
       cleanups: ["phase-01", "phase-02"],
       handoff: HANDOFF_CONTENT,
     });
-    if (Either.isLeft(result)) throw result.left;
+    if (Result.isFailure(result)) throw result.failure;
     // phase-01 runs no agent turn: only the next phases' bodies and handoffs.
     expect(fakeBackend.impl.runCalls.map((c) => c.options.phaseFolderPath)).toEqual([
       join(runPath, "phase-02"),
@@ -873,7 +873,7 @@ describe("executePlan — a limit inside a committed phase's handoff turn", () =
     // Its record, then its cleanup, before phase-02 starts.
     expect(recordedPhases(fakeGit)).toEqual(["phase-01", "phase-02", "phase-03"]);
     expect((await readJson(join(runPath, "phase-01", "status.json")))["state"]).toBe("cleaned_up");
-    expect(result.right.completedPhaseCount).toBe(3);
+    expect(result.success.completedPhaseCount).toBe(3);
   });
 
   it("(f) with its worktree gone too, the phase is cleaned up, warning of the cleanup commands not run", async () => {
@@ -891,17 +891,17 @@ describe("executePlan — a limit inside a committed phase's handoff turn", () =
     const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
 
     const decision = await decide();
-    if (Either.isLeft(decision)) throw new Error(decision.left.message);
-    expect(decision.right).toMatchObject({ nextPhaseId: "phase-01", owedStep: "post-handoff" });
+    if (Result.isFailure(decision)) throw new Error(decision.failure.message);
+    expect(decision.success).toMatchObject({ nextPhaseId: "phase-01", owedStep: "post-handoff" });
 
     const { result, fakeGit } = await invoke({
-      startIndex: decision.right.nextPhaseIndex,
+      startIndex: decision.success.nextPhaseIndex,
       bodies: ["phase-02", "phase-03"],
       handoffTurns: 2,
       cleanups: ["phase-02"],
       handoff: HANDOFF_CONTENT,
     });
-    if (Either.isLeft(result)) throw result.left;
+    if (Result.isFailure(result)) throw result.failure;
     expect((await readJson(join(runPath, "phase-01", "status.json")))["state"]).toBe("cleaned_up");
     // Nothing checked or recreated the gone worktree.
     expect(

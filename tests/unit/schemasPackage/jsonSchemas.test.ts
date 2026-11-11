@@ -2,7 +2,7 @@ import { existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } fro
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Ajv } from "ajv";
-import { Either, JSONSchema, type ParseResult, Schema } from "effect";
+import { Result, Schema } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   JSON_SCHEMA_FORMATS,
@@ -73,16 +73,18 @@ import {
   registryFormat,
   runStatusFormat,
 } from "../../../packages/schemas/src/formats/runDirectory.js";
+import { judgeEquivalence } from "../../../packages/schemas/build/equivalence.js";
 import { CURRENT_SHAPES } from "../../../packages/schemas/src/generated/index.js";
+import { readCorpusDocuments } from "../../../scripts/schemas-check.js";
 import { writeJsonSchemas } from "../../../scripts/schemas-json.js";
 import { BranchNameSchema } from "../../../src/domain/branded.js";
 import { decodeRecordManifestFile } from "../../../src/schemas/authoringRecord.js";
-import { FORMAT_IDS, type FormatId } from "../../../src/schemas/schemaUrl.js";
+import { draft07JsonSchema, FORMAT_IDS, type FormatId } from "../../../src/schemas/schemaUrl.js";
 import { answerJsonSchema } from "../../../src/schemas/answerSchemas.js";
 import { SpecDocumentFileSchema } from "../../../src/schemas/specDocument.js";
 import { phaseStatusStopDocuments, validDocuments, withoutKey } from "./documents.js";
 
-type Decode = (input: unknown) => Either.Either<unknown, ParseResult.ParseError>;
+type Decode = (input: unknown) => Result.Result<unknown, Schema.SchemaError>;
 type JsonSchemaFormatId = FormatId | "record-manifest";
 
 const phaseManifest = validDocuments["phase-record-manifest"];
@@ -172,7 +174,7 @@ function withoutTitle(schema: object): object {
 
 function acceptedDocuments(entry: JsonSchemaFormat): unknown[] {
   const format = entry.format as JsonSchemaFormatId;
-  return documentsOf(format).filter((document) => Either.isRight(DECODERS[format](document)));
+  return documentsOf(format).filter((document) => Result.isSuccess(DECODERS[format](document)));
 }
 
 describe("the JSON Schema table", () => {
@@ -276,7 +278,7 @@ describe("renderJsonSchemas over the real table", () => {
     "$format: equals JSONSchema.make of its schema, apart from the title",
     (entry) => {
       expect(withoutTitle(renderedSchema(entry))).toEqual(
-        withoutTitle(JSONSchema.make(entry.schema)),
+        withoutTitle(draft07JsonSchema(entry.schema)),
       );
     },
   );
@@ -286,16 +288,22 @@ describe("renderJsonSchemas over the real table", () => {
     if (entry === undefined) throw new Error("no spec-document entry");
     const schema = renderedSchema(entry);
     expect(schema["title"]).toBe("phax spec document");
-    expect(withoutTitle(schema)).toEqual(withoutTitle(JSONSchema.make(SpecDocumentFileSchema)));
+    expect(withoutTitle(schema)).toEqual(withoutTitle(draft07JsonSchema(SpecDocumentFileSchema)));
     expect(schema["description"]).toContain("`refs` entry names an existing requirement");
   });
 
   // A headless authoring session answers the published document schema
-  // itself: the answer schema phax states and prints is the current snapshot.
+  // itself: the answer schema phax states and prints is the current snapshot,
+  // equal by the corpus documents both accept and refuse (§5.19).
   it.each(["spec-document", "plan-document"] as const)(
     "%s: the authoring answer schema is its current file snapshot",
     (format) => {
-      expect(answerJsonSchema(format)).toEqual(readSnapshot(format, CURRENT_SHAPES[format]));
+      const verdict = judgeEquivalence({
+        released: readSnapshot(format, CURRENT_SHAPES[format]),
+        generated: answerJsonSchema(format),
+        documents: readCorpusDocuments(join(import.meta.dirname, "../../..")).get(format) ?? [],
+      });
+      expect(verdict).toEqual({ equivalent: true, disagreements: [], problem: null });
     },
   );
 });
@@ -320,23 +328,25 @@ describe("findJsonSchemaGaps", () => {
 
   it("returns the path of a filter without a jsonSchema annotation", () => {
     const Toy = Schema.Struct({
-      a: Schema.Array(Schema.Struct({ n: Schema.Number.pipe(Schema.filter(isEven)) })),
-      b: Schema.Record({ key: Schema.String, value: Schema.Number.pipe(Schema.filter(isEven)) }),
+      a: Schema.Array(Schema.Struct({ n: Schema.Number.check(Schema.makeFilter(isEven)) })),
+      b: Schema.Record(Schema.String, Schema.Number.check(Schema.makeFilter(isEven))),
     });
     expect(findJsonSchemaGaps(Toy)).toEqual(["a[].n", "b.*"]);
   });
 
   it("names a filter on the root as (root)", () => {
-    const Toy = Schema.Struct({ n: Schema.Number }).pipe(Schema.filter(({ n }) => isEven(n)));
+    const Toy = Schema.Struct({ n: Schema.Number }).check(Schema.makeFilter(({ n }) => isEven(n)));
     expect(findJsonSchemaGaps(Toy)).toEqual(["(root)"]);
   });
 
   it("does not flag a brand-only refinement, an annotated filter or effect's built-ins", () => {
     const Toy = Schema.Struct({
       id: Schema.String.pipe(Schema.brand("Id")),
-      even: Schema.Number.pipe(Schema.filter(isEven, { jsonSchema: { multipleOf: 2 } })),
-      count: Schema.Number.pipe(Schema.int(), Schema.positive()),
-      name: Schema.String.pipe(Schema.minLength(1), Schema.pattern(/^[a-z]+$/)),
+      even: Schema.Number.check(
+        Schema.makeFilter(isEven, { toJsonSchema: () => ({ multipleOf: 2 }) }),
+      ),
+      count: Schema.Number.check(Schema.isInt(), Schema.isGreaterThan(0)),
+      name: Schema.String.check(Schema.isMinLength(1), Schema.isPattern(/^[a-z]+$/)),
       branch: BranchNameSchema,
     });
     expect(findJsonSchemaGaps(Toy)).toEqual([]);
@@ -348,7 +358,7 @@ describe("findJsonSchemaGaps", () => {
       readonly children: ReadonlyArray<Tree>;
     }
     const Tree: Schema.Schema<Tree> = Schema.Struct({
-      n: Schema.Number.pipe(Schema.filter(isEven)),
+      n: Schema.Number.check(Schema.makeFilter(isEven)),
       children: Schema.Array(Schema.suspend(() => Tree)),
     });
     expect(findJsonSchemaGaps(Tree)).toEqual(["n", "children[].n"]);
@@ -366,7 +376,7 @@ const gapEntry: JsonSchemaFormat = {
   format: "toy-gap",
   fileName: "toy-gap.schema.json",
   title: "phax toy with a gap",
-  schema: Schema.Struct({ n: Schema.Number.pipe(Schema.filter((n) => n > 1)) }),
+  schema: Schema.Struct({ n: Schema.Number.check(Schema.makeFilter((n) => n > 1)) }),
   excess: "error",
 };
 
@@ -376,7 +386,8 @@ describe("renderJsonSchemas", () => {
       ...cleanEntry,
       format: "toy-throws",
       fileName: "toy-throws.schema.json",
-      schema: Schema.Struct({ at: Schema.DateFromSelf }),
+      // Effect 4's generator throws on a property name that is not a string.
+      schema: Schema.Struct({ [Symbol.for("phax/toy")]: Schema.String }),
     };
     const { files, failures } = renderJsonSchemas([throwing, cleanEntry]);
     expect(failures.map(({ format }) => format)).toEqual(["toy-throws"]);
@@ -468,7 +479,7 @@ describe("every exported format has a usable JSON Schema", () => {
       const withUnknownKey = { ...(document as object), unknownKey: true };
       const ignores = entry.excess === "ignore";
       expect(validate(withUnknownKey)).toBe(ignores);
-      expect(Either.isRight(DECODERS[entry.format as JsonSchemaFormatId](withUnknownKey))).toBe(
+      expect(Result.isSuccess(DECODERS[entry.format as JsonSchemaFormatId](withUnknownKey))).toBe(
         ignores,
       );
     },
@@ -488,7 +499,7 @@ describe("a phase status's stop", () => {
       const withUnknownStopKey = { ...(document as object), stop: { ...stop, unknownKey: true } };
       expect(validate(document)).toBe(true);
       expect(validate(withUnknownStopKey)).toBe(false);
-      expect(Either.isRight(DECODERS["phase-status"](withUnknownStopKey))).toBe(false);
+      expect(Result.isSuccess(DECODERS["phase-status"](withUnknownStopKey))).toBe(false);
     },
   );
 });

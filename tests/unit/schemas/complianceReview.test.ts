@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   complianceReviewFileText,
@@ -39,20 +39,20 @@ function withPhase(findings: unknown[]) {
 
 function refusal(answer: unknown): string {
   const read = readComplianceReviewAnswer(answer);
-  if (Either.isRight(read)) throw new Error("expected a refusal");
-  return read.left;
+  if (Result.isSuccess(read)) throw new Error("expected a refusal");
+  return read.failure;
 }
 
 describe("readComplianceReviewAnswer", () => {
   it("accepts a 0.32.0 answer and returns the review without $schema", () => {
     const read = readComplianceReviewAnswer(validAnswer);
-    expect(Either.isRight(read)).toBe(true);
-    if (Either.isRight(read)) {
-      expect(read.right.verdict).toBe("conformant");
-      expect(read.right).not.toHaveProperty("$schema");
-      expect(read.right.perPhase[0]?.phaseId).toBe("phase-01");
-      expect(read.right.unplannedChanges).toEqual([]);
-      expect(read.right.unmetPromises).toEqual([]);
+    expect(Result.isSuccess(read)).toBe(true);
+    if (Result.isSuccess(read)) {
+      expect(read.success.verdict).toBe("conformant");
+      expect(read.success).not.toHaveProperty("$schema");
+      expect(read.success.perPhase[0]?.phaseId).toBe("phase-01");
+      expect(read.success.unplannedChanges).toEqual([]);
+      expect(read.success.unmetPromises).toEqual([]);
     }
   });
 
@@ -62,12 +62,12 @@ describe("readComplianceReviewAnswer", () => {
       unplannedChanges: [{ phaseId: "phase-01", path: "README.md", note: "Not in the plan" }],
       unmetPromises: [{ phaseId: "phase-01", promise: "A unit test", note: "None found" }],
     });
-    expect(Either.isRight(read)).toBe(true);
-    if (Either.isRight(read)) {
-      expect(read.right.unplannedChanges).toEqual([
+    expect(Result.isSuccess(read)).toBe(true);
+    if (Result.isSuccess(read)) {
+      expect(read.success.unplannedChanges).toEqual([
         { phaseId: "phase-01", path: "README.md", note: "Not in the plan" },
       ]);
-      expect(read.right.unmetPromises).toEqual([
+      expect(read.success.unmetPromises).toEqual([
         { phaseId: "phase-01", promise: "A unit test", note: "None found" },
       ]);
     }
@@ -113,23 +113,23 @@ describe("readComplianceReviewAnswer", () => {
 
   it("accepts all three verdicts", () => {
     for (const verdict of ["conformant", "conformant-with-deviations", "divergent"]) {
-      expect(Either.isRight(readComplianceReviewAnswer({ ...validAnswer, verdict }))).toBe(true);
+      expect(Result.isSuccess(readComplianceReviewAnswer({ ...validAnswer, verdict }))).toBe(true);
     }
   });
 
   it("refuses an invalid verdict, severity or dimension", () => {
-    expect(Either.isLeft(readComplianceReviewAnswer({ ...validAnswer, verdict: "fine" }))).toBe(
+    expect(Result.isFailure(readComplianceReviewAnswer({ ...validAnswer, verdict: "fine" }))).toBe(
       true,
     );
     expect(
-      Either.isLeft(
+      Result.isFailure(
         readComplianceReviewAnswer(
           withPhase([{ dimension: "objective", severity: "critical", message: "x" }]),
         ),
       ),
     ).toBe(true);
     expect(
-      Either.isLeft(
+      Result.isFailure(
         readComplianceReviewAnswer(
           withPhase([{ dimension: "style", severity: "info", message: "x" }]),
         ),
@@ -140,7 +140,7 @@ describe("readComplianceReviewAnswer", () => {
   it("accepts every severity and every dimension", () => {
     for (const severity of ["info", "deviation", "concern"]) {
       expect(
-        Either.isRight(
+        Result.isSuccess(
           readComplianceReviewAnswer(
             withPhase([{ dimension: "objective", severity, message: "x" }]),
           ),
@@ -157,7 +157,7 @@ describe("readComplianceReviewAnswer", () => {
       "handoff",
     ]) {
       expect(
-        Either.isRight(
+        Result.isSuccess(
           readComplianceReviewAnswer(withPhase([{ dimension, severity: "info", message: "x" }])),
         ),
       ).toBe(true);
@@ -165,16 +165,18 @@ describe("readComplianceReviewAnswer", () => {
   });
 
   it("refuses an unknown key at the top, in a finding, in a perPhase entry and in a ledger entry", () => {
-    expect(Either.isLeft(readComplianceReviewAnswer({ ...validAnswer, bogus: true }))).toBe(true);
+    expect(Result.isFailure(readComplianceReviewAnswer({ ...validAnswer, bogus: true }))).toBe(
+      true,
+    );
     expect(
-      Either.isLeft(
+      Result.isFailure(
         readComplianceReviewAnswer(
           withPhase([{ dimension: "objective", severity: "info", message: "x", extra: 1 }]),
         ),
       ),
     ).toBe(true);
     expect(
-      Either.isLeft(
+      Result.isFailure(
         readComplianceReviewAnswer({
           ...validAnswer,
           perPhase: [{ phaseId: "phase-01", verdict: "conformant", findings: [], extra: 1 }],
@@ -182,7 +184,7 @@ describe("readComplianceReviewAnswer", () => {
       ),
     ).toBe(true);
     expect(
-      Either.isLeft(
+      Result.isFailure(
         readComplianceReviewAnswer({
           ...validAnswer,
           unmetPromises: [{ phaseId: "phase-01", promise: "p", note: "n", extra: 1 }],
@@ -192,7 +194,9 @@ describe("readComplianceReviewAnswer", () => {
   });
 
   it("accepts an empty perPhase and several phases", () => {
-    expect(Either.isRight(readComplianceReviewAnswer({ ...validAnswer, perPhase: [] }))).toBe(true);
+    expect(Result.isSuccess(readComplianceReviewAnswer({ ...validAnswer, perPhase: [] }))).toBe(
+      true,
+    );
     const several = readComplianceReviewAnswer({
       ...validAnswer,
       perPhase: [
@@ -206,32 +210,32 @@ describe("readComplianceReviewAnswer", () => {
       attentionPoints: ["Review phase-02 extra file"],
       pointers: ["Possible bug at src/foo.ts — confirm via code review"],
     });
-    expect(Either.isRight(several)).toBe(true);
-    if (Either.isRight(several)) {
-      expect(several.right.perPhase).toHaveLength(2);
-      expect(several.right.attentionPoints).toHaveLength(1);
-      expect(several.right.pointers).toHaveLength(1);
+    expect(Result.isSuccess(several)).toBe(true);
+    if (Result.isSuccess(several)) {
+      expect(several.success.perPhase).toHaveLength(2);
+      expect(several.success.attentionPoints).toHaveLength(1);
+      expect(several.success.pointers).toHaveLength(1);
     }
   });
 });
 
 describe("decodeComplianceReviewFile", () => {
   it("accepts the 0.32.0 file", () => {
-    expect(Either.isRight(decodeComplianceReviewFile(validAnswer))).toBe(true);
+    expect(Result.isSuccess(decodeComplianceReviewFile(validAnswer))).toBe(true);
   });
 
   it("refuses the 0.17.0 file: its stamp is not the format's current one", () => {
     const file = { ...validAnswer, $schema: schemaUrl("compliance-review", "0.17.0") };
-    expect(Either.isLeft(decodeComplianceReviewFile(file))).toBe(true);
+    expect(Result.isFailure(decodeComplianceReviewFile(file))).toBe(true);
   });
 
   it("refuses a file that also carries version", () => {
-    expect(Either.isLeft(decodeComplianceReviewFile({ ...validAnswer, version: 1 }))).toBe(true);
+    expect(Result.isFailure(decodeComplianceReviewFile({ ...validAnswer, version: 1 }))).toBe(true);
   });
 
   it("refuses a $schema naming another format", () => {
     const other = { ...validAnswer, $schema: schemaUrl("phax-plan", "0.32.0") };
-    expect(Either.isLeft(decodeComplianceReviewFile(other))).toBe(true);
+    expect(Result.isFailure(decodeComplianceReviewFile(other))).toBe(true);
   });
 });
 

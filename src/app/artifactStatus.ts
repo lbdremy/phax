@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError, type GitOps } from "../ports/git.js";
 import type { Terminal } from "../ports/terminal.js";
@@ -243,7 +243,7 @@ function computeApprovalInfo(
 ): Effect.Effect<ApprovalInfo, FsError | ApprovalRecordUnreadableError, FileSystem> {
   return Effect.gen(function* () {
     const decoded = decodeArtifactFrontmatter(kind, md);
-    const stamp = Either.isRight(decoded) ? decoded.right.approved : undefined;
+    const stamp = Result.isSuccess(decoded) ? decoded.success.approved : undefined;
 
     if (status !== "Approved" && stamp == null) {
       return { kind: "none" };
@@ -280,10 +280,10 @@ export function inspectArtifact(
     const fs = yield* FileSystem;
     const md = yield* fs.readText(repoRelPath);
     const validated = validateArtifact(repoRelPath, md);
-    if (Either.isLeft(validated)) {
-      return yield* Effect.fail(validated.left);
+    if (Result.isFailure(validated)) {
+      return yield* Effect.fail(validated.failure);
     }
-    const { kind, status } = validated.right;
+    const { kind, status } = validated.success;
     const legalTargets =
       kind === "spec"
         ? legalTargetsFrom("spec", status as never)
@@ -386,8 +386,8 @@ function findDependentPlans(
       const planPath = `docs/plans/${entry}`;
       const planMd = yield* fs.readText(planPath);
       const planValidated = validateArtifact(planPath, planMd);
-      if (Either.isLeft(planValidated)) {
-        return yield* Effect.fail(planValidated.left);
+      if (Result.isFailure(planValidated)) {
+        return yield* Effect.fail(planValidated.failure);
       }
       const declaration = readSourceSpec(planMd);
       if (
@@ -395,7 +395,7 @@ function findDependentPlans(
         declaration.kind === "spec" &&
         specCandidates.has(declaration.path)
       ) {
-        dependents.push({ path: planPath, status: planValidated.right.status });
+        dependents.push({ path: planPath, status: planValidated.success.status });
       }
     }
 
@@ -447,16 +447,16 @@ function readLegalTransition(
   return Effect.gen(function* () {
     const md = yield* (yield* FileSystem).readText(repoRelPath);
     const validated = validateArtifact(repoRelPath, md);
-    if (Either.isLeft(validated)) {
-      return yield* Effect.fail(validated.left);
+    if (Result.isFailure(validated)) {
+      return yield* Effect.fail(validated.failure);
     }
-    const { kind, status } = validated.right;
+    const { kind, status } = validated.success;
     const requested =
       kind === "spec"
         ? requestTransition("spec", status as never, target as never)
         : requestTransition("plan", status as never, target as never);
-    if (Either.isLeft(requested)) {
-      return yield* Effect.fail(requested.left);
+    if (Result.isFailure(requested)) {
+      return yield* Effect.fail(requested.failure);
     }
     return { md, kind, status };
   });
@@ -600,29 +600,29 @@ export function transitionArtifact(
       kind === "spec" && reopener !== null ? yield* findDependentPlans(repoRelPath) : null;
 
     const statusRewrite = setFrontmatterKeys(md, [{ key: "status", value: target }]);
-    if (Either.isLeft(statusRewrite)) {
+    if (Result.isFailure(statusRewrite)) {
       return yield* Effect.fail(
         new ArtifactValidationError({
           path: repoRelPath,
-          message: frontmatterProblemMessage(repoRelPath, kind, statusRewrite.left),
+          message: frontmatterProblemMessage(repoRelPath, kind, statusRewrite.failure),
         }),
       );
     }
-    let updatedMd = statusRewrite.right;
+    let updatedMd = statusRewrite.success;
     let approvedBaseline: string | undefined;
 
     if (kind === "spec" && approver !== null) {
       const baseline = yield* git.headCommit(opts.repoRoot);
       const stamped = stampApproved(updatedMd, opts.nowIso, baseline.slice(0, 7));
-      if (Either.isLeft(stamped)) {
+      if (Result.isFailure(stamped)) {
         return yield* Effect.fail(
           new ArtifactValidationError({
             path: repoRelPath,
-            message: frontmatterProblemMessage(repoRelPath, kind, stamped.left),
+            message: frontmatterProblemMessage(repoRelPath, kind, stamped.failure),
           }),
         );
       }
-      updatedMd = stamped.right;
+      updatedMd = stamped.success;
       const specFingerprint = artifactFingerprint(updatedMd);
       yield* putSpecApprovalRecord(
         repoRelPath,
@@ -648,15 +648,15 @@ export function transitionArtifact(
         }
         const specMd = yield* fs.readText(resolvedSpecPath);
         const specValidated = validateArtifact(resolvedSpecPath, specMd);
-        if (Either.isLeft(specValidated)) {
-          return yield* Effect.fail(specValidated.left);
+        if (Result.isFailure(specValidated)) {
+          return yield* Effect.fail(specValidated.failure);
         }
-        if (specValidated.right.status !== "Approved") {
+        if (specValidated.success.status !== "Approved") {
           return yield* Effect.fail(
             new SpecNotApprovedError({
               planPath: repoRelPath,
               specPath: declaration.path,
-              specStatus: specValidated.right.status,
+              specStatus: specValidated.success.status,
             }),
           );
         }
@@ -689,15 +689,15 @@ export function transitionArtifact(
 
       const baseline = yield* git.headCommit(opts.repoRoot);
       const stamped = stampApproved(updatedMd, opts.nowIso, baseline.slice(0, 7));
-      if (Either.isLeft(stamped)) {
+      if (Result.isFailure(stamped)) {
         return yield* Effect.fail(
           new ArtifactValidationError({
             path: repoRelPath,
-            message: frontmatterProblemMessage(repoRelPath, kind, stamped.left),
+            message: frontmatterProblemMessage(repoRelPath, kind, stamped.failure),
           }),
         );
       }
-      updatedMd = stamped.right;
+      updatedMd = stamped.success;
       const planFingerprint = artifactFingerprint(updatedMd);
       yield* putPlanApprovalRecord(
         repoRelPath,
@@ -714,15 +714,15 @@ export function transitionArtifact(
     // not deleted). Both land before finalizeTransition commits the write-set.
     if (reopener !== null) {
       const cleared = clearApproved(updatedMd);
-      if (Either.isLeft(cleared)) {
+      if (Result.isFailure(cleared)) {
         return yield* Effect.fail(
           new ArtifactValidationError({
             path: repoRelPath,
-            message: frontmatterProblemMessage(repoRelPath, kind, cleared.left),
+            message: frontmatterProblemMessage(repoRelPath, kind, cleared.failure),
           }),
         );
       }
-      updatedMd = cleared.right;
+      updatedMd = cleared.success;
       if (kind === "plan") yield* removePlanApprovalRecord(repoRelPath);
       if (kind === "spec") yield* removeSpecApprovalRecord(repoRelPath);
     }
@@ -866,12 +866,12 @@ function finalizeTransition(
     if (stillDirty.length === 0) return result;
 
     const { subject, body } = transitionCommitMessage(kind, target, repoRelPath, result.reopenedBy);
-    const committed = yield* Effect.either(git.commitPaths(opts.repoRoot, writeSet, subject, body));
-    if (Either.isLeft(committed)) {
+    const committed = yield* Effect.result(git.commitPaths(opts.repoRoot, writeSet, subject, body));
+    if (Result.isFailure(committed)) {
       return yield* Effect.fail(
         new ArtifactCommitFailedError({
           paths: writeSet,
-          cause: committed.left.message,
+          cause: committed.failure.message,
           commitMessage: { subject, body },
         }),
       );
@@ -885,11 +885,11 @@ function finalizeTransition(
 export function checkPlanRunnable(
   planMd: string,
   planPath: string,
-): Either.Either<void, PlanNotApprovedError> {
+): Result.Result<void, PlanNotApprovedError> {
   const decoded = decodeArtifactFrontmatter("plan", planMd);
-  if (Either.isLeft(decoded)) {
-    if (decoded.left.kind === "missing-block") {
-      return Either.left(
+  if (Result.isFailure(decoded)) {
+    if (decoded.failure.kind === "missing-block") {
+      return Result.fail(
         new PlanNotApprovedError({
           path: planPath,
           status: "missing",
@@ -897,27 +897,27 @@ export function checkPlanRunnable(
         }),
       );
     }
-    return Either.left(
+    return Result.fail(
       new PlanNotApprovedError({
         path: planPath,
         status: "invalid",
-        message: frontmatterProblemMessage(planPath, "plan", decoded.left),
+        message: frontmatterProblemMessage(planPath, "plan", decoded.failure),
       }),
     );
   }
 
-  const status = decoded.right.status as PlanStatus;
+  const status = decoded.success.status as PlanStatus;
 
   const refusal = refusalFor(planPath, status);
   if (refusal !== null) {
-    return Either.left(refusal);
+    return Result.fail(refusal);
   }
 
   const classification = classifyArtifactPath(planPath);
   if (classification !== null) {
     const terminal = isTerminalStatus(status);
     if (terminal !== classification.inArchive) {
-      return Either.left(
+      return Result.fail(
         new PlanNotApprovedError({
           path: planPath,
           status,
@@ -927,7 +927,7 @@ export function checkPlanRunnable(
     }
   }
 
-  return Either.right(undefined);
+  return Result.succeed(undefined);
 }
 
 function refusalFor(planPath: string, status: PlanStatus): PlanNotApprovedError | null {

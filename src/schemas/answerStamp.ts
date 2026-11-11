@@ -10,12 +10,13 @@ import { schemaUrl, type FormatId } from "./schemaUrl.js";
 /**
  * The required `$schema` of an answer: exactly the URL of `formatId` at its
  * current stamp. It renders as `{ type, enum, description, const }`, a shape
- * both providers' strict modes accept.
+ * both providers' strict modes accept: the JSON Schema renderer copies a
+ * `const` annotation onto its node (`draft07Document` in ./schemaUrl.ts).
  */
 export function answerSchemaUrlField(formatId: FormatId) {
   const url = schemaUrl(formatId, CURRENT_STAMPS[formatId]);
-  return Schema.Literal(url).annotations({
-    jsonSchema: { const: url },
+  return Schema.Literal(url).annotate({
     description: `The ${formatId} format's shape, exactly: ${url}`,
+    const: url,
   });
 }

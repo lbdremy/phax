@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { archive } from "../../src/app/archive.js";
 import { enterPhase } from "../../src/app/enterPhase.js";
@@ -90,7 +90,7 @@ beforeEach(async () => {
   const started = await startHeldRun(world, HOLD_PHASE_02);
   run = started.run;
   const { loadConfig } = await import("../../src/app/loadConfig.js");
-  vi.mocked(loadConfig).mockReturnValue(Either.right(run.config));
+  vi.mocked(loadConfig).mockReturnValue(Result.succeed(run.config));
 }, 30_000);
 
 afterEach(() => {
@@ -302,7 +302,7 @@ function turnLayer(sessionId: string, during?: (cwd: string) => void) {
 }
 
 function newSessionRequest() {
-  const info = Either.getOrThrow(resolveRun(NAMESPACE, SHORT as ShortName, world.stateRoot));
+  const info = Result.getOrThrow(resolveRun(NAMESPACE, SHORT as ShortName, world.stateRoot));
   return {
     namespace: NAMESPACE,
     shortName: SHORT,
@@ -472,13 +472,13 @@ describe("phax archive and adjust-plan on a held run", () => {
   it("refuses archive without --force, naming the state and the flag", async () => {
     writeRegistry([{ shortName: SHORT, runId: run.runId }]);
 
-    const outcome = await Effect.runPromise(Effect.either(archiveRun(false)));
+    const outcome = await Effect.runPromise(Effect.result(archiveRun(false)));
 
-    expect(Either.isLeft(outcome)).toBe(true);
-    if (Either.isRight(outcome)) return;
-    expect(outcome.left).toBeInstanceOf(ArchiveRefusedError);
-    expect(outcome.left.message).toContain("awaiting_review");
-    expect(outcome.left.message).toContain("--force");
+    expect(Result.isFailure(outcome)).toBe(true);
+    if (Result.isSuccess(outcome)) return;
+    expect(outcome.failure).toBeInstanceOf(ArchiveRefusedError);
+    expect(outcome.failure.message).toContain("awaiting_review");
+    expect(outcome.failure.message).toContain("--force");
     expect(existsSync(stopPath())).toBe(true);
   });
 

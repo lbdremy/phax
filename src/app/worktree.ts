@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { join } from "node:path";
 import { Git, type GitError } from "../ports/git.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
@@ -41,7 +41,7 @@ export function preparePhaseBranch(
     const git = yield* Git;
     const phaseBranchStr = `${baseBranch}--${phaseId}`;
     const branchResult = decodeBranchName(phaseBranchStr);
-    if (Either.isLeft(branchResult)) {
+    if (Result.isFailure(branchResult)) {
       return yield* Effect.fail(
         new UnsafeGitStateError({
           message: `Invalid phase branch name "${phaseBranchStr}": must be non-empty`,
@@ -49,7 +49,7 @@ export function preparePhaseBranch(
         }),
       );
     }
-    const phaseBranch = branchResult.right;
+    const phaseBranch = branchResult.success;
 
     const exists = yield* git.branchExists(phaseBranch, repoRoot);
     if (exists) return { kind: "existing", branch: phaseBranch };
@@ -104,7 +104,7 @@ export function prepareRunBranch(
     yield* checkCleanWorkingTree(repoRoot, allowDirty ?? false);
 
     const branchResult = decodeBranchName(planBranch);
-    if (Either.isLeft(branchResult)) {
+    if (Result.isFailure(branchResult)) {
       return yield* Effect.fail(
         new UnsafeGitStateError({
           message: `Invalid branch name "${planBranch}": must be non-empty`,
@@ -112,7 +112,7 @@ export function prepareRunBranch(
         }),
       );
     }
-    const branch = branchResult.right;
+    const branch = branchResult.success;
 
     const exists = yield* git.branchExists(branch, repoRoot);
     if (!exists) {
@@ -195,7 +195,7 @@ export function createPhaseWorktree(
 
     const worktreeDir = join(stateRoot, "worktrees", runKey(namespace, shortName), phaseId);
     const pathResult = decodeWorktreePath(worktreeDir);
-    if (Either.isLeft(pathResult)) {
+    if (Result.isFailure(pathResult)) {
       return yield* Effect.fail(
         new WorktreeCreationError({
           message: `Invalid worktree path "${worktreeDir}"`,
@@ -204,7 +204,7 @@ export function createPhaseWorktree(
         }),
       );
     }
-    const worktreePath = pathResult.right;
+    const worktreePath = pathResult.success;
 
     // Idempotent: when resuming a rate-limited phase the worktree already
     // exists. Reuse it — `git worktree add` would fail on an occupied path,

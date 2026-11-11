@@ -79,7 +79,7 @@ const SkillsInstallOutput = Schema.Struct({
   skills: Schema.Array(
     Schema.Struct({
       name: Schema.String,
-      status: Schema.Literal("created", "updated", "already-present"),
+      status: Schema.Literals(["created", "updated", "already-present"]),
       destination: Schema.String,
     }),
   ),
@@ -93,26 +93,23 @@ export function makeSkillsInstallCommand(roots: () => SkillsInstallRoots) {
     summary: "Install bundled PHAX skills into an agent's native skill directory",
     input: {
       args: reject(
-        Schema.Tuple(
-          Schema.optionalElement(
-            Schema.String.annotations({
+        Schema.Tuple([
+          Schema.optionalKey(
+            Schema.String.annotate({
               identifier: "skill",
               description: `Skill to install (${EXPOSED_SKILL_NAMES.join("|")}); installs all skills when omitted`,
             }),
           ),
-        ),
+        ]),
       ),
       flags: reject(
         Schema.Struct({
-          target: Schema.String.annotations({
+          target: Schema.String.annotate({
             description: `Agent target (${SKILL_TARGETS.join("|")})`,
           }),
-          scope: Schema.optionalWith(
-            Schema.String.annotations({
-              description: `Installation scope (${SKILL_SCOPES.join("|")})`,
-            }),
-            { default: () => "project" },
-          ),
+          scope: Schema.String.annotate({
+            description: `Installation scope (${SKILL_SCOPES.join("|")})`,
+          }).pipe(Schema.withDecodingDefaultType(Effect.succeed("project"))),
         }),
       ),
     },

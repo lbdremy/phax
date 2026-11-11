@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { join } from "node:path";
 import type { Disposition } from "../domain/disposition.js";
 import type { PhaxCommandType, StatePatch } from "../domain/effects.js";
@@ -42,8 +42,8 @@ function readPhaxState(ctx: DispatcherContext): Effect.Effect<PhaxState, FsError
     const runRaw = yield* fs.readText(runStatusPath);
     const runParsed = JSON.parse(runRaw) as unknown;
     const runDecoded = readRunStatusFile(runStatusPath, runParsed);
-    if (Either.isLeft(runDecoded)) {
-      return yield* Effect.fail(new FsError({ message: runDecoded.left.message }));
+    if (Result.isFailure(runDecoded)) {
+      return yield* Effect.fail(new FsError({ message: runDecoded.failure.message }));
     }
 
     let phase: PhaseStatus | undefined;
@@ -54,14 +54,14 @@ function readPhaxState(ctx: DispatcherContext): Effect.Effect<PhaxState, FsError
         const phaseRaw = yield* fs.readText(phasePath);
         const phaseParsed = JSON.parse(phaseRaw) as unknown;
         const phaseDecoded = readPhaseStatusFile(phasePath, phaseParsed);
-        if (Either.isLeft(phaseDecoded)) {
-          return yield* Effect.fail(new FsError({ message: phaseDecoded.left.message }));
+        if (Result.isFailure(phaseDecoded)) {
+          return yield* Effect.fail(new FsError({ message: phaseDecoded.failure.message }));
         }
-        phase = phaseDecoded.right;
+        phase = phaseDecoded.success;
       }
     }
 
-    return composePhaxState(runDecoded.right.state, runDecoded.right.lastError, phase);
+    return composePhaxState(runDecoded.success.state, runDecoded.success.lastError, phase);
   });
 }
 

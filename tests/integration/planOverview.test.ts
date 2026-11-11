@@ -1,7 +1,7 @@
 // Acceptance criteria carry a `then` key (given/when/then) — data, never awaited.
 /* eslint-disable unicorn/no-thenable */
 import { describe, expect, it } from "vitest";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { planOverview, type PlanOverviewFailure } from "../../src/app/planOverview.js";
@@ -153,7 +153,7 @@ function specJson(criteria: readonly string[]): string {
 }
 
 interface Run {
-  readonly result: Either.Either<PlanOverview, PlanOverviewFailure>;
+  readonly result: Result.Result<PlanOverview, PlanOverviewFailure>;
   readonly shellCalls: ReadonlyArray<{
     readonly command: readonly string[];
     readonly stdin?: string;
@@ -181,19 +181,19 @@ async function run(
       reportPath: repoRelPath,
       repoRelPath,
       config: opts.config ?? baseConfig,
-    }).pipe(Effect.either, Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
+    }).pipe(Effect.result, Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
   );
   return { result, shellCalls: fakeShell.impl.calls };
 }
 
 const overviewOf = ({ result }: Run): PlanOverview => {
-  if (Either.isLeft(result)) throw new Error(`expected an overview, got ${result.left.line}`);
-  return result.right;
+  if (Result.isFailure(result)) throw new Error(`expected an overview, got ${result.failure.line}`);
+  return result.success;
 };
 
 const failureOf = ({ result }: Run): PlanOverviewFailure => {
-  if (Either.isRight(result)) throw new Error("expected a failure");
-  return result.left;
+  if (Result.isSuccess(result)) throw new Error("expected a failure");
+  return result.failure;
 };
 
 const TWO_PHASES = [

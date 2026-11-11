@@ -1,4 +1,4 @@
-import { Either } from "effect";
+import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { codeReviewFileText, readCodeReviewAnswer } from "../../../src/schemas/codeReview.js";
 import { CURRENT_STAMPS } from "../../../src/schemas/release.js";
@@ -21,8 +21,8 @@ const answer = (findings: readonly unknown[]): unknown => ({ $schema: STAMP, fin
 
 function accept(parsed: unknown) {
   const result = readCodeReviewAnswer(parsed);
-  if (Either.isLeft(result)) throw new Error(`refused: ${result.left}`);
-  return result.right;
+  if (Result.isFailure(result)) throw new Error(`refused: ${result.failure}`);
+  return result.success;
 }
 
 describe("the code-review answer contract", () => {
@@ -89,17 +89,17 @@ describe("the code-review answer contract", () => {
 
   it.each(refused)("refuses %s", (_name, parsed, mentions) => {
     const result = readCodeReviewAnswer(parsed);
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      for (const word of mentions) expect(result.left).toContain(word);
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      for (const word of mentions) expect(result.failure).toContain(word);
     }
   });
 
   it("refuses an unstamped answer naming the missing $schema and the unexpected version", () => {
     const result = readCodeReviewAnswer({ version: 1, findings: [] });
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toMatch(/^\$schema: is missing; version: is unexpected/);
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toMatch(/^\$schema: is missing; version: is unexpected/);
     }
   });
 });

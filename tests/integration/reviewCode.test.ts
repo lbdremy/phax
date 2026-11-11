@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { prepareCodeReviewSession } from "../../src/app/reviewCode.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
@@ -693,12 +693,12 @@ describe("review info from a phax-plan.json written before $schema", () => {
   });
 
   it("loads the plan's branch, title and phases", () => {
-    const shortNameValue = Either.getOrThrow(decodeShortName("example-run"));
+    const shortNameValue = Result.getOrThrow(decodeShortName("example-run"));
     const result = resolveRun("example", shortNameValue, legacyStateRoot);
-    if (Either.isLeft(result)) throw new Error(result.left);
-    expect(result.right.branch).toBe("phax/example-run");
-    expect(result.right.runTitle).toBe("Example Run");
-    expect(result.right.planPhases).toEqual([
+    if (Result.isFailure(result)) throw new Error(result.failure);
+    expect(result.success.branch).toBe("phax/example-run");
+    expect(result.success.runTitle).toBe("Example Run");
+    expect(result.success.planPhases).toEqual([
       { id: "phase-01", title: "First" },
       { id: "phase-02", title: "Second" },
     ]);

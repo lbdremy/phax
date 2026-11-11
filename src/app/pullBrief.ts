@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { join } from "node:path";
 import {
   BRIEFS_CLOSED_MARKER,
@@ -49,24 +49,24 @@ function readPhaseRequest(
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const path = join(root, PHASE_BRIEF_REQUEST_FILE);
-    const present = yield* Effect.either(fs.exists(path));
-    if (Either.isLeft(present)) return notARequest(present.left.message);
-    if (!present.right) return undefined;
-    const text = yield* Effect.either(fs.readText(path));
-    if (Either.isLeft(text)) return notARequest(text.left.message);
+    const present = yield* Effect.result(fs.exists(path));
+    if (Result.isFailure(present)) return notARequest(present.failure.message);
+    if (!present.success) return undefined;
+    const text = yield* Effect.result(fs.readText(path));
+    if (Result.isFailure(text)) return notARequest(text.failure.message);
     let parsed: unknown;
     try {
-      parsed = JSON.parse(text.right) as unknown;
+      parsed = JSON.parse(text.success) as unknown;
     } catch {
       return notARequest("not valid JSON");
     }
     const read = readBriefRequestFile(PHASE_BRIEF_REQUEST_FILE, parsed);
-    if (Either.isLeft(read)) {
-      const prefix = `${read.left.file}: `;
-      const { message } = read.left;
+    if (Result.isFailure(read)) {
+      const prefix = `${read.failure.file}: `;
+      const { message } = read.failure;
       return notARequest(message.startsWith(prefix) ? message.slice(prefix.length) : message);
     }
-    const request = read.right;
+    const request = read.success;
     if (!("phase" in request)) return notARequest("it carries no phase facts");
     if (request.files !== null) return notARequest("its files is not null");
     return request;
@@ -97,7 +97,7 @@ function recordPull(
       taken.push(name);
     }
   }).pipe(
-    Effect.catchAll((e) =>
+    Effect.catch((e) =>
       Effect.succeed(`failed to record the brief in ${PULLED_BRIEFS_DIR} (${e.message})`),
     ),
   );
@@ -137,7 +137,7 @@ export function closePulledBriefs(input: {
     yield* fs.mkdirp(dir);
     yield* fs.writeAtomic(marker, "");
   }).pipe(
-    Effect.catchAll((e) =>
+    Effect.catch((e) =>
       Effect.sync(() => {
         input.output.warn(
           `[phax] Warning: phase "${input.phaseId}" — failed to collect pulled briefs (${e.message}).`,
@@ -180,11 +180,11 @@ export function pullBrief(input: {
         root: input.root,
         paths: [first, ...rest],
       });
-      if (Either.isLeft(files)) return refused(files.left.refused);
+      if (Result.isFailure(files)) return refused(files.failure.refused);
       request = stampBriefRequest(
         phase === undefined
-          ? outsideBriefRequest(files.right)
-          : phaseBriefRequest(phase, files.right),
+          ? outsideBriefRequest(files.success)
+          : phaseBriefRequest(phase, files.success),
       );
     }
 

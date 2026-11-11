@@ -6,7 +6,7 @@ import { defineCommand, reject, strip } from "../../../../src/cli/commandLibrary
 import { call, memoryIo } from "./support/memoryIo.js";
 import { programOf } from "./support/todos.js";
 
-const Request = Schema.Struct({ todos: Schema.Array(Schema.String) }).annotations({
+const Request = Schema.Struct({ todos: Schema.Array(Schema.String) }).annotate({
   identifier: "gate-request",
 });
 const document = JSON.stringify({ todos: ["a"] });
@@ -18,7 +18,7 @@ function make(binding: { readonly required?: boolean } = {}) {
     name: "audit",
     summary: "audit",
     input: {
-      flags: reject(Schema.Struct({ format: Schema.optionalWith(Schema.String, { exact: true }) })),
+      flags: reject(Schema.Struct({ format: Schema.optionalKey(Schema.String) })),
       stdin: reject(Request, { flag: "request", ...binding }),
     },
     output: strip(Schema.String),
@@ -172,7 +172,7 @@ describe("the refusals of a stdin read", () => {
 
   it("names the title, then JSON, when the contract has no identifier", async () => {
     for (const [contract, name] of [
-      [Schema.Struct({}).annotations({ title: "a ledger" }), "a ledger"],
+      [Schema.Struct({}).annotate({ title: "a ledger" }), "a ledger"],
       [Schema.Struct({}), "JSON"],
     ] as const) {
       const command = defineCommand({
@@ -258,9 +258,7 @@ describe("a stdin flag whose value is required", () => {
       name: "decide",
       summary: "decide",
       input: {
-        flags: reject(
-          Schema.Struct({ dryRun: Schema.optionalWith(Schema.Boolean, { exact: true }) }),
-        ),
+        flags: reject(Schema.Struct({ dryRun: Schema.optionalKey(Schema.Boolean) })),
         stdin: reject(Request, { flag: "verdicts", required: true, valueRequired: true }),
       },
       output: strip(Schema.String),

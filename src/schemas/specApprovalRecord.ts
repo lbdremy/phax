@@ -1,17 +1,18 @@
 import { Schema, type Types } from "effect";
 import { ApprovedBySchema } from "./approvedBy.js";
 import { schemaUrlField } from "./schemaUrl.js";
+import { isExportedPattern } from "./strictString.js";
 
 export const SpecApprovalRecordSchema = Schema.Struct({
   specFingerprint: Schema.NonEmptyString,
   approvedAt: Schema.NonEmptyString,
-  baseline: Schema.NonEmptyString.pipe(Schema.pattern(/^[0-9a-f]{40}$/)),
+  baseline: Schema.NonEmptyString.check(isExportedPattern(/^[0-9a-f]{40}$/)),
 });
 
 export type SpecApprovalRecord = Schema.Schema.Type<typeof SpecApprovalRecordSchema>;
 
 const specApprovalsFields = {
-  records: Schema.Record({ key: Schema.String, value: SpecApprovalRecordSchema }),
+  records: Schema.Record(Schema.String, SpecApprovalRecordSchema),
 };
 
 /**
@@ -32,9 +33,9 @@ export const SpecApprovalRecordFileSchema = Schema.Struct({
 
 export type SpecApprovalRecordFile = Schema.Schema.Type<typeof SpecApprovalRecordFileSchema>;
 
-export const decodeSpecApprovalRecordFile = Schema.decodeUnknownEither(
+export const decodeSpecApprovalRecordFile = Schema.decodeUnknownResult(
   SpecApprovalRecordFileSchema,
-  { onExcessProperty: "error" },
+  { onExcessProperty: "error", reportInput: true },
 );
 
 export const encodeSpecApprovalRecordFile = Schema.encodeSync(SpecApprovalRecordFileSchema);
@@ -67,8 +68,9 @@ export const SpecRecordFileSchema = Schema.Struct({
 
 export type SpecRecordFile = Schema.Schema.Type<typeof SpecRecordFileSchema>;
 
-export const decodeSpecRecordFile = Schema.decodeUnknownEither(SpecRecordFileSchema, {
+export const decodeSpecRecordFile = Schema.decodeUnknownResult(SpecRecordFileSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });
 
 export const encodeSpecRecordFile = Schema.encodeSync(SpecRecordFileSchema);

@@ -1,4 +1,4 @@
-import { Effect, Either, Schema } from "effect";
+import { Effect, Result, Schema } from "effect";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
@@ -20,8 +20,9 @@ import {
 import { formatParseError } from "../schemas/formatError.js";
 import { answerJson } from "../domain/session/structuredAnswer.js";
 
-const decodeExtractedPlan = Schema.decodeUnknownEither(ExtractedPhaxPlanSchema, {
+const decodeExtractedPlan = Schema.decodeUnknownResult(ExtractedPhaxPlanSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });
 
 function buildExtractionPrompt(planMd: string, jsonSchema: object): string {
@@ -86,11 +87,11 @@ export function extractPlanLlm(
           cwd: dir,
           answerSchema: { call: "plan-extraction", schema: jsonSchema },
         }),
-      (dir) => fs.remove(dir).pipe(Effect.orElse(() => Effect.void)),
+      (dir) => fs.remove(dir).pipe(Effect.catch(() => Effect.void)),
     );
 
     const parsed = answerJson(runResult);
-    if (Either.isLeft(parsed)) {
+    if (Result.isFailure(parsed)) {
       return yield* Effect.fail(
         new PlanValidationError({
           message: `Claude returned non-JSON output. Raw response: ${runResult.finalText.slice(0, 300)}`,
@@ -98,35 +99,35 @@ export function extractPlanLlm(
       );
     }
 
-    const answer = readPlanExtractionAnswer(parsed.right);
-    if (Either.isLeft(answer)) {
+    const answer = readPlanExtractionAnswer(parsed.success);
+    if (Result.isFailure(answer)) {
       return yield* Effect.fail(
         new PlanValidationError({
-          message: `Extracted JSON failed schema validation: ${answer.left}`,
+          message: `Extracted JSON failed schema validation: ${answer.failure}`,
         }),
       );
     }
-    if (answer.right.kind === "incomplete") {
+    if (answer.success.kind === "incomplete") {
       return yield* Effect.fail(
         new PlanValidationError({
-          message: `The extraction model found the plan incomplete: ${answer.right.reason}`,
+          message: `The extraction model found the plan incomplete: ${answer.success.reason}`,
         }),
       );
     }
 
     // mode and acceptance are phax's own reading of the header lines, never the model's.
-    const kinded = withPhaseKinds(answer.right.plan, planMd);
-    if (Either.isLeft(kinded)) return yield* Effect.fail(kinded.left);
+    const kinded = withPhaseKinds(answer.success.plan, planMd);
+    if (Result.isFailure(kinded)) return yield* Effect.fail(kinded.failure);
 
-    const decoded = decodeExtractedPlan({ version: 1, ...kinded.right });
-    if (Either.isLeft(decoded)) {
+    const decoded = decodeExtractedPlan({ version: 1, ...kinded.success });
+    if (Result.isFailure(decoded)) {
       return yield* Effect.fail(
         new PlanValidationError({
-          message: `Extracted plan failed schema validation:\n${formatParseError(decoded.left)}`,
+          message: `Extracted plan failed schema validation:\n${formatParseError(decoded.failure)}`,
         }),
       );
     }
 
-    return decoded.right;
+    return decoded.success;
   });
 }

@@ -1,10 +1,9 @@
-import { Either, Schema } from "effect";
-import type { ParseResult } from "effect";
+import { Result, Schema } from "effect";
 import { ProviderIdSchema } from "./modelRouting.js";
 import { NetworkProfileSchema, McpModeSchema } from "./securityConfig.js";
 
 const PostureBaseFields = {
-  mode: Schema.Literal("secure", "unsafe", "isolated"),
+  mode: Schema.Literals(["secure", "unsafe", "isolated"]),
   provider: ProviderIdSchema,
   sandboxEnabled: Schema.Boolean,
   filesystem: Schema.Struct({
@@ -19,14 +18,16 @@ const PostureBaseFields = {
     allow: Schema.Array(Schema.NonEmptyString),
   }),
   downgraded: Schema.Boolean,
-  marks: Schema.Array(Schema.Literal("partial-filesystem", "mcp-unenforced", "command-precision")),
+  marks: Schema.Array(
+    Schema.Literals(["partial-filesystem", "mcp-unenforced", "command-precision"]),
+  ),
   agentCommands: Schema.Array(
     Schema.Struct({
       command: Schema.NonEmptyString,
-      source: Schema.Literal("config", "gate", "partial", "brief"),
+      source: Schema.Literals(["config", "gate", "partial", "brief"]),
       explicit: Schema.Boolean,
       requiredByPlan: Schema.Boolean,
-      enforcement: Schema.Literal("exact", "prefix", "executable", "none"),
+      enforcement: Schema.Literals(["exact", "prefix", "executable", "none"]),
       degraded: Schema.Boolean,
     }),
   ),
@@ -45,15 +46,15 @@ const ProviderSkippedForSecurityField = {
 
 /** What a closed stop adds: the person's work ran outside enforcement, and each turn phax ran. */
 export const StopPostureSchema = Schema.Struct({
-  cause: Schema.Literal("declared", "held"),
+  cause: Schema.Literals(["declared", "held"]),
   personWork: Schema.Literal("outside-phax-enforcement"),
   turns: Schema.Array(
     Schema.Struct({
       turn: Schema.NonEmptyString,
-      kind: Schema.Literal("first-turn", "closing-turn"),
-      narrowing: Schema.Literal("read-only-tools", "read-only-sandbox", "none"),
+      kind: Schema.Literals(["first-turn", "closing-turn"]),
+      narrowing: Schema.Literals(["read-only-tools", "read-only-sandbox", "none"]),
       // A first or closing turn runs with no agent commands.
-      agentCommands: Schema.Tuple(),
+      agentCommands: Schema.Tuple([]),
     }),
   ),
 });
@@ -66,7 +67,7 @@ export const SecurityPostureSchema = Schema.Struct({
   protectedPaths: Schema.NullOr(
     Schema.Struct({
       globs: Schema.NonEmptyArray(Schema.NonEmptyString),
-      enforcement: Schema.Literal("enforced", "partial", "commit-check-only"),
+      enforcement: Schema.Literals(["enforced", "partial", "commit-check-only"]),
     }),
   ),
   ...ProviderSkippedForSecurityField,
@@ -94,9 +95,17 @@ export const SecurityPostureV2Schema = Schema.Struct({
 const STRICT = { onExcessProperty: "error" } as const;
 
 /** Version 3 only, strictly. Readers of a file on disk use `readSecurityPosture`. */
-export const decodeSecurityPosture = Schema.decodeUnknownEither(SecurityPostureSchema, STRICT);
-const decodeSecurityPostureV1 = Schema.decodeUnknownEither(SecurityPostureV1Schema);
-const decodeSecurityPostureV2 = Schema.decodeUnknownEither(SecurityPostureV2Schema, STRICT);
+export const decodeSecurityPosture = Schema.decodeUnknownResult(SecurityPostureSchema, {
+  ...STRICT,
+  reportInput: true,
+});
+const decodeSecurityPostureV1 = Schema.decodeUnknownResult(SecurityPostureV1Schema, {
+  reportInput: true,
+});
+const decodeSecurityPostureV2 = Schema.decodeUnknownResult(SecurityPostureV2Schema, {
+  ...STRICT,
+  reportInput: true,
+});
 export const encodeSecurityPosture = Schema.encodeSync(SecurityPostureSchema);
 
 /**
@@ -106,11 +115,11 @@ export const encodeSecurityPosture = Schema.encodeSync(SecurityPostureSchema);
  */
 export function readSecurityPosture(
   input: unknown,
-): Either.Either<SecurityPosture, ParseResult.ParseError> {
+): Result.Result<SecurityPosture, Schema.SchemaError> {
   const version =
     typeof input === "object" && input !== null && "version" in input ? input.version : undefined;
   if (version === 1) {
-    return Either.map(decodeSecurityPostureV1(input), (v1) => {
+    return Result.map(decodeSecurityPostureV1(input), (v1) => {
       const { version: _version, providerSkippedForSecurity, ...rest } = v1;
       return {
         version: 3 as const,
@@ -122,7 +131,7 @@ export function readSecurityPosture(
     });
   }
   if (version === 2) {
-    return Either.map(decodeSecurityPostureV2(input), (v2) => {
+    return Result.map(decodeSecurityPostureV2(input), (v2) => {
       const { version: _version, providerSkippedForSecurity, stop, ...rest } = v2;
       return {
         version: 3 as const,

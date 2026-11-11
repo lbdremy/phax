@@ -16,7 +16,7 @@ import { schemaUrlField } from "./schemaUrl.js";
  * failed). There is no pause: a headless session is resumed at most once, to
  * retry a refused document, and never waits on a person.
  */
-export const AuthoringRecordOutcomeSchema = Schema.Literal("committed", "failed");
+export const AuthoringRecordOutcomeSchema = Schema.Literals(["committed", "failed"]);
 
 export type AuthoringRecordOutcome = Schema.Schema.Type<typeof AuthoringRecordOutcomeSchema>;
 
@@ -25,7 +25,7 @@ export type AuthoringRecordOutcome = Schema.Schema.Type<typeof AuthoringRecordOu
  * its first answer was the only one, `retried` once the resume was attempted
  * (even when the resume itself failed).
  */
-export const AuthoringRecordRetrySchema = Schema.Literal("none", "retried");
+export const AuthoringRecordRetrySchema = Schema.Literals(["none", "retried"]);
 
 export type AuthoringRecordRetry = Schema.Schema.Type<typeof AuthoringRecordRetrySchema>;
 
@@ -41,7 +41,7 @@ const authoringRecordManifestFields = {
   authoringId: Schema.NonEmptyString,
   /** Repo-relative path of the artifact the session authored (or would have). */
   artifact: Schema.NonEmptyString,
-  artifactKind: Schema.Literal("spec", "plan"),
+  artifactKind: Schema.Literals(["spec", "plan"]),
   shape: RecordShapeSchema,
   sourceSha: Schema.optional(Schema.NonEmptyString),
   provider: ProviderIdSchema,
@@ -71,9 +71,9 @@ export type AuthoringRecordManifestFile = Schema.Schema.Type<
   typeof AuthoringRecordManifestFileSchema
 >;
 
-export const decodeAuthoringRecordManifestFile = Schema.decodeUnknownEither(
+export const decodeAuthoringRecordManifestFile = Schema.decodeUnknownResult(
   AuthoringRecordManifestFileSchema,
-  { onExcessProperty: "error" },
+  { onExcessProperty: "error", reportInput: true },
 );
 
 export const encodeAuthoringRecordManifest = Schema.encodeSync(AuthoringRecordManifestFileSchema);
@@ -89,12 +89,12 @@ export type RecordManifest =
   | ReviewRecordManifest;
 
 /** Any `record.json` as phax writes it: the union of the four file schemas. */
-export const RecordManifestFileSchema = Schema.Union(
+export const RecordManifestFileSchema = Schema.Union([
   RunRecordManifestFileSchema,
   AuthoringRecordManifestFileSchema,
   DecisionRecordManifestFileSchema,
   ReviewRecordManifestFileSchema,
-);
+]);
 
 export type RecordManifestFile = Schema.Schema.Type<typeof RecordManifestFileSchema>;
 
@@ -104,8 +104,9 @@ export type RecordManifestFile = Schema.Schema.Type<typeof RecordManifestFileSch
  */
 export const RecordManifestSchema = RecordManifestFileSchema;
 
-export const decodeRecordManifestFile = Schema.decodeUnknownEither(RecordManifestFileSchema, {
+export const decodeRecordManifestFile = Schema.decodeUnknownResult(RecordManifestFileSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });
 
 export function isAuthoringRecordManifest(

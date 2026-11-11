@@ -156,7 +156,7 @@ const leaf = (name: string, flags?: Schema.Struct.Fields) =>
     name,
     summary: `The ${name} command`,
     input: {
-      args: reject(Schema.Tuple(Schema.optionalElement(Schema.String))),
+      args: reject(Schema.Tuple([Schema.optionalKey(Schema.String)])),
       ...(flags === undefined ? {} : { flags: reject(Schema.Struct(flags)) }),
     },
     output: strip(Schema.String),
@@ -183,7 +183,7 @@ describe("phase guard — phaxProgram's guard on the runner", () => {
         summary: "Plans",
         commands: [
           leaf("status", {
-            apply: Schema.optionalWith(Schema.Boolean, { exact: true }),
+            apply: Schema.optionalKey(Schema.Boolean),
           }),
         ],
       }),

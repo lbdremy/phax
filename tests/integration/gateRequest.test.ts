@@ -4,7 +4,7 @@
  * projection, then saved beside every attempt of a declaring step. Fake git,
  * shell and backend; real filesystem in a temp dir. Every value is made up.
  */
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
@@ -44,7 +44,7 @@ const HANDOFF_CONTENT = [
   "Ready to proceed.",
 ].join("\n");
 
-const shortName = Either.getOrThrow(decodeShortName("my-run"));
+const shortName = Result.getOrThrow(decodeShortName("my-run"));
 const RUN_BRANCH = "ai/my-run";
 const PHASE_01_BRANCH = `${RUN_BRANCH}--phase-01`;
 const PHASE_01_MOVED_TIP = "b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0";
@@ -199,14 +199,14 @@ async function seedHandoffs(phaseIds: readonly string[]): Promise<void> {
 }
 
 async function startRun(rawPlan: unknown, layers: ReturnType<typeof makeFakes>["layers"]) {
-  const plan = Either.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+  const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
   const config = makeConfig();
   const { runPath, runId } = await Effect.runPromise(
     createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(layers)),
   );
   const execute = (withLayers: typeof layers) =>
     Effect.runPromise(
-      Effect.either(
+      Effect.result(
         executePlan({
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -257,7 +257,7 @@ describe("executePlan writes each phase's gate request", () => {
     const { runPath, execute } = await startRun(threePhaseRawPlan, layers);
     const result = await execute(layers);
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     const raw = await readRequest(runPath, "phase-02", "01");
     const request = JSON.parse(raw) as Record<string, unknown>;
     expect(Object.keys(request)).toEqual(["$schema", "phase", "base", "terminal", "phases"]);
@@ -290,7 +290,7 @@ describe("executePlan writes each phase's gate request", () => {
     const { runPath, execute } = await startRun(singlePhaseRawPlan, layers);
     const result = await execute(layers);
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     const request = JSON.parse(await readRequest(runPath, "phase-01", "01")) as {
       phase: string;
       base: string;
@@ -322,8 +322,8 @@ describe("executePlan writes each phase's gate request", () => {
     const { runPath, execute } = await startRun(singlePhaseRawPlan, first.layers);
     const paused = await execute(first.layers);
 
-    expect(Either.isLeft(paused)).toBe(true);
-    if (Either.isLeft(paused)) expect(paused.left).toBeInstanceOf(GateAttemptsExhaustedError);
+    expect(Result.isFailure(paused)).toBe(true);
+    if (Result.isFailure(paused)) expect(paused.failure).toBeInstanceOf(GateAttemptsExhaustedError);
     const attempt01 = await readRequest(runPath, "phase-01", "01");
     expect(await readRequest(runPath, "phase-01", "02")).toBe(attempt01);
 
@@ -353,7 +353,7 @@ describe("executePlan writes each phase's gate request", () => {
     });
     const resumed = await execute(second.layers);
 
-    expect(Either.isRight(resumed)).toBe(true);
+    expect(Result.isSuccess(resumed)).toBe(true);
     expect(second.fakeBackend.impl.runCalls).toHaveLength(0);
     const attempt03 = await readRequest(runPath, "phase-01", "03");
     expect(attempt03).toBe(attempt01);

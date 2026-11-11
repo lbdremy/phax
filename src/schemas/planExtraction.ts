@@ -9,7 +9,7 @@
 // `$schema` reads only its own stamp: the schemas package still maps a later
 // stamp to the latest shape at or below it, so a document stamped above the
 // current stamp is refused at `$schema`, and phax never writes one.
-import { Either, Schema } from "effect";
+import { Result, Schema } from "effect";
 import { answerSchemaUrlField } from "./answerStamp.js";
 import { formatAnswerViolations } from "./formatError.js";
 import { ExtractedRunSchema, answerPhaseFields } from "./phaxPlan.js";
@@ -31,19 +31,19 @@ export type ExtractionPlan = Schema.Schema.Type<typeof ExtractionPlanSchema>;
  */
 export const PlanExtractionAnswerSchema = Schema.Struct({
   $schema: answerSchemaUrlField("phax-plan-extraction"),
-  plan: Schema.NullOr(ExtractionPlanSchema).annotations({
+  plan: Schema.NullOr(ExtractionPlanSchema).annotate({
     description: "The extracted plan, or null when the plan is incomplete.",
   }),
-  incomplete: Schema.NullOr(NonEmptyString).annotations({
+  incomplete: Schema.NullOr(NonEmptyString).annotate({
     description:
       "What is missing from the plan, or a test strategy item not in the line format; null when the plan is extracted.",
   }),
-}).pipe(
-  Schema.filter(
+}).check(
+  Schema.makeFilter(
     (answer) => (answer.plan === null) !== (answer.incomplete === null) || EXACTLY_ONE,
     {
-      jsonSchema: {},
       description: "Exactly one of plan and incomplete is null.",
+      toJsonSchema: () => ({}),
     },
   ),
 );
@@ -55,13 +55,15 @@ export type PlanExtractionReading =
   | { readonly kind: "plan"; readonly plan: ExtractionPlan }
   | { readonly kind: "incomplete"; readonly reason: string };
 
-export const decodePlanExtractionAnswer = Schema.decodeUnknownEither(PlanExtractionAnswerSchema, {
+export const decodePlanExtractionAnswer = Schema.decodeUnknownResult(PlanExtractionAnswerSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });
 
-const decodePlanExtractionAnswerAll = Schema.decodeUnknownEither(PlanExtractionAnswerSchema, {
+const decodePlanExtractionAnswerAll = Schema.decodeUnknownResult(PlanExtractionAnswerSchema, {
   errors: "all",
   onExcessProperty: "error",
+  reportInput: true,
 });
 
 /**
@@ -71,10 +73,10 @@ const decodePlanExtractionAnswerAll = Schema.decodeUnknownEither(PlanExtractionA
  */
 export function readPlanExtractionAnswer(
   parsed: unknown,
-): Either.Either<PlanExtractionReading, string> {
+): Result.Result<PlanExtractionReading, string> {
   const decoded = decodePlanExtractionAnswerAll(parsed);
-  if (Either.isLeft(decoded)) return Either.left(formatAnswerViolations(decoded.left));
-  const { plan, incomplete } = decoded.right;
-  if (plan !== null) return Either.right({ kind: "plan", plan });
-  return Either.right({ kind: "incomplete", reason: incomplete ?? "" });
+  if (Result.isFailure(decoded)) return Result.fail(formatAnswerViolations(decoded.failure));
+  const { plan, incomplete } = decoded.success;
+  if (plan !== null) return Result.succeed({ kind: "plan", plan });
+  return Result.succeed({ kind: "incomplete", reason: incomplete ?? "" });
 }

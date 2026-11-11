@@ -4,24 +4,24 @@
 // verdict, the summary, one verdict per phase, the two ledgers, the attention
 // points and the pointers. The 0.17.0 shape (no ledgers) and the pre-schema one
 // stay readable through src/schemas/history/compliance-review/.
-import { Either, Schema, type Types } from "effect";
+import { Result, Schema, type Types } from "effect";
 import { answerSchemaUrlField } from "./answerStamp.js";
 import { formatAnswerViolations } from "./formatError.js";
 import { CURRENT_STAMPS } from "./release.js";
 import { schemaUrl } from "./schemaUrl.js";
 import { NonEmptyString } from "./strictString.js";
 
-export const VerdictSchema = Schema.Literal(
+export const VerdictSchema = Schema.Literals([
   "conformant",
   "conformant-with-deviations",
   "divergent",
-);
+]);
 export type Verdict = Schema.Schema.Type<typeof VerdictSchema>;
 
-export const SeveritySchema = Schema.Literal("info", "deviation", "concern");
+export const SeveritySchema = Schema.Literals(["info", "deviation", "concern"]);
 export type Severity = Schema.Schema.Type<typeof SeveritySchema>;
 
-export const DimensionSchema = Schema.Literal(
+export const DimensionSchema = Schema.Literals([
   "objective",
   "excluded-scope",
   "files",
@@ -29,7 +29,7 @@ export const DimensionSchema = Schema.Literal(
   "boundaries",
   "commit",
   "handoff",
-);
+]);
 export type Dimension = Schema.Schema.Type<typeof DimensionSchema>;
 
 export const FindingSchema = Schema.Struct({
@@ -64,11 +64,11 @@ const complianceReviewFields = {
   verdict: VerdictSchema,
   summary: Schema.String,
   perPhase: Schema.Array(PhaseVerdictSchema),
-  unplannedChanges: Schema.Array(UnplannedChangeSchema).annotations({
+  unplannedChanges: Schema.Array(UnplannedChangeSchema).annotate({
     description:
       "Every change the plan did not call for: the phase that made it, the path, and a note. An empty list says there was none.",
   }),
-  unmetPromises: Schema.Array(UnmetPromiseSchema).annotations({
+  unmetPromises: Schema.Array(UnmetPromiseSchema).annotate({
     description:
       "Every promise of the plan a phase did not keep: the phase, the promise, and a note. An empty list says there was none.",
   }),
@@ -97,13 +97,15 @@ export const ComplianceReviewFileSchema = Schema.Struct({
 
 export type ComplianceReviewFile = Schema.Schema.Type<typeof ComplianceReviewFileSchema>;
 
-export const decodeComplianceReviewFile = Schema.decodeUnknownEither(ComplianceReviewFileSchema, {
+export const decodeComplianceReviewFile = Schema.decodeUnknownResult(ComplianceReviewFileSchema, {
   onExcessProperty: "error",
+  reportInput: true,
 });
 
-const decodeComplianceReviewAnswerAll = Schema.decodeUnknownEither(ComplianceReviewFileSchema, {
+const decodeComplianceReviewAnswerAll = Schema.decodeUnknownResult(ComplianceReviewFileSchema, {
   errors: "all",
   onExcessProperty: "error",
+  reportInput: true,
 });
 
 export const encodeComplianceReviewFile = Schema.encodeSync(ComplianceReviewFileSchema);
@@ -116,11 +118,11 @@ export const encodeComplianceReviewFile = Schema.encodeSync(ComplianceReviewFile
  */
 export function readComplianceReviewAnswer(
   parsed: unknown,
-): Either.Either<ComplianceReview, string> {
+): Result.Result<ComplianceReview, string> {
   const decoded = decodeComplianceReviewAnswerAll(parsed);
-  if (Either.isLeft(decoded)) return Either.left(formatAnswerViolations(decoded.left));
-  const { $schema: _schema, ...review } = decoded.right;
-  return Either.right(review);
+  if (Result.isFailure(decoded)) return Result.fail(formatAnswerViolations(decoded.failure));
+  const { $schema: _schema, ...review } = decoded.success;
+  return Result.succeed(review);
 }
 
 /** The text of `compliance-review.json`: `$schema` first, then the review, indented by 2. */

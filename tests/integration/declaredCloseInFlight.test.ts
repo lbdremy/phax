@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { listRecords } from "../../src/app/recordsList.js";
 import { AwaitingReviewStopError } from "../../src/domain/errors.js";
@@ -83,7 +83,9 @@ const runFailedTraced = (run: HeldRun): boolean =>
 describe("a declared close that fails after its commit", { timeout: 60_000 }, () => {
   it("leaves the run resumable, never failed, and the next resume finishes it from the landed commit", async () => {
     const { run, result } = await startHeldRun(world, { selection: "none" }, { records: true });
-    expect(Either.isLeft(result) && result.left instanceof AwaitingReviewStopError).toBe(true);
+    expect(Result.isFailure(result) && result.failure instanceof AwaitingReviewStopError).toBe(
+      true,
+    );
     const branch = `phax/${SHORT}--phase-03`;
     const base = gitIn(world.repoRoot, "rev-parse", branch);
     // The first write of phase-03's status as committed (StopCommitted's) fails once.
@@ -97,7 +99,7 @@ describe("a declared close that fails after its commit", { timeout: 60_000 }, ()
 
     const failed = await resumeHeldRun(run);
 
-    expect(Either.isLeft(failed)).toBe(true);
+    expect(Result.isFailure(failed)).toBe(true);
     expect(run.failWrite).toBeUndefined();
     // The declared commit landed; the close's state event did not.
     const landed = gitIn(world.repoRoot, "rev-parse", branch);
@@ -115,7 +117,7 @@ describe("a declared close that fails after its commit", { timeout: 60_000 }, ()
 
     const finished = await resumeHeldRun(run);
 
-    expect(Either.isRight(finished)).toBe(true);
+    expect(Result.isSuccess(finished)).toBe(true);
     // Finished from the landed commit: no second commit on the phase branch.
     expect(gitIn(world.repoRoot, "rev-parse", branch)).toBe(landed);
     expect(readPhaseStatus(run, "phase-03")).toMatchObject({

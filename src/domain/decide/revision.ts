@@ -1,4 +1,4 @@
-import { Either, ParseResult } from "effect";
+import { Result, type Schema } from "effect";
 import { decodeCurrentDocumentSidecar } from "../../schemas/persisted.js";
 import type {
   OpenQuestion,
@@ -113,17 +113,17 @@ export function decideScope(
     readonly arbitratedQuestions: ReadonlyArray<{ readonly id: string }>;
   },
   questionFlag: string | null,
-): Either.Either<DecideScope, string> {
+): Result.Result<DecideScope, string> {
   const openIds = questions.openQuestions.map((q) => q.id);
-  if (questionFlag === null) return Either.right({ presented: openIds, reArbitrated: null });
+  if (questionFlag === null) return Result.succeed({ presented: openIds, reArbitrated: null });
   if (openIds.includes(questionFlag)) {
-    return Either.right({ presented: [questionFlag], reArbitrated: null });
+    return Result.succeed({ presented: [questionFlag], reArbitrated: null });
   }
   if (questions.arbitratedQuestions.some((q) => q.id === questionFlag)) {
-    return Either.right({ presented: [questionFlag], reArbitrated: questionFlag });
+    return Result.succeed({ presented: [questionFlag], reArbitrated: questionFlag });
   }
   const ids = [...openIds, ...questions.arbitratedQuestions.map((q) => q.id)];
-  return Either.left(
+  return Result.fail(
     ids.length === 0
       ? `--question ${questionFlag} names no question: the artifact has none`
       : `--question ${questionFlag} names no question of the artifact — its questions are ${ids.join(", ")}`,
@@ -281,7 +281,7 @@ export function stampSessionVerdicts(json: unknown, context: DecideContext): unk
 
 // ── Decoding ───────────────────────────────────────────────────────────────
 
-export function firstParseIssue(error: ParseResult.ParseError): RevisionRefusal {
+export function firstParseIssue(error: Schema.SchemaError): RevisionRefusal {
   const first = firstRefusal(error);
   if (first === undefined) return { path: "", message: UNDESCRIBED_REFUSAL };
   return refusal(first.path, refusalMessage(first));
@@ -298,13 +298,13 @@ export function firstParseIssue(error: ParseResult.ParseError): RevisionRefusal 
 export function decodeRevisedDocument(
   json: unknown,
   context: DecideContext,
-): Either.Either<SidecarDocument, RevisionRefusal> {
+): Result.Result<SidecarDocument, RevisionRefusal> {
   const { kind } = context.original;
   const stampViolation = answerStampViolation(kind, json);
   if (stampViolation !== undefined) {
-    return Either.left({ path: isObject(json) ? "$schema" : "", message: stampViolation });
+    return Result.fail({ path: isObject(json) ? "$schema" : "", message: stampViolation });
   }
-  return Either.mapLeft(
+  return Result.mapError(
     decodeCurrentDocumentSidecar(kind, stampSessionVerdicts(json, context)),
     firstParseIssue,
   );

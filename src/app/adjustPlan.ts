@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import type { AdjustPlanSession } from "../schemas/adjustPlanSession.js";
@@ -117,13 +117,13 @@ export function prepareAdjustPlanSession(
     // Attempt to resume if a valid session record exists and newSession is false
     let existingSession: AdjustPlanSession | undefined;
     if (!opts.newSession) {
-      const sessionReadResult = yield* Effect.either(fs.readText(sessionRecordPath));
-      if (Either.isRight(sessionReadResult)) {
+      const sessionReadResult = yield* Effect.result(fs.readText(sessionRecordPath));
+      if (Result.isSuccess(sessionReadResult)) {
         try {
-          const sessionJson = JSON.parse(sessionReadResult.right) as unknown;
+          const sessionJson = JSON.parse(sessionReadResult.success) as unknown;
           const decoded = decodeAdjustPlanSession(sessionJson);
-          if (Either.isRight(decoded)) {
-            existingSession = decoded.right;
+          if (Result.isSuccess(decoded)) {
+            existingSession = decoded.success;
           }
         } catch {
           // Malformed JSON — treat as no record, fall through to new session
@@ -170,9 +170,9 @@ export function prepareAdjustPlanSession(
 
     // Read and decode global-file-reconciliation.json
     const reconciliationPath = join(opts.runPath, GLOBAL_RECONCILIATION_FILENAME);
-    const reconciliationReadResult = yield* Effect.either(fs.readText(reconciliationPath));
+    const reconciliationReadResult = yield* Effect.result(fs.readText(reconciliationPath));
 
-    if (Either.isLeft(reconciliationReadResult)) {
+    if (Result.isFailure(reconciliationReadResult)) {
       yield* telemetry.recordEvent(
         makeStepCompletedTelemetryEvent({ runId, operationId, step, result: "failure" }),
       );
@@ -186,7 +186,7 @@ export function prepareAdjustPlanSession(
 
     let parsed: unknown;
     try {
-      parsed = JSON.parse(reconciliationReadResult.right) as unknown;
+      parsed = JSON.parse(reconciliationReadResult.success) as unknown;
     } catch {
       yield* telemetry.recordEvent(
         makeStepCompletedTelemetryEvent({ runId, operationId, step, result: "failure" }),
@@ -198,17 +198,17 @@ export function prepareAdjustPlanSession(
     }
 
     const decodeResult = decodeGlobalFileReconciliation(parsed);
-    if (Either.isLeft(decodeResult)) {
+    if (Result.isFailure(decodeResult)) {
       yield* telemetry.recordEvent(
         makeStepCompletedTelemetryEvent({ runId, operationId, step, result: "failure" }),
       );
       return {
         kind: "refused",
-        message: `Failed to decode global-file-reconciliation.json at "${reconciliationPath}": ${String(decodeResult.left)}`,
+        message: `Failed to decode global-file-reconciliation.json at "${reconciliationPath}": ${String(decodeResult.failure)}`,
       } satisfies PrepareAdjustResult;
     }
 
-    const reconciliation = decodeResult.right;
+    const reconciliation = decodeResult.success;
     const added: string[] = [];
     const modified: string[] = [];
     const deletedOrRenamed: string[] = [];
@@ -234,7 +234,7 @@ export function prepareAdjustPlanSession(
     type ImpactBlock = NonNullable<Parameters<typeof buildAdjustPlanPrompt>[0]["impact"]>;
     let impact: ImpactBlock | undefined;
 
-    const targetPlanResult = yield* Effect.either(
+    const targetPlanResult = yield* Effect.result(
       loadOrExtractPlan({
         planMdPath: opts.planPath,
         model: opts.extract.model,
@@ -245,8 +245,8 @@ export function prepareAdjustPlanSession(
       }),
     );
 
-    if (Either.isRight(targetPlanResult)) {
-      const { plan } = targetPlanResult.right;
+    if (Result.isSuccess(targetPlanResult)) {
+      const { plan } = targetPlanResult.success;
       const targetInput = planInputFromPhaxPlan(plan, opts.planPath, opts.planPath);
       const targetFootprint = buildFootprint(targetInput);
       const impactResult = computeReadjustmentImpact(landedFootprint, [targetFootprint]);

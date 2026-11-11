@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { queryPlanAuditor } from "../../src/app/planAuditor.js";
 import { PlanAuditorError } from "../../src/domain/errors.js";
@@ -28,9 +28,9 @@ describe("queryPlanAuditor", () => {
       queryPlanAuditor(config, request, cwd).pipe(Effect.provide(fakeShell.layer)),
     );
 
-    expect(Either.isRight(result)).toBe(true);
-    if (Either.isRight(result)) {
-      expect(result.right.findings).toEqual([{ message: "m", phases: ["phase-01"] }]);
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) {
+      expect(result.success.findings).toEqual([{ message: "m", phases: ["phase-01"] }]);
     }
     expect(fakeShell.impl.calls).toHaveLength(1);
     expect(fakeShell.impl.calls[0]?.command).toEqual(["audit-plan"]);
@@ -45,12 +45,12 @@ describe("queryPlanAuditor", () => {
       queryPlanAuditor(config, request, cwd).pipe(Effect.provide(fakeShell.layer)),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(PlanAuditorError);
-      expect(result.left.exitCode).toBe(1);
-      expect(result.left.stderrExcerpt).toBe("boom");
-      expect(result.left.message).toContain("Plan auditor");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toBeInstanceOf(PlanAuditorError);
+      expect(result.failure.exitCode).toBe(1);
+      expect(result.failure.stderrExcerpt).toBe("boom");
+      expect(result.failure.message).toContain("Plan auditor");
     }
   });
 
@@ -62,10 +62,10 @@ describe("queryPlanAuditor", () => {
       queryPlanAuditor(config, request, cwd).pipe(Effect.provide(fakeShell.layer)),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(PlanAuditorError);
-      expect(result.left.message).toContain("invalid JSON");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toBeInstanceOf(PlanAuditorError);
+      expect(result.failure.message).toContain("invalid JSON");
     }
   });
 
@@ -81,9 +81,9 @@ describe("queryPlanAuditor", () => {
       queryPlanAuditor(config, request, cwd).pipe(Effect.provide(fakeShell.layer)),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left.message).toContain("schema validation");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure.message).toContain("schema validation");
     }
   });
 
@@ -94,10 +94,10 @@ describe("queryPlanAuditor", () => {
       queryPlanAuditor({ command: "   " }, request, cwd).pipe(Effect.provide(fakeShell.layer)),
     );
 
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(PlanAuditorError);
-      expect(result.left.message).toContain("empty");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toBeInstanceOf(PlanAuditorError);
+      expect(result.failure.message).toContain("empty");
     }
     expect(fakeShell.impl.calls).toHaveLength(0);
   });

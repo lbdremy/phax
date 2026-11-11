@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { artifactFingerprint } from "../../src/app/approvalRecordStore.js";
 import { transitionArtifactBy } from "../../src/app/artifactStatus.js";
@@ -121,7 +121,7 @@ function approve(path: string, by: string | undefined, stdinIsTerminal: boolean)
     makeFakeTerminal(stdinIsTerminal).layer,
   );
   return Effect.runPromise(
-    Effect.either(
+    Effect.result(
       transitionArtifactBy(path, "Approved", {
         repoRoot: repoDir,
         nowIso: NOW,
@@ -154,14 +154,14 @@ function recordJson(kind: ArtifactKind, artifact: string): Record<string, unknow
 
 // A refusal: exit 12, the message naming `expected`, nothing written, HEAD unchanged.
 function expectRefusedUntouched(
-  result: Either.Either<unknown, { readonly message: string }>,
+  result: Result.Result<unknown, { readonly message: string }>,
   expected: string,
   before: string,
 ): void {
-  expect(Either.isLeft(result)).toBe(true);
-  if (Either.isLeft(result)) {
-    expect(exitCodeForError(result.left)).toBe(12);
-    expect(result.left.message).toContain(expected);
+  expect(Result.isFailure(result)).toBe(true);
+  if (Result.isFailure(result)) {
+    expect(exitCodeForError(result.failure)).toBe(12);
+    expect(result.failure.message).toContain(expected);
   }
   expect(headSha()).toBe(before);
   expect(porcelain()).toBe("");
@@ -207,9 +207,9 @@ describe("Approvals name their approver", { timeout: 30_000 }, () => {
     async (kind, path) => {
       const result = await approve(path, "machine:roadmap-loop", false);
 
-      expect(Either.isRight(result)).toBe(true);
-      if (Either.isRight(result)) {
-        expect(result.right.approvedBy).toEqual({ kind: "machine", grant: "roadmap-loop" });
+      expect(Result.isSuccess(result)).toBe(true);
+      if (Result.isSuccess(result)) {
+        expect(result.success.approvedBy).toEqual({ kind: "machine", grant: "roadmap-loop" });
       }
       const record = recordJson(kind, path);
       expect(record["$schema"]).toBe(currentSchemaUrl(`${kind}-approval-record`));
@@ -230,7 +230,7 @@ describe("Approvals name their approver", { timeout: 30_000 }, () => {
     async (kind, path) => {
       const result = await approve(path, undefined, true);
 
-      expect(Either.isRight(result)).toBe(true);
+      expect(Result.isSuccess(result)).toBe(true);
       expect(recordJson(kind, path)["approvedBy"]).toEqual({ kind: "operator", name: OPERATOR });
       expect(approvedLine(await statusLines(path))).toMatch(/ by operator \(Ada Lovelace\)$/);
     },
@@ -257,7 +257,8 @@ describe("Approvals name their approver", { timeout: 30_000 }, () => {
       const before = headSha();
       const result = await approve(path, undefined, false);
       expectRefusedUntouched(result, "--by operator", before);
-      if (Either.isLeft(result)) expect(result.left.message).toContain("--by machine:<grant>");
+      if (Result.isFailure(result))
+        expect(result.failure.message).toContain("--by machine:<grant>");
       expect(readRepoFile(path)).toContain("status: Draft");
     },
   );
@@ -287,7 +288,7 @@ describe("Approvals name their approver", { timeout: 30_000 }, () => {
     vi.stubEnv("GIT_AUTHOR_NAME", "Roadmap Loop");
     vi.stubEnv("GIT_COMMITTER_NAME", "Roadmap Loop");
     const result = await approve(SPEC, "machine:roadmap-loop", false);
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     expect(recordJson("spec", SPEC)["approvedBy"]).toEqual({
       kind: "machine",
       grant: "roadmap-loop",
@@ -405,7 +406,7 @@ describe("Records written before attribution read as unattributed", { timeout: 3
 
     const result = await approve(SPEC, "machine:roadmap-loop", false);
 
-    expect(Either.isRight(result)).toBe(true);
+    expect(Result.isSuccess(result)).toBe(true);
     const record = recordJson("spec", SPEC);
     expect(record["$schema"]).toBe(currentSchemaUrl("spec-approval-record"));
     expect(record["approvedBy"]).toEqual({ kind: "machine", grant: "roadmap-loop" });

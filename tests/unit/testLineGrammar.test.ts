@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Either, Schema } from "effect";
+import { Result, Schema } from "effect";
 import {
   departureMessage,
   parseTestLine,
@@ -12,7 +12,10 @@ import { TestLineSchema, type TestLine } from "../../src/schemas/testLine.js";
 // what `readTestStrategyText` or `parseTestLine` reads, and, where the case
 // concerns a value, the schema's refusal of it.
 
-const decode = Schema.decodeUnknownEither(TestLineSchema, { onExcessProperty: "error" });
+const decode = Schema.decodeUnknownResult(TestLineSchema, {
+  onExcessProperty: "error",
+  reportInput: true,
+});
 
 function line(overrides: Partial<TestLine> = {}): TestLine {
   return {
@@ -27,7 +30,7 @@ function line(overrides: Partial<TestLine> = {}): TestLine {
 }
 
 function refused(value: TestLine): boolean {
-  return Either.isLeft(decode(value));
+  return Result.isFailure(decode(value));
 }
 
 function roundTrips(value: TestLine): boolean {

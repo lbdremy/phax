@@ -3,7 +3,7 @@
 // removed (`stale`: the holder's process is gone, `expired`: the lock outlived its lifetime,
 // `forced`, or `none`: there was no lock); the text is a view of that answer. A lock held by a
 // live process is a declared error, as is a configuration that does not load.
-import { Data, Effect, Either } from "effect";
+import { Data, Effect, Result } from "effect";
 import * as Schema from "effect/Schema";
 import { resolveRunRef } from "../../app/resolveRunRef.js";
 import { runKey } from "../../domain/runRef.js";
@@ -36,7 +36,7 @@ class LockHeldError extends Data.TaggedError("LockHeldError")<{
 
 const UnlockOutput = Schema.Struct({
   shortName: Schema.String,
-  removed: Schema.Literal("stale", "expired", "forced", "none"),
+  removed: Schema.Literals(["stale", "expired", "forced", "none"]),
   qualifiedName: Schema.String,
 });
 
@@ -60,12 +60,11 @@ export const unlockCommand = defineCommand({
   name: "unlock",
   summary: "Remove a stale run lock; use --force to remove any lock",
   input: {
-    args: reject(Schema.Tuple(ShortNameArg)),
+    args: reject(Schema.Tuple([ShortNameArg])),
     flags: reject(
       Schema.Struct({
-        force: Schema.optionalWith(
-          Schema.Boolean.annotations({ description: "Remove the lock regardless of staleness" }),
-          { exact: true },
+        force: Schema.optionalKey(
+          Schema.Boolean.annotate({ description: "Remove the lock regardless of staleness" }),
         ),
       }),
     ),
@@ -79,10 +78,10 @@ export const unlockCommand = defineCommand({
         ),
       );
       const resolved = resolveRunRef(input.args[0], config, config.stateRoot);
-      if (Either.isLeft(resolved)) {
-        return yield* Effect.fail(new UnlockRunRefError({ message: resolved.left.message }));
+      if (Result.isFailure(resolved)) {
+        return yield* Effect.fail(new UnlockRunRefError({ message: resolved.failure.message }));
       }
-      const { namespace, shortName } = resolved.right;
+      const { namespace, shortName } = resolved.success;
       const qualifiedName = runKey(namespace, shortName);
       const removing = (removed: UnlockOutput["removed"]): UnlockOutput => ({
         shortName,

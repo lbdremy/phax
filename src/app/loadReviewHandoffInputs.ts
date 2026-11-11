@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { join } from "node:path";
 import { ReviewHandoffArtifactMissingError } from "../domain/errors.js";
 import {
@@ -111,8 +111,8 @@ function readCheckedReviewNotes(
     const raw = yield* fs.readText(path);
     const parsed = yield* Effect.try(() => JSON.parse(raw) as unknown);
     const read = readGateReport(parsed);
-    if (Either.isLeft(read) || read.right.outcome !== "checked") return none;
-    return read.right.review;
+    if (Result.isFailure(read) || read.success.outcome !== "checked") return none;
+    return read.success.review;
   }).pipe(Effect.orElseSucceed(() => none));
 }
 
@@ -154,8 +154,8 @@ function loadAcceptanceStepResult(
     const raw = yield* fs.readText(path);
     const parsed = yield* Effect.try(() => JSON.parse(raw) as unknown);
     const read = readGateAttributionFile(path, parsed);
-    if (Either.isLeft(read)) return "not run" as const;
-    const last = read.right.steps.findLast((step) => step.surface === "acceptance");
+    if (Result.isFailure(read)) return "not run" as const;
+    const last = read.success.steps.findLast((step) => step.surface === "acceptance");
     return last?.result ?? ("not run" as const);
   }).pipe(Effect.orElseSucceed((): AcceptancePairResult => "not run"));
 }
@@ -172,9 +172,9 @@ export function loadAcceptancePairsSection(
     const raw = yield* fs.readText(path);
     const parsed = yield* Effect.try(() => JSON.parse(raw) as unknown);
     const read = readPhaxPlanFile(path, parsed);
-    if (Either.isLeft(read)) return undefined;
+    if (Result.isFailure(read)) return undefined;
     // Any shape: the pairs need no test lines.
-    const plan: AnyShapePhaxPlan = read.right.plan;
+    const plan: AnyShapePhaxPlan = read.success.plan;
     const rows: AcceptancePairRow[] = [];
     for (const pair of acceptancePairs(plan.phases)) {
       rows.push({
@@ -207,14 +207,14 @@ export function loadPhaseContents(
       const fileRecMdPath = join(info.runPath, phaseId, "file-reconciliation.md");
       const phaseHandoffPath = join(info.runPath, phaseId, "phase-handoff.md");
 
-      const fileRecMdResult = yield* Effect.either(fs.readText(fileRecMdPath));
-      const phaseHandoffResult = yield* Effect.either(fs.readText(phaseHandoffPath));
+      const fileRecMdResult = yield* Effect.result(fs.readText(fileRecMdPath));
+      const phaseHandoffResult = yield* Effect.result(fs.readText(phaseHandoffPath));
 
-      if (Either.isLeft(fileRecMdResult)) {
+      if (Result.isFailure(fileRecMdResult)) {
         missingPhases.push(phaseId);
         missingPaths.push(fileRecMdPath);
       }
-      if (Either.isLeft(phaseHandoffResult)) {
+      if (Result.isFailure(phaseHandoffResult)) {
         missingPhases.push(phaseId);
         missingPaths.push(phaseHandoffPath);
       }
@@ -222,11 +222,11 @@ export function loadPhaseContents(
       phaseContents.push({
         phaseId,
         title,
-        fileReconciliationMd: Either.isRight(fileRecMdResult)
-          ? fileRecMdResult.right
+        fileReconciliationMd: Result.isSuccess(fileRecMdResult)
+          ? fileRecMdResult.success
           : `> PARTIAL — file-reconciliation.md missing for ${phaseId}`,
-        phaseHandoffMd: Either.isRight(phaseHandoffResult)
-          ? phaseHandoffResult.right
+        phaseHandoffMd: Result.isSuccess(phaseHandoffResult)
+          ? phaseHandoffResult.success
           : `> PARTIAL — phase-handoff.md missing for ${phaseId}`,
       });
     }
@@ -255,9 +255,9 @@ export function loadReviewedPhases(
       const stop = status.stop;
       if (stop === null || stop.status !== "closed") continue;
       const file = stop.cause === "held" ? "correction-handoff.md" : "phase-handoff.md";
-      const read = yield* Effect.either(fs.readText(join(info.runPath, status.phaseId, file)));
-      const handoffMd = Either.isRight(read)
-        ? read.right
+      const read = yield* Effect.result(fs.readText(join(info.runPath, status.phaseId, file)));
+      const handoffMd = Result.isSuccess(read)
+        ? read.success
         : `> PARTIAL — ${file} missing for ${status.phaseId}`;
       loaded.push({
         handoffMd,
@@ -290,9 +290,9 @@ export function loadReviewHandoffInputs(
 
     for (const phaseId of phaseIds) {
       const jsonPath = join(info.runPath, phaseId, "file-reconciliation.json");
-      const readResult = yield* Effect.either(fs.readText(jsonPath));
+      const readResult = yield* Effect.result(fs.readText(jsonPath));
 
-      if (Either.isLeft(readResult)) {
+      if (Result.isFailure(readResult)) {
         missingPhases.push(phaseId);
         missingPaths.push(jsonPath);
         continue;
@@ -300,7 +300,7 @@ export function loadReviewHandoffInputs(
 
       let parsed: unknown;
       try {
-        parsed = JSON.parse(readResult.right) as unknown;
+        parsed = JSON.parse(readResult.success) as unknown;
       } catch {
         missingPhases.push(phaseId);
         missingPaths.push(jsonPath);
@@ -308,13 +308,13 @@ export function loadReviewHandoffInputs(
       }
 
       const decoded = readPhaseFileReconciliationFile(jsonPath, parsed);
-      if (Either.isLeft(decoded)) {
+      if (Result.isFailure(decoded)) {
         missingPhases.push(phaseId);
         missingPaths.push(jsonPath);
         continue;
       }
 
-      perPhase.push(decoded.right);
+      perPhase.push(decoded.success);
     }
 
     if (missingPhases.length > 0) {

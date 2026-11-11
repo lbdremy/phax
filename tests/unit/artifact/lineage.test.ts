@@ -1,4 +1,4 @@
-import { Effect, Either, Layer } from "effect";
+import { Effect, Result, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   planApprovalRecordExists,
@@ -97,7 +97,7 @@ describe("resolveCompletesSpec", () => {
   ])(
     "spec $hasSourceSpec, --last $last, --not-last $notLast → $expected",
     ({ expected, ...flags }) => {
-      expect(resolveCompletesSpec(flags)).toEqual(Either.right(expected));
+      expect(resolveCompletesSpec(flags)).toEqual(Result.succeed(expected));
     },
   );
 
@@ -120,7 +120,7 @@ describe("resolveCompletesSpec", () => {
       message: "--not-last needs --spec: a plan without a source spec completes none",
     },
   ])("refuses: $message", ({ flags, message }) => {
-    expect(resolveCompletesSpec(flags)).toEqual(Either.left(message));
+    expect(resolveCompletesSpec(flags)).toEqual(Result.fail(message));
   });
 });
 
@@ -160,11 +160,11 @@ describe("stampApproved", () => {
   it("adds the approved mapping after the other keys", () => {
     const md = planFm({ sourceSpec: "null" });
     const updated = stampApproved(md, "2026-08-10T12:00:00.000Z", "abc1234");
-    expect(Either.isRight(updated)).toBe(true);
-    if (Either.isRight(updated)) {
-      expect(updated.right).toContain("approved:");
-      expect(updated.right).toContain("date: 2026-08-10");
-      expect(updated.right).toContain("baseline: abc1234");
+    expect(Result.isSuccess(updated)).toBe(true);
+    if (Result.isSuccess(updated)) {
+      expect(updated.success).toContain("approved:");
+      expect(updated.success).toContain("date: 2026-08-10");
+      expect(updated.success).toContain("baseline: abc1234");
     }
   });
 
@@ -174,20 +174,20 @@ describe("stampApproved", () => {
       approved: "approved:\n  date: 2020-01-01\n  baseline: '0000000'",
     });
     const updated = stampApproved(md, "2026-08-10T12:00:00.000Z", "abc1234");
-    expect(Either.isRight(updated)).toBe(true);
-    if (Either.isRight(updated)) {
-      expect(updated.right).toContain("date: 2026-08-10");
-      expect(updated.right).not.toContain("2020-01-01");
-      expect((updated.right.match(/^approved:/gm) ?? []).length).toBe(1);
+    expect(Result.isSuccess(updated)).toBe(true);
+    if (Result.isSuccess(updated)) {
+      expect(updated.success).toContain("date: 2026-08-10");
+      expect(updated.success).not.toContain("2020-01-01");
+      expect((updated.success.match(/^approved:/gm) ?? []).length).toBe(1);
     }
   });
 
   it("leaves the document body byte-identical", () => {
     const md = planFm({ sourceSpec: "null", body: "Untouched body line.\n\nSecond paragraph." });
     const updated = stampApproved(md, "2026-08-10T12:00:00.000Z", "abc1234");
-    expect(Either.isRight(updated)).toBe(true);
-    if (Either.isRight(updated)) {
-      const bodyAfter = updated.right.slice(updated.right.indexOf("---\n", 3) + 4);
+    expect(Result.isSuccess(updated)).toBe(true);
+    if (Result.isSuccess(updated)) {
+      const bodyAfter = updated.success.slice(updated.success.indexOf("---\n", 3) + 4);
       const bodyBefore = md.slice(md.indexOf("---\n", 3) + 4);
       expect(bodyAfter).toBe(bodyBefore);
     }
@@ -196,17 +196,17 @@ describe("stampApproved", () => {
   it("never affects the approval fingerprint", () => {
     const md = planFm({ sourceSpec: "null" });
     const stamped = stampApproved(md, "2026-08-10T12:00:00.000Z", "abc1234");
-    expect(Either.isRight(stamped)).toBe(true);
-    if (Either.isRight(stamped)) {
-      expect(fingerprintSource(stamped.right)).toBe(fingerprintSource(md));
+    expect(Result.isSuccess(stamped)).toBe(true);
+    if (Result.isSuccess(stamped)) {
+      expect(fingerprintSource(stamped.success)).toBe(fingerprintSource(md));
     }
   });
 
   it("fails with missing-block when there is no frontmatter", () => {
     const result = stampApproved("# Plan\n\n## Overview\n", "2026-08-10T12:00:00.000Z", "abc1234");
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left.kind).toBe("missing-block");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure.kind).toBe("missing-block");
     }
   });
 });
@@ -215,37 +215,37 @@ describe("clearApproved", () => {
   it("removes an approved mapping added by stampApproved, restoring the frontmatter", () => {
     const md = planFm({ sourceSpec: "docs/specs/2609101222-foo.md" });
     const stamped = stampApproved(md, "2026-08-10T12:00:00.000Z", "abc1234");
-    expect(Either.isRight(stamped)).toBe(true);
-    if (!Either.isRight(stamped)) return;
-    const cleared = clearApproved(stamped.right);
-    expect(Either.isRight(cleared)).toBe(true);
-    if (!Either.isRight(cleared)) return;
-    expect(cleared.right).toBe(md);
+    expect(Result.isSuccess(stamped)).toBe(true);
+    if (!Result.isSuccess(stamped)) return;
+    const cleared = clearApproved(stamped.success);
+    expect(Result.isSuccess(cleared)).toBe(true);
+    if (!Result.isSuccess(cleared)) return;
+    expect(cleared.success).toBe(md);
   });
 
   it("is a no-op when no approved mapping is present", () => {
     const md = planFm({ sourceSpec: "null" });
     const cleared = clearApproved(md);
-    expect(Either.isRight(cleared)).toBe(true);
-    if (Either.isRight(cleared)) expect(cleared.right).toBe(md);
+    expect(Result.isSuccess(cleared)).toBe(true);
+    if (Result.isSuccess(cleared)) expect(cleared.success).toBe(md);
   });
 
   it("is fingerprint-neutral: clearing never changes the approval fingerprint", () => {
     const md = planFm({ sourceSpec: "docs/specs/2609101222-foo.md" });
     const stamped = stampApproved(md, "2026-08-10T12:00:00.000Z", "abc1234");
-    expect(Either.isRight(stamped)).toBe(true);
-    if (!Either.isRight(stamped)) return;
-    const cleared = clearApproved(stamped.right);
-    expect(Either.isRight(cleared)).toBe(true);
-    if (!Either.isRight(cleared)) return;
-    expect(fingerprintSource(cleared.right)).toBe(fingerprintSource(md));
-    expect(fingerprintSource(cleared.right)).toBe(fingerprintSource(stamped.right));
+    expect(Result.isSuccess(stamped)).toBe(true);
+    if (!Result.isSuccess(stamped)) return;
+    const cleared = clearApproved(stamped.success);
+    expect(Result.isSuccess(cleared)).toBe(true);
+    if (!Result.isSuccess(cleared)) return;
+    expect(fingerprintSource(cleared.success)).toBe(fingerprintSource(md));
+    expect(fingerprintSource(cleared.success)).toBe(fingerprintSource(stamped.success));
   });
 
   it("fails with missing-block when there is no frontmatter", () => {
     const result = clearApproved("# Plan\n\n## Overview\n");
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) expect(result.left.kind).toBe("missing-block");
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) expect(result.failure.kind).toBe("missing-block");
   });
 });
 
@@ -264,19 +264,19 @@ Body text.
 describe("stampApproved on a spec", () => {
   it("leaves other keys byte-identical when stamping a spec", () => {
     const updated = stampApproved(SPEC_DOC, "2026-08-11T12:00:00.000Z", "abc1234");
-    expect(Either.isRight(updated)).toBe(true);
-    if (!Either.isRight(updated)) return;
-    expect(updated.right).toContain("date: 2026-08-11");
-    expect(updated.right).toContain("audience: implementation planning with Claude Code");
-    expect(updated.right).toContain("scope: functional behavior and consumption surface");
-    expect(updated.right).toContain("approved:");
+    expect(Result.isSuccess(updated)).toBe(true);
+    if (!Result.isSuccess(updated)) return;
+    expect(updated.success).toContain("date: 2026-08-11");
+    expect(updated.success).toContain("audience: implementation planning with Claude Code");
+    expect(updated.success).toContain("scope: functional behavior and consumption surface");
+    expect(updated.success).toContain("approved:");
   });
 
   it("leaves the body byte-identical when stamping a spec", () => {
     const updated = stampApproved(SPEC_DOC, "2026-08-11T12:00:00.000Z", "abc1234");
-    expect(Either.isRight(updated)).toBe(true);
-    if (!Either.isRight(updated)) return;
-    const bodyAfter = updated.right.slice(updated.right.indexOf("---\n", 3) + 4);
+    expect(Result.isSuccess(updated)).toBe(true);
+    if (!Result.isSuccess(updated)) return;
+    const bodyAfter = updated.success.slice(updated.success.indexOf("---\n", 3) + 4);
     const bodyBefore = SPEC_DOC.slice(SPEC_DOC.indexOf("---\n", 3) + 4);
     expect(bodyAfter).toBe(bodyBefore);
   });
@@ -564,9 +564,9 @@ describe("approval record sidecar schema", () => {
 
   it("round-trips decode/encode", () => {
     const decoded = decodeApprovalRecordFile(sample);
-    expect(Either.isRight(decoded)).toBe(true);
-    if (Either.isRight(decoded)) {
-      expect(encodeApprovalRecordFile(decoded.right)).toEqual(sample);
+    expect(Result.isSuccess(decoded)).toBe(true);
+    if (Result.isSuccess(decoded)) {
+      expect(encodeApprovalRecordFile(decoded.success)).toEqual(sample);
     }
   });
 
@@ -580,7 +580,7 @@ describe("approval record sidecar schema", () => {
         },
       },
     };
-    expect(Either.isRight(decodeApprovalRecordFile(withNull))).toBe(true);
+    expect(Result.isSuccess(decodeApprovalRecordFile(withNull))).toBe(true);
   });
 
   it("rejects a missing required field", () => {
@@ -588,18 +588,18 @@ describe("approval record sidecar schema", () => {
       $schema: sample.$schema,
       records: { "docs/plans/2609101222-foo-plan.md": { approvedAt: "2026-08-10T00:00:00.000Z" } },
     };
-    expect(Either.isLeft(decodeApprovalRecordFile(bad))).toBe(true);
+    expect(Result.isFailure(decodeApprovalRecordFile(bad))).toBe(true);
   });
 
   it("rejects a ledger without $schema, or one that still carries version", () => {
     const { $schema: _schema, ...unstamped } = sample;
-    expect(Either.isLeft(decodeApprovalRecordFile({ version: 1, ...unstamped }))).toBe(true);
-    expect(Either.isLeft(decodeApprovalRecordFile({ ...sample, version: 1 }))).toBe(true);
+    expect(Result.isFailure(decodeApprovalRecordFile({ version: 1, ...unstamped }))).toBe(true);
+    expect(Result.isFailure(decodeApprovalRecordFile({ ...sample, version: 1 }))).toBe(true);
   });
 
   it("rejects a $schema naming another format", () => {
     const other = { ...sample, $schema: schemaUrl("spec-approvals", "0.17.0") };
-    expect(Either.isLeft(decodeApprovalRecordFile(other))).toBe(true);
+    expect(Result.isFailure(decodeApprovalRecordFile(other))).toBe(true);
   });
 
   it("rejects a malformed baseline", () => {
@@ -612,7 +612,7 @@ describe("approval record sidecar schema", () => {
         },
       },
     };
-    expect(Either.isLeft(decodeApprovalRecordFile(bad))).toBe(true);
+    expect(Result.isFailure(decodeApprovalRecordFile(bad))).toBe(true);
   });
 });
 
@@ -733,7 +733,7 @@ describe("approval record store: one file per artifact", () => {
   it("reads back the record it wrote, carrying artifact and approvedBy", () => {
     const { value } = runWith(
       {},
-      Effect.zipRight(
+      Effect.andThen(
         putPlanApprovalRecord(PLAN, planRecord, APPROVER),
         readPlanApprovalRecord(PLAN),
       ),
@@ -741,7 +741,7 @@ describe("approval record store: one file per artifact", () => {
     expect(value).toEqual({ artifact: PLAN, ...planRecord, approvedBy: APPROVER });
     const { value: spec } = runWith(
       {},
-      Effect.zipRight(
+      Effect.andThen(
         putSpecApprovalRecord(SPEC, specRecord, APPROVER),
         readSpecApprovalRecord(SPEC),
       ),
@@ -823,7 +823,7 @@ describe("approval record store: one file per artifact", () => {
   it("never reads another artifact's record file, even an unreadable one", () => {
     const { value, fs } = runWith(
       { [OTHER_PLAN_RECORD]: "{ not json" },
-      Effect.zipRight(
+      Effect.andThen(
         putPlanApprovalRecord(PLAN, planRecord, APPROVER),
         readPlanApprovalRecord(PLAN),
       ),
@@ -866,8 +866,8 @@ describe("approval record store: no record", () => {
       {},
       putPlanApprovalRecord("docs/plans/nested/2609101222-foo-plan.md", planRecord, APPROVER),
     );
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) expect(result.left).toBeInstanceOf(ArtifactValidationError);
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) expect(result.failure).toBeInstanceOf(ArtifactValidationError);
   });
 });
 
@@ -878,7 +878,7 @@ function failure<A>(
 ) {
   const fs = makeFakeFileSystem();
   for (const [path, text] of Object.entries(files)) fs.impl.setFile(path, text);
-  const result = Effect.runSync(effect.pipe(Effect.either, Effect.provide(fs.layer)));
+  const result = Effect.runSync(effect.pipe(Effect.result, Effect.provide(fs.layer)));
   return { result, fs: fs.impl };
 }
 
@@ -911,10 +911,10 @@ describe("approval record store over an unreadable record file", () => {
 
   it.each(unreadablePlanRecords)("refuses to read a plan record file %s", (_, text, expected) => {
     const { result } = failure({ [PLAN_RECORD]: text }, readPlanApprovalRecord(PLAN));
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(ApprovalRecordUnreadableError);
-      const error = result.left as ApprovalRecordUnreadableError;
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toBeInstanceOf(ApprovalRecordUnreadableError);
+      const error = result.failure as ApprovalRecordUnreadableError;
       expect(error.recordPath).toBe(PLAN_RECORD);
       expect(error.message.startsWith(`${PLAN_RECORD}: `)).toBe(true);
       expect(error.message).toContain(expected);
@@ -927,7 +927,7 @@ describe("approval record store over an unreadable record file", () => {
       removePlanApprovalRecord(PLAN),
     ]) {
       const { result, fs } = failure({ [PLAN_RECORD]: text }, effect);
-      expect(Either.isLeft(result)).toBe(true);
+      expect(Result.isFailure(result)).toBe(true);
       expect(fs.getFile(PLAN_RECORD)).toBe(text);
     }
   });
@@ -938,8 +938,9 @@ describe("approval record store over an unreadable record file", () => {
       { [SPEC_RECORD]: text },
       putSpecApprovalRecord(SPEC, specRecord, APPROVER),
     );
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) expect(result.left).toBeInstanceOf(ApprovalRecordUnreadableError);
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result))
+      expect(result.failure).toBeInstanceOf(ApprovalRecordUnreadableError);
     expect(fs.getFile(SPEC_RECORD)).toBe(text);
   });
 });
@@ -955,10 +956,10 @@ describe("approval record store over a copied record file", () => {
       removePlanApprovalRecord(PLAN),
     ]) {
       const { result, fs } = failure({ [PLAN_RECORD]: copied }, effect);
-      expect(Either.isLeft(result)).toBe(true);
-      if (Either.isLeft(result)) {
-        expect(result.left).toBeInstanceOf(ApprovalRecordUnreadableError);
-        expect((result.left as ApprovalRecordUnreadableError).message).toBe(
+      expect(Result.isFailure(result)).toBe(true);
+      if (Result.isFailure(result)) {
+        expect(result.failure).toBeInstanceOf(ApprovalRecordUnreadableError);
+        expect((result.failure as ApprovalRecordUnreadableError).message).toBe(
           `${PLAN_RECORD}: records ${OTHER_PLAN}, not ${PLAN} — restore it from git, or delete it and re-approve`,
         );
       }
@@ -971,10 +972,10 @@ describe("approval record store over a copied record file", () => {
       { [SPEC_RECORD]: specRecordText(OTHER_SPEC) },
       readSpecApprovalRecord(SPEC),
     );
-    expect(Either.isLeft(result)).toBe(true);
-    if (Either.isLeft(result)) {
-      expect(result.left).toBeInstanceOf(ApprovalRecordUnreadableError);
-      expect((result.left as ApprovalRecordUnreadableError).recordPath).toBe(SPEC_RECORD);
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) {
+      expect(result.failure).toBeInstanceOf(ApprovalRecordUnreadableError);
+      expect((result.failure as ApprovalRecordUnreadableError).recordPath).toBe(SPEC_RECORD);
     }
   });
 });
