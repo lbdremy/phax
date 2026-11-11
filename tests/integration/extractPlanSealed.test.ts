@@ -97,7 +97,7 @@ describe("extractPlanLlm — sealed completion path", () => {
       ),
     );
 
-    const cwd = fakeBackend.impl.completeCalls[0]?.options.cwd!;
+    const cwd = fakeBackend.impl.completeCalls[0]!.options.cwd;
     expect(fakeFs.impl.dirs.has(cwd)).toBe(false);
   });
 
@@ -116,7 +116,7 @@ describe("extractPlanLlm — sealed completion path", () => {
     expect(Result.isFailure(result)).toBe(true);
     expect(result).toSatisfy((r) => Result.isFailure(r) && r.failure instanceof RateLimitError);
 
-    const cwd = fakeBackend.impl.completeCalls[0]?.options.cwd!;
+    const cwd = fakeBackend.impl.completeCalls[0]!.options.cwd;
     expect(fakeFs.impl.dirs.has(cwd)).toBe(false);
   });
 

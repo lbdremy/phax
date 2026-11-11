@@ -163,6 +163,10 @@ export interface InteractiveHandoffSummary {
   readonly guardsSection: string;
 }
 
+function isNoGuard(entry: string): boolean {
+  return entry.toLowerCase().startsWith(NO_GUARD_PREFIX);
+}
+
 function sectionText(lines: readonly string[] | undefined): string {
   return (lines ?? []).join("\n").trim();
 }
@@ -173,7 +177,6 @@ export function summarizeInteractiveHandoff(text: string): InteractiveHandoffSum
   const corrected = sections.find((s) => s.title === CORRECTED)?.lines;
   const guards = sections.find((s) => s.title === GUARDS)?.lines;
   const guardEntries = listEntries(guards ?? []);
-  const isNoGuard = (entry: string): boolean => entry.toLowerCase().startsWith(NO_GUARD_PREFIX);
   return {
     corrections: listEntries(corrected ?? []),
     guards: guardEntries.filter((e) => e.length > 0 && !isNoGuard(e)),

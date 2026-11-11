@@ -1591,11 +1591,7 @@ const gainCases: ReadonlyArray<Case> = [
     id: "stdin.flag-value-required",
     check: (runner) =>
       Effect.gen(function* () {
-        const valued = () =>
-          recording("decide", {
-            stdin: reject(Doc, { flag: "verdicts", required: true, valueRequired: true }),
-          });
-        const received = valued();
+        const received = decideWithValuedStdin();
         const files = { "in.json": DOC_JSON };
         const spacedFile = yield* call(
           runner,
@@ -1621,12 +1617,16 @@ const gainCases: ReadonlyArray<Case> = [
         const attachedDash = yield* call(runner, [received.command], ["decide", "--verdicts=-"], {
           stdin: DOC_JSON,
         });
-        const flagAlone = valued();
+        const flagAlone = decideWithValuedStdin();
         const alone = yield* call(runner, [flagAlone.command], ["decide", "--verdicts"], {
           stdin: DOC_JSON,
         });
-        const entry = yield* printed(runner, [valued().command], ["decide", "--json-schema"]);
-        const spec = yield* call(runner, [valued().command], ["--usage-spec"]);
+        const entry = yield* printed(
+          runner,
+          [decideWithValuedStdin().command],
+          ["decide", "--json-schema"],
+        );
+        const spec = yield* call(runner, [decideWithValuedStdin().command], ["--usage-spec"]);
         const input = { stdin: DOC_VALUE };
         return verdict(
           ended(spacedFile, 0),
@@ -1783,12 +1783,14 @@ const gainCases: ReadonlyArray<Case> = [
     id: "usage.program-flag",
     check: (runner) =>
       Effect.gen(function* () {
-        const named = () =>
-          programWith({ usage: { flag: "usage", format: "usage-format" } }, bare().command);
-        const expected = usageSpec(named());
-        const plain = yield* callProgram(runner, named(), ["--usage"]);
-        const formatted = yield* callProgram(runner, named(), ["--usage", "--usage-format", "kdl"]);
-        const library = yield* callProgram(runner, named(), ["--usage-spec"]);
+        const expected = usageSpec(programWithUsageFlag());
+        const plain = yield* callProgram(runner, programWithUsageFlag(), ["--usage"]);
+        const formatted = yield* callProgram(runner, programWithUsageFlag(), [
+          "--usage",
+          "--usage-format",
+          "kdl",
+        ]);
+        const library = yield* callProgram(runner, programWithUsageFlag(), ["--usage-spec"]);
         return verdict(
           ended(plain, 0),
           is("out of --usage", expected, plain.out),
@@ -2006,28 +2008,12 @@ const inspectionGainCases: ReadonlyArray<Case> = [
         const root = yield* call(runner, [documentedDebt().group], ["--help"]);
         const lines = linesOf(spec.out);
         const header = lines.findIndex((each) => each.startsWith("cmd debt "));
-        const order = (text: string): Check => {
-          const at = [
-            "Accept or withdraw a debt",
-            "A debt is a failing condition accepted for now.",
-            "It is withdrawn once fixed.",
-            "Examples:",
-            "  suite debt accept 1 --why flaky",
-            "  suite debt withdraw 1",
-            "Accept a debt",
-          ].map((part) => text.indexOf(part));
-          return at.every(
-            (index, place) => index !== -1 && (place === 0 || index > (at[place - 1] ?? 0)),
-          )
-            ? undefined
-            : `the group's help should say its summary, long help, examples then commands, got ${show(text)}`;
-        };
         return verdict(
           ended(help, 0),
           is("err of debt --help", "", help.err),
-          order(help.out),
+          debtHelpInOrder(help.out),
           ...refusal(alone),
-          order(alone.err),
+          debtHelpInOrder(alone.err),
           is("runs after the group alone", [], lone.runs),
           ended(root, 0),
           lacks(root.out, "A debt is a failing condition"),
@@ -2126,15 +2112,17 @@ const inspectionGainCases: ReadonlyArray<Case> = [
     id: "flags.negated-switch",
     check: (runner) =>
       Effect.gen(function* () {
-        const negated = () =>
-          recording("probe", { flags: reject(Schema.Struct({ noProbe: Switch })) });
-        const given = negated();
+        const given = probeWithNegatedSwitch();
         const withSwitch = yield* call(runner, [given.command], ["probe", "--no-probe"]);
-        const absent = negated();
+        const absent = probeWithNegatedSwitch();
         const without = yield* call(runner, [absent.command], ["probe"]);
-        const help = yield* call(runner, [negated().command], ["probe", "--help"]);
-        const entry = yield* printed(runner, [negated().command], ["probe", "--json-schema"]);
-        const spec = yield* call(runner, [negated().command], ["--usage-spec"]);
+        const help = yield* call(runner, [probeWithNegatedSwitch().command], ["probe", "--help"]);
+        const entry = yield* printed(
+          runner,
+          [probeWithNegatedSwitch().command],
+          ["probe", "--json-schema"],
+        );
+        const spec = yield* call(runner, [probeWithNegatedSwitch().command], ["--usage-spec"]);
         return verdict(
           ended(withSwitch, 0),
           is("input with --no-probe", [{ flags: { noProbe: true } }], given.seen),
@@ -3192,6 +3180,39 @@ const programGainCases: ReadonlyArray<Case> = [
 ];
 
 // ---------------------------------------------------------------- the table
+
+/** `stdin.flag-value-required`: decide with a stdin flag that requires its value. */
+function decideWithValuedStdin(): Recording {
+  return recording("decide", {
+    stdin: reject(Doc, { flag: "verdicts", required: true, valueRequired: true }),
+  });
+}
+
+/** `usage.program-flag`: a program that names its usage flag and format option. */
+function programWithUsageFlag() {
+  return programWith({ usage: { flag: "usage", format: "usage-format" } }, bare().command);
+}
+
+/** `debt` group help: summary, long help, examples, then commands, in that order. */
+function debtHelpInOrder(text: string): Check {
+  const at = [
+    "Accept or withdraw a debt",
+    "A debt is a failing condition accepted for now.",
+    "It is withdrawn once fixed.",
+    "Examples:",
+    "  suite debt accept 1 --why flaky",
+    "  suite debt withdraw 1",
+    "Accept a debt",
+  ].map((part) => text.indexOf(part));
+  return at.every((index, place) => index !== -1 && (place === 0 || index > (at[place - 1] ?? 0)))
+    ? undefined
+    : `the group's help should say its summary, long help, examples then commands, got ${show(text)}`;
+}
+
+/** `flags.negated-switch`: probe with a `noProbe` switch. */
+function probeWithNegatedSwitch(): Recording {
+  return recording("probe", { flags: reject(Schema.Struct({ noProbe: Switch })) });
+}
 
 export const cases: ReadonlyArray<Case> = [
   reaches("args.by-position", pair, ["pair", "a", "b"], {
