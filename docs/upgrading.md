@@ -21,6 +21,10 @@ phax schema upgrade                   # phax.schema.json, the editor schema of p
 
 Only the releases that ask for something are listed. phax never asks for a step silently: a command that needs one refuses with exit 12 and names it.
 
+### 0.37.0
+
+- **`@lbdremy/phax-schemas` needs Node 22 or later.** Its `engines` field moves from `>=20` to `>=22`, and CI smokes the package under Node 22. Node 20 has had no security fixes since April 2026. A consumer still on Node 20 stays on 0.36.0 or upgrades Node; the phax binary itself is unaffected.
+
 ### 0.36.0
 
 - **phax runs on Effect 4.** Files and refusals are unchanged. `@lbdremy/phax-schemas` exports Effect 4 Schema values (`RegistrySchema`, `PhaxPlanSchema`, …): code that composes them needs `effect ^4.1.2`, and code that only calls the parse functions changes nothing. The published JSON Schemas are unchanged, and phax checks the ones Effect 4 generates against them by the documents they accept.

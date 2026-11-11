@@ -58,9 +58,9 @@ describe("schemas package manifest", () => {
     expect(ignored).toContain("packages/schemas/json/");
   });
 
-  it("is an ESM package for Node 20 and later, under Apache-2.0", () => {
+  it("is an ESM package for Node 22 and later, under Apache-2.0", () => {
     expect(pkg["type"]).toBe("module");
-    expect(pkg["engines"]).toEqual({ node: ">=20" });
+    expect(pkg["engines"]).toEqual({ node: ">=22" });
     expect(pkg["license"]).toBe("Apache-2.0");
   });
 
