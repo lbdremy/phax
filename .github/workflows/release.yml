@@ -86,13 +86,13 @@ jobs:
         # as the workaround for direct downloads.
         run: pnpm deno:build-binaries
 
-      # The schemas package promises Node 20: smoke the tarball the Gate's
-      # pnpm build produced under Node 20, in this job, so the publish below
+      # The schemas package promises Node 22: smoke the tarball the Gate's
+      # pnpm build produced under Node 22, in this job, so the publish below
       # ships exactly the smoked build.
-      - name: Use Node 20 for the schemas package smoke
+      - name: Use Node 22 for the schemas package smoke
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: "20"
+          node-version: "22"
 
       - name: Smoke-test the schemas package tarball
         run: pnpm exec tsx scripts/schemas-smoke.ts

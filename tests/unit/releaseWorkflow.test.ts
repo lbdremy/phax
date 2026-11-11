@@ -221,9 +221,9 @@ describe("release workflow: two packages in lockstep", () => {
     expect(check.run).toMatch(/if \[ "\$TAG_VERSION" != "\$LEDGER_LAST" \]/);
   });
 
-  it("smokes the schemas package under Node 20", () => {
+  it("smokes the schemas package under Node 22", () => {
     const smoke = indexOf(releaseSteps, runs(SMOKE));
-    expect(nodeVersion(setupNodeBefore(releaseSteps, smoke)!)).toBe("20");
+    expect(nodeVersion(setupNodeBefore(releaseSteps, smoke)!)).toBe("22");
   });
 
   it("upgrades npm after restoring Node 24 past the smoke, and before the first publish", () => {
@@ -485,9 +485,9 @@ describe("CI workflow: the docs site build", () => {
 });
 
 describe("CI workflow: the schemas package smoke", () => {
-  it("runs the smoke under Node 20, after the build", () => {
+  it("runs the smoke under Node 22, after the build", () => {
     const smoke = indexOf(ciSteps, runs(SMOKE));
-    expect(nodeVersion(setupNodeBefore(ciSteps, smoke)!)).toBe("20");
+    expect(nodeVersion(setupNodeBefore(ciSteps, smoke)!)).toBe("22");
     expect(indexOf(ciSteps, (step) => step.run === "pnpm build")).toBeLessThan(smoke);
   });
 
