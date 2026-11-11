@@ -118,14 +118,12 @@ function specOf(command: Command<unknown>): CommandSpec {
     summary: command.summary,
     help: command.help,
     examples: command.examples,
-    groups: chainOf(command).map(
-      (group): GroupSpec => ({
-        name: group.name,
-        summary: group.summary,
-        help: group.help,
-        examples: group.examples,
-      }),
-    ),
+    groups: chainOf(command).map((group): GroupSpec => ({
+      name: group.name,
+      summary: group.summary,
+      help: group.help,
+      examples: group.examples,
+    })),
     args: inputs.args === undefined ? [] : argShapes(inputs.args.contract),
     flags: inputs.flags === undefined ? [] : flagShapes(inputs.flags.contract),
     stdin: stdin === undefined ? undefined : stdin.text === true ? "text" : "json",

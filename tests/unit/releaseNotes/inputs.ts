@@ -547,13 +547,11 @@ export const surfaceRows: ReadonlyArray<SurfaceRow> = [
       "",
     ].join("\n"),
   },
-  ...["api: run()", "package: @acme/tool", "internal: src/run.ts"].map(
-    (surface): SurfaceRow => ({
-      name: surface.slice(0, surface.indexOf(":")),
-      element: { surface, summary: "Left out.", before: null, after: "x" },
-      expected: NO_SURFACE_EXPECTED,
-    }),
-  ),
+  ...["api: run()", "package: @acme/tool", "internal: src/run.ts"].map((surface): SurfaceRow => ({
+    name: surface.slice(0, surface.indexOf(":")),
+    element: { surface, summary: "Left out.", before: null, after: "x" },
+    expected: NO_SURFACE_EXPECTED,
+  })),
 ];
 
 // --- (e) a name holding backticks --------------------------------------------

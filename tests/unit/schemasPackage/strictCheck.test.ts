@@ -192,15 +192,13 @@ const rows: readonly Row[] = [
     providers: CODEX,
     build: withNestedKeyword("else", { required: ["value"] }),
   },
-  ...["(?=", "(?!", "(?<=", "(?<!"].map(
-    (lookaround): Row => ({
-      name: `lookaround pattern ${lookaround}`,
-      construct: "lookaround pattern",
-      path: ENTRY_GUARANTEE,
-      providers: CODEX,
-      build: withEntryPattern(`^${lookaround}\\s)[\\s\\S]*$`),
-    }),
-  ),
+  ...["(?=", "(?!", "(?<=", "(?<!"].map((lookaround): Row => ({
+    name: `lookaround pattern ${lookaround}`,
+    construct: "lookaround pattern",
+    path: ENTRY_GUARANTEE,
+    providers: CODEX,
+    build: withEntryPattern(`^${lookaround}\\s)[\\s\\S]*$`),
+  })),
   {
     name: "lookaround pattern in a $defs entry, reported once under $defs",
     construct: "lookaround pattern",

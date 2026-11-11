@@ -66,12 +66,10 @@ function renderCoverage(coverage: OverviewCoverage): string[] {
     case "no-criterion-ids":
       return [coverage.message];
     case "criteria": {
-      const rows = coverage.criteria.map(
-        (criterion): Row => [
-          criterion.id,
-          criterion.lines.length === 0 ? "(no test line)" : namingText(criterion.lines),
-        ],
-      );
+      const rows = coverage.criteria.map((criterion): Row => [
+        criterion.id,
+        criterion.lines.length === 0 ? "(no test line)" : namingText(criterion.lines),
+      ]);
       rows.push([
         "uncovered",
         coverage.uncovered.length === 0 ? "(none)" : coverage.uncovered.join(", "),

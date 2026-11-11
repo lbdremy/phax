@@ -61,34 +61,28 @@ export function adaptAgentRun(
   return Backend.pipe(
     Effect.flatMap((backend) =>
       backend.runAgent(prompt, options).pipe(
-        Effect.map(
-          (result): AgentInvocationCompleted => ({
+        Effect.map((result): AgentInvocationCompleted => ({
+          ...base,
+          type: "AgentInvocationCompleted",
+          sessionId: result.sessionId,
+        })),
+        Effect.catchTag("RateLimitError", (e): Effect.Effect<RateLimitDetected, never> =>
+          Effect.succeed({
             ...base,
-            type: "AgentInvocationCompleted",
-            sessionId: result.sessionId,
+            type: "RateLimitDetected",
+            kind: "rate_limit",
+            resetAt: e.resetAt,
+            cause: e,
           }),
         ),
-        Effect.catchTag(
-          "RateLimitError",
-          (e): Effect.Effect<RateLimitDetected, never> =>
-            Effect.succeed({
-              ...base,
-              type: "RateLimitDetected",
-              kind: "rate_limit",
-              resetAt: e.resetAt,
-              cause: e,
-            }),
-        ),
-        Effect.catchTag(
-          "UsageLimitError",
-          (e): Effect.Effect<RateLimitDetected, never> =>
-            Effect.succeed({
-              ...base,
-              type: "RateLimitDetected",
-              kind: "usage_limit",
-              resetAt: e.resetAt,
-              cause: e,
-            }),
+        Effect.catchTag("UsageLimitError", (e): Effect.Effect<RateLimitDetected, never> =>
+          Effect.succeed({
+            ...base,
+            type: "RateLimitDetected",
+            kind: "usage_limit",
+            resetAt: e.resetAt,
+            cause: e,
+          }),
         ),
       ),
     ),
@@ -108,34 +102,28 @@ export function adaptAgentResume(
   return Backend.pipe(
     Effect.flatMap((backend) =>
       backend.resumeAgentSession(sessionId, prompt, options).pipe(
-        Effect.map(
-          (result): AgentInvocationCompleted => ({
+        Effect.map((result): AgentInvocationCompleted => ({
+          ...base,
+          type: "AgentInvocationCompleted",
+          sessionId: result.sessionId,
+        })),
+        Effect.catchTag("RateLimitError", (e): Effect.Effect<RateLimitDetected, never> =>
+          Effect.succeed({
             ...base,
-            type: "AgentInvocationCompleted",
-            sessionId: result.sessionId,
+            type: "RateLimitDetected",
+            kind: "rate_limit",
+            resetAt: e.resetAt,
+            cause: e,
           }),
         ),
-        Effect.catchTag(
-          "RateLimitError",
-          (e): Effect.Effect<RateLimitDetected, never> =>
-            Effect.succeed({
-              ...base,
-              type: "RateLimitDetected",
-              kind: "rate_limit",
-              resetAt: e.resetAt,
-              cause: e,
-            }),
-        ),
-        Effect.catchTag(
-          "UsageLimitError",
-          (e): Effect.Effect<RateLimitDetected, never> =>
-            Effect.succeed({
-              ...base,
-              type: "RateLimitDetected",
-              kind: "usage_limit",
-              resetAt: e.resetAt,
-              cause: e,
-            }),
+        Effect.catchTag("UsageLimitError", (e): Effect.Effect<RateLimitDetected, never> =>
+          Effect.succeed({
+            ...base,
+            type: "RateLimitDetected",
+            kind: "usage_limit",
+            resetAt: e.resetAt,
+            cause: e,
+          }),
         ),
       ),
     ),
@@ -156,19 +144,17 @@ export function adaptGateRun(
 > {
   return runGates({ steps, cwd, attemptLogPath, gateRequest }).pipe(
     Effect.map((): GatePassed => ({ ...base, type: "GatePassed", attempt })),
-    Effect.catchTag(
-      "GateFailedError",
-      (e): Effect.Effect<GateFailed, never> =>
-        Effect.succeed({
-          ...base,
-          type: "GateFailed",
-          failedStep: e.failedStep,
-          command: e.command,
-          exitCode: e.exitCode,
-          protectedChanges: [],
-          logPath: e.logPath,
-          attempt,
-        }),
+    Effect.catchTag("GateFailedError", (e): Effect.Effect<GateFailed, never> =>
+      Effect.succeed({
+        ...base,
+        type: "GateFailed",
+        failedStep: e.failedStep,
+        command: e.command,
+        exitCode: e.exitCode,
+        protectedChanges: [],
+        logPath: e.logPath,
+        attempt,
+      }),
     ),
   );
 }
@@ -187,9 +173,11 @@ export function adaptCommit(
   Git | Shell | FileSystem | SystemTelemetry
 > {
   return commitPhase(opts).pipe(
-    Effect.map(
-      (result): CommitCreated => ({ ...base, type: "CommitCreated", hash: result.commitHash }),
-    ),
+    Effect.map((result): CommitCreated => ({
+      ...base,
+      type: "CommitCreated",
+      hash: result.commitHash,
+    })),
   );
 }
 
