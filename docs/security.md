@@ -517,14 +517,16 @@ See `scripts/security/README.md` for the full toolkit reference.
 
 ## Keeping security high
 
-- **Run the audit in CI.** Add a job that runs `pnpm audit:security` on pull
-  requests, plus a weekly schedule to catch newly disclosed advisories against
-  unchanged code. Install `gitleaks`/`osv-scanner`/`semgrep` in the runner for
-  full depth. Start report-only (`FAIL_ON=none`) and move to `FAIL_ON=high` once
-  the tree is clean, so a new CVE surfaces without blocking unrelated work.
-- **Keep dependencies fresh.** Enable Dependabot or Renovate for both `pnpm` and
-  GitHub Actions. Dev/build tooling (esbuild, vite, vitest) is the largest
-  advisory surface; upgrade it promptly and re-run `pnpm audit:security deps`.
+- **Run the audit in CI.** CI's `security-audit` job runs `pnpm audit:security`
+  on every push and pull request and fails on a high finding (`FAIL_ON=high`,
+  the script's default); its report is uploaded as an artifact either way. Its
+  `deps` check audits the production tree (`pnpm audit --prod`). Install
+  `gitleaks`/`osv-scanner`/`semgrep` in the runner for full depth.
+- **Keep dependencies fresh.** `.github/dependabot.yml` opens weekly pull
+  requests for the pnpm tree and the workflows' actions: minor and patch
+  updates grouped per ecosystem, each major alone. Dev/build tooling (esbuild,
+  vite, vitest) is the largest advisory surface, and `pnpm audit:security deps`
+  does not cover it: run `pnpm audit` over the whole tree when upgrading it.
 - **Complete the tracked hardening follow-ups** in `docs/plans/2607020808-security-hardening-plan.md`:
   pin GitHub Actions to commit SHAs, add `--` separators / tighten
   `BranchNameSchema` in the git adapter, and convert `scripts/docs-cli.ts` to
@@ -537,8 +539,8 @@ See `scripts/security/README.md` for the full toolkit reference.
 
 ### Example CI job
 
-Add to `.github/workflows/ci.yml` (report-only to start; drop
-`FAIL_ON`/`continue-on-error` once the tree is clean to make it blocking):
+The job `.github/workflows/ci.yml` runs, blocking on a high finding (pin each
+action to a full commit SHA, as the workflows do):
 
 ```yaml
   security-audit:
@@ -553,9 +555,6 @@ Add to `.github/workflows/ci.yml` (report-only to start; drop
       - run: pnpm install
       - name: Security audit
         run: pnpm audit:security
-        env:
-          FAIL_ON: none   # report-only until the tree is clean, then make blocking
-        continue-on-error: true
 ```
 
 The toolkit runs with only `bash`/`git`/`pnpm`. For deeper coverage, add steps
