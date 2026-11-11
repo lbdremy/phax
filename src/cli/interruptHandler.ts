@@ -181,23 +181,23 @@ export function syncRecordInterruptedInvocation(): void {
   }
 }
 
-export function setupInterruptHandlers(): void {
-  const handler = (): never => {
-    syncRecordInterruptedInvocation();
-    const ctx = activeRunContext;
-    if (ctx !== undefined) {
-      const saved = syncSaveInterruptedRun(ctx);
-      const name = runKey(ctx.namespace, ctx.shortName);
-      // The leading blank line ends the line a terminal's ^C left open.
-      ctx.write(
-        saved?.stopPhaseId !== null && saved?.stopPhaseId !== undefined
-          ? `\nRun "${name}": the close of ${saved.stopPhaseId} was interrupted — the stop is still waiting. Close it with: phax resume ${ctx.shortName} --yes`
-          : `\nRun "${name}" interrupted — state saved. Resume with: phax resume ${ctx.shortName} --yes`,
-      );
-    }
-    process.exit(130);
-  };
+function onInterrupt(): never {
+  syncRecordInterruptedInvocation();
+  const ctx = activeRunContext;
+  if (ctx !== undefined) {
+    const saved = syncSaveInterruptedRun(ctx);
+    const name = runKey(ctx.namespace, ctx.shortName);
+    // The leading blank line ends the line a terminal's ^C left open.
+    ctx.write(
+      saved?.stopPhaseId !== null && saved?.stopPhaseId !== undefined
+        ? `\nRun "${name}": the close of ${saved.stopPhaseId} was interrupted — the stop is still waiting. Close it with: phax resume ${ctx.shortName} --yes`
+        : `\nRun "${name}" interrupted — state saved. Resume with: phax resume ${ctx.shortName} --yes`,
+    );
+  }
+  process.exit(130);
+}
 
-  process.on("SIGINT", handler);
-  process.on("SIGTERM", handler);
+export function setupInterruptHandlers(): void {
+  process.on("SIGINT", onInterrupt);
+  process.on("SIGTERM", onInterrupt);
 }
