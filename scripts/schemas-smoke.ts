@@ -1,5 +1,5 @@
 // Smoke-tests the packed @lbdremy/phax-schemas tarball the way a consumer
-// meets it (spec ac-e2e): an empty Node 20 project with no phax installed
+// meets it (spec ac-e2e): an empty Node 22 project with no phax installed
 // installs the tarball, two made-up phase records written as phax writes them
 // sit on a phax/records/v1 branch, one record per commit, and the spec §6
 // read-record.mjs script finds the older one by its commit trailers, reads it
@@ -9,7 +9,7 @@
 // dependencies.
 // It needs the network (npm install from the registry), so it runs only in CI
 // and in the release workflow, never in a phax gate or check:full. It uses
-// only Node 20 APIs. Run it after a build:
+// only Node 22 APIs. Run it after a build:
 //   pnpm build
 //   pnpm exec tsx scripts/schemas-smoke.ts
 import { execFileSync, spawnSync } from "node:child_process";
@@ -79,14 +79,14 @@ export function smokeRecordManifest(phaseId: string = PHASE_ID): RunRecordManife
 }
 
 /**
- * The spec §6 consumer, `read-record.mjs`: Node 20, phax not installed, only
+ * The spec §6 consumer, `read-record.mjs`: Node 22, phax not installed, only
  * the package. Each commit on phax/records/v1 holds only its own record, so it
  * finds the record's commit by its `Run-Id` and `Phase-Id` trailers and reads
  * the file at that commit — `git show phax/records/v1:<path>` would only see
  * the newest record.
  */
 export const CONSUMER_SCRIPT = [
-  "// read-record.mjs: Node 20+, phax not installed, only @lbdremy/phax-schemas",
+  "// read-record.mjs: Node 22+, phax not installed, only @lbdremy/phax-schemas",
   'import { execFileSync } from "node:child_process";',
   'import { parsePhaseRecordManifest } from "@lbdremy/phax-schemas";',
   "",

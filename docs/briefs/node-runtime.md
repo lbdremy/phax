@@ -60,7 +60,7 @@ Node 26 became LTS on 2026-10-28 and is supported until April 2029. It is the fi
 1. **phax leaves Deno before its development ends.** No other runtime with a compile step (Bun, for instance) is
    evaluated: the toolchain is already Node.
 2. **Node 26 LTS is the floor**: the runtime the binary embeds, `engines`, and the Node used by CI and release. The
-   schemas package keeps its own Node 20 smoke (`ci.yml`, `release.yml`): its consumers are not phax's runtime.
+   schemas package keeps its own Node 22 smoke (`ci.yml`, `release.yml`): its consumers are not phax's runtime.
 3. **The posture stays at least as strict as today's**: file system read and write, environment, child processes
    unrestricted, network denied to phax's own process. The spec says plainly, as `CONTRIBUTING.md` does, that the
    subprocesses phax starts (`git`, `gh`, the agent CLIs) are not bound by it.

@@ -1045,7 +1045,7 @@ npm install @lbdremy/phax-schemas
 ```
 
 ```js
-// read-record.mjs: Node 20+, phax not installed, only @lbdremy/phax-schemas
+// read-record.mjs: Node 22+, phax not installed, only @lbdremy/phax-schemas
 import { execFileSync } from "node:child_process";
 import { parsePhaseRecordManifest } from "@lbdremy/phax-schemas";
 
