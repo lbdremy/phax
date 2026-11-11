@@ -90,7 +90,7 @@ from 2,097 to 1,206 (`NEXT_STEPS.md`, plan 1's row).
   `NEXT_STEPS.md`.
 - **A test pinned to a version broke main at the next release.** 41 corpus refusals named
   `@lbdremy/phax-schemas 0.36.0`; opening 0.37.0 turned main red. The fix tokenises the version
-  and the release rehearsal now also rehearses the opening (#200).
+  and the release rehearsal now also rehearses the opening (#200: d499294a, 78ea04dc, c624c794).
 
 ## Upstream
 
