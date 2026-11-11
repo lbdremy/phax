@@ -1,19 +1,21 @@
 // Replays the behaviour corpus: every case under tests/behaviourCorpus/cases/
 // decodes to the expectation captured on Effect 3, compared through the
-// canonical encoder. Effect-free and subject-free: it walks the case files, so a
-// case file added later is replayed without an edit here. Later plans keep this
-// file byte-identical; only tests/behaviourCorpus/subjects.ts migrates.
+// canonical encoder, a refusal naming the running schemas package's version.
+// Effect-free and subject-free: it walks the case files, so a case file added
+// later is replayed without an edit here.
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   canonicalJson,
+  expectedAt,
   listCaseFiles,
   parseCaseFile,
   subjectOfPath,
   type CaseFile,
 } from "../../behaviourCorpus/corpus.js";
 import { replay } from "../../behaviourCorpus/subjects.js";
+import { PACKAGE_VERSION } from "../../../packages/schemas/src/generated/index.js";
 
 const casesRoot = fileURLToPath(new URL("../../behaviourCorpus/cases/", import.meta.url));
 
@@ -40,7 +42,9 @@ describe("behaviour corpus", () => {
             `${file.subject} ${c.name}: no captured expectation; the corpus records Effect 3's answers (see CONTRIBUTING.md, "The behaviour corpus")`,
           );
         }
-        expect(canonicalJson(replay(file.subject, c.input))).toBe(canonicalJson(c.expected));
+        expect(canonicalJson(replay(file.subject, c.input))).toBe(
+          canonicalJson(expectedAt(c.expected, PACKAGE_VERSION)),
+        );
       });
     }
   }

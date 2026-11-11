@@ -7,10 +7,12 @@ set -euo pipefail
 #
 # --rehearse cuts the release, typechecks it and runs the tests that read what
 # a cut changes (the schemas package's formats and the docs site's served
-# schemas), then stops: no commit, no tag, no push, and the cut stays in the
-# working tree. CI rehearses every change this way, in seconds, so a test
-# that holds only until the next cut fails on the pull request that adds it.
-# A real release runs the whole suite on the cut before committing.
+# schemas), then opens the next minor on the cut as a release does, and
+# typechecks and runs the unit tests again, then stops: no commit, no tag, no
+# push, and the cut and the opening stay in the working tree. CI rehearses
+# every change this way, so a test that holds only until the next cut or the
+# next opening fails on the pull request that adds it. A real release runs the
+# whole suite on the cut before committing, and none after opening.
 #
 # --open <X.Y.Z> re-opens by hand, when the cycle turned out bigger or
 # smaller than the opened version says: it sets the manifests, regenerates
@@ -45,6 +47,9 @@ if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   echo "error: version must be semver (e.g. 0.1.2 or v0.1.2)"
   exit 1
 fi
+
+IFS=. read -r MAJOR MINOR _PATCH <<< "${VERSION}"
+NEXT_VERSION="${MAJOR}.$((MINOR + 1)).0"
 
 if [[ -n "$(git status --porcelain)" ]]; then
   echo "error: working tree is dirty, commit or stash changes first"
@@ -144,7 +149,19 @@ if ! { pnpm typecheck && pnpm test:type && "${CUT_TESTS[@]}"; }; then
 fi
 
 if [[ "$REHEARSE" == true ]]; then
-  echo "done: the tests pass on a ${VERSION} cut (rehearsal, nothing committed)"
+  # The opening changes the version every package manifest, generated module
+  # and upgrade message names, and no test runs after it in a real release.
+  echo "opening ${NEXT_VERSION} on the cut"
+  if ! pnpm exec tsx scripts/release-open.ts "${NEXT_VERSION}" > /dev/null; then
+    echo "error: ${NEXT_VERSION} does not open on the ${VERSION} cut"
+    exit 1
+  fi
+  echo "testing the opening"
+  if ! { pnpm typecheck && pnpm exec vitest run tests/unit; }; then
+    echo "error: the tests fail on the ${NEXT_VERSION} opening; nothing is committed"
+    exit 1
+  fi
+  echo "done: the tests pass on a ${VERSION} cut and the ${NEXT_VERSION} opening (rehearsal, nothing committed)"
   exit 0
 fi
 
@@ -164,9 +181,8 @@ echo "done: v${VERSION} tagged and pushed"
 
 # The release is out: open the next minor on main, so every commit until the
 # next release names a version above the ledger. No test suite runs here, to
-# keep the window between the tag and the opening short.
-IFS=. read -r MAJOR MINOR _PATCH <<< "${VERSION}"
-NEXT_VERSION="${MAJOR}.$((MINOR + 1)).0"
+# keep the window between the tag and the opening short: the rehearsal on
+# every pull request already ran the unit tests on this opening.
 echo "opening ${NEXT_VERSION}"
 if ! open_version "${NEXT_VERSION}"; then
   echo "✗ v${VERSION} is released but ${NEXT_VERSION} is not opened — finish with: scripts/release.sh --open ${NEXT_VERSION}"

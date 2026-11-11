@@ -47,6 +47,19 @@ export interface FormatCaseFile {
 /** A case file as stored: a subject's, or a format's. */
 export type CorpusFile = CaseFile | FormatCaseFile;
 
+/**
+ * What a captured refusal writes where it names the running schemas package's
+ * version (`… is newer than @lbdremy/phax-schemas {package-version}`): every
+ * release opening changes that version, so the case file names none.
+ */
+export const PACKAGE_VERSION_TOKEN = "{package-version}";
+
+/** `expected` as the tree running `packageVersion` answers it: its refusal names that version. */
+export function expectedAt(expected: Expected, packageVersion: string): Expected {
+  if (expected.ok) return expected;
+  return { ok: false, refusal: expected.refusal.replaceAll(PACKAGE_VERSION_TOKEN, packageVersion) };
+}
+
 /** Decodes one case's input as phax does: `subjects.ts` provides it. */
 export type Replay = (subject: string, input: unknown) => Expected;
 
