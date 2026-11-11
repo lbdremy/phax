@@ -98,10 +98,9 @@ jobs:
       - name: Release rehearsal
         run: scripts/release.sh --rehearse "$(node -p 'require("./package.json").version')"
 
-  # Report-only security audit. Does not gate CI yet (FAIL_ON=none +
-  # continue-on-error); the report is uploaded as an artifact for review. Flip
-  # to blocking (drop the env override and continue-on-error) once the tree is
-  # clean — see docs/security.md "Keeping security high".
+  # Security audit, blocking on a high finding (the script's default
+  # FAIL_ON=high); the report is uploaded as an artifact either way. See
+  # docs/security.md "Keeping security high".
   security-audit:
     runs-on: ubuntu-latest
 
@@ -118,11 +117,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      - name: Security audit (report-only)
+      - name: Security audit
         run: pnpm audit:security
-        env:
-          FAIL_ON: none
-        continue-on-error: true
 
       - name: Upload audit report
         if: always()
