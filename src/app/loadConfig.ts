@@ -1,7 +1,7 @@
 import { readFileSync, existsSync, lstatSync, realpathSync } from "node:fs";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { homedir } from "node:os";
-import { execFileSync, execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { Result } from "effect";
 import { ConfigValidationError } from "../domain/errors.js";
 import { decodeNamespace } from "../domain/branded.js";
@@ -58,7 +58,7 @@ function retiredOraclesKeyError(raw: unknown, filePath: string): ConfigValidatio
 
 function findGitRoot(startDir: string): string | undefined {
   try {
-    const root = execSync("git rev-parse --show-toplevel", {
+    const root = execFileSync("git", ["rev-parse", "--show-toplevel"], {
       cwd: startDir,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
@@ -393,7 +393,7 @@ export function describeConfigSources(cwd: string = process.cwd()): ConfigSource
 
 function findGitDir(startDir: string, flag: "--git-dir" | "--git-common-dir"): string | undefined {
   try {
-    const dir = execSync(`git rev-parse --path-format=absolute ${flag}`, {
+    const dir = execFileSync("git", ["rev-parse", "--path-format=absolute", flag], {
       cwd: startDir,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
