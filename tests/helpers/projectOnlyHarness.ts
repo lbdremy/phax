@@ -193,22 +193,20 @@ export interface PlanRun {
 }
 
 function planOf(phases: readonly PlannedPhase[]): { plan: PhaxPlan; planMd: string } {
-  const planned = phases.map(
-    (phase, index): PhaxPlanPhase => ({
-      id: phase.id,
-      title: `Export step ${index + 1}`,
-      model: phase.model,
-      effort: "medium",
-      planMarkdownAnchor: `#${phase.id}`,
-      plannedFilesToCreate: [`src/${phase.id}.ts`],
-      plannedFilesToEdit: [],
-      optionalFilesToEdit: [],
-      mode: "headless",
-      acceptance: null,
-      testLines: [],
-      commit: { subject: `feat(export): step ${index + 1}`, body: "Made-up body." },
-    }),
-  );
+  const planned = phases.map((phase, index): PhaxPlanPhase => ({
+    id: phase.id,
+    title: `Export step ${index + 1}`,
+    model: phase.model,
+    effort: "medium",
+    planMarkdownAnchor: `#${phase.id}`,
+    plannedFilesToCreate: [`src/${phase.id}.ts`],
+    plannedFilesToEdit: [],
+    optionalFilesToEdit: [],
+    mode: "headless",
+    acceptance: null,
+    testLines: [],
+    commit: { subject: `feat(export): step ${index + 1}`, body: "Made-up body." },
+  }));
   const plan = {
     run: {
       shortName: RUN_SHORT,

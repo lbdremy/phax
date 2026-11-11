@@ -780,15 +780,13 @@ describe("acceptance words in the sources (ac-oracle-kept, source half)", () => 
       lines: [/<oracle>/],
     };
     const text = "write <oracle> after the technique; an oracle phase is discharged";
-    const [field, phase, discharge] = [...text.matchAll(WORDS)].map(
-      (match): Occurrence => ({
-        file: "src/cli/cliDocs.ts",
-        line: 1,
-        column: match.index,
-        word: match[0],
-        text,
-      }),
-    );
+    const [field, phase, discharge] = [...text.matchAll(WORDS)].map((match): Occurrence => ({
+      file: "src/cli/cliDocs.ts",
+      line: 1,
+      column: match.index,
+      word: match[0],
+      text,
+    }));
     expect(allows(entry, field!)).toBe(true);
     expect(allows(entry, phase!)).toBe(false);
     expect(allows(entry, discharge!)).toBe(false);

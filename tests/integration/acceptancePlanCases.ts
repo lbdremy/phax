@@ -57,7 +57,7 @@ const OLD_LOOP_LINE =
 
 // ── The plan.md builder ───────────────────────────────────────────────────
 
-export interface AcceptancePlanOptions {
+interface AcceptancePlanOptions {
   /** Extra header lines per phase, right after the effort line. */
   readonly headers?: Partial<Record<PhaseId, readonly string[]>>;
   /** The `### Test strategy` text per phase; an in-phase line when absent. */
