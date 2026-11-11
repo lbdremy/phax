@@ -315,7 +315,7 @@ phax plans overlap --landed <run> <plan>   # which plans a landed run's real dif
 phax adjust-plan <plan> --landed <run>     # an agent session that updates a plan to what landed
 ```
 
-`plans status` compares each plan with what its approval was made against: `spec-changed` when its spec changed, `self-changed` when the plan did, `ground-changed` when files it plans to touch changed since, `missing-record` when there is nothing to compare with. It reports and exits 0; `--apply` makes the change. `plans overlap` compares the files plans declare (file by file, not line by line); with `--landed`, it uses the files a finished run actually changed — run it before you archive that run. `adjust-plan` asks before it edits and commits anything.
+`plans status` compares each plan with what its approval was made against: `spec-changed` when its spec changed, `self-changed` when the plan did, `ground-changed` when files it plans to touch changed since, `missing-record` when there is nothing to compare with. It reports and exits 0; `--apply` makes the change. `plans overlap` compares the files plans declare (file by file, not line by line); with `--landed`, it uses the files a finished run actually changed — run it before you archive that run. `adjust-plan` asks before it edits and commits anything. Path comparisons normalize repository-relative POSIX spellings (`./src/widget.ts` and `src/widget.ts` match) before checking planned overlap or landed-change impact; they do not resolve symlinks or case-only differences.
 
 ## Run a plan
 
