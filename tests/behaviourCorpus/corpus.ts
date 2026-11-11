@@ -52,7 +52,7 @@ export type CorpusFile = CaseFile | FormatCaseFile;
  * version (`… is newer than @lbdremy/phax-schemas {package-version}`): every
  * release opening changes that version, so the case file names none.
  */
-export const PACKAGE_VERSION_TOKEN = "{package-version}";
+const PACKAGE_VERSION_TOKEN = "{package-version}";
 
 /** `expected` as the tree running `packageVersion` answers it: its refusal names that version. */
 export function expectedAt(expected: Expected, packageVersion: string): Expected {
