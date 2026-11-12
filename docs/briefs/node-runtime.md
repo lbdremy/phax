@@ -1,3 +1,10 @@
+> **On hold, 2026-11-12: the binary stays on Deno.** Node documents its permission model as a "seat belt" that
+> "does not provide security guarantees in the presence of malicious code" (`doc/api/permissions.md`, Node 26), and
+> `--allow-net` is still in active development. Deno treats its permissions as a security boundary, and `deno compile`
+> fixes them in the binary. A Node SEA can fix its flags too (`execArgv` with `execArgvExtension: "none"`, since Node
+> 24.7), so the gap is the model's strength, not where the flags live. Node 26 is already the toolchain's runtime; only
+> the binary's runtime is on hold. Revisit before Deno's end of maintenance (reported for October 2027).
+
 Write the phax spec `node-runtime`: phax's release binary and its permission posture move from Deno to Node.js 26
 LTS, so phax stops depending on a runtime whose development ends in 2027.
 
