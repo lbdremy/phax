@@ -21,26 +21,18 @@ jobs:
           fetch-depth: 0
 
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6
-
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: "26"
-          cache: "pnpm"
+          cache: true
 
-      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2
+      # Node, Deno, usage, gitleaks and osv-scanner at the versions mise.toml
+      # pins, each checked against its mise.lock checksum (install --locked).
+      - uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5
         with:
-          deno-version: v2.x
+          version: "2026.11.1"
+          cache: false
 
       - name: Install dependencies
         run: pnpm install
-
-      - name: Install usage CLI
-        env:
-          USAGE_VERSION: v3.5.2
-        run: |
-          curl -fsSL "https://github.com/jdx/usage/releases/download/${USAGE_VERSION}/usage-x86_64-unknown-linux-gnu.tar.gz" \
-            | tar -xz -C /usr/local/bin usage
-          usage --version
 
       - name: Typecheck
         run: pnpm typecheck
@@ -77,30 +69,23 @@ jobs:
 
       # The same smoke the release workflow runs before publishing: the
       # tarball the Build step produced, installed into an empty Node 22
-      # project. It needs the network, so it stays out of check:full.
-      - name: Use Node 22 for the schemas package smoke
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
-        with:
-          node-version: "22"
-
+      # project. It needs the network, so it stays out of check:full. mise
+      # puts Node 22 first on PATH for this step only.
       - name: Smoke-test the schemas package tarball
-        run: pnpm exec tsx scripts/schemas-smoke.ts
+        run: mise exec node@22 -- pnpm exec tsx scripts/schemas-smoke.ts
 
       # Last, since it rewrites the tree: cut the opened version package.json
       # names in place, typecheck it and run the tests that read what a cut
       # changes, so a test that holds only until the next cut fails here
       # rather than at release.
-      - name: Use Node 26 for the release rehearsal
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
-        with:
-          node-version: "26"
-
       - name: Release rehearsal
         run: scripts/release.sh --rehearse "$(node -p 'require("./package.json").version')"
 
   # Security audit, blocking on a high finding (the script's default
-  # FAIL_ON=high); the report is uploaded as an artifact either way. See
-  # docs/security.md "Keeping security high".
+  # FAIL_ON=high); the report is uploaded as an artifact either way. mise
+  # brings gitleaks and osv-scanner, which the toolkit detects and runs;
+  # semgrep stays a local scanner. See docs/security.md "Keeping security
+  # high".
   security-audit:
     runs-on: ubuntu-latest
 
@@ -108,11 +93,15 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6
-
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: "26"
-          cache: "pnpm"
+          cache: true
+
+      # Node, Deno, usage, gitleaks and osv-scanner at the versions mise.toml
+      # pins, each checked against its mise.lock checksum (install --locked).
+      - uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5
+        with:
+          version: "2026.11.1"
+          cache: false
 
       - name: Install dependencies
         run: pnpm install

@@ -506,10 +506,12 @@ and any per-tool output). The process exit code is gated by `FAIL_ON`
 
 Each check uses a professional scanner when present and falls back to a built-in
 check otherwise, so a fresh checkout can run the full audit with only `bash`,
-`git`, and `pnpm`. Install the optional scanners for deeper coverage:
+`git`, and `pnpm`. `mise install` brings gitleaks and osv-scanner at the
+versions `mise.toml` pins (see `CONTRIBUTING.md`, "Toolchain"); install the
+other optional scanners yourself for deeper coverage:
 
 ```bash
-brew install gitleaks semgrep osv-scanner syft
+brew install semgrep syft
 ```
 
 A reviewed false-positive allowlist for the secret scan lives in `.gitleaks.toml`.
@@ -520,8 +522,9 @@ See `scripts/security/README.md` for the full toolkit reference.
 - **Run the audit in CI.** CI's `security-audit` job runs `pnpm audit:security`
   on every push and pull request and fails on a high finding (`FAIL_ON=high`,
   the script's default); its report is uploaded as an artifact either way. Its
-  `deps` check audits the production tree (`pnpm audit --prod`). Install
-  `gitleaks`/`osv-scanner`/`semgrep` in the runner for full depth.
+  `deps` check audits the production tree (`pnpm audit --prod`). mise installs
+  gitleaks and osv-scanner in the job, so the secret and lockfile scans run at
+  full depth there; semgrep's deep code pass runs only where it is installed.
 - **Keep dependencies fresh.** `.github/dependabot.yml` opens weekly pull
   requests for the pnpm tree and the workflows' actions: minor and patch
   updates grouped per ecosystem, each major alone. Dev/build tooling (esbuild,
@@ -546,21 +549,22 @@ action to a full commit SHA, as the workflows do):
   security-audit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
         with:
-          node-version: "26"
-          cache: "pnpm"
+          cache: true
+      - uses: jdx/mise-action@v5   # Node, gitleaks, osv-scanner from mise.toml/mise.lock
+        with:
+          version: "2026.11.1"
+          cache: false
       - run: pnpm install
       - name: Security audit
         run: pnpm audit:security
 ```
 
-The toolkit runs with only `bash`/`git`/`pnpm`. For deeper coverage, add steps
-that install `gitleaks`, `osv-scanner`, and `semgrep` before the audit (e.g.
-the `gitleaks/gitleaks-action`, the `google/osv-scanner-action`, or an asset
-download pinned by version) — the toolkit auto-detects and uses them.
+The toolkit runs with only `bash`/`git`/`pnpm`, and auto-detects the scanners
+on `PATH`: here mise provides gitleaks and osv-scanner, each checked against
+its `mise.lock` checksum. Add a step that installs semgrep for its deep pass.
 
 ## Best Practices
 
