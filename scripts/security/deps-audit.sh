@@ -33,12 +33,19 @@ if have pnpm; then
   audit_json="$AUDIT_OUT_DIR/pnpm-audit.json"
   # --json exits non-zero when advisories are found; capture regardless.
   pnpm audit --prod --json >"$audit_json" 2>/dev/null || true
-  if [[ -s "$audit_json" ]]; then
-    # pnpm emits either a summary object or NDJSON depending on version; grep is robust.
-    local_high=$(grep -o '"severity":"high"' "$audit_json"        | wc -l | tr -d ' ')
-    local_crit=$(grep -o '"severity":"critical"' "$audit_json"    | wc -l | tr -d ' ')
-    local_mod=$(grep -o '"severity":"moderate"' "$audit_json"     | wc -l | tr -d ' ')
-    local_low=$(grep -o '"severity":"low"' "$audit_json"          | wc -l | tr -d ' ')
+  # pnpm's own counters, metadata.vulnerabilities, as "critical high moderate
+  # low". A report that does not parse or lacks them is a finding, not a pass.
+  counts=$(node -e '
+    const v = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).metadata.vulnerabilities;
+    const n = ["critical", "high", "moderate", "low"].map((k) => v[k]);
+    if (!n.every(Number.isInteger)) process.exit(1);
+    console.log(n.join(" "));
+  ' "$audit_json" 2>/dev/null) || counts=""
+  if [[ -z "$counts" ]]; then
+    finding high "pnpm audit produced no readable report" \
+      "See $audit_json: expected pnpm's JSON with metadata.vulnerabilities. A failed or changed audit must not pass as clean."
+  else
+    read -r local_crit local_high local_mod local_low <<<"$counts"
     if (( local_crit > 0 )); then
       finding high "${local_crit} critical advisory/advisories in production deps" "See $audit_json"
     fi
@@ -54,8 +61,6 @@ if have pnpm; then
     if (( local_crit + local_high + local_mod + local_low == 0 )); then
       ok "pnpm audit: no known advisories in production dependencies"
     fi
-  else
-    ok "pnpm audit: no known advisories in production dependencies"
   fi
 else
   finding info "pnpm not on PATH" "Skipped pnpm audit. Install pnpm to enable advisory checks."
