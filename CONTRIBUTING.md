@@ -12,6 +12,8 @@ mise install             # once, and again after mise.toml changes
 
 With mise activated in your shell (`mise activate`), the repository's versions are on `PATH` inside it, so `pnpm …` runs on Node 26. Without it, nothing fails: you run on whatever Node is on your `PATH`. Two tools stay outside mise: pnpm, which `packageManager` in `package.json` pins, and semgrep, the security audit's optional deep code scan.
 
+pnpm refuses a package version published less than a day ago (`minimumReleaseAge`, pnpm's default), in the lockfile too: a dependency updated to a version released today installs tomorrow. Packages whose install scripts may run are listed under `allowBuilds` in `pnpm-workspace.yaml`; a new one fails the install until it is listed as `true` or `false`.
+
 To change a version, edit `mise.toml`, then refresh the checksums for the four platforms:
 
 ```bash
