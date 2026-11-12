@@ -48,6 +48,11 @@ The operator took the second, with a hand edit of a run file. Neither route is o
    inside a phase.
 3. **Recorded.** The phase's records say which paths were excepted, by whom and when, and the change shows in the
    run's pull request like any other.
+4. **Seen before the run.** `phax plans lint` already reads `phax.json` (the assignment bounds) and probes the paths
+   each phase names, yet says nothing when a phase plans to create, change, delete or rename a protected path: the
+   phase is planned to fail its gate, and that shows only once the run reaches it. Lint says so before the run starts,
+   naming the phase, the path and the glob that protects it. The operator then knows which phase will need an
+   exception at its resume, or makes the change on the base branch first. The lint grants nothing.
 
 ## What the spec must cover
 
@@ -60,6 +65,18 @@ The operator took the second, with a hand edit of a run file. Neither route is o
   phase's).
 - **Recording**: where it lives (`security.json`, `gate-attribution.json`), its version bump, and how the final report
   and the pull request body show it.
+- **The lint finding**: what it matches (each phase's file entries against the globs, the loaded `phax.json`
+  included), its level, and its wording, which names the two routes (an exception at that phase's resume, or the
+  change on the base branch first).
+- **The documentation to touch when it ships**: `docs/security.md`, "Protected paths"; and
+  `docs/comparisons/agentic-practices.md`, whose row "Files only a person may change" gains the exception and the lint
+  finding, and whose row "The agent never edits what judges its work" says what the finding covers (a phase planning
+  a protected file) and what stays an idea (a phase planning both a file and its own test), with its "last checked"
+  line moved to the version that ships it.
+- **The lint finding's level, to weigh in §9**: an error refuses a plan whose change the operator wants, so the plan
+  must be rewritten or the change made on the base branch first; a warning lets the run start, the phase fail at its
+  gate and the operator grant the exception at its resume. Recommended: a warning, since the exception is granted at
+  the resume and a plan cannot grant one.
 - **The alternative to weigh in §9**: `phax rebase <run>` moving the run's remaining phases onto a base branch that now
   carries the change, rewriting the recorded bases. It keeps the change off the run's branch, at the cost of records
   that name commits the pull request no longer holds.
@@ -72,7 +89,8 @@ The operator took the second, with a hand edit of a run file. Neither route is o
 
 ## Constraints
 
-- Additive: a run that grants no exception sees no change in behaviour, argv, prompts or output.
+- Additive: a run that grants no exception sees no change in behaviour, argv, prompts or output, and a plan that
+  names no protected path gets no new finding.
 - Keep the spec short, with only genuine §9 questions, each with its options, what each abandons and a recommended
   default.
 
