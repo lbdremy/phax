@@ -2,12 +2,21 @@
 # and patch updates come grouped, one pull request per ecosystem; a major
 # comes alone, since it is the one that needs reading. Security updates are
 # separate: they follow the repository's Dependabot alerts.
+#
+# Dependabot does not refresh deno.lock, which `pnpm deno:compile` rewrites in
+# CI: push the regenerated deno.lock onto each npm pull request.
+#
+# @types/node stays on the major phax builds against; a new major would type
+# APIs the declared Node (engines) may lack.
 version: 2
 updates:
   - package-ecosystem: npm
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     groups:
       minor-and-patch:
         update-types: [minor, patch]
