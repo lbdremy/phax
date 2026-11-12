@@ -36,15 +36,15 @@ jobs:
           fi
 
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6
-
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: "26"
-          cache: "pnpm"
+          cache: true
 
-      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2
+      # Node, Deno, usage, gitleaks and osv-scanner at the versions mise.toml
+      # pins, each checked against its mise.lock checksum (install --locked).
+      - uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5
         with:
-          deno-version: v2.x
+          version: "2026.11.1"
+          cache: false
 
       - name: Install dependencies
         run: pnpm install
@@ -56,14 +56,6 @@ jobs:
         run: |
           pnpm exec tsx scripts/release-notes.ts --github-body "docs/releases/${RELEASE_TAG#v}.md" > "$RUNNER_TEMP/release-body.md"
           echo "path=$RUNNER_TEMP/release-body.md" >> "$GITHUB_OUTPUT"
-
-      - name: Install usage CLI
-        env:
-          USAGE_VERSION: v3.5.2
-        run: |
-          curl -fsSL "https://github.com/jdx/usage/releases/download/${USAGE_VERSION}/usage-x86_64-unknown-linux-gnu.tar.gz" \
-            | tar -xz -C /usr/local/bin usage
-          usage --version
 
       - name: Gate
         run: |
@@ -88,19 +80,10 @@ jobs:
 
       # The schemas package promises Node 22: smoke the tarball the Gate's
       # pnpm build produced under Node 22, in this job, so the publish below
-      # ships exactly the smoked build.
-      - name: Use Node 22 for the schemas package smoke
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
-        with:
-          node-version: "22"
-
+      # ships exactly the smoked build. mise puts Node 22 first on PATH for
+      # this step only; the steps after it run on Node 26.
       - name: Smoke-test the schemas package tarball
-        run: pnpm exec tsx scripts/schemas-smoke.ts
-
-      - name: Restore Node 26
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
-        with:
-          node-version: "26"
+        run: mise exec node@22 -- pnpm exec tsx scripts/schemas-smoke.ts
 
       - name: Upgrade npm to support stage publish
         run: npm install -g npm@11.16.0

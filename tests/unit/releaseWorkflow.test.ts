@@ -20,8 +20,11 @@ describe("release workflow invariants", () => {
     expect(workflow).toContain('"v*"');
   });
 
-  it("includes a Deno setup step", () => {
-    expect(workflow).toContain("denoland/setup-deno");
+  it("sets up its tools with mise, not with setup-node, setup-deno or a usage download", () => {
+    expect(releaseSteps.filter(isMise)).toHaveLength(1);
+    expect(workflow).not.toContain("actions/setup-node");
+    expect(workflow).not.toContain("denoland/setup-deno");
+    expect(workflow).not.toContain("USAGE_VERSION");
   });
 
   it("builds release binaries", () => {
@@ -153,10 +156,22 @@ function indexOf(steps: ReadonlyArray<Step>, match: (step: Step) => boolean): nu
 const runs = (command: string) => (step: Step) => step.run?.includes(command) === true;
 const isSetupNode = (step: Step) => step.uses?.startsWith("actions/setup-node@") === true;
 const nodeVersion = (step: Step) => String(step.with?.["node-version"]);
+const isMise = (step: Step) => step.uses?.startsWith("jdx/mise-action@") === true;
 
-/** The last setup-node step before `index`. */
-function setupNodeBefore(steps: ReadonlyArray<Step>, index: number): Step | undefined {
-  return steps.slice(0, index).findLast(isSetupNode);
+/** mise.toml, read as text: its `min_version` and the majors of its `node` versions, first first. */
+const miseToml = readFileSync(join(import.meta.dirname, "../../mise.toml"), "utf-8");
+const miseMinVersion = /^min_version = "([^"]+)"$/m.exec(miseToml)?.[1];
+const miseNodeMajors = [
+  ...(/^node = \[([^\]]*)\]$/m.exec(miseToml)?.[1] ?? "").matchAll(/"(\d+)\./g),
+].map((match) => match[1]);
+
+/** The job's one mise-action step, pinned by SHA to a mise release no older than mise.toml asks. */
+function miseStep(steps: ReadonlyArray<Step>): Step {
+  const mise = steps.filter(isMise);
+  expect(mise).toHaveLength(1);
+  expect(mise[0]!.uses).toMatch(/^jdx\/mise-action@[0-9a-f]{40}$/);
+  expect(mise[0]!.with?.["version"]).toBe(miseMinVersion);
+  return mise[0]!;
 }
 
 describe("release workflow: two packages in lockstep", () => {
@@ -221,25 +236,24 @@ describe("release workflow: two packages in lockstep", () => {
     expect(check.run).toMatch(/if \[ "\$TAG_VERSION" != "\$LEDGER_LAST" \]/);
   });
 
-  it("smokes the schemas package under Node 22", () => {
-    const smoke = indexOf(releaseSteps, runs(SMOKE));
-    expect(nodeVersion(setupNodeBefore(releaseSteps, smoke)!)).toBe("22");
+  it("smokes the schemas package under Node 22, in that step only", () => {
+    const smoke = releaseSteps[indexOf(releaseSteps, runs(SMOKE))]!;
+    expect(smoke.run?.trim()).toBe(`mise exec node@22 -- ${SMOKE}`);
+    expect(miseNodeMajors).toContain("22");
   });
 
-  it("upgrades npm after restoring Node 26 past the smoke, and before the first publish", () => {
+  it("upgrades npm after the smoke and before the first publish, on mise's first Node", () => {
     const smoke = indexOf(releaseSteps, runs(SMOKE));
     const upgrade = indexOf(releaseSteps, runs("npm install -g npm@"));
     expect(upgrade).toBeGreaterThan(smoke);
     expect(upgrade).toBeLessThan(firstPublish);
-    const restore = setupNodeBefore(releaseSteps, upgrade)!;
-    expect(releaseSteps.indexOf(restore)).toBeGreaterThan(smoke);
-    expect(nodeVersion(restore)).toBe("26");
+    expect(miseNodeMajors[0]).toBe("26");
   });
 
-  it("pins every setup-node step to the same SHA", () => {
-    const pins = new Set(releaseSteps.filter(isSetupNode).map((step) => step.uses));
-    expect(pins.size).toBe(1);
-    expect([...pins][0]).toMatch(/^actions\/setup-node@[0-9a-f]{40}$/);
+  it("pins mise-action by SHA, to the mise release mise.toml asks for", () => {
+    expect(releaseSteps.indexOf(miseStep(releaseSteps))).toBeLessThan(
+      indexOf(releaseSteps, (step) => step.name === "Install dependencies"),
+    );
   });
 });
 
@@ -431,13 +445,21 @@ describe("docs-deploy workflow: redeploying a released tag by hand", () => {
     expect(checkout.with).toEqual({ lfs: true });
   });
 
-  it("pins checkout, pnpm and setup-node 26 to release.yml's SHAs", () => {
-    for (const action of ["actions/checkout@", "pnpm/action-setup@", "actions/setup-node@"]) {
+  it("pins checkout and pnpm to release.yml's SHAs", () => {
+    for (const action of ["actions/checkout@", "pnpm/action-setup@"]) {
       const own = actionPins(steps).filter((uses) => uses.startsWith(action));
       expect(own).toHaveLength(1);
       expect(actionPins(releaseSteps)).toContain(own[0]);
     }
-    expect(nodeVersion(steps.find(isSetupNode)!)).toBe("26");
+  });
+
+  // The tag it checks out may predate mise.toml, so it sets up Node itself.
+  it("sets up Node with setup-node, pinned by SHA, on mise.toml's first Node major", () => {
+    const setup = steps.filter(isSetupNode);
+    expect(setup).toHaveLength(1);
+    expect(setup[0]!.uses).toMatch(/^actions\/setup-node@[0-9a-f]{40}$/);
+    expect(nodeVersion(setup[0]!)).toBe(miseNodeMajors[0]);
+    expect(steps.filter(isMise)).toHaveLength(0);
   });
 
   it("refuses a tag that is not vX.Y.Z or not package.json's version, before building", () => {
@@ -485,17 +507,18 @@ describe("CI workflow: the docs site build", () => {
 });
 
 describe("CI workflow: the schemas package smoke", () => {
-  it("runs the smoke under Node 22, after the build", () => {
+  it("runs the smoke under Node 22, in that step only, after the build", () => {
     const smoke = indexOf(ciSteps, runs(SMOKE));
-    expect(nodeVersion(setupNodeBefore(ciSteps, smoke)!)).toBe("22");
+    expect(ciSteps[smoke]!.run?.trim()).toBe(`mise exec node@22 -- ${SMOKE}`);
     expect(indexOf(ciSteps, (step) => step.run === "pnpm build")).toBeLessThan(smoke);
   });
 
-  it("rehearses a release cut as its last step, under Node 26", () => {
+  it("rehearses a release cut as its last step, on mise's first Node", () => {
     const rehearsal = indexOf(ciSteps, runs("scripts/release.sh --rehearse"));
     // The cut rewrites the tree, so nothing may run after it.
     expect(rehearsal).toBe(ciSteps.length - 1);
-    expect(nodeVersion(setupNodeBefore(ciSteps, rehearsal)!)).toBe("26");
+    expect(ciSteps.filter(isSetupNode)).toHaveLength(0);
+    expect(miseNodeMajors[0]).toBe("26");
   });
 
   it("rehearses the opened version package.json names, with no patch arithmetic", () => {
@@ -505,9 +528,26 @@ describe("CI workflow: the schemas package smoke", () => {
     );
   });
 
-  it("pins every setup-node step to the same SHA", () => {
-    const pins = new Set(ciSteps.filter(isSetupNode).map((step) => step.uses));
-    expect(pins.size).toBe(1);
+  it("sets up both jobs' tools with release.yml's mise-action pin", () => {
+    const ciPath = join(import.meta.dirname, "../../.github/workflows/ci.yml");
+    const auditSteps = jobSteps(ciPath, "security-audit");
+    for (const steps of [ciSteps, auditSteps]) {
+      expect(miseStep(steps).uses).toBe(miseStep(releaseSteps).uses);
+      expect(steps.filter(isSetupNode)).toHaveLength(0);
+    }
+  });
+});
+
+describe("mise.toml: the toolchain", () => {
+  const floor = (dir: string) => {
+    const manifest = JSON.parse(
+      readFileSync(join(import.meta.dirname, "../..", dir, "package.json"), "utf-8"),
+    ) as { readonly engines: { readonly node: string } };
+    return /^>=(\d+)$/.exec(manifest.engines.node)?.[1];
+  };
+
+  it("puts phax's Node floor first, then the schemas package's, which its smoke runs on", () => {
+    expect(miseNodeMajors).toEqual([floor("."), floor("packages/schemas")]);
   });
 });
 

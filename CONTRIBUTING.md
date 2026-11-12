@@ -2,6 +2,22 @@
 
 This page is for working on phax itself. To use phax, start with the [README](README.md).
 
+## Toolchain
+
+[mise](https://mise.jdx.dev/) installs the tools phax is built and released with: Node 26, Node 22 for the schemas package's smoke, Deno, the `usage` CLI, gitleaks and osv-scanner. `mise.toml` pins their versions and `mise.lock` holds each one's checksum for Linux and macOS, x64 and arm64. CI and the release workflow install from the same two files.
+
+```bash
+mise install             # once, and again after mise.toml changes
+```
+
+With mise activated in your shell (`mise activate`), the repository's versions are on `PATH` inside it, so `pnpm …` runs on Node 26. Without it, nothing fails: you run on whatever Node is on your `PATH`. Two tools stay outside mise: pnpm, which `packageManager` in `package.json` pins, and semgrep, the security audit's optional deep code scan.
+
+To change a version, edit `mise.toml`, then refresh the checksums for the four platforms:
+
+```bash
+mise lock --platform linux-x64,linux-arm64,macos-arm64,macos-x64
+```
+
 ## Checks
 
 ```bash

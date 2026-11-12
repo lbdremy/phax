@@ -44,8 +44,8 @@ Node 26 became LTS on 2026-10-28 and is supported until April 2029. It is the fi
 - **Deno entry points and config**: `deno.json` (`nodeModulesDir: "auto"`, tasks, `allowScripts`),
   `scripts/prepare-npm.ts` (written against `Deno.*` APIs; `scripts/releaseVersion.ts` and `scripts/npmReadme.ts` are
   already runtime-free), `scripts/smoke-binary.sh`, and the `deno:*` scripts in `package.json`.
-- **CI and release**: `setup-deno`, `pnpm deno:smoke` and `pnpm deno:compile` in `.github/workflows/ci.yml`;
-  `setup-deno`, `deno:smoke`, `deno:build-binaries` and `deno run … scripts/prepare-npm.ts` in
+- **CI and release**: Deno from `mise.toml` (installed by `jdx/mise-action`), `pnpm deno:smoke` and `pnpm deno:compile` in
+  `.github/workflows/ci.yml`; the same Deno, `deno:smoke`, `deno:build-binaries` and `deno run … scripts/prepare-npm.ts` in
   `.github/workflows/release.yml`; the release flow in `docs/release.md`.
 - **The npm launcher**: `npm/bin/phax` and `npm/lib/resolveBinary.mts` download the matching release binary on first
   run, verify it against its `.sha256` sidecar and cache it under `~/.phax/bin/<version>/` (`docs/security.md`,
@@ -92,7 +92,7 @@ Node 26 became LTS on 2026-10-28 and is supported until April 2029. It is the fi
 
 ## Constraints
 
-- **No back-compat shims**: Deno, `deno.json`, the `deno:*` scripts and `setup-deno` go in the same change that lands
+- **No back-compat shims**: Deno, `deno.json`, the `deno:*` scripts and `mise.toml`'s `deno` entry go in the same change that lands
   the replacement. No dual build.
 - **The binary's behaviour is unchanged**: `--version`, `--usage`, completions and the skills it embeds answer as today,
   proved by the binary smoke (`scripts/smoke-binary.sh` or its successor), plus one check that a network call from

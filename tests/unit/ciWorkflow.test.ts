@@ -14,8 +14,13 @@ describe("CI workflow invariants", () => {
     expect(workflow).toContain("push");
   });
 
-  it("includes a Deno setup step", () => {
-    expect(workflow).toContain("denoland/setup-deno");
+  it("sets up Deno, Node and usage through mise, not their own setup steps", () => {
+    expect(workflow).toContain("jdx/mise-action@");
+    expect(workflow).not.toContain("denoland/setup-deno");
+    expect(workflow).not.toContain("actions/setup-node");
+    expect(readFileSync(join(import.meta.dirname, "../../mise.toml"), "utf-8")).toMatch(
+      /^deno = /m,
+    );
   });
 
   it("runs pnpm typecheck", () => {
