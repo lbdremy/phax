@@ -226,14 +226,14 @@ describe("release workflow: two packages in lockstep", () => {
     expect(nodeVersion(setupNodeBefore(releaseSteps, smoke)!)).toBe("22");
   });
 
-  it("upgrades npm after restoring Node 24 past the smoke, and before the first publish", () => {
+  it("upgrades npm after restoring Node 26 past the smoke, and before the first publish", () => {
     const smoke = indexOf(releaseSteps, runs(SMOKE));
     const upgrade = indexOf(releaseSteps, runs("npm install -g npm@"));
     expect(upgrade).toBeGreaterThan(smoke);
     expect(upgrade).toBeLessThan(firstPublish);
     const restore = setupNodeBefore(releaseSteps, upgrade)!;
     expect(releaseSteps.indexOf(restore)).toBeGreaterThan(smoke);
-    expect(nodeVersion(restore)).toBe("24");
+    expect(nodeVersion(restore)).toBe("26");
   });
 
   it("pins every setup-node step to the same SHA", () => {
@@ -431,13 +431,13 @@ describe("docs-deploy workflow: redeploying a released tag by hand", () => {
     expect(checkout.with).toEqual({ lfs: true });
   });
 
-  it("pins checkout, pnpm and setup-node 24 to release.yml's SHAs", () => {
+  it("pins checkout, pnpm and setup-node 26 to release.yml's SHAs", () => {
     for (const action of ["actions/checkout@", "pnpm/action-setup@", "actions/setup-node@"]) {
       const own = actionPins(steps).filter((uses) => uses.startsWith(action));
       expect(own).toHaveLength(1);
       expect(actionPins(releaseSteps)).toContain(own[0]);
     }
-    expect(nodeVersion(steps.find(isSetupNode)!)).toBe("24");
+    expect(nodeVersion(steps.find(isSetupNode)!)).toBe("26");
   });
 
   it("refuses a tag that is not vX.Y.Z or not package.json's version, before building", () => {
@@ -491,11 +491,11 @@ describe("CI workflow: the schemas package smoke", () => {
     expect(indexOf(ciSteps, (step) => step.run === "pnpm build")).toBeLessThan(smoke);
   });
 
-  it("rehearses a release cut as its last step, under Node 24", () => {
+  it("rehearses a release cut as its last step, under Node 26", () => {
     const rehearsal = indexOf(ciSteps, runs("scripts/release.sh --rehearse"));
     // The cut rewrites the tree, so nothing may run after it.
     expect(rehearsal).toBe(ciSteps.length - 1);
-    expect(nodeVersion(setupNodeBefore(ciSteps, rehearsal)!)).toBe("24");
+    expect(nodeVersion(setupNodeBefore(ciSteps, rehearsal)!)).toBe("26");
   });
 
   it("rehearses the opened version package.json names, with no patch arithmetic", () => {

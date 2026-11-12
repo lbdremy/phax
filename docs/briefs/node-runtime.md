@@ -29,8 +29,8 @@ Node now covers both jobs:
   `--build-sea` is absent.
 
 Node 26 became LTS on 2026-10-28 and is supported until April 2029. It is the first LTS line that has both
-`--allow-net` and `--build-sea`. The repository still targets Node 24 (`engines: ">=24"`, `node-version: "24"` in
-`ci.yml`, `release.yml` and `docs-deploy.yml`).
+`--allow-net` and `--build-sea`. The repository already targets it (`engines: ">=26"`, `node-version: "26"` in `ci.yml`,
+`release.yml` and `docs-deploy.yml`); the npm launcher declares `>=22`, since only it runs on the user's Node.
 
 ## What already exists (read it; do not restate it as new)
 
@@ -59,8 +59,9 @@ Node 26 became LTS on 2026-10-28 and is supported until April 2029. It is the fi
 
 1. **phax leaves Deno before its development ends.** No other runtime with a compile step (Bun, for instance) is
    evaluated: the toolchain is already Node.
-2. **Node 26 LTS is the floor**: the runtime the binary embeds, `engines`, and the Node used by CI and release. The
-   schemas package keeps its own Node 22 smoke (`ci.yml`, `release.yml`): its consumers are not phax's runtime.
+2. **Node 26 LTS is the floor**: the runtime the binary embeds, `engines`, and the Node used by CI and release (the
+   last two are in place). The schemas package keeps its own Node 22 smoke (`ci.yml`, `release.yml`): its consumers are
+   not phax's runtime. The npm launcher declares Node 22 until §9 decides whether it stays.
 3. **The posture stays at least as strict as today's**: file system read and write, environment, child processes
    unrestricted, network denied to phax's own process. The spec says plainly, as `CONTRIBUTING.md` does, that the
    subprocesses phax starts (`git`, `gh`, the agent CLIs) are not bound by it.
@@ -97,7 +98,7 @@ Node 26 became LTS on 2026-10-28 and is supported until April 2029. It is the fi
   proved by the binary smoke (`scripts/smoke-binary.sh` or its successor), plus one check that a network call from
   phax's own process is refused.
 - **The documentation moves with it**: the "The binary" table in `CONTRIBUTING.md`, `docs/release.md`,
-  `docs/security.md` and `scripts/security/` name the new build, and `docs/upgrading.md` names the Node 26 floor.
+  `docs/security.md` and `scripts/security/` name the new build, and `docs/upgrading.md` says what changes for the user.
 - **§9 holds genuine choices only**, each with its options, what each abandons and a recommended default.
 
 ## Out of scope

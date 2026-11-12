@@ -550,7 +550,7 @@ action to a full commit SHA, as the workflows do):
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "24"
+          node-version: "26"
           cache: "pnpm"
       - run: pnpm install
       - name: Security audit

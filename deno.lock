@@ -6,7 +6,7 @@
     "npm:@fontsource/ibm-plex-sans@^5.3.0": "5.3.0",
     "npm:@rspress/core@^2.1.2": "2.1.2_micromark@4.0.3",
     "npm:@types/mdast@^4.0.4": "4.0.4",
-    "npm:@types/node@^25.9.9": "25.9.9",
+    "npm:@types/node@^26.6.6": "26.6.6",
     "npm:@types/react@19.3.0": "19.3.0",
     "npm:ajv@^8.20.0": "8.20.0",
     "npm:commander@^15.1.0": "15.1.0",
@@ -23,8 +23,8 @@
     "npm:oxlint@^1.93.0": "1.93.0",
     "npm:tsx@^4.23.15": "4.23.15",
     "npm:typescript@^7.0.2": "7.0.2",
-    "npm:vite@^8.3.8": "8.3.8_@types+node@25.9.9_esbuild@0.28.2_tsx@4.23.15_yaml@2.9.1",
-    "npm:vitest@^5.1.0": "5.1.0_@types+node@25.9.9_vite@8.3.8__@types+node@25.9.9__esbuild@0.28.2__tsx@4.23.15__yaml@2.9.1",
+    "npm:vite@^8.3.8": "8.3.8_@types+node@26.6.6_esbuild@0.28.2_tsx@4.23.15_yaml@2.9.1",
+    "npm:vitest@^5.1.0": "5.1.0_@types+node@26.6.6_vite@8.3.8__@types+node@26.6.6__esbuild@0.28.2__tsx@4.23.15__yaml@2.9.1",
     "npm:wrangler@^4.160.1": "4.160.1",
     "npm:yaml@^2.9.1": "2.9.1"
   },
@@ -1434,8 +1434,8 @@
     "@types/ms@2.1.0": {
       "integrity": "sha512-GsCCIZDE/p3i96vtEqx+7dBUGXrc7zeSK3wwPHIaRThS+9OhWIXRqzs4d6k1SVU8g91DrNRWxWUGhp5KXQb2VA=="
     },
-    "@types/node@25.9.9": {
-      "integrity": "sha512-b4e2xxj/yMeT2hNlD6x7zNFiQK2Dlmkb9CQ6v3/1G2RezKN4YS2lcEv8lzGm1mhs4f2lM4yNAMI/zUDBZBBt7w==",
+    "@types/node@26.6.6": {
+      "integrity": "sha512-MzQj+8Kx3XI40OmUAE6Qoh58ZMNstNNMwn2nfd3qWsfe7nDNSqJNzes4njhz6AHwrSHOffSLwXU6yb474Q4aog==",
       "dependencies": [
         "undici-types"
       ]
@@ -1562,7 +1562,7 @@
         "unhead"
       ]
     },
-    "@vitest/mocker@5.1.0_vite@8.3.8__@types+node@25.9.9__esbuild@0.28.2__tsx@4.23.15__yaml@2.9.1_@types+node@25.9.9": {
+    "@vitest/mocker@5.1.0_vite@8.3.8__@types+node@26.6.6__esbuild@0.28.2__tsx@4.23.15__yaml@2.9.1_@types+node@26.6.6": {
       "integrity": "sha512-5umB9/jlWcqVS6fsrFmv5Gdnpu6wAUio/lEOwAmvB7v+lFo/IW2B9FhAD0p19GCULTgMzLCdUmuCDCnAzWgppQ==",
       "dependencies": [
         "@jridgewell/trace-mapping@0.3.31",
@@ -3350,8 +3350,8 @@
     "unbash@6.0.4": {
       "integrity": "sha512-t3OptUArewg9OpYGDskTSlxhyLDahfmZ4d36hE44Efb1y3HRLLpzsVqwH+AwBVymP4t7pP71xN+nnduudn2awA=="
     },
-    "undici-types@7.24.6": {
-      "integrity": "sha512-WRNW+sJgj5OBN4/0JpHFqtqzhpbnV0GuB+OozA9gCL7a993SmU+1JBZCzLNxYsbMfIeDL+lTsphD5jN5N+n0zg=="
+    "undici-types@8.9.0": {
+      "integrity": "sha512-KTDyRTYX8sWmKXAikPHHSyc63CRPETMctyjKFupcC6OBLXT3xsN0e9aF7m+mIXutFWpUXuedtowG7iLOzp0kQg=="
     },
     "undici@7.30.1": {
       "integrity": "sha512-03KrMbjIFDWQR5RNPrSw3bd1r12JpyFQl9/yxjUbJtqkjmllqC5lFjZh6ujeuJCKr8EOQvRW872Oy/az+nLYxg=="
@@ -3446,7 +3446,7 @@
         "vfile-message"
       ]
     },
-    "vite@8.3.8_@types+node@25.9.9_esbuild@0.28.2_tsx@4.23.15_yaml@2.9.1": {
+    "vite@8.3.8_@types+node@26.6.6_esbuild@0.28.2_tsx@4.23.15_yaml@2.9.1": {
       "integrity": "sha512-LzOn3h9rG/0vhLdXrV4yJ4QFA9eEoqCl+Yx+kGJd7aB9w6nfNgVHKSYwLPZUHrz4ZGa+t+kXjV9itvcHDLQouA==",
       "dependencies": [
         "@types/node",
@@ -3470,7 +3470,7 @@
       ],
       "bin": true
     },
-    "vitest@5.1.0_@types+node@25.9.9_vite@8.3.8__@types+node@25.9.9__esbuild@0.28.2__tsx@4.23.15__yaml@2.9.1": {
+    "vitest@5.1.0_@types+node@26.6.6_vite@8.3.8__@types+node@26.6.6__esbuild@0.28.2__tsx@4.23.15__yaml@2.9.1": {
       "integrity": "sha512-MzmNFnrwa8v8lF1bLxw3UJ4EREwVOVb75VqJZmUDRjJ6EluK/x9th7qTbaeDk41WxE1GxWqmTXcdsfobfH5sOA==",
       "dependencies": [
         "@types/chai",
@@ -3570,7 +3570,7 @@
         "npm:@fontsource/ibm-plex-sans@^5.3.0",
         "npm:@rspress/core@^2.1.2",
         "npm:@types/mdast@^4.0.4",
-        "npm:@types/node@^25.9.9",
+        "npm:@types/node@^26.6.6",
         "npm:@types/react@19.3.0",
         "npm:ajv@^8.20.0",
         "npm:commander@^15.1.0",
