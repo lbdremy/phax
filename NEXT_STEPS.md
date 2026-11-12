@@ -81,6 +81,10 @@ briefs of live or unspecced work.
 
 ### 8. Later
 
+- [ ] **`protected-path-exceptions`** — `docs/briefs/protected-path-exceptions.md` (2026-11-12), spec
+      to author: the operator lets one phase change a protected path, granted when the phase is
+      resumed and recorded with it, so a wanted change no longer means a new run or a hand edit of
+      a run's recorded base.
 - [ ] **`review-map`** — `docs/briefs/review-map.md` (2026-10-23), spec to author. phax computes,
       without a model, where review attention belongs (criteria no test proves, skipped
       acceptance tests, phases that needed fixes, the run's review notes) and gives it to the
