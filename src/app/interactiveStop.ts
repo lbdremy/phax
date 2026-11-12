@@ -181,39 +181,40 @@ function attemptTurn(
   input: FirstTurnInput,
   turn: number,
 ): Effect.Effect<TurnAttempt, never, Backend | FileSystem | SystemTelemetry> {
+  // No `phaseFolderPath`: an interactive phase keeps no claudeSessionId in
+  // its status, so the provider must not patch it. No agent commands
+  // (q-turn-shell, no-shell): a Claude turn keeps its reading tools only.
+  const options = (stream: string): AgentRunOptions => ({
+    provider: input.provider,
+    model: input.model,
+    effort: input.effort,
+    cwd: input.worktree,
+    security: input.policy,
+    agentCommands: [],
+    readOnly: true,
+    answerSchema: { call: "first-turn", schema: answerJsonSchema("first-reading") },
+    outputJsonlPath: join(input.phaseFolder, stream),
+  });
+  const costed = (
+    run: Effect.Effect<AgentRunResult, unknown, Backend>,
+    stream: string,
+    operation: "agent.run" | "agent.resume",
+  ) =>
+    tracedTurnCall(
+      { runId: input.runId, phaseId: input.phase.id, provider: input.provider, operation },
+      withInvocationCost(run, {
+        role: "first-turn",
+        phase: input.phase.id,
+        runId: input.runId,
+        runPath: input.runPath,
+        provider: input.provider,
+        streamPath: join(input.phaseFolder, stream),
+      }),
+    );
+
   return Effect.gen(function* () {
     const backend = yield* Backend;
     const label = turnLabel(turn);
-    // No `phaseFolderPath`: an interactive phase keeps no claudeSessionId in
-    // its status, so the provider must not patch it. No agent commands
-    // (q-turn-shell, no-shell): a Claude turn keeps its reading tools only.
-    const options = (stream: string): AgentRunOptions => ({
-      provider: input.provider,
-      model: input.model,
-      effort: input.effort,
-      cwd: input.worktree,
-      security: input.policy,
-      agentCommands: [],
-      readOnly: true,
-      answerSchema: { call: "first-turn", schema: answerJsonSchema("first-reading") },
-      outputJsonlPath: join(input.phaseFolder, stream),
-    });
-    const costed = (
-      run: Effect.Effect<AgentRunResult, unknown, Backend>,
-      stream: string,
-      operation: "agent.run" | "agent.resume",
-    ) =>
-      tracedTurnCall(
-        { runId: input.runId, phaseId: input.phase.id, provider: input.provider, operation },
-        withInvocationCost(run, {
-          role: "first-turn",
-          phase: input.phase.id,
-          runId: input.runId,
-          runPath: input.runPath,
-          provider: input.provider,
-          streamPath: join(input.phaseFolder, stream),
-        }),
-      );
 
     const firstStream = `${label}.jsonl`;
     const first = yield* Effect.result(

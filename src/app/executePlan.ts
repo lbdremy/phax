@@ -426,6 +426,38 @@ export type ExecutePlanError =
   | StopRecordPausedError
   | InvalidTransitionError;
 
+// What the record of a declared phase needs: its routed assignment, with
+// the effort the close computes (`model.effort ?? phase.effort`); on a
+// closed stop's re-entry, the declared commit and its stop. No agent
+// session built the phase, so its record names no usage.
+function readDeclaredRecord(
+  phaseFolderPath: string,
+  phase: PhaxPlanPhase,
+  closed: boolean,
+): Effect.Effect<StopRecordInputs, FsError, FileSystem> {
+  return Effect.gen(function* () {
+    const model = yield* readModelResolution(phaseFolderPath);
+    const assignment = {
+      provider: model.provider,
+      model: model.model,
+      effort: model.effort ?? phase.effort,
+      usage: { kind: "none" } as const,
+    };
+    if (!closed) return { ...assignment, sourceSha: undefined, closedStop: undefined };
+    const { commit } = yield* readPhaseCommit(phaseFolderPath);
+    if (commit === null) {
+      return yield* Effect.fail(
+        new FsError({ message: `${phase.id} closed its stop but noted no commit in its status` }),
+      );
+    }
+    return {
+      ...assignment,
+      sourceSha: commit,
+      closedStop: yield* readClosedStop(phaseFolderPath, phase.id),
+    };
+  });
+}
+
 export function executePlan(
   opts: ExecutePlanOptions,
 ): Effect.Effect<
@@ -1048,38 +1080,6 @@ export function executePlan(
         usage,
         sourceSha: commit,
         closedStop: closed ? yield* readClosedStop(phaseFolderPath, phaseId) : undefined,
-      };
-    });
-  }
-
-  // What the record of a declared phase needs: its routed assignment, with
-  // the effort the close computes (`model.effort ?? phase.effort`); on a
-  // closed stop's re-entry, the declared commit and its stop. No agent
-  // session built the phase, so its record names no usage.
-  function readDeclaredRecord(
-    phaseFolderPath: string,
-    phase: PhaxPlanPhase,
-    closed: boolean,
-  ): Effect.Effect<StopRecordInputs, FsError, FileSystem> {
-    return Effect.gen(function* () {
-      const model = yield* readModelResolution(phaseFolderPath);
-      const assignment = {
-        provider: model.provider,
-        model: model.model,
-        effort: model.effort ?? phase.effort,
-        usage: { kind: "none" } as const,
-      };
-      if (!closed) return { ...assignment, sourceSha: undefined, closedStop: undefined };
-      const { commit } = yield* readPhaseCommit(phaseFolderPath);
-      if (commit === null) {
-        return yield* Effect.fail(
-          new FsError({ message: `${phase.id} closed its stop but noted no commit in its status` }),
-        );
-      }
-      return {
-        ...assignment,
-        sourceSha: commit,
-        closedStop: yield* readClosedStop(phaseFolderPath, phase.id),
       };
     });
   }

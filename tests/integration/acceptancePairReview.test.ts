@@ -125,25 +125,23 @@ interface PhaseSpec {
 const idOf = (index: number): string => `phase-${String(index + 1).padStart(2, "0")}`;
 
 function planOf(specs: readonly PhaseSpec[]): { plan: PhaxPlan; planMd: string } {
-  const phases = specs.map(
-    (spec, i): PhaxPlanPhase => ({
-      id: idOf(i),
-      title: spec.title,
-      model: "claude-sonnet-5-5",
-      effort: "medium",
-      planMarkdownAnchor: `#${idOf(i)}`,
-      plannedFilesToCreate: spec.create ?? (spec.interactive === true ? [] : [`src/${idOf(i)}.ts`]),
-      plannedFilesToEdit: spec.edit ?? [],
-      optionalFilesToEdit: spec.optional ?? [],
-      mode: spec.interactive === true ? "interactive" : "headless",
-      acceptance:
-        spec.passedBy === undefined
-          ? null
-          : { passedBy: spec.passedBy, files: spec.acceptanceFiles ?? [ACCEPTANCE_FILE] },
-      testLines: [],
-      commit: { subject: `feat(export): ${spec.title.toLowerCase()}`, body: "Made-up body." },
-    }),
-  );
+  const phases = specs.map((spec, i): PhaxPlanPhase => ({
+    id: idOf(i),
+    title: spec.title,
+    model: "claude-sonnet-5-5",
+    effort: "medium",
+    planMarkdownAnchor: `#${idOf(i)}`,
+    plannedFilesToCreate: spec.create ?? (spec.interactive === true ? [] : [`src/${idOf(i)}.ts`]),
+    plannedFilesToEdit: spec.edit ?? [],
+    optionalFilesToEdit: spec.optional ?? [],
+    mode: spec.interactive === true ? "interactive" : "headless",
+    acceptance:
+      spec.passedBy === undefined
+        ? null
+        : { passedBy: spec.passedBy, files: spec.acceptanceFiles ?? [ACCEPTANCE_FILE] },
+    testLines: [],
+    commit: { subject: `feat(export): ${spec.title.toLowerCase()}`, body: "Made-up body." },
+  }));
   const plan = {
     run: {
       shortName: SHORT,

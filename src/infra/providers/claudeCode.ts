@@ -409,16 +409,15 @@ export function runClaudeProbe(
         argv: ["claude", ...args],
       }),
   }).pipe(
-    Effect.map(
-      (spawned): ProbeResult =>
-        spawned === "timed-out"
-          ? { kind: "timed-out" }
-          : {
-              kind: "ended",
-              lines: spawned.lines,
-              exitCode: spawned.exitCode,
-              stderr: spawned.stderr,
-            },
+    Effect.map((spawned): ProbeResult =>
+      spawned === "timed-out"
+        ? { kind: "timed-out" }
+        : {
+            kind: "ended",
+            lines: spawned.lines,
+            exitCode: spawned.exitCode,
+            stderr: spawned.stderr,
+          },
     ),
   );
 }

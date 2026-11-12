@@ -26,16 +26,15 @@ export function probeWindows(nowIso: string): Effect.Effect<WindowsReading, neve
         timeoutMs: PROBE_TIMEOUT_MS,
       })
       .pipe(
-        Effect.map(
-          (result): ProbeOutcome =>
-            result.kind === "timed-out"
-              ? result
-              : {
-                  kind: "ended",
-                  facts: parseClaudeStream(result.lines),
-                  exitCode: result.exitCode,
-                  stderr: result.stderr,
-                },
+        Effect.map((result): ProbeOutcome =>
+          result.kind === "timed-out"
+            ? result
+            : {
+                kind: "ended",
+                facts: parseClaudeStream(result.lines),
+                exitCode: result.exitCode,
+                stderr: result.stderr,
+              },
         ),
         Effect.catch((error) =>
           Effect.succeed<ProbeOutcome>({ kind: "failed-to-start", reason: error.message }),

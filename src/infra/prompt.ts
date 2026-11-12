@@ -2,16 +2,16 @@ import * as clackPrompts from "@clack/prompts";
 import { Effect, Layer } from "effect";
 import { Prompt, PromptCancelled, PromptError } from "../ports/prompt.js";
 
-function wrapClack<A>(
-  fn: () => Promise<A | symbol>,
-): Effect.Effect<A, PromptError | PromptCancelled> {
+function wrapClack<R>(
+  fn: () => Promise<R>,
+): Effect.Effect<Exclude<R, symbol>, PromptError | PromptCancelled> {
   return Effect.tryPromise({
     try: async () => {
       const result = await fn();
       if (clackPrompts.isCancel(result)) {
         throw new PromptCancelled();
       }
-      return result as A;
+      return result as Exclude<R, symbol>;
     },
     catch: (err): PromptError | PromptCancelled => {
       if (err instanceof PromptCancelled) return err;

@@ -86,12 +86,12 @@ function runEvents(): ReadonlyArray<{
   const events: Array<{ event: PhaxEvent; gate?: "passed" | "failed" }> = [
     { event: { ...base(), type: "RunStarted" } },
   ];
+  const push = (event: PhaxEvent, gate?: "passed" | "failed") =>
+    events.push(gate === undefined ? { event } : { event, gate });
   LIVE_RUN_PHASES.forEach((id, index) => {
     const phaseId = decoded(decodePhaseId(id), id);
     const path = decoded(decodeWorktreePath(`worktrees/${id}`), "a worktree path");
     const last = index === LIVE_RUN_PHASES.length - 1;
-    const push = (event: PhaxEvent, gate?: "passed" | "failed") =>
-      events.push(gate === undefined ? { event } : { event, gate });
     push({ ...base(phaseId), type: "PhaseStartRequested", phaseId });
     push({ ...base(phaseId), type: "WorktreeCreated", path });
     push({ ...base(phaseId), type: "AgentInvocationStarted" });

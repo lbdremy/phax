@@ -815,9 +815,12 @@ function observeWorktreeEffect(
             Effect.flatMap((stat) =>
               stat?.isSymbolicLink() === true
                 ? linkTarget(root, path).pipe(
-                    Effect.map(
-                      (into): ObservedLink => ({ type: "symlink", path, source: "ignored", into }),
-                    ),
+                    Effect.map((into): ObservedLink => ({
+                      type: "symlink",
+                      path,
+                      source: "ignored",
+                      into,
+                    })),
                   )
                 : Effect.succeed(null),
             ),
