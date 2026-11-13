@@ -278,6 +278,10 @@ Given a revision that commits, when it ends, then `revise/<authoringId>/<NN>/` u
 
 ## 9. Open questions
 
+None.
+
+## 9b. Arbitrated questions
+
 ### Q1 — What may a revision do to the questions?
 
 - frozen-append — existing questions frozen, new open questions may be appended — abandons: an amendment that settles an open question still needs a `decide` to close it.
@@ -286,6 +290,9 @@ Given a revision that commits, when it ends, then `revise/<authoringId>/<NN>/` u
 
 Recommendation: frozen-append — a verdict comes only from `decide`, and naming a new ambiguity costs nothing, while one extra `decide` is cheap and records who settled the question.
 
+Decision: frozen-append — by operator (Rémy Loubradou), 2026-11-13
+Why: a verdict comes only from `decide`, and naming a new ambiguity costs nothing, while one extra `decide` is cheap and records who settled the question. Advocate: The strongest case for frozen: an ambiguity the amendment raises has a place only in the body if questions may not be appended, but freezing everything keeps the question set exactly as arbitrated and the revision's surface smallest; open-free would let a writer settle questions without a trace, which is why neither loosening is taken. Principles: S1, S3, S7. Reversibility: cheap. Revised: none.
+
 ### Q2 — Confirm the diff before committing?
 
 - never — always commit, then print the report — abandons: a person at a terminal sees the diff only after the commit, and undoes it with a revert.
@@ -293,9 +300,8 @@ Recommendation: frozen-append — a verdict comes only from `decide`, and naming
 
 Recommendation: never — the artifact stays Draft and `approve` is the gate where a person reads it, as in decide's verdicts mode.
 
-## 9b. Arbitrated questions
-
-None.
+Decision: never — by operator (Rémy Loubradou), 2026-11-13
+Why: the artifact stays Draft and `approve` is the gate where a person reads it, as in decide's verdicts mode. Advocate: The strongest case for on-terminal: a person at a terminal sees the diff before the commit and need not revert a change they dislike. Principles: S1, S4, C4. Reversibility: cheap. Revised: none.
 
 ## 10. Implementation-planning note
 
@@ -323,3 +329,8 @@ Page: docs/revising-drafts.md, published at /guide/revising-drafts
 Reader: An operator or an agent holding a Draft headless spec or plan that needs a change no open question asks for.
 
 Example: `phax artifact revise docs/plans/2610271402-identity-store-plan.md --amendment amendment.md --by machine:plan-loop`, then the report, then `phax artifact approve`.
+
+## 12. Decision log
+
+- 2026-11-13 Q1 decided frozen-append — operator (Rémy Loubradou)
+- 2026-11-13 Q2 decided never — operator (Rémy Loubradou)
