@@ -6,6 +6,10 @@
 # Dependabot does not refresh deno.lock, which `pnpm deno:compile` rewrites in
 # CI: push the regenerated deno.lock onto each npm pull request.
 #
+# A new version waits 7 days before Dependabot proposes it (GitHub's
+# default is 3), which gives a compromised release time to be caught and
+# pulled first. Security updates never wait.
+#
 # @types/node stays on the major phax builds against; a new major would type
 # APIs the declared Node (engines) may lack.
 version: 2
@@ -14,6 +18,8 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
     ignore:
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
@@ -24,6 +30,8 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
     groups:
       minor-and-patch:
         update-types: [minor, patch]

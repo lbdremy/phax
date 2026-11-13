@@ -1,6 +1,7 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { parse } from "yaml";
 
 const workflowPath = join(import.meta.dirname, "../../.github/workflows/ci.yml");
 const workflow = readFileSync(workflowPath, "utf-8");
@@ -57,5 +58,26 @@ describe("CI workflow invariants", () => {
 
   it("runs pnpm deno:compile", () => {
     expect(workflow).toContain("pnpm deno:compile");
+  });
+});
+
+// GitHub substitutes `${{ … }}` into a step's script text before the shell
+// reads it, so a value carrying shell syntax (a tag name, a step output) would
+// run as code. A step hands such values to its script through `env:` and the
+// script quotes the variable.
+describe("Workflows: no expression inside a run script", () => {
+  const dir = join(import.meta.dirname, "../../.github/workflows");
+  const files = readdirSync(dir).filter((f) => /\.ya?ml$/.test(f));
+
+  it.each(files)("%s substitutes nothing into a run script", (file) => {
+    const doc = parse(readFileSync(join(dir, file), "utf-8")) as {
+      readonly jobs: Readonly<
+        Record<string, { readonly steps?: readonly { readonly run?: string }[] }>
+      >;
+    };
+    const offending = Object.entries(doc.jobs).flatMap(([job, { steps = [] }]) =>
+      steps.filter((s) => s.run?.includes("${{")).map((s) => `${job}: ${s.run}`),
+    );
+    expect(offending).toEqual([]);
   });
 });

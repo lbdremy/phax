@@ -89,7 +89,7 @@ jobs:
         run: npm install -g npm@11.16.0
 
       - name: Prepare npm wrapper
-        run: deno run --allow-read --allow-write scripts/prepare-npm.ts "${{ github.ref_name }}"
+        run: deno run --allow-read --allow-write scripts/prepare-npm.ts "$RELEASE_TAG"
 
       # Between releases packages/schemas/package.json names the opened
       # version; prepare-npm.ts sets npm/package.json. Both must equal the tag
@@ -98,7 +98,7 @@ jobs:
       # entry must equal the tag too: a tag on an opening commit fails here.
       - name: Verify package versions match tag
         run: |
-          TAG_VERSION="${{ github.ref_name }}"
+          TAG_VERSION="$RELEASE_TAG"
           TAG_VERSION="${TAG_VERSION#v}"
           STATUS=0
           for MANIFEST in npm/package.json packages/schemas/package.json; do
@@ -139,8 +139,9 @@ jobs:
           WRANGLER_OUTPUT_FILE_PATH: ${{ runner.temp }}/wrangler-output.ndjson
 
       - name: "Deploy docs: promote"
-        run: pnpm exec wrangler versions deploy "${{ steps.preview.outputs.version-id }}@100%" --config site/wrangler.jsonc --yes
+        run: pnpm exec wrangler versions deploy "${VERSION_ID}@100%" --config site/wrangler.jsonc --yes
         env:
+          VERSION_ID: ${{ steps.preview.outputs.version-id }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
