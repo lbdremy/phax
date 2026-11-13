@@ -1,11 +1,8 @@
 ---
-status: Approved
+status: Draft
 date: 2026-10-27
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
-approved:
-  date: 2026-11-13
-  baseline: 65e19a4
 ---
 
 # Revise a Draft artifact
