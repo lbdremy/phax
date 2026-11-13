@@ -17,6 +17,26 @@ function render(text: string): {
 }
 
 describe("transformMarkdown", () => {
+  it("drops a paragraph of badges, whose images load from other origins", () => {
+    const source = [
+      "# phax",
+      "",
+      "[![CI](https://example.test/ci.svg)](https://example.test/ci)",
+      "[![Score](https://example.test/score.svg)](https://example.test/score)",
+      "",
+      "phax runs a plan.",
+      "",
+      "![A diagram](diagram.svg) explains it.",
+      "",
+    ].join("\n");
+    const output = render(source);
+    expect(output.findings).toEqual([]);
+    expect(output.text).not.toContain("example.test");
+    expect(output.text).toContain("phax runs a plan.");
+    // An image among words is content, not a badge.
+    expect(output.text).toContain("![A diagram](diagram.svg) explains it.");
+  });
+
   it("keeps placeholders and braces literal and drops HTML comments", () => {
     const source = [
       "## Setup",

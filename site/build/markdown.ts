@@ -88,6 +88,26 @@ function slugText(heading: Heading): string {
  * The edits that make `text` GitHub-faithful on the site, every heading's
  * GitHub id, and every finding. `path` names the source in findings.
  */
+/**
+ * A paragraph of badges: only images, each alone or as a link's whole content,
+ * separated by whitespace. README.md opens with one for GitHub and npm; its
+ * images load from other origins, which the site refuses, so the site drops it.
+ */
+export function isBadgeParagraph(node: Nodes): boolean {
+  if (node.type !== "paragraph" || node.children.length === 0) return false;
+  let images = 0;
+  for (const child of node.children) {
+    if (child.type === "text" && child.value.trim() === "") continue;
+    if (child.type === "break") continue;
+    const image =
+      child.type === "image" ||
+      (child.type === "link" && child.children.length === 1 && child.children[0]!.type === "image");
+    if (!image) return false;
+    images++;
+  }
+  return images > 0;
+}
+
 export function transformMarkdown(path: string, text: string): MarkdownTransform {
   const edits: Array<Edit> = [];
   const headings: Array<SourceHeading> = [];
@@ -166,6 +186,12 @@ export function transformMarkdown(path: string, text: string): MarkdownTransform
         escapeTextRange(cursor, end);
         return;
       }
+      case "paragraph":
+        if (isBadgeParagraph(node)) {
+          edits.push({ start, end, text: "" });
+          return;
+        }
+        break;
       case "link":
         if (text.charAt(start) === "<" && text.charAt(end - 1) === ">") {
           edits.push({ start, end, text: `[${toString(node)}](${node.url})` });
