@@ -65,6 +65,8 @@ A hand-authored artifact is decided in place: phax moves each decided block to t
 
 ## Deciding from a verdicts file
 
+A Draft that needs a change no open question asks for is revised with `phax artifact revise`, not decided: see [Revising a Draft](revising-drafts.md).
+
 For a person who already knows their verdicts, or for the agent or loop applying them for that person. The file holds the decisions; phax needs no interactive session. A verdicts file looks like this:
 
 ```json

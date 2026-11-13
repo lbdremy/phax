@@ -21,6 +21,10 @@ phax schema upgrade                   # phax.schema.json, the editor schema of p
 
 Only the releases that ask for something are listed. phax never asks for a step silently: a command that needs one refuses with exit 12 and names it.
 
+### 0.38.0
+
+- **`phax artifact revise` commits leave revision records.** A new record format, `revision-record-manifest` on `phax/records/v1`, keyed `revision/<authoringId>/<NN>`. An `@lbdremy/phax-schemas` before 0.38.0 cannot read it: `parseRecordManifest` fails at `$schema` with an unknown format, so upgrade the package before reading such records. `phax records list` shows a new entry kind, `revision`.
+
 ### 0.37.0
 
 - **`@lbdremy/phax-schemas` needs Node 22 or later.** Its `engines` field moves from `>=20` to `>=22`, and CI smokes the package under Node 22. Node 20 has had no security fixes since April 2026. A consumer still on Node 20 stays on 0.36.0 or upgrades Node; the phax binary itself is unaffected.
