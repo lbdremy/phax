@@ -1591,8 +1591,9 @@ describe("records explain and list (real git)", () => {
       });
     });
 
-    it("shows a failed revision's record with its failure", async () => {
+    it("names revision/<id> when the only record under its Revision-Id is a failed revision's", async () => {
       const sha = commitRevision(REVISION_ID);
+      // Another session under the same id that committed nothing: never this commit's record.
       await recordRevision(
         REVISION_ID,
         {
@@ -1603,39 +1604,11 @@ describe("records explain and list (real git)", () => {
         [],
       );
 
-      const outcome = await explain(sha);
-      if (outcome.kind !== "found-revision") throw new Error("expected found-revision");
-      expect(outcome.record.manifest).toMatchObject({
-        outcome: "failed",
-        failure: "answer-refused",
-        commit: null,
+      expect(await explain(sha)).toMatchObject({
+        kind: "not-found",
+        key: `revision/${REVISION_ID}`,
+        sourceSha: sha,
       });
-
-      writeFileSync(
-        join(repoDir, "phax.json"),
-        JSON.stringify({
-          version: 1,
-          name: "test",
-          gateProfiles: {
-            fast: [{ command: "pnpm test", surface: "local", firing: "every-phase" }],
-          },
-          records: { transcript: true, destination: { kind: "in-repo" }, autoPush: false },
-        }),
-      );
-      const originalCwd = process.cwd();
-      process.chdir(repoDir);
-      try {
-        const explained = await records(["explain", sha]);
-        expect(explained.code).toBe(0);
-        expect(explained.logs[0]).toBe(
-          `revision ${REVISION_ID} · claude-code (claude-opus-5-5, high)`,
-        );
-        expect(explained.text).toContain("outcome  failed (answer-refused)");
-        expect(explained.text).toContain("requester operator Ada Lovelace");
-        expect(explained.text).toContain("new questions (none)");
-      } finally {
-        process.chdir(originalCwd);
-      }
     });
 
     it("still resolves an authoring commit and a decision commit as before", async () => {
