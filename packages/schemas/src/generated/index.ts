@@ -50,4 +50,5 @@ export const CURRENT_SHAPES = {
   "artifact-status": "0.34.0",
   "plan-overview": "0.34.0",
   "plan-lint": "0.34.0",
+  "revision-record-manifest": "next",
 } as const;

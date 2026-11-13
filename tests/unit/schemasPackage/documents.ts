@@ -42,6 +42,10 @@ import {
   type ReviewRecordManifest,
 } from "../../../src/schemas/reviewRecord.js";
 import {
+  RevisionRecordManifestFileSchema,
+  type RevisionRecordManifest,
+} from "../../../src/schemas/revisionRecord.js";
+import {
   DecideVerdictsFileSchema,
   type DecideVerdicts,
 } from "../../../src/schemas/decideVerdicts.js";
@@ -511,6 +515,25 @@ const decisionRecordManifest: DecisionRecordManifest = {
   outcome: "committed",
   commit: "def5678",
   usage: { available: false },
+};
+
+const revisionRecordManifest: RevisionRecordManifest = {
+  kind: "revision",
+  revisionId: "2610160930-example/01",
+  artifact: "docs/specs/2610160930-example.md",
+  artifactKind: "spec",
+  session: "new",
+  requester: { kind: "operator", name: "Ada Example" },
+  newQuestions: ["q-scope"],
+  sourceSha: "abc1234",
+  shape: "skeleton",
+  provider: "claude-code",
+  model: "example-model",
+  requestedModel: "example-model",
+  effort: "medium",
+  usage: { available: false },
+  outcome: "committed",
+  commit: "def5678",
 };
 
 const costLedger: CostLedger = {
@@ -1109,6 +1132,10 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
   "review-record-manifest": encoded(
     ReviewRecordManifestFileSchema,
     withSchemaUrl("review-record-manifest", reviewRecordManifest),
+  ),
+  "revision-record-manifest": encoded(
+    RevisionRecordManifestFileSchema,
+    withSchemaUrl("revision-record-manifest", revisionRecordManifest),
   ),
   "cost-ledger": encoded(CostLedgerFileSchema, withSchemaUrl("cost-ledger", costLedger)),
   "code-review": encoded(CodeReviewFileSchema, withSchemaUrl("code-review", codeReview)),

@@ -70,6 +70,7 @@ export const FORMAT_IDS = [
   "artifact-status",
   "plan-overview",
   "plan-lint",
+  "revision-record-manifest",
 ] as const;
 
 export type FormatId = (typeof FORMAT_IDS)[number];
@@ -106,7 +107,9 @@ export function isFormatId(value: string): value is FormatId {
  * (frozen at 0.26.0, still listed here). So are the artifact status, the plan
  * overview and the plan lint that `phax artifact status --json`,
  * `phax plans overview --json` and `phax plans lint --json` print, which phax
- * never saves, of spec command-contracts, born at 0.34.0.
+ * never saves, of spec command-contracts, born at 0.34.0. So is the manifest
+ * of a revise writer session's revision record, of spec artifact-revise, born
+ * at 0.38.0.
  */
 export const SCHEMA_BORN_FORMAT_IDS = [
   "plan-approval-record",
@@ -137,6 +140,7 @@ export const SCHEMA_BORN_FORMAT_IDS = [
   "artifact-status",
   "plan-overview",
   "plan-lint",
+  "revision-record-manifest",
 ] as const satisfies ReadonlyArray<FormatId>;
 
 export type SchemaBornFormatId = (typeof SCHEMA_BORN_FORMAT_IDS)[number];

@@ -7,9 +7,11 @@ import {
   parseDocument,
   parseRecordManifest,
   parseReviewRecordManifest,
+  parseRevisionRecordManifest,
   toLatestAuthoringRecordManifest,
   toLatestDecisionRecordManifest,
   toLatestReviewRecordManifest,
+  toLatestRevisionRecordManifest,
 } from "../../../packages/schemas/src/index.js";
 import {
   malformedSchemaUrlMessage,
@@ -20,6 +22,7 @@ import {
 import { decodeAuthoringRecordManifestFile } from "../../../src/schemas/authoringRecord.js";
 import { decodeDecisionRecordManifestFile } from "../../../src/schemas/decisionRecord.js";
 import { decodeReviewRecordManifestFile } from "../../../src/schemas/reviewRecord.js";
+import { decodeRevisionRecordManifestFile } from "../../../src/schemas/revisionRecord.js";
 import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
 import {
   belowOwnReleaseMessage,
@@ -44,6 +47,8 @@ const writtenDecision = validDocuments["decision-record-manifest"];
 const DECISION_CURRENT = CURRENT_SHAPES["decision-record-manifest"];
 const writtenReview = validDocuments["review-record-manifest"];
 const REVIEW_CURRENT = CURRENT_SHAPES["review-record-manifest"];
+const writtenRevision = validDocuments["revision-record-manifest"];
+const REVISION_CURRENT = CURRENT_SHAPES["revision-record-manifest"];
 
 // Derived from the package version, so a release bump never breaks these tests.
 const NEWER_RELEASE = `${Number(PACKAGE_VERSION.split(".")[0]) + 1}.0.0`;
@@ -213,7 +218,59 @@ describe("the review record manifest", () => {
   });
 });
 
+describe("the revision record manifest", () => {
+  it("parses a manifest phax writes as its current shape, at the 0.38.0 stamp", () => {
+    expect(Object.keys(writtenRevision)[0]).toBe("$schema");
+    expect(writtenRevision["$schema"]).toBe(schemaUrl("revision-record-manifest", "0.38.0"));
+    const phax = decodeRevisionRecordManifestFile(writtenRevision);
+    if (Result.isFailure(phax)) throw new Error("document rejected by phax");
+    expect(parseRevisionRecordManifest(writtenRevision)).toEqual({
+      ok: true,
+      shape: REVISION_CURRENT,
+      value: phax.success,
+    });
+  });
+
+  it("upgrades by dropping $schema alone, keeping kind revision and every fact", () => {
+    const result = parseRevisionRecordManifest(writtenRevision);
+    if (!result.ok) throw new Error("document rejected");
+    const latest = toLatestRevisionRecordManifest(result.value);
+    expect(latest).toEqual(withoutKey(writtenRevision, "$schema"));
+    expect(latest.kind).toBe("revision");
+  });
+
+  it("is born with $schema: a manifest without one is unreadable", () => {
+    const unstamped = withoutKey(writtenRevision, "$schema");
+    expect(parseRevisionRecordManifest(unstamped).ok).toBe(false);
+    expect(parseRecordManifest(unstamped).ok).toBe(false);
+  });
+
+  it("refuses an unknown key and a commit that does not match the outcome", () => {
+    expect(parseRevisionRecordManifest(withKey(writtenRevision, "sessionId", "abc")).ok).toBe(
+      false,
+    );
+    expect(parseRevisionRecordManifest(withKey(writtenRevision, "commit", null)).ok).toBe(false);
+    expect(parseRevisionRecordManifest(withKey(writtenRevision, "outcome", "unchanged")).ok).toBe(
+      false,
+    );
+  });
+});
+
 describe("parseRecordManifest", () => {
+  it("reads a revision manifest phax writes as a revision record manifest", () => {
+    expect(parseRecordManifest(writtenRevision)).toEqual({
+      ok: true,
+      format: "revision-record-manifest",
+      shape: REVISION_CURRENT,
+      value: writtenRevision,
+    });
+    expect(parseDocument(writtenRevision)).toMatchObject({
+      ok: true,
+      format: "revision-record-manifest",
+      shape: REVISION_CURRENT,
+    });
+  });
+
   it("reads a review manifest phax writes as a review record manifest", () => {
     expect(parseRecordManifest(writtenReview)).toEqual({
       ok: true,

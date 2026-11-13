@@ -19,6 +19,7 @@ import {
   decisionRecordManifestFormat,
   phaseRecordManifestFormat,
   reviewRecordManifestFormat,
+  revisionRecordManifestFormat,
 } from "../../../packages/schemas/src/formats/recordManifests.js";
 import {
   gateAttributionFormat,
@@ -91,6 +92,7 @@ const phaseManifest = validDocuments["phase-record-manifest"];
 const authoringManifest = validDocuments["authoring-record-manifest"];
 const decisionManifest = validDocuments["decision-record-manifest"];
 const reviewManifest = validDocuments["review-record-manifest"];
+const revisionManifest = validDocuments["revision-record-manifest"];
 
 /** The test documents of each file, before phax's verdict. */
 function documentsOf(format: JsonSchemaFormatId): ReadonlyArray<unknown> {
@@ -106,8 +108,14 @@ function documentsOf(format: JsonSchemaFormatId): ReadonlyArray<unknown> {
       ];
     case "review-record-manifest":
       return [reviewManifest, { ...reviewManifest, review: "code-review" }];
+    case "revision-record-manifest":
+      return [
+        revisionManifest,
+        { ...revisionManifest, outcome: "unchanged", commit: null },
+        { ...revisionManifest, outcome: "failed", commit: null, failure: "answer-refused" },
+      ];
     case "record-manifest":
-      return [phaseManifest, authoringManifest, decisionManifest, reviewManifest];
+      return [phaseManifest, authoringManifest, decisionManifest, reviewManifest, revisionManifest];
     default:
       return [validDocuments[format]];
   }
@@ -140,6 +148,7 @@ const DECODERS: { readonly [F in JsonSchemaFormatId]: Decode } = {
   "plan-hand-decision-answer": planHandDecisionAnswerFormat.current.shape.decode,
   "decision-record-manifest": decisionRecordManifestFormat.current.shape.decode,
   "review-record-manifest": reviewRecordManifestFormat.current.shape.decode,
+  "revision-record-manifest": revisionRecordManifestFormat.current.shape.decode,
   "cost-ledger": costLedgerFormat.current.shape.decode,
   "code-review": codeReviewFormat.current.shape.decode,
   "architecture-request": architectureRequestFormat.current.shape.decode,
@@ -220,6 +229,7 @@ describe("the JSON Schema table", () => {
       planHandDecisionAnswerFormat,
       decisionRecordManifestFormat,
       reviewRecordManifestFormat,
+      revisionRecordManifestFormat,
       costLedgerFormat,
       codeReviewFormat,
       architectureRequestFormat,
@@ -257,10 +267,10 @@ describe("the JSON Schema table", () => {
 });
 
 describe("renderJsonSchemas over the real table", () => {
-  it("renders 41 files and no failure", () => {
+  it("renders 42 files and no failure", () => {
     expect(rendered.failures).toEqual([]);
     expect([...rendered.files.keys()]).toEqual(JSON_SCHEMA_FORMATS.map(({ fileName }) => fileName));
-    expect(rendered.files.size).toBe(42);
+    expect(rendered.files.size).toBe(43);
   });
 
   it.each(JSON_SCHEMA_FORMATS)(

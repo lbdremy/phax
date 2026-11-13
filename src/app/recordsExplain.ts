@@ -23,6 +23,7 @@ import {
   REVIEW_RECORD_FILES,
   type ReviewRecordKind,
 } from "../schemas/reviewRecord.js";
+import { isRevisionRecordManifest } from "../schemas/revisionRecord.js";
 import { reviewRecordKey } from "./writeReviewRecord.js";
 import type { ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
 import { parseReportName } from "../domain/gate/reportPath.js";
@@ -335,6 +336,7 @@ function trailerOf(
 function manifestKindLabel(manifest: RecordManifest): string {
   if (isReviewRecordManifest(manifest)) return "a review manifest";
   if (isDecisionRecordManifest(manifest)) return "a decision manifest";
+  if (isRevisionRecordManifest(manifest)) return "a revision manifest";
   return isAuthoringRecordManifest(manifest) ? "an authoring manifest" : "a phase manifest";
 }
 
@@ -529,7 +531,8 @@ function explainPhaseRecord(
   if (
     isAuthoringRecordManifest(manifest) ||
     isDecisionRecordManifest(manifest) ||
-    isReviewRecordManifest(manifest)
+    isReviewRecordManifest(manifest) ||
+    isRevisionRecordManifest(manifest)
   ) {
     return Result.fail(
       malformed(prefix, recordCommitSha, `${manifestKindLabel(manifest)} under a phase key`),

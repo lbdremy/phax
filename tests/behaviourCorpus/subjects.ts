@@ -54,6 +54,7 @@ import {
   parseRegistry,
   parseReviewRecordManifest,
   parseReviewStop,
+  parseRevisionRecordManifest,
   parseRunList,
   parseRunStatus,
   parseSpecApprovalRecord,
@@ -190,6 +191,10 @@ import {
   decodeReviewRecordManifestFile,
   encodeReviewRecordManifest,
 } from "../../src/schemas/reviewRecord.js";
+import {
+  decodeRevisionRecordManifestFile,
+  encodeRevisionRecordManifest,
+} from "../../src/schemas/revisionRecord.js";
 import { decodeReviewStopFile, encodeReviewStopFile } from "../../src/schemas/reviewStop.js";
 import { decodeRunListFile, encodeRunListFile } from "../../src/schemas/runList.js";
 import {
@@ -430,6 +435,7 @@ const PACKAGE_PARSERS: { readonly [F in FormatId]: PackageParse } = {
   "run-list": parseRunList,
   "decide-verdicts": parseDecideVerdicts,
   "review-record-manifest": parseReviewRecordManifest,
+  "revision-record-manifest": parseRevisionRecordManifest,
   "code-review": parseCodeReview,
   "phax-plan-extraction": parsePhaxPlanExtraction,
   "spec-hand-decision-answer": parseSpecHandDecisionAnswer,
@@ -603,6 +609,7 @@ const WRITTEN_FORMAT_IDS = [
   "artifact-status",
   "plan-overview",
   "plan-lint",
+  "revision-record-manifest",
 ] as const satisfies ReadonlyArray<FormatId>;
 
 type WrittenFormatId = (typeof WRITTEN_FORMAT_IDS)[number];
@@ -670,6 +677,11 @@ const ENCODE_SUBJECTS: { readonly [F in WrittenFormatId]: Subject } = {
   "run-list": roundTrip(decodeRunListFile, encodeRunListFile),
   // the review record: decodeReviewRecordManifestFile, encodeReviewRecordManifest.
   "review-record-manifest": roundTrip(decodeReviewRecordManifestFile, encodeReviewRecordManifest),
+  // the revision record: decodeRevisionRecordManifestFile, encodeRevisionRecordManifest.
+  "revision-record-manifest": roundTrip(
+    decodeRevisionRecordManifestFile,
+    encodeRevisionRecordManifest,
+  ),
   // the code review: decodeCodeReviewFile, encodeCodeReviewFile.
   "code-review": roundTrip(decodeCodeReviewFile, encodeCodeReviewFile),
   // the plan extraction answer: decodePlanExtractionAnswer (src/schemas/planExtraction.ts, how

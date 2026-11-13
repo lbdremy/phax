@@ -857,6 +857,9 @@ const NEVER_WRITTEN: ReadonlyArray<FormatId> = [
   // which removes these two entries.
   "interactive-session",
   "review-stop",
+  // No writer of the revision record exists yet: phase-03 of plan
+  // artifact-revise adds it and removes this entry.
+  "revision-record-manifest",
   // `phax ls --json` prints the run list on stdout and never saves it.
   "run-list",
   // `phax artifact status --json`, `phax plans overview --json` and

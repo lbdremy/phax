@@ -24,6 +24,7 @@ import {
   parsePhaxPlanExtraction,
   parseDecisionRecordManifest,
   parseReviewRecordManifest,
+  parseRevisionRecordManifest,
   parseGateAttribution,
   parseGateReport,
   parseGateRequest,
@@ -81,6 +82,10 @@ import {
   decodeReviewRecordManifestFile,
   isReviewRecordManifest,
 } from "../../../src/schemas/reviewRecord.js";
+import {
+  decodeRevisionRecordManifestFile,
+  isRevisionRecordManifest,
+} from "../../../src/schemas/revisionRecord.js";
 import { decodeGateAttributionFile } from "../../../src/schemas/gateAttribution.js";
 import { decodeGateReportFile } from "../../../src/schemas/gateReport.js";
 import { decodeGateRequestFile } from "../../../src/schemas/gateRequest.js";
@@ -341,6 +346,14 @@ const FORMATS: { readonly [F in FormatId]: FormatParity } = {
     phax: decodeReviewRecordManifestFile,
     wrongType: ["review", 2],
     required: "runId",
+    excess: "error",
+  },
+  "revision-record-manifest": {
+    id: "revision-record-manifest",
+    parse: parseRevisionRecordManifest,
+    phax: decodeRevisionRecordManifestFile,
+    wrongType: ["session", 2],
+    required: "revisionId",
     excess: "error",
   },
   "cost-ledger": {
@@ -812,6 +825,7 @@ describe("parity: nested rejects", () => {
 const authoring = validDocuments["authoring-record-manifest"];
 const decision = validDocuments["decision-record-manifest"];
 const review = validDocuments["review-record-manifest"];
+const revision = validDocuments["revision-record-manifest"];
 
 // Every current-shape manifest, phase, authoring, decision or review, and the rejects of each.
 const RECORD_MANIFEST_CASES: ReadonlyArray<readonly [string, unknown]> = [
@@ -822,6 +836,18 @@ const RECORD_MANIFEST_CASES: ReadonlyArray<readonly [string, unknown]> = [
   ["a review manifest without runId", withoutKey(review, "runId")],
   ["a review manifest without $schema", withoutKey(review, "$schema")],
   ["a review manifest without kind", withoutKey(review, "kind")],
+  ["a revision manifest", revision],
+  ["an unchanged revision", { ...revision, outcome: "unchanged", commit: null }],
+  [
+    "a failed revision",
+    { ...revision, outcome: "failed", commit: null, failure: "answer-refused" },
+  ],
+  ["a failed revision without a failure", { ...revision, outcome: "failed", commit: null }],
+  ["a committed revision without a commit", withKey(revision, "commit", null)],
+  ["an unchanged revision that names a commit", withKey(revision, "outcome", "unchanged")],
+  ["a revision manifest with a session id", withKey(revision, "sessionId", "abc")],
+  ["a revision manifest without $schema", withoutKey(revision, "$schema")],
+  ["a revision manifest without kind", withoutKey(revision, "kind")],
   ["a decision manifest", decision],
   ["a failed decision without a commit", { ...decision, outcome: "failed", commit: null }],
   ["a declined decision that names a commit", withKey(decision, "outcome", "declined")],
@@ -848,11 +874,13 @@ describe("parity: parseRecordManifest agrees with phax's union", () => {
       expect(result.format).toBe(
         isReviewRecordManifest(decoded.success)
           ? "review-record-manifest"
-          : isDecisionRecordManifest(decoded.success)
-            ? "decision-record-manifest"
-            : isAuthoringRecordManifest(decoded.success)
-              ? "authoring-record-manifest"
-              : "phase-record-manifest",
+          : isRevisionRecordManifest(decoded.success)
+            ? "revision-record-manifest"
+            : isDecisionRecordManifest(decoded.success)
+              ? "decision-record-manifest"
+              : isAuthoringRecordManifest(decoded.success)
+                ? "authoring-record-manifest"
+                : "phase-record-manifest",
       );
     }
   });
@@ -864,6 +892,7 @@ describe("parity: parseRecordManifest agrees with phax's union", () => {
     expect(formats).toContain("authoring-record-manifest");
     expect(formats).toContain("decision-record-manifest");
     expect(formats).toContain("review-record-manifest");
+    expect(formats).toContain("revision-record-manifest");
     expect(results.some((result) => !result.ok)).toBe(true);
   });
 });
