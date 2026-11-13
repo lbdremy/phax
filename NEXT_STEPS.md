@@ -11,7 +11,7 @@ queue: the harness items `phase-prompt-names-the-gate` (#189) and `gate-step-par
 mods in phase sessions), `commit-trailers-paths` (#193), `records-branch-tip` (#194), and the
 Effect 4 migration (spec `effect-4-migration`, four plans, #195, #196, #198, #199).
 
-## The queue, as of 2026-11-10
+## The queue, as of 2026-11-13
 
 In order. Briefs of work done live in `docs/briefs/archive/`; `docs/briefs/` holds only the
 briefs of live or unspecced work.
@@ -20,22 +20,44 @@ briefs of live or unspecced work.
 
 - [ ] **`artifact-revise`** — `docs/specs/2610271505-artifact-revise.md`, Draft with 2 open
       questions: revise an authored spec or plan through its kept session. Moved up 2026-11-10
-      (operator): revising an authored artifact is needed often.
+      (operator): revising an authored artifact is needed often. 2026-11-13: first, check the
+      spec against today's code (it predates the command library's runner), then decide its two
+      questions. The `property-tests` plan below is its first use.
 
-### 2. Review findings: ids and fates
+### 2. One canonical form for a plan's paths
+
+- [ ] **`plan-path-canonical`** — `docs/briefs/plan-path-canonical.md` (2026-11-13), spec to
+      author: every file path a plan names is made canonical where the plan is decoded, so
+      reconciliation, lint, the glob checks, staleness and `plans overlap` compare the same
+      strings (raised by the declined outside contribution #205). Before `property-tests`
+      (operator, 2026-11-13): it bumps `phax-plan` and the plan document, and the property
+      tests' generators and frozen shapes should start from the canonical form.
+
+### 3. Property tests over the input boundaries
+
+- [ ] **`property-tests`** — `docs/specs/2611131320-property-tests.md`, Approved 2026-11-13
+      (six questions decided), first plan `docs/plans/2611131338-property-tests-plan.md` Draft:
+      the persisted formats and the shared harness (fast-check, seed and replay, the bridge from
+      `effect/Arbitrary`, a daily deep pass in the Security workflow). Revise the plan with
+      `phax artifact revise` once it ships: its required command must be `pnpm add` exactly (a
+      narrow allowance covers only itself) and fast-check 4.10.2, not 4.3.0. Later plans: the
+      plan parser, the reducer, the CLI arguments. Also counts for OpenSSF Scorecard's Fuzzing
+      check.
+
+### 4. Review findings: ids and fates
 
 
 - [ ] **`finding-ids-and-fates`** — spec Approved (2026-11-04), no plan yet. Review findings get
       stable ids and a recorded fate; the operator's interactive flow first.
 
-### 3. Process and code in two repositories
+### 5. Process and code in two repositories
 
 - [ ] **`code-repository`** — `docs/briefs/code-repository.md` (2026-11-02), spec to author: a
       project whose process lives in one repository and whose code in another, checked out
       inside it.
       Moved up 2026-11-10 (operator): right after `finding-ids-and-fates`.
 
-### 4. The project doctrine
+### 6. The project doctrine
 
 - [ ] **`project-doctrine`** — `docs/specs/2611051057-project-doctrine.md`, Draft (2026-11-05),
       10 open questions, kept for the operator to think over (brief:
@@ -50,7 +72,7 @@ briefs of live or unspecced work.
       reaches only decide, after the choice, and the operator's rules live in `CLAUDE.md` and an
       assistant's memory.
 
-### 5. The knowledge index
+### 7. The knowledge index
 
 - [ ] **`knowledge-index`** — `docs/briefs/knowledge-index.md` (2026-11-04), spec to author. A local,
       rebuildable index (SQLite, FTS5) of what the repository and its runs hold — specs, plans,
@@ -61,7 +83,7 @@ briefs of live or unspecced work.
       After `project-doctrine` (operator, 2026-11-10): the doctrine's entries are among what it
       indexes.
 
-### 6. Security: the user layer
+### 8. Security: the user layer
 
 - [ ] **Follow-up: an opt-out for the user layer** — to brief. Project-only sources also drop the
       operator's own `permissions.deny` rules and hooks, so in unsafe mode nothing else blocks
@@ -70,7 +92,7 @@ briefs of live or unspecced work.
       (accepted by the operator 2026-11-06). The follow-up weighs a recorded opt-out (`loaded`)
       and detecting the account switch (the spec's `q-opt-out`, kept out of the first slice).
 
-### 7. Before 1.0
+### 9. Before 1.0
 
 - [ ] The **CLI contract freeze** and the **persisted-format stability promise** (see "Road to
       1.0.0" below). The Effect 4 migration they waited on is done: spec `effect-4-migration`
@@ -79,7 +101,7 @@ briefs of live or unspecced work.
       protections; the behaviour corpus stays as `tests/behaviourCorpus/`). The schema-guide
       pitfalls it found went upstream as Effect-TS/effect#10525.
 
-### 8. Later
+### 10. Later
 
 - [ ] **`protected-path-exceptions`** — `docs/briefs/protected-path-exceptions.md` (2026-11-12), spec
       to author: the operator lets one phase change a protected path, granted when the phase is
