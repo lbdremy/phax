@@ -163,7 +163,7 @@ commit     8b2e4d1 — docs(plans): revise identity-store
 status     Draft — read the diff above, then `phax artifact decide docs/plans/2610271402-identity-store-plan.md` (Q4 open)
 ```
 
-`--json` keys (normative): `artifact`, `status`, `session` (`new` | `resumed-authoring`), `provider`, `model`, `requestedModel`, `effort`, `newQuestions`, `diff`, `commit` (`hash`, `subject`) or `null`, `revisionId`, then `written` (the files its commit holds, empty when nothing changed) and `record` (the revision record's outcome), as decide's report ends. Progress, warnings and record lines go to stderr.
+`--json` keys (normative): `artifact`, `status`, `session` (`new` | `resumed-authoring`), `provider`, `model`, `requestedModel`, `effort`, `newQuestions`, `openQuestions` (the ids of every question open after the revision, which the status line names before `approve`), `diff`, `commit` (`hash`, `subject`) or `null`, `revisionId`, then `written` (the files its commit holds, empty when nothing changed) and `record` (the revision record's outcome), as decide's report ends. Progress, warnings and record lines go to stderr.
 
 ### cli: refusals — wording indicative, exit codes normative
 
