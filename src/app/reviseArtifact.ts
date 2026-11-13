@@ -592,6 +592,8 @@ function concludeRevision(
       extractPlanModel: input.extractPlanModel,
       extractPlanEffort: input.extractPlanEffort,
       nowIso: input.nowIso,
+      // The amendment goes into the commit body verbatim (spec §5.11).
+      verbatimMessage: true,
       commitMessage: reviseCommitMessage({
         kind,
         slug,

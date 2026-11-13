@@ -388,6 +388,8 @@ export interface LandAnswerInput<E> {
   readonly extractPlanEffort: string;
   readonly nowIso: string;
   readonly commitMessage: { readonly subject: string; readonly body: string };
+  /** Whether the commit keeps its message byte for byte, past git's cleanup. */
+  readonly verbatimMessage: boolean;
   /** The caller's refusal when the artifact or its sidecar changed while the session ran. */
   readonly changed: (path: string, which: "artifact" | "sidecar") => E;
 }
@@ -442,7 +444,9 @@ export function landAnswer<E>(input: LandAnswerInput<E>): Effect.Effect<
     }
 
     const { subject, body } = input.commitMessage;
-    const committed = yield* Effect.result(git.commitPaths(input.repoRoot, paths, subject, body));
+    const committed = yield* Effect.result(
+      git.commitPaths(input.repoRoot, paths, subject, body, { verbatim: input.verbatimMessage }),
+    );
     if (Result.isFailure(committed)) {
       return yield* Effect.fail(
         new ArtifactCommitFailedError({
