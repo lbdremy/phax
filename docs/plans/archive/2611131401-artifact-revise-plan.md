@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2610271505-artifact-revise.md
 completes-spec: true
 approved:
