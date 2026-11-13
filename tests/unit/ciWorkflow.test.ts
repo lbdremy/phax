@@ -126,3 +126,70 @@ describe("Security workflow", () => {
     expect(scan.run).toContain("--metrics=off");
   });
 });
+
+// Every workflow states its token's permissions at the top, read-only; a job
+// that writes asks for it itself.
+describe("Workflows: read-only token by default", () => {
+  const dir = join(import.meta.dirname, "../../.github/workflows");
+  const files = readdirSync(dir).filter((f) => /\.ya?ml$/.test(f));
+
+  it.each(files)("%s declares top-level permissions with no write", (file) => {
+    const doc = parse(readFileSync(join(dir, file), "utf-8")) as { readonly permissions?: unknown };
+    expect(doc.permissions).toBeDefined();
+    expect(JSON.stringify(doc.permissions)).not.toContain("write");
+  });
+});
+
+// Publishing the score makes Scorecard's API refuse a workflow that breaks
+// its rules; these are the ones a later edit could break.
+describe("Scorecard workflow", () => {
+  const scorecard = parse(
+    readFileSync(join(import.meta.dirname, "../../.github/workflows/scorecard.yml"), "utf-8"),
+  ) as {
+    readonly env?: unknown;
+    readonly defaults?: unknown;
+    readonly jobs: Readonly<
+      Record<
+        string,
+        {
+          readonly env?: unknown;
+          readonly container?: unknown;
+          readonly permissions: Readonly<Record<string, string>>;
+          readonly steps: readonly {
+            readonly uses?: string;
+            readonly with?: Readonly<Record<string, unknown>>;
+          }[];
+        }
+      >
+    >;
+  };
+  const jobs = Object.values(scorecard.jobs);
+
+  it("has one job, with no env, defaults or container", () => {
+    expect(jobs).toHaveLength(1);
+    expect(scorecard.env).toBeUndefined();
+    expect(scorecard.defaults).toBeUndefined();
+    expect(jobs[0]!.env).toBeUndefined();
+    expect(jobs[0]!.container).toBeUndefined();
+  });
+
+  it("uses only the approved actions, each pinned to a commit", () => {
+    const approved = [
+      "actions/checkout",
+      "actions/upload-artifact",
+      "github/codeql-action/upload-sarif",
+      "ossf/scorecard-action",
+    ];
+    for (const step of jobs[0]!.steps) {
+      const [action, ref] = step.uses!.split("@");
+      expect(approved).toContain(action);
+      expect(ref).toMatch(/^[0-9a-f]{40}$/);
+    }
+  });
+
+  it("publishes the score, which the OIDC token proves", () => {
+    const scan = jobs[0]!.steps.find((s) => s.uses?.startsWith("ossf/scorecard-action@"))!;
+    expect(scan.with?.["publish_results"]).toBe(true);
+    expect(jobs[0]!.permissions["id-token"]).toBe("write");
+  });
+});

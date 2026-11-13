@@ -5,6 +5,10 @@ on:
     tags:
       - "v*"
 
+# Read-only by default; the release job asks for its own writes.
+permissions:
+  contents: read
+
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
