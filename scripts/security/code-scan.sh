@@ -83,7 +83,7 @@ fi
 # --- 5. semgrep (optional deep pass) ----------------------------------------
 if have semgrep; then
   info "Running semgrep (p/javascript, p/typescript, p/command-injection)"
-  semgrep --error --json --quiet \
+  semgrep --error --json --quiet --metrics=off \
     --config p/javascript --config p/typescript --config p/command-injection \
     --output "$AUDIT_OUT_DIR/semgrep.json" src >/dev/null 2>&1 || true
   if [[ -s "$AUDIT_OUT_DIR/semgrep.json" ]]; then

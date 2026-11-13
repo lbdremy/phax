@@ -533,9 +533,9 @@ describe("CI workflow: the schemas package smoke", () => {
     );
   });
 
-  it("sets up both jobs' tools with release.yml's mise-action pin", () => {
-    const ciPath = join(import.meta.dirname, "../../.github/workflows/ci.yml");
-    const auditSteps = jobSteps(ciPath, "security-audit");
+  it("sets up CI's and the security audit's tools with release.yml's mise-action pin", () => {
+    const securityPath = join(import.meta.dirname, "../../.github/workflows/security.yml");
+    const auditSteps = jobSteps(securityPath, "security-audit");
     for (const steps of [ciSteps, auditSteps]) {
       expect(miseStep(steps).uses).toBe(miseStep(releaseSteps).uses);
       expect(steps.filter(isSetupNode)).toHaveLength(0);

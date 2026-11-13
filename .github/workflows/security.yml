@@ -1,0 +1,86 @@
+# The security pass: on every pull request and push to main like CI, and
+# also daily, since a new advisory or a new Semgrep rule can flag code that
+# has not changed. A failed scheduled run emails whoever last edited the cron.
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  # pnpm audit:security, blocking on a high finding (the script's default
+  # FAIL_ON=high); the report is uploaded as an artifact either way. mise
+  # brings gitleaks and osv-scanner, which the toolkit detects and runs. The
+  # job leaves semgrep out: the semgrep job below scans with the platform's
+  # rules. See docs/security.md "Keeping security high".
+  security-audit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6
+        with:
+          cache: true
+
+      # Node, Deno, usage, gitleaks and osv-scanner at the versions mise.toml
+      # pins, each checked against its mise.lock checksum (install --locked).
+      - uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5
+        with:
+          version: "2026.11.1"
+          cache: false
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Security audit
+        run: pnpm audit:security
+
+      - name: Upload audit report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: security-audit-report
+          path: dist/security-audit/
+          if-no-files-found: warn
+
+  # semgrep ci with the Semgrep AppSec Platform's rules (Pro and community)
+  # and its Supply Chain analysis. On a pull request it reports only what the
+  # pull request introduces; on main, daily and on demand, the whole tree. It
+  # fails on a finding from a rule the platform's policy sets to block.
+  # Dependabot's pull requests read the token from the Dependabot secrets. A
+  # pull request from a fork gets no secret: it scans with the public rules,
+  # what the pull request introduces only, and says so.
+  semgrep:
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep:1.185.0@sha256:67518c174185a2043fdbed16c70631b79209499b3671178e7194379b48295a0d
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # A pull request's scan compares against its base commit.
+          fetch-depth: 0
+
+      - name: Semgrep
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ -n "$SEMGREP_APP_TOKEN" ]; then
+            semgrep ci
+          else
+            echo "::warning::No SEMGREP_APP_TOKEN (a pull request from a fork): public rules only, no Pro rules or Supply Chain."
+            semgrep scan --config p/default --metrics=off --error ${BASE_SHA:+--baseline-commit "$BASE_SHA"}
+          fi
