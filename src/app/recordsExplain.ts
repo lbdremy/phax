@@ -391,13 +391,15 @@ function manifestKindLabel(manifest: RecordManifest): string {
  * literal substring matches, so an id containing regex metacharacters cannot
  * misbehave; a substring match on an `Authoring-Id` or a `Decision-Id` (one
  * id a prefix of another) is ruled out by checking the candidate's tree holds
- * the key. A `Decision-Id` is unique only on the machine that decided, so a
- * decision record is first the one whose manifest names `sourceSha` as its
- * commit. When none does, the decide commit may have been rewritten (a rebase
- * or squash merge, a cherry-pick), and the newest record naming a commit that
- * is not an ancestor of `sourceSha` in `sourceRepo` is taken; one naming an
- * ancestor is an earlier decision under the same id (another machine's), so
- * an unrecorded decide never borrows it.
+ * the key. A `Decision-Id` or a `Revision-Id` is unique only on the machine
+ * that made it, so a decision or revision record is first the one whose
+ * manifest names `sourceSha` as its commit. When none does, the commit may
+ * have been rewritten (a rebase or squash merge, a cherry-pick), and the
+ * newest record naming a commit that is not an ancestor of `sourceSha` in
+ * `sourceRepo` is taken; one naming an ancestor is an earlier session under
+ * the same id (another machine's), so an unrecorded commit never borrows it.
+ * A record naming no commit (a session that committed nothing: a failed or
+ * unchanged revision) is never a commit's record.
  */
 function findRecordCommit(
   git: GitOps,
@@ -442,7 +444,6 @@ function findRecordCommit(
     });
     const manifestPath = `${keyOf(address)}/record.json`;
     let rewritten: string | null = null;
-    let uncommitted: string | null = null;
     for (const sha of result.stdout.split("\n").map((line) => line.trim())) {
       if (sha.length === 0) continue;
       const entries = yield* git.readTree(repo, sha);
@@ -452,13 +453,7 @@ function findRecordCommit(
       const bytes = yield* git.readBlob(repo, manifest.oid);
       const named = sessionCommitOf(address.kind, `${sha}:${manifestPath}`, bytes);
       if (named === undefined || named === sourceSha) return sha;
-      if (named === null) {
-        // A revision that committed nothing (failed or unchanged) names no commit:
-        // it is the last resort for a revise commit no record names.
-        if (address.kind === "revision" && uncommitted === null) uncommitted = sha;
-        continue;
-      }
-      if (rewritten !== null) continue;
+      if (named === null || rewritten !== null) continue;
       // `merge-base --is-ancestor` exits 0 for an ancestor, 1 for a non-ancestor
       // and 128 for a commit this clone lacks (rewritten away before a fetch).
       const ancestry = yield* shell.run({
@@ -467,7 +462,7 @@ function findRecordCommit(
       });
       if (ancestry.exitCode !== 0) rewritten = sha;
     }
-    return rewritten ?? uncommitted;
+    return rewritten;
   });
 }
 
