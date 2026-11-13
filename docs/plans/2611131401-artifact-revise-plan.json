@@ -13,8 +13,8 @@
     ]
   },
   "preamble": {
-    "summary": "Add `phax artifact revise <path> --amendment <file|-> [--by operator|machine:<grant>] [--model <id>] [--effort low|medium|high] [--json]`. It revises a Draft, headless-authored spec or plan whose sidecar is in sync. One read-only writer session returns the whole revised document carrying the amendment. It resumes the kept authoring session when that session ran on the writer's provider in this checkout, and starts a new session otherwise. phax checks the answer: its kind's current `$schema` and decode checks, every existing question unchanged and in place, and new open questions only appended. It keeps the frontmatter byte for byte, writes nothing when the body renders the same, and otherwise writes the `.md` and sidecar, re-seeds a plan's extraction cache and commits both in one commit without asking. The artifact stays Draft. The commit body carries the amendment verbatim and the trailers `Artifact`, `Revised-By` and `Revision-Id`. Where records are configured, every writer session that ran leaves one revision record keyed `revision/<Revision-Id>`, in the new persisted format `revision-record-manifest`. It is stamped with the opened version 0.38.0 through a `next` snapshot until the cut. `phax records explain <commit>` resolves a revise commit to that record.\n\nOrder: the pure checks first (phase-01), then the record format (phase-02) and its writer (phase-03). Then decide's verdicts-mode writer path is extracted into one module that decide and revise both call, with decide's behaviour unchanged (phase-04). Then come the use case's acceptance tests (phase-05) and the use case that passes them (phase-06), the CLI definition and its regenerated contract files (phase-07), `records explain` (phase-08), and the docs (phase-09).\n\nThe spec's sidecar does not exist, so test lines carry no criterion id; each test names the §8 criterion it covers in its title. Open question Q1 below must be decided before approval. The phases are written for its recommendation (`refuse-vibe`). phase-05 and phase-06 say what changes under the other option.",
-    "requiredCommandsNote": "`pnpm exec tsx` runs `scripts/schemas-check.ts --write` in phase-02, which writes the revision record's `next` snapshot and regenerates `src/schemas/release.ts`, `packages/schemas/src/generated/index.ts` and `packages/schemas/shipped-json.json`. `pnpm gen:usage-spec` and `pnpm docs:cli` regenerate `phax.usage.kdl` and `docs/cli/reference.md` from the command definitions in phase-07 and phase-08. All three are already entries of `security.agentCommands` in phax.json, so phax.json needs no change.",
+    "summary": "Add `phax artifact revise <path> --amendment <file|-> [--by operator|machine:<grant>] [--model <id>] [--effort low|medium|high] [--json]`. It revises a Draft, headless-authored spec or plan whose sidecar is in sync. One read-only writer session returns the whole revised document carrying the amendment. It resumes the kept authoring session when that session ran on the writer's provider in this checkout, and starts a new session otherwise. phax checks the answer: its kind's current `$schema` and decode checks, every existing question unchanged and in place, and new open questions only appended. It keeps the frontmatter byte for byte, writes nothing when the body renders the same, and otherwise writes the `.md` and sidecar, re-seeds a plan's extraction cache and commits both in one commit without asking. The artifact stays Draft. The commit body carries the amendment verbatim and the trailers `Artifact`, `Revised-By` and `Revision-Id`. Where records are configured, every writer session that ran leaves one revision record keyed `revision/<Revision-Id>`, in the new persisted format `revision-record-manifest`. It is stamped with the opened version 0.38.0 through a `next` snapshot until the cut. `phax records explain <commit>` resolves a revise commit to that record.\n\nOrder: the pure checks first (phase-01), then the record format (phase-02) and its writer (phase-03). Then decide's verdicts-mode writer path is extracted into one module that decide and revise both call, with decide's behaviour unchanged (phase-04). Then come the use case's acceptance tests (phase-05) and the use case that passes them (phase-06), the CLI definition and its regenerated contract files (phase-07), `records explain` (phase-08), and the docs, which also correct decide's stale Vibe sentences (phase-09).\n\nThe spec's sidecar does not exist, so test lines carry no criterion id; each test names the §8 criterion it covers in its title. Q1 is decided: a writer routed to Mistral Vibe runs read-only on the shared writer path, exactly as decide's does, and revise has no Vibe guard.",
+    "requiredCommandsNote": "`pnpm exec tsx` runs `scripts/schemas-check.ts --write` in phase-02, which writes the revision record's `next` snapshot and regenerates `src/schemas/release.ts`, `packages/schemas/src/generated/index.ts` and `packages/schemas/shipped-json.json`. `pnpm gen:usage-spec` and `pnpm docs:cli` regenerate `phax.usage.kdl` and `docs/cli/reference.md` from the command definitions in phase-07, phase-08 and phase-09. All three are already entries of `security.agentCommands` in phax.json, so phax.json needs no change.",
     "technicalArbitrations": [
       "How revise and decide share the writer path. Decide's verdicts-mode writer moves into one module, `src/app/headlessWriter.ts`, that both use cases call (phase-04). It holds the choice of session (the kept authoring session only when it decodes, ran on the routed provider and ran in this checkout), the writer turn with its one corrective resume, and the landing step: before/after/diff files, the concurrent-edit check, the plan-cache seed, the write and the one commit. Each is parameterized by what the answer is checked against (a check function), the retry prompt, the commit message and error factories supplied by the caller. Decide's code must not change in behaviour: its refusal messages and `DecideRefusedError` reasons, `DecideDocumentError`, its exit codes, the `decide/<id>/<NN>/` folder and its file names, its prompts, its commit message, its decision record and its report. The proof is that decide's suites pass without an edit (`tests/integration/decideVerdicts.test.ts`, `decideVerdictsPlanHand.test.ts`, `decideArtifact.test.ts`, `artifactDecideVerdictsCommand.test.ts`, `writeDecisionRecord.test.ts`, `tests/unit/cli/artifactDecideVerdicts.test.ts`, `tests/helpers/decideVerdictsHarness.ts`). Loss knowingly accepted: a refactor of decide's working path inside a feature plan, contained by those untouched suites. Extending `decideVerdicts.ts` with a revise mode was rejected because it would mix revise's refusals, record and commit into decide's module and error classes.",
       "What counts as a change to an existing question (§5.5, §5.6, Q1 frozen-append). Questions are compared by structural JSON equality: key order is not content, array order is (decide's `sameJson`). Every key counts: id, question, options and their order, recommendation, rationale, and on an arbitrated question its verdict (`by` and `at` included) and history. The revised `arbitratedQuestions` must equal the original exactly. The revised `openQuestions` must begin with the original open questions, element for element. Anything after them is a new open question, and its id must be new to the artifact. So an edited, removed, reordered, reopened or newly arbitrated question is refused, and so is a question appended to the arbitrated array. Loss knowingly accepted: a writer that inserts a new open question between existing ones is refused (and corrected once), though no existing question changed.",
@@ -24,9 +24,11 @@
       "`records explain` resolves a revise commit from its last paragraph only. When the commit message's last paragraph (its trailer block) holds `Revision-Id`, the address is the revision record, checked before every other trailer. Otherwise today's whole-body trailer reading applies unchanged. A verbatim amendment line shaped like a trailer (`Authoring-Id: …`, `Run-Id: …`) therefore never addresses another record. Loss knowingly accepted: two trailer readings in one function.",
       "Model and effort follow headless authoring (§6): `--model`/`--effort`, else phax.json's resolved `authoring.<kind>` (which carries the catalog default when phax.json sets none), routed through `resolveModel` like authoring. The report names the source as `flag` or `authoring.<kind>`. Effort is one of `low | medium | high`.",
       "The requester resolves through `src/app/resolveArbiter.ts`, as `phax artifact reopen` does: `--by operator`, `--by machine:<grant>`, or with no `--by` the operator when stdin is a terminal. A committing git identity (`git.committerName`) is required in every case, because the revision commits (§5.18).",
-      "No change (§5.9) is judged on the rendered body. The revised document's rendering (`renderCurrent`) is compared with the current body (`artifactBody`) through `sameRendering`, the comparison sidecar agreement uses. A document whose rendered body is the same writes nothing, even when a field that does not render differs."
+      "No change (§5.9) is judged on the rendered body. The revised document's rendering (`renderCurrent`) is compared with the current body (`artifactBody`) through `sameRendering`, the comparison sidecar agreement uses. A document whose rendered body is the same writes nothing, even when a field that does not render differs.",
+      "A writer routed to Mistral Vibe runs read-only, as decide's verdicts writer does (Q1, run-read-only). The spec was corrected on 2026-11-13: §5.15 and its criterion now read 'A writer routed to Vibe runs read-only'. Revise has no Vibe guard and no `provider-read-only` refusal. Loss knowingly accepted: a Vibe writer is confined by Vibe's tool-level read-only posture (`read_file` and `grep`) rather than Claude Code's or Codex's, so a session misconfigured around its accept-edits agent is the only thing between it and a write. Decide's help and `docs/arbitration.md` still say a Vibe-routed writer is refused; phase-09 corrects them."
     ],
-    "openQuestions": [
+    "openQuestions": [],
+    "arbitratedQuestions": [
       {
         "id": "Q1",
         "question": "A writer routed to Mistral Vibe: refuse it before any session, as spec §5.15 and its criterion 'A writer routed to Vibe is refused' say, or run it read-only, as `decide --verdicts` does today? Since Vibe 3 (0.30.0), phax runs read-only Vibe sessions confined to `read_file` and `grep`, and decide's verdicts writer runs on Vibe read-only (tests/integration/decideVerdicts.test.ts, 'runs the writer on mistral-vibe, read-only'). No provider ignores read-only today, and decide's help sentence saying Vibe is refused is stale. The spec's settled note asks revise to reuse decide's path, which no longer refuses Vibe.",
@@ -43,10 +45,39 @@
           }
         ],
         "recommendation": "refuse-vibe",
-        "rationale": "It honours the approved spec as written, keeps the narrower posture for a session that reads the repository, and costs one --model flag. Lifting it later removes one guard once the spec is corrected."
+        "rationale": "It honours the approved spec as written, keeps the narrower posture for a session that reads the repository, and costs one --model flag. Lifting it later removes one guard once the spec is corrected.",
+        "verdict": {
+          "kind": "decided",
+          "chosen": "run-read-only",
+          "abandoned": [
+            "refuse-vibe"
+          ],
+          "why": "The spec was corrected on 2026-11-13 (§5.15 and its criterion, now 'A writer routed to Vibe runs read-only'): decide's verdicts writer already runs on Vibe read-only, so revise does the same on the shared writer path, with no Vibe guard. Phase-05's Vibe acceptance test asserts a read-only run that commits. Phase-09 also corrects the stale sentence in decide's help (src/cli/definitions/artifactDecide.ts) and docs/arbitration.md that says a writer routed to Mistral Vibe is refused, and regenerates phax.usage.kdl and docs/cli/reference.md.",
+          "advocate": "The strongest case for refuse-vibe: a session that reads the repository keeps the narrower posture of Claude Code's or Codex's confinement, and an operator whose routing prefers Vibe pays only one --model flag; the guard can be lifted later once the spec is corrected.",
+          "principles": [
+            "C1",
+            "E0",
+            "P9"
+          ],
+          "reversibility": "cheap",
+          "by": {
+            "kind": "operator",
+            "name": "Rémy Loubradou"
+          },
+          "at": "2026-11-13T14:40:13.874Z",
+          "revised": [
+            "preamble.summary",
+            "preamble.technicalArbitrations",
+            "phase-05 detailedInstructions, testStrategy and expectedHandoff",
+            "phase-06 detailedInstructions, expectedHandoff and commit",
+            "phase-07 detailedInstructions",
+            "phase-09 objective, detailedInstructions, plannedFilesToEdit, testStrategy and excludedScope"
+          ],
+          "phase": "phase-06"
+        },
+        "history": []
       }
-    ],
-    "arbitratedQuestions": []
+    ]
   },
   "phases": [
     {
@@ -423,7 +454,7 @@
       ],
       "excludedScope": [
         "Any revise code (phase-06).",
-        "Any change to decide's behaviour, messages, help text or tests, including the stale help sentence about Vibe.",
+        "Any change to decide's behaviour, messages, help text or tests, including the stale help sentence about Vibe (phase-09 corrects it).",
         "Interactive decide's own session (decideArtifact's handback), beyond the shared reading."
       ],
       "verification": "The `standard` gate profile in phax.json.",
@@ -459,7 +490,7 @@
         "(10) The commit carries the amendment and the requester. With `by: \"machine:plan-loop\"`: the subject is `docs(plans): revise <slug>`, the body contains the amendment verbatim, and the trailers are `Artifact: <path>`, `Revised-By: machine (plan-loop)` and `Revision-Id: <authoringId>/01`.",
         "(11) No requester without a terminal. No `by` and a fake terminal reporting no TTY: exit 12, with a message naming `--by operator` and `--by machine:<grant>`, and no backend call.",
         "(12) A concurrent edit is kept. Use the fake backend's `setOnResumeAgent` to edit the plan file: exit 12, the edit still in the working tree, HEAD unchanged, and no file of revise's written.",
-        "(13) A writer routed to Vibe is refused. A provider config enabling `mistral-vibe` and a model routed to it, as in decideVerdicts.test.ts's Vibe case: exit 12 and no backend call. Under Q1's `run-read-only` option this test would instead assert a run on `mistral-vibe` with `readOnly: true`; write it for the option the operator decided.",
+        "(13) A writer routed to Vibe runs read-only. A provider config enabling `mistral-vibe` and a model routed to it, as in decideVerdicts.test.ts's Vibe case: the backend's run call has `provider: \"mistral-vibe\"` and `readOnly: true`, `result.provider` is `mistral-vibe`, and the revision commits (one commit holding the `.md` and the sidecar).",
         "(14) The revision is explained, record half. With records configured, a committed revision leaves a record under `revision/<revisionId>/record.json` on the records branch, stamped `revision-record-manifest`. A revision that fails with exit 5 leaves a record with outcome `failed` and failure `answer-refused`.",
         "(15) A provider failure writes nothing. A usage limit exits 8, then a session failure of kind `network` exits 14. Each time the artifact, its sidecar and HEAD are unchanged.",
         "(16) Uncommitted changes are refused. An uncommitted edit to the sidecar exits 12, and so does a repository with no `user.name` (unset it in the temp repo's config). Neither makes a backend call, and HEAD is unchanged.",
@@ -587,10 +618,10 @@
           "criterion": null
         },
         {
-          "guarantee": "a writer model routed to mistral-vibe is refused with exit 12 before any session",
+          "guarantee": "a writer model routed to mistral-vibe runs read-only and its revision commits",
           "size": "medium",
           "technique": "example",
-          "oracle": "exit code and backend call count",
+          "oracle": "the fake backend's run call options (provider mistral-vibe, readOnly true), result.provider and the new commit",
           "loop": "acceptance",
           "criterion": null
         },
@@ -640,10 +671,10 @@
         "records explain (phase-08)."
       ],
       "verification": "The `standard` gate profile in phax.json, with the acceptance provider judging the markers.",
-      "expectedHandoff": "The stub's exact input, result and error types. The harness's API: seeders, run, exit mapping and readers. The fixture names. The list of the seventeen test titles with the criterion each covers. How the Vibe case is set up and which Q1 option it encodes. Any deviation from the planned file lists, with the reason.",
+      "expectedHandoff": "The stub's exact input, result and error types. The harness's API: seeders, run, exit mapping and readers. The fixture names. The list of the seventeen test titles with the criterion each covers. How the Vibe case is set up (a read-only run that commits, per Q1 run-read-only). Any deviation from the planned file lists, with the reason.",
       "commit": {
         "subject": "test(revise): add acceptance tests for phax artifact revise",
-        "body": "Freeze the spec's acceptance criteria as integration tests at reviseArtifact's entry, each marked .fails against a stub that dies with a not-implemented error. A harness seeds headless specs and plans, their kept sessions and briefs, and every refused state, and fixtures give the writer answers each criterion needs. phase-06 passes them."
+        "body": "Freeze the spec's acceptance criteria as integration tests at reviseArtifact's entry, each marked .fails against a stub that dies with a not-implemented error. A harness seeds headless specs and plans, their kept sessions and briefs, and every refused state, and fixtures give the writer answers each criterion needs, including a writer routed to Vibe that runs read-only and commits. phase-06 passes them."
       },
       "assignmentReason": "The tests are frozen once committed and phase-06 cannot adjust them, so one wrong assertion pauses the run. Seventeen criteria across a new use case's interface are worth the higher effort.",
       "model": "claude-sonnet-5-5",
@@ -655,8 +686,8 @@
       "objective": "Implement `reviseArtifact` on the shared headless writer path: every refusal before any session, one read-only writer session with one corrective resume, the no-change ending, the write and commit, and a revision record for every session that ran. It passes the acceptance tests of phase-05.",
       "detailedInstructions": [
         "Implement `src/app/reviseArtifact.ts` behind the stub's types without changing any field of its input or result. Its errors may widen.",
-        "Add two errors to `src/domain/errors.ts`. `ReviseRefusedError` carries `reason` (`not-draft` | `sidecar` | `hand-authored` | `dirty` | `no-by` | `by` | `identity` | `model` | `provider-read-only` | `changed`) and a `message` that starts `Revise refused: `. `ReviseDocumentError` carries `path` and `message`. In `src/cli/commands/runLayers.ts`, map `ReviseRefusedError` to 12 and `ReviseDocumentError` to 5 in `exitCodeForError`, and wherever `exitCodeForAuthoringError` defers to it.",
-        "Preconditions, in this order, none writing anything: (1) `refuseUnmigratedDocuments(\"Revise refused\")` (exit 12 naming `phax artifact migrate-documents`). (2) `readDraftArtifact` from `src/app/headlessWriter.ts` with revise's words: the verb `revised`; an Approved or Stale artifact names `phax artifact reopen <path>`; uncommitted changes on the artifact or its sidecar are refused; a hand-authored artifact is refused as `<path> is hand-authored (no sidecar) — edit the .md directly`; a diverged or invalid sidecar names `sidecarRemedy`'s two remedies; an unmigrated sidecar names migrate-documents. (3) The requester through `resolveArbiter(input.by, repoRoot)` from `src/app/resolveArbiter.ts`; with no `--by` and no terminal, refuse (`no-by`) naming `--by operator` and `--by machine:<grant>`. If its own refusal already names both, keep its words; otherwise re-word it. (4) A committing identity: `git.committerName(repoRoot)` must name one, else refuse (`identity`) naming `git config user.name`. (5) The model: `resolveAuthoringSelection` with the flags and `input.authoring[kind]`; an effort outside `low | medium | high` is refused (`model`); then `resolveModel` routes it as headless authoring does. Sources are `flag` or `authoring.<kind>`. (6) Per Q1's recommendation (`refuse-vibe`), a writer routed to `mistral-vibe` is refused (`provider-read-only`) with exit 12, naming `--model` with a Claude Code or Codex model. Under the `run-read-only` option, omit this guard: the writer runs read-only on any provider.",
+        "Add two errors to `src/domain/errors.ts`. `ReviseRefusedError` carries `reason` (`not-draft` | `sidecar` | `hand-authored` | `dirty` | `no-by` | `by` | `identity` | `model` | `changed`) and a `message` that starts `Revise refused: `. `ReviseDocumentError` carries `path` and `message`. In `src/cli/commands/runLayers.ts`, map `ReviseRefusedError` to 12 and `ReviseDocumentError` to 5 in `exitCodeForError`, and wherever `exitCodeForAuthoringError` defers to it.",
+        "Preconditions, in this order, none writing anything: (1) `refuseUnmigratedDocuments(\"Revise refused\")` (exit 12 naming `phax artifact migrate-documents`). (2) `readDraftArtifact` from `src/app/headlessWriter.ts` with revise's words: the verb `revised`; an Approved or Stale artifact names `phax artifact reopen <path>`; uncommitted changes on the artifact or its sidecar are refused; a hand-authored artifact is refused as `<path> is hand-authored (no sidecar) — edit the .md directly`; a diverged or invalid sidecar names `sidecarRemedy`'s two remedies; an unmigrated sidecar names migrate-documents. (3) The requester through `resolveArbiter(input.by, repoRoot)` from `src/app/resolveArbiter.ts`; with no `--by` and no terminal, refuse (`no-by`) naming `--by operator` and `--by machine:<grant>`. If its own refusal already names both, keep its words; otherwise re-word it. (4) A committing identity: `git.committerName(repoRoot)` must name one, else refuse (`identity`) naming `git config user.name`. (5) The model: `resolveAuthoringSelection` with the flags and `input.authoring[kind]`; an effort outside `low | medium | high` is refused (`model`); then `resolveModel` routes it as headless authoring does. Sources are `flag` or `authoring.<kind>`. There is no provider guard: per Q1 (run-read-only) a writer routed to `mistral-vibe` runs read-only on the shared writer path, exactly as decide's verdicts writer does, and revise adds no refusal for any provider.",
         "Then the session: `chooseWriterSession` from the shared module. The index is `nextDecisionIndex(<stateRoot>/revise/<authoringId>)`. The revision id is `<authoringId>/<NN>` and the folder is `<stateRoot>/revise/<authoringId>/<NN>/`. Write `amendment.md` (the text as given) and `prompt.md` there before the session.",
         "Build the prompt with `buildRevisePrompt`: kind, path, session kind, `input.skills[kind]`, the kept brief from `authoringSessionFolder(stateRoot, authoringId)/brief.md` when it exists (else null), the current document, the amendment, and `currentSchemaUrl(\"<kind>-document\")`.",
         "Progress lines through `output.log`: `revise <kind> <slug> — amendment from <label> — headless, resumed authoring session|new session`, then the model line as decide words it (concrete model / effort (source) on provider, plus `requested <model>` when routing chose another). The record's `sourceSha` is HEAD.",
@@ -723,13 +754,14 @@
         "The command definition, help, report rendering and regenerated contract files (phase-07).",
         "records explain (phase-08).",
         "Any change to decide's behaviour or tests.",
+        "Any provider guard for Mistral Vibe or any other provider.",
         "Any edit to the acceptance test files other than removing the markers."
       ],
       "verification": "The `standard` gate profile in phax.json, with the acceptance provider judging the passing phase.",
-      "expectedHandoff": "The final `ReviseArtifactError` union. The two error classes, their reasons and their message prefixes. The exact progress lines. The structured-call id used for the answer schema. How the Vibe guard reads (or its absence under Q1's other option). Confirmation that every acceptance test passes with only its marker removed. Any deviation from the planned file lists, with the reason.",
+      "expectedHandoff": "The final `ReviseArtifactError` union. The two error classes, their reasons and their message prefixes. The exact progress lines. The structured-call id used for the answer schema. Confirmation that revise has no Vibe guard and that its Vibe acceptance test passes. Confirmation that every acceptance test passes with only its marker removed. Any deviation from the planned file lists, with the reason.",
       "commit": {
         "subject": "feat(revise): revise a Draft headless artifact from an amendment",
-        "body": "Implement reviseArtifact on the shared headless writer path. It refuses before any session: an artifact not Draft, not headless or not in sync, uncommitted changes, no requester without a terminal, no git identity, and a writer routed to Vibe. Then it runs one read-only writer session (the kept authoring session resumed when it ran on the provider in this checkout) with one corrective resume, checks the answer (stamp, decode, frozen questions, appended open questions), ends with no commit when the body is unchanged, and otherwise writes and commits the artifact and sidecar with the amendment and the Revised-By and Revision-Id trailers. Every session that ran leaves a revision record. Passes phase-05's acceptance tests."
+        "body": "Implement reviseArtifact on the shared headless writer path. It refuses before any session: an artifact not Draft, not headless or not in sync, uncommitted changes, no requester without a terminal, and no git identity. Then it runs one read-only writer session on whatever provider routing selects, Vibe included, as decide does (the kept authoring session resumed when it ran on the provider in this checkout) with one corrective resume, checks the answer (stamp, decode, frozen questions, appended open questions), ends with no commit when the body is unchanged, and otherwise writes and commits the artifact and sidecar with the amendment and the Revised-By and Revision-Id trailers. Every session that ran leaves a revision record. Passes phase-05's acceptance tests."
       },
       "assignmentReason": "The largest phase: a new use case orchestrating the shared writer path, the domain checks and the record writer must pass a frozen suite of seventeen acceptance tests that it cannot adjust.",
       "model": "claude-sonnet-5-5",
@@ -745,7 +777,7 @@
         "`run`: load config and the provider config as decide does, read the `phax-spec` and `phax-planning` SKILL.md from `defaultBundleRoot()` via `SKILL_SOURCE_DIR_FOR_KIND` (as `artifactNew.ts` does), and call `reviseArtifact`. Its input carries `amendment: { text, label }` (the label is the file path as given, or `stdin`) and `authoring: { spec: config.authoring.spec, plan: config.authoring.plan }`; the rest is as decide's `common`. Progress goes through `say` and warnings through `progress`, as decide does. A failure becomes `sessionFailure(...)` with a retry line: `phax artifact revise <path> --amendment <source> ...flags`, plus `(pipe the same amendment again)` for stdin.",
         "The output schema is the normative `--json` keys, in order: `artifact`, `status` (`Draft`), `session` (`new` | `resumed-authoring`), `provider`, `model`, `requestedModel`, `effort`, `newQuestions` (array of `{ id, question }`), `diff`, `commit` (`{ hash, subject }` or null), `revisionId`, `written` (from `writtenRecords(result.paths, repoRoot)`; empty when nothing changed) and `record` (`recordOutcome(result.record, result.recordPush, …)` with revision-record sentences built from `revisionRecordWarning`, `revisionRecordPushWarning` and the fallback `revision record not written`).",
         "The text report renders, after the progress lines: `questions  none new` or `questions  <n> new open: <id> — <question>` (one line per question). Then `--- body diff ---` and the diff when there is one. Then either `commit     <short hash> — <subject>`, or `nothing changed: the amendment changed nothing in <path> — no commit`. Then the status line: `status     Draft — read the diff above, then ` followed by `phax artifact decide <path>` with the open ids in parentheses when the artifact has open questions after the revision, then `phax artifact approve <path>`. Last comes the record line (`record     <key>` or `record     off`). Notes carry the record's warnings. Keep the rendering in an exported pure `renderReviseReport(answer)`.",
-        "The help text says everything the spec's surface says, at the level of decide's help: what revise does and for which artifacts; the writer session and its resume rule; the model defaults (flag, then `authoring.<kind>`, then the catalog default) and routing; read-only and the Vibe refusal (per Q1); what the answer is checked for (current `$schema`, decode checks, existing questions unchanged and in place, new open questions appended only) and the one corrective resume; that the frontmatter is kept; no change, no commit; committing without asking with the artifact left Draft; the commit's body and trailers; the `--by` rules; the `--json` keys; every refusal before a session; the exit codes (0, 1 inside a phase worktree, 5, 8, 12, 14, 64); and its side effects (the `revise/<authoringId>/<NN>/` folder, the commit, the revision record). Examples: `phax artifact revise docs/plans/2610271402-identity-store-plan.md --amendment amendment.md --by machine:plan-loop` and `phax artifact revise docs/specs/2610271505-artifact-revise.md --amendment - --by operator --json`.",
+        "The help text says everything the spec's surface says, at the level of decide's help: what revise does and for which artifacts; the writer session and its resume rule; the model defaults (flag, then `authoring.<kind>`, then the catalog default) and routing; that the writer runs read-only on whatever provider routing selects, Mistral Vibe included, and that no model is refused for its provider; what the answer is checked for (current `$schema`, decode checks, existing questions unchanged and in place, new open questions appended only) and the one corrective resume; that the frontmatter is kept; no change, no commit; committing without asking with the artifact left Draft; the commit's body and trailers; the `--by` rules; the `--json` keys; every refusal before a session; the exit codes (0, 1 inside a phase worktree, 5, 8, 12, 14, 64); and its side effects (the `revise/<authoringId>/<NN>/` folder, the commit, the revision record). Examples: `phax artifact revise docs/plans/2610271402-identity-store-plan.md --amendment amendment.md --by machine:plan-loop` and `phax artifact revise docs/specs/2610271505-artifact-revise.md --amendment - --by operator --json`.",
         "Register `makeArtifactReviseCommand()` in `src/cli/definitions/artifact.ts`, right after decide. Add `\"artifact revise\": \"refused\"` to `PHASE_GUARD_CLASSIFICATION` in `src/domain/security/phaseGuard.ts`.",
         "Run `pnpm gen:usage-spec` and `pnpm docs:cli` to regenerate `phax.usage.kdl` and `docs/cli/reference.md` (and `docs/cli/inventory.md` if the script writes it). Never edit them by hand. The usage drift, lint, example and completer tests must pass.",
         "Create `tests/integration/artifactReviseCommand.test.ts`, modelled on `tests/integration/artifactDecideVerdictsCommand.test.ts`, using `runnerCall` with a fake backend and a fake terminal in a temp repository, with a Draft headless plan seeded with its sidecar. Test: (a) `--json` with a committing revision: stdout is one JSON object whose keys are exactly the thirteen normative keys in order, `written` names the `.md` and the sidecar, and the progress lines are on stderr. (b) `--amendment -` with a terminal on stdin exits 64 with no backend call. (c) An empty amendment file exits 64 with no backend call. (d) An unchanged answer exits 0, prints the nothing-changed line, and leaves HEAD unchanged. (e) An Approved plan exits 12 with the refusal naming `phax artifact reopen`.",
@@ -825,7 +857,7 @@
         "Any logic in the definition beyond reading input and rendering the answer.",
         "records explain (phase-08).",
         "Docs pages (phase-09).",
-        "decide's help text, including its stale Vibe sentence."
+        "decide's help text, including its stale Vibe sentence (phase-09)."
       ],
       "verification": "The `standard` gate profile in phax.json.",
       "expectedHandoff": "The command's flags as declared, its output schema, the exported `renderReviseReport`, the help's exit-code paragraph, and the regenerated files. Confirmation that the phase guard classifies `artifact revise` as refused. Any deviation from the planned file lists, with the reason.",
@@ -915,14 +947,16 @@
     },
     {
       "id": "phase-09",
-      "title": "Revising drafts guide and upgrade notes",
-      "objective": "Document revise for its reader: an operator or an agent holding a Draft headless spec or plan that needs a change no open question asks for. Publish the page at /guide/revising-drafts, link it from the arbitration guide, and record the 0.38.0 upgrade note for the new record format.",
+      "title": "Revising drafts guide, Vibe corrections and upgrade notes",
+      "objective": "Document revise for its reader: an operator or an agent holding a Draft headless spec or plan that needs a change no open question asks for. Publish the page at /guide/revising-drafts, link it from the arbitration guide, correct the stale sentence that says a Vibe-routed writer is refused in decide's help and in the arbitration guide, and record the 0.38.0 upgrade note for the new record format.",
       "detailedInstructions": [
         "Create `docs/revising-drafts.md` (spec §11). Its reader holds a Draft headless spec or plan that needs a change no open question asks for. Open with when to revise rather than decide, re-author or edit by hand. Then give the example: `phax artifact revise docs/plans/2610271402-identity-store-plan.md --amendment amendment.md --by machine:plan-loop`, a sample amendment, the report, then `phax artifact approve`.",
-        "Then cover: the writer session (resumed or new, and what a new one is given); the model defaults; what phax checks in the answer and the one corrective resume; questions (existing ones frozen, new open ones appended, decided later with `phax artifact decide`); the frontmatter kept; no change, no commit; the commit, its body and its trailers; `--by`; `--json` and its keys; the refusals before any session and their remedies (reopen, edit by hand, the status remedies, migrate-documents, `--by`, git identity, a Vibe-routed model per Q1, a bad amendment); the exit codes; the session folder; the revision record and `phax records explain <commit>`.",
+        "Then cover: the writer session (resumed or new, and what a new one is given); the model defaults; that the writer runs read-only on whatever provider routing selects, Mistral Vibe included; what phax checks in the answer and the one corrective resume; questions (existing ones frozen, new open ones appended, decided later with `phax artifact decide`); the frontmatter kept; no change, no commit; the commit, its body and its trailers; `--by`; `--json` and its keys; the refusals before any session and their remedies (reopen, edit by hand, the status remedies, migrate-documents, `--by`, git identity, a bad amendment); the exit codes; the session folder; the revision record and `phax records explain <commit>`.",
         "Use `docs/arbitration.md` as the model for tone and structure. Use only commands and flags that exist after phase-07, and check every sentence against the command's help in `src/cli/definitions/artifactRevise.ts`.",
         "Add `docs/revising-drafts.md` to the sources list in `site/build/sources.ts`. Add a page to `site/pages.ts` right after the arbitration page: route `/guide/revising-drafts`, title `Revising a Draft`, source `docs/revising-drafts.md`, and a one-sentence description in the style of its neighbours.",
-        "In `docs/arbitration.md`, add a short paragraph where verdicts mode is introduced: a Draft that needs a change no open question asks for is revised with `phax artifact revise`, linking to the new page. Use the link form the docs already use between pages.",
+        "In `docs/arbitration.md`, add a short paragraph where verdicts mode is introduced: a Draft that needs a change no open question asks for is revised with `phax artifact revise`, linking to the new page. Use the link form the docs already use between pages. Also correct the sentence there (find it by searching for `Vibe`) that says a writer model routed to Mistral Vibe is refused before any session: the verdicts writer runs on Vibe read-only, like on any provider routing selects.",
+        "In `src/cli/definitions/artifactDecide.ts`, correct the two sentences of `DECIDE_HELP` that say a verdicts writer routed to Mistral Vibe is refused (`a model routed to Mistral Vibe is refused before any session, since Vibe ignores read-only: pass --model with a Claude Code or Codex model`, and in the side-effects paragraph `which is why a writer model routed to Mistral Vibe, whose adapter ignores read-only, is refused`). They now say the writer runs read-only on whatever provider routing selects, Vibe included. Change nothing else in that file: decide's behaviour, code and tests stay as they are.",
+        "Run `pnpm gen:usage-spec` and `pnpm docs:cli` to regenerate `phax.usage.kdl` and `docs/cli/reference.md` from the corrected help. Never edit them by hand.",
         "In `docs/upgrading.md`, add a `### 0.38.0` section above `### 0.37.0` under `## Release by release`. It says that revise commits leave revision records, a new record format `revision-record-manifest` on `phax/records/v1` keyed `revision/<authoringId>/<NN>`. An `@lbdremy/phax-schemas` before 0.38.0 cannot read it: `parseRecordManifest` fails at `$schema` with an unknown format, so upgrade the package before reading such records. `phax records list` shows a new entry kind, `revision`.",
         "If `docs/json-output.md` lists record formats or the commands' answers by name, add revise there; otherwise leave it.",
         "The terminal gates run `pnpm site:build`: the page must build, and every link must resolve."
@@ -935,12 +969,15 @@
         "site/build/sources.ts",
         "site/pages.ts",
         "docs/arbitration.md",
-        "docs/upgrading.md"
+        "docs/upgrading.md",
+        "src/cli/definitions/artifactDecide.ts",
+        "phax.usage.kdl",
+        "docs/cli/reference.md"
       ],
       "optionalFilesToEdit": [
         "docs/json-output.md",
         "README.md",
-        "docs/security.md"
+        "docs/cli/inventory.md"
       ],
       "mode": "headless",
       "acceptance": null,
@@ -953,24 +990,33 @@
           "oracle": "pnpm site:build in the terminal gate",
           "loop": "in-phase",
           "criterion": null
+        },
+        {
+          "guarantee": "phax.usage.kdl and docs/cli/reference.md match decide's corrected help",
+          "size": "medium",
+          "technique": "contract",
+          "oracle": "the usage drift tests",
+          "loop": "in-phase",
+          "criterion": null
         }
       ],
       "implementationOrder": [
         "docs/revising-drafts.md",
         "site sources and page",
-        "the arbitration link",
+        "the arbitration link and its Vibe correction",
+        "decide's help sentences and the regeneration",
         "the 0.38.0 upgrade note"
       ],
       "excludedScope": [
-        "Any code change.",
-        "Release notes for 0.38.0 (written at the cut).",
-        "Correcting decide's stale Vibe help sentence."
+        "Any code change other than the two Vibe sentences of decide's help text.",
+        "Any change to decide's behaviour or tests.",
+        "Release notes for 0.38.0 (written at the cut)."
       ],
       "verification": "The `standard` gate profile in phax.json, including its terminal steps (`pnpm build`, `pnpm site:build`, the deno smokes).",
-      "expectedHandoff": "The page's outline and route. The arbitration link's wording. The 0.38.0 note. Whether docs/json-output.md or README.md needed a touch. Any deviation from the planned file lists, with the reason.",
+      "expectedHandoff": "The page's outline and route. The arbitration link's wording and the corrected Vibe sentence there. The corrected sentences of decide's help. The 0.38.0 note. Whether docs/json-output.md or README.md needed a touch. Any deviation from the planned file lists, with the reason.",
       "commit": {
         "subject": "docs(revise): add the revising-drafts guide and the 0.38.0 note",
-        "body": "Add docs/revising-drafts.md, published at /guide/revising-drafts and linked from the arbitration guide: when to revise, the example from amendment to approve, the writer session, the checks, the commit and its trailers, the refusals and exit codes, and the revision record. docs/upgrading.md gains a 0.38.0 note for the revision record format, which an older @lbdremy/phax-schemas cannot read."
+        "body": "Add docs/revising-drafts.md, published at /guide/revising-drafts and linked from the arbitration guide: when to revise, the example from amendment to approve, the writer session, the checks, the commit and its trailers, the refusals and exit codes, and the revision record. Correct the stale sentences saying a Vibe-routed verdicts writer is refused, in decide's help and in the arbitration guide, and regenerate phax.usage.kdl and docs/cli/reference.md. docs/upgrading.md gains a 0.38.0 note for the revision record format, which an older @lbdremy/phax-schemas cannot read."
       },
       "assignmentReason": null,
       "model": "claude-sonnet-5-5",
