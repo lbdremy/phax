@@ -1,6 +1,7 @@
 // Replays the behaviour corpus: every case under tests/behaviourCorpus/cases/
 // decodes to the expectation captured on Effect 3, compared through the
-// canonical encoder, a refusal naming the running schemas package's version.
+// canonical encoder, a refusal naming the running schemas package's version and
+// a `next` shape the release that cut it, once its release ledger lists it.
 // Effect-free and subject-free: it walks the case files, so a case file added
 // later is replayed without an edit here.
 import { readFileSync } from "node:fs";
@@ -11,13 +12,29 @@ import {
   expectedAt,
   listCaseFiles,
   parseCaseFile,
+  parseReleaseLedger,
+  readTargetInput,
   subjectOfPath,
+  type ReplayTree,
   type CaseFile,
 } from "../../behaviourCorpus/corpus.js";
 import { replay } from "../../behaviourCorpus/subjects.js";
 import { PACKAGE_VERSION } from "../../../packages/schemas/src/generated/index.js";
 
 const casesRoot = fileURLToPath(new URL("../../behaviourCorpus/cases/", import.meta.url));
+const ledgerPath = fileURLToPath(
+  new URL("../../../packages/schemas/releases.json", import.meta.url),
+);
+
+const tree: ReplayTree = {
+  packageVersion: PACKAGE_VERSION,
+  releases: parseReleaseLedger(readFileSync(ledgerPath, "utf8"), ledgerPath),
+};
+
+/** The document a case decodes: a format case's input names its target beside it. */
+function documentOf(subject: string, input: unknown): unknown {
+  return subject.startsWith("formats/") ? readTargetInput(input).document : input;
+}
 
 const files: ReadonlyArray<{ readonly path: string; readonly file: CaseFile }> = listCaseFiles(
   casesRoot,
@@ -43,7 +60,7 @@ describe("behaviour corpus", () => {
           );
         }
         expect(canonicalJson(replay(file.subject, c.input))).toBe(
-          canonicalJson(expectedAt(c.expected, PACKAGE_VERSION)),
+          canonicalJson(expectedAt(c.expected, tree, documentOf(file.subject, c.input))),
         );
       });
     }

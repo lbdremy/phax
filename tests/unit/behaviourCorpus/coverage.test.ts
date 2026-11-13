@@ -18,6 +18,8 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   parseCorpusFile,
+  parseReleaseLedger,
+  shapeAt,
   type CorpusFile,
   type FormatCaseFile,
 } from "../../behaviourCorpus/corpus.js";
@@ -25,6 +27,7 @@ import {
 const repoRoot = fileURLToPath(new URL("../../../", import.meta.url));
 const formatsRoot = `${repoRoot}tests/behaviourCorpus/cases/formats/`;
 const snapshotsRoot = `${repoRoot}packages/schemas/snapshots/`;
+const ledgerPath = `${repoRoot}packages/schemas/releases.json`;
 
 type JsonObject = Readonly<Record<string, unknown>>;
 
@@ -308,6 +311,8 @@ const encodeRoot = `${repoRoot}tests/behaviourCorpus/cases/encode/`;
 
 const ids = formatIds();
 const modules = frozenModules();
+// A case captured as `next` counts for the release that cut it, as the replay reads it.
+const releases = parseReleaseLedger(readFileSync(ledgerPath, "utf8"), ledgerPath);
 
 describe("behaviour corpus coverage", () => {
   it("reads every format id and every frozen module", () => {
@@ -375,7 +380,7 @@ describe("behaviour corpus coverage", () => {
         const release = latestRelease(id);
         const set = new Set<string>();
         for (const c of file.current) {
-          if (c.expected?.ok === true && c.expected.shape === release) {
+          if (c.expected?.ok === true && shapeAt(c.expected.shape, c.input, releases) === release) {
             for (const path of documentPaths(c.input)) set.add(path);
           }
         }
