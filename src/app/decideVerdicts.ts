@@ -643,6 +643,7 @@ function concludeVerdicts(
       extractPlanModel: input.extractPlanModel,
       extractPlanEffort: input.extractPlanEffort,
       nowIso: input.nowIso,
+      verbatimMessage: false,
       commitMessage: verdictsCommitMessage({
         kind,
         slug,

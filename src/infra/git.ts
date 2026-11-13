@@ -899,9 +899,24 @@ export const NodeGitLayer = Layer.succeed(Git, {
 
   // Scoped to `paths` on both `add` and `commit` so other staged or dirty
   // files in the worktree never enter this commit.
-  commitPaths: (repo, paths, subject, body) =>
+  // `options.verbatim` keeps the message as given, past git's cleanup.
+  commitPaths: (repo, paths, subject, body, options) =>
     gitRun(["add", "-A", "--", ...paths], repo).pipe(
-      Effect.flatMap(() => gitRun(["commit", "-m", subject, "-m", body, "--", ...paths], repo)),
+      Effect.flatMap(() =>
+        gitRun(
+          [
+            "commit",
+            ...(options?.verbatim === true ? ["--cleanup=verbatim"] : []),
+            "-m",
+            subject,
+            "-m",
+            body,
+            "--",
+            ...paths,
+          ],
+          repo,
+        ),
+      ),
       Effect.asVoid,
     ),
 

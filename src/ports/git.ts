@@ -60,6 +60,17 @@ export interface CommitFiles {
   readonly paths: readonly string[];
 }
 
+/** How a commit takes its message. */
+export interface CommitOptions {
+  /**
+   * Keep the message byte for byte (`git commit --cleanup=verbatim`): no
+   * collapsed blank lines, no stripped trailing whitespace, no dropped `#`
+   * lines, whatever `commit.cleanup` says. Without it git's default cleanup
+   * applies.
+   */
+  readonly verbatim: boolean;
+}
+
 export interface GitOps {
   isClean(repo: string): Effect.Effect<boolean, GitError>;
   currentBranch(repo: string): Effect.Effect<BranchName, GitError>;
@@ -75,6 +86,7 @@ export interface GitOps {
     paths: readonly string[],
     subject: string,
     body: string,
+    options?: CommitOptions,
   ): Effect.Effect<void, GitError>;
   /**
    * The unified diff of two files outside any index (`git diff --no-index`),

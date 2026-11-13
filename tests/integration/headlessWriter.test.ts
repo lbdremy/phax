@@ -298,6 +298,7 @@ describe("diffAnswer and landAnswer", () => {
     extractPlanEffort: "low",
     nowIso: "2026-10-25T10:00:00.000Z",
     commitMessage: { subject: "docs(specs): change logs", body: "Body line." },
+    verbatimMessage: false,
     changed: (at: string, which: "artifact" | "sidecar") => new Changed(at, which),
     ...overrides,
   });

@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { inspectSidecar } from "../../src/domain/artifact/sidecar.js";
+import { reviseCommitMessage } from "../../src/domain/revise/revision.js";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import { type PlanDocument, projectExtractedPlan } from "../../src/schemas/planDocument.js";
 import {
@@ -332,6 +333,40 @@ describe("revise — the commit carries the amendment and the requester", { time
     expect(trailerOf(message, "Artifact")).toBe(plan.path);
     expect(trailerOf(message, "Revised-By")).toBe("machine (plan-loop)");
     expect(trailerOf(message, "Revision-Id")).toBe(`${REVISE_PLAN_ID}/01`);
+  });
+
+  it("The commit carries the amendment verbatim: a # heading, blank lines and trailing spaces survive commit.cleanup=strip", async () => {
+    const plan = world.seed({ kind: "plan" });
+    world.git(["config", "--local", "commit.cleanup", "strip"]);
+    const amendment = [
+      "# Purge",
+      "",
+      "Expose a purge operation.   ",
+      "",
+      "",
+      "Cover it in the store's phase.",
+    ].join("\n");
+    const h = world.harness({ resumeAnswers: [json(PLAN_ANSWER_REVISED)] });
+
+    const done = succeeded(
+      await h.run(plan.path, { amendment: { text: amendment, label: "amendment.md" } }),
+    );
+
+    expect(done.kind).toBe("committed");
+    const expected = reviseCommitMessage({
+      kind: "plan",
+      slug: "log-rotation",
+      path: plan.path,
+      amendment,
+      model: done.model,
+      effort: done.effort,
+      provider: done.provider,
+      requester: done.requester,
+      revisionId: done.revisionId,
+    });
+    expect(expected.body).toContain(amendment);
+    const raw = world.git(["cat-file", "commit", "HEAD"]);
+    expect(raw.slice(raw.indexOf("\n\n") + 2)).toBe(`${expected.subject}\n\n${expected.body}\n`);
   });
 });
 
