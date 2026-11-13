@@ -164,6 +164,7 @@ describe("schemas package entry", () => {
       "ReviewRecordManifestSchema",
       "ReviewStopSchema",
       "ReviewStopV0_26_0Schema",
+      "RevisionRecordManifestSchema",
       "RunListSchema",
       "RunListV0_26_0Schema",
       "RunListV0_30_0Schema",
@@ -219,6 +220,7 @@ describe("schemas package entry", () => {
       "parseRegistry",
       "parseReviewRecordManifest",
       "parseReviewStop",
+      "parseRevisionRecordManifest",
       "parseRunList",
       "parseRunStatus",
       "parseSpecApprovalRecord",
@@ -259,6 +261,7 @@ describe("schemas package entry", () => {
       "toLatestRegistry",
       "toLatestReviewRecordManifest",
       "toLatestReviewStop",
+      "toLatestRevisionRecordManifest",
       "toLatestRunList",
       "toLatestRunStatus",
       "toLatestSpecApprovalRecord",
@@ -334,6 +337,9 @@ describe("schemas package entry", () => {
     expect(entry.AuthoringRecordManifestSchema).toBe(AuthoringRecordManifestFileSchema);
     expect(entry.DecisionRecordManifestSchema).toBe(DecisionRecordManifestFileSchema);
     expect(entry.ReviewRecordManifestSchema).toBe(ReviewRecordManifestFileSchema);
+    const { RevisionRecordManifestFileSchema } =
+      await import("../../../src/schemas/revisionRecord.js");
+    expect(entry.RevisionRecordManifestSchema).toBe(RevisionRecordManifestFileSchema);
     expect(entry.RecordManifestSchema).toBe(RecordManifestFileSchema);
     expect(entry.PhaseRecordManifestSchema).toBe(RunRecordManifestFileSchema);
   });

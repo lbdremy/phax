@@ -25,6 +25,12 @@ import {
   type ReviewRecordManifestFile,
 } from "../../../../src/schemas/reviewRecord.js";
 import {
+  RevisionRecordManifestFileSchema,
+  decodeRevisionRecordManifestFile,
+  type RevisionRecordManifest,
+  type RevisionRecordManifestFile,
+} from "../../../../src/schemas/revisionRecord.js";
+import {
   DecisionRecordManifestV0_25_0Schema,
   decodeDecisionRecordManifestV0_25_0,
   type DecisionRecordManifestV0_25_0,
@@ -424,6 +430,48 @@ export function toLatestReviewRecordManifest(
   return recorded;
 }
 
+// ── revision record manifest
+
+// Born with `$schema` and with no older shape: a manifest without `$schema` is
+// unreadable.
+
+export type RevisionRecordManifestShapes = {
+  [K in CurrentShapeName<"revision-record-manifest">]: RevisionRecordManifestFile;
+};
+
+/** The id of every revision record manifest shape the package reads. */
+export type RevisionRecordManifestShape = keyof RevisionRecordManifestShapes;
+
+export const revisionRecordManifestFormat = defineFormat<RevisionRecordManifestShapes>({
+  id: "revision-record-manifest",
+  label: "revision record manifest",
+  preSchema: null,
+  releases: [],
+  current: {
+    name: CURRENT_SHAPES["revision-record-manifest"],
+    shape: {
+      schema: RevisionRecordManifestFileSchema,
+      decode: decodeRevisionRecordManifestFile,
+    },
+  },
+});
+
+/** Reads a revise writer session's `record.json`. Never throws. */
+export const parseRevisionRecordManifest: (
+  input: unknown,
+) => ParsedShape<RevisionRecordManifestShapes> = revisionRecordManifestFormat.parse;
+
+/** The latest revision record manifest: phax's in-memory value, with no `$schema`. */
+export type LatestRevisionRecordManifest = RevisionRecordManifest;
+
+/** Upgrades a parsed revision manifest in memory: drops `$schema`, keeps every other fact. */
+export function toLatestRevisionRecordManifest(
+  value: RevisionRecordManifestFile,
+): LatestRevisionRecordManifest {
+  const { $schema: _schema, ...recorded } = value;
+  return recorded;
+}
+
 // ── any record manifest
 
 export type RecordManifestShapes = {
@@ -431,11 +479,12 @@ export type RecordManifestShapes = {
   "authoring-record-manifest": AuthoringRecordManifestShapes;
   "decision-record-manifest": DecisionRecordManifestShapes;
   "review-record-manifest": ReviewRecordManifestShapes;
+  "revision-record-manifest": RevisionRecordManifestShapes;
 };
 
 /**
  * The format of a `record.json`: a phase record, an authoring record, a
- * decision record or a review record.
+ * decision record, a review record or a revision record.
  */
 export type RecordManifestFormat = keyof RecordManifestShapes;
 
@@ -446,6 +495,7 @@ const recordManifestFormats: {
   "authoring-record-manifest": authoringRecordManifestFormat,
   "decision-record-manifest": decisionRecordManifestFormat,
   "review-record-manifest": reviewRecordManifestFormat,
+  "revision-record-manifest": revisionRecordManifestFormat,
 };
 
 function isRecordManifestFormat(id: string): id is RecordManifestFormat {
@@ -470,13 +520,14 @@ function readAs(
  * Reads any `record.json` on phax/records/v1 and names the format it read.
  * Never throws. In order:
  * 1. a non-object fails at `""`;
- * 2. a `$schema` naming one of the four manifest formats is read by that
+ * 2. a `$schema` naming one of the five manifest formats is read by that
  *    format; another known format fails at `$schema` (`<url> is a <format>
  *    document, not a record manifest`); a malformed URL or an unknown format
  *    fails with the shared messages;
  * 3. `kind: "review"` is read as a review record manifest and `kind:
- *    "decision"` as a decision record manifest, both born with `$schema` and
- *    so failing without one; `kind: "authoring"` is read as
+ *    "decision"` as a decision record manifest and `kind: "revision"` as a
+ *    revision record manifest, all born with `$schema` and so failing without
+ *    one; `kind: "authoring"` is read as
  *    an authoring record manifest, the rule of phax's
  *    `isAuthoringRecordManifest`;
  * 4. anything else is read as a phase record manifest.
@@ -501,6 +552,7 @@ export function parseRecordManifest(input: unknown): ParsedDocument<RecordManife
   }
   if (input["kind"] === "review") return readAs("review-record-manifest", input);
   if (input["kind"] === "decision") return readAs("decision-record-manifest", input);
+  if (input["kind"] === "revision") return readAs("revision-record-manifest", input);
   return readAs(
     input["kind"] === "authoring" ? "authoring-record-manifest" : "phase-record-manifest",
     input,

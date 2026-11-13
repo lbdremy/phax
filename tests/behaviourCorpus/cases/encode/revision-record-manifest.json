@@ -1,0 +1,275 @@
+{
+  "subject": "encode/revision-record-manifest",
+  "cases": [
+    {
+      "name": "accepts a committed revision",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/revision-record-manifest/0.38.0.json",
+        "kind": "revision",
+        "revisionId": "2610160930-example/01",
+        "artifact": "docs/specs/2610160930-example.md",
+        "artifactKind": "spec",
+        "session": "new",
+        "requester": {
+          "kind": "operator",
+          "name": "Ada Example"
+        },
+        "newQuestions": [
+          "q-scope"
+        ],
+        "sourceSha": "abc1234",
+        "shape": "skeleton",
+        "provider": "claude-code",
+        "model": "example-model",
+        "requestedModel": "example-model",
+        "effort": "medium",
+        "usage": {
+          "available": true,
+          "usage": {
+            "provider": "claude-code",
+            "inputTokens": 1,
+            "cacheCreationInputTokens": 1,
+            "cacheReadInputTokens": 1,
+            "outputTokens": 1,
+            "totalCostUsd": 1
+          }
+        },
+        "outcome": "committed",
+        "commit": "def5678"
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/revision-record-manifest/0.38.0.json",
+          "kind": "revision",
+          "revisionId": "2610160930-example/01",
+          "artifact": "docs/specs/2610160930-example.md",
+          "artifactKind": "spec",
+          "session": "new",
+          "requester": {
+            "kind": "operator",
+            "name": "Ada Example"
+          },
+          "newQuestions": [
+            "q-scope"
+          ],
+          "sourceSha": "abc1234",
+          "shape": "skeleton",
+          "provider": "claude-code",
+          "model": "example-model",
+          "requestedModel": "example-model",
+          "effort": "medium",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1,
+              "cacheCreationInputTokens": 1,
+              "cacheReadInputTokens": 1,
+              "outputTokens": 1,
+              "totalCostUsd": 1
+            }
+          },
+          "outcome": "committed",
+          "commit": "def5678"
+        }
+      }
+    },
+    {
+      "name": "accepts an unchanged revision by a machine requester",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/revision-record-manifest/0.38.0.json",
+        "kind": "revision",
+        "revisionId": "2610160930-example/02",
+        "artifact": "docs/plans/2610160930-example.md",
+        "artifactKind": "plan",
+        "session": "resumed-authoring",
+        "requester": {
+          "kind": "machine",
+          "grant": "revise-plans"
+        },
+        "newQuestions": [],
+        "sourceSha": "abc1234",
+        "shape": "full",
+        "provider": "claude-code",
+        "model": "example-model",
+        "requestedModel": "example-model",
+        "effort": "high",
+        "usage": {
+          "available": true,
+          "usage": {
+            "provider": "codex-cli",
+            "inputTokens": 1,
+            "cachedInputTokens": 1,
+            "outputTokens": 1,
+            "reasoningOutputTokens": 1
+          }
+        },
+        "outcome": "unchanged",
+        "commit": null
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/revision-record-manifest/0.38.0.json",
+          "kind": "revision",
+          "revisionId": "2610160930-example/02",
+          "artifact": "docs/plans/2610160930-example.md",
+          "artifactKind": "plan",
+          "session": "resumed-authoring",
+          "requester": {
+            "kind": "machine",
+            "grant": "revise-plans"
+          },
+          "newQuestions": [],
+          "sourceSha": "abc1234",
+          "shape": "full",
+          "provider": "claude-code",
+          "model": "example-model",
+          "requestedModel": "example-model",
+          "effort": "high",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 1,
+              "cachedInputTokens": 1,
+              "outputTokens": 1,
+              "reasoningOutputTokens": 1
+            }
+          },
+          "outcome": "unchanged",
+          "commit": null
+        }
+      }
+    },
+    {
+      "name": "accepts a failed revision",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/revision-record-manifest/0.38.0.json",
+        "kind": "revision",
+        "revisionId": "2610160930-example/03",
+        "artifact": "docs/specs/2610160930-example.md",
+        "artifactKind": "spec",
+        "session": "new",
+        "requester": {
+          "kind": "operator",
+          "name": "Ada Example"
+        },
+        "newQuestions": [],
+        "sourceSha": "abc1234",
+        "shape": "skeleton",
+        "provider": "claude-code",
+        "model": "example-model",
+        "requestedModel": "example-model",
+        "effort": "low",
+        "usage": {
+          "available": true,
+          "usage": {
+            "provider": "mistral-vibe",
+            "inputTokens": 1,
+            "cachedInputTokens": 1,
+            "outputTokens": 1,
+            "costUsd": 1
+          }
+        },
+        "outcome": "failed",
+        "commit": null,
+        "failure": "answer-refused"
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/revision-record-manifest/0.38.0.json",
+          "kind": "revision",
+          "revisionId": "2610160930-example/03",
+          "artifact": "docs/specs/2610160930-example.md",
+          "artifactKind": "spec",
+          "session": "new",
+          "requester": {
+            "kind": "operator",
+            "name": "Ada Example"
+          },
+          "newQuestions": [],
+          "sourceSha": "abc1234",
+          "shape": "skeleton",
+          "provider": "claude-code",
+          "model": "example-model",
+          "requestedModel": "example-model",
+          "effort": "low",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "mistral-vibe",
+              "inputTokens": 1,
+              "cachedInputTokens": 1,
+              "outputTokens": 1,
+              "costUsd": 1
+            }
+          },
+          "outcome": "failed",
+          "commit": null,
+          "failure": "answer-refused"
+        }
+      }
+    },
+    {
+      "name": "accepts a revision whose usage is unavailable",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/revision-record-manifest/0.38.0.json",
+        "kind": "revision",
+        "revisionId": "2610160930-example/04",
+        "artifact": "docs/specs/2610160930-example.md",
+        "artifactKind": "spec",
+        "session": "new",
+        "requester": {
+          "kind": "operator",
+          "name": "Ada Example"
+        },
+        "newQuestions": [
+          "q-scope"
+        ],
+        "sourceSha": "abc1234",
+        "shape": "skeleton",
+        "provider": "claude-code",
+        "model": "example-model",
+        "requestedModel": "example-model",
+        "effort": "medium",
+        "usage": {
+          "available": false
+        },
+        "outcome": "committed",
+        "commit": "def5678"
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/revision-record-manifest/0.38.0.json",
+          "kind": "revision",
+          "revisionId": "2610160930-example/04",
+          "artifact": "docs/specs/2610160930-example.md",
+          "artifactKind": "spec",
+          "session": "new",
+          "requester": {
+            "kind": "operator",
+            "name": "Ada Example"
+          },
+          "newQuestions": [
+            "q-scope"
+          ],
+          "sourceSha": "abc1234",
+          "shape": "skeleton",
+          "provider": "claude-code",
+          "model": "example-model",
+          "requestedModel": "example-model",
+          "effort": "medium",
+          "usage": {
+            "available": false
+          },
+          "outcome": "committed",
+          "commit": "def5678"
+        }
+      }
+    }
+  ]
+}

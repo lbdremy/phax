@@ -29,6 +29,7 @@ import type { GitHub } from "../../ports/github.js";
 import type { Prompt } from "../../ports/prompt.js";
 import { AuthoringRecordOutcomeSchema } from "../../schemas/authoringRecord.js";
 import { DecisionRecordOutcomeSchema } from "../../schemas/decisionRecord.js";
+import { RevisionRecordOutcomeSchema } from "../../schemas/revisionRecord.js";
 import { ReviewRecordKindSchema } from "../../schemas/reviewRecord.js";
 import { RecordPhaseOutcomeSchema, RecordShapeSchema } from "../../schemas/runRecord.js";
 import { RecordedSurfaceSchema } from "../../schemas/surface.js";
@@ -606,6 +607,16 @@ const RecordListEntry = Schema.Union([
     artifactKind: Schema.Literals(["spec", "plan"]),
   }),
   Schema.Struct({
+    kind: Schema.Literal("revision"),
+    revisionId: Schema.String,
+    shape: RecordShapeSchema,
+    outcome: RevisionRecordOutcomeSchema,
+    recordCommitSha: Schema.String,
+    /** The artifact the session revised. */
+    artifact: Schema.String,
+    artifactKind: Schema.Literals(["spec", "plan"]),
+  }),
+  Schema.Struct({
     kind: Schema.Literal("review"),
     runId: Schema.String,
     review: ReviewRecordKindSchema,
@@ -640,7 +651,9 @@ function listRow(entry: ListEntry): string {
         ? ["authoring", entry.authoringId, entry.shape, entry.outcome, entry.artifact]
         : entry.kind === "decision"
           ? ["decision", entry.decisionId, entry.shape, entry.outcome, entry.artifact]
-          : [entry.runId, entry.review, "-", "-", entry.file];
+          : entry.kind === "revision"
+            ? ["revision", entry.revisionId, entry.shape, entry.outcome, entry.artifact]
+            : [entry.runId, entry.review, "-", "-", entry.file];
   return `${first}  ${second}  ${shape}  ${outcome}  ${entry.recordCommitSha.slice(0, 8)}  ${detail}`;
 }
 

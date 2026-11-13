@@ -63,15 +63,19 @@ function compareReleases(a: string, b: string): number {
   return 0;
 }
 
-/** The highest release a format has a snapshot for. */
+/**
+ * The highest release a format has a snapshot for. A format born in the release being
+ * developed has only its `next` snapshot until the release is cut, and `next` is its latest.
+ */
 function latestRelease(id: string): string {
   const release = readdirSync(`${snapshotsRoot}${id}`)
     .map((name) => name.replace(/\.schema\.json$/, ""))
     .filter((name) => /^\d+\.\d+\.\d+$/.test(name))
     .toSorted(compareReleases)
     .at(-1);
-  if (release === undefined) throw new Error(`no released snapshot for ${id}`);
-  return release;
+  if (release !== undefined) return release;
+  if (existsSync(`${snapshotsRoot}${id}/next.schema.json`)) return "next";
+  throw new Error(`no snapshot for ${id}`);
 }
 
 function readSnapshot(id: string, release: string): JsonObject {
@@ -297,6 +301,7 @@ const WRITTEN_FORMATS = [
   "artifact-status",
   "plan-overview",
   "plan-lint",
+  "revision-record-manifest",
 ];
 
 const encodeRoot = `${repoRoot}tests/behaviourCorpus/cases/encode/`;

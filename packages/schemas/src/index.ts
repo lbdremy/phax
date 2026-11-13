@@ -73,10 +73,12 @@ import {
   decisionRecordManifestFormat,
   phaseRecordManifestFormat,
   reviewRecordManifestFormat,
+  revisionRecordManifestFormat,
   type AuthoringRecordManifestShapes,
   type DecisionRecordManifestShapes,
   type PhaseRecordManifestShapes,
   type ReviewRecordManifestShapes,
+  type RevisionRecordManifestShapes,
 } from "./formats/recordManifests.js";
 import {
   gateAttributionFormat,
@@ -239,26 +241,34 @@ export {
   type ReviewRecordManifestFile as ReviewRecordManifest,
 } from "../../../src/schemas/reviewRecord.js";
 export {
+  RevisionRecordManifestFileSchema as RevisionRecordManifestSchema,
+  type RevisionRecordManifestFile as RevisionRecordManifest,
+} from "../../../src/schemas/revisionRecord.js";
+export {
   PhaseRecordManifestSchema,
   parseAuthoringRecordManifest,
   parseDecisionRecordManifest,
   parsePhaseRecordManifest,
   parseRecordManifest,
   parseReviewRecordManifest,
+  parseRevisionRecordManifest,
   toLatestAuthoringRecordManifest,
   toLatestDecisionRecordManifest,
   toLatestPhaseRecordManifest,
   toLatestReviewRecordManifest,
+  toLatestRevisionRecordManifest,
   type AuthoringRecordManifestShape,
   type DecisionRecordManifestShape,
   type LatestAuthoringRecordManifest,
   type LatestDecisionRecordManifest,
   type LatestPhaseRecordManifest,
   type LatestReviewRecordManifest,
+  type LatestRevisionRecordManifest,
   type PhaseRecordManifest,
   type PhaseRecordManifestShape,
   type RecordManifestFormat,
   type ReviewRecordManifestShape,
+  type RevisionRecordManifestShape,
 } from "./formats/recordManifests.js";
 
 // A phase record's timeline files. Each schema and type is phax's own file
@@ -775,6 +785,7 @@ type DocumentShapes = EveryFormat<{
   "authoring-record-manifest": AuthoringRecordManifestShapes;
   "decision-record-manifest": DecisionRecordManifestShapes;
   "review-record-manifest": ReviewRecordManifestShapes;
+  "revision-record-manifest": RevisionRecordManifestShapes;
   registry: RegistryShapes;
   "run-status": RunStatusShapes;
   "phase-status": PhaseStatusShapes;
@@ -831,6 +842,7 @@ export const parseDocument: (input: unknown) => ParsedDocument<DocumentShapes> =
     "authoring-record-manifest": authoringRecordManifestFormat,
     "decision-record-manifest": decisionRecordManifestFormat,
     "review-record-manifest": reviewRecordManifestFormat,
+    "revision-record-manifest": revisionRecordManifestFormat,
     registry: registryFormat,
     "run-status": runStatusFormat,
     "phase-status": phaseStatusFormat,

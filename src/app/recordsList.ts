@@ -10,6 +10,7 @@ import {
   type AuthoringRecordOutcome,
 } from "../schemas/authoringRecord.js";
 import { isDecisionRecordManifest, type DecisionRecordOutcome } from "../schemas/decisionRecord.js";
+import { isRevisionRecordManifest, type RevisionRecordOutcome } from "../schemas/revisionRecord.js";
 import {
   isReviewRecordManifest,
   REVIEW_RECORD_FILES,
@@ -47,6 +48,16 @@ export type RecordListEntry =
       readonly outcome: DecisionRecordOutcome;
       readonly recordCommitSha: string;
       /** The artifact the session decided. */
+      readonly artifact: string;
+      readonly artifactKind: ArtifactKind;
+    }
+  | {
+      readonly kind: "revision";
+      readonly revisionId: string;
+      readonly shape: RecordShape;
+      readonly outcome: RevisionRecordOutcome;
+      readonly recordCommitSha: string;
+      /** The artifact the session revised. */
       readonly artifact: string;
       readonly artifactKind: ArtifactKind;
     }
@@ -146,6 +157,18 @@ export function listRecords(
         records.push({
           kind: "decision",
           decisionId: manifest.decisionId,
+          shape: manifest.shape,
+          outcome: manifest.outcome,
+          recordCommitSha: sha,
+          artifact: manifest.artifact,
+          artifactKind: manifest.artifactKind,
+        });
+        continue;
+      }
+      if (isRevisionRecordManifest(manifest)) {
+        records.push({
+          kind: "revision",
+          revisionId: manifest.revisionId,
           shape: manifest.shape,
           outcome: manifest.outcome,
           recordCommitSha: sha,

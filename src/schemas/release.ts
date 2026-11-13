@@ -47,4 +47,5 @@ export const CURRENT_STAMPS = {
   "artifact-status": "0.34.0",
   "plan-overview": "0.34.0",
   "plan-lint": "0.34.0",
+  "revision-record-manifest": "0.38.0",
 } as const;

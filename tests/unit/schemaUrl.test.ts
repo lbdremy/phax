@@ -28,9 +28,9 @@ describe("schemaUrl", () => {
   });
 
   it("lists the thirteen formats of spec §4 phax still writes, the two approval record formats, the gate request, the brief request and record, the two reports, the hand decision answer, the decision record manifest, the cost ledger, the architecture request and report, the oracle request and the four documents of a declared stop, the run list, the decide verdicts, the review record manifest, the code review, the plan extraction, the two hand decision answers, the acceptance request and the three answers of the commands behind the Claude Code mod", () => {
-    expect(FORMAT_IDS).toHaveLength(41);
-    expect(new Set(FORMAT_IDS).size).toBe(41);
-    expect(FORMAT_IDS.slice(-28)).toEqual([
+    expect(FORMAT_IDS).toHaveLength(42);
+    expect(new Set(FORMAT_IDS).size).toBe(42);
+    expect(FORMAT_IDS.slice(-29)).toEqual([
       "plan-approval-record",
       "spec-approval-record",
       "gate-request",
@@ -59,6 +59,7 @@ describe("schemaUrl", () => {
       "artifact-status",
       "plan-overview",
       "plan-lint",
+      "revision-record-manifest",
     ]);
     expect(isFormatId("code-review")).toBe(true);
     expect(isFormatId("phase-record-manifest")).toBe(true);
@@ -94,6 +95,7 @@ describe("schemaUrl", () => {
       "artifact-status",
       "plan-overview",
       "plan-lint",
+      "revision-record-manifest",
     ]);
     expect(PRE_SCHEMA_FORMAT_IDS).toEqual(
       FORMAT_IDS.filter((id) => !SCHEMA_BORN_FORMAT_IDS.some((born) => born === id)),

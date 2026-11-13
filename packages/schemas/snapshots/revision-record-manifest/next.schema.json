@@ -1,0 +1,882 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "phax revision record manifest",
+  "anyOf": [
+    {
+      "type": "object",
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "pattern": "^https:\\/\\/docs\\.phax\\.run\\/schemas\\/revision-record-manifest\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$",
+          "description": "The revision-record-manifest format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): https://docs.phax.run/schemas/revision-record-manifest/<X.Y.Z>.json"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "revision"
+          ]
+        },
+        "revisionId": {
+          "type": "string",
+          "pattern": "^[^/\\s]+\\/\\d{2,}$",
+          "description": "`<authoringId>/<NN>`, the Revision-Id trailer."
+        },
+        "artifact": {
+          "type": "string",
+          "minLength": 1
+        },
+        "artifactKind": {
+          "type": "string",
+          "enum": [
+            "spec",
+            "plan"
+          ]
+        },
+        "session": {
+          "type": "string",
+          "enum": [
+            "new",
+            "resumed-authoring"
+          ]
+        },
+        "requester": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "operator"
+                  ]
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "kind",
+                "name"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "machine"
+                  ]
+                },
+                "grant": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "kind",
+                "grant"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "newQuestions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "sourceSha": {
+          "type": "string",
+          "minLength": 1
+        },
+        "shape": {
+          "type": "string",
+          "enum": [
+            "full",
+            "skeleton"
+          ]
+        },
+        "provider": {
+          "type": "string",
+          "enum": [
+            "claude-code",
+            "codex-cli",
+            "mistral-vibe"
+          ]
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "requestedModel": {
+          "type": "string",
+          "minLength": 1
+        },
+        "effort": {
+          "type": "string",
+          "minLength": 1
+        },
+        "usage": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "available": {
+                  "type": "boolean",
+                  "enum": [
+                    true
+                  ]
+                },
+                "usage": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "provider": {
+                          "type": "string",
+                          "enum": [
+                            "claude-code"
+                          ]
+                        },
+                        "inputTokens": {
+                          "type": "number"
+                        },
+                        "cacheCreationInputTokens": {
+                          "type": "number"
+                        },
+                        "cacheReadInputTokens": {
+                          "type": "number"
+                        },
+                        "outputTokens": {
+                          "type": "number"
+                        },
+                        "totalCostUsd": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "provider",
+                        "inputTokens",
+                        "cacheCreationInputTokens",
+                        "cacheReadInputTokens",
+                        "outputTokens",
+                        "totalCostUsd"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "provider": {
+                          "type": "string",
+                          "enum": [
+                            "codex-cli"
+                          ]
+                        },
+                        "inputTokens": {
+                          "type": "number"
+                        },
+                        "cachedInputTokens": {
+                          "type": "number"
+                        },
+                        "outputTokens": {
+                          "type": "number"
+                        },
+                        "reasoningOutputTokens": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "provider",
+                        "inputTokens",
+                        "cachedInputTokens",
+                        "outputTokens",
+                        "reasoningOutputTokens"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "provider": {
+                          "type": "string",
+                          "enum": [
+                            "mistral-vibe"
+                          ]
+                        },
+                        "inputTokens": {
+                          "type": "number"
+                        },
+                        "cachedInputTokens": {
+                          "type": "number"
+                        },
+                        "outputTokens": {
+                          "type": "number"
+                        },
+                        "costUsd": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "provider",
+                        "inputTokens",
+                        "cachedInputTokens",
+                        "outputTokens",
+                        "costUsd"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "available",
+                "usage"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "available": {
+                  "type": "boolean",
+                  "enum": [
+                    false
+                  ]
+                }
+              },
+              "required": [
+                "available"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "committed"
+          ]
+        },
+        "commit": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "$schema",
+        "kind",
+        "revisionId",
+        "artifact",
+        "artifactKind",
+        "session",
+        "requester",
+        "newQuestions",
+        "sourceSha",
+        "shape",
+        "provider",
+        "model",
+        "requestedModel",
+        "effort",
+        "usage",
+        "outcome",
+        "commit"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "pattern": "^https:\\/\\/docs\\.phax\\.run\\/schemas\\/revision-record-manifest\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$",
+          "description": "The revision-record-manifest format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): https://docs.phax.run/schemas/revision-record-manifest/<X.Y.Z>.json"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "revision"
+          ]
+        },
+        "revisionId": {
+          "type": "string",
+          "pattern": "^[^/\\s]+\\/\\d{2,}$",
+          "description": "`<authoringId>/<NN>`, the Revision-Id trailer."
+        },
+        "artifact": {
+          "type": "string",
+          "minLength": 1
+        },
+        "artifactKind": {
+          "type": "string",
+          "enum": [
+            "spec",
+            "plan"
+          ]
+        },
+        "session": {
+          "type": "string",
+          "enum": [
+            "new",
+            "resumed-authoring"
+          ]
+        },
+        "requester": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "operator"
+                  ]
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "kind",
+                "name"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "machine"
+                  ]
+                },
+                "grant": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "kind",
+                "grant"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "newQuestions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "sourceSha": {
+          "type": "string",
+          "minLength": 1
+        },
+        "shape": {
+          "type": "string",
+          "enum": [
+            "full",
+            "skeleton"
+          ]
+        },
+        "provider": {
+          "type": "string",
+          "enum": [
+            "claude-code",
+            "codex-cli",
+            "mistral-vibe"
+          ]
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "requestedModel": {
+          "type": "string",
+          "minLength": 1
+        },
+        "effort": {
+          "type": "string",
+          "minLength": 1
+        },
+        "usage": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "available": {
+                  "type": "boolean",
+                  "enum": [
+                    true
+                  ]
+                },
+                "usage": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "provider": {
+                          "type": "string",
+                          "enum": [
+                            "claude-code"
+                          ]
+                        },
+                        "inputTokens": {
+                          "type": "number"
+                        },
+                        "cacheCreationInputTokens": {
+                          "type": "number"
+                        },
+                        "cacheReadInputTokens": {
+                          "type": "number"
+                        },
+                        "outputTokens": {
+                          "type": "number"
+                        },
+                        "totalCostUsd": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "provider",
+                        "inputTokens",
+                        "cacheCreationInputTokens",
+                        "cacheReadInputTokens",
+                        "outputTokens",
+                        "totalCostUsd"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "provider": {
+                          "type": "string",
+                          "enum": [
+                            "codex-cli"
+                          ]
+                        },
+                        "inputTokens": {
+                          "type": "number"
+                        },
+                        "cachedInputTokens": {
+                          "type": "number"
+                        },
+                        "outputTokens": {
+                          "type": "number"
+                        },
+                        "reasoningOutputTokens": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "provider",
+                        "inputTokens",
+                        "cachedInputTokens",
+                        "outputTokens",
+                        "reasoningOutputTokens"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "provider": {
+                          "type": "string",
+                          "enum": [
+                            "mistral-vibe"
+                          ]
+                        },
+                        "inputTokens": {
+                          "type": "number"
+                        },
+                        "cachedInputTokens": {
+                          "type": "number"
+                        },
+                        "outputTokens": {
+                          "type": "number"
+                        },
+                        "costUsd": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "provider",
+                        "inputTokens",
+                        "cachedInputTokens",
+                        "outputTokens",
+                        "costUsd"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "available",
+                "usage"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "available": {
+                  "type": "boolean",
+                  "enum": [
+                    false
+                  ]
+                }
+              },
+              "required": [
+                "available"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "unchanged"
+          ]
+        },
+        "commit": {
+          "type": "null"
+        }
+      },
+      "required": [
+        "$schema",
+        "kind",
+        "revisionId",
+        "artifact",
+        "artifactKind",
+        "session",
+        "requester",
+        "newQuestions",
+        "sourceSha",
+        "shape",
+        "provider",
+        "model",
+        "requestedModel",
+        "effort",
+        "usage",
+        "outcome",
+        "commit"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "pattern": "^https:\\/\\/docs\\.phax\\.run\\/schemas\\/revision-record-manifest\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$",
+          "description": "The revision-record-manifest format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): https://docs.phax.run/schemas/revision-record-manifest/<X.Y.Z>.json"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "revision"
+          ]
+        },
+        "revisionId": {
+          "type": "string",
+          "pattern": "^[^/\\s]+\\/\\d{2,}$",
+          "description": "`<authoringId>/<NN>`, the Revision-Id trailer."
+        },
+        "artifact": {
+          "type": "string",
+          "minLength": 1
+        },
+        "artifactKind": {
+          "type": "string",
+          "enum": [
+            "spec",
+            "plan"
+          ]
+        },
+        "session": {
+          "type": "string",
+          "enum": [
+            "new",
+            "resumed-authoring"
+          ]
+        },
+        "requester": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "operator"
+                  ]
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "kind",
+                "name"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "machine"
+                  ]
+                },
+                "grant": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "kind",
+                "grant"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "newQuestions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "sourceSha": {
+          "type": "string",
+          "minLength": 1
+        },
+        "shape": {
+          "type": "string",
+          "enum": [
+            "full",
+            "skeleton"
+          ]
+        },
+        "provider": {
+          "type": "string",
+          "enum": [
+            "claude-code",
+            "codex-cli",
+            "mistral-vibe"
+          ]
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "requestedModel": {
+          "type": "string",
+          "minLength": 1
+        },
+        "effort": {
+          "type": "string",
+          "minLength": 1
+        },
+        "usage": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "available": {
+                  "type": "boolean",
+                  "enum": [
+                    true
+                  ]
+                },
+                "usage": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "provider": {
+                          "type": "string",
+                          "enum": [
+                            "claude-code"
+                          ]
+                        },
+                        "inputTokens": {
+                          "type": "number"
+                        },
+                        "cacheCreationInputTokens": {
+                          "type": "number"
+                        },
+                        "cacheReadInputTokens": {
+                          "type": "number"
+                        },
+                        "outputTokens": {
+                          "type": "number"
+                        },
+                        "totalCostUsd": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "provider",
+                        "inputTokens",
+                        "cacheCreationInputTokens",
+                        "cacheReadInputTokens",
+                        "outputTokens",
+                        "totalCostUsd"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "provider": {
+                          "type": "string",
+                          "enum": [
+                            "codex-cli"
+                          ]
+                        },
+                        "inputTokens": {
+                          "type": "number"
+                        },
+                        "cachedInputTokens": {
+                          "type": "number"
+                        },
+                        "outputTokens": {
+                          "type": "number"
+                        },
+                        "reasoningOutputTokens": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "provider",
+                        "inputTokens",
+                        "cachedInputTokens",
+                        "outputTokens",
+                        "reasoningOutputTokens"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "provider": {
+                          "type": "string",
+                          "enum": [
+                            "mistral-vibe"
+                          ]
+                        },
+                        "inputTokens": {
+                          "type": "number"
+                        },
+                        "cachedInputTokens": {
+                          "type": "number"
+                        },
+                        "outputTokens": {
+                          "type": "number"
+                        },
+                        "costUsd": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "provider",
+                        "inputTokens",
+                        "cachedInputTokens",
+                        "outputTokens",
+                        "costUsd"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "available",
+                "usage"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "available": {
+                  "type": "boolean",
+                  "enum": [
+                    false
+                  ]
+                }
+              },
+              "required": [
+                "available"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "failed"
+          ]
+        },
+        "commit": {
+          "type": "null"
+        },
+        "failure": {
+          "type": "string",
+          "enum": [
+            "network",
+            "rate-limit",
+            "usage-limit",
+            "not-authenticated",
+            "provider-error",
+            "max-turns",
+            "killed",
+            "unknown",
+            "answer-refused",
+            "artifact-changed",
+            "commit-failed"
+          ]
+        }
+      },
+      "required": [
+        "$schema",
+        "kind",
+        "revisionId",
+        "artifact",
+        "artifactKind",
+        "session",
+        "requester",
+        "newQuestions",
+        "sourceSha",
+        "shape",
+        "provider",
+        "model",
+        "requestedModel",
+        "effort",
+        "usage",
+        "outcome",
+        "commit",
+        "failure"
+      ],
+      "additionalProperties": false
+    }
+  ]
+}

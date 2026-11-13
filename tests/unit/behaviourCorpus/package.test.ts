@@ -60,18 +60,27 @@ describe("the schemas package against its Effect 3 baseline", () => {
       throw new Error("snapshot-digests.json: not a path to digest map");
     expect(Object.keys(baseline).length).toBeGreaterThan(0);
     const current = Object.fromEntries(
-      filesUnder(snapshotsRoot).map((path): [string, string] => [
-        path,
-        createHash("sha256")
-          .update(readFileSync(join(repoRoot, path)))
-          .digest("hex"),
-      ]),
+      filesUnder(snapshotsRoot)
+        .filter((path) => !path.endsWith("/next.schema.json"))
+        .map((path): [string, string] => [
+          path,
+          createHash("sha256")
+            .update(readFileSync(join(repoRoot, path)))
+            .digest("hex"),
+        ]),
     );
     expect(current).toEqual(baseline);
   });
 
-  it("holds no next snapshot", () => {
+  it("holds a next snapshot only for a format born after the baseline", () => {
+    const baseline = readBaseline("snapshot-digests.json");
+    if (!isStringRecord(baseline))
+      throw new Error("snapshot-digests.json: not a path to digest map");
     const next = filesUnder(snapshotsRoot).filter((path) => path.endsWith("/next.schema.json"));
-    expect(next).toEqual([]);
+    const released = next.filter((path) => {
+      const directory = path.slice(0, -"next.schema.json".length);
+      return Object.keys(baseline).some((captured) => captured.startsWith(directory));
+    });
+    expect(released).toEqual([]);
   });
 });

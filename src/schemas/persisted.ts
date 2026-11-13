@@ -109,6 +109,7 @@ import {
 import { decodeCostLedgerFile, type CostLedger } from "./costLedger.js";
 import { decodeDecisionRecordManifestFile, liftFrozenDecisionManifest } from "./decisionRecord.js";
 import { decodeReviewRecordManifestFile } from "./reviewRecord.js";
+import { decodeRevisionRecordManifestFile } from "./revisionRecord.js";
 import { decodeFirstReadingFile, type FirstReadingFile } from "./firstReading.js";
 import { formatFirstViolation, formatPlanDocumentViolation } from "./formatError.js";
 import { decodeGateAttributionFile, type GateAttribution } from "./gateAttribution.js";
@@ -1976,10 +1977,21 @@ const readReviewRecordManifest: Reader<RecordManifest> = (file, input) =>
     fromCurrent: ({ $schema: _schema, ...manifest }) => manifest,
   });
 
+// Born with `$schema`, with no older shape: a revision manifest without one is
+// unreadable.
+const readRevisionRecordManifest: Reader<RecordManifest> = (file, input) =>
+  readSchemaBornPersisted(input, {
+    format: "revision-record-manifest",
+    label: "revision record manifest",
+    file,
+    decodeCurrent: decodeRevisionRecordManifestFile,
+    fromCurrent: ({ $schema: _schema, ...manifest }) => manifest,
+  });
+
 /**
  * Reads any `record.json` on phax/records/v1, by its `kind`: "review" is read
- * as a review manifest and "decision" as a decision manifest (both born with
- * `$schema`), "authoring" as an
+ * as a review manifest, "decision" as a decision manifest and "revision" as a
+ * revision manifest (all born with `$schema`), "authoring" as an
  * authoring manifest, anything else as a phase manifest. A `$schema` manifest
  * is read by the file union. A manifest without `$schema` is read by the
  * authoring pre-schema decoder when its `kind` is "authoring", and by the
@@ -1990,6 +2002,7 @@ export const readRecordManifestFile: Reader<RecordManifest> = (file, input) => {
   if (!isDocumentObject(input)) return readAnyRecordManifest(file, input);
   if (input["kind"] === "review") return readReviewRecordManifest(file, input);
   if (input["kind"] === "decision") return readDecisionRecordManifest(file, input);
+  if (input["kind"] === "revision") return readRevisionRecordManifest(file, input);
   return input["kind"] === "authoring"
     ? readAuthoringRecordManifest(file, input)
     : readPhaseRecordManifest(file, input);

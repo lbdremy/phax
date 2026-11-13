@@ -42,8 +42,8 @@ function built(nextFormats: ReadonlySet<string> = source.nextFormats): string {
 }
 
 describe("the shipped JSON Schemas", () => {
-  it("are read from the committed shipped-json.json, which no format's next snapshot overrides", () => {
-    expect(readNextFormats(repoRoot)).toEqual(new Set());
+  it("are read from the committed shipped-json.json, which only a format born in the release being developed overrides with its next snapshot", () => {
+    expect(readNextFormats(repoRoot)).toEqual(new Set(["revision-record-manifest"]));
     expect(readFileSync(join(repoRoot, SHIPPED_JSON_PATH), "utf8")).toBe(
       renderShippedJson(source.shipped),
     );
