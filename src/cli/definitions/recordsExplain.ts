@@ -13,6 +13,7 @@ import {
   type ExplainedAuthoringRecord,
   type ExplainedDecisionRecord,
   type ExplainedRecord,
+  type ExplainedRevisionRecord,
 } from "../../app/recordsExplain.js";
 import { recordsClonePath } from "../../app/recordsSync.js";
 import { NodeGitLayer } from "../../infra/git.js";
@@ -25,6 +26,10 @@ import {
 import { AuthoringRecordOutcomeSchema } from "../../schemas/authoringRecord.js";
 import { DecisionRecordOutcomeSchema } from "../../schemas/decisionRecord.js";
 import { ReviewRecordKindSchema } from "../../schemas/reviewRecord.js";
+import {
+  RevisionFailureSchema,
+  RevisionRecordOutcomeSchema,
+} from "../../schemas/revisionRecord.js";
 import { ProviderIdSchema } from "../../schemas/providerId.js";
 import { defineCommand, reject } from "../commandLibrary/contract/index.js";
 import { configured, exposeMessage, MessageFields } from "./shared.js";
@@ -175,6 +180,42 @@ const DecisionExplained = Schema.Struct({
   requested: SessionRequested,
 });
 
+const RevisionExplained = Schema.Struct({
+  kind: Schema.Literal("revision"),
+  revisionId: Schema.String,
+  provider: ProviderIdSchema,
+  model: Schema.String,
+  effort: Schema.String,
+  artifact: Schema.String,
+  artifactKind: Schema.Literals(["spec", "plan"]),
+  session: Schema.Literals(["new", "resumed-authoring"]),
+  requester: Schema.Union([
+    Schema.Struct({ kind: Schema.Literal("operator"), name: Schema.String }),
+    Schema.Struct({ kind: Schema.Literal("machine"), grant: Schema.String }),
+  ]),
+  /** The ids of the open questions the revision appended. */
+  newQuestions: Schema.Array(Schema.String),
+  shape: Shape,
+  transcriptBytes: Schema.Number,
+  usage: TokenUsageSchema,
+  outcome: RevisionRecordOutcomeSchema,
+  /** The revise commit, null when none landed. */
+  commit: Text,
+  /** Why a failed revision failed, null otherwise. */
+  failure: Schema.NullOr(RevisionFailureSchema),
+  sourceSha: Schema.String,
+  sourceReachable: Schema.Boolean,
+  /** Which of the record's three documents it carries. */
+  carries: Schema.Struct({
+    prompt: Schema.Boolean,
+    document: Schema.Boolean,
+    diff: Schema.Boolean,
+  }),
+  /** The record's file names. */
+  files: Schema.Array(Schema.String),
+  requested: SessionRequested,
+});
+
 /** The answer of `phax records explain`. */
 const ExplainOutput = Schema.Union([
   Schema.Struct({ kind: Schema.Literal("records-disabled") }),
@@ -189,6 +230,7 @@ const ExplainOutput = Schema.Union([
   PhaseExplained,
   AuthoringExplained,
   DecisionExplained,
+  RevisionExplained,
 ]);
 
 const ExplainArgs = Schema.Tuple([
@@ -218,6 +260,7 @@ type Explained = typeof ExplainOutput.Type;
 type PhaseFacts = typeof PhaseExplained.Type;
 type AuthoringFacts = typeof AuthoringExplained.Type;
 type DecisionFacts = typeof DecisionExplained.Type;
+type RevisionFacts = typeof RevisionExplained.Type;
 type Flags = typeof ExplainFlags.Type;
 
 const decode = (bytes: Uint8Array): string => new TextDecoder().decode(bytes);
@@ -341,6 +384,44 @@ function decisionFacts(record: ExplainedDecisionRecord, flags: Flags): DecisionF
           }
         : { kind: "file" as const, path: source.path, fingerprint: source.fingerprint },
     ),
+    carries: {
+      prompt: artifacts.has("prompt.md"),
+      document: artifacts.has("document.json"),
+      diff: artifacts.has("body.diff"),
+    },
+    files: record.files,
+    requested: {
+      ...requestedDocuments(artifacts, "body.diff", flags),
+      ...(flags.gates === true ? { gates: null } : {}),
+      ...(flags.briefs === true ? { briefs: null } : {}),
+    },
+  };
+}
+
+function revisionFacts(record: ExplainedRevisionRecord, flags: Flags): RevisionFacts {
+  const { manifest, artifacts } = record;
+  return {
+    kind: "revision",
+    revisionId: record.revisionId,
+    provider: manifest.provider,
+    model: manifest.model,
+    effort: manifest.effort,
+    artifact: manifest.artifact,
+    artifactKind: manifest.artifactKind,
+    session: manifest.session,
+    requester:
+      manifest.requester.kind === "operator"
+        ? { kind: "operator", name: manifest.requester.name }
+        : { kind: "machine", grant: manifest.requester.grant },
+    newQuestions: manifest.newQuestions,
+    shape: manifest.shape,
+    transcriptBytes: artifacts.get("output.jsonl")?.length ?? 0,
+    usage: manifest.usage,
+    outcome: manifest.outcome,
+    commit: manifest.commit,
+    failure: manifest.outcome === "failed" ? manifest.failure : null,
+    sourceSha: manifest.sourceSha,
+    sourceReachable: record.sourceCommitReachable === true,
     carries: {
       prompt: artifacts.has("prompt.md"),
       document: artifacts.has("document.json"),
@@ -527,6 +608,39 @@ function renderDecision(facts: DecisionFacts): string[] {
   return lines;
 }
 
+function renderRevision(facts: RevisionFacts): string[] {
+  const key = `revision/${facts.revisionId}`;
+  const filePath = (name: string, carried: boolean): string =>
+    carried ? `${key}/${name}` : "absent";
+  const requester =
+    facts.requester.kind === "operator"
+      ? `operator ${facts.requester.name}`
+      : `machine ${facts.requester.grant}`;
+  const outcome =
+    facts.outcome === "failed" && facts.failure !== null
+      ? `failed (${facts.failure})`
+      : facts.outcome;
+  const lines = [
+    `revision ${facts.revisionId} · ${facts.provider} (${facts.model}, ${facts.effort})`,
+    `artifact ${facts.artifact} (${facts.artifactKind})`,
+    `session  ${facts.session}`,
+    `requester ${requester}`,
+    `new questions ${facts.newQuestions.length === 0 ? "(none)" : facts.newQuestions.join(", ")}`,
+    `record   ${shapeAndUsageLabel(facts)}`,
+    `outcome  ${outcome}${facts.commit === null ? "" : `   commit  ${facts.commit}`}`,
+    `source   ${facts.sourceSha} (${reachability(facts.sourceReachable)})`,
+    `prompt   ${filePath("prompt.md", facts.carries.prompt)}   document  ${filePath("document.json", facts.carries.document)}   diff  ${filePath("body.diff", facts.carries.diff)}`,
+    `files    ${facts.files.join(", ")}`,
+  ];
+  const { requested } = facts;
+  lines.push(...artifactLine("prompt.md", requested.prompt));
+  lines.push(...artifactLine("body.diff", requested.diff));
+  lines.push(...artifactLine("output.jsonl", requested.transcript));
+  if (requested.gates !== undefined) lines.push("(a revision record carries no gate logs)");
+  if (requested.briefs !== undefined) lines.push("(a revision record carries no provider briefs)");
+  return lines;
+}
+
 function renderExplained(value: Explained): string {
   switch (value.kind) {
     case "records-disabled":
@@ -539,6 +653,8 @@ function renderExplained(value: Explained): string {
       return renderAuthoring(value).join("\n");
     case "decision":
       return renderDecision(value).join("\n");
+    case "revision":
+      return renderRevision(value).join("\n");
   }
 }
 
@@ -546,7 +662,7 @@ export const recordsExplainCommand = defineCommand({
   name: "explain",
   summary:
     "Explain a commit from its record: prompt, diff, gates and verified surfaces, handoff, transcript, usage — or, for a headless artifact commit, its authoring record",
-  help: "Explains a commit from its record. The commit is a phase commit, a declared interactive phase's commit (Phase-Id with Interactive-Phase), or a held phase's review commit, which carries Run-Id and Held-Phase and resolves to the held phase's record. The output adds the stop's lines: its mode, cause, outcome, the person who closed it, the review commit, and each recorded session with its provider, model, origin and its transcript's sha256, or the reason it is missing. A stop's record never carries the transcript itself: interactive transcripts stay in the run folder whatever records.transcript says.\n\nA run-level review entry's own commit on phax/records/v1 (Run-Id and Review trailers) is a record, not a source commit: explain names the run and the review and prints the git show that reads the review's file, and exits 0.",
+  help: "Explains a commit from its record. The commit is a phase commit, a declared interactive phase's commit (Phase-Id with Interactive-Phase), or a held phase's review commit, which carries Run-Id and Held-Phase and resolves to the held phase's record. A headless artifact commit resolves through its Authoring-Id, a decide commit through its Decision-Id and a revise commit through its Revision-Id, read from the last paragraph of its message only, so an amendment line shaped like a trailer never addresses another record. The output adds the stop's lines: its mode, cause, outcome, the person who closed it, the review commit, and each recorded session with its provider, model, origin and its transcript's sha256, or the reason it is missing. A stop's record never carries the transcript itself: interactive transcripts stay in the run folder whatever records.transcript says.\n\nA run-level review entry's own commit on phax/records/v1 (Run-Id and Review trailers) is a record, not a source commit: explain names the run and the review and prints the git show that reads the review's file, and exits 0.",
   examples: ["phax records explain 3f9c2a1", "phax records explain 3f9c2a1 --gates"],
   input: { args: reject(ExplainArgs), flags: reject(ExplainFlags) },
   output: reject(ExplainOutput),
@@ -585,7 +701,7 @@ export const recordsExplainCommand = defineCommand({
         case "not-phax-commit":
           return yield* Effect.fail(
             new NotPhaxCommitError({
-              message: `Commit "${outcome.sha}" was not produced by a phax phase, a headless authoring session or a decide session (no Run-Id with Phase-Id or Held-Phase, Authoring-Id or Decision-Id trailers).`,
+              message: `Commit "${outcome.sha}" was not produced by a phax phase, a headless authoring session, a decide session or a revise session (no Run-Id with Phase-Id or Held-Phase, Authoring-Id, Decision-Id or Revision-Id trailers).`,
             }),
           );
         case "not-found":
@@ -602,6 +718,8 @@ export const recordsExplainCommand = defineCommand({
           return authoringFacts(outcome.record, input.flags);
         case "found-decision":
           return decisionFacts(outcome.record, input.flags);
+        case "found-revision":
+          return revisionFacts(outcome.record, input.flags);
       }
     }).pipe(Effect.mapError(exposeMessage)),
   exits: {

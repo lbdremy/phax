@@ -23,7 +23,11 @@ import {
   REVIEW_RECORD_FILES,
   type ReviewRecordKind,
 } from "../schemas/reviewRecord.js";
-import { isRevisionRecordManifest } from "../schemas/revisionRecord.js";
+import {
+  isRevisionRecordManifest,
+  type RevisionRecordManifest,
+} from "../schemas/revisionRecord.js";
+import { revisionRecordKey } from "./writeRevisionRecord.js";
 import { reviewRecordKey } from "./writeReviewRecord.js";
 import type { ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
 import { parseReportName } from "../domain/gate/reportPath.js";
@@ -90,6 +94,20 @@ export interface ExplainedDecisionRecord {
   readonly artifacts: ReadonlyMap<string, Uint8Array>;
 }
 
+/** A revise writer session's record, resolved through a revise commit's `Revision-Id`. */
+export interface ExplainedRevisionRecord {
+  readonly revisionId: string;
+  readonly manifest: RevisionRecordManifest;
+  readonly recordCommitSha: string;
+  readonly foundVia: "local" | "remote-refresh";
+  /** Whether `manifest.sourceSha`, HEAD when the session started, still resolves. */
+  readonly sourceCommitReachable?: boolean;
+  /** The record's file names, sorted, without `record.json`. */
+  readonly files: readonly string[];
+  /** Artifact contents by file name, excluding `record.json`. */
+  readonly artifacts: ReadonlyMap<string, Uint8Array>;
+}
+
 export type ExplainOutcome =
   | { readonly kind: "records-disabled" }
   | { readonly kind: "commit-not-found"; readonly sha: string }
@@ -107,7 +125,7 @@ export type ExplainOutcome =
       readonly kind: "not-found";
       /**
        * The record key the commit's trailers name: `<runId>/<phaseId>`,
-       * `authoring/<id>` or `decision/<id>`.
+       * `authoring/<id>`, `decision/<id>` or `revision/<id>`.
        */
       readonly key: string;
       readonly sourceSha: string;
@@ -117,7 +135,8 @@ export type ExplainOutcome =
     }
   | { readonly kind: "found"; readonly record: ExplainedRecord }
   | { readonly kind: "found-authoring"; readonly record: ExplainedAuthoringRecord }
-  | { readonly kind: "found-decision"; readonly record: ExplainedDecisionRecord };
+  | { readonly kind: "found-decision"; readonly record: ExplainedDecisionRecord }
+  | { readonly kind: "found-revision"; readonly record: ExplainedRevisionRecord };
 
 export interface ExplainRecordInput {
   /** A commit sha (or short sha) in the source repository. */
@@ -276,7 +295,23 @@ type RecordAddress =
       readonly addressedBy: ExplainedRecord["addressedBy"];
     }
   | { readonly kind: "authoring"; readonly authoringId: string }
-  | { readonly kind: "decision"; readonly decisionId: string };
+  | { readonly kind: "decision"; readonly decisionId: string }
+  | { readonly kind: "revision"; readonly revisionId: string };
+
+/**
+ * A revise commit's message carries the amendment verbatim, so a line shaped
+ * like a trailer may sit in its body. Its own `Revision-Id` is read from the
+ * last paragraph only, checked before every other trailer.
+ */
+function addressFromLastParagraph(message: string): RecordAddress | null {
+  const paragraph =
+    message
+      .trim()
+      .split(/\n[ \t]*\n/)
+      .at(-1) ?? "";
+  const revisionId = parseTrailers(paragraph).get("Revision-Id");
+  return revisionId === undefined ? null : { kind: "revision", revisionId };
+}
 
 function addressFromTrailers(trailers: ReadonlyMap<string, string>): RecordAddress | null {
   const runId = trailers.get("Run-Id");
@@ -320,16 +355,23 @@ function keyOf(address: RecordAddress): string {
       return authoringRecordKey(address.authoringId);
     case "decision":
       return decisionRecordKey(address.decisionId);
+    case "revision":
+      return revisionRecordKey(address.revisionId);
   }
 }
 
-/** The trailer a record commit carries for an authoring or decision address. */
+/** The trailer a record commit carries for an authoring, decision or revision address. */
 function trailerOf(
-  address: Extract<RecordAddress, { readonly kind: "authoring" | "decision" }>,
+  address: Extract<RecordAddress, { readonly kind: "authoring" | "decision" | "revision" }>,
 ): string {
-  return address.kind === "authoring"
-    ? `Authoring-Id: ${address.authoringId}`
-    : `Decision-Id: ${address.decisionId}`;
+  switch (address.kind) {
+    case "authoring":
+      return `Authoring-Id: ${address.authoringId}`;
+    case "decision":
+      return `Decision-Id: ${address.decisionId}`;
+    case "revision":
+      return `Revision-Id: ${address.revisionId}`;
+  }
 }
 
 /** What a manifest under the wrong key is called in the malformed message. */
@@ -400,16 +442,23 @@ function findRecordCommit(
     });
     const manifestPath = `${keyOf(address)}/record.json`;
     let rewritten: string | null = null;
+    let uncommitted: string | null = null;
     for (const sha of result.stdout.split("\n").map((line) => line.trim())) {
       if (sha.length === 0) continue;
       const entries = yield* git.readTree(repo, sha);
       const manifest = entries.find((e) => e.type === "blob" && e.path === manifestPath);
       if (manifest === undefined) continue;
-      if (address.kind !== "decision") return sha;
+      if (address.kind !== "decision" && address.kind !== "revision") return sha;
       const bytes = yield* git.readBlob(repo, manifest.oid);
-      const named = decisionCommitOf(`${sha}:${manifestPath}`, bytes);
+      const named = sessionCommitOf(address.kind, `${sha}:${manifestPath}`, bytes);
       if (named === undefined || named === sourceSha) return sha;
-      if (named === null || rewritten !== null) continue;
+      if (named === null) {
+        // A revision that committed nothing (failed or unchanged) names no commit:
+        // it is the last resort for a revise commit no record names.
+        if (address.kind === "revision" && uncommitted === null) uncommitted = sha;
+        continue;
+      }
+      if (rewritten !== null) continue;
       // `merge-base --is-ancestor` exits 0 for an ancestor, 1 for a non-ancestor
       // and 128 for a commit this clone lacks (rewritten away before a fetch).
       const ancestry = yield* shell.run({
@@ -418,16 +467,20 @@ function findRecordCommit(
       });
       if (ancestry.exitCode !== 0) rewritten = sha;
     }
-    return rewritten;
+    return rewritten ?? uncommitted;
   });
 }
 
 /**
- * The commit a well-formed decision manifest names (null for a decision that
- * committed nothing), or undefined for any other manifest. A malformed one is
- * not ruled out here: loading it reports it as malformed.
+ * The commit a well-formed decision or revision manifest names (null for a
+ * session that committed nothing), or undefined for any other manifest. A
+ * malformed one is not ruled out here: loading it reports it as malformed.
  */
-function decisionCommitOf(file: string, bytes: Uint8Array): string | null | undefined {
+function sessionCommitOf(
+  kind: "decision" | "revision",
+  file: string,
+  bytes: Uint8Array,
+): string | null | undefined {
   let json: unknown;
   try {
     json = JSON.parse(decodeText(bytes)) as unknown;
@@ -435,9 +488,12 @@ function decisionCommitOf(file: string, bytes: Uint8Array): string | null | unde
     return undefined;
   }
   const decoded = readRecordManifestFile(file, json);
-  return Result.isSuccess(decoded) && isDecisionRecordManifest(decoded.success)
-    ? decoded.success.commit
-    : undefined;
+  if (Result.isFailure(decoded)) return undefined;
+  const manifest = decoded.success;
+  if (kind === "decision") {
+    return isDecisionRecordManifest(manifest) ? manifest.commit : undefined;
+  }
+  return isRevisionRecordManifest(manifest) ? manifest.commit : undefined;
 }
 
 interface LoadedRecord {
@@ -618,6 +674,32 @@ function explainDecisionRecord(
   });
 }
 
+function explainRevisionRecord(
+  loaded: LoadedRecord,
+  revisionId: string,
+  recordCommitSha: string,
+  foundVia: "local" | "remote-refresh",
+  prefix: string,
+): Result.Result<ExplainedRevisionRecord, GitError> {
+  const { manifest, artifacts } = loaded;
+  if (!isRevisionRecordManifest(manifest)) {
+    return Result.fail(
+      malformed(prefix, recordCommitSha, `${manifestKindLabel(manifest)} under a revision key`),
+    );
+  }
+  return Result.succeed({
+    revisionId,
+    manifest,
+    recordCommitSha,
+    foundVia,
+    ...(loaded.sourceCommitReachable !== undefined
+      ? { sourceCommitReachable: loaded.sourceCommitReachable }
+      : {}),
+    files: [...artifacts.keys()].toSorted((a, b) => a.localeCompare(b)),
+    artifacts,
+  });
+}
+
 /**
  * Resolve `phax records explain <sha>`: read `sha`'s trailers in the source
  * repo, locate the record they key (never the sha itself, spec §5.2), and load
@@ -625,7 +707,8 @@ function explainDecisionRecord(
  * — never requiring a checked-out local records branch (spec §5.9). A phase
  * commit's `Run-Id`/`Phase-Id` key a phase record; a headless artifact
  * commit's `Authoring-Id` keys an authoring record; a decide commit's
- * `Decision-Id` keys a decision record.
+ * `Decision-Id` keys a decision record; a revise commit's `Revision-Id`, read
+ * from the message's last paragraph only, keys a revision record.
  */
 export function explainRecord(
   input: ExplainRecordInput,
@@ -640,7 +723,7 @@ export function explainRecord(
 
     const message = yield* readCommitMessage(input.repoRoot, resolvedSha);
     const trailers = parseTrailers(message);
-    const address = addressFromTrailers(trailers);
+    const address = addressFromLastParagraph(message) ?? addressFromTrailers(trailers);
     if (address === null) {
       const entry = reviewEntryFromTrailers(trailers);
       if (entry !== null) return { kind: "review-entry", resolvedSha, ...entry } as const;
@@ -714,6 +797,17 @@ export function explainRecord(
       );
       if (Result.isFailure(record)) return yield* Effect.fail(record.failure);
       return { kind: "found-decision", record: record.success } as const;
+    }
+    if (address.kind === "revision") {
+      const record = explainRevisionRecord(
+        loaded,
+        address.revisionId,
+        recordCommitSha,
+        foundVia,
+        prefix,
+      );
+      if (Result.isFailure(record)) return yield* Effect.fail(record.failure);
+      return { kind: "found-revision", record: record.success } as const;
     }
     const record = explainAuthoringRecord(
       loaded,

@@ -24,6 +24,8 @@ import {
   writeDecisionRecord,
   type WriteDecisionRecordInput,
 } from "../../src/app/writeDecisionRecord.js";
+import { writeRevisionRecord, type RevisionRecordEnd } from "../../src/app/writeRevisionRecord.js";
+import { reviseCommitMessage } from "../../src/domain/revise/revision.js";
 import { Git, type GitError } from "../../src/ports/git.js";
 import { Shell, type ShellError } from "../../src/ports/shell.js";
 import { decodeBranchName, type BranchName } from "../../src/domain/branded.js";
@@ -1453,6 +1455,225 @@ describe("records explain and list (real git)", () => {
           shape: "full",
         }),
       ]);
+    });
+  });
+
+  describe("revision records", () => {
+    const REVISION_ID = "2611130900-log-rotation/01";
+    const ARTIFACT = "docs/specs/2611130900-log-rotation.md";
+    // An amendment whose own lines are shaped like trailers of other records.
+    const AMENDMENT = [
+      "Rotate daily, not weekly.",
+      "",
+      "Authoring-Id: 2601010000-other",
+      "Run-Id: x",
+      "Decision-Id: 2601010000-other/01",
+    ].join("\n");
+    let revisionFolder: string;
+
+    beforeEach(() => {
+      revisionFolder = mkdtempSync(join(tmpdir(), "phax-records-explain-revision-"));
+    });
+
+    afterEach(() => {
+      removeTempDir(revisionFolder);
+    });
+
+    // A revise commit as `artifact revise` makes it, from the real message builder.
+    function commitRevision(revisionId: string): string {
+      const message = reviseCommitMessage({
+        kind: "spec",
+        slug: "log-rotation",
+        path: ARTIFACT,
+        amendment: AMENDMENT,
+        model: "claude-opus-5-5",
+        effort: "high",
+        provider: "claude-code",
+        requester: { kind: "operator", name: "Ada Lovelace" },
+        revisionId,
+      });
+      writeFileSync(join(repoDir, "revised.md"), `${revisionId}\n`);
+      execGit(["add", "."], repoDir);
+      execGit(["commit", "-m", message.subject, "-m", message.body], repoDir);
+      return execGit(["rev-parse", "HEAD"], repoDir).trim();
+    }
+
+    async function recordRevision(
+      revisionId: string,
+      end: RevisionRecordEnd,
+      newQuestions: readonly string[] = ["Q3"],
+    ): Promise<void> {
+      writeFileSync(join(revisionFolder, "amendment.md"), `${AMENDMENT}\n`);
+      writeFileSync(join(revisionFolder, "prompt.md"), "the revise prompt\n");
+      writeFileSync(join(revisionFolder, "document.json"), '{"kind":"spec"}\n');
+      writeFileSync(join(revisionFolder, "body.diff"), "-old line\n+new line\n");
+      writeFileSync(join(revisionFolder, "output.jsonl"), '{"type":"result"}\n');
+      await Effect.runPromise(
+        Effect.provide(
+          writeRevisionRecord({
+            repoRoot: repoDir,
+            records: IN_REPO_CONFIG,
+            publishRemote: "origin",
+            folder: revisionFolder,
+            revisionId,
+            artifact: ARTIFACT,
+            artifactKind: "spec",
+            session: "resumed-authoring",
+            requester: { kind: "operator", name: "Ada Lovelace" },
+            newQuestions,
+            sourceSha: execGit(["rev-parse", "HEAD"], repoDir).trim(),
+            provider: "claude-code",
+            model: "claude-opus-5-5",
+            requestedModel: "claude-opus-5-5",
+            effort: "high",
+            end,
+            retried: false,
+            turnSessionIds: [],
+            sessionIds: [],
+          }),
+          Layer.mergeAll(NodeFileSystemLayer, NodeGitLayer, makeFakeGitHub().layer),
+        ),
+      );
+    }
+
+    const explain = (sha: string) =>
+      run(
+        explainRecord({ sha, repoRoot: repoDir, records: IN_REPO_CONFIG, publishRemote: "origin" }),
+      );
+
+    it("resolves a revise commit to its revision record even when its amendment holds trailer-shaped lines", async () => {
+      const sha = commitRevision(REVISION_ID);
+      await recordRevision(REVISION_ID, { outcome: "committed", commit: sha });
+
+      const outcome = await explain(sha);
+
+      expect(outcome.kind).toBe("found-revision");
+      if (outcome.kind !== "found-revision") throw new Error("expected found-revision");
+      expect(outcome.record.revisionId).toBe(REVISION_ID);
+      expect(outcome.record.manifest).toMatchObject({
+        kind: "revision",
+        artifact: ARTIFACT,
+        session: "resumed-authoring",
+        newQuestions: ["Q3"],
+        outcome: "committed",
+        commit: sha,
+      });
+      const entries = execGit(
+        ["ls-tree", "-r", "--name-only", "refs/heads/phax/records/v1"],
+        repoDir,
+      );
+      expect(entries).toContain(`revision/${REVISION_ID}/record.json`);
+      const manifestText = execGit(
+        ["show", `${outcome.record.recordCommitSha}:revision/${REVISION_ID}/record.json`],
+        repoDir,
+      );
+      expect(JSON.parse(manifestText)).toMatchObject({
+        $schema: expect.stringContaining("revision-record-manifest") as unknown,
+      });
+      expect(JSON.parse(manifestText).$schema).toContain("0.38.0");
+      expect(outcome.record.files).toEqual([
+        "amendment.md",
+        "body.diff",
+        "document.json",
+        "output.jsonl",
+        "prompt.md",
+      ]);
+      expect(outcome.record.sourceCommitReachable).toBe(true);
+    });
+
+    it("names revision/<id> when a revise commit has no record", async () => {
+      const sha = commitRevision(REVISION_ID);
+
+      expect(await explain(sha)).toMatchObject({
+        kind: "not-found",
+        key: `revision/${REVISION_ID}`,
+        sourceSha: sha,
+      });
+    });
+
+    it("shows a failed revision's record with its failure", async () => {
+      const sha = commitRevision(REVISION_ID);
+      await recordRevision(
+        REVISION_ID,
+        {
+          outcome: "failed",
+          commit: null,
+          failure: "answer-refused",
+        },
+        [],
+      );
+
+      const outcome = await explain(sha);
+      if (outcome.kind !== "found-revision") throw new Error("expected found-revision");
+      expect(outcome.record.manifest).toMatchObject({
+        outcome: "failed",
+        failure: "answer-refused",
+        commit: null,
+      });
+
+      writeFileSync(
+        join(repoDir, "phax.json"),
+        JSON.stringify({
+          version: 1,
+          name: "test",
+          gateProfiles: {
+            fast: [{ command: "pnpm test", surface: "local", firing: "every-phase" }],
+          },
+          records: { transcript: true, destination: { kind: "in-repo" }, autoPush: false },
+        }),
+      );
+      const originalCwd = process.cwd();
+      process.chdir(repoDir);
+      try {
+        const explained = await records(["explain", sha]);
+        expect(explained.code).toBe(0);
+        expect(explained.logs[0]).toBe(
+          `revision ${REVISION_ID} · claude-code (claude-opus-5-5, high)`,
+        );
+        expect(explained.text).toContain("outcome  failed (answer-refused)");
+        expect(explained.text).toContain("requester operator Ada Lovelace");
+        expect(explained.text).toContain("new questions (none)");
+      } finally {
+        process.chdir(originalCwd);
+      }
+    });
+
+    it("still resolves an authoring commit and a decision commit as before", async () => {
+      writeFileSync(join(repoDir, "authored.md"), "x\n");
+      execGit(["add", "."], repoDir);
+      execGit(
+        [
+          "commit",
+          "-m",
+          "docs(specs): author",
+          "-m",
+          "Authored.\n\nAuthoring-Id: 2611130900-log-rotation",
+        ],
+        repoDir,
+      );
+      const authored = execGit(["rev-parse", "HEAD"], repoDir).trim();
+      expect(await explain(authored)).toMatchObject({
+        kind: "not-found",
+        key: "authoring/2611130900-log-rotation",
+      });
+
+      writeFileSync(join(repoDir, "decided.md"), "x\n");
+      execGit(["add", "."], repoDir);
+      execGit(
+        [
+          "commit",
+          "-m",
+          "docs(specs): decide",
+          "-m",
+          "Decided.\n\nDecision-Id: 2611130900-log-rotation/01",
+        ],
+        repoDir,
+      );
+      const decided = execGit(["rev-parse", "HEAD"], repoDir).trim();
+      expect(await explain(decided)).toMatchObject({
+        kind: "not-found",
+        key: "decision/2611130900-log-rotation/01",
+      });
     });
   });
 
