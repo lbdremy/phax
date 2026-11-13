@@ -107,7 +107,7 @@ IF the artifact or its sidecar changes on disk while the writer runs THEN the sy
 
 ### 5.15 Read-only writer
 
-The system shall run the writer session read-only, and SHALL refuse before any session a writer model routed to a provider that ignores read-only.
+The system shall run the writer session read-only on every provider, as `decide --verdicts` does. Since Vibe 3 (0.30.0) a read-only Mistral Vibe session is confined to reading tools, so no provider is refused.
 
 ### 5.16 Revision record
 
@@ -252,9 +252,9 @@ Given `--json`, when revise commits, then stdout is one JSON object with exactly
 
 Given the plan file edited on disk while the writer runs, when the session ends, then revise exits 12, writes nothing of its own, and the edit is still in the working tree. (refs §5.14)
 
-### A writer routed to Vibe is refused
+### A writer routed to Vibe runs read-only
 
-Given `--model` routed to Mistral Vibe, when revise runs, then it exits 12 before any session. (refs §5.15)
+Given `--model` routed to Mistral Vibe, when revise runs, then the writer session runs on Mistral Vibe read-only, as decide's verdicts writer does, and the revision commits. (refs §5.15)
 
 ### The revision is explained
 
@@ -307,7 +307,7 @@ Why: the artifact stays Draft and `approve` is the gate where a person reads it,
 
 Settled:
 
-- The writer session, its resume rule, its read-only posture, the Vibe refusal, the one corrective resume and the concurrent-edit check work as in `decide --verdicts`; reuse that path rather than build a second one.
+- The writer session, its resume rule, its read-only posture on every provider (Vibe included), the one corrective resume and the concurrent-edit check work as in `decide --verdicts`; reuse that path rather than build a second one.
 - Rendering, sidecar writing and extraction-cache seeding are headless authoring's.
 - `Revision-Id` is `<authoringId>/<NN>`, numbered per artifact like `Decision-Id`. The revision's files live under `revise/<authoringId>/<NN>/` (§5.20).
 - The revision record is a new persisted format, so it is registered in the format ledger and gets a JSON Schema, an upgrading entry and the schemas package's snapshot like every record format.
