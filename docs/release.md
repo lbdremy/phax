@@ -116,7 +116,7 @@ The `release.yml` workflow triggers automatically on the pushed tag. In order, i
 
 1. Checks that `docs/releases/<version>.md` exists and is not empty, naming the file and `scripts/release-cut.ts` if not. After the install, it writes the GitHub release body from that file (`scripts/release-notes.ts --github-body`), so a body over GitHub's limit fails before anything is built.
 2. Runs the full gate (typecheck, tests, lint, build, docs site build, Deno smoke). The build also builds the schemas package and its JSON Schemas.
-3. Cross-compiles four platform binaries with SHA-256 checksums.
+3. Cross-compiles four platform binaries with SHA-256 checksums, then attests their build provenance (`actions/attest`): a SLSA provenance statement for the four, signed through Sigstore with the workflow's identity and recorded on GitHub. The signed bundle is written to `dist/release/phax.sigstore.json`.
 4. Smoke-tests the schemas package under Node 22 (`mise exec node@22 -- pnpm exec tsx scripts/schemas-smoke.ts`; mise installs Node 22 next to Node 26 from `mise.toml`): it packs the built package, installs the tarball into an empty project, and runs the schemas spec's `read-record.mjs` consumer against a made-up phase record on a `phax/records/v1` branch. It also checks the installed version, one JSON Schema per format, and that `node_modules` holds only the package, `effect` and `effect`'s dependencies. CI runs the same smoke on every push and pull request.
 5. Prepares the npm wrapper: `npm/package.json` is set to the tag's version, and `npm/README.md` is written from `README.md` with its relative links pinned on GitHub at the tag (the file is ignored by Git and shipped in the package).
 6. Checks that `npm/package.json` and `packages/schemas/package.json` both carry the tag's version, and that the last entry of the release ledger `packages/schemas/releases.json` equals it. Only the cut appends the ledger, so a tag on a commit that is not a release commit fails here — an opening commit included, whose manifests name the tag's version while its ledger ends earlier.
@@ -128,7 +128,7 @@ The `release.yml` workflow triggers automatically on the pushed tag. In order, i
 
    A failed guard, upload or check stages nothing, creates no GitHub Release and leaves the previous site serving. It can leave at most an unpromoted version with its preview URL. The remedy is the same as for any failed release: fix the cause, then delete and re-push the tag (below).
 8. Stage-publishes `@lbdremy/phax-schemas`, then `@lbdremy/phax`, with `npm stage publish --access public --provenance`.
-9. Creates the GitHub Release and uploads binaries and checksums. The release body is the short form of `docs/releases/<version>.md`: the notes without their examples (the `Now:` blocks and the `Before` folds), with a link to the release's page on the docs site. GitHub generates no notes.
+9. Creates the GitHub Release and uploads the binaries, their checksums and the attestation bundle. The release body is the short form of `docs/releases/<version>.md`: the notes without their examples (the `Now:` blocks and the `Before` folds), with a link to the release's page on the docs site. GitHub generates no notes.
 
 A failed gate, smoke or version check stages nothing. The stage publishes themselves can still fail (a registry error, a misconfigured trusted publisher): the schemas package goes first, so a failure there stages nothing, and a failure on the wrapper leaves only a staged schemas package, which nobody can install until you approve it. Fix the cause, then delete and re-push the tag (below).
 
@@ -142,8 +142,9 @@ Stage publish does not make a package installable. Approve each staged version b
 ### 5. Verify
 
 - GitHub shows a **Verified** badge on the tag (requires the signing key registered on GitHub)
-- The GitHub Release page lists all four binaries and their `.sha256` files, and its body is the release's notes in short form (without the `Now:` blocks and the `Before` folds), with a working link to `https://docs.phax.run/releases/X-Y-Z`
+- The GitHub Release page lists all four binaries, their `.sha256` files and `phax.sigstore.json`, and its body is the release's notes in short form (without the `Now:` blocks and the `Before` folds), with a working link to `https://docs.phax.run/releases/X-Y-Z`
 - `https://docs.phax.run/releases/X-Y-Z` shows the full notes, with each surface's `Now:` example and its `Before` fold
+- A downloaded binary verifies: `gh attestation verify phax-darwin-arm64 --repo lbdremy/phax`
 - Both npm packages show the tag's version once approved
 - `package.json`, `npm/package.json` and `packages/schemas/package.json` all carry the tag's version in the release commit, and the ledger's last entry is the tag's version
 - The commit after the release commit on main is the opening, `chore: open vX.(Y+1).0`, and the three manifests name that version
