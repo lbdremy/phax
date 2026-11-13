@@ -519,12 +519,25 @@ See `scripts/security/README.md` for the full toolkit reference.
 
 ## Keeping security high
 
-- **Run the audit in CI.** CI's `security-audit` job runs `pnpm audit:security`
-  on every push and pull request and fails on a high finding (`FAIL_ON=high`,
-  the script's default); its report is uploaded as an artifact either way. Its
-  `deps` check audits the production tree (`pnpm audit --prod`). mise installs
-  gitleaks and osv-scanner in the job, so the secret and lockfile scans run at
-  full depth there; semgrep's deep code pass runs only where it is installed.
+- **Run the audit in CI.** The `security-audit` job of
+  `.github/workflows/security.yml` runs `pnpm audit:security` on every push
+  to `main` and every pull request, and daily, since a new advisory can flag
+  a dependency that has not changed. It fails on a high finding
+  (`FAIL_ON=high`, the script's default), and its report is uploaded as an
+  artifact either way. Its `deps` check audits the production tree
+  (`pnpm audit --prod`). mise installs gitleaks and osv-scanner in the job,
+  so the secret and lockfile scans run at full depth there. semgrep's deep
+  code pass runs only where semgrep is installed, which locally means
+  `brew install semgrep`; it sends no telemetry (`--metrics=off`).
+- **Scan with Semgrep in CI.** The `semgrep` job of the same workflow runs
+  `semgrep ci` against the Semgrep AppSec Platform's rules (Pro and
+  community) and its Supply Chain analysis. On a pull request it reports only
+  what the pull request introduces; on `main`, daily and on demand, the whole
+  tree. It fails on a finding from a rule the platform's policy sets to
+  block. The token is the `SEMGREP_APP_TOKEN` secret, set twice: once among
+  the Actions secrets and once among the Dependabot secrets, which
+  Dependabot's pull requests read instead. A pull request from a fork gets no
+  secret, so it scans with the public rules only (`p/default`), and says so.
 - **Keep dependencies fresh.** `.github/dependabot.yml` opens weekly pull
   requests for the pnpm tree and the workflows' actions: minor and patch
   updates grouped per ecosystem, each major alone. Dev/build tooling (esbuild,
@@ -542,8 +555,8 @@ See `scripts/security/README.md` for the full toolkit reference.
 
 ### Example CI job
 
-The job `.github/workflows/ci.yml` runs, blocking on a high finding (pin each
-action to a full commit SHA, as the workflows do):
+The job `.github/workflows/security.yml` runs, blocking on a high finding (pin
+each action to a full commit SHA, as the workflows do):
 
 ```yaml
   security-audit:
@@ -564,7 +577,8 @@ action to a full commit SHA, as the workflows do):
 
 The toolkit runs with only `bash`/`git`/`pnpm`, and auto-detects the scanners
 on `PATH`: here mise provides gitleaks and osv-scanner, each checked against
-its `mise.lock` checksum. Add a step that installs semgrep for its deep pass.
+its `mise.lock` checksum. The job leaves semgrep out: the workflow's `semgrep`
+job scans with the platform's rules instead.
 
 ## Best Practices
 

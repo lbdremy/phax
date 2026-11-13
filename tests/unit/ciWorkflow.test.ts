@@ -81,3 +81,48 @@ describe("Workflows: no expression inside a run script", () => {
     expect(offending).toEqual([]);
   });
 });
+
+describe("Security workflow", () => {
+  const securityPath = join(import.meta.dirname, "../../.github/workflows/security.yml");
+  const security = parse(readFileSync(securityPath, "utf-8")) as {
+    readonly on: Readonly<Record<string, unknown>>;
+    readonly permissions: unknown;
+    readonly jobs: Readonly<
+      Record<
+        string,
+        {
+          readonly container?: { readonly image: string };
+          readonly steps: readonly {
+            readonly uses?: string;
+            readonly run?: string;
+            readonly env?: Readonly<Record<string, string>>;
+          }[];
+        }
+      >
+    >;
+  };
+
+  it("runs on pull requests, on main, daily and on demand, reading the repository only", () => {
+    expect(Object.keys(security.on).toSorted()).toEqual(
+      ["pull_request", "push", "schedule", "workflow_dispatch"].toSorted(),
+    );
+    expect(security.permissions).toEqual({ contents: "read" });
+  });
+
+  it("holds the security audit, which CI no longer runs", () => {
+    expect(Object.keys(security.jobs)).toContain("security-audit");
+    expect(
+      security.jobs["security-audit"]!.steps.some((s) => s.run === "pnpm audit:security"),
+    ).toBe(true);
+    expect(workflow).not.toContain("security-audit");
+  });
+
+  it("runs semgrep ci from an image pinned by digest, the token from the secrets", () => {
+    const semgrep = security.jobs["semgrep"]!;
+    expect(semgrep.container?.image).toMatch(/^semgrep\/semgrep:[\d.]+@sha256:[0-9a-f]{64}$/);
+    const scan = semgrep.steps.find((s) => s.run?.includes("semgrep ci"))!;
+    expect(scan.env?.["SEMGREP_APP_TOKEN"]).toBe("${{ secrets.SEMGREP_APP_TOKEN }}");
+    // A fork's pull request has no token: public rules, with telemetry off.
+    expect(scan.run).toContain("--metrics=off");
+  });
+});
