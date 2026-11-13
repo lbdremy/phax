@@ -113,6 +113,7 @@ const REWORDED_LONG_HELP: ReadonlyArray<string> = [
   "artifact decide",
   "artifact schema",
   "plans overview",
+  "records explain",
   "resume",
   "validate",
 ];
