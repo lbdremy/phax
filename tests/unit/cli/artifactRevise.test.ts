@@ -87,5 +87,14 @@ describe("renderReviseReport", () => {
     );
     expect(lines.some((l) => l.startsWith("commit "))).toBe(false);
     expect(lines).not.toContain("--- body diff ---");
+    expect(lines).toContain(`status     Draft — unchanged; \`phax artifact approve ${PATH}\``);
+    expect(lines.some((l) => l.includes("read the diff above"))).toBe(false);
+  });
+
+  it("unchanged with a question still open: unchanged, then decide and approve", () => {
+    const lines = renderReviseReport({ ...base, openQuestions: ["Q2"] });
+    expect(lines).toContain(
+      `status     Draft — unchanged; \`phax artifact decide ${PATH}\` (Q2 open), then \`phax artifact approve ${PATH}\``,
+    );
   });
 });
