@@ -25,6 +25,7 @@ Only the releases that ask for something are listed. phax never asks for a step 
 
 - **`@lbdremy/phax-schemas` needs Node 22 or later.** Its `engines` field moves from `>=20` to `>=22`, and CI smokes the package under Node 22. Node 20 has had no security fixes since April 2026. A consumer still on Node 20 stays on 0.36.0 or upgrades Node; the phax binary itself is unaffected.
 - **The npm launcher `@lbdremy/phax` needs Node 22 or later**, for the same reason: its `engines` field moves from `>=20` to `>=22`. The binary it downloads embeds its own runtime, so only the launcher reads your Node. Working on phax from source needs Node 26, the current LTS.
+- **Release binaries carry a signed build-provenance attestation.** `gh attestation verify phax-darwin-arm64 --repo lbdremy/phax` proves a binary was built by phax's release workflow from the tagged commit. See [SECURITY.md](../SECURITY.md).
 
 ### 0.36.0
 
