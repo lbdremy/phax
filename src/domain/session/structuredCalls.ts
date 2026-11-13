@@ -1,11 +1,12 @@
 import type { ProviderId } from "../routing/types.js";
 
-/** The eight calls that ask a provider for a structured answer. */
+/** The nine calls that ask a provider for a structured answer. */
 export type StructuredCallId =
   | "authoring"
   | "plan-extraction"
   | "decide-handback"
   | "decide-verdicts"
+  | "revise"
   | "first-turn"
   | "closing-turn"
   | "code-review"
@@ -30,6 +31,7 @@ export const STRUCTURED_CALLS: StructuredCallsTable = {
   "plan-extraction": { claudeCode: "native" },
   "decide-handback": { claudeCode: "native" },
   "decide-verdicts": { claudeCode: "native" },
+  revise: { claudeCode: "native" },
   "first-turn": { claudeCode: "native" },
   "closing-turn": { claudeCode: "native" },
   "code-review": { claudeCode: "native" },

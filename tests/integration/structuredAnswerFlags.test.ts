@@ -997,9 +997,9 @@ describe("ac-every-call: each structured call hands its answer schema on every s
   );
 
   // A phase turn, a fix turn, a handoff turn and the probe hand no schema
-  // because no call site but the eight structured calls sets `answerSchema`:
+  // because no call site but the nine structured calls sets `answerSchema`:
   // a census of the source, so a new site fails here until it joins the table.
-  it("sets answerSchema at the eight structured call sites alone, one site per call", () => {
+  it("sets answerSchema at the nine structured call sites alone, one site per call", () => {
     const srcRoot = join(import.meta.dirname, "..", "..", "src");
     const sites: string[] = [];
     for (const name of readdirSync(srcRoot, { recursive: true }) as string[]) {
@@ -1020,6 +1020,7 @@ describe("ac-every-call: each structured call hands its answer schema on every s
         "app/interactiveStop.ts first-turn",
         "app/reviewCode.ts code-review",
         "app/reviewCompliance.ts compliance-review",
+        "app/reviseArtifact.ts revise",
       ].toSorted(),
     );
     expect(sites.map((site) => site.split(" ")[1]).toSorted()).toEqual(

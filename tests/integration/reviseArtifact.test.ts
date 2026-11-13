@@ -71,7 +71,7 @@ function sidecarOf(path: string): Record<string, unknown> {
 }
 
 describe("revise — a plan is revised from an amendment", { timeout: 30_000 }, () => {
-  it.fails("A plan is revised from an amendment", async () => {
+  it("A plan is revised from an amendment", async () => {
     const plan = world.seed({ kind: "plan" });
     const head = world.headSha();
     const h = world.harness({ resumeAnswers: [json(PLAN_ANSWER_REVISED)] });
@@ -112,7 +112,7 @@ describe("revise — a plan is revised from an amendment", { timeout: 30_000 }, 
 });
 
 describe("revise — a spec is revised in a new session", { timeout: 30_000 }, () => {
-  it.fails("A spec is revised in a new session", async () => {
+  it("A spec is revised in a new session", async () => {
     const spec = world.seed({ kind: "spec", kept: { provider: "codex-cli" } });
     const h = world.harness({ runAnswers: [json(SPEC_ANSWER_REVISED)] });
 
@@ -130,7 +130,7 @@ describe("revise — a spec is revised in a new session", { timeout: 30_000 }, (
 });
 
 describe("revise — only a Draft is revised", { timeout: 30_000 }, () => {
-  it.fails.each(["Approved", "Stale"] as const)(
+  it.each(["Approved", "Stale"] as const)(
     "Only a Draft is revised: a %s plan is refused naming phax artifact reopen",
     async (status) => {
       const plan = world.seed({ kind: "plan", status });
@@ -172,7 +172,7 @@ describe("revise — only a headless artifact in sync is revised", { timeout: 30
   ] as const;
 
   for (const { name, shape, remedy } of CASES) {
-    it.fails(`Only a headless artifact in sync is revised: ${name} exits 12 naming its remedy`, async () => {
+    it(`Only a headless artifact in sync is revised: ${name} exits 12 naming its remedy`, async () => {
       const plan = world.seed({ kind: "plan", shape });
       const head = world.headSha();
       const h = world.harness({ resumeAnswers: [json(PLAN_ANSWER_REVISED)] });
@@ -195,7 +195,7 @@ describe("revise — a changed question is refused", { timeout: 30_000 }, () => 
   ] as const;
 
   for (const { name, answer, id } of CASES) {
-    it.fails(`A changed question is refused: ${name} is refused, corrected once, then exits 5`, async () => {
+    it(`A changed question is refused: ${name} is refused, corrected once, then exits 5`, async () => {
       const plan = world.seed({ kind: "plan", kept: false });
       const head = world.headSha();
       const h = world.harness({ runAnswers: [json(answer)], resumeAnswers: [json(answer)] });
@@ -217,7 +217,7 @@ describe("revise — a changed question is refused", { timeout: 30_000 }, () => 
 });
 
 describe("revise — a new open question is accepted", { timeout: 30_000 }, () => {
-  it.fails("A new open question is accepted: a plan lists Q9 under ## Open questions", async () => {
+  it("A new open question is accepted: a plan lists Q9 under ## Open questions", async () => {
     const plan = world.seed({ kind: "plan" });
     const h = world.harness({ resumeAnswers: [json(PLAN_ANSWER_APPENDS_Q9)] });
 
@@ -234,7 +234,7 @@ describe("revise — a new open question is accepted", { timeout: 30_000 }, () =
     expect(md.slice(md.indexOf("## Open questions"))).toContain(NEW_QUESTION.question);
   });
 
-  it.fails("A new open question is accepted: a spec lists Q9 under ## 9. Open questions", async () => {
+  it("A new open question is accepted: a spec lists Q9 under ## 9. Open questions", async () => {
     const spec = world.seed({ kind: "spec" });
     const h = world.harness({ resumeAnswers: [json(SPEC_ANSWER_APPENDS_Q9)] });
 
@@ -252,7 +252,7 @@ describe("revise — a new open question is accepted", { timeout: 30_000 }, () =
 });
 
 describe("revise — a malformed answer is refused", { timeout: 30_000 }, () => {
-  it.fails("A malformed answer is refused: prose, then a document without $schema, exits 5", async () => {
+  it("A malformed answer is refused: prose, then a document without $schema, exits 5", async () => {
     const plan = world.seed({ kind: "plan", kept: false });
     const head = world.headSha();
     const h = world.harness({
@@ -272,7 +272,7 @@ describe("revise — a malformed answer is refused", { timeout: 30_000 }, () => 
 });
 
 describe("revise — frontmatter is kept", { timeout: 30_000 }, () => {
-  it.fails("Frontmatter is kept: an answer rendering another source-spec keeps the frontmatter's bytes", async () => {
+  it("Frontmatter is kept: an answer rendering another source-spec keeps the frontmatter's bytes", async () => {
     const plan = world.seed({ kind: "plan" });
     const h = world.harness({ resumeAnswers: [json(PLAN_ANSWER_OTHER_SOURCE_SPEC)] });
 
@@ -287,7 +287,7 @@ describe("revise — frontmatter is kept", { timeout: 30_000 }, () => {
 });
 
 describe("revise — no change is not a commit", { timeout: 30_000 }, () => {
-  it.fails("No change is not a commit: the current document ends unchanged with no commit", async () => {
+  it("No change is not a commit: the current document ends unchanged with no commit", async () => {
     const plan = world.seed({ kind: "plan" });
     const head = world.headSha();
     const h = world.harness({ resumeAnswers: [json(PLAN_ANSWER_UNCHANGED)] });
@@ -301,7 +301,7 @@ describe("revise — no change is not a commit", { timeout: 30_000 }, () => {
     expect(world.readRepoFile(plan.sidecarPath)).toBe(plan.sidecarText);
   });
 
-  it.fails("No change is not a commit: a spec answering its current document ends unchanged", async () => {
+  it("No change is not a commit: a spec answering its current document ends unchanged", async () => {
     const spec = world.seed({ kind: "spec" });
     const head = world.headSha();
     const h = world.harness({ resumeAnswers: [json(SPEC_ANSWER_UNCHANGED)] });
@@ -315,7 +315,7 @@ describe("revise — no change is not a commit", { timeout: 30_000 }, () => {
 });
 
 describe("revise — the commit carries the amendment and the requester", { timeout: 30_000 }, () => {
-  it.fails("The commit carries the amendment and the requester: --by machine:plan-loop", async () => {
+  it("The commit carries the amendment and the requester: --by machine:plan-loop", async () => {
     const plan = world.seed({ kind: "plan" });
     const h = world.harness({ resumeAnswers: [json(PLAN_ANSWER_REVISED)] });
 
@@ -332,7 +332,7 @@ describe("revise — the commit carries the amendment and the requester", { time
 });
 
 describe("revise — no requester without a terminal", { timeout: 30_000 }, () => {
-  it.fails("No requester without a terminal: no --by and no TTY exits 12 naming both forms", async () => {
+  it("No requester without a terminal: no --by and no TTY exits 12 naming both forms", async () => {
     const plan = world.seed({ kind: "plan" });
     const head = world.headSha();
     const h = world.harness({ resumeAnswers: [json(PLAN_ANSWER_REVISED)], terminal: false });
@@ -348,7 +348,7 @@ describe("revise — no requester without a terminal", { timeout: 30_000 }, () =
 });
 
 describe("revise — a concurrent edit is kept", { timeout: 30_000 }, () => {
-  it.fails("A concurrent edit is kept: the plan edited while the writer runs exits 12", async () => {
+  it("A concurrent edit is kept: the plan edited while the writer runs exits 12", async () => {
     const plan = world.seed({ kind: "plan" });
     const head = world.headSha();
     const edited = `${plan.md}\nEdited meanwhile.\n`;
@@ -369,7 +369,7 @@ describe("revise — a concurrent edit is kept", { timeout: 30_000 }, () => {
 });
 
 describe("revise — a writer routed to Vibe runs read-only", { timeout: 30_000 }, () => {
-  it.fails("A writer routed to Vibe runs read-only: the revision commits", async () => {
+  it("A writer routed to Vibe runs read-only: the revision commits", async () => {
     const spec = world.seed({ kind: "spec" });
     const head = world.headSha();
     const h = world.harness({ runAnswers: [json(SPEC_ANSWER_REVISED)] });
@@ -389,7 +389,7 @@ describe("revise — a writer routed to Vibe runs read-only", { timeout: 30_000 
 });
 
 describe("revise — the revision is explained", { timeout: 30_000 }, () => {
-  it.fails("The revision is explained: a committed revision leaves its record", async () => {
+  it("The revision is explained: a committed revision leaves its record", async () => {
     const plan = world.seed({ kind: "plan" });
     const h = world.harness({ resumeAnswers: [json(PLAN_ANSWER_REVISED)] });
     playTranscripts(h);
@@ -412,7 +412,7 @@ describe("revise — the revision is explained", { timeout: 30_000 }, () => {
     expect(record?.["$schema"]).toBe(currentSchemaUrl("revision-record-manifest"));
   });
 
-  it.fails("The revision is explained: a revision failed with exit 5 leaves a failed record", async () => {
+  it("The revision is explained: a revision failed with exit 5 leaves a failed record", async () => {
     const plan = world.seed({ kind: "plan", kept: false });
     const h = world.harness({
       runAnswers: [json(PLAN_ANSWER_REMOVES_OPEN)],
@@ -437,7 +437,7 @@ describe("revise — the revision is explained", { timeout: 30_000 }, () => {
 });
 
 describe("revise — a provider failure writes nothing", { timeout: 30_000 }, () => {
-  it.fails("A provider failure writes nothing: a usage limit exits 8", async () => {
+  it("A provider failure writes nothing: a usage limit exits 8", async () => {
     const plan = world.seed({ kind: "plan" });
     const head = world.headSha();
     const h = world.harness();
@@ -452,7 +452,7 @@ describe("revise — a provider failure writes nothing", { timeout: 30_000 }, ()
     expect(world.porcelain()).toBe("");
   });
 
-  it.fails("A provider failure writes nothing: a network failure exits 14", async () => {
+  it("A provider failure writes nothing: a network failure exits 14", async () => {
     const plan = world.seed({ kind: "plan" });
     const head = world.headSha();
     const h = world.harness();
@@ -475,7 +475,7 @@ describe("revise — a provider failure writes nothing", { timeout: 30_000 }, ()
 });
 
 describe("revise — uncommitted changes are refused", { timeout: 30_000 }, () => {
-  it.fails("Uncommitted changes are refused: an uncommitted sidecar edit exits 12", async () => {
+  it("Uncommitted changes are refused: an uncommitted sidecar edit exits 12", async () => {
     const plan = world.seed({ kind: "plan" });
     const head = world.headSha();
     world.writeRepoFile(plan.sidecarPath, `${plan.sidecarText ?? ""}\n`);
@@ -489,7 +489,7 @@ describe("revise — uncommitted changes are refused", { timeout: 30_000 }, () =
     expect(world.headSha()).toBe(head);
   });
 
-  it.fails.each(["operator", "machine:plan-loop"])(
+  it.each(["operator", "machine:plan-loop"])(
     "Uncommitted changes are refused: no git user.name exits 12 for --by %s",
     async (by) => {
       const plan = world.seed({ kind: "plan" });
@@ -508,7 +508,7 @@ describe("revise — uncommitted changes are refused", { timeout: 30_000 }, () =
 });
 
 describe("revise — the revision's files are kept", { timeout: 30_000 }, () => {
-  it.fails("The revision's files are kept under revise/<authoringId>/<NN>/", async () => {
+  it("The revision's files are kept under revise/<authoringId>/<NN>/", async () => {
     const plan = world.seed({ kind: "plan" });
     const h = world.harness({ resumeAnswers: [json(PLAN_ANSWER_REVISED)] });
     playTranscripts(h);
@@ -532,7 +532,7 @@ describe("revise — the revision's files are kept", { timeout: 30_000 }, () => 
     expect(trailerOf(world.headMessage(), "Revision-Id")).toBe(done.revisionId);
   });
 
-  it.fails("The revision's files are kept: a spec's folder is named by its own authoring id", async () => {
+  it("The revision's files are kept: a spec's folder is named by its own authoring id", async () => {
     const spec = world.seed({ kind: "spec" });
     const h = world.harness({ resumeAnswers: [json(SPEC_ANSWER_REVISED)] });
     playTranscripts(h);

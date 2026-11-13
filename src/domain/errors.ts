@@ -654,6 +654,37 @@ export class DecideDocumentError extends Data.TaggedError("DecideDocumentError")
 }> {}
 
 /**
+ * `artifact revise` refused before any session, or the artifact changed during
+ * it (`changed`): `reason` names which, `message` is the operator-facing
+ * refusal and starts `Revise refused: `.
+ */
+export class ReviseRefusedError extends Data.TaggedError("ReviseRefusedError")<{
+  reason:
+    | "not-draft"
+    | "sidecar"
+    | "hand-authored"
+    | "dirty"
+    | "no-by"
+    | "by"
+    | "identity"
+    | "model"
+    | "changed";
+  message: string;
+}> {}
+
+/**
+ * A revise session handed back no usable document, twice: its answer was not
+ * JSON, not stamped with the current shape, refused by the decoder, or broke
+ * the question freeze. `path` is the first violation's document-relative path
+ * (`""` when the refusal is not about one place); `message` names both
+ * refusals. Nothing was written or committed. Reported as a provider error.
+ */
+export class ReviseDocumentError extends Data.TaggedError("ReviseDocumentError")<{
+  path: string;
+  message: string;
+}> {}
+
+/**
  * A headless authoring session ended without a usable document: its final
  * message was not JSON, or the JSON failed the kind's document schema.
  * `message` carries the reason (the first violation's path for a schema
