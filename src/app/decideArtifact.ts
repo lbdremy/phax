@@ -1,20 +1,9 @@
 import { Effect, Result } from "effect";
 import { randomUUID } from "node:crypto";
-import { basename, join, resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { type ClaudeSessionId, decodeClaudeSessionId } from "../domain/branded.js";
-import { validateArtifact } from "../domain/artifact/document.js";
-import { parseArtifactName } from "../domain/artifact/name.js";
-import {
-  type ParsedHandQuestions,
-  parseHandAuthoredQuestions,
-} from "../domain/artifact/questions.js";
-import {
-  type SidecarDocument,
-  describeStampedShape,
-  inspectSidecar,
-  sidecarPathFor,
-  sidecarRemedy,
-} from "../domain/artifact/sidecar.js";
+import type { ParsedHandQuestions } from "../domain/artifact/questions.js";
+import { type SidecarDocument, sidecarPathFor } from "../domain/artifact/sidecar.js";
 import type { ArtifactKind } from "../domain/artifact/status.js";
 import { answerJson } from "../domain/session/structuredAnswer.js";
 import type { Doctrine } from "../domain/decide/doctrine.js";
@@ -77,6 +66,7 @@ import { currentSchemaUrl } from "../schemas/persisted.js";
 import type { ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
 import type { ResolvedSecurityConfig } from "../schemas/securityConfig.js";
 import { AUTHORING_SESSION_FILENAME, authoringSessionFolder } from "./authorArtifact.js";
+import { type ArtifactSnapshot, type Authored, readDraftArtifact } from "./headlessWriter.js";
 import { seedPlanCache } from "./planCacheStore.js";
 import { pushRecordsBranch } from "./recordsSync.js";
 import { resolveArbiter } from "./resolveArbiter.js";
@@ -186,29 +176,7 @@ export type DecideArtifactError =
 
 // ── What decide reads ──────────────────────────────────────────────────────
 
-/** How the artifact was authored, as decide reads its questions. */
-export type Authored =
-  | {
-      readonly variant: "headless";
-      readonly sidecarPath: string;
-      readonly document: SidecarDocument;
-    }
-  | {
-      readonly variant: "hand";
-      /** Its parsed §9 sections, or null when it has neither section. */
-      readonly parsed: ParsedHandQuestions | null;
-    };
-
-export interface ArtifactSnapshot {
-  readonly kind: ArtifactKind;
-  readonly slug: string;
-  /** `<stamp>-<slug>`: the authoring id and the decision folder's parent. */
-  readonly id: string;
-  readonly md: string;
-  /** The sidecar's text, or null for a hand-authored artifact. */
-  readonly sidecarText: string | null;
-  readonly authored: Authored;
-}
+export type { Authored, ArtifactSnapshot } from "./headlessWriter.js";
 
 /** A refusal of decide, whichever mode: the reason and the operator-facing message. */
 export function refused(reason: DecideRefusedError["reason"], message: string): DecideRefusedError {
@@ -224,82 +192,12 @@ export function readArtifact(
   DecideRefusedError | ArtifactValidationError | FsError | GitError,
   FileSystem | Git
 > {
-  return Effect.gen(function* () {
-    const fs = yield* FileSystem;
-    const git = yield* Git;
-    const { path } = input;
-    const md = yield* fs.readText(path);
-    const validated = validateArtifact(path, md);
-    if (Result.isFailure(validated)) return yield* Effect.fail(validated.failure);
-    const { kind, status } = validated.success;
-    if (status === "Approved" || status === "Stale") {
-      return yield* refused(
-        "not-draft",
-        `${path} is ${status} — reopen it first with \`phax artifact reopen ${path}\``,
-      );
-    }
-    if (status !== "Draft") {
-      return yield* refused("not-draft", `${path} is ${status} — only a Draft artifact is decided`);
-    }
-
-    const name = parseArtifactName(kind, basename(path));
-    const slug = name?.slug ?? basename(path, ".md");
-    const id = name === null ? basename(path, ".md") : `${name.stamp}-${name.slug}`;
-
-    // Uncommitted changes first: a stray edit is named as such, not as a
-    // sidecar the body diverged from.
-    const sidecarPath = sidecarPathFor(path);
-    const hasSidecar = yield* fs.exists(sidecarPath);
-    const writeSet = hasSidecar ? [path, sidecarPath] : [path];
-    const dirty = yield* git.dirtyPaths(input.repoRoot, writeSet);
-    if (dirty.length > 0) {
-      return yield* refused(
-        "dirty",
-        `${dirty.join(", ")} ${dirty.length === 1 ? "has" : "have"} uncommitted changes — commit or discard them first`,
-      );
-    }
-
-    let authored: Authored;
-    let sidecarText: string | null = null;
-    if (hasSidecar) {
-      sidecarText = yield* fs.readText(sidecarPath);
-      const { agreement, sidecar } = inspectSidecar({
-        md,
-        sidecarJson: sidecarText,
-        kind,
-        sidecarPath,
-      });
-      if (agreement !== "in-sync" || sidecar === null || sidecar.shape !== "current") {
-        const problem =
-          agreement === "diverged"
-            ? "has a body that differs from its sidecar's rendering"
-            : typeof agreement === "object" && agreement.kind === "unmigrated"
-              ? `has a sidecar stamped ${describeStampedShape(agreement.format, agreement.shape)} — run \`phax artifact migrate-documents\` first`
-              : `has an invalid sidecar (${typeof agreement === "object" && agreement.kind === "invalid" ? agreement.message : "unreadable"})`;
-        return yield* refused(
-          "sidecar",
-          `${path} ${problem}. ${sidecarRemedy(kind, slug, sidecarPath)}`,
-        );
-      }
-      authored = {
-        variant: "headless",
-        sidecarPath,
-        document:
-          sidecar.kind === "spec"
-            ? { kind: "spec", document: sidecar.document }
-            : { kind: "plan", document: sidecar.document },
-      };
-    } else {
-      const parsed = parseHandAuthoredQuestions(kind, md);
-      if (parsed.kind === "departs") {
-        return yield* refused(
-          "hand-format",
-          `${path} line ${String(parsed.line)} departs from the §9 format: ${parsed.text}`,
-        );
-      }
-      authored = { variant: "hand", parsed: parsed.kind === "parsed" ? parsed : null };
-    }
-    return { kind, slug, id, md, sidecarText, authored };
+  return readDraftArtifact({
+    path: input.path,
+    repoRoot: input.repoRoot,
+    refuse: refused,
+    verb: "decided",
+    hand: { kind: "parse" },
   });
 }
 
