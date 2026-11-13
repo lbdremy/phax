@@ -1,5 +1,9 @@
 # phax
 
+[![CI](https://github.com/lbdremy/phax/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/lbdremy/phax/actions/workflows/ci.yml)
+[![Security](https://github.com/lbdremy/phax/actions/workflows/security.yml/badge.svg?branch=main)](https://github.com/lbdremy/phax/actions/workflows/security.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/lbdremy/phax/badge)](https://scorecard.dev/viewer/?uri=github.com/lbdremy/phax)
+
 phax runs a plan through AI coding agents — Claude Code, OpenAI Codex or Mistral Vibe — as a sequence of **gated phases**, and hands you a change you can review.
 
 **Documentation:** [docs.phax.run](https://docs.phax.run) · **npm:** [`@lbdremy/phax`](https://www.npmjs.com/package/@lbdremy/phax)
