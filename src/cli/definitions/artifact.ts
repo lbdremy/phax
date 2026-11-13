@@ -8,6 +8,7 @@ import {
   artifactMigrateDocumentsCommand,
 } from "./artifactMigrations.js";
 import { makeArtifactNewPlanCommand, makeArtifactNewSpecCommand } from "./artifactNew.js";
+import { makeArtifactReviseCommand } from "./artifactRevise.js";
 import { artifactSchemaCommand } from "./artifactSchema.js";
 import { artifactStatusCommand } from "./artifactStatus.js";
 import {
@@ -36,6 +37,7 @@ export const artifactGroup = defineGroup({
     artifactCompleteCommand,
     artifactReopenCommand,
     makeArtifactDecideCommand(),
+    makeArtifactReviseCommand(),
     defineGroup({
       name: "new",
       summary: "Create a Draft spec or plan named from the current UTC minute",
