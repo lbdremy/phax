@@ -142,6 +142,10 @@ describe("phax artifact revise", { timeout: 30_000 }, () => {
     expect(called.out).toContain(
       `nothing changed: the amendment changed nothing in ${REVISE_PLAN_PATH} — no commit`,
     );
+    expect(called.out).toContain(
+      `status     Draft — unchanged; \`phax artifact decide ${REVISE_PLAN_PATH}\` (Q1, Q2 open), then \`phax artifact approve ${REVISE_PLAN_PATH}\``,
+    );
+    expect(called.out).not.toContain("read the diff above");
     expect(world.headSha()).toBe(head);
   });
 

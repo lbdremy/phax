@@ -169,9 +169,8 @@ export function renderReviseReport(answer: ReviseReport): readonly string[] {
     open.length > 0
       ? `\`phax artifact decide ${answer.artifact}\` (${open.join(", ")} open), then `
       : "";
-  lines.push(
-    `status     Draft — read the diff above, then ${decide}\`phax artifact approve ${answer.artifact}\``,
-  );
+  const read = answer.commit === null ? "unchanged; " : "read the diff above, then ";
+  lines.push(`status     Draft — ${read}${decide}\`phax artifact approve ${answer.artifact}\``);
   lines.push(...recordLine(answer.record));
   return lines;
 }
