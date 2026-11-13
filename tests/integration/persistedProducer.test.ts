@@ -32,6 +32,7 @@ import { reviewCompliance } from "../../src/app/reviewCompliance.js";
 import { createRunFolder } from "../../src/app/runFolder.js";
 import { writeDecisionRecord } from "../../src/app/writeDecisionRecord.js";
 import { writeReviewRecord } from "../../src/app/writeReviewRecord.js";
+import { writeRevisionRecord } from "../../src/app/writeRevisionRecord.js";
 import { writeRecord } from "../../src/app/writeRecord.js";
 import {
   decodeShortName,
@@ -340,6 +341,7 @@ function formatAt(
   if (name.endsWith(".request.json")) return "gate-request";
   if (name === "record.json") {
     if (location.startsWith("records:decision/")) return "decision-record-manifest";
+    if (location.startsWith("records:revision/")) return "revision-record-manifest";
     // A review entry's key is `<runId>/<review>`, beside the run's phase records.
     if (/^records:[^/]+\/(compliance-review|code-review)\/record\.json$/.test(location)) {
       return "review-record-manifest";
@@ -687,6 +689,36 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
     throw new Error("writeDecisionRecord wrote no record");
   }
 
+  // A revise writer session's record, from its revision folder.
+  const revisionFolder = `${STATE_ROOT}/revise/2601011100-decided/01`;
+  seed(`${revisionFolder}/prompt.md`, "# Revise the example spec\n");
+  const revised = await run(
+    writeRevisionRecord({
+      repoRoot: REPO_ROOT,
+      records: RECORDS_IN_REPO,
+      publishRemote: "origin",
+      folder: revisionFolder,
+      revisionId: "2601011100-decided/01",
+      artifact: "docs/specs/2601011100-decided.md",
+      artifactKind: "spec",
+      session: "new",
+      requester: { kind: "operator", name: "Example Operator" },
+      newQuestions: [],
+      sourceSha: "abc1234",
+      provider: "claude-code",
+      model: "example-model",
+      requestedModel: "example-model",
+      effort: "medium",
+      end: { outcome: "unchanged", commit: null },
+      retried: false,
+      turnSessionIds: [],
+      sessionIds: [],
+    }),
+  );
+  if (Result.isFailure(revised) || revised.success.kind !== "written") {
+    throw new Error("writeRevisionRecord wrote no record");
+  }
+
   // A compliance review with a fake agent, whose final answer phax decodes.
   seed(`${RUN_PATH}/global-file-reconciliation.md`, "# Global File Reconciliation\n");
   seed(`${PHASE_FOLDER}/phase-handoff.md`, "## What was delivered\nThe example module.\n");
@@ -857,9 +889,6 @@ const NEVER_WRITTEN: ReadonlyArray<FormatId> = [
   // which removes these two entries.
   "interactive-session",
   "review-stop",
-  // No writer of the revision record exists yet: phase-03 of plan
-  // artifact-revise adds it and removes this entry.
-  "revision-record-manifest",
   // `phax ls --json` prints the run list on stdout and never saves it.
   "run-list",
   // `phax artifact status --json`, `phax plans overview --json` and
