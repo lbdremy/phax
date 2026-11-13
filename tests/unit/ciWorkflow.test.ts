@@ -92,10 +92,12 @@ describe("Security workflow", () => {
         string,
         {
           readonly container?: { readonly image: string };
+          readonly permissions?: Readonly<Record<string, string>>;
           readonly steps: readonly {
             readonly uses?: string;
             readonly run?: string;
             readonly env?: Readonly<Record<string, string>>;
+            readonly with?: Readonly<Record<string, unknown>>;
           }[];
         }
       >
@@ -124,6 +126,18 @@ describe("Security workflow", () => {
     expect(scan.env?.["SEMGREP_APP_TOKEN"]).toBe("${{ secrets.SEMGREP_APP_TOKEN }}");
     // A fork's pull request has no token: public rules, with telemetry off.
     expect(scan.run).toContain("--metrics=off");
+  });
+
+  it("uploads semgrep's findings to code scanning, from either scan", () => {
+    const semgrep = security.jobs["semgrep"]!;
+    const scan = semgrep.steps.find((s) => s.run?.includes("semgrep ci"))!;
+    expect(scan.run?.match(/--sarif-output=semgrep\.sarif/g)).toHaveLength(2);
+    const upload = semgrep.steps.find((s) =>
+      s.uses?.startsWith("github/codeql-action/upload-sarif@"),
+    );
+    expect(upload?.uses).toMatch(/@[0-9a-f]{40}$/);
+    expect(upload?.with?.["sarif_file"]).toBe("semgrep.sarif");
+    expect(semgrep.permissions).toEqual({ contents: "read", "security-events": "write" });
   });
 });
 
