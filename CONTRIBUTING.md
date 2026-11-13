@@ -31,6 +31,10 @@ pnpm site:build          # the docs site
 
 When a check fails, fix the cause: run `pnpm format` rather than adding a lint exception, and remove dead code or wire it into an entry point rather than silencing knip.
 
+## Branch rules
+
+[`.github/rulesets/main.json`](.github/rulesets/main.json) is the rule set protecting `main`, kept here so every change to it is in the history. It refuses deleting `main` and force-pushing to it, and lands a change only through a pull request merged by rebase, once the `ci` and `security-audit` checks pass. Repository admins bypass it, so a doc-only commit can still go straight to `main`. A change to the file takes effect when it is imported: Settings → Rules → Rulesets → New ruleset → Import a ruleset, then delete the rule set it replaces.
+
 ## Tests
 
 ```bash
