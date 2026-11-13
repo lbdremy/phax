@@ -21,4 +21,10 @@ Out of scope: a vulnerability in Claude Code, Codex or Mistral Vibe themselves. 
 ## Verifying what you install
 
 - **npm packages** are published from the release workflow with provenance: `npm audit signatures` checks it after an install.
-- **Release binaries** come with a `.sha256` file each, which the npm launcher checks before running a binary it downloads.
+- **Release binaries** come with a `.sha256` file each, which the npm launcher checks before running a binary it downloads. From v0.37.0 on, each binary also carries a signed build-provenance attestation, which proves it was built by this repository's release workflow from the tagged commit:
+
+  ```bash
+  gh attestation verify phax-darwin-arm64 --repo lbdremy/phax
+  ```
+
+  The release's `phax.sigstore.json` is the same attestation, for verifying without querying GitHub's attestation API (`gh attestation verify phax-darwin-arm64 --repo lbdremy/phax --bundle phax.sigstore.json`).

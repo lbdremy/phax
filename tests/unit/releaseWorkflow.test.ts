@@ -35,6 +35,25 @@ describe("release workflow invariants", () => {
     expect(workflow).toContain(".sha256");
   });
 
+  it("attests the four binaries it uploads, and uploads the attestation bundle", () => {
+    const attest = releaseSteps.find((step) => step.uses?.startsWith("actions/attest@"));
+    expect(attest?.uses).toMatch(/^actions\/attest@[0-9a-f]{40}$/);
+    const binaries = String(attest?.with?.["subject-path"]).trim().split("\n");
+    const release = releaseSteps.find((step) =>
+      step.uses?.startsWith("softprops/action-gh-release"),
+    );
+    const assets = String(release?.with?.["files"]).trim().split("\n");
+    expect(assets.filter((asset) => !asset.includes("."))).toEqual(binaries);
+    expect(assets).toContain("dist/release/phax.sigstore.json");
+    expect(indexOf(releaseSteps, runs("pnpm deno:build-binaries"))).toBeLessThan(
+      releaseSteps.indexOf(attest!),
+    );
+    expect(parseWorkflow(workflowPath).jobs["release"]!.permissions).toMatchObject({
+      "id-token": "write",
+      attestations: "write",
+    });
+  });
+
   it("uploads artifacts to GitHub Release", () => {
     expect(workflow).toContain("softprops/action-gh-release");
   });
@@ -115,6 +134,7 @@ interface Step {
 }
 
 interface Job {
+  readonly permissions?: Readonly<Record<string, string>>;
   readonly env?: Readonly<Record<string, string>>;
   readonly steps: ReadonlyArray<Step>;
 }
