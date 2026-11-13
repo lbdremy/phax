@@ -23,7 +23,9 @@ Ground read:
 - `src/app/authorArtifact.ts` — headless authoring, the kept `session.json`, the one corrective resume, the `Authoring-Id` trailer.
 - `src/app/decideVerdicts.ts` — the writer session, resumed only when the kept session ran on the same provider in this checkout.
 - `docs/arbitration.md` — verdicts mode: what phax checks in the writer's answer, the report and its `--json` form, the refusals.
-- `phax --usage` (0.28.0) — `artifact approve`, `reopen`, `decide`, `new`, `status`; `adjust-plan`.
+- `src/cli/definitions/artifactDecide.ts` — the decide command on the command library's runner: its refusals, exit codes and `--json` report, which revise mirrors.
+- `src/app/recordsExplain.ts` — how a commit's trailers resolve to a record (`Authoring-Id`, `Decision-Id`).
+- `phax --usage` (0.37.0) — `artifact approve`, `reopen`, `decide`, `new`, `status`; `adjust-plan`.
 
 ## 2. Problem
 
@@ -53,7 +55,7 @@ WHEN `phax artifact revise <path> --amendment <file|->` runs on a Draft headless
 
 ### 5.2 Writer session
 
-WHEN the artifact's kept authoring session ran on the writer's provider in this checkout THE system SHALL resume it, and otherwise SHALL start a new session given the current document, the kept brief when it exists, and the amendment. The report SHALL say which.
+WHEN the artifact's kept authoring session ran on the writer's provider in this checkout THE system SHALL resume it, and otherwise SHALL start a new session given the authoring skill of the artifact's kind (`phax-spec` or `phax-planning`), the current document, the kept brief when it exists, and the amendment. The report SHALL say which.
 
 ### 5.3 Draft only
 
@@ -61,7 +63,7 @@ IF the artifact is not Draft THEN the system SHALL refuse with exit 12 before an
 
 ### 5.4 Headless in sync only
 
-IF the artifact has no sidecar, or its sidecar is diverged, invalid or stamped below its current shape THEN the system SHALL refuse with exit 12 before any session. The message SHALL name the remedy: edit the `.md` directly for a hand-authored artifact, the two status remedies for a diverged or invalid sidecar, and `phax artifact migrate-documents` for an old shape.
+IF the artifact has no sidecar, or its sidecar is diverged or invalid, or any live spec or plan sidecar is stamped below its current shape THEN the system SHALL refuse with exit 12 before any session. The message SHALL name the remedy: edit the `.md` directly for a hand-authored artifact, the two status remedies for a diverged or invalid sidecar, and `phax artifact migrate-documents` for an old shape.
 
 ### 5.5 Questions stay as they are
 
@@ -109,7 +111,23 @@ The system shall run the writer session read-only, and SHALL refuse before any s
 
 ### 5.16 Revision record
 
-WHERE records are configured THE system SHALL write one revision record per writer session that ran, committed or failed, and `phax records explain <commit>` SHALL resolve it through the `Revision-Id` trailer.
+WHERE records are configured THE system SHALL write one revision record per writer session that ran, committed or failed, under the key `revision/<Revision-Id>`, in a new persisted format `revision-record-manifest` registered in the format ledger like every record format. `phax records explain <commit>` SHALL resolve it through the `Revision-Id` trailer; a revise commit carries no `Authoring-Id` or `Decision-Id`, so the trailers never compete.
+
+### 5.17 Provider limit or network failure
+
+IF the writer session hits a provider rate or usage limit THEN the system SHALL exit 8, and IF the provider is unreachable (a network failure) THEN it SHALL exit 14; in both cases with nothing written to the artifact.
+
+### 5.18 Refused before any session
+
+IF the artifact or its sidecar has uncommitted changes, or git names no committing identity THEN the system SHALL refuse with exit 12 before any session, writing nothing.
+
+### 5.19 The amendment
+
+IF `--amendment -` reads a terminal on stdin, or the amendment is empty THEN the system SHALL refuse with exit 64 before any session, as the command library's contract refuses a stdin document.
+
+### 5.20 The session folder
+
+The system shall keep each revision's amendment, prompts, transcripts, answer and diff under the state root's `revise/<authoringId>/<NN>/`, where `<authoringId>/<NN>` is the `Revision-Id`.
 
 ## 6. Surface
 
@@ -142,7 +160,7 @@ commit     8b2e4d1 — docs(plans): revise identity-store
 status     Draft — read the diff above, then `phax artifact decide docs/plans/2610271402-identity-store-plan.md` (Q4 open)
 ```
 
-`--json` keys (normative): `artifact`, `status`, `session` (`new` | `resumed-authoring`), `provider`, `model`, `requestedModel`, `effort`, `newQuestions`, `diff`, `commit` (`hash`, `subject`) or `null`, `revisionId`. Progress, warnings and record lines go to stderr.
+`--json` keys (normative): `artifact`, `status`, `session` (`new` | `resumed-authoring`), `provider`, `model`, `requestedModel`, `effort`, `newQuestions`, `diff`, `commit` (`hash`, `subject`) or `null`, `revisionId`, then `written` (the files its commit holds, empty when nothing changed) and `record` (the revision record's outcome), as decide's report ends. Progress, warnings and record lines go to stderr.
 
 ### cli: refusals — wording indicative, exit codes normative
 
@@ -152,7 +170,7 @@ status     Draft — read the diff above, then `phax artifact decide docs/plans/
 ✗ revise refused: the writer changed question Q2 — a revision never touches a question; decide it with phax artifact decide
 ```
 
-Exit codes: 0 revised and committed, or no change; 1 inside a phase worktree; 5 refused answer after the corrective resume; 8 provider rate or usage limit, nothing written; 12 refusal.
+Exit codes: 0 revised and committed, or no change; 1 inside a phase worktree; 5 refused answer after the corrective resume, or a failed agent session; 8 provider rate or usage limit, nothing written; 12 refusal; 14 provider unreachable (a network failure), nothing written; 64 an amendment refused before anything runs (a terminal on stdin, an empty amendment).
 
 ### cli: the commit — normative
 
@@ -240,7 +258,23 @@ Given `--model` routed to Mistral Vibe, when revise runs, then it exits 12 befor
 
 ### The revision is explained
 
-Given records configured, when a revision commits, then `phax records explain <commit>` shows its revision record. When a revision fails with exit 5, a revision record with outcome `failed` exists. (refs §5.16)
+Given records configured, when a revision commits, then `phax records explain <commit>` shows its revision record, keyed `revision/<Revision-Id>` and stamped with the `revision-record-manifest` format. When a revision fails with exit 5, a revision record with outcome `failed` exists. (refs §5.16)
+
+### A provider failure writes nothing
+
+Given a writer session that hits a usage limit, and then one whose provider is unreachable, when revise ends, then it exits 8 and then 14, and the artifact, its sidecar and HEAD are unchanged. (refs §5.17)
+
+### Uncommitted changes are refused
+
+Given an uncommitted edit to the plan's sidecar, and then no `user.name` in git's config, when revise runs, then each exits 12 before any session, and HEAD is unchanged. (refs §5.18)
+
+### A bad amendment is refused
+
+Given `--amendment -` with a terminal on stdin, and then an empty amendment file, when revise runs, then each exits 64 before any session. (refs §5.19)
+
+### The revision's files are kept
+
+Given a revision that commits, when it ends, then `revise/<authoringId>/<NN>/` under the state root holds the amendment, the prompt, the transcript, the answer and the diff, and `<authoringId>/<NN>` is the commit's `Revision-Id`. (refs §5.20)
 
 ## 9. Open questions
 
@@ -269,7 +303,8 @@ Settled:
 
 - The writer session, its resume rule, its read-only posture, the Vibe refusal, the one corrective resume and the concurrent-edit check work as in `decide --verdicts`; reuse that path rather than build a second one.
 - Rendering, sidecar writing and extraction-cache seeding are headless authoring's.
-- `Revision-Id` is `<authoringId>/<NN>`, numbered per artifact like `Decision-Id`. The revision's prompts, answer, amendment and diff are kept under the state root beside decide's.
+- `Revision-Id` is `<authoringId>/<NN>`, numbered per artifact like `Decision-Id`. The revision's files live under `revise/<authoringId>/<NN>/` (§5.20).
+- The revision record is a new persisted format, so it is registered in the format ledger and gets a JSON Schema, an upgrading entry and the schemas package's snapshot like every record format.
 
 Left open:
 
