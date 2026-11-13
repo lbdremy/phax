@@ -84,6 +84,8 @@ describe("revise — a plan is revised from an amendment", { timeout: 30_000 }, 
       paths: [plan.path, plan.sidecarPath],
       status: "Draft",
       session: "resumed-authoring",
+      newQuestions: [],
+      openQuestions: ["Q1", "Q2"],
     });
     // The kept session was resumed, not a new one run.
     expect(h.backend.runCalls).toHaveLength(0);
@@ -225,6 +227,7 @@ describe("revise — a new open question is accepted", { timeout: 30_000 }, () =
 
     expect(done.kind).toBe("committed");
     expect(done.newQuestions).toEqual([{ id: "Q9", question: NEW_QUESTION.question }]);
+    expect(done.openQuestions).toEqual(["Q1", "Q2", "Q9"]);
     const open = (
       sidecarOf(plan.sidecarPath) as { preamble: { openQuestions: Array<{ id: string }> } }
     ).preamble.openQuestions;
@@ -295,6 +298,7 @@ describe("revise — no change is not a commit", { timeout: 30_000 }, () => {
     const done = succeeded(await h.run(plan.path));
 
     expect(done).toMatchObject({ kind: "unchanged", commit: null, paths: [], status: "Draft" });
+    expect(done.openQuestions).toEqual(["Q1", "Q2"]);
     expect(world.headSha()).toBe(head);
     expect(world.porcelain()).toBe("");
     expect(world.readRepoFile(plan.path)).toBe(plan.md);

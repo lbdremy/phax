@@ -70,7 +70,7 @@ afterEach(() => {
 });
 
 describe("phax artifact revise", { timeout: 30_000 }, () => {
-  it("--json: stdout is one object with the thirteen report keys, progress on stderr", async () => {
+  it("--json: stdout is one object with the fourteen report keys, progress on stderr", async () => {
     seedPlan();
     vi.spyOn(process, "cwd").mockReturnValue(world.repoDir);
     const { backend, deps: d } = deps([PLAN_ANSWER_REVISED]);
@@ -89,6 +89,7 @@ describe("phax artifact revise", { timeout: 30_000 }, () => {
       "requestedModel",
       "effort",
       "newQuestions",
+      "openQuestions",
       "diff",
       "commit",
       "revisionId",
@@ -97,6 +98,7 @@ describe("phax artifact revise", { timeout: 30_000 }, () => {
     ]);
     expect(report["artifact"]).toBe(REVISE_PLAN_PATH);
     expect(report["status"]).toBe("Draft");
+    expect(report["openQuestions"]).toEqual(["Q1", "Q2"]);
     expect(JSON.stringify(report["written"])).toContain(REVISE_PLAN_SIDECAR);
     expect(JSON.stringify(report["written"])).toContain(REVISE_PLAN_PATH);
     expect(called.err).toContain("amendment from amendment.md");
@@ -141,6 +143,20 @@ describe("phax artifact revise", { timeout: 30_000 }, () => {
       `nothing changed: the amendment changed nothing in ${REVISE_PLAN_PATH} — no commit`,
     );
     expect(world.headSha()).toBe(head);
+  });
+
+  it("a revision that adds no question names the questions still open before approve", async () => {
+    seedPlan();
+    vi.spyOn(process, "cwd").mockReturnValue(world.repoDir);
+    const { deps: d } = deps([PLAN_ANSWER_REVISED]);
+
+    const called = await revise(d, ["--amendment", "amendment.md", "--by", "operator"]);
+
+    expect(called.code).toBe(0);
+    expect(called.out).toContain("questions  none new");
+    expect(called.out).toContain(
+      `status     Draft — read the diff above, then \`phax artifact decide ${REVISE_PLAN_PATH}\` (Q1, Q2 open), then \`phax artifact approve ${REVISE_PLAN_PATH}\``,
+    );
   });
 
   it("an Approved plan exits 12 naming phax artifact reopen", async () => {

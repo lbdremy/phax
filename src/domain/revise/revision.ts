@@ -135,6 +135,11 @@ export function appendedOpenQuestions(
     .map(({ id, question }) => ({ id, question }));
 }
 
+/** The ids of a document's open questions, in order. */
+export function openQuestionIds(document: SidecarDocument): ReadonlyArray<string> {
+  return arraysOf(document).openQuestions.map((q) => q.id);
+}
+
 /**
  * Sets a plan's `sourceSpec` and `completesSpec` from the original on an
  * object answer: the lineage is not revised. A spec, or anything that is not

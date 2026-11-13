@@ -30,11 +30,11 @@ questions  1 new open: Q4 — Should purge be a soft or a hard delete?
 --- body diff ---
 @@ …
 commit     3f9c2ab — docs(plan): revise identity-store: expose a purge operation
-status     Draft — read the diff above, then `phax artifact decide docs/plans/2610271402-identity-store-plan.md` (Q4), then `phax artifact approve docs/plans/2610271402-identity-store-plan.md`
+status     Draft — read the diff above, then `phax artifact decide docs/plans/2610271402-identity-store-plan.md` (Q4 open), then `phax artifact approve docs/plans/2610271402-identity-store-plan.md`
 record     revision/2610271402-identity-store/01
 ```
 
-Read the diff, decide any new open question with `phax artifact decide`, then approve:
+Read the diff, decide every question still open with `phax artifact decide` (the status line names them, new ones first), then approve:
 
 ```bash
 phax artifact approve docs/plans/2610271402-identity-store-plan.md --by operator
@@ -76,7 +76,7 @@ Existing questions are frozen. A new open question is decided later with `phax a
 
 ## `--json`
 
-`--json` prints the report as one indented JSON object on stdout: `artifact`, `status`, `session`, `provider`, `model`, `requestedModel`, `effort`, `newQuestions`, `diff`, `commit`, `revisionId`, `written` (the files its commit holds) and `record` (the revision record's outcome). `commit` is `null` when nothing changed. Progress and warnings are note lines on stderr.
+`--json` prints the report as one indented JSON object on stdout: `artifact`, `status`, `session`, `provider`, `model`, `requestedModel`, `effort`, `newQuestions`, `openQuestions` (the ids of every question open after the revision), `diff`, `commit`, `revisionId`, `written` (the files its commit holds) and `record` (the revision record's outcome). `commit` is `null` when nothing changed. Progress and warnings are note lines on stderr.
 
 ## Refusals before any session
 

@@ -15,6 +15,7 @@ const base: ReviseReport = {
   requestedModel: "claude-sonnet-5-5",
   effort: "high",
   newQuestions: [],
+  openQuestions: [],
   diff: "",
   commit: null,
   revisionId: "2610250930-log-rotation/01",
@@ -43,12 +44,39 @@ describe("renderReviseReport", () => {
     const lines = renderReviseReport({
       ...base,
       newQuestions: [{ id: "Q9", question: "Keep rotated logs?" }],
+      openQuestions: ["Q9"],
       diff: "+new\n",
       commit: { hash: "abcdef1234567", subject: "docs(plan): revise log-rotation" },
     });
     expect(lines[0]).toBe("questions  1 new open: Q9 — Keep rotated logs?");
     expect(lines).toContain(
-      `status     Draft — read the diff above, then \`phax artifact decide ${PATH}\` (Q9), then \`phax artifact approve ${PATH}\``,
+      `status     Draft — read the diff above, then \`phax artifact decide ${PATH}\` (Q9 open), then \`phax artifact approve ${PATH}\``,
+    );
+  });
+
+  it("committed with a question still open from before: decide names it, then approve", () => {
+    const lines = renderReviseReport({
+      ...base,
+      openQuestions: ["Q2"],
+      diff: "-old\n+new\n",
+      commit: { hash: "abcdef1234567", subject: "docs(plan): revise log-rotation" },
+    });
+    expect(lines[0]).toBe("questions  none new");
+    expect(lines).toContain(
+      `status     Draft — read the diff above, then \`phax artifact decide ${PATH}\` (Q2 open), then \`phax artifact approve ${PATH}\``,
+    );
+  });
+
+  it("names the questions it appended first, then the ones open before", () => {
+    const lines = renderReviseReport({
+      ...base,
+      newQuestions: [{ id: "Q9", question: "Keep rotated logs?" }],
+      openQuestions: ["Q1", "Q2", "Q9"],
+      diff: "+new\n",
+      commit: { hash: "abcdef1234567", subject: "docs(plan): revise log-rotation" },
+    });
+    expect(lines).toContain(
+      `status     Draft — read the diff above, then \`phax artifact decide ${PATH}\` (Q9, Q1, Q2 open), then \`phax artifact approve ${PATH}\``,
     );
   });
 

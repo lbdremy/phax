@@ -26,6 +26,7 @@ import {
   type AppendedQuestion,
   type RevisionRequester,
   decodeRevisedAnswer,
+  openQuestionIds,
   rendersSameBody,
   reviseCommitMessage,
 } from "../domain/revise/revision.js";
@@ -142,6 +143,9 @@ export interface ReviseArtifactResult {
   readonly requester: RevisionRequester;
   /** The open questions the revision appended, in order. */
   readonly newQuestions: ReadonlyArray<{ readonly id: string; readonly question: string }>;
+  /** The ids of every open question after the revision, in the document's order: the accepted
+   *  document's, or the original's when nothing changed. */
+  readonly openQuestions: ReadonlyArray<string>;
   /** The body diff, as `git diff --no-index` prints it (empty when unchanged). */
   readonly diff: string;
   /** The revision's commit; null when the answer changed nothing. */
@@ -471,6 +475,7 @@ export function reviseArtifact(
       effortSource,
       requester,
       newQuestions,
+      openQuestions: landed.openQuestions,
       diff: landed.diff,
       commit: landed.commit,
       revisionId,
@@ -482,6 +487,8 @@ export function reviseArtifact(
 
 interface LandedRevision {
   readonly paths: readonly string[];
+  /** The ids of the open questions after the revision. */
+  readonly openQuestions: ReadonlyArray<string>;
   readonly diff: string;
   /** Null when the answer changed nothing. */
   readonly commit: { readonly hash: string; readonly subject: string } | null;
@@ -550,7 +557,12 @@ function concludeRevision(
     if (rendersSameBody(snapshot.md, accepted.document)) {
       yield* fs.writeAtomic(join(folder, REVISE_DOCUMENT_FILENAME), accepted.sidecarText);
       yield* fs.writeAtomic(join(folder, REVISE_DIFF_FILENAME), "");
-      return { paths: [], diff: "", commit: null };
+      return {
+        paths: [],
+        openQuestions: openQuestionIds(run.original),
+        diff: "",
+        commit: null,
+      };
     }
 
     const diff = yield* diffAnswer({
@@ -597,6 +609,11 @@ function concludeRevision(
           `${changedPath} changed while the revise session ran — its change is left in place; rerun revise`,
         ),
     });
-    return { paths: landed.paths, diff, commit: landed.commit };
+    return {
+      paths: landed.paths,
+      openQuestions: openQuestionIds(accepted.document),
+      diff,
+      commit: landed.commit,
+    };
   });
 }
