@@ -39,6 +39,8 @@ import {
   AuthoringDocumentError,
   DecideDocumentError,
   DecideRefusedError,
+  ReviseDocumentError,
+  ReviseRefusedError,
   ArtifactDirtyWriteSetError,
   ArtifactOpenQuestionsError,
   SurfaceSummariesUnwrittenError,
@@ -234,7 +236,8 @@ export function exitCodeForError(err: unknown): number {
     err instanceof AgentInvocationError ||
     err instanceof AgentSessionIdMissingError ||
     err instanceof AuthoringDocumentError ||
-    err instanceof DecideDocumentError
+    err instanceof DecideDocumentError ||
+    err instanceof ReviseDocumentError
   )
     return 5;
   if (err instanceof ArchiveBlockedByDirtyWorktreeError) return 6;
@@ -274,6 +277,7 @@ export function exitCodeForError(err: unknown): number {
     err instanceof ArtifactQuestionsUnparsedError ||
     err instanceof ArtifactCreationError ||
     err instanceof DecideRefusedError ||
+    err instanceof ReviseRefusedError ||
     err instanceof ApprovalRecordUnreadableError ||
     err instanceof ApprovalLedgerMigrationRequiredError ||
     err instanceof ApprovalMigrationRefusedError ||

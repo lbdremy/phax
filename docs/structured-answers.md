@@ -12,6 +12,7 @@ Every answer has one strict schema (closed objects, every key required), publish
 | `plan-extraction`  | `--json-schema` | `--output-schema` | schema in prompt |
 | `decide-handback`  | `--json-schema` | `--output-schema` | schema in prompt |
 | `decide-verdicts`  | `--json-schema` | `--output-schema` | schema in prompt |
+| `revise`           | `--json-schema` | `--output-schema` | schema in prompt |
 | `first-turn`       | `--json-schema` | `--output-schema` | schema in prompt |
 | `closing-turn`     | `--json-schema` | `--output-schema` | schema in prompt |
 | `code-review`      | `--json-schema` | `--output-schema` | schema in prompt |
