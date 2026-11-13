@@ -64,6 +64,7 @@ const MIGRATED_COMMANDS: ReadonlyArray<string> = [
   "artifact complete",
   "artifact reopen",
   "artifact decide",
+  "artifact revise",
   "artifact new spec",
   "artifact new plan",
   "artifact schema",
@@ -209,8 +210,11 @@ describe("phax.usage.kdl's declarations against the frozen file", () => {
   });
 
   it("adds only the allowlisted declarations", () => {
+    // A command the frozen file does not have at all (`artifact revise`) is new, not an
+    // addition to a frozen command: its whole declaration is its own.
     const added = difference(now, before).filter(
       ([path, declaration]) =>
+        before.has(path) &&
         !ALLOWED_ADDITIONS.some(([where, head]) => where === path && declaration.startsWith(head)),
     );
     expect(added).toEqual([]);

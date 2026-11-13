@@ -142,6 +142,10 @@ const ROWS: ReadonlyArray<Row> = [
     provedBy: "tests/integration/artifactDecideVerdictsCommand.test.ts",
   },
   {
+    command: "artifact revise",
+    provedBy: "tests/integration/artifactReviseCommand.test.ts",
+  },
+  {
     command: "artifact new spec",
     provedBy: "tests/integration/artifactNewHeadlessCommand.test.ts",
   },

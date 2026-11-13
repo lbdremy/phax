@@ -63,6 +63,7 @@ export const PHASE_GUARD_CLASSIFICATION: Readonly<Record<string, PhaseGuardClass
   "artifact complete": "refused",
   "artifact reopen": "refused",
   "artifact decide": "refused",
+  "artifact revise": "refused",
   "artifact new spec": "refused",
   "artifact new plan": "refused",
   "artifact migrate-approvals": "refused",

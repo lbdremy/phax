@@ -170,6 +170,7 @@ describe("phaxProgram", () => {
       "complete",
       "reopen",
       "decide",
+      "revise",
       "new",
       "schema",
       "migrate-approvals",
