@@ -1,0 +1,980 @@
+{
+  "$schema": "https://docs.phax.run/schemas/plan-document/0.33.0.json",
+  "kind": "plan",
+  "sourceSpec": "docs/specs/2610271505-artifact-revise.md",
+  "completesSpec": true,
+  "run": {
+    "shortName": "revise-a-draft-artifact",
+    "title": "Revise a Draft artifact",
+    "requiredCommands": [
+      "pnpm exec tsx",
+      "pnpm gen:usage-spec",
+      "pnpm docs:cli"
+    ]
+  },
+  "preamble": {
+    "summary": "Add `phax artifact revise <path> --amendment <file|-> [--by operator|machine:<grant>] [--model <id>] [--effort low|medium|high] [--json]`. It revises a Draft, headless-authored spec or plan whose sidecar is in sync. One read-only writer session returns the whole revised document carrying the amendment. It resumes the kept authoring session when that session ran on the writer's provider in this checkout, and starts a new session otherwise. phax checks the answer: its kind's current `$schema` and decode checks, every existing question unchanged and in place, and new open questions only appended. It keeps the frontmatter byte for byte, writes nothing when the body renders the same, and otherwise writes the `.md` and sidecar, re-seeds a plan's extraction cache and commits both in one commit without asking. The artifact stays Draft. The commit body carries the amendment verbatim and the trailers `Artifact`, `Revised-By` and `Revision-Id`. Where records are configured, every writer session that ran leaves one revision record keyed `revision/<Revision-Id>`, in the new persisted format `revision-record-manifest`. It is stamped with the opened version 0.38.0 through a `next` snapshot until the cut. `phax records explain <commit>` resolves a revise commit to that record.\n\nOrder: the pure checks first (phase-01), then the record format (phase-02) and its writer (phase-03). Then decide's verdicts-mode writer path is extracted into one module that decide and revise both call, with decide's behaviour unchanged (phase-04). Then come the use case's acceptance tests (phase-05) and the use case that passes them (phase-06), the CLI definition and its regenerated contract files (phase-07), `records explain` (phase-08), and the docs (phase-09).\n\nThe spec's sidecar does not exist, so test lines carry no criterion id; each test names the §8 criterion it covers in its title. Open question Q1 below must be decided before approval. The phases are written for its recommendation (`refuse-vibe`). phase-05 and phase-06 say what changes under the other option.",
+    "requiredCommandsNote": "`pnpm exec tsx` runs `scripts/schemas-check.ts --write` in phase-02, which writes the revision record's `next` snapshot and regenerates `src/schemas/release.ts`, `packages/schemas/src/generated/index.ts` and `packages/schemas/shipped-json.json`. `pnpm gen:usage-spec` and `pnpm docs:cli` regenerate `phax.usage.kdl` and `docs/cli/reference.md` from the command definitions in phase-07 and phase-08. All three are already entries of `security.agentCommands` in phax.json, so phax.json needs no change.",
+    "technicalArbitrations": [
+      "How revise and decide share the writer path. Decide's verdicts-mode writer moves into one module, `src/app/headlessWriter.ts`, that both use cases call (phase-04). It holds the choice of session (the kept authoring session only when it decodes, ran on the routed provider and ran in this checkout), the writer turn with its one corrective resume, and the landing step: before/after/diff files, the concurrent-edit check, the plan-cache seed, the write and the one commit. Each is parameterized by what the answer is checked against (a check function), the retry prompt, the commit message and error factories supplied by the caller. Decide's code must not change in behaviour: its refusal messages and `DecideRefusedError` reasons, `DecideDocumentError`, its exit codes, the `decide/<id>/<NN>/` folder and its file names, its prompts, its commit message, its decision record and its report. The proof is that decide's suites pass without an edit (`tests/integration/decideVerdicts.test.ts`, `decideVerdictsPlanHand.test.ts`, `decideArtifact.test.ts`, `artifactDecideVerdictsCommand.test.ts`, `writeDecisionRecord.test.ts`, `tests/unit/cli/artifactDecideVerdicts.test.ts`, `tests/helpers/decideVerdictsHarness.ts`). Loss knowingly accepted: a refactor of decide's working path inside a feature plan, contained by those untouched suites. Extending `decideVerdicts.ts` with a revise mode was rejected because it would mix revise's refusals, record and commit into decide's module and error classes.",
+      "What counts as a change to an existing question (§5.5, §5.6, Q1 frozen-append). Questions are compared by structural JSON equality: key order is not content, array order is (decide's `sameJson`). Every key counts: id, question, options and their order, recommendation, rationale, and on an arbitrated question its verdict (`by` and `at` included) and history. The revised `arbitratedQuestions` must equal the original exactly. The revised `openQuestions` must begin with the original open questions, element for element. Anything after them is a new open question, and its id must be new to the artifact. So an edited, removed, reordered, reopened or newly arbitrated question is refused, and so is a question appended to the arbitrated array. Loss knowingly accepted: a writer that inserts a new open question between existing ones is refused (and corrected once), though no existing question changed.",
+      "The revision record's shape, beside the decision record's. `kind: \"revision\"`, `revisionId` (`<authoringId>/<NN>`), `artifact`, `artifactKind`, `session` (`new` | `resumed-authoring`), `requester` (`{ kind: \"operator\", name }` | `{ kind: \"machine\", grant }`), `newQuestions` (the appended ids), `sourceSha` (HEAD as the session starts), `shape`, `provider`, `model` (concrete), `requestedModel`, `effort`, `usage`, then the outcome: `committed` with `commit`, `unchanged` with `commit: null`, or `failed` with `commit: null` and `failure`. It drops the decision record's `mode`, `doctrine`, `questions`, `arbitrated` and `departed`, since a revision has no doctrine and no verdict. `failure` is the revision record's own literal schema, with the same members as `DecisionFailure`; a type test keeps the two equal. The record carries `amendment.md`, `prompt.md`, `retry-prompt.md`, `document.json`, `body.diff` and the two transcripts per `records.transcript`, and never a provider session id. Losses knowingly accepted: a third outcome (`unchanged`) beyond the spec's `committed or failed`, so that every writer session that ran is recorded (§5.16); and a failure enum duplicated, not shared, so the new format does not move when the decision record's does.",
+      "The writer's prompt shows the amendment as a change request against the current document, not as a brief addendum (spec §10 left this open). The prompt gives the current document and the amendment. It asks for the whole document with the amendment carried wherever it applies and everything else left as it is. A new session also gets the kind's authoring skill and the kept brief as background. Loss knowingly accepted: an amendment that would justify rethinking the artifact's decomposition gets a minimal edit; re-authoring stays the path for that.",
+      "The `--amendment` spelling (indicative in the spec) is kept as `--amendment <file|->`, read by the command library as a text stdin document like `--brief`.",
+      "`records explain` resolves a revise commit from its last paragraph only. When the commit message's last paragraph (its trailer block) holds `Revision-Id`, the address is the revision record, checked before every other trailer. Otherwise today's whole-body trailer reading applies unchanged. A verbatim amendment line shaped like a trailer (`Authoring-Id: …`, `Run-Id: …`) therefore never addresses another record. Loss knowingly accepted: two trailer readings in one function.",
+      "Model and effort follow headless authoring (§6): `--model`/`--effort`, else phax.json's resolved `authoring.<kind>` (which carries the catalog default when phax.json sets none), routed through `resolveModel` like authoring. The report names the source as `flag` or `authoring.<kind>`. Effort is one of `low | medium | high`.",
+      "The requester resolves through `src/app/resolveArbiter.ts`, as `phax artifact reopen` does: `--by operator`, `--by machine:<grant>`, or with no `--by` the operator when stdin is a terminal. A committing git identity (`git.committerName`) is required in every case, because the revision commits (§5.18).",
+      "No change (§5.9) is judged on the rendered body. The revised document's rendering (`renderCurrent`) is compared with the current body (`artifactBody`) through `sameRendering`, the comparison sidecar agreement uses. A document whose rendered body is the same writes nothing, even when a field that does not render differs."
+    ],
+    "openQuestions": [
+      {
+        "id": "Q1",
+        "question": "A writer routed to Mistral Vibe: refuse it before any session, as spec §5.15 and its criterion 'A writer routed to Vibe is refused' say, or run it read-only, as `decide --verdicts` does today? Since Vibe 3 (0.30.0), phax runs read-only Vibe sessions confined to `read_file` and `grep`, and decide's verdicts writer runs on Vibe read-only (tests/integration/decideVerdicts.test.ts, 'runs the writer on mistral-vibe, read-only'). No provider ignores read-only today, and decide's help sentence saying Vibe is refused is stale. The spec's settled note asks revise to reuse decide's path, which no longer refuses Vibe.",
+        "options": [
+          {
+            "id": "refuse-vibe",
+            "label": "Refuse a writer routed to mistral-vibe with exit 12 before any session, through a guard in revise's use case ahead of the shared writer path; decide is untouched",
+            "abandons": "revise and decide part ways on one provider, on a path the spec asks them to share, and the refusal rests on a premise (Vibe ignores read-only) the code no longer holds; an operator whose routing prefers Vibe must pass --model with a Claude Code or Codex model"
+          },
+          {
+            "id": "run-read-only",
+            "label": "Run the writer on Vibe read-only, exactly as decide does; §5.15's refusal applies to no provider today, and the Vibe acceptance test asserts a read-only run instead of exit 12",
+            "abandons": "the approved spec's literal criterion (exit 12 on Vibe): the run would complete a spec whose criterion it contradicts until the operator corrects the spec. A writer that can read the repository also runs under Vibe's tool-level confinement rather than Claude Code's or Codex's, so a Vibe session misconfigured around its accept-edits agent is the only thing between it and a write"
+          }
+        ],
+        "recommendation": "refuse-vibe",
+        "rationale": "It honours the approved spec as written, keeps the narrower posture for a session that reads the repository, and costs one --model flag. Lifting it later removes one guard once the spec is corrected."
+      }
+    ],
+    "arbitratedQuestions": []
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "title": "Revise's pure checks, commit message and prompt",
+      "objective": "Give revise its pure core: the question-freeze check, the decode of a revised answer with the plan's lineage restored, the no-change judgement, the commit message with its trailers, and the writer's prompt and retry prompt. Later phases call these without re-deciding them.",
+      "detailedInstructions": [
+        "Read `src/domain/decide/revision.ts` first. Reuse its exported helpers (`RevisionRefusal`, `describeRevisionRefusal`, `refusal`, `arraysOf`, `sameJson`, `firstDifference`, `answerStampViolation`, `firstParseIssue`, `locate`, `isObject`, `renderRevisedArtifact`) by import. Do not change that module's behaviour; export one more helper from it only if needed (it is in the optional list).",
+        "Create `src/domain/revise/revision.ts` (pure, no I/O) exporting:",
+        "`firstQuestionFreezeViolation(before: SidecarDocument, after: SidecarDocument): RevisionRefusal | undefined`. Checks, in order and with document-relative paths (`openQuestions[1]` on a spec, `preamble.openQuestions[1]` on a plan, via `arraysOf(...).basePath`): (1) the kinds are the same; (2) `after.arbitratedQuestions` equals `before.arbitratedQuestions` exactly by `sameJson`; (3) `after.openQuestions` begins with every element of `before.openQuestions` at the same index, each `sameJson`-equal; (4) each open question after that prefix has an id that is not the id of any question of `before`. A difference in an existing question names it in the spec's words, e.g. `the writer changed question Q2 — a revision never touches a question; decide it with phax artifact decide`. A missing question says it was removed, an existing id at another index says it was moved, a question added to `arbitratedQuestions` says new questions are appended to the open questions only, and a reused id says it is already a question of the artifact.",
+        "`appendedOpenQuestions(before, after): ReadonlyArray<{ readonly id: string; readonly question: string }>`: the open questions after the original prefix, in order.",
+        "`restoreLineage(json: unknown, original: SidecarDocument): unknown`: for a plan, sets `sourceSpec` and `completesSpec` from the original on an object answer (as `stampSessionVerdicts` does for decide); a spec answer, or a non-object, is returned as is; never mutates its input.",
+        "`decodeRevisedAnswer(json: unknown, original: SidecarDocument): Result<{ document: SidecarDocument; newQuestions: ReadonlyArray<{ id; question }> }, RevisionRefusal>`. It refuses with `answerStampViolation(kind, json)` at `$schema` (or `\"\"` for a non-object). Then it decodes `restoreLineage(json, original)` with `decodeCurrentDocumentSidecar(kind, …)` from `src/schemas/persisted.ts`, mapped through `firstParseIssue`; that decode runs a spec's traceability checks and a plan's decode checks. Then it applies `firstQuestionFreezeViolation`. On success it returns the decoded document and `appendedOpenQuestions`.",
+        "`rendersSameBody(currentMd: string, after: SidecarDocument): boolean`: `sameRendering(artifactBody(currentMd), renderCurrent(after))` from `src/domain/artifact/sidecar.ts`.",
+        "A requester type `RevisionRequester = { kind: \"operator\"; name: string } | { kind: \"machine\"; grant: string }`. Read `ResolvedArbiter` in `src/domain/artifact/arbiter.ts` first: if it already has this shape, re-export it under this name; otherwise define it here.",
+        "`revisedByTrailer(requester): string` returns `operator (<name>)` or `machine (<grant>)`.",
+        "`reviseCommitMessage({ kind, slug, path, amendment, model, effort, provider, requester, revisionId }): { subject; body }`. The subject is `docs(specs): revise <slug>` or `docs(plans): revise <slug>`. The body is exactly, line by line: `Revised headless (<model> / <effort>, <provider>) from this amendment:`, an empty line, the amendment text with trailing whitespace and newlines removed at its end only (otherwise verbatim), an empty line, then `Artifact: <path>`, `Revised-By: <revisedByTrailer>`, `Revision-Id: <revisionId>`. It must match the spec §6 example byte for byte.",
+        "Create `src/domain/revise/prompt.ts` (pure) exporting `buildRevisePrompt(input)` and `buildReviseRetryPrompt(refusal: string): string`. The input is `{ kind, artifactPath, session: \"new\" | \"resume\", skillText, brief: string | null, document: SidecarDocument, amendment: string, schemaUrl: string }`.",
+        "The prompt states what a revision is and its rules. Return the whole document as one JSON object with `$schema` equal to `schemaUrl`, as the final message alone. Carry the amendment into the body wherever it applies and leave everything else as it is. Never change, remove or reorder a question, open or arbitrated. A new ambiguity the amendment raises may be appended at the end of the open questions under a new id. `sourceSpec`, `completesSpec` and the frontmatter are not revised. Write no files.",
+        "Then the prompt gives the current document as JSON (from `serializeSidecar(document)`) and the amendment under its own heading, verbatim. A `new` session's prompt also opens with the authoring skill text verbatim and, when `brief` is not null, the brief under a heading saying it is the brief the artifact was authored from. A `resume` prompt omits the skill and the brief, which the session already holds.",
+        "`buildReviseRetryPrompt` names the refusal and asks for the whole document again under the same rules.",
+        "Write the tests listed in the test strategy, with made-up spec and plan documents. Build them from the existing fixtures in `tests/unit/decide/verdictsFixtures.ts` where they fit; otherwise build them in the test files."
+      ],
+      "planMarkdownAnchor": "#phase-01-revise-domain",
+      "plannedFilesToCreate": [
+        "src/domain/revise/revision.ts",
+        "src/domain/revise/prompt.ts",
+        "tests/unit/revise/revision.test.ts",
+        "tests/unit/revise/prompt.test.ts"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [
+        "src/domain/decide/revision.ts",
+        "src/domain/artifact/arbiter.ts"
+      ],
+      "mode": "headless",
+      "acceptance": null,
+      "boundaryContracts": "Producer: the domain layer. Consumers: the revise use case (phase-06) and the command definition (phase-07). The contract: a revised answer decodes to a current-shape `SidecarDocument` plus its appended open questions, or to one `RevisionRefusal` (path and message) that the use case words and feeds to the corrective resume. The commit message is a pure function of the facts the use case holds. Everything here imports only domain and schema modules: no port, no Effect service.",
+      "testStrategy": [
+        {
+          "guarantee": "every way an existing question can change is refused, and only an appended open question with a new id passes, on a spec and on a plan",
+          "size": "small",
+          "technique": "table",
+          "oracle": "a table of (edit, expected refusal path and question id), covering verdict, history, options, recommendation, removal, reorder, open-to-arbitrated, arbitrated append, reused id, clean append",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "a revised answer is refused for prose, a missing or wrong $schema, or a decode failure, and a plan's sourceSpec and completesSpec are restored from the original before decoding",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the refusal's path and message, and the decoded document's lineage fields equal to the original's",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "a document that renders the current body is judged unchanged, and one with a body edit is not",
+          "size": "small",
+          "technique": "metamorphic",
+          "oracle": "rendersSameBody on the original document is true; after one body field changes it is false",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "the commit message matches the spec's example byte for byte, for an operator and for a machine requester, with a multi-line amendment kept verbatim",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the literal subject and body of spec §6",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "a new-session prompt carries the skill, the kept brief, the current document and the amendment; a resumed prompt carries the document and amendment without skill or brief; a null brief is left out",
+          "size": "small",
+          "technique": "example",
+          "oracle": "substring presence and absence in the built prompt",
+          "loop": "in-phase",
+          "criterion": null
+        }
+      ],
+      "implementationOrder": [
+        "revision.ts: freeze check and appended questions",
+        "revision.ts: lineage restore and decodeRevisedAnswer",
+        "revision.ts: rendersSameBody, requester, trailer and commit message",
+        "prompt.ts",
+        "the two test files"
+      ],
+      "excludedScope": [
+        "Any I/O, session, write or commit (phase-04, phase-06).",
+        "The revision record format (phase-02).",
+        "Any change to decide's checks in src/domain/decide/revision.ts beyond exporting an existing helper."
+      ],
+      "verification": "The `standard` gate profile in phax.json.",
+      "expectedHandoff": "The exact exports of `src/domain/revise/revision.ts` and `src/domain/revise/prompt.ts` with their signatures. Whether `RevisionRequester` re-exports `ResolvedArbiter` or is defined anew, and its shape. The refusal message wording for each freeze violation. Any helper exported from `src/domain/decide/revision.ts`. Any deviation from the planned file lists, with the reason.",
+      "commit": {
+        "subject": "feat(revise): add the revision checks, commit message and prompt",
+        "body": "Add the pure core of phax artifact revise under src/domain/revise/: the question-freeze check (existing questions unchanged and in place, new open questions appended with new ids), the decode of a revised answer with a plan's lineage restored, the no-change judgement on the rendered body, the commit message with its Artifact, Revised-By and Revision-Id trailers, and the writer's prompt and retry prompt. Covered by table and example unit tests."
+      },
+      "assignmentReason": null,
+      "model": "claude-sonnet-5-5",
+      "effort": "medium"
+    },
+    {
+      "id": "phase-02",
+      "title": "The revision record manifest format",
+      "objective": "Register `revision-record-manifest` as a persisted format phax can write and every reader can read. It is born with `$schema` and stamped 0.38.0 through a `next` snapshot, has its JSON Schema, and is published by the schemas package. Records listing and records explain recognise it as a record kind.",
+      "detailedInstructions": [
+        "Follow how `review-record-manifest` was added (grep the repository for it outside docs/): every place it is registered, a revision record is registered the same way.",
+        "Create `src/schemas/revisionRecord.ts`, modelled on `src/schemas/decisionRecord.ts`, with the shape from the Technical arbitrations. Common fields: `kind: Literal(\"revision\")`; `revisionId` (pattern `^[^/\\s]+\\/\\d{2,}$`, described as `<authoringId>/<NN>, the Revision-Id trailer`); `artifact` (NonEmptyString); `artifactKind` (`spec` | `plan`); `session` (`new` | `resumed-authoring`); `requester`, a union of `{ kind: \"operator\", name: NonEmptyString }` and `{ kind: \"machine\", grant: NonEmptyString }`; `newQuestions` (array of NonEmptyString); `sourceSha`; `shape` (`RecordShapeSchema`); `provider` (`ProviderIdSchema`); `model`; `requestedModel`; `effort`; `usage` (`TokenUsageSchema`).",
+        "It has three variants: `outcome: \"committed\"` with `commit: NonEmptyString`; `outcome: \"unchanged\"` with `commit: Null`; and `outcome: \"failed\"` with `commit: Null` and `failure: RevisionFailureSchema`. `RevisionFailureSchema` has the same literals as `DecisionFailureSchema`. Add a type-level equality between the two in the type tests.",
+        "Export `RevisionRecordManifestFileSchema` (each variant with `$schema: schemaUrlField(\"revision-record-manifest\")`), `RevisionRecordManifestFile`, `RevisionRecordManifest` (without `$schema`), `RevisionRecordOutcome`, `RevisionFailure`, `decodeRevisionRecordManifestFile` (onExcessProperty error), `encodeRevisionRecordManifest` and `isRevisionRecordManifest` (kind === \"revision\"). There is no lift function and no history module: the format is born at this release.",
+        "Register the format: append `revision-record-manifest` to `FORMAT_IDS` and to `SCHEMA_BORN_FORMAT_IDS` in `src/schemas/schemaUrl.ts` (at the end, keeping existing order), and extend the doc comments there. In `src/schemas/persisted.ts`, add its reader and every per-format entry the compiler asks for. In `readRecordManifestFile`, dispatch `kind: \"revision\"` to it, and add it to the `RecordManifest` union.",
+        "In the schemas package: add `revisionRecordManifestFormat`, `parseRevisionRecordManifest`, `toLatestRevisionRecordManifest`, `LatestRevisionRecordManifest`, `RevisionRecordManifestShapes` and `RevisionRecordManifestShape` in `packages/schemas/src/formats/recordManifests.ts`. Add it to `RecordManifestShapes`, `recordManifestFormats` and `parseRecordManifest`: `kind: \"revision\"` is read as a revision record manifest, born with `$schema`, and its doc comment says so. Export everything from `packages/schemas/src/index.ts` (`RevisionRecordManifestSchema`, `RevisionRecordManifest`, …) as for the review record. Add the format to `packages/schemas/build/jsonSchemas.ts`: `FORMAT_DEFINITIONS`, the excess map (`error`) and `RECORD_MANIFEST_MEMBERS`.",
+        "Run `pnpm exec tsx scripts/schemas-check.ts --write`. It creates `packages/schemas/snapshots/revision-record-manifest/next.schema.json`, sets `CURRENT_STAMPS[\"revision-record-manifest\"]` to `0.38.0` in `src/schemas/release.ts`, and updates `packages/schemas/src/generated/index.ts` and `packages/schemas/shipped-json.json`. Never edit those generated files by hand. Then run `pnpm exec tsx scripts/schemas-check.ts` (no flag) and make it pass.",
+        "Add the behaviour corpus cases `tests/behaviourCorpus/cases/formats/revision-record-manifest.json` and `tests/behaviourCorpus/cases/encode/revision-record-manifest.json`, modelled on the review record's: one valid document per outcome, and refusals for an unknown key, a committed record with `commit: null`, a failed record without `failure`, and a missing `$schema`. Register the subject in `tests/behaviourCorpus/subjects.ts` and the coverage list in `tests/unit/behaviourCorpus/coverage.test.ts`. Update `tests/behaviourCorpus/baseline/snapshot-digests.json` only if its check asks for it.",
+        "Update every per-format test table that the compiler or a test failure names: `tests/unit/schemaUrl.test.ts`, `tests/unit/architecturalGuards.test.ts` (the schema module list and the decoder map), `tests/type/schemasPackage.ts` (exports, Equals checks, unions), and the `tests/unit/schemasPackage/` files `documents.ts` (a valid revision manifest), `documents.test.ts`, `parity.test.ts`, `currentShapes.test.ts`, `jsonSchemas.test.ts`, `recordManifests.test.ts` (parse, toLatest and refusals as for the review record, with the stamp `0.38.0`) and `exports.test.ts`.",
+        "The `RecordManifest` union now includes a revision manifest, so its consumers must handle it. In `src/app/recordsList.ts`, add a list entry `{ kind: \"revision\", revisionId, shape, outcome, recordCommitSha, artifact, artifactKind }` before the phase fallback. In `src/cli/definitions/records.ts`, add its output schema member and its row (`revision`, id, shape, outcome, artifact). In `src/app/recordsExplain.ts`, change only `manifestKindLabel`, which gains `a revision manifest`. Explain's resolution of `Revision-Id` is phase-08's.",
+        "Add a row to the README `## Persisted formats` table, after the decision record's: `Revision record manifest` | `revision-record-manifest` | `revision/<authoringId>/<NN>/record.json` on `phax/records/v1` | `parseRevisionRecordManifest` | `json/revision-record-manifest.schema.json`.",
+        "Create `tests/unit/revisionRecord.test.ts`: decode and encode round trip for each outcome; refusals for an unknown key and for each mismatched outcome/commit pair; the type equality between `RevisionFailure` and `DecisionFailure` if it is not already in `tests/type/`.",
+        "If `records list --json`'s output schema appears in `phax.usage.kdl` or `docs/cli/reference.md` and the usage drift tests fail, run `pnpm gen:usage-spec` and `pnpm docs:cli`."
+      ],
+      "planMarkdownAnchor": "#phase-02-revision-record-format",
+      "plannedFilesToCreate": [
+        "src/schemas/revisionRecord.ts",
+        "packages/schemas/snapshots/revision-record-manifest/next.schema.json",
+        "tests/behaviourCorpus/cases/formats/revision-record-manifest.json",
+        "tests/behaviourCorpus/cases/encode/revision-record-manifest.json",
+        "tests/unit/revisionRecord.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/schemas/schemaUrl.ts",
+        "src/schemas/persisted.ts",
+        "src/schemas/release.ts",
+        "packages/schemas/src/formats/recordManifests.ts",
+        "packages/schemas/src/index.ts",
+        "packages/schemas/src/generated/index.ts",
+        "packages/schemas/build/jsonSchemas.ts",
+        "packages/schemas/shipped-json.json",
+        "src/app/recordsList.ts",
+        "src/app/recordsExplain.ts",
+        "src/cli/definitions/records.ts",
+        "README.md",
+        "tests/behaviourCorpus/subjects.ts",
+        "tests/unit/behaviourCorpus/coverage.test.ts",
+        "tests/unit/schemaUrl.test.ts",
+        "tests/unit/architecturalGuards.test.ts",
+        "tests/type/schemasPackage.ts",
+        "tests/unit/schemasPackage/documents.ts",
+        "tests/unit/schemasPackage/documents.test.ts",
+        "tests/unit/schemasPackage/parity.test.ts",
+        "tests/unit/schemasPackage/currentShapes.test.ts",
+        "tests/unit/schemasPackage/jsonSchemas.test.ts",
+        "tests/unit/schemasPackage/recordManifests.test.ts",
+        "tests/unit/schemasPackage/exports.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/behaviourCorpus/baseline/snapshot-digests.json",
+        "packages/schemas/history.lock.json",
+        "src/domain/records/assemble.ts",
+        "tests/unit/persisted.test.ts",
+        "tests/integration/persistedProducer.test.ts",
+        "tests/unit/decisionRecord.test.ts",
+        "phax.usage.kdl",
+        "docs/cli/reference.md",
+        "docs/cli/inventory.md"
+      ],
+      "mode": "headless",
+      "acceptance": null,
+      "boundaryContracts": "Producer: `src/schemas/revisionRecord.ts` and the schemas package. Consumers: the record writer (phase-03), the records listing and explain (`src/app/recordsList.ts`, `src/app/recordsExplain.ts`), and external readers through `@lbdremy/phax-schemas`'s `parseRevisionRecordManifest` and `parseRecordManifest`. The stable shape is a `record.json` with `$schema` first, naming `revision-record-manifest` at 0.38.0, and the fields above. Unknown keys are refused, and `commit` is a string exactly when the outcome is `committed`.",
+      "testStrategy": [
+        {
+          "guarantee": "a revision manifest of each outcome round-trips through its file schema, and a document with an unknown key, a mismatched commit or no $schema is refused",
+          "size": "small",
+          "technique": "example",
+          "oracle": "decode of encode equals the input; the refusal's path",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "phax's decoder and the schemas package's parser accept and refuse the same revision documents",
+          "size": "small",
+          "technique": "contract",
+          "oracle": "the shared behaviour corpus run against both readers",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "the published JSON Schema of revision-record-manifest accepts exactly the corpus documents the decoder accepts",
+          "size": "small",
+          "technique": "table",
+          "oracle": "the next snapshot judged by the corpus in jsonSchemas.test.ts and the schemas check",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "parseRecordManifest reads a revision manifest by its $schema and by kind revision, and names the format",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the parsed result's format and value",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "the revision failure literals equal the decision failure literals",
+          "size": "small",
+          "technique": "example",
+          "oracle": "a type-level Equals in tests/type",
+          "loop": "in-phase",
+          "criterion": null
+        }
+      ],
+      "implementationOrder": [
+        "src/schemas/revisionRecord.ts",
+        "FORMAT_IDS and persisted.ts registration",
+        "the schemas package format, index and build tables",
+        "schemas-check --write, then the check",
+        "corpus cases and per-format test tables",
+        "recordsList, records CLI row, explain label",
+        "README row"
+      ],
+      "excludedScope": [
+        "Writing a revision record (phase-03).",
+        "Resolving a Revision-Id in records explain (phase-08).",
+        "Any change to the decision, authoring, review or phase record formats."
+      ],
+      "verification": "The `standard` gate profile in phax.json.",
+      "expectedHandoff": "The exported names of `src/schemas/revisionRecord.ts` and of the schemas package. The stamp written (`0.38.0`, `next` snapshot). The `RecordListEntry` revision variant. Which per-format test tables needed an entry and which did not. Whether `phax.usage.kdl` or `docs/cli/reference.md` were regenerated. Any deviation from the planned file lists, with the reason.",
+      "commit": {
+        "subject": "feat(records): add the revision record manifest format",
+        "body": "Register revision-record-manifest, born with $schema and stamped 0.38.0 through a next snapshot until the cut: its Effect schema (committed, unchanged or failed; requester; new questions; usage), its reader in persisted.ts and the record-manifest union, the schemas package's format, parser and JSON Schema, and the behaviour corpus. Records listing shows a revision entry, and the README lists the format."
+      },
+      "assignmentReason": null,
+      "model": "claude-sonnet-5-5",
+      "effort": "medium"
+    },
+    {
+      "id": "phase-03",
+      "title": "The revision record writer",
+      "objective": "Write one revision record per writer session on `phax/records/v1`, keyed `revision/<Revision-Id>`, with the revision folder's files and a manifest stamped with the new format. The revise use case can then record every end, committed, unchanged or failed.",
+      "detailedInstructions": [
+        "Create `src/app/writeRevisionRecord.ts`, modelled on `src/app/writeDecisionRecord.ts` (verdicts mode), reusing `resolveRecordDestination`, `commitRecordTree`, `computeSessionUsage` and `RECORD_TRANSCRIPT_FILE` from `src/app/recordPlumbing.ts` and `selectRecordArtifacts` from `src/domain/records/assemble.ts`.",
+        "Export the revision folder's file names: `REVISE_AMENDMENT_FILENAME = \"amendment.md\"`, `REVISE_PROMPT_FILENAME = \"prompt.md\"`, `REVISE_RETRY_PROMPT_FILENAME = \"retry-prompt.md\"`, `REVISE_TRANSCRIPT_FILENAME = RECORD_TRANSCRIPT_FILE`, `REVISE_RETRY_TRANSCRIPT_FILENAME = \"retry-output.jsonl\"`, `REVISE_DOCUMENT_FILENAME = \"document.json\"`, `REVISE_BEFORE_FILENAME = \"before.md\"`, `REVISE_AFTER_FILENAME = \"after.md\"` and `REVISE_DIFF_FILENAME = \"body.diff\"`. The recorded files are amendment, prompt, retry prompt, document, diff and the two transcripts; the transcripts are kept or dropped together under `records.transcript`, and before/after are never recorded.",
+        "Export `revisionRecordKey(revisionId) = revision/<revisionId>` and `RevisionRecordEnd` = `{ outcome: \"committed\"; commit: string }` | `{ outcome: \"unchanged\"; commit: null }` | `{ outcome: \"failed\"; commit: null; failure: RevisionFailure }`.",
+        "Export `writeRevisionRecord(input)`. Its input has `repoRoot`, `recordsClonePath?`, `records`, `publishRemote`, `folder`, `revisionId`, `artifact`, `artifactKind`, `session`, `requester`, `newQuestions`, `sourceSha`, `provider`, `model`, `requestedModel`, `effort`, `end`, `retried`, `turnSessionIds` and `sessionIds`. Usage counts the first turn and, when retried, the retry, each with its session id.",
+        "The manifest is encoded through `encodeRevisionRecordManifest(withSchemaUrl(\"revision-record-manifest\", manifest))`. The records commit message is `records(revision): <outcome>`, an empty line, then `Revision-Id: <revisionId>`, `Artifact: <artifact>`, `Shape: <shape>`. Every session id in `sessionIds` is redacted from the recorded files. With records off it does nothing, exactly as the decision writer.",
+        "Export `RevisionRecordStatus` (the write result, or `{ kind: \"write-failed\"; message }`), `RevisionRecordPush` (a push result or `{ kind: \"no-record\" }`), `revisionRecordWarning(record, followingFailedSession?)` and `revisionRecordPushWarning(push)`, worded as the decision ones with `revision record` in place of `decision record`.",
+        "Create `tests/integration/writeRevisionRecord.test.ts`, modelled on `tests/integration/writeDecisionRecord.test.ts`, in a temp repository with an in-repo destination. It covers: a committed record's key, its manifest decoded by `decodeRevisionRecordManifestFile` with `$schema` at 0.38.0, its files and the records commit message; an unchanged and a failed record; transcripts dropped under `records.transcript: false`; a session id redacted from a recorded prompt; records off writing nothing.",
+        "Extend `tests/integration/persistedProducer.test.ts` so that `writeRevisionRecord`'s `record.json` is checked like every other producer's: it decodes under its format's current schema and its stamp is the current one."
+      ],
+      "planMarkdownAnchor": "#phase-03-revision-record-writer",
+      "plannedFilesToCreate": [
+        "src/app/writeRevisionRecord.ts",
+        "tests/integration/writeRevisionRecord.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "tests/integration/persistedProducer.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/recordPlumbing.ts",
+        "src/domain/records/assemble.ts"
+      ],
+      "mode": "headless",
+      "acceptance": null,
+      "boundaryContracts": "Producer: `src/app/writeRevisionRecord.ts`, through the Git, FileSystem and GitHub ports only. Consumer: the revise use case (phase-06), which hands it the folder, the facts and the end. A record never fails a revision: the consumer maps an I/O failure to `write-failed` and reports it. The record lives under the key `revision/<revisionId>`, which phase-08's explain reads.",
+      "testStrategy": [
+        {
+          "guarantee": "a committed, an unchanged and a failed revision each write one record commit keyed revision/<id> whose manifest decodes at the current stamp",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the records branch tree read back and decodeRevisionRecordManifestFile",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "only the recordable files reach the record, transcripts follow records.transcript, and no session id appears in a recorded file",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the record tree's file list and a search of its blobs for the ids",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "the revision record producer writes a file its format's current decoder accepts with the current stamp",
+          "size": "medium",
+          "technique": "contract",
+          "oracle": "the shared producer suite in persistedProducer.test.ts",
+          "loop": "in-phase",
+          "criterion": null
+        }
+      ],
+      "implementationOrder": [
+        "file names, key and end types",
+        "writeRevisionRecord",
+        "warnings",
+        "the integration test and the producer suite entry"
+      ],
+      "excludedScope": [
+        "Calling the writer from a use case (phase-06).",
+        "Explaining a revision record (phase-08)."
+      ],
+      "verification": "The `standard` gate profile in phax.json.",
+      "expectedHandoff": "The exports of `src/app/writeRevisionRecord.ts` with their signatures, including the input type and the folder file-name constants. The records commit message format. Any deviation from the planned file lists, with the reason.",
+      "commit": {
+        "subject": "feat(records): write revision records",
+        "body": "Add writeRevisionRecord: one commit on phax/records/v1 per revise writer session, keyed revision/<Revision-Id>, carrying the amendment, prompts, accepted document, body diff and transcripts per records.transcript, with a revision-record-manifest record.json and every session id withheld. Covered by an integration test and the persisted-producer suite."
+      },
+      "assignmentReason": null,
+      "model": "claude-sonnet-5-5",
+      "effort": "medium"
+    },
+    {
+      "id": "phase-04",
+      "title": "One headless writer path for decide and revise",
+      "objective": "Extract decide's verdicts-mode writer path into `src/app/headlessWriter.ts`, parameterized so that revise can call it. Decide keeps every behaviour it has today, as its untouched test suites show.",
+      "detailedInstructions": [
+        "Create `src/app/headlessWriter.ts` by moving code out of `src/app/decideVerdicts.ts` and `src/app/decideArtifact.ts`. Decide then calls the moved code. Do not rewrite the logic.",
+        "Move `chooseWriterSession` and its `WriterSession` type, taking `{ stateRoot, repoRoot, artifactId, provider }`. The rule stays the same: resume the kept authoring session only when `session.json` decodes, names the routed provider and ran in this checkout (`resolve(cwd) === resolve(repoRoot)`); prefer `retrySessionId`; otherwise start a new session.",
+        "Move `runWriter` as a function generic over the accepted answer `A` and the refusal error `E`. Its parameters are: `check(result: AgentRunResult): Result<A, RevisionRefusal>`; `retryPrompt(refusal: string): string`; `refusedWarning(refusal: string): string` (the warn line); `rejectedTwice(path: string, message: string): E`; the transcript and retry-prompt file names; the agent options (always `readOnly: true`); and an observed object `{ retried, sessionIds, accepted }`. Provider errors and limits are never retried. A second refusal fails with `rejectedTwice`, its message naming both refusals as today.",
+        "Move the landing step as two functions, so that revise can stop between them on no change. `diffAnswer({ folder, repoRoot, path, beforeMd, afterMd, documentJson, fileNames })` writes document.json, before.md, after.md and body.diff and returns the diff. `landAnswer({ repoRoot, stateRoot, path, snapshotMd, snapshotSidecarText, md, sidecarText, planDocument, extractPlanModel, extractPlanEffort, nowIso, commitMessage, changed: (path: string, which) => E })` does the concurrent-edit check (refusing through `changed`, leaving the change in place), seeds a plan's extraction cache before writing, writes the `.md` and the sidecar, commits exactly those paths, and fails with `ArtifactCommitFailedError` when the commit fails. It returns `{ paths, commit: { hash, subject } }`.",
+        "Extract the shared artifact reading out of `readArtifact` in `src/app/decideArtifact.ts` into `readDraftArtifact`. It takes `{ path, repoRoot }` and the caller's words: a `refuse(reason, message) => E` factory, the verb used in `only a Draft artifact is <verb>`, and what a hand-authored artifact gets (`parse` its §9 as decide does, or a refusal the caller builds). Its order is: validate, Draft only (an Approved or Stale artifact names `phax artifact reopen <path>`), uncommitted changes on the write set, then the sidecar in sync and current, or the hand-authored branch. `readArtifact` delegates to it with decide's `refused`, `decided` and `parse`. Every decide message stays byte for byte as it is.",
+        "`decideVerdicts.ts` now calls `chooseWriterSession`, `runWriter`, `diffAnswer` and `landAnswer` with its own check (`checkAnswer`), `buildDecideRetryPrompt`, its warn wording, `DecideDocumentError`, `DECIDE_*` file names, `verdictsCommitMessage` and `refused(\"changed\", …)`. Its exported names, input, result, record and report stay the same. Keep `nextDecisionIndex` exported from `decideArtifact.ts`; revise imports it.",
+        "Do not edit any of decide's tests or its harness: `tests/integration/decideVerdicts.test.ts`, `tests/integration/decideVerdictsPlanHand.test.ts`, `tests/integration/decideArtifact.test.ts`, `tests/integration/artifactDecideVerdictsCommand.test.ts`, `tests/integration/writeDecisionRecord.test.ts`, `tests/unit/cli/artifactDecideVerdicts.test.ts`, `tests/helpers/decideVerdictsHarness.ts`. They must pass as they are. If one fails, the refactor changed a behaviour: fix the refactor, not the test.",
+        "Create `tests/integration/headlessWriter.test.ts` for what decide's suites do not pin through the parameters. With the fake backend from `src/infra/fakes/backend.js` and a temp git repository: a session-choice table (no session.json, undecodable, another provider, another cwd, a match with and without a retry id); `runWriter` calls the caller's `rejectedTwice` on a second refusal and never resumes after a usage limit; `landAnswer` refuses through the caller's `changed` when the artifact changed, leaving the change in the working tree and HEAD as it was."
+      ],
+      "planMarkdownAnchor": "#phase-04-shared-writer",
+      "plannedFilesToCreate": [
+        "src/app/headlessWriter.ts",
+        "tests/integration/headlessWriter.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/decideVerdicts.ts",
+        "src/app/decideArtifact.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/authorArtifact.ts",
+        "src/domain/decide/revision.ts"
+      ],
+      "mode": "headless",
+      "acceptance": null,
+      "boundaryContracts": "Producer: `src/app/headlessWriter.ts`, an app module over the FileSystem, Git and Backend ports. Consumers: `decideVerdicts` today and `reviseArtifact` (phase-06). The contract: the caller supplies what the answer is checked against, how a refusal is worded, the error each failure becomes, the folder's file names and the commit message. The module guarantees a read-only writer, at most one corrective resume, nothing written to the repository before the answer passed and the artifact is unchanged on disk, and one commit holding exactly the artifact and its sidecar.",
+      "testStrategy": [
+        {
+          "guarantee": "decide in both modes behaves exactly as before the extraction: messages, exits, folders, commits, records and reports",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "decide's existing suites, run without an edit",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "the kept authoring session is resumed only on the routed provider in this checkout, with the retry id preferred",
+          "size": "medium",
+          "technique": "table",
+          "oracle": "a table of session.json states and the expected session kind and id",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "a second refusal fails through the caller's factory, a limit is never retried, and a concurrent edit is refused through the caller's factory and left in place",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the error the caller built, the fake backend's call counts, the working tree and HEAD",
+          "loop": "in-phase",
+          "criterion": null
+        }
+      ],
+      "implementationOrder": [
+        "move chooseWriterSession",
+        "move runWriter as a generic function",
+        "split the landing into diffAnswer and landAnswer",
+        "extract readDraftArtifact and delegate readArtifact",
+        "rewire decideVerdicts",
+        "headlessWriter.test.ts, then decide's suites"
+      ],
+      "excludedScope": [
+        "Any revise code (phase-06).",
+        "Any change to decide's behaviour, messages, help text or tests, including the stale help sentence about Vibe.",
+        "Interactive decide's own session (decideArtifact's handback), beyond the shared reading."
+      ],
+      "verification": "The `standard` gate profile in phax.json.",
+      "expectedHandoff": "The exports of `src/app/headlessWriter.ts` with their signatures and type parameters (`chooseWriterSession`, `runWriter`, `diffAnswer`, `landAnswer`, `readDraftArtifact`). How a caller words refusals and errors through them. Confirmation that no decide test file was edited and all of decide's suites pass. Any deviation from the planned file lists, with the reason.",
+      "commit": {
+        "subject": "refactor(decide): extract the headless writer path",
+        "body": "Move decide's verdicts-mode writer path into src/app/headlessWriter.ts: the kept-session choice, the writer turn with its one corrective resume, the diff, the concurrent-edit check, the cache seed, the write and the commit, and the reading of a Draft artifact. Each is parameterized by the caller's check, wording, errors, file names and commit message, so that revise can share it. Decide's behaviour is unchanged: its suites pass without an edit."
+      },
+      "assignmentReason": null,
+      "model": "claude-sonnet-5-5",
+      "effort": "medium"
+    },
+    {
+      "id": "phase-05",
+      "title": "Acceptance tests for revising a Draft",
+      "objective": "Freeze the spec's acceptance criteria as executable tests at the revise use case's entry, against a stub that fails recognisably. phase-06 then implements the use case against tests it cannot bend.",
+      "detailedInstructions": [
+        "Create the stub `src/app/reviseArtifact.ts`. It declares the full input and result types and a `reviseArtifact(input)` function whose body is `Effect.die(new Error(\"not implemented: reviseArtifact (phase-06)\"))`. Its requirement is `FileSystem | Git | GitHub | Backend | Terminal`.",
+        "The stub's `ReviseArtifactInput` holds: `path` (repo-relative); `amendment: { text: string; label: string }` (label is the path as given, or `stdin`); `by: string | undefined`; `model` and `effort: string | undefined`; `authoring: Readonly<Record<ArtifactKind, { model: string; effort: Effort }>>` (phax.json's resolved `authoring.spec` and `authoring.plan`); `routing: ModelRouting`; `providerConfig: ProviderConfig`; `skills: Readonly<Record<ArtifactKind, string>>` (the `phax-spec` and `phax-planning` SKILL.md texts); `security: ResolvedSecurityConfig`; `repoRoot`; `stateRoot`; `extractPlanModel`; `extractPlanEffort`; `nowIso`; `records: ResolvedRecordsConfig`; `recordsClonePath?`; `publishRemote`; and `output: Pick<OutputPort, \"log\" | \"warn\">`.",
+        "The stub's `ReviseArtifactResult` holds: `kind` (`committed` | `unchanged`); `path`; `paths` (empty when unchanged); `status: \"Draft\"`; `session` (`new` | `resumed-authoring`); `provider`; `model` (concrete); `requestedModel`; `effort`; `modelSource` (`flag` | `authoring.spec` | `authoring.plan`); `effortSource` (same three); `requester` (`RevisionRequester` from phase-01); `newQuestions: ReadonlyArray<{ id: string; question: string }>`; `diff`; `commit: { hash; subject } | null`; `revisionId`; `record: RevisionRecordStatus`; and `recordPush: RevisionRecordPush` (from phase-03). Declare `ReviseArtifactError` as a union of the existing error classes decide's verdicts mode uses; phase-06 may widen it.",
+        "Create `tests/helpers/reviseHarness.ts`, modelled on `tests/helpers/decideVerdictsHarness.ts` and reusing its building blocks by import where they fit (`isolateGit`, `isolatePhaxHome`, `tempGit`, the fake backend, the fake terminal and the fake GitHub). It provides a temp git repository with a committer identity and a state root beside it. Its seeders write a Draft headless spec and a Draft headless plan with in-sync sidecars, plus their kept `session.json` (provider and cwd chosen per test) and `brief.md` under `authoring/<authoringId>/`. It also seeds a hand-authored plan, a diverged sidecar, an invalid sidecar and a sidecar stamped below its shape (an older `$schema`), and can set the status to Approved or Stale. It configures in-repo records. It runs `reviseArtifact` and returns the Result, and it maps a failure to its exit code with `exitCodeForAuthoringError` from `src/cli/commands/runLayers.ts`, as the decide harness does. Its helpers read HEAD, the porcelain status, a repo file, the plan extraction cache, the records branch and the state root's `revise/` folder.",
+        "Create `tests/unit/revise/reviseFixtures.ts` with made-up documents and writer answers: a spec and a plan, each with one open and one arbitrated question; a valid revised plan answer and a valid revised spec answer (one body field changed, `$schema` current); an answer appending one open question `Q9`; answers that edit an arbitrated verdict's `why`, remove the open question, and reorder two questions (give the plan fixture a second open question for this); prose; a document without `$schema`; a plan answer with a different `sourceSpec`; and the current document unchanged. Every name and operator is made up.",
+        "Create `tests/integration/reviseArtifact.test.ts`. Name each test after the §8 criterion it covers. Mark every test with vitest's expected-failure marker (`it.fails(...)`), so the gate stays green against the stub. The tests:",
+        "(1) A plan is revised from an amendment. The kept session is on the writer's provider in this checkout and `--by operator` is given. Expect one new commit holding exactly the `.md` and the sidecar. The extraction cache holds the new document (seeded for the new `.md`). `inspectSidecar` agrees `in-sync` and the frontmatter status is Draft. `result.session` is `resumed-authoring`, and the backend saw a resume, not a run.",
+        "(2) A spec is revised in a new session. The kept session ran on another provider. The backend saw a new run whose prompt contains the current document's text, the kept brief and the amendment, and `result.session` is `new`.",
+        "(3) Only a Draft is revised. An Approved plan, then a Stale one: each exits 12 with a message naming `phax artifact reopen <path>`, the backend saw no call, and HEAD is unchanged.",
+        "(4) Only a headless artifact in sync is revised. A hand-authored plan (message names editing the .md directly), a diverged sidecar, an invalid sidecar and one stamped below its shape (message names `phax artifact migrate-documents`): each exits 12 before any call.",
+        "(5) A changed question is refused. A writer that edits an arbitrated verdict, removes an open question, or reorders two questions: each time the first answer is refused, exactly one corrective resume runs, the second refused answer exits 5, and the artifact, sidecar and HEAD are unchanged.",
+        "(6) A new open question is accepted. The commit lands with `Q9` in the sidecar's open questions and in the `.md` under `## Open questions` (plan) or `## 9. Open questions` (spec), and `result.newQuestions` lists `Q9`.",
+        "(7) A malformed answer is refused. Prose then, on the corrective resume, a document without `$schema`: exit 5, with the failure's message naming the `$schema` violation, and the working tree clean with HEAD unchanged.",
+        "(8) Frontmatter is kept. The answer has a different `sourceSpec`; after the commit, the frontmatter block's bytes equal those before.",
+        "(9) No change is not a commit. The answer is the current document: `result.kind` is `unchanged`, `result.commit` is null, and HEAD and the porcelain status are unchanged.",
+        "(10) The commit carries the amendment and the requester. With `by: \"machine:plan-loop\"`: the subject is `docs(plans): revise <slug>`, the body contains the amendment verbatim, and the trailers are `Artifact: <path>`, `Revised-By: machine (plan-loop)` and `Revision-Id: <authoringId>/01`.",
+        "(11) No requester without a terminal. No `by` and a fake terminal reporting no TTY: exit 12, with a message naming `--by operator` and `--by machine:<grant>`, and no backend call.",
+        "(12) A concurrent edit is kept. Use the fake backend's `setOnResumeAgent` to edit the plan file: exit 12, the edit still in the working tree, HEAD unchanged, and no file of revise's written.",
+        "(13) A writer routed to Vibe is refused. A provider config enabling `mistral-vibe` and a model routed to it, as in decideVerdicts.test.ts's Vibe case: exit 12 and no backend call. Under Q1's `run-read-only` option this test would instead assert a run on `mistral-vibe` with `readOnly: true`; write it for the option the operator decided.",
+        "(14) The revision is explained, record half. With records configured, a committed revision leaves a record under `revision/<revisionId>/record.json` on the records branch, stamped `revision-record-manifest`. A revision that fails with exit 5 leaves a record with outcome `failed` and failure `answer-refused`.",
+        "(15) A provider failure writes nothing. A usage limit exits 8, then a session failure of kind `network` exits 14. Each time the artifact, its sidecar and HEAD are unchanged.",
+        "(16) Uncommitted changes are refused. An uncommitted edit to the sidecar exits 12, and so does a repository with no `user.name` (unset it in the temp repo's config). Neither makes a backend call, and HEAD is unchanged.",
+        "(17) The revision's files are kept. After a commit, `<stateRoot>/revise/<authoringId>/01/` holds `amendment.md` (the amendment's text), `prompt.md`, `output.jsonl`, `document.json` and `body.diff`, and `<authoringId>/01` equals the commit's `Revision-Id` trailer.",
+        "Each test asserts the behaviour the spec states through the use case's entry, its Result, the repository and the state root. Never assert internal helpers or call order. Against the stub, every test must fail because `reviseArtifact` dies with the not-implemented error, never because of a missing module, export or type. Run the suite and confirm that every test reports as an expected failure.",
+        "The JSON report (§5.13 `--json`) and the bad-amendment refusal (§5.19) are the command's surface, tested in-phase by phase-07. The `records explain` half of criterion 14 is phase-08's."
+      ],
+      "planMarkdownAnchor": "#phase-05-revise-acceptance",
+      "plannedFilesToCreate": [
+        "src/app/reviseArtifact.ts",
+        "tests/helpers/reviseHarness.ts",
+        "tests/unit/revise/reviseFixtures.ts",
+        "tests/integration/reviseArtifact.test.ts"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [
+        "src/infra/fakes/backend.ts",
+        "src/infra/fakes/terminal.ts"
+      ],
+      "mode": "headless",
+      "acceptance": {
+        "passedBy": "phase-06",
+        "files": [
+          "tests/integration/reviseArtifact.test.ts",
+          "tests/helpers/reviseHarness.ts",
+          "tests/unit/revise/reviseFixtures.ts"
+        ]
+      },
+      "boundaryContracts": "Consumer: the acceptance tests, through `reviseArtifact`'s input and result types and the CLI's exit-code mapping. Producer: the use case of phase-06. The stable shape is the input and result declared in the stub, frozen with the tests. phase-06 may widen the error union, but must not change a field of the input or the result.",
+      "testStrategy": [
+        {
+          "guarantee": "a Draft headless plan in sync is revised in the resumed authoring session and committed in one commit, its cache re-seeded, its sidecar in sync and its status Draft",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the repository's commit and files, the extraction cache, inspectSidecar, and result.session",
+          "loop": "acceptance",
+          "criterion": null
+        },
+        {
+          "guarantee": "a spec whose kept session ran on another provider is revised in a new session whose prompt carries the document, the kept brief and the amendment",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the fake backend's run call and its prompt, and result.session",
+          "loop": "acceptance",
+          "criterion": null
+        },
+        {
+          "guarantee": "an Approved and a Stale artifact are refused with exit 12 naming phax artifact reopen, before any session",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "exit code, message, backend call count and HEAD",
+          "loop": "acceptance",
+          "criterion": null
+        },
+        {
+          "guarantee": "a hand-authored, diverged, invalid and unmigrated artifact are each refused with exit 12 and their remedy, before any session",
+          "size": "medium",
+          "technique": "table",
+          "oracle": "per case, the exit code, the remedy in the message and zero backend calls",
+          "loop": "acceptance",
+          "criterion": null
+        },
+        {
+          "guarantee": "an edited, removed or reordered question is refused, corrected once, then fails with exit 5 and nothing written",
+          "size": "medium",
+          "technique": "table",
+          "oracle": "resume count, exit code, artifact, sidecar and HEAD",
+          "loop": "acceptance",
+          "criterion": null
+        },
+        {
+          "guarantee": "an appended open question lands in the sidecar, in the rendered open-questions section and in result.newQuestions",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the committed sidecar and .md, and the result",
+          "loop": "acceptance",
+          "criterion": null
+        },
+        {
+          "guarantee": "prose then a document without $schema fails with exit 5 naming the violation, with the tree and HEAD unchanged",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "exit code, message, porcelain status and HEAD",
+          "loop": "acceptance",
+          "criterion": null
+        },
+        {
+          "guarantee": "the frontmatter is kept byte for byte when the answer would render another source-spec",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the frontmatter bytes before and after",
+          "loop": "acceptance",
+          "criterion": null
+        },
+        {
+          "guarantee": "an answer equal to the current document ends unchanged with no commit",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "result.kind, result.commit, HEAD and porcelain status",
+          "loop": "acceptance",
+          "criterion": null
+        },
+        {
+          "guarantee": "the commit has the revise subject, the amendment verbatim and the Artifact, Revised-By and Revision-Id trailers",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the literal commit subject, body and trailers",
+          "loop": "acceptance",
+          "criterion": null
+        },
+        {
+          "guarantee": "with no terminal and no --by, revise exits 12 naming both --by forms, before any session",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "exit code, message and backend call count",
+          "loop": "acceptance",
+          "criterion": null
+        },
+        {
+          "guarantee": "an edit of the artifact during the session exits 12 and stays in the working tree",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "exit code, the file's content, porcelain status and HEAD",
+          "loop": "acceptance",
+          "criterion": null
+        },
+        {
+          "guarantee": "a writer model routed to mistral-vibe is refused with exit 12 before any session",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "exit code and backend call count",
+          "loop": "acceptance",
+          "criterion": null
+        },
+        {
+          "guarantee": "a committed revision and a revision failed with exit 5 each leave a revision record keyed revision/<id> with its outcome",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the records branch's record.json decoded at the revision-record-manifest stamp",
+          "loop": "acceptance",
+          "criterion": null
+        },
+        {
+          "guarantee": "a usage limit exits 8 and a network failure exits 14, each with the artifact, sidecar and HEAD unchanged",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "exit codes, files and HEAD",
+          "loop": "acceptance",
+          "criterion": null
+        },
+        {
+          "guarantee": "an uncommitted sidecar edit and a missing git user.name are each refused with exit 12 before any session",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "exit code, backend call count and HEAD",
+          "loop": "acceptance",
+          "criterion": null
+        },
+        {
+          "guarantee": "a committed revision keeps its amendment, prompt, transcript, answer and diff under revise/<authoringId>/<NN>/, named by its Revision-Id",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the state root's folder listing, amendment.md's text and the commit's Revision-Id trailer",
+          "loop": "acceptance",
+          "criterion": null
+        }
+      ],
+      "implementationOrder": [
+        "the stub with its frozen input and result types",
+        "fixtures",
+        "harness",
+        "the seventeen tests, each with .fails",
+        "run the suite: every test an expected failure"
+      ],
+      "excludedScope": [
+        "Any implementation of the use case (phase-06).",
+        "The command definition, its JSON report and its stdin refusals (phase-07).",
+        "records explain (phase-08)."
+      ],
+      "verification": "The `standard` gate profile in phax.json, with the acceptance provider judging the markers.",
+      "expectedHandoff": "The stub's exact input, result and error types. The harness's API: seeders, run, exit mapping and readers. The fixture names. The list of the seventeen test titles with the criterion each covers. How the Vibe case is set up and which Q1 option it encodes. Any deviation from the planned file lists, with the reason.",
+      "commit": {
+        "subject": "test(revise): add acceptance tests for phax artifact revise",
+        "body": "Freeze the spec's acceptance criteria as integration tests at reviseArtifact's entry, each marked .fails against a stub that dies with a not-implemented error. A harness seeds headless specs and plans, their kept sessions and briefs, and every refused state, and fixtures give the writer answers each criterion needs. phase-06 passes them."
+      },
+      "assignmentReason": "The tests are frozen once committed and phase-06 cannot adjust them, so one wrong assertion pauses the run. Seventeen criteria across a new use case's interface are worth the higher effort.",
+      "model": "claude-sonnet-5-5",
+      "effort": "high"
+    },
+    {
+      "id": "phase-06",
+      "title": "The revise use case on the shared writer path",
+      "objective": "Implement `reviseArtifact` on the shared headless writer path: every refusal before any session, one read-only writer session with one corrective resume, the no-change ending, the write and commit, and a revision record for every session that ran. It passes the acceptance tests of phase-05.",
+      "detailedInstructions": [
+        "Implement `src/app/reviseArtifact.ts` behind the stub's types without changing any field of its input or result. Its errors may widen.",
+        "Add two errors to `src/domain/errors.ts`. `ReviseRefusedError` carries `reason` (`not-draft` | `sidecar` | `hand-authored` | `dirty` | `no-by` | `by` | `identity` | `model` | `provider-read-only` | `changed`) and a `message` that starts `Revise refused: `. `ReviseDocumentError` carries `path` and `message`. In `src/cli/commands/runLayers.ts`, map `ReviseRefusedError` to 12 and `ReviseDocumentError` to 5 in `exitCodeForError`, and wherever `exitCodeForAuthoringError` defers to it.",
+        "Preconditions, in this order, none writing anything: (1) `refuseUnmigratedDocuments(\"Revise refused\")` (exit 12 naming `phax artifact migrate-documents`). (2) `readDraftArtifact` from `src/app/headlessWriter.ts` with revise's words: the verb `revised`; an Approved or Stale artifact names `phax artifact reopen <path>`; uncommitted changes on the artifact or its sidecar are refused; a hand-authored artifact is refused as `<path> is hand-authored (no sidecar) — edit the .md directly`; a diverged or invalid sidecar names `sidecarRemedy`'s two remedies; an unmigrated sidecar names migrate-documents. (3) The requester through `resolveArbiter(input.by, repoRoot)` from `src/app/resolveArbiter.ts`; with no `--by` and no terminal, refuse (`no-by`) naming `--by operator` and `--by machine:<grant>`. If its own refusal already names both, keep its words; otherwise re-word it. (4) A committing identity: `git.committerName(repoRoot)` must name one, else refuse (`identity`) naming `git config user.name`. (5) The model: `resolveAuthoringSelection` with the flags and `input.authoring[kind]`; an effort outside `low | medium | high` is refused (`model`); then `resolveModel` routes it as headless authoring does. Sources are `flag` or `authoring.<kind>`. (6) Per Q1's recommendation (`refuse-vibe`), a writer routed to `mistral-vibe` is refused (`provider-read-only`) with exit 12, naming `--model` with a Claude Code or Codex model. Under the `run-read-only` option, omit this guard: the writer runs read-only on any provider.",
+        "Then the session: `chooseWriterSession` from the shared module. The index is `nextDecisionIndex(<stateRoot>/revise/<authoringId>)`. The revision id is `<authoringId>/<NN>` and the folder is `<stateRoot>/revise/<authoringId>/<NN>/`. Write `amendment.md` (the text as given) and `prompt.md` there before the session.",
+        "Build the prompt with `buildRevisePrompt`: kind, path, session kind, `input.skills[kind]`, the kept brief from `authoringSessionFolder(stateRoot, authoringId)/brief.md` when it exists (else null), the current document, the amendment, and `currentSchemaUrl(\"<kind>-document\")`.",
+        "Progress lines through `output.log`: `revise <kind> <slug> — amendment from <label> — headless, resumed authoring session|new session`, then the model line as decide words it (concrete model / effort (source) on provider, plus `requested <model>` when routing chose another). The record's `sourceSha` is HEAD.",
+        "Run the writer through `runWriter` with read-only agent options, `answerSchema: { call: \"revise\" (or the closest existing structured-call id; read `src/domain/session/structuredCalls.ts` and add a `revise` entry there if calls are enumerated), schema: answerJsonSchema(\"<kind>-document\") }`, and `cwd: repoRoot`.",
+        "The check: `answerJson(result)`, then `decodeRevisedAnswer(json, snapshot document)`. On success, render with `renderRevisedArtifact(snapshot.md, document)` to get `{ md, sidecarText }` and keep the new questions. The retry prompt is `buildReviseRetryPrompt`, and `rejectedTwice` builds a `ReviseDocumentError` whose message names both refusals.",
+        "On an accepted answer, write `document.json`. If `rendersSameBody(snapshot.md, document)`, write `body.diff` empty, write nothing to the repository, and end `unchanged` (commit null, paths empty). Otherwise `diffAnswer`, then `landAnswer` with `reviseCommitMessage(...)` and `changed` building `ReviseRefusedError(\"changed\", \"<path> changed while the revise session ran — its change is left in place; rerun revise\")`.",
+        "Every end after the writer started is recorded with `writeRevisionRecord`, then pushed with `pushRecordsBranch`, as decideVerdicts does. The end is committed (with the commit hash), unchanged, or failed with `revisionFailureOf(error)`. A record failure degrades to `write-failed` and never fails the revision. A failure is re-raised with the record's warnings as follow-ups (`failWithFollowUps`).",
+        "Create `src/app/reviseFailure.ts` exporting `revisionFailureOf(error): RevisionFailure`, as `decisionFailureOf`: a session failure gives its kind, a rate or usage limit gives its limit kind, `ReviseDocumentError` gives `answer-refused`, `ArtifactCommitFailedError` gives `commit-failed`, `ReviseRefusedError` with reason `changed` gives `artifact-changed`, and anything else gives `unknown`. Create `tests/unit/reviseFailure.test.ts` covering the full table.",
+        "Remove the `.fails` marker from every test in `tests/integration/reviseArtifact.test.ts`. Remove only the markers; do not change anything else in that file, the harness or the fixtures. If a test seems wrong, stop and say so in the handoff rather than changing it.",
+        "Write any further unit tests the logic needs, and add them to this phase's handoff."
+      ],
+      "planMarkdownAnchor": "#phase-06-revise-use-case",
+      "plannedFilesToCreate": [
+        "src/app/reviseFailure.ts",
+        "tests/unit/reviseFailure.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/reviseArtifact.ts",
+        "src/domain/errors.ts",
+        "src/cli/commands/runLayers.ts",
+        "tests/integration/reviseArtifact.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/headlessWriter.ts",
+        "src/app/writeRevisionRecord.ts",
+        "src/domain/revise/revision.ts",
+        "src/domain/revise/prompt.ts",
+        "src/domain/session/structuredCalls.ts",
+        "src/schemas/phaxConfig.ts",
+        "src/app/decideArtifact.ts",
+        "src/domain/decide/model.ts"
+      ],
+      "mode": "headless",
+      "acceptance": null,
+      "boundaryContracts": "Consumer: the command definition of phase-07, which reads flags, config, skills and the amendment and renders the result. Producer: `reviseArtifact`, which reaches I/O only through the FileSystem, Git, GitHub, Backend and Terminal ports. The contract is the input and result frozen by phase-05, plus two new error classes: `ReviseRefusedError` (exit 12) and `ReviseDocumentError` (exit 5). The use case calls the shared writer module (phase-04), the domain checks (phase-01) and the record writer (phase-03); it never reimplements them.",
+      "testStrategy": [
+        {
+          "guarantee": "every way a revision can fail maps to one record failure literal",
+          "size": "small",
+          "technique": "table",
+          "oracle": "a table of error instances and expected literals",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "ReviseRefusedError exits 12 and ReviseDocumentError exits 5 through the CLI's mapping",
+          "size": "small",
+          "technique": "example",
+          "oracle": "exitCodeForError and exitCodeForAuthoringError results",
+          "loop": "in-phase",
+          "criterion": null
+        }
+      ],
+      "implementationOrder": [
+        "errors and exit mapping",
+        "revisionFailureOf and its test",
+        "preconditions",
+        "session, folder and prompt",
+        "writer, check, no-change, landing",
+        "record and push",
+        "remove the .fails markers and run the acceptance suite"
+      ],
+      "excludedScope": [
+        "The command definition, help, report rendering and regenerated contract files (phase-07).",
+        "records explain (phase-08).",
+        "Any change to decide's behaviour or tests.",
+        "Any edit to the acceptance test files other than removing the markers."
+      ],
+      "verification": "The `standard` gate profile in phax.json, with the acceptance provider judging the passing phase.",
+      "expectedHandoff": "The final `ReviseArtifactError` union. The two error classes, their reasons and their message prefixes. The exact progress lines. The structured-call id used for the answer schema. How the Vibe guard reads (or its absence under Q1's other option). Confirmation that every acceptance test passes with only its marker removed. Any deviation from the planned file lists, with the reason.",
+      "commit": {
+        "subject": "feat(revise): revise a Draft headless artifact from an amendment",
+        "body": "Implement reviseArtifact on the shared headless writer path. It refuses before any session: an artifact not Draft, not headless or not in sync, uncommitted changes, no requester without a terminal, no git identity, and a writer routed to Vibe. Then it runs one read-only writer session (the kept authoring session resumed when it ran on the provider in this checkout) with one corrective resume, checks the answer (stamp, decode, frozen questions, appended open questions), ends with no commit when the body is unchanged, and otherwise writes and commits the artifact and sidecar with the amendment and the Revised-By and Revision-Id trailers. Every session that ran leaves a revision record. Passes phase-05's acceptance tests."
+      },
+      "assignmentReason": "The largest phase: a new use case orchestrating the shared writer path, the domain checks and the record writer must pass a frozen suite of seventeen acceptance tests that it cannot adjust.",
+      "model": "claude-sonnet-5-5",
+      "effort": "high"
+    },
+    {
+      "id": "phase-07",
+      "title": "The phax artifact revise command",
+      "objective": "Expose revise as `phax artifact revise <path> --amendment <file|-> [--by] [--model] [--effort] [--json]` on the command library's runner, with its help, refusals, exit codes, text report and normative `--json` report. Classify it for the phase guard and regenerate the command contract files.",
+      "detailedInstructions": [
+        "Create `src/cli/definitions/artifactRevise.ts`, modelled on the verdicts branch of `src/cli/definitions/artifactDecide.ts`. Export `makeArtifactReviseCommand(deps: ArtifactReviseDeps = {})`, whose deps are the swappable backend, terminal and GitHub layers.",
+        "Input: one path argument, as decide declares it. Flags `by`, `model` and `effort`, each optional. The stdin document `--amendment <file|->`, declared as `artifactNew.ts` declares `--brief`: `reject(<string schema>, { flag: \"amendment\", text: true, valueRequired: true })`. Its schema refuses an empty or whitespace-only text, so the runner refuses with exit 64 before anything runs; the runner already refuses a terminal on stdin for `-` with 64. Revise never prompts (it never asks before committing), so declare no `prompts`.",
+        "`run`: load config and the provider config as decide does, read the `phax-spec` and `phax-planning` SKILL.md from `defaultBundleRoot()` via `SKILL_SOURCE_DIR_FOR_KIND` (as `artifactNew.ts` does), and call `reviseArtifact`. Its input carries `amendment: { text, label }` (the label is the file path as given, or `stdin`) and `authoring: { spec: config.authoring.spec, plan: config.authoring.plan }`; the rest is as decide's `common`. Progress goes through `say` and warnings through `progress`, as decide does. A failure becomes `sessionFailure(...)` with a retry line: `phax artifact revise <path> --amendment <source> ...flags`, plus `(pipe the same amendment again)` for stdin.",
+        "The output schema is the normative `--json` keys, in order: `artifact`, `status` (`Draft`), `session` (`new` | `resumed-authoring`), `provider`, `model`, `requestedModel`, `effort`, `newQuestions` (array of `{ id, question }`), `diff`, `commit` (`{ hash, subject }` or null), `revisionId`, `written` (from `writtenRecords(result.paths, repoRoot)`; empty when nothing changed) and `record` (`recordOutcome(result.record, result.recordPush, …)` with revision-record sentences built from `revisionRecordWarning`, `revisionRecordPushWarning` and the fallback `revision record not written`).",
+        "The text report renders, after the progress lines: `questions  none new` or `questions  <n> new open: <id> — <question>` (one line per question). Then `--- body diff ---` and the diff when there is one. Then either `commit     <short hash> — <subject>`, or `nothing changed: the amendment changed nothing in <path> — no commit`. Then the status line: `status     Draft — read the diff above, then ` followed by `phax artifact decide <path>` with the open ids in parentheses when the artifact has open questions after the revision, then `phax artifact approve <path>`. Last comes the record line (`record     <key>` or `record     off`). Notes carry the record's warnings. Keep the rendering in an exported pure `renderReviseReport(answer)`.",
+        "The help text says everything the spec's surface says, at the level of decide's help: what revise does and for which artifacts; the writer session and its resume rule; the model defaults (flag, then `authoring.<kind>`, then the catalog default) and routing; read-only and the Vibe refusal (per Q1); what the answer is checked for (current `$schema`, decode checks, existing questions unchanged and in place, new open questions appended only) and the one corrective resume; that the frontmatter is kept; no change, no commit; committing without asking with the artifact left Draft; the commit's body and trailers; the `--by` rules; the `--json` keys; every refusal before a session; the exit codes (0, 1 inside a phase worktree, 5, 8, 12, 14, 64); and its side effects (the `revise/<authoringId>/<NN>/` folder, the commit, the revision record). Examples: `phax artifact revise docs/plans/2610271402-identity-store-plan.md --amendment amendment.md --by machine:plan-loop` and `phax artifact revise docs/specs/2610271505-artifact-revise.md --amendment - --by operator --json`.",
+        "Register `makeArtifactReviseCommand()` in `src/cli/definitions/artifact.ts`, right after decide. Add `\"artifact revise\": \"refused\"` to `PHASE_GUARD_CLASSIFICATION` in `src/domain/security/phaseGuard.ts`.",
+        "Run `pnpm gen:usage-spec` and `pnpm docs:cli` to regenerate `phax.usage.kdl` and `docs/cli/reference.md` (and `docs/cli/inventory.md` if the script writes it). Never edit them by hand. The usage drift, lint, example and completer tests must pass.",
+        "Create `tests/integration/artifactReviseCommand.test.ts`, modelled on `tests/integration/artifactDecideVerdictsCommand.test.ts`, using `runnerCall` with a fake backend and a fake terminal in a temp repository, with a Draft headless plan seeded with its sidecar. Test: (a) `--json` with a committing revision: stdout is one JSON object whose keys are exactly the thirteen normative keys in order, `written` names the `.md` and the sidecar, and the progress lines are on stderr. (b) `--amendment -` with a terminal on stdin exits 64 with no backend call. (c) An empty amendment file exits 64 with no backend call. (d) An unchanged answer exits 0, prints the nothing-changed line, and leaves HEAD unchanged. (e) An Approved plan exits 12 with the refusal naming `phax artifact reopen`.",
+        "Create `tests/unit/cli/artifactRevise.test.ts` for `renderReviseReport`: committed with no new question, committed with one new open question (the status names decide, then approve), and unchanged."
+      ],
+      "planMarkdownAnchor": "#phase-07-revise-command",
+      "plannedFilesToCreate": [
+        "src/cli/definitions/artifactRevise.ts",
+        "tests/integration/artifactReviseCommand.test.ts",
+        "tests/unit/cli/artifactRevise.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/cli/definitions/artifact.ts",
+        "src/domain/security/phaseGuard.ts",
+        "phax.usage.kdl",
+        "docs/cli/reference.md"
+      ],
+      "optionalFilesToEdit": [
+        "docs/cli/inventory.md",
+        "src/cli/definitions/shared.ts",
+        "tests/unit/phaseGuard.test.ts",
+        "tests/helpers/runnerCall.ts"
+      ],
+      "mode": "headless",
+      "acceptance": null,
+      "boundaryContracts": "Consumer: the operator or an agent at the CLI, and scripts reading `--json`. Producer: `artifactRevise.ts`, a thin definition that calls `reviseArtifact` once and renders its answer, with no business logic. The normative contract is the thirteen `--json` keys in order on stdout, progress and warnings on stderr, and the exit codes 0, 1, 5, 8, 12, 14 and 64. The amendment reaches the use case as text and a label, never as a path the use case opens.",
+      "testStrategy": [
+        {
+          "guarantee": "--json prints one object with exactly the normative keys in order, and progress goes to stderr",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "Object.keys of the parsed stdout against the spec's key list, and the stderr lines",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "--amendment - with a terminal on stdin, and an empty amendment file, each exit 64 before any session",
+          "size": "medium",
+          "technique": "boundary",
+          "oracle": "exit code and the fake backend's call count",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "an unchanged revision exits 0, says the amendment changed nothing and leaves HEAD as it was",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "exit code, stdout line and HEAD",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "the text report renders committed, committed with a new open question, and unchanged, with the status line naming decide then approve when a question is open",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the expected report lines",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "phax.usage.kdl and docs/cli/reference.md match the definitions, and revise is refused inside a phase worktree",
+          "size": "medium",
+          "technique": "contract",
+          "oracle": "the usage drift tests and the phase-guard classification test",
+          "loop": "in-phase",
+          "criterion": null
+        }
+      ],
+      "implementationOrder": [
+        "input, output and help in artifactRevise.ts",
+        "run and render",
+        "register the command and classify it for the phase guard",
+        "regenerate phax.usage.kdl and docs/cli/reference.md",
+        "the two test files"
+      ],
+      "excludedScope": [
+        "Any logic in the definition beyond reading input and rendering the answer.",
+        "records explain (phase-08).",
+        "Docs pages (phase-09).",
+        "decide's help text, including its stale Vibe sentence."
+      ],
+      "verification": "The `standard` gate profile in phax.json.",
+      "expectedHandoff": "The command's flags as declared, its output schema, the exported `renderReviseReport`, the help's exit-code paragraph, and the regenerated files. Confirmation that the phase guard classifies `artifact revise` as refused. Any deviation from the planned file lists, with the reason.",
+      "commit": {
+        "subject": "feat(cli): add phax artifact revise",
+        "body": "Expose revise on the command library's runner: --amendment <file|-> read as text (an empty one or a terminal on stdin refused with 64), --by, --model and --effort, the text report (session, model, new questions, body diff, commit or no change, status naming decide then approve), and the normative --json report ending with written and record. Revise is classified as refused inside a phase worktree, and phax.usage.kdl and docs/cli/reference.md are regenerated."
+      },
+      "assignmentReason": null,
+      "model": "claude-sonnet-5-5",
+      "effort": "medium"
+    },
+    {
+      "id": "phase-08",
+      "title": "records explain resolves a revision",
+      "objective": "Make `phax records explain <commit>` resolve a revise commit's `Revision-Id` to its revision record, and show it as it shows a decision record. A verbatim amendment line shaped like a trailer must never redirect it.",
+      "detailedInstructions": [
+        "In `src/app/recordsExplain.ts`, add a `revision` member to `RecordAddress` (`{ kind: \"revision\"; revisionId }`). In `addressFromTrailers`, first read the commit message's last paragraph (the text after its last blank line): when that paragraph holds a `Revision-Id: <id>` line, return the revision address, checked before every other trailer. Otherwise keep today's whole-body reading and precedence exactly as they are.",
+        "`keyOf` gives `revisionRecordKey(revisionId)` (from `src/app/writeRevisionRecord.ts`), and `trailerOf` gives `Revision-Id: <id>`. In `findRecordCommit`, a revision record is found as a decision record is: grep the records branch for its trailer, check that the candidate's tree holds the key, and prefer the record whose manifest names the source commit. Reuse the decision branch's logic, parameterized, rather than copying it.",
+        "Add `ExplainedRevisionRecord` (`revisionId`, `manifest: RevisionRecordManifest`, `recordCommitSha`, `foundVia`, `sourceCommitReachable?`, `files`, `artifacts`) and the outcome `{ kind: \"found-revision\"; record }`. The `not-found` outcome's key covers `revision/<id>` too. A manifest under the key that is not a revision manifest is reported as malformed with `manifestKindLabel`.",
+        "In `src/cli/definitions/recordsExplain.ts`, add the `found-revision` output schema member and its rendering, modelled on the decision record's. The header is `revision <revisionId> · <provider> (<model>, <effort>)`, followed by the artifact, the session, the requester, the new questions, the outcome with its commit or failure, the source commit's reachability and the record's files. Update the not-a-phax-commit message and the command's help so they name `Revision-Id` beside `Authoring-Id` and `Decision-Id`.",
+        "Run `pnpm gen:usage-spec` and `pnpm docs:cli`, since the help changed.",
+        "Extend `tests/integration/recordsExplain.test.ts`. Write a revision record with `writeRevisionRecord` for a source commit whose message is a real revise commit message from `reviseCommitMessage`, with an amendment that contains the lines `Authoring-Id: 2601010000-other` and `Run-Id: x`. `explain` must return `found-revision` with the key `revision/<id>` and a manifest whose `$schema` names `revision-record-manifest` at 0.38.0. Also cover: a revise commit with no record gives `not-found` naming `revision/<id>`; an authoring commit and a decision commit still resolve as before; a failed revision's record is shown with its failure."
+      ],
+      "planMarkdownAnchor": "#phase-08-records-explain-revision",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/app/recordsExplain.ts",
+        "src/cli/definitions/recordsExplain.ts",
+        "tests/integration/recordsExplain.test.ts",
+        "phax.usage.kdl",
+        "docs/cli/reference.md"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/writeRevisionRecord.ts",
+        "docs/cli/inventory.md",
+        "tests/integration/recordsExplainStop.test.ts"
+      ],
+      "mode": "headless",
+      "acceptance": null,
+      "boundaryContracts": "Consumer: `phax records explain` and its `--json` answer. Producer: `explainRecord` in `src/app/recordsExplain.ts`. The contract: a commit whose trailer block names `Revision-Id: <authoringId>/<NN>` resolves to the record under `revision/<authoringId>/<NN>` on `phax/records/v1`, or to `not-found` naming that key. Every other commit resolves as before.",
+      "testStrategy": [
+        {
+          "guarantee": "a revise commit resolves to its revision record keyed revision/<id>, stamped revision-record-manifest, even when its amendment holds trailer-shaped lines",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the found-revision outcome, its key and the manifest's $schema",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "authoring, decision and phase commits resolve exactly as before, and a revise commit without a record is not-found naming its key",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the outcomes the existing tests pin, and the not-found key",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "the explain help and the usage files agree",
+          "size": "medium",
+          "technique": "contract",
+          "oracle": "the usage drift tests",
+          "loop": "in-phase",
+          "criterion": null
+        }
+      ],
+      "implementationOrder": [
+        "address and key",
+        "record lookup",
+        "explained revision and outcome",
+        "CLI rendering, help and regeneration",
+        "tests"
+      ],
+      "excludedScope": [
+        "Changing how existing trailers resolve or their precedence.",
+        "records list (done in phase-02)."
+      ],
+      "verification": "The `standard` gate profile in phax.json.",
+      "expectedHandoff": "The new outcome kind and its `--json` shape. The last-paragraph rule as implemented. The rendered text of a revision explanation. Whether the help and usage files were regenerated. Any deviation from the planned file lists, with the reason.",
+      "commit": {
+        "subject": "feat(records): explain a revise commit through its Revision-Id",
+        "body": "phax records explain resolves a commit whose trailer block names Revision-Id to its revision record on phax/records/v1, keyed revision/<authoringId>/<NN>, and shows it as a decision record is shown. The Revision-Id is read from the commit's last paragraph only, so an amendment line shaped like a trailer never addresses another record. Other commits resolve as before."
+      },
+      "assignmentReason": null,
+      "model": "claude-sonnet-5-5",
+      "effort": "medium"
+    },
+    {
+      "id": "phase-09",
+      "title": "Revising drafts guide and upgrade notes",
+      "objective": "Document revise for its reader: an operator or an agent holding a Draft headless spec or plan that needs a change no open question asks for. Publish the page at /guide/revising-drafts, link it from the arbitration guide, and record the 0.38.0 upgrade note for the new record format.",
+      "detailedInstructions": [
+        "Create `docs/revising-drafts.md` (spec §11). Its reader holds a Draft headless spec or plan that needs a change no open question asks for. Open with when to revise rather than decide, re-author or edit by hand. Then give the example: `phax artifact revise docs/plans/2610271402-identity-store-plan.md --amendment amendment.md --by machine:plan-loop`, a sample amendment, the report, then `phax artifact approve`.",
+        "Then cover: the writer session (resumed or new, and what a new one is given); the model defaults; what phax checks in the answer and the one corrective resume; questions (existing ones frozen, new open ones appended, decided later with `phax artifact decide`); the frontmatter kept; no change, no commit; the commit, its body and its trailers; `--by`; `--json` and its keys; the refusals before any session and their remedies (reopen, edit by hand, the status remedies, migrate-documents, `--by`, git identity, a Vibe-routed model per Q1, a bad amendment); the exit codes; the session folder; the revision record and `phax records explain <commit>`.",
+        "Use `docs/arbitration.md` as the model for tone and structure. Use only commands and flags that exist after phase-07, and check every sentence against the command's help in `src/cli/definitions/artifactRevise.ts`.",
+        "Add `docs/revising-drafts.md` to the sources list in `site/build/sources.ts`. Add a page to `site/pages.ts` right after the arbitration page: route `/guide/revising-drafts`, title `Revising a Draft`, source `docs/revising-drafts.md`, and a one-sentence description in the style of its neighbours.",
+        "In `docs/arbitration.md`, add a short paragraph where verdicts mode is introduced: a Draft that needs a change no open question asks for is revised with `phax artifact revise`, linking to the new page. Use the link form the docs already use between pages.",
+        "In `docs/upgrading.md`, add a `### 0.38.0` section above `### 0.37.0` under `## Release by release`. It says that revise commits leave revision records, a new record format `revision-record-manifest` on `phax/records/v1` keyed `revision/<authoringId>/<NN>`. An `@lbdremy/phax-schemas` before 0.38.0 cannot read it: `parseRecordManifest` fails at `$schema` with an unknown format, so upgrade the package before reading such records. `phax records list` shows a new entry kind, `revision`.",
+        "If `docs/json-output.md` lists record formats or the commands' answers by name, add revise there; otherwise leave it.",
+        "The terminal gates run `pnpm site:build`: the page must build, and every link must resolve."
+      ],
+      "planMarkdownAnchor": "#phase-09-revise-docs",
+      "plannedFilesToCreate": [
+        "docs/revising-drafts.md"
+      ],
+      "plannedFilesToEdit": [
+        "site/build/sources.ts",
+        "site/pages.ts",
+        "docs/arbitration.md",
+        "docs/upgrading.md"
+      ],
+      "optionalFilesToEdit": [
+        "docs/json-output.md",
+        "README.md",
+        "docs/security.md"
+      ],
+      "mode": "headless",
+      "acceptance": null,
+      "boundaryContracts": null,
+      "testStrategy": [
+        {
+          "guarantee": "the revising-drafts page builds at /guide/revising-drafts with every link resolved",
+          "size": "medium",
+          "technique": "smoke",
+          "oracle": "pnpm site:build in the terminal gate",
+          "loop": "in-phase",
+          "criterion": null
+        }
+      ],
+      "implementationOrder": [
+        "docs/revising-drafts.md",
+        "site sources and page",
+        "the arbitration link",
+        "the 0.38.0 upgrade note"
+      ],
+      "excludedScope": [
+        "Any code change.",
+        "Release notes for 0.38.0 (written at the cut).",
+        "Correcting decide's stale Vibe help sentence."
+      ],
+      "verification": "The `standard` gate profile in phax.json, including its terminal steps (`pnpm build`, `pnpm site:build`, the deno smokes).",
+      "expectedHandoff": "The page's outline and route. The arbitration link's wording. The 0.38.0 note. Whether docs/json-output.md or README.md needed a touch. Any deviation from the planned file lists, with the reason.",
+      "commit": {
+        "subject": "docs(revise): add the revising-drafts guide and the 0.38.0 note",
+        "body": "Add docs/revising-drafts.md, published at /guide/revising-drafts and linked from the arbitration guide: when to revise, the example from amendment to approve, the writer session, the checks, the commit and its trailers, the refusals and exit codes, and the revision record. docs/upgrading.md gains a 0.38.0 note for the revision record format, which an older @lbdremy/phax-schemas cannot read."
+      },
+      "assignmentReason": null,
+      "model": "claude-sonnet-5-5",
+      "effort": "medium"
+    }
+  ]
+}
