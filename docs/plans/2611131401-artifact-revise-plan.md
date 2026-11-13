@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2610271505-artifact-revise.md
 completes-spec: true
+approved:
+  date: 2026-11-13
+  baseline: 6028eb6
 ---
 # Revise a Draft artifact
 
