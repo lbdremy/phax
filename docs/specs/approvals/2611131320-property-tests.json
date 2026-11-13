@@ -1,0 +1,11 @@
+{
+  "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
+  "artifact": "docs/specs/2611131320-property-tests.md",
+  "specFingerprint": "a62a8bf001d8e4f0b82b1cd21a9acd3622b19703531254527c4a789cc132e9d7",
+  "approvedAt": "2026-11-13T13:38:19.229Z",
+  "baseline": "35ca2e79cafeabb034ce660ae996dd08ab56159a",
+  "approvedBy": {
+    "kind": "operator",
+    "name": "Rémy Loubradou"
+  }
+}

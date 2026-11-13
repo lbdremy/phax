@@ -1,8 +1,11 @@
 ---
-status: Draft
+status: Approved
 date: 2026-11-13
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
+approved:
+  date: 2026-11-13
+  baseline: 35ca2e7
 ---
 # Property-based tests over phax's input boundaries
 
