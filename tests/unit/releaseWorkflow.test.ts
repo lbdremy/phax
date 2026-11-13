@@ -383,8 +383,9 @@ describe("release workflow: the docs site deploy", () => {
     const promote = step("Deploy docs: promote");
     expect(releaseSteps.indexOf(promote)).toBeGreaterThan(releaseSteps.indexOf(check));
     expect(promote.run).toBe(
-      'pnpm exec wrangler versions deploy "${{ steps.preview.outputs.version-id }}@100%" --config site/wrangler.jsonc --yes',
+      'pnpm exec wrangler versions deploy "${VERSION_ID}@100%" --config site/wrangler.jsonc --yes',
     );
+    expect(promote.env?.["VERSION_ID"]).toBe("${{ steps.preview.outputs.version-id }}");
   });
 
   it("lets no deploy step continue on error or run conditionally", () => {
@@ -400,7 +401,11 @@ describe("release workflow: the docs site deploy", () => {
     const holders = releaseSteps.filter(mentionsCloudflare).map((s) => s.name);
     expect(holders).toEqual(["Deploy docs: upload", "Deploy docs: promote"]);
     for (const name of holders) {
-      const { WRANGLER_OUTPUT_FILE_PATH: _output, ...credential } = step(name!).env ?? {};
+      const {
+        WRANGLER_OUTPUT_FILE_PATH: _output,
+        VERSION_ID: _version,
+        ...credential
+      } = step(name!).env ?? {};
       expect(credential).toEqual({
         CLOUDFLARE_API_TOKEN: "${{ secrets.CLOUDFLARE_API_TOKEN }}",
         CLOUDFLARE_ACCOUNT_ID: "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}",

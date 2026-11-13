@@ -86,7 +86,8 @@ jobs:
           WRANGLER_OUTPUT_FILE_PATH: ${{ runner.temp }}/wrangler-output.ndjson
 
       - name: "Deploy docs: promote"
-        run: pnpm exec wrangler versions deploy "${{ steps.preview.outputs.version-id }}@100%" --config site/wrangler.jsonc --yes
+        run: pnpm exec wrangler versions deploy "${VERSION_ID}@100%" --config site/wrangler.jsonc --yes
         env:
+          VERSION_ID: ${{ steps.preview.outputs.version-id }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
