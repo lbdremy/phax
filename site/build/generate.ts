@@ -37,6 +37,7 @@ import { robotsTxt, sitemapXml, type SitemapEntry } from "./discovery.js";
 import { liveRun } from "./liveRun.js";
 import {
   applyEdits,
+  isBadgeParagraph,
   parseMarkdown,
   plainText,
   transformMarkdown,
@@ -80,9 +81,14 @@ export interface SiteJson {
   readonly description: string;
 }
 
-/** README.md's first paragraph as plain text, the site's description in link previews. */
+/**
+ * README.md's first paragraph as plain text, the site's description in link
+ * previews; a paragraph of badges is not one.
+ */
 export function readmeDescription(readme: string): string {
-  const paragraph = parseMarkdown(readme).children.find((node) => node.type === "paragraph");
+  const paragraph = parseMarkdown(readme).children.find(
+    (node) => node.type === "paragraph" && !isBadgeParagraph(node),
+  );
   return paragraph === undefined ? "" : plainText(paragraph).replace(/\s+/g, " ").trim();
 }
 

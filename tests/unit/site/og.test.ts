@@ -96,4 +96,10 @@ describe("the site's description", () => {
       "Tool runs gated plans.",
     );
   });
+
+  it("skips a paragraph of badges", () => {
+    const readme =
+      "# tool\n\n[![CI](https://example.test/ci.svg)](https://example.test/ci)\n\nTool runs plans.\n";
+    expect(readmeDescription(readme)).toBe("Tool runs plans.");
+  });
 });
