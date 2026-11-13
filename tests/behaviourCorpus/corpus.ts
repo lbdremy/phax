@@ -54,10 +54,73 @@ export type CorpusFile = CaseFile | FormatCaseFile;
  */
 const PACKAGE_VERSION_TOKEN = "{package-version}";
 
-/** `expected` as the tree running `packageVersion` answers it: its refusal names that version. */
-export function expectedAt(expected: Expected, packageVersion: string): Expected {
-  if (expected.ok) return expected;
-  return { ok: false, refusal: expected.refusal.replaceAll(PACKAGE_VERSION_TOKEN, packageVersion) };
+/**
+ * The shape a format's parse function names when its `next` snapshot reads the
+ * document: one stamped with the opened release, not cut yet. The cut renames
+ * that snapshot to the release, and from then on, on every later tree, the same
+ * document reads as that release's shape, so a case file writes `next` and
+ * names no release.
+ */
+const NEXT_SHAPE = "next";
+
+/** What a replay depends on besides its input: the tree's schemas package version and release ledger. */
+export interface ReplayTree {
+  /** The schemas package version the tree runs (`PACKAGE_VERSION`). */
+  readonly packageVersion: string;
+  /** The releases of packages/schemas/releases.json, the cut ones. */
+  readonly releases: ReadonlyArray<string>;
+}
+
+/** The release a document's `$schema` names (`…/<format-id>/<X.Y.Z>.json`), if it names one. */
+function schemaRelease(document: unknown): string | undefined {
+  if (!isRecord(document)) return undefined;
+  const url = document["$schema"];
+  if (typeof url !== "string") return undefined;
+  return /\/(\d+\.\d+\.\d+)\.json$/.exec(url)?.[1];
+}
+
+/**
+ * The shape a captured `shape` names for `document` on a tree whose ledger
+ * lists `releases`: `next` until the release the document's `$schema` names is
+ * cut, that release after; any other shape as it is.
+ */
+export function shapeAt(
+  shape: string | undefined,
+  document: unknown,
+  releases: ReadonlyArray<string>,
+): string | undefined {
+  if (shape !== NEXT_SHAPE) return shape;
+  const release = schemaRelease(document);
+  return release !== undefined && releases.includes(release) ? release : shape;
+}
+
+/**
+ * `expected` for `document` as `tree` answers it: a refusal names the tree's
+ * package version, and an accepted `next` shape the release that cut it (see
+ * `shapeAt`).
+ */
+export function expectedAt(expected: Expected, tree: ReplayTree, document: unknown): Expected {
+  if (expected.ok) {
+    const shape = shapeAt(expected.shape, document, tree.releases);
+    return shape === undefined || shape === expected.shape ? expected : { ...expected, shape };
+  }
+  return {
+    ok: false,
+    refusal: expected.refusal.replaceAll(PACKAGE_VERSION_TOKEN, tree.packageVersion),
+  };
+}
+
+/** The releases a release ledger's text lists (`{ "releases": [<X.Y.Z>, …] }`); throws, naming `source`, on any other text. */
+export function parseReleaseLedger(text: string, source: string): string[] {
+  const parsed: unknown = JSON.parse(text);
+  const releases = isRecord(parsed) ? parsed["releases"] : undefined;
+  if (
+    !Array.isArray(releases) ||
+    !releases.every((release) => typeof release === "string" && /^\d+\.\d+\.\d+$/.test(release))
+  ) {
+    throw new Error(`${source}: not a release ledger`);
+  }
+  return releases;
 }
 
 /** Decodes one case's input as phax does: `subjects.ts` provides it. */

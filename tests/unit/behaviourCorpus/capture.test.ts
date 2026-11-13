@@ -1,16 +1,19 @@
 // The corpus's capture and its canonical encoder: capture fills only null
 // expectations, never changes a captured one and refuses any effect major but
 // 3; the encoder gives one text per value whatever the key order and refuses
-// anything that is not plain data.
+// anything that is not plain data. A captured expectation reads the same on
+// both sides of a release cut and of the next opening.
 import { describe, expect, it } from "vitest";
 import {
   canonicalJson,
   captureCorpusFile,
   captureFile,
   caseFileText,
+  expectedAt,
   isCaseFile,
   parseCaseFile,
   parseCorpusFile,
+  parseReleaseLedger,
   streamLines,
   type CaseFile,
   type Expected,
@@ -286,4 +289,75 @@ describe("streamLines", () => {
       "3",
     ]);
   });
+});
+
+describe("expectedAt", () => {
+  const stamped = (release: string): unknown => ({
+    $schema: `https://docs.phax.run/schemas/demo/${release}.json`,
+    n: 1,
+  });
+  const next: Expected = { ok: true, shape: "next", value: { n: 1 } };
+  // The tree a release cycle runs: opened 0.38.0, its cut, the 0.39.0 opening, and a
+  // later cycle that changes the format again.
+  const opened = { packageVersion: "0.38.0", releases: ["0.36.0", "0.37.0"] };
+  const cut = { packageVersion: "0.38.0", releases: ["0.36.0", "0.37.0", "0.38.0"] };
+  const reopened = { packageVersion: "0.39.0", releases: cut.releases };
+  const later = { packageVersion: "0.41.0", releases: [...cut.releases, "0.39.0", "0.40.0"] };
+
+  it("expects next while the release the document names is not cut", () => {
+    expect(expectedAt(next, opened, stamped("0.38.0"))).toEqual(next);
+  });
+
+  it.each([
+    ["the cut", cut],
+    ["the next opening", reopened],
+    ["a later cycle", later],
+  ])("expects the release the document names on %s", (_tree, tree) => {
+    expect(expectedAt(next, tree, stamped("0.38.0"))).toEqual({ ...next, shape: "0.38.0" });
+  });
+
+  it("expects next for a document the later cycle's opened release stamps", () => {
+    expect(expectedAt(next, later, stamped("0.41.0"))).toEqual(next);
+  });
+
+  it("keeps next for a document that names no release", () => {
+    expect(expectedAt(next, cut, { n: 1 })).toEqual(next);
+    expect(expectedAt(next, cut, { $schema: 3 })).toEqual(next);
+  });
+
+  it("keeps a released shape and an expectation without one as they are", () => {
+    const released: Expected = { ok: true, shape: "0.37.0", value: { n: 1 } };
+    const plain: Expected = { ok: true, value: { n: 1 } };
+    expect(expectedAt(released, later, stamped("0.37.0"))).toBe(released);
+    expect(expectedAt(plain, later, stamped("0.38.0"))).toBe(plain);
+  });
+
+  it("names the tree's package version in a refusal", () => {
+    const refused: Expected = {
+      ok: false,
+      refusal: "$schema: 0.99.0 is newer than @lbdremy/phax-schemas {package-version}",
+    };
+    expect(expectedAt(refused, reopened, stamped("0.99.0"))).toEqual({
+      ok: false,
+      refusal: "$schema: 0.99.0 is newer than @lbdremy/phax-schemas 0.39.0",
+    });
+  });
+});
+
+describe("parseReleaseLedger", () => {
+  it("reads the releases a ledger lists", () => {
+    expect(parseReleaseLedger('{ "releases": ["0.17.0", "0.38.0"] }', "releases.json")).toEqual([
+      "0.17.0",
+      "0.38.0",
+    ]);
+  });
+
+  it.each([["[]"], ['{ "releases": "0.38.0" }'], ['{ "releases": ["next"] }']])(
+    "names the source of %s",
+    (text) => {
+      expect(() => parseReleaseLedger(text, "releases.json")).toThrow(
+        "releases.json: not a release ledger",
+      );
+    },
+  );
 });

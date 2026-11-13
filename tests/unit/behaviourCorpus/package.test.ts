@@ -2,8 +2,9 @@
 // bytes of its released JSON Schema snapshots are the baseline captured on Effect 3, kept
 // in tests/behaviourCorpus/baseline/. Moving to Effect 4 changes how the package is built,
 // never what it exports or what its released shapes are, so this test stays
-// byte-identical through the migration. It imports no Effect module itself; the package
-// it reads does.
+// byte-identical through the migration. A format born after the baseline is not part of
+// it: its `next` snapshot and, once a release cuts it, its released one. It imports no
+// Effect module itself; the package it reads does.
 import { createHash } from "node:crypto";
 import { readFileSync, readdirSync } from "node:fs";
 import { join, relative, sep } from "node:path";
@@ -46,6 +47,17 @@ function filesUnder(dir: string): string[] {
   return found.toSorted();
 }
 
+/** A snapshot's format directory, `packages/schemas/snapshots/<format-id>/`. */
+function formatDirectory(path: string): string {
+  return path.slice(0, path.lastIndexOf("/") + 1);
+}
+
+/** Whether the format a snapshot belongs to was born after the baseline: it captured none of its snapshots. */
+function bornAfterBaseline(path: string, baseline: Readonly<Record<string, string>>): boolean {
+  const directory = formatDirectory(path);
+  return !Object.keys(baseline).some((captured) => formatDirectory(captured) === directory);
+}
+
 describe("the schemas package against its Effect 3 baseline", () => {
   it("exports the runtime names the baseline captured", () => {
     const baseline = readBaseline("package-exports.json");
@@ -54,6 +66,8 @@ describe("the schemas package against its Effect 3 baseline", () => {
     expect(Object.keys(schemasPackage).toSorted()).toEqual(baseline);
   });
 
+  // A format born after the baseline gets its released snapshot when a release cuts its
+  // `next`; a format the baseline captured gets none.
   it("holds exactly the released snapshots the baseline captured, byte for byte", () => {
     const baseline = readBaseline("snapshot-digests.json");
     if (!isStringRecord(baseline))
@@ -62,6 +76,7 @@ describe("the schemas package against its Effect 3 baseline", () => {
     const current = Object.fromEntries(
       filesUnder(snapshotsRoot)
         .filter((path) => !path.endsWith("/next.schema.json"))
+        .filter((path) => !bornAfterBaseline(path, baseline))
         .map((path): [string, string] => [
           path,
           createHash("sha256")
@@ -77,10 +92,6 @@ describe("the schemas package against its Effect 3 baseline", () => {
     if (!isStringRecord(baseline))
       throw new Error("snapshot-digests.json: not a path to digest map");
     const next = filesUnder(snapshotsRoot).filter((path) => path.endsWith("/next.schema.json"));
-    const released = next.filter((path) => {
-      const directory = path.slice(0, -"next.schema.json".length);
-      return Object.keys(baseline).some((captured) => captured.startsWith(directory));
-    });
-    expect(released).toEqual([]);
+    expect(next.filter((path) => !bornAfterBaseline(path, baseline))).toEqual([]);
   });
 });
