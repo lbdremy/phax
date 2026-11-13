@@ -43,7 +43,15 @@ function built(nextFormats: ReadonlySet<string> = source.nextFormats): string {
 
 describe("the shipped JSON Schemas", () => {
   it("are read from the committed shipped-json.json, which only a format born in the release being developed overrides with its next snapshot", () => {
-    expect(readNextFormats(repoRoot)).toEqual(new Set(["revision-record-manifest"]));
+    // Born in the release being developed: a snapshot folder holding only `next`.
+    // Before the cut that is each new format; the cut renames `next`, so after it
+    // there is none, and the test holds on both sides of a cut.
+    const snapshots = join(repoRoot, "packages/schemas/snapshots");
+    const born = readdirSync(snapshots, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .filter((id) => readdirSync(join(snapshots, id)).join() === "next.schema.json");
+    expect(readNextFormats(repoRoot)).toEqual(new Set(born));
     expect(readFileSync(join(repoRoot, SHIPPED_JSON_PATH), "utf8")).toBe(
       renderShippedJson(source.shipped),
     );
