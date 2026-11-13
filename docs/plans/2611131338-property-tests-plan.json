@@ -1,0 +1,758 @@
+{
+  "$schema": "https://docs.phax.run/schemas/plan-document/0.33.0.json",
+  "kind": "plan",
+  "sourceSpec": "docs/specs/2611131320-property-tests.md",
+  "completesSpec": false,
+  "run": {
+    "shortName": "property-tests-over-the-persisted-formats",
+    "title": "Property tests over the persisted formats",
+    "requiredCommands": [
+      "pnpm add -D fast-check@4.3.0"
+    ]
+  },
+  "preamble": {
+    "summary": "The first plan of spec property-tests (completes-spec: false). It covers the persisted-formats slice (§5.1 to §5.6) and the harness that every later slice reuses (§5.17 to §5.22): the fast-check engine, the PHAX_PROPERTY_SEED / PHAX_PROPERTY_PATH / PHAX_PROPERTY_RUNS parameters, replay, the bridge from effect/Arbitrary, the per-format generator registry, and the daily deep pass in the Security workflow. The plan parser (§5.7 to §5.10), the state machine (§5.11 to §5.15) and CLI arguments (§5.16) are left to later plans of the same spec.\n\nThese decisions are settled and are not reopened: the six operator decisions of 2026-11-13 (q-engine fast-check, q-generators derive-effect, q-budget fixed-100-daily-2000, q-first-slice formats-only, q-machine reducer, q-phase-terminal next-or-terminal), and every settled point and constraint in §10 of the spec. Property tests live under tests/. They import only from src/domain, src/schemas and packages/schemas, plus the test helpers under tests/helpers/property/. fast-check is a devDependency only. A counter-example a property finds becomes a hand-written case in that boundary's existing suite (tests/unit/persisted.test.ts for the readers), in the same commit as its fix. A fix goes into the reader, never into a format's shape or stamp: if a fix would need a new shape, the phase stops and says so in its handoff. Each property finishes within the unit tier's 30-second timeout at the default 100 runs.\n\nLayout: the harness, the bridge, the format registry and the JSON input generators live in tests/helpers/property/. The property tests live in tests/unit/property/, which the existing unit project (tests/unit/**/*.test.ts) collects, so pnpm test:unit, pnpm test, pnpm check:full and CI run them without a new command. The persisted-format properties live in one file, tests/unit/property/persistedFormats.property.test.ts. It has one describe per format id and one it per property, so a failure reads `persistedFormats.property.test.ts > run-status > reads its written encoding back`.\n\nCommand note for phase agents: the gate's `pnpm test` (vitest run) is the command an agent can run. For a focused run, use `pnpm test tests/unit/property`. Do not prefix commands with environment assignments. The harness's own tests pass their environment as an explicit object.\n\nAcceptance: the harness is the plan's one acceptance pair (phase-01 writes the marked tests, phase-02 passes them), because its surface is exactly what the spec states. The format properties are written in-phase with their generators (see Technical arbitrations). An interactive review follows phase-04, the first phase that sets the registry-and-property pattern that phases 06 to 08 repeat.",
+    "requiredCommandsNote": "`pnpm add -D fast-check@4.3.0` is already covered by the `pnpm add` allowance in `security.agentCommands`, so phax.json needs no change. It needs the network. pnpm's minimumReleaseAge refuses a version less than a day old, and 4.3.0 is far past that delay. package.json records it with pnpm's default caret (`^4.3.0`, as the spec's surface shows), and pnpm-lock.yaml pins the resolved release. Every other command a phase runs is a configured gate command (`pnpm test`, `pnpm typecheck`, `pnpm test:type`, `pnpm lint`, `pnpm format`, `pnpm knip`, …).",
+    "technicalArbitrations": [
+      "Bridge from effect/Arbitrary into fast-check: a seed bridge in tests/helpers/property/fromEffect.ts. In the installed effect 4.1.4, Arbitrary<A> is opaque and runs only on Effect's own runner (Arbitrary.schema, sampleEffect, checkEffect). It exports nothing fast-check can consume. So fromSchema(label, schema) derives Arbitrary.schema(schema) once, and returns a fast-check arbitrary over a (seed, size) pair. The pair is mapped through Arbitrary.sampleEffect(derived, { count: 1, seed, size }), run synchronously; an exhausted sample is discarded with a fast-check filter. Loss accepted: semantic shrinking of schema-derived values. fast-check shrinks the size toward 0 and the seed, so a shrunk counter-example is the smallest-size sample that still fails, not a structurally minimal value. The hand-written JSON generators (totality, newer stamp, mutations) keep fast-check's own shrinking. A Schema-AST-to-fast-check compiler of our own was set aside: it would not derive through effect/Arbitrary, which q-generators decided.",
+      "Seed, path and run count reach every property through a shared helper, not fast-check's global configuration. tests/helpers/property/harness.ts reads PHAX_PROPERTY_SEED, PHAX_PROPERTY_PATH and PHAX_PROPERTY_RUNS through a pure readPropertyParameters(env). Every property runs through checkProperty, which calls fc.check with those parameters and formats the failure (seed, path, counter-example literal, replay line). Loss accepted: a property written with a bare fc.assert escapes the budget and the replay, so a guard test over tests/unit/property refuses one. The global configuration was set aside for two reasons. A replay path belongs to one property, not to every property in the process. And a vitest setup file would touch every unit test.",
+      "Per-format overrides are repairs registered in that format's registry entry. Each one has a kebab-case name stating the reader rule it mirrors (for example awaiting-review-records-a-waiting-stop), a one-line reason naming the reader that enforces the rule, and a pure function from a derived value to a valid one. When Arbitrary.schema cannot derive a format's own schema (it throws, or sampling exhausts), the entry may name a narrower derivation schema, under the same naming rule. A value JSON cannot carry (NaN, ±Infinity, -0) is not a valid value: it is excluded by a named derivation or repair, never by loosening equality. Loss accepted: a repair fixes only the values it was written for, so a reader rule the registry does not mirror shows up as a round-trip counter-example, not a compile error. Filters were set aside because they discard generated roots against the run budget.",
+      "Coverage (§5.6): the registry is typed over every FormatId, so pnpm test:type fails on a missing entry. The persisted-format suite also checks at run time, one test per ledger id, failing with `no generator registered for <id>`. vitest does not typecheck, so pnpm test:unit fails by name too. Loss accepted: a format and its generator cannot land in separate commits.",
+      "Agreement (§5.5): deliberate disagreements are a named list in the persisted-format test file. Each entry is { format, name, reason, matches(document) }, with a hand-written example test showing the two verdicts differ. The list grows only with a disagreement that is deliberate. A reader bug is fixed in the reader instead. Expected candidates, to be confirmed: a phase status awaiting review without a waiting stop, a pre-schema phase status (it never recorded base), an older plan document whose test-line lift is refused, and an older interactive answer shape that phax's answer readers refuse by design. Loss accepted: a listed exception hides every disagreement its predicate matches, so each predicate is kept as narrow as the rule it names.",
+      "Which reader a property checks. phax's reader is used where phax reads the format: a src/schemas/persisted.ts reader, an answer reader such as readGateReport or readPlanExtractionAnswer, or the src/domain function that checks a decide answer's stamp. The schemas package's parse function is used for every format. A format phax only writes or prints has no phax reader (expected: gate-request, architecture-request, oracle-request, run-list, artifact-status, plan-overview, plan-lint; confirm against src). Its round trip reads back through the package, and its newer-stamp and frozen-shape checks run on the package alone. Likewise, a frozen shape phax refuses by design (a pre-schema phase status, an older interactive answer) is listed with its reason and checked on the package only. Loss accepted: phax's file decoders for write-only formats are not held to the newer-stamp refusal. Adding phax readers that no src code calls was set aside as dead code.",
+      "Frozen-shape stamps are generated from packages/schemas/releases.json, within the shape's range (from its release up to, not including, the next shape's release or the current stamp). A stamp names the release that last changed a shape, so it is always a release. Loss accepted: stamps between releases (such as 0.27.5) are never generated.",
+      "Per-property timeout: propertyTimeout() is 30 s × max(1, ceil(runs / 100)), so the default 100 runs keep the unit tier's 30 s, and the deep pass's 2,000 runs get 600 s. Loss accepted: at the deep pass's count, a property slowed down by a regression has a larger budget before it times out.",
+      "The deep pass runs `pnpm test:unit tests/unit/property`, as the spec's surface shows. vitest's positional filters match by substring, and test:unit already passes tests/unit, so the job runs the whole unit tier, with only the properties going deeper. The printed replay line uses the same script with the test file and `-t <test name>`. Loss accepted: a few extra minutes of daily CI, in exchange for no new package script.",
+      "Acceptance loop: the harness is the only acceptance pair (phase-01 → phase-02), because its surface is what the spec states: three environment variables in; a seed, a path, a shrunk counter-example and a replay line out. The format properties are written in-phase with their generators. The generators are the deliverable there, and freezing them in an earlier phase would freeze the very thing the phase must get right. Loss accepted: the format properties are judged by the gate, not by an acceptance step."
+    ],
+    "openQuestions": [],
+    "arbitratedQuestions": []
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "title": "fast-check and the harness acceptance tests",
+      "objective": "Add fast-check, and freeze the replay contract the spec states as marked acceptance tests over a stub harness. The contract: PHAX_PROPERTY_SEED, PHAX_PROPERTY_PATH and PHAX_PROPERTY_RUNS in; the seed, the path, the shrunk counter-example and a replay line out.",
+      "detailedInstructions": [
+        "Run `pnpm add -D fast-check@4.3.0` (it needs the network). package.json gains `fast-check` under devDependencies, in alphabetical order between `esbuild` and `github-slugger`, and pnpm-lock.yaml updates. Never use npm or yarn. If pnpm refuses 4.3.0, take the newest 4.x release older than a day and record the version in the handoff.",
+        "Read node_modules/fast-check's type declarations for the 4.x API you use (fc.property, fc.check, fc.Parameters with seed, path and numRuns, RunDetails with failed, counterexample, counterexamplePath, seed, numRuns and numShrinks, and fc.stringify). Do not rely on memory.",
+        "Create the stub tests/helpers/property/harness.ts. Give it its final signatures, but make every function body throw `new Error(\"not implemented: <function name>\")`. Export exactly what the acceptance tests import, and nothing else (knip flags unused exports under tests/): `DEFAULT_PROPERTY_RUNS` (the real constant, 100); `type PropertyEnv = Readonly<Record<string, string | undefined>>`; `interface PropertyParameters { readonly seed: number; readonly path: string | undefined; readonly runs: number; readonly seedSource: \"default\" | \"env\" | \"random\" }`; `readPropertyParameters(env: PropertyEnv): PropertyParameters`; `seedNotice(parameters: PropertyParameters): string | undefined` (the line printed for a random seed, naming it); `interface PropertyLocation { readonly file: string; readonly name: string }` (the repo-relative test file and the full test name); `type PropertyOutcome<T> = { readonly kind: \"passed\"; readonly seed: number; readonly runs: number } | { readonly kind: \"failed\"; readonly seed: number; readonly path: string; readonly counterexample: T; readonly literal: string; readonly replay: string; readonly report: string }`; and `runProperty<T>(arbitrary: fc.Arbitrary<T>, predicate: (value: T) => boolean, options: { readonly env: PropertyEnv; readonly location: PropertyLocation }): PropertyOutcome<T>`.",
+        "Create tests/unit/property/harness.test.ts. Every test in it is `it.fails(...)`, the marker the acceptance provider (examples/vitest-acceptance) recognizes. Every test has a distinct title, and passes an explicit env object, never process.env, so the deep pass's PHAX_PROPERTY_SEED=random and PHAX_PROPERTY_RUNS=2000 never change them. Use the location `{ file: \"tests/unit/property/harness.test.ts\", name: \"harness > <the test's title>\" }`.",
+        "ac-repro-print test: define a deliberately broken function in the test file. For example, a `dedupeSorted(numbers)` that should return the sorted distinct numbers but drops the last element whenever the input holds a duplicate. Check it with `fc.array(fc.integer({ min: 0, max: 20 }))` under env `{}`. Assert all of the following. The outcome is `failed`. `report` contains the seed, the path and the literal. `literal` parses with JSON.parse to a value deep-equal to `counterexample`. `replay` contains `PHAX_PROPERTY_SEED=<seed>`, `PHAX_PROPERTY_PATH=<path>`, `pnpm test:unit tests/unit/property/harness.test.ts` and the test name. `report` contains `replay`.",
+        "ac-repro-rerun test: take the first failure's seed and path. Run the same property again with env `{ PHAX_PROPERTY_SEED: String(seed), PHAX_PROPERTY_PATH: path }`. Assert the outcome is `failed`, with a counter-example deep-equal to the first one and the same literal.",
+        "ac-seed-fixed test: run a property whose predicate records every input and returns true, twice under env `{}`. Assert both outcomes are `passed` and the two recorded input arrays are deep-equal. Then assert three things. `readPropertyParameters({})` twice gives equal seeds, with seedSource `default`. `readPropertyParameters({ PHAX_PROPERTY_SEED: \"random\" })` has seedSource `random`, and its `seedNotice` contains the seed. `{ PHAX_PROPERTY_SEED: \"12345\" }` gives seed 12345 with seedSource `env`.",
+        "ac-budget test: assert that `readPropertyParameters({}).runs` is 100 and equals DEFAULT_PROPERTY_RUNS, and that `{ PHAX_PROPERTY_RUNS: \"2000\" }` gives 2000. Also assert that a passing runProperty under env `{}` reports `runs: 100`, with its predicate called exactly 100 times.",
+        "Each test must fail only on the stub's not-implemented error, never on a missing module, export or type. Confirm with `pnpm test tests/unit/property` that every test passes as an expected failure, and with `pnpm test:type` that the file typechecks."
+      ],
+      "planMarkdownAnchor": "#phase-01-harness-acceptance",
+      "plannedFilesToCreate": [
+        "tests/helpers/property/harness.ts",
+        "tests/unit/property/harness.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "package.json",
+        "pnpm-lock.yaml"
+      ],
+      "optionalFilesToEdit": [],
+      "mode": "headless",
+      "acceptance": {
+        "passedBy": "phase-02",
+        "files": [
+          "tests/unit/property/harness.test.ts"
+        ]
+      },
+      "boundaryContracts": "Producer: tests/helpers/property/harness.ts. Consumers: every property test of this spec, in this plan and later ones. The stable shape is readPropertyParameters(env) → { seed, path, runs, seedSource }, and runProperty(arbitrary, predicate, { env, location }) → a passed or failed outcome, where the failed outcome carries seed, path, counterexample, literal, replay and report. The environment variable names are normative (spec §6). The surface is strict on that meaning, and adaptable only in helper names that the acceptance tests do not import.",
+      "testStrategy": [
+        {
+          "guarantee": "a failing property's report holds its seed, its path, the shrunk counter-example as a literal and a replay line setting PHAX_PROPERTY_SEED and PHAX_PROPERTY_PATH",
+          "size": "small",
+          "technique": "example",
+          "oracle": "a deliberately broken function and the outcome's fields",
+          "loop": "acceptance",
+          "criterion": "ac-repro-print"
+        },
+        {
+          "guarantee": "the printed seed and path replay the same shrunk counter-example",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the first run's counter-example and literal, deep-equal",
+          "loop": "acceptance",
+          "criterion": "ac-repro-rerun"
+        },
+        {
+          "guarantee": "with PHAX_PROPERTY_SEED unset two runs generate the same inputs, and random picks a seed the notice names",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the inputs both runs recorded, and the seed notice",
+          "loop": "acceptance",
+          "criterion": "ac-seed-fixed"
+        },
+        {
+          "guarantee": "with PHAX_PROPERTY_RUNS unset a property is checked against 100 inputs, and the variable sets another count",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the predicate's call count and the parsed run count",
+          "loop": "acceptance",
+          "criterion": "ac-budget"
+        }
+      ],
+      "implementationOrder": [
+        "Add fast-check with pnpm add.",
+        "Write the stub harness with its final signatures.",
+        "Write the four marked acceptance tests against the stub.",
+        "Run pnpm test tests/unit/property and pnpm test:type."
+      ],
+      "excludedScope": [
+        "Any working harness logic (phase-02).",
+        "The bridge from effect/Arbitrary (phase-03).",
+        "Any property over a persisted format (phase-04 onward)."
+      ],
+      "verification": "The `standard` gate profile in phax.json, plus the configured acceptance provider's `authored` verdict on tests/unit/property/harness.test.ts.",
+      "expectedHandoff": "The fast-check version that was resolved (package.json range and lockfile version). The exact exports of tests/helpers/property/harness.ts and their signatures. The title of each acceptance test and the criterion it covers. The broken function the replay tests use. Any deviation from the planned file lists, with the reason.",
+      "commit": {
+        "subject": "test(property): add fast-check and the harness acceptance tests",
+        "body": "Add fast-check as a devDependency, and freeze the property harness's replay contract (spec property-tests §5.18 to §5.22) as acceptance tests over a stub. PHAX_PROPERTY_SEED, PHAX_PROPERTY_PATH and PHAX_PROPERTY_RUNS go in. A failing property's seed, path, shrunk counter-example literal and replay line come out. A rerun from the printed seed and path fails on the same counter-example. The default seed is fixed, and the default run count is 100. Each test is marked it.fails until the harness lands."
+      },
+      "assignmentReason": "The phase designs the harness surface that every property of this spec, in this plan and later ones, is written against, and freezes it in acceptance tests the passing phase cannot change. A design no code in the repository shows yet warrants a higher effort.",
+      "model": "claude-sonnet-5-5",
+      "effort": "high"
+    },
+    {
+      "id": "phase-02",
+      "title": "Property harness: parameters, replay and timeout",
+      "objective": "Implement the property harness, so every property runs from a fixed seed by default, honours PHAX_PROPERTY_SEED / PHAX_PROPERTY_PATH / PHAX_PROPERTY_RUNS, and on failure prints its seed, path, shrunk counter-example and a replay command line. This passes phase-01's acceptance tests.",
+      "detailedInstructions": [
+        "Implement tests/helpers/property/harness.ts, keeping every signature phase-01 froze. readPropertyParameters(env) works as follows. With PHAX_PROPERTY_SEED unset, the seed is a fixed module constant (an int32 of your choice; never change it casually). `random` gives a fresh int32. A decimal integer within int32 gives itself. Any other value throws a PropertyConfigError (an Error subclass) whose message names PHAX_PROPERTY_SEED and the value. PHAX_PROPERTY_PATH must match `^\\d+(:\\d+)*$`, and is refused when PHAX_PROPERTY_SEED is unset or `random`, with a message naming both variables. PHAX_PROPERTY_RUNS unset gives 100, a positive decimal integer gives itself, and anything else is refused, naming the variable.",
+        "seedNotice(parameters) returns undefined unless seedSource is `random`. For a random seed, it returns one line naming the seed and how to replay it, for example `Property seed <seed> (PHAX_PROPERTY_SEED=random); replay with PHAX_PROPERTY_SEED=<seed>`.",
+        "runProperty calls fc.check(fc.property(arbitrary, predicate), { seed, path, numRuns: runs }). With a path, fast-check replays only that path. A predicate that throws counts as a failure, as fast-check treats it. On failure: counterexample is the first element of RunDetails.counterexample; path is RunDetails.counterexamplePath; literal is JSON.stringify(counterexample) when JSON.parse of it is deep-equal to the counterexample (node:util isDeepStrictEqual), else fc.stringify(counterexample). replay is `PHAX_PROPERTY_SEED=<seed> PHAX_PROPERTY_PATH=<path> pnpm test:unit <location.file> -t '<location.name>'`, with the name single-quoted for a POSIX shell (an embedded ' written as '\\''). report holds these lines: `Property failed after <numRuns> runs (seed <seed>, path \"<path>\"), shrunk <numShrinks> times`, `Counter-example:`, the literal indented, the predicate's error message when it threw, `Replay:`, and the replay indented. On a pass, runs is RunDetails.numRuns. Confirm RunDetails' field names against node_modules/fast-check.",
+        "Add `checkProperty<T>(arbitrary, predicate, env: PropertyEnv = process.env): void`. It takes its location from vitest's `expect.getState()`: testPath made relative to process.cwd() with POSIX separators, and currentTestName. It prints seedNotice once per process when the seed is random, through console.log; if oxlint forbids that, use process.stdout.write. It throws `new Error(report)` on failure.",
+        "Add `propertyTimeout(parameters: PropertyParameters = readPropertyParameters(process.env)): number`, which returns 30_000 × max(1, ceil(runs / 100)). Property files pass it as the timeout argument of `it` / `it.each`.",
+        "In tests/unit/property/harness.test.ts, remove the `.fails` markers (`it.fails(` → `it(`). That is the only change allowed to that file.",
+        "Create tests/unit/property/harnessConfig.test.ts with ordinary in-phase tests. Malformed values are refused naming the variable: seed `abc`, `1.5` and 2^31; runs `0`, `-1` and `ten`; path `1:a`, and a path without a seed. propertyTimeout at 100, 150 and 2000 runs. checkProperty passes a true property, and throws an Error whose message is the report for a false one. A guard reads every `*.test.ts` under tests/unit/property with node:fs, and asserts that each one other than harness.test.ts and harnessConfig.test.ts imports checkProperty and contains no `fc.assert(` or `fc.check(` call. A tier check asserts that `tests/unit/property/persistedFormats.property.test.ts` matches the unit project's include glob read from vitest.config.ts (import the config, and use node:path's matchesGlob).",
+        "Export only what a test or later helper uses. knip runs in the gate."
+      ],
+      "planMarkdownAnchor": "#phase-02-property-harness",
+      "plannedFilesToCreate": [
+        "tests/unit/property/harnessConfig.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "tests/helpers/property/harness.ts",
+        "tests/unit/property/harness.test.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "mode": "headless",
+      "acceptance": null,
+      "boundaryContracts": "Producer: tests/helpers/property/harness.ts. Consumers: every property test file. The stable contract: checkProperty(arbitrary, predicate) either returns or throws the report, and propertyTimeout() is the per-test timeout to pass to `it`. The environment variable names and the replay line's form are normative (spec §6). The report's exact wording is adaptable.",
+      "testStrategy": [
+        {
+          "guarantee": "a malformed PHAX_PROPERTY_SEED, PHAX_PROPERTY_RUNS or PHAX_PROPERTY_PATH, or a path without a fixed seed, is refused naming the variable",
+          "size": "small",
+          "technique": "boundary",
+          "oracle": "the thrown configuration error's message",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "a property's timeout is 30 s at the default count and grows with PHAX_PROPERTY_RUNS",
+          "size": "small",
+          "technique": "boundary",
+          "oracle": "expected milliseconds at 100, 150 and 2000 runs",
+          "loop": "in-phase",
+          "criterion": "ac-budget"
+        },
+        {
+          "guarantee": "checkProperty returns on a true property and throws the full report on a false one",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the thrown error's message",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "every property file under tests/unit/property runs through checkProperty, never a bare fc.assert or fc.check",
+          "size": "small",
+          "technique": "example",
+          "oracle": "each file's imports and calls",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "the unit project collects the property files, so pnpm test:unit and pnpm check:full run them",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the unit include glob in vitest.config.ts",
+          "loop": "in-phase",
+          "criterion": "ac-tier"
+        }
+      ],
+      "implementationOrder": [
+        "readPropertyParameters and seedNotice.",
+        "runProperty over fc.check, with the report and replay line.",
+        "checkProperty and propertyTimeout.",
+        "Remove the acceptance markers.",
+        "harnessConfig.test.ts."
+      ],
+      "excludedScope": [
+        "Any change to harness.test.ts other than removing the markers.",
+        "The effect/Arbitrary bridge (phase-03).",
+        "Any change to vitest.config.ts or package.json scripts."
+      ],
+      "verification": "The `standard` gate profile in phax.json, plus the configured acceptance provider's `passed` verdict on tests/unit/property/harness.test.ts.",
+      "expectedHandoff": "The default seed constant's value. The final exports of tests/helpers/property/harness.ts (checkProperty, propertyTimeout, runProperty, readPropertyParameters, seedNotice, DEFAULT_PROPERTY_RUNS, PropertyConfigError and the types), and how a property file uses checkProperty and propertyTimeout, with a two-line example. The exact replay line format. Any deviation from the planned file lists, with the reason.",
+      "commit": {
+        "subject": "test(property): implement the property harness and its replay",
+        "body": "Every property now runs through checkProperty. It defaults to a fixed seed and 100 runs, and reads PHAX_PROPERTY_SEED (an integer, or random with a printed notice), PHAX_PROPERTY_PATH and PHAX_PROPERTY_RUNS. On failure it prints the seed, the path, the shrunk counter-example as a literal and a replay command line. propertyTimeout scales the per-test timeout with the run count. A guard keeps every property file on the harness. This passes the harness acceptance tests."
+      },
+      "assignmentReason": null,
+      "model": "claude-sonnet-5-5",
+      "effort": "medium"
+    },
+    {
+      "id": "phase-03",
+      "title": "Bridge from effect/Arbitrary into fast-check",
+      "objective": "Give the property tests fast-check arbitraries derived from phax's Effect Schemas through effect/Arbitrary, so a format's generator follows its schema with no hand-written mirror.",
+      "detailedInstructions": [
+        "Read node_modules/effect/dist/Arbitrary.d.ts (effect 4.1.4) before writing code. Arbitrary<A> is opaque. Arbitrary.schema(schema) derives immediately, and throws when it cannot compile the schema. Arbitrary.sampleEffect(arbitrary, { count, size, seed }) is deterministic for a given seed and fails with a SampleError when generation exhausts its discards. Nothing in the module produces a fast-check arbitrary.",
+        "Create tests/helpers/property/fromEffect.ts exporting `fromSchema<S extends Schema.Constraint>(label: string, schema: S, options?: { readonly maxSize?: number }): fc.Arbitrary<S[\"Type\"]>` (adjust the constraint type to what Arbitrary.schema accepts). It calls Arbitrary.schema(schema) once, and rethrows any error as `new Error(\"cannot derive a generator for <label>: <cause>\")`. It returns `fc.record({ seed: fc.integer(), size: fc.integer({ min: 0, max: maxSize }) })`, mapped through a synchronous run of `Arbitrary.sampleEffect(derived, { count: 1, seed, size })`. Run it with the Effect runner the codebase already uses for synchronous effects (check the effect 4 API in node_modules). An exhausted sample becomes a sentinel, removed with fast-check's `.filter`, then mapped to the value.",
+        "Default maxSize to a modest value (start at 10). The 41-format properties must each stay well under 30 s at 100 runs, and their total under 60 s. Record the value you settle on in the handoff.",
+        "Keep the module free of I/O and of any import from src/ other than types. It imports `effect` and `fast-check` only.",
+        "Create tests/unit/property/fromEffect.property.test.ts, written with checkProperty and propertyTimeout from tests/helpers/property/harness.ts. Determinism: the same (seed, size) pair mapped twice gives deep-equal values, which you can check through a small exported helper `sampleOnce(label, schema, seed, size)` if fromSchema needs one internally. Validity: over three real phax file schemas (RunStatusFileSchema from src/schemas/status.ts, PlanDocumentFileSchema from src/schemas/planDocument.ts, CostLedgerFileSchema from src/schemas/costLedger.ts), every generated value decodes with Schema.decodeUnknownResult of the same schema. A label example: a schema Arbitrary.schema cannot derive (look for one, such as a Schema.declare without an arbitrary annotation) raises an error naming the label. If no such schema exists in effect 4.1.4, record that in the handoff and leave out this test. Shrinking: with runProperty and an explicit env, a property over fromSchema(Schema.Array(Schema.Finite)) that fails when length ≥ 3 reports a counter-example that still fails the predicate.",
+        "If a value Effect derives cannot survive JSON (NaN, ±Infinity, -0), note which schema types produce it in the handoff. The format registry (phase-04) excludes such values with a named derivation."
+      ],
+      "planMarkdownAnchor": "#phase-03-effect-bridge",
+      "plannedFilesToCreate": [
+        "tests/helpers/property/fromEffect.ts",
+        "tests/unit/property/fromEffect.property.test.ts"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [
+        "tests/helpers/property/harness.ts"
+      ],
+      "mode": "headless",
+      "acceptance": null,
+      "boundaryContracts": "Consumer: the format registry (phase-04 onward), which needs a fast-check arbitrary of a schema's decoded Type. Producer: Effect's effect/Arbitrary, an unstable module. The bridge confines that dependency to one module. The stable shape is fromSchema(label, schema) → fc.Arbitrary<Type>, which throws an error naming the label when Effect cannot derive the schema. The internals (seed and size mapping, the discard handling) are adaptable.",
+      "testStrategy": [
+        {
+          "guarantee": "the bridge yields the same value for the same seed and size",
+          "size": "small",
+          "technique": "property",
+          "oracle": "two samples of one pair, deep-equal",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "every value the bridge yields from a phax file schema decodes under that schema",
+          "size": "small",
+          "technique": "property",
+          "oracle": "Schema.decodeUnknownResult of the same schema",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "a schema Effect cannot derive is reported with the label it was given",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the thrown error's message",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "a failing property over a bridged arbitrary reports a counter-example that still fails",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the predicate applied to the reported counter-example",
+          "loop": "in-phase",
+          "criterion": null
+        }
+      ],
+      "implementationOrder": [
+        "Read Arbitrary.d.ts and the effect 4 synchronous runner API.",
+        "fromSchema with the label, seed and size mapping, and discard handling.",
+        "The bridge's property tests."
+      ],
+      "excludedScope": [
+        "The format registry and any format property (phase-04).",
+        "Hand-written generators of arbitrary JSON (phase-06).",
+        "Any change under src/."
+      ],
+      "verification": "The `standard` gate profile in phax.json.",
+      "expectedHandoff": "The exact signature of fromSchema (and sampleOnce if exported) in tests/helpers/property/fromEffect.ts, and the default maxSize. How an exhausted sample is handled. Which schema constructs Effect could not derive or derived into JSON-incompatible values. The measured duration of the bridge's tests. Any deviation from the planned file lists, with the reason.",
+      "commit": {
+        "subject": "test(property): bridge effect/Arbitrary into fast-check",
+        "body": "fromSchema derives a schema's generator through effect/Arbitrary and exposes it to fast-check as an arbitrary over a seed and a size, sampled through Arbitrary.sampleEffect. effect 4.1.4's Arbitrary runs only on its own runner, so the bridge maps seeds rather than sharing shrink trees. Shrinking moves toward smaller sizes. The unstable module is confined to this one file, which every property run exercises."
+      },
+      "assignmentReason": "The phase is an adapter to a system the code does not reach yet: Effect's unstable Arbitrary runner, whose API must be read from the installed module rather than from any existing use. That warrants the stronger model.",
+      "model": "claude-opus-5-5",
+      "effort": "medium"
+    },
+    {
+      "id": "phase-04",
+      "title": "Format generator registry, coverage and round trip",
+      "objective": "Register a valid-value generator and its readers for each of the 41 formats in the ledger. Then check that every format reads its written encoding back to the value written, and that a ledger format without a generator fails the suite by name.",
+      "detailedInstructions": [
+        "Create tests/helpers/property/formatRegistry.ts. Define `ReadVerdict = { readonly ok: true; readonly value: unknown; readonly shape?: string } | { readonly ok: false; readonly message: string }`. Define `FormatEntry` with these fields: `id: FormatId`; `valid(): fc.Arbitrary<Readonly<Record<string, unknown>>>`, lazily derived, so a derivation error fails only that format's tests; `repairs: ReadonlyArray<{ readonly name: string; readonly reason: string; readonly repair: (value) => value }>`; an optional `derivation: { readonly name; readonly reason; readonly schema }` when the format's own schema cannot be derived; `write(value): unknown`, the written encoding as parsed JSON; `phax: { readonly read: (input: unknown) => ReadVerdict } | null`, with `writeOnly: string` giving the reason when null; and `parse: (input: unknown) => ReadVerdict`, from the schemas package. Export `FORMAT_REGISTRY: { readonly [F in FormatId]: FormatEntry }` and `missingGenerators(ledger: ReadonlyArray<string>, registry: Readonly<Partial<Record<string, unknown>>>): ReadonlyArray<string>`, which returns the ledger ids the registry lacks, in ledger order. The file may be split into tests/helpers/property/formats/*.ts modules if it grows past a reviewable size, as long as formatRegistry.ts stays the entry.",
+        "Valid values: derive with fromSchema (tests/helpers/property/fromEffect.ts) from the format's current file schema: the XFileSchema each src/schemas module exports, which packages/schemas/src/index.ts re-exports under the format's name. Set `$schema` to currentSchemaUrl(id) from src/schemas/persisted.ts. If the `$schema` pattern defeats derivation, derive from the schema without `$schema` through a named derivation. Then apply the entry's repairs, in order. The spec's own example is phase-status's `awaiting-review-records-a-waiting-stop`, mirroring readPhaseStatusFile. Every repair or derivation name is kebab-case, states the rule, and its reason names the reader or writer that enforces the rule. Exclude values JSON cannot carry (NaN, ±Infinity, -0) with a named derivation or repair, never by loosening equality.",
+        "Written encoding: `JSON.parse(JSON.stringify(Schema.encodeUnknownSync(FileSchema)(withSchemaUrl(id, valueWithout$schema))))`, with `$schema` first, as phax's writers write it. If a format's writer encodes differently, mirror that writer and say where in the handoff.",
+        "phax reader per format: the function phax reads the format with, wrapped to a ReadVerdict whose value is comparable to the generated value without `$schema`. Use a src/schemas/persisted.ts reader (readRunStatusFile, readPhaxPlanFile, which returns { shape, plan } with the plan as the value and the shape reported, readComplianceReviewFile, readRecordManifestFile for the four record-manifest formats, readDocumentSidecar for spec-document and plan-document, …), an answer reader (readGateReport, readBriefReport, readArchitectureReport, readFirstReadingAnswer, readInteractiveHandoffAnswer, readPlanExtractionAnswer in src/schemas/planExtraction.ts), or the src/domain/decide function that checks a decide answer's stamp before decoding it (src/domain/decide/verdicts.ts, src/domain/decide/handAuthored.ts). Pass a fixed file name such as `property.json`. A format phax only writes or prints has `phax: null` and a `writeOnly` reason. Expected: gate-request, architecture-request, oracle-request, run-list, artifact-status, plan-overview and plan-lint. Confirm each by searching src/ for a reader of the format.",
+        "Package reader per format: the format's parse function exported by packages/schemas/src/index.ts (parseRunStatus, parsePhaxPlan, …; use parseDocument filtered to the format only where no per-format function exists). Wrap its `Parsed` / `ParsedShape` result as a ReadVerdict, dropping `$schema` from the value and keeping `shape`.",
+        "Create tests/unit/property/persistedFormats.property.test.ts with `describe.each(FORMAT_IDS)(\"%s\", (id) => { … })` from src/schemas/schemaUrl.ts. Inside, add `it(\"has a generator\")`, which asserts `missingGenerators([id], FORMAT_REGISTRY)` is empty with the message `no generator registered for <id>`, and `it(\"reads its written encoding back\", …, propertyTimeout())`, which uses checkProperty to assert that the entry's phax reader (or, for a write-only format, its package reader) reads `write(value)` with ok true and a value isDeepStrictEqual (node:util) to the generated value without `$schema`. Outside the describe.each, add an example test asserting that `missingGenerators([...FORMAT_IDS, \"made-up-format\"], FORMAT_REGISTRY)` is `[\"made-up-format\"]`.",
+        "Add one example test per repair, in the same file under `describe(\"repairs\")`. It takes a hand-written value the schema admits and the reader refuses, shows the reader's refusal, and shows that the repaired value reads.",
+        "A counter-example is judged before it is fixed. If the generator produced a value phax's writer never produces, add a named repair or derivation. If the reader is wrong, fix the reader in src/schemas (persisted.ts or the format's module), and paste the printed counter-example as a hand-written case into tests/unit/persisted.test.ts, or into that reader's existing suite, in this commit. Never change a format's shape or stamp. If a fix would need one, stop and state it in the handoff.",
+        "Keep the budget. Each format's round trip at 100 runs must finish well under 30 s, and the whole file under the spec's 60 s for all property files. Measure with `pnpm test tests/unit/property` and record the durations."
+      ],
+      "planMarkdownAnchor": "#phase-04-format-registry",
+      "plannedFilesToCreate": [
+        "tests/helpers/property/formatRegistry.ts",
+        "tests/unit/property/persistedFormats.property.test.ts"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [
+        "tests/helpers/property/fromEffect.ts",
+        "tests/helpers/property/harness.ts",
+        "src/schemas/persisted.ts",
+        "src/schemas/status.ts",
+        "src/schemas/planExtraction.ts",
+        "tests/unit/persisted.test.ts",
+        "tests/unit/property/fromEffect.property.test.ts"
+      ],
+      "mode": "headless",
+      "acceptance": null,
+      "boundaryContracts": "Consumer: the persisted-format properties (this phase and phases 06 to 08). They need, for each FormatId, a valid-value generator, the written encoding, phax's reader (or a stated reason it has none) and the schemas package's reader, all answering in one ReadVerdict shape. Producers: src/schemas (file schemas, readers, currentSchemaUrl, withSchemaUrl, FORMAT_IDS), src/domain/decide (answer stamp checks) and packages/schemas (parse functions). The registry adapts them without changing them. The surface is strict on one ReadVerdict per reader and on a registry typed over every FormatId, and adaptable on how entries are split across modules.",
+      "testStrategy": [
+        {
+          "guarantee": "each ledger format has a registered generator, and its test fails naming the id when it has none",
+          "size": "small",
+          "technique": "table",
+          "oracle": "FORMAT_IDS against the registry's keys",
+          "loop": "in-phase",
+          "criterion": "ac-new-format"
+        },
+        {
+          "guarantee": "a missing-generator check over the ledger plus a made-up id returns that id",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the expected id list",
+          "loop": "in-phase",
+          "criterion": "ac-new-format"
+        },
+        {
+          "guarantee": "each of the 41 formats reads the written encoding of any valid current-shape value back to the value written",
+          "size": "small",
+          "technique": "property",
+          "oracle": "the generated value without $schema, deep-equal",
+          "loop": "in-phase",
+          "criterion": "ac-fmt-roundtrip"
+        },
+        {
+          "guarantee": "each repair turns a value the schema admits and the reader refuses into one the reader reads",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the reader's verdict before and after the repair",
+          "loop": "in-phase",
+          "criterion": null
+        }
+      ],
+      "implementationOrder": [
+        "The ReadVerdict and FormatEntry types, and missingGenerators.",
+        "Entries for the 28 formats born with $schema, then the 13 pre-schema formats.",
+        "The coverage and round-trip tests.",
+        "Repairs and derivations found by the round trip, each with its example test.",
+        "Reader fixes for real counter-examples, each with its hand-written case."
+      ],
+      "excludedScope": [
+        "Frozen shapes (phase-07).",
+        "Totality and newer-stamp properties (phase-06).",
+        "The agreement property (phase-08).",
+        "Any change to a format's shape, schema or stamp."
+      ],
+      "verification": "The `standard` gate profile in phax.json.",
+      "expectedHandoff": "The exact exports of tests/helpers/property/formatRegistry.ts (FormatEntry, ReadVerdict, FORMAT_REGISTRY, missingGenerators), and any split modules. The list of write-only formats with their reasons. Every repair and derivation, by name, with its reason. Each reader adapter that unwraps a result (phax-plan, compliance-review, document sidecars, record manifests, answers). Every counter-example found and how it was fixed: a repair, or a reader fix with its hand-written case. The measured durations of the round trip per file. Any deviation from the planned file lists, with the reason.",
+      "commit": {
+        "subject": "test(property): register format generators and check the round trip",
+        "body": "Add the format registry: for each of the 41 persisted formats, a valid-value generator derived from its file schema through effect/Arbitrary, the named repairs for rules its reader enforces beyond the schema, its written encoding, phax's reader (or why phax has none) and the schemas package's reader. The persisted-format suite now fails by name on a ledger format with no generator, and checks that every format reads its written encoding back to the value written (spec property-tests §5.1 and §5.6)."
+      },
+      "assignmentReason": "The phase designs the registry that every later format property repeats: one entry shape over 41 formats, adapting two independent readers, the decide answer stamp checks, and repairs for reader rules beyond the schemas. No code in the repository shows this yet, and it crosses src/schemas, src/domain and packages/schemas. That warrants the stronger model at a higher effort.",
+      "model": "claude-opus-5-5",
+      "effort": "high"
+    },
+    {
+      "id": "phase-05",
+      "title": "Review the format registry pattern",
+      "objective": "Stop the run so a person can review the format registry and the round-trip property before phases 06 to 08 build three more properties on the same pattern.",
+      "detailedInstructions": [
+        "Review tests/helpers/property/formatRegistry.ts (and any modules split from it). Check the FormatEntry shape, the ReadVerdict adapters for each reader, the write-only formats and their reasons, and each repair's and derivation's name and reason. Phases 06 (totality, newer stamp), 07 (frozen shapes) and 08 (agreement) all read these entries.",
+        "Review tests/unit/property/persistedFormats.property.test.ts. Check the describe-per-format, it-per-property layout, the use of checkProperty and propertyTimeout, and the coverage test. Phases 06 to 08 add their `it` blocks to the same describe.",
+        "Check that every reader fix made in phase-04 carries its hand-written case, and that no format's shape or stamp changed.",
+        "Check the measured durations against the 60 s budget for all property files. Leave room for three more properties per format.",
+        "Correct the pattern now if needed. Later phases repeat it 41 times each."
+      ],
+      "planMarkdownAnchor": "#phase-05-registry-review",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [
+        "tests/helpers/property/formatRegistry.ts",
+        "tests/helpers/property/fromEffect.ts",
+        "tests/helpers/property/harness.ts",
+        "tests/unit/property/persistedFormats.property.test.ts",
+        "tests/unit/persisted.test.ts",
+        "src/schemas/persisted.ts"
+      ],
+      "mode": "interactive",
+      "acceptance": null,
+      "boundaryContracts": null,
+      "testStrategy": [],
+      "implementationOrder": [
+        "Read the registry and the suite.",
+        "Correct the pattern where needed.",
+        "Resume the run."
+      ],
+      "excludedScope": [
+        "New properties (phases 06 to 08).",
+        "Any change to a format's shape or stamp."
+      ],
+      "verification": "The `standard` gate profile in phax.json, run on resume over the person's correction.",
+      "expectedHandoff": "What the person changed in the registry or the suite, and why, so phases 06 to 08 follow the corrected pattern.",
+      "commit": {
+        "subject": "test(property): review the format registry pattern",
+        "body": "A person's review of the format registry and the round-trip property, before the totality, newer-stamp, frozen-shape and agreement properties repeat the pattern."
+      },
+      "assignmentReason": null,
+      "model": "claude-sonnet-5-5",
+      "effort": "medium"
+    },
+    {
+      "id": "phase-06",
+      "title": "Totality and newer-stamp properties",
+      "objective": "Check that every format's readers return a value or a refusal on any JSON, never throwing, and that a document stamped above the running release is refused, naming that release, whatever its body holds.",
+      "detailedInstructions": [
+        "Create tests/helpers/property/jsonInputs.ts, with hand-written fast-check generators that keep fast-check's own shrinking. `anyJson()`: fc.jsonValue with a bounded depth (start at 6). `stampedObject(id)`: an object of arbitrary JSON entries whose `$schema` is the format's URL at an arbitrary X.Y.Z, or a malformed one, covering these kinds: another format id, an unknown format id, a release that is not X.Y.Z (`1.2`, `01.2.3`, `1.2.3-rc.1`), a missing `.json`, another base URL, and a non-string value. `mutatedValid(entry)`: the written encoding of a valid value from the registry, with exactly one key removed or one value replaced by a JSON value of another type, at a generated path into the object tree (nested objects and array elements included). `newerStamped(id, running, body)`: the format's URL at one patch, one minor or one major above `running`, over a body that is either the written encoding of a valid value (minus `$schema`) or arbitrary JSON entries.",
+        "In tests/unit/property/persistedFormats.property.test.ts, inside the existing describe per format id, add `it(\"never throws on any JSON\", …, propertyTimeout())`. Over `fc.oneof(anyJson(), stampedObject(id), mutatedValid(entry))`, call the entry's phax reader (when not null) and its package reader inside try/catch. The property holds when each call returns a ReadVerdict and none throws.",
+        "Add `it(\"refuses a newer stamp whatever the body\", …, propertyTimeout())`. For the phax reader (when not null), bump from PHAX_RELEASE (src/schemas/release.ts). For the package reader, bump from PACKAGE_VERSION (packages/schemas/src/generated/index.ts). Each reader's verdict must be ok false, with a message containing the bumped release.",
+        "Add tests/unit/property/jsonInputs.test.ts with in-phase checks of the generators. mutatedValid differs from its source document at exactly one key path. stampedObject reaches every malformed kind across a fixed-seed sample (use runProperty with an explicit env). newerStamped's release is above the running one by exactly one patch, minor or major step. Write the randomized checks with checkProperty.",
+        "Judge every counter-example before fixing it, as in phase-04. A reader that throws, or that reads a newer stamp, is fixed in the reader (src/schemas/persisted.ts, the format's module, or the src/domain/decide stamp check), and the printed counter-example becomes a hand-written case in tests/unit/persisted.test.ts or that reader's existing suite, in this commit. A generator gap is fixed in jsonInputs.ts or the registry. Never change a format's shape or stamp.",
+        "Re-measure the property files' durations with `pnpm test tests/unit/property`, and keep the total under 60 s at the default run count."
+      ],
+      "planMarkdownAnchor": "#phase-06-totality-newer",
+      "plannedFilesToCreate": [
+        "tests/helpers/property/jsonInputs.ts",
+        "tests/unit/property/jsonInputs.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "tests/unit/property/persistedFormats.property.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/helpers/property/formatRegistry.ts",
+        "src/schemas/persisted.ts",
+        "src/domain/decide/verdicts.ts",
+        "src/domain/decide/handAuthored.ts",
+        "src/schemas/planExtraction.ts",
+        "tests/unit/persisted.test.ts",
+        "packages/schemas/src/shapes.ts",
+        "packages/schemas/src/document.ts"
+      ],
+      "mode": "headless",
+      "acceptance": null,
+      "boundaryContracts": "Consumer: the totality and newer-stamp properties. They need, for each format, the readers from tests/helpers/property/formatRegistry.ts (phax's, when present, and the schemas package's), both answering a ReadVerdict. Producers: the readers in src/schemas, src/domain/decide and packages/schemas, whose contract is that a parse failure is a value, never an exception, and that a stamp newer than the running release is refused, naming it. The contract is strict on the never-throw and on naming the release, and adaptable on refusal wording.",
+      "testStrategy": [
+        {
+          "guarantee": "each format's readers return a value or a refusal on arbitrary JSON, stamped objects and mutated valid documents, and none throws",
+          "size": "small",
+          "technique": "fuzz",
+          "oracle": "a try/catch around each reader call",
+          "loop": "in-phase",
+          "criterion": "ac-fmt-total"
+        },
+        {
+          "guarantee": "a document stamped one patch, minor or major above the running release is refused naming that release, whether its body is valid or arbitrary",
+          "size": "small",
+          "technique": "property",
+          "oracle": "the refusal, and its message containing the release",
+          "loop": "in-phase",
+          "criterion": "ac-fmt-newer"
+        },
+        {
+          "guarantee": "the mutation generator changes a valid document at exactly one key path",
+          "size": "small",
+          "technique": "property",
+          "oracle": "the key-path difference between the two documents",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "the stamped-object generator reaches every malformed-URL kind",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the kinds seen in a fixed-seed sample",
+          "loop": "in-phase",
+          "criterion": null
+        }
+      ],
+      "implementationOrder": [
+        "jsonInputs.ts and its tests.",
+        "The totality property.",
+        "The newer-stamp property.",
+        "Reader fixes for real counter-examples, with their hand-written cases."
+      ],
+      "excludedScope": [
+        "Frozen shapes (phase-07).",
+        "The agreement property (phase-08).",
+        "Any change to a format's shape or stamp."
+      ],
+      "verification": "The `standard` gate profile in phax.json.",
+      "expectedHandoff": "The exports of tests/helpers/property/jsonInputs.ts and their signatures (phase-08 reuses anyJson, stampedObject and mutatedValid). Every counter-example found and its fix, with the hand-written case's location. The measured durations. Any deviation from the planned file lists, with the reason.",
+      "commit": {
+        "subject": "test(property): check readers never throw and refuse newer stamps",
+        "body": "Every format's readers, phax's and the schemas package's, now face arbitrary JSON, objects carrying the format's $schema at arbitrary or malformed releases, and valid documents with one key removed or retyped. They must return a value or a refusal, never throw (spec property-tests §5.2). A document stamped one patch, minor or major above the running release is refused, naming that release, whatever its body (§5.3)."
+      },
+      "assignmentReason": "Counter-examples here may need fixes in phax's readers. Telling a reader bug from a generator gap, and fixing it without touching a format's shape, takes more judgment than the default effort gives.",
+      "model": "claude-sonnet-5-5",
+      "effort": "high"
+    },
+    {
+      "id": "phase-07",
+      "title": "Frozen-shape property",
+      "objective": "Check that every older shape of every format stays readable: a valid value of each frozen shape, stamped within its range or unstamped when pre-schema, reads without a refusal, and a reader that reports the shape it read names that frozen shape.",
+      "detailedInstructions": [
+        "Extend FormatEntry in tests/helpers/property/formatRegistry.ts with `frozen: ReadonlyArray<FrozenShape>`. Each FrozenShape has: `shape` (`pre-schema` or the X.Y.Z of its src/schemas/history/<id>/<shape>.ts module); `valid()`, derived with fromSchema from the frozen module's exported schema, plus the shape's own named repairs; `releases`, the releases from packages/schemas/releases.json from the shape's release up to, not including, the next shape's release (or the format's current stamp), empty for pre-schema; `readers`, either `both` or `package`; and `packageOnly`, the reason when phax's reader refuses the shape by design. Expected package-only shapes: phase-status pre-schema (it never recorded base), phase-status stamps below 0.20.0, and the older first-reading and interactive-handoff answer shapes that phax's answer readers refuse as older. Confirm each against src/schemas/persisted.ts, and record the reason. Write-only formats are `package` by definition.",
+        "Stamp generation: for a stamped shape, pick a release from `releases` and set `$schema` to schemaUrl(id, release). For pre-schema, write no `$schema`. Encode through the frozen schema, as the written encoding does for the current shape.",
+        "In tests/unit/property/persistedFormats.property.test.ts, inside the describe per format id, add `it(\"reads every frozen shape\", …, propertyTimeout())`. Skip formats with no frozen shape with `it.skipIf`, or by leaving out the test, so a format without one shows no failure. Over `fc.constantFrom(...entry.frozen)`, chained into the shape's stamped valid value, assert three things. The package reader reads it with ok true and `shape` equal to the frozen shape's name; check the package's shape naming in packages/schemas/src/shapes.ts, where a shape is named by its release or `pre-schema`. When `readers` is `both`, phax's reader reads it with ok true. When phax's reader reports a shape (readPhaxPlanFile, readComplianceReviewFile, readDocumentSidecar), it reports this one.",
+        "Add a frozen coverage test: one `it` per format asserting that every module file under src/schemas/history/<id>/ (listed with node:fs) has a FrozenShape entry of the same name in FORMAT_REGISTRY[id].frozen, failing with `no frozen shape registered for <id> <shape>`.",
+        "Add one example test asserting run-status's frozen shapes' `releases`: the exact releases.json entries between 0.17.0 and 0.26.0, and between 0.26.0 and the current stamp.",
+        "Judge counter-examples as in phase-04. A frozen decoder or lift that refuses a value its shape admits is fixed in src/schemas/persisted.ts or src/schemas/acceptanceLift.ts, with a hand-written case in tests/unit/persisted.test.ts. Never change a frozen module's schema: frozen shapes are frozen.",
+        "Re-measure durations, and keep the total under 60 s."
+      ],
+      "planMarkdownAnchor": "#phase-07-frozen-shapes",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "tests/helpers/property/formatRegistry.ts",
+        "tests/unit/property/persistedFormats.property.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "src/schemas/persisted.ts",
+        "src/schemas/acceptanceLift.ts",
+        "tests/unit/persisted.test.ts",
+        "tests/helpers/property/fromEffect.ts"
+      ],
+      "mode": "headless",
+      "acceptance": null,
+      "boundaryContracts": "Consumer: the frozen-shape property. It needs each frozen shape's schema, its stamp range and which readers read it. Producers: the frozen decoder modules under src/schemas/history/ (read-only here: their schemas never change), packages/schemas/releases.json, and the two readers. The contract is strict that a frozen shape a reader routes to stays readable and is reported as that shape, and adaptable on how the stamp range is computed.",
+      "testStrategy": [
+        {
+          "guarantee": "a valid value of every frozen shape, stamped within its range or unstamped when pre-schema, reads without a refusal and is reported as that shape",
+          "size": "small",
+          "technique": "property",
+          "oracle": "the package's shape name and phax's reported shape",
+          "loop": "in-phase",
+          "criterion": "ac-fmt-frozen"
+        },
+        {
+          "guarantee": "every frozen decoder module under src/schemas/history has a frozen-shape entry, and its test fails naming it when it has none",
+          "size": "small",
+          "technique": "table",
+          "oracle": "the src/schemas/history directory listing",
+          "loop": "in-phase",
+          "criterion": "ac-fmt-frozen"
+        },
+        {
+          "guarantee": "a shape's stamp range holds only the releases between it and the next shape",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the expected releases for run-status's shapes",
+          "loop": "in-phase",
+          "criterion": null
+        }
+      ],
+      "implementationOrder": [
+        "The FrozenShape type and the stamp-range computation.",
+        "Frozen entries for each format, with the package-only reasons.",
+        "The frozen-shape property and the frozen coverage test.",
+        "Reader or lift fixes for real counter-examples."
+      ],
+      "excludedScope": [
+        "Any change to a frozen decoder's schema or to a stamp.",
+        "The agreement property (phase-08)."
+      ],
+      "verification": "The `standard` gate profile in phax.json.",
+      "expectedHandoff": "The FrozenShape type and where frozen entries live. Every package-only shape with its reason (phase-08 uses them as agreement-exception candidates). Every counter-example and its fix. The measured durations. Any deviation from the planned file lists, with the reason.",
+      "commit": {
+        "subject": "test(property): check every frozen shape stays readable",
+        "body": "Each format's registry entry now lists its frozen shapes: one per module under src/schemas/history/, with its schema, its stamp range from releases.json, and the readers that read it. A valid value of each frozen shape, stamped within its range or unstamped when pre-schema, must read without a refusal and be reported as that shape (spec property-tests §5.4). A frozen decoder without an entry fails the suite by name."
+      },
+      "assignmentReason": "About sixty frozen shapes need correct stamp ranges, and each shape phax refuses by design must be told apart from a reader bug. The judgment warrants a higher effort than the default.",
+      "model": "claude-sonnet-5-5",
+      "effort": "high"
+    },
+    {
+      "id": "phase-08",
+      "title": "Agreement between phax and the schemas package",
+      "objective": "Check that phax's readers and the schemas package's parse functions reach the same verdict, both reading or both refusing, on every generated document of the round-trip and totality properties, apart from named, explained exceptions.",
+      "detailedInstructions": [
+        "In tests/unit/property/persistedFormats.property.test.ts, inside the describe per format id, add `it(\"reaches the schemas package's verdict\", …, propertyTimeout())` for every format whose entry has a phax reader. Skip write-only formats, which have no second reader to agree with. The generator is `fc.oneof(entry.valid().map(entry.write), anyJson(), stampedObject(id), mutatedValid(entry))`, with the generators from tests/helpers/property/jsonInputs.ts. The property holds when `phax.read(doc).ok === parse(doc).ok`, or when an agreement exception matches the document.",
+        "Declare `AGREEMENT_EXCEPTIONS` in the same test file, each `{ format: FormatId; name: string; reason: string; matches: (document: unknown) => boolean }`. The name is kebab-case and states the rule. The reason says which reader enforces it and why the other does not. The predicate is as narrow as the rule.",
+        "Investigate every disagreement the property finds. When one reader is wrong, fix that reader (src/schemas/persisted.ts and its neighbours, or packages/schemas/src), and add the printed counter-example as a hand-written case in the existing suite of the reader you fixed, in this commit. Only a disagreement that is deliberate becomes an exception. Expected candidates, to be confirmed: a phase status awaiting review without a waiting stop (readPhaseStatusFile's rule beyond the schema); a pre-schema phase status, which phax refuses for lacking base; an older plan document whose test-line lift is refused (readPlanDocumentFile); and an older interactive answer shape phax's answer readers refuse. Use the package-only reasons phase-07 recorded.",
+        "For each exception, add an example test under `describe(\"agreement exceptions\")`. It takes a hand-written document the exception matches, and asserts that the two readers' verdicts differ as the reason says. This keeps every listed exception real.",
+        "Never change a format's shape or stamp to make the readers agree.",
+        "Re-measure durations, and keep the total under 60 s at the default run count. This is the last format property of the plan, so record the final per-file durations."
+      ],
+      "planMarkdownAnchor": "#phase-08-reader-agreement",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "tests/unit/property/persistedFormats.property.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/helpers/property/formatRegistry.ts",
+        "tests/helpers/property/jsonInputs.ts",
+        "src/schemas/persisted.ts",
+        "packages/schemas/src/shapes.ts",
+        "packages/schemas/src/document.ts",
+        "tests/unit/persisted.test.ts"
+      ],
+      "mode": "headless",
+      "acceptance": null,
+      "boundaryContracts": "Consumer: the agreement property. It needs two independent readers of the same format, each answering ok or not. Producers: phax's readers (src/schemas/persisted.ts, the answer readers, src/domain/decide) and the schemas package's parse functions (packages/schemas/src), which resolve stamps independently. The contract is strict on equal verdicts outside the named exceptions, and adaptable on refusal wording and paths, which the property does not compare.",
+      "testStrategy": [
+        {
+          "guarantee": "phax and the schemas package reach the same verdict on every round-trip and totality document, apart from the named exceptions",
+          "size": "small",
+          "technique": "property",
+          "oracle": "the package's ok flag against phax's",
+          "loop": "in-phase",
+          "criterion": "ac-fmt-agree"
+        },
+        {
+          "guarantee": "each named exception holds on its hand-written example",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the two readers' differing verdicts on the example",
+          "loop": "in-phase",
+          "criterion": "ac-fmt-agree"
+        }
+      ],
+      "implementationOrder": [
+        "The agreement property, with an empty exception list.",
+        "Investigate each disagreement: fix a reader, or list a deliberate exception.",
+        "One example test per exception.",
+        "Measure the final durations."
+      ],
+      "excludedScope": [
+        "Comparing refusal messages or paths between the readers.",
+        "Any change to a format's shape or stamp.",
+        "The deep-pass job (phase-09)."
+      ],
+      "verification": "The `standard` gate profile in phax.json.",
+      "expectedHandoff": "AGREEMENT_EXCEPTIONS, listed by name with its reason. Every disagreement found that was a reader bug, with its fix and hand-written case. The final measured duration of each property file and their total at the default run count. Any deviation from the planned file lists, with the reason.",
+      "commit": {
+        "subject": "test(property): check phax and the schemas package agree",
+        "body": "For every format both read, phax's reader and the schemas package's parse function must reach the same verdict, both reading or both refusing, on every generated round-trip and totality document (spec property-tests §5.5). The few deliberate disagreements are named in the test, each with its reason and a hand-written example."
+      },
+      "assignmentReason": "Each disagreement must be judged as either a bug in one of two independent readers or a deliberate rule. A wrong call either hides a bug behind an exception or breaks a reader. That warrants a higher effort than the default.",
+      "model": "claude-sonnet-5-5",
+      "effort": "high"
+    },
+    {
+      "id": "phase-09",
+      "title": "Daily deep pass in the Security workflow",
+      "objective": "Run every property with 2,000 inputs and a fresh, printed seed in the Security workflow, on its daily schedule and on demand, and never on a pull request or a push.",
+      "detailedInstructions": [
+        "In .github/workflows/security.yml, add a third job `property-tests` after `semgrep`, with a comment above it in the file's style. Explain that it is the daily deep pass of the property tests (spec property-tests §5.20): 2,000 runs from a fresh seed, which the harness prints. Explain that it runs only on the schedule and on demand, so a pull request's result depends only on its code, and that docs/property-tests.md tells how to replay a failure.",
+        "Give the job `if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'` and `runs-on: ubuntu-latest`. Its steps copy the security-audit job's setup exactly, with the same pinned commits and comments: actions/checkout, pnpm/action-setup with `cache: true`, jdx/mise-action with the same version and `cache: false`, then `pnpm install`. Then add a step named `Property tests, deep pass`, with `env: { PHAX_PROPERTY_RUNS: \"2000\", PHAX_PROPERTY_SEED: random }` and `run: pnpm test:unit tests/unit/property`. Put no `${{ }}` in any run script.",
+        "Do not change the workflow's triggers, its top-level permissions or the other two jobs.",
+        "In tests/unit/ciWorkflow.test.ts, inside the existing `describe(\"Security workflow\")`, extend the parsed type (adding `if?: string` to a job) and add these tests. The property-tests job's `if` names schedule and workflow_dispatch, and neither pull_request nor push. Its deep-pass step's env sets PHAX_PROPERTY_RUNS to \"2000\" and PHAX_PROPERTY_SEED to \"random\", and its run is `pnpm test:unit tests/unit/property`. Its checkout, pnpm and mise steps use the same `uses` refs as security-audit's. The existing \"no expression inside a run script\" and \"read-only token\" tests already cover the new job; make sure they pass.",
+        "Do not add a new test file. The workflow's invariants live in tests/unit/ciWorkflow.test.ts."
+      ],
+      "planMarkdownAnchor": "#phase-09-deep-pass-job",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        ".github/workflows/security.yml",
+        "tests/unit/ciWorkflow.test.ts"
+      ],
+      "optionalFilesToEdit": [],
+      "mode": "headless",
+      "acceptance": null,
+      "boundaryContracts": null,
+      "testStrategy": [
+        {
+          "guarantee": "the Security workflow's property-tests job runs only on the schedule and on demand, with 2000 runs and a random seed over tests/unit/property",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the parsed security.yml",
+          "loop": "in-phase",
+          "criterion": "ac-deep-pass"
+        },
+        {
+          "guarantee": "the deep-pass job sets up with the same pinned actions as security-audit and substitutes nothing into its run script",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the security-audit job's steps in the parsed security.yml",
+          "loop": "in-phase",
+          "criterion": null
+        }
+      ],
+      "implementationOrder": [
+        "The property-tests job in security.yml.",
+        "Its invariants in ciWorkflow.test.ts."
+      ],
+      "excludedScope": [
+        "Any change to CI (ci.yml) or to the other Security jobs.",
+        "Any change to the harness or the properties.",
+        "The docs (phase-10)."
+      ],
+      "verification": "The `standard` gate profile in phax.json.",
+      "expectedHandoff": "The job's name and condition, and its deep-pass step as committed. The titles of the new invariant tests. Any deviation from the planned file lists, with the reason.",
+      "commit": {
+        "subject": "ci(security): run the property tests' daily deep pass",
+        "body": "Add a property-tests job to the Security workflow. On the daily schedule and on demand, never on a pull request or a push, it runs pnpm test:unit tests/unit/property with PHAX_PROPERTY_RUNS=2000 and PHAX_PROPERTY_SEED=random. The harness prints the seed it picks, so a failure replays (spec property-tests §5.20). Its invariants join the Security workflow's tests."
+      },
+      "assignmentReason": "The phase reproduces patterns the repository already holds: the security-audit job's setup steps, and the Security workflow's existing invariant tests, which pnpm test checks. Each step is spelled out above, so the lighter model suffices.",
+      "model": "claude-haiku-5-5",
+      "effort": "medium"
+    },
+    {
+      "id": "phase-10",
+      "title": "Property tests documentation",
+      "objective": "Document the property tests for the contributor whose pull request or daily Security run shows a failing property, and for the one adding a persisted format or a frozen shape who must register its generator.",
+      "detailedInstructions": [
+        "Create docs/property-tests.md. Its reader is a contributor facing a failing property, or adding a format or frozen shape (spec §11). Cover these points. What a property is here, and the four boundaries the spec plans; this plan covers the persisted formats, and the plan parser, the state machine and CLI arguments follow. Where the files live: tests/unit/property/, and tests/helpers/property/ (harness.ts, fromEffect.ts, formatRegistry.ts, jsonInputs.ts). The default budget: 100 runs from a fixed seed, on pull requests and locally. The three environment variables with their meanings, in the spec §6 form. How to read a failure: an example report with seed, path, counter-example and replay. How to replay: the spec §11 example, with PHAX_PROPERTY_SEED=1849203311 PHAX_PROPERTY_PATH=36:0:2 and the -t test name the harness prints. The rule for a found counter-example: fix the reader, never the shape or stamp, and paste the counter-example as a hand-written case in that reader's suite, in the same commit. How to register a new format or frozen shape: its registry entry, its repairs with names and reasons, its phax reader or write-only reason, its frozen entry, and the coverage tests that fail by name until it is registered. The agreement exceptions and when one may be added. And the daily deep pass: 2,000 runs, a fresh printed seed, the Security workflow, schedule and on demand only.",
+        "Take the exact names (exports, test titles, repair and exception names, the default seed) from the code as it stands. Do not invent any.",
+        "In CONTRIBUTING.md's Tests section, add one or two sentences after the e2e paragraph. Say that property tests run in the unit tier with no extra command, and link to [docs/property-tests.md](docs/property-tests.md), in the same style as the existing link to docs/e2e-testing.md.",
+        "In docs/security.md, find where the Security workflow's jobs are described (the section about keeping security high). Add the property-tests job: what it runs, when, that it never runs on a pull request, and that a failed scheduled run is reported like the other scheduled jobs. Link to docs/property-tests.md.",
+        "Keep the prose plain and short. Use the repository's doc conventions (oxfmt formats Markdown in the gate).",
+        "docs/e2e-testing.md, which CONTRIBUTING.md already links, is not a site page. Only if `pnpm site:build` refuses the new link, register docs/property-tests.md in site/build/sources.ts and site/pages.ts, following docs/acceptance-phases.md."
+      ],
+      "planMarkdownAnchor": "#phase-10-property-docs",
+      "plannedFilesToCreate": [
+        "docs/property-tests.md"
+      ],
+      "plannedFilesToEdit": [
+        "CONTRIBUTING.md",
+        "docs/security.md"
+      ],
+      "optionalFilesToEdit": [
+        "site/build/sources.ts",
+        "site/pages.ts"
+      ],
+      "mode": "headless",
+      "acceptance": null,
+      "boundaryContracts": null,
+      "testStrategy": [],
+      "implementationOrder": [
+        "docs/property-tests.md.",
+        "The CONTRIBUTING.md link.",
+        "docs/security.md."
+      ],
+      "excludedScope": [
+        "Any change to tests, helpers or workflows.",
+        "Documenting the plan parser, state machine or CLI slices, which later plans add."
+      ],
+      "verification": "The `standard` gate profile in phax.json; its terminal steps include pnpm site:build.",
+      "expectedHandoff": "The sections of docs/property-tests.md. Where CONTRIBUTING.md and docs/security.md now link to it. Whether the site needed the page registered. Any deviation from the planned file lists, with the reason.",
+      "commit": {
+        "subject": "docs: document the property tests and their replay",
+        "body": "Add docs/property-tests.md for a contributor facing a failing property or adding a persisted format. It covers the default budget and seed, the three environment variables, how to read and replay a failure, what to do with a counter-example, how to register a format's generator and frozen shapes, the agreement exceptions, and the daily deep pass. CONTRIBUTING.md's Tests section links to it, and docs/security.md lists the deep-pass job."
+      },
+      "assignmentReason": null,
+      "model": "claude-sonnet-5-5",
+      "effort": "medium"
+    }
+  ]
+}
