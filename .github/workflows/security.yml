@@ -61,9 +61,14 @@ jobs:
   # fails on a finding from a rule the platform's policy sets to block.
   # Dependabot's pull requests read the token from the Dependabot secrets. A
   # pull request from a fork gets no secret: it scans with the public rules,
-  # what the pull request introduces only, and says so.
+  # what the pull request introduces only, and says so. The findings also go
+  # to the repository's Security tab (code scanning), as SARIF.
   semgrep:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Upload the SARIF to code scanning.
+      security-events: write
     container:
       image: semgrep/semgrep:1.185.0@sha256:67518c174185a2043fdbed16c70631b79209499b3671178e7194379b48295a0d
 
@@ -79,8 +84,21 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           if [ -n "$SEMGREP_APP_TOKEN" ]; then
-            semgrep ci
+            semgrep ci --sarif-output=semgrep.sarif
           else
             echo "::warning::No SEMGREP_APP_TOKEN (a pull request from a fork): public rules only, no Pro rules or Supply Chain."
-            semgrep scan --config p/default --metrics=off --error ${BASE_SHA:+--baseline-commit "$BASE_SHA"}
+            semgrep scan --config p/default --metrics=off --error --sarif-output=semgrep.sarif ${BASE_SHA:+--baseline-commit "$BASE_SHA"}
           fi
+
+      # Also when the scan failed on a blocking finding, as long as it wrote
+      # the file. A fork's pull request gets a read-only token, which cannot
+      # upload.
+      - name: Upload the findings to code scanning
+        if: >-
+          always() && hashFiles('semgrep.sarif') != '' &&
+          (github.event_name != 'pull_request' ||
+          github.event.pull_request.head.repo.full_name == github.repository)
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          sarif_file: semgrep.sarif
+          category: semgrep

@@ -538,6 +538,9 @@ See `scripts/security/README.md` for the full toolkit reference.
   the Actions secrets and once among the Dependabot secrets, which
   Dependabot's pull requests read instead. A pull request from a fork gets no
   secret, so it scans with the public rules only (`p/default`), and says so.
+  Either scan writes its findings as SARIF, which the job uploads to the
+  repository's Security tab (code scanning, category `semgrep`); a fork's
+  pull request, whose token is read-only, skips the upload.
 - **Keep dependencies fresh.** `.github/dependabot.yml` opens weekly pull
   requests for the pnpm tree and the workflows' actions: minor and patch
   updates grouped per ecosystem, each major alone. Dev/build tooling (esbuild,
