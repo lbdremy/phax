@@ -26,10 +26,12 @@ phax artifact revise docs/plans/2610271402-identity-store-plan.md --amendment am
 ```
 
 ```
+revise plan identity-store — amendment from amendment.md — headless, resumed authoring session
+model      claude-sonnet-5-5 / medium (authoring.plan) on claude-code
 questions  1 new open: Q4 — Should purge be a soft or a hard delete?
 --- body diff ---
 @@ …
-commit     3f9c2ab — docs(plan): revise identity-store: expose a purge operation
+commit     3f9c2ab — docs(plans): revise identity-store
 status     Draft — read the diff above, then `phax artifact decide docs/plans/2610271402-identity-store-plan.md` (Q4 open), then `phax artifact approve docs/plans/2610271402-identity-store-plan.md`
 record     revision/2610271402-identity-store/01
 ```
@@ -82,16 +84,16 @@ Existing questions are frozen. A new open question is decided later with `phax a
 
 These exit 12 and write nothing:
 
-| Refusal                                                | Remedy                                              |
-| ------------------------------------------------------ | --------------------------------------------------- |
-| The artifact is Approved or Stale                      | `phax artifact reopen <path>`, then revise          |
-| The sidecar is not yet migrated                        | `phax artifact migrate-documents`                   |
-| The artifact is hand-authored                          | Edit it by hand                                     |
-| The sidecar has diverged from the `.md`, or is invalid | Check it with `phax artifact status`                |
-| Uncommitted changes on the artifact or its sidecar     | Commit or discard them                              |
-| An unusable `--by`                                     | `operator` or `machine:<grant>`                     |
-| No committing git identity                             | Set `user.name`                                     |
-| A model or effort it cannot use                        | Pass a catalog model, and `low`, `medium` or `high` |
+| Refusal                                                | Remedy                                                                                                                                                                                       |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The artifact is Approved or Stale                      | `phax artifact reopen <path>`, then revise                                                                                                                                                   |
+| The sidecar is not yet migrated                        | `phax artifact migrate-documents`                                                                                                                                                            |
+| The artifact is hand-authored                          | Edit it by hand                                                                                                                                                                              |
+| The sidecar has diverged from the `.md`, or is invalid | Re-author it headless (remove the artifact and its sidecar, then `phax artifact new <kind> <slug> --headless --brief <file>`), or delete the sidecar to demote the artifact to hand-authored |
+| Uncommitted changes on the artifact or its sidecar     | Commit or discard them                                                                                                                                                                       |
+| An unusable `--by`                                     | `operator` or `machine:<grant>`                                                                                                                                                              |
+| No committing git identity                             | Set `user.name`                                                                                                                                                                              |
+| A model or effort it cannot use                        | Pass a catalog model, and `low`, `medium` or `high`                                                                                                                                          |
 
 A bad amendment (unreadable, empty, or a terminal on stdin for `-`) is exit 64, before anything runs.
 
