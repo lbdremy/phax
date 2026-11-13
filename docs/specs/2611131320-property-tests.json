@@ -528,7 +528,8 @@
       ]
     }
   ],
-  "openQuestions": [
+  "openQuestions": [],
+  "arbitratedQuestions": [
     {
       "id": "q-engine",
       "question": "Which engine do the properties run on: fast-check, or Effect's own effect/Arbitrary runner?",
@@ -545,7 +546,27 @@
         }
       ],
       "recommendation": "fast-check",
-      "rationale": "fast-check's API is stable, its seed, path and shrinking output is mature, and Scorecard counts it. The bridge to the schemas is the one cost, and it is paid once for all 41 formats (see q-generators). An unstable engine under the suite meant to prove stability is the worse loss."
+      "rationale": "fast-check's API is stable, its seed, path and shrinking output is mature, and Scorecard counts it. The bridge to the schemas is the one cost, and it is paid once for all 41 formats (see q-generators). An unstable engine under the suite meant to prove stability is the worse loss.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "fast-check",
+        "abandoned": [
+          "effect-arbitrary"
+        ],
+        "why": "fast-check's API is stable, its seed, path and shrinking output is mature, and Scorecard counts it. The bridge to the schemas is the one cost, and it is paid once for all 41 formats (see q-generators). An unstable engine under the suite meant to prove stability is the worse loss.",
+        "advocate": "Effect's own engine derives generators straight from the schemas with no bridge and no new dependency, so generators can never drift from the schemas; the instability is a risk phax already carries for every other Effect API it uses.",
+        "principles": [
+          "S1"
+        ],
+        "reversibility": "costly",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-13T13:35:47.427Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-generators",
@@ -568,7 +589,29 @@
         }
       ],
       "recommendation": "derive-effect",
-      "rationale": "Deriving from the schemas phax decodes with is the only option that grows with the ledger at no extra cost: a new format or frozen shape is covered once it is registered. The instability is confined to one bridge module that the suite exercises on every run, so an Effect upgrade that breaks it fails loudly, not silently. Frozen shapes are generated the same way, from their frozen decoders' schemas."
+      "rationale": "Deriving from the schemas phax decodes with is the only option that grows with the ledger at no extra cost: a new format or frozen shape is covered once it is registered. The instability is confined to one bridge module that the suite exercises on every run, so an Effect upgrade that breaks it fails loudly, not silently. Frozen shapes are generated the same way, from their frozen decoders' schemas.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "derive-effect",
+        "abandoned": [
+          "derive-json-schema",
+          "by-hand"
+        ],
+        "why": "Deriving from the schemas phax decodes with is the only option that grows with the ledger at no extra cost: a new format or frozen shape is covered once it is registered. The instability is confined to one bridge module that the suite exercises on every run, so an Effect upgrade that breaks it fails loudly, not silently. Frozen shapes are generated the same way, from their frozen decoders' schemas.",
+        "advocate": "Hand-written generators rest on no unstable API and give full control over which values are valid, so an Effect upgrade can never break the whole generator layer at once.",
+        "principles": [
+          "S1",
+          "S4"
+        ],
+        "reversibility": "costly",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-13T13:35:47.427Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-budget",
@@ -591,7 +634,29 @@
         }
       ],
       "recommendation": "fixed-100-daily-2000",
-      "rationale": "A pull request's result then depends only on its code, and the daily pass searches twenty times deeper with a new seed each day. A failed scheduled run already emails whoever last edited the cron. A delay of a day is the acceptable loss, because the boundaries change rarely. The §5 requirements are written to this default."
+      "rationale": "A pull request's result then depends only on its code, and the daily pass searches twenty times deeper with a new seed each day. A failed scheduled run already emails whoever last edited the cron. A delay of a day is the acceptable loss, because the boundaries change rarely. The §5 requirements are written to this default.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "fixed-100-daily-2000",
+        "abandoned": [
+          "fixed-100",
+          "random-100-daily-2000"
+        ],
+        "why": "A pull request's result then depends only on its code, and the daily pass searches twenty times deeper with a new seed each day. A failed scheduled run already emails whoever last edited the cron. A delay of a day is the acceptable loss, because the boundaries change rarely. The §5 requirements are written to this default.",
+        "advocate": "A fresh seed on every run finds a counter-example on the pull request that introduces it, a day sooner, instead of leaving it to the next daily pass.",
+        "principles": [
+          "S1",
+          "S5"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-13T13:35:47.427Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-first-slice",
@@ -614,7 +679,29 @@
         }
       ],
       "recommendation": "formats-only",
-      "rationale": "One property shape covers all 41 formats, and it builds the harness every later slice reuses: the engine, the bridge, the budget, the seed and the replay. The plan parser follows in a second plan against the same spec, and the state machine and the CLI after it."
+      "rationale": "One property shape covers all 41 formats, and it builds the harness every later slice reuses: the engine, the bridge, the budget, the seed and the replay. The plan parser follows in a second plan against the same spec, and the state machine and the CLI after it.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "formats-only",
+        "abandoned": [
+          "formats-and-plan",
+          "all-four"
+        ],
+        "why": "One property shape covers all 41 formats, and it builds the harness every later slice reuses: the engine, the bridge, the budget, the seed and the replay. The plan parser follows in a second plan against the same spec, and the state machine and the CLI after it.",
+        "advocate": "The plan parser is the boundary agents' Markdown crosses most often, so taking it in the first plan would test the riskiest input sooner and prove the harness on a second generator family.",
+        "principles": [
+          "S1",
+          "S5"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-13T13:35:47.427Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-machine",
@@ -637,7 +724,29 @@
         }
       ],
       "recommendation": "reducer",
-      "rationale": "The dispatcher, resume and the interrupt handler all go through the reducer, and its assertNever is the one place a reachable state could throw. The no-change half of the operator's invariant (sm-refused) is already largely guaranteed by the reducer's types, so it costs little and guards against a future disposition that carries effects."
+      "rationale": "The dispatcher, resume and the interrupt handler all go through the reducer, and its assertNever is the one place a reachable state could throw. The no-change half of the operator's invariant (sm-refused) is already largely guaranteed by the reducer's types, so it costs little and guards against a future disposition that carries effects.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "reducer",
+        "abandoned": [
+          "transition-functions",
+          "both"
+        ],
+        "why": "The dispatcher, resume and the interrupt handler all go through the reducer, and its assertNever is the one place a reachable state could throw. The no-change half of the operator's invariant (sm-refused) is already largely guaranteed by the reducer's types, so it costs little and guards against a future disposition that carries effects.",
+        "advocate": "Checking both machines would also cover the transition functions that tests and the architecture rule still name, so nothing that exists is left unchecked until they are deleted.",
+        "principles": [
+          "S1",
+          "S5"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-13T13:35:47.427Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-phase-terminal",
@@ -660,10 +769,31 @@
         }
       ],
       "recommendation": "next-or-terminal",
-      "rationale": "It is the strongest form of the invariant that the reducer's own state can observe, and it stays pure and fast. A same-phase restart would be a dispatcher bug, which belongs to the dispatcher's own tests. The §5 requirement sm-phase-terminal is written to this default."
+      "rationale": "It is the strongest form of the invariant that the reducer's own state can observe, and it stays pure and fast. A same-phase restart would be a dispatcher bug, which belongs to the dispatcher's own tests. The §5 requirement sm-phase-terminal is written to this default.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "next-or-terminal",
+        "abandoned": [
+          "status-sequence",
+          "run-only"
+        ],
+        "why": "It is the strongest form of the invariant that the reducer's own state can observe, and it stays pure and fast. A same-phase restart would be a dispatcher bug, which belongs to the dispatcher's own tests. The §5 requirement sm-phase-terminal is written to this default.",
+        "advocate": "Checking each phase's persisted status sequence would catch a same-phase restart, which the next-or-terminal form cannot tell from the next phase starting.",
+        "principles": [
+          "S1",
+          "S5"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-13T13:35:47.427Z",
+        "revised": []
+      },
+      "history": []
     }
   ],
-  "arbitratedQuestions": [],
   "planningNote": {
     "settled": [
       "Four slices, in this order of value: persisted formats, plan parser, state machine, CLI arguments. q-first-slice decides how many the first plan takes, and later plans consume this same spec.",

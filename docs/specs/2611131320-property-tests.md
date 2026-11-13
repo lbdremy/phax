@@ -337,12 +337,19 @@ Given the seed and path that a failing property printed, when `pnpm test:unit` r
 
 ## 9. Open questions
 
+None.
+
+## 9b. Arbitrated questions
+
 ### q-engine — Which engine do the properties run on: fast-check, or Effect's own effect/Arbitrary runner?
 
 - fast-check — fast-check, a new devDependency — abandons: Schema-native generation for free. Generators must be bridged from the schemas or written, and phax takes on one more development dependency.
 - effect-arbitrary — Effect's effect/Arbitrary and its runner — abandons: A stable testing API and Scorecard's Fuzzing point: the module is @stability unstable, so a minor Effect bump can break every property, and Scorecard does not recognize it.
 
 Recommendation: fast-check — fast-check's API is stable, its seed, path and shrinking output is mature, and Scorecard counts it. The bridge to the schemas is the one cost, and it is paid once for all 41 formats (see q-generators). An unstable engine under the suite meant to prove stability is the worse loss.
+
+Decision: fast-check — by operator (Rémy Loubradou), 2026-11-13
+Why: fast-check's API is stable, its seed, path and shrinking output is mature, and Scorecard counts it. The bridge to the schemas is the one cost, and it is paid once for all 41 formats (see q-generators). An unstable engine under the suite meant to prove stability is the worse loss. Advocate: Effect's own engine derives generators straight from the schemas with no bridge and no new dependency, so generators can never drift from the schemas; the instability is a risk phax already carries for every other Effect API it uses. Principles: S1. Reversibility: costly. Revised: none.
 
 ### q-generators — How are valid values generated for the 41 formats and their frozen shapes?
 
@@ -352,6 +359,9 @@ Recommendation: fast-check — fast-check's API is stable, its seed, path and sh
 
 Recommendation: derive-effect — Deriving from the schemas phax decodes with is the only option that grows with the ledger at no extra cost: a new format or frozen shape is covered once it is registered. The instability is confined to one bridge module that the suite exercises on every run, so an Effect upgrade that breaks it fails loudly, not silently. Frozen shapes are generated the same way, from their frozen decoders' schemas.
 
+Decision: derive-effect — by operator (Rémy Loubradou), 2026-11-13
+Why: Deriving from the schemas phax decodes with is the only option that grows with the ledger at no extra cost: a new format or frozen shape is covered once it is registered. The instability is confined to one bridge module that the suite exercises on every run, so an Effect upgrade that breaks it fails loudly, not silently. Frozen shapes are generated the same way, from their frozen decoders' schemas. Advocate: Hand-written generators rest on no unstable API and give full control over which values are valid, so an Effect upgrade can never break the whole generator layer at once. Principles: S1, S4. Reversibility: costly. Revised: none.
+
 ### q-budget — What run count and seed does each property use, locally, on a pull request, and in the daily Security workflow?
 
 - fixed-100 — 100 runs from a fixed seed everywhere, with no deep pass — abandons: Search: every run checks the same inputs forever, so a counter-example outside that set is never found.
@@ -359,6 +369,9 @@ Recommendation: derive-effect — Deriving from the schemas phax decodes with is
 - fixed-100-daily-2000 — 100 runs from a fixed seed locally and on pull requests, and 2,000 from a fresh seed in the daily Security workflow — abandons: Same-day detection: a counter-example outside the fixed seed's inputs is found by the next daily run, not on the pull request that introduced it.
 
 Recommendation: fixed-100-daily-2000 — A pull request's result then depends only on its code, and the daily pass searches twenty times deeper with a new seed each day. A failed scheduled run already emails whoever last edited the cron. A delay of a day is the acceptable loss, because the boundaries change rarely. The §5 requirements are written to this default.
+
+Decision: fixed-100-daily-2000 — by operator (Rémy Loubradou), 2026-11-13
+Why: A pull request's result then depends only on its code, and the daily pass searches twenty times deeper with a new seed each day. A failed scheduled run already emails whoever last edited the cron. A delay of a day is the acceptable loss, because the boundaries change rarely. The §5 requirements are written to this default. Advocate: A fresh seed on every run finds a counter-example on the pull request that introduces it, a day sooner, instead of leaving it to the next daily pass. Principles: S1, S5. Reversibility: cheap. Revised: none.
 
 ### q-first-slice — Which slices does the first plan take?
 
@@ -368,6 +381,9 @@ Recommendation: fixed-100-daily-2000 — A pull request's result then depends on
 
 Recommendation: formats-only — One property shape covers all 41 formats, and it builds the harness every later slice reuses: the engine, the bridge, the budget, the seed and the replay. The plan parser follows in a second plan against the same spec, and the state machine and the CLI after it.
 
+Decision: formats-only — by operator (Rémy Loubradou), 2026-11-13
+Why: One property shape covers all 41 formats, and it builds the harness every later slice reuses: the engine, the bridge, the budget, the seed and the replay. The plan parser follows in a second plan against the same spec, and the state machine and the CLI after it. Advocate: The plan parser is the boundary agents' Markdown crosses most often, so taking it in the first plan would test the riskiest input sooner and prove the harness on a second generator family. Principles: S1, S5. Reversibility: cheap. Revised: none.
+
 ### q-machine — Which state machine do the state-machine properties check?
 
 - reducer — The reducer phax executes (interpret), with dispositions — abandons: Checks on the deprecated transition functions in src/domain/state.ts, which tests and the architecture rule still name.
@@ -375,6 +391,9 @@ Recommendation: formats-only — One property shape covers all 41 formats, and i
 - both — Both — abandons: Focus: the slice is twice the size for no run-time gain, because the transition functions are three-line allow-list checks.
 
 Recommendation: reducer — The dispatcher, resume and the interrupt handler all go through the reducer, and its assertNever is the one place a reachable state could throw. The no-change half of the operator's invariant (sm-refused) is already largely guaranteed by the reducer's types, so it costs little and guards against a future disposition that carries effects.
+
+Decision: reducer — by operator (Rémy Loubradou), 2026-11-13
+Why: The dispatcher, resume and the interrupt handler all go through the reducer, and its assertNever is the one place a reachable state could throw. The no-change half of the operator's invariant (sm-refused) is already largely guaranteed by the reducer's types, so it costs little and guards against a future disposition that carries effects. Advocate: Checking both machines would also cover the transition functions that tests and the architecture rule still name, so nothing that exists is left unchecked until they are deleted. Principles: S1, S5. Reversibility: cheap. Revised: none.
 
 ### q-phase-terminal — The reducer's state holds only the current phase, with no phase identity. How is the invariant that a terminal phase stays terminal stated?
 
@@ -384,9 +403,8 @@ Recommendation: reducer — The dispatcher, resume and the interrupt handler all
 
 Recommendation: next-or-terminal — It is the strongest form of the invariant that the reducer's own state can observe, and it stays pure and fast. A same-phase restart would be a dispatcher bug, which belongs to the dispatcher's own tests. The §5 requirement sm-phase-terminal is written to this default.
 
-## 9b. Arbitrated questions
-
-None.
+Decision: next-or-terminal — by operator (Rémy Loubradou), 2026-11-13
+Why: It is the strongest form of the invariant that the reducer's own state can observe, and it stays pure and fast. A same-phase restart would be a dispatcher bug, which belongs to the dispatcher's own tests. The §5 requirement sm-phase-terminal is written to this default. Advocate: Checking each phase's persisted status sequence would catch a same-phase restart, which the next-or-terminal form cannot tell from the next phase starting. Principles: S1, S5. Reversibility: cheap. Revised: none.
 
 ## 10. Implementation-planning note
 
@@ -422,3 +440,12 @@ Page: docs/property-tests.md, linked from the Tests section of CONTRIBUTING.md
 Reader: A contributor whose pull request or the daily Security run shows a failing property, or who adds a persisted format or a frozen shape and has to register its generator.
 
 Example: The run-status round-trip property fails on a pull request with seed 1849203311 and path 36:0:2. The contributor replays it with `PHAX_PROPERTY_SEED=1849203311 PHAX_PROPERTY_PATH=36:0:2 pnpm test:unit tests/unit/property/persistedFormats.property.test.ts`, fixes the reader, and pastes the printed counter-example into the run-status reader's hand-written suite as a new case, in the same commit.
+
+## 12. Decision log
+
+- 2026-11-13 q-engine decided fast-check — operator (Rémy Loubradou)
+- 2026-11-13 q-generators decided derive-effect — operator (Rémy Loubradou)
+- 2026-11-13 q-budget decided fixed-100-daily-2000 — operator (Rémy Loubradou)
+- 2026-11-13 q-first-slice decided formats-only — operator (Rémy Loubradou)
+- 2026-11-13 q-machine decided reducer — operator (Rémy Loubradou)
+- 2026-11-13 q-phase-terminal decided next-or-terminal — operator (Rémy Loubradou)
