@@ -202,6 +202,13 @@ export default definePageMap({
         "Decide open questions with phax artifact decide: framing first, then each question under a doctrine, and the body diff accepted before writing.",
     },
     {
+      route: "/guide/revising-drafts",
+      title: "Revising a Draft",
+      source: "docs/revising-drafts.md",
+      description:
+        "Revise a Draft headless spec or plan from an amendment with phax artifact revise: one read-only writer session, a checked answer, and one commit.",
+    },
+    {
       route: "/guide/upgrading",
       title: "Upgrading phax",
       source: "docs/upgrading.md",

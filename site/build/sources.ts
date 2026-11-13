@@ -16,6 +16,7 @@ const SOURCE_FILES = [
   "docs/release.md",
   "docs/model-catalog.md",
   "docs/arbitration.md",
+  "docs/revising-drafts.md",
   "docs/plan-estimate.md",
   "docs/plan-overview.md",
   "docs/architecture-provider.md",
