@@ -44,6 +44,8 @@ pnpm test:e2e:real       # opt-in end-to-end runs with the installed provider CL
 
 The end-to-end suite runs only when `PHAX_E2E_RUN=1` is set. It has one real flow per provider (Claude Code, Mistral Vibe, Codex), each forced with `--provider-priority` and skipped when that provider's CLI is not installed. [`docs/e2e-testing.md`](docs/e2e-testing.md) covers its prerequisites, its isolation and how to read a failure.
 
+Property tests run in the unit tier, so `pnpm test` runs them with no extra command. [`docs/property-tests.md`](docs/property-tests.md) covers the budget, how to replay a failure and how to register a format's generator.
+
 ## The behaviour corpus
 
 `tests/behaviourCorpus/` holds the answers phax gave on Effect 3 for every format, frozen decoder, config layer and provider answer, with the schemas package's baseline. `pnpm test` replays it through `tests/unit/behaviourCorpus/`, and the schemas check judges each generated JSON Schema against the latest released snapshot by its documents. A captured expectation is never changed, and a case that disagrees after a change means the change is wrong. A refusal that names the running schemas package's version writes `{package-version}` in its place, and the replay fills in the version the tree runs, so a release opening changes no case. Likewise an accepted document a format's `next` snapshot reads records shape `next`, and once the release ledger lists the release its `$schema` names, the replay expects that release instead, so a release cut changes no case either. When an Effect API moves, only `tests/behaviourCorpus/subjects.ts` adapts. No capture script remains, so a new case has to bring its own way of writing its expectation.
