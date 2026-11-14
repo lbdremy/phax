@@ -267,19 +267,24 @@ describe("collectReleaseNotes", { timeout: 30_000 }, () => {
     ]);
   });
 
-  it("takes a plan's run short name from its sidecar, falling back to its title without one", () => {
+  it("takes a plan's run short name from its title, as phax run does, whatever its sidecar says", () => {
     const repo = track(releasedRepo());
     writePlan(
       repo,
-      planOf("file-name", "Title of plan", { run: { shortName: "From Sidecar!", title: "x" } }),
+      planOf("file-name", "Title of plan's paths", {
+        run: { shortName: "title-of-plans-paths", title: "x" },
+      }),
     );
     writePlan(repo, planOf("no-sidecar", "Hand Written Plan", { run: null }));
-    repo.commit("feat: one", { runId: "run-1", shortName: "from-sidecar" });
+    repo.commit("feat: one", { runId: "run-1", shortName: "title-of-plan-s-paths" });
     repo.commit("feat: two", { runId: "run-2", shortName: "hand-written-plan" });
 
     const { input, warnings } = collectReleaseNotes(repo.root, OPENED);
 
-    expect(input.plans.map((plan) => plan.title)).toEqual(["Title of plan", "Hand Written Plan"]);
+    expect(input.plans.map((plan) => plan.title)).toEqual([
+      "Title of plan's paths",
+      "Hand Written Plan",
+    ]);
     expect(input.commits).toEqual([]);
     expect(warnings).toEqual([]);
   });
@@ -358,7 +363,7 @@ describe("collectReleaseNotes", { timeout: 30_000 }, () => {
     ]);
     expect(warnings).toEqual([
       `run ghost names no plan completed since v${PREVIOUS}: its commits are listed as commits without a run`,
-      `${planPath(plan)} was completed since v${PREVIOUS}, but no run commit names lonely: it is not announced`,
+      `${planPath(plan)} was completed since v${PREVIOUS}, but no run commit names lonely-plan or lonely: it is not announced`,
     ]);
   });
 

@@ -122,7 +122,8 @@ function readSidecarJson(repoRoot: string, mdPath: string): { path: string; json
 interface CompletedPlan {
   readonly plan: Omit<ReleasePlan, "spec">;
   readonly sourceSpec: { readonly path: string; readonly completesSpec: boolean } | null;
-  readonly shortName: string;
+  /** The run short names that name it: its title's slug first, then its sidecar's when it differs. */
+  readonly shortNames: readonly string[];
 }
 
 /** A completed plan archived in the range, or null when its status is anything else. */
@@ -134,13 +135,19 @@ function readCandidate(repoRoot: string, path: string): CompletedPlan | null {
   if (frontmatter.status !== "Completed") return null;
   const { title, firstParagraph } = titleAndLede(artifactBody(md));
   if (title === null) throw new Error(`${path}: no "# " title`);
+  // The run's short name as `phax run` gives it comes first: the
+  // deterministic reading of plan.md takes the "# " title, which finalize
+  // slugifies. A headless plan's sidecar also holds the planner's
+  // `run.shortName`, which no run reads and which can differ from the title's
+  // slug ("plan's" reads as "plans"); a run named after it still matches.
+  const shortNames = [slugifyShortName(title) || "run"];
   const sidecar = readSidecarJson(repoRoot, path);
-  let shortName = slugifyShortName(title);
   if (sidecar !== null) {
     const read = readDocumentSidecar("plan", sidecar.path, sidecar.json);
     if (Result.isFailure(read)) throw new Error(read.failure.message);
     const { run } = read.success.shape === "current" ? read.success.document : read.success.older;
-    shortName = slugifyShortName(run.shortName) || slugifyShortName(run.title) || "run";
+    const fromSidecar = slugifyShortName(run.shortName) || slugifyShortName(run.title);
+    if (fromSidecar !== "" && !shortNames.includes(fromSidecar)) shortNames.push(fromSidecar);
   }
   return {
     plan: { path, title, firstParagraph },
@@ -148,7 +155,7 @@ function readCandidate(repoRoot: string, path: string): CompletedPlan | null {
       frontmatter.sourceSpec.kind === "spec"
         ? { path: frontmatter.sourceSpec.path, completesSpec: frontmatter.sourceSpec.completesSpec }
         : null,
-    shortName,
+    shortNames,
   };
 }
 
@@ -249,13 +256,15 @@ export function collectReleaseNotes(
   }
   const byShortName = new Map<string, CompletedPlan>();
   for (const candidate of candidates) {
-    const other = byShortName.get(candidate.shortName);
-    if (other !== undefined) {
-      throw new Error(
-        `${other.plan.path} and ${candidate.plan.path} both have the run short name ${candidate.shortName}`,
-      );
+    for (const name of candidate.shortNames) {
+      const other = byShortName.get(name);
+      if (other !== undefined) {
+        throw new Error(
+          `${other.plan.path} and ${candidate.plan.path} both have the run short name ${name}`,
+        );
+      }
+      byShortName.set(name, candidate);
     }
-    byShortName.set(candidate.shortName, candidate);
   }
 
   // The runs, in order of their first commit.
@@ -269,10 +278,12 @@ export function collectReleaseNotes(
       runNames.push(record.shortName);
     }
   }
-  const matched = runNames.flatMap((name) => {
-    const candidate = byShortName.get(name);
-    return candidate === undefined ? [] : [candidate];
-  });
+  const matched = runNames
+    .flatMap((name) => {
+      const candidate = byShortName.get(name);
+      return candidate === undefined ? [] : [candidate];
+    })
+    .filter((candidate, index, all) => all.indexOf(candidate) === index);
   for (const name of runNames) {
     if (!byShortName.has(name)) {
       warnings.push(
@@ -293,9 +304,9 @@ export function collectReleaseNotes(
     commits.push({ hash: record.hash, subject: record.subject });
   }
   for (const candidate of candidates) {
-    if (!runNames.includes(candidate.shortName)) {
+    if (!candidate.shortNames.some((name) => runNames.includes(name))) {
       warnings.push(
-        `${candidate.plan.path} was completed since v${previous}, but no run commit names ${candidate.shortName}: it is not announced`,
+        `${candidate.plan.path} was completed since v${previous}, but no run commit names ${candidate.shortNames.join(" or ")}: it is not announced`,
       );
     }
   }
