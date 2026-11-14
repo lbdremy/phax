@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2611141103-plan-path-canonical.md
 completes-spec: true
 approved:
