@@ -2,13 +2,18 @@
 // three environment variables (PHAX_PROPERTY_SEED, PHAX_PROPERTY_PATH, PHAX_PROPERTY_RUNS),
 // checks a property with fast-check under them, and on a failure answers the seed, the path, the
 // shrunk counter-example and a replay line.
-//
-// This is the stub the harness acceptance tests are written against: every body throws until the
-// next phase lands the real logic. The signatures are final.
-import type * as fc from "fast-check";
+import { isDeepStrictEqual } from "node:util";
+import * as fc from "fast-check";
+import { expect } from "vitest";
 
 /** Inputs a property is checked against when PHAX_PROPERTY_RUNS is unset. */
 export const DEFAULT_PROPERTY_RUNS = 100;
+
+// The seed every property runs from while PHAX_PROPERTY_SEED is unset. Never change it casually:
+// a change moves every property to inputs nobody has looked at yet.
+const DEFAULT_PROPERTY_SEED = 20_261_113;
+
+const UNIT_TIMEOUT_MS = 30_000;
 
 /** The environment a property reads its parameters from; tests pass an explicit object. */
 export type PropertyEnv = Readonly<Record<string, string | undefined>>;
@@ -21,15 +26,74 @@ export interface PropertyParameters {
   readonly seedSource: "default" | "env" | "random";
 }
 
+/** A PHAX_PROPERTY_* variable holds a value the harness refuses. */
+export class PropertyConfigError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "PropertyConfigError";
+  }
+}
+
+const INT32_MIN = -(2 ** 31);
+const INT32_MAX = 2 ** 31 - 1;
+
+const randomInt32 = (): number => Math.floor(Math.random() * 2 ** 32) + INT32_MIN;
+
 /** Reads PHAX_PROPERTY_SEED, PHAX_PROPERTY_PATH and PHAX_PROPERTY_RUNS from `env`. */
-export const readPropertyParameters = (_env: PropertyEnv): PropertyParameters => {
-  throw new Error("not implemented: readPropertyParameters");
+export const readPropertyParameters = (env: PropertyEnv): PropertyParameters => {
+  const rawSeed = env["PHAX_PROPERTY_SEED"];
+  let seed = DEFAULT_PROPERTY_SEED;
+  let seedSource: PropertyParameters["seedSource"] = "default";
+  if (rawSeed !== undefined) {
+    if (rawSeed === "random") {
+      seed = randomInt32();
+      seedSource = "random";
+    } else {
+      const parsed = /^-?\d+$/.test(rawSeed) ? Number(rawSeed) : Number.NaN;
+      if (!Number.isInteger(parsed) || parsed < INT32_MIN || parsed > INT32_MAX) {
+        throw new PropertyConfigError(
+          `PHAX_PROPERTY_SEED must be "random" or an integer within int32, got "${rawSeed}"`,
+        );
+      }
+      seed = parsed;
+      seedSource = "env";
+    }
+  }
+
+  const rawPath = env["PHAX_PROPERTY_PATH"];
+  if (rawPath !== undefined) {
+    if (!/^\d+(:\d+)*$/.test(rawPath)) {
+      throw new PropertyConfigError(
+        `PHAX_PROPERTY_PATH must be colon-separated decimal integers, got "${rawPath}"`,
+      );
+    }
+    if (seedSource !== "env") {
+      throw new PropertyConfigError(
+        `PHAX_PROPERTY_PATH needs a fixed PHAX_PROPERTY_SEED (an integer); it is unset or "random"`,
+      );
+    }
+  }
+
+  const rawRuns = env["PHAX_PROPERTY_RUNS"];
+  let runs = DEFAULT_PROPERTY_RUNS;
+  if (rawRuns !== undefined) {
+    const parsed = /^\d+$/.test(rawRuns) ? Number(rawRuns) : Number.NaN;
+    if (!Number.isSafeInteger(parsed) || parsed < 1) {
+      throw new PropertyConfigError(
+        `PHAX_PROPERTY_RUNS must be a positive decimal integer, got "${rawRuns}"`,
+      );
+    }
+    runs = parsed;
+  }
+
+  return { seed, path: rawPath, runs, seedSource };
 };
 
 /** The line printed for a random seed, naming it; undefined for any other seed source. */
-export const seedNotice = (_parameters: PropertyParameters): string | undefined => {
-  throw new Error("not implemented: seedNotice");
-};
+export const seedNotice = (parameters: PropertyParameters): string | undefined =>
+  parameters.seedSource === "random"
+    ? `Property seed ${parameters.seed} (PHAX_PROPERTY_SEED=random); replay with PHAX_PROPERTY_SEED=${parameters.seed}`
+    : undefined;
 
 export interface PropertyLocation {
   /** The repo-relative test file. */
@@ -53,11 +117,79 @@ export type PropertyOutcome<T> =
       readonly report: string;
     };
 
+const shellQuote = (value: string): string => `'${value.replaceAll("'", `'\\''`)}'`;
+
+const literalOf = (value: unknown): string => {
+  try {
+    const json = JSON.stringify(value);
+    if (json !== undefined && isDeepStrictEqual(JSON.parse(json), value)) return json;
+  } catch {
+    // Not JSON-carryable (a bigint, a cycle): fall through to fast-check's printer.
+  }
+  return fc.stringify(value);
+};
+
 /** Checks `predicate` over `arbitrary` under the parameters read from `options.env`. */
 export const runProperty = <T>(
-  _arbitrary: fc.Arbitrary<T>,
-  _predicate: (value: T) => boolean,
-  _options: { readonly env: PropertyEnv; readonly location: PropertyLocation },
+  arbitrary: fc.Arbitrary<T>,
+  predicate: (value: T) => boolean,
+  options: { readonly env: PropertyEnv; readonly location: PropertyLocation },
 ): PropertyOutcome<T> => {
-  throw new Error("not implemented: runProperty");
+  const { seed, path, runs } = readPropertyParameters(options.env);
+  const details = fc.check(fc.property(arbitrary, predicate), {
+    seed,
+    ...(path === undefined ? {} : { path }),
+    numRuns: runs,
+  });
+  if (!details.failed) return { kind: "passed", seed, runs: details.numRuns };
+
+  const counterexample = (details.counterexample as [T])[0];
+  const failedPath = details.counterexamplePath ?? "";
+  const literal = literalOf(counterexample);
+  const replay = `PHAX_PROPERTY_SEED=${seed} PHAX_PROPERTY_PATH=${failedPath} pnpm test:unit ${options.location.file} -t ${shellQuote(options.location.name)}`;
+  const error = details.errorInstance;
+  const report = [
+    `Property failed after ${details.numRuns} runs (seed ${seed}, path "${failedPath}"), shrunk ${details.numShrinks} times`,
+    "Counter-example:",
+    `  ${literal}`,
+    ...(error instanceof Error ? [error.message] : []),
+    "Replay:",
+    `  ${replay}`,
+  ].join("\n");
+  return { kind: "failed", seed, path: failedPath, counterexample, literal, replay, report };
 };
+
+let noticePrinted = false;
+
+const locationFromVitest = (): PropertyLocation => {
+  const state = expect.getState();
+  const testPath = state.testPath ?? "";
+  const relative = testPath.startsWith(process.cwd())
+    ? testPath.slice(process.cwd().length).replace(/^[\\/]+/, "")
+    : testPath;
+  return { file: relative.replaceAll("\\", "/"), name: state.currentTestName ?? "" };
+};
+
+/**
+ * Checks `predicate` over `arbitrary` as the current vitest test; returns on a pass, throws the
+ * full report on a failure.
+ */
+export const checkProperty = <T>(
+  arbitrary: fc.Arbitrary<T>,
+  predicate: (value: T) => boolean,
+  env: PropertyEnv = process.env,
+): void => {
+  const parameters = readPropertyParameters(env);
+  const notice = seedNotice(parameters);
+  if (notice !== undefined && !noticePrinted) {
+    noticePrinted = true;
+    process.stdout.write(`${notice}\n`);
+  }
+  const outcome = runProperty(arbitrary, predicate, { env, location: locationFromVitest() });
+  if (outcome.kind === "failed") throw new Error(outcome.report);
+};
+
+/** The per-test timeout: the unit tier's 30 s at 100 runs, growing with PHAX_PROPERTY_RUNS. */
+export const propertyTimeout = (
+  parameters: PropertyParameters = readPropertyParameters(process.env),
+): number => UNIT_TIMEOUT_MS * Math.max(1, Math.ceil(parameters.runs / 100));
