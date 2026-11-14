@@ -17,6 +17,11 @@ import {
 const isObject = (value: unknown): value is Readonly<Record<string, unknown>> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
+// A key's own value, never an inherited one: JSON.parse makes "__proto__" an own data key, and
+// reading it back from an object that lacks it must give undefined, not Object.prototype.
+const own = (value: Readonly<Record<string, unknown>>, key: string): unknown =>
+  Object.hasOwn(value, key) ? value[key] : undefined;
+
 // Every path where two JSON documents differ, descending only while both sides are objects, or
 // both are arrays of one length.
 const differences = (
@@ -27,7 +32,7 @@ const differences = (
   if (isDeepStrictEqual(a, b)) return [];
   if (isObject(a) && isObject(b)) {
     return [...new Set([...Object.keys(a), ...Object.keys(b)])].flatMap((key) =>
-      differences(a[key], b[key], [...path, key]),
+      differences(own(a, key), own(b, key), [...path, key]),
     );
   }
   if (Array.isArray(a) && Array.isArray(b) && a.length === b.length) {
@@ -198,4 +203,14 @@ describe("newerStamped", () => {
     },
     propertyTimeout(),
   );
+});
+
+// Found by the daily deep pass (2,000 runs, seed 2085412975): removing an own "__proto__" key read
+// as a difference deep inside Object.prototype, not at the removed key.
+describe("differences", () => {
+  it("names a removed own __proto__ key as the one path that differs", () => {
+    const source: unknown = JSON.parse('{"answer":{"__proto__":{"x":{}},"k":1}}');
+    const mutated: unknown = JSON.parse('{"answer":{"k":1}}');
+    expect(differences(source, mutated)).toEqual([["answer", "__proto__"]]);
+  });
 });
