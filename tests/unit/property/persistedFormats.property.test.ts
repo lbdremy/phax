@@ -1,14 +1,20 @@
 // Properties of the persisted formats (spec property-tests §5.1 to §5.6): every format of the
 // ledger has a registered generator, and reads the written encoding of any valid current-shape
 // value back to the value written.
+import { existsSync, readdirSync } from "node:fs";
 import { isDeepStrictEqual } from "node:util";
 import { describe, expect, it } from "vitest";
 import * as fc from "fast-check";
 import { PACKAGE_VERSION } from "../../../packages/schemas/src/generated/index.js";
 import { withSchemaUrl } from "../../../src/schemas/persisted.js";
 import { PHAX_RELEASE } from "../../../src/schemas/release.js";
-import { FORMAT_IDS, type FormatId } from "../../../src/schemas/schemaUrl.js";
-import { FORMAT_REGISTRY, missingGenerators } from "../../helpers/property/formatRegistry.js";
+import { FORMAT_IDS, compareReleases, type FormatId } from "../../../src/schemas/schemaUrl.js";
+import { CURRENT_STAMPS } from "../../../src/schemas/release.js";
+import {
+  FORMAT_REGISTRY,
+  RELEASE_LEDGER,
+  missingGenerators,
+} from "../../helpers/property/formatRegistry.js";
 import { checkProperty, propertyTimeout } from "../../helpers/property/harness.js";
 import {
   anyJson,
@@ -117,6 +123,50 @@ describe.each(FORMAT_IDS)("%s", (id) => {
     },
     propertyTimeout(),
   );
+
+  it.skipIf(FORMAT_REGISTRY[id].frozen.length === 0)(
+    "reads every frozen shape",
+    () => {
+      const entry = FORMAT_REGISTRY[id];
+      const written = fc
+        .constantFrom(...entry.frozen)
+        .chain((frozen) => frozen.stamped().map((stamped) => ({ frozen, ...stamped })));
+      checkProperty(written, ({ frozen, release, document }) => {
+        const label = `${frozen.shape} document stamped ${release ?? "(none)"}`;
+        const packaged = entry.parse(document);
+        if (!packaged.ok) throw new Error(`the package refused a ${label}: ${packaged.message}`);
+        if (packaged.shape !== frozen.shape) {
+          throw new Error(`the package read a ${label} as ${String(packaged.shape)}`);
+        }
+        if (frozen.readers === "both" && entry.phax !== null) {
+          const verdict = (entry.phax.readFile ?? entry.phax.read)(document);
+          if (!verdict.ok) throw new Error(`phax refused a ${label}: ${verdict.message}`);
+          if (verdict.shape !== undefined && verdict.shape !== frozen.shape) {
+            throw new Error(`phax read a ${label} as ${verdict.shape}`);
+          }
+        }
+        return true;
+      });
+    },
+    propertyTimeout(),
+  );
+
+  it("registers a frozen shape for every module of its history", () => {
+    const directory = new URL(`../../../src/schemas/history/${id}/`, import.meta.url);
+    const modules = existsSync(directory)
+      ? readdirSync(directory)
+          .filter((file) => file.endsWith(".ts"))
+          .map((file) => file.slice(0, -".ts".length))
+      : [];
+    const registered = FORMAT_REGISTRY[id].frozen.map((frozen) => frozen.shape);
+    for (const module of modules) {
+      expect(registered, `no frozen shape registered for ${id} ${module}`).toContain(module);
+    }
+    expect(
+      registered.filter((shape) => !modules.includes(shape)),
+      `${id} registers a frozen shape with no module under src/schemas/history/${id}/`,
+    ).toEqual([]);
+  });
 });
 
 // ── repairs ─────────────────────────────────────────────────────────────────
@@ -315,6 +365,34 @@ describe("repairs", () => {
       "lineage-pairs-source-spec-and-completes-spec",
       { ...planDocument, sourceSpec: "docs/specs/demo.md", completesSpec: null },
       "completesSpec is a boolean beside a sourceSpec path",
+    );
+  });
+});
+
+describe("frozen stamp ranges", () => {
+  const releasesOf = (shape: string): ReadonlyArray<string> | undefined =>
+    FORMAT_REGISTRY["run-status"].frozen.find((frozen) => frozen.shape === shape)?.releases;
+
+  it("run-status: a shape holds the releases between it and the next shape", () => {
+    expect(releasesOf("pre-schema")).toEqual([]);
+    expect(releasesOf("0.17.0")).toEqual([
+      "0.17.0",
+      "0.18.0",
+      "0.19.0",
+      "0.20.0",
+      "0.21.0",
+      "0.22.0",
+      "0.23.0",
+      "0.24.0",
+      "0.25.0",
+    ]);
+    // The last frozen shape runs up to the format's current stamp, read at run time.
+    expect(releasesOf("0.26.0")).toEqual(
+      RELEASE_LEDGER.filter(
+        (release) =>
+          compareReleases(release, "0.26.0") >= 0 &&
+          compareReleases(release, CURRENT_STAMPS["run-status"]) < 0,
+      ),
     );
   });
 });
