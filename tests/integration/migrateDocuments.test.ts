@@ -1310,6 +1310,61 @@ describe("phax artifact migrate-documents — the command", { timeout: 30_000 },
     );
     expect(existsSync(join(repoDir, sidecarOf(LOG_ROTATION)))).toBe(true);
   });
+
+  // The 0.33.0 shape is today's current shape under its own stamp: a plan whose
+  // phase-02 edits `editPath`, its body the current rendering.
+  function writePlan0_33_0(editPath: string): { md: string; sidecar: string } {
+    const older = plan0_26_0();
+    const doc = {
+      ...older,
+      phases: older.phases.map(({ oracle: _oracle, ...phase }) => ({
+        ...phase,
+        acceptance: null,
+        testStrategy: [STEP_LINE],
+        plannedFilesToEdit: phase.id === "phase-02" ? [editPath] : [],
+      })),
+    } as unknown as PlanDocument;
+    const md = planFrontmatter("Draft", null) + renderPlanBody(doc);
+    const sidecar = json({ $schema: schemaUrl("plan-document", "0.33.0"), ...doc });
+    writeRepoFile(PLAN, md);
+    writeRepoFile(sidecarOf(PLAN), sidecar);
+    commitAll();
+    return { md, sidecar };
+  }
+
+  it("refuses a 0.33.0 plan sidecar listing ./src/x.ts, naming phase-02, plannedFilesToEdit and the path, leaving both files unchanged", async () => {
+    const { md, sidecar } = writePlan0_33_0("./src/x.ts");
+    const head = headSha();
+
+    const refused = await runCommand();
+
+    expect(refused.code).toBe(12);
+    const message = refused.lines[0] ?? "";
+    expect(message).toContain(PLAN);
+    expect(message).toContain("phase-02");
+    expect(message).toContain("plannedFilesToEdit");
+    expect(message).toContain('"./src/x.ts"');
+    expect(message).toContain('write "src/x.ts"');
+    expect(message).toContain("Edit the path in the plan");
+    expect(readRepoFile(PLAN)).toBe(md);
+    expect(readRepoFile(sidecarOf(PLAN))).toBe(sidecar);
+    expect(headSha()).toBe(head);
+    expect(porcelain()).toBe("");
+  });
+
+  it("migrates a canonical 0.33.0 plan sidecar to the current stamp, its Markdown byte-identical, the commit body naming it", async () => {
+    const { md } = writePlan0_33_0("src/x.ts");
+
+    const done = await runCommand();
+
+    expect(done.code).toBe(0);
+    const migratedSidecar = JSON.parse(readRepoFile(sidecarOf(PLAN))) as { $schema: string };
+    expect(migratedSidecar.$schema).toBe(currentSchemaUrl("plan-document"));
+    expect(readRepoFile(PLAN)).toBe(md);
+    expect(headFiles()).toEqual([sidecarOf(PLAN)]);
+    expect(git(["log", "-1", "--format=%B"])).toContain(PLAN);
+    expect(porcelain()).toBe("");
+  });
 });
 
 // ── The acceptance loop (spec acceptance-tests: ac-migrate, ac-unmigrated, ac-archived)
