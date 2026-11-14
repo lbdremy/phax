@@ -5,7 +5,8 @@ import { splitFrontmatter } from "../artifact/frontmatter.js";
 // 3: phases carry mode and acceptance (the key an earlier extractor read as `oracle`), read from the header lines.
 // 4: phases carry testLines.
 // 5: the test line's loop is acceptance | in-phase and boundary joins the techniques.
-export const EXTRACTOR_VERSION = 5;
+// 6: plan paths are canonical (PlanPath).
+export const EXTRACTOR_VERSION = 6;
 
 /**
  * Content address over the plan.md body + model + effort + extractor version.

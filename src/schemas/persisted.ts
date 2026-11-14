@@ -17,7 +17,8 @@
 // document without `$schema` is read only by the frozen pre-schema decoder,
 // then stepped to the current shape. Six formats also read an older
 // `$schema` shape: a phax-plan stamped below its current stamp is read by the
-// frozen 0.32.0 decoder when stamped 0.32.0 or later, by the frozen 0.28.0
+// frozen 0.33.0 decoder when stamped 0.33.0 or later (its file lists as
+// written), by the frozen 0.32.0 decoder when stamped 0.32.0 or later, by the frozen 0.28.0
 // decoder when stamped 0.28.0 or later, by the frozen 0.26.0 decoder when
 // stamped 0.26.0 or later, and below that by the
 // frozen 0.17.0 decoder (the last two lifted with `mode: "headless"` and
@@ -32,8 +33,10 @@
 // 0.25.0 or later, by the frozen 0.17.0 decoder below that, and one written
 // before `$schema` by the pre-schema decoder; each lifts every surface element
 // with the summary placeholder, the two oldest also by the author's rationale
-// marker (`liftMarkedQuestions`); a plan document stamped
-// below its current stamp is read by the frozen 0.26.0 decoder when stamped
+// marker (`liftMarkedQuestions`); a plan document stamped below its current
+// stamp is read by the frozen 0.33.0, 0.32.0 or 0.28.0 decoder when stamped at
+// or above that release, and its lift refused at its first plan path that is
+// not canonical; one stamped lower by the frozen 0.26.0 decoder when stamped
 // 0.26.0 or later, by the frozen 0.25.0 decoder when stamped 0.25.0 or later
 // (its `modelReason` carried over as `assignmentReason`), and by the frozen
 // 0.20.0 decoder below that (empty preamble questions and
@@ -61,6 +64,7 @@
 // up to the running version, refuses an older shape and any other format by
 // name, and names the URL it reads.
 import { Array as Arr, Result, type Schema } from "effect";
+import { describePlanPathProblem, readPlanPath } from "../domain/plan/planPath.js";
 import {
   departureMessage,
   readTestStrategyText,
@@ -154,6 +158,7 @@ import { decodePhaxPlanV0_17_0, type PhaxPlanV0_17_0 } from "./history/phax-plan
 import { decodePhaxPlanV0_26_0 } from "./history/phax-plan/0.26.0.js";
 import { decodePhaxPlanV0_28_0 } from "./history/phax-plan/0.28.0.js";
 import { decodePhaxPlanV0_32_0, type PhaxPlanV0_32_0 } from "./history/phax-plan/0.32.0.js";
+import { decodePhaxPlanV0_33_0, type PhaxPlanV0_33_0 } from "./history/phax-plan/0.33.0.js";
 import { decodePhaxPlanPreSchema, type PhaxPlanPreSchema } from "./history/phax-plan/pre-schema.js";
 import { decodePlanApprovalRecordV0_19_0 } from "./history/plan-approval-record/0.19.0.js";
 import { decodePlanApprovalsPreSchema } from "./history/plan-approvals/pre-schema.js";
@@ -177,6 +182,10 @@ import {
   decodePlanDocumentV0_32_0,
   type PlanDocumentV0_32_0,
 } from "./history/plan-document/0.32.0.js";
+import {
+  decodePlanDocumentV0_33_0,
+  type PlanDocumentV0_33_0,
+} from "./history/plan-document/0.33.0.js";
 import {
   decodePlanDocumentPreSchema,
   type PlanDocumentPreSchema,
@@ -542,7 +551,14 @@ const readPhaseStatusShape: Reader<PhaseStatus> = (file, input) => {
 };
 
 /** The shape a run's `phax-plan.json` was read in. */
-export type PhaxPlanShape = "current" | "0.32.0" | "0.28.0" | "0.26.0" | "0.17.0" | "pre-schema";
+export type PhaxPlanShape =
+  | "current"
+  | "0.33.0"
+  | "0.32.0"
+  | "0.28.0"
+  | "0.26.0"
+  | "0.17.0"
+  | "pre-schema";
 
 /**
  * The plan every shape of `phax-plan.json` satisfies: its phases carry no
@@ -581,10 +597,13 @@ function liftPhaxPlanPhases(phases: PhaxPlanV0_17_0["phases"]): AnyShapePhaxPlan
   }));
 }
 
-// A phax-plan of the 0.28.0 or 0.32.0 shape without its `testLines`, its
-// phases' `oracle` key lifted to `acceptance`: what a run started by an earlier
-// release extracted, shown or sized, never resumed.
-function withoutTestLines(plan: Omit<PhaxPlanV0_32_0, "$schema">): AnyShapePhaxPlan {
+// A phax-plan of the 0.28.0, 0.32.0 or 0.33.0 shape without its `testLines`,
+// its phases' `oracle` key lifted to `acceptance` (a 0.33.0 phase already has
+// it) and its file lists as written: what a run started by an earlier release
+// extracted, shown or sized, never resumed.
+function withoutTestLines(
+  plan: Omit<PhaxPlanV0_32_0, "$schema"> | Omit<PhaxPlanV0_33_0, "$schema">,
+): AnyShapePhaxPlan {
   return liftPhaxPlanWithoutTestLines({
     run: plan.run,
     phases: Arr.map(plan.phases, ({ testLines: _testLines, ...phase }) => phase),
@@ -593,8 +612,10 @@ function withoutTestLines(plan: Omit<PhaxPlanV0_32_0, "$schema">): AnyShapePhaxP
 
 /**
  * Reads a run's `phax-plan.json`, reporting the shape it read: a file at the
- * current stamp by the current decoder (`current`); one stamped 0.32.0 or
- * later, below the current stamp, by the frozen 0.32.0 decoder (`0.32.0`); one
+ * current stamp by the current decoder (`current`), its file lists canonical;
+ * one stamped 0.33.0 or later, below the current stamp, by the frozen 0.33.0
+ * decoder (`0.33.0`), its file lists as written; one stamped 0.32.0 or later
+ * by the frozen 0.32.0 decoder (`0.32.0`); one
  * stamped 0.28.0 or later by the frozen 0.28.0 decoder (`0.28.0`); one
  * stamped 0.26.0 or later by the frozen 0.26.0 decoder (`0.26.0`); one
  * stamped lower by the frozen 0.17.0 decoder (`0.17.0`); and one without
@@ -610,6 +631,14 @@ export const readPhaxPlanFile: Reader<PhaxPlanRead> = (file, input) => {
   if (isDocumentObject(input) && isStampedBelowCurrent("phax-plan", input)) {
     // `isStampedBelowCurrent` has parsed the stamp, so the release is there.
     const release = parseSchemaUrl(input["$schema"])?.release ?? "0.0.0";
+    if (compareReleases(release, "0.33.0") >= 0) {
+      const v0_33_0 = decodePhaxPlanV0_33_0(input);
+      if (Result.isFailure(v0_33_0)) {
+        return Result.fail(readError(file, "phax-plan", formatFirstViolation(v0_33_0.failure)));
+      }
+      const { $schema: _schema, ...plan } = v0_33_0.success;
+      return Result.succeed({ shape: "0.33.0", plan: withoutTestLines(plan) });
+    }
     if (compareReleases(release, "0.32.0") >= 0) {
       const v0_32_0 = decodePhaxPlanV0_32_0(input);
       if (Result.isFailure(v0_32_0)) {
@@ -825,10 +854,31 @@ export type PlanDocumentV0_28_0Value = DistributiveOmit<PlanDocumentV0_28_0, "$s
 export type PlanDocumentV0_32_0Value = DistributiveOmit<PlanDocumentV0_32_0, "$schema">;
 
 /**
+ * A plan document in its 0.33.0 shape, as a 0.33.0 sidecar carried it: the
+ * current in-memory document under its const `$schema`, which is dropped,
+ * except that its file lists hold any string, canonical or not.
+ */
+export type PlanDocumentV0_33_0Value = DistributiveOmit<PlanDocumentV0_33_0, "$schema">;
+
+/** A phase's three file lists, in plan order. */
+export type PlanPathList = "plannedFilesToCreate" | "plannedFilesToEdit" | "optionalFilesToEdit";
+
+const PLAN_PATH_LISTS: ReadonlyArray<PlanPathList> = [
+  "plannedFilesToCreate",
+  "plannedFilesToEdit",
+  "optionalFilesToEdit",
+];
+
+/**
  * An older plan document lifted to the current in-memory shape, or the reason
  * it cannot be: every phase's `testStrategy` string is read as test lines, and
  * the first phase in plan order holding a departure refuses the lift with its
- * first departure. A refused lift is not a read error: the sidecar still reads.
+ * first departure (`refused`). A lift that passes those checks then reads its
+ * plan paths: the first path in plan order (phases, then create, edit,
+ * optional, then items) that is not canonical refuses the lift
+ * (`refused-path`), naming the phase, the list, the path as written and what
+ * is wrong with it (`describePlanPathProblem`); a path is never rewritten. A
+ * refused lift is not a read error: the sidecar still reads.
  */
 export type PlanDocumentLift =
   | { readonly kind: "lifted"; readonly document: PlanDocument }
@@ -836,7 +886,44 @@ export type PlanDocumentLift =
       readonly kind: "refused";
       readonly phase: string;
       readonly departure: TestLineDeparture;
+    }
+  | {
+      readonly kind: "refused-path";
+      readonly phase: string;
+      readonly list: PlanPathList;
+      readonly written: string;
+      readonly problem: string;
     };
+
+/** A path-refused lift's line: `<phase> <list> "<written>" <problem>`. */
+export function planPathLiftMessage(
+  lift: Extract<PlanDocumentLift, { readonly kind: "refused-path" }>,
+): string {
+  return `${lift.phase} ${lift.list} ${JSON.stringify(lift.written)} ${lift.problem}`;
+}
+
+// A lifted document whose every plan path is canonical stays lifted; the first
+// other path in plan order refuses it. A refused lift is kept: its own check ran first.
+function withCanonicalPlanPaths(lift: PlanDocumentLift): PlanDocumentLift {
+  if (lift.kind !== "lifted") return lift;
+  for (const phase of lift.document.phases) {
+    for (const list of PLAN_PATH_LISTS) {
+      for (const written of phase[list]) {
+        const reading = readPlanPath(written);
+        if (reading.kind !== "canonical") {
+          return {
+            kind: "refused-path",
+            phase: phase.id,
+            list,
+            written,
+            problem: describePlanPathProblem(reading),
+          };
+        }
+      }
+    }
+  }
+  return lift;
+}
 
 /**
  * A spec sidecar as read: the document at the current in-memory shape, and
@@ -871,6 +958,12 @@ export type SpecDocumentSidecar =
  */
 export type PlanDocumentSidecar =
   | { readonly kind: "plan"; readonly shape: "current"; readonly document: PlanDocument }
+  | {
+      readonly kind: "plan";
+      readonly shape: "0.33.0";
+      readonly lift: PlanDocumentLift;
+      readonly older: PlanDocumentV0_33_0Value;
+    }
   | {
       readonly kind: "plan";
       readonly shape: "0.32.0";
@@ -1009,7 +1102,8 @@ function planDocumentV0_25_0AsV0_26_0(older: PlanDocumentV0_25_0Value): PlanDocu
  * (`liftPlanDocument`). The first phase in plan order holding a line whose
  * criterion is `acceptance` (`newlyReservedCriterionAt`) refuses the lift,
  * naming that line as it was written: 0.33.0 reserves the word, and a rename
- * would invent a criterion the spec does not hold.
+ * would invent a criterion the spec does not hold. Its plan paths are then
+ * read (`withCanonicalPlanPaths`).
  */
 function liftStructuredPlanDocument(older: PlanDocumentToLift): PlanDocumentLift {
   for (const phase of older.phases) {
@@ -1023,7 +1117,7 @@ function liftStructuredPlanDocument(older: PlanDocumentToLift): PlanDocumentLift
       };
     }
   }
-  return { kind: "lifted", document: liftPlanDocument(older) };
+  return withCanonicalPlanPaths({ kind: "lifted", document: liftPlanDocument(older) });
 }
 
 /**
@@ -1031,7 +1125,8 @@ function liftStructuredPlanDocument(older: PlanDocumentToLift): PlanDocumentLift
  * `testStrategy` string is read as test lines (`readTestStrategyText`, a
  * section written before 0.33.0: its loop `oracle` reads as `acceptance`), in
  * its place. The first phase in plan order with a departure refuses the lift,
- * naming its first departure; nothing else changes.
+ * naming its first departure; nothing else changes. Its plan paths are then
+ * read (`withCanonicalPlanPaths`).
  */
 export function liftPlanDocumentV0_26_0(older: PlanDocumentV0_26_0Value): PlanDocumentLift {
   const readings = Arr.map(older.phases, (phase) =>
@@ -1049,7 +1144,7 @@ export function liftPlanDocumentV0_26_0(older: PlanDocumentV0_26_0Value): PlanDo
       testStrategy: (readings[i]?.lines ?? []).map(({ line }) => line),
     }),
   );
-  return { kind: "lifted", document: { ...older, phases } };
+  return withCanonicalPlanPaths({ kind: "lifted", document: { ...older, phases } });
 }
 
 function readSpecDocumentSidecar(
@@ -1121,6 +1216,24 @@ function readPlanDocumentSidecar(
   if (isDocumentObject(input) && isStampedBelowCurrent("plan-document", input)) {
     // `isStampedBelowCurrent` has parsed the stamp, so the release is there.
     const release = parseSchemaUrl(input["$schema"])?.release ?? "0.0.0";
+    if (compareReleases(release, "0.33.0") >= 0) {
+      const frozen = decodePlanDocumentV0_33_0(input);
+      if (Result.isFailure(frozen)) {
+        return Result.fail(
+          readError(file, "plan-document", formatPlanDocumentViolation(input, frozen.failure)),
+        );
+      }
+      // The 0.33.0 document is the current in-memory one, its file lists
+      // aside: it lifts unchanged when they are canonical, and is refused at
+      // its first other path.
+      const { $schema: _schema, ...value } = frozen.success;
+      return Result.succeed({
+        kind: "plan",
+        shape: "0.33.0",
+        lift: withCanonicalPlanPaths({ kind: "lifted", document: value }),
+        older: value,
+      });
+    }
     if (compareReleases(release, "0.32.0") >= 0) {
       const frozen = decodePlanDocumentV0_32_0(input);
       if (Result.isFailure(frozen)) {
@@ -1226,7 +1339,9 @@ function readPlanDocumentSidecar(
  *   decoder, and one written before `$schema` by the pre-schema decoder, both
  *   lifted by `liftMarkedQuestions`. Every lift sets the summary placeholder
  *   on each surface element;
- * - a plan stamped 0.32.0 or later, below its current stamp, is read by the
+ * - a plan stamped 0.33.0 or later, below its current stamp, is read by the
+ *   frozen 0.33.0 decoder, its document the current in-memory one whatever
+ *   its file lists hold; one stamped 0.32.0 or later by the
  *   frozen 0.32.0 decoder, and one stamped 0.28.0 or later by the frozen 0.28.0
  *   decoder; each is lifted by `liftStructuredPlanDocument` (the test lines' loop `oracle`
  *   becomes `acceptance` and each phase's `oracle: { dischargedBy, files }`
@@ -1242,9 +1357,12 @@ function readPlanDocumentSidecar(
  *   preamble question arrays and `assignmentReason: null` on every phase.
  *   Each then carries a `lift` (`liftPlanDocumentV0_26_0`): every phase's
  *   `testStrategy` string read as test lines, or refused at the first
- *   departing line. A refused lift still reads;
+ *   departing line. Every plan lift that passes those checks is then refused
+ *   at its first plan path that is not canonical, never rewritten
+ *   (`refused-path`). A refused lift still reads;
  * - any other sidecar is read by the current file decoder, shape `current`;
- *   a plan's violation under a test line names the phase and the line
+ *   a plan's violation under a test line names the phase and the line, and
+ *   one at a plan path names the phase, the path and why
  *   (`formatPlanDocumentViolation`).
  */
 export function readDocumentSidecar(
@@ -1353,13 +1471,18 @@ export const readSpecDocumentFile: Reader<SpecDocument> = (file, input) =>
 /**
  * Reads a plan's JSON sidecar as the current in-memory document; see
  * `readDocumentSidecar`. An older sidecar whose lift is refused fails, naming
- * the sidecar, the phase and the departing line.
+ * the sidecar, the phase and the departing line, or the sidecar, the phase,
+ * the list and the path as written with why it is not canonical
+ * (`<file>: <phase> <list> "<written>" <problem>`).
  */
 export const readPlanDocumentFile: Reader<PlanDocument> = (file, input) =>
   Result.flatMap(readPlanDocumentSidecar(file, input), (sidecar) => {
     if (sidecar.shape === "current") return Result.succeed(sidecar.document);
     const { lift } = sidecar;
     if (lift.kind === "lifted") return Result.succeed(lift.document);
+    if (lift.kind === "refused-path") {
+      return Result.fail(readError(file, "plan-document", planPathLiftMessage(lift)));
+    }
     return Result.fail(
       readError(
         file,

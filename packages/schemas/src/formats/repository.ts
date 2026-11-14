@@ -10,10 +10,13 @@
 // document's 0.25.0 shape, written before `modelReason` became
 // `assignmentReason`, its 0.26.0 shape, written before test lines, and the
 // spec document's 0.27.0 and the plan document's 0.28.0 shapes, written before
-// the `$schema` const and the strict answer, and the plan document's 0.32.0
-// shape, written before the `acceptance` loop, as releases, and lift them as
-// phax's reader does, except that an older test
-// strategy that is not wholly in the line format lifts to `Unknown`. Each current shape, named by
+// the `$schema` const and the strict answer, the plan document's 0.32.0
+// shape, written before the `acceptance` loop, and its 0.33.0 shape, written
+// before plan paths were canonical, as releases, and lift them as phax's
+// reader does, except that an older test
+// strategy that is not wholly in the line format lifts to `Unknown`, and an
+// older plan's file lists are kept as written, where phax's reader refuses the
+// lift of a non-canonical one. Each current shape, named by
 // `CURRENT_SHAPES` (`next` until a release renames it), is phax's own file
 // schema and decoder. The package declares none of its own.
 import { Array as Arr } from "effect";
@@ -72,6 +75,11 @@ import {
   decodePlanDocumentV0_32_0,
   type PlanDocumentV0_32_0,
 } from "../../../../src/schemas/history/plan-document/0.32.0.js";
+import {
+  PlanDocumentV0_33_0Schema,
+  decodePlanDocumentV0_33_0,
+  type PlanDocumentV0_33_0,
+} from "../../../../src/schemas/history/plan-document/0.33.0.js";
 import {
   PlanDocumentPreSchemaSchema,
   decodePlanDocumentPreSchema,
@@ -426,6 +434,7 @@ export type PlanDocumentShapes = {
   "0.26.0": PlanDocumentV0_26_0;
   "0.28.0": PlanDocumentV0_28_0;
   "0.32.0": PlanDocumentV0_32_0;
+  "0.33.0": PlanDocumentV0_33_0;
 } & {
   [K in CurrentShapeName<"plan-document">]: PlanDocumentFile;
 };
@@ -444,6 +453,7 @@ export const planDocumentFormat = defineFormat<PlanDocumentShapes>({
     ["0.26.0", { schema: PlanDocumentV0_26_0Schema, decode: decodePlanDocumentV0_26_0 }],
     ["0.28.0", { schema: PlanDocumentV0_28_0Schema, decode: decodePlanDocumentV0_28_0 }],
     ["0.32.0", { schema: PlanDocumentV0_32_0Schema, decode: decodePlanDocumentV0_32_0 }],
+    ["0.33.0", { schema: PlanDocumentV0_33_0Schema, decode: decodePlanDocumentV0_33_0 }],
   ],
   current: {
     name: CURRENT_SHAPES["plan-document"],
@@ -504,7 +514,10 @@ function liftTestStrategy(text: string): LatestPlanPhase["testStrategy"] {
  * line format, and `Unknown` otherwise. A 0.28.0 or 0.32.0 document's test
  * lines keep every coordinate, and their loop `oracle` becomes `acceptance`; a
  * phase of theirs holding a criterion `acceptance` has an `Unknown`
- * `testStrategy`, since 0.33.0 reserves that word.
+ * `testStrategy`, since 0.33.0 reserves that word. A 0.33.0 document lifts
+ * like the current one. Every older shape keeps its file lists as written,
+ * canonical or not: the package reads plans, it never runs one, so a latest
+ * plan read from an older document may hold a non-canonical spelling.
  */
 export function toLatestPlanDocument(value: PlanDocumentParsed): LatestPlanDocument {
   if (isCurrentPlanDocument(value)) {
@@ -578,16 +591,18 @@ type PlanDocumentParsed =
   | PlanDocumentV0_26_0
   | PlanDocumentV0_28_0
   | PlanDocumentV0_32_0
+  | PlanDocumentV0_33_0
   | PlanDocumentFile;
 
 /**
  * Whether a parsed plan document carries test lines: the current shape, the
- * 0.32.0 one, or the 0.28.0 one, which is the 0.32.0 shape under a
- * release-pattern `$schema`.
+ * 0.33.0 one (the current shape before plan paths were canonical), the 0.32.0
+ * one, or the 0.28.0 one, which is the 0.32.0 shape under a release-pattern
+ * `$schema`.
  */
 function isCurrentPlanDocument(
   value: PlanDocumentParsed,
-): value is PlanDocumentFile | PlanDocumentV0_28_0 | PlanDocumentV0_32_0 {
+): value is PlanDocumentFile | PlanDocumentV0_28_0 | PlanDocumentV0_32_0 | PlanDocumentV0_33_0 {
   return Array.isArray(value.phases[0].testStrategy);
 }
 

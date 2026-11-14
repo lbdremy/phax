@@ -1,0 +1,245 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "phax phax-plan",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "pattern": "^https:\\/\\/docs\\.phax\\.run\\/schemas\\/phax-plan\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$",
+      "description": "The phax-plan format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): https://docs.phax.run/schemas/phax-plan/<X.Y.Z>.json"
+    },
+    "run": {
+      "type": "object",
+      "properties": {
+        "shortName": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "title": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "branch": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "requiredCommands": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "shortName",
+        "title",
+        "branch",
+        "requiredCommands"
+      ],
+      "additionalProperties": false
+    },
+    "phases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^phase-\\d{2}$"
+          },
+          "title": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "model": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "effort": {
+            "type": "string",
+            "enum": [
+              "none",
+              "off",
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max",
+              "ultracode",
+              "ultra"
+            ]
+          },
+          "planMarkdownAnchor": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "plannedFilesToCreate": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^(?:[^/\\\\.][^/\\\\]*|\\.[^/\\\\.][^/\\\\]*|\\.\\.[^/\\\\]+)(?:/(?:[^/\\\\.][^/\\\\]*|\\.[^/\\\\.][^/\\\\]*|\\.\\.[^/\\\\]+))*$",
+              "description": "A file path relative to the repository root, in canonical form: `/` separators, no empty, `.` or `..` segment, no leading or trailing `/`, no backslash, e.g. `src/widget.ts`. phax refuses any other spelling, naming the canonical one when it exists."
+            }
+          },
+          "plannedFilesToEdit": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^(?:[^/\\\\.][^/\\\\]*|\\.[^/\\\\.][^/\\\\]*|\\.\\.[^/\\\\]+)(?:/(?:[^/\\\\.][^/\\\\]*|\\.[^/\\\\.][^/\\\\]*|\\.\\.[^/\\\\]+))*$",
+              "description": "A file path relative to the repository root, in canonical form: `/` separators, no empty, `.` or `..` segment, no leading or trailing `/`, no backslash, e.g. `src/widget.ts`. phax refuses any other spelling, naming the canonical one when it exists."
+            }
+          },
+          "optionalFilesToEdit": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^(?:[^/\\\\.][^/\\\\]*|\\.[^/\\\\.][^/\\\\]*|\\.\\.[^/\\\\]+)(?:/(?:[^/\\\\.][^/\\\\]*|\\.[^/\\\\.][^/\\\\]*|\\.\\.[^/\\\\]+))*$",
+              "description": "A file path relative to the repository root, in canonical form: `/` separators, no empty, `.` or `..` segment, no leading or trailing `/`, no backslash, e.g. `src/widget.ts`. phax refuses any other spelling, naming the canonical one when it exists."
+            }
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "headless",
+              "interactive"
+            ]
+          },
+          "acceptance": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "passedBy": {
+                    "type": "string",
+                    "pattern": "^phase-\\d{2}$"
+                  },
+                  "files": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/NonEmptyString"
+                    }
+                  }
+                },
+                "required": [
+                  "passedBy",
+                  "files"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "testLines": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "guarantee": {
+                  "type": "string",
+                  "pattern": "^[^\\s\\x00-\\x1F\\x7F-\\x9F\\u2028\\u2029](?:[^\\x00-\\x1F\\x7F-\\x9F\\u2028\\u2029]*[^\\s\\x00-\\x1F\\x7F-\\x9F\\u2028\\u2029])?$",
+                  "description": "What the test guarantees: one non-empty, trimmed line."
+                },
+                "size": {
+                  "type": "string",
+                  "enum": [
+                    "small",
+                    "medium",
+                    "large"
+                  ]
+                },
+                "technique": {
+                  "type": "string",
+                  "enum": [
+                    "example",
+                    "boundary",
+                    "table",
+                    "property",
+                    "metamorphic",
+                    "stateful",
+                    "fuzz",
+                    "contract",
+                    "smoke"
+                  ]
+                },
+                "oracle": {
+                  "type": "string",
+                  "pattern": "^[^\\s\\x00-\\x1F\\x7F-\\x9F\\u2028\\u2029](?:[^\\x00-\\x1F\\x7F-\\x9F\\u2028\\u2029]*[^\\s\\x00-\\x1F\\x7F-\\x9F\\u2028\\u2029])?$",
+                  "description": "What the test compares against: one non-empty, trimmed line, never holding ' — ', never starting with '— ' and never ending with ' ·' (these three checked by phax, not by this JSON Schema)."
+                },
+                "loop": {
+                  "type": "string",
+                  "enum": [
+                    "acceptance",
+                    "in-phase"
+                  ]
+                },
+                "criterion": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[^\\s`\\x00-\\x1F\\x7F-\\x9F]+$",
+                      "description": "An acceptance criterion id from the source spec's JSON sidecar: a run of non-whitespace characters, no backtick, neither 'acceptance', 'in-phase' nor 'oracle' (that last checked by phax, not by this JSON Schema)."
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "guarantee",
+                "size",
+                "technique",
+                "oracle",
+                "loop",
+                "criterion"
+              ],
+              "additionalProperties": false,
+              "description": "One test line of a phase's test strategy, rendered as `- <guarantee> — <size> · <technique> · <oracle> · <loop>[ · <criterion>]`, one per line under the phase's `### Test strategy` heading. `criterion` is an acceptance criterion id from the source spec's JSON sidecar, or null."
+            }
+          },
+          "commit": {
+            "type": "object",
+            "properties": {
+              "subject": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "body": {
+                "$ref": "#/$defs/NonEmptyString"
+              }
+            },
+            "required": [
+              "subject",
+              "body"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "model",
+          "effort",
+          "planMarkdownAnchor",
+          "plannedFilesToCreate",
+          "plannedFilesToEdit",
+          "optionalFilesToEdit",
+          "mode",
+          "acceptance",
+          "testLines",
+          "commit"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "$schema",
+    "run",
+    "phases"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "NonEmptyString": {
+      "type": "string",
+      "pattern": "^[\\s\\S]+$"
+    }
+  }
+}

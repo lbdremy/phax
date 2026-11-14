@@ -49,19 +49,24 @@ describe("archived plan sidecars", () => {
     expect(sidecars.some((s) => s.release === "0.25.0")).toBe(true);
   });
 
-  // A sidecar below the current shape reads whatever its test strategies hold:
-  // its lift is the document, or refused at a phase of the file and a line.
+  // A sidecar below the current shape reads whatever its test strategies and
+  // paths hold: its lift is the document, or refused at a phase of the file and
+  // a line, or at a phase of the file and a path it lists.
   it.each(sidecars.map((s) => [s.name, s] as const))("%s reads", (_name, archived) => {
     const read = readDocumentSidecar("plan", archived.name, archived.json);
     if (Result.isFailure(read)) throw new Error(read.failure.message);
     const sidecar = read.success;
     expect(sidecar.kind).toBe("plan");
     if (sidecar.shape === "current" || sidecar.lift.kind === "lifted") return;
-    const phaseIds = (archived.json["phases"] as Array<Record<string, unknown>>).map(
-      (phase) => phase["id"],
-    );
-    expect(phaseIds).toContain(sidecar.lift.phase);
-    expect(sidecar.lift.departure.line).toBeGreaterThanOrEqual(1);
+    const phases = archived.json["phases"] as Array<Record<string, unknown>>;
+    expect(phases.map((phase) => phase["id"])).toContain(sidecar.lift.phase);
+    const { lift } = sidecar;
+    if (lift.kind === "refused-path") {
+      const phase = phases.find((p) => p["id"] === lift.phase);
+      expect(phase?.[lift.list]).toContain(lift.written);
+      return;
+    }
+    expect(lift.departure.line).toBeGreaterThanOrEqual(1);
   });
 
   it("refuses the lift of every 0.25.0 sidecar, whose test strategies are prose", () => {

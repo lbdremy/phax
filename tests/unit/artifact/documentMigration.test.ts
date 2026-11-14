@@ -521,6 +521,75 @@ describe("decideDocumentMigration — plans", () => {
     expect(migrated(decidePlan(own, PLAN_0_20_0_JSON)).md).toBe(own);
   });
 
+  // ac-older-sidecar: a 0.33.0 plan's body is the current body, so it migrates
+  // when its paths are canonical and is refused, naming the path, when not.
+  describe("a 0.33.0 plan sidecar", () => {
+    const at0_33_0 = (document: PlanDocument) =>
+      json({ $schema: schemaUrl("plan-document", "0.33.0"), ...document });
+    const withEdit = (paths: readonly string[]): PlanDocument => {
+      const document = liftedPlan();
+      return {
+        ...document,
+        phases: [
+          document.phases[0],
+          ...document.phases.slice(1).map((phase) => ({ ...phase, plannedFilesToEdit: paths })),
+        ],
+      };
+    };
+
+    it("migrates one whose paths are canonical to the current stamp, its body unchanged", () => {
+      const document = withEdit(["src/x.ts"]);
+      const md = PLAN_FRONTMATTER + renderPlanBody(document);
+      const m = migrated(decidePlan(md, at0_33_0(document)));
+
+      expect(m.fromShape).toBe("0.33.0");
+      expect(m.md).toBe(md);
+      expect(m.bodyChanged).toBe(false);
+      const sidecar = JSON.parse(m.sidecarText) as { $schema: string };
+      expect(sidecar.$schema).toBe(currentSchemaUrl("plan-document"));
+      expect(sidecar.$schema).not.toBe(schemaUrl("plan-document", "0.33.0"));
+    });
+
+    it("refuses one holding ./src/x.ts, naming phase-02, plannedFilesToEdit, the path and the remedy", () => {
+      const document = withEdit(["src/y.ts", "./src/x.ts"]);
+      const md = PLAN_FRONTMATTER + renderPlanBody(document);
+      expect(decidePlan(md, at0_33_0(document))).toEqual({
+        kind: "refuse",
+        refusal: {
+          path: PLAN,
+          problem: 'phase-02 plannedFilesToEdit "./src/x.ts" is not canonical: write "src/x.ts"',
+          remedy:
+            "Edit the path in the plan, in the sidecar and plan.md alike, to its canonical form (or remove it), then re-approve the plan and rerun.",
+        },
+      });
+    });
+
+    it("refuses an unplannable path with its reason, before comparing the body", () => {
+      const decision = decidePlan(
+        `${PLAN_FRONTMATTER}# Edited by hand\n`,
+        at0_33_0(withEdit(["../x.ts"])),
+      );
+      expect(decision.kind === "refuse" && decision.refusal.problem).toBe(
+        'phase-02 plannedFilesToEdit "../x.ts" leaves the repository',
+      );
+    });
+  });
+
+  it("refuses an older 0.26.0 plan holding a non-canonical path once its test strategies read", () => {
+    const sidecarJson = json({
+      $schema: schemaUrl("plan-document", "0.26.0"),
+      ...PLAN_0_26_0,
+      phases: PLAN_0_26_0.phases.map((phase, i) => ({
+        ...phase,
+        optionalFilesToEdit: i === 0 ? ["src//x.ts"] : [],
+      })),
+    });
+    const decision = decidePlan(`${PLAN_FRONTMATTER}# Plan\n`, sidecarJson);
+    expect(decision.kind === "refuse" && decision.refusal.problem).toBe(
+      'phase-01 optionalFilesToEdit "src//x.ts" is not canonical: write "src/x.ts"',
+    );
+  });
+
   it("refuses a 0.19.0 plan beside a spec as an invalid sidecar naming completesSpec", () => {
     const { completesSpec: _unrecorded, ...older } = {
       ...PLAN_0_20_0,

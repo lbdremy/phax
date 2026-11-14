@@ -33,6 +33,11 @@ import {
   type PhaxPlanExtractionV0_32_0,
 } from "../../../../src/schemas/history/phax-plan-extraction/0.32.0.js";
 import {
+  PhaxPlanExtractionV0_33_0Schema,
+  decodePhaxPlanExtractionV0_33_0,
+  type PhaxPlanExtractionV0_33_0,
+} from "../../../../src/schemas/history/phax-plan-extraction/0.33.0.js";
+import {
   PlanExtractionAnswerSchema,
   decodePlanExtractionAnswer,
   type PlanExtractionAnswer,
@@ -233,14 +238,17 @@ export function toLatestDecideVerdicts(value: DecideVerdictsFile): LatestDecideV
 
 // Born at 0.32.0 with `$schema`: no pre-schema shape, and a document without
 // `$schema` is unreadable. It refuses a key it does not name, at any level. Its
-// 0.32.0 shape, written before the `acceptance` loop, is listed as a release.
-// The latest value is phax's in-memory value, with no `$schema`. A const
+// 0.32.0 shape, written before the `acceptance` loop, and its 0.33.0 shape,
+// whose file lists were kept as the model wrote them, are listed as releases.
+// The current shape reads a plannable path in its canonical form and refuses
+// an unplannable one. The latest value is phax's in-memory value, with no `$schema`. A const
 // `$schema` reads only its own stamp: a document stamped above the format's
 // current stamp (and at or below the package's release) is refused at
 // `$schema`, and phax never writes one.
 
 export type PhaxPlanExtractionShapes = {
   "0.32.0": PhaxPlanExtractionV0_32_0;
+  "0.33.0": PhaxPlanExtractionV0_33_0;
 } & {
   [K in CurrentShapeName<"phax-plan-extraction">]: PlanExtractionAnswer;
 };
@@ -256,6 +264,10 @@ export const phaxPlanExtractionFormat = defineFormat<PhaxPlanExtractionShapes>({
     [
       "0.32.0",
       { schema: PhaxPlanExtractionV0_32_0Schema, decode: decodePhaxPlanExtractionV0_32_0 },
+    ],
+    [
+      "0.33.0",
+      { schema: PhaxPlanExtractionV0_33_0Schema, decode: decodePhaxPlanExtractionV0_33_0 },
     ],
   ],
   current: {
@@ -277,10 +289,13 @@ export type LatestPhaxPlanExtraction = Omit<PlanExtractionAnswer, "$schema">;
 /**
  * Upgrades a parsed plan extraction in memory: drops `$schema`, keeps the plan
  * and the reason, and lifts the extracted test lines' loop `oracle` to
- * `acceptance` (`liftPlanExtractionTestLines`).
+ * `acceptance` (`liftPlanExtractionTestLines`). A 0.33.0 answer lifts like the
+ * current one, its file lists kept as written, canonical or not: the package
+ * reads answers, it never runs one, so a latest extraction read from an older
+ * answer may hold a non-canonical spelling.
  */
 export function toLatestPhaxPlanExtraction(
-  value: PhaxPlanExtractionV0_32_0 | PlanExtractionAnswer,
+  value: PhaxPlanExtractionV0_32_0 | PhaxPlanExtractionV0_33_0 | PlanExtractionAnswer,
 ): LatestPhaxPlanExtraction {
   const { $schema: _schema, ...answer } = value;
   return liftPlanExtractionTestLines(answer);

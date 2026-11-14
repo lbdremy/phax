@@ -613,6 +613,18 @@ export {
   type PhaxPlanExtractionV0_32_0,
 } from "../../../src/schemas/history/phax-plan-extraction/0.32.0.js";
 export {
+  PlanDocumentV0_33_0Schema,
+  type PlanDocumentV0_33_0,
+} from "../../../src/schemas/history/plan-document/0.33.0.js";
+export {
+  PhaxPlanV0_33_0Schema,
+  type PhaxPlanV0_33_0,
+} from "../../../src/schemas/history/phax-plan/0.33.0.js";
+export {
+  PhaxPlanExtractionV0_33_0Schema,
+  type PhaxPlanExtractionV0_33_0,
+} from "../../../src/schemas/history/phax-plan-extraction/0.33.0.js";
+export {
   HandDecisionAnswerV0_25_0Schema,
   type HandDecisionAnswerV0_25_0,
 } from "../../../src/schemas/history/hand-decision-answer/0.25.0.js";
