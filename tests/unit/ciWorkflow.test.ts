@@ -91,9 +91,11 @@ describe("Security workflow", () => {
       Record<
         string,
         {
+          readonly if?: string;
           readonly container?: { readonly image: string };
           readonly permissions?: Readonly<Record<string, string>>;
           readonly steps: readonly {
+            readonly name?: string;
             readonly uses?: string;
             readonly run?: string;
             readonly env?: Readonly<Record<string, string>>;
@@ -138,6 +140,33 @@ describe("Security workflow", () => {
     expect(upload?.uses).toMatch(/@[0-9a-f]{40}$/);
     expect(upload?.with?.["sarif_file"]).toBe("semgrep.sarif");
     expect(semgrep.permissions).toEqual({ contents: "read", "security-events": "write" });
+  });
+
+  it("runs the property tests' deep pass on the schedule and on demand only", () => {
+    const job = security.jobs["property-tests"]!;
+    expect(job.if).toContain("github.event_name == 'schedule'");
+    expect(job.if).toContain("github.event_name == 'workflow_dispatch'");
+    expect(job.if).not.toContain("pull_request");
+    expect(job.if).not.toContain("push");
+  });
+
+  it("runs the deep pass with 2000 runs from a random seed over tests/unit/property", () => {
+    const job = security.jobs["property-tests"]!;
+    const step = job.steps.find((s) => s.name === "Property tests, deep pass")!;
+    expect(step.env).toEqual({ PHAX_PROPERTY_RUNS: "2000", PHAX_PROPERTY_SEED: "random" });
+    expect(step.run).toBe("pnpm test:unit tests/unit/property");
+  });
+
+  it("sets up the property-tests job with the same pinned actions as security-audit", () => {
+    // The setup steps: every step up to the dependency install.
+    const setupOf = (job: string) => {
+      const steps = security.jobs[job]!.steps;
+      return steps
+        .slice(0, steps.findIndex((s) => s.run === "pnpm install") + 1)
+        .map((s) => [s.uses, s.with]);
+    };
+    expect(setupOf("property-tests")).toEqual(setupOf("security-audit"));
+    expect(setupOf("property-tests")).toHaveLength(4);
   });
 });
 
