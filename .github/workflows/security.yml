@@ -102,3 +102,35 @@ jobs:
         with:
           sarif_file: semgrep.sarif
           category: semgrep
+
+  # The daily deep pass of the property tests (spec property-tests §5.20): every
+  # property at 2,000 runs from a fresh seed, which the harness prints. It runs
+  # only on the schedule and on demand, never on a pull request or a push, so a
+  # pull request's result depends only on its code. docs/property-tests.md tells
+  # how to replay a failure from the printed seed.
+  property-tests:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6
+        with:
+          cache: true
+
+      # Node, Deno, usage, gitleaks and osv-scanner at the versions mise.toml
+      # pins, each checked against its mise.lock checksum (install --locked).
+      - uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5
+        with:
+          version: "2026.11.1"
+          cache: false
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Property tests, deep pass
+        env:
+          PHAX_PROPERTY_RUNS: "2000"
+          PHAX_PROPERTY_SEED: random
+        run: pnpm test:unit tests/unit/property
