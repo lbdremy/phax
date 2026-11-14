@@ -1,5 +1,7 @@
+import { Result } from "effect";
 import { describe, it, expect } from "vitest";
 import { planCacheKey, EXTRACTOR_VERSION } from "../../src/domain/planCache/key.js";
+import { decodeExtractedPlanCacheEntry } from "../../src/schemas/extractedPlanCacheEntry.js";
 
 describe("planCacheKey", () => {
   it("returns a 64-character hex string", () => {
@@ -43,8 +45,53 @@ describe("planCacheKey", () => {
     expect(a).toBe(b);
   });
 
-  it("EXTRACTOR_VERSION is 5", () => {
-    expect(EXTRACTOR_VERSION).toBe(5);
+  it("EXTRACTOR_VERSION is 6", () => {
+    expect(EXTRACTOR_VERSION).toBe(6);
+  });
+
+  // An entry written before plan paths were canonical is a miss twice over: its
+  // key was taken at extractor version 5, and its extracted plan may hold a
+  // spelling the strict `PlanPath` refuses.
+  describe("an entry written before plan paths were canonical", () => {
+    it("is keyed apart from the version 6 key", () => {
+      expect(planCacheKey("# Plan", "claude-sonnet-4-6", "medium", 5)).not.toBe(
+        planCacheKey("# Plan", "claude-sonnet-4-6", "medium"),
+      );
+    });
+
+    it("fails to decode when it holds ./src/x.ts", () => {
+      const entry = (path: string) => ({
+        version: 1,
+        key: "k",
+        planMdSha256: "s",
+        model: "claude-sonnet-4-6",
+        effort: "medium",
+        extractorVersion: 5,
+        extractedAt: "2026-01-01T00:00:00.000Z",
+        extracted: {
+          version: 1,
+          run: { shortName: "r", title: "R", requiredCommands: [] },
+          phases: [
+            {
+              id: "phase-01",
+              model: "claude-sonnet-4-6",
+              effort: "medium",
+              planMarkdownAnchor: "#phase-01",
+              plannedFilesToCreate: [],
+              plannedFilesToEdit: [path],
+              optionalFilesToEdit: [],
+              mode: "headless",
+              acceptance: null,
+              testLines: [],
+              commit: { subject: "feat: x", body: "Adds x." },
+            },
+          ],
+        },
+      });
+      expect(Result.isSuccess(decodeExtractedPlanCacheEntry(entry("src/x.ts")))).toBe(true);
+      const refused = decodeExtractedPlanCacheEntry(entry("./src/x.ts"));
+      expect(Result.isFailure(refused)).toBe(true);
+    });
   });
 
   describe("keys on the body without its frontmatter", () => {

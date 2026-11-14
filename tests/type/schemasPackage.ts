@@ -162,7 +162,9 @@ import type {
   PhaxPlanV0_17_0,
   PhaxPlanV0_26_0,
   PhaxPlanV0_32_0,
+  PhaxPlanV0_33_0,
   PhaxPlanExtractionV0_32_0,
+  PhaxPlanExtractionV0_33_0,
   PlanApprovalRecord,
   PlanApprovalRecordShape,
   PlanApprovalRecordV0_19_0,
@@ -175,6 +177,7 @@ import type {
   PlanDocumentV0_25_0,
   PlanDocumentV0_26_0,
   PlanDocumentV0_32_0,
+  PlanDocumentV0_33_0,
   GateAttributionV0_17_0,
   GateAttributionV0_20_0,
   GateAttributionV0_21_0,
@@ -462,7 +465,9 @@ import type { PhaseStatusPreSchema as FrozenPhaseStatus } from "../../src/schema
 import type { PhaxPlanV0_17_0 as FrozenPhaxPlanV0_17_0 } from "../../src/schemas/history/phax-plan/0.17.0.js";
 import type { PhaxPlanV0_26_0 as FrozenPhaxPlanV0_26_0 } from "../../src/schemas/history/phax-plan/0.26.0.js";
 import type { PhaxPlanV0_32_0 as FrozenPhaxPlanV0_32_0 } from "../../src/schemas/history/phax-plan/0.32.0.js";
+import type { PhaxPlanV0_33_0 as FrozenPhaxPlanV0_33_0 } from "../../src/schemas/history/phax-plan/0.33.0.js";
 import type { PhaxPlanExtractionV0_32_0 as FrozenPhaxPlanExtractionV0_32_0 } from "../../src/schemas/history/phax-plan-extraction/0.32.0.js";
+import type { PhaxPlanExtractionV0_33_0 as FrozenPhaxPlanExtractionV0_33_0 } from "../../src/schemas/history/phax-plan-extraction/0.33.0.js";
 import type { PhaxPlanPreSchema as FrozenPhaxPlan } from "../../src/schemas/history/phax-plan/pre-schema.js";
 import type { PlanApprovalRecordV0_19_0 as FrozenPlanApprovalRecordV0_19_0 } from "../../src/schemas/history/plan-approval-record/0.19.0.js";
 import type { PlanApprovalsPreSchema as FrozenPlanApprovals } from "../../src/schemas/history/plan-approvals/pre-schema.js";
@@ -473,6 +478,7 @@ import type { PlanDocumentV0_25_0 as FrozenPlanDocumentV0_25_0 } from "../../src
 import type { PlanDocumentV0_26_0 as FrozenPlanDocumentV0_26_0 } from "../../src/schemas/history/plan-document/0.26.0.js";
 import type { PlanDocumentV0_28_0 as FrozenPlanDocumentV0_28_0 } from "../../src/schemas/history/plan-document/0.28.0.js";
 import type { PlanDocumentV0_32_0 as FrozenPlanDocumentV0_32_0 } from "../../src/schemas/history/plan-document/0.32.0.js";
+import type { PlanDocumentV0_33_0 as FrozenPlanDocumentV0_33_0 } from "../../src/schemas/history/plan-document/0.33.0.js";
 import type { SpecDocumentV0_17_0 as FrozenSpecDocumentV0_17_0 } from "../../src/schemas/history/spec-document/0.17.0.js";
 import type { SpecDocumentV0_25_0 as FrozenSpecDocumentV0_25_0 } from "../../src/schemas/history/spec-document/0.25.0.js";
 import type { PlanDocumentPreSchema as FrozenPlanDocument } from "../../src/schemas/history/plan-document/pre-schema.js";
@@ -802,7 +808,7 @@ const eachShapeId: [
   Equals<PhaseStatusShape, "pre-schema" | "0.17.0" | "0.20.0" | "0.26.0" | Current<"phase-status">>,
   Equals<
     PhaxPlanShape,
-    "pre-schema" | "0.17.0" | "0.26.0" | "0.28.0" | "0.32.0" | Current<"phax-plan">
+    "pre-schema" | "0.17.0" | "0.26.0" | "0.28.0" | "0.32.0" | "0.33.0" | Current<"phax-plan">
   >,
   Equals<ComplianceReviewShape, "pre-schema" | "0.17.0" | Current<"compliance-review">>,
   Equals<PlanApprovalsShape, "pre-schema" | Current<"plan-approvals">>,
@@ -820,6 +826,7 @@ const eachShapeId: [
     | "0.26.0"
     | "0.28.0"
     | "0.32.0"
+    | "0.33.0"
     | Current<"plan-document">
   >,
   Equals<
@@ -900,6 +907,7 @@ const parseValues: [
     | FrozenPhaxPlanV0_17_0
     | FrozenPhaxPlanV0_26_0
     | FrozenPhaxPlanV0_32_0
+    | FrozenPhaxPlanV0_33_0
     | PhaxPhaxPlanFile
   >,
   Equals<
@@ -924,6 +932,7 @@ const parseValues: [
     | FrozenPlanDocumentV0_26_0
     | FrozenPlanDocumentV0_28_0
     | FrozenPlanDocumentV0_32_0
+    | FrozenPlanDocumentV0_33_0
     | PhaxPlanDocumentFile
   >,
   Equals<
@@ -1423,18 +1432,24 @@ if (document.ok && document.format === "code-review") {
 // type, one current shape, and an in-memory value without $schema
 const planExtractionTypes: [
   Equals<PhaxPlanExtraction, PhaxPlanExtractionFile>,
-  Equals<PhaxPlanExtractionShape, "0.32.0" | Current<"phax-plan-extraction">>,
+  Equals<PhaxPlanExtractionShape, "0.32.0" | "0.33.0" | Current<"phax-plan-extraction">>,
   Equals<
     Value<typeof parsePhaxPlanExtraction>,
-    FrozenPhaxPlanExtractionV0_32_0 | PhaxPlanExtractionFile
+    FrozenPhaxPlanExtractionV0_32_0 | FrozenPhaxPlanExtractionV0_33_0 | PhaxPlanExtractionFile
   >,
   Equals<LatestPhaxPlanExtraction, Omit<PhaxPlanExtractionFile, "$schema">>,
   Equals<
     Parameters<typeof toLatestPhaxPlanExtraction>,
-    [value: FrozenPhaxPlanExtractionV0_32_0 | PhaxPlanExtractionFile]
+    [
+      value:
+        | FrozenPhaxPlanExtractionV0_32_0
+        | FrozenPhaxPlanExtractionV0_33_0
+        | PhaxPlanExtractionFile,
+    ]
   >,
   Equals<PhaxPlanExtractionV0_32_0, FrozenPhaxPlanExtractionV0_32_0>,
-] = [true, true, true, true, true, true];
+  Equals<PhaxPlanExtractionV0_33_0, FrozenPhaxPlanExtractionV0_33_0>,
+] = [true, true, true, true, true, true, true];
 void planExtractionTypes;
 declare const latestPhaxPlanExtraction: LatestPhaxPlanExtraction;
 // @ts-expect-error: the in-memory plan extraction carries no $schema
@@ -1751,6 +1766,7 @@ const toLatestParameters: [
         | FrozenPhaxPlanV0_17_0
         | FrozenPhaxPlanV0_26_0
         | FrozenPhaxPlanV0_32_0
+        | FrozenPhaxPlanV0_33_0
         | PhaxPhaxPlanFile,
     ]
   >,
@@ -1787,6 +1803,7 @@ const toLatestParameters: [
         | FrozenPlanDocumentV0_26_0
         | FrozenPlanDocumentV0_28_0
         | FrozenPlanDocumentV0_32_0
+        | FrozenPlanDocumentV0_33_0
         | PhaxPlanDocumentFile,
     ]
   >,
@@ -1854,6 +1871,7 @@ const phaxPlanIsPhax: Equals<PhaxPlan, PhaxPhaxPlanFile> = true;
 const phaxPlanV0_17_0IsFrozen: Equals<PhaxPlanV0_17_0, FrozenPhaxPlanV0_17_0> = true;
 const phaxPlanV0_26_0IsFrozen: Equals<PhaxPlanV0_26_0, FrozenPhaxPlanV0_26_0> = true;
 const phaxPlanV0_32_0IsFrozen: Equals<PhaxPlanV0_32_0, FrozenPhaxPlanV0_32_0> = true;
+const phaxPlanV0_33_0IsFrozen: Equals<PhaxPlanV0_33_0, FrozenPhaxPlanV0_33_0> = true;
 const complianceReviewIsPhax: Equals<ComplianceReview, PhaxComplianceReviewFile> = true;
 void registryIsPhax;
 void runStatusIsPhax;
@@ -1866,6 +1884,7 @@ void phaxPlanIsPhax;
 void phaxPlanV0_17_0IsFrozen;
 void phaxPlanV0_26_0IsFrozen;
 void phaxPlanV0_32_0IsFrozen;
+void phaxPlanV0_33_0IsFrozen;
 void complianceReviewIsPhax;
 
 // ── repository formats
@@ -1881,6 +1900,7 @@ const planDocumentV0_20_0IsFrozen: Equals<PlanDocumentV0_20_0, FrozenPlanDocumen
 const planDocumentV0_25_0IsFrozen: Equals<PlanDocumentV0_25_0, FrozenPlanDocumentV0_25_0> = true;
 const planDocumentV0_26_0IsFrozen: Equals<PlanDocumentV0_26_0, FrozenPlanDocumentV0_26_0> = true;
 const planDocumentV0_32_0IsFrozen: Equals<PlanDocumentV0_32_0, FrozenPlanDocumentV0_32_0> = true;
+const planDocumentV0_33_0IsFrozen: Equals<PlanDocumentV0_33_0, FrozenPlanDocumentV0_33_0> = true;
 const specDocumentV0_17_0IsFrozen: Equals<SpecDocumentV0_17_0, FrozenSpecDocumentV0_17_0> = true;
 void planApprovalsIsPhax;
 void specApprovalsIsPhax;
@@ -1891,6 +1911,7 @@ void planDocumentV0_20_0IsFrozen;
 void planDocumentV0_25_0IsFrozen;
 void planDocumentV0_26_0IsFrozen;
 void planDocumentV0_32_0IsFrozen;
+void planDocumentV0_33_0IsFrozen;
 void specDocumentV0_17_0IsFrozen;
 // An older document always upgrades with both question arrays: a spec's
 // arbitratedQuestions, a plan's preamble openQuestions and arbitratedQuestions

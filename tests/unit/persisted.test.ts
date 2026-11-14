@@ -1375,27 +1375,36 @@ describe("documents from another release", () => {
                   ? withoutSurfaceSummary(validDocuments[id])
                   : withoutKey(withoutSurfaceSummary(validDocuments[id]), "arbitratedQuestions")
               : id === "plan-document"
-                ? compareReleases(release, "0.28.0") >= 0
-                  ? withOracleKeys(validDocuments[id])
-                  : compareReleases(release, "0.26.0") >= 0
-                    ? withTestStrategyStrings(validDocuments[id])
-                    : compareReleases(release, "0.25.0") >= 0
-                      ? withModelReasons(validDocuments[id])
-                      : withoutPreambleQuestions(validDocuments[id])
+                ? compareReleases(release, "0.33.0") >= 0
+                  ? validDocuments[id]
+                  : compareReleases(release, "0.28.0") >= 0
+                    ? withOracleKeys(validDocuments[id])
+                    : compareReleases(release, "0.26.0") >= 0
+                      ? withTestStrategyStrings(validDocuments[id])
+                      : compareReleases(release, "0.25.0") >= 0
+                        ? withModelReasons(validDocuments[id])
+                        : withoutPreambleQuestions(validDocuments[id])
                 : id === "compliance-review"
                   ? withoutKey(withoutKey(validDocuments[id], "unplannedChanges"), "unmetPromises")
                   : id === "phax-plan"
-                    ? compareReleases(release, "0.28.0") >= 0
-                      ? withOracleKeys(validDocuments[id])
-                      : compareReleases(release, "0.26.0") >= 0
-                        ? withOracleKeys(withoutTestLines(validDocuments[id]))
-                        : withoutPhaseKinds(validDocuments[id])
+                    ? compareReleases(release, "0.33.0") >= 0
+                      ? validDocuments[id]
+                      : compareReleases(release, "0.28.0") >= 0
+                        ? withOracleKeys(validDocuments[id])
+                        : compareReleases(release, "0.26.0") >= 0
+                          ? withOracleKeys(withoutTestLines(validDocuments[id]))
+                          : withoutPhaseKinds(validDocuments[id])
                     : validDocuments[id];
     const result = read(file, withKey(document, "$schema", schemaUrl(id, release)));
     // An answer format's $schema is a const of its own stamps: a release above
-    // its current stamp that this phax did not outgrow names no shape it wrote.
+    // its current stamp that this phax did not outgrow names no shape it wrote,
+    // and nor does one between the plan document's frozen 0.33.0 stamp and its
+    // current one.
     const constAbove =
-      id in ANSWER_FORMATS && !newer && compareReleases(release, CURRENT_STAMPS[id]) > 0;
+      id in ANSWER_FORMATS &&
+      !newer &&
+      (compareReleases(release, CURRENT_STAMPS[id]) > 0 ||
+        (id === "plan-document" && below && compareReleases(release, "0.33.0") > 0));
     if (constAbove) {
       expect(left(result).message).toContain(`$schema`);
       return;

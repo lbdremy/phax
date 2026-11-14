@@ -5,7 +5,7 @@ import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { loadOrExtractPlan } from "../../src/app/loadOrExtractPlan.js";
 import { runPreflights, type RunPreflightInput } from "../../src/app/runPreflight.js";
-import { withSchemaUrl } from "../../src/schemas/persisted.js";
+import { currentSchemaUrl, withSchemaUrl } from "../../src/schemas/persisted.js";
 import { encodePhaxPlanFile, type PhaxPlan } from "../../src/schemas/phaxPlan.js";
 import {
   resolveAuthoringConfig,
@@ -57,8 +57,8 @@ function extract(planMd: string) {
 }
 
 describe("acceptance: extraction of the acceptance header lines", () => {
-  // ac-header: the written phax-plan.json carries the pair at 0.33.0.
-  it("ac-header: the extracted phase carries acceptance, at phax-plan 0.33.0", async () => {
+  // ac-header: the written phax-plan.json carries the pair at phax-plan's current stamp.
+  it("ac-header: the extracted phase carries acceptance, at phax-plan's current stamp", async () => {
     const { result } = extract(acHeaderPlan());
     const extracted = await result;
     expect(Result.isSuccess(extracted)).toBe(true);
@@ -69,7 +69,7 @@ describe("acceptance: extraction of the acceptance header lines", () => {
       JSON.stringify(encodePhaxPlanFile(withSchemaUrl("phax-plan", extracted.success.plan))),
     ) as { $schema: string; phases: { id: string; acceptance?: unknown }[] };
 
-    expect(written.$schema).toBe("https://docs.phax.run/schemas/phax-plan/0.33.0.json");
+    expect(written.$schema).toBe(currentSchemaUrl("phax-plan"));
     expect(written.phases.find((p) => p.id === "phase-03")?.acceptance).toEqual({
       passedBy: "phase-04",
       files: [ACCEPTANCE_FILE],

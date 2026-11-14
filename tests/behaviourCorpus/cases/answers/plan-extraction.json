@@ -4,7 +4,7 @@
     {
       "name": "reads an extracted plan",
       "input": {
-        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json",
+        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.38.0.json",
         "plan": {
           "run": {
             "shortName": "my-run",
@@ -89,7 +89,7 @@
     {
       "name": "reads an incomplete report",
       "input": {
-        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json",
+        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.38.0.json",
         "plan": null,
         "incomplete": "phase-02 has no commit subject"
       },
@@ -212,13 +212,13 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "$schema: Expected \"https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json\", actual \"https://docs.phax.run/schemas/code-review/0.33.0.json\""
+        "refusal": "$schema: Expected \"https://docs.phax.run/schemas/phax-plan-extraction/0.38.0.json\", actual \"https://docs.phax.run/schemas/code-review/0.33.0.json\""
       }
     },
     {
       "name": "refuses an unexpected root key",
       "input": {
-        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json",
+        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.38.0.json",
         "plan": {
           "run": {
             "shortName": "my-run",
@@ -266,7 +266,7 @@
     {
       "name": "refuses both set by the coherence check",
       "input": {
-        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json",
+        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.38.0.json",
         "plan": {
           "run": {
             "shortName": "my-run",
@@ -313,7 +313,7 @@
     {
       "name": "refuses both null by the coherence check",
       "input": {
-        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json",
+        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.38.0.json",
         "plan": null,
         "incomplete": null
       },
@@ -325,7 +325,7 @@
     {
       "name": "refuses an incomplete that is not a string",
       "input": {
-        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json",
+        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.38.0.json",
         "plan": null,
         "incomplete": 3
       },
@@ -337,7 +337,7 @@
     {
       "name": "refuses an empty incomplete",
       "input": {
-        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json",
+        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.38.0.json",
         "plan": null,
         "incomplete": ""
       },
@@ -349,7 +349,7 @@
     {
       "name": "refuses a phase effort outside the enum",
       "input": {
-        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json",
+        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.38.0.json",
         "plan": {
           "run": {
             "shortName": "my-run",
@@ -396,7 +396,7 @@
     {
       "name": "refuses a phase carrying mode",
       "input": {
-        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json",
+        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.38.0.json",
         "plan": {
           "run": {
             "shortName": "my-run",
@@ -444,7 +444,7 @@
     {
       "name": "refuses a plan with no phase",
       "input": {
-        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json",
+        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.38.0.json",
         "plan": {
           "run": {
             "shortName": "my-run",
@@ -465,7 +465,7 @@
     {
       "name": "refuses a phase id outside the phase-NN form",
       "input": {
-        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json",
+        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.38.0.json",
         "plan": {
           "run": {
             "shortName": "my-run",
@@ -515,6 +515,149 @@
       "expected": {
         "ok": false,
         "refusal": "Expected an object, actual \"plan\""
+      }
+    },
+    {
+      "name": "rewrites a plannable path to its canonical form",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.38.0.json",
+        "plan": {
+          "run": {
+            "shortName": "my-run",
+            "title": "My Run",
+            "requiredCommands": [
+              "pnpm build"
+            ]
+          },
+          "phases": [
+            {
+              "id": "phase-01",
+              "model": "claude-sonnet-5-5",
+              "effort": "medium",
+              "planMarkdownAnchor": "#phase-01-first",
+              "plannedFilesToCreate": [
+                "src/first.ts"
+              ],
+              "plannedFilesToEdit": [
+                "./src/x.ts",
+                "src//y.ts",
+                "src/a/../z.ts"
+              ],
+              "optionalFilesToEdit": [],
+              "testLines": [
+                {
+                  "guarantee": "the first module answers",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "its return value",
+                  "loop": "in-phase",
+                  "criterion": null
+                }
+              ],
+              "commit": {
+                "subject": "feat: first",
+                "body": "Body."
+              }
+            }
+          ]
+        },
+        "incomplete": null
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "kind": "plan",
+          "plan": {
+            "phases": [
+              {
+                "commit": {
+                  "body": "Body.",
+                  "subject": "feat: first"
+                },
+                "effort": "medium",
+                "id": "phase-01",
+                "model": "claude-sonnet-5-5",
+                "optionalFilesToEdit": [],
+                "planMarkdownAnchor": "#phase-01-first",
+                "plannedFilesToCreate": [
+                  "src/first.ts"
+                ],
+                "plannedFilesToEdit": [
+                  "src/x.ts",
+                  "src/y.ts",
+                  "src/z.ts"
+                ],
+                "testLines": [
+                  {
+                    "criterion": null,
+                    "guarantee": "the first module answers",
+                    "loop": "in-phase",
+                    "oracle": "its return value",
+                    "size": "small",
+                    "technique": "example"
+                  }
+                ]
+              }
+            ],
+            "run": {
+              "requiredCommands": [
+                "pnpm build"
+              ],
+              "shortName": "my-run",
+              "title": "My Run"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "refuses an unplannable path, naming it and why",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.38.0.json",
+        "plan": {
+          "run": {
+            "shortName": "my-run",
+            "title": "My Run",
+            "requiredCommands": [
+              "pnpm build"
+            ]
+          },
+          "phases": [
+            {
+              "id": "phase-01",
+              "model": "claude-sonnet-5-5",
+              "effort": "medium",
+              "planMarkdownAnchor": "#phase-01-first",
+              "plannedFilesToCreate": [
+                "src/first.ts"
+              ],
+              "plannedFilesToEdit": [
+                "src/x.ts",
+                "../x.ts"
+              ],
+              "optionalFilesToEdit": [],
+              "testLines": [
+                {
+                  "guarantee": "the first module answers",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "its return value",
+                  "loop": "in-phase",
+                  "criterion": null
+                }
+              ],
+              "commit": {
+                "subject": "feat: first",
+                "body": "Body."
+              }
+            }
+          ]
+        },
+        "incomplete": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "plan.phases[0].plannedFilesToEdit[1]: \"../x.ts\" leaves the repository"
       }
     }
   ]

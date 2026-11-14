@@ -1,4 +1,5 @@
 import { Schema, type Types } from "effect";
+import { PlanPath, PlanPathFromWritten } from "./planPath.js";
 import { schemaUrlField } from "./schemaUrl.js";
 import { NonEmptyString, isExportedPattern } from "./strictString.js";
 import { TestLineSchema } from "./testLine.js";
@@ -46,15 +47,17 @@ export const PhaseAcceptanceSchema = Schema.NullOr(
 // `### Test strategy` section, and the model emits them through the same
 // `TestLineSchema`.
 // The fields are exported on their own so the plan document (planDocument.ts)
-// carries exactly these schemas rather than a copy that could drift.
+// carries exactly these schemas rather than a copy that could drift. The three
+// file lists hold canonical plan paths only (`PlanPath`): every reader then
+// compares the strings git reports, normalizing nothing itself.
 export const ExtractedPhaseFields = {
   id: PhaseIdSchema,
   model: NonEmptyString,
   effort: PlanEffortSchema,
   planMarkdownAnchor: NonEmptyString,
-  plannedFilesToCreate: Schema.Array(Schema.String),
-  plannedFilesToEdit: Schema.Array(Schema.String),
-  optionalFilesToEdit: Schema.Array(Schema.String),
+  plannedFilesToCreate: Schema.Array(PlanPath),
+  plannedFilesToEdit: Schema.Array(PlanPath),
+  optionalFilesToEdit: Schema.Array(PlanPath),
   mode: PhaseModeSchema,
   acceptance: PhaseAcceptanceSchema,
   testLines: Schema.Array(TestLineSchema),
@@ -68,9 +71,17 @@ const ExtractedPhaseSchema = Schema.Struct(ExtractedPhaseFields);
 
 // What the extraction model emits per phase: the extracted fields, test lines
 // included, without the two phax reads from the header lines. The
-// phax-plan-extraction answer (planExtraction.ts) carries exactly these.
+// phax-plan-extraction answer (planExtraction.ts) carries exactly these. Its
+// three file lists admit any plannable spelling and decode to its canonical
+// form (`PlanPathFromWritten`): the model may answer `./src/x.ts`, and phax
+// reads `src/x.ts`.
 const { mode: _mode, acceptance: _acceptance, ...answerPhaseFieldsRest } = ExtractedPhaseFields;
-export const answerPhaseFields = answerPhaseFieldsRest;
+export const answerPhaseFields = {
+  ...answerPhaseFieldsRest,
+  plannedFilesToCreate: Schema.Array(PlanPathFromWritten),
+  plannedFilesToEdit: Schema.Array(PlanPathFromWritten),
+  optionalFilesToEdit: Schema.Array(PlanPathFromWritten),
+};
 
 export const ExtractedRunSchema = Schema.Struct({
   // Loose on purpose: the model is unreliable at emitting a valid slug, so we

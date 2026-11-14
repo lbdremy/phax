@@ -4,7 +4,7 @@
     {
       "name": "accepts a typical document",
       "input": {
-        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json",
+        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.38.0.json",
         "plan": {
           "run": {
             "shortName": "invoice-export",
@@ -37,7 +37,7 @@
       "expected": {
         "ok": true,
         "value": {
-          "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json",
+          "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.38.0.json",
           "incomplete": null,
           "plan": {
             "phases": [
@@ -72,7 +72,7 @@
     {
       "name": "accepts a document setting every field",
       "input": {
-        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json",
+        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.38.0.json",
         "plan": {
           "run": {
             "shortName": "invoice-export",
@@ -118,7 +118,7 @@
       "expected": {
         "ok": true,
         "value": {
-          "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json",
+          "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.38.0.json",
           "incomplete": null,
           "plan": {
             "phases": [
@@ -166,7 +166,7 @@
     {
       "name": "accepts a document with only its required fields",
       "input": {
-        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json",
+        "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.38.0.json",
         "plan": {
           "run": {
             "shortName": "invoice-export",
@@ -212,7 +212,7 @@
       "expected": {
         "ok": true,
         "value": {
-          "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.33.0.json",
+          "$schema": "https://docs.phax.run/schemas/phax-plan-extraction/0.38.0.json",
           "incomplete": null,
           "plan": {
             "phases": [

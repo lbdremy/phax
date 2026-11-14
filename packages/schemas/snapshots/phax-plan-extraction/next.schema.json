@@ -1,0 +1,231 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "phax plan extraction",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "enum": [
+        "https://docs.phax.run/schemas/phax-plan-extraction/0.38.0.json"
+      ],
+      "description": "The phax-plan-extraction format's shape, exactly: https://docs.phax.run/schemas/phax-plan-extraction/0.38.0.json",
+      "const": "https://docs.phax.run/schemas/phax-plan-extraction/0.38.0.json"
+    },
+    "plan": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "run": {
+              "type": "object",
+              "properties": {
+                "shortName": {
+                  "$ref": "#/$defs/NonEmptyString"
+                },
+                "title": {
+                  "$ref": "#/$defs/NonEmptyString"
+                },
+                "requiredCommands": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "shortName",
+                "title",
+                "requiredCommands"
+              ],
+              "additionalProperties": false
+            },
+            "phases": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^phase-\\d{2}$"
+                  },
+                  "model": {
+                    "$ref": "#/$defs/NonEmptyString"
+                  },
+                  "effort": {
+                    "type": "string",
+                    "enum": [
+                      "none",
+                      "off",
+                      "low",
+                      "medium",
+                      "high",
+                      "xhigh",
+                      "max",
+                      "ultracode",
+                      "ultra"
+                    ]
+                  },
+                  "planMarkdownAnchor": {
+                    "$ref": "#/$defs/NonEmptyString"
+                  },
+                  "plannedFilesToCreate": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "description": "A file path relative to the repository root. phax rewrites `./`, empty and `.` segments and resolves `..` segments; it refuses an empty, absolute or directory path, one that leaves the repository, and one with a backslash."
+                    }
+                  },
+                  "plannedFilesToEdit": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "description": "A file path relative to the repository root. phax rewrites `./`, empty and `.` segments and resolves `..` segments; it refuses an empty, absolute or directory path, one that leaves the repository, and one with a backslash."
+                    }
+                  },
+                  "optionalFilesToEdit": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "description": "A file path relative to the repository root. phax rewrites `./`, empty and `.` segments and resolves `..` segments; it refuses an empty, absolute or directory path, one that leaves the repository, and one with a backslash."
+                    }
+                  },
+                  "testLines": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "guarantee": {
+                          "type": "string",
+                          "pattern": "^[^\\s\\x00-\\x1F\\x7F-\\x9F\\u2028\\u2029](?:[^\\x00-\\x1F\\x7F-\\x9F\\u2028\\u2029]*[^\\s\\x00-\\x1F\\x7F-\\x9F\\u2028\\u2029])?$",
+                          "description": "What the test guarantees: one non-empty, trimmed line."
+                        },
+                        "size": {
+                          "type": "string",
+                          "enum": [
+                            "small",
+                            "medium",
+                            "large"
+                          ]
+                        },
+                        "technique": {
+                          "type": "string",
+                          "enum": [
+                            "example",
+                            "boundary",
+                            "table",
+                            "property",
+                            "metamorphic",
+                            "stateful",
+                            "fuzz",
+                            "contract",
+                            "smoke"
+                          ]
+                        },
+                        "oracle": {
+                          "type": "string",
+                          "pattern": "^[^\\s\\x00-\\x1F\\x7F-\\x9F\\u2028\\u2029](?:[^\\x00-\\x1F\\x7F-\\x9F\\u2028\\u2029]*[^\\s\\x00-\\x1F\\x7F-\\x9F\\u2028\\u2029])?$",
+                          "description": "What the test compares against: one non-empty, trimmed line, never holding ' — ', never starting with '— ' and never ending with ' ·' (these three checked by phax, not by this JSON Schema)."
+                        },
+                        "loop": {
+                          "type": "string",
+                          "enum": [
+                            "acceptance",
+                            "in-phase"
+                          ]
+                        },
+                        "criterion": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "pattern": "^[^\\s`\\x00-\\x1F\\x7F-\\x9F]+$",
+                              "description": "An acceptance criterion id from the source spec's JSON sidecar: a run of non-whitespace characters, no backtick, neither 'acceptance', 'in-phase' nor 'oracle' (that last checked by phax, not by this JSON Schema)."
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "guarantee",
+                        "size",
+                        "technique",
+                        "oracle",
+                        "loop",
+                        "criterion"
+                      ],
+                      "additionalProperties": false,
+                      "description": "One test line of a phase's test strategy, rendered as `- <guarantee> — <size> · <technique> · <oracle> · <loop>[ · <criterion>]`, one per line under the phase's `### Test strategy` heading. `criterion` is an acceptance criterion id from the source spec's JSON sidecar, or null."
+                    }
+                  },
+                  "commit": {
+                    "type": "object",
+                    "properties": {
+                      "subject": {
+                        "$ref": "#/$defs/NonEmptyString"
+                      },
+                      "body": {
+                        "$ref": "#/$defs/NonEmptyString"
+                      }
+                    },
+                    "required": [
+                      "subject",
+                      "body"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "id",
+                  "model",
+                  "effort",
+                  "planMarkdownAnchor",
+                  "plannedFilesToCreate",
+                  "plannedFilesToEdit",
+                  "optionalFilesToEdit",
+                  "testLines",
+                  "commit"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "run",
+            "phases"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The extracted plan, or null when the plan is incomplete."
+    },
+    "incomplete": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "What is missing from the plan, or a test strategy item not in the line format; null when the plan is extracted."
+    }
+  },
+  "required": [
+    "$schema",
+    "plan",
+    "incomplete"
+  ],
+  "additionalProperties": false,
+  "description": "Exactly one of plan and incomplete is null.",
+  "$defs": {
+    "NonEmptyString": {
+      "type": "string",
+      "pattern": "^[\\s\\S]+$"
+    }
+  }
+}

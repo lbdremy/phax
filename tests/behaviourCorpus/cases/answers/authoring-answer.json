@@ -1786,7 +1786,7 @@
       "input": {
         "decoder": "plan",
         "raw": {
-          "$schema": "https://docs.phax.run/schemas/plan-document/0.33.0.json",
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.38.0.json",
           "kind": "plan",
           "sourceSpec": "docs/specs/2609230835-headless-authoring.md",
           "completesSpec": true,
@@ -1913,7 +1913,7 @@
       "expected": {
         "ok": true,
         "value": {
-          "$schema": "https://docs.phax.run/schemas/plan-document/0.33.0.json",
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.38.0.json",
           "completesSpec": true,
           "kind": "plan",
           "phases": [
@@ -2043,7 +2043,7 @@
       "input": {
         "decoder": "plan",
         "raw": {
-          "$schema": "https://docs.phax.run/schemas/plan-document/0.33.0.json",
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.38.0.json",
           "kind": "plan",
           "sourceSpec": null,
           "completesSpec": null,
@@ -2170,7 +2170,7 @@
       "expected": {
         "ok": true,
         "value": {
-          "$schema": "https://docs.phax.run/schemas/plan-document/0.33.0.json",
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.38.0.json",
           "completesSpec": null,
           "kind": "plan",
           "phases": [
@@ -2300,7 +2300,7 @@
       "input": {
         "decoder": "plan",
         "raw": {
-          "$schema": "https://docs.phax.run/schemas/plan-document/0.33.0.json",
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.38.0.json",
           "kind": "plan",
           "sourceSpec": "docs/specs/2609230835-headless-authoring.md",
           "run": {
@@ -2567,7 +2567,7 @@
       "input": {
         "decoder": "plan",
         "raw": {
-          "$schema": "https://docs.phax.run/schemas/plan-document/0.33.0.json",
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.38.0.json",
           "kind": "plan",
           "sourceSpec": "docs/specs/2609230835-headless-authoring.md",
           "completesSpec": true,
@@ -2651,7 +2651,7 @@
       "input": {
         "decoder": "plan",
         "raw": {
-          "$schema": "https://docs.phax.run/schemas/plan-document/0.33.0.json",
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.38.0.json",
           "kind": "plan",
           "sourceSpec": "docs/specs/2609230835-headless-authoring.md",
           "completesSpec": true,
@@ -2784,7 +2784,7 @@
       "input": {
         "decoder": "plan",
         "raw": {
-          "$schema": "https://docs.phax.run/schemas/plan-document/0.33.0.json",
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.38.0.json",
           "kind": "plan",
           "sourceSpec": "docs/specs/2609230835-headless-authoring.md",
           "completesSpec": true,
@@ -2859,7 +2859,7 @@
       "input": {
         "decoder": "plan",
         "raw": {
-          "$schema": "https://docs.phax.run/schemas/plan-document/0.33.0.json",
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.38.0.json",
           "kind": "plan",
           "sourceSpec": "docs/specs/2609230835-headless-authoring.md",
           "completesSpec": true,
@@ -2942,7 +2942,7 @@
       "input": {
         "decoder": "plan",
         "raw": {
-          "$schema": "https://docs.phax.run/schemas/plan-document/0.33.0.json",
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.38.0.json",
           "kind": "plan",
           "sourceSpec": "docs/specs/2609230835-headless-authoring.md",
           "completesSpec": true,
@@ -3025,7 +3025,7 @@
       "input": {
         "decoder": "plan",
         "raw": {
-          "$schema": "https://docs.phax.run/schemas/plan-document/0.33.0.json",
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.38.0.json",
           "kind": "plan",
           "sourceSpec": "docs/specs/2609230835-headless-authoring.md",
           "completesSpec": true,
@@ -3056,7 +3056,7 @@
       "input": {
         "decoder": "plan",
         "raw": {
-          "$schema": "https://docs.phax.run/schemas/plan-document/0.33.0.json",
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.38.0.json",
           "kind": "plan",
           "sourceSpec": "docs/specs/2609230835-headless-authoring.md",
           "completesSpec": true,
@@ -3221,6 +3221,276 @@
       "expected": {
         "ok": false,
         "refusal": "preamble.arbitratedQuestions[0]: an authoring session returns open questions only: arbitratedQuestions must be []"
+      }
+    },
+    {
+      "name": "plan: refuses a non-canonical path, naming the spelling to write",
+      "input": {
+        "decoder": "plan",
+        "raw": {
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.38.0.json",
+          "kind": "plan",
+          "sourceSpec": "docs/specs/2609230835-headless-authoring.md",
+          "completesSpec": true,
+          "run": {
+            "shortName": "headless-authoring",
+            "title": "Headless authoring",
+            "requiredCommands": [
+              "pnpm gen:usage-spec"
+            ]
+          },
+          "preamble": {
+            "summary": "Core to surface.",
+            "requiredCommandsNote": "Regenerates the usage spec.",
+            "technicalArbitrations": [],
+            "openQuestions": [],
+            "arbitratedQuestions": []
+          },
+          "phases": [
+            {
+              "id": "phase-01",
+              "title": "Phase 1",
+              "assignmentReason": null,
+              "model": "claude-opus-5-5",
+              "effort": "high",
+              "planMarkdownAnchor": "#phase-01-work",
+              "plannedFilesToCreate": [
+                "src/phase1.ts"
+              ],
+              "plannedFilesToEdit": [
+                "README.md"
+              ],
+              "optionalFilesToEdit": [],
+              "mode": "headless",
+              "acceptance": null,
+              "commit": {
+                "subject": "feat: phase 1",
+                "body": "Phase 1 body."
+              },
+              "objective": "Deliver the phase.",
+              "detailedInstructions": [
+                "Write the module."
+              ],
+              "boundaryContracts": null,
+              "testStrategy": [
+                {
+                  "guarantee": "phase 1 works",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "the module's output",
+                  "loop": "in-phase",
+                  "criterion": null
+                },
+                {
+                  "guarantee": "phase 1 keeps working",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "the module's output",
+                  "loop": "in-phase",
+                  "criterion": null
+                }
+              ],
+              "implementationOrder": [
+                "Module",
+                "Tests"
+              ],
+              "excludedScope": [],
+              "verification": "standard",
+              "expectedHandoff": "The exported names."
+            },
+            {
+              "id": "phase-02",
+              "title": "Phase 2",
+              "assignmentReason": null,
+              "model": "claude-opus-5-5",
+              "effort": "high",
+              "planMarkdownAnchor": "#phase-02-work",
+              "plannedFilesToCreate": [
+                "src/phase2.ts"
+              ],
+              "plannedFilesToEdit": [
+                "./src/x.ts",
+                "../shared/y.ts"
+              ],
+              "optionalFilesToEdit": [],
+              "mode": "headless",
+              "acceptance": null,
+              "commit": {
+                "subject": "feat: phase 2",
+                "body": "Phase 2 body."
+              },
+              "objective": "Deliver the phase.",
+              "detailedInstructions": [
+                "Write the module."
+              ],
+              "boundaryContracts": "phase-03 consumes X.",
+              "testStrategy": [
+                {
+                  "guarantee": "phase 2 works",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "the module's output",
+                  "loop": "in-phase",
+                  "criterion": null
+                },
+                {
+                  "guarantee": "phase 2 keeps working",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "the module's output",
+                  "loop": "in-phase",
+                  "criterion": null
+                }
+              ],
+              "implementationOrder": [
+                "Module",
+                "Tests"
+              ],
+              "excludedScope": [],
+              "verification": "standard",
+              "expectedHandoff": "The exported names."
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "phases[1].plannedFilesToEdit[0]: phase-02 plans \"./src/x.ts\", which is not canonical: write \"src/x.ts\""
+      }
+    },
+    {
+      "name": "plan: refuses a path that leaves the repository, naming why",
+      "input": {
+        "decoder": "plan",
+        "raw": {
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.38.0.json",
+          "kind": "plan",
+          "sourceSpec": "docs/specs/2609230835-headless-authoring.md",
+          "completesSpec": true,
+          "run": {
+            "shortName": "headless-authoring",
+            "title": "Headless authoring",
+            "requiredCommands": [
+              "pnpm gen:usage-spec"
+            ]
+          },
+          "preamble": {
+            "summary": "Core to surface.",
+            "requiredCommandsNote": "Regenerates the usage spec.",
+            "technicalArbitrations": [],
+            "openQuestions": [],
+            "arbitratedQuestions": []
+          },
+          "phases": [
+            {
+              "id": "phase-01",
+              "title": "Phase 1",
+              "assignmentReason": null,
+              "model": "claude-opus-5-5",
+              "effort": "high",
+              "planMarkdownAnchor": "#phase-01-work",
+              "plannedFilesToCreate": [
+                "src/phase1.ts"
+              ],
+              "plannedFilesToEdit": [
+                "README.md"
+              ],
+              "optionalFilesToEdit": [],
+              "mode": "headless",
+              "acceptance": null,
+              "commit": {
+                "subject": "feat: phase 1",
+                "body": "Phase 1 body."
+              },
+              "objective": "Deliver the phase.",
+              "detailedInstructions": [
+                "Write the module."
+              ],
+              "boundaryContracts": null,
+              "testStrategy": [
+                {
+                  "guarantee": "phase 1 works",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "the module's output",
+                  "loop": "in-phase",
+                  "criterion": null
+                },
+                {
+                  "guarantee": "phase 1 keeps working",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "the module's output",
+                  "loop": "in-phase",
+                  "criterion": null
+                }
+              ],
+              "implementationOrder": [
+                "Module",
+                "Tests"
+              ],
+              "excludedScope": [],
+              "verification": "standard",
+              "expectedHandoff": "The exported names."
+            },
+            {
+              "id": "phase-02",
+              "title": "Phase 2",
+              "assignmentReason": null,
+              "model": "claude-opus-5-5",
+              "effort": "high",
+              "planMarkdownAnchor": "#phase-02-work",
+              "plannedFilesToCreate": [
+                "src/phase2.ts"
+              ],
+              "plannedFilesToEdit": [
+                "src/x.ts",
+                "../shared/y.ts"
+              ],
+              "optionalFilesToEdit": [],
+              "mode": "headless",
+              "acceptance": null,
+              "commit": {
+                "subject": "feat: phase 2",
+                "body": "Phase 2 body."
+              },
+              "objective": "Deliver the phase.",
+              "detailedInstructions": [
+                "Write the module."
+              ],
+              "boundaryContracts": "phase-03 consumes X.",
+              "testStrategy": [
+                {
+                  "guarantee": "phase 2 works",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "the module's output",
+                  "loop": "in-phase",
+                  "criterion": null
+                },
+                {
+                  "guarantee": "phase 2 keeps working",
+                  "size": "small",
+                  "technique": "example",
+                  "oracle": "the module's output",
+                  "loop": "in-phase",
+                  "criterion": null
+                }
+              ],
+              "implementationOrder": [
+                "Module",
+                "Tests"
+              ],
+              "excludedScope": [],
+              "verification": "standard",
+              "expectedHandoff": "The exported names."
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "phases[1].plannedFilesToEdit[1]: phase-02 plans \"../shared/y.ts\", which leaves the repository"
       }
     }
   ]

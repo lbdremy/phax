@@ -2,6 +2,7 @@ import { Result, Schema, SchemaIssue } from "effect";
 import { describe, expect, it } from "vitest";
 import { decodeCodeReviewV0_29_0 } from "../../../../src/schemas/history/code-review/0.29.0.js";
 import { decodeRunStatusV0_26_0 } from "../../../../src/schemas/history/run-status/0.26.0.js";
+import { currentSchemaUrl } from "../../../../src/schemas/persisted.js";
 import { decodePhaxConfig } from "../../../../src/schemas/phaxConfig.js";
 import { PlanDocumentFileSchema } from "../../../../src/schemas/planDocument.js";
 import { refusalsOf } from "../../../../src/schemas/refusal/adapter.js";
@@ -65,7 +66,7 @@ function checkOrder(error: Schema.SchemaError, exceptions: ReadonlyArray<Excepti
 }
 
 const typicalPlanDocument = {
-  $schema: "https://docs.phax.run/schemas/plan-document/0.33.0.json",
+  $schema: currentSchemaUrl("plan-document"),
   kind: "plan",
   sourceSpec: null,
   completesSpec: null,

@@ -4,7 +4,7 @@
     {
       "name": "accepts a typical document",
       "input": {
-        "$schema": "https://docs.phax.run/schemas/plan-document/0.33.0.json",
+        "$schema": "https://docs.phax.run/schemas/plan-document/0.38.0.json",
         "kind": "plan",
         "sourceSpec": null,
         "completesSpec": null,
@@ -69,7 +69,7 @@
       "expected": {
         "ok": true,
         "value": {
-          "$schema": "https://docs.phax.run/schemas/plan-document/0.33.0.json",
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.38.0.json",
           "completesSpec": null,
           "kind": "plan",
           "phases": [
@@ -136,7 +136,7 @@
     {
       "name": "accepts a document setting every field",
       "input": {
-        "$schema": "https://docs.phax.run/schemas/plan-document/0.33.0.json",
+        "$schema": "https://docs.phax.run/schemas/plan-document/0.38.0.json",
         "kind": "plan",
         "sourceSpec": null,
         "completesSpec": null,
@@ -297,7 +297,7 @@
       "expected": {
         "ok": true,
         "value": {
-          "$schema": "https://docs.phax.run/schemas/plan-document/0.33.0.json",
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.38.0.json",
           "completesSpec": null,
           "kind": "plan",
           "phases": [
@@ -460,7 +460,7 @@
     {
       "name": "accepts a document with only its required fields",
       "input": {
-        "$schema": "https://docs.phax.run/schemas/plan-document/0.33.0.json",
+        "$schema": "https://docs.phax.run/schemas/plan-document/0.38.0.json",
         "kind": "plan",
         "sourceSpec": null,
         "completesSpec": null,
@@ -621,7 +621,7 @@
       "expected": {
         "ok": true,
         "value": {
-          "$schema": "https://docs.phax.run/schemas/plan-document/0.33.0.json",
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.38.0.json",
           "completesSpec": null,
           "kind": "plan",
           "phases": [

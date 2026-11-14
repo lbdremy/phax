@@ -128,7 +128,9 @@ export function formatFirstViolation(err: Schema.SchemaError): string {
  * reported together, `$schema` first and joined by `; ` (`$schema: is missing;
  * version: is unexpected, …`): a model that answered an older shape is told the
  * whole difference at once. Without one, the first violation reads as
- * `formatFirstViolation` reads it, at its full path.
+ * `formatFirstViolation` reads it, at its full path; a plan path the rule
+ * refuses also names the written path,
+ * `plan.phases[1].plannedFilesToEdit[0]: "../x.ts" leaves the repository`.
  */
 export function formatAnswerViolations(err: Schema.SchemaError): string {
   const refusals = refusalsOf(err);
@@ -138,11 +140,44 @@ export function formatAnswerViolations(err: Schema.SchemaError): string {
       (path.length === 1 && (path[0] === "$schema" || kind === "missing" || kind === "unexpected")),
   );
   if (ownKeys.length === 0) {
-    return refusals[0] === undefined ? UNDESCRIBED_REFUSAL : violationLine(refusals[0]);
+    const [first] = refusals;
+    if (first === undefined) return UNDESCRIBED_REFUSAL;
+    const planPath = refusedPlanPath(first, ["plan"]);
+    return planPath === undefined
+      ? violationLine(first)
+      : `${refusalPath(first.path, "bracketed")}: ${JSON.stringify(planPath.written)} ${refusalMessage(first)}`;
   }
   const stamp = ownKeys.filter(({ path }) => path[0] === "$schema");
   const others = ownKeys.filter(({ path }) => path[0] !== "$schema");
   return [...stamp, ...others].map(violationLine).join("; ");
+}
+
+/** A phase's three file lists, whose items are plan paths. */
+const PLAN_PATH_LISTS: ReadonlyArray<PropertyKey> = [
+  "plannedFilesToCreate",
+  "plannedFilesToEdit",
+  "optionalFilesToEdit",
+];
+
+/**
+ * The plan path a refusal refused, when it is one: the plan-path rule
+ * refused a string item of a phase's file list, at
+ * `<prefix>.phases[i].<list>[k]`. The type check runs first, so a string
+ * there is refused by the rule alone.
+ */
+function refusedPlanPath(
+  refusal: Refusal,
+  prefix: ReadonlyArray<PropertyKey>,
+): { readonly phase: number; readonly written: string } | undefined {
+  if (refusal.kind !== "filter" || typeof refusal.actual !== "string") return undefined;
+  const { path } = refusal;
+  if (path.length !== prefix.length + 4 || prefix.some((key, n) => path[n] !== key)) {
+    return undefined;
+  }
+  const [phases, i, list, k] = path.slice(prefix.length);
+  if (phases !== "phases" || typeof i !== "number" || typeof k !== "number") return undefined;
+  if (!PLAN_PATH_LISTS.includes(list ?? "")) return undefined;
+  return { phase: i, written: refusal.actual };
 }
 
 /**
@@ -151,11 +186,19 @@ export function formatAnswerViolations(err: Schema.SchemaError): string {
  * line, `<phase id> test line <j + 1> <path inside the line>: <message>`
  * (`phase-02 test line 2 loop: is missing`); the phase id is
  * `input.phases[i].id` when that is a string, `phases[i]` otherwise, and a
- * violation of the line itself has no inner path. Every other violation reads
- * as `formatFirstViolation` reads it.
+ * violation of the line itself has no inner path. A plan path the rule
+ * refuses, at `phases[i].<list>[k]`, names the phase, the written path and
+ * why: `phases[1].plannedFilesToEdit[0]: phase-02 plans "./src/x.ts", which is
+ * not canonical: write "src/x.ts"`. Every other violation reads as
+ * `formatFirstViolation` reads it.
  */
 export function formatPlanDocumentViolation(input: unknown, err: Schema.SchemaError): string {
   const first = firstRefusal(err);
+  const planPath = first === undefined ? undefined : refusedPlanPath(first, []);
+  if (first !== undefined && planPath !== undefined) {
+    const phaseId = phaseIdAt(input, planPath.phase) ?? `phases[${String(planPath.phase)}]`;
+    return `${refusalPath(first.path, "bracketed")}: ${phaseId} plans ${JSON.stringify(planPath.written)}, which ${refusalMessage(first)}`;
+  }
   const [phases, i, strategy, j, ...inner] = first?.path ?? [];
   if (
     first === undefined ||

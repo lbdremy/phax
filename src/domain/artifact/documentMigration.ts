@@ -3,9 +3,11 @@ import {
   type DocumentSidecar,
   type PlanDocumentLift,
   planDocumentV0_20_0AsV0_26_0,
+  planPathLiftMessage,
 } from "../../schemas/persisted.js";
 import { CURRENT_STAMPS } from "../../schemas/release.js";
 import { compareReleases } from "../../schemas/schemaUrl.js";
+import { renderPlanBody } from "../authoring/renderPlan.js";
 import { renderPlanBodyV0_25_0 } from "../authoring/renderPlanV0_25_0.js";
 import { renderSpecBody } from "../authoring/renderSpec.js";
 import { renderPlanBodyV0_26_0 } from "../authoring/renderPlanV0_26_0.js";
@@ -89,7 +91,8 @@ function formatOf(kind: ArtifactKind): DocumentFormat {
 // The body the sidecar's own shape renders: the current rendering for
 // spec-document 0.27.0, whose body did not change when the strict answer
 // restamped it (a migration rewrites the sidecar and leaves the Markdown
-// byte-identical); the rendering frozen at plan-document 0.32.0 for both
+// byte-identical), and for plan-document 0.33.0, whose body is the current
+// body (only its file lists' admitted spellings changed); the rendering frozen at plan-document 0.32.0 for both
 // 0.32.0 and 0.28.0 plan sidecars (their test lines end `· oracle`, and the
 // current rendering writes `· acceptance`, so the migration re-renders the
 // body); the rendering frozen at spec-document
@@ -112,6 +115,8 @@ function renderOwnShape(sidecar: Exclude<DocumentSidecar, { readonly shape: "cur
     }
   }
   switch (sidecar.shape) {
+    case "0.33.0":
+      return renderPlanBody(sidecar.older);
     case "0.32.0":
     case "0.28.0":
       return renderPlanBodyV0_32_0(sidecar.older);
@@ -130,24 +135,29 @@ function liftedDocument(
   sidecar: Exclude<DocumentSidecar, { readonly shape: "current" }>,
 ):
   | { readonly kind: "lifted"; readonly document: SidecarDocument }
-  | Extract<PlanDocumentLift, { readonly kind: "refused" }> {
+  | Exclude<PlanDocumentLift, { readonly kind: "lifted" }> {
   if (sidecar.kind === "spec") {
     return { kind: "lifted", document: { kind: "spec", document: sidecar.document } };
   }
   const { lift } = sidecar;
-  return lift.kind === "refused"
-    ? lift
-    : { kind: "lifted", document: { kind: "plan", document: lift.document } };
+  return lift.kind === "lifted"
+    ? { kind: "lifted", document: { kind: "plan", document: lift.document } }
+    : lift;
 }
 
 const TEST_STRATEGY_REMEDY =
   "Rewrite each phase's test strategy in the line format, in the sidecar and plan.md alike, or re-author the plan, then rerun.";
 
+const PLAN_PATH_REMEDY =
+  "Edit the path in the plan, in the sidecar and plan.md alike, to its canonical form (or remove it), then re-approve the plan and rerun.";
+
 /**
  * Whether and how one older sidecar migrates. Refused when the artifact is
  * not a valid spec or plan, when the sidecar does not decode (a refused older
  * shape included), when a plan's test strategy cannot be read as test lines
- * (its refused lift, naming the phase and the first departing line), or
+ * (its refused lift, naming the phase and the first departing line), when a
+ * plan holds a path that is not canonical (its refused lift, `<phase> <list>
+ * "<written>" <problem>`), or
  * when the body is not the sidecar's own-shape rendering
  * (compared as agreement compares). Otherwise the sidecar is rewritten at the
  * current shape and the body re-rendered in the current layout; a body whose
@@ -184,6 +194,11 @@ export function decideDocumentMigration(input: DocumentMigrationInput): Document
   // A plan whose test strategy cannot be read as test lines is refused before
   // its body is compared: no rewrite could keep what it declares.
   const lifted = liftedDocument(sidecar);
+  // A plan holding a path that is not canonical is refused too: phax never
+  // rewrites an approved plan's paths, so the operator edits them.
+  if (lifted.kind === "refused-path") {
+    return refuse(path, planPathLiftMessage(lifted), PLAN_PATH_REMEDY);
+  }
   if (lifted.kind === "refused") {
     const { phase, departure } = lifted;
     return refuse(

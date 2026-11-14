@@ -42,16 +42,17 @@ function built(nextFormats: ReadonlySet<string> = source.nextFormats): string {
 }
 
 describe("the shipped JSON Schemas", () => {
-  it("are read from the committed shipped-json.json, which only a format born in the release being developed overrides with its next snapshot", () => {
-    // Born in the release being developed: a snapshot folder holding only `next`.
-    // Before the cut that is each new format; the cut renames `next`, so after it
-    // there is none, and the test holds on both sides of a cut.
+  it("are read from the committed shipped-json.json, which only a format whose shape changes in the release being developed overrides with its next snapshot", () => {
+    // Changed in the release being developed: a snapshot folder holding `next`, a
+    // format born in it (`next` alone) or a later shape of a released one (`next`
+    // beside its releases). The cut renames `next`, so after it there is none, and
+    // the test holds on both sides of a cut.
     const snapshots = join(repoRoot, "packages/schemas/snapshots");
-    const born = readdirSync(snapshots, { withFileTypes: true })
+    const changed = readdirSync(snapshots, { withFileTypes: true })
       .filter((entry) => entry.isDirectory())
       .map((entry) => entry.name)
-      .filter((id) => readdirSync(join(snapshots, id)).join() === "next.schema.json");
-    expect(readNextFormats(repoRoot)).toEqual(new Set(born));
+      .filter((id) => readdirSync(join(snapshots, id)).includes("next.schema.json"));
+    expect(readNextFormats(repoRoot)).toEqual(new Set(changed));
     expect(readFileSync(join(repoRoot, SHIPPED_JSON_PATH), "utf8")).toBe(
       renderShippedJson(source.shipped),
     );
