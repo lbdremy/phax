@@ -158,7 +158,7 @@ type PhaxReader =
   | { readonly phax: { readonly read: Reader }; readonly writeOnly?: never }
   | { readonly phax: null; readonly writeOnly: string };
 
-type FormatEntry = {
+export type FormatEntry = {
   readonly id: FormatId;
   /** Valid current-shape documents, `$schema` first; derived on first call. */
   readonly valid: () => fc.Arbitrary<Document>;

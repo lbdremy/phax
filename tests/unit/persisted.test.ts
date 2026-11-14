@@ -1049,6 +1049,33 @@ describe("format readers", () => {
     expect(manifest).not.toHaveProperty("sourceSha");
   });
 
+  // Found by the property tests: a record manifest dispatches on its `kind`, so a stamp newer
+  // than this phax whose body lacks the kind (or names another) was refused for the kind, not
+  // for the release.
+  it.each([
+    "phase-record-manifest",
+    "authoring-record-manifest",
+    "decision-record-manifest",
+    "review-record-manifest",
+    "revision-record-manifest",
+  ] as const)(
+    "readRecordManifestFile refuses a %s stamped above this phax, naming the release, whatever its kind",
+    (id) => {
+      const [major] = PHAX_RELEASE.split(".").map(Number) as [number];
+      const release = `${major + 1}.0.0`;
+      for (const body of [{}, { kind: "review" }, { kind: "decision" }, { kind: "made-up" }]) {
+        const error = left(
+          readRecordManifestFile("run-0001/phase-01/record.json", {
+            $schema: schemaUrl(id, release),
+            ...body,
+          }),
+        );
+        expect(error.format).toBe(id);
+        expect(error.message).toContain(`${release} is newer than this phax (${PHAX_RELEASE})`);
+      }
+    },
+  );
+
   it("readRecordManifestFile refuses a version-1 phase manifest, naming the file", () => {
     const file = "run-0001/phase-01/record.json";
     const error = left(readRecordManifestFile(file, versionOnePhaseRecordManifest));

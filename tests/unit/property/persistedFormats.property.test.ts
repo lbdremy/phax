@@ -3,10 +3,20 @@
 // value back to the value written.
 import { isDeepStrictEqual } from "node:util";
 import { describe, expect, it } from "vitest";
+import * as fc from "fast-check";
+import { PACKAGE_VERSION } from "../../../packages/schemas/src/generated/index.js";
 import { withSchemaUrl } from "../../../src/schemas/persisted.js";
+import { PHAX_RELEASE } from "../../../src/schemas/release.js";
 import { FORMAT_IDS, type FormatId } from "../../../src/schemas/schemaUrl.js";
 import { FORMAT_REGISTRY, missingGenerators } from "../../helpers/property/formatRegistry.js";
 import { checkProperty, propertyTimeout } from "../../helpers/property/harness.js";
+import {
+  anyJson,
+  mutatedValid,
+  newerBody,
+  newerStamped,
+  stampedObject,
+} from "../../helpers/property/jsonInputs.js";
 
 const withoutSchema = (value: Readonly<Record<string, unknown>>): Record<string, unknown> => {
   const { $schema: _schema, ...rest } = value;
@@ -28,6 +38,13 @@ const firstDifference = (written: unknown, read: unknown, path = ""): string | u
   return `${path || "(root)"}: differs beyond its own keys`;
 };
 
+// A ReadVerdict: `ok: true` with a value, or `ok: false` with a message.
+const isVerdict = (value: unknown): boolean => {
+  if (typeof value !== "object" || value === null) return false;
+  const { ok, message } = value as { readonly ok?: unknown; readonly message?: unknown };
+  return ok === true ? "value" in value : ok === false && typeof message === "string";
+};
+
 describe.each(FORMAT_IDS)("%s", (id) => {
   it("has a generator", () => {
     expect(missingGenerators([id], FORMAT_REGISTRY), `no generator registered for ${id}`).toEqual(
@@ -47,6 +64,56 @@ describe.each(FORMAT_IDS)("%s", (id) => {
         if (difference !== undefined) throw new Error(`read back differs at ${difference}`);
         return true;
       });
+    },
+    propertyTimeout(),
+  );
+
+  it(
+    "never throws on any JSON",
+    () => {
+      const entry = FORMAT_REGISTRY[id];
+      const readers = [
+        ...(entry.phax === null ? [] : [{ name: "phax", read: entry.phax.read }]),
+        { name: "package", read: entry.parse },
+      ];
+      checkProperty(fc.oneof(anyJson(), stampedObject(id), mutatedValid(entry)), (input) => {
+        for (const { name, read } of readers) {
+          let verdict: unknown;
+          try {
+            verdict = read(input);
+          } catch (error) {
+            throw new Error(`the ${name} reader threw: ${String(error)}`, { cause: error });
+          }
+          if (!isVerdict(verdict)) throw new Error(`the ${name} reader answered no verdict`);
+        }
+        return true;
+      });
+    },
+    propertyTimeout(),
+  );
+
+  it(
+    "refuses a newer stamp whatever the body",
+    () => {
+      const entry = FORMAT_REGISTRY[id];
+      const readers = [
+        ...(entry.phax === null
+          ? []
+          : [{ name: "phax", running: PHAX_RELEASE as string, read: entry.phax.read }]),
+        { name: "package", running: PACKAGE_VERSION as string, read: entry.parse },
+      ];
+      for (const { name, running, read } of readers) {
+        checkProperty(newerStamped(id, running, newerBody(entry)), ({ release, document }) => {
+          const verdict = read(document);
+          if (verdict.ok) throw new Error(`the ${name} reader read a document stamped ${release}`);
+          if (!verdict.message.includes(release)) {
+            throw new Error(
+              `the ${name} reader's refusal does not name ${release}: ${verdict.message}`,
+            );
+          }
+          return true;
+        });
+      }
     },
     propertyTimeout(),
   );

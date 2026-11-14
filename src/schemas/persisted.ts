@@ -2111,6 +2111,26 @@ const readRevisionRecordManifest: Reader<RecordManifest> = (file, input) =>
     fromCurrent: ({ $schema: _schema, ...manifest }) => manifest,
   });
 
+const MANIFEST_READERS: Readonly<Record<string, Reader<RecordManifest>>> = {
+  "phase-record-manifest": readPhaseRecordManifest,
+  "authoring-record-manifest": readAuthoringRecordManifest,
+  "decision-record-manifest": readDecisionRecordManifest,
+  "review-record-manifest": readReviewRecordManifest,
+  "revision-record-manifest": readRevisionRecordManifest,
+};
+
+// The reader of the record manifest format a document's `$schema` names at a release newer than
+// PHAX_RELEASE, when it names one.
+function newerManifestReader(
+  input: Readonly<Record<string, unknown>>,
+): Reader<RecordManifest> | undefined {
+  const named = parseSchemaUrl(input["$schema"]);
+  if (named === undefined || compareReleases(named.release, PHAX_RELEASE) <= 0) return undefined;
+  return Object.hasOwn(MANIFEST_READERS, named.formatId)
+    ? MANIFEST_READERS[named.formatId]
+    : undefined;
+}
+
 /**
  * Reads any `record.json` on phax/records/v1, by its `kind`: "review" is read
  * as a review manifest, "decision" as a decision manifest and "revision" as a
@@ -2123,6 +2143,10 @@ const readRevisionRecordManifest: Reader<RecordManifest> = (file, input) =>
  */
 export const readRecordManifestFile: Reader<RecordManifest> = (file, input) => {
   if (!isDocumentObject(input)) return readAnyRecordManifest(file, input);
+  // A stamp newer than this phax is the first thing said, whatever the body's `kind` (a later
+  // release may have changed it): the manifest format the stamp names refuses it by release.
+  const newer = newerManifestReader(input);
+  if (newer !== undefined) return newer(file, input);
   if (input["kind"] === "review") return readReviewRecordManifest(file, input);
   if (input["kind"] === "decision") return readDecisionRecordManifest(file, input);
   if (input["kind"] === "revision") return readRevisionRecordManifest(file, input);
