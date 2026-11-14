@@ -62,10 +62,19 @@ describe("resolveSkillEditGrants", () => {
     ]);
   });
 
-  it("normalizes ./, repeated slashes and . segments, then de-duplicates", () => {
+  it("de-duplicates a repeated canonical path", () => {
     expect(
-      resolveSkillEditGrants([".claude/skills/foo/SKILL.md", "./.claude/skills//foo/./SKILL.md"]),
+      resolveSkillEditGrants([".claude/skills/foo/SKILL.md", ".claude/skills/foo/SKILL.md"]),
     ).toEqual([".claude/skills/foo/SKILL.md"]);
+  });
+
+  it.each([
+    "./.claude/skills/a/SKILL.md",
+    ".claude//skills/a/SKILL.md",
+    ".claude/skills/a/../b/SKILL.md",
+    "/.claude/skills/a/SKILL.md",
+  ])("never grants the non-canonical spelling %s", (spelling) => {
+    expect(resolveSkillEditGrants([spelling])).toEqual([]);
   });
 
   it("drops paths that are not files under .claude/skills/", () => {
