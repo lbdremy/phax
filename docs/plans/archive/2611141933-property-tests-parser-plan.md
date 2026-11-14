@@ -1,5 +1,5 @@
 ---
-status: Draft
+status: Abandoned
 source-spec: docs/specs/2611131320-property-tests.md
 completes-spec: false
 ---
