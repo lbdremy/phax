@@ -484,6 +484,28 @@ describe("phax artifact status — unmigrated sidecars", () => {
       "Questions:         2 — open 2 (Q3, Q4) · arbitrated 0 (0 lifted)",
     );
   });
+
+  it("a Draft plan stamped 0.33.0 listing ./src/x.ts still summarises the questions it recorded", async () => {
+    const base = planBase();
+    const [first, second] = base.phases;
+    // phase-02 edits ./src/x.ts, which only the 0.33.0 shape admits.
+    const doc: PlanDocument = {
+      ...base,
+      preamble: { ...base.preamble, openQuestions: OPEN_Q3_Q4 },
+      phases: [first, { ...second!, plannedFilesToEdit: ["./src/x.ts"] }],
+    };
+    writeRepoFile(PLAN, PLAN_FRONTMATTER + renderPlanBody(doc));
+    writeRepoFile(PLAN_SIDECAR, json({ $schema: schemaUrl("plan-document", "0.33.0"), ...doc }));
+    commitAll();
+
+    const lines = await statusLines(PLAN);
+    expect(lineOf(lines, "Authored")).toBe(
+      `Authored:          headless — sidecar ${PLAN_SIDECAR} (plan-document 0.33.0 — migrate with \`phax artifact migrate-documents\`)`,
+    );
+    expect(lineOf(lines, "Questions")).toBe(
+      "Questions:         2 — open 2 (Q3, Q4) · arbitrated 0 (0 lifted)",
+    );
+  });
 });
 
 describe("phax artifact status — hand-authored §9", () => {
