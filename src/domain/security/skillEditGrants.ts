@@ -1,3 +1,4 @@
+import { readPlanPath } from "../plan/planPath.js";
 import { matchProtected, type ProtectedList } from "./protectedPaths.js";
 
 const SKILLS_PREFIX = ".claude/skills/";
@@ -7,27 +8,19 @@ const SKILLS_PREFIX = ".claude/skills/";
 const RULE_METACHARACTERS = /[*?[\](){}]/;
 
 /**
- * Normalises a repo-relative path to POSIX form: drops a leading `./`, empty
- * and `.` segments. Returns `undefined` for absolute paths or any `..` segment.
- */
-function normaliseRepoRelative(raw: string): string | undefined {
-  if (raw.startsWith("/")) return undefined;
-  const segments = raw.split("/").filter((segment) => segment !== "" && segment !== ".");
-  if (segments.includes("..")) return undefined;
-  return segments.join("/");
-}
-
-/**
  * Selects the `.claude/skills/**` files among a phase's planned paths
  * (create + edit + optional edit). Each result is an exact repo-relative POSIX
- * file path: normalised, de-duplicated, in input order.
+ * file path, de-duplicated, in input order. Plan paths reach the grant
+ * canonical, because the decode makes them so (src/schemas/planPath.ts); a
+ * non-canonical path is skipped, never rewritten, and so never granted.
  */
 export function resolveSkillEditGrants(plannedPaths: readonly string[]): readonly string[] {
   const grants: string[] = [];
   const seen = new Set<string>();
   for (const raw of plannedPaths) {
-    const path = normaliseRepoRelative(raw);
-    if (path === undefined) continue;
+    const reading = readPlanPath(raw);
+    if (reading.kind !== "canonical") continue;
+    const path = reading.path;
     if (!path.startsWith(SKILLS_PREFIX) || path.length === SKILLS_PREFIX.length) continue;
     if (RULE_METACHARACTERS.test(path)) continue;
     if (seen.has(path)) continue;
